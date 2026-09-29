@@ -1,6 +1,6 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Compass, Home, Trophy, UserRound, Vote, type LucideIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
@@ -16,10 +16,23 @@ const ICONS: Record<(typeof PUBLIC_GLOBAL_AREAS)[number]["id"], LucideIcon> = {
 
 type PrimaryArea = (typeof PUBLIC_GLOBAL_AREAS)[number]["id"];
 
+type DragState = {
+  pointerId: number;
+  startX: number;
+  originIndex: number;
+  moved: boolean;
+};
+
 const LAST_PRIMARY_AREA_KEY = "solaris:app-last-primary-area";
 
 function isPrimaryArea(value: string): value is PrimaryArea {
   return PUBLIC_GLOBAL_AREAS.some((area) => area.id === value);
+}
+
+function destinationForIndex(index: number, signedIn: boolean) {
+  const area = PUBLIC_GLOBAL_AREAS[index];
+  if (!area) return null;
+  return area.id === "me" ? (signedIn ? "/my-solaris" : "/auth") : area.to;
 }
 
 export function AppTabBar({
@@ -33,13 +46,19 @@ export function AppTabBar({
   participateBadge?: number;
   meBadge?: number;
 }) {
+  const navigate = useNavigate();
   const routeArea = publicAreaForPath(pathname);
   const [collapsed, setCollapsed] = useState(false);
   const [fallbackArea, setFallbackArea] = useState<PrimaryArea>("home");
+  const [dragPreviewIndex, setDragPreviewIndex] = useState<number | null>(null);
+  const [dragging, setDragging] = useState(false);
   const lastScrollY = useRef(0);
   const downTravel = useRef(0);
   const upTravel = useRef(0);
   const frame = useRef<number | null>(null);
+  const materialRef = useRef<HTMLDivElement | null>(null);
+  const dragState = useRef<DragState | null>(null);
+  const suppressClick = useRef(false);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(LAST_PRIMARY_AREA_KEY);
@@ -102,6 +121,118 @@ export function AppTabBar({
 
   const activeArea: PrimaryArea =
     routeArea === "help" ? fallbackArea : isPrimaryArea(routeArea) ? routeArea : fallbackArea;
+  const activeIndex = Math.max(
+    0,
+    PUBLIC_GLOBAL_AREAS.findIndex((area) => area.id === activeArea),
+  );
+  const visualActiveIndex = dragPreviewIndex ?? activeIndex;
+
+  const tabRects = () => {
+    const material = materialRef.current;
+    if (!material) return [];
+    return Array.from(material.querySelectorAll<HTMLElement>("[data-app-tab-index]")).map(
+      (element) => element.getBoundingClientRect(),
+    );
+  };
+
+  const nearestTabIndex = (clientX: number) => {
+    const rects = tabRects();
+    if (!rects.length) return activeIndex;
+    let nearest = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    rects.forEach((rect, index) => {
+      const center = rect.left + rect.width / 2;
+      const distance = Math.abs(clientX - center);
+      if (distance < nearestDistance) {
+        nearest = index;
+        nearestDistance = distance;
+      }
+    });
+    return nearest;
+  };
+
+  const clearDrag = () => {
+    materialRef.current?.style.setProperty("--solaris-tab-drag-x", "0px");
+    dragState.current = null;
+    setDragging(false);
+    setDragPreviewIndex(null);
+  };
+
+  const startDrag = (
+    event: ReactPointerEvent<HTMLAnchorElement>,
+    index: number,
+    active: boolean,
+  ) => {
+    if (!active || collapsed || event.pointerType === "mouse" && event.button !== 0) return;
+
+    dragState.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      originIndex: index,
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    setDragging(true);
+  };
+
+  const moveDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
+    const drag = dragState.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    const rects = tabRects();
+    const origin = rects[drag.originIndex];
+    if (!origin) return;
+
+    const originCenter = origin.left + origin.width / 2;
+    const minCenter = rects[0] ? rects[0].left + rects[0].width / 2 : originCenter;
+    const lastRect = rects[rects.length - 1];
+    const maxCenter = lastRect ? lastRect.left + lastRect.width / 2 : originCenter;
+    const rawDelta = event.clientX - drag.startX;
+    const delta = Math.min(maxCenter - originCenter, Math.max(minCenter - originCenter, rawDelta));
+
+    if (Math.abs(delta) >= 7) drag.moved = true;
+    materialRef.current?.style.setProperty("--solaris-tab-drag-x", `${delta}px`);
+
+    const preview = nearestTabIndex(event.clientX);
+    setDragPreviewIndex((current) => (current === preview ? current : preview));
+
+    if (drag.moved) event.preventDefault();
+  };
+
+  const finishDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
+    const drag = dragState.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    const targetIndex = nearestTabIndex(event.clientX);
+    const moved = drag.moved;
+    suppressClick.current = moved;
+
+    try {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    } catch {
+      // Pointer capture may already have been released by the browser.
+    }
+
+    clearDrag();
+
+    if (!moved || targetIndex === drag.originIndex) return;
+    const to = destinationForIndex(targetIndex, signedIn);
+    const area = PUBLIC_GLOBAL_AREAS[targetIndex];
+    if (!to || !area) return;
+
+    trackPublicUxEvent("public_nav_clicked", {
+      target: to,
+      metadata: { area: area.id, source: "app_tabbar_drag" },
+    });
+    void navigate({ to: to as any });
+  };
+
+  const cancelDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
+    const drag = dragState.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    suppressClick.current = drag.moved;
+    clearDrag();
+  };
 
   return (
     <nav
@@ -156,10 +287,18 @@ export function AppTabBar({
           </filter>
         </defs>
       </svg>
-      <div className="solaris-app-tabbar-material">
-        {PUBLIC_GLOBAL_AREAS.map((area) => {
+
+      <div
+        ref={materialRef}
+        className="solaris-app-tabbar-material"
+        data-active-index={activeIndex}
+        data-dragging={dragging ? "true" : "false"}
+      >
+        <span className="solaris-app-tab-indicator" aria-hidden="true" />
+
+        {PUBLIC_GLOBAL_AREAS.map((area, index) => {
           const Icon = ICONS[area.id];
-          const to = area.id === "me" ? (signedIn ? "/my-solaris" : "/auth") : area.to;
+          const to = destinationForIndex(index, signedIn)!;
           const active =
             area.id === "me"
               ? pathname.startsWith("/my-solaris") ||
@@ -167,6 +306,7 @@ export function AppTabBar({
                 pathname.startsWith("/auth") ||
                 (routeArea === "help" && activeArea === "me")
               : activeArea === area.id;
+          const visuallyActive = index === visualActiveIndex;
           const badge =
             area.id === "participate"
               ? participateBadge
@@ -178,9 +318,20 @@ export function AppTabBar({
             <Link
               key={area.id}
               to={to as any}
+              data-app-tab-index={index}
               aria-current={active ? "page" : undefined}
               aria-label={area.label}
+              onPointerDown={(event) => startDrag(event, index, active)}
+              onPointerMove={moveDrag}
+              onPointerUp={finishDrag}
+              onPointerCancel={cancelDrag}
               onClick={(event) => {
+                if (suppressClick.current) {
+                  suppressClick.current = false;
+                  event.preventDefault();
+                  return;
+                }
+
                 const wasCollapsed = collapsed;
                 setCollapsed(false);
                 if (wasCollapsed && active) {
@@ -192,7 +343,7 @@ export function AppTabBar({
                   metadata: { area: area.id, source: "app_tabbar" },
                 });
               }}
-              className={cn("solaris-app-tab", active && "is-active")}
+              className={cn("solaris-app-tab", visuallyActive && "is-active")}
             >
               <span className="relative">
                 <Icon className="solaris-app-tab-icon size-[1.15rem]" aria-hidden="true" />

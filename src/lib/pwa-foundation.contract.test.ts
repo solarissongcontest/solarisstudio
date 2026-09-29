@@ -31,10 +31,28 @@ describe("Solaris installed-app foundation", () => {
     expect(tabs).toContain('id="solaris-liquid-glass-refraction"');
     expect(tabs).toContain("feDisplacementMap");
     expect(styles).toContain('url("#solaris-liquid-glass-refraction")');
-    expect(styles).toContain("-webkit-backdrop-filter: blur(4.5px)");
-    expect(styles).toContain("rgb(255 255 255 / .075)");
+    expect(styles).toContain("-webkit-backdrop-filter: blur(16px)");
+    expect(styles).toContain("rgb(255 255 255 / .055)");
     expect(styles).toContain("mask-composite: exclude");
     expect(styles).not.toContain("linear-gradient(145deg, rgb(10 29 55 / .90), rgb(4 18 40 / .90))");
+    expect(styles).toContain(".solaris-app-tab-indicator");
+    expect(styles).toContain("background: transparent");
+  });
+
+  it("lets the active tab indicator drag across destinations", () => {
+    const tabs = source("src/components/app/AppTabBar.tsx");
+    expect(tabs).toContain("data-app-tab-index");
+    expect(tabs).toContain("setPointerCapture");
+    expect(tabs).toContain("--solaris-tab-drag-x");
+    expect(tabs).toContain('source: "app_tabbar_drag"');
+    expect(tabs).toContain("nearestTabIndex");
+  });
+
+  it("keeps Explore personalized content separated from the next section", () => {
+    const explore = source("src/routes/explore/index.tsx");
+    const styles = source("src/styles/app-shell.css");
+    expect(explore).toContain('className="public-hub-section"');
+    expect(styles).toContain("[data-solaris-app-explore-personalized] + .public-hub-section");
   });
 
   it("uses a bottom utility sheet instead of duplicating section navigation", () => {

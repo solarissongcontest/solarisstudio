@@ -102,7 +102,7 @@ function ExplorePage() {
 
       {isAppMode ? <AppExplorePersonalized /> : null}
 
-      <section aria-labelledby="explore-primary-title">
+      <section className="public-hub-section" aria-labelledby="explore-primary-title">
         <div className="public-hub-section-heading">
           <p className="public-hub-eyebrow">Start here</p>
           <h2 id="explore-primary-title">What do you want to explore?</h2>
