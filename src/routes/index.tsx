@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { CurrentContestHero } from "@/components/home/CurrentContestHero";
@@ -85,6 +86,7 @@ const CORE_DESTINATIONS = [
 ] as const;
 
 function HomePage() {
+  const { isAppMode } = useSolarisApp();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
   const countriesQuery = useCountries();
@@ -224,52 +226,70 @@ function HomePage() {
   return (
     <AppShell>
       <div className="min-w-0 space-y-7 sm:space-y-9">
-        <header className="min-w-0 border-b border-border/70 pb-4">
-          <div className="flex min-w-0 items-end justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-[9px] font-black uppercase tracking-[0.28em] text-primary sm:text-[10px]">
-                TSBC Newsroom
-              </p>
-              <h1 className="mt-1 break-words font-display text-3xl font-black tracking-[-0.045em] sm:text-5xl">
-                Solaris Today
-              </h1>
-              <p className="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                The quickest route into SSC countries, editions, results, records and analysis.
-              </p>
-            </div>
-
-            <div className="hidden shrink-0 text-right sm:block">
-              <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                Terra Solaris
-              </p>
-              <p className="mt-1 text-xs font-semibold">Song Contest Desk</p>
-            </div>
-          </div>
-
-          <div className="mt-4 flex min-w-0 items-center gap-3 border-y border-border/60 py-2.5">
-            <span className="shrink-0 rounded-md bg-primary px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-primary-foreground">
-              {contestState.phase === "live"
-                ? "Live"
-                : contestState.edition
-                  ? contestState.statusLabel
-                  : breakingStory?.intensity === "breaking"
-                    ? "Breaking"
-                    : "Latest"}
-            </span>
-            <p className="min-w-0 flex-1 truncate text-xs font-semibold sm:text-sm">
-              {breakingStory?.headline ??
-                (latestEdition
-                  ? `${editionLabel(latestEdition)} is the latest published Solaris edition`
-                  : "The Solaris newsroom is waiting for its next story")}
+        {isAppMode ? (
+          <header className="min-w-0 pb-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+              {contestState.edition ? contestState.statusLabel : "Solaris"}
             </p>
-            <Link
-              to="/countries"
-              className="shrink-0 text-[9px] font-black uppercase tracking-[0.13em] text-primary sm:text-[10px]"
-            >
-              Browse SSC →
-            </Link>
-          </div>
-        </header>
+            <h1 className="mt-1 break-words font-display text-3xl font-black tracking-[-0.04em]">
+              Solaris Studio
+            </h1>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              {latestEdition
+                ? `${editionLabel(latestEdition)} · ${contestState.headline}`
+                : contestState.description}
+            </p>
+          </header>
+        ) : (
+          <header className="min-w-0 border-b border-border/70 pb-4">
+            <div className="flex min-w-0 items-end justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[9px] font-black uppercase tracking-[0.28em] text-primary sm:text-[10px]">
+                  TSBC Newsroom
+                </p>
+                <h1 className="mt-1 break-words font-display text-3xl font-black tracking-[-0.045em] sm:text-5xl">
+                  Solaris Today
+                </h1>
+                <p className="mt-2 max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                  The quickest route into SSC countries, editions, results, records and analysis.
+                </p>
+              </div>
+
+              <div className="hidden shrink-0 text-right sm:block">
+                <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                  Terra Solaris
+                </p>
+                <p className="mt-1 text-xs font-semibold">Song Contest Desk</p>
+              </div>
+            </div>
+
+            <div className="mt-4 flex min-w-0 items-center gap-3 border-y border-border/60 py-2.5">
+              <span className="shrink-0 rounded-md bg-primary px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-primary-foreground">
+                {contestState.phase === "live"
+                  ? "Live"
+                  : contestState.edition
+                    ? contestState.statusLabel
+                    : breakingStory?.intensity === "breaking"
+                      ? "Breaking"
+                      : "Latest"}
+              </span>
+              <p className="min-w-0 flex-1 truncate text-xs font-semibold sm:text-sm">
+                {breakingStory?.headline ??
+                  (latestEdition
+                    ? `${editionLabel(latestEdition)} is the latest published Solaris edition`
+                    : "The Solaris newsroom is waiting for its next story")}
+              </p>
+              <Link
+                to="/countries"
+                className="shrink-0 text-[9px] font-black uppercase tracking-[0.13em] text-primary sm:text-[10px]"
+              >
+                Browse SSC →
+              </Link>
+            </div>
+          </header>
+        )}
+
+        {isAppMode ? <HomePersonalAttention editionId={latestEdition?.id ?? null} /> : null}
 
         <section className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,.65fr)]">
           <CurrentContestHero state={contestState} />
@@ -308,9 +328,9 @@ function HomePage() {
 
         <PulseStrip />
 
-        <HomePersonalAttention editionId={latestEdition?.id ?? null} />
+        {!isAppMode ? <HomePersonalAttention editionId={latestEdition?.id ?? null} /> : null}
 
-        <section>
+        {!isAppMode ? <section>
           <SectionHeader
             kicker="Start here"
             title="Explore Solaris"
@@ -326,7 +346,7 @@ function HomePage() {
               <DestinationCard key={item.to} {...item} />
             ))}
           </div>
-        </section>
+        </section> : null}
 
         <section className="grid min-w-0 gap-5 lg:grid-cols-[1.15fr_.85fr]">
           <div className="min-w-0">
