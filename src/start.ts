@@ -11,8 +11,9 @@ const MAINTENANCE_ASSET_PATHS = new Set([
   "/solaris-studio-mark.png",
   "/favicon.ico",
   "/apple-touch-icon.png",
-  "/icon-192.jpg",
-  "/icon-512.jpg",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/icon-1024.png",
   "/site.webmanifest",
 ]);
 
