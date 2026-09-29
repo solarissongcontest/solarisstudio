@@ -170,37 +170,44 @@
     --solaris-tab-gap: .15rem;
     --solaris-tab-drag-x: 0px;
     --solaris-tab-drag-scale-x: 1;
-    --solaris-tab-drag-scale-y: 1;
-    --solaris-tabbar-pull-x: 1;
-    --solaris-tabbar-pull-y: 1;
+    --solaris-tabbar-pull-width: 0px;
+    --solaris-tabbar-pull-height: 0px;
+    --solaris-tabbar-pull-radius: 0px;
     position: relative;
-    isolation: isolate;
-    overflow: hidden;
     pointer-events: auto;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: var(--solaris-tab-gap);
     width: min(40rem, 100%);
-    min-height: var(--solaris-app-tabbar-height);
+    min-height: calc(var(--solaris-app-tabbar-height) + var(--solaris-tabbar-pull-height));
     margin-inline: auto;
     padding: var(--solaris-tab-pad);
-    border: 1px solid rgb(236 249 255 / .30);
-    border-radius: 1.55rem;
-    background:
-      linear-gradient(145deg, rgb(255 255 255 / .065), rgb(18 28 44 / .20) 48%, rgb(7 14 26 / .24));
-    -webkit-backdrop-filter: blur(32px) saturate(155%) brightness(.99) contrast(1.015);
-    backdrop-filter: blur(32px) saturate(155%) brightness(.99) contrast(1.015);
-    transform: scaleX(var(--solaris-tabbar-pull-x)) scaleY(var(--solaris-tabbar-pull-y));
-    transform-origin: center bottom;
-    box-shadow:
-      inset 1px 1px 0 rgb(255 255 255 / .28),
-      inset -1px -1px 0 rgb(106 188 222 / .08),
-      inset 0 0 18px rgb(255 255 255 / .028),
-      0 16px 42px rgb(0 3 22 / .20);
+    border: 0;
+    border-radius: calc(1.55rem + var(--solaris-tabbar-pull-radius));
+    background: transparent;
+    box-shadow: none;
   }
 
-  .solaris-app-tabbar-material::before,
-  .solaris-app-tabbar-material::after {
+  .solaris-app-tabbar-glass {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    overflow: hidden;
+    border: 1px solid rgb(236 249 255 / .24);
+    border-radius: inherit;
+    background:
+      linear-gradient(145deg, rgb(255 255 255 / .055), rgb(11 18 30 / .25) 48%, rgb(5 11 21 / .30));
+    -webkit-backdrop-filter: blur(40px) saturate(145%) brightness(.94) contrast(1.02);
+    backdrop-filter: blur(40px) saturate(145%) brightness(.94) contrast(1.02);
+    box-shadow:
+      inset 1px 1px 0 rgb(255 255 255 / .24),
+      inset -1px -1px 0 rgb(92 157 187 / .07),
+      0 16px 42px rgb(0 3 22 / .20);
+    pointer-events: none;
+  }
+
+  .solaris-app-tabbar-glass::before,
+  .solaris-app-tabbar-glass::after {
     content: "";
     position: absolute;
     inset: 0;
@@ -208,58 +215,55 @@
     pointer-events: none;
   }
 
-  .solaris-app-tabbar-material::before {
-    z-index: 0;
+  .solaris-app-tabbar-glass::before {
     background:
-      radial-gradient(ellipse at 16% 2%, rgb(255 255 255 / .22), transparent 33%),
-      radial-gradient(ellipse at 88% 102%, rgb(81 189 234 / .12), transparent 36%),
-      linear-gradient(110deg, transparent 12%, rgb(255 255 255 / .07) 35%, transparent 54%);
+      radial-gradient(ellipse at 15% 0%, rgb(255 255 255 / .18), transparent 31%),
+      radial-gradient(ellipse at 87% 105%, rgb(83 184 225 / .08), transparent 34%),
+      linear-gradient(108deg, transparent 14%, rgb(255 255 255 / .045) 36%, transparent 55%);
     mix-blend-mode: screen;
   }
 
-  .solaris-app-tabbar-material::after {
-    z-index: 3;
+  .solaris-app-tabbar-glass::after {
     padding: 1px;
     background:
       conic-gradient(
         from 210deg,
-        rgb(255 255 255 / .62),
-        rgb(126 223 255 / .28) 13%,
-        transparent 27%,
-        transparent 70%,
-        rgb(255 181 232 / .16) 84%,
-        rgb(255 255 255 / .52)
+        rgb(255 255 255 / .48),
+        rgb(126 223 255 / .18) 13%,
+        transparent 28%,
+        transparent 71%,
+        rgb(255 181 232 / .10) 84%,
+        rgb(255 255 255 / .42)
       );
     -webkit-mask:
       linear-gradient(#000 0 0) content-box,
       linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
-    opacity: .66;
+    opacity: .58;
   }
-
 
   .solaris-app-tab-indicator {
     position: absolute;
-    z-index: 1;
-    top: var(--solaris-tab-pad);
-    bottom: var(--solaris-tab-pad);
+    z-index: 2;
+    top: 50%;
     left: var(--solaris-tab-pad);
     width: calc((100% - var(--solaris-tab-total-inset) - .6rem) / 5);
+    height: 3.7rem;
     border: 0;
-    border-radius: 1.12rem;
-    background: rgb(220 224 230 / .18);
+    border-radius: 1.08rem;
+    background: rgb(190 194 201 / .24);
     box-shadow: none;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
     transform:
+      translateY(-50%)
       translateX(var(--solaris-tab-drag-x))
-      scaleX(var(--solaris-tab-drag-scale-x))
-      scaleY(var(--solaris-tab-drag-scale-y));
+      scaleX(var(--solaris-tab-drag-scale-x));
     transform-origin: center center;
     transition:
-      transform 220ms cubic-bezier(.2,.82,.2,1),
-      width 180ms cubic-bezier(.32,.72,0,1),
+      transform 230ms cubic-bezier(.18,.86,.22,1),
+      height 180ms cubic-bezier(.32,.72,0,1),
       border-radius 180ms cubic-bezier(.32,.72,0,1),
       background-color 140ms ease;
     pointer-events: none;
@@ -267,30 +271,30 @@
 
   .solaris-app-tabbar-material[data-active-index="1"] .solaris-app-tab-indicator {
     transform:
+      translateY(-50%)
       translateX(calc(100% + .15rem + var(--solaris-tab-drag-x)))
-      scaleX(var(--solaris-tab-drag-scale-x))
-      scaleY(var(--solaris-tab-drag-scale-y));
+      scaleX(var(--solaris-tab-drag-scale-x));
   }
 
   .solaris-app-tabbar-material[data-active-index="2"] .solaris-app-tab-indicator {
     transform:
+      translateY(-50%)
       translateX(calc(200% + .30rem + var(--solaris-tab-drag-x)))
-      scaleX(var(--solaris-tab-drag-scale-x))
-      scaleY(var(--solaris-tab-drag-scale-y));
+      scaleX(var(--solaris-tab-drag-scale-x));
   }
 
   .solaris-app-tabbar-material[data-active-index="3"] .solaris-app-tab-indicator {
     transform:
+      translateY(-50%)
       translateX(calc(300% + .45rem + var(--solaris-tab-drag-x)))
-      scaleX(var(--solaris-tab-drag-scale-x))
-      scaleY(var(--solaris-tab-drag-scale-y));
+      scaleX(var(--solaris-tab-drag-scale-x));
   }
 
   .solaris-app-tabbar-material[data-active-index="4"] .solaris-app-tab-indicator {
     transform:
+      translateY(-50%)
       translateX(calc(400% + .60rem + var(--solaris-tab-drag-x)))
-      scaleX(var(--solaris-tab-drag-scale-x))
-      scaleY(var(--solaris-tab-drag-scale-y));
+      scaleX(var(--solaris-tab-drag-scale-x));
   }
 
   .solaris-app-tabbar-material[data-dragging="true"] {
@@ -299,12 +303,12 @@
 
   .solaris-app-tabbar-material[data-dragging="true"] .solaris-app-tab-indicator {
     transition: none;
-    background: rgb(224 228 234 / .22);
+    background: rgb(198 202 210 / .28);
   }
 
   .solaris-app-tab {
     position: relative;
-    z-index: 2;
+    z-index: 3;
     touch-action: pan-y;
     -webkit-user-select: none;
     user-select: none;
@@ -631,12 +635,12 @@
 
 @supports (backdrop-filter: url("#solaris-liquid-glass-refraction")) {
   @media (display-mode: standalone) {
-    .solaris-app-tabbar-material {
+    .solaris-app-tabbar-glass {
       backdrop-filter:
         url("#solaris-liquid-glass-refraction")
-        blur(24px)
-        saturate(1.5)
-        brightness(1.01)
+        blur(32px)
+        saturate(1.42)
+        brightness(.96)
         contrast(1.02);
     }
   }
@@ -645,7 +649,7 @@
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   @media (display-mode: standalone) {
     .solaris-app-toolbar,
-    .solaris-app-tabbar-material {
+    .solaris-app-tabbar-glass {
       background: rgb(5 18 41 / .98);
     }
   }
@@ -654,7 +658,7 @@
 @media (prefers-reduced-transparency: reduce) {
   @media (display-mode: standalone) {
     .solaris-app-toolbar,
-    .solaris-app-tabbar-material {
+    .solaris-app-tabbar-glass {
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
       background: rgb(5 18 41 / .98);
@@ -699,7 +703,10 @@
       border-radius 180ms cubic-bezier(.32,.72,0,1),
       background-color 180ms ease,
       box-shadow 180ms ease,
-      transform 240ms cubic-bezier(.2,.82,.2,1);
+      min-height 240ms cubic-bezier(.18,.86,.22,1),
+      width 240ms cubic-bezier(.18,.86,.22,1),
+      left 240ms cubic-bezier(.18,.86,.22,1),
+      border-radius 240ms cubic-bezier(.18,.86,.22,1);
   }
 
   .solaris-app-tab-label {
@@ -727,7 +734,8 @@
   }
 
   .solaris-app-tabbar.is-collapsed .solaris-app-tab-indicator {
-    border-radius: 1rem;
+    height: 2.72rem;
+    border-radius: .95rem;
   }
 
   .solaris-app-tabbar.is-collapsed .solaris-app-tab {
@@ -820,6 +828,13 @@
     border-radius: 1rem;
     padding: .85rem;
     background: rgb(7 20 43 / .64);
+  }
+}
+
+@media (display-mode: standalone) and (max-width: 767px) {
+  .solaris-app-tabbar-material {
+    left: calc(var(--solaris-tabbar-pull-width) / -2);
+    width: calc(100% + var(--solaris-tabbar-pull-width));
   }
 }
 
