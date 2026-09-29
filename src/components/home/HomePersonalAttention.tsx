@@ -5,6 +5,8 @@ import { useMemo } from "react";
 
 import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
 import { getPublicRounds } from "@/lib/confirmation-rounds.functions";
+import { supabase } from "@/integrations/supabase/client";
+import type { VotingTaskInput } from "@/lib/participation-os";
 import { useMyCountryAccount } from "@/lib/country-account";
 import {
   buildPersonalAttentionItems,
@@ -37,6 +39,33 @@ export function HomePersonalAttention({
     refetchOnWindowFocus: true,
   });
 
+  const juryQuery = useQuery({
+    enabled: Boolean(userQuery.data && hasCountry && editionId),
+    queryKey: ["home-personal-attention", "jury", editionId],
+    queryFn: async (): Promise<VotingTaskInput | null> => {
+      const { data, error } = await (supabase as any).rpc("country_jury_voting_context");
+      if (error || !data?.ok) return null;
+      const rounds = Array.isArray(data.rounds) ? data.rounds : [];
+      const round = rounds.find(
+        (candidate: any) =>
+          candidate.edition_id === editionId &&
+          candidate.status === "open" &&
+          candidate.eligible,
+      );
+      if (!round) return null;
+      return {
+        id: String(round.show_id ?? round.show_name ?? "jury"),
+        title: `${String(round.show_name ?? "Jury voting")} jury ballot`,
+        route: "/jury-voting",
+        eligible: true,
+        submitted: round.already_submitted === true,
+        status: "open",
+      };
+    },
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+  });
+
   const items = useMemo(
     () =>
       homepagePersonalAttention(
@@ -44,9 +73,10 @@ export function HomePersonalAttention({
           editionId,
           responses: confirmationQuery.data?.responses ?? [],
           rounds: roundsQuery.data ?? [],
+          jury: juryQuery.data ?? null,
         }),
       ),
-    [confirmationQuery.data?.responses, editionId, roundsQuery.data],
+    [confirmationQuery.data?.responses, editionId, juryQuery.data, roundsQuery.data],
   );
 
   // Home is exception-driven. Anonymous users, users without a delegation,
@@ -57,6 +87,7 @@ export function HomePersonalAttention({
     !editionId ||
     roundsQuery.isLoading ||
     confirmationQuery.isLoading ||
+    juryQuery.isLoading ||
     !items.length
   ) {
     return null;

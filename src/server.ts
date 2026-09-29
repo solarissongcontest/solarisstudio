@@ -11,6 +11,12 @@ type ServerEntry = {
 
 type ServerEnv = {
   MAINTENANCE_ADMIN_SECRET?: string;
+  SUPABASE_URL?: string;
+  SOLARIS_PUSH_DISPATCH_SECRET?: string;
+};
+
+type WorkerExecutionContext = {
+  waitUntil: (promise: Promise<unknown>) => void;
 };
 
 const MAINTENANCE_ADMIN_PATH = "/__maintenance-admin";
@@ -306,6 +312,43 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+async function dispatchScheduledNotifications(env: unknown) {
+  const workerEnv = env && typeof env === "object" ? (env as ServerEnv) : undefined;
+  const supabaseUrl =
+    workerEnv?.SUPABASE_URL ??
+    process.env.SUPABASE_URL ??
+    process.env.VITE_SUPABASE_URL ??
+    "";
+  const secret =
+    workerEnv?.SOLARIS_PUSH_DISPATCH_SECRET ??
+    process.env.SOLARIS_PUSH_DISPATCH_SECRET ??
+    "";
+
+  if (!supabaseUrl || !secret) {
+    console.warn("[solaris-push] Scheduled dispatch skipped because push secrets are not configured.");
+    return;
+  }
+
+  const response = await fetch(
+    `${supabaseUrl.replace(/\/$/, "")}/functions/v1/solaris-push-dispatch`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-solaris-push-secret": secret,
+      },
+      body: JSON.stringify({ source: "cloudflare-cron" }),
+    },
+  );
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(
+      `Solaris push dispatcher failed with HTTP ${response.status}${body ? `: ${body.slice(0, 300)}` : ""}`,
+    );
+  }
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
@@ -335,5 +378,13 @@ export default {
       console.error(error);
       return errorResponse();
     }
+  },
+
+  scheduled(_event: unknown, env: unknown, ctx: WorkerExecutionContext) {
+    ctx.waitUntil(
+      dispatchScheduledNotifications(env).catch((error) => {
+        console.error("[solaris-push] Scheduled dispatch failed", error);
+      }),
+    );
   },
 };

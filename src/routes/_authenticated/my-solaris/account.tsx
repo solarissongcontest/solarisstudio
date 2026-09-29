@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { MySolarisAccountPanel } from "@/components/MySolarisAccountPanel";
+import { MySolarisNotificationsPanel } from "@/components/mysolaris/MySolarisNotificationsPanel";
 import { MySolarisPasswordPanel } from "@/components/MySolarisPasswordPanel";
 import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
 
@@ -32,6 +33,7 @@ function AccountContent() {
       />
       <div className="space-y-4">
         <MySolarisAccountPanel />
+        <MySolarisNotificationsPanel />
         <MySolarisPasswordPanel />
         <Panel title="Connected country" description="The delegation attached to this account">
           <p className="text-sm font-semibold">{country?.name ?? "No country connected"}</p>

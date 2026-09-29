@@ -1,1 +1,4 @@
 project_id = "ggotqrstzmkxskotympi"
+
+[functions.solaris-push-dispatch]
+verify_jwt = false

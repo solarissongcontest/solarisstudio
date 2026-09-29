@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { AppInstallPrompt } from "@/components/app/AppInstallPrompt";
 import { AppOfflineBanner } from "@/components/app/AppOfflineBanner";
 import { AppUpdatePrompt } from "@/components/app/AppUpdatePrompt";
 import {

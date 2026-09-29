@@ -105,6 +105,11 @@ export type NotificationPreferenceRow = {
   in_app_enabled: boolean;
   categories: string[];
   external_enabled: boolean;
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+  urgent_deadline_reminders: boolean;
+  spoiler_free: boolean;
+  timezone: string;
   updated_at: string;
 };
 
@@ -245,6 +250,11 @@ export type AppDatabase = Omit<Database, "public"> & {
           in_app_enabled?: boolean;
           categories?: string[];
           external_enabled?: boolean;
+          quiet_hours_start?: string | null;
+          quiet_hours_end?: string | null;
+          urgent_deadline_reminders?: boolean;
+          spoiler_free?: boolean;
+          timezone?: string;
           updated_at?: string;
         },
         Partial<NotificationPreferenceRow>

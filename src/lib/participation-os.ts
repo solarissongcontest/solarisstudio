@@ -54,6 +54,7 @@ export type VotingTaskInput = {
   status?: string | null;
   opensAt?: string | null;
   closesAt?: string | null;
+  required?: boolean;
 };
 
 export type ParticipationOsInput = {
@@ -223,6 +224,8 @@ function votingTask(
 ): SolarisTask | null {
   if (!input.eligible) return null;
 
+  const required = input.required ?? true;
+
   if (input.submitted) {
     return {
       id: `${kind}:${input.id}`,
@@ -231,7 +234,7 @@ function votingTask(
       title: input.title,
       description: "Your submission has been received.",
       state: "completed",
-      importance: "required",
+      importance: required ? "required" : "optional",
       blocking: false,
       actionRequired: false,
       opensAt: input.opensAt ?? null,
@@ -260,22 +263,38 @@ function votingTask(
     kind,
     title: input.title,
     description: closed
-      ? "The voting window closed without a recorded submission."
+      ? required
+        ? "The voting window closed without a recorded submission."
+        : "This voting window has closed."
       : open
-        ? "Voting is open and no submission has been received yet."
+        ? required
+          ? "Voting is open and no submission has been received yet."
+          : "Voting is open now."
         : "Voting is scheduled but not open yet.",
-    state: closed ? "problem" : open ? "needs_attention" : "upcoming",
-    importance: "required",
-    blocking: closed || open,
-    actionRequired: closed || open,
+    state: closed
+      ? required
+        ? "problem"
+        : "finished"
+      : open
+        ? required
+          ? "needs_attention"
+          : "available"
+        : "upcoming",
+    importance: required ? "required" : "optional",
+    blocking: required && (closed || open),
+    actionRequired: required && (closed || open),
     opensAt: input.opensAt ?? null,
     deadline: input.closesAt ?? null,
     route: input.route,
-    priority: closed ? 150 : open ? 125 : 75,
+    priority: required ? (closed ? 150 : open ? 125 : 75) : open ? 65 : 40,
     why: closed
-      ? "The official voting window is closed and Solaris has no recorded submission."
+      ? required
+        ? "The official voting window is closed and Solaris has no recorded submission."
+        : "This optional voting window has closed."
       : open
-        ? "The official voting window is open and Solaris has no recorded submission."
+        ? required
+          ? "The official voting window is open and Solaris has no recorded submission."
+          : "This voting option is available now."
         : "The official voting window has not opened yet.",
   };
 }

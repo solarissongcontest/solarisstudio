@@ -87,3 +87,54 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(staleWhileRevalidate(request));
   }
 });
+
+
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { body: event.data?.text?.() ?? "" };
+  }
+
+  const title = typeof payload.title === "string" ? payload.title : "Solaris Studio";
+  const route =
+    typeof payload.route === "string" && payload.route.startsWith("/")
+      ? payload.route
+      : "/";
+  const options = {
+    body: typeof payload.body === "string" ? payload.body : "",
+    icon: "/icon-192.png?v=img2340-20260929",
+    badge: "/icon-192.png?v=img2340-20260929",
+    tag: typeof payload.tag === "string" ? payload.tag : undefined,
+    renotify: false,
+    data: {
+      route,
+      deliveryId:
+        typeof payload.deliveryId === "string" ? payload.deliveryId : null,
+    },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const route =
+    typeof event.notification.data?.route === "string"
+      ? event.notification.data.route
+      : "/";
+  const target = new URL(route, self.location.origin).href;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ("focus" in client) {
+          client.navigate?.(target);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow ? self.clients.openWindow(target) : undefined;
+    }),
+  );
+});
