@@ -136,8 +136,13 @@ export function AppTabBar({
               to={to as any}
               aria-current={active ? "page" : undefined}
               aria-label={area.label}
-              onClick={() => {
+              onClick={(event) => {
+                const wasCollapsed = collapsed;
                 setCollapsed(false);
+                if (wasCollapsed && active) {
+                  event.preventDefault();
+                  return;
+                }
                 trackPublicUxEvent("public_nav_clicked", {
                   target: to,
                   metadata: { area: area.id, source: "app_tabbar" },
