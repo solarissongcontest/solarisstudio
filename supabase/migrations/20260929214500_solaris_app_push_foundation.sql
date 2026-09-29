@@ -135,6 +135,82 @@ declare
   v_inserted integer := 0;
   v_count integer := 0;
 begin
+  -- A queued reminder can sit through quiet hours. Re-check authoritative task
+  -- state before every dispatch cycle so a completed or closed task never
+  -- wakes up later as a stale notification.
+  update public.notification_deliveries delivery
+  set
+    status = 'suppressed',
+    error = 'Task completed or window closed before delivery.'
+  where delivery.status = 'pending'
+    and (
+      (
+        delivery.event_type like 'confirmation.%'
+        and (
+          exists (
+            select 1
+            from public.country_accounts ca
+            join public.countries country on country.id = ca.country_id
+            join public.submissions submission
+              on submission.round_id::text = delivery.subject_id
+             and (
+               lower(btrim(submission.country)) = lower(btrim(country.name))
+               or lower(btrim(coalesce(submission.country_account, ''))) = lower(btrim(country.name))
+             )
+            where ca.user_id = delivery.user_id
+              and ca.status = 'active'
+          )
+          or exists (
+            select 1
+            from public.submission_rounds round
+            where round.id::text = delivery.subject_id
+              and round.status in ('closed', 'auto_closed')
+          )
+        )
+      )
+      or
+      (
+        delivery.event_type = 'jury.opened'
+        and (
+          not exists (
+            select 1
+            from public.jury_voting_windows jury_window
+            where jury_window.show_id::text = delivery.subject_id
+              and jury_window.status = 'open'
+          )
+          or exists (
+            select 1
+            from public.country_accounts ca
+            join public.jury_ballot_submissions ballot
+              on ballot.voter_country_id = ca.country_id
+             and ballot.show_id::text = delivery.subject_id
+             and ballot.status = 'submitted'
+            where ca.user_id = delivery.user_id
+              and ca.status = 'active'
+          )
+          or exists (
+            select 1
+            from public.country_accounts ca
+            join public.jury_votes vote
+              on vote.voter_country_id = ca.country_id
+             and vote.show_id::text = delivery.subject_id
+            where ca.user_id = delivery.user_id
+              and ca.status = 'active'
+          )
+        )
+      )
+      or
+      (
+        delivery.event_type = 'televote.opened'
+        and not exists (
+          select 1
+          from televoting.rounds televote_round
+          where televote_round.id::text = delivery.subject_id
+            and televote_round.status = 'open'
+        )
+      )
+    );
+
   -- Confirmation opening reminders and deadline safety. Active country
   -- accounts are eligible before they become edition participants; requiring a
   -- participant row here would suppress the exact reminder that helps a country
@@ -191,6 +267,7 @@ begin
       p_now as scheduled_for
     from missing m
     where m.opens_at is not null
+      and m.status not in ('closed', 'auto_closed')
       and m.opens_at between p_now + interval '23 hours 50 minutes'
                          and p_now + interval '24 hours 10 minutes'
 
@@ -208,6 +285,7 @@ begin
       p_now
     from missing m
     where m.opens_at is not null
+      and m.status not in ('closed', 'auto_closed')
       and m.opens_at between p_now + interval '50 minutes'
                          and p_now + interval '70 minutes'
 
