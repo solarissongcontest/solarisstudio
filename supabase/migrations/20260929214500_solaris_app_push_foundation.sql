@@ -381,7 +381,7 @@ begin
    and 'results' = any(np.categories)
   where ce.event_type = 'results_published'
     and ce.published_at <= p_now
-    and ce.published_at >= p_now - interval '7 days'
+    and ce.published_at >= p_now - interval '30 minutes'
   on conflict (user_id, dedupe_key) do nothing;
 
   get diagnostics v_count = row_count;
