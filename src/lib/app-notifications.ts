@@ -30,8 +30,8 @@ export async function getAppPushState(): Promise<AppPushState> {
   if (!pushSupported()) {
     return { supported: false, permission: "unsupported", subscribed: false };
   }
-  const registration = await navigator.serviceWorker.ready;
-  const subscription = await registration.pushManager.getSubscription();
+  const registration = await navigator.serviceWorker.getRegistration("/");
+  const subscription = await registration?.pushManager.getSubscription();
   return {
     supported: true,
     permission: Notification.permission,
@@ -78,13 +78,15 @@ export async function enableAppPush(userId: string) {
     throw new Error("Notification permission was not granted.");
   }
 
-  const registration = await navigator.serviceWorker.ready;
+  const registration =
+    (await navigator.serviceWorker.getRegistration("/")) ??
+    (await navigator.serviceWorker.register("/sw.js", { scope: "/" }));
   const existing = await registration.pushManager.getSubscription();
   const subscription =
     existing ??
     (await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: base64UrlToBytes(key),
+      applicationServerKey: base64UrlToBytes(key) as BufferSource,
     }));
 
   await storeSubscription(userId, subscription);
@@ -93,8 +95,8 @@ export async function enableAppPush(userId: string) {
 
 export async function disableAppPush(userId: string) {
   if (!pushSupported()) return;
-  const registration = await navigator.serviceWorker.ready;
-  const subscription = await registration.pushManager.getSubscription();
+  const registration = await navigator.serviceWorker.getRegistration("/");
+  const subscription = await registration?.pushManager.getSubscription();
   const endpoint = subscription?.endpoint ?? null;
 
   if (subscription) await subscription.unsubscribe();
@@ -111,7 +113,7 @@ export async function disableAppPush(userId: string) {
 
 export async function refreshAppPushSubscription(userId: string) {
   if (!pushSupported()) return;
-  const registration = await navigator.serviceWorker.ready;
-  const subscription = await registration.pushManager.getSubscription();
+  const registration = await navigator.serviceWorker.getRegistration("/");
+  const subscription = await registration?.pushManager.getSubscription();
   if (subscription) await storeSubscription(userId, subscription);
 }
