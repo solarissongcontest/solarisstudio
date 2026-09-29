@@ -1,9 +1,6 @@
 import { WifiOff } from "lucide-react";
 
-import { useSolarisApp } from "@/components/app/AppRuntime";
-
-export function AppOfflineBanner() {
-  const { isOnline } = useSolarisApp();
+export function AppOfflineBanner({ isOnline }: { isOnline: boolean }) {
   if (isOnline) return null;
 
   return (
