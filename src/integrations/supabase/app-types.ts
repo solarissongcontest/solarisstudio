@@ -109,6 +109,7 @@ export type NotificationPreferenceRow = {
   quiet_hours_end: string | null;
   urgent_deadline_reminders: boolean;
   spoiler_free: boolean;
+  timezone: string;
   updated_at: string;
 };
 
@@ -253,6 +254,7 @@ export type AppDatabase = Omit<Database, "public"> & {
           quiet_hours_end?: string | null;
           urgent_deadline_reminders?: boolean;
           spoiler_free?: boolean;
+          timezone?: string;
           updated_at?: string;
         },
         Partial<NotificationPreferenceRow>
