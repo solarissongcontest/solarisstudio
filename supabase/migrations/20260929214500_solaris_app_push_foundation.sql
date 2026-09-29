@@ -354,6 +354,147 @@ begin
   get diagnostics v_count = row_count;
   v_inserted := v_inserted + v_count;
 
+  -- Confirmation review outcomes are personal, so route them only to the
+  -- country account that owns the reviewed delegation.
+  insert into public.notification_deliveries (
+    user_id, category, event_type, subject_id, dedupe_key,
+    route, title, body, scheduled_for
+  )
+  select
+    ca.user_id,
+    'confirmations',
+    'confirmation.reviewed',
+    history.id::text,
+    'confirmation-review:' || history.id::text || ':' || ca.user_id::text,
+    '/confirmations',
+    case
+      when history.action = 'accepted' then 'Your entry was accepted'
+      when history.action in ('declined', 'removed') then 'Your entry needs changes'
+      else 'Your entry review was updated'
+    end,
+    left(coalesce(nullif(history.reason, ''), 'Open Solaris Studio to review the update.'), 240),
+    p_now
+  from public.submission_review_history history
+  join public.submissions submission on submission.id = history.submission_id
+  join public.countries country
+    on lower(btrim(country.name)) = lower(btrim(submission.country))
+  join public.country_accounts ca
+    on ca.country_id = country.id
+   and ca.status = 'active'
+  join public.notification_preferences np
+    on np.profile_id = ca.user_id
+   and np.external_enabled = true
+   and 'confirmations' = any(np.categories)
+  where history.created_at >= p_now - interval '30 minutes'
+  on conflict (user_id, dedupe_key) do nothing;
+
+  get diagnostics v_count = row_count;
+  v_inserted := v_inserted + v_count;
+
+  -- Official communications already have an authoritative recipient receipt.
+  -- Reuse that audience decision instead of rebuilding it in the push system.
+  insert into public.notification_deliveries (
+    user_id, category, event_type, subject_id, dedupe_key,
+    route, title, body, scheduled_for
+  )
+  select
+    receipt.recipient_user_id,
+    'official',
+    case
+      when notice.acknowledgement_required then 'official.acknowledgement_required'
+      else 'official.notice'
+    end,
+    notice.id::text,
+    'official:' || notice.id::text || ':' || receipt.recipient_user_id::text,
+    '/my-solaris/notices',
+    case
+      when notice.acknowledgement_required then 'Action requested by Solaris'
+      else notice.title
+    end,
+    left(
+      case
+        when notice.acknowledgement_required then notice.title || ' · ' || notice.body
+        else notice.body
+      end,
+      240
+    ),
+    p_now
+  from public.studio2_notice_receipts receipt
+  join public.studio2_official_notices notice on notice.id = receipt.notice_id
+  join public.notification_preferences np
+    on np.profile_id = receipt.recipient_user_id
+   and np.external_enabled = true
+   and 'official' = any(np.categories)
+  where notice.sent_at is not null
+    and notice.sent_at >= p_now - interval '30 minutes'
+  on conflict (user_id, dedupe_key) do nothing;
+
+  get diagnostics v_count = row_count;
+  v_inserted := v_inserted + v_count;
+
+  -- Prediction/Fantasy openings and locks use the existing Solaris Pulse event
+  -- stream, which prevents a second event-truth system from appearing.
+  insert into public.notification_deliveries (
+    user_id, category, event_type, subject_id, dedupe_key,
+    route, title, body, scheduled_for
+  )
+  select
+    np.profile_id,
+    'predictions',
+    ce.event_type,
+    ce.id::text,
+    'prediction:' || ce.id::text || ':' || np.profile_id::text,
+    ce.route,
+    ce.title,
+    left(ce.summary, 240),
+    p_now
+  from public.content_events ce
+  join public.notification_preferences np
+    on np.external_enabled = true
+   and 'predictions' = any(np.categories)
+  where ce.event_type in ('prediction_opened', 'prediction_locked')
+    and ce.published_at <= p_now
+    and ce.published_at >= p_now - interval '30 minutes'
+  on conflict (user_id, dedupe_key) do nothing;
+
+  get diagnostics v_count = row_count;
+  v_inserted := v_inserted + v_count;
+
+  -- Follow notifications preserve each entity's own all/important/none setting.
+  insert into public.notification_deliveries (
+    user_id, category, event_type, subject_id, dedupe_key,
+    route, title, body, scheduled_for
+  )
+  select
+    follow.profile_id,
+    'following',
+    ce.event_type,
+    ce.id::text,
+    'follow:' || ce.id::text || ':' || follow.profile_id::text,
+    ce.route,
+    ce.title,
+    left(ce.summary, 240),
+    p_now
+  from public.content_events ce
+  join public.fan_follows follow
+    on follow.entity_type = ce.entity_type
+   and follow.entity_id = ce.entity_id
+   and follow.notification_level <> 'none'
+  join public.notification_preferences np
+    on np.profile_id = follow.profile_id
+   and np.external_enabled = true
+   and 'following' = any(np.categories)
+  where ce.published_at <= p_now
+    and ce.published_at >= p_now - interval '30 minutes'
+    and (
+      follow.notification_level = 'all'
+      or ce.importance = 'important'
+    )
+  on conflict (user_id, dedupe_key) do nothing;
+
+  get diagnostics v_count = row_count;
+  v_inserted := v_inserted + v_count;
+
   -- Published result events reuse Solaris Pulse as the canonical event source.
   insert into public.notification_deliveries (
     user_id, category, event_type, subject_id, dedupe_key,
