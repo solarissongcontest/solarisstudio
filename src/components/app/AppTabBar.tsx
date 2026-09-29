@@ -155,9 +155,9 @@ export function AppTabBar({
     const material = materialRef.current;
     material?.style.setProperty("--solaris-tab-drag-x", "0px");
     material?.style.setProperty("--solaris-tab-drag-scale-x", "1");
-    material?.style.setProperty("--solaris-tab-drag-scale-y", "1");
-    material?.style.setProperty("--solaris-tabbar-pull-x", "1");
-    material?.style.setProperty("--solaris-tabbar-pull-y", "1");
+    material?.style.setProperty("--solaris-tabbar-pull-width", "0px");
+    material?.style.setProperty("--solaris-tabbar-pull-height", "0px");
+    material?.style.setProperty("--solaris-tabbar-pull-radius", "0px");
     material?.removeAttribute("data-drag-direction");
     dragState.current = null;
     setDragging(false);
@@ -197,18 +197,19 @@ export function AppTabBar({
     const delta = Math.min(maxCenter - originCenter, Math.max(minCenter - originCenter, rawDelta));
     const distance = Math.abs(delta);
     const slotWidth = Math.max(1, origin.width);
-    const indicatorStretch = 1 + Math.min(0.58, distance / slotWidth * 0.34);
-    const indicatorSquash = 1 - Math.min(0.07, distance / slotWidth * 0.035);
-    const barStretch = 1 + Math.min(0.018, distance / Math.max(1, maxCenter - minCenter) * 0.018);
-    const barSquash = 1 - Math.min(0.012, distance / Math.max(1, maxCenter - minCenter) * 0.012);
+    const pullProgress = Math.min(1, distance / Math.max(1, slotWidth * 1.15));
+    const indicatorStretch = 1 + pullProgress * 0.055;
+    const barGrowWidth = pullProgress * 10;
+    const barGrowHeight = pullProgress * 9;
+    const barGrowRadius = pullProgress * 4;
 
     if (distance >= 7) drag.moved = true;
     const material = materialRef.current;
     material?.style.setProperty("--solaris-tab-drag-x", `${delta}px`);
     material?.style.setProperty("--solaris-tab-drag-scale-x", indicatorStretch.toFixed(4));
-    material?.style.setProperty("--solaris-tab-drag-scale-y", indicatorSquash.toFixed(4));
-    material?.style.setProperty("--solaris-tabbar-pull-x", barStretch.toFixed(4));
-    material?.style.setProperty("--solaris-tabbar-pull-y", barSquash.toFixed(4));
+    material?.style.setProperty("--solaris-tabbar-pull-width", `${barGrowWidth.toFixed(2)}px`);
+    material?.style.setProperty("--solaris-tabbar-pull-height", `${barGrowHeight.toFixed(2)}px`);
+    material?.style.setProperty("--solaris-tabbar-pull-radius", `${barGrowRadius.toFixed(2)}px`);
     material?.setAttribute(
       "data-drag-direction",
       delta > 2 ? "right" : delta < -2 ? "left" : "center",
@@ -315,6 +316,7 @@ export function AppTabBar({
         data-active-index={activeIndex}
         data-dragging={dragging ? "true" : "false"}
       >
+        <span className="solaris-app-tabbar-glass" aria-hidden="true" />
         <span className="solaris-app-tab-indicator" aria-hidden="true" />
 
         {PUBLIC_GLOBAL_AREAS.map((area, index) => {
