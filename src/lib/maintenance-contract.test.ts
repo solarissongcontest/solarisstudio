@@ -9,23 +9,21 @@ const config = readFileSync("src/lib/maintenance.ts", "utf8");
 const envExample = readFileSync(".env.example", "utf8");
 
 describe("emergency global maintenance mode", () => {
-  it("is explicitly enabled and runs before normal request middleware", () => {
+  it("is explicitly enabled and runs at the Worker entry before normal request middleware", () => {
     expect(config).toContain("GLOBAL_MAINTENANCE_MODE = true");
-    expect(start).toContain(
-      "requestMiddleware: [maintenanceMiddleware, errorMiddleware, csrfMiddleware]",
-    );
-    expect(start).toContain('status: 503');
+    expect(server).toContain("return maintenanceResponse(request)");
+    expect(server).toContain("status: 503");
+    expect(start).toContain("requestMiddleware: [errorMiddleware, csrfMiddleware]");
+    expect(start).not.toContain("maintenanceMiddleware");
   });
 
   it("keeps a Supabase-independent, server-only maintenance bypass for administrators", () => {
     expect(server).toContain('MAINTENANCE_ADMIN_SECRET');
     expect(server).toContain('const MAINTENANCE_ADMIN_PATH = "/__maintenance-admin"');
-    expect(server).toContain('headers.delete(MAINTENANCE_BYPASS_HEADER)');
+    expect(server).toContain('await hasValidMaintenanceBypass(request, secret)');
     expect(server).toContain('HttpOnly; Secure; SameSite=Strict');
     expect(server).toContain('It does not grant Solaris account or Organizer permissions.');
-    expect(start).toContain(
-      'request.headers.get("x-solaris-maintenance-bypass") === "verified"',
-    );
+    expect(server).not.toContain('x-solaris-maintenance-bypass');
     expect(envExample).toContain('MAINTENANCE_ADMIN_SECRET=');
     expect(envExample).not.toContain('VITE_MAINTENANCE_ADMIN_SECRET');
   });
@@ -62,12 +60,12 @@ describe("emergency global maintenance mode", () => {
   });
 
   it("blocks writes while still allowing the maintenance branding assets", () => {
-    expect(start).toContain('request.method === "GET" || request.method === "HEAD"');
-    expect(start).toContain('"solaris_studio_maintenance"');
-    expect(start).toContain('"/tsbc-maintenance-mark.svg"');
-    expect(start).toContain('"/solaris-studio-mark.png"');
-    expect(start).toContain('"retry-after": "Sat, 10 Oct 2026 00:00:00 GMT"');
-    expect(start).toContain('"x-robots-tag": "noindex, nofollow"');
+    expect(server).toContain('request.method === "GET" || request.method === "HEAD"');
+    expect(server).toContain('"solaris_studio_maintenance"');
+    expect(server).toContain('"/tsbc-maintenance-mark.svg"');
+    expect(server).toContain('"/solaris-studio-mark.png"');
+    expect(server).toContain('"retry-after": "Sat, 10 Oct 2026 00:00:00 GMT"');
+    expect(server).toContain('"x-robots-tag": "noindex, nofollow"');
     expect(page).toContain('<meta name="robots" content="noindex, nofollow" />');
   });
 });
