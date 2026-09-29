@@ -159,7 +159,13 @@ export function useSaveNotificationPreferences(profileId?: string) {
     mutationFn: async (
       preferences: Pick<
         NotificationPreferenceRow,
-        "in_app_enabled" | "categories" | "external_enabled"
+        | "in_app_enabled"
+        | "categories"
+        | "external_enabled"
+        | "quiet_hours_start"
+        | "quiet_hours_end"
+        | "urgent_deadline_reminders"
+        | "spoiler_free"
       >,
     ) => {
       if (!profileId) throw new Error("Sign in before updating notifications.");
