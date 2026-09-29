@@ -156,7 +156,18 @@
     pointer-events: none;
   }
 
+  .solaris-liquid-glass-filter {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
   .solaris-app-tabbar-material {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
     pointer-events: auto;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -165,21 +176,61 @@
     min-height: var(--solaris-app-tabbar-height);
     margin-inline: auto;
     padding: .38rem;
-    border: 1px solid rgb(220 240 248 / .22);
+    border: 1px solid rgb(236 249 255 / .28);
     border-radius: 1.55rem;
     background:
-      radial-gradient(circle at 22% -30%, rgb(238 249 253 / .16), transparent 44%),
-      linear-gradient(145deg, rgb(17 42 73 / .72), rgb(3 15 37 / .72));
-    -webkit-backdrop-filter: blur(26px) saturate(200%) brightness(1.05);
-    backdrop-filter: blur(26px) saturate(200%) brightness(1.05);
+      linear-gradient(145deg, rgb(255 255 255 / .075), rgb(123 211 244 / .035) 48%, rgb(8 22 47 / .055));
+    -webkit-backdrop-filter: blur(4.5px) saturate(155%) brightness(1.08) contrast(1.02);
+    backdrop-filter: blur(4.5px) saturate(155%) brightness(1.08) contrast(1.02);
     box-shadow:
-      inset 0 1px 0 rgb(248 253 255 / .35),
-      inset 0 -1px 0 rgb(85 164 200 / .12),
-      0 18px 45px rgb(0 3 22 / .26);
+      inset 1px 1px 0 rgb(255 255 255 / .34),
+      inset -1px -1px 0 rgb(106 188 222 / .10),
+      inset 0 0 16px rgb(255 255 255 / .035),
+      0 16px 42px rgb(0 3 22 / .20);
+  }
+
+  .solaris-app-tabbar-material::before,
+  .solaris-app-tabbar-material::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  .solaris-app-tabbar-material::before {
+    z-index: 0;
+    background:
+      radial-gradient(ellipse at 16% 2%, rgb(255 255 255 / .22), transparent 33%),
+      radial-gradient(ellipse at 88% 102%, rgb(81 189 234 / .12), transparent 36%),
+      linear-gradient(110deg, transparent 12%, rgb(255 255 255 / .07) 35%, transparent 54%);
+    mix-blend-mode: screen;
+  }
+
+  .solaris-app-tabbar-material::after {
+    z-index: 3;
+    padding: 1px;
+    background:
+      conic-gradient(
+        from 210deg,
+        rgb(255 255 255 / .62),
+        rgb(126 223 255 / .28) 13%,
+        transparent 27%,
+        transparent 70%,
+        rgb(255 181 232 / .16) 84%,
+        rgb(255 255 255 / .52)
+      );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: .66;
   }
 
   .solaris-app-tab {
     position: relative;
+    z-index: 2;
     display: flex;
     min-width: 0;
     min-height: 3.7rem;
@@ -201,10 +252,11 @@
   .solaris-app-tab.is-active {
     color: var(--foreground);
     background:
-      linear-gradient(145deg, rgb(236 248 253 / .18), rgb(114 190 219 / .09));
+      linear-gradient(145deg, rgb(255 255 255 / .13), rgb(113 203 238 / .055));
     box-shadow:
-      inset 0 1px 0 rgb(248 253 255 / .24),
-      inset 0 -1px 0 rgb(80 165 205 / .08);
+      inset 1px 1px 0 rgb(255 255 255 / .24),
+      inset -1px -1px 0 rgb(86 171 207 / .08),
+      0 5px 18px rgb(0 6 24 / .08);
   }
 
   .solaris-app-tab:active {
@@ -502,6 +554,20 @@
   }
 }
 
+
+@supports (backdrop-filter: url("#solaris-liquid-glass-refraction")) {
+  @media (display-mode: standalone) {
+    .solaris-app-tabbar-material {
+      backdrop-filter:
+        url("#solaris-liquid-glass-refraction")
+        blur(1.5px)
+        saturate(1.55)
+        brightness(1.08)
+        contrast(1.02);
+    }
+  }
+}
+
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   @media (display-mode: standalone) {
     .solaris-app-toolbar,
@@ -552,15 +618,13 @@
   }
 
   .solaris-app-tabbar-material {
-    background:
-      radial-gradient(circle at 24% -45%, rgb(233 247 252 / .12), transparent 42%),
-      linear-gradient(145deg, rgb(10 29 55 / .90), rgb(4 18 40 / .90));
     transition:
       width 180ms cubic-bezier(.32,.72,0,1),
       min-height 180ms cubic-bezier(.32,.72,0,1),
       padding 180ms cubic-bezier(.32,.72,0,1),
       border-radius 180ms cubic-bezier(.32,.72,0,1),
-      background-color 180ms ease;
+      background-color 180ms ease,
+      box-shadow 180ms ease;
   }
 
   .solaris-app-tab-label {
@@ -602,7 +666,7 @@
 
   .solaris-app-tabbar.is-collapsed .solaris-app-tab.is-active {
     background:
-      linear-gradient(145deg, rgb(236 248 253 / .15), rgb(114 190 219 / .07));
+      linear-gradient(145deg, rgb(255 255 255 / .11), rgb(111 205 239 / .045));
   }
 
   .app-main {
