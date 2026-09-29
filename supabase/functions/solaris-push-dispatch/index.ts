@@ -1,0 +1,242 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import webpush from "npm:web-push@3.6.7";
+
+type Delivery = {
+  id: string;
+  user_id: string;
+  category: string;
+  event_type: string;
+  route: string;
+  title: string;
+  body: string;
+  dedupe_key: string;
+};
+
+type Preference = {
+  external_enabled: boolean;
+  categories: string[];
+  quiet_hours_start: string | null;
+  quiet_hours_end: string | null;
+  urgent_deadline_reminders: boolean;
+  timezone: string | null;
+};
+
+type SubscriptionRow = {
+  id: string;
+  endpoint: string;
+  p256dh: string;
+  auth_secret: string;
+};
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function localMinutes(timeZone: string, now = new Date()) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(now);
+    const hour = Number(parts.find((part) => part.type === "hour")?.value ?? "0");
+    const minute = Number(parts.find((part) => part.type === "minute")?.value ?? "0");
+    return hour * 60 + minute;
+  } catch {
+    return now.getUTCHours() * 60 + now.getUTCMinutes();
+  }
+}
+
+function parseClock(value: string | null, fallback: number) {
+  if (!value) return fallback;
+  const match = value.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return fallback;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23 || !Number.isInteger(minute) || minute < 0 || minute > 59) {
+    return fallback;
+  }
+  return hour * 60 + minute;
+}
+
+function inQuietHours(preference: Preference, now = new Date()) {
+  const start = parseClock(preference.quiet_hours_start, 23 * 60);
+  const end = parseClock(preference.quiet_hours_end, 8 * 60);
+  if (start === end) return false;
+  const current = localMinutes(preference.timezone || "UTC", now);
+  return start < end
+    ? current >= start && current < end
+    : current >= start || current < end;
+}
+
+function isUrgentDeadline(delivery: Delivery) {
+  return /deadline_(?:3h|1h)$/.test(delivery.event_type);
+}
+
+Deno.serve(async (req) => {
+  if (req.method !== "POST") return json({ error: "Method not allowed." }, 405);
+
+  const dispatchSecret = Deno.env.get("SOLARIS_PUSH_DISPATCH_SECRET") ?? "";
+  const suppliedSecret = req.headers.get("x-solaris-push-secret") ?? "";
+  if (!dispatchSecret || suppliedSecret !== dispatchSecret) {
+    return json({ error: "Push dispatcher access denied." }, 401);
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const vapidPublicKey = Deno.env.get("WEB_PUSH_VAPID_PUBLIC_KEY");
+  const vapidPrivateKey = Deno.env.get("WEB_PUSH_VAPID_PRIVATE_KEY");
+  const vapidSubject = Deno.env.get("WEB_PUSH_VAPID_SUBJECT") || "mailto:solaris@localhost.invalid";
+
+  if (!supabaseUrl || !serviceRoleKey || !vapidPublicKey || !vapidPrivateKey) {
+    return json({ error: "Push delivery is not fully configured." }, 500);
+  }
+
+  webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+
+  const service = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data: enqueueCount, error: enqueueError } = await service.rpc(
+    "solaris_enqueue_app_notifications",
+    { p_now: new Date().toISOString() },
+  );
+  if (enqueueError) {
+    console.error("[solaris-push-dispatch] enqueue failed", enqueueError);
+    return json({ error: "Notification candidates could not be prepared." }, 500);
+  }
+
+  const { data: deliveries, error: deliveryError } = await service
+    .from("notification_deliveries")
+    .select("id,user_id,category,event_type,route,title,body,dedupe_key")
+    .eq("status", "pending")
+    .lte("scheduled_for", new Date().toISOString())
+    .order("scheduled_for", { ascending: true })
+    .limit(100);
+
+  if (deliveryError) return json({ error: "Pending notifications could not be loaded." }, 500);
+
+  let sent = 0;
+  let failed = 0;
+  let suppressed = 0;
+  let deferred = 0;
+
+  for (const delivery of (deliveries ?? []) as Delivery[]) {
+    const { data: preferenceData, error: preferenceError } = await service
+      .from("notification_preferences")
+      .select("external_enabled,categories,quiet_hours_start,quiet_hours_end,urgent_deadline_reminders,timezone")
+      .eq("profile_id", delivery.user_id)
+      .maybeSingle();
+
+    if (preferenceError) {
+      console.error("[solaris-push-dispatch] preference load failed", delivery.id, preferenceError);
+      continue;
+    }
+
+    const preference = preferenceData as Preference | null;
+    if (
+      !preference?.external_enabled ||
+      !Array.isArray(preference.categories) ||
+      !preference.categories.includes(delivery.category)
+    ) {
+      await service
+        .from("notification_deliveries")
+        .update({ status: "suppressed", error: "Preference disabled" })
+        .eq("id", delivery.id);
+      suppressed += 1;
+      continue;
+    }
+
+    if (
+      inQuietHours(preference) &&
+      !(preference.urgent_deadline_reminders && isUrgentDeadline(delivery))
+    ) {
+      deferred += 1;
+      continue;
+    }
+
+    const { data: subscriptions, error: subscriptionError } = await service
+      .from("app_push_subscriptions")
+      .select("id,endpoint,p256dh,auth_secret")
+      .eq("user_id", delivery.user_id)
+      .is("disabled_at", null);
+
+    if (subscriptionError) {
+      console.error("[solaris-push-dispatch] subscription load failed", delivery.id, subscriptionError);
+      continue;
+    }
+
+    let delivered = false;
+    let lastError = "No active push subscriptions";
+
+    for (const subscription of (subscriptions ?? []) as SubscriptionRow[]) {
+      try {
+        await webpush.sendNotification(
+          {
+            endpoint: subscription.endpoint,
+            keys: {
+              p256dh: subscription.p256dh,
+              auth: subscription.auth_secret,
+            },
+          },
+          JSON.stringify({
+            title: delivery.title,
+            body: delivery.body,
+            route: delivery.route,
+            tag: delivery.dedupe_key,
+            deliveryId: delivery.id,
+          }),
+          {
+            TTL: 60 * 60 * 12,
+            urgency: isUrgentDeadline(delivery) ? "high" : "normal",
+          },
+        );
+        delivered = true;
+      } catch (error) {
+        const statusCode =
+          typeof error === "object" && error && "statusCode" in error
+            ? Number((error as { statusCode?: unknown }).statusCode)
+            : 0;
+        lastError = error instanceof Error ? error.message : "Push provider rejected the subscription";
+        if (statusCode === 404 || statusCode === 410) {
+          await service
+            .from("app_push_subscriptions")
+            .update({ disabled_at: new Date().toISOString() })
+            .eq("id", subscription.id);
+        } else {
+          console.error("[solaris-push-dispatch] push failed", subscription.id, error);
+        }
+      }
+    }
+
+    if (delivered) {
+      await service
+        .from("notification_deliveries")
+        .update({ status: "sent", sent_at: new Date().toISOString(), error: null })
+        .eq("id", delivery.id);
+      sent += 1;
+    } else {
+      await service
+        .from("notification_deliveries")
+        .update({ status: "failed", error: lastError.slice(0, 500) })
+        .eq("id", delivery.id);
+      failed += 1;
+    }
+  }
+
+  return json({
+    ok: true,
+    enqueued: Number(enqueueCount ?? 0),
+    examined: (deliveries ?? []).length,
+    sent,
+    failed,
+    suppressed,
+    deferred,
+  });
+});
