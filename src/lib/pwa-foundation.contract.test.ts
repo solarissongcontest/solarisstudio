@@ -25,6 +25,18 @@ describe("Solaris installed-app foundation", () => {
     expect(tabs).toContain("setCollapsed(false)");
   });
 
+  it("renders the installed bottom navigation as transparent liquid glass", () => {
+    const tabs = source("src/components/app/AppTabBar.tsx");
+    const styles = source("src/styles/app-shell.css");
+    expect(tabs).toContain('id="solaris-liquid-glass-refraction"');
+    expect(tabs).toContain("feDisplacementMap");
+    expect(styles).toContain('url("#solaris-liquid-glass-refraction")');
+    expect(styles).toContain("-webkit-backdrop-filter: blur(4.5px)");
+    expect(styles).toContain("rgb(255 255 255 / .075)");
+    expect(styles).toContain("mask-composite: exclude");
+    expect(styles).not.toContain("linear-gradient(145deg, rgb(10 29 55 / .90), rgb(4 18 40 / .90))");
+  });
+
   it("uses a bottom utility sheet instead of duplicating section navigation", () => {
     const shell = source("src/components/AppShell.tsx");
     const more = source("src/components/app/AppMoreNavigation.tsx");
