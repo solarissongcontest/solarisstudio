@@ -55,19 +55,34 @@ export function MySolarisNotificationsPanel() {
 
   const [selected, setSelected] = useState<string[]>(DEFAULT_CATEGORIES);
   const [external, setExternal] = useState(false);
+  const [quietStart, setQuietStart] = useState("23:00");
+  const [quietEnd, setQuietEnd] = useState("08:00");
+  const [urgent, setUrgent] = useState(true);
+  const [spoilerFree, setSpoilerFree] = useState(false);
 
   useEffect(() => {
     if (!preferences.data) return;
     setSelected(preferences.data.categories?.length ? preferences.data.categories : DEFAULT_CATEGORIES);
     setExternal(preferences.data.external_enabled);
+    setQuietStart((preferences.data.quiet_hours_start ?? "23:00").slice(0, 5));
+    setQuietEnd((preferences.data.quiet_hours_end ?? "08:00").slice(0, 5));
+    setUrgent(preferences.data.urgent_deadline_reminders ?? true);
+    setSpoilerFree(preferences.data.spoiler_free ?? false);
   }, [preferences.data]);
 
   const pushState = push.data ?? EMPTY_PUSH;
   const dirty = useMemo(() => {
     const saved = [...(preferences.data?.categories ?? DEFAULT_CATEGORIES)].sort().join("|");
     const current = [...selected].sort().join("|");
-    return saved !== current || (preferences.data?.external_enabled ?? false) !== external;
-  }, [external, preferences.data, selected]);
+    return (
+      saved !== current ||
+      (preferences.data?.external_enabled ?? false) !== external ||
+      (preferences.data?.quiet_hours_start ?? "23:00").slice(0, 5) !== quietStart ||
+      (preferences.data?.quiet_hours_end ?? "08:00").slice(0, 5) !== quietEnd ||
+      (preferences.data?.urgent_deadline_reminders ?? true) !== urgent ||
+      (preferences.data?.spoiler_free ?? false) !== spoilerFree
+    );
+  }, [external, preferences.data, quietEnd, quietStart, selected, spoilerFree, urgent]);
 
   const toggleCategory = (key: string) => {
     setSelected((current) =>
@@ -82,6 +97,10 @@ export function MySolarisNotificationsPanel() {
       in_app_enabled: true,
       categories: selected,
       external_enabled: external,
+      quiet_hours_start: quietStart || null,
+      quiet_hours_end: quietEnd || null,
+      urgent_deadline_reminders: urgent,
+      spoiler_free: spoilerFree,
     });
     toast.promise(promise, {
       loading: "Saving notification preferences…",
@@ -101,12 +120,20 @@ export function MySolarisNotificationsPanel() {
       error: (error) =>
         error instanceof Error ? error.message : "Push notifications could not be enabled.",
     });
-    await promise;
+    try {
+      await promise;
+    } catch {
+      return;
+    }
     setExternal(true);
     await save.mutateAsync({
       in_app_enabled: true,
       categories: selected,
       external_enabled: true,
+      quiet_hours_start: quietStart || null,
+      quiet_hours_end: quietEnd || null,
+      urgent_deadline_reminders: urgent,
+      spoiler_free: spoilerFree,
     });
     await push.refetch();
   };
@@ -119,12 +146,20 @@ export function MySolarisNotificationsPanel() {
       success: "Push notifications disabled.",
       error: "Push notifications could not be disabled.",
     });
-    await promise;
+    try {
+      await promise;
+    } catch {
+      return;
+    }
     setExternal(false);
     await save.mutateAsync({
       in_app_enabled: true,
       categories: selected,
       external_enabled: false,
+      quiet_hours_start: quietStart || null,
+      quiet_hours_end: quietEnd || null,
+      urgent_deadline_reminders: urgent,
+      spoiler_free: spoilerFree,
     });
     await push.refetch();
   };
@@ -158,6 +193,60 @@ export function MySolarisNotificationsPanel() {
               </button>
             );
           })}
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div className="rounded-2xl border border-border/70 bg-background/35 p-4">
+            <p className="text-sm font-semibold">Quiet hours</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              Routine notifications wait until quiet hours end. Urgent deadline reminders can be allowed separately.
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <label className="text-[11px] font-semibold text-muted-foreground">
+                From
+                <input
+                  type="time"
+                  value={quietStart}
+                  onChange={(event) => setQuietStart(event.target.value)}
+                  className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                />
+              </label>
+              <label className="text-[11px] font-semibold text-muted-foreground">
+                Until
+                <input
+                  type="time"
+                  value={quietEnd}
+                  onChange={(event) => setQuietEnd(event.target.value)}
+                  className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                />
+              </label>
+            </div>
+            <label className="mt-3 flex min-h-11 items-center justify-between gap-3 rounded-xl border border-border/70 px-3 text-xs font-semibold">
+              Urgent deadline reminders during quiet hours
+              <input
+                type="checkbox"
+                checked={urgent}
+                onChange={(event) => setUrgent(event.target.checked)}
+                className="size-5"
+              />
+            </label>
+          </div>
+
+          <div className="rounded-2xl border border-border/70 bg-background/35 p-4">
+            <p className="text-sm font-semibold">Spoiler-free mode</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              Result notifications say that results are available without revealing the winner in notification text.
+            </p>
+            <label className="mt-3 flex min-h-11 items-center justify-between gap-3 rounded-xl border border-border/70 px-3 text-xs font-semibold">
+              Hide result spoilers
+              <input
+                type="checkbox"
+                checked={spoilerFree}
+                onChange={(event) => setSpoilerFree(event.target.checked)}
+                className="size-5"
+              />
+            </label>
+          </div>
         </div>
 
         <div className="rounded-2xl border border-border/70 bg-background/35 p-4">
