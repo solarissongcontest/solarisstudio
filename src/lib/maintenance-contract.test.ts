@@ -2,9 +2,11 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
+const server = readFileSync("src/server.ts", "utf8");
 const start = readFileSync("src/start.ts", "utf8");
 const page = readFileSync("src/lib/maintenance-page.ts", "utf8");
 const config = readFileSync("src/lib/maintenance.ts", "utf8");
+const envExample = readFileSync(".env.example", "utf8");
 
 describe("emergency global maintenance mode", () => {
   it("is explicitly enabled and runs before normal request middleware", () => {
@@ -13,6 +15,19 @@ describe("emergency global maintenance mode", () => {
       "requestMiddleware: [maintenanceMiddleware, errorMiddleware, csrfMiddleware]",
     );
     expect(start).toContain('status: 503');
+  });
+
+  it("keeps a Supabase-independent, server-only maintenance bypass for administrators", () => {
+    expect(server).toContain('MAINTENANCE_ADMIN_SECRET');
+    expect(server).toContain('const MAINTENANCE_ADMIN_PATH = "/__maintenance-admin"');
+    expect(server).toContain('headers.delete(MAINTENANCE_BYPASS_HEADER)');
+    expect(server).toContain('HttpOnly; Secure; SameSite=Strict');
+    expect(server).toContain('It does not grant Solaris account or Organizer permissions.');
+    expect(start).toContain(
+      'request.headers.get("x-solaris-maintenance-bypass") === "verified"',
+    );
+    expect(envExample).toContain('MAINTENANCE_ADMIN_SECRET=');
+    expect(envExample).not.toContain('VITE_MAINTENANCE_ADMIN_SECRET');
   });
 
   it("uses the canonical Solaris visual system and reduced-motion-safe animation", () => {
