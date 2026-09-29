@@ -31,13 +31,15 @@ describe("Solaris installed-app foundation", () => {
     expect(tabs).toContain('id="solaris-liquid-glass-refraction"');
     expect(tabs).toContain("feDisplacementMap");
     expect(styles).toContain('url("#solaris-liquid-glass-refraction")');
-    expect(styles).toContain("-webkit-backdrop-filter: blur(32px)");
-    expect(styles).toContain("rgb(255 255 255 / .065)");
+    expect(styles).toContain("-webkit-backdrop-filter: blur(40px)");
+    expect(styles).toContain("rgb(255 255 255 / .055)");
     expect(styles).toContain("mask-composite: exclude");
     expect(styles).not.toContain("linear-gradient(145deg, rgb(10 29 55 / .90), rgb(4 18 40 / .90))");
+    expect(tabs).toContain('className="solaris-app-tabbar-glass"');
+    expect(styles).toContain(".solaris-app-tabbar-glass");
     expect(styles).toContain(".solaris-app-tab-indicator");
     expect(styles).toContain("background: transparent");
-    expect(styles).toContain("background: rgb(220 224 230 / .18)");
+    expect(styles).toContain("background: rgb(190 194 201 / .24)");
     expect(styles).toContain("-webkit-backdrop-filter: none");
   });
 
@@ -49,9 +51,11 @@ describe("Solaris installed-app foundation", () => {
     expect(tabs).toContain('source: "app_tabbar_drag"');
     expect(tabs).toContain("nearestTabIndex");
     expect(tabs).toContain("--solaris-tab-drag-scale-x");
-    expect(tabs).toContain("--solaris-tabbar-pull-x");
+    expect(tabs).toContain("--solaris-tabbar-pull-width");
+    expect(tabs).toContain("--solaris-tabbar-pull-height");
     expect(tabs).toContain("indicatorStretch");
-    expect(tabs).toContain("barStretch");
+    expect(tabs).toContain("barGrowWidth");
+    expect(tabs).toContain("barGrowHeight");
   });
 
   it("keeps Explore personalized content separated from the next section", () => {
