@@ -345,10 +345,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
 
         <SheetContent
-          side="right"
+          side={isAppMode ? "bottom" : "right"}
           showCloseButton={false}
-          aria-label="Navigation menu"
-          className="public-drawer !inset-y-0 !left-auto !right-0 !h-dvh !w-[min(90vw,360px)] !max-w-none !gap-0 !overflow-hidden !rounded-none !border-l !border-t-0 !bg-background/96 !p-0"
+          aria-label={isAppMode ? "More Solaris Studio options" : "Navigation menu"}
+          className={cn(
+            isAppMode
+              ? "solaris-app-more-sheet !inset-x-2 !bottom-0 !max-h-[86dvh] !gap-0 !overflow-y-auto !rounded-t-[1.55rem] !border !border-b-0 !p-0"
+              : "public-drawer !inset-y-0 !left-auto !right-0 !h-dvh !w-[min(90vw,360px)] !max-w-none !gap-0 !overflow-hidden !rounded-none !border-l !border-t-0 !bg-background/96 !p-0",
+          )}
         >
           {isAppMode ? (
             <AppMoreNavigation
