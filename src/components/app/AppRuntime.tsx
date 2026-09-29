@@ -126,7 +126,7 @@ export function AppRuntime({ children }: { children: ReactNode }) {
   return (
     <AppRuntimeContext.Provider value={value}>
       {children}
-      {platform.isAppMode ? <AppOfflineBanner /> : null}
+      {platform.isAppMode ? <AppOfflineBanner isOnline={platform.isOnline} /> : null}
       {platform.isAppMode && waitingWorker ? (
         <AppUpdatePrompt onUpdate={applyUpdate} />
       ) : null}
