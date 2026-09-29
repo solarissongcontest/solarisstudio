@@ -32,7 +32,7 @@ describe("Solaris installed-app foundation", () => {
     expect(tabs).toContain("feDisplacementMap");
     expect(styles).toContain('url("#solaris-liquid-glass-refraction")');
     expect(styles).toContain("-webkit-backdrop-filter: blur(32px)");
-    expect(styles).toContain("rgb(255 255 255 / .055)");
+    expect(styles).toContain("rgb(255 255 255 / .065)");
     expect(styles).toContain("mask-composite: exclude");
     expect(styles).not.toContain("linear-gradient(145deg, rgb(10 29 55 / .90), rgb(4 18 40 / .90))");
     expect(styles).toContain(".solaris-app-tab-indicator");
