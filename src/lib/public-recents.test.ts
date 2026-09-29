@@ -20,7 +20,27 @@ describe("public recents", () => {
     expect(shouldRememberPublicPath("/admin/operations")).toBe(false);
     expect(shouldRememberPublicPath("/auth")).toBe(false);
     expect(shouldRememberPublicPath("/integrity/appeals/private-case")).toBe(false);
+    expect(shouldRememberPublicPath("/explore")).toBe(false);
+    expect(shouldRememberPublicPath("/guide")).toBe(false);
+    expect(shouldRememberPublicPath("/site-directory")).toBe(false);
+    expect(shouldRememberPublicPath("/rules")).toBe(false);
     expect(shouldRememberPublicPath("/countries/oland")).toBe(true);
+  });
+
+  it("filters old hub and utility entries already stored on the device", () => {
+    const storage = memoryStorage();
+    storage.setItem(
+      PUBLIC_RECENTS_KEY,
+      JSON.stringify([
+        { path: "/explore", label: "Explore", visitedAt: 5 },
+        { path: "/guide", label: "How to use Solaris Studio", visitedAt: 4 },
+        { path: "/countries/oland", label: "Oland", visitedAt: 3 },
+      ]),
+    );
+
+    expect(readPublicRecents(storage).map((item) => item.path)).toEqual([
+      "/countries/oland",
+    ]);
   });
 
   it("keeps the newest eight unique destinations", () => {
