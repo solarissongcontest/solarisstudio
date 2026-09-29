@@ -233,11 +233,11 @@ begin
     select
       m.user_id,
       'deadlines',
-      window.event_type,
+      reminder_window.event_type,
       m.round_id::text,
-      'confirmation:' || m.round_id::text || ':' || m.user_id::text || ':' || window.dedupe_suffix,
+      'confirmation:' || m.round_id::text || ':' || m.user_id::text || ':' || reminder_window.dedupe_suffix,
       '/confirmations',
-      window.title,
+      reminder_window.title,
       m.round_name,
       p_now
     from missing m
@@ -247,12 +247,12 @@ begin
         ('confirmation.deadline_24h', 'deadline-24h', 'Confirmation deadline tomorrow', interval '24 hours'),
         ('confirmation.deadline_3h', 'deadline-3h', '3 hours left to confirm', interval '3 hours'),
         ('confirmation.deadline_1h', 'deadline-1h', '1 hour left to confirm', interval '1 hour')
-    ) as window(event_type, dedupe_suffix, title, remaining)
+    ) as reminder_window(event_type, dedupe_suffix, title, remaining)
     where m.closes_at is not null
       and 'deadlines' = any(m.categories)
       and m.closes_at between
-        p_now + window.remaining - interval '10 minutes'
-        and p_now + window.remaining + interval '10 minutes'
+        p_now + reminder_window.remaining - interval '10 minutes'
+        and p_now + reminder_window.remaining + interval '10 minutes'
   )
   insert into public.notification_deliveries (
     user_id, category, event_type, subject_id, dedupe_key,
