@@ -11,6 +11,8 @@ import {
 import { useMemo } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import { AppParticipationTimeline } from "@/components/app/AppParticipationTimeline";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicCurrentStatus } from "@/components/public/PublicCurrentStatus";
 import { PublicDestinationGrid } from "@/components/public/PublicDestinationGrid";
 import { PublicHubHero } from "@/components/public/PublicHubHero";
@@ -18,6 +20,7 @@ import { PublicPrimaryAction } from "@/components/public/PublicPrimaryAction";
 import { PublicSecondaryLinks } from "@/components/public/PublicSecondaryLinks";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import { televotingSupabase } from "@/integrations/televoting/client";
+import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
 import { formatEventDateTime } from "@/lib/public-time";
 import {
@@ -26,6 +29,7 @@ import {
   upcomingParticipationActions,
   type ParticipationAction,
 } from "@/lib/participation-state";
+import { buildParticipationTasks } from "@/lib/participation-os";
 import { computeAvailability } from "@/lib/ssc";
 
 export const Route = createFileRoute("/participate/")({
@@ -42,10 +46,21 @@ export const Route = createFileRoute("/participate/")({
   component: ParticipatePage,
 });
 
+type JuryRoundSummary = {
+  id: string;
+  name: string;
+  editionId: string | null;
+  eligible: boolean;
+  submitted: boolean;
+  status: string;
+  openedAt: string | null;
+  closedAt: string | null;
+};
+
 type JurySummary = {
   signedIn: boolean;
-  openRound: { name: string } | null;
-  completedOpenRound: { name: string } | null;
+  openRound: JuryRoundSummary | null;
+  completedOpenRound: JuryRoundSummary | null;
 };
 
 type TelevoteSummary = {
@@ -81,12 +96,21 @@ async function loadJurySummary(): Promise<JurySummary> {
     (round: any) => round.status === "open" && round.eligible && round.already_submitted,
   );
 
+  const mapRound = (round: any): JuryRoundSummary => ({
+    id: String(round.show_id ?? round.id ?? "jury"),
+    name: String(round.show_name ?? "Jury voting"),
+    editionId: round.edition_id ? String(round.edition_id) : null,
+    eligible: round.eligible === true,
+    submitted: round.already_submitted === true,
+    status: String(round.status ?? "closed"),
+    openedAt: round.opened_at ? String(round.opened_at) : null,
+    closedAt: round.closed_at ? String(round.closed_at) : null,
+  });
+
   return {
     signedIn: true,
-    openRound: openRound ? { name: String(openRound.show_name ?? "Jury voting") } : null,
-    completedOpenRound: completedOpenRound
-      ? { name: String(completedOpenRound.show_name ?? "Jury voting") }
-      : null,
+    openRound: openRound ? mapRound(openRound) : null,
+    completedOpenRound: completedOpenRound ? mapRound(completedOpenRound) : null,
   };
 }
 
@@ -112,6 +136,7 @@ async function loadTelevoteSummary(): Promise<TelevoteSummary> {
 }
 
 function ParticipatePage() {
+  const { isAppMode } = useSolarisApp();
   const confirmationsQuery = useQuery({
     queryKey: ["participate-confirmation-rounds"],
     queryFn: () => getPublicRounds(),
@@ -130,6 +155,50 @@ function ParticipatePage() {
     staleTime: 15_000,
     refetchOnWindowFocus: true,
   });
+  const confirmationAccessQuery = useQuery({
+    enabled: juryQuery.data?.signedIn === true,
+    queryKey: ["participate-country-confirmation-access"],
+    queryFn: getCountryConfirmationAccess,
+    staleTime: 10_000,
+    refetchOnWindowFocus: true,
+  });
+
+  const personalTasks = useMemo(() => {
+    if (!juryQuery.data?.signedIn || !confirmationAccessQuery.data?.country) return [];
+
+    const rounds = confirmationsQuery.data ?? [];
+    const newestRound = [...rounds].sort(
+      (a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1),
+    )[0];
+    const juryRound = juryQuery.data.openRound ?? juryQuery.data.completedOpenRound;
+    const editionId =
+      juryRound?.editionId ??
+      newestRound?.edition_id ??
+      confirmationAccessQuery.data.responses[0]?.edition_id ??
+      null;
+
+    return buildParticipationTasks({
+      editionId,
+      responses: confirmationAccessQuery.data.responses,
+      rounds,
+      jury: juryRound
+        ? {
+            id: juryRound.id,
+            title: juryRound.name,
+            route: "/jury-voting",
+            eligible: juryRound.eligible,
+            submitted: juryRound.submitted,
+            status: juryRound.status,
+            opensAt: juryRound.openedAt,
+            closesAt: juryRound.closedAt,
+          }
+        : null,
+    });
+  }, [
+    confirmationAccessQuery.data,
+    confirmationsQuery.data,
+    juryQuery.data,
+  ]);
 
   const actions = useMemo(() => {
     const rounds = confirmationsQuery.data ?? [];
@@ -246,6 +315,15 @@ function ParticipatePage() {
         title="Take part in Solaris"
         description="Current actions come first. Upcoming and inactive services stay available without competing with work that actually needs you now."
       />
+
+      {isAppMode && juryQuery.data?.signedIn ? (
+        <div className="mb-5">
+          <AppParticipationTimeline
+            title="Your current edition"
+            tasks={personalTasks}
+          />
+        </div>
+      ) : null}
 
       <section aria-labelledby="participate-attention-title">
         <div className="public-hub-section-heading">
