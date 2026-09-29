@@ -289,6 +289,8 @@ function HomePage() {
           </header>
         )}
 
+        {isAppMode ? <HomePersonalAttention editionId={latestEdition?.id ?? null} /> : null}
+
         <section className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,.65fr)]">
           <CurrentContestHero state={contestState} />
 
@@ -323,8 +325,6 @@ function HomePage() {
             ) : null}
           </aside>
         </section>
-
-        {isAppMode ? <HomePersonalAttention editionId={latestEdition?.id ?? null} /> : null}
 
         <PulseStrip />
 
