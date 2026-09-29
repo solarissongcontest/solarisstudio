@@ -85,4 +85,31 @@ describe("Solaris Participation OS", () => {
       actionRequired: true,
     });
   });
+  it("keeps public televoting visible without turning it into a required delegation task", () => {
+    const tasks = buildParticipationTasks({
+      editionId: "edition-22",
+      responses: [],
+      rounds: [],
+      televote: {
+        id: "public-final",
+        title: "Grand Final public voting",
+        route: "/televoting",
+        eligible: true,
+        submitted: false,
+        status: "open",
+        required: false,
+      },
+      now: new Date("2026-10-18T18:00:00.000Z").getTime(),
+    });
+
+    expect(tasks[0]).toMatchObject({
+      kind: "televote",
+      state: "available",
+      importance: "optional",
+      actionRequired: false,
+      blocking: false,
+    });
+    expect(participationTaskCounts(tasks).needsAction).toBe(0);
+  });
+
 });
