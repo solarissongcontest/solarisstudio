@@ -16,7 +16,6 @@ type ServerEnv = {
 const MAINTENANCE_ADMIN_PATH = "/__maintenance-admin";
 const MAINTENANCE_ADMIN_LOGOUT_PATH = "/__maintenance-admin/logout";
 const MAINTENANCE_BYPASS_COOKIE = "solaris_maintenance_admin";
-const MAINTENANCE_BYPASS_HEADER = "x-solaris-maintenance-bypass";
 const MAINTENANCE_BYPASS_VERSION = "v1";
 const MAINTENANCE_BYPASS_MAX_AGE_SECONDS = 12 * 60 * 60;
 const MAINTENANCE_ASSET_PATHS = new Set([
@@ -331,17 +330,7 @@ export default {
       }
 
       const handler = await getServerEntry();
-      let appRequest = request;
-      if (bypassVerified) {
-        const headers = new Headers(request.headers);
-        // Strip any caller-provided value and set the internal marker only after
-        // the signed maintenance cookie has been verified by this Worker.
-        headers.delete(MAINTENANCE_BYPASS_HEADER);
-        headers.set(MAINTENANCE_BYPASS_HEADER, "verified");
-        appRequest = new Request(request, { headers });
-      }
-
-      const response = await handler.fetch(appRequest, env, ctx);
+      const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
       console.error(error);
