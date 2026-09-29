@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import {
   CheckCircle2,
   ClipboardCheck,
@@ -149,7 +149,7 @@ function ParticipatePage() {
     refetchOnWindowFocus: true,
   });
   const confirmationAccessQuery = useQuery({
-    enabled: isAppMode,
+    enabled: isAppMode && juryQuery.data?.signedIn === true,
     queryKey: ["participate-confirmation-access", "app"],
     queryFn: getCountryConfirmationAccess,
     staleTime: 10_000,
@@ -339,11 +339,13 @@ function ParticipatePage() {
   const inactive = actions.filter(
     (action) => action.status === "complete" || action.status === "unavailable",
   );
+  const appAuthKnown = !juryQuery.isLoading;
+  const appSignedIn = juryQuery.data?.signedIn === true;
   const loading =
     confirmationsQuery.isLoading ||
     juryQuery.isLoading ||
     televoteQuery.isLoading ||
-    (isAppMode && confirmationAccessQuery.isLoading);
+    (isAppMode && appSignedIn && confirmationAccessQuery.isLoading);
 
   return (
     <AppShell>
@@ -354,13 +356,44 @@ function ParticipatePage() {
       />
 
       {isAppMode ? (
-        loading ? (
-          <PublicCurrentStatus
-            icon={Clock3}
-            eyebrow="Checking your edition"
-            title="Building your Solaris task list"
-            description="Solaris is checking confirmations, jury voting and public voting against your current account state."
-          />
+        !appAuthKnown ? (
+          <div className="solaris-app-task-loading" role="status" aria-live="polite">
+            <Clock3 className="size-5 text-primary" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-semibold">Checking participation</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Loading the current Solaris participation state.
+              </p>
+            </div>
+          </div>
+        ) : !appSignedIn ? (
+          <section className="solaris-app-task-summary" aria-labelledby="app-participate-sign-in">
+            <div className="min-w-0">
+              <p className="solaris-app-task-kicker">Your SSC tasks</p>
+              <h2 id="app-participate-sign-in" className="mt-1 text-xl font-black tracking-[-.025em]">
+                Sign in to see what needs you
+              </h2>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Your delegation deadlines, confirmations and jury tasks appear here after sign-in. Public voting and other services remain available below.
+              </p>
+              <Link
+                to="/auth"
+                className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
+              >
+                Sign in to Solaris
+              </Link>
+            </div>
+          </section>
+        ) : loading ? (
+          <div className="solaris-app-task-loading" role="status" aria-live="polite">
+            <Clock3 className="size-5 text-primary" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-semibold">Checking your edition</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Matching confirmations and voting to your delegation.
+              </p>
+            </div>
+          </div>
         ) : (
           <AppTaskCenter tasks={appTasks.tasks} editionLabel={appTasks.editionLabel} />
         )
