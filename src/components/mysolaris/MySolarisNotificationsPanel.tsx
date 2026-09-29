@@ -109,7 +109,11 @@ export function MySolarisNotificationsPanel() {
       error: (error) =>
         error instanceof Error ? error.message : "Notification preferences could not be saved.",
     });
-    await promise;
+    try {
+      await promise;
+    } catch {
+      return;
+    }
   };
 
   const enablePush = async () => {
@@ -127,7 +131,8 @@ export function MySolarisNotificationsPanel() {
       return;
     }
     setExternal(true);
-    await save.mutateAsync({
+    try {
+      await save.mutateAsync({
       in_app_enabled: true,
       categories: selected,
       external_enabled: true,
@@ -136,7 +141,11 @@ export function MySolarisNotificationsPanel() {
       urgent_deadline_reminders: urgent,
       spoiler_free: spoilerFree,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-    });
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Notification preferences could not be saved.");
+      return;
+    }
     await push.refetch();
   };
 
@@ -154,7 +163,8 @@ export function MySolarisNotificationsPanel() {
       return;
     }
     setExternal(false);
-    await save.mutateAsync({
+    try {
+      await save.mutateAsync({
       in_app_enabled: true,
       categories: selected,
       external_enabled: false,
@@ -163,7 +173,11 @@ export function MySolarisNotificationsPanel() {
       urgent_deadline_reminders: urgent,
       spoiler_free: spoilerFree,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-    });
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Notification preferences could not be saved.");
+      return;
+    }
     await push.refetch();
   };
 
