@@ -11,6 +11,8 @@ import {
 import { useMemo } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import { AppTaskCenter } from "@/components/app/AppTaskCenter";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicCurrentStatus } from "@/components/public/PublicCurrentStatus";
 import { PublicDestinationGrid } from "@/components/public/PublicDestinationGrid";
 import { PublicHubHero } from "@/components/public/PublicHubHero";
@@ -18,6 +20,7 @@ import { PublicPrimaryAction } from "@/components/public/PublicPrimaryAction";
 import { PublicSecondaryLinks } from "@/components/public/PublicSecondaryLinks";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import { televotingSupabase } from "@/integrations/televoting/client";
+import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
 import { formatEventDateTime } from "@/lib/public-time";
 import {
@@ -26,6 +29,7 @@ import {
   upcomingParticipationActions,
   type ParticipationAction,
 } from "@/lib/participation-state";
+import { buildParticipationTasks } from "@/lib/participation-os";
 import { computeAvailability } from "@/lib/ssc";
 
 export const Route = createFileRoute("/participate/")({
@@ -42,14 +46,26 @@ export const Route = createFileRoute("/participate/")({
   component: ParticipatePage,
 });
 
+type VotingRoundSummary = {
+  id: string;
+  name: string;
+  opensAt: string | null;
+  closesAt: string | null;
+};
+
 type JurySummary = {
   signedIn: boolean;
-  openRound: { name: string } | null;
-  completedOpenRound: { name: string } | null;
+  openRound: VotingRoundSummary | null;
+  completedOpenRound: VotingRoundSummary | null;
 };
 
 type TelevoteSummary = {
-  openRound: { name: string; editionName: string | null } | null;
+  openRound: {
+    id: string;
+    name: string;
+    editionName: string | null;
+    closesAt: string | null;
+  } | null;
 };
 
 function confirmationReason(round: PublicRound) {
@@ -81,19 +97,24 @@ async function loadJurySummary(): Promise<JurySummary> {
     (round: any) => round.status === "open" && round.eligible && round.already_submitted,
   );
 
+  const summarize = (round: any): VotingRoundSummary => ({
+    id: String(round.show_id ?? round.id ?? round.show_name ?? "jury"),
+    name: String(round.show_name ?? "Jury voting"),
+    opensAt: round.opens_at ? String(round.opens_at) : null,
+    closesAt: round.closes_at ? String(round.closes_at) : null,
+  });
+
   return {
     signedIn: true,
-    openRound: openRound ? { name: String(openRound.show_name ?? "Jury voting") } : null,
-    completedOpenRound: completedOpenRound
-      ? { name: String(completedOpenRound.show_name ?? "Jury voting") }
-      : null,
+    openRound: openRound ? summarize(openRound) : null,
+    completedOpenRound: completedOpenRound ? summarize(completedOpenRound) : null,
   };
 }
 
 async function loadTelevoteSummary(): Promise<TelevoteSummary> {
   const { data, error } = await televotingSupabase
     .from("rounds")
-    .select("id,name,editions(name)")
+    .select("id,name,closes_at,editions(name)")
     .eq("status", "open")
     .limit(1)
     .maybeSingle();
@@ -105,13 +126,16 @@ async function loadTelevoteSummary(): Promise<TelevoteSummary> {
 
   return {
     openRound: {
+      id: String((data as any).id),
       name: String((data as any).name ?? "Televoting"),
       editionName: edition?.name ? String(edition.name) : null,
+      closesAt: (data as any).closes_at ? String((data as any).closes_at) : null,
     },
   };
 }
 
 function ParticipatePage() {
+  const { isAppMode } = useSolarisApp();
   const confirmationsQuery = useQuery({
     queryKey: ["participate-confirmation-rounds"],
     queryFn: () => getPublicRounds(),
@@ -122,6 +146,13 @@ function ParticipatePage() {
     queryKey: ["participate-jury-summary"],
     queryFn: loadJurySummary,
     staleTime: 15_000,
+    refetchOnWindowFocus: true,
+  });
+  const confirmationAccessQuery = useQuery({
+    enabled: isAppMode,
+    queryKey: ["participate-confirmation-access", "app"],
+    queryFn: getCountryConfirmationAccess,
+    staleTime: 10_000,
     refetchOnWindowFocus: true,
   });
   const televoteQuery = useQuery({
@@ -228,7 +259,79 @@ function ParticipatePage() {
     return sortParticipationActions([confirmationAction, televoteAction, juryAction]);
   }, [confirmationsQuery.data, juryQuery.data, televoteQuery.data]);
 
-  const primary = primaryParticipationAction(actions);
+  const appTasks = useMemo(() => {
+    const rounds = confirmationsQuery.data ?? [];
+    const access = confirmationAccessQuery.data;
+    const participantRounds =
+      access?.authenticated && access.country ? rounds : [];
+    const currentRound =
+      [...participantRounds].sort(
+        (a, b) =>
+          b.edition_number - a.edition_number ||
+          new Date(b.opens_at ?? 0).getTime() - new Date(a.opens_at ?? 0).getTime(),
+      )[0] ?? null;
+
+    const jury = juryQuery.data;
+    const juryTask = jury?.openRound
+      ? {
+          id: jury.openRound.id,
+          title: `${jury.openRound.name} jury ballot`,
+          route: "/jury-voting",
+          eligible: true,
+          submitted: false,
+          status: "open",
+          opensAt: jury.openRound.opensAt,
+          closesAt: jury.openRound.closesAt,
+        }
+      : jury?.completedOpenRound
+        ? {
+            id: jury.completedOpenRound.id,
+            title: `${jury.completedOpenRound.name} jury ballot`,
+            route: "/jury-voting",
+            eligible: true,
+            submitted: true,
+            status: "open",
+            opensAt: jury.completedOpenRound.opensAt,
+            closesAt: jury.completedOpenRound.closesAt,
+          }
+        : null;
+
+    const televote = televoteQuery.data?.openRound;
+    const televoteTask = televote
+      ? {
+          id: televote.id,
+          title: televote.editionName
+            ? `${televote.editionName} public voting`
+            : televote.name,
+          route: "/televoting",
+          eligible: true,
+          submitted: false,
+          status: "open",
+          closesAt: televote.closesAt,
+          required: false,
+        }
+      : null;
+
+    return {
+      editionLabel: currentRound
+        ? `SSC ${currentRound.edition_number} · ${currentRound.edition_name}`
+        : null,
+      tasks: buildParticipationTasks({
+        editionId: currentRound?.edition_id ?? null,
+        responses: access?.responses ?? [],
+        rounds: participantRounds,
+        jury: juryTask,
+        televote: televoteTask,
+      }),
+    };
+  }, [
+    confirmationAccessQuery.data,
+    confirmationsQuery.data,
+    juryQuery.data,
+    televoteQuery.data,
+  ]);
+
+    const primary = primaryParticipationAction(actions);
   const otherAvailable = actions.filter(
     (action) => action.status === "available" && action.id !== primary?.id,
   );
@@ -237,7 +340,10 @@ function ParticipatePage() {
     (action) => action.status === "complete" || action.status === "unavailable",
   );
   const loading =
-    confirmationsQuery.isLoading || juryQuery.isLoading || televoteQuery.isLoading;
+    confirmationsQuery.isLoading ||
+    juryQuery.isLoading ||
+    televoteQuery.isLoading ||
+    (isAppMode && confirmationAccessQuery.isLoading);
 
   return (
     <AppShell>
@@ -247,6 +353,9 @@ function ParticipatePage() {
         description="Current actions come first. Upcoming and inactive services stay available without competing with work that actually needs you now."
       />
 
+      {isAppMode ? (
+        <AppTaskCenter tasks={appTasks.tasks} editionLabel={appTasks.editionLabel} />
+      ) : (
       <section aria-labelledby="participate-attention-title">
         <div className="public-hub-section-heading">
           <p className="public-hub-eyebrow">Now</p>
@@ -295,8 +404,9 @@ function ParticipatePage() {
           />
         )}
       </section>
+      )}
 
-      {upcoming.length ? (
+      {!isAppMode && upcoming.length ? (
         <section className="public-hub-section" aria-labelledby="participate-upcoming-title">
           <div className="public-hub-section-heading">
             <p className="public-hub-eyebrow is-muted">Next</p>
