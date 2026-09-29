@@ -35,7 +35,7 @@ function prioritySeverity(task: SolarisTask): MySolarisPriorityItem["severity"] 
   return "medium";
 }
 
-function toPriorityItem(task: SolarisTask): MySolarisPriorityItem {
+export function priorityItemFromSolarisTask(task: SolarisTask): MySolarisPriorityItem {
   return {
     id: task.id,
     title: task.title,
@@ -56,12 +56,16 @@ function toPriorityItem(task: SolarisTask): MySolarisPriorityItem {
  * exposes only tasks that require attention so existing exception-driven
  * surfaces stay quiet when a delegation is complete or merely waiting.
  */
+export function personalAttentionFromTasks(
+  tasks: readonly SolarisTask[],
+): MySolarisPriorityItem[] {
+  return tasks.filter(taskNeedsAttention).map(priorityItemFromSolarisTask);
+}
+
 export function buildPersonalAttentionItems(
   input: PersonalAttentionInput,
 ): MySolarisPriorityItem[] {
-  return buildParticipationTasks(input)
-    .filter(taskNeedsAttention)
-    .map(toPriorityItem);
+  return personalAttentionFromTasks(buildParticipationTasks(input));
 }
 
 export function homepagePersonalAttention(
