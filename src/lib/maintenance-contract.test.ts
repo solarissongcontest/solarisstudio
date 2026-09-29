@@ -65,6 +65,8 @@ describe("emergency global maintenance mode", () => {
     expect(server).toContain('"/tsbc-maintenance-mark.svg"');
     expect(server).toContain('"/solaris-studio-mark.png"');
     expect(server).toContain('"/solaris-background.webp"');
+    expect(server).toContain('"/sw.js"');
+    expect(server).toContain('"/offline.html"');
     expect(server).toContain('"retry-after": "Sat, 10 Oct 2026 00:00:00 GMT"');
     expect(server).toContain('"x-robots-tag": "noindex, nofollow"');
     expect(page).toContain('<meta name="robots" content="noindex, nofollow" />');

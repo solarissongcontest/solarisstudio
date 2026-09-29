@@ -28,6 +28,8 @@ const MAINTENANCE_ASSET_PATHS = new Set([
   "/icon-512.png",
   "/icon-1024.png",
   "/site.webmanifest",
+  "/sw.js",
+  "/offline.html",
 ]);
 
 let serverEntryPromise: Promise<ServerEntry> | undefined;

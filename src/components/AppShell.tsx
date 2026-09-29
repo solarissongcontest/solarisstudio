@@ -12,6 +12,10 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
+import { AppMoreNavigation } from "@/components/app/AppMoreNavigation";
+import { AppTabBar } from "@/components/app/AppTabBar";
+import { AppToolbar } from "@/components/app/AppToolbar";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { MySolarisWorkspaceShell } from "@/components/mysolaris/MySolarisWorkspaceShell";
 import {
   LegacyPublicDrawerNavigation,
@@ -112,6 +116,7 @@ function legacyAnyPathMatches(pathname: string, routes: readonly string[]) {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const { isAppMode } = useSolarisApp();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const [email, setEmail] = useState<string | null>(null);
@@ -236,6 +241,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const focusedParticipationTask =
     /^\/(confirmations|jury-voting|televoting|next-in-line)(\/|$)/.test(pathname);
   const showSectionNavigation =
+    !isAppMode &&
     !isMySolarisWorkspace &&
     !focusedParticipationTask &&
     !pathname.startsWith("/auth") &&
@@ -247,6 +253,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       publicArea === "results" ||
       publicArea === "help");
   const showLegacySidebar =
+    !isAppMode &&
     !isMySolarisWorkspace &&
     !pathname.startsWith("/auth") &&
     !pathname.startsWith("/reset") &&
@@ -296,6 +303,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="relative isolate min-h-screen overflow-x-clip">
         <div aria-hidden="true" className="app-background" />
 
+        {isAppMode ? <AppToolbar pathname={pathname} access={access} /> : null}
+
         <header className="site-nav sticky top-0 z-40 border-b border-border/60">
           <div className="mx-auto flex h-16 max-w-[1680px] items-center gap-4 px-3 sm:px-5 lg:px-8 2xl:px-10">
             <Brand />
@@ -339,8 +348,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           side="right"
           showCloseButton={false}
           aria-label="Navigation menu"
-          className="public-drawer !inset-y-0 !left-auto !right-0 !h-dvh !w-[min(90vw,360px)] !max-w-none !gap-0 !overflow-hidden !rounded-none !border-l !border-t-0 !bg-background/96 !p-0 lg:hidden"
+          className="public-drawer !inset-y-0 !left-auto !right-0 !h-dvh !w-[min(90vw,360px)] !max-w-none !gap-0 !overflow-hidden !rounded-none !border-l !border-t-0 !bg-background/96 !p-0"
         >
+          {isAppMode ? (
+            <AppMoreNavigation
+              pathname={pathname}
+              signedIn={Boolean(access.userId)}
+              access={access}
+              onSignOut={() => void signOut()}
+            />
+          ) : (
+            <>
           <div
             className="flex items-center justify-between border-b border-border p-4"
             style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
@@ -396,6 +414,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               </SheetClose>
             )}
           </div>
+            </>
+          )}
         </SheetContent>
 
         <main
@@ -405,7 +425,25 @@ export function AppShell({ children }: { children: ReactNode }) {
             publicCanvasForArchetype(publicArchetype),
           )}
         >
-          {isMySolarisWorkspace ? (
+          {isAppMode ? (
+            <>
+              {showHomeAnniversaryTakeover && (
+                <Suspense fallback={null}>
+                  <LazyHomeAnniversaryTakeover />
+                </Suspense>
+              )}
+              {isMySolarisWorkspace ? (
+                <MySolarisWorkspaceShell>{children}</MySolarisWorkspaceShell>
+              ) : (
+                children
+              )}
+              {isEditionPage && (
+                <Suspense fallback={null}>
+                  <LazyEditionHostingExtension pathname={pathname} />
+                </Suspense>
+              )}
+            </>
+          ) : isMySolarisWorkspace ? (
             <MySolarisWorkspaceShell>{children}</MySolarisWorkspaceShell>
           ) : publicIaV3Enabled && showSectionNavigation ? (
             <div className="public-site-layout">
@@ -467,11 +505,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
         </main>
 
-        {publicIaV3Enabled && !isMySolarisWorkspace && !focusedParticipationTask ? (
+        {!isAppMode && publicIaV3Enabled && !isMySolarisWorkspace && !focusedParticipationTask ? (
           <PublicFooter />
         ) : null}
 
-        {!isMySolarisWorkspace && (
+        {isAppMode && !focusedParticipationTask ? (
+          <AppTabBar pathname={pathname} signedIn={Boolean(access.userId)} />
+        ) : null}
+
+        {!isAppMode && !isMySolarisWorkspace && (
           <nav
             className="mobile-quick-nav fixed inset-x-0 bottom-0 z-50 border-t border-border/70 px-2 pt-1.5 lg:hidden"
             style={{ paddingBottom: "max(.4rem, env(safe-area-inset-bottom))" }}
