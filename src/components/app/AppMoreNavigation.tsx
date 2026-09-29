@@ -25,7 +25,6 @@ export function AppMoreNavigation({
   access,
   onSignOut,
 }: {
-  pathname: string;
   signedIn: boolean;
   access: AccountAccess;
   onSignOut: () => void;
