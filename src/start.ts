@@ -23,6 +23,10 @@ const maintenanceMiddleware = createMiddleware().server(async ({ next }) => {
   const request = getRequest();
   if (!request) return next();
 
+  // src/server.ts strips this header from public requests and only restores it
+  // after verifying the signed maintenance-admin cookie.
+  if (request.headers.get("x-solaris-maintenance-bypass") === "verified") return next();
+
   const url = new URL(request.url);
   if (MAINTENANCE_ASSET_PATHS.has(url.pathname)) return next();
 
