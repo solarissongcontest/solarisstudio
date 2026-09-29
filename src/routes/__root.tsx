@@ -23,7 +23,6 @@ import { ParticipationRouteChrome } from "../components/ParticipationServiceShel
 import { RouteVisualTheme } from "../components/RouteVisualTheme";
 import { RulesGovernanceContext } from "../components/rules/RulesGovernanceContext";
 import { SolarisAmbientBackground } from "../components/SolarisAmbientBackground";
-import { SupabaseRestrictionBanner } from "../components/SupabaseRestrictionBanner";
 import { SolarisAnniversaryCelebration } from "../components/SolarisAnniversaryCelebration";
 import { Toaster } from "../components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -268,7 +267,6 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SupabaseRestrictionBanner />
       <SolarisAnniversaryCelebration />
       <RouteVisualTheme />
       <RulesGovernanceContext />
