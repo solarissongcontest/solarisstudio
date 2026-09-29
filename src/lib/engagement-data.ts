@@ -166,6 +166,7 @@ export function useSaveNotificationPreferences(profileId?: string) {
         | "quiet_hours_end"
         | "urgent_deadline_reminders"
         | "spoiler_free"
+        | "timezone"
       >,
     ) => {
       if (!profileId) throw new Error("Sign in before updating notifications.");
