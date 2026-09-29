@@ -16,8 +16,29 @@ const SENSITIVE_PREFIXES = [
   "/my-solaris/account",
 ];
 
+const NON_CONTENT_RECENT_PATHS = new Set([
+  "/",
+  "/explore",
+  "/participate",
+  "/results",
+  "/countries",
+  "/editions",
+  "/shows",
+  "/stories",
+  "/wiki",
+  "/encyclopedia",
+  "/guide",
+  "/site-directory",
+  "/rules",
+  "/integrity",
+  "/tools",
+  "/analysis",
+  "/records",
+  "/scorecharts",
+]);
+
 export function shouldRememberPublicPath(path: string) {
-  if (!path || path === "/") return false;
+  if (!path || NON_CONTENT_RECENT_PATHS.has(path)) return false;
   if (path.startsWith("/admin")) return false;
   if (SENSITIVE_PREFIXES.some((prefix) => path.startsWith(prefix))) return false;
   return true;
@@ -39,6 +60,7 @@ export function readPublicRecents(storage: Pick<Storage, "getItem"> = window.loc
               typeof item.visitedAt === "number",
           ),
       )
+      .filter((item) => shouldRememberPublicPath(item.path))
       .slice(0, MAX_RECENTS);
   } catch {
     return [] as PublicRecentDestination[];

@@ -416,10 +416,14 @@ export function publicDestinationById(id: string) {
   return PUBLIC_DESTINATIONS.find((item) => item.id === id);
 }
 
-export function publicAreaForPath(pathname: string): PublicArea {
-  const exact = PUBLIC_DESTINATIONS.filter((item) => publicPathMatches(pathname, item.to)).sort(
+export function publicDestinationForPath(pathname: string) {
+  return PUBLIC_DESTINATIONS.filter((item) => publicPathMatches(pathname, item.to)).sort(
     (a, b) => b.to.length - a.to.length,
   )[0];
+}
+
+export function publicAreaForPath(pathname: string): PublicArea {
+  const exact = publicDestinationForPath(pathname);
   if (exact) return exact.area;
 
   if (pathname.startsWith("/country-hub")) return "me";

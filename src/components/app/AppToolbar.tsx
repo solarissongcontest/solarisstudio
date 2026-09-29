@@ -4,7 +4,7 @@ import { ChevronLeft, MoreHorizontal } from "lucide-react";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { SheetTrigger } from "@/components/ui/sheet";
 import type { AccountAccess } from "@/lib/country-account";
-import { publicAreaForPath } from "@/lib/public-navigation";
+import { publicAreaForPath, publicDestinationForPath } from "@/lib/public-navigation";
 
 type ToolbarContext = {
   title: string;
@@ -46,6 +46,12 @@ function contextForPath(pathname: string): ToolbarContext {
     return { title: "Participate", parent: { label: "Participate", to: "/participate" } };
   }
 
+  const destination = publicDestinationForPath(pathname);
+  if (destination) {
+    if (destination.to === "/") return { title: "Solaris Studio" };
+    return { title: destination.label };
+  }
+
   const area = publicAreaForPath(pathname);
   return {
     title:
@@ -53,7 +59,9 @@ function contextForPath(pathname: string): ToolbarContext {
         ? "Solaris Studio"
         : area === "me"
           ? "Me"
-          : area.charAt(0).toUpperCase() + area.slice(1),
+          : area === "help"
+            ? "More"
+            : area.charAt(0).toUpperCase() + area.slice(1),
   };
 }
 

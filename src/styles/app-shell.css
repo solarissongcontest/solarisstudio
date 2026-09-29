@@ -529,3 +529,161 @@
     }
   }
 }
+
+
+/* Installed-app navigation polish ------------------------------------------ */
+@media (display-mode: standalone) {
+  html {
+    scroll-padding-bottom: calc(
+      var(--solaris-app-tabbar-height) +
+      max(3.25rem, env(safe-area-inset-bottom))
+    );
+  }
+
+  .solaris-app-toolbar {
+    background:
+      linear-gradient(180deg, rgb(5 18 41 / .90), rgb(4 16 37 / .84));
+  }
+
+  .solaris-app-tabbar {
+    transition:
+      left 180ms cubic-bezier(.32,.72,0,1),
+      right 180ms cubic-bezier(.32,.72,0,1);
+  }
+
+  .solaris-app-tabbar-material {
+    background:
+      radial-gradient(circle at 24% -45%, rgb(233 247 252 / .12), transparent 42%),
+      linear-gradient(145deg, rgb(10 29 55 / .90), rgb(4 18 40 / .90));
+    transition:
+      width 180ms cubic-bezier(.32,.72,0,1),
+      min-height 180ms cubic-bezier(.32,.72,0,1),
+      padding 180ms cubic-bezier(.32,.72,0,1),
+      border-radius 180ms cubic-bezier(.32,.72,0,1),
+      background-color 180ms ease;
+  }
+
+  .solaris-app-tab-label {
+    max-height: 1rem;
+    overflow: hidden;
+    opacity: 1;
+    transform: translateY(0);
+    transition:
+      opacity 130ms ease,
+      max-height 180ms cubic-bezier(.32,.72,0,1),
+      transform 180ms cubic-bezier(.32,.72,0,1);
+  }
+
+  .solaris-app-tab-icon {
+    transition: transform 180ms cubic-bezier(.32,.72,0,1);
+  }
+
+  .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material {
+    width: min(24rem, calc(100% - 2.4rem));
+    min-height: 3.2rem;
+    padding: .24rem;
+    border-radius: 1.3rem;
+  }
+
+  .solaris-app-tabbar.is-collapsed .solaris-app-tab {
+    min-height: 2.72rem;
+    gap: 0;
+  }
+
+  .solaris-app-tabbar.is-collapsed .solaris-app-tab-label {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(.2rem);
+  }
+
+  .solaris-app-tabbar.is-collapsed .solaris-app-tab-icon {
+    transform: scale(.96);
+  }
+
+  .solaris-app-tabbar.is-collapsed .solaris-app-tab.is-active {
+    background:
+      linear-gradient(145deg, rgb(236 248 253 / .15), rgb(114 190 219 / .07));
+  }
+
+  .app-main {
+    padding-bottom: calc(
+      var(--solaris-app-tabbar-height) +
+      max(3.4rem, env(safe-area-inset-bottom))
+    ) !important;
+  }
+
+  .solaris-app-search-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .solaris-app-search-card > button {
+    width: auto;
+    min-width: max-content;
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .solaris-app-more-sheet {
+    background:
+      radial-gradient(circle at 50% -20%, rgb(42 83 116 / .24), transparent 40%),
+      linear-gradient(180deg, rgb(7 24 48 / .985), rgb(3 15 34 / .995)) !important;
+    border-color: rgb(215 238 247 / .16) !important;
+    box-shadow:
+      0 -22px 60px rgb(0 4 24 / .36),
+      inset 0 1px 0 rgb(245 252 255 / .08);
+  }
+
+  .solaris-app-more-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .solaris-app-sheet-close {
+    display: grid;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid rgb(215 238 247 / .14);
+    border-radius: 999px;
+    background: rgb(255 255 255 / .045);
+    color: var(--foreground);
+  }
+
+  .solaris-app-task-loading {
+    display: flex;
+    min-height: 4.4rem;
+    align-items: flex-start;
+    gap: .75rem;
+    border: 1px solid rgb(210 236 248 / .13);
+    border-radius: 1rem;
+    padding: .85rem;
+    background: rgb(7 20 43 / .64);
+  }
+}
+
+@media (display-mode: standalone) and (max-width: 430px) {
+  .solaris-app-search-card {
+    gap: .5rem;
+  }
+
+  .solaris-app-search-card > button {
+    padding-inline: .65rem;
+    font-size: .75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @media (display-mode: standalone) {
+    .solaris-app-tabbar,
+    .solaris-app-tabbar-material,
+    .solaris-app-tab-label,
+    .solaris-app-tab-icon {
+      transition: none;
+    }
+  }
+}

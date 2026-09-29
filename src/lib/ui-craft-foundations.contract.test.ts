@@ -33,7 +33,7 @@ describe("Solaris UI craft foundations", () => {
     const sheet = source("src/components/ui/sheet.tsx");
 
     expect(appShell).toContain("SheetContent");
-    expect(appShell).toContain('side="right"');
+    expect(appShell).toContain('side={isAppMode ? "bottom" : "right"}');
     expect(appShell).not.toContain("document.body.style.overflow");
     expect(adminUi).toContain('side="responsive"');
     expect(adminUi).not.toContain("createPortal");

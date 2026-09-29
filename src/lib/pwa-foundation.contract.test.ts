@@ -20,6 +20,24 @@ describe("Solaris installed-app foundation", () => {
     expect(tabs).toContain('area.id === "me"');
     expect(tabs).toContain('signedIn ? "/my-solaris" : "/auth"');
     expect(tabs).not.toContain('"Sign in"');
+    expect(tabs).toContain("downTravel");
+    expect(tabs).toContain('data-collapsed={collapsed ? "true" : "false"}');
+    expect(tabs).toContain("setCollapsed(false)");
+  });
+
+  it("uses a bottom utility sheet instead of duplicating section navigation", () => {
+    const shell = source("src/components/AppShell.tsx");
+    const more = source("src/components/app/AppMoreNavigation.tsx");
+    expect(shell).toContain('side={isAppMode ? "bottom" : "right"}');
+    expect(more).toContain("All Solaris pages");
+    expect(more).toContain("Account & settings");
+    expect(more).not.toContain("publicDestinationsForArea");
+  });
+
+  it("keeps utility route titles route-aware in the installed app toolbar", () => {
+    const toolbar = source("src/components/app/AppToolbar.tsx");
+    expect(toolbar).toContain("publicDestinationForPath");
+    expect(toolbar).toContain("destination.label");
   });
 
   it("never turns maintenance into stale cached application HTML", () => {
