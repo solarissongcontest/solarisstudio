@@ -9,7 +9,8 @@ alter table public.notification_preferences
   add column if not exists quiet_hours_start time,
   add column if not exists quiet_hours_end time,
   add column if not exists urgent_deadline_reminders boolean not null default true,
-  add column if not exists spoiler_free boolean not null default false;
+  add column if not exists spoiler_free boolean not null default false,
+  add column if not exists timezone text not null default 'UTC';
 
 alter table public.notification_preferences
   add constraint notification_preferences_categories_check
