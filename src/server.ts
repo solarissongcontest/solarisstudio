@@ -21,6 +21,7 @@ const MAINTENANCE_BYPASS_MAX_AGE_SECONDS = 12 * 60 * 60;
 const MAINTENANCE_ASSET_PATHS = new Set([
   "/tsbc-maintenance-mark.svg",
   "/solaris-studio-mark.png",
+  "/solaris-background.webp",
   "/favicon.ico",
   "/apple-touch-icon.png",
   "/icon-192.png",
