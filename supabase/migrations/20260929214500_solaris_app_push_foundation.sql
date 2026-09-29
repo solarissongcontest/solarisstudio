@@ -199,6 +199,23 @@ begin
     select
       m.user_id,
       'confirmations',
+      'confirmation.opens_soon',
+      m.round_id::text,
+      'confirmation:' || m.round_id::text || ':' || m.user_id::text || ':opens-1h',
+      '/confirmations',
+      'Confirmations open in 1 hour',
+      m.round_name,
+      p_now
+    from missing m
+    where m.opens_at is not null
+      and m.opens_at between p_now + interval '50 minutes'
+                         and p_now + interval '70 minutes'
+
+    union all
+
+    select
+      m.user_id,
+      'confirmations',
       'confirmation.opened',
       m.round_id::text,
       'confirmation:' || m.round_id::text || ':' || m.user_id::text || ':opened',
