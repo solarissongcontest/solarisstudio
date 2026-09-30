@@ -85,7 +85,7 @@ describe("Official Interpretations governance", () => {
       "Replacement interpretation must address at least one of the same rules",
     );
     expect(adminRoute).toContain("supersedeRuleInterpretation");
-    expect(publicIndex).toContain("Show superseded");
+    expect(publicIndex).toContain("Include superseded");
     expect(publicPanel).toContain("superseded interpretation");
   });
 
@@ -124,11 +124,11 @@ describe("Official Interpretations governance", () => {
   it("shows interpretations on both permanent rule pages and a searchable public archive", () => {
     expect(rulePage).toContain("<RuleInterpretationsPanel ruleId={rule.id} />");
     expect(publicPanel).toContain("How TSBC has formally applied this rule");
-    expect(publicIndex).toContain("Interpretations");
-    expect(publicIndex).toContain("<PublicSearchField");
-    expect(publicIndex).toContain('ariaLabel="Search official interpretations"');
-    expect(publicIndex).toContain('placeholder="Search interpretations"');
+    expect(publicIndex).toContain("Official clarifications");
+    expect(publicIndex).toContain('placeholder="Search clarifications"');
     expect(publicIndex).toContain('item.status === "superseded"');
-    expect(publicIndex).toContain("Show superseded");
+    expect(publicIndex).toContain("Include superseded");
+    expect(publicIndex).toContain("getPublicRuleInterpretations");
+    expect(publicIndex).toContain("item.rule_ids.map");
   });
 });
