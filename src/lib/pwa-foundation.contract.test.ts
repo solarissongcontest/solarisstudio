@@ -33,17 +33,22 @@ describe("Solaris installed-app foundation", () => {
     expect(tabs).toContain("KubeLiquidGlassBackdrop");
     expect(kube).toContain("convexSquircle");
     expect(kube).toContain("squircleDerivative");
-    expect(kube).toContain("refractiveIndex = 1.5");
+    expect(kube).toContain("RAY_SAMPLE_COUNT = 127");
+    expect(kube).toContain("nGlass = 1.5");
     expect(kube).toContain("feDisplacementMap");
     expect(kube).toContain('xChannelSelector="R"');
     expect(kube).toContain('yChannelSelector="G"');
     expect(kube).toContain("feBlend");
     expect(kube).toContain("specularUrl");
-    expect(kube).toContain('data-kube-liquid-glass={blink ? "svg-refraction" : "safari-fallback"}');
-    expect(kube).toContain('blur(24px) saturate(1.14) brightness(1.08)');
+    expect(kube).toContain('data-kube-liquid-glass={blink ? "svg-refraction" : "safari-mirror"}');
+    expect(kube).toContain("solaris-kube-liquid-mirror");
+    expect(kube).toContain("cloneNode(true)");
+    expect(kube).toContain("filter: safariMirrorFilter");
     expect(styles).toContain(".solaris-app-tabbar-backdrop");
     expect(styles).toContain('data-kube-liquid-glass="svg-refraction"');
-    expect(styles).toContain('data-kube-liquid-glass="safari-fallback"');
+    expect(styles).toContain('data-kube-liquid-glass="safari-mirror"');
+    expect(styles).toContain(".solaris-kube-liquid-mirror");
+    expect(styles).toContain(".solaris-kube-liquid-mirror-content");
     expect(styles).toContain(".solaris-app-tabbar-material");
     expect(styles).toContain("background: transparent");
     expect(styles).toContain("background: rgb(232 235 240 / .105)");
@@ -52,7 +57,7 @@ describe("Solaris installed-app foundation", () => {
 
   it("bumps the installed-app static cache when liquid glass rendering changes", () => {
     const worker = source("public/sw.js");
-    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v5"');
+    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v6"');
   });
 
   it("lets the active tab indicator drag across destinations", () => {
