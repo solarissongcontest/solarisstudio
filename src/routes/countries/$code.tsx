@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Suspense, lazy, useMemo, useState } from "react";
 
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
+import { AppEntitySidebar } from "@/components/app/AppEntitySidebar";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { CountryPersonalityStyles } from "@/components/CountryPersonalityStyles";
 import { CountryWorldOverview, CountryWorldSupplement } from "@/components/CountryWorldOverview";
@@ -131,6 +132,20 @@ function CountryProfilePage() {
   const country = (countries ?? []).find(
     (item) => item.short_code.toUpperCase() === code.toUpperCase(),
   );
+  const countrySidebarItems = (countries ?? []).map((item) => ({
+    key: item.id,
+    label: item.name,
+    href: `/countries/${encodeURIComponent(item.short_code)}`,
+    meta: item.region || item.short_code,
+    leading: (
+      <FlagChip
+        code={item.short_code}
+        color={item.accent_color}
+        image={item.flag_image}
+        size="sm"
+      />
+    ),
+  }));
   const countryThemeQuery = useCountryTheme(country?.id);
   const { data: countryThemeRow } = countryThemeQuery;
   const designV2Query = useCountryDesignV2(country?.id);
@@ -394,6 +409,20 @@ function CountryProfilePage() {
 
   return (
     <AppShell>
+      <div className="solaris-app-entity-workspace">
+        <AppEntitySidebar
+          title="Countries"
+          items={countrySidebarItems}
+          currentHref={`/countries/${encodeURIComponent(country.short_code)}`}
+          footer={
+            <Link to="/countries" className="solaris-app-entity-sidebar-all">
+              All countries
+            </Link>
+          }
+        />
+        <div
+          className="solaris-app-entity-content"
+        >
       <div
         className={publishedDesign ? "country-profile-v8 country-design-v2" : "country-profile-v8"}
         data-country-personality={publishedDesign ? undefined : heroPersonality}
@@ -870,6 +899,8 @@ function CountryProfilePage() {
         )}
           </>
         )}
+      </div>
+        </div>
       </div>
     </AppShell>
   );
