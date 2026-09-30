@@ -3,8 +3,14 @@ import { useEffect, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { RulesApplyingHere } from "@/components/rules/GovernanceRules";
-import { RULE_CONTEXT_STORAGE_KEY } from "@/components/rules/RulesGovernanceContext";
-import type { GovernanceActionKey } from "@/lib/governance-v5";
+import {
+  GOVERNANCE_ACTION_STORAGE_KEY,
+  RULE_CONTEXT_STORAGE_KEY,
+} from "@/components/rules/RulesGovernanceContext";
+import {
+  GOVERNANCE_ACTION_KEYS,
+  type GovernanceActionKey,
+} from "@/lib/governance-v5";
 import { getRuleContext } from "@/lib/rule-context";
 
 export const Route = createFileRoute("/rules/applied")({
@@ -35,7 +41,17 @@ export function AppliedRulesPage() {
 
   useEffect(() => {
     try {
-      setContext(actionFor(window.sessionStorage.getItem(RULE_CONTEXT_STORAGE_KEY)));
+      const storedAction = window.sessionStorage.getItem(GOVERNANCE_ACTION_STORAGE_KEY);
+      if (
+        storedAction &&
+        GOVERNANCE_ACTION_KEYS.includes(storedAction as GovernanceActionKey)
+      ) {
+        setContext(storedAction as GovernanceActionKey);
+        return;
+      }
+      setContext(
+        actionFor(window.sessionStorage.getItem(RULE_CONTEXT_STORAGE_KEY)),
+      );
     } catch {
       setContext(null);
     }
