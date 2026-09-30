@@ -328,6 +328,19 @@ export const PUBLIC_DESTINATIONS: PublicDestination[] = [
     "contextual",
     { auth: "public", keywords: ["login", "account"] },
   ),
+  destination(
+    "app-settings",
+    "/settings",
+    "me",
+    "App settings",
+    "Device, notifications, offline storage and Solaris app-experience preferences.",
+    "secondary",
+    {
+      auth: "public",
+      aliases: ["Settings", "Preferences"],
+      keywords: ["spoiler free", "notifications", "offline", "push", "accessibility"],
+    },
+  ),
 
   destination("guide", "/guide", "help", "Help", "Plain-language help for using Solaris Studio.", "primary", {
     aliases: ["Guide", "how to use"],
