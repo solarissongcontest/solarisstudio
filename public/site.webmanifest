@@ -32,6 +32,12 @@
     "window-controls-overlay",
     "standalone"
   ],
+  "launch_handler": {
+    "client_mode": [
+      "navigate-existing",
+      "auto"
+    ]
+  },
   "shortcuts": [
     {
       "name": "Explore Solaris",
