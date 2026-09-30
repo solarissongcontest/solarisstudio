@@ -23,6 +23,7 @@ export type AppNavigationState = {
 const STORAGE_KEY = "solaris:app-navigation:v1";
 const RESTORE_INTENT_KEY = "solaris:app-navigation-restore:v1";
 const MAX_HISTORY_PER_TAB = 20;
+export const APP_LAUNCH_RESTORE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const ROOTS: Record<AppTabId, string> = {
   home: "/",
@@ -253,6 +254,43 @@ export function getAppTabDestination(
   const current = state.tabs[tab]?.current;
   if (current && destinationAllowedForSession(current, tab, signedIn)) return current;
   return defaultEntry(tab, signedIn);
+}
+
+
+function coldLaunchDestinationAllowed(entry: AppHistoryEntry) {
+  if (
+    /^\/(app-launch|auth|reset|recover)(\/|$)/.test(entry.pathname) ||
+    /^\/(confirmations|jury-voting|televoting|next-in-line)(\/|$)/.test(entry.pathname) ||
+    /^\/broadcast(\/|$)/.test(entry.pathname) ||
+    /^\/show-mode(\/|$)/.test(entry.pathname)
+  ) {
+    return false;
+  }
+
+  const visitedAt = new Date(entry.visitedAt).getTime();
+  return (
+    Number.isFinite(visitedAt) &&
+    Date.now() - visitedAt >= 0 &&
+    Date.now() - visitedAt <= APP_LAUNCH_RESTORE_MAX_AGE_MS
+  );
+}
+
+export function getAppLaunchDestination(
+  signedIn: boolean,
+  storage: StorageReader | null = browserStorage(),
+): AppHistoryEntry {
+  const state = readAppNavigationState(storage);
+  const tab = state.activeTab;
+  const target = getAppTabDestination(tab, signedIn, storage);
+
+  if (!coldLaunchDestinationAllowed(target)) {
+    return {
+      ...defaultEntry(tab, signedIn),
+      visitedAt: new Date().toISOString(),
+    };
+  }
+
+  return target;
 }
 
 export function resetAppTabToRoot(

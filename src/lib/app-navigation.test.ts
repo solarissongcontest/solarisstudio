@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   appEntryHref,
+  getAppLaunchDestination,
   getAppTabDestination,
   peekAppBackTarget,
   popAppBackTarget,
@@ -112,4 +113,67 @@ describe("installed app navigation state", () => {
     const state = readAppNavigationState(storage);
     expect(state.tabs.explore).toBeUndefined();
   });
+  it("restores the active safe screen on a true app cold launch", () => {
+    const storage = new MemoryStorage();
+    rememberAppLocation("/explore", "", 0, storage);
+    rememberAppLocation("/countries/OL", "", 640, storage);
+
+    expect(getAppLaunchDestination(true, storage)).toMatchObject({
+      pathname: "/countries/OL",
+      scrollY: 640,
+    });
+  });
+
+  it("falls back to the tab root instead of cold-launching a critical submission flow", () => {
+    const storage = new MemoryStorage();
+    rememberAppLocation("/participate", "", 0, storage);
+    rememberAppLocation("/televoting", "", 240, storage);
+
+    expect(getAppLaunchDestination(true, storage)).toMatchObject({
+      pathname: "/participate",
+      scrollY: 0,
+    });
+  });
+
+  it("respects signed-out Me safety on cold launch", () => {
+    const storage = new MemoryStorage();
+    rememberAppLocation("/my-solaris/account", "", 0, storage);
+
+    expect(getAppLaunchDestination(false, storage).pathname).toBe("/auth");
+  });
+
+  it("does not revive stale screens after the launch freshness window", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      "solaris:app-navigation:v1",
+      JSON.stringify({
+        version: 1,
+        activeTab: "explore",
+        tabs: {
+          explore: {
+            current: {
+              pathname: "/countries/OL",
+              searchStr: "",
+              scrollY: 900,
+              visitedAt: "2026-09-01T12:00:00.000Z",
+            },
+            history: [
+              {
+                pathname: "/countries/OL",
+                searchStr: "",
+                scrollY: 900,
+                visitedAt: "2026-09-01T12:00:00.000Z",
+              },
+            ],
+          },
+        },
+      }),
+    );
+
+    expect(getAppLaunchDestination(true, storage)).toMatchObject({
+      pathname: "/explore",
+      scrollY: 0,
+    });
+  });
+
 });

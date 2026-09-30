@@ -22,6 +22,7 @@ import appShellCss from "../styles/app-shell.css?url";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
 import { AppRuntime, useSolarisApp } from "../components/app/AppRuntime";
 import { AppExperiencePreferenceSync } from "../components/app/AppExperiencePreferenceSync";
+import { AppReconnectReconciler } from "../components/app/AppReconnectReconciler";
 import { AppRouteStateFrame } from "../components/app/AppRouteStateFrame";
 import { ParticipationRouteChrome } from "../components/ParticipationServiceShell";
 import { RouteVisualTheme } from "../components/RouteVisualTheme";
@@ -298,6 +299,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <AppReconnectReconciler />
       <AppExperiencePreferenceSync />
       <SolarisAnniversaryCelebration />
       <RouteVisualTheme />

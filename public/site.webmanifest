@@ -3,7 +3,7 @@
   "short_name": "Solaris Studio",
   "description": "Solaris Studio is the home of Solaris Song Contest editions, results, voting analytics, predictions, records and interactive archive tools.",
   "id": "/",
-  "start_url": "/",
+  "start_url": "/app-launch",
   "scope": "/",
   "display": "standalone",
   "background_color": "#020817",
