@@ -92,7 +92,7 @@ function ParticipantPreclearancePage() {
       toast.error(error instanceof Error ? error.message : "Could not send private rule question"),
   });
 
-  const valid = plan.trim().length >= 5 && Boolean(userQuery.data);
+  const valid = plan.trim().length >= 20 && plan.trim().length <= 8000 && Boolean(userQuery.data);
 
   return (
     <AppShell>
@@ -131,6 +131,7 @@ function ParticipantPreclearancePage() {
                   value={plan}
                   onChange={(event) => setPlan(event.target.value)}
                   rows={4}
+                  maxLength={8000}
                   className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm leading-6"
                 />
               </label>
@@ -141,6 +142,7 @@ function ParticipantPreclearancePage() {
                   value={uncertainty}
                   onChange={(event) => setUncertainty(event.target.value)}
                   rows={3}
+                  maxLength={3500}
                   className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm leading-6"
                 />
               </label>
