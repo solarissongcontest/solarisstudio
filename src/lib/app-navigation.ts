@@ -255,6 +255,31 @@ export function getAppTabDestination(
   return defaultEntry(tab, signedIn);
 }
 
+
+function coldLaunchDestinationAllowed(entry: AppHistoryEntry) {
+  return !/^\/(confirmations|jury-voting|televoting|next-in-line|broadcast)(\/|$)/.test(
+    entry.pathname,
+  );
+}
+
+export function getAppLaunchDestination(
+  signedIn: boolean,
+  storage: StorageReader | null = browserStorage(),
+): AppHistoryEntry {
+  const state = readAppNavigationState(storage);
+  const tab = state.activeTab;
+  const target = getAppTabDestination(tab, signedIn, storage);
+
+  if (!coldLaunchDestinationAllowed(target)) {
+    return {
+      ...defaultEntry(tab, signedIn),
+      visitedAt: new Date().toISOString(),
+    };
+  }
+
+  return target;
+}
+
 export function resetAppTabToRoot(
   tab: AppTabId,
   signedIn: boolean,
