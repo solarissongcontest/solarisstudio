@@ -163,11 +163,10 @@ function buildMaps(width: number, height: number): Maps | null {
       const directional = Math.max(0, normal.x * light.x + normal.y * light.y);
       const highlight = Math.min(1, edge * (0.16 + directional * 1.35));
       const specularOffset = index * 4;
-      const value = Math.round(highlight * 255);
-      specular.data[specularOffset] = value;
-      specular.data[specularOffset + 1] = value;
-      specular.data[specularOffset + 2] = value;
-      specular.data[specularOffset + 3] = Math.round(highlight * 185);
+      specular.data[specularOffset] = 255;
+      specular.data[specularOffset + 1] = 255;
+      specular.data[specularOffset + 2] = 255;
+      specular.data[specularOffset + 3] = Math.round(highlight * 51);
     }
   }
 
@@ -349,7 +348,7 @@ export function KubeLiquidGlassBackdrop({
               height="100%"
               colorInterpolationFilters="sRGB"
             >
-              <feGaussianBlur in="SourceGraphic" stdDeviation="6.5" result="blurred" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="9.5" result="blurred" />
               <feImage
                 href={maps.displacementUrl}
                 x="0"
@@ -362,7 +361,7 @@ export function KubeLiquidGlassBackdrop({
               <feDisplacementMap
                 in="blurred"
                 in2="displacement-map"
-                scale={maps.scale}
+                scale={maps.scale * 0.7}
                 xChannelSelector="R"
                 yChannelSelector="G"
                 result="refracted"
