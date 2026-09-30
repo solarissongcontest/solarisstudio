@@ -1074,3 +1074,232 @@
     }
   }
 }
+
+
+/* App Experience v3: focused task and install surfaces --------------------- */
+@media (display-mode: standalone) {
+  .solaris-app-toolbar {
+    position: relative;
+  }
+
+  .solaris-app-toolbar-context-title {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    max-width: min(42vw, 15rem);
+    transform: translate(-50%, -50%);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .82rem;
+    font-weight: 750;
+    letter-spacing: -.015em;
+    pointer-events: none;
+  }
+
+  .solaris-app-task-shell {
+    width: 100%;
+  }
+
+  .solaris-app-task-utilities {
+    display: flex;
+    justify-content: flex-end;
+    gap: .45rem;
+    margin-bottom: .8rem;
+  }
+
+  .solaris-app-task-utility {
+    display: inline-flex;
+    min-height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgb(210 236 248 / .13);
+    border-radius: 999px;
+    padding-inline: .75rem;
+    background: rgb(255 255 255 / .035);
+    color: var(--muted-foreground);
+    font-size: .7rem;
+    font-weight: 700;
+  }
+
+  .solaris-app-task-utility.is-active {
+    border-color: rgb(139 198 222 / .24);
+    background: rgb(139 198 222 / .08);
+    color: var(--foreground);
+  }
+
+  [data-solaris-app-screen="task"] {
+    padding-top: .7rem !important;
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom)) !important;
+  }
+
+  [data-solaris-app-screen="task"] .participation-service-nav,
+  [data-solaris-app-screen="task"] > .page-header {
+    display: none !important;
+  }
+}
+
+.solaris-install-prompt {
+  position: fixed;
+  z-index: 90;
+  left: 50%;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  display: flex;
+  width: min(calc(100vw - 1.5rem), 34rem);
+  transform: translateX(-50%);
+  align-items: center;
+  gap: .75rem;
+  border: 1px solid rgb(210 236 248 / .18);
+  border-radius: 1.25rem;
+  padding: .8rem;
+  background:
+    radial-gradient(circle at 15% 0%, rgb(66 130 163 / .16), transparent 38%),
+    rgb(5 18 41 / .96);
+  box-shadow: 0 20px 54px rgb(0 3 20 / .34);
+  color: var(--foreground);
+  backdrop-filter: blur(22px) saturate(155%);
+  -webkit-backdrop-filter: blur(22px) saturate(155%);
+}
+
+.solaris-install-icon {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: .85rem;
+  border: 1px solid rgb(210 236 248 / .15);
+  background: rgb(255 255 255 / .05);
+  color: var(--primary);
+}
+
+.solaris-install-action,
+.solaris-install-dismiss {
+  display: inline-flex;
+  min-height: 2.65rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: .85rem;
+  font-size: .75rem;
+  font-weight: 800;
+}
+
+.solaris-install-action {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding-inline: .8rem;
+}
+
+.solaris-install-dismiss {
+  min-width: 2.65rem;
+  border: 1px solid rgb(210 236 248 / .13);
+  background: rgb(255 255 255 / .035);
+  color: var(--muted-foreground);
+  font-size: 1.1rem;
+}
+
+@media (max-width: 430px) {
+  .solaris-install-prompt {
+    align-items: flex-start;
+  }
+
+  .solaris-install-icon {
+    display: none;
+  }
+
+  .solaris-install-prompt > .flex {
+    align-self: center;
+  }
+}
+
+
+/* App Experience v3: resilient route states -------------------------------- */
+@media (display-mode: standalone) {
+  [data-solaris-app-route-state] .app-main {
+    min-height: calc(
+      var(--solaris-visual-viewport-height, 100dvh) -
+      var(--solaris-app-toolbar-height) -
+      var(--solaris-app-tabbar-height) -
+      max(2.5rem, env(safe-area-inset-bottom))
+    );
+  }
+
+  .solaris-app-route-state-card {
+    width: min(100%, 34rem);
+    margin: clamp(2rem, 11vh, 6rem) auto 0;
+    border: 1px solid rgb(210 236 248 / .13);
+    border-radius: 1.25rem;
+    padding: 1.1rem;
+    background: rgb(255 255 255 / .032);
+    box-shadow: inset 0 1px 0 rgb(245 252 255 / .05);
+  }
+
+  .solaris-app-route-state-kicker {
+    color: var(--primary);
+    font-size: .65rem;
+    font-weight: 850;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+  }
+
+  .solaris-app-route-pending {
+    width: 100%;
+    padding-top: .35rem;
+  }
+
+  .solaris-app-route-skeleton {
+    width: min(100%, 48rem);
+    margin-inline: auto;
+    display: grid;
+    gap: .8rem;
+  }
+
+  .solaris-app-route-skeleton-line,
+  .solaris-app-route-skeleton-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgb(210 236 248 / .08);
+    background: rgb(255 255 255 / .04);
+  }
+
+  .solaris-app-route-skeleton-line::after,
+  .solaris-app-route-skeleton-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-105%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgb(255 255 255 / .065),
+      transparent
+    );
+    animation: solaris-app-skeleton 1.35s ease-in-out infinite;
+  }
+
+  .solaris-app-route-skeleton-line {
+    width: 38%;
+    height: .8rem;
+    border-radius: 999px;
+  }
+
+  .solaris-app-route-skeleton-card {
+    height: 9rem;
+    border-radius: 1.2rem;
+  }
+
+  .solaris-app-route-skeleton-card.is-compact {
+    height: 5.5rem;
+  }
+}
+
+@keyframes solaris-app-skeleton {
+  to { transform: translateX(105%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .solaris-app-route-skeleton-line::after,
+  .solaris-app-route-skeleton-card::after {
+    animation: none;
+  }
+}

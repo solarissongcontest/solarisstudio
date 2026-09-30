@@ -1,5 +1,5 @@
-import { useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, MoreHorizontal } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { ChevronLeft, CircleHelp, MoreHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
@@ -69,13 +69,37 @@ export function AppToolbar({
           )}
         </div>
 
+        {!chrome.root && (backTarget || fallback) ? (
+          chrome.archetype === "task" ? (
+            <h1 className="solaris-app-toolbar-context-title">{chrome.title}</h1>
+          ) : (
+            <span className="solaris-app-toolbar-context-title" aria-hidden="true">
+              {chrome.title}
+            </span>
+          )
+        ) : null}
+
         <div className="flex items-center gap-1">
-          <PublicCommandPalette compact access={access} />
-          <SheetTrigger asChild>
-            <button type="button" className="solaris-app-toolbar-button" aria-label="More">
-              <MoreHorizontal className="size-5" aria-hidden="true" />
-            </button>
-          </SheetTrigger>
+          {chrome.archetype === "task" ? (
+            chrome.helpTo ? (
+              <Link
+                to={chrome.helpTo as any}
+                className="solaris-app-toolbar-button"
+                aria-label="Help"
+              >
+                <CircleHelp className="size-5" aria-hidden="true" />
+              </Link>
+            ) : null
+          ) : (
+            <>
+              <PublicCommandPalette compact access={access} />
+              <SheetTrigger asChild>
+                <button type="button" className="solaris-app-toolbar-button" aria-label="More">
+                  <MoreHorizontal className="size-5" aria-hidden="true" />
+                </button>
+              </SheetTrigger>
+            </>
+          )}
         </div>
       </div>
     </header>

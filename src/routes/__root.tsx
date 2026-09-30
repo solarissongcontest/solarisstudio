@@ -20,7 +20,8 @@ import solarisMotionCss from "../solaris-motion.css?url";
 import flagMediaCss from "../flag-media.css?url";
 import appShellCss from "../styles/app-shell.css?url";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
-import { AppRuntime } from "../components/app/AppRuntime";
+import { AppRuntime, useSolarisApp } from "../components/app/AppRuntime";
+import { AppRouteStateFrame } from "../components/app/AppRouteStateFrame";
 import { ParticipationRouteChrome } from "../components/ParticipationServiceShell";
 import { RouteVisualTheme } from "../components/RouteVisualTheme";
 import { RulesGovernanceContext } from "../components/rules/RulesGovernanceContext";
@@ -85,29 +86,43 @@ function backgroundFamilyFor(pathname: string): BackgroundFamily {
 }
 
 function NotFoundComponent() {
+  const { isAppMode } = useSolarisApp();
+
+  const body = (
+    <div className={isAppMode ? "solaris-app-route-state-card" : "max-w-md text-center"}>
+      <p className={isAppMode ? "solaris-app-route-state-kicker" : "text-7xl font-bold text-foreground"}>
+        {isAppMode ? "404" : "404"}
+      </p>
+      <h2 className={isAppMode ? "mt-2 text-xl font-semibold" : "mt-4 text-xl font-semibold text-foreground"}>
+        Page not found
+      </h2>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        The link may be outdated, or this page may have moved.
+      </p>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <Link
+          to="/"
+          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
+        >
+          Go home
+        </Link>
+        <Link
+          to="/explore"
+          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-surface px-4 text-sm font-semibold"
+        >
+          Explore Solaris
+        </Link>
+      </div>
+    </div>
+  );
+
+  if (isAppMode) {
+    return <AppRouteStateFrame title="Page not found">{body}</AppRouteStateFrame>;
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Go home
-          </Link>
-          <Link
-            to="/wiki"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Open Wiki
-          </Link>
-        </div>
-      </div>
+      {body}
     </div>
   );
 }
@@ -115,40 +130,52 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+  const { isAppMode } = useSolarisApp();
   const serviceRestricted = isSupabaseServiceRestrictionError(error);
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
+  const body = (
+    <div className={isAppMode ? "solaris-app-route-state-card" : "max-w-md text-center"}>
+      <p className="solaris-app-route-state-kicker">
+        {serviceRestricted ? "Data service" : "Solaris Studio"}
+      </p>
+      <h1 className="mt-2 text-xl font-semibold tracking-tight text-foreground">
+        {serviceRestricted ? "Solaris data service is temporarily restricted" : "This page didn't load"}
+      </h1>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        {serviceRestricted
+          ? "Published or cached areas may still work, but database-backed reads and saves can fail."
+          : "Something went wrong while opening this view. Other Solaris areas remain available."}
+      </p>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button
+          onClick={() => {
+            router.invalidate();
+            reset();
+          }}
+          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
+        >
+          Try again
+        </button>
+        <Link
+          to="/"
+          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-surface px-4 text-sm font-semibold"
+        >
+          Go home
+        </Link>
+      </div>
+    </div>
+  );
+
+  if (isAppMode) {
+    return <AppRouteStateFrame title={serviceRestricted ? "Service unavailable" : "Couldn't load"}>{body}</AppRouteStateFrame>;
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          {serviceRestricted ? "Solaris data service is temporarily restricted" : "This page didn't load"}
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {serviceRestricted
-            ? "Supabase is currently refusing data requests. Cached or static pages may still work, but database-backed reads and saves can fail."
-            : "Something went wrong on our end. You can try refreshing or head back home."}
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
-            onClick={() => {
-              router.invalidate();
-              reset();
-            }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Try again
-          </button>
-          <a
-            href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Go home
-          </a>
-        </div>
-      </div>
+      {body}
     </div>
   );
 }
@@ -227,7 +254,7 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {children}
+        <AppRuntime>{children}</AppRuntime>
         <Scripts />
       </body>
     </html>
@@ -270,15 +297,13 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppRuntime>
-        <SolarisAnniversaryCelebration />
-        <RouteVisualTheme />
-        <RulesGovernanceContext />
-        {!fullAdmin ? <SolarisAmbientBackground /> : null}
-        {content}
-        <ToolQuickGuide pathname={pathname} />
-        <Toaster />
-      </AppRuntime>
+      <SolarisAnniversaryCelebration />
+      <RouteVisualTheme />
+      <RulesGovernanceContext />
+      {!fullAdmin ? <SolarisAmbientBackground /> : null}
+      {content}
+      <ToolQuickGuide pathname={pathname} />
+      <Toaster />
     </QueryClientProvider>
   );
 }

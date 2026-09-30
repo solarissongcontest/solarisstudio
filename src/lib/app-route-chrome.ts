@@ -30,6 +30,7 @@ export type AppRouteChrome = {
     label: string;
     to: string;
   };
+  helpTo?: string;
 };
 
 function areaTab(pathname: string): AppTabId | null {
@@ -135,6 +136,28 @@ export function resolveAppRouteChrome(pathname: string): AppRouteChrome {
     };
   }
 
+  if (pathname === "/televoting/results" || pathname === "/televoting/results/") {
+    return {
+      title: "Televoting results",
+      tab: "results",
+      archetype: "data",
+      root: false,
+      tabBar: "visible",
+      backFallback: { label: "Results", to: "/results" },
+    };
+  }
+
+  if (pathname === "/televoting/how-to-vote" || pathname === "/televoting/how-to-vote/") {
+    return {
+      title: "How to vote",
+      tab: "participate",
+      archetype: "reading",
+      root: false,
+      tabBar: "visible",
+      backFallback: { label: "Televoting", to: "/televoting" },
+    };
+  }
+
   if (/^\/(confirmations|jury-voting|televoting|next-in-line)(\/|$)/.test(pathname)) {
     const destination = publicDestinationForPath(pathname);
     return {
@@ -144,6 +167,7 @@ export function resolveAppRouteChrome(pathname: string): AppRouteChrome {
       root: false,
       tabBar: "hidden",
       backFallback: { label: "Participate", to: "/participate" },
+      helpTo: pathname.startsWith("/televoting") ? "/televoting/how-to-vote" : "/guide",
     };
   }
 
