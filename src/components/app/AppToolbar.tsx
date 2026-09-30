@@ -97,12 +97,10 @@ export function AppToolbar({
               <ChevronLeft className="size-5" aria-hidden="true" />
               <span>{context.parent.label}</span>
             </Link>
+          ) : rootDestination ? (
+            <h1 className="solaris-app-toolbar-title">{context.title}</h1>
           ) : (
-            {rootDestination ? (
-              <h1 className="solaris-app-toolbar-title">{context.title}</h1>
-            ) : (
-              <span className="solaris-app-toolbar-title">{context.title}</span>
-            )}
+            <span className="solaris-app-toolbar-title">{context.title}</span>
           )}
         </div>
 
