@@ -77,6 +77,7 @@ export function IntegrityHomeV5() {
       <section className="mt-6">
         <Link
           to="/integrity/report/category"
+          search={{}}
           className="flex min-h-24 items-center gap-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.055] p-4"
         >
           <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-emerald-300/10 text-emerald-200">
