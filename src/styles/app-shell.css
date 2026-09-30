@@ -1303,3 +1303,94 @@
     animation: none;
   }
 }
+
+
+/* App Experience v3: full-screen installed search -------------------------- */
+html[data-solaris-app] .solaris-app-search-dialog {
+  inset: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  max-width: none !important;
+  height: var(--solaris-visual-viewport-height, 100dvh);
+  max-height: none !important;
+  transform: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding:
+    max(.35rem, env(safe-area-inset-top))
+    0
+    max(.35rem, env(safe-area-inset-bottom)) !important;
+  background:
+    radial-gradient(circle at 50% -12%, rgb(46 105 139 / .13), transparent 35%),
+    var(--background) !important;
+  box-shadow: none !important;
+}
+
+html[data-solaris-app] .solaris-app-search-dialog > button {
+  display: none;
+}
+
+html[data-solaris-app] .solaris-app-search-dialog [cmdk-root] {
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  border-radius: 0;
+  background: transparent;
+}
+
+html[data-solaris-app] .solaris-app-search-titlebar {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .15rem 1rem .35rem;
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+html[data-solaris-app] .solaris-app-search-titlebar button {
+  min-height: 2.5rem;
+  border-radius: .75rem;
+  padding-inline: .55rem;
+  color: var(--primary);
+  font-size: .78rem;
+  font-weight: 750;
+}
+
+html[data-solaris-app] .solaris-app-search-dialog [cmdk-input-wrapper] {
+  margin-inline: .75rem;
+  border: 1px solid rgb(210 236 248 / .13);
+  border-radius: 1rem;
+  background: rgb(255 255 255 / .045);
+  padding-inline: .85rem;
+}
+
+html[data-solaris-app] .solaris-app-search-dialog [cmdk-input] {
+  min-height: 3.1rem;
+  font-size: 1rem;
+}
+
+html[data-solaris-app] .solaris-app-search-results {
+  min-height: 0;
+  padding: .55rem .55rem 1rem;
+  overscroll-behavior: contain;
+}
+
+html[data-solaris-app] .solaris-app-search-results [cmdk-group-heading] {
+  padding-top: .7rem;
+  font-size: .67rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+html[data-solaris-app] .solaris-app-search-results [cmdk-item] {
+  min-height: 3.4rem;
+  border-radius: .9rem;
+}
+
+html[data-solaris-keyboard-open] .solaris-app-search-dialog {
+  height: var(--solaris-visual-viewport-height, 100dvh);
+}
