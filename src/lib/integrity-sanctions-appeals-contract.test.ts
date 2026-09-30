@@ -58,10 +58,6 @@ const integrityHome = readFileSync(
   resolve(process.cwd(), "src/components/integrity/IntegrityHomeV5.tsx"),
   "utf8",
 );
-const integrityHome = readFileSync(
-  resolve(process.cwd(), "src/components/integrity/IntegrityHomeV5.tsx"),
-  "utf8",
-);
 const protectedCaseRoute = readFileSync(
   resolve(process.cwd(), "src/routes/integrity/cases/$caseId.tsx"),
   "utf8",
