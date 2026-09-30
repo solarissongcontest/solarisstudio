@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import { useMyFollows } from "@/lib/engagement-data";
+import { writeOfflinePublicIndex } from "@/lib/app-offline-snapshot";
 import { useFanSession } from "@/lib/prediction-data";
+import { isShowPublic } from "@/lib/publication";
 import {
   readPublicRecents,
   type PublicRecentDestination,
@@ -22,6 +24,15 @@ export function AppExplorePersonalized() {
   useEffect(() => {
     setRecents(readPublicRecents().slice(0, 4));
   }, []);
+
+  useEffect(() => {
+    if (!countries.data || !editions.data || !shows.data) return;
+    writeOfflinePublicIndex({
+      countries: countries.data,
+      editions: editions.data,
+      shows: shows.data.filter((show) => isShowPublic(show)),
+    });
+  }, [countries.data, editions.data, shows.data]);
 
   const followed = useMemo(() => {
     const countryById = new Map((countries.data ?? []).map((item) => [item.id, item]));

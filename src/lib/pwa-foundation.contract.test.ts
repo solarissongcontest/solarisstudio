@@ -64,7 +64,7 @@ describe("Solaris installed-app foundation", () => {
 
   it("bumps the installed-app static cache when liquid glass rendering changes", () => {
     const worker = source("public/sw.js");
-    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v9"');
+    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v10"');
   });
 
   it("lets the active tab indicator drag across destinations", () => {
@@ -122,5 +122,6 @@ describe("Solaris installed-app foundation", () => {
     expect(worker).toContain('const OFFLINE_URL = "/offline.html"');
     expect(worker).toContain('request.method !== "GET"');
     expect(offline).toContain("Official submissions are never queued");
+    expect(offline).toContain("live server acknowledgement");
   });
 });

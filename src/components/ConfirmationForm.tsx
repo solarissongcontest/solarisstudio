@@ -42,6 +42,7 @@ import {
   getBrowserSessionId,
   readLocalDraft,
   writeLocalDraft,
+  type LocalDraft,
 } from "@/lib/session";
 import {
   availabilityMessage,
@@ -79,6 +80,19 @@ type KnownErrorKey =
   | "song_url";
 
 type Errors = Partial<Record<KnownErrorKey, string>> & Record<string, string | undefined>;
+
+type DraftVersion = {
+  payload: ConfirmationPayload;
+  step: number;
+  savedAt: string;
+  source: "device" | "server";
+};
+
+type DraftConflict = {
+  device: DraftVersion;
+  server: DraftVersion;
+  preferred: "device" | "server";
+};
 
 function Field({
   label,
@@ -216,10 +230,32 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [restored, setRestored] = useState<string | null>(null);
+  const [draftConflict, setDraftConflict] = useState<DraftConflict | null>(null);
+  const [isOnline, setIsOnline] = useState(
+    () => typeof navigator === "undefined" || navigator.onLine,
+  );
 
   const sessionId = useMemo(() => getBrowserSessionId(), []);
   const hydrated = useRef(false);
   const dirty = useRef(false);
+
+  useEffect(() => {
+    const refresh = () => setIsOnline(navigator.onLine);
+    window.addEventListener("online", refresh);
+    window.addEventListener("offline", refresh);
+    return () => {
+      window.removeEventListener("online", refresh);
+      window.removeEventListener("offline", refresh);
+    };
+  }, []);
+
+  const applyDraftVersion = (version: DraftVersion) => {
+    setData({ ...version.payload, round_id: round.id });
+    setStep(Math.min(version.step ?? 0, STEPS.length - 1));
+    setRestored(version.savedAt);
+    setDraftConflict(null);
+    dirty.current = false;
+  };
 
   const set = <K extends keyof ConfirmationPayload>(key: K, value: ConfirmationPayload[K]) => {
     dirty.current = true;
@@ -257,10 +293,40 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
           const parsed = JSON.parse(remote.payload_json) as { payload?: ConfirmationPayload; step?: number };
           const remoteAt = new Date(remote.updated_at).getTime();
           const localAt = local ? new Date(local.savedAt).getTime() : 0;
-          if (parsed.payload && remoteAt > localAt) {
-            setData({ ...parsed.payload, round_id: round.id });
-            setStep(Math.min(parsed.step ?? 0, STEPS.length - 1));
-            setRestored(remote.updated_at);
+          if (parsed.payload) {
+            const serverVersion: DraftVersion = {
+              payload: parsed.payload,
+              step: Math.min(parsed.step ?? 0, STEPS.length - 1),
+              savedAt: remote.updated_at,
+              source: "server",
+            };
+            if (local?.payload) {
+              const deviceVersion: DraftVersion = {
+                payload: local.payload,
+                step: Math.min(local.step ?? 0, STEPS.length - 1),
+                savedAt: local.savedAt,
+                source: "device",
+              };
+              const differs =
+                JSON.stringify(deviceVersion.payload) !== JSON.stringify(serverVersion.payload) ||
+                deviceVersion.step !== serverVersion.step;
+              if (differs) {
+                const preferred = remoteAt > localAt ? "server" : "device";
+                const chosen = preferred === "server" ? serverVersion : deviceVersion;
+                setData({ ...chosen.payload, round_id: round.id });
+                setStep(chosen.step);
+                setRestored(chosen.savedAt);
+                setDraftConflict({ device: deviceVersion, server: serverVersion, preferred });
+              } else if (remoteAt > localAt) {
+                setData({ ...serverVersion.payload, round_id: round.id });
+                setStep(serverVersion.step);
+                setRestored(serverVersion.savedAt);
+              }
+            } else {
+              setData({ ...serverVersion.payload, round_id: round.id });
+              setStep(serverVersion.step);
+              setRestored(serverVersion.savedAt);
+            }
           }
         }
       } catch {
@@ -301,10 +367,10 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
   }, [editToken, persistDraft, round.id, sessionId]);
 
   useEffect(() => {
-    if (!hydrated.current || !dirty.current || done) return;
+    if (!hydrated.current || !dirty.current || done || draftConflict) return;
     const timer = window.setTimeout(() => void autosave(data, step), 1200);
     return () => window.clearTimeout(timer);
-  }, [autosave, data, done, step]);
+  }, [autosave, data, done, draftConflict, step]);
 
   function duplicateMessage(type: "song" | "artist" | null) {
     if (type === "song") return "This song has already been used in Solaris Song Contest and cannot be submitted again.";
@@ -540,6 +606,18 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
   }
 
   async function send(participating: boolean) {
+    if (!isOnline) {
+      setBlocked("You’re offline. Solaris never queues official submissions. Reconnect, review the form, and submit again.");
+      return;
+    }
+    if (draftConflict) {
+      setBlocked("Choose which saved draft to keep before submitting.");
+      return;
+    }
+    if (saving || Object.values(duplicateChecking).some(Boolean)) {
+      setBlocked("Solaris is still finishing draft or eligibility checks. Try again when the checks are complete.");
+      return;
+    }
     setBusy(true);
     try {
       if (!editToken && !editingExisting) {
@@ -567,7 +645,11 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
         return;
       }
       dirty.current = false;
-      clearLocalDraft(round.id);
+      clearLocalDraft(round.id, {
+        kind: "confirmation",
+        submissionId: result.submission_id ?? null,
+        acknowledgedAt: new Date().toISOString(),
+      });
       setDone(participating ? "submitted" : "not_participating");
     } finally {
       setBusy(false);
@@ -620,7 +702,32 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
         <Progress value={((step + 1) / STEPS.length) * 100} className="h-1.5" />
       </div>
 
-      {restored ? <p className="rounded-lg border border-accent/30 bg-accent/10 p-3 text-sm">Your unfinished response was restored.</p> : null}
+      {draftConflict ? (
+        <div className="rounded-xl border border-amber-300/30 bg-amber-300/[0.08] p-4" role="alert">
+          <p className="text-sm font-semibold">Two different saved drafts were found</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Solaris loaded the {draftConflict.preferred === "server" ? "newer server" : "newer device"} copy, but will not autosave over either version until you choose which one to keep.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <Button type="button" variant="outline" onClick={() => applyDraftVersion(draftConflict.device)}>
+              Use device draft · {new Date(draftConflict.device.savedAt).toLocaleString()}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => applyDraftVersion(draftConflict.server)}>
+              Use server draft · {new Date(draftConflict.server.savedAt).toLocaleString()}
+            </Button>
+          </div>
+        </div>
+      ) : restored ? (
+        <p className="rounded-lg border border-accent/30 bg-accent/10 p-3 text-sm">
+          Your unfinished response was restored.
+        </p>
+      ) : null}
+
+      {!isOnline ? (
+        <div className="rounded-xl border border-amber-300/30 bg-amber-300/[0.08] p-4 text-sm">
+          <strong>Offline read-only mode.</strong> Your local draft stays on this device, but Solaris will not queue or fake an official submission.
+        </div>
+      ) : null}
 
       <div className="surface space-y-6 p-6 sm:p-8">
         {step === 0 ? (
@@ -880,6 +987,18 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
                 ) : null}
               </>
             ) : null}
+
+            <ReviewBlock title="Submission preflight">
+              <SummaryRow label="Connection" value={isOnline ? "Online" : "Offline · submission disabled"} />
+              <SummaryRow label="Draft conflict" value={draftConflict ? "Resolve before submitting" : "Resolved"} />
+              <SummaryRow label="Autosave" value={saving ? "Saving…" : "Ready"} />
+              <SummaryRow
+                label="Duplicate checks"
+                value={Object.values(duplicateChecking).some(Boolean) ? "Checking…" : "Complete"}
+              />
+              <SummaryRow label="Final server check" value="Runs again when you submit" />
+              <SummaryRow label="Receipt" value="Shown only after the server accepts the submission" />
+            </ReviewBlock>
           </>
         ) : null}
 
@@ -888,7 +1007,16 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
           {step < 5 ? (
             <Button onClick={() => void next()} disabled={busy}>Continue<ArrowRight className="size-4" /></Button>
           ) : (
-            <Button onClick={() => void send(true)} disabled={busy}>
+            <Button
+              onClick={() => void send(true)}
+              disabled={
+                busy ||
+                !isOnline ||
+                Boolean(draftConflict) ||
+                saving ||
+                Object.values(duplicateChecking).some(Boolean)
+              }
+            >
               {busy ? "Submitting…" : editingExisting ? "Save changes" : "Submit confirmation"}
             </Button>
           )}

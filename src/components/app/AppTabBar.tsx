@@ -50,6 +50,7 @@ export function AppTabBar({
   const navigate = useNavigate();
   const routeArea = publicAreaForPath(pathname);
   const [collapsed, setCollapsed] = useState(false);
+  const [railMode, setRailMode] = useState(false);
   const [fallbackArea, setFallbackArea] = useState<PrimaryArea>("home");
   const [dragPreviewIndex, setDragPreviewIndex] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -60,6 +61,17 @@ export function AppTabBar({
   const materialRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<DragState | null>(null);
   const suppressClick = useRef(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 900px)");
+    const refresh = () => {
+      setRailMode(media.matches);
+      if (media.matches) setCollapsed(false);
+    };
+    refresh();
+    media.addEventListener?.("change", refresh);
+    return () => media.removeEventListener?.("change", refresh);
+  }, []);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(LAST_PRIMARY_AREA_KEY);
@@ -79,6 +91,10 @@ export function AppTabBar({
 
   useEffect(() => {
     lastScrollY.current = window.scrollY;
+    if (railMode) {
+      setCollapsed(false);
+      return;
+    }
 
     const evaluate = () => {
       frame.current = null;
@@ -118,7 +134,7 @@ export function AppTabBar({
       window.removeEventListener("scroll", onScroll);
       if (frame.current != null) window.cancelAnimationFrame(frame.current);
     };
-  }, []);
+  }, [railMode]);
 
   const activeArea: PrimaryArea =
     routeArea === "help" ? fallbackArea : isPrimaryArea(routeArea) ? routeArea : fallbackArea;
@@ -170,7 +186,12 @@ export function AppTabBar({
     index: number,
     active: boolean,
   ) => {
-    if (!active || collapsed || event.pointerType === "mouse" && event.button !== 0) return;
+    if (
+      !active ||
+      collapsed ||
+      railMode ||
+      (event.pointerType === "mouse" && event.button !== 0)
+    ) return;
 
     dragState.current = {
       pointerId: event.pointerId,
@@ -262,6 +283,7 @@ export function AppTabBar({
       className={cn("solaris-app-tabbar", collapsed && "is-collapsed")}
       aria-label="Solaris Studio"
       data-collapsed={collapsed ? "true" : "false"}
+      data-layout={railMode ? "rail" : "bar"}
       onPointerDown={() => {
         if (collapsed) setCollapsed(false);
       }}

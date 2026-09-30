@@ -3,6 +3,7 @@
 import {
   CONFIRMATION_SUBMITTED_EVENT,
   dispatchSubmissionReceipt,
+  type SubmissionReceiptDetail,
 } from "@/lib/submission-receipts";
 
 const SESSION_KEY = "ssc.session_id";
@@ -57,7 +58,10 @@ export function writeLocalDraft<T>(roundId: string, payload: T, step: number) {
   }
 }
 
-export function clearLocalDraft(roundId: string) {
+export function clearLocalDraft(
+  roundId: string,
+  receipt: Omit<SubmissionReceiptDetail, "id"> = {},
+) {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(draftKey(roundId));
@@ -68,5 +72,5 @@ export function clearLocalDraft(roundId: string) {
   // ConfirmationForm only clears the draft after the server has accepted the
   // response. Broadcasting that fact lets the route show the shared pending →
   // confirmed receipt state without coupling the giant form to presentation UI.
-  dispatchSubmissionReceipt(CONFIRMATION_SUBMITTED_EVENT, roundId);
+  dispatchSubmissionReceipt(CONFIRMATION_SUBMITTED_EVENT, roundId, receipt);
 }

@@ -12,19 +12,19 @@ import {
 } from "@/lib/submission-receipts";
 
 export function ConfirmationFormWithReceipt(props: ConfirmationFormProps) {
-  const [receiptDetected, setReceiptDetected] = useState(false);
+  const [receipt, setReceipt] = useState<SubmissionReceiptDetail | null>(null);
 
   useEffect(() => {
     const onSubmitted = (event: Event) => {
       const detail = (event as CustomEvent<SubmissionReceiptDetail>).detail;
-      if (detail?.id === props.round.id) setReceiptDetected(true);
+      if (detail?.id === props.round.id) setReceipt(detail);
     };
 
     window.addEventListener(CONFIRMATION_SUBMITTED_EVENT, onSubmitted);
     return () => window.removeEventListener(CONFIRMATION_SUBMITTED_EVENT, onSubmitted);
   }, [props.round.id]);
 
-  if (receiptDetected) {
+  if (receipt) {
     const editing = Boolean(props.editToken || props.prefill);
     return (
       <DelayedConfirmationState
@@ -38,7 +38,7 @@ export function ConfirmationFormWithReceipt(props: ConfirmationFormProps) {
         confirmedDescription={
           editing
             ? "Your saved confirmation now includes the changes you submitted."
-            : "Your confirmation response is recorded and available through the normal recovery or country-account tools."
+            : `Your confirmation response is recorded${receipt.submissionId ? ` · receipt ${receipt.submissionId.slice(0, 8)}` : ""} and available through the normal recovery or country-account tools.`
         }
       />
     );

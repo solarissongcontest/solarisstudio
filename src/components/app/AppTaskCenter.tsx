@@ -23,6 +23,29 @@ function stateIcon(task: SolarisTask) {
   return Info;
 }
 
+function exactTiming(task: SolarisTask) {
+  const target = task.actionRequired && task.deadline
+    ? task.deadline
+    : task.opensAt ?? task.deadline;
+  if (!target) return null;
+  const date = new Date(target);
+  if (Number.isNaN(date.getTime())) return null;
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const prefix =
+    task.actionRequired && task.deadline
+      ? "Due"
+      : task.opensAt
+        ? "Opens"
+        : "Closes";
+  return {
+    dateTime: date.toISOString(),
+    label: `${prefix} ${date.toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    })}${timezone ? ` · ${timezone}` : ""}`,
+  };
+}
+
 function timing(task: SolarisTask, now = Date.now()) {
   if (task.actionRequired && task.deadline) {
     const remaining = millisecondsUntil(task.deadline, now);
@@ -147,6 +170,7 @@ export function AppTaskCard({
 }) {
   const Icon = stateIcon(task);
   const time = timing(task);
+  const exact = exactTiming(task);
 
   return (
     <Link
@@ -169,6 +193,14 @@ export function AppTaskCard({
         <span className="mt-1 block text-xs leading-5 text-muted-foreground">
           {task.description}
         </span>
+        {exact ? (
+          <time
+            dateTime={exact.dateTime}
+            className="mt-1 block text-[10px] font-medium text-muted-foreground"
+          >
+            {exact.label}
+          </time>
+        ) : null}
         {prominent ? (
           <span className="mt-2 block text-[11px] font-semibold text-primary">
             {task.why}
