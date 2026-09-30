@@ -19,6 +19,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { ConfirmationReviewStatus } from "@/components/ConfirmationReviewStatus";
 import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
@@ -92,6 +93,7 @@ function payloadCountryId(payload: unknown) {
 }
 
 function MySolarisPage() {
+  const { isAppMode } = useSolarisApp();
   const now = useNow();
   const { tab: requestedTab, notice } = Route.useSearch();
   const tab = requestedTab ?? "home";
@@ -281,20 +283,22 @@ function MySolarisPage() {
 
   return (
     <AppShell>
+      {!isAppMode ? (
       <PageHeader
-        eyebrow="MySolaris"
-        title={`Welcome back, ${country.name}`}
-        description="Your participant home for current priorities, entry readiness, notices and the active edition."
-        actions={
-          <Link
-            to="/countries/$code"
-            params={{ code: country.short_code }}
-            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold"
-          >
-            <Eye className="size-3.5" /> View public page
-          </Link>
-        }
-      />
+          eyebrow="MySolaris"
+          title={`Welcome back, ${country.name}`}
+          description="Your participant home for current priorities, entry readiness, notices and the active edition."
+          actions={
+            <Link
+              to="/countries/$code"
+              params={{ code: country.short_code }}
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold"
+            >
+              <Eye className="size-3.5" /> View public page
+            </Link>
+          }
+        />
+      ) : null}
 
       {notice === "organizer-access-required" ? (
         <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/[0.055] p-4 text-sm">
