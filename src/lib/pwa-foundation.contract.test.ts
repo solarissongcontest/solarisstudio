@@ -34,12 +34,12 @@ describe("Solaris installed-app foundation", () => {
     expect(tabs).toContain('variant="navigation"');
     expect(tabs).toContain('className="solaris-app-tabbar-backdrop"');
     expect(backdrop).toContain('"navigation"');
-    expect(backdrop).toContain("frost: 20");
-    expect(backdrop).toContain("brightness: 0.12");
+    expect(backdrop).toContain("frost: 18");
+    expect(backdrop).toContain("brightness: 0.1");
     expect(vendor).toContain("useSupportsBackdropUrl");
     expect(vendor).toContain("Safari would get `url()` in the value");
     expect(styles).toContain(".solaris-app-tabbar-backdrop");
-    expect(styles).toContain("rgb(248 253 255 / .13)");
+    expect(styles).toContain("rgb(255 255 255 / .105)");
     expect(styles).toContain(".solaris-app-tabbar-material");
     expect(styles).toContain("background: transparent");
     expect(styles).toContain("background: rgb(232 235 240 / .105)");
