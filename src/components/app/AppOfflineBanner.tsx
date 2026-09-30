@@ -11,7 +11,7 @@ export function AppOfflineBanner({ isOnline }: { isOnline: boolean }) {
       data-solaris-app-offline
     >
       <WifiOff className="size-4" aria-hidden="true" />
-      <span>You’re offline. Saved public content may still be available.</span>
+      <span>You’re offline. Solaris is read-only: local drafts stay on this device, and official submissions are disabled until you reconnect.</span>
     </div>
   );
 }

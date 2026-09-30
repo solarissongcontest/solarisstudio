@@ -194,8 +194,11 @@ export function TelevotingBooth({
       });
       return { result, ballot };
     },
-    onSuccess: ({ ballot }) => {
-      markTelevotingRoundSubmitted(roundId);
+    onSuccess: ({ result, ballot }) => {
+      markTelevotingRoundSubmitted(roundId, {
+        submissionId: result.id,
+        acknowledgedAt: new Date().toISOString(),
+      });
       try {
         localStorage.setItem(
           receiptKey(roundId),

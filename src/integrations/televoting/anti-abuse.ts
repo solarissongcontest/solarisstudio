@@ -52,7 +52,10 @@ export async function buildTelevotingClientIdentity() {
   return { fingerprintHash, deviceTokenHash };
 }
 
-export function markTelevotingRoundSubmitted(roundId: string) {
+export function markTelevotingRoundSubmitted(
+  roundId: string,
+  receipt: { submissionId?: string | null; acknowledgedAt?: string | null } = {},
+) {
   try {
     const raw = localStorage.getItem(SUBMITTED_KEY);
     const rounds: string[] = raw ? JSON.parse(raw) : [];
@@ -65,7 +68,11 @@ export function markTelevotingRoundSubmitted(roundId: string) {
   // This function is only called after the server has accepted the ballot or
   // confirmed it was already recorded. The receipt event drives the shared
   // pending → confirmed UI without weakening any database-side protection.
-  dispatchSubmissionReceipt(TELEVOTE_SUBMITTED_EVENT, roundId);
+  dispatchSubmissionReceipt(TELEVOTE_SUBMITTED_EVENT, roundId, {
+    kind: "televote",
+    submissionId: receipt.submissionId ?? null,
+    acknowledgedAt: receipt.acknowledgedAt ?? new Date().toISOString(),
+  });
 }
 
 export function hasSubmittedTelevotingRound(roundId: string) {
