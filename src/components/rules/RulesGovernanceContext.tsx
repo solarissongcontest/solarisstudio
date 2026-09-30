@@ -7,6 +7,7 @@ import { consumeRuleReturnRestore } from "@/lib/rule-return-context";
 import { usePublishedRulebook } from "@/lib/rules-governance";
 
 export const RULE_CONTEXT_STORAGE_KEY = "solaris:rule-context-path";
+export const GOVERNANCE_ACTION_STORAGE_KEY = "solaris:governance-action";
 
 /**
  * Keeps the active published rulebook overlay available to Rules consumers and
