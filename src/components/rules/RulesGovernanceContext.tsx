@@ -2,6 +2,7 @@ import { useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { getRuleContext } from "@/lib/rule-context";
+import { consumeRuleReturnRestore } from "@/lib/rule-return-context";
 import { usePublishedRulebook } from "@/lib/rules-governance";
 
 export const RULE_CONTEXT_STORAGE_KEY = "solaris:rule-context-path";
@@ -19,12 +20,24 @@ export const RULE_CONTEXT_STORAGE_KEY = "solaris:rule-context-path";
 export function RulesGovernanceContext() {
   usePublishedRulebook();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const searchStr = useRouterState({ select: (state) => state.location.searchStr });
 
   useEffect(() => {
     const context = getRuleContext(pathname);
-    if (!context) return;
-    window.sessionStorage.setItem(RULE_CONTEXT_STORAGE_KEY, context.sourcePath);
-  }, [pathname]);
+    if (context) window.sessionStorage.setItem(RULE_CONTEXT_STORAGE_KEY, context.sourcePath);
+
+    const restore = consumeRuleReturnRestore(pathname, searchStr);
+    if (!restore) return;
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: restore.scrollY, behavior: "auto" });
+        if (restore.focusId) {
+          const target = document.getElementById(restore.focusId);
+          if (target instanceof HTMLElement) target.focus({ preventScroll: true });
+        }
+      });
+    });
+  }, [pathname, searchStr]);
 
   return null;
 }
