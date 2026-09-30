@@ -55,7 +55,8 @@ describe("App Experience v3 attention preferences and search", () => {
     expect(palette).toContain("rememberAppSearchReturn(originPath, normalized, result.href)");
     expect(palette).toContain("readPendingAppSearchRestore(pathname)");
     expect(toolbar).toContain("readAppSearchReturn(pathname)");
-    expect(toolbar).toContain('searchReturn ? "Search"');
+    expect(toolbar).toContain("const backLabel = searchReturn");
+    expect(toolbar).toContain('? "Search"');
     expect(searchState).toContain("solaris:app-search-return:v1");
   });
 });
