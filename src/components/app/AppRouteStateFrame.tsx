@@ -17,6 +17,7 @@ export function AppRouteStateFrame({
   const { isAppMode } = useSolarisApp();
   const attention = useAppAttentionSummary();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const searchStr = useRouterState({ select: (state) => state.location.searchStr });
 
   if (!isAppMode) return <>{children}</>;
 
@@ -38,6 +39,7 @@ export function AppRouteStateFrame({
 
       <AppTabBar
         pathname={pathname}
+        searchStr={searchStr}
         signedIn={false}
         participateBadge={attention.participate}
         meBadge={attention.me}
