@@ -69,14 +69,18 @@ export function AppToolbar({
           )}
         </div>
 
-        <div className="flex items-center gap-1">
-          <PublicCommandPalette compact access={access} />
-          <SheetTrigger asChild>
-            <button type="button" className="solaris-app-toolbar-button" aria-label="More">
-              <MoreHorizontal className="size-5" aria-hidden="true" />
-            </button>
-          </SheetTrigger>
-        </div>
+        {chrome.archetype !== "immersive" ? (
+          <div className="flex items-center gap-1">
+            {chrome.archetype !== "task" ? (
+              <PublicCommandPalette compact access={access} />
+            ) : null}
+            <SheetTrigger asChild>
+              <button type="button" className="solaris-app-toolbar-button" aria-label="More">
+                <MoreHorizontal className="size-5" aria-hidden="true" />
+              </button>
+            </SheetTrigger>
+          </div>
+        ) : null}
       </div>
     </header>
   );
