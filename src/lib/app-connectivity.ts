@@ -5,6 +5,8 @@ import {
   readSupabaseServiceRestriction,
 } from "@/lib/supabase-service-restriction";
 
+export const APP_CONNECTIVITY_RECOVERED_EVENT = "solaris:app-connectivity-recovered";
+
 export type AppConnectivityStatus =
   | "online"
   | "offline"
@@ -78,6 +80,7 @@ export function createAppConnectivityController(
 
   const runProbe = async () => {
     probeController?.abort();
+    const previousStatus = snapshot.status;
     if (!navigator.onLine) {
       snapshot = {
         ...snapshot,
@@ -124,13 +127,21 @@ export function createAppConnectivityController(
     snapshot.serviceRestricted = Boolean(readSupabaseServiceRestriction());
     applyStatus();
     emit();
+
+    if (previousStatus !== "online" && snapshot.status === "online") {
+      window.dispatchEvent(
+        new CustomEvent(APP_CONNECTIVITY_RECOVERED_EVENT, {
+          detail: { recoveredAt: snapshot.checkedAt },
+        }),
+      );
+    }
   };
 
   const onOnline = () => {
     snapshot = {
       ...snapshot,
       navigatorOnline: true,
-      originReachable: null,
+      originReachable: false,
     };
     applyStatus();
     emit();
@@ -161,6 +172,7 @@ export function createAppConnectivityController(
     snapshot = {
       ...snapshot,
       serviceRestricted: false,
+      originReachable: false,
     };
     applyStatus();
     emit();
