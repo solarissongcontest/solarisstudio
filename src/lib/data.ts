@@ -888,6 +888,7 @@ export function useContestEntities(
     string,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("warm"),
     enabled:
       !!editionId,
 
@@ -941,6 +942,7 @@ export function useVoters(
     string,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("warm"),
     enabled:
       !!editionId,
 
@@ -973,6 +975,7 @@ export function useShowVoters(
     string,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("warm"),
     enabled:
       !!showId,
 
@@ -1104,6 +1107,7 @@ export function useJuryVotes(
     string,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("live"),
     enabled:
       !!showId,
 
@@ -1129,6 +1133,7 @@ export function useJuryVotes(
 
 export function useAllJuryVotes() {
   return useQuery({
+    ...solarisQueryPolicy("cold"),
     queryKey: [
       "jury_votes",
       "all",
@@ -1151,6 +1156,7 @@ export function useTelevotes(
     string,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("live"),
     enabled:
       !!showId,
 
@@ -1176,6 +1182,7 @@ export function useTelevotes(
 
 export function useAllTelevotes() {
   return useQuery({
+    ...solarisQueryPolicy("cold"),
     queryKey: [
       "televote_votes",
       "all",
@@ -1198,6 +1205,7 @@ export function useResults(
     string,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("live"),
     enabled:
       !!showId,
 
@@ -1223,6 +1231,7 @@ export function useResults(
 
 export function useAllResults() {
   return useQuery({
+    ...solarisQueryPolicy("cold"),
     queryKey: [
       "results",
       "all",
