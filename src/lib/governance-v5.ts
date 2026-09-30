@@ -445,3 +445,25 @@ export function governanceActionForPath(pathname: string): GovernanceActionKey |
   if (pathname.startsWith("/admin/design") || pathname.startsWith("/admin/edition-theme")) return "hosting.accept";
   return null;
 }
+
+
+export type GovernanceImpact = {
+  action: GovernanceActionKey;
+  title: string;
+  changedRuleIds: string[];
+};
+
+export function governanceImpactForRuleIds(ruleIds: readonly string[]): GovernanceImpact[] {
+  const changed = new Set(ruleIds);
+  return GOVERNANCE_ACTION_KEYS.flatMap((action) => {
+    const affected = governanceRules(action)
+      .map((rule) => rule.id)
+      .filter((id) => changed.has(id));
+    if (!affected.length) return [];
+    return [{
+      action,
+      title: governanceDefinition(action).title,
+      changedRuleIds: affected,
+    }];
+  });
+}
