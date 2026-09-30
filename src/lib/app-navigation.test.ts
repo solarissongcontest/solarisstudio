@@ -142,4 +142,38 @@ describe("installed app navigation state", () => {
     expect(getAppLaunchDestination(false, storage).pathname).toBe("/auth");
   });
 
+  it("does not revive stale screens after the launch freshness window", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      "solaris:app-navigation:v1",
+      JSON.stringify({
+        version: 1,
+        activeTab: "explore",
+        tabs: {
+          explore: {
+            current: {
+              pathname: "/countries/OL",
+              searchStr: "",
+              scrollY: 900,
+              visitedAt: "2026-09-01T12:00:00.000Z",
+            },
+            history: [
+              {
+                pathname: "/countries/OL",
+                searchStr: "",
+                scrollY: 900,
+                visitedAt: "2026-09-01T12:00:00.000Z",
+              },
+            ],
+          },
+        },
+      }),
+    );
+
+    expect(getAppLaunchDestination(true, storage)).toMatchObject({
+      pathname: "/explore",
+      scrollY: 0,
+    });
+  });
+
 });
