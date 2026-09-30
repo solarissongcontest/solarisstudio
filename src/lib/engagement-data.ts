@@ -16,6 +16,15 @@ const supabase = baseSupabase as unknown as SupabaseClient<AppDatabase>;
 
 export type FollowEntityType = FanFollowRow["entity_type"];
 
+export const DEFAULT_SOLARIS_NOTIFICATION_CATEGORIES = [
+  "confirmations",
+  "jury",
+  "televoting",
+  "deadlines",
+  "official",
+  "results",
+] as const;
+
 export function useMyFollows(profileId?: string) {
   return useQuery({
     enabled: Boolean(profileId),
