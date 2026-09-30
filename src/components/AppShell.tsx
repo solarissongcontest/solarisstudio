@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ChevronDown,
   Compass,
@@ -36,7 +36,11 @@ import { getSolarisAnniversary } from "@/lib/anniversary";
 import { getAnniversaryPreviewPhase } from "@/lib/anniversary-preview";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
 import {
+  appEntryHref,
   consumeAppNavigationRestore,
+  getAppLaunchDestination,
+  isAppLaunchRequest,
+  markAppNavigationRestore,
   rememberAppLocation,
   updateAppScrollPosition,
 } from "@/lib/app-navigation";
@@ -123,10 +127,12 @@ function legacyAnyPathMatches(pathname: string, routes: readonly string[]) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { isAppMode } = useSolarisApp();
+  const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const [email, setEmail] = useState<string | null>(null);
   const [access, setAccess] = useState<AccountAccess>(EMPTY_ACCESS);
+  const [authReady, setAuthReady] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [publicIaV3Enabled, setPublicIaV3Enabled] = useState(true);
 
@@ -139,11 +145,16 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       if (!userId) {
         setAccess(EMPTY_ACCESS);
+        setAuthReady(true);
         return;
       }
 
-      const next = await getCurrentAccountAccess(userId);
-      if (alive) setAccess(next);
+      try {
+        const next = await getCurrentAccountAccess(userId);
+        if (alive) setAccess(next);
+      } finally {
+        if (alive) setAuthReady(true);
+      }
     };
 
     void supabase.auth
@@ -166,7 +177,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => setMenuOpen(false), [pathname]);
 
   useEffect(() => {
-    if (!isAppMode) return;
+    if (!isAppMode || isAppLaunchRequest(searchStr)) return;
 
     const restoreY = consumeAppNavigationRestore(pathname, searchStr);
     rememberAppLocation(pathname, searchStr, restoreY ?? undefined);
@@ -197,6 +208,25 @@ export function AppShell({ children }: { children: ReactNode }) {
       updateAppScrollPosition(pathname, searchStr, window.scrollY);
     };
   }, [isAppMode, pathname, searchStr]);
+
+
+  useEffect(() => {
+    if (
+      !isAppMode ||
+      !authReady ||
+      pathname !== "/" ||
+      !isAppLaunchRequest(searchStr)
+    ) {
+      return;
+    }
+
+    const target = getAppLaunchDestination(Boolean(access.userId));
+    markAppNavigationRestore(target);
+    void navigate({
+      to: appEntryHref(target) as any,
+      replace: true,
+    });
+  }, [access.userId, authReady, isAppMode, navigate, pathname, searchStr]);
 
   useEffect(() => {
     let alive = true;
