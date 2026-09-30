@@ -206,7 +206,7 @@ export function KubeLiquidGlassBackdrop({ className }: { className?: string }) {
   const backdropFilter =
     blink && maps
       ? `url(#${filterId})`
-      : "blur(22px) saturate(1.12) brightness(1.08)";
+      : "blur(24px) saturate(1.14) brightness(1.08)";
 
   return (
     <>
