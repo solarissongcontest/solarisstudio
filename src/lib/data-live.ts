@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
+import { solarisQueryPolicy } from "./app-query-policy";
 import type {
   JuryVote,
   Participant,
@@ -74,15 +75,12 @@ function useCompleteArchive<T>(
   _options?: CompleteArchiveOptions,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("cold"),
     queryKey: [queryKey, "all"],
     queryFn: () => fetchCompleteArchive<T>(table),
-    // Historical archives are large (jury_votes alone is thousands of rows).
-    // Cache them across navigation/focus/reconnect instead of redownloading.
+    // Historical archives are larger than normal cold data. Keep them fresh
+    // for an hour while still inheriting cold focus/reconnect semantics.
     staleTime: ARCHIVE_STALE_TIME,
-    gcTime: 2 * 60 * 60 * 1000,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
   });
 }
 
