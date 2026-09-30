@@ -2,7 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Compass, Home, Trophy, UserRound, Vote, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
-import { LiquidGlassBackdrop } from "@/components/LiquidGlassBackdrop";
+import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
@@ -272,10 +272,7 @@ export function AppTabBar({
         data-active-index={activeIndex}
         data-dragging={dragging ? "true" : "false"}
       >
-        <LiquidGlassBackdrop
-          variant="navigation"
-          className="solaris-app-tabbar-backdrop"
-        />
+        <KubeLiquidGlassBackdrop className="solaris-app-tabbar-backdrop" />
         <span className="solaris-app-tab-indicator" aria-hidden="true" />
 
         {PUBLIC_GLOBAL_AREAS.map((area, index) => {
