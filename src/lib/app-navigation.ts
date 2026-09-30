@@ -290,7 +290,14 @@ export function peekAppBackTarget(
   const tabState = readAppNavigationState(storage).tabs[tab];
   if (!tabState) return null;
   const index = currentHistoryIndex(tabState, pathname, searchStr);
-  return index > 0 ? tabState.history[index - 1]! : null;
+  if (index > 0) return tabState.history[index - 1]!;
+  if (index < 0) {
+    const last = tabState.history.at(-1);
+    return last && appEntryHref(last) !== `${pathname}${normalizeSearch(searchStr)}`
+      ? last
+      : null;
+  }
+  return null;
 }
 
 export function popAppBackTarget(
@@ -305,7 +312,14 @@ export function popAppBackTarget(
   const tabState = state.tabs[tab];
   if (!tabState) return null;
   const index = currentHistoryIndex(tabState, pathname, searchStr);
-  if (index <= 0) return null;
+  if (index === 0) return null;
+
+  if (index < 0) {
+    const target = tabState.history.at(-1) ?? null;
+    if (target) state.activeTab = tab;
+    writeAppNavigationState(state, storage);
+    return target;
+  }
 
   const target = tabState.history[index - 1]!;
   const history = tabState.history.slice(0, index);
