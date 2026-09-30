@@ -92,7 +92,11 @@ export function createAppConnectivityController(
 
     const controller = new AbortController();
     probeController = controller;
-    const timeout = window.setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, PROBE_TIMEOUT_MS);
 
     try {
       const reachable = await probeOrigin(controller.signal);
@@ -104,7 +108,8 @@ export function createAppConnectivityController(
         checkedAt: new Date().toISOString(),
       };
     } catch {
-      if (disposed || controller.signal.aborted) return;
+      if (disposed) return;
+      if (controller.signal.aborted && !timedOut) return;
       snapshot = {
         ...snapshot,
         navigatorOnline: navigator.onLine,
