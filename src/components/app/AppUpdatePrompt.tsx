@@ -10,7 +10,7 @@ export function AppUpdatePrompt({ onUpdate }: { onUpdate: () => void }) {
       <div className="min-w-0">
         <p className="text-sm font-semibold">Solaris Studio update available</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Update when you are not in the middle of a submission.
+          Ready to install. Solaris waits until critical participation work is clear before showing this.
         </p>
       </div>
       <button type="button" onClick={onUpdate} className="solaris-app-update-button">
