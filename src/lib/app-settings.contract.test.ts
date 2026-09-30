@@ -8,14 +8,13 @@ describe("App Experience v3 settings hub", () => {
   it("registers a public device-settings destination in the Me area", () => {
     const navigation = source("src/lib/public-navigation.ts");
     const more = source("src/components/app/AppMoreNavigation.tsx");
-    const mySolaris = source("src/lib/my-solaris-navigation.ts");
     expect(navigation).toContain('"app-settings"');
     expect(navigation).toContain('"/settings"');
     expect(navigation).toContain('"me"');
     expect(more).toContain('{ to: "/settings", label: "App settings"');
     expect(more).toContain("Account & security");
-    expect(mySolaris).toContain('label: "Settings"');
-    expect(mySolaris).toContain('to: "/settings"');
+    const account = source("src/routes/_authenticated/my-solaris/account.tsx");
+    expect(account).toContain('to="/settings"');
   });
 
   it("reuses the canonical app-experience preference store", () => {
