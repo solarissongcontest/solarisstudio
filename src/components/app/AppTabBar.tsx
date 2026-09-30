@@ -10,6 +10,7 @@ import {
   markAppNavigationRestore,
   resetAppTabToRoot,
 } from "@/lib/app-navigation";
+import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
@@ -156,7 +157,9 @@ export function AppTabBar({
     if (!area) return;
     const target = getAppTabDestination(area.id, signedIn);
     markAppNavigationRestore(target);
-    void navigate({ to: appEntryHref(target) as any });
+    void runAppViewTransition("tab", () =>
+      navigate({ to: appEntryHref(target) as any }),
+    );
   };
 
   const activateCurrentTab = (index: number) => {
@@ -168,7 +171,9 @@ export function AppTabBar({
 
     if (normalizedPath !== normalizedRoot) {
       const target = resetAppTabToRoot(area.id, signedIn);
-      void navigate({ to: appEntryHref(target) as any });
+      void runAppViewTransition("pop", () =>
+        navigate({ to: appEntryHref(target) as any }),
+      );
       return;
     }
 
