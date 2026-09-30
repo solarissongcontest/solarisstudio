@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { GovernanceInlineReference, RulesApplyingHere } from "@/components/rules/GovernanceRules";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -963,6 +964,11 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
         {step === 5 ? (
           <>
             <SectionHeading title="Review" subtitle="Check everything before submitting." />
+            <GovernanceInlineReference
+              context="entry.submit"
+              ruleIds={["6.2", "6.4", "6.5", "6.6", "12.3"]}
+              label="Rules governing this entry"
+            />
             <ReviewBlock title="Delegation">
               <SummaryRow label="Country" value={data.country} />
               <SummaryRow label="Instagram" value={data.instagram_username} />
@@ -1080,21 +1086,18 @@ function SongDetails({
 
 function EntryEligibilityHelp() {
   return (
-    <aside className="rounded-xl border border-sky-300/15 bg-sky-300/[0.045] p-4" aria-label="Entry eligibility help">
-      <p className="text-[10px] font-black uppercase tracking-[.14em] text-sky-200">
-        Entry eligibility
-      </p>
-      <h3 className="mt-1 text-sm font-semibold">Unsure whether your song is eligible?</h3>
-      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-        Check the official entry-eligibility rules before submitting. If the rules do not answer your specific situation, request a private ruling first.
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2">
+    <div className="space-y-3" aria-label="Entry eligibility help">
+      <RulesApplyingHere
+        context="entry.submit"
+        title="Entry eligibility rules"
+        primaryLimit={4}
+      />
+      <div className="flex flex-wrap gap-2">
         <Link
-          to="/rules/$ruleId"
-          params={{ ruleId: "6.2" }}
-          className="inline-flex min-h-10 items-center rounded-lg border border-sky-300/15 bg-sky-300/[0.04] px-3 text-xs font-semibold text-sky-100"
+          to="/rules/check"
+          className="inline-flex min-h-10 items-center rounded-lg border border-primary/20 bg-primary/[0.06] px-3 text-xs font-semibold text-primary"
         >
-          Check song eligibility →
+          Check entry eligibility →
         </Link>
         <Link
           to="/integrity/preclearance"
@@ -1103,7 +1106,7 @@ function EntryEligibilityHelp() {
           Still unsure? Ask before submitting →
         </Link>
       </div>
-    </aside>
+    </div>
   );
 }
 
