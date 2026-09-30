@@ -183,60 +183,30 @@
     min-height: calc(var(--solaris-app-tabbar-height) + var(--solaris-tabbar-pull-height));
     margin-inline: auto;
     padding: var(--solaris-tab-pad);
-    border: 1px solid rgb(238 249 255 / .27);
+    border: 0;
     border-radius: calc(1.55rem + var(--solaris-tabbar-pull-radius));
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .solaris-app-tabbar-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    border: 1px solid rgb(255 255 255 / .30);
+    border-radius: inherit;
     background:
       linear-gradient(
         145deg,
-        rgb(255 255 255 / .045),
-        rgb(255 255 255 / .014) 50%,
-        rgb(255 255 255 / .026)
+        rgb(255 255 255 / .105),
+        rgb(255 255 255 / .038) 46%,
+        rgb(245 252 255 / .072)
       );
-    -webkit-backdrop-filter: blur(30px) saturate(175%) brightness(1.10) contrast(.99);
-    backdrop-filter: blur(30px) saturate(175%) brightness(1.10) contrast(.99);
     box-shadow:
-      inset 1px 1px 0 rgb(255 255 255 / .18),
-      inset -1px -1px 0 rgb(122 186 213 / .04),
-      0 14px 36px rgb(0 3 22 / .10);
-  }
-
-  .solaris-app-tabbar-material::before,
-  .solaris-app-tabbar-material::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-  }
-
-  .solaris-app-tabbar-material::before {
-    z-index: 0;
-    background:
-      radial-gradient(ellipse at 15% 0%, rgb(255 255 255 / .11), transparent 30%),
-      radial-gradient(ellipse at 87% 105%, rgb(83 184 225 / .05), transparent 34%),
-      linear-gradient(108deg, transparent 14%, rgb(255 255 255 / .025) 36%, transparent 55%);
-    mix-blend-mode: screen;
-  }
-
-  .solaris-app-tabbar-material::after {
-    z-index: 4;
-    padding: 1px;
-    background:
-      conic-gradient(
-        from 210deg,
-        rgb(255 255 255 / .46),
-        rgb(126 223 255 / .16) 13%,
-        transparent 28%,
-        transparent 71%,
-        rgb(255 181 232 / .09) 84%,
-        rgb(255 255 255 / .40)
-      );
-    -webkit-mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    opacity: .55;
+      0 12px 34px rgb(0 4 22 / .10),
+      inset 0 -1px 0 rgb(200 235 247 / .08);
   }
 
   .solaris-app-tab-indicator {
@@ -632,7 +602,7 @@
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   @media (display-mode: standalone) {
     .solaris-app-toolbar,
-    .solaris-app-tabbar-material {
+    .solaris-app-tabbar-backdrop {
       background: rgb(5 18 41 / .98);
     }
   }
@@ -641,7 +611,7 @@
 @media (prefers-reduced-transparency: reduce) {
   @media (display-mode: standalone) {
     .solaris-app-toolbar,
-    .solaris-app-tabbar-material {
+    .solaris-app-tabbar-backdrop {
       -webkit-backdrop-filter: none;
       backdrop-filter: none;
       background: rgb(5 18 41 / .98);
@@ -835,5 +805,40 @@
     .solaris-app-tab-icon {
       transition: none;
     }
+  }
+}
+
+
+@media (display-mode: standalone) {
+  .solaris-kube-liquid-filter {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .solaris-app-tabbar-backdrop[data-kube-liquid-glass="svg-refraction"] {
+    background:
+      linear-gradient(
+        145deg,
+        rgb(255 255 255 / .09),
+        rgb(255 255 255 / .025) 48%,
+        rgb(255 255 255 / .055)
+      );
+  }
+
+  .solaris-app-tabbar-backdrop[data-kube-liquid-glass="safari-fallback"] {
+    background:
+      linear-gradient(
+        145deg,
+        rgb(255 255 255 / .13),
+        rgb(255 255 255 / .045) 48%,
+        rgb(245 252 255 / .08)
+      );
+    box-shadow:
+      inset 1px 1px 0 rgb(255 255 255 / .30),
+      inset -1px -1px 0 rgb(173 225 244 / .07),
+      0 12px 34px rgb(0 4 22 / .10);
   }
 }
