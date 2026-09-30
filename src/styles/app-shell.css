@@ -1652,3 +1652,117 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
     animation: none !important;
   }
 }
+
+
+/* App Experience v3: iPad entity master-detail ---------------------------- */
+@media (display-mode: standalone) {
+  .solaris-ipad-entity-layout {
+    min-width: 0;
+  }
+
+  .solaris-ipad-entity-rail {
+    display: none;
+  }
+}
+
+@media (display-mode: standalone) and (min-width: 1024px) {
+  .solaris-ipad-entity-layout {
+    display: grid;
+    grid-template-columns: 13.25rem minmax(0, 1fr);
+    gap: 1.2rem;
+    align-items: start;
+  }
+
+  .solaris-ipad-entity-rail {
+    position: sticky;
+    top: calc(env(safe-area-inset-top) + var(--solaris-app-toolbar-height) + .8rem);
+    display: flex;
+    max-height: calc(
+      var(--solaris-visual-viewport-height, 100dvh) -
+      env(safe-area-inset-top) -
+      var(--solaris-app-toolbar-height) -
+      1.6rem
+    );
+    min-width: 0;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid rgb(215 238 247 / .13);
+    border-radius: 1.3rem;
+    background:
+      linear-gradient(150deg, rgb(235 249 255 / .055), transparent 42%),
+      rgb(6 20 42 / .78);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / .07),
+      0 14px 34px rgb(0 4 24 / .11);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+  }
+
+  .solaris-ipad-entity-rail-back {
+    display: flex;
+    min-height: 3.15rem;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: .3rem;
+    border-bottom: 1px solid rgb(215 238 247 / .09);
+    padding-inline: .8rem;
+    color: var(--foreground);
+    font-size: .76rem;
+    font-weight: 800;
+  }
+
+  .solaris-ipad-entity-rail-list {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: .42rem;
+    scrollbar-width: thin;
+  }
+
+  .solaris-ipad-entity-rail-item {
+    display: flex;
+    min-height: 3rem;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: center;
+    border-radius: .9rem;
+    padding: .5rem .65rem;
+    color: var(--muted-foreground);
+    transition:
+      background-color 140ms ease,
+      color 140ms ease,
+      transform 120ms ease;
+  }
+
+  .solaris-ipad-entity-rail-item.is-active {
+    background: rgb(238 241 245 / .085);
+    color: var(--foreground);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / .06);
+  }
+
+  .solaris-ipad-entity-rail-item:active {
+    transform: scale(.985);
+  }
+
+  .solaris-ipad-entity-detail {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .solaris-ipad-entity-rail-item {
+    transition: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  @media (display-mode: standalone) and (min-width: 1024px) {
+    .solaris-ipad-entity-rail {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      background: rgb(6 20 42 / .98);
+    }
+  }
+}
