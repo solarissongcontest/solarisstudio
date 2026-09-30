@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Suspense, lazy, useMemo, useState } from "react";
 
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
+import { AppEntityRail } from "@/components/app/AppEntityRail";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { CountryPersonalityStyles } from "@/components/CountryPersonalityStyles";
 import { CountryWorldOverview, CountryWorldSupplement } from "@/components/CountryWorldOverview";
@@ -392,8 +393,23 @@ function CountryProfilePage() {
       point.rank == null ? [] : [{ edition: point.label, rank: point.rank }],
     ) ?? [];
 
+  const entityRailItems = [...(countries ?? [])]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((item) => ({
+      id: item.id,
+      label: item.name,
+      meta: item.short_code.toUpperCase(),
+      href: `/countries/${item.short_code}`,
+    }));
+
   return (
     <AppShell>
+      <AppEntityRail
+        title="Countries"
+        directoryHref="/countries"
+        currentHref={`/countries/${country.short_code}`}
+        items={entityRailItems}
+      >
       <div
         className={publishedDesign ? "country-profile-v8 country-design-v2" : "country-profile-v8"}
         data-country-personality={publishedDesign ? undefined : heroPersonality}
@@ -871,6 +887,7 @@ function CountryProfilePage() {
           </>
         )}
       </div>
+      </AppEntityRail>
     </AppShell>
   );
 }
