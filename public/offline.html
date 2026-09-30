@@ -8,22 +8,100 @@
   <style>
     :root { color-scheme: dark; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100svh; display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom)); background: radial-gradient(circle at 50% 0%, #132b55, #020817 48%, #01040d); color: #f7fbff; }
-    main { width: min(440px, 100%); text-align: center; }
+    body { margin: 0; min-height: 100svh; padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom)); background: radial-gradient(circle at 50% 0%, #132b55, #020817 48%, #01040d); color: #f7fbff; }
+    main { width: min(560px, 100%); margin: 0 auto; }
+    header { text-align: center; }
     img { width: 76px; height: 76px; border-radius: 22px; }
     .eyebrow { margin: 22px 0 7px; color: #9fd6eb; font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
     h1 { margin: 0; font-size: clamp(28px, 8vw, 38px); line-height: 1.05; }
-    p { margin: 14px auto 0; max-width: 35ch; color: #b7c3d8; line-height: 1.6; }
+    p { margin: 14px auto 0; max-width: 44ch; color: #b7c3d8; line-height: 1.6; }
     button { margin-top: 24px; min-height: 46px; border: 1px solid rgba(255,255,255,.18); border-radius: 15px; background: rgba(255,255,255,.09); color: #fff; padding: 0 18px; font: inherit; font-weight: 750; }
+    section { margin-top: 22px; border: 1px solid rgba(255,255,255,.10); border-radius: 18px; padding: 16px; background: rgba(255,255,255,.035); }
+    section[hidden] { display: none; }
+    h2 { margin: 0; font-size: 15px; }
+    .meta { margin-top: 5px; font-size: 11px; color: #8493aa; }
+    ul { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+    li { min-height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-radius: 12px; padding: 8px 10px; background: rgba(255,255,255,.04); color: #dce7f7; font-size: 13px; }
+    .type { color: #9fd6eb; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
   </style>
 </head>
 <body>
   <main>
-    <img src="/icon-192.png?v=img2340-20260929" alt="" />
-    <p class="eyebrow">Solaris Studio</p>
-    <h1>You’re offline</h1>
-    <p>Published content that was already saved may still be available. Official submissions are never queued without a live server acknowledgement.</p>
-    <button type="button" onclick="location.reload()">Try again</button>
+    <header>
+      <img src="/icon-192.png?v=img2340-20260929" alt="" />
+      <p class="eyebrow">Solaris Studio</p>
+      <h1>You’re offline</h1>
+      <p>Solaris is in safe read-only mode. Local drafts remain on this device, but official confirmations, jury ballots and televotes are never queued without a live server acknowledgement.</p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </header>
+
+    <section id="saved" hidden>
+      <h2>Saved public archive index</h2>
+      <p class="meta" id="saved-at"></p>
+      <ul id="saved-list"></ul>
+    </section>
+
+    <section id="recent" hidden>
+      <h2>Recently viewed</h2>
+      <p class="meta">Stored locally on this device. Reopen them after your connection returns.</p>
+      <ul id="recent-list"></ul>
+    </section>
   </main>
+  <script>
+    (() => {
+      const safeParse = (key) => {
+        try { return JSON.parse(localStorage.getItem(key) || "null"); } catch { return null; }
+      };
+
+      const index = safeParse("solaris:offline-public-index:v1");
+      const saved = document.getElementById("saved");
+      const savedList = document.getElementById("saved-list");
+      if (index && Array.isArray(index.editions) && saved && savedList) {
+        const items = [
+          ...index.editions.slice(0, 4).map((item) => ({ ...item, type: "Edition" })),
+          ...index.shows.slice(0, 4).map((item) => ({ ...item, type: "Show" })),
+          ...index.countries.slice(0, 4).map((item) => ({ ...item, type: "Country" })),
+        ];
+        if (items.length) {
+          saved.hidden = false;
+          const stamp = document.getElementById("saved-at");
+          if (stamp && index.savedAt) {
+            const date = new Date(index.savedAt);
+            stamp.textContent = Number.isNaN(date.getTime())
+              ? "Public metadata saved on this device."
+              : "Public metadata saved " + date.toLocaleString() + ".";
+          }
+          for (const item of items) {
+            const li = document.createElement("li");
+            const label = document.createElement("span");
+            label.textContent = String(item.label || "");
+            const type = document.createElement("span");
+            type.className = "type";
+            type.textContent = item.type;
+            li.append(label, type);
+            savedList.append(li);
+          }
+        }
+      }
+
+      const recents = safeParse("solaris:public-recents");
+      const recent = document.getElementById("recent");
+      const recentList = document.getElementById("recent-list");
+      if (Array.isArray(recents) && recents.length && recent && recentList) {
+        recent.hidden = false;
+        for (const item of recents.slice(0, 6)) {
+          if (!item || typeof item.label !== "string") continue;
+          const li = document.createElement("li");
+          const label = document.createElement("span");
+          label.textContent = item.label;
+          const type = document.createElement("span");
+          type.className = "type";
+          type.textContent = "Recent";
+          li.append(label, type);
+          recentList.append(li);
+        }
+      }
+    })();
+  </script>
 </body>
 </html>
