@@ -2,6 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, CircleHelp, MoreHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { AppNativeShareButton } from "@/components/app/AppNativeShareButton";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { SheetTrigger } from "@/components/ui/sheet";
 import type { AccountAccess } from "@/lib/country-account";
@@ -101,7 +102,11 @@ export function AppToolbar({
             ) : null
           ) : (
             <>
-              <PublicCommandPalette compact access={access} />
+              {chrome.archetype === "entity" ? (
+                <AppNativeShareButton />
+              ) : (
+                <PublicCommandPalette compact access={access} />
+              )}
               <SheetTrigger asChild>
                 <button type="button" className="solaris-app-toolbar-button" aria-label="More">
                   <MoreHorizontal className="size-5" aria-hidden="true" />
