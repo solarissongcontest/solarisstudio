@@ -7,6 +7,7 @@ export const SOLARIS_QUERY_POLICY = {
     refetchOnMount: "always" as const,
     refetchOnWindowFocus: true,
     refetchOnReconnect: "always" as const,
+    meta: { solarisFreshness: "live" as const },
   },
   warm: {
     staleTime: 2 * 60 * 1000,
@@ -14,6 +15,7 @@ export const SOLARIS_QUERY_POLICY = {
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
+    meta: { solarisFreshness: "warm" as const },
   },
   cold: {
     staleTime: 30 * 60 * 1000,
@@ -21,6 +23,7 @@ export const SOLARIS_QUERY_POLICY = {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+    meta: { solarisFreshness: "cold" as const },
   },
 } satisfies Record<
   SolarisQueryFreshness,
@@ -30,9 +33,18 @@ export const SOLARIS_QUERY_POLICY = {
     refetchOnMount: boolean | "always";
     refetchOnWindowFocus: boolean;
     refetchOnReconnect: boolean | "always";
+    meta: { solarisFreshness: SolarisQueryFreshness };
   }
 >;
 
 export function solarisQueryPolicy(freshness: SolarisQueryFreshness) {
   return SOLARIS_QUERY_POLICY[freshness];
+}
+
+export function freshnessLevelsForResume(backgroundDurationMs: number) {
+  const levels: SolarisQueryFreshness[] = [];
+  if (backgroundDurationMs >= SOLARIS_QUERY_POLICY.live.staleTime) levels.push("live");
+  if (backgroundDurationMs >= SOLARIS_QUERY_POLICY.warm.staleTime) levels.push("warm");
+  if (backgroundDurationMs >= SOLARIS_QUERY_POLICY.cold.staleTime) levels.push("cold");
+  return levels;
 }
