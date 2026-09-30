@@ -124,6 +124,17 @@ export function resolveAppRouteChrome(pathname: string): AppRouteChrome {
   const entity = entityChrome(pathname);
   if (entity) return entity;
 
+  if (pathname === "/settings" || pathname === "/settings/") {
+    return {
+      title: "Settings",
+      tab: "me",
+      archetype: "settings",
+      root: false,
+      tabBar: "visible",
+      backFallback: { label: "Me", to: "/me" },
+    };
+  }
+
   if (pathname.startsWith("/my-solaris/")) {
     const destination = publicDestinationForPath(pathname);
     return {

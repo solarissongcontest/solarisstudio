@@ -79,3 +79,16 @@ export function readOfflinePublicIndex(
     return null;
   }
 }
+
+
+export function clearOfflinePublicIndex(
+  storage: Pick<Storage, "removeItem"> | null =
+    typeof window === "undefined" ? null : window.localStorage,
+) {
+  if (!storage) return;
+  try {
+    storage.removeItem(OFFLINE_PUBLIC_INDEX_KEY);
+  } catch {
+    // Clearing optional public metadata must never affect critical local drafts.
+  }
+}

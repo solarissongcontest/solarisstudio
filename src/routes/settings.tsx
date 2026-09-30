@@ -17,12 +17,17 @@ import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import {
+  clearOfflinePublicIndex,
+  readOfflinePublicIndex,
+  type OfflinePublicIndex,
+} from "@/lib/app-offline-snapshot";
+import {
   clearSolarisRuntimeCaches,
   estimateSolarisStorage,
   type SolarisStorageEstimate,
 } from "@/lib/app-storage";
 
-export const Route = createFileRoute("/settings/")({
+export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
       { title: "App Settings — Solaris Studio" },
@@ -30,7 +35,7 @@ export const Route = createFileRoute("/settings/")({
         name: "description",
         content: "Solaris Studio app, notification, accessibility, offline and install settings.",
       },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: AppSettingsPage,
@@ -51,7 +56,13 @@ function AppSettingsPage() {
   const app = useSolarisApp();
   const { preferences, update } = useAppExperiencePreferences();
   const [userId, setUserId] = useState<string | null | undefined>(undefined);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [accessibility, setAccessibility] = useState({
+    reducedMotion: false,
+    reducedTransparency: false,
+  });
+  const [offlineIndex, setOfflineIndex] = useState<OfflinePublicIndex | null>(() =>
+    typeof window === "undefined" ? null : readOfflinePublicIndex(),
+  );
   const [storage, setStorage] = useState<SolarisStorageEstimate>(EMPTY_STORAGE);
   const [clearing, setClearing] = useState(false);
   const [storageMessage, setStorageMessage] = useState<string | null>(null);
@@ -71,11 +82,21 @@ function AppSettingsPage() {
   }, []);
 
   useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const refresh = () => setReducedMotion(media.matches);
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const transparency = window.matchMedia("(prefers-reduced-transparency: reduce)");
+    const refresh = () =>
+      setAccessibility({
+        reducedMotion: motion.matches,
+        reducedTransparency: transparency.matches,
+      });
+
     refresh();
-    media.addEventListener?.("change", refresh);
-    return () => media.removeEventListener?.("change", refresh);
+    motion.addEventListener?.("change", refresh);
+    transparency.addEventListener?.("change", refresh);
+    return () => {
+      motion.removeEventListener?.("change", refresh);
+      transparency.removeEventListener?.("change", refresh);
+    };
   }, []);
 
   useEffect(() => {
@@ -95,12 +116,14 @@ function AppSettingsPage() {
     setStorageMessage(null);
     try {
       const removed = await clearSolarisRuntimeCaches();
+      clearOfflinePublicIndex();
+      setOfflineIndex(null);
       const next = await estimateSolarisStorage();
       setStorage(next);
       setStorageMessage(
         removed > 0
-          ? "Cleared " + removed + " cached app asset" + (removed === 1 ? "" : "s") + ". Offline shell, drafts and device state were kept."
-          : "Nothing disposable was cached. Offline shell, drafts and device state were kept.",
+          ? "Cleared " + removed + " cached app asset" + (removed === 1 ? "" : "s") + " and the saved public offline index. Critical drafts and device state were kept."
+          : "Cleared the saved public offline index. Critical drafts and device state were kept.",
       );
     } catch {
       setStorageMessage("Cached app assets could not be cleared on this browser.");
@@ -108,6 +131,11 @@ function AppSettingsPage() {
       setClearing(false);
     }
   };
+
+  const offlineCount =
+    (offlineIndex?.countries.length ?? 0) +
+    (offlineIndex?.editions.length ?? 0) +
+    (offlineIndex?.shows.length ?? 0);
 
   return (
     <AppShell>
@@ -186,20 +214,24 @@ function AppSettingsPage() {
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <StatusCard
-              icon={reducedMotion ? MoonStar : Sun}
+              icon={accessibility.reducedMotion ? MoonStar : Sun}
               label="Motion"
-              value={reducedMotion ? "Reduced motion" : "Standard motion"}
+              value={accessibility.reducedMotion ? "Reduced motion" : "Standard motion"}
               description={
-                reducedMotion
+                accessibility.reducedMotion
                   ? "System Reduce Motion is respected across app transitions and loading states."
                   : "Animations remain enabled. Your system Reduce Motion setting can disable them."
               }
             />
             <StatusCard
               icon={MoonStar}
-              label="Appearance"
-              value="Solaris dark interface"
-              description="System contrast and reduced-transparency preferences are respected where supported."
+              label="Transparency"
+              value={accessibility.reducedTransparency ? "Reduced transparency" : "Standard transparency"}
+              description={
+                accessibility.reducedTransparency
+                  ? "System Reduce Transparency is respected by Liquid Glass and translucent app surfaces."
+                  : "Solaris follows the system transparency preference where the browser exposes it."
+              }
             />
           </div>
         </Panel>
@@ -208,7 +240,7 @@ function AppSettingsPage() {
           title="Storage & offline"
           description="Public app assets may be cached for continuity. Official submissions are never queued as offline submissions."
         >
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-3">
             <StatusCard
               icon={Database}
               label="Browser storage in use"
@@ -217,6 +249,16 @@ function AppSettingsPage() {
                 storage.quota == null
                   ? "This browser does not expose its storage quota."
                   : "Browser quota: " + formatBytes(storage.quota) + "."
+              }
+            />
+            <StatusCard
+              icon={Database}
+              label="Saved public data"
+              value={offlineIndex ? String(offlineCount) + " items" : "No saved index"}
+              description={
+                offlineIndex
+                  ? "Safe public edition, show and country metadata is available to the offline fallback."
+                  : "Solaris rebuilds the safe public offline index during normal online use."
               }
             />
             <StatusCard
@@ -233,10 +275,10 @@ function AppSettingsPage() {
               onClick={() => void clearOffline()}
               className="min-h-11 rounded-xl border border-border bg-surface px-4 text-sm font-semibold disabled:opacity-50"
             >
-              {clearing ? "Clearing…" : "Clear cached app assets"}
+              {clearing ? "Clearing…" : "Clear cached public data"}
             </button>
             <p className="max-w-xl text-xs leading-5 text-muted-foreground">
-              This does not delete drafts, tab restoration, preferences or other local device state.
+              This does not delete confirmation, jury or voting drafts, tab restoration, preferences or other local device state.
             </p>
           </div>
           {storageMessage ? (

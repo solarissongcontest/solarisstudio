@@ -66,7 +66,7 @@ describe("Solaris installed-app foundation", () => {
 
   it("bumps the installed-app static cache when liquid glass rendering changes", () => {
     const worker = source("public/sw.js");
-    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v11"');
+    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v12"');
   });
 
   it("lets the active tab indicator drag across destinations", () => {
@@ -96,7 +96,7 @@ describe("Solaris installed-app foundation", () => {
     const more = source("src/components/app/AppMoreNavigation.tsx");
     expect(shell).toContain('side={isAppMode ? "bottom" : "right"}');
     expect(more).toContain("All Solaris pages");
-    expect(more).toContain("App Settings");
+    expect(more).toContain("App settings");
     expect(more).toContain("Account & security");
     expect(more).not.toContain("publicDestinationsForArea");
   });
