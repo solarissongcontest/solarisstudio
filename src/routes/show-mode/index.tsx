@@ -10,7 +10,7 @@ import {
   Trophy,
   Vote,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
@@ -27,6 +27,7 @@ import {
 } from "@/lib/data";
 import { entityDisplayMap } from "@/lib/entities";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
+import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import {
   preferredShowModeShow,
   resolveShowCompanionState,
@@ -80,6 +81,7 @@ function ShowModePage() {
   const { preferences, update } = useAppExperiencePreferences();
   const [selectedShowId, setSelectedShowId] = useState("");
   const [wakeActive, setWakeActive] = useState(false);
+  const lastTelemetryState = useRef("");
 
   const latestEdition = useMemo(
     () =>
@@ -151,6 +153,21 @@ function ShowModePage() {
         televoteRound: roundQuery.data ?? null,
       })
     : null;
+
+  useEffect(() => {
+    if (!isAppMode || !selectedShow || !companion) return;
+    const key = selectedShow.id + ":" + companion.phase;
+    if (lastTelemetryState.current === key) return;
+    lastTelemetryState.current = key;
+    trackPublicUxEvent("app_show_mode_state", {
+      target: "/show-mode",
+      metadata: {
+        area: "results",
+        source: "show_mode",
+        interaction: companion.phase,
+      },
+    });
+  }, [companion, isAppMode, selectedShow]);
 
   const displayMap = useMemo(
     () =>
