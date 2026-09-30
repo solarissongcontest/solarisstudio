@@ -349,11 +349,13 @@ function ParticipatePage() {
 
   return (
     <AppShell>
-      <PublicHubHero
-        eyebrow="Participate"
-        title="Take part in Solaris"
-        description="Current actions come first. Upcoming and inactive services stay available without competing with work that actually needs you now."
-      />
+      {!isAppMode ? (
+        <PublicHubHero
+          eyebrow="Participate"
+          title="Take part in Solaris"
+          description="Current actions come first. Upcoming and inactive services stay available without competing with work that actually needs you now."
+        />
+      ) : null}
 
       {isAppMode ? (
         !appAuthKnown ? (
