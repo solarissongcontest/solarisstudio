@@ -41,6 +41,7 @@ import {
   updateAppScrollPosition,
 } from "@/lib/app-navigation";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
+import { useAppAttention } from "@/lib/app-attention";
 import { resolvePublicIaV3Enabled } from "@/lib/public-ia-rollout";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
 import {
@@ -122,13 +123,18 @@ function legacyAnyPathMatches(pathname: string, routes: readonly string[]) {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { isAppMode } = useSolarisApp();
+  const { isAppMode, canBadge } = useSolarisApp();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const [email, setEmail] = useState<string | null>(null);
   const [access, setAccess] = useState<AccountAccess>(EMPTY_ACCESS);
   const [menuOpen, setMenuOpen] = useState(false);
   const [publicIaV3Enabled, setPublicIaV3Enabled] = useState(true);
+  const attention = useAppAttention({
+    access,
+    enabled: isAppMode,
+    canBadge,
+  });
 
   useEffect(() => {
     let alive = true;
@@ -558,7 +564,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         ) : null}
 
         {isAppMode && appChrome.tabBar !== "hidden" ? (
-          <AppTabBar pathname={pathname} signedIn={Boolean(access.userId)} />
+          <AppTabBar
+            pathname={pathname}
+            signedIn={Boolean(access.userId)}
+            participateBadge={attention.participateBadge}
+            meBadge={attention.meBadge}
+          />
         ) : null}
 
         {!isAppMode && !isMySolarisWorkspace && (
