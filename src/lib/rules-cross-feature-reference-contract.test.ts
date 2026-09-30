@@ -2,13 +2,15 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import {
+  governanceRules,
+  type GovernanceActionKey,
+} from "@/lib/governance-v5";
 import { getRuleById } from "@/lib/ssc-rules-v4";
 
 const DIRECT_REFERENCE_SURFACES = [
   "src/lib/rule-context.ts",
   "src/components/rules/AdvancedRulesTools.tsx",
-  "src/components/ConfirmationFormWithReceipt.tsx",
-  "src/components/televoting/TelevotingBoothWithReceipt.tsx",
   "src/routes/_authenticated/admin/integrity-resolution.$caseId.tsx",
 ] as const;
 
@@ -17,37 +19,78 @@ function quotedRuleIds(source: string) {
 }
 
 describe("cross-feature SSC rule references", () => {
-  it.each(DIRECT_REFERENCE_SURFACES)("keeps every quoted canonical rule reference resolvable in %s", (path) => {
-    const source = readFileSync(resolve(process.cwd(), path), "utf8");
-    const ids = [...new Set(quotedRuleIds(source))];
+  it.each(DIRECT_REFERENCE_SURFACES)(
+    "keeps every quoted canonical rule reference resolvable in %s",
+    (path) => {
+      const source = readFileSync(resolve(process.cwd(), path), "utf8");
+      const ids = [...new Set(quotedRuleIds(source))];
 
-    expect(ids.length, `${path} should expose at least one exact canonical rule reference`).toBeGreaterThan(0);
-    expect(
-      ids.filter((ruleId) => !getRuleById(ruleId)),
-      `${path} contains a rule reference that is not present in SSC v4`,
-    ).toEqual([]);
-  });
+      expect(
+        ids.length,
+        `${path} should expose at least one exact canonical rule reference`,
+      ).toBeGreaterThan(0);
+      expect(
+        ids.filter((ruleId) => !getRuleById(ruleId)),
+        `${path} contains a rule reference that is not present in SSC v4`,
+      ).toEqual([]);
+    },
+  );
 
-  it("keeps the original-plan rule surfaces wired to their required canon", () => {
-    const expectedCoverage: Record<(typeof DIRECT_REFERENCE_SURFACES)[number], string[]> = {
-      "src/lib/rule-context.ts": ["4.3", "10.1", "11.5", "16.1", "17.1", "18.1"],
-      "src/components/rules/AdvancedRulesTools.tsx": ["6.4", "6.5", "6.6", "6.10", "17.2", "18.1"],
-      "src/components/ConfirmationFormWithReceipt.tsx": ["4.3", "4.4", "4.6", "4.7", "20.1"],
-      "src/components/televoting/TelevotingBoothWithReceipt.tsx": ["10.1", "11.1", "11.2", "11.4", "11.5", "11.7"],
-      "src/routes/_authenticated/admin/integrity-resolution.$caseId.tsx": ["17.2", "17.3", "17.4", "17.5", "18.1"],
+  it("keeps Governance OS action contexts wired to their required canon", () => {
+    const expectedCoverage: Partial<Record<GovernanceActionKey, string[]>> = {
+      "confirmation.submit": ["4.3", "4.6", "4.7", "20.1"],
+      "entry.submit": ["6.2", "6.4", "6.5", "6.6", "6.10", "12.3"],
+      "jury.vote": ["9.2", "11.2", "11.4", "11.5"],
+      "televote.vote": ["10.1", "11.2", "11.4", "11.5"],
+      "integrity.report": ["16.1", "16.3", "16.6"],
+      "integrity.appeal": ["18.1", "18.3"],
+      "integrity.guidance": ["21.1"],
+      "hosting.accept": ["8.1", "8.2"],
     };
 
-    for (const [path, required] of Object.entries(expectedCoverage)) {
-      const source = readFileSync(resolve(process.cwd(), path), "utf8");
+    for (const [action, required] of Object.entries(expectedCoverage) as Array<
+      [GovernanceActionKey, string[]]
+    >) {
+      const actual = governanceRules(action).map((rule) => rule.id);
       for (const ruleId of required) {
-        expect(source, `${path} must keep Rule ${ruleId} wired into the product`).toContain(`"${ruleId}"`);
+        expect(actual, `${action} must keep Rule ${ruleId} attached`).toContain(
+          ruleId,
+        );
       }
     }
+  });
+
+  it("keeps critical participant wrappers attached to canonical Governance OS contexts", () => {
+    const confirmation = readFileSync(
+      resolve(process.cwd(), "src/components/ConfirmationFormWithReceipt.tsx"),
+      "utf8",
+    );
+    const televote = readFileSync(
+      resolve(process.cwd(), "src/components/televoting/TelevotingBoothWithReceipt.tsx"),
+      "utf8",
+    );
+    const jury = readFileSync(
+      resolve(process.cwd(), "src/routes/jury-voting.tsx"),
+      "utf8",
+    );
+    const entry = readFileSync(
+      resolve(process.cwd(), "src/components/ConfirmationForm.tsx"),
+      "utf8",
+    );
+
+    expect(confirmation).toContain('context="confirmation.submit"');
+    expect(televote).toContain('context="televote.vote"');
+    expect(jury).toContain('context="jury.vote"');
+    expect(entry).toContain('context="entry.submit"');
   });
 
   it("keeps dynamic rule consumers backed by canonical resolvers instead of duplicate rule text", () => {
     const contextualGuide = readFileSync(
       resolve(process.cwd(), "src/components/rules/ContextualRuleGuide.tsx"),
+      "utf8",
+    );
+    const governance = readFileSync(
+      resolve(process.cwd(), "src/lib/governance-v5.ts"),
       "utf8",
     );
     const investigation = readFileSync(
@@ -60,6 +103,7 @@ describe("cross-feature SSC rule references", () => {
     );
 
     expect(contextualGuide).toContain("getRuleById");
+    expect(governance).toContain("getRuleById");
     expect(investigation).toContain("getRuleById");
     expect(investigation).toContain("SSC_RULES");
     expect(interpretations).toMatch(/rule_ids|ruleIds/);
