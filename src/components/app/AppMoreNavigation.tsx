@@ -58,11 +58,18 @@ export function AppMoreNavigation({
           </SheetClose>
         ))}
 
+        <SheetClose asChild>
+          <Link to="/settings" className="solaris-app-more-link">
+            <Settings className="size-4" aria-hidden="true" />
+            <span>App Settings</span>
+          </Link>
+        </SheetClose>
+
         {signedIn ? (
           <SheetClose asChild>
             <Link to="/my-solaris/account" className="solaris-app-more-link">
-              <Settings className="size-4" aria-hidden="true" />
-              <span>Account & settings</span>
+              <UserRound className="size-4" aria-hidden="true" />
+              <span>Account & security</span>
             </Link>
           </SheetClose>
         ) : null}
