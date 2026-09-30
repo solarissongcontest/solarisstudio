@@ -81,7 +81,7 @@ function InterpretationsIndex() {
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border bg-surface/40 px-4 text-xs font-bold"
           >
             <History className="size-4" />
-            {showHistory ? "Hide superseded" : "Include superseded"}
+            {showHistory ? "Hide superseded" : "Show superseded"}
           </button>
         </section>
 
