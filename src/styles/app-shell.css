@@ -1176,3 +1176,242 @@
     margin-bottom: .8rem;
   }
 }
+
+
+/* App Experience v3: resilient route fallback chrome ----------------------- */
+.solaris-app-fallback {
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.solaris-app-fallback-toolbar,
+.solaris-app-fallback-nav {
+  display: none;
+}
+
+.solaris-app-fallback-content {
+  display: grid;
+  min-height: 100vh;
+  width: min(100% - 2rem, 36rem);
+  margin-inline: auto;
+  place-content: center;
+  text-align: center;
+}
+
+.solaris-app-fallback-eyebrow {
+  color: var(--primary);
+  font-size: .65rem;
+  font-weight: 850;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.solaris-app-fallback-title {
+  margin-top: .45rem;
+  font-size: clamp(1.55rem, 6vw, 2.2rem);
+  font-weight: 780;
+  letter-spacing: -.035em;
+  line-height: 1.08;
+}
+
+.solaris-app-fallback-description {
+  margin: .7rem auto 0;
+  max-width: 32rem;
+  color: var(--muted-foreground);
+  font-size: .85rem;
+  line-height: 1.55;
+}
+
+.solaris-app-fallback-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .55rem;
+  margin-top: 1.15rem;
+}
+
+.solaris-app-fallback-primary,
+.solaris-app-fallback-secondary {
+  display: inline-flex;
+  min-height: 2.8rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: .9rem;
+  padding-inline: .9rem;
+  font-size: .8rem;
+  font-weight: 750;
+}
+
+.solaris-app-fallback-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.solaris-app-fallback-secondary {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+.solaris-app-fallback-skeleton {
+  display: grid;
+  width: min(100%, 34rem);
+  gap: .7rem;
+  margin-inline: auto;
+  text-align: left;
+}
+
+.solaris-app-fallback-skeleton span {
+  display: block;
+  border-radius: .7rem;
+  background:
+    linear-gradient(
+      100deg,
+      rgb(255 255 255 / .045) 20%,
+      rgb(255 255 255 / .09) 42%,
+      rgb(255 255 255 / .045) 64%
+    );
+  background-size: 220% 100%;
+  animation: solaris-app-fallback-shimmer 1.4s ease-in-out infinite;
+}
+
+.solaris-app-fallback-skeleton .is-kicker {
+  width: 5rem;
+  height: .65rem;
+}
+
+.solaris-app-fallback-skeleton .is-title {
+  width: min(70%, 18rem);
+  height: 1.75rem;
+}
+
+.solaris-app-fallback-skeleton .is-line {
+  width: min(88%, 27rem);
+  height: .85rem;
+}
+
+.solaris-app-fallback-skeleton .is-card {
+  width: 100%;
+  height: 7rem;
+  margin-top: .4rem;
+  border-radius: 1.15rem;
+}
+
+.solaris-app-fallback-skeleton .is-card.is-short {
+  height: 4.5rem;
+  margin-top: 0;
+}
+
+@keyframes solaris-app-fallback-shimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+
+@media (display-mode: standalone) {
+  .solaris-app-fallback {
+    min-height: 100dvh;
+    background:
+      radial-gradient(circle at 50% -10%, rgb(31 70 105 / .18), transparent 36%),
+      var(--background);
+  }
+
+  .solaris-app-fallback-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 55;
+    display: flex;
+    min-height: calc(var(--solaris-app-toolbar-height) + env(safe-area-inset-top));
+    align-items: flex-end;
+    padding:
+      env(safe-area-inset-top)
+      max(.9rem, env(safe-area-inset-right))
+      .9rem
+      max(.9rem, env(safe-area-inset-left));
+    border-bottom: 1px solid rgb(215 238 247 / .12);
+    background: rgb(4 16 37 / .86);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+  }
+
+  .solaris-app-fallback-toolbar-title {
+    font-size: .94rem;
+    font-weight: 720;
+    letter-spacing: -.015em;
+  }
+
+  .solaris-app-fallback-content {
+    min-height: calc(
+      100dvh -
+      var(--solaris-app-toolbar-height) -
+      var(--solaris-app-tabbar-height) -
+      env(safe-area-inset-top) -
+      env(safe-area-inset-bottom)
+    );
+    width: min(100% - 2rem, 42rem);
+    place-content: start;
+    padding-top: clamp(2.3rem, 9vh, 5rem);
+    padding-bottom: calc(
+      var(--solaris-app-tabbar-height) +
+      max(2rem, env(safe-area-inset-bottom))
+    );
+    text-align: left;
+  }
+
+  .solaris-app-fallback-description {
+    margin-left: 0;
+  }
+
+  .solaris-app-fallback-actions {
+    justify-content: flex-start;
+  }
+
+  .solaris-app-fallback-nav {
+    position: fixed;
+    z-index: 60;
+    left: max(.65rem, env(safe-area-inset-left));
+    right: max(.65rem, env(safe-area-inset-right));
+    bottom: max(.45rem, env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    width: min(40rem, calc(100vw - 1.3rem));
+    min-height: 4.35rem;
+    margin-inline: auto;
+    padding: .35rem;
+    border: 1px solid rgb(255 255 255 / .15);
+    border-radius: 1.45rem;
+    background: rgb(7 20 43 / .78);
+    -webkit-backdrop-filter: blur(22px) saturate(170%);
+    backdrop-filter: blur(22px) saturate(170%);
+    box-shadow: 0 12px 34px rgb(0 4 22 / .12);
+  }
+
+  .solaris-app-fallback-tab {
+    display: flex;
+    min-width: 0;
+    min-height: 3.55rem;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: .2rem;
+    border-radius: 1rem;
+    color: var(--muted-foreground);
+    font-size: .61rem;
+    font-weight: 650;
+  }
+
+  .solaris-app-fallback-tab:active {
+    background: rgb(255 255 255 / .055);
+    transform: scale(.97);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .solaris-app-fallback-skeleton span {
+    animation: none;
+  }
+
+  .solaris-app-fallback-tab {
+    transition: none;
+  }
+}
