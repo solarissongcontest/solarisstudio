@@ -39,6 +39,7 @@ import {
   type PublicSearchResult,
 } from "@/lib/public-search";
 import { readPublicRecents } from "@/lib/public-recents";
+import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { searchGovernanceLibrary } from "@/lib/public-library-governance";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 import { loadPublicStorylines } from "@/lib/studio2-storytelling";
@@ -548,7 +549,13 @@ function PublicPaletteDialog({
       rememberAppSearchReturn(originPath, normalized, result.href);
     }
     setOpen(false);
-    void router.navigate({ to: result.href as any });
+    if (appMode) {
+      void runAppViewTransition("push", () =>
+        router.navigate({ to: result.href as any }),
+      );
+    } else {
+      void router.navigate({ to: result.href as any });
+    }
   };
 
   return (

@@ -1493,3 +1493,162 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
     justify-content: center;
   }
 }
+
+
+/* App Experience v3: native-feel transitions and first run ---------------- */
+@media (display-mode: standalone) {
+  .solaris-app-toolbar {
+    view-transition-name: solaris-app-toolbar;
+  }
+
+  .solaris-app-tabbar {
+    view-transition-name: solaris-app-tabbar;
+  }
+
+  .solaris-app-first-run {
+    width: min(calc(100vw - 1.25rem), 30rem);
+    border: 1px solid rgb(210 236 248 / .15);
+    border-radius: 1.5rem;
+    background:
+      radial-gradient(circle at 20% 0%, rgb(91 171 203 / .13), transparent 42%),
+      rgb(4 14 32 / .96);
+    box-shadow: 0 28px 70px rgb(0 0 0 / .34);
+    backdrop-filter: blur(28px) saturate(155%);
+    -webkit-backdrop-filter: blur(28px) saturate(155%);
+  }
+
+  .solaris-app-first-run-eyebrow {
+    margin: 0 0 .25rem;
+    color: var(--primary);
+    font-size: .64rem;
+    font-weight: 900;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+  }
+
+  .solaris-app-first-run-grid {
+    display: grid;
+    gap: .55rem;
+  }
+
+  .solaris-app-first-run-row {
+    display: grid;
+    grid-template-columns: 1.5rem minmax(0, 1fr);
+    gap: .7rem;
+    align-items: start;
+    border: 1px solid rgb(210 236 248 / .09);
+    border-radius: 1rem;
+    padding: .8rem;
+    background: rgb(255 255 255 / .025);
+  }
+
+  .solaris-app-first-run-row > svg {
+    margin-top: .08rem;
+    color: var(--primary);
+  }
+
+  .solaris-app-first-run-row strong,
+  .solaris-app-first-run-row span {
+    display: block;
+  }
+
+  .solaris-app-first-run-row strong {
+    font-size: .82rem;
+  }
+
+  .solaris-app-first-run-row span {
+    margin-top: .18rem;
+    color: var(--muted-foreground);
+    font-size: .72rem;
+    line-height: 1.45;
+  }
+
+  .solaris-app-first-run-continue {
+    display: inline-flex;
+    min-height: 2.9rem;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    border-radius: .95rem;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-size: .82rem;
+    font-weight: 850;
+  }
+}
+
+@media (display-mode: standalone) and (max-width: 599px) {
+  .solaris-app-first-run {
+    top: auto !important;
+    bottom: max(.65rem, env(safe-area-inset-bottom));
+    transform: translateX(-50%) !important;
+    border-radius: 1.5rem;
+    padding: 1rem;
+  }
+}
+
+@supports (view-transition-name: none) {
+  html[data-solaris-app][data-solaris-view-transition]::view-transition-group(solaris-app-toolbar),
+  html[data-solaris-app][data-solaris-view-transition]::view-transition-group(solaris-app-tabbar) {
+    animation-duration: 120ms;
+  }
+
+  html[data-solaris-app][data-solaris-view-transition="push"]::view-transition-old(root) {
+    animation: solaris-app-view-push-old 190ms cubic-bezier(.3,.7,.2,1) both;
+  }
+
+  html[data-solaris-app][data-solaris-view-transition="push"]::view-transition-new(root) {
+    animation: solaris-app-view-push-new 220ms cubic-bezier(.2,.8,.2,1) both;
+  }
+
+  html[data-solaris-app][data-solaris-view-transition="pop"]::view-transition-old(root) {
+    animation: solaris-app-view-pop-old 180ms cubic-bezier(.3,.7,.2,1) both;
+  }
+
+  html[data-solaris-app][data-solaris-view-transition="pop"]::view-transition-new(root) {
+    animation: solaris-app-view-pop-new 210ms cubic-bezier(.2,.8,.2,1) both;
+  }
+
+  html[data-solaris-app][data-solaris-view-transition="tab"]::view-transition-old(root),
+  html[data-solaris-app][data-solaris-view-transition="tab"]::view-transition-new(root) {
+    animation-duration: 150ms;
+    animation-timing-function: ease-out;
+  }
+}
+
+@keyframes solaris-app-view-push-old {
+  to {
+    opacity: .86;
+    transform: translateX(-8px) scale(.997);
+  }
+}
+
+@keyframes solaris-app-view-push-new {
+  from {
+    opacity: .72;
+    transform: translateX(12px) scale(.997);
+  }
+}
+
+@keyframes solaris-app-view-pop-old {
+  to {
+    opacity: .78;
+    transform: translateX(10px) scale(.997);
+  }
+}
+
+@keyframes solaris-app-view-pop-new {
+  from {
+    opacity: .8;
+    transform: translateX(-8px) scale(.998);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-solaris-app][data-solaris-view-transition]::view-transition-old(root),
+  html[data-solaris-app][data-solaris-view-transition]::view-transition-new(root),
+  html[data-solaris-app][data-solaris-view-transition]::view-transition-group(solaris-app-toolbar),
+  html[data-solaris-app][data-solaris-view-transition]::view-transition-group(solaris-app-tabbar) {
+    animation: none !important;
+  }
+}
