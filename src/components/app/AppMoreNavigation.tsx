@@ -6,6 +6,7 @@ import {
   Scale,
   Settings,
   ShieldCheck,
+  Tv2,
   UserRound,
   X,
 } from "lucide-react";
@@ -14,6 +15,7 @@ import { SheetClose } from "@/components/ui/sheet";
 import type { AccountAccess } from "@/lib/country-account";
 
 const LINKS = [
+  { to: "/show-mode", label: "Show Mode", icon: Tv2 },
   { to: "/site-directory", label: "All Solaris pages", icon: FolderSearch2 },
   { to: "/guide", label: "Help", icon: CircleHelp },
   { to: "/rules", label: "Rules", icon: Scale },

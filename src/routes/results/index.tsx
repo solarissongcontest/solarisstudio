@@ -3,6 +3,7 @@ import { ArrowRight, BarChart3, Beaker, GitCompareArrows, Table2, Trophy } from 
 import { useMemo } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicAdvancedDisclosure } from "@/components/public/PublicAdvancedDisclosure";
 import { PublicDataState } from "@/components/public/PublicDataState";
 import { PublicDestinationGrid } from "@/components/public/PublicDestinationGrid";
@@ -41,6 +42,9 @@ export const Route = createFileRoute("/results/")({
 });
 
 function ResultsOverviewPage() {
+  const { isAppMode } = useSolarisApp();
+  const { preferences } = useAppExperiencePreferences();
+  const hideSpoilers = isAppMode && preferences.spoilerFree;
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
   const resultsQuery = useAllResults();
@@ -110,7 +114,31 @@ function ResultsOverviewPage() {
         description="Start with the official result, then move into scorecharts, analysis or specialist tools only when you need them."
       />
 
-      {latestShow && latestEdition && winner && winnerRow ? (
+      {hideSpoilers && latestShow && latestEdition ? (
+        <Panel
+          title="Results are available"
+          description={`${editionLabel(latestEdition)} · ${latestShow.name}`}
+          actions={
+            <Link
+              to="/shows/$showId"
+              params={{ showId: latestShow.id }}
+              className="text-xs font-semibold text-primary"
+            >
+              Reveal official result →
+            </Link>
+          }
+        >
+          <div className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/[0.05] p-4">
+            <Trophy className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-semibold">Spoiler-free mode is on</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Winner, ranking and score previews stay hidden until you deliberately open the result.
+              </p>
+            </div>
+          </div>
+        </Panel>
+      ) : latestShow && latestEdition && winner && winnerRow ? (
         <section className="mb-5 grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
           <Panel
             title="Latest published result"
@@ -260,7 +288,7 @@ function ResultsOverviewPage() {
         </PublicDestinationGrid>
       </PublicAdvancedDisclosure>
 
-      {latestShow && latestRows.length > 0 && (
+      {!hideSpoilers && latestShow && latestRows.length > 0 && (
         <Panel
           title="Latest top five"
           description="A quick overview before opening the full scoreboard"
