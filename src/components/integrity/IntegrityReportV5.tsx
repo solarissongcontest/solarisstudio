@@ -256,6 +256,11 @@ export function IntegritySupportStep() {
   const [uncertainties, setUncertainties] = useState(initial.uncertainties);
   const [relatedCountries, setRelatedCountries] = useState(initial.relatedCountries);
   const [editionReference, setEditionReference] = useState(initial.editionReference);
+  const relatedCountryCount = relatedCountries
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean).length;
+  const tooManyCountries = relatedCountryCount > 12;
 
   useEffect(() => {
     writeIntegrityReportV5Draft({
@@ -277,8 +282,9 @@ export function IntegritySupportStep() {
           </Link>
           <button
             type="button"
+            disabled={tooManyCountries}
             onClick={() => void navigate({ to: "/integrity/report/review" })}
-            className={buttonClass + " bg-primary text-primary-foreground"}
+            className={buttonClass + " bg-primary text-primary-foreground disabled:opacity-40"}
           >
             Review <ArrowRight className="ml-1 size-4" />
           </button>
@@ -289,22 +295,31 @@ export function IntegritySupportStep() {
         <label className="block">
           <span className="text-sm font-semibold">{prompt.observed}</span>
           <span className="mt-1 block text-xs text-muted-foreground">Optional</span>
-          <textarea value={observedFacts} onChange={(event) => setObservedFacts(event.target.value)} rows={5} className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm leading-6" />
+          <textarea value={observedFacts} onChange={(event) => setObservedFacts(event.target.value)} rows={5} maxLength={8000} className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm leading-6" />
         </label>
         <label className="block">
           <span className="text-sm font-semibold">{prompt.uncertainty}</span>
           <span className="mt-1 block text-xs text-muted-foreground">Optional</span>
-          <textarea value={uncertainties} onChange={(event) => setUncertainties(event.target.value)} rows={4} className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm leading-6" />
+          <textarea value={uncertainties} onChange={(event) => setUncertainties(event.target.value)} rows={4} maxLength={6000} className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm leading-6" />
         </label>
         <label className="block">
           <span className="text-sm font-semibold">Related countries</span>
           <span className="mt-1 block text-xs text-muted-foreground">Optional · separate multiple countries with commas</span>
           <input value={relatedCountries} onChange={(event) => setRelatedCountries(event.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" />
+          {tooManyCountries ? (
+            <span className="mt-1 block text-xs font-semibold text-rose-200">
+              Use at most 12 related countries.
+            </span>
+          ) : relatedCountryCount ? (
+            <span className="mt-1 block text-xs text-muted-foreground">
+              {relatedCountryCount} of 12 countries
+            </span>
+          ) : null}
         </label>
         <label className="block">
           <span className="text-sm font-semibold">Edition reference</span>
           <span className="mt-1 block text-xs text-muted-foreground">Optional · for example SSC 22</span>
-          <input value={editionReference} onChange={(event) => setEditionReference(event.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" />
+          <input value={editionReference} onChange={(event) => setEditionReference(event.target.value)} maxLength={80} className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" />
         </label>
         <div className="border-l-2 border-sky-300/35 px-4 py-2 text-xs leading-5 text-muted-foreground">
           Evidence files can be added from the case after submission. Images are re-encoded before upload where supported to remove common camera and location metadata.
