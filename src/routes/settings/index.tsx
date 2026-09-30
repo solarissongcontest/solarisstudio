@@ -8,7 +8,7 @@ import {
   Smartphone,
   Sun,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
@@ -300,7 +300,7 @@ function SettingRow({
   icon: typeof EyeOff;
   title: string;
   description: string;
-  control: React.ReactNode;
+  control: ReactNode;
 }) {
   return (
     <div className="flex min-h-16 items-center gap-3 rounded-2xl border border-border/70 bg-background/35 p-4">
