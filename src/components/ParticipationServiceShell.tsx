@@ -3,6 +3,7 @@ import { ArrowLeft, CircleHelp } from "lucide-react";
 import { createContext, useContext, useEffect, type ReactNode } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,7 @@ export function ParticipationServiceShell({
   actions?: ServiceAction[];
   maxWidth?: string;
 }) {
+  const { isAppMode } = useSolarisApp();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const serviceLabel = {
     confirmations: "Confirmations",
@@ -60,6 +62,44 @@ export function ParticipationServiceShell({
       metadata: { area: "participate", source: "task_page", task_status: "opened" },
     });
   }, [service]);
+
+  if (isAppMode) {
+    return (
+      <div
+        className={cn("solaris-app-task-shell mx-auto min-w-0", maxWidth)}
+        data-solaris-app-task={service}
+      >
+        <header className="solaris-app-task-header">
+          <div className="min-w-0">
+            <p className="solaris-app-task-kicker">{serviceLabel} · Participate</p>
+            <h1 className="solaris-app-task-title">{title}</h1>
+            {description ? (
+              <p className="solaris-app-task-description">{description}</p>
+            ) : null}
+          </div>
+
+          {visibleActions.length ? (
+            <nav className="solaris-app-task-links" aria-label={`${serviceLabel} options`}>
+              {visibleActions.map((action) => (
+                <Link
+                  key={action.to}
+                  to={action.to as any}
+                  className={cn(
+                    "solaris-app-task-link",
+                    pathMatches(pathname, action.to) && "is-active",
+                  )}
+                >
+                  {action.label}
+                </Link>
+              ))}
+            </nav>
+          ) : null}
+        </header>
+
+        <div className="solaris-app-task-body">{children}</div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("mx-auto min-w-0", maxWidth)}>
