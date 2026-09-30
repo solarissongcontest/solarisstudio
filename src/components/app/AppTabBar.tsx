@@ -3,6 +3,13 @@ import { Compass, Home, Trophy, UserRound, Vote, type LucideIcon } from "lucide-
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
+import {
+  appEntryHref,
+  appTabRoot,
+  getAppTabDestination,
+  markAppNavigationRestore,
+  resetAppTabToRoot,
+} from "@/lib/app-navigation";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
@@ -30,10 +37,10 @@ function isPrimaryArea(value: string): value is PrimaryArea {
   return PUBLIC_GLOBAL_AREAS.some((area) => area.id === value);
 }
 
-function destinationForIndex(index: number, signedIn: boolean) {
+function rootDestinationForIndex(index: number, signedIn: boolean) {
   const area = PUBLIC_GLOBAL_AREAS[index];
   if (!area) return null;
-  return area.id === "me" ? (signedIn ? "/my-solaris" : "/auth") : area.to;
+  return appTabRoot(area.id, signedIn);
 }
 
 export function AppTabBar({
@@ -143,6 +150,31 @@ export function AppTabBar({
     PUBLIC_GLOBAL_AREAS.findIndex((area) => area.id === activeArea),
   );
   const visualActiveIndex = dragPreviewIndex ?? activeIndex;
+
+  const openTab = (index: number) => {
+    const area = PUBLIC_GLOBAL_AREAS[index];
+    if (!area) return;
+    const target = getAppTabDestination(area.id, signedIn);
+    markAppNavigationRestore(target);
+    void navigate({ to: appEntryHref(target) as any });
+  };
+
+  const activateCurrentTab = (index: number) => {
+    const area = PUBLIC_GLOBAL_AREAS[index];
+    if (!area) return;
+    const root = appTabRoot(area.id, signedIn);
+    const normalizedPath = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+    const normalizedRoot = root.endsWith("/") && root !== "/" ? root.slice(0, -1) : root;
+
+    if (normalizedPath !== normalizedRoot) {
+      const target = resetAppTabToRoot(area.id, signedIn);
+      void navigate({ to: appEntryHref(target) as any });
+      return;
+    }
+
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
+  };
 
   const tabRects = () => {
     const material = materialRef.current;
@@ -260,15 +292,15 @@ export function AppTabBar({
     clearDrag();
 
     if (!moved || targetIndex === drag.originIndex) return;
-    const to = destinationForIndex(targetIndex, signedIn);
     const area = PUBLIC_GLOBAL_AREAS[targetIndex];
-    if (!to || !area) return;
+    if (!area) return;
+    const target = getAppTabDestination(area.id, signedIn);
 
     trackPublicUxEvent("public_nav_clicked", {
-      target: to,
+      target: appEntryHref(target),
       metadata: { area: area.id, source: "app_tabbar_drag" },
     });
-    void navigate({ to: to as any });
+    openTab(targetIndex);
   };
 
   const cancelDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
@@ -299,7 +331,7 @@ export function AppTabBar({
 
         {PUBLIC_GLOBAL_AREAS.map((area, index) => {
           const Icon = ICONS[area.id];
-          const to = destinationForIndex(index, signedIn)!;
+          const to = rootDestinationForIndex(index, signedIn)!;
           const active =
             area.id === "me"
               ? pathname.startsWith("/my-solaris") ||
@@ -339,10 +371,21 @@ export function AppTabBar({
                   event.preventDefault();
                   return;
                 }
+
+                event.preventDefault();
                 trackPublicUxEvent("public_nav_clicked", {
-                  target: to,
-                  metadata: { area: area.id, source: "app_tabbar" },
+                  target: active ? pathname : appEntryHref(getAppTabDestination(area.id, signedIn)),
+                  metadata: {
+                    area: area.id,
+                    source: active ? "app_tabbar_active" : "app_tabbar_restore",
+                  },
                 });
+
+                if (active) {
+                  activateCurrentTab(index);
+                } else {
+                  openTab(index);
+                }
               }}
               className={cn("solaris-app-tab", visuallyActive && "is-active")}
             >
