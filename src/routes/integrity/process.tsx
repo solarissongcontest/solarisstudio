@@ -88,7 +88,7 @@ export function IntegrityProcessPage() {
         <RulesApplyingHere context="integrity.report" initiallyExpanded primaryLimit={3} className="mt-6" />
 
         <div className="mt-6 flex flex-wrap gap-2">
-          <Link to="/integrity/report/category" search={{}} className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground">
+          <Link to="/integrity/report/category" search={{ category: undefined }} className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground">
             Report a concern <ArrowRight className="ml-1 size-4" />
           </Link>
           <Link to="/integrity/privacy" className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-sm font-bold">
