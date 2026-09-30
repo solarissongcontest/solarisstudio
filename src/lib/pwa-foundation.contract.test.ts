@@ -25,31 +25,30 @@ describe("Solaris installed-app foundation", () => {
     expect(tabs).toContain("setCollapsed(false)");
   });
 
-  it("renders the installed bottom navigation as transparent liquid glass", () => {
+  it("renders the installed bottom navigation with the vendored source-backed Liquid Glass engine", () => {
     const tabs = source("src/components/app/AppTabBar.tsx");
+    const backdrop = source("src/components/LiquidGlassBackdrop.tsx");
+    const vendor = source("src/vendor/liquid-glass/GlassMaterial.tsx");
     const styles = source("src/styles/app-shell.css");
-    expect(tabs).not.toContain('id="solaris-liquid-glass-refraction"');
-    expect(tabs).not.toContain("feDisplacementMap");
-    expect(styles).not.toContain('url("#solaris-liquid-glass-refraction")');
-    expect(styles).toContain("-webkit-backdrop-filter: blur(30px)")
-    expect(styles).toContain("backdrop-filter: blur(30px)")
-    expect(styles).toContain("rgb(255 255 255 / .045)")
-    expect(styles).toContain("mask-composite: exclude");
-    expect(styles).not.toContain("linear-gradient(145deg, rgb(10 29 55 / .90), rgb(4 18 40 / .90))");
-    expect(tabs).not.toContain('className="solaris-app-tabbar-glass"');
-    expect(styles).not.toContain(".solaris-app-tabbar-glass");
+
+    expect(tabs).toContain('variant="navigation"');
+    expect(tabs).toContain('className="solaris-app-tabbar-backdrop"');
+    expect(backdrop).toContain('"navigation"');
+    expect(backdrop).toContain("frost: 20");
+    expect(backdrop).toContain("brightness: 0.12");
+    expect(vendor).toContain("useSupportsBackdropUrl");
+    expect(vendor).toContain("Safari would get `url()` in the value");
+    expect(styles).toContain(".solaris-app-tabbar-backdrop");
+    expect(styles).toContain("rgb(248 253 255 / .13)");
     expect(styles).toContain(".solaris-app-tabbar-material");
-    expect(styles).toContain("overflow: hidden");
-    expect(styles).toContain(".solaris-app-tab-indicator");
     expect(styles).toContain("background: transparent");
-    expect(styles).toContain("background: rgb(232 235 240 / .105)")
+    expect(styles).toContain("background: rgb(232 235 240 / .105)");
     expect(styles).toContain("-webkit-backdrop-filter: none");
-    expect(styles).not.toContain('@supports (backdrop-filter: url(');
   });
 
   it("bumps the installed-app static cache when liquid glass rendering changes", () => {
     const worker = source("public/sw.js");
-    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v4"');
+    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v5"');
   });
 
   it("lets the active tab indicator drag across destinations", () => {
