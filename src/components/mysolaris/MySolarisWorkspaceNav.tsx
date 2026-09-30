@@ -12,7 +12,6 @@ import {
   ListChecks,
   MoreHorizontal,
   PanelsTopLeft,
-  Settings,
   Sparkles,
   Vote,
   type LucideIcon,
@@ -43,7 +42,6 @@ const ICONS: Record<MySolarisSectionId, LucideIcon> = {
   predictions: Sparkles,
   saved: Bookmark,
   account: CircleUserRound,
-  settings: Settings,
 };
 
 export function MySolarisWorkspaceNav() {
