@@ -24,6 +24,7 @@ export const Route = createFileRoute("/integrity/preclearance")({
   head: () => ({
     meta: [
       { title: "Private Rule Guidance — Solaris Song Contest" },
+      { name: "robots", content: "noindex" },
       {
         name: "description",
         content:
