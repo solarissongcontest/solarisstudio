@@ -23,6 +23,7 @@ export type AppNavigationState = {
 const STORAGE_KEY = "solaris:app-navigation:v1";
 const RESTORE_INTENT_KEY = "solaris:app-navigation-restore:v1";
 const MAX_HISTORY_PER_TAB = 20;
+export const APP_LAUNCH_RESTORE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 const ROOTS: Record<AppTabId, string> = {
   home: "/",
@@ -365,4 +366,34 @@ export function consumeAppNavigationRestore(
   } catch {
     return null;
   }
+}
+
+
+function safeForColdLaunch(entry: AppHistoryEntry) {
+  if (!safePath(entry.pathname)) return false;
+  if (
+    /^\/(?:app-launch|auth|reset|recover)(?:\/|$)/.test(entry.pathname) ||
+    /^\/(?:confirmations|jury-voting|televoting|next-in-line)(?:\/|$)/.test(entry.pathname) ||
+    /^\/broadcast(?:\/|$)/.test(entry.pathname) ||
+    /^\/show-mode(?:\/|$)/.test(entry.pathname)
+  ) {
+    return false;
+  }
+
+  const visitedAt = new Date(entry.visitedAt).getTime();
+  return (
+    Number.isFinite(visitedAt) &&
+    Date.now() - visitedAt >= 0 &&
+    Date.now() - visitedAt <= APP_LAUNCH_RESTORE_MAX_AGE_MS
+  );
+}
+
+export function getAppLaunchRestoreCandidate(
+  storage: StorageReader | null = browserStorage(),
+): AppHistoryEntry | null {
+  const state = readAppNavigationState(storage);
+  const active = state.tabs[state.activeTab]?.current ?? null;
+  if (!active || !safeForColdLaunch(active)) return null;
+  if (appEntryHref(active) === "/") return null;
+  return active;
 }
