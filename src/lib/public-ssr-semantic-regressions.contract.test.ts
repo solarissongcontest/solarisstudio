@@ -13,7 +13,7 @@ describe("public SSR and semantic route regressions", () => {
   const router = source("src/router.tsx");
   const country = source("src/routes/countries/$code.tsx");
   const home = source("src/routes/index.tsx");
-  const rules = source("src/components/rules/RulesExperience.tsx");
+  const rules = source("src/components/rules/RulesHomeV5.tsx");
   const rulesRoute = source("src/routes/rules/index.tsx");
 
   it("does not combine Intl style shortcuts with timeZoneName during SSR", () => {
@@ -41,7 +41,7 @@ describe("public SSR and semantic route regressions", () => {
   });
 
   it("does not read mutable rulebook metadata directly inside the Rules experience", () => {
-    expect(rules).toContain("RulesExperience({ version }");
+    expect(rules).toContain("RulesHomeV5({ version }");
     expect(rules).not.toContain("SSC_RULEBOOK.version");
     expect(rulesRoute).toContain("version={published.version}");
   });
