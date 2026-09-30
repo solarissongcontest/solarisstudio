@@ -88,7 +88,7 @@ export function AppToolbar({
               <span>{context.parent.label}</span>
             </Link>
           ) : (
-            <span className="solaris-app-toolbar-title">{context.title}</span>
+            <h1 className="solaris-app-toolbar-title">{context.title}</h1>
           )}
         </div>
 
