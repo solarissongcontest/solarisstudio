@@ -13,12 +13,21 @@ import {
 
 const receiptKey = (roundId: string) => `ssc_vote_receipt:${roundId}`;
 
-function hasReceipt(roundId: string) {
-  if (typeof window === "undefined") return false;
+function readStoredReceipt(roundId: string): SubmissionReceiptDetail | null {
+  if (typeof window === "undefined") return null;
   try {
-    return Boolean(localStorage.getItem(receiptKey(roundId)));
+    const raw = localStorage.getItem(receiptKey(roundId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      governance?: SubmissionReceiptDetail["governance"];
+    };
+    return {
+      id: roundId,
+      kind: "televote",
+      governance: parsed.governance ?? null,
+    };
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -35,22 +44,22 @@ export function TelevotingBoothWithReceipt({
   entries: MergedTelevotingEntry[];
   selfVotingMode?: string | null;
 }) {
-  const startedWithReceipt = useRef(hasReceipt(roundId));
-  const [newReceiptDetected, setNewReceiptDetected] = useState(false);
+  const startedWithReceipt = useRef(readStoredReceipt(roundId));
+  const [newReceipt, setNewReceipt] = useState<SubmissionReceiptDetail | null>(null);
 
   useEffect(() => {
     if (startedWithReceipt.current) return;
 
     const onSubmitted = (event: Event) => {
       const detail = (event as CustomEvent<SubmissionReceiptDetail>).detail;
-      if (detail?.id === roundId) setNewReceiptDetected(true);
+      if (detail?.id === roundId) setNewReceipt(detail);
     };
 
     window.addEventListener(TELEVOTE_SUBMITTED_EVENT, onSubmitted);
     return () => window.removeEventListener(TELEVOTE_SUBMITTED_EVENT, onSubmitted);
   }, [roundId]);
 
-  if (newReceiptDetected) {
+  if (newReceipt) {
     return (
       <div className="space-y-4">
         <DelayedConfirmationState
@@ -59,18 +68,24 @@ export function TelevotingBoothWithReceipt({
           confirmedTitle="Vote confirmed"
           confirmedDescription={`Your ballot for ${roundName} is recorded. Duplicate protection and the automatic integrity checks are complete.`}
         />
-        <GovernanceSnapshot context="televote.vote" label="Rules shown for this televote" />
+        <GovernanceSnapshot
+          context="televote.vote"
+          label="Rules shown for this televote"
+          snapshot={newReceipt.governance}
+        />
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <RulesApplyingHere
-        context="televote.vote"
-        title="Before you vote"
-        primaryLimit={3}
-      />
+      {startedWithReceipt.current ? null : (
+        <RulesApplyingHere
+          context="televote.vote"
+          title="Before you vote"
+          primaryLimit={3}
+        />
+      )}
       <TelevotingBooth
         roundId={roundId}
         roundName={roundName}
@@ -78,6 +93,13 @@ export function TelevotingBoothWithReceipt({
         entries={entries}
         selfVotingMode={selfVotingMode}
       />
+      {startedWithReceipt.current?.governance ? (
+        <GovernanceSnapshot
+          context="televote.vote"
+          label="Rules captured for this recorded televote"
+          snapshot={startedWithReceipt.current.governance}
+        />
+      ) : null}
     </div>
   );
 }
