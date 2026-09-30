@@ -1,3 +1,5 @@
+import type { GovernanceReceiptSnapshot } from "@/lib/governance-v5";
+
 export const CONFIRMATION_SUBMITTED_EVENT = "solaris:confirmation-submitted";
 export const TELEVOTE_SUBMITTED_EVENT = "solaris:televote-submitted";
 
@@ -6,6 +8,7 @@ export type SubmissionReceiptDetail = {
   kind?: "confirmation" | "televote" | "jury";
   submissionId?: string | null;
   acknowledgedAt?: string | null;
+  governance?: GovernanceReceiptSnapshot | null;
 };
 
 export function dispatchSubmissionReceipt(
