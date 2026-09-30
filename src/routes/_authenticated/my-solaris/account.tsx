@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { MySolarisAccountPanel } from "@/components/MySolarisAccountPanel";
 import { MySolarisNotificationsPanel } from "@/components/mysolaris/MySolarisNotificationsPanel";
 import { MySolarisPasswordPanel } from "@/components/MySolarisPasswordPanel";
@@ -23,6 +24,7 @@ function AccountPage() {
 
 function AccountContent() {
   const workspace = useMySolaris();
+  const { isAppMode } = useSolarisApp();
   const country = workspace.countryAccount?.country;
   return (
     <>
@@ -33,7 +35,21 @@ function AccountContent() {
       />
       <div className="space-y-4">
         <MySolarisAccountPanel />
-        <MySolarisNotificationsPanel />
+        {isAppMode ? (
+          <Panel
+            title="App preferences"
+            description="Notifications, spoiler protection, Show Mode, accessibility and offline settings now live together."
+          >
+            <Link
+              to="/settings"
+              className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
+            >
+              Open App Settings
+            </Link>
+          </Panel>
+        ) : (
+          <MySolarisNotificationsPanel />
+        )}
         <MySolarisPasswordPanel />
         <Panel title="Connected country" description="The delegation attached to this account">
           <p className="text-sm font-semibold">{country?.name ?? "No country connected"}</p>

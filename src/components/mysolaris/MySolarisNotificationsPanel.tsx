@@ -40,7 +40,7 @@ const EMPTY_PUSH: AppPushState = {
   subscribed: false,
 };
 
-export function MySolarisNotificationsPanel() {
+export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { includeSpoilerFree?: boolean } = {}) {
   const userQuery = useQuery({
     queryKey: ["mysolaris-notification-user"],
     queryFn: async () => {
@@ -258,23 +258,25 @@ export function MySolarisNotificationsPanel() {
             </label>
           </div>
 
-          <div className="rounded-2xl border border-border/70 bg-background/35 p-4">
-            <p className="text-sm font-semibold">Spoiler-free mode</p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              Result notifications say that results are available without revealing the winner in notification text.
-            </p>
-            <label className="mt-3 flex min-h-11 items-center justify-between gap-3 rounded-xl border border-border/70 px-3 text-xs font-semibold">
-              Hide result spoilers
-              <input
-                type="checkbox"
-                checked={spoilerFree}
-                onChange={(event) =>
-                  updateAppExperience({ spoilerFree: event.target.checked })
-                }
-                className="size-5"
-              />
-            </label>
-          </div>
+          {includeSpoilerFree ? (
+            <div className="rounded-2xl border border-border/70 bg-background/35 p-4">
+              <p className="text-sm font-semibold">Spoiler-free mode</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Result notifications say that results are available without revealing the winner in notification text.
+              </p>
+              <label className="mt-3 flex min-h-11 items-center justify-between gap-3 rounded-xl border border-border/70 px-3 text-xs font-semibold">
+                Hide result spoilers
+                <input
+                  type="checkbox"
+                  checked={spoilerFree}
+                  onChange={(event) =>
+                    updateAppExperience({ spoilerFree: event.target.checked })
+                  }
+                  className="size-5"
+                />
+              </label>
+            </div>
+          ) : null}
         </div>
 
         <div className="rounded-2xl border border-border/70 bg-background/35 p-4">

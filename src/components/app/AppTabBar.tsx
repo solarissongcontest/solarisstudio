@@ -156,6 +156,16 @@ export function AppTabBar({
     const area = PUBLIC_GLOBAL_AREAS[index];
     if (!area) return;
     const target = getAppTabDestination(area.id, signedIn);
+    const root = appTabRoot(area.id, signedIn);
+    if (appEntryHref(target) !== root || target.scrollY > 0) {
+      trackPublicUxEvent("app_tab_restored", {
+        target: appEntryHref(target),
+        metadata: {
+          area: area.id,
+          source: "app_tabbar",
+        },
+      });
+    }
     markAppNavigationRestore(target);
     void runAppViewTransition("tab", () =>
       navigate({ to: appEntryHref(target) as any }),

@@ -116,7 +116,7 @@ export const MY_SOLARIS_NAVIGATION: readonly MySolarisNavigationGroup[] = [
       {
         id: "account",
         label: "Account",
-        description: "Profile, sign-in, preferences and security",
+        description: "Profile, sign-in and security",
         to: NAV_TARGETS.mySolarisAccount,
       },
     ],
