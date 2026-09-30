@@ -16,9 +16,11 @@ describe("Solaris installed-app foundation", () => {
 
   it("uses the stable five-area app navigation with Me as a permanent label", () => {
     const tabs = source("src/components/app/AppTabBar.tsx");
+    const navigation = source("src/lib/app-navigation.ts");
     expect(tabs).toContain("PUBLIC_GLOBAL_AREAS");
     expect(tabs).toContain('area.id === "me"');
-    expect(tabs).toContain('signedIn ? "/my-solaris" : "/auth"');
+    expect(navigation).toContain('if (tab === "me" && !signedIn) return "/auth"');
+    expect(navigation).toContain('me: "/my-solaris"');
     expect(tabs).not.toContain('"Sign in"');
     expect(tabs).toContain("downTravel");
     expect(tabs).toContain('data-collapsed={collapsed ? "true" : "false"}');
@@ -100,8 +102,10 @@ describe("Solaris installed-app foundation", () => {
 
   it("keeps utility route titles route-aware in the installed app toolbar", () => {
     const toolbar = source("src/components/app/AppToolbar.tsx");
-    expect(toolbar).toContain("publicDestinationForPath");
-    expect(toolbar).toContain("destination.label");
+    const chrome = source("src/lib/app-route-chrome.ts");
+    expect(toolbar).toContain("resolveAppRouteChrome");
+    expect(chrome).toContain("publicDestinationForPath");
+    expect(chrome).toContain("destination.label");
   });
 
   it("never turns maintenance into stale cached application HTML", () => {

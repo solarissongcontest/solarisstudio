@@ -35,6 +35,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { getSolarisAnniversary } from "@/lib/anniversary";
 import { getAnniversaryPreviewPhase } from "@/lib/anniversary-preview";
 import { getCurrentAccountAccess, type AccountAccess } from "@/lib/country-account";
+import {
+  consumeAppNavigationRestore,
+  rememberAppLocation,
+  updateAppScrollPosition,
+} from "@/lib/app-navigation";
+import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
 import { resolvePublicIaV3Enabled } from "@/lib/public-ia-rollout";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
 import {
@@ -160,6 +166,39 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => setMenuOpen(false), [pathname]);
 
   useEffect(() => {
+    if (!isAppMode) return;
+
+    const restoreY = consumeAppNavigationRestore(pathname, searchStr);
+    rememberAppLocation(pathname, searchStr, restoreY ?? undefined);
+
+    if (restoreY != null) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => window.scrollTo({ top: restoreY, behavior: "auto" }));
+      });
+    }
+
+    let frame: number | null = null;
+    const persistScroll = () => {
+      frame = null;
+      updateAppScrollPosition(pathname, searchStr, window.scrollY);
+    };
+    const onScroll = () => {
+      if (frame != null) return;
+      frame = window.requestAnimationFrame(persistScroll);
+    };
+    const onPageHide = () => updateAppScrollPosition(pathname, searchStr, window.scrollY);
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("pagehide", onPageHide);
+      if (frame != null) window.cancelAnimationFrame(frame);
+      updateAppScrollPosition(pathname, searchStr, window.scrollY);
+    };
+  }, [isAppMode, pathname, searchStr]);
+
+  useEffect(() => {
     let alive = true;
     void resolvePublicIaV3Enabled().then((enabled) => {
       if (alive) setPublicIaV3Enabled(enabled);
@@ -230,18 +269,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     email && !email.toLowerCase().endsWith("@country.solaris.invalid") ? email : null;
   const isEditionPage = /^\/editions\/[^/]+\/?$/i.test(pathname);
   const isHomePage = pathname === "/";
-  const isAppRootDestination =
-    pathname === "/" ||
-    pathname === "/explore" ||
-    pathname === "/explore/" ||
-    pathname === "/participate" ||
-    pathname === "/participate/" ||
-    pathname === "/results" ||
-    pathname === "/results/" ||
-    pathname === "/me" ||
-    pathname === "/me/" ||
-    pathname === "/my-solaris" ||
-    pathname === "/my-solaris/";
+  const appChrome = resolveAppRouteChrome(pathname);
+  const isAppRootDestination = appChrome.root;
   const showHomeAnniversaryTakeover =
     isHomePage &&
     (getSolarisAnniversary().active ||
@@ -250,8 +279,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     pathname === "/my-solaris" ||
     pathname === "/my-solaris/" ||
     pathname.startsWith("/my-solaris/");
-  const focusedParticipationTask =
-    /^\/(confirmations|jury-voting|televoting|next-in-line)(\/|$)/.test(pathname);
+  const focusedParticipationTask = appChrome.archetype === "task";
   const showSectionNavigation =
     !isAppMode &&
     !isMySolarisWorkspace &&
@@ -315,7 +343,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="relative isolate min-h-screen overflow-x-clip">
         <div aria-hidden="true" className="app-background" />
 
-        {isAppMode ? <AppToolbar pathname={pathname} access={access} /> : null}
+        {isAppMode ? (
+          <AppToolbar pathname={pathname} searchStr={searchStr} access={access} />
+        ) : null}
 
         <header className="site-nav sticky top-0 z-40 border-b border-border/60">
           <div className="mx-auto flex h-16 max-w-[1680px] items-center gap-4 px-3 sm:px-5 lg:px-8 2xl:px-10">
@@ -437,6 +467,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           data-public-layout={publicLayout}
           data-solaris-app-mode={isAppMode ? "true" : undefined}
           data-solaris-app-root={isAppMode && isAppRootDestination ? "true" : undefined}
+          data-solaris-app-screen={isAppMode ? appChrome.archetype : undefined}
           className={cn(
             "app-main relative z-10 mx-auto w-full min-w-0 px-3 pb-24 pt-4 sm:px-5 sm:pb-24 sm:pt-6 lg:px-8 lg:py-8 2xl:px-10",
             publicCanvasForArchetype(publicArchetype),
@@ -526,7 +557,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <PublicFooter />
         ) : null}
 
-        {isAppMode && !focusedParticipationTask ? (
+        {isAppMode && appChrome.tabBar !== "hidden" ? (
           <AppTabBar pathname={pathname} signedIn={Boolean(access.userId)} />
         ) : null}
 
