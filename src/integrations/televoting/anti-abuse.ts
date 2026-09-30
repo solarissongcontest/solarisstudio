@@ -1,3 +1,4 @@
+import { captureGovernanceSnapshot } from "@/lib/governance-v5";
 import {
   dispatchSubmissionReceipt,
   TELEVOTE_SUBMITTED_EVENT,
@@ -68,11 +69,14 @@ export function markTelevotingRoundSubmitted(
   // This function is only called after the server has accepted the ballot or
   // confirmed it was already recorded. The receipt event drives the shared
   // pending → confirmed UI without weakening any database-side protection.
+  const governance = captureGovernanceSnapshot("televote.vote");
   dispatchSubmissionReceipt(TELEVOTE_SUBMITTED_EVENT, roundId, {
     kind: "televote",
     submissionId: receipt.submissionId ?? null,
     acknowledgedAt: receipt.acknowledgedAt ?? new Date().toISOString(),
+    governance,
   });
+  return governance;
 }
 
 export function hasSubmittedTelevotingRound(roundId: string) {
