@@ -1,8 +1,31 @@
 import { QueryClient } from "@tanstack/react-query";
-import { createRouter } from "@tanstack/react-router";
+import { createRouter, useRouterState } from "@tanstack/react-router";
+import { AppRouteSkeleton, AppRouteStateFrame } from "@/components/app/AppRouteStateFrame";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { routeTree } from "./routeTree.gen";
 
 function RoutePending() {
+  const { isAppMode } = useSolarisApp();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const alreadyInsideParticipationChrome =
+    pathname.startsWith("/confirmations") || pathname.startsWith("/televoting");
+
+  if (isAppMode && alreadyInsideParticipationChrome) {
+    return (
+      <section className="solaris-app-route-pending" aria-busy="true" aria-label="Loading">
+        <AppRouteSkeleton />
+      </section>
+    );
+  }
+
+  if (isAppMode) {
+    return (
+      <AppRouteStateFrame title="Loading" busy>
+        <AppRouteSkeleton />
+      </AppRouteStateFrame>
+    );
+  }
+
   return (
     <main
       id="main-content"
