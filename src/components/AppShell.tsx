@@ -149,6 +149,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         return;
       }
 
+      setAccess({ ...EMPTY_ACCESS, userId });
       try {
         const next = await getCurrentAccountAccess(userId);
         if (alive) setAccess(next);
