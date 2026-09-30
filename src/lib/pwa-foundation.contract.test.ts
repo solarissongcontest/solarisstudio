@@ -45,7 +45,8 @@ describe("Solaris installed-app foundation", () => {
     expect(kube).toContain("source.cloneNode(true)");
     expect(kube).toContain('document.querySelector<HTMLElement>(".app-main")');
     expect(kube).toContain("mirror.replaceChildren(clone)");
-    expect(kube).toContain("style={{ filter: mirrorFilter }}");
+    expect(kube).toContain("WebkitFilter: mirrorFilter");
+    expect(kube).toContain("filter: mirrorFilter");
     expect(styles).toContain(".solaris-app-tabbar-backdrop");
     expect(styles).toContain(".solaris-kube-safari-mirror");
     expect(styles).toContain(".solaris-kube-mirror-clone");
