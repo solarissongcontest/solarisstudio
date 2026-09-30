@@ -10,6 +10,32 @@ export type SceneKind =
   | "winner"
   | "credits";
 
+export type ShowModeManualPhase =
+  | "scheduled"
+  | "live"
+  | "results_in_progress"
+  | "ended";
+
+export type ShowModeConfig = {
+  phase: ShowModeManualPhase;
+  scheduledStart: string | null;
+  youtubeUrl: string;
+  televoteRoundId: string | null;
+  liveStartedAt: string | null;
+  resultsStartedAt: string | null;
+  endedAt: string | null;
+};
+
+export const DEFAULT_SHOW_MODE: ShowModeConfig = {
+  phase: "scheduled",
+  scheduledStart: null,
+  youtubeUrl: "",
+  televoteRoundId: null,
+  liveStartedAt: null,
+  resultsStartedAt: null,
+  endedAt: null,
+};
+
 export type BroadcastConfig = {
   speed: number; // global multiplier 0.25 – 2
   pointDelay: number; // ms between individual point drops
@@ -36,6 +62,12 @@ export type BroadcastConfig = {
   };
 
   showRunningTotals: boolean;
+
+  /**
+   * Companion-app metadata for the real external live show.
+   * This never attempts to infer the current performer or YouTube timing.
+   */
+  showMode: ShowModeConfig;
 };
 
 export const DEFAULT_BROADCAST: BroadcastConfig = {
@@ -71,6 +103,10 @@ export const DEFAULT_BROADCAST: BroadcastConfig = {
   },
 
   showRunningTotals: true,
+
+  showMode: {
+    ...DEFAULT_SHOW_MODE,
+  },
 };
 
 export function resolveBroadcast(raw: unknown): BroadcastConfig {
@@ -93,6 +129,41 @@ export function resolveBroadcast(raw: unknown): BroadcastConfig {
     spokesperson: {
       ...DEFAULT_BROADCAST.spokesperson,
       ...(b.spokesperson ?? {}),
+    },
+
+    showMode: {
+      ...DEFAULT_SHOW_MODE,
+      ...(b.showMode ?? {}),
+      phase:
+        b.showMode?.phase === "live" ||
+        b.showMode?.phase === "results_in_progress" ||
+        b.showMode?.phase === "ended"
+          ? b.showMode.phase
+          : "scheduled",
+      scheduledStart:
+        typeof b.showMode?.scheduledStart === "string"
+          ? b.showMode.scheduledStart
+          : null,
+      youtubeUrl:
+        typeof b.showMode?.youtubeUrl === "string"
+          ? b.showMode.youtubeUrl
+          : "",
+      televoteRoundId:
+        typeof b.showMode?.televoteRoundId === "string"
+          ? b.showMode.televoteRoundId
+          : null,
+      liveStartedAt:
+        typeof b.showMode?.liveStartedAt === "string"
+          ? b.showMode.liveStartedAt
+          : null,
+      resultsStartedAt:
+        typeof b.showMode?.resultsStartedAt === "string"
+          ? b.showMode.resultsStartedAt
+          : null,
+      endedAt:
+        typeof b.showMode?.endedAt === "string"
+          ? b.showMode.endedAt
+          : null,
     },
   };
 }
