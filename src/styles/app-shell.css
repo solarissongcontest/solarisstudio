@@ -941,3 +941,86 @@
     bottom: max(1rem, env(safe-area-inset-bottom));
   }
 }
+
+
+/* Installed-app information hierarchy --------------------------------------
+   Website mode keeps its editorial heroes. Installed App Mode is operational:
+   the toolbar owns root-page identity, while content begins with useful state. */
+@media (display-mode: standalone) {
+  .app-main[data-solaris-app-mode="true"] {
+    padding-top: .55rem !important;
+  }
+
+  /* Root tabs already have an H1 in AppToolbar. Do not repeat the same page
+     identity as an eyebrow + display title + explanatory hero in the body. */
+  .app-main[data-solaris-app-root="true"] > .public-hub-hero,
+  .app-main[data-solaris-app-root="true"] > .page-header {
+    display: none !important;
+  }
+
+  /* Secondary destinations still need their specific content identity because
+     the toolbar may show the parent. Make it compact instead of landing-page sized. */
+  .app-main[data-solaris-app-mode="true"] .page-header:not(.directory-page-hero) {
+    margin-bottom: 1rem !important;
+    padding: .35rem 0 .8rem !important;
+    border-radius: 0 !important;
+    border-width: 0 0 1px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  .app-main[data-solaris-app-mode="true"] .page-header:not(.directory-page-hero)::before,
+  .app-main[data-solaris-app-mode="true"] .page-header:not(.directory-page-hero)::after {
+    display: none !important;
+  }
+
+  .app-main[data-solaris-app-mode="true"] .page-header:not(.directory-page-hero) > div {
+    gap: .65rem !important;
+  }
+
+  .app-main[data-solaris-app-mode="true"] .page-header:not(.directory-page-hero) h1 {
+    font-size: clamp(1.45rem, 6vw, 2rem) !important;
+    line-height: 1.08 !important;
+    letter-spacing: -.025em !important;
+  }
+
+  .app-main[data-solaris-app-mode="true"] .page-header:not(.directory-page-hero) p:first-child {
+    display: none !important;
+  }
+
+  .app-main[data-solaris-app-mode="true"] .page-header:not(.directory-page-hero) h1 + p {
+    margin-top: .35rem !important;
+    max-width: 42rem !important;
+    font-size: .82rem !important;
+    line-height: 1.45 !important;
+  }
+
+  /* Public hub sections should read as app sections, not stacked landing pages. */
+  .app-main[data-solaris-app-mode="true"] .public-hub-section {
+    margin-top: 1.35rem;
+  }
+
+  .app-main[data-solaris-app-mode="true"] .public-hub-section:first-child {
+    margin-top: 0;
+  }
+
+  .app-main[data-solaris-app-mode="true"] .public-hub-section-header {
+    margin-bottom: .75rem;
+  }
+
+  /* Loading/error content starts where final content will live. */
+  .app-main[data-solaris-app-root="true"] [data-archive-state] {
+    margin-top: .25rem;
+  }
+}
+
+@media (display-mode: standalone) and (max-width: 430px) {
+  .app-main[data-solaris-app-mode="true"] {
+    padding-inline: 1rem !important;
+  }
+
+  .app-main[data-solaris-app-mode="true"] .page-header:not(.directory-page-hero) h1 + p {
+    display: none;
+  }
+}
