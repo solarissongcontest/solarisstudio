@@ -5,7 +5,7 @@ import {
   type ConfirmationFormProps,
 } from "@/components/ConfirmationForm";
 import { DelayedConfirmationState } from "@/components/DelayedConfirmationState";
-import { RuleDecisionStrip } from "@/components/rules/RuleDecisionStrip";
+import { GovernanceSnapshot, RulesApplyingHere } from "@/components/rules/GovernanceRules";
 import {
   CONFIRMATION_SUBMITTED_EVENT,
   type SubmissionReceiptDetail,
@@ -27,29 +27,32 @@ export function ConfirmationFormWithReceipt(props: ConfirmationFormProps) {
   if (receipt) {
     const editing = Boolean(props.editToken || props.prefill);
     return (
-      <DelayedConfirmationState
-        pendingTitle={editing ? "Your changes are being confirmed" : "Your confirmation is being confirmed"}
-        pendingDescription={
-          editing
-            ? "Your updated response has been stored. Solaris is finalising the receipt before showing the confirmed state."
-            : "Your response has been stored. Solaris is finalising the receipt before showing the confirmed state."
-        }
-        confirmedTitle={editing ? "Changes confirmed" : "Confirmation confirmed"}
-        confirmedDescription={
-          editing
-            ? "Your saved confirmation now includes the changes you submitted."
-            : `Your confirmation response is recorded${receipt.submissionId ? ` · receipt ${receipt.submissionId.slice(0, 8)}` : ""} and available through the normal recovery or country-account tools.`
-        }
-      />
+      <div className="space-y-4">
+        <DelayedConfirmationState
+          pendingTitle={editing ? "Your changes are being confirmed" : "Your confirmation is being confirmed"}
+          pendingDescription={
+            editing
+              ? "Your updated response has been stored. Solaris is finalising the receipt before showing the confirmed state."
+              : "Your response has been stored. Solaris is finalising the receipt before showing the confirmed state."
+          }
+          confirmedTitle={editing ? "Changes confirmed" : "Confirmation confirmed"}
+          confirmedDescription={
+            editing
+              ? "Your saved confirmation now includes the changes you submitted."
+              : `Your confirmation response is recorded${receipt.submissionId ? ` · receipt ${receipt.submissionId.slice(0, 8)}` : ""} and available through the normal recovery or country-account tools.`
+          }
+        />
+        <GovernanceSnapshot context="confirmation.submit" label="Rules shown for this confirmation" />
+      </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <RuleDecisionStrip
-        title="Confirmation fairness & submission rules"
-        description="Before claiming or editing a place, check the rules on published opening times, server receipt order, automation, duplicate confirmations and which information may be completed later."
-        ruleIds={["4.3", "4.4", "4.6", "4.7", "20.1"]}
+      <RulesApplyingHere
+        context="confirmation.submit"
+        title="Before you confirm"
+        primaryLimit={2}
       />
       <ConfirmationForm {...props} />
     </div>
