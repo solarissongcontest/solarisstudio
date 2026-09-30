@@ -89,7 +89,7 @@ describe("Official Interpretations governance", () => {
       "Replacement interpretation must address at least one of the same rules",
     );
     expect(adminRoute).toContain("supersedeRuleInterpretation");
-    expect(publicIndex).toContain("Include superseded");
+    expect(publicIndex).toContain("Show superseded");
     expect(publicPanel).toContain("superseded interpretation");
   });
 
@@ -132,7 +132,7 @@ describe("Official Interpretations governance", () => {
     expect(publicIndex).toContain("Official clarifications");
     expect(publicIndex).toContain('placeholder="Search clarifications"');
     expect(publicIndex).toContain('item.status === "superseded"');
-    expect(publicIndex).toContain("Include superseded");
+    expect(publicIndex).toContain("Show superseded");
     expect(publicIndex).toContain("getPublicRuleInterpretations");
     expect(publicIndex).toContain("item.rule_ids.map");
   });
