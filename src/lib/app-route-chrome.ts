@@ -44,7 +44,7 @@ function areaTab(pathname: string): AppTabId | null {
     : null;
 }
 
-function entityChrome(pathname: string): AppRouteChrome | null {
+function entityChrome(pathname: string, searchStr = ""): AppRouteChrome | null {
   const match = pathname.match(/^\/(countries|editions|shows|wiki)\/[^/]+/);
   if (!match) return null;
   const section = match[1]!;
@@ -55,17 +55,24 @@ function entityChrome(pathname: string): AppRouteChrome | null {
     wiki: { title: "Wiki", label: "Wiki", to: "/wiki" },
   }[section as "countries" | "editions" | "shows" | "wiki"];
 
+  const params = new URLSearchParams(
+    searchStr.startsWith("?") ? searchStr.slice(1) : searchStr,
+  );
+  const resultsContext = section === "shows" && params.get("from") === "results";
+
   return {
     title: metadata.title,
-    tab: "explore",
+    tab: resultsContext ? "results" : "explore",
     archetype: "entity",
     root: false,
     tabBar: "visible",
-    backFallback: { label: metadata.label, to: metadata.to },
+    backFallback: resultsContext
+      ? { label: "Results", to: "/results" }
+      : { label: metadata.label, to: metadata.to },
   };
 }
 
-export function resolveAppRouteChrome(pathname: string): AppRouteChrome {
+export function resolveAppRouteChrome(pathname: string, searchStr = ""): AppRouteChrome {
   if (pathname === "/") {
     return {
       title: "Solaris Studio",
@@ -121,7 +128,7 @@ export function resolveAppRouteChrome(pathname: string): AppRouteChrome {
     };
   }
 
-  const entity = entityChrome(pathname);
+  const entity = entityChrome(pathname, searchStr);
   if (entity) return entity;
 
   if (pathname === "/settings" || pathname === "/settings/") {
