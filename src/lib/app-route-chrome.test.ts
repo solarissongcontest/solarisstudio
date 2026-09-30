@@ -50,4 +50,14 @@ describe("installed app route chrome", () => {
     expect(resolveAppRouteChrome("/confirmations").helpTo).toBe("/guide");
   });
 
+  it("treats App Settings as a Me-area settings screen", () => {
+    expect(resolveAppRouteChrome("/settings")).toMatchObject({
+      title: "Settings",
+      tab: "me",
+      archetype: "settings",
+      root: false,
+      tabBar: "visible",
+    });
+  });
+
 });
