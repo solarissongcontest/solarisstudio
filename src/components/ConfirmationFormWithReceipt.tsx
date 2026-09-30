@@ -42,7 +42,7 @@ export function ConfirmationFormWithReceipt(props: ConfirmationFormProps) {
               : `Your confirmation response is recorded${receipt.submissionId ? ` · receipt ${receipt.submissionId.slice(0, 8)}` : ""} and available through the normal recovery or country-account tools.`
           }
         />
-        <GovernanceSnapshot context="confirmation.submit" label="Rules shown for this confirmation" />
+        <GovernanceSnapshot context="confirmation.submit" label="Rules shown for this confirmation" snapshot={receipt.governance} />
       </div>
     );
   }
