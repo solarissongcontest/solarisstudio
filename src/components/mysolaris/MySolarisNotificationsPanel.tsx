@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Panel } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  DEFAULT_SOLARIS_NOTIFICATION_CATEGORIES,
   useNotificationPreferences,
   useSaveNotificationPreferences,
 } from "@/lib/engagement-data";
@@ -31,7 +32,7 @@ const CATEGORIES = [
   ["predictions", "Predictions & Fantasy", "Openings, locks and results"],
 ] as const;
 
-const DEFAULT_CATEGORIES = ["confirmations", "jury", "televoting", "deadlines", "official", "results"];
+const DEFAULT_CATEGORIES = [...DEFAULT_SOLARIS_NOTIFICATION_CATEGORIES];
 
 const EMPTY_PUSH: AppPushState = {
   supported: false,
