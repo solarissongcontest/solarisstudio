@@ -1874,7 +1874,7 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
   font-weight: 800;
   letter-spacing: .14em;
   text-transform: uppercase;
-  color: hsl(var(--primary));
+  color: var(--primary);
 }
 
 .solaris-app-master-heading > h2 {
@@ -1890,7 +1890,7 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
   margin-top: .28rem;
   font-size: .69rem;
   line-height: 1.45;
-  color: hsl(var(--muted-foreground));
+  color: var(--muted-foreground);
 }
 
 .solaris-app-master-list {
@@ -1908,7 +1908,7 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
   padding: .45rem .52rem;
   border: 1px solid transparent;
   border-radius: .95rem;
-  color: hsl(var(--muted-foreground));
+  color: var(--muted-foreground);
   transition:
     background-color 150ms ease,
     border-color 150ms ease,
@@ -1918,13 +1918,13 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
 
 .solaris-app-master-link:hover {
   background: rgb(255 255 255 / .04);
-  color: hsl(var(--foreground));
+  color: var(--foreground);
 }
 
 .solaris-app-master-link.is-active {
   border-color: rgb(var(--solaris-accent) / .2);
   background: rgb(var(--solaris-accent) / .085);
-  color: hsl(var(--foreground));
+  color: var(--foreground);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / .05);
 }
 
@@ -1932,7 +1932,7 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
   display: grid;
   min-width: 0;
   place-items: center;
-  color: hsl(var(--primary));
+  color: var(--primary);
 }
 
 .solaris-app-master-link-icon .flag-frame,
@@ -1950,14 +1950,14 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
 
 .solaris-app-master-section-label {
   padding: .32rem .55rem .15rem;
-  color: hsl(var(--muted-foreground));
+  color: var(--muted-foreground);
 }
 
 .solaris-app-master-note {
   margin: .2rem .55rem .5rem;
   font-size: .72rem;
   line-height: 1.5;
-  color: hsl(var(--muted-foreground));
+  color: var(--muted-foreground);
 }
 
 @media (prefers-reduced-motion: reduce) {
