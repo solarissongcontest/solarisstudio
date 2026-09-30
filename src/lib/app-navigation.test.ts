@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   appEntryHref,
+  appTabForLocation,
   getAppLaunchDestination,
   getAppTabDestination,
   peekAppBackTarget,
@@ -174,6 +175,25 @@ describe("installed app navigation state", () => {
       pathname: "/explore",
       scrollY: 0,
     });
+  });
+
+  it("keeps a shared Show entity inside the Results stack when opened from Results", () => {
+    const storage = new MemoryStorage();
+
+    rememberAppLocation("/results", "", 0, storage);
+    rememberAppLocation("/shows/show-22", "?from=results", 320, storage);
+
+    expect(appTabForLocation("/shows/show-22", "?from=results")).toBe("results");
+    expect(getAppTabDestination("results", true, storage)).toMatchObject({
+      pathname: "/shows/show-22",
+      searchStr: "?from=results",
+      scrollY: 320,
+    });
+  });
+
+  it("keeps the same Show route in Explore when no Results context exists", () => {
+    expect(appTabForLocation("/shows/show-22", "")).toBe("explore");
+    expect(appTabForLocation("/shows/show-22", "?tab=stories")).toBe("explore");
   });
 
 });
