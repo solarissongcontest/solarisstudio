@@ -101,7 +101,7 @@ function ScorechartsPage() {
                   key={show.id}
                   to="/shows/$showId"
                   params={{ showId: show.id }}
-                  search={{ tab: "matrix" }}
+                  search={{ tab: "matrix", from: "results" }}
                   className="group rounded-2xl border border-border/70 bg-surface/75 p-4 transition hover:border-primary/35 hover:bg-surface"
                 >
                   <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-primary">
