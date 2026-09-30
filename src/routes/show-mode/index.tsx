@@ -438,7 +438,7 @@ function ShowModePage() {
                     <span>
                       <span className="block text-sm font-semibold">Spoiler-free mode</span>
                       <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                        Hide winner and ranking previews until you deliberately reveal them.
+                        Hide winner and ranking previews until you deliberately reveal them. This setting syncs with your Solaris account when you’re signed in.
                       </span>
                     </span>
                   </span>
