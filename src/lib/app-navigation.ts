@@ -184,6 +184,7 @@ export function rememberAppLocation(
   if (!tab) return;
 
   const state = readAppNavigationState(storage);
+  const previous = state.tabs[tab];
   const next: AppHistoryEntry = {
     pathname,
     searchStr: normalizeSearch(searchStr),
@@ -193,7 +194,6 @@ export function rememberAppLocation(
         : previous?.current.scrollY ?? 0,
     visitedAt: new Date().toISOString(),
   };
-  const previous = state.tabs[tab];
   const last = previous?.history.at(-1);
 
   const history =
