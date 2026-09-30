@@ -238,14 +238,19 @@ export function TelevotingBooth({
       return { result, ballot };
     },
     onSuccess: ({ result, ballot }) => {
-      markTelevotingRoundSubmitted(roundId, {
+      const governance = markTelevotingRoundSubmitted(roundId, {
         submissionId: result.id,
         acknowledgedAt: new Date().toISOString(),
       });
       try {
         localStorage.setItem(
           receiptKey(roundId),
-          JSON.stringify({ username: username.trim(), home, breakdown: ballot }),
+          JSON.stringify({
+            username: username.trim(),
+            home,
+            breakdown: ballot,
+            governance,
+          }),
         );
       } catch {
         // The database remains authoritative.
