@@ -1016,7 +1016,7 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
           </>
         ) : null}
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
+        <div className="confirmation-form-actions flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
           <Button variant="ghost" onClick={back} disabled={step === 0 || busy}><ArrowLeft className="size-4" />Back</Button>
           {step < 5 ? (
             <Button onClick={() => void next()} disabled={busy}>Continue<ArrowRight className="size-4" /></Button>
