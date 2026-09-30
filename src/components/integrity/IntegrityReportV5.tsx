@@ -122,7 +122,7 @@ export function IntegrityPrivacyStep() {
       title="How should Solaris protect your identity?"
       footer={
         <div className="flex items-center justify-between gap-2">
-          <Link to="/integrity/report/category" search={{}} className={buttonClass + " border border-border bg-surface"}>
+          <Link to="/integrity/report/category" search={{ category: undefined }} className={buttonClass + " border border-border bg-surface"}>
             <ArrowLeft className="mr-1 size-4" /> Back
           </Link>
           <button
