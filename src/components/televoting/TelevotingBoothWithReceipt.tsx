@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { DelayedConfirmationState } from "@/components/DelayedConfirmationState";
-import { RuleDecisionStrip } from "@/components/rules/RuleDecisionStrip";
+import { GovernanceSnapshot, RulesApplyingHere } from "@/components/rules/GovernanceRules";
 import {
   TelevotingBooth,
   type MergedTelevotingEntry,
@@ -52,22 +52,24 @@ export function TelevotingBoothWithReceipt({
 
   if (newReceiptDetected) {
     return (
-      <DelayedConfirmationState
-        pendingTitle="Your vote is being confirmed"
-        pendingDescription={`Your ballot for ${roundName} has been stored. Solaris is finalising the receipt before showing the confirmed state.`}
-        confirmedTitle="Vote confirmed"
-        confirmedDescription={`Your ballot for ${roundName} is recorded. Duplicate protection and the automatic integrity checks are complete.`}
-      />
+      <div className="space-y-4">
+        <DelayedConfirmationState
+          pendingTitle="Your vote is being confirmed"
+          pendingDescription={`Your ballot for ${roundName} has been stored. Solaris is finalising the receipt before showing the confirmed state.`}
+          confirmedTitle="Vote confirmed"
+          confirmedDescription={`Your ballot for ${roundName} is recorded. Duplicate protection and the automatic integrity checks are complete.`}
+        />
+        <GovernanceSnapshot context="televote.vote" label="Rules shown for this televote" />
+      </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <RuleDecisionStrip
-        title="Independent voting & integrity"
-        description="Vote for the songs you genuinely prefer. Friendships are allowed; coordinated, reciprocal or manipulated voting is not. Automated signals can trigger review but are not proof of misconduct."
-        ruleIds={["10.1", "11.1", "11.2", "11.4", "11.5", "11.7"]}
-        integrity
+      <RulesApplyingHere
+        context="televote.vote"
+        title="Before you vote"
+        primaryLimit={3}
       />
       <TelevotingBooth
         roundId={roundId}
