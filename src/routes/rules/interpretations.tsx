@@ -1,19 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, BadgeCheck, History, MessageCircleQuestion } from "lucide-react";
+import { BadgeCheck, History, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
-import { PublicSearchField } from "@/components/public/PublicSearchField";
 import { getPublicRuleInterpretations } from "@/lib/rule-interpretations";
 
 export const Route = createFileRoute("/rules/interpretations")({
   head: () => ({
     meta: [
-      { title: "Official Interpretations — SSC Rules" },
+      { title: "Official Clarifications — SSC Rules" },
       {
         name: "description",
-        content: "Official TSBC clarifications for how existing Solaris Song Contest rules apply.",
+        content:
+          "Official TSBC clarifications explaining how existing Solaris Song Contest rules apply.",
       },
     ],
   }),
@@ -51,116 +51,118 @@ function InterpretationsIndex() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-5xl pb-20">
-        <Link
-          to="/rules"
-          className="inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" /> Rules
-        </Link>
+      <div className="mx-auto max-w-4xl pb-20">
+        <header className="border-b border-border/65 pb-5">
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-primary/80">
+            Rules
+          </p>
+          <h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">
+            Official clarifications
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            These explain how an existing rule applies. They do not silently replace the official regulation or create a new rulebook version.
+          </p>
+        </header>
 
-        <section className="mt-4 rounded-[1.6rem] border border-violet-200/12 bg-[linear-gradient(145deg,rgba(54,38,96,.22),rgba(5,19,42,.84))] p-5 sm:p-7">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-[.17em] text-violet-200/65">
-                Official interpretations
-              </p>
-              <h1 className="mt-2 text-3xl font-black tracking-[-.04em] sm:text-4xl">
-                Interpretations
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Official clarifications for how existing SSC rules apply.
-              </p>
-            </div>
-            <MessageCircleQuestion className="mt-1 size-6 shrink-0 text-violet-200/80" />
-          </div>
-        </section>
-
-        <section className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-3 sm:p-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <PublicSearchField
+        <section className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <label className="flex min-h-12 flex-1 items-center gap-3 rounded-xl border border-border bg-surface/40 px-3">
+            <Search className="size-4 shrink-0 text-primary" />
+            <span className="sr-only">Search official clarifications</span>
+            <input
               value={query}
-              onChange={setQuery}
-              placeholder="Search interpretations"
-              ariaLabel="Search official interpretations"
-              className="flex-1"
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search clarifications"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none"
             />
-            <button
-              type="button"
-              onClick={() => setShowHistory((value) => !value)}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/[0.08] px-3 text-xs font-bold text-muted-foreground hover:text-foreground"
-            >
-              <History className="size-4" /> {showHistory ? "Hide superseded" : "Show superseded"}
-            </button>
-          </div>
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowHistory((value) => !value)}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border bg-surface/40 px-4 text-xs font-bold"
+          >
+            <History className="size-4" />
+            {showHistory ? "Hide superseded" : "Include superseded"}
+          </button>
         </section>
 
-        <section className="mt-4 space-y-3">
+        <section className="mt-6" aria-live="polite">
           {interpretations.isLoading ? (
-            <div className="rounded-xl border border-white/[0.08] p-6 text-sm text-muted-foreground">
-              Loading interpretations…
-            </div>
+            <p className="border-y border-border/60 py-6 text-sm text-muted-foreground">
+              Loading official clarifications…
+            </p>
           ) : interpretations.isError ? (
-            <div className="rounded-xl border border-rose-200/12 bg-rose-200/[0.035] p-5 text-sm text-rose-50">
-              Interpretations are temporarily unavailable.
+            <div className="border-l-2 border-rose-300/45 px-4 py-2">
+              <p className="text-sm font-semibold">Clarifications are temporarily unavailable.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                The current official rulebook remains available.
+              </p>
             </div>
           ) : filtered.length ? (
-            filtered.map((item) => (
-              <article
-                key={item.id}
-                className="rounded-[1.35rem] border border-white/[0.08] bg-white/[0.025] p-4 sm:p-5"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
+            <div className="divide-y divide-border/65 border-y border-border/65">
+              {filtered.map((item) => (
+                <article key={item.id} className="py-5">
+                  <div className="flex flex-wrap items-center gap-2">
                     <BadgeCheck
                       className={
                         item.status === "superseded"
                           ? "size-4 text-muted-foreground"
-                          : "size-4 text-violet-200"
+                          : "size-4 text-primary"
                       }
                     />
-                    <span className="font-mono text-[10px] font-black text-violet-100">
+                    <span className="font-mono text-[11px] font-black text-primary">
                       {item.code}
                     </span>
+                    <span className="text-[11px] font-semibold text-muted-foreground">
+                      {item.status === "superseded"
+                        ? "Superseded"
+                        : item.effective_from
+                          ? "Effective " + new Date(item.effective_from).toLocaleDateString()
+                          : "Published"}
+                    </span>
                   </div>
-                  <span className="text-[9px] uppercase tracking-[.1em] text-muted-foreground">
-                    {item.status === "superseded"
-                      ? "superseded"
-                      : item.effective_from
-                        ? `effective ${new Date(item.effective_from).toLocaleDateString()}`
-                        : "published"}
-                  </span>
-                </div>
-                <h2 className="mt-3 text-lg font-black">{item.title}</h2>
-                <div className="mt-3 rounded-xl border border-white/[0.06] bg-black/10 p-3">
-                  <p className="text-[9px] font-black uppercase tracking-[.1em] text-muted-foreground">
-                    Question
-                  </p>
-                  <p className="mt-1 text-sm leading-6 text-slate-200/85">{item.question}</p>
-                </div>
-                <p className="mt-4 text-sm font-semibold leading-6 text-slate-100">
-                  {item.interpretation}
-                </p>
-                <p className="mt-3 text-xs leading-5 text-muted-foreground">{item.rationale}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {item.rule_ids.map((ruleId) => (
-                    <Link
-                      key={ruleId}
-                      to="/rules/$ruleId"
-                      params={{ ruleId }}
-                      className="rounded-lg border border-white/[0.08] bg-white/[0.025] px-2.5 py-1.5 text-[10px] font-bold text-sky-200"
-                    >
-                      Rule {ruleId}
-                    </Link>
-                  ))}
-                </div>
-              </article>
-            ))
+
+                  <h2 className="mt-2 text-lg font-bold">{item.title}</h2>
+
+                  <div className="mt-4 border-l-2 border-border pl-4">
+                    <p className="text-xs font-black uppercase tracking-[0.1em] text-muted-foreground">
+                      Question
+                    </p>
+                    <p className="mt-1 text-sm leading-6">{item.question}</p>
+                  </div>
+
+                  <div className="mt-4">
+                    <p className="text-xs font-black uppercase tracking-[0.1em] text-primary/80">
+                      Official answer
+                    </p>
+                    <p className="mt-1 text-base font-semibold leading-7">{item.interpretation}</p>
+                  </div>
+
+                  <div className="mt-4">
+                    <p className="text-xs font-black uppercase tracking-[0.1em] text-muted-foreground">
+                      Why
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.rationale}</p>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {item.rule_ids.map((ruleId) => (
+                      <Link
+                        key={ruleId}
+                        to="/rules/$ruleId"
+                        params={{ ruleId }}
+                        className="inline-flex min-h-9 items-center rounded-lg border border-border px-2.5 font-mono text-xs font-bold text-primary"
+                      >
+                        Rule {ruleId}
+                      </Link>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-white/[0.08] p-7 text-center">
-              <BadgeCheck className="mx-auto size-6 text-violet-200" />
-              <p className="mt-3 font-bold">No matching interpretations</p>
-              <p className="mt-1 text-xs text-muted-foreground">Try another search term.</p>
+            <div className="border-y border-border/60 py-7 text-center">
+              <p className="text-sm font-semibold">No matching clarifications</p>
+              <p className="mt-1 text-xs text-muted-foreground">Try a broader rule or topic.</p>
             </div>
           )}
         </section>
