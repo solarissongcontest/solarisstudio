@@ -1,0 +1,55 @@
+import { readFileSync } from "node:fs";
+
+import { describe, expect, it } from "vitest";
+
+const source = (path: string) => readFileSync(path, "utf8");
+
+describe("App Experience v3 cold launch offline and reconnect foundation", () => {
+  it("marks only true installed-app launches for state restoration", () => {
+    const manifest = JSON.parse(source("public/site.webmanifest")) as { start_url?: string };
+    const restorer = source("src/components/app/AppLaunchRestorer.tsx");
+    expect(manifest.start_url).toBe("/?launch=app");
+    expect(restorer).toContain('get("launch")');
+    expect(restorer).toContain('launch !== "app"');
+    expect(restorer).toContain("getAppLaunchDestination");
+    expect(restorer).toContain("markAppNavigationRestore");
+  });
+
+  it("never cold-launches directly into critical official submission routes", () => {
+    const navigation = source("src/lib/app-navigation.ts");
+    expect(navigation).toContain("coldLaunchDestinationAllowed");
+    expect(navigation).toContain("confirmations|jury-voting|televoting|next-in-line|broadcast");
+    expect(navigation).toContain("defaultEntry(tab, signedIn)");
+  });
+
+  it("keeps navigational HTML network-only while serving a dedicated offline app shell", () => {
+    const worker = source("public/sw.js");
+    const offline = source("public/offline.html");
+    expect(worker).toContain("return await fetch(request)");
+    expect(worker).not.toContain("cache.put(request, response.clone())\n    return response;\n  } catch");
+    expect(offline).toContain('class="tabbar"');
+    expect(offline).toContain('data-tab="participate"');
+    expect(offline).toContain("solaris:offline-public-index:v1");
+    expect(offline).toContain("Official submissions are never queued");
+  });
+
+  it("reconciles safe read state only after verified connectivity recovery", () => {
+    const connectivity = source("src/lib/app-connectivity.ts");
+    const reconciler = source("src/components/app/AppReconnectReconciler.tsx");
+    const root = source("src/routes/__root.tsx");
+    expect(connectivity).toContain("APP_CONNECTIVITY_RECOVERED_EVENT");
+    expect(connectivity).toContain('previousStatus !== "online"');
+    expect(reconciler).toContain('chrome.archetype === "task"');
+    expect(reconciler).toContain("invalidateQueries");
+    expect(reconciler).toContain("router.invalidate");
+    expect(root).toContain("<AppReconnectReconciler />");
+  });
+
+  it("does not replay official mutations during offline or reconnect handling", () => {
+    const worker = source("public/sw.js");
+    const reconciler = source("src/components/app/AppReconnectReconciler.tsx");
+    expect(worker).toContain('request.method !== "GET"');
+    expect(reconciler).not.toContain("mutate");
+    expect(reconciler).not.toContain("submit");
+  });
+});
