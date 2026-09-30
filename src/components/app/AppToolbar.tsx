@@ -82,7 +82,9 @@ export function AppToolbar({
     pathname === "/results" ||
     pathname === "/results/" ||
     pathname === "/me" ||
-    pathname === "/me/";
+    pathname === "/me/" ||
+    pathname === "/my-solaris" ||
+    pathname === "/my-solaris/";
 
   return (
     <header className="solaris-app-toolbar">
