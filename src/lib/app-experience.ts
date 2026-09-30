@@ -6,6 +6,8 @@ export type SolarisAppExperiencePreferences = {
 
 const STORAGE_KEY = "solaris.app.experience.v1";
 const EVENT = "solaris:app-experience-changed";
+export const APP_EXPERIENCE_USER_CHANGE_EVENT =
+  "solaris:app-experience-user-change";
 
 const DEFAULTS: SolarisAppExperiencePreferences = {
   spoilerFree: false,
@@ -25,8 +27,9 @@ export function readAppExperiencePreferences(): SolarisAppExperiencePreferences 
   }
 }
 
-export function writeAppExperiencePreferences(
+function persistAppExperiencePreferences(
   next: SolarisAppExperiencePreferences,
+  userInitiated: boolean,
 ) {
   if (typeof window === "undefined") return;
   try {
@@ -35,6 +38,23 @@ export function writeAppExperiencePreferences(
     // Preference is an enhancement. Never break the app when storage is blocked.
   }
   window.dispatchEvent(new CustomEvent(EVENT, { detail: next }));
+  if (userInitiated) {
+    window.dispatchEvent(
+      new CustomEvent(APP_EXPERIENCE_USER_CHANGE_EVENT, { detail: next }),
+    );
+  }
+}
+
+export function writeAppExperiencePreferences(
+  next: SolarisAppExperiencePreferences,
+) {
+  persistAppExperiencePreferences(next, true);
+}
+
+export function syncAppExperiencePreferencesFromServer(
+  next: SolarisAppExperiencePreferences,
+) {
+  persistAppExperiencePreferences(next, false);
 }
 
 export function useAppExperiencePreferences() {
