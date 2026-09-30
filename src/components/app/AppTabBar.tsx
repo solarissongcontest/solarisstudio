@@ -353,7 +353,11 @@ export function AppTabBar({
               to={to as any}
               data-app-tab-index={index}
               aria-current={active ? "page" : undefined}
-              aria-label={area.label}
+              aria-label={
+                badge > 0
+                  ? `${area.label}, ${badge} item${badge === 1 ? "" : "s"} need attention`
+                  : area.label
+              }
               onPointerDown={(event) => startDrag(event, index, active)}
               onPointerMove={moveDrag}
               onPointerUp={finishDrag}
@@ -394,7 +398,7 @@ export function AppTabBar({
                 {badge > 0 ? (
                   <span
                     className="solaris-app-tab-badge"
-                    aria-label={`${badge} item${badge === 1 ? "" : "s"} need attention`}
+                    aria-hidden="true"
                   >
                     {badge > 9 ? "9+" : badge}
                   </span>
