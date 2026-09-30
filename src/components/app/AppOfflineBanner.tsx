@@ -24,7 +24,7 @@ export function AppOfflineBanner({
     ? offline
       ? "Offline · cached official Rules remain available."
       : restricted
-        ? "Data limited · published or cached Rules remain available."
+        ? "Data limited · Published or cached Rules remain available."
         : "Connection degraded · cached Rules remain available."
     : offline
       ? "You’re offline. Solaris is read-only: local drafts stay on this device, and official submissions are disabled until you reconnect."
