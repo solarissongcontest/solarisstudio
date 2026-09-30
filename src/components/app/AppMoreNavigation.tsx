@@ -16,6 +16,7 @@ import type { AccountAccess } from "@/lib/country-account";
 
 const LINKS = [
   { to: "/show-mode", label: "Show Mode", icon: Tv2 },
+  { to: "/settings", label: "App settings", icon: Settings },
   { to: "/site-directory", label: "All Solaris pages", icon: FolderSearch2 },
   { to: "/guide", label: "Help", icon: CircleHelp },
   { to: "/rules", label: "Rules", icon: Scale },
@@ -61,8 +62,8 @@ export function AppMoreNavigation({
         {signedIn ? (
           <SheetClose asChild>
             <Link to="/my-solaris/account" className="solaris-app-more-link">
-              <Settings className="size-4" aria-hidden="true" />
-              <span>Account & settings</span>
+              <UserRound className="size-4" aria-hidden="true" />
+              <span>Account & security</span>
             </Link>
           </SheetClose>
         ) : null}
