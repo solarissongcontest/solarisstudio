@@ -174,7 +174,6 @@
     --solaris-tabbar-pull-height: 0px;
     --solaris-tabbar-pull-radius: 0px;
     position: relative;
-    isolation: isolate;
     overflow: hidden;
     pointer-events: auto;
     display: grid;
@@ -189,16 +188,16 @@
     background:
       linear-gradient(
         145deg,
-        rgb(255 255 255 / .055),
-        rgb(255 255 255 / .024) 42%,
-        rgb(8 18 34 / .085)
+        rgb(255 255 255 / .045),
+        rgb(255 255 255 / .014) 50%,
+        rgb(255 255 255 / .026)
       );
-    -webkit-backdrop-filter: blur(64px) saturate(145%) brightness(1.02) contrast(1.015);
-    backdrop-filter: blur(64px) saturate(145%) brightness(1.02) contrast(1.015);
+    -webkit-backdrop-filter: blur(30px) saturate(175%) brightness(1.10) contrast(.99);
+    backdrop-filter: blur(30px) saturate(175%) brightness(1.10) contrast(.99);
     box-shadow:
-      inset 1px 1px 0 rgb(255 255 255 / .20),
-      inset -1px -1px 0 rgb(92 157 187 / .05),
-      0 16px 42px rgb(0 3 22 / .14);
+      inset 1px 1px 0 rgb(255 255 255 / .18),
+      inset -1px -1px 0 rgb(122 186 213 / .04),
+      0 14px 36px rgb(0 3 22 / .10);
   }
 
   .solaris-app-tabbar-material::before,
@@ -213,9 +212,9 @@
   .solaris-app-tabbar-material::before {
     z-index: 0;
     background:
-      radial-gradient(ellipse at 15% 0%, rgb(255 255 255 / .16), transparent 30%),
-      radial-gradient(ellipse at 87% 105%, rgb(83 184 225 / .07), transparent 34%),
-      linear-gradient(108deg, transparent 14%, rgb(255 255 255 / .04) 36%, transparent 55%);
+      radial-gradient(ellipse at 15% 0%, rgb(255 255 255 / .11), transparent 30%),
+      radial-gradient(ellipse at 87% 105%, rgb(83 184 225 / .05), transparent 34%),
+      linear-gradient(108deg, transparent 14%, rgb(255 255 255 / .025) 36%, transparent 55%);
     mix-blend-mode: screen;
   }
 
@@ -249,7 +248,7 @@
     height: 3.7rem;
     border: 0;
     border-radius: 1.08rem;
-    background: rgb(220 224 230 / .135);
+    background: rgb(232 235 240 / .105);
     box-shadow: none;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
@@ -300,7 +299,7 @@
 
   .solaris-app-tabbar-material[data-dragging="true"] .solaris-app-tab-indicator {
     transition: none;
-    background: rgb(226 230 236 / .16);
+    background: rgb(236 239 243 / .13);
   }
 
   .solaris-app-tab {
