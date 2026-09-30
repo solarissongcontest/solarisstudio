@@ -12,6 +12,7 @@ import { PublicPrimaryAction } from "@/components/public/PublicPrimaryAction";
 import { PublicSecondaryLinks } from "@/components/public/PublicSecondaryLinks";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
+import { useAppExperiencePreferences } from "@/lib/app-experience";
 import {
   editionLabel,
   useAllContestEntities,
