@@ -828,17 +828,40 @@
       );
   }
 
-  .solaris-app-tabbar-backdrop[data-kube-liquid-glass="safari-fallback"] {
+  .solaris-app-tabbar-backdrop[data-kube-liquid-glass="safari-mirrored-refraction"] {
     background:
       linear-gradient(
         145deg,
-        rgb(255 255 255 / .13),
-        rgb(255 255 255 / .045) 48%,
-        rgb(245 252 255 / .08)
+        rgb(255 255 255 / .095),
+        rgb(255 255 255 / .025) 48%,
+        rgb(245 252 255 / .055)
       );
     box-shadow:
       inset 1px 1px 0 rgb(255 255 255 / .30),
       inset -1px -1px 0 rgb(173 225 244 / .07),
       0 12px 34px rgb(0 4 22 / .10);
+  }
+
+  .solaris-kube-safari-mirror {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;
+    transform: translateZ(0);
+    transform-origin: center;
+  }
+
+  .solaris-kube-mirror-clone {
+    position: absolute !important;
+    pointer-events: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    transform: none !important;
+    contain: none !important;
+  }
+
+  .solaris-kube-mirror-clone * {
+    pointer-events: none !important;
   }
 }

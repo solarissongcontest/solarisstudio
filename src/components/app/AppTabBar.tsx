@@ -272,7 +272,7 @@ export function AppTabBar({
         data-active-index={activeIndex}
         data-dragging={dragging ? "true" : "false"}
       >
-        <KubeLiquidGlassBackdrop className="solaris-app-tabbar-backdrop" />
+        <KubeLiquidGlassBackdrop className="solaris-app-tabbar-backdrop" sourceKey={pathname} />
         <span className="solaris-app-tab-indicator" aria-hidden="true" />
 
         {PUBLIC_GLOBAL_AREAS.map((area, index) => {
