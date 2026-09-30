@@ -40,14 +40,15 @@ describe("Solaris installed-app foundation", () => {
     expect(kube).toContain('yChannelSelector="G"');
     expect(kube).toContain("feBlend");
     expect(kube).toContain("specularUrl");
-    expect(kube).toContain("Math.round(highlight * 51)");
-    expect(kube).toContain('stdDeviation="9.5"');
+    expect(kube).toContain("Math.round(highlight * 30)");
+    expect(kube).toContain('stdDeviation="13.5"');
     expect(kube).toContain("scale={maps.scale * 0.7}");
     expect(kube).toContain('data-kube-liquid-glass={blink ? "svg-refraction" : "safari-mirrored-refraction"}');
     expect(kube).toContain('const backdropFilter = blink && maps ? `url(#${filterId})` : "none"');
     expect(kube).toContain("source.cloneNode(true)");
     expect(kube).toContain('document.querySelector<HTMLElement>(".app-main")');
     expect(kube).toContain("mirror.replaceChildren(clone)");
+    expect(kube).toContain('"blur(22px) saturate(1.16) brightness(1.08) contrast(1.01)"');
     expect(kube).toContain("WebkitFilter: mirrorFilter");
     expect(kube).toContain("filter: mirrorFilter");
     expect(styles).toContain(".solaris-app-tabbar-backdrop");
@@ -57,13 +58,13 @@ describe("Solaris installed-app foundation", () => {
     expect(styles).toContain('data-kube-liquid-glass="safari-mirrored-refraction"');
     expect(styles).toContain(".solaris-app-tabbar-material");
     expect(styles).toContain("background: transparent");
-    expect(styles).toContain("background: rgb(232 235 240 / .105)");
+    expect(styles).toContain("background: rgb(238 241 245 / .075)");
     expect(styles).toContain("-webkit-backdrop-filter: none");
   });
 
   it("bumps the installed-app static cache when liquid glass rendering changes", () => {
     const worker = source("public/sw.js");
-    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v8"');
+    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v9"');
   });
 
   it("lets the active tab indicator drag across destinations", () => {

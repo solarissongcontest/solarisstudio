@@ -166,7 +166,7 @@ function buildMaps(width: number, height: number): Maps | null {
       specular.data[specularOffset] = 255;
       specular.data[specularOffset + 1] = 255;
       specular.data[specularOffset + 2] = 255;
-      specular.data[specularOffset + 3] = Math.round(highlight * 51);
+      specular.data[specularOffset + 3] = Math.round(highlight * 30);
     }
   }
 
@@ -348,7 +348,7 @@ export function KubeLiquidGlassBackdrop({
               height="100%"
               colorInterpolationFilters="sRGB"
             >
-              <feGaussianBlur in="SourceGraphic" stdDeviation="9.5" result="blurred" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="13.5" result="blurred" />
               <feImage
                 href={maps.displacementUrl}
                 x="0"
@@ -392,7 +392,12 @@ export function KubeLiquidGlassBackdrop({
                 WebkitBackdropFilter: backdropFilter,
                 backdropFilter,
               }
-            : undefined
+            : {
+                WebkitBackdropFilter:
+                  "blur(22px) saturate(1.16) brightness(1.08) contrast(1.01)",
+                backdropFilter:
+                  "blur(22px) saturate(1.16) brightness(1.08) contrast(1.01)",
+              }
         }
       >
         {!blink ? (
