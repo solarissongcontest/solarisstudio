@@ -320,6 +320,15 @@ export const PUBLIC_DESTINATIONS: PublicDestination[] = [
     { auth: "signed-in", aliases: ["me", "dashboard", "account"] },
   ),
   destination(
+    "app-settings",
+    "/settings",
+    "me",
+    "App Settings",
+    "App behavior, notifications, accessibility, offline storage and install status.",
+    "secondary",
+    { auth: "public", aliases: ["settings", "preferences"], keywords: ["notifications", "offline", "install", "spoilers"] },
+  ),
+  destination(
     "sign-in",
     "/auth",
     "me",
