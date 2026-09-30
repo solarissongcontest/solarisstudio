@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
+import { AppAdaptiveWorkspace } from "@/components/app/AppAdaptiveWorkspace";
 import { AppMoreNavigation } from "@/components/app/AppMoreNavigation";
 import { AppTabBar } from "@/components/app/AppTabBar";
 import { AppToolbar } from "@/components/app/AppToolbar";
@@ -485,12 +486,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               {isMySolarisWorkspace ? (
                 <MySolarisWorkspaceShell>{children}</MySolarisWorkspaceShell>
               ) : (
-                children
-              )}
-              {isEditionPage && (
-                <Suspense fallback={null}>
-                  <LazyEditionHostingExtension pathname={pathname} />
-                </Suspense>
+                <AppAdaptiveWorkspace pathname={pathname} searchStr={searchStr}>
+                  {children}
+                  {isEditionPage && (
+                    <Suspense fallback={null}>
+                      <LazyEditionHostingExtension pathname={pathname} />
+                    </Suspense>
+                  )}
+                </AppAdaptiveWorkspace>
               )}
             </>
           ) : isMySolarisWorkspace ? (
