@@ -41,7 +41,7 @@ describe("App Experience v3 completion contract", () => {
     expect(settings).toContain('title="Storage & offline"');
     expect(settings).toContain('title="Install"');
     expect(settings).toContain('title="Privacy & app information"');
-    expect(more).toContain('to="/settings"');
+    expect(more).toContain('{ to: "/settings", label: "App settings"');
     expect(navigation).toContain('"app-settings"');
   });
 
