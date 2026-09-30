@@ -3,12 +3,15 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { AppTaskCenter } from "@/components/app/AppTaskCenter";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { EventTime } from "@/components/public/EventTime";
 import { useCountries, useEditions } from "@/lib/data";
 import { useMyCountryAccount } from "@/lib/country-account";
 import { listStudio2EligibilityOverrides } from "@/lib/studio2-eligibility";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import { NAV_TARGETS, countrySearch as buildCountrySearch } from "@/lib/navigation-targets";
+import { tasksFromHodWorkspace } from "@/lib/participation-os";
 import {
   acknowledgeStudio2Notice,
   listStudio2HodEditions,
@@ -17,6 +20,7 @@ import {
 } from "@/lib/studio2-hod-workspace";
 
 export function MySolarisTasksModule() {
+  const { isAppMode } = useSolarisApp();
   const search = useRouterState({ select: (state) => state.location.search });
   const targetCountryId =
     search &&
@@ -243,6 +247,13 @@ export function MySolarisTasksModule() {
           </Panel>
         ) : snapshot ? (
           <>
+            {isAppMode ? (
+              <AppTaskCenter
+                editionLabel={`${snapshot.context.editionName} · ${snapshot.context.countryName}`}
+                tasks={tasksFromHodWorkspace(snapshot)}
+              />
+            ) : null}
+
             <Panel
               title={snapshot.model.actions.length ? "Needs attention" : "Current status"}
               description={
