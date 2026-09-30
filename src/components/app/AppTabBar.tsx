@@ -71,7 +71,7 @@ export function AppTabBar({
     refresh();
     media.addEventListener?.("change", refresh);
     return () => media.removeEventListener?.("change", refresh);
-  }, [railMode]);
+  }, []);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(LAST_PRIMARY_AREA_KEY);
@@ -134,7 +134,7 @@ export function AppTabBar({
       window.removeEventListener("scroll", onScroll);
       if (frame.current != null) window.cancelAnimationFrame(frame.current);
     };
-  }, []);
+  }, [railMode]);
 
   const activeArea: PrimaryArea =
     routeArea === "help" ? fallbackArea : isPrimaryArea(routeArea) ? routeArea : fallbackArea;
