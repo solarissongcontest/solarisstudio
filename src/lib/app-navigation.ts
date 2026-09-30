@@ -176,7 +176,7 @@ export function writeAppNavigationState(
 export function rememberAppLocation(
   pathname: string,
   searchStr = "",
-  scrollY = 0,
+  scrollY?: number,
   storage: Storage | null = browserStorage(),
 ) {
   if (!storage || !safePath(pathname)) return;
@@ -187,7 +187,10 @@ export function rememberAppLocation(
   const next: AppHistoryEntry = {
     pathname,
     searchStr: normalizeSearch(searchStr),
-    scrollY: Math.max(0, Number.isFinite(scrollY) ? scrollY : 0),
+    scrollY:
+      typeof scrollY === "number" && Number.isFinite(scrollY)
+        ? Math.max(0, scrollY)
+        : previous?.current.scrollY ?? 0,
     visitedAt: new Date().toISOString(),
   };
   const previous = state.tabs[tab];
