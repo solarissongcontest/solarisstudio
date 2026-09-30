@@ -33,4 +33,21 @@ describe("installed app route chrome", () => {
     expect(resolveAppRouteChrome("/broadcast/test").archetype).toBe("immersive");
     expect(resolveAppRouteChrome("/broadcast/test").tabBar).toBe("hidden");
   });
+  it("keeps task help and published results out of focused task mode", () => {
+    const howTo = resolveAppRouteChrome("/televoting/how-to-vote");
+    expect(howTo.archetype).toBe("reading");
+    expect(howTo.tabBar).toBe("visible");
+    expect(howTo.backFallback).toEqual({ label: "Televoting", to: "/televoting" });
+
+    const published = resolveAppRouteChrome("/televoting/results");
+    expect(published.archetype).toBe("data");
+    expect(published.tab).toBe("results");
+    expect(published.tabBar).toBe("visible");
+  });
+
+  it("gives focused participation tasks a toolbar help destination", () => {
+    expect(resolveAppRouteChrome("/televoting").helpTo).toBe("/televoting/how-to-vote");
+    expect(resolveAppRouteChrome("/confirmations").helpTo).toBe("/guide");
+  });
+
 });
