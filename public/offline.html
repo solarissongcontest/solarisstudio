@@ -4,103 +4,353 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#020817" />
-  <title>You’re offline — Solaris Studio</title>
+  <title>Offline — Solaris Studio</title>
   <style>
-    :root { color-scheme: dark; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    :root {
+      color-scheme: dark;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #020817;
+      color: #f7fbff;
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100svh; padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom)); background: radial-gradient(circle at 50% 0%, #132b55, #020817 48%, #01040d); color: #f7fbff; }
-    main { width: min(560px, 100%); margin: 0 auto; }
-    header { text-align: center; }
-    img { width: 76px; height: 76px; border-radius: 22px; }
-    .eyebrow { margin: 22px 0 7px; color: #9fd6eb; font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
-    h1 { margin: 0; font-size: clamp(28px, 8vw, 38px); line-height: 1.05; }
-    p { margin: 14px auto 0; max-width: 44ch; color: #b7c3d8; line-height: 1.6; }
-    button { margin-top: 24px; min-height: 46px; border: 1px solid rgba(255,255,255,.18); border-radius: 15px; background: rgba(255,255,255,.09); color: #fff; padding: 0 18px; font: inherit; font-weight: 750; }
-    section { margin-top: 22px; border: 1px solid rgba(255,255,255,.10); border-radius: 18px; padding: 16px; background: rgba(255,255,255,.035); }
-    section[hidden] { display: none; }
-    h2 { margin: 0; font-size: 15px; }
-    .meta { margin-top: 5px; font-size: 11px; color: #8493aa; }
-    ul { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
-    li { min-height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-radius: 12px; padding: 8px 10px; background: rgba(255,255,255,.04); color: #dce7f7; font-size: 13px; }
-    .type { color: #9fd6eb; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+    body {
+      margin: 0;
+      min-height: 100svh;
+      background:
+        radial-gradient(circle at 50% -10%, rgba(38,92,132,.34), transparent 34rem),
+        linear-gradient(#030b1d, #020817 58%, #01040d);
+      color: #f7fbff;
+    }
+    button { font: inherit; }
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      min-height: calc(52px + env(safe-area-inset-top));
+      padding: env(safe-area-inset-top) 16px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(210,236,248,.09);
+      background: rgba(2,8,23,.78);
+      backdrop-filter: blur(22px) saturate(150%);
+      -webkit-backdrop-filter: blur(22px) saturate(150%);
+    }
+    .toolbar strong { font-size: 17px; letter-spacing: -.02em; }
+    .status {
+      display: inline-flex;
+      min-height: 30px;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid rgba(251,191,36,.22);
+      border-radius: 999px;
+      padding: 0 10px;
+      background: rgba(251,191,36,.07);
+      color: #ffe6a7;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 999px; background: currentColor; }
+    main {
+      width: min(760px, 100%);
+      margin: 0 auto;
+      padding: 18px 16px calc(104px + env(safe-area-inset-bottom));
+    }
+    .view[hidden] { display: none; }
+    .hero {
+      padding: 12px 0 8px;
+    }
+    .eyebrow {
+      margin: 0;
+      color: #8ed4ef;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 6px 0 0; font-size: 28px; line-height: 1.08; letter-spacing: -.035em; }
+    h2 { margin: 0; font-size: 16px; letter-spacing: -.015em; }
+    p { color: #aebbd1; line-height: 1.55; }
+    .hero p { margin: 10px 0 0; max-width: 52ch; font-size: 14px; }
+    .panel {
+      margin-top: 14px;
+      border: 1px solid rgba(210,236,248,.11);
+      border-radius: 18px;
+      padding: 15px;
+      background: rgba(255,255,255,.032);
+      box-shadow: inset 0 1px rgba(255,255,255,.035);
+    }
+    .panel p { margin: 6px 0 0; font-size: 13px; }
+    .meta { font-size: 11px !important; color: #7f8da4 !important; }
+    .primary {
+      margin-top: 14px;
+      min-height: 46px;
+      border: 0;
+      border-radius: 14px;
+      background: #87d4ef;
+      color: #06111e;
+      padding: 0 16px;
+      font-weight: 850;
+    }
+    .row-list { margin-top: 10px; display: grid; gap: 8px; }
+    .row {
+      width: 100%;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid rgba(210,236,248,.08);
+      border-radius: 14px;
+      padding: 9px 11px;
+      background: rgba(255,255,255,.028);
+      color: #eef7ff;
+      text-align: left;
+    }
+    .row strong { display: block; font-size: 13px; }
+    .row small {
+      display: block;
+      margin-top: 3px;
+      color: #7f8da4;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+    .chevron { color: #8ed4ef; font-size: 18px; }
+    .empty { margin-top: 10px; font-size: 13px; color: #8493aa; }
+    .tabbar {
+      position: fixed;
+      left: 50%;
+      bottom: max(8px, env(safe-area-inset-bottom));
+      z-index: 5;
+      width: min(calc(100vw - 18px), 520px);
+      min-height: 68px;
+      transform: translateX(-50%);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 2px;
+      border: 1px solid rgba(210,236,248,.14);
+      border-radius: 24px;
+      padding: 6px;
+      background: rgba(8,20,38,.76);
+      box-shadow: 0 18px 44px rgba(0,0,0,.28);
+      backdrop-filter: blur(24px) saturate(160%);
+      -webkit-backdrop-filter: blur(24px) saturate(160%);
+    }
+    .tab {
+      min-width: 0;
+      border: 0;
+      border-radius: 18px;
+      background: transparent;
+      color: #8290a7;
+      font-size: 10px;
+      font-weight: 800;
+    }
+    .tab span { display: block; margin-bottom: 4px; font-size: 17px; line-height: 1; }
+    .tab[aria-selected="true"] { background: rgba(142,212,239,.12); color: #dff7ff; }
+    @media (min-width: 900px) {
+      main { padding-bottom: 32px; }
+      .tabbar { width: 390px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { scroll-behavior: auto !important; }
+    }
   </style>
 </head>
 <body>
-  <main>
-    <header>
-      <img src="/icon-192.png?v=img2340-20260929" alt="" />
-      <p class="eyebrow">Solaris Studio</p>
-      <h1>You’re offline</h1>
-      <p>Solaris is in safe read-only mode. Local drafts remain on this device. Official submissions are never queued without a live server acknowledgement: confirmations, jury ballots and televotes must reach Solaris directly.</p>
-      <button type="button" onclick="location.reload()">Try again</button>
-    </header>
+  <header class="toolbar">
+    <strong>Solaris Studio</strong>
+    <span class="status" id="connection-status"><span class="dot"></span><span>Offline</span></span>
+  </header>
 
-    <section id="saved" hidden>
-      <h2>Saved public archive index</h2>
-      <p class="meta" id="saved-at"></p>
-      <ul id="saved-list"></ul>
+  <main>
+    <section class="view" data-view="home">
+      <div class="hero">
+        <p class="eyebrow">Read-only app mode</p>
+        <h1>You’re offline</h1>
+        <p>Solaris keeps safe public context on this device, but official confirmations, jury ballots and televotes require a live server acknowledgement.</p>
+      </div>
+      <div class="panel">
+        <h2>Connection</h2>
+        <p id="connection-copy">No reliable connection to Solaris is available.</p>
+        <button class="primary" type="button" id="retry">Try again</button>
+      </div>
+      <div class="panel" id="last-screen-panel" hidden>
+        <h2>Last app area</h2>
+        <p id="last-screen-copy"></p>
+        <p class="meta">Solaris can restore this after a verified connection returns.</p>
+      </div>
     </section>
 
-    <section id="recent" hidden>
-      <h2>Recently viewed</h2>
-      <p class="meta">Stored locally on this device. Reopen them after your connection returns.</p>
-      <ul id="recent-list"></ul>
+    <section class="view" data-view="explore" hidden>
+      <div class="hero">
+        <p class="eyebrow">Explore</p>
+        <h1>Saved public context</h1>
+        <p>This is a small public archive index saved on this device. It is not a cached copy of private account data.</p>
+      </div>
+      <div class="panel" id="saved-panel">
+        <h2>Saved archive index</h2>
+        <p class="meta" id="saved-at">No public index has been saved yet.</p>
+        <div class="row-list" id="saved-list"></div>
+      </div>
+      <div class="panel" id="recent-panel">
+        <h2>Recently viewed</h2>
+        <p class="meta">Stored locally on this device.</p>
+        <div class="row-list" id="recent-list"></div>
+      </div>
+    </section>
+
+    <section class="view" data-view="participate" hidden>
+      <div class="hero">
+        <p class="eyebrow">Participate</p>
+        <h1>Official actions are paused</h1>
+        <p>Local drafts remain on this device. Official submissions are never queued without a live server acknowledgement, so nothing will be silently submitted later.</p>
+      </div>
+      <div class="panel">
+        <h2>When you reconnect</h2>
+        <p>Solaris will refresh safe read data. Draft and conflict checks then reconcile through the normal submission flow before you can submit.</p>
+      </div>
+    </section>
+
+    <section class="view" data-view="results" hidden>
+      <div class="hero">
+        <p class="eyebrow">Results</p>
+        <h1>Reconnect for official results</h1>
+        <p>Solaris does not present stale cached rankings as current official results. Recently viewed public pages are still listed under Explore.</p>
+      </div>
+    </section>
+
+    <section class="view" data-view="me" hidden>
+      <div class="hero">
+        <p class="eyebrow">Me</p>
+        <h1>Account actions need a connection</h1>
+        <p>Device-only preferences and drafts stay local. Account, delegation and notification changes wait for a verified connection.</p>
+      </div>
     </section>
   </main>
+
+  <nav class="tabbar" aria-label="Offline Solaris Studio">
+    <button class="tab" type="button" data-tab="home" aria-selected="true"><span>⌂</span>Home</button>
+    <button class="tab" type="button" data-tab="explore" aria-selected="false"><span>⌕</span>Explore</button>
+    <button class="tab" type="button" data-tab="participate" aria-selected="false"><span>◎</span>Participate</button>
+    <button class="tab" type="button" data-tab="results" aria-selected="false"><span>♜</span>Results</button>
+    <button class="tab" type="button" data-tab="me" aria-selected="false"><span>◉</span>Me</button>
+  </nav>
+
   <script>
     (() => {
       const safeParse = (key) => {
         try { return JSON.parse(localStorage.getItem(key) || "null"); } catch { return null; }
       };
 
-      const index = safeParse("solaris:offline-public-index:v1");
-      const saved = document.getElementById("saved");
-      const savedList = document.getElementById("saved-list");
-      if (index && Array.isArray(index.editions) && saved && savedList) {
-        const items = [
-          ...index.editions.slice(0, 4).map((item) => ({ ...item, type: "Edition" })),
-          ...index.shows.slice(0, 4).map((item) => ({ ...item, type: "Show" })),
-          ...index.countries.slice(0, 4).map((item) => ({ ...item, type: "Country" })),
-        ];
-        if (items.length) {
-          saved.hidden = false;
-          const stamp = document.getElementById("saved-at");
-          if (stamp && index.savedAt) {
-            const date = new Date(index.savedAt);
-            stamp.textContent = Number.isNaN(date.getTime())
-              ? "Public metadata saved on this device."
-              : "Public metadata saved " + date.toLocaleString() + ".";
-          }
-          for (const item of items) {
-            const li = document.createElement("li");
-            const label = document.createElement("span");
-            label.textContent = String(item.label || "");
-            const type = document.createElement("span");
-            type.className = "type";
-            type.textContent = item.type;
-            li.append(label, type);
-            savedList.append(li);
-          }
+      const setView = (view) => {
+        document.querySelectorAll("[data-view]").forEach((node) => {
+          node.hidden = node.getAttribute("data-view") !== view;
+        });
+        document.querySelectorAll("[data-tab]").forEach((node) => {
+          node.setAttribute("aria-selected", node.getAttribute("data-tab") === view ? "true" : "false");
+        });
+      };
+
+      document.querySelectorAll("[data-tab]").forEach((button) => {
+        button.addEventListener("click", () => setView(button.getAttribute("data-tab") || "home"));
+      });
+
+      const navigation = safeParse("solaris:app-navigation:v1");
+      const activeTab = navigation && typeof navigation.activeTab === "string"
+        ? navigation.activeTab
+        : null;
+      const current = activeTab && navigation.tabs && navigation.tabs[activeTab]
+        ? navigation.tabs[activeTab].current
+        : null;
+      if (activeTab) {
+        const panel = document.getElementById("last-screen-panel");
+        const copy = document.getElementById("last-screen-copy");
+        if (panel && copy) {
+          panel.hidden = false;
+          const names = { home: "Home", explore: "Explore", participate: "Participate", results: "Results", me: "Me" };
+          copy.textContent = names[activeTab] || "Solaris Studio";
+          if (current && typeof current.pathname === "string") panel.dataset.path = current.pathname;
         }
       }
 
-      const recents = safeParse("solaris:public-recents");
-      const recent = document.getElementById("recent");
-      const recentList = document.getElementById("recent-list");
-      if (Array.isArray(recents) && recents.length && recent && recentList) {
-        recent.hidden = false;
-        for (const item of recents.slice(0, 6)) {
-          if (!item || typeof item.label !== "string") continue;
-          const li = document.createElement("li");
-          const label = document.createElement("span");
-          label.textContent = item.label;
-          const type = document.createElement("span");
-          type.className = "type";
-          type.textContent = "Recent";
-          li.append(label, type);
-          recentList.append(li);
+      const makeRow = (item, type) => {
+        if (!item || typeof item.label !== "string") return null;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "row";
+        if (typeof item.path === "string" && item.path.startsWith("/") && !item.path.startsWith("//")) {
+          button.dataset.path = item.path;
         }
+        const text = document.createElement("span");
+        const label = document.createElement("strong");
+        label.textContent = item.label;
+        const meta = document.createElement("small");
+        meta.textContent = type;
+        text.append(label, meta);
+        const chevron = document.createElement("span");
+        chevron.className = "chevron";
+        chevron.textContent = "›";
+        button.append(text, chevron);
+        button.addEventListener("click", () => {
+          if (navigator.onLine && button.dataset.path) location.href = button.dataset.path;
+          else setView("home");
+        });
+        return button;
+      };
+
+      const index = safeParse("solaris:offline-public-index:v1");
+      const savedList = document.getElementById("saved-list");
+      if (index && savedList) {
+        const stamp = document.getElementById("saved-at");
+        if (stamp && typeof index.savedAt === "string") {
+          const date = new Date(index.savedAt);
+          stamp.textContent = Number.isNaN(date.getTime())
+            ? "Public metadata saved on this device."
+            : "Saved " + date.toLocaleString() + ".";
+        }
+        const items = [
+          ...(Array.isArray(index.editions) ? index.editions.slice(0, 5).map((item) => [item, "Edition"]) : []),
+          ...(Array.isArray(index.shows) ? index.shows.slice(0, 5).map((item) => [item, "Show"]) : []),
+          ...(Array.isArray(index.countries) ? index.countries.slice(0, 8).map((item) => [item, "Country"]) : []),
+        ];
+        for (const [item, type] of items) {
+          const row = makeRow(item, type);
+          if (row) savedList.append(row);
+        }
+        if (!items.length) savedList.innerHTML = '<p class="empty">No saved public index is available yet.</p>';
       }
+
+      const recents = safeParse("solaris:public-recents");
+      const recentList = document.getElementById("recent-list");
+      if (recentList && Array.isArray(recents)) {
+        let count = 0;
+        for (const item of recents.slice(0, 8)) {
+          const row = makeRow(item, "Recent");
+          if (!row) continue;
+          recentList.append(row);
+          count += 1;
+        }
+        if (!count) recentList.innerHTML = '<p class="empty">No recent public pages are stored on this device.</p>';
+      }
+
+      const refreshConnection = () => {
+        const status = document.getElementById("connection-status");
+        const copy = document.getElementById("connection-copy");
+        const retry = document.getElementById("retry");
+        const online = navigator.onLine;
+        if (status) status.lastElementChild.textContent = online ? "Connection detected" : "Offline";
+        if (copy) copy.textContent = online
+          ? "Your device reports a connection. Continue to let Solaris verify the live service."
+          : "No reliable connection to Solaris is available.";
+        if (retry) retry.textContent = online ? "Continue" : "Try again";
+      };
+
+      document.getElementById("retry")?.addEventListener("click", () => location.reload());
+      window.addEventListener("online", refreshConnection);
+      window.addEventListener("offline", refreshConnection);
+      refreshConnection();
     })();
   </script>
 </body>
