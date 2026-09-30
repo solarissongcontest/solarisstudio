@@ -427,3 +427,21 @@ export const PARTICIPANT_RULE_JOURNEY = [
   { step: "06", title: "Results", description: "Verified votes become the official published result.", ruleIds: ["7.3", "7.4", "7.6"] },
   { step: "07", title: "Host", description: "The winner receives the next edition's creative online hosting rights.", ruleIds: ["8.1", "8.2"] },
 ] as const;
+
+
+export function governanceActionForPath(pathname: string): GovernanceActionKey | null {
+  if (!pathname) return null;
+  if (pathname.startsWith("/confirmations")) return "confirmation.submit";
+  if (pathname.startsWith("/jury-voting")) return "jury.vote";
+  if (pathname.startsWith("/televoting")) return "televote.vote";
+  if (
+    pathname.startsWith("/my-solaris/entry") ||
+    pathname.startsWith("/participate/entry") ||
+    pathname.startsWith("/admin/entries")
+  ) return "entry.submit";
+  if (pathname.startsWith("/integrity/appeal") || pathname.startsWith("/integrity/appeals")) return "integrity.appeal";
+  if (pathname.startsWith("/integrity/preclearance")) return "integrity.guidance";
+  if (pathname.startsWith("/integrity")) return "integrity.report";
+  if (pathname.startsWith("/admin/design") || pathname.startsWith("/admin/edition-theme")) return "hosting.accept";
+  return null;
+}
