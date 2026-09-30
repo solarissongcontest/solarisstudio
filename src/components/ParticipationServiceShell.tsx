@@ -3,6 +3,7 @@ import { ArrowLeft, CircleHelp } from "lucide-react";
 import { createContext, useContext, useEffect, type ReactNode } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,7 @@ export function ParticipationServiceShell({
   actions?: ServiceAction[];
   maxWidth?: string;
 }) {
+  const { isAppMode } = useSolarisApp();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const serviceLabel = {
     confirmations: "Confirmations",
@@ -60,6 +62,38 @@ export function ParticipationServiceShell({
       metadata: { area: "participate", source: "task_page", task_status: "opened" },
     });
   }, [service]);
+
+  if (isAppMode) {
+    const appActions = visibleActions.filter(
+      (action) => !(service === "televoting" && action.to === "/televoting/how-to-vote"),
+    );
+
+    return (
+      <section
+        className={cn("solaris-app-task-shell mx-auto min-w-0", maxWidth)}
+        data-solaris-app-task-shell={service}
+        aria-label={title}
+      >
+        {appActions.length ? (
+          <nav className="solaris-app-task-utilities" aria-label={`${serviceLabel} options`}>
+            {appActions.map((action) => (
+              <Link
+                key={action.to}
+                to={action.to as any}
+                className={cn(
+                  "solaris-app-task-utility",
+                  pathMatches(pathname, action.to) && "is-active",
+                )}
+              >
+                {action.label}
+              </Link>
+            ))}
+          </nav>
+        ) : null}
+        {children}
+      </section>
+    );
+  }
 
   return (
     <div className={cn("mx-auto min-w-0", maxWidth)}>
