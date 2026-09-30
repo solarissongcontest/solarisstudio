@@ -80,3 +80,105 @@ export function clearLastAppSearchQuery(
     // Optional local UX state.
   }
 }
+
+
+export type AppSearchReturnState = {
+  originPath: string;
+  query: string;
+  resultPath: string;
+  createdAt: string;
+};
+
+const RETURN_STORAGE_KEY = "solaris:app-search-return:v1";
+const RETURN_MAX_AGE_MS = 30 * 60 * 1000;
+
+function normalizePath(value: string) {
+  const path = value.split(/[?#]/, 1)[0] || "/";
+  return path.startsWith("/") && !path.startsWith("//") ? path : "/";
+}
+
+function appSearchSessionStorage() {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function rememberAppSearchReturn(
+  originPath: string,
+  query: string,
+  resultPath: string,
+  storage: Pick<Storage, "setItem"> | null = appSearchSessionStorage(),
+) {
+  if (!storage) return;
+  const state: AppSearchReturnState = {
+    originPath: normalizePath(originPath),
+    query: normalize(query),
+    resultPath: normalizePath(resultPath),
+    createdAt: new Date().toISOString(),
+  };
+  try {
+    storage.setItem(RETURN_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Search return state is optional app navigation state.
+  }
+}
+
+export function readAppSearchReturn(
+  resultPath?: string,
+  storage: Pick<Storage, "getItem" | "removeItem"> | null = appSearchSessionStorage(),
+): AppSearchReturnState | null {
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(RETURN_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<AppSearchReturnState>;
+    if (
+      typeof parsed.originPath !== "string" ||
+      typeof parsed.query !== "string" ||
+      typeof parsed.resultPath !== "string" ||
+      typeof parsed.createdAt !== "string"
+    ) {
+      storage.removeItem(RETURN_STORAGE_KEY);
+      return null;
+    }
+
+    const createdAt = new Date(parsed.createdAt).getTime();
+    if (!Number.isFinite(createdAt) || Date.now() - createdAt > RETURN_MAX_AGE_MS) {
+      storage.removeItem(RETURN_STORAGE_KEY);
+      return null;
+    }
+
+    const state: AppSearchReturnState = {
+      originPath: normalizePath(parsed.originPath),
+      query: normalize(parsed.query),
+      resultPath: normalizePath(parsed.resultPath),
+      createdAt: parsed.createdAt,
+    };
+
+    if (resultPath && state.resultPath !== normalizePath(resultPath)) return null;
+    return state;
+  } catch {
+    return null;
+  }
+}
+
+export function readPendingAppSearchRestore(
+  pathname: string,
+  storage: Pick<Storage, "getItem" | "removeItem"> | null = appSearchSessionStorage(),
+) {
+  const state = readAppSearchReturn(undefined, storage);
+  return state?.originPath === normalizePath(pathname) ? state : null;
+}
+
+export function clearAppSearchReturn(
+  storage: Pick<Storage, "removeItem"> | null = appSearchSessionStorage(),
+) {
+  try {
+    storage?.removeItem(RETURN_STORAGE_KEY);
+  } catch {
+    // Optional navigation state.
+  }
+}
