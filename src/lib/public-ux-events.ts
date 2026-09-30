@@ -11,7 +11,14 @@ export type PublicUxEventName =
   | "advanced_section_opened"
   | "task_started"
   | "task_completed"
-  | "hub_primary_clicked";
+  | "hub_primary_clicked"
+  | "app_tab_restored"
+  | "app_cold_launch_restored"
+  | "app_resumed"
+  | "app_offline_recovered"
+  | "app_push_opened"
+  | "app_show_mode_state"
+  | "app_task_resumed";
 
 export type PublicUxMetadata = {
   device?: "mobile" | "tablet" | "desktop";
