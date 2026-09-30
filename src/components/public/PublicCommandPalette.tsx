@@ -554,6 +554,14 @@ function PublicPaletteDialog({
       contentClassName={appMode ? "solaris-app-search-dialog" : undefined}
     >
       <Command shouldFilter={false}>
+        {appMode ? (
+          <div className="solaris-app-search-titlebar">
+            <span>Search Solaris</span>
+            <button type="button" onClick={() => setOpen(false)}>
+              Cancel
+            </button>
+          </div>
+        ) : null}
         <CommandInput
           autoFocus
           value={query}
