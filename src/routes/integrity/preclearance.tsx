@@ -192,7 +192,7 @@ function ParticipantPreclearancePage() {
               Your private guidance
             </p>
             <h2 id="my-private-rulings" className="mt-1 text-xl font-bold">
-              Questions & rulings
+              My rule rulings
             </h2>
           </div>
 
