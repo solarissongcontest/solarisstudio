@@ -67,7 +67,7 @@ function ShowModePage() {
               <span>
                 <span className="block text-sm font-semibold">Hide result spoilers</span>
                 <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  This setting stays on this device and affects the installed-app result preview.
+                  This setting also controls spoiler-safe result previews and syncs from your saved notification preference when signed in.
                 </span>
               </span>
             </span>
