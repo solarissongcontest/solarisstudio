@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { AppTabBar } from "@/components/app/AppTabBar";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { useAppAttentionSummary } from "@/lib/app-attention";
 
 export function AppRouteStateFrame({
   title,
@@ -14,6 +15,7 @@ export function AppRouteStateFrame({
   busy?: boolean;
 }) {
   const { isAppMode } = useSolarisApp();
+  const attention = useAppAttentionSummary();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   if (!isAppMode) return <>{children}</>;
@@ -34,7 +36,12 @@ export function AppRouteStateFrame({
         {children}
       </main>
 
-      <AppTabBar pathname={pathname} signedIn={false} />
+      <AppTabBar
+        pathname={pathname}
+        signedIn={false}
+        participateBadge={attention.participate}
+        meBadge={attention.me}
+      />
     </div>
   );
 }

@@ -1303,3 +1303,72 @@
     animation: none;
   }
 }
+
+
+/* App Experience v3: full-screen mobile search ----------------------------- */
+@media (display-mode: standalone) {
+  .solaris-app-search-dialog {
+    inset: 0 !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100vw !important;
+    max-width: none !important;
+    height: var(--solaris-visual-viewport-height, 100dvh) !important;
+    max-height: none !important;
+    transform: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding:
+      max(.55rem, env(safe-area-inset-top))
+      max(.25rem, env(safe-area-inset-right))
+      max(.4rem, env(safe-area-inset-bottom))
+      max(.25rem, env(safe-area-inset-left)) !important;
+    background:
+      radial-gradient(circle at 50% -12%, rgb(38 82 113 / .18), transparent 35%),
+      rgb(3 14 32 / .985) !important;
+    box-shadow: none !important;
+  }
+
+  .solaris-app-search-dialog > button {
+    top: max(.95rem, calc(env(safe-area-inset-top) + .55rem)) !important;
+    right: max(.85rem, calc(env(safe-area-inset-right) + .55rem)) !important;
+    z-index: 3;
+    display: grid;
+    width: 2.5rem;
+    height: 2.5rem;
+    place-items: center;
+    border: 1px solid rgb(210 236 248 / .14);
+    border-radius: 999px;
+    background: rgb(255 255 255 / .045);
+  }
+
+  .solaris-app-search-command {
+    min-height: 100%;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  .solaris-app-search-command [cmdk-input-wrapper] {
+    min-height: 3.5rem;
+    margin-right: 3.2rem;
+    border: 1px solid rgb(210 236 248 / .13);
+    border-radius: 1rem;
+    background: rgb(255 255 255 / .04);
+    padding-inline: .85rem;
+  }
+
+  .solaris-app-search-list {
+    max-height: calc(
+      var(--solaris-visual-viewport-height, 100dvh) -
+      max(5rem, env(safe-area-inset-top)) -
+      max(1rem, env(safe-area-inset-bottom))
+    ) !important;
+    padding-top: .65rem;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    overscroll-behavior: contain;
+  }
+}
+
+html[data-solaris-keyboard-open] .solaris-app-search-dialog {
+  height: var(--solaris-visual-viewport-height, 100dvh) !important;
+}
