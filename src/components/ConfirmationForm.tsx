@@ -1101,6 +1101,7 @@ function EntryEligibilityHelp() {
         </Link>
         <Link
           to="/integrity/preclearance"
+          search={{}}
           className="inline-flex min-h-10 items-center rounded-lg border border-border bg-surface/55 px-3 text-xs font-semibold"
         >
           Still unsure? Ask before submitting →
