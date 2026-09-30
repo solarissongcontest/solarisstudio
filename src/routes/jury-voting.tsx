@@ -32,6 +32,7 @@ import {
   type VoteIntegrityReport,
   type VoteIntegritySeverity,
 } from "@/integrations/televoting/integrity";
+import { captureGovernanceSnapshot, type GovernanceReceiptSnapshot } from "@/lib/governance-v5";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
@@ -216,6 +217,7 @@ function JuryBallotBooth({ round, country, accessToken, onSubmitted }: { round: 
   const [acceptedCoordination, setAcceptedCoordination] = useState(false);
   const [acceptedPressure, setAcceptedPressure] = useState(false);
   const [acceptedConsequences, setAcceptedConsequences] = useState(false);
+  const [governanceReceipt, setGovernanceReceipt] = useState<GovernanceReceiptSnapshot | null>(null);
 
   const ballot = useMemo(() => round.point_scale.map((points, index) => ({ target_country_id: selections[index], points })).filter((entry): entry is { target_country_id: string; points: number } => Boolean(entry.target_country_id)), [round.point_scale, selections]);
   const complete = ballot.length === round.point_scale.length;
@@ -239,6 +241,7 @@ function JuryBallotBooth({ round, country, accessToken, onSubmitted }: { round: 
       return data as string;
     },
     onSuccess: () => {
+      setGovernanceReceipt(captureGovernanceSnapshot("jury.vote"));
       try {
         window.sessionStorage.removeItem(draftKey);
       } catch {
@@ -318,7 +321,11 @@ function JuryBallotBooth({ round, country, accessToken, onSubmitted }: { round: 
     return (
       <div className="space-y-4">
         <DelayedConfirmationState pendingTitle="Jury ballot stored" pendingDescription={`Solaris has accepted ${country.name}'s jury ballot for ${round.show_name}. The official vote is already in the database.`} confirmedTitle="Jury vote confirmed" confirmedDescription={`${country.name}'s jury ballot for ${round.show_name} is recorded. The organizer can still correct it from the existing admin jury workspace if needed.`} />
-        <GovernanceSnapshot context="jury.vote" label="Rules shown for this jury ballot" />
+        <GovernanceSnapshot
+          context="jury.vote"
+          label="Rules shown for this jury ballot"
+          snapshot={governanceReceipt}
+        />
       </div>
     );
   }
