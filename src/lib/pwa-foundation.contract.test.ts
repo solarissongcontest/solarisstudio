@@ -122,5 +122,6 @@ describe("Solaris installed-app foundation", () => {
     expect(worker).toContain('const OFFLINE_URL = "/offline.html"');
     expect(worker).toContain('request.method !== "GET"');
     expect(offline).toContain("Official submissions are never queued");
+    expect(offline).toContain("live server acknowledgement");
   });
 });
