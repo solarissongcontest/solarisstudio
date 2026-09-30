@@ -47,12 +47,12 @@ describe("App Experience v3 completion contract", () => {
 
   it("coordinates query freshness with resume and reconnect instead of refetching everything", () => {
     const root = source("src/routes/__root.tsx");
-    const coordinator = source("src/components/app/AppFreshnessController.tsx");
+    const coordinator = source("src/components/app/AppDataFreshnessCoordinator.tsx");
     const policy = source("src/lib/app-query-policy.ts");
 
-    expect(root).toContain("<AppFreshnessController />");
+    expect(root).toContain("<AppDataFreshnessCoordinator />");
     expect(coordinator).toContain("freshnessLevelsForResume");
-    expect(coordinator).toContain('queryFreshness(query) !== "cold"');
+    expect(coordinator).toContain('freshness !== "cold"');
     expect(policy).toContain('"live" | "warm" | "cold"');
   });
 
