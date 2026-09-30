@@ -60,10 +60,11 @@ describe("country account jury voting contract", () => {
     expect(server).toContain('channel: "jury",');
   });
 
-  it("warns country accounts about friend voting and requires integrity preflight before submission", () => {
+  it("explains independent voting accurately and requires integrity preflight before submission", () => {
     const route = source("src/routes/jury-voting.tsx");
-    expect(route).toContain("Friend voting is not allowed");
-    expect(route).toContain("jury and televote");
+    expect(route).toContain('context="jury.vote"');
+    expect(route).toContain("own independent preferences");
+    expect(route).toContain("not part of an agreed or reciprocal voting arrangement");
     expect(route).toContain("preflightCountryJuryVote");
     expect(route).toContain("attestCountryJuryVote");
     expect(route).toContain("VOTE_INTEGRITY_AUTOMATION");
