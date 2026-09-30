@@ -167,13 +167,14 @@ function buildMaps(width: number, height: number): Maps | null {
   };
 }
 
-export function KubeLiquidGlassBackdrop({ className }: { className?: string }) {
+export function KubeLiquidGlassBackdrop({ className, sourceKey }: { className?: string; sourceKey?: string }) {
   const rawId = useId();
   const filterId = useMemo(
     () => `solaris-kube-liquid-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`,
     [rawId],
   );
   const surfaceRef = useRef<HTMLSpanElement | null>(null);
+  const mirrorRef = useRef<HTMLSpanElement | null>(null);
   const [maps, setMaps] = useState<Maps | null>(null);
   const [blink, setBlink] = useState(false);
 
@@ -203,10 +204,95 @@ export function KubeLiquidGlassBackdrop({ className }: { className?: string }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (blink) return;
+
+    const surface = surfaceRef.current;
+    const mirror = mirrorRef.current;
+    const source = document.querySelector<HTMLElement>(".app-main");
+    if (!surface || !mirror || !source) return;
+
+    let currentClone: HTMLElement | null = null;
+    let alignFrame = 0;
+    let cloneTimer = 0;
+
+    const sanitizeClone = (clone: HTMLElement) => {
+      clone.classList.add("solaris-kube-mirror-clone");
+      clone.setAttribute("aria-hidden", "true");
+      clone.setAttribute("inert", "");
+      clone.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
+      clone
+        .querySelectorAll("script, iframe, video, audio, .solaris-app-tabbar, .solaris-app-toolbar")
+        .forEach((element) => element.remove());
+      return clone;
+    };
+
+    const align = () => {
+      cancelAnimationFrame(alignFrame);
+      alignFrame = requestAnimationFrame(() => {
+        const clone = currentClone;
+        if (!clone) return;
+        const sourceRect = source.getBoundingClientRect();
+        const surfaceRect = surface.getBoundingClientRect();
+
+        clone.style.width = `${sourceRect.width}px`;
+        clone.style.minWidth = `${sourceRect.width}px`;
+        clone.style.maxWidth = "none";
+        clone.style.left = `${sourceRect.left - surfaceRect.left}px`;
+        clone.style.top = `${sourceRect.top - surfaceRect.top}px`;
+      });
+    };
+
+    const rebuild = () => {
+      const clone = sanitizeClone(source.cloneNode(true) as HTMLElement);
+      clone.style.position = "absolute";
+      clone.style.margin = "0";
+      clone.style.pointerEvents = "none";
+      clone.style.userSelect = "none";
+      currentClone = clone;
+      mirror.replaceChildren(clone);
+      align();
+    };
+
+    const scheduleRebuild = () => {
+      window.clearTimeout(cloneTimer);
+      cloneTimer = window.setTimeout(rebuild, 160);
+    };
+
+    rebuild();
+
+    const resizeObserver = new ResizeObserver(align);
+    resizeObserver.observe(surface);
+    resizeObserver.observe(source);
+
+    const mutationObserver = new MutationObserver(scheduleRebuild);
+    mutationObserver.observe(source, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["class", "style", "src", "href", "hidden", "aria-hidden"],
+    });
+
+    window.addEventListener("scroll", align, { passive: true });
+    window.addEventListener("resize", align, { passive: true });
+
+    return () => {
+      cancelAnimationFrame(alignFrame);
+      window.clearTimeout(cloneTimer);
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      window.removeEventListener("scroll", align);
+      window.removeEventListener("resize", align);
+      mirror.replaceChildren();
+    };
+  }, [blink, sourceKey]);
+
   const backdropFilter =
     blink && maps
       ? `url(#${filterId})`
-      : "blur(24px) saturate(1.14) brightness(1.08)";
+      : "blur(10px) saturate(1.08) brightness(1.05)";
+  const mirrorFilter = !blink && maps ? `url(#${filterId})` : "none";
 
   return (
     <>
@@ -263,13 +349,21 @@ export function KubeLiquidGlassBackdrop({ className }: { className?: string }) {
       <span
         ref={surfaceRef}
         aria-hidden="true"
-        data-kube-liquid-glass={blink ? "svg-refraction" : "safari-fallback"}
+        data-kube-liquid-glass={blink ? "svg-refraction" : "safari-mirrored-refraction"}
         className={cn("solaris-app-tabbar-backdrop", className)}
         style={{
           WebkitBackdropFilter: backdropFilter,
           backdropFilter,
         }}
-      />
+      >
+        {!blink ? (
+          <span
+            ref={mirrorRef}
+            className="solaris-kube-safari-mirror"
+            style={{ filter: mirrorFilter }}
+          />
+        ) : null}
+      </span>
     </>
   );
 }
