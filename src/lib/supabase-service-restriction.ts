@@ -1,4 +1,5 @@
 export const SUPABASE_SERVICE_RESTRICTION_EVENT = "solaris:supabase-service-restriction";
+export const SUPABASE_SERVICE_RECOVERED_EVENT = "solaris:supabase-service-recovered";
 const STORAGE_KEY = "solaris:supabase-service-restriction";
 
 export type SupabaseServiceRestriction = {
@@ -35,24 +36,32 @@ export function clearSupabaseServiceRestriction() {
 }
 
 export function noteSupabaseResponse(response: Pick<Response, "status">) {
-  if (response.status !== 402 || typeof window === "undefined") return;
+  if (typeof window === "undefined") return;
 
-  const detail: SupabaseServiceRestriction = {
-    status: 402,
-    detectedAt: new Date().toISOString(),
-  };
+  if (response.status === 402) {
+    const detail: SupabaseServiceRestriction = {
+      status: 402,
+      detectedAt: new Date().toISOString(),
+    };
 
-  try {
-    safeSessionStorage()?.setItem(STORAGE_KEY, JSON.stringify(detail));
-  } catch {
-    // Storage is an enhancement only. The in-page event still works.
+    try {
+      safeSessionStorage()?.setItem(STORAGE_KEY, JSON.stringify(detail));
+    } catch {
+      // Storage is an enhancement only. The in-page event still works.
+    }
+
+    window.dispatchEvent(
+      new CustomEvent<SupabaseServiceRestriction>(SUPABASE_SERVICE_RESTRICTION_EVENT, {
+        detail,
+      }),
+    );
+    return;
   }
 
-  window.dispatchEvent(
-    new CustomEvent<SupabaseServiceRestriction>(SUPABASE_SERVICE_RESTRICTION_EVENT, {
-      detail,
-    }),
-  );
+  if (response.status >= 200 && response.status < 400 && readSupabaseServiceRestriction()) {
+    clearSupabaseServiceRestriction();
+    window.dispatchEvent(new Event(SUPABASE_SERVICE_RECOVERED_EVENT));
+  }
 }
 
 export function isSupabaseServiceRestrictionError(error: unknown) {
