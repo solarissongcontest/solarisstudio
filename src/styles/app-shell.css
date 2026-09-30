@@ -867,3 +867,77 @@
     pointer-events: none !important;
   }
 }
+
+
+/* Installed iPad / large-screen rail --------------------------------------- */
+@media (display-mode: standalone) and (min-width: 900px) {
+  html {
+    scroll-padding-bottom: 1.5rem;
+    scroll-padding-left: 7.35rem;
+  }
+
+  .solaris-app-tabbar {
+    top: calc(env(safe-area-inset-top) + var(--solaris-app-toolbar-height) + 1rem);
+    bottom: auto;
+    left: max(.8rem, env(safe-area-inset-left));
+    right: auto;
+    width: 6.15rem;
+    transform: none;
+  }
+
+  .solaris-app-tabbar-material,
+  .solaris-app-tabbar.is-collapsed .solaris-app-tabbar-material {
+    --solaris-tab-pad: .38rem;
+    --solaris-tab-total-inset: .76rem;
+    left: auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 6.15rem;
+    min-height: 0;
+    padding: var(--solaris-tab-pad);
+    border-radius: 1.55rem;
+  }
+
+  .solaris-app-tab-indicator {
+    display: none;
+  }
+
+  .solaris-app-tab,
+  .solaris-app-tabbar.is-collapsed .solaris-app-tab {
+    min-height: 4.35rem;
+    gap: .32rem;
+    border-radius: 1.15rem;
+  }
+
+  .solaris-app-tab.is-active,
+  .solaris-app-tabbar.is-collapsed .solaris-app-tab.is-active {
+    background: rgb(238 241 245 / .075);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / .09);
+  }
+
+  .solaris-app-tabbar.is-collapsed .solaris-app-tab-label,
+  .solaris-app-tab-label {
+    max-height: 1rem;
+    opacity: 1;
+    transform: none;
+  }
+
+  .solaris-app-tabbar.is-collapsed .solaris-app-tab-icon,
+  .solaris-app-tab-icon {
+    transform: none;
+  }
+
+  .app-main {
+    padding-left: calc(7.35rem + env(safe-area-inset-left)) !important;
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom)) !important;
+  }
+
+  .solaris-app-offline {
+    left: calc(50% + 3.1rem);
+  }
+
+  .solaris-app-update {
+    left: calc(50% + 3.1rem);
+    bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}

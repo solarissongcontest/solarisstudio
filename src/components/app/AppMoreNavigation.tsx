@@ -69,7 +69,7 @@ export function AppMoreNavigation({
 
         {access.isOrganizer ? (
           <SheetClose asChild>
-            <Link to="/admin" className="solaris-app-more-link">
+            <Link to="/admin/action-center" className="solaris-app-more-link">
               <UserRound className="size-4" aria-hidden="true" />
               <span>Organizer</span>
             </Link>
