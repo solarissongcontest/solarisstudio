@@ -46,6 +46,21 @@ describe("Governance OS v5 contract", () => {
     expect(tasks).toContain("TaskGovernanceLinks");
   });
 
+  it("captures the rulebook version and rule IDs on participant receipt surfaces", () => {
+    const governance = source("src/lib/governance-v5.ts");
+    const receipts = source("src/lib/submission-receipts.ts");
+    const confirmation = source("src/components/ConfirmationFormWithReceipt.tsx");
+    const jury = source("src/routes/jury-voting.tsx");
+    const televote = source("src/components/televoting/TelevotingBooth.tsx");
+
+    expect(governance).toContain("captureGovernanceSnapshot");
+    expect(governance).toContain("rulebookVersion: SSC_RULEBOOK.version");
+    expect(receipts).toContain("governance?: GovernanceReceiptSnapshot");
+    expect(confirmation).toContain("snapshot={receipt.governance}");
+    expect(jury).toContain('captureGovernanceSnapshot("jury.vote")');
+    expect(televote).toContain("governance,");
+  });
+
   it("returns from a rule to the exact task state with scroll and focus restoration", () => {
     const returnContext = source("src/lib/rule-return-context.ts");
     const bridge = source("src/components/rules/RulesGovernanceContext.tsx");
