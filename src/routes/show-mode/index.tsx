@@ -67,7 +67,7 @@ function ShowModePage() {
               <span>
                 <span className="block text-sm font-semibold">Hide result spoilers</span>
                 <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  This setting stays on this device and affects the installed-app result preview.
+                  This setting is cached on this device and syncs to your Solaris account when you’re signed in.
                 </span>
               </span>
             </span>
