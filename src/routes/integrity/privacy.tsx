@@ -85,7 +85,7 @@ export function IntegrityPrivacyPage() {
         </section>
 
         <div className="mt-6 flex flex-wrap gap-2">
-          <Link to="/integrity/report/category" search={{}} className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground">Report a concern</Link>
+          <Link to="/integrity/report/category" search={{ category: undefined }} className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground">Report a concern</Link>
           <Link to="/integrity/process" className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-sm font-bold">How the process works</Link>
         </div>
       </div>
