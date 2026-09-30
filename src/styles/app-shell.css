@@ -1211,3 +1211,95 @@
     align-self: center;
   }
 }
+
+
+/* App Experience v3: resilient route states -------------------------------- */
+@media (display-mode: standalone) {
+  [data-solaris-app-route-state] .app-main {
+    min-height: calc(
+      var(--solaris-visual-viewport-height, 100dvh) -
+      var(--solaris-app-toolbar-height) -
+      var(--solaris-app-tabbar-height) -
+      max(2.5rem, env(safe-area-inset-bottom))
+    );
+  }
+
+  .solaris-app-route-state-card {
+    width: min(100%, 34rem);
+    margin: clamp(2rem, 11vh, 6rem) auto 0;
+    border: 1px solid rgb(210 236 248 / .13);
+    border-radius: 1.25rem;
+    padding: 1.1rem;
+    background: rgb(255 255 255 / .032);
+    box-shadow: inset 0 1px 0 rgb(245 252 255 / .05);
+  }
+
+  .solaris-app-route-state-kicker {
+    color: var(--primary);
+    font-size: .65rem;
+    font-weight: 850;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+  }
+
+  .solaris-app-route-pending {
+    width: 100%;
+    padding-top: .35rem;
+  }
+
+  .solaris-app-route-skeleton {
+    width: min(100%, 48rem);
+    margin-inline: auto;
+    display: grid;
+    gap: .8rem;
+  }
+
+  .solaris-app-route-skeleton-line,
+  .solaris-app-route-skeleton-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgb(210 236 248 / .08);
+    background: rgb(255 255 255 / .04);
+  }
+
+  .solaris-app-route-skeleton-line::after,
+  .solaris-app-route-skeleton-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-105%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgb(255 255 255 / .065),
+      transparent
+    );
+    animation: solaris-app-skeleton 1.35s ease-in-out infinite;
+  }
+
+  .solaris-app-route-skeleton-line {
+    width: 38%;
+    height: .8rem;
+    border-radius: 999px;
+  }
+
+  .solaris-app-route-skeleton-card {
+    height: 9rem;
+    border-radius: 1.2rem;
+  }
+
+  .solaris-app-route-skeleton-card.is-compact {
+    height: 5.5rem;
+  }
+}
+
+@keyframes solaris-app-skeleton {
+  to { transform: translateX(105%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .solaris-app-route-skeleton-line::after,
+  .solaris-app-route-skeleton-card::after {
+    animation: none;
+  }
+}
