@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
+import { AppEntityRail } from "@/components/app/AppEntityRail";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { DetailedTelevoteBreakdown } from "@/components/DetailedTelevoteBreakdown";
 import { FlagChip } from "@/components/FlagChip";
@@ -358,6 +359,16 @@ function ShowPage() {
     if (!valid) setTab(tabOptions[0].value);
   }, [tab, tabOptions]);
 
+  const entityRailItems = (allShows ?? [])
+    .filter((item) => item.edition_id === show?.edition_id && isShowPublic(item))
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((item) => ({
+      id: item.id,
+      label: item.name,
+      meta: item.kind ?? null,
+      href: `/shows/${item.id}`,
+    }));
+
   const archiveQueries = [showQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery, votersQuery, countriesQuery, allResultsQuery, allShowsQuery, themesQuery, entitiesQuery];
   if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading show…" /></AppShell>;
   if (archiveHasError(...archiveQueries)) return <AppShell><ArchiveDataError /></AppShell>;
@@ -425,6 +436,12 @@ function ShowPage() {
 
   return (
     <AppShell>
+      <AppEntityRail
+        title="Shows"
+        directoryHref="/shows"
+        currentHref={`/shows/${show.id}`}
+        items={entityRailItems}
+      >
       <PageHeader
         eyebrow={show.kind.replace("-", " ")}
         title={show.name}
@@ -697,6 +714,7 @@ function ShowPage() {
           </div>
         </Panel>
       )}
+      </AppEntityRail>
     </AppShell>
   );
 }
