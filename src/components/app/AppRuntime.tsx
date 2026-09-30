@@ -210,6 +210,15 @@ export function AppRuntime({ children }: { children: ReactNode }) {
   return (
     <AppRuntimeContext.Provider value={value}>
       {children}
+      {!platform.isAppMode ? (
+        <AppInstallPrompt
+          suppressed={
+            !updateSafety.safe ||
+            connectivity.status !== "online" ||
+            viewport.keyboardOpen
+          }
+        />
+      ) : null}
       {platform.isAppMode ? (
         <AppOfflineBanner connectivity={connectivity} />
       ) : null}
