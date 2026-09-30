@@ -15,6 +15,10 @@ import {
   getAppPushState,
   type AppPushState,
 } from "@/lib/app-notifications";
+import {
+  syncAppExperiencePreferencesFromServer,
+  useAppExperiencePreferences,
+} from "@/lib/app-experience";
 
 const CATEGORIES = [
   ["confirmations", "Confirmations", "Opening times, changes and missing confirmations"],
@@ -47,6 +51,8 @@ export function MySolarisNotificationsPanel() {
   const userId = userQuery.data?.id;
   const preferences = useNotificationPreferences(userId);
   const save = useSaveNotificationPreferences(userId);
+  const { preferences: appExperience, update: updateAppExperience } =
+    useAppExperiencePreferences();
   const push = useQuery({
     enabled: Boolean(userId),
     queryKey: ["solaris-app-push-state", userId],
@@ -58,7 +64,7 @@ export function MySolarisNotificationsPanel() {
   const [quietStart, setQuietStart] = useState("23:00");
   const [quietEnd, setQuietEnd] = useState("08:00");
   const [urgent, setUrgent] = useState(true);
-  const [spoilerFree, setSpoilerFree] = useState(false);
+  const spoilerFree = appExperience.spoilerFree;
 
   useEffect(() => {
     if (!preferences.data) return;
@@ -67,7 +73,9 @@ export function MySolarisNotificationsPanel() {
     setQuietStart((preferences.data.quiet_hours_start ?? "23:00").slice(0, 5));
     setQuietEnd((preferences.data.quiet_hours_end ?? "08:00").slice(0, 5));
     setUrgent(preferences.data.urgent_deadline_reminders ?? true);
-    setSpoilerFree(preferences.data.spoiler_free ?? false);
+    syncAppExperiencePreferencesFromServer({
+      spoilerFree: preferences.data.spoiler_free ?? false,
+    });
   }, [preferences.data]);
 
   const pushState = push.data ?? EMPTY_PUSH;
@@ -259,7 +267,9 @@ export function MySolarisNotificationsPanel() {
               <input
                 type="checkbox"
                 checked={spoilerFree}
-                onChange={(event) => setSpoilerFree(event.target.checked)}
+                onChange={(event) =>
+                  updateAppExperience({ spoilerFree: event.target.checked })
+                }
                 className="size-5"
               />
             </label>
