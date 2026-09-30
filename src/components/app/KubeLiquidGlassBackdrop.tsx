@@ -258,6 +258,93 @@ export function KubeLiquidGlassBackdrop({
     if (blink) return;
 
     const surface = surfaceRef.current;
+    const host = safariSourceRef.current;
+    const source = document.querySelector<HTMLElement>(".app-main");
+    if (!surface || !host || !source) return;
+
+    let syncFrame = 0;
+    let rebuildFrame = 0;
+    let clone: HTMLElement | null = null;
+
+    const sanitizeClone = (node: HTMLElement) => {
+      node.setAttribute("aria-hidden", "true");
+      node.removeAttribute("id");
+      node
+        .querySelectorAll<HTMLElement>("[id]")
+        .forEach((element) => element.removeAttribute("id"));
+      node
+        .querySelectorAll<HTMLElement>(
+          "a,button,input,select,textarea,[tabindex],[contenteditable='true']",
+        )
+        .forEach((element) => {
+          element.setAttribute("tabindex", "-1");
+          element.setAttribute("aria-hidden", "true");
+        });
+    };
+
+    const sync = () => {
+      syncFrame = 0;
+      if (!clone) return;
+
+      const sourceRect = source.getBoundingClientRect();
+      const surfaceRect = surface.getBoundingClientRect();
+
+      clone.style.width = `${sourceRect.width}px`;
+      clone.style.minWidth = `${sourceRect.width}px`;
+      clone.style.transform = `translate3d(${sourceRect.left - surfaceRect.left}px, ${sourceRect.top - surfaceRect.top}px, 0)`;
+    };
+
+    const scheduleSync = () => {
+      if (syncFrame) return;
+      syncFrame = requestAnimationFrame(sync);
+    };
+
+    const rebuild = () => {
+      rebuildFrame = 0;
+      const next = source.cloneNode(true) as HTMLElement;
+      sanitizeClone(next);
+      next.classList.add("solaris-kube-safari-clone");
+      host.replaceChildren(next);
+      clone = next;
+      scheduleSync();
+    };
+
+    const scheduleRebuild = () => {
+      if (rebuildFrame) return;
+      rebuildFrame = requestAnimationFrame(rebuild);
+    };
+
+    rebuild();
+
+    const sourceObserver = new MutationObserver(scheduleRebuild);
+    sourceObserver.observe(source, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    const geometryObserver = new ResizeObserver(scheduleSync);
+    geometryObserver.observe(source);
+    geometryObserver.observe(surface);
+
+    window.addEventListener("scroll", scheduleSync, { passive: true });
+    window.addEventListener("resize", scheduleSync, { passive: true });
+
+    return () => {
+      cancelAnimationFrame(syncFrame);
+      cancelAnimationFrame(rebuildFrame);
+      sourceObserver.disconnect();
+      geometryObserver.disconnect();
+      window.removeEventListener("scroll", scheduleSync);
+      window.removeEventListener("resize", scheduleSync);
+      host.replaceChildren();
+    };
+  }, [blink]);
+
+  useEffect(() => {
+    if (blink) return;
+
+    const surface = surfaceRef.current;
     const mirror = mirrorRef.current;
     const source = document.querySelector<HTMLElement>(".app-main");
     if (!surface || !mirror || !source) return;
