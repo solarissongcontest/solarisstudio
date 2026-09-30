@@ -96,7 +96,8 @@ describe("Solaris installed-app foundation", () => {
     const more = source("src/components/app/AppMoreNavigation.tsx");
     expect(shell).toContain('side={isAppMode ? "bottom" : "right"}');
     expect(more).toContain("All Solaris pages");
-    expect(more).toContain("Account & settings");
+    expect(more).toContain("App Settings");
+    expect(more).toContain("Account & security");
     expect(more).not.toContain("publicDestinationsForArea");
   });
 
