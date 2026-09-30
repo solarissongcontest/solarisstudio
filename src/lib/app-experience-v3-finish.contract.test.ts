@@ -31,7 +31,7 @@ describe("App Experience v3 completion contract", () => {
   });
 
   it("consolidates installed-app preferences in one App Settings surface", () => {
-    const settings = source("src/routes/settings/index.tsx");
+    const settings = source("src/routes/settings.tsx");
     const more = source("src/components/app/AppMoreNavigation.tsx");
     const navigation = source("src/lib/public-navigation.ts");
 
