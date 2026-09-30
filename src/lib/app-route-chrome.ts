@@ -182,6 +182,18 @@ export function resolveAppRouteChrome(pathname: string): AppRouteChrome {
     };
   }
 
+  if (/^\/integrity\/report(\/|$)/.test(pathname)) {
+    return {
+      title: "Report a concern",
+      tab: "participate",
+      archetype: "task",
+      root: false,
+      tabBar: "hidden",
+      backFallback: { label: "Trust & Integrity", to: "/integrity" },
+      helpTo: "/integrity/process",
+    };
+  }
+
   if (/^\/(guide|rules|integrity)(\/|$)/.test(pathname)) {
     const destination = publicDestinationForPath(pathname);
     return {
