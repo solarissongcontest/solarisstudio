@@ -3,6 +3,7 @@ import { createRouter, useRouterState } from "@tanstack/react-router";
 import { AppRouteSkeleton, AppRouteStateFrame } from "@/components/app/AppRouteStateFrame";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { solarisQueryPolicy } from "@/lib/app-query-policy";
+import { solarisQueryPolicy } from "@/lib/app-query-policy";
 import { routeTree } from "./routeTree.gen";
 
 function RoutePending() {
