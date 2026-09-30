@@ -15,6 +15,7 @@ import {
 } from "@/lib/app-navigation";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
 import { readAppSearchReturn } from "@/lib/app-search-state";
+import { runAppViewTransition } from "@/lib/app-view-transitions";
 
 export function AppToolbar({
   pathname,
@@ -43,18 +44,24 @@ export function AppToolbar({
 
   const goBack = () => {
     if (searchReturn) {
-      void navigate({ to: searchReturn.originPath as any });
+      void runAppViewTransition("pop", () =>
+        navigate({ to: searchReturn.originPath as any }),
+      );
       return;
     }
 
     const target = popAppBackTarget(pathname, searchStr);
     if (target) {
       markAppNavigationRestore(target);
-      void navigate({ to: appEntryHref(target) as any });
+      void runAppViewTransition("pop", () =>
+        navigate({ to: appEntryHref(target) as any }),
+      );
       return;
     }
     if (fallback) {
-      void navigate({ to: fallback.to as any });
+      void runAppViewTransition("pop", () =>
+        navigate({ to: fallback.to as any }),
+      );
     }
   };
 
