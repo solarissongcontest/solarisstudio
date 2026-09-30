@@ -8,6 +8,7 @@ import {
   XCircle,
 } from "lucide-react";
 
+import { RuleInterpretationsPanel } from "@/components/rules/RuleInterpretationsPanel";
 import { RuleReturnBar } from "@/components/rules/RuleReturnBar";
 import type { RuleTone, SscRule } from "@/lib/ssc-rules/types";
 import { getRuleById } from "@/lib/ssc-rules-v4";
@@ -135,6 +136,8 @@ export function RuleDetailV5({ rule }: { rule: RuleWithChapter }) {
               </div>
             </section>
           ) : null}
+
+          <RuleInterpretationsPanel ruleId={rule.id} />
 
           <section className="border-t border-border/65 pt-5" aria-labelledby="rule-help">
             <h2 id="rule-help" className="text-lg font-bold">Need an official answer?</h2>
