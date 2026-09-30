@@ -38,6 +38,10 @@ function contextForPath(pathname: string): ToolbarContext {
     };
   }
 
+  if (pathname === "/my-solaris" || pathname === "/my-solaris/") {
+    return { title: "Me" };
+  }
+
   if (pathname.startsWith("/my-solaris/")) {
     return { title: "MySolaris", parent: { label: "Me", to: "/my-solaris" } };
   }
