@@ -1,4 +1,4 @@
-const CACHE_VERSION = "solaris-app-v11";
+const CACHE_VERSION = "solaris-app-v12";
 const STATIC_CACHE = `${CACHE_VERSION}:static`;
 const OFFLINE_URL = "/offline.html";
 
@@ -124,7 +124,9 @@ self.addEventListener("notificationclick", (event) => {
     typeof event.notification.data?.route === "string"
       ? event.notification.data.route
       : "/";
-  const target = new URL(route, self.location.origin).href;
+  const targetUrl = new URL(route, self.location.origin);
+  targetUrl.hash = "solaris-push-open";
+  const target = targetUrl.href;
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
