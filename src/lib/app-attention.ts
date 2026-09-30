@@ -88,6 +88,7 @@ export function useAppAttentionSummary() {
   );
 
   useEffect(() => {
+    void setSolarisAppBadge(readAppAttentionSummary().osBadge).catch(() => undefined);
     const refresh = () => setSummary(readAppAttentionSummary());
     const onCustom = (event: Event) => {
       const detail = (event as CustomEvent<AppAttentionSummary>).detail;
