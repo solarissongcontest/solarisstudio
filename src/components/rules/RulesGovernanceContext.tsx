@@ -1,6 +1,7 @@
 import { useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 
+import { governanceActionForPath } from "@/lib/governance-v5";
 import { getRuleContext } from "@/lib/rule-context";
 import { consumeRuleReturnRestore } from "@/lib/rule-return-context";
 import { usePublishedRulebook } from "@/lib/rules-governance";
@@ -25,6 +26,11 @@ export function RulesGovernanceContext() {
   useEffect(() => {
     const context = getRuleContext(pathname);
     if (context) window.sessionStorage.setItem(RULE_CONTEXT_STORAGE_KEY, context.sourcePath);
+
+    const governanceAction = governanceActionForPath(pathname);
+    if (governanceAction) {
+      window.sessionStorage.setItem(GOVERNANCE_ACTION_STORAGE_KEY, governanceAction);
+    }
 
     const restore = consumeRuleReturnRestore(pathname, searchStr);
     if (!restore) return;
