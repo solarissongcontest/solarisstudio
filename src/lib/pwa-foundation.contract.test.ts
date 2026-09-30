@@ -25,21 +25,25 @@ describe("Solaris installed-app foundation", () => {
     expect(tabs).toContain("setCollapsed(false)");
   });
 
-  it("renders the installed bottom navigation with the vendored source-backed Liquid Glass engine", () => {
+  it("renders the installed bottom navigation with the Kube-style SVG refraction pipeline", () => {
     const tabs = source("src/components/app/AppTabBar.tsx");
-    const backdrop = source("src/components/LiquidGlassBackdrop.tsx");
-    const vendor = source("src/vendor/liquid-glass/GlassMaterial.tsx");
+    const kube = source("src/components/app/KubeLiquidGlassBackdrop.tsx");
     const styles = source("src/styles/app-shell.css");
 
-    expect(tabs).toContain('variant="navigation"');
-    expect(tabs).toContain('className="solaris-app-tabbar-backdrop"');
-    expect(backdrop).toContain('"navigation"');
-    expect(backdrop).toContain("frost: 18");
-    expect(backdrop).toContain("brightness: 0.1");
-    expect(vendor).toContain("useSupportsBackdropUrl");
-    expect(vendor).toContain("Safari would get `url()` in the value");
+    expect(tabs).toContain("KubeLiquidGlassBackdrop");
+    expect(kube).toContain("convexSquircle");
+    expect(kube).toContain("squircleDerivative");
+    expect(kube).toContain("refractiveIndex = 1.5");
+    expect(kube).toContain("feDisplacementMap");
+    expect(kube).toContain('xChannelSelector="R"');
+    expect(kube).toContain('yChannelSelector="G"');
+    expect(kube).toContain("feBlend");
+    expect(kube).toContain("specularUrl");
+    expect(kube).toContain('data-kube-liquid-glass={blink ? "svg-refraction" : "safari-fallback"}');
+    expect(kube).toContain('blur(24px) saturate(1.14) brightness(1.08)');
     expect(styles).toContain(".solaris-app-tabbar-backdrop");
-    expect(styles).toContain("rgb(255 255 255 / .105)");
+    expect(styles).toContain('data-kube-liquid-glass="svg-refraction"');
+    expect(styles).toContain('data-kube-liquid-glass="safari-fallback"');
     expect(styles).toContain(".solaris-app-tabbar-material");
     expect(styles).toContain("background: transparent");
     expect(styles).toContain("background: rgb(232 235 240 / .105)");
