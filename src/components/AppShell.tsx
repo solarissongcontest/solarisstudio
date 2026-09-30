@@ -239,7 +239,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     pathname === "/results" ||
     pathname === "/results/" ||
     pathname === "/me" ||
-    pathname === "/me/";
+    pathname === "/me/" ||
+    pathname === "/my-solaris" ||
+    pathname === "/my-solaris/";
   const showHomeAnniversaryTakeover =
     isHomePage &&
     (getSolarisAnniversary().active ||
