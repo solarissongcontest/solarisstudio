@@ -40,6 +40,9 @@ describe("Solaris installed-app foundation", () => {
     expect(kube).toContain('yChannelSelector="G"');
     expect(kube).toContain("feBlend");
     expect(kube).toContain("specularUrl");
+    expect(kube).toContain("Math.round(highlight * 51)");
+    expect(kube).toContain('stdDeviation="9.5"');
+    expect(kube).toContain("scale={maps.scale * 0.7}");
     expect(kube).toContain('data-kube-liquid-glass={blink ? "svg-refraction" : "safari-mirrored-refraction"}');
     expect(kube).toContain('const backdropFilter = blink && maps ? `url(#${filterId})` : "none"');
     expect(kube).toContain("source.cloneNode(true)");
@@ -60,7 +63,7 @@ describe("Solaris installed-app foundation", () => {
 
   it("bumps the installed-app static cache when liquid glass rendering changes", () => {
     const worker = source("public/sw.js");
-    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v7"');
+    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v8"');
   });
 
   it("lets the active tab indicator drag across destinations", () => {
