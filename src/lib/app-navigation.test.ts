@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  APP_LAUNCH_RESTORE_MAX_AGE_MS,
   appEntryHref,
+  getAppLaunchRestoreCandidate,
   getAppTabDestination,
   peekAppBackTarget,
   popAppBackTarget,
@@ -112,4 +114,45 @@ describe("installed app navigation state", () => {
     const state = readAppNavigationState(storage);
     expect(state.tabs.explore).toBeUndefined();
   });
+  it("restores the latest safe app screen on a cold launch", () => {
+    const storage = new MemoryStorage();
+
+    rememberAppLocation("/explore", "", 0, storage);
+    rememberAppLocation("/countries/OL", "", 742, storage);
+
+    expect(getAppLaunchRestoreCandidate(storage)).toMatchObject({
+      pathname: "/countries/OL",
+      scrollY: 742,
+    });
+  });
+
+  it("skips transient participation work and falls back to the latest safe tab", () => {
+    const storage = new MemoryStorage();
+
+    rememberAppLocation("/countries/OL", "", 400, storage);
+    rememberAppLocation("/confirmations", "", 0, storage);
+
+    expect(getAppLaunchRestoreCandidate(storage)?.pathname).toBe("/countries/OL");
+  });
+
+  it("does not resurrect stale app state after the launch-restoration window", () => {
+    const storage = new MemoryStorage();
+    const old = new Date(Date.now() - APP_LAUNCH_RESTORE_MAX_AGE_MS - 10_000).toISOString();
+    storage.setItem(
+      "solaris:app-navigation:v1",
+      JSON.stringify({
+        version: 1,
+        activeTab: "explore",
+        tabs: {
+          explore: {
+            current: { pathname: "/countries/OL", searchStr: "", scrollY: 500, visitedAt: old },
+            history: [{ pathname: "/countries/OL", searchStr: "", scrollY: 500, visitedAt: old }],
+          },
+        },
+      }),
+    );
+
+    expect(getAppLaunchRestoreCandidate(storage)).toBeNull();
+  });
+
 });
