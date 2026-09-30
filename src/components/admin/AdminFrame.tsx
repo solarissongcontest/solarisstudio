@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Inbox,
   LayoutDashboard,
@@ -7,9 +7,22 @@ import {
   ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, type MouseEvent, type ReactNode } from "react";
 
 import { DelegationColourOverview } from "@/components/confirmations/DelegationColourOverview";
+import {
+  adminAppTabRoot,
+  adminCasesRoute,
+  adminEditionRoute,
+  adminEntryHref,
+  consumeAdminNavigationRestore,
+  getAdminAppTabDestination,
+  markAdminNavigationRestore,
+  rememberAdminLocation,
+  resetAdminAppTabToRoot,
+  updateAdminScrollPosition,
+  type AdminAppTabId,
+} from "@/lib/admin-app-navigation";
 import { useEditions } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { useAdminContext } from "./AdminContext";
@@ -18,6 +31,7 @@ import { AdminNav } from "./AdminNav";
 import { AdminSectionNav } from "./AdminSectionNav";
 
 type MobileItem = {
+  id: AdminAppTabId;
   label: string;
   href: string;
   icon: LucideIcon;
@@ -26,6 +40,8 @@ type MobileItem = {
 
 export function AdminFrame({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const searchStr = useRouterState({ select: (state) => state.location.searchStr });
+  const navigate = useNavigate();
   const { editionId } = useAdminContext();
   const { data: editions = [] } = useEditions();
 
@@ -36,81 +52,117 @@ export function AdminFrame({ children }: { children: ReactNode }) {
   const slug = activeEdition?.slug;
   const editionHref = slug ? `/admin/${slug}` : "/admin";
 
-  const editionRoute = (path: string) =>
-    (slug ? path === `/admin/${slug}` : false) ||
-    path.startsWith("/admin/countries") ||
-    path.startsWith("/confirmations/admin") ||
-    path.startsWith("/admin/shows/") ||
-    path.startsWith("/admin/entries/") ||
-    path.startsWith("/admin/lineup-sync/") ||
-    path.startsWith("/admin/participant-status/") ||
-    path.startsWith("/admin/hosts") ||
-    path.startsWith("/admin/eligibility") ||
-    path.startsWith("/admin/submission-versions") ||
-    path.startsWith("/televoting/admin") ||
-    path.startsWith("/admin/jury/") ||
-    path.startsWith("/admin/voting-system/") ||
-    path.startsWith("/admin/televote/") ||
-    path.startsWith("/admin/friend-voting") ||
-    path.startsWith("/admin/jury-integrity") ||
-    path.startsWith("/admin/results") ||
-    path.startsWith("/admin/voting-lab") ||
-    path.startsWith("/admin/control-room") ||
-    path.startsWith("/admin/broadcast-rundown") ||
-    path.startsWith("/admin/workflows") ||
-    path.startsWith("/admin/incidents") ||
-    path.startsWith("/admin/edition-simulator") ||
-    path.startsWith("/admin/storytelling") ||
-    path.startsWith("/admin/media-assets") ||
-    path.startsWith("/admin/communications") ||
-    path.startsWith("/admin/publication/") ||
-    path.startsWith("/admin/design/") ||
-    path.startsWith("/admin/edition-theme/");
-
-  const casesRoute = (path: string) =>
-    path === "/admin/integrity" ||
-    path.startsWith("/admin/integrity-") ||
-    path.startsWith("/admin/integrity-case/") ||
-    path.startsWith("/admin/integrity-resolution/") ||
-    path.startsWith("/admin/rules-manager") ||
-    path.startsWith("/admin/rule-interpretations");
-
   const mobileItems: MobileItem[] = [
     {
+      id: "home",
       label: "Home",
       href: "/admin/operations",
       icon: LayoutDashboard,
-      active: (path) => path.startsWith("/admin/operations"),
+      active: (path) =>
+        path.startsWith("/admin/operations") ||
+        path.startsWith("/admin/action-center") ||
+        path.startsWith("/admin/action-centre"),
     },
     {
+      id: "inbox",
       label: "Inbox",
       href: "/admin/inbox",
       icon: Inbox,
       active: (path) => path.startsWith("/admin/inbox"),
     },
     {
+      id: "edition",
       label: activeEdition?.edition_number ? `SSC${activeEdition.edition_number}` : "Edition",
       href: editionHref,
       icon: Layers3,
-      active: editionRoute,
+      active: (path) => adminEditionRoute(path, slug),
     },
     {
+      id: "cases",
       label: "Cases",
       href: "/admin/integrity-investigations",
       icon: ShieldCheck,
-      active: casesRoute,
+      active: adminCasesRoute,
     },
     {
+      id: "more",
       label: "More",
       href: "/admin/more",
       icon: MoreHorizontal,
       active: (path) =>
         !path.startsWith("/admin/operations") &&
+        !path.startsWith("/admin/action-center") &&
+        !path.startsWith("/admin/action-centre") &&
         !path.startsWith("/admin/inbox") &&
-        !editionRoute(path) &&
-        !casesRoute(path),
+        !adminEditionRoute(path, slug) &&
+        !adminCasesRoute(path),
     },
   ];
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mobile = window.matchMedia("(max-width: 899px)");
+    if (!mobile.matches) return;
+
+    const restoreY = consumeAdminNavigationRestore(pathname, searchStr);
+    rememberAdminLocation(pathname, searchStr, restoreY ?? undefined, slug);
+
+    if (restoreY != null) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() =>
+          window.scrollTo({ top: restoreY, behavior: "auto" }),
+        );
+      });
+    }
+
+    let frame: number | null = null;
+    const persistScroll = () => {
+      frame = null;
+      updateAdminScrollPosition(pathname, searchStr, window.scrollY, slug);
+    };
+    const onScroll = () => {
+      if (frame != null) return;
+      frame = window.requestAnimationFrame(persistScroll);
+    };
+    const onPageHide = () =>
+      updateAdminScrollPosition(pathname, searchStr, window.scrollY, slug);
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("pagehide", onPageHide);
+      if (frame != null) window.cancelAnimationFrame(frame);
+      updateAdminScrollPosition(pathname, searchStr, window.scrollY, slug);
+    };
+  }, [pathname, searchStr, slug]);
+
+  const openMobileItem = (event: MouseEvent<HTMLAnchorElement>, item: MobileItem) => {
+    if (typeof window === "undefined" || window.innerWidth >= 900) return;
+    event.preventDefault();
+
+    const active = item.active(pathname);
+    const root = adminAppTabRoot(item.id, slug);
+    const normalizedPath = pathname.endsWith("/") && pathname !== "/"
+      ? pathname.slice(0, -1)
+      : pathname;
+    const normalizedRoot = root.endsWith("/") && root !== "/"
+      ? root.slice(0, -1)
+      : root;
+
+    if (active && normalizedPath === normalizedRoot) {
+      const reducedMotion =
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+      window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
+      return;
+    }
+
+    const target = active
+      ? resetAdminAppTabToRoot(item.id, slug)
+      : getAdminAppTabDestination(item.id, slug);
+    markAdminNavigationRestore(target);
+    void navigate({ to: adminEntryHref(target) as any });
+  };
 
   return (
     <div className="admin-frame min-h-[calc(100vh-4rem)]">
@@ -163,6 +215,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
                 key={item.label}
                 to={item.href as any}
                 aria-current={active ? "page" : undefined}
+                onClick={(event) => openMobileItem(event, item)}
                 className={cn(
                   "flex min-h-[3.45rem] flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-semibold transition-colors",
                   active
