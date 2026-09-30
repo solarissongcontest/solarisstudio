@@ -209,14 +209,16 @@ function HomePage() {
   if (archiveIsLoading(...archiveQueries)) {
     return (
       <AppShell>
-        <header className="mb-5 border-b border-border/70 pb-4">
-          <p className="text-[9px] font-black uppercase tracking-[0.28em] text-primary sm:text-[10px]">
-            TSBC Newsroom
-          </p>
-          <h1 className="mt-1 font-display text-3xl font-black tracking-[-0.045em] sm:text-5xl">
-            Solaris Today
-          </h1>
-        </header>
+        {!isAppMode ? (
+          <header className="mb-5 border-b border-border/70 pb-4">
+            <p className="text-[9px] font-black uppercase tracking-[0.28em] text-primary sm:text-[10px]">
+              TSBC Newsroom
+            </p>
+            <h1 className="mt-1 font-display text-3xl font-black tracking-[-0.045em] sm:text-5xl">
+              Solaris Today
+            </h1>
+          </header>
+        ) : null}
         <ArchiveDataLoading label="Loading Solaris Today…" />
       </AppShell>
     );
@@ -227,19 +229,17 @@ function HomePage() {
     <AppShell>
       <div className="min-w-0 space-y-7 sm:space-y-9">
         {isAppMode ? (
-          <header className="min-w-0 pb-1">
+          <section className="solaris-app-home-context min-w-0 pb-1" aria-label="Current Solaris status">
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
               {contestState.edition ? contestState.statusLabel : "Solaris"}
             </p>
-            <h1 className="mt-1 break-words font-display text-3xl font-black tracking-[-0.04em]">
-              Solaris Studio
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {latestEdition
-                ? `${editionLabel(latestEdition)} · ${contestState.headline}`
-                : contestState.description}
+            <p className="mt-1 break-words text-lg font-bold tracking-[-0.025em]">
+              {latestEdition ? editionLabel(latestEdition) : "Solaris Song Contest"}
             </p>
-          </header>
+            <p className="mt-1 text-sm leading-5 text-muted-foreground">
+              {latestEdition ? contestState.headline : contestState.description}
+            </p>
+          </section>
         ) : (
           <header className="min-w-0 border-b border-border/70 pb-4">
             <div className="flex min-w-0 items-end justify-between gap-4">
