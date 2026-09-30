@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
+import { AppEntitySidebar } from "@/components/app/AppEntitySidebar";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { DetailedTelevoteBreakdown } from "@/components/DetailedTelevoteBreakdown";
 import { FlagChip } from "@/components/FlagChip";
@@ -423,8 +424,31 @@ function ShowPage() {
         ? "Use Jury results for the jury ranking, or Full scorechart to inspect individual jury voting where it is available."
         : "Use Televote results to inspect the published public-vote score.";
 
+  const showSidebarItems = (allShows ?? [])
+    .filter((item) => item.edition_id === show.edition_id && isShowPublic(item))
+    .slice()
+    .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+    .map((item) => ({
+      key: item.id,
+      label: item.name,
+      href: `/shows/${encodeURIComponent(item.id)}`,
+      meta: item.kind.replace("-", " "),
+    }));
+
   return (
     <AppShell>
+      <div className="solaris-app-entity-workspace">
+        <AppEntitySidebar
+          title="Shows"
+          items={showSidebarItems}
+          currentHref={`/shows/${encodeURIComponent(show.id)}`}
+          footer={
+            <Link to="/shows" className="solaris-app-entity-sidebar-all">
+              All shows
+            </Link>
+          }
+        />
+        <div className="solaris-app-entity-content">
       <PageHeader
         eyebrow={show.kind.replace("-", " ")}
         title={show.name}
@@ -697,6 +721,8 @@ function ShowPage() {
           </div>
         </Panel>
       )}
+        </div>
+      </div>
     </AppShell>
   );
 }

@@ -16,6 +16,7 @@ import type {
 import type {
   PublicationConfig,
 } from "./publication";
+import { solarisQueryPolicy } from "./app-query-policy";
 
 /* ============================================================
    TYPES
@@ -549,7 +550,7 @@ export function useCountries() {
             ),
         ),
 
-    staleTime: 30 * 60 * 1000,
+    ...solarisQueryPolicy("cold"),
   });
 }
 
@@ -559,6 +560,7 @@ export function useCountries() {
 
 export function useThemes() {
   return useQuery({
+    ...solarisQueryPolicy("cold"),
     queryKey: [
       "themes",
     ],
@@ -603,7 +605,7 @@ export function useEditions() {
               },
             ),
         ),
-    staleTime: 30 * 60 * 1000,
+    ...solarisQueryPolicy("warm"),
   });
 }
 
@@ -611,6 +613,7 @@ export function useEdition(
   slug: string,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("warm"),
     queryKey: [
       "edition",
       slug,
@@ -650,6 +653,7 @@ export function useEditionById(
   editionId?: string | null,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("warm"),
     enabled: Boolean(editionId),
     queryKey: [
       "edition-by-id",
@@ -694,6 +698,7 @@ export function useShows(
     string,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("warm"),
     enabled:
       !!editionId,
 
@@ -732,7 +737,7 @@ export function useAllShows() {
         all<Show>(
           "shows",
         ),
-    staleTime: 30 * 60 * 1000,
+    ...solarisQueryPolicy("warm"),
   });
 }
 
@@ -741,6 +746,7 @@ export function useShow(
     string,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("warm"),
     enabled:
       !!showId,
 
@@ -788,6 +794,7 @@ export function useParticipants(
     string,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("warm"),
     enabled:
       !!editionId,
 
@@ -823,6 +830,7 @@ export function useShowParticipants(
     string,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("warm"),
     enabled:
       !!showId,
 
@@ -867,9 +875,7 @@ export function useAllParticipants() {
           "participants",
         ),
 
-    staleTime:
-      60 *
-      1000,
+    ...solarisQueryPolicy("warm"),
   });
 }
 
@@ -882,6 +888,7 @@ export function useContestEntities(
     string,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("warm"),
     enabled:
       !!editionId,
 
@@ -922,9 +929,7 @@ export function useAllContestEntities() {
           "contest_entities",
         ),
 
-    staleTime:
-      60 *
-      1000,
+    ...solarisQueryPolicy("warm"),
   });
 }
 
@@ -937,6 +942,7 @@ export function useVoters(
     string,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("warm"),
     enabled:
       !!editionId,
 
@@ -969,6 +975,7 @@ export function useShowVoters(
     string,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("warm"),
     enabled:
       !!showId,
 
@@ -1100,6 +1107,7 @@ export function useJuryVotes(
     string,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("live"),
     enabled:
       !!showId,
 
@@ -1125,6 +1133,7 @@ export function useJuryVotes(
 
 export function useAllJuryVotes() {
   return useQuery({
+    ...solarisQueryPolicy("cold"),
     queryKey: [
       "jury_votes",
       "all",
@@ -1147,6 +1156,7 @@ export function useTelevotes(
     string,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("live"),
     enabled:
       !!showId,
 
@@ -1172,6 +1182,7 @@ export function useTelevotes(
 
 export function useAllTelevotes() {
   return useQuery({
+    ...solarisQueryPolicy("cold"),
     queryKey: [
       "televote_votes",
       "all",
@@ -1194,6 +1205,7 @@ export function useResults(
     string,
 ) {
   return useQuery({
+    ...solarisQueryPolicy("live"),
     enabled:
       !!showId,
 
@@ -1219,6 +1231,7 @@ export function useResults(
 
 export function useAllResults() {
   return useQuery({
+    ...solarisQueryPolicy("cold"),
     queryKey: [
       "results",
       "all",
