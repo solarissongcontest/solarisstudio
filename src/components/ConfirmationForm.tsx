@@ -207,6 +207,7 @@ function sameWinner(
 
 export function ConfirmationForm({ round, editToken, prefill, availability }: ConfirmationFormProps) {
   const { connectivity } = useSolarisApp();
+  const submissionConnectivityReady = connectivity.status === "online";
   const submit = useServerFn(submitConfirmation);
   const checkDuplicate = useServerFn(checkEntryDuplicate);
   const lookup = useServerFn(lookupSubmission);
@@ -718,9 +719,16 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
         </p>
       ) : null}
 
-      {!isOnline ? (
+      {!submissionConnectivityReady ? (
         <div className="rounded-xl border border-amber-300/30 bg-amber-300/[0.08] p-4 text-sm">
-          <strong>Offline read-only mode.</strong> Your local draft stays on this device, but Solaris will not queue or fake an official submission.
+          <strong>
+            {connectivity.status === "offline"
+              ? "Offline read-only mode."
+              : connectivity.status === "service-restricted"
+                ? "Solaris data service is restricted."
+                : "Solaris connection is degraded."}
+          </strong>{" "}
+          Your local draft stays on this device, but Solaris will not queue or fake an official submission.
         </div>
       ) : null}
 
@@ -984,7 +992,18 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
             ) : null}
 
             <ReviewBlock title="Submission preflight">
-              <SummaryRow label="Connection" value={isOnline ? "Online" : "Offline · submission disabled"} />
+              <SummaryRow
+                label="Connection"
+                value={
+                  submissionConnectivityReady
+                    ? "Online"
+                    : connectivity.status === "offline"
+                      ? "Offline · submission disabled"
+                      : connectivity.status === "service-restricted"
+                        ? "Service restricted · submission disabled"
+                        : "Degraded · submission disabled"
+                }
+              />
               <SummaryRow label="Draft conflict" value={draftConflict ? "Resolve before submitting" : "Resolved"} />
               <SummaryRow label="Autosave" value={saving ? "Saving…" : "Ready"} />
               <SummaryRow
@@ -1006,7 +1025,7 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
               onClick={() => void send(true)}
               disabled={
                 busy ||
-                !isOnline ||
+                !submissionConnectivityReady ||
                 Boolean(draftConflict) ||
                 saving ||
                 Object.values(duplicateChecking).some(Boolean)
