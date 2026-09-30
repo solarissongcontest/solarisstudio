@@ -54,6 +54,14 @@ const integrityIndex = readFileSync(
   resolve(process.cwd(), "src/routes/integrity/index.tsx"),
   "utf8",
 );
+const integrityHome = readFileSync(
+  resolve(process.cwd(), "src/components/integrity/IntegrityHomeV5.tsx"),
+  "utf8",
+);
+const protectedCaseRoute = readFileSync(
+  resolve(process.cwd(), "src/routes/integrity/cases/$caseId.tsx"),
+  "utf8",
+);
 const adminNav = readFileSync(
   resolve(process.cwd(), "src/components/admin/admin-navigation.ts"),
   "utf8",
@@ -144,7 +152,9 @@ describe("Integrity sanctions and appeals contract", () => {
     expect(anonymousAppealRoute).toContain('context="integrity.appeal"');
     expect(appealsLandingRoute).toContain('to="/integrity/appeal/$caseId"');
     expect(appealsLandingRoute).toContain('to="/integrity/anonymous-appeal"');
-    expect(integrityIndex).toContain('to="/integrity/appeals"');
+    expect(integrityIndex).toContain("<IntegrityHomeV5");
+    expect(integrityHome).toContain('to="/integrity/appeals"');
+    expect(protectedCaseRoute).toContain('to="/integrity/appeal/$caseId"');
   });
 
   it("prevents duplicate reporter appeals for one sanction", () => {
