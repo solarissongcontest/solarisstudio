@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "@tanstack/react-router";
+import { useRouter, useRouterState } from "@tanstack/react-router";
 import { Command as CommandIcon, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -15,8 +15,11 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import {
+  clearAppSearchReturn,
   readAppSearchState,
+  readPendingAppSearchRestore,
   rememberAppSearchQuery,
+  rememberAppSearchReturn,
 } from "@/lib/app-search-state";
 import type { AccountAccess } from "@/lib/country-account";
 import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
@@ -50,7 +53,9 @@ export function PublicCommandPalette({
   access?: AccountAccess;
 }) {
   const { isAppMode } = useSolarisApp();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [open, setOpen] = useState(false);
+  const [restoreQuery, setRestoreQuery] = useState<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const wasOpen = useRef(false);
 
@@ -58,6 +63,7 @@ export function PublicCommandPalette({
     const handler = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
+        setRestoreQuery(null);
         setOpen((value) => !value);
       }
       if (event.key === "Escape") setOpen(false);
@@ -65,6 +71,16 @@ export function PublicCommandPalette({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
+
+  useEffect(() => {
+    if (!isAppMode) return;
+    const restore = readPendingAppSearchRestore(pathname);
+    if (!restore) return;
+
+    setRestoreQuery(restore.query);
+    setOpen(true);
+    clearAppSearchReturn();
+  }, [isAppMode, pathname]);
 
   useEffect(() => {
     if (!wasOpen.current && open) {
@@ -84,7 +100,10 @@ export function PublicCommandPalette({
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setRestoreQuery(null);
+          setOpen(true);
+        }}
         className={cn(
           "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground",
           compact && "size-10 min-h-10 px-0",
@@ -106,6 +125,8 @@ export function PublicCommandPalette({
           setOpen={setOpen}
           access={access}
           appMode={isAppMode}
+          originPath={pathname}
+          initialQuery={restoreQuery}
         />
       ) : null}
     </>
@@ -117,16 +138,20 @@ function PublicPaletteDialog({
   setOpen,
   access,
   appMode,
+  originPath,
+  initialQuery,
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
   access?: AccountAccess;
   appMode: boolean;
+  originPath: string;
+  initialQuery: string | null;
 }) {
   const router = useRouter();
   const initialSearchState = useMemo(() => readAppSearchState(), []);
   const [query, setQuery] = useState(() =>
-    appMode ? initialSearchState.lastQuery : "",
+    appMode ? initialQuery ?? initialSearchState.lastQuery : "",
   );
   const { data: countries = [] } = useCountries();
   const { data: editions = [] } = useEditions();
@@ -518,8 +543,9 @@ function PublicPaletteDialog({
         result_count: normalized ? searchResults.length : recentResults.length,
       },
     });
-    if (appMode && normalized.length >= 2) {
-      rememberAppSearchQuery(normalized);
+    if (appMode) {
+      if (normalized.length >= 2) rememberAppSearchQuery(normalized);
+      rememberAppSearchReturn(originPath, normalized, result.href);
     }
     setOpen(false);
     void router.navigate({ to: result.href as any });
