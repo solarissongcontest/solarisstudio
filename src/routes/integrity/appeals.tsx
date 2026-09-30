@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, EyeOff, Gavel, KeyRound, RefreshCw, ShieldCheck } from "lucide-react";
+import { ArrowRight, EyeOff, Gavel, KeyRound, ShieldCheck } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { RulesApplyingHere } from "@/components/rules/GovernanceRules";
@@ -13,11 +13,11 @@ import {
 export const Route = createFileRoute("/integrity/appeals")({
   head: () => ({
     meta: [
-      { title: "Integrity Appeals & Decisions — Solaris" },
+      { title: "Integrity Appeals — Solaris" },
       {
         name: "description",
         content:
-          "Open sanctions and appeals for your protected Integrity cases or continue with anonymous recovery credentials.",
+          "Review eligible Trust & Integrity decisions and request fresh review through the SSC appeal process.",
       },
     ],
   }),
@@ -26,41 +26,32 @@ export const Route = createFileRoute("/integrity/appeals")({
 
 function IntegrityAppealsLanding() {
   const userQuery = useQuery({
-    queryKey: ["integrity-user"],
+    queryKey: ["integrity-user", "appeals-v5"],
     queryFn: getCurrentIntegrityUser,
   });
   const casesQuery = useQuery({
-    queryKey: ["integrity-protected-cases"],
+    queryKey: ["integrity-protected-cases", "appeals-v5"],
     queryFn: listProtectedIntegrityCases,
     enabled: Boolean(userQuery.data),
   });
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-5xl pb-20">
-        <Link
-          to="/integrity"
-          className="inline-flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" /> Trust & Integrity
-        </Link>
-
-        <section className="mt-5 overflow-hidden rounded-[2rem] border border-amber-200/14 bg-[linear-gradient(145deg,rgba(83,58,18,.28),rgba(5,19,42,.96))] p-6 sm:p-8">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[.18em] text-amber-200/70">
-                APPEALS & DECISIONS
-              </p>
-              <h1 className="mt-2 text-4xl font-black tracking-[-.05em] sm:text-5xl">
-                Review a sanction. Challenge it if needed.
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Protected cases use your Solaris account. Fully anonymous cases stay separate and require the original case code and recovery key. The ordinary SSC appeal window is 48 hours unless TSBC records an exceptional extension.
-              </p>
-            </div>
-            <Gavel className="size-8 shrink-0 text-amber-200" />
+      <div className="mx-auto max-w-4xl pb-20">
+        <header className="border-b border-border/65 pb-5">
+          <div className="flex items-center gap-2 text-amber-200">
+            <Gavel className="size-4" />
+            <p className="text-xs font-black uppercase tracking-[0.12em]">
+              Trust & Integrity
+            </p>
           </div>
-        </section>
+          <h1 className="mt-3 text-3xl font-black tracking-[-0.04em]">
+            Appeal a decision
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            An appeal is a separate review of an eligible decision. It does not erase the original record, and it should be reviewed freshly where another eligible reviewer is available.
+          </p>
+        </header>
 
         <RulesApplyingHere
           context="integrity.appeal"
@@ -70,102 +61,93 @@ function IntegrityAppealsLanding() {
           className="mt-5"
         />
 
-        <section className="mt-5 grid gap-4 lg:grid-cols-[1fr_.72fr]">
-          <div className="rounded-[1.6rem] border border-white/[0.08] bg-white/[0.025] p-5">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="size-4 text-emerald-200" />
-              <h2 className="font-black">My protected cases</h2>
-            </div>
-
-            {userQuery.isLoading ? (
-              <div className="mt-5 flex items-center gap-2 text-sm text-muted-foreground">
-                <RefreshCw className="size-4 animate-spin" /> Checking sign-in…
-              </div>
-            ) : !userQuery.data ? (
-              <div className="mt-5 rounded-xl border border-sky-200/12 bg-sky-200/[0.035] p-5">
-                <KeyRound className="size-5 text-sky-200" />
-                <p className="mt-3 font-bold">Sign in to open protected cases</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Sealed and confidential cases are recovered through the Solaris account that created them.
-                </p>
-                <Link
-                  to="/auth"
-                  className="mt-4 inline-flex min-h-10 items-center rounded-xl bg-sky-200 px-3 text-xs font-black text-slate-950"
-                >
-                  Sign in
-                </Link>
-              </div>
-            ) : casesQuery.isLoading ? (
-              <div className="mt-5 flex items-center gap-2 text-sm text-muted-foreground">
-                <RefreshCw className="size-4 animate-spin" /> Loading cases…
-              </div>
-            ) : (casesQuery.data ?? []).length ? (
-              <div className="mt-4 space-y-2">
-                {(casesQuery.data ?? []).map((item) => {
-                  const status = formatIntegrityStatus(item.status);
-                  const category = getIntegrityCategory(item.category);
-                  return (
-                    <Link
-                      key={item.id}
-                      to="/integrity/appeal/$caseId"
-                      params={{ caseId: item.id }}
-                      className="group block rounded-xl border border-white/[0.07] bg-black/10 p-4 transition hover:border-amber-200/18 hover:bg-amber-200/[0.035]"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="flex flex-wrap gap-2">
-                            <span className="font-mono text-[10px] font-black text-sky-200">
-                              {item.public_code}
-                            </span>
-                            <span className="text-[9px] uppercase text-muted-foreground">
-                              {item.identity_mode}
-                            </span>
-                          </div>
-                          <p className="mt-2 text-sm font-black">{item.summary}</p>
-                          <p className="mt-1 text-[10px] text-muted-foreground">
-                            {category.label} · {status.label}
-                          </p>
-                        </div>
-                        <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-1" />
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="mt-5 rounded-xl border border-dashed border-white/[0.08] p-5 text-sm text-muted-foreground">
-                No sealed or confidential cases are linked to this account.
+        <section className="mt-7" aria-labelledby="protected-appeals">
+          <div className="flex items-end justify-between gap-3 border-b border-border/65 pb-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">
+                Protected cases
               </p>
-            )}
+              <h2 id="protected-appeals" className="mt-1 text-xl font-bold">
+                Review your decisions
+              </h2>
+            </div>
+            <ShieldCheck className="size-5 text-emerald-200" />
           </div>
 
-          <div className="space-y-4">
-            <div className="rounded-[1.6rem] border border-emerald-200/12 bg-emerald-200/[0.035] p-5">
-              <EyeOff className="size-5 text-emerald-200" />
-              <h2 className="mt-3 font-black">Fully anonymous case</h2>
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                Anonymous cases never use your signed-in account. Open the appeal tool with the case code and recovery key you received when the case was created.
+          {userQuery.isLoading ? (
+            <p className="py-6 text-sm text-muted-foreground">Checking sign-in…</p>
+          ) : !userQuery.data ? (
+            <div className="py-6">
+              <p className="text-sm font-semibold">Sign in to see protected cases</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Sealed and confidential cases use your Solaris account for recovery.
+              </p>
+              <Link
+                to="/auth"
+                className="mt-3 inline-flex min-h-10 items-center text-sm font-bold text-primary"
+              >
+                Sign in
+              </Link>
+            </div>
+          ) : casesQuery.isLoading ? (
+            <p className="py-6 text-sm text-muted-foreground">Loading protected cases…</p>
+          ) : (casesQuery.data ?? []).length ? (
+            <div className="divide-y divide-border/60">
+              {(casesQuery.data ?? []).map((item) => {
+                const status = formatIntegrityStatus(item.status);
+                const category = getIntegrityCategory(item.category);
+                return (
+                  <Link
+                    key={item.id}
+                    to="/integrity/appeal/$caseId"
+                    params={{ caseId: item.id }}
+                    className="flex min-h-20 items-center gap-3 py-4"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-[11px] font-black text-primary">
+                          {item.public_code}
+                        </span>
+                        <span className="text-[11px] font-semibold text-muted-foreground">
+                          {status.label}
+                        </span>
+                      </span>
+                      <span className="mt-1 block text-sm font-semibold">{item.summary}</span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {category.label} · {item.identity_mode === "sealed" ? "Sealed" : "Confidential"}
+                      </span>
+                    </span>
+                    <span className="text-xs font-bold text-primary">Review</span>
+                    <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="py-6 text-sm text-muted-foreground">
+              No sealed or confidential cases are linked to this account.
+            </p>
+          )}
+        </section>
+
+        <section className="mt-7 border-t border-border/65 pt-5" aria-labelledby="anonymous-appeal">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-border/70 bg-surface/45 text-emerald-200">
+              <EyeOff className="size-4.5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 id="anonymous-appeal" className="text-lg font-bold">
+                Fully anonymous case
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                Anonymous cases never use your signed-in account. Use the original case code and recovery key to review an eligible decision and submit an appeal.
               </p>
               <Link
                 to="/integrity/anonymous-appeal"
-                className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-emerald-200/14 bg-emerald-200/[0.05] px-3 text-xs font-black text-emerald-50"
+                className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-surface/45 px-4 text-sm font-bold"
               >
-                Anonymous appeal recovery <ArrowRight className="size-3.5" />
+                <KeyRound className="size-4" /> Recover anonymous decision
               </Link>
-            </div>
-
-            <div className="rounded-[1.6rem] border border-white/[0.08] bg-white/[0.025] p-5">
-              <p className="text-[9px] font-black uppercase tracking-[.13em] text-muted-foreground">
-                APPEAL RULES
-              </p>
-              <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                An appeal should identify what was wrong with the decision, evidence assessment, rule application or sanction level and state the result you are asking for. The original decision remains in the audit history even if the appeal changes the outcome.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Link to="/rules/$ruleId" params={{ ruleId: "18.1" }} className="rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[10px] font-bold text-sky-200">Rule 18.1</Link>
-                <Link to="/rules/$ruleId" params={{ ruleId: "18.2" }} className="rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[10px] font-bold text-sky-200">Rule 18.2</Link>
-                <Link to="/rules/$ruleId" params={{ ruleId: "18.3" }} className="rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[10px] font-bold text-sky-200">Rule 18.3</Link>
-              </div>
             </div>
           </div>
         </section>
