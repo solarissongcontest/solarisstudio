@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Clock3, Radio, Trophy, Vote } from "lucide-react";
 
 import { AppShell, Panel } from "@/components/AppShell";
+import { AppEntityRail } from "@/components/app/AppEntityRail";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
@@ -23,6 +24,7 @@ import {
   useContestEntities,
   useCountries,
   useEdition,
+  useEditions,
   useShows,
 } from "@/lib/data";
 import { resolvePublicEditionState } from "@/lib/current-contest-state";
@@ -76,7 +78,9 @@ export const Route = createFileRoute("/editions/$slug")({
 function EditionPage() {
   const { slug } = Route.useParams();
   const editionQuery = useEdition(slug);
+  const editionsQuery = useEditions();
   const { data: edition } = editionQuery;
+  const { data: allEditions = [] } = editionsQuery;
   const showsQuery = useShows(edition?.id);
   const participantsQuery = usePublicEditionParticipants(edition?.id);
   const countriesQuery = useCountries();
@@ -213,9 +217,25 @@ function EditionPage() {
         allShows: allShows ?? [],
       })
     : [];
+  const entityRailItems = [...allEditions]
+    .filter((item) => item.published)
+    .sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))
+    .map((item) => ({
+      id: item.id,
+      label: editionLabel(item),
+      meta: item.host_city ?? item.name ?? null,
+      href: `/editions/${item.slug}`,
+    }));
+
 
   return (
     <AppShell>
+      <AppEntityRail
+        title="Editions"
+        directoryHref="/editions"
+        currentHref={`/editions/${edition.slug}`}
+        items={entityRailItems}
+      >
       <div className="edition-public-page">
         <div className="edition-page-toolbar">
           <Link to="/editions" className="text-xs font-medium text-muted-foreground hover:text-foreground">← Editions</Link>
@@ -453,6 +473,7 @@ function EditionPage() {
           <EditionEmptyState>No individual show information is available publicly for this edition yet.</EditionEmptyState>
         )}
       </div>
+      </AppEntityRail>
     </AppShell>
   );
 }
