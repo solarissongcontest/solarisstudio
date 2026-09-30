@@ -393,7 +393,19 @@ export function getAppLaunchRestoreCandidate(
 ): AppHistoryEntry | null {
   const state = readAppNavigationState(storage);
   const active = state.tabs[state.activeTab]?.current ?? null;
-  if (!active || !safeForColdLaunch(active)) return null;
-  if (appEntryHref(active) === "/") return null;
-  return active;
+
+  if (active && safeForColdLaunch(active) && appEntryHref(active) !== "/") {
+    return active;
+  }
+
+  const fallback = Object.values(state.tabs)
+    .map((tab) => tab?.current ?? null)
+    .filter((entry): entry is AppHistoryEntry => Boolean(entry))
+    .filter((entry) => safeForColdLaunch(entry) && appEntryHref(entry) !== "/")
+    .sort(
+      (a, b) =>
+        new Date(b.visitedAt).getTime() - new Date(a.visitedAt).getTime(),
+    )[0];
+
+  return fallback ?? null;
 }
