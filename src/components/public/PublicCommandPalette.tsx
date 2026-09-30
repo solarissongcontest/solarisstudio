@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "@tanstack/react-router";
+import { useRouter, useRouterState } from "@tanstack/react-router";
 import { Command as CommandIcon, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
   Command,
   CommandDialog,
@@ -30,6 +31,13 @@ import {
   navigationSearchResults,
   type PublicSearchResult,
 } from "@/lib/public-search";
+import {
+  clearAppSearchReturn,
+  readPendingSearchRestore,
+  readRecentSearches,
+  rememberAppSearchReturn,
+  rememberRecentSearch,
+} from "@/lib/app-search-state";
 import { readPublicRecents } from "@/lib/public-recents";
 import { searchGovernanceLibrary } from "@/lib/public-library-governance";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
@@ -44,7 +52,10 @@ export function PublicCommandPalette({
   compact?: boolean;
   access?: AccountAccess;
 }) {
+  const { isAppMode } = useSolarisApp();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [open, setOpen] = useState(false);
+  const [restoreQuery, setRestoreQuery] = useState("");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const wasOpen = useRef(false);
 
@@ -59,6 +70,16 @@ export function PublicCommandPalette({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
+
+  useEffect(() => {
+    if (!isAppMode) return;
+    const restore = readPendingSearchRestore(pathname);
+    if (!restore) return;
+
+    setRestoreQuery(restore.query);
+    setOpen(true);
+    clearAppSearchReturn();
+  }, [isAppMode, pathname]);
 
   useEffect(() => {
     if (!wasOpen.current && open) {
@@ -78,7 +99,10 @@ export function PublicCommandPalette({
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setRestoreQuery("");
+          setOpen(true);
+        }}
         className={cn(
           "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface hover:text-foreground",
           compact && "size-10 min-h-10 px-0",
@@ -94,7 +118,16 @@ export function PublicCommandPalette({
         ) : null}
       </button>
 
-      {open ? <PublicPaletteDialog open={open} setOpen={setOpen} access={access} /> : null}
+      {open ? (
+        <PublicPaletteDialog
+          open={open}
+          setOpen={setOpen}
+          access={access}
+          appMode={isAppMode}
+          originPath={pathname}
+          initialQuery={restoreQuery}
+        />
+      ) : null}
     </>
   );
 }
@@ -103,13 +136,20 @@ function PublicPaletteDialog({
   open,
   setOpen,
   access,
+  appMode,
+  originPath,
+  initialQuery,
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
   access?: AccountAccess;
+  appMode: boolean;
+  originPath: string;
+  initialQuery: string;
 }) {
   const router = useRouter();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
+  const [recentQueries] = useState(() => readRecentSearches());
   const { data: countries = [] } = useCountries();
   const { data: editions = [] } = useEditions();
   const { data: shows = [] } = useAllShows();
@@ -489,6 +529,11 @@ function PublicPaletteDialog({
   }, [normalized, searchResults.length]);
 
   const openResult = (result: PublicSearchResult) => {
+    if (normalized) rememberRecentSearch(normalized);
+    if (appMode) {
+      rememberAppSearchReturn(originPath, normalized, result.href);
+    }
+
     trackPublicUxEvent("search_result_clicked", {
       target: result.href,
       metadata: {
@@ -503,7 +548,11 @@ function PublicPaletteDialog({
   };
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
+    <CommandDialog
+      open={open}
+      onOpenChange={setOpen}
+      contentClassName={appMode ? "solaris-app-search-dialog" : undefined}
+    >
       <Command shouldFilter={false}>
         <CommandInput
           autoFocus
@@ -512,12 +561,34 @@ function PublicPaletteDialog({
           placeholder="Search Solaris Studio…"
           aria-label="Search Solaris Studio"
         />
-        <CommandList className="max-h-[min(68dvh,34rem)]">
+        <CommandList
+          className={
+            appMode
+              ? "solaris-app-search-results max-h-none flex-1"
+              : "max-h-[min(68dvh,34rem)]"
+          }
+        >
           <CommandEmpty>
             {normalized
               ? "Nothing in Solaris Studio matches that search."
               : "Start typing to search Solaris Studio."}
           </CommandEmpty>
+
+          {!normalized && appMode && recentQueries.length ? (
+            <CommandGroup heading="Recent searches">
+              {recentQueries.map((recent) => (
+                <CommandItem
+                  key={recent}
+                  value={recent}
+                  onSelect={() => setQuery(recent)}
+                  className="min-h-12 rounded-xl px-3 py-2"
+                >
+                  <Search className="size-4 text-muted-foreground" aria-hidden="true" />
+                  <span className="truncate text-sm font-semibold">{recent}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          ) : null}
 
           {grouped.map(([group, items], groupIndex) => (
             <div key={group}>
