@@ -5,20 +5,24 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("App Experience v3 cold launch offline and reconnect foundation", () => {
-  it("marks only true installed-app launches for state restoration", () => {
+  it("routes only true installed-app launches through the restoration entry point", () => {
     const manifest = JSON.parse(source("public/site.webmanifest")) as { start_url?: string };
-    const restorer = source("src/components/app/AppLaunchRestorer.tsx");
-    expect(manifest.start_url).toBe("/?launch=app");
-    expect(restorer).toContain('get("launch")');
-    expect(restorer).toContain('launch !== "app"');
-    expect(restorer).toContain("getAppLaunchDestination");
-    expect(restorer).toContain("markAppNavigationRestore");
+    const launch = source("src/routes/app-launch.tsx");
+    expect(manifest.start_url).toBe("/app-launch");
+    expect(launch).toContain('createFileRoute("/app-launch")');
+    expect(launch).toContain("getAppLaunchDestination");
+    expect(launch).toContain("supabase.auth.getUser");
+    expect(launch).toContain("markAppNavigationRestore");
+    expect(launch).toContain("replace: true");
   });
 
   it("never cold-launches directly into critical official submission routes", () => {
     const navigation = source("src/lib/app-navigation.ts");
     expect(navigation).toContain("coldLaunchDestinationAllowed");
-    expect(navigation).toContain("confirmations|jury-voting|televoting|next-in-line|broadcast");
+    expect(navigation).toContain("confirmations|jury-voting|televoting|next-in-line");
+    expect(navigation).toContain("app-launch|auth|reset|recover");
+    expect(navigation).toContain("show-mode");
+    expect(navigation).toContain("APP_LAUNCH_RESTORE_MAX_AGE_MS");
     expect(navigation).toContain("defaultEntry(tab, signedIn)");
   });
 
@@ -29,6 +33,8 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     expect(worker).not.toContain("cache.put(request, response.clone())\n    return response;\n  } catch");
     expect(offline).toContain('class="tabbar"');
     expect(offline).toContain('data-tab="participate"');
+    expect(offline).toContain('href="/participate"');
+    expect(offline).toContain('window.addEventListener("online"');
     expect(offline).toContain("solaris:offline-public-index:v1");
     expect(offline).toContain("Official submissions are never queued");
   });
