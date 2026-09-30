@@ -16,6 +16,7 @@ import {
   governanceRules,
   type GovernanceActionKey,
   type GovernancePurpose,
+  type GovernanceReceiptSnapshot,
 } from "@/lib/governance-v5";
 import { rememberRuleReturnContext } from "@/lib/rule-return-context";
 import { usePublishedRulebook } from "@/lib/rules-governance";
@@ -253,23 +254,30 @@ export function GovernanceInlineReference({
 export function GovernanceSnapshot({
   context,
   label = "Governance snapshot",
+  snapshot,
 }: {
   context: GovernanceActionKey;
   label?: string;
+  snapshot?: GovernanceReceiptSnapshot | null;
 }) {
   const published = usePublishedRulebook();
   const rules = governanceRules(context);
+  const version = snapshot?.rulebookVersion ?? published.version;
+  const ruleIds = snapshot?.ruleIds ?? rules.map((rule) => rule.id);
+
   return (
     <section className="rounded-2xl border border-border/70 bg-background/30 p-4">
       <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
       <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <p className="text-sm font-semibold">General Regulations v{published.version}</p>
+        <p className="text-sm font-semibold">General Regulations v{version}</p>
         <p className="font-mono text-[11px] text-muted-foreground">
-          {rules.map((rule) => rule.id).join(" · ")}
+          {ruleIds.join(" · ")}
         </p>
       </div>
       <p className="mt-2 text-xs leading-5 text-muted-foreground">
-        This records the rule context shown for this official action. Later rulebook updates do not change what was displayed here.
+        {snapshot
+          ? `Captured for this receipt at ${new Date(snapshot.capturedAt).toLocaleString()}. This receipt view keeps the rule version and rule IDs that were active when Solaris acknowledged the action.`
+          : "This shows the rule context currently active for this Solaris action."}
       </p>
     </section>
   );
