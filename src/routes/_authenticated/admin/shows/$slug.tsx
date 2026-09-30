@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { ArrowLeft, BarChart3, Calculator, Globe2, ListChecks, ListOrdered, MoreHorizontal, Plus, RadioTower, Scale, Trash2 } from "lucide-react";
+import { ArrowLeft, BarChart3, Calculator, Clock3, ExternalLink, Globe2, ListChecks, ListOrdered, MoreHorizontal, Plus, RadioTower, Scale, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
@@ -15,8 +16,14 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { supabase } from "@/integrations/supabase/client";
+import { getMergedTelevotingRoundsPage } from "@/integrations/televoting/rounds.functions";
+import { resolveBroadcast, type ShowModeManualPhase } from "@/lib/broadcast";
 import { editionLabel, useEdition, useParticipants, useShows, type Show } from "@/lib/data";
 import { DEFAULT_PUBLICATION_CONFIG, hasAnyPublicInformation, resolveShowPublication } from "@/lib/publication";
+import {
+  safeShowModeYoutubeUrl,
+  transitionShowModePhase,
+} from "@/lib/show-mode";
 
 export const Route = createFileRoute("/_authenticated/admin/shows/$slug")({
   head: () => ({ meta: [{ title: "Shows — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
@@ -39,11 +46,40 @@ type ShowDraft = {
   sort_order: number;
 };
 
+type ShowModeDraft = {
+  phase: ShowModeManualPhase;
+  scheduledStart: string;
+  youtubeUrl: string;
+  televoteRoundId: string;
+};
+
 const emptyDraft: ShowDraft = { name: "", kind: "semi-final", sort_order: 1 };
+
+const emptyShowModeDraft: ShowModeDraft = {
+  phase: "scheduled",
+  scheduledStart: "",
+  youtubeUrl: "",
+  televoteRoundId: "",
+};
+
+function isoToLocalInput(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+function localInputToIso(value: string) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
 
 function ShowsWorkspace() {
   const { slug } = Route.useParams();
   const qc = useQueryClient();
+  const getRoundsPage = useServerFn(getMergedTelevotingRoundsPage);
   const { data: edition, isLoading: loadingEdition } = useEdition(slug);
   const { data: shows = [], isLoading: loadingShows } = useShows(edition?.id);
   const { data: participants = [] } = useParticipants(edition?.id);
@@ -52,6 +88,15 @@ function ShowsWorkspace() {
   const [busy, setBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Show | null>(null);
   const [actionsTarget, setActionsTarget] = useState<Show | null>(null);
+  const [showModeTarget, setShowModeTarget] = useState<Show | null>(null);
+  const [showModeDraft, setShowModeDraft] = useState<ShowModeDraft>(emptyShowModeDraft);
+
+  const roundsQuery = useQuery({
+    enabled: Boolean(edition?.id),
+    queryKey: ["admin-show-mode-televoting-rounds", edition?.id ?? "none"],
+    queryFn: () => getRoundsPage({ data: { editionId: edition!.id } }),
+    staleTime: 30_000,
+  });
 
   const orderedShows = useMemo(() => [...shows].sort((a, b) => a.sort_order - b.sort_order), [shows]);
   const canonicalEntries = participants.filter((participant) => participant.show_id == null);
@@ -80,6 +125,69 @@ function ShowsWorkspace() {
   function openEdit(show: Show) {
     setDraft({ id: show.id, name: show.name, kind: show.kind as ShowDraft["kind"], sort_order: show.sort_order });
     setSheetOpen(true);
+  }
+
+  function openShowMode(show: Show) {
+    const config = resolveBroadcast(show.broadcast_config).showMode;
+    setShowModeTarget(show);
+    setShowModeDraft({
+      phase: config.phase,
+      scheduledStart: isoToLocalInput(config.scheduledStart),
+      youtubeUrl: config.youtubeUrl,
+      televoteRoundId: config.televoteRoundId ?? "",
+    });
+  }
+
+  async function saveShowMode() {
+    if (!showModeTarget) return;
+
+    const youtubeUrl = showModeDraft.youtubeUrl.trim();
+    const safeYoutube = youtubeUrl ? safeShowModeYoutubeUrl(youtubeUrl) : null;
+    if (youtubeUrl && !safeYoutube) {
+      toast.error("Use a valid HTTPS YouTube or youtu.be URL.");
+      return;
+    }
+
+    const scheduledStart = localInputToIso(showModeDraft.scheduledStart);
+    if (showModeDraft.scheduledStart && !scheduledStart) {
+      toast.error("Choose a valid scheduled start time.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const raw =
+        showModeTarget.broadcast_config &&
+        typeof showModeTarget.broadcast_config === "object"
+          ? showModeTarget.broadcast_config
+          : {};
+      const current = resolveBroadcast(raw).showMode;
+      const transitioned = transitionShowModePhase(current, showModeDraft.phase);
+      const nextShowMode = {
+        ...transitioned,
+        scheduledStart,
+        youtubeUrl: safeYoutube ?? "",
+        televoteRoundId: showModeDraft.televoteRoundId || null,
+      };
+
+      const { error } = await (supabase.from("shows") as any)
+        .update({
+          broadcast_config: {
+            ...raw,
+            showMode: nextShowMode,
+          },
+        })
+        .eq("id", showModeTarget.id);
+      if (error) throw error;
+
+      toast.success("Show Mode companion updated");
+      setShowModeTarget(null);
+      await refresh();
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "Show Mode could not be updated");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function saveShow() {
@@ -215,6 +323,16 @@ function ShowsWorkspace() {
       <AdminSheet open={!!actionsTarget} onClose={() => setActionsTarget(null)} title={actionsTarget?.name ?? "Show actions"} description="Edit the show itself or jump directly to a specialist workspace.">
         {actionsTarget ? <div className="space-y-2">
           <AdminActionItem title="Edit show" description="Change the name, type or order." onClick={() => { const show = actionsTarget; setActionsTarget(null); openEdit(show); }} />
+          <AdminActionItem
+            icon={RadioTower}
+            title="Show Mode companion"
+            description="Set the YouTube link, scheduled start and the few live phases Solaris cannot infer automatically."
+            onClick={() => {
+              const show = actionsTarget;
+              setActionsTarget(null);
+              openShowMode(show);
+            }}
+          />
           <Link to="/admin/televote/$slug" params={{ slug }} search={{ show: actionsTarget.id }} onClick={() => setActionsTarget(null)} className="admin-action-row flex w-full items-center gap-3 text-left"><span className="admin-action-row-icon"><BarChart3 className="size-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Televote totals</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">Review aggregate televote points feeding this show.</span></span></Link>
           <Link to="/admin/voting-system/$slug" params={{ slug }} search={{ show: actionsTarget.id }} onClick={() => setActionsTarget(null)} className="admin-action-row flex w-full items-center gap-3 text-left"><span className="admin-action-row-icon"><Calculator className="size-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Voting system</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">Configure scales, weighting, qualifiers and tie-breaks.</span></span></Link>
           <Link to="/admin/publication/$slug" params={{ slug }} onClick={() => setActionsTarget(null)} className="admin-action-row flex w-full items-center gap-3 text-left"><span className="admin-action-row-icon"><Globe2 className="size-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Publication</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">Control which layers of this show are public.</span></span></Link>
@@ -222,6 +340,130 @@ function ShowsWorkspace() {
           <AdminActionItem title={actionsTarget.published ? "Make show private" : "Publish show route"} description={actionsTarget.published ? "Hide the public show route while keeping all data intact." : "Make the show route available. Individual publication layers still follow their publication settings."} onClick={() => void togglePublished(actionsTarget)} />
           <AdminActionItem icon={Trash2} tone="danger" title="Delete show" description="Permanently remove this show and dependent show data." onClick={() => { setDeleteTarget(actionsTarget); setActionsTarget(null); }} />
         </div> : null}
+      </AdminSheet>
+
+      <AdminSheet
+        open={Boolean(showModeTarget)}
+        onClose={() => !busy && setShowModeTarget(null)}
+        title={showModeTarget ? `${showModeTarget.name} · Show Mode` : "Show Mode"}
+        description="YouTube owns the actual broadcast timing. Solaris only tracks reliable companion events and linked voting state."
+      >
+        <div className="space-y-4">
+          <label className="block">
+            <span className="admin-section-label">Manual show phase</span>
+            <select
+              value={showModeDraft.phase}
+              onChange={(event) =>
+                setShowModeDraft((current) => ({
+                  ...current,
+                  phase: event.target.value as ShowModeManualPhase,
+                }))
+              }
+              className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30"
+            >
+              <option value="scheduled">Scheduled</option>
+              <option value="live">Live</option>
+              <option value="results_in_progress">Results in progress</option>
+              <option value="ended">Ended</option>
+            </select>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              Voting open/closed comes from the linked Televoting round. Results published comes from the publication engine.
+            </p>
+          </label>
+
+          <label className="block">
+            <span className="admin-section-label">Scheduled start</span>
+            <input
+              type="datetime-local"
+              value={showModeDraft.scheduledStart}
+              onChange={(event) =>
+                setShowModeDraft((current) => ({
+                  ...current,
+                  scheduledStart: event.target.value,
+                }))
+              }
+              className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30"
+            />
+            <p className="mt-2 text-xs text-muted-foreground">
+              This is a scheduled start, never a promise about exact YouTube timing.
+            </p>
+          </label>
+
+          <label className="block">
+            <span className="admin-section-label">YouTube live / replay URL</span>
+            <div className="mt-2 flex gap-2">
+              <input
+                type="url"
+                value={showModeDraft.youtubeUrl}
+                onChange={(event) =>
+                  setShowModeDraft((current) => ({
+                    ...current,
+                    youtubeUrl: event.target.value,
+                  }))
+                }
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="min-h-11 min-w-0 flex-1 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30"
+              />
+              {safeShowModeYoutubeUrl(showModeDraft.youtubeUrl) ? (
+                <a
+                  href={safeShowModeYoutubeUrl(showModeDraft.youtubeUrl)!}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="admin-action-secondary !min-h-11 !px-3"
+                  aria-label="Open YouTube link"
+                >
+                  <ExternalLink className="size-4" />
+                </a>
+              ) : null}
+            </div>
+          </label>
+
+          <label className="block">
+            <span className="admin-section-label">Linked Televoting round</span>
+            <select
+              value={showModeDraft.televoteRoundId}
+              onChange={(event) =>
+                setShowModeDraft((current) => ({
+                  ...current,
+                  televoteRoundId: event.target.value,
+                }))
+              }
+              className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30"
+            >
+              <option value="">No linked public voting round</option>
+              {(roundsQuery.data?.edition?.rounds ?? []).map((round) => (
+                <option key={round.id} value={round.id}>
+                  {round.name} · {round.status}
+                </option>
+              ))}
+            </select>
+            {roundsQuery.isLoading ? (
+              <p className="mt-2 text-xs text-muted-foreground">Loading linked Televoting rounds…</p>
+            ) : roundsQuery.error ? (
+              <p className="mt-2 text-xs text-amber-200">
+                Voting rounds could not be loaded. Existing linkage can still be left unchanged.
+              </p>
+            ) : null}
+          </label>
+
+          <div className="rounded-xl border border-sky-200/15 bg-sky-200/[0.04] p-3">
+            <div className="flex items-start gap-2">
+              <Clock3 className="mt-0.5 size-4 shrink-0 text-sky-200" aria-hidden="true" />
+              <p className="text-xs leading-5 text-muted-foreground">
+                Solaris never estimates the current performer. The YouTube stream remains the source of truth for what is actually happening on air.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void saveShowMode()}
+            className="admin-action-primary w-full"
+          >
+            {busy ? "Saving…" : "Save Show Mode"}
+          </button>
+        </div>
       </AdminSheet>
 
       <AdminConfirmSheet

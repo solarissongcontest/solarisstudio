@@ -8,8 +8,10 @@ describe("Solaris installed Show Mode", () => {
     const route = source("src/routes/show-mode/index.tsx");
     expect(route).toContain('createFileRoute("/show-mode/")');
     expect(route).toContain("Hide result spoilers");
-    expect(route).toContain('to="/broadcast/$showId"');
+    expect(route).toContain("Watch on YouTube");
+    expect(route).toContain('to="/shows/$showId"');
     expect(route).toContain('to="/televoting"');
+    expect(route).not.toContain('to="/broadcast/$showId"');
   });
 
   it("keeps spoiler preference on-device and suppresses installed-app result previews", () => {
