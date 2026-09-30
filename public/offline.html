@@ -231,11 +231,11 @@
   </main>
 
   <nav class="tabbar" aria-label="Offline Solaris Studio">
-    <button class="tab" type="button" data-tab="home" aria-selected="true"><span>⌂</span>Home</button>
-    <button class="tab" type="button" data-tab="explore" aria-selected="false"><span>⌕</span>Explore</button>
-    <button class="tab" type="button" data-tab="participate" aria-selected="false"><span>◎</span>Participate</button>
-    <button class="tab" type="button" data-tab="results" aria-selected="false"><span>♜</span>Results</button>
-    <button class="tab" type="button" data-tab="me" aria-selected="false"><span>◉</span>Me</button>
+    <a class="tab" href="/" data-tab="home" aria-selected="false"><span>⌂</span>Home</a>
+    <a class="tab" href="/explore" data-tab="explore" aria-selected="false"><span>⌕</span>Explore</a>
+    <a class="tab" href="/participate" data-tab="participate" aria-selected="false"><span>◎</span>Participate</a>
+    <a class="tab" href="/results" data-tab="results" aria-selected="false"><span>♜</span>Results</a>
+    <a class="tab" href="/my-solaris" data-tab="me" aria-selected="false"><span>◉</span>Me</a>
   </nav>
 
   <script>
@@ -253,9 +253,24 @@
         });
       };
 
-      document.querySelectorAll("[data-tab]").forEach((button) => {
-        button.addEventListener("click", () => setView(button.getAttribute("data-tab") || "home"));
-      });
+      const path = location.pathname || "/";
+      const initialView =
+        path === "/" ? "home" :
+        path.startsWith("/participate") ||
+        path.startsWith("/confirmations") ||
+        path.startsWith("/jury-voting") ||
+        path.startsWith("/televoting") ||
+        path.startsWith("/next-in-line") ? "participate" :
+        path.startsWith("/results") ||
+        path.startsWith("/scorecharts") ||
+        path.startsWith("/analysis") ||
+        path.startsWith("/records") ||
+        path.startsWith("/relationships") ? "results" :
+        path.startsWith("/my-solaris") ||
+        path.startsWith("/me") ||
+        path.startsWith("/auth") ? "me" :
+        "explore";
+      setView(initialView);
 
       const navigation = safeParse("solaris:app-navigation:v1");
       const activeTab = navigation && typeof navigation.activeTab === "string"
@@ -277,11 +292,12 @@
 
       const makeRow = (item, type) => {
         if (!item || typeof item.label !== "string") return null;
-        const button = document.createElement("button");
-        button.type = "button";
+        const button = document.createElement("a");
         button.className = "row";
         if (typeof item.path === "string" && item.path.startsWith("/") && !item.path.startsWith("//")) {
-          button.dataset.path = item.path;
+          button.href = item.path;
+        } else {
+          button.href = "/explore";
         }
         const text = document.createElement("span");
         const label = document.createElement("strong");
@@ -293,10 +309,6 @@
         chevron.className = "chevron";
         chevron.textContent = "›";
         button.append(text, chevron);
-        button.addEventListener("click", () => {
-          if (navigator.onLine && button.dataset.path) location.href = button.dataset.path;
-          else setView("home");
-        });
         return button;
       };
 
@@ -348,7 +360,10 @@
       };
 
       document.getElementById("retry")?.addEventListener("click", () => location.reload());
-      window.addEventListener("online", refreshConnection);
+      window.addEventListener("online", () => {
+        refreshConnection();
+        window.setTimeout(() => location.reload(), 450);
+      });
       window.addEventListener("offline", refreshConnection);
       refreshConnection();
     })();
