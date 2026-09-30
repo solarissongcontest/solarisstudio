@@ -3,6 +3,7 @@ import { useRouter } from "@tanstack/react-router";
 import { Command as CommandIcon, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
   Command,
   CommandDialog,
@@ -13,6 +14,10 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import {
+  readAppSearchState,
+  rememberAppSearchQuery,
+} from "@/lib/app-search-state";
 import type { AccountAccess } from "@/lib/country-account";
 import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
 import {
@@ -44,6 +49,7 @@ export function PublicCommandPalette({
   compact?: boolean;
   access?: AccountAccess;
 }) {
+  const { isAppMode } = useSolarisApp();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const wasOpen = useRef(false);
@@ -94,7 +100,14 @@ export function PublicCommandPalette({
         ) : null}
       </button>
 
-      {open ? <PublicPaletteDialog open={open} setOpen={setOpen} access={access} /> : null}
+      {open ? (
+        <PublicPaletteDialog
+          open={open}
+          setOpen={setOpen}
+          access={access}
+          appMode={isAppMode}
+        />
+      ) : null}
     </>
   );
 }
@@ -103,13 +116,18 @@ function PublicPaletteDialog({
   open,
   setOpen,
   access,
+  appMode,
 }: {
   open: boolean;
   setOpen: (open: boolean) => void;
   access?: AccountAccess;
+  appMode: boolean;
 }) {
   const router = useRouter();
-  const [query, setQuery] = useState("");
+  const initialSearchState = useMemo(() => readAppSearchState(), []);
+  const [query, setQuery] = useState(() =>
+    appMode ? initialSearchState.lastQuery : "",
+  );
   const { data: countries = [] } = useCountries();
   const { data: editions = [] } = useEditions();
   const { data: shows = [] } = useAllShows();
@@ -441,6 +459,8 @@ function PublicPaletteDialog({
     storiesQuery.data,
   ]);
 
+  const recentQueries = appMode ? initialSearchState.recentQueries : [];
+
   const recentResults = useMemo(
     () =>
       readPublicRecents().map((item) => ({
@@ -498,12 +518,20 @@ function PublicPaletteDialog({
         result_count: normalized ? searchResults.length : recentResults.length,
       },
     });
+    if (appMode && normalized.length >= 2) {
+      rememberAppSearchQuery(normalized);
+    }
     setOpen(false);
     void router.navigate({ to: result.href as any });
   };
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
+    <CommandDialog
+      open={open}
+      onOpenChange={setOpen}
+      contentClassName={appMode ? "solaris-app-search-dialog" : undefined}
+      commandClassName={appMode ? "solaris-app-search-command" : undefined}
+    >
       <Command shouldFilter={false}>
         <CommandInput
           autoFocus
@@ -512,12 +540,33 @@ function PublicPaletteDialog({
           placeholder="Search Solaris Studio…"
           aria-label="Search Solaris Studio"
         />
-        <CommandList className="max-h-[min(68dvh,34rem)]">
+        <CommandList
+          className={
+            appMode
+              ? "solaris-app-search-list"
+              : "max-h-[min(68dvh,34rem)]"
+          }
+        >
           <CommandEmpty>
             {normalized
               ? "Nothing in Solaris Studio matches that search."
               : "Start typing to search Solaris Studio."}
           </CommandEmpty>
+
+          {!normalized && recentQueries.length ? (
+            <CommandGroup heading="Recent searches">
+              {recentQueries.map((recentQuery) => (
+                <CommandItem
+                  key={recentQuery}
+                  onSelect={() => setQuery(recentQuery)}
+                  className="min-h-12 rounded-xl px-3 py-2"
+                >
+                  <Search className="size-4 text-muted-foreground" aria-hidden="true" />
+                  <span className="truncate text-sm font-semibold">{recentQuery}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          ) : null}
 
           {grouped.map(([group, items], groupIndex) => (
             <div key={group}>
