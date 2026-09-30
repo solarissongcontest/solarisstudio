@@ -27,6 +27,10 @@ const publicPanel = readFileSync(
   "utf8",
 );
 const rulePage = readFileSync(resolve(process.cwd(), "src/routes/rules/$ruleId.tsx"), "utf8");
+const ruleDetail = readFileSync(
+  resolve(process.cwd(), "src/components/rules/RuleDetailV5.tsx"),
+  "utf8",
+);
 
 describe("Official Interpretations governance", () => {
   it("stores interpretations independently from rulebook wording", () => {
@@ -85,7 +89,7 @@ describe("Official Interpretations governance", () => {
       "Replacement interpretation must address at least one of the same rules",
     );
     expect(adminRoute).toContain("supersedeRuleInterpretation");
-    expect(publicIndex).toContain("Include superseded");
+    expect(publicIndex).toContain("Show superseded");
     expect(publicPanel).toContain("superseded interpretation");
   });
 
@@ -122,7 +126,8 @@ describe("Official Interpretations governance", () => {
   });
 
   it("shows interpretations on both permanent rule pages and a searchable public archive", () => {
-    expect(rulePage).toContain("<RuleInterpretationsPanel ruleId={rule.id} />");
+    expect(rulePage).toContain("<RuleDetailV5 rule={rule} />");
+    expect(ruleDetail).toContain("<RuleInterpretationsPanel ruleId={rule.id} />");
     expect(publicPanel).toContain("How TSBC has formally applied this rule");
     expect(publicIndex).toContain("Official clarifications");
     expect(publicIndex).toContain('placeholder="Search clarifications"');
