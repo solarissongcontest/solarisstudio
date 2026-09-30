@@ -67,7 +67,7 @@ const DEFINITIONS: RuleContextDefinition[] = [
     intro: "Song and artist eligibility, objective popularity checks, reuse history and official verification.",
     ruleIds: ["6.1", "6.2", "6.3", "6.4", "6.5", "6.6", "6.10"],
     sourcePath: "/participate",
-    matches: (pathname) => pathname.startsWith("/participate") || pathname.startsWith("/admin/entries") || pathname.startsWith("/admin/participant-status"),
+    matches: (pathname) => pathname.startsWith("/participate") || pathname.startsWith("/my-solaris/entry") || pathname.startsWith("/admin/entries") || pathname.startsWith("/admin/participant-status"),
   },
   {
     key: "hosting-media",
