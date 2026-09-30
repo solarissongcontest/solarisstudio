@@ -73,6 +73,16 @@ export function AppToolbar({
   access: AccountAccess;
 }) {
   const context = contextForPath(pathname);
+  const rootDestination =
+    pathname === "/" ||
+    pathname === "/explore" ||
+    pathname === "/explore/" ||
+    pathname === "/participate" ||
+    pathname === "/participate/" ||
+    pathname === "/results" ||
+    pathname === "/results/" ||
+    pathname === "/me" ||
+    pathname === "/me/";
 
   return (
     <header className="solaris-app-toolbar">
@@ -88,7 +98,11 @@ export function AppToolbar({
               <span>{context.parent.label}</span>
             </Link>
           ) : (
-            <h1 className="solaris-app-toolbar-title">{context.title}</h1>
+            {rootDestination ? (
+              <h1 className="solaris-app-toolbar-title">{context.title}</h1>
+            ) : (
+              <span className="solaris-app-toolbar-title">{context.title}</span>
+            )}
           )}
         </div>
 
