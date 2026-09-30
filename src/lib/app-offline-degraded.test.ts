@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { readOfflinePublicIndex, writeOfflinePublicIndex } from "./app-offline-snapshot";
+import {
+  clearOfflinePublicIndex,
+  readOfflinePublicIndex,
+  writeOfflinePublicIndex,
+} from "./app-offline-snapshot";
 
 describe("installed app degraded public archive", () => {
   it("stores only a small sanitized public index rather than stale HTML or private state", () => {
@@ -41,4 +45,25 @@ describe("installed app degraded public archive", () => {
     expect(tasks).toContain('dateStyle: "medium"');
     expect(tasks).toContain("<time");
   });
+  it("clears only the safe public offline index through the settings action", () => {
+    const values = new Map<string, string>();
+    const storage = {
+      setItem: (key: string, value: string) => values.set(key, value),
+      getItem: (key: string) => values.get(key) ?? null,
+      removeItem: (key: string) => values.delete(key),
+    };
+
+    writeOfflinePublicIndex({
+      editions: [{ id: "e1", name: "Edition", slug: "edition", edition_number: 22 }],
+      shows: [],
+      countries: [],
+    }, storage);
+    values.set("solaris:confirmation-draft:test", "critical-local-draft");
+
+    clearOfflinePublicIndex(storage);
+
+    expect(readOfflinePublicIndex(storage)).toBeNull();
+    expect(values.get("solaris:confirmation-draft:test")).toBe("critical-local-draft");
+  });
+
 });
