@@ -6,6 +6,7 @@ const PRECACHE = [
   OFFLINE_URL,
   "/icon-192.png?v=img2340-20260929",
   "/icon-512.png?v=img2340-20260929",
+  "/icon-maskable.svg?v=maskable-20260930",
   "/solaris-background.webp",
 ];
 
