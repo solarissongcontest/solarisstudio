@@ -8,7 +8,7 @@ const LazyGlassMaterial = lazy(() =>
   })),
 );
 
-export type LiquidGlassBackdropVariant = "hero" | "control" | "surface";
+export type LiquidGlassBackdropVariant = "hero" | "control" | "surface" | "navigation";
 
 const OPTICS = {
   hero: {
@@ -64,6 +64,24 @@ const OPTICS = {
     glowFalloff: 0.5,
     specular: 0.9,
     brightness: 0,
+  },
+  navigation: {
+    strength: 0.06,
+    depth: 0.66,
+    curvature: 0.42,
+    bend: 0.62,
+    bendWidth: 0.15,
+    dispersion: 0.26,
+    frost: 20,
+    saturate: 1.22,
+    sheen: 0.52,
+    sheenWidth: 2.6,
+    sheenFalloff: 1.55,
+    glow: 0.14,
+    glowSpread: 1.08,
+    glowFalloff: 0.52,
+    specular: 1.08,
+    brightness: 0.12,
   },
 } as const;
 
