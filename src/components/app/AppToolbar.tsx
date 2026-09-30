@@ -38,6 +38,10 @@ function contextForPath(pathname: string): ToolbarContext {
     };
   }
 
+  if (pathname === "/my-solaris" || pathname === "/my-solaris/") {
+    return { title: "Me" };
+  }
+
   if (pathname.startsWith("/my-solaris/")) {
     return { title: "MySolaris", parent: { label: "Me", to: "/my-solaris" } };
   }
@@ -73,6 +77,18 @@ export function AppToolbar({
   access: AccountAccess;
 }) {
   const context = contextForPath(pathname);
+  const rootDestination =
+    pathname === "/" ||
+    pathname === "/explore" ||
+    pathname === "/explore/" ||
+    pathname === "/participate" ||
+    pathname === "/participate/" ||
+    pathname === "/results" ||
+    pathname === "/results/" ||
+    pathname === "/me" ||
+    pathname === "/me/" ||
+    pathname === "/my-solaris" ||
+    pathname === "/my-solaris/";
 
   return (
     <header className="solaris-app-toolbar">
@@ -87,6 +103,8 @@ export function AppToolbar({
               <ChevronLeft className="size-5" aria-hidden="true" />
               <span>{context.parent.label}</span>
             </Link>
+          ) : rootDestination ? (
+            <h1 className="solaris-app-toolbar-title">{context.title}</h1>
           ) : (
             <span className="solaris-app-toolbar-title">{context.title}</span>
           )}

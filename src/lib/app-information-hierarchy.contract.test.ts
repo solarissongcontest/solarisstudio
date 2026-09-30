@@ -1,0 +1,38 @@
+import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+
+function source(path: string) {
+  return readFileSync(path, "utf8");
+}
+
+describe("installed app information hierarchy", () => {
+  it("marks app mode and root destinations in the shared shell", () => {
+    const shell = source("src/components/AppShell.tsx");
+    expect(shell).toContain('data-solaris-app-mode={isAppMode ? "true" : undefined}');
+    expect(shell).toContain('data-solaris-app-root={isAppMode && isAppRootDestination ? "true" : undefined}');
+  });
+
+  it("uses the toolbar as the single root-page identity", () => {
+    const toolbar = source("src/components/app/AppToolbar.tsx");
+    const styles = source("src/styles/app-shell.css");
+    expect(toolbar).toContain('rootDestination ? (');
+    expect(toolbar).toContain('<h1 className="solaris-app-toolbar-title">{context.title}</h1>');
+    expect(styles).toContain('.app-main[data-solaris-app-root="true"] > .public-hub-hero');
+    expect(styles).toContain('.app-main[data-solaris-app-root="true"] > .page-header');
+  });
+
+  it("keeps website heroes while compacting secondary installed-app headers", () => {
+    const styles = source("src/styles/app-shell.css");
+    expect(styles).toContain('@media (display-mode: standalone)');
+    expect(styles).toContain('.app-main[data-solaris-app-mode="true"] .page-header:not(.directory-page-hero)');
+    expect(styles).not.toContain('body .public-hub-hero { display: none');
+  });
+
+  it("does not treat participation workflows as recently viewed content", () => {
+    const recents = source("src/lib/public-recents.ts");
+    expect(recents).toContain('"/confirmations"');
+    expect(recents).toContain('"/jury-voting"');
+    expect(recents).toContain('"/televoting"');
+    expect(recents).toContain('NON_CONTENT_RECENT_PREFIXES.some');
+  });
+});

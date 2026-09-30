@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BarChart3, Beaker, GitCompareArrows, Table2, Trophy } from "lucide-react";
 import { useMemo } from "react";
 
-import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
+import { AppShell, Panel, StatTile } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicAdvancedDisclosure } from "@/components/public/PublicAdvancedDisclosure";
 import { PublicDataState } from "@/components/public/PublicDataState";
@@ -104,16 +104,30 @@ function ResultsOverviewPage() {
   const publication = latestShow ? resolveShowPublication(latestShow) : null;
   const archiveQueries = [editionsQuery, showsQuery, resultsQuery, participantsQuery, countriesQuery, entitiesQuery];
 
-  if (archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Results overview" title="Results" description="Published rankings, voting splits and scorecharts." /><ArchiveDataLoading label="Loading published results…" /></AppShell>;
-  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Results overview" title="Results" description="Published rankings, voting splits and scorecharts." /><ArchiveDataError /></AppShell>;
+  if (archiveIsLoading(...archiveQueries)) {
+    return (
+      <AppShell>
+        <ArchiveDataLoading label="Loading published results…" />
+      </AppShell>
+    );
+  }
+  if (archiveHasError(...archiveQueries)) {
+    return (
+      <AppShell>
+        <ArchiveDataError />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
-      <PublicHubHero
-        eyebrow="Results"
-        title="Results"
-        description="Start with the official result, then move into scorecharts, analysis or specialist tools only when you need them."
-      />
+      {!isAppMode ? (
+        <PublicHubHero
+          eyebrow="Results"
+          title="Results"
+          description="Start with the official result, then move into scorecharts, analysis or specialist tools only when you need them."
+        />
+      ) : null}
 
       {hideSpoilers && latestShow && latestEdition ? (
         <Panel

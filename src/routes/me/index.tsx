@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { useFanSession } from "@/lib/prediction-data";
 
 export const Route = createFileRoute("/me/")({
@@ -10,6 +11,7 @@ export const Route = createFileRoute("/me/")({
 });
 
 function MySolarisRedirect() {
+  const { isAppMode } = useSolarisApp();
   const navigate = useNavigate();
   const { data: user, isLoading } = useFanSession();
 
@@ -29,11 +31,13 @@ function MySolarisRedirect() {
 
   return (
     <AppShell>
-      <PageHeader
-        eyebrow="Your account"
-        title="MySolaris"
-        description="Your country, entry, participation and personal Solaris updates live together after sign-in."
-      />
+      {!isAppMode ? (
+        <PageHeader
+          eyebrow="Your account"
+          title="MySolaris"
+          description="Your country, entry, participation and personal Solaris updates live together after sign-in."
+        />
+      ) : null}
       <Panel title="Sign in to open MySolaris">
         <Link
           to="/auth"

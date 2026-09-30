@@ -94,11 +94,13 @@ function ExplorePage() {
 
   return (
     <AppShell>
-      <PublicHubHero
-        eyebrow="Explore"
-        title="Explore Solaris"
-        description="Countries, editions, shows and stories from across SSC. Start broad, then follow the contest history wherever it gets interesting."
-      />
+      {!isAppMode ? (
+        <PublicHubHero
+          eyebrow="Explore"
+          title="Explore Solaris"
+          description="Countries, editions, shows and stories from across SSC. Start broad, then follow the contest history wherever it gets interesting."
+        />
+      ) : null}
 
       {isAppMode ? <AppExplorePersonalized /> : null}
 
