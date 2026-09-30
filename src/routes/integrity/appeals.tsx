@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, EyeOff, Gavel, KeyRound, RefreshCw, ShieldCheck } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { RulesApplyingHere } from "@/components/rules/GovernanceRules";
 import { formatIntegrityStatus, getIntegrityCategory } from "@/lib/integrity";
 import {
   getCurrentIntegrityUser,
@@ -60,6 +61,14 @@ function IntegrityAppealsLanding() {
             <Gavel className="size-8 shrink-0 text-amber-200" />
           </div>
         </section>
+
+        <RulesApplyingHere
+          context="integrity.appeal"
+          title="Appeal rules"
+          initiallyExpanded
+          primaryLimit={2}
+          className="mt-5"
+        />
 
         <section className="mt-5 grid gap-4 lg:grid-cols-[1fr_.72fr]">
           <div className="rounded-[1.6rem] border border-white/[0.08] bg-white/[0.025] p-5">
