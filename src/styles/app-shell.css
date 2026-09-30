@@ -1973,3 +1973,15 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
     -webkit-backdrop-filter: none;
   }
 }
+
+
+/* Governance OS v5: read-only connectivity should inform, not obstruct. */
+@media (display-mode: standalone) {
+  .solaris-app-offline[data-solaris-app-banner-context="reading"] {
+    width: auto;
+    max-width: calc(100vw - 2rem);
+    padding: .4rem .65rem;
+    font-size: .66rem;
+    box-shadow: 0 8px 22px rgb(0 3 20 / .14);
+  }
+}
