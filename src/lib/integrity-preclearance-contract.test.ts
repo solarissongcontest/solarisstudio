@@ -81,7 +81,7 @@ describe("Integrity pre-clearance rulings", () => {
     expect(reporterRoute).toContain("Ask before acting");
     expect(reporterRoute).toContain("createProtectedIntegrityCase");
     expect(reporterRoute).toContain('caseKind: "rule_question"');
-    expect(reporterRoute).toContain("Questions & rulings");
+    expect(reporterRoute).toContain("My rule rulings");
     expect(reporterRoute).not.toContain("admin_integrity_preclearance_rulings");
     expect(reporterRoute).not.toContain("admin_record_integrity_preclearance_ruling");
   });
