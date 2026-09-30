@@ -46,6 +46,14 @@ const decisionStrip = readFileSync(
   resolve(process.cwd(), "src/components/rules/RuleDecisionStrip.tsx"),
   "utf8",
 );
+const governanceV5 = readFileSync(
+  resolve(process.cwd(), "src/lib/governance-v5.ts"),
+  "utf8",
+);
+const governanceRules = readFileSync(
+  resolve(process.cwd(), "src/components/rules/GovernanceRules.tsx"),
+  "utf8",
+);
 const confirmationReceipt = readFileSync(
   resolve(process.cwd(), "src/components/ConfirmationFormWithReceipt.tsx"),
   "utf8",
@@ -209,10 +217,17 @@ describe("rulebook governance contract", () => {
     expect(ruleContext).toContain("/admin/integrity");
     expect(decisionStrip).toContain("RuleChip");
     expect(decisionStrip).toContain("Rules at this decision");
-    expect(confirmationReceipt).toContain("Confirmation fairness & submission rules");
-    expect(confirmationReceipt).toContain('["4.3", "4.4", "4.6", "4.7", "20.1"]');
-    expect(televotingReceipt).toContain("Independent voting & integrity");
-    expect(televotingReceipt).toContain('["10.1", "11.1", "11.2", "11.4", "11.5", "11.7"]');
+    expect(governanceV5).toContain('"confirmation.submit"');
+    expect(governanceV5).toContain('"jury.vote"');
+    expect(governanceV5).toContain('"televote.vote"');
+    expect(governanceV5).toContain('"entry.submit"');
+    expect(governanceV5).toContain('"integrity.report"');
+    expect(governanceRules).toContain("contextualSummary");
+    expect(governanceRules).toContain("Read full rule");
+    expect(confirmationReceipt).toContain('context="confirmation.submit"');
+    expect(confirmationReceipt).toContain("GovernanceSnapshot");
+    expect(televotingReceipt).toContain('context="televote.vote"');
+    expect(televotingReceipt).toContain("GovernanceSnapshot");
     expect(investigations).toContain("Evidence, findings & investigator independence");
     for (const ruleId of ["16.1", "16.2", "16.3", "16.4", "16.5", "16.6", "17.1", "17.7", "18.3"])
       expect(investigations).toContain(`"${ruleId}"`);
@@ -226,10 +241,10 @@ describe("rulebook governance contract", () => {
     expect(publicLibrary).toContain('kind: "release"');
   });
 
-  it("renders one canonical public Rules experience without structural CSS hiding", () => {
-    expect(rulesRoute).toContain("<RulesExperience");
+  it("renders the canonical Governance OS Rules and Integrity experiences without structural CSS hiding", () => {
+    expect(rulesRoute).toContain("<RulesHomeV5");
     expect(rulesRoute).not.toContain("[&>div>section:first-child]:hidden");
-    expect(integrityRoute).toContain("<TrustIntegrityHub />");
+    expect(integrityRoute).toContain("<IntegrityHomeV5 />");
     expect(integrityRoute).not.toContain("[&>div>section:first-child]:hidden");
   });
 });
