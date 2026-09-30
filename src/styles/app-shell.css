@@ -1024,3 +1024,53 @@
     display: none;
   }
 }
+
+
+/* App Experience v3: lifecycle, keyboard and connectivity ------------------ */
+@media (display-mode: standalone) {
+  html {
+    --solaris-keyboard-inset: 0px;
+    --solaris-visual-viewport-height: 100dvh;
+    --solaris-visual-viewport-offset-top: 0px;
+  }
+
+  .solaris-app-offline[data-solaris-app-connectivity="degraded"] {
+    border-color: rgb(125 211 252 / .28);
+    background: rgb(8 35 54 / .94);
+    color: rgb(207 244 255);
+  }
+
+  .solaris-app-offline[data-solaris-app-connectivity="service-restricted"] {
+    border-color: rgb(251 191 36 / .30);
+    background: rgb(54 35 7 / .95);
+    color: rgb(255 235 185);
+  }
+
+  html[data-solaris-keyboard-open] {
+    scroll-padding-bottom: calc(var(--solaris-keyboard-inset) + 1rem);
+  }
+
+  html[data-solaris-keyboard-open] .solaris-app-update {
+    display: none;
+  }
+}
+
+@media (display-mode: standalone) and (max-width: 899px) {
+  html[data-solaris-keyboard-open] .solaris-app-tabbar {
+    opacity: 0;
+    transform: translateY(calc(100% + 2rem));
+    pointer-events: none;
+  }
+
+  html[data-solaris-keyboard-open] .app-main {
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom)) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @media (display-mode: standalone) and (max-width: 899px) {
+    html[data-solaris-keyboard-open] .solaris-app-tabbar {
+      transition: none;
+    }
+  }
+}
