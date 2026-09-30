@@ -58,7 +58,10 @@ export function AdminFrame({ children }: { children: ReactNode }) {
       label: "Home",
       href: "/admin/operations",
       icon: LayoutDashboard,
-      active: (path) => path.startsWith("/admin/operations"),
+      active: (path) =>
+        path.startsWith("/admin/operations") ||
+        path.startsWith("/admin/action-center") ||
+        path.startsWith("/admin/action-centre"),
     },
     {
       id: "inbox",
@@ -88,6 +91,8 @@ export function AdminFrame({ children }: { children: ReactNode }) {
       icon: MoreHorizontal,
       active: (path) =>
         !path.startsWith("/admin/operations") &&
+        !path.startsWith("/admin/action-center") &&
+        !path.startsWith("/admin/action-centre") &&
         !path.startsWith("/admin/inbox") &&
         !adminEditionRoute(path, slug) &&
         !adminCasesRoute(path),
