@@ -55,6 +55,13 @@ const DEFINITIONS: Record<GovernanceActionKey, GovernanceActionDefinition> = {
           "Bots, scripts or technical methods must not be used to obtain an unfair competitive confirmation advantage.",
       },
       {
+        ruleId: "4.4",
+        purpose: "fairness",
+        prominence: "secondary",
+        contextualSummary:
+          "Finding or reporting a bug is not misconduct, but knowingly exploiting a vulnerability to gain a confirmation place or other competitive advantage is prohibited.",
+      },
+      {
         ruleId: "4.7",
         purpose: "required",
         prominence: "secondary",
@@ -127,11 +134,25 @@ const DEFINITIONS: Record<GovernanceActionKey, GovernanceActionDefinition> = {
       "A jury ballot is an official delegation vote and must represent the delegation's own independent judgement.",
     bindings: [
       {
+        ruleId: "9.1",
+        purpose: "fairness",
+        prominence: "secondary",
+        contextualSummary:
+          "Jury scores should reflect the delegation's genuine assessment of the competing entries.",
+      },
+      {
         ruleId: "9.2",
         purpose: "required",
         prominence: "primary",
         contextualSummary:
           "The jury ranking must reflect the delegation's own independent judgement and must not be outsourced or copied from another participant.",
+      },
+      {
+        ruleId: "11.1",
+        purpose: "integrity",
+        prominence: "secondary",
+        contextualSummary:
+          "A country may not award jury or televote support to itself or bypass a self-voting restriction through another account.",
       },
       {
         ruleId: "11.2",
@@ -154,6 +175,13 @@ const DEFINITIONS: Record<GovernanceActionKey, GovernanceActionDefinition> = {
         contextualSummary:
           "Automated or statistical voting signals can trigger review, but they are not proof of misconduct.",
       },
+      {
+        ruleId: "11.7",
+        purpose: "information",
+        prominence: "secondary",
+        contextualSummary:
+          "Voting statistics are assessed together with messages, admissions, technical evidence and other context; statistics alone do not establish deliberate misconduct.",
+      },
     ],
   },
   "televote.vote": {
@@ -168,6 +196,13 @@ const DEFINITIONS: Record<GovernanceActionKey, GovernanceActionDefinition> = {
         prominence: "primary",
         contextualSummary:
           "Only votes submitted through the official Solaris televoting system under the published round rules count.",
+      },
+      {
+        ruleId: "11.1",
+        purpose: "integrity",
+        prominence: "secondary",
+        contextualSummary:
+          "A country may not vote for itself or use another account to bypass the self-voting restriction.",
       },
       {
         ruleId: "11.2",
@@ -189,6 +224,13 @@ const DEFINITIONS: Record<GovernanceActionKey, GovernanceActionDefinition> = {
         prominence: "secondary",
         contextualSummary:
           "Automated integrity analysis is a review signal only and does not itself establish misconduct.",
+      },
+      {
+        ruleId: "11.7",
+        purpose: "information",
+        prominence: "secondary",
+        contextualSummary:
+          "Voting statistics may support an investigation but must be assessed with the rest of the evidence and context.",
       },
     ],
   },
