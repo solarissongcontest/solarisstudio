@@ -12,9 +12,13 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { RULE_CONTEXT_STORAGE_KEY } from "@/components/rules/RulesGovernanceContext";
+import {
+  GOVERNANCE_ACTION_STORAGE_KEY,
+  RULE_CONTEXT_STORAGE_KEY,
+} from "@/components/rules/RulesGovernanceContext";
 import { GovernanceInlineReference } from "@/components/rules/GovernanceRules";
 import {
+  GOVERNANCE_ACTION_KEYS,
   GOVERNANCE_QUICK_ANSWERS,
   type GovernanceActionKey,
 } from "@/lib/governance-v5";
@@ -67,7 +71,19 @@ export function RulesHomeV5({ version }: { version: string }) {
 
   useEffect(() => {
     try {
-      setContext(actionFromStoredPath(window.sessionStorage.getItem(RULE_CONTEXT_STORAGE_KEY)));
+      const storedAction = window.sessionStorage.getItem(GOVERNANCE_ACTION_STORAGE_KEY);
+      if (
+        storedAction &&
+        GOVERNANCE_ACTION_KEYS.includes(storedAction as GovernanceActionKey)
+      ) {
+        setContext(storedAction as GovernanceActionKey);
+        return;
+      }
+      setContext(
+        actionFromStoredPath(
+          window.sessionStorage.getItem(RULE_CONTEXT_STORAGE_KEY),
+        ),
+      );
     } catch {
       setContext(null);
     }
