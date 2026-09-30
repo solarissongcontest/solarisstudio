@@ -137,13 +137,14 @@ describe("Integrity sanctions and appeals contract", () => {
     expect(portal).toContain("getAnonymousIntegrityResolution");
     expect(portal).toContain("submitAnonymousIntegrityAppeal");
     expect(protectedAppealRoute).toContain("submitProtectedIntegrityAppeal");
-    expect(protectedAppealRoute).toContain("48 hours");
+    expect(protectedAppealRoute).toContain("appeal_deadline");
+    expect(protectedAppealRoute).toContain('context="integrity.appeal"');
     expect(anonymousAppealRoute).toContain("submitAnonymousIntegrityAppeal");
     expect(anonymousAppealRoute).toContain("recovery key");
+    expect(anonymousAppealRoute).toContain('context="integrity.appeal"');
     expect(appealsLandingRoute).toContain('to="/integrity/appeal/$caseId"');
     expect(appealsLandingRoute).toContain('to="/integrity/anonymous-appeal"');
     expect(integrityIndex).toContain('to="/integrity/appeals"');
-    expect(integrityIndex).toContain('to="/integrity/anonymous-appeal"');
   });
 
   it("prevents duplicate reporter appeals for one sanction", () => {
