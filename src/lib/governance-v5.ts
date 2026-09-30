@@ -1,4 +1,4 @@
-import { getRuleById } from "@/lib/ssc-rules-v4";
+import { SSC_RULEBOOK, getRuleById } from "@/lib/ssc-rules-v4";
 
 export type GovernanceActionKey =
   | "confirmation.submit"
@@ -466,4 +466,23 @@ export function governanceImpactForRuleIds(ruleIds: readonly string[]): Governan
       changedRuleIds: affected,
     }];
   });
+}
+
+
+export type GovernanceReceiptSnapshot = {
+  action: GovernanceActionKey;
+  rulebookVersion: string;
+  ruleIds: string[];
+  capturedAt: string;
+};
+
+export function captureGovernanceSnapshot(
+  action: GovernanceActionKey,
+): GovernanceReceiptSnapshot {
+  return {
+    action,
+    rulebookVersion: SSC_RULEBOOK.version,
+    ruleIds: governanceRules(action).map((rule) => rule.id),
+    capturedAt: new Date().toISOString(),
+  };
 }
