@@ -190,8 +190,11 @@
   }
 
   .solaris-app-tabbar-backdrop {
+    position: absolute;
+    inset: 0;
     z-index: 0;
     overflow: hidden;
+    pointer-events: none;
     border: 1px solid rgb(255 255 255 / .30);
     border-radius: inherit;
     background:
@@ -802,5 +805,40 @@
     .solaris-app-tab-icon {
       transition: none;
     }
+  }
+}
+
+
+@media (display-mode: standalone) {
+  .solaris-kube-liquid-filter {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .solaris-app-tabbar-backdrop[data-kube-liquid-glass="svg-refraction"] {
+    background:
+      linear-gradient(
+        145deg,
+        rgb(255 255 255 / .09),
+        rgb(255 255 255 / .025) 48%,
+        rgb(255 255 255 / .055)
+      );
+  }
+
+  .solaris-app-tabbar-backdrop[data-kube-liquid-glass="safari-fallback"] {
+    background:
+      linear-gradient(
+        145deg,
+        rgb(255 255 255 / .13),
+        rgb(255 255 255 / .045) 48%,
+        rgb(245 252 255 / .08)
+      );
+    box-shadow:
+      inset 1px 1px 0 rgb(255 255 255 / .30),
+      inset -1px -1px 0 rgb(173 225 244 / .07),
+      0 12px 34px rgb(0 4 22 / .10);
   }
 }
