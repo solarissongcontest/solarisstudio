@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
 
+import { writeAppAttentionSummary } from "@/lib/app-attention";
 import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
 import { useMyCountryAccount } from "@/lib/country-account";
@@ -204,6 +205,31 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
   }, [deadlines, tasks]);
 
   const taskCounts = participationTaskCounts(tasks);
+
+  useEffect(() => {
+    if (userQuery.isLoading) return;
+
+    if (!userQuery.data) {
+      writeAppAttentionSummary({ participate: 0, me: 0, osBadge: 0 });
+      return;
+    }
+
+    if (noticesQuery.isLoading || roundsQuery.isLoading || confirmationQuery.isLoading) return;
+
+    writeAppAttentionSummary({
+      participate: taskCounts.needsAction,
+      me: unreadNoticeCount,
+      osBadge: unreadNoticeCount,
+    });
+  }, [
+    confirmationQuery.isLoading,
+    noticesQuery.isLoading,
+    roundsQuery.isLoading,
+    taskCounts.needsAction,
+    unreadNoticeCount,
+    userQuery.data,
+    userQuery.isLoading,
+  ]);
 
   const value: MySolarisContextValue = {
     user: userQuery.data,
