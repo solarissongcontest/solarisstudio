@@ -12,7 +12,8 @@ export type MySolarisSectionId =
   | "activity"
   | "predictions"
   | "saved"
-  | "account";
+  | "account"
+  | "settings";
 
 export type MySolarisNavigationItem = {
   id: MySolarisSectionId;
@@ -116,8 +117,14 @@ export const MY_SOLARIS_NAVIGATION: readonly MySolarisNavigationGroup[] = [
       {
         id: "account",
         label: "Account",
-        description: "Profile, sign-in, preferences and security",
+        description: "Profile, sign-in and security",
         to: NAV_TARGETS.mySolarisAccount,
+      },
+      {
+        id: "settings",
+        label: "Settings",
+        description: "App behavior, notifications, accessibility and offline storage",
+        to: "/settings",
       },
     ],
   },
