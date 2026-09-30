@@ -63,6 +63,7 @@ export function PublicCommandPalette({
     const handler = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
+        setRestoreQuery("");
         setOpen((value) => !value);
       }
       if (event.key === "Escape") setOpen(false);
