@@ -82,9 +82,10 @@ export function readOfflinePublicIndex(
 
 
 export function clearOfflinePublicIndex(
-  storage: Pick<Storage, "removeItem"> =
-    typeof window === "undefined" ? ({ removeItem: () => undefined } as Storage) : window.localStorage,
+  storage: Pick<Storage, "removeItem"> | null =
+    typeof window === "undefined" ? null : window.localStorage,
 ) {
+  if (!storage) return;
   try {
     storage.removeItem(OFFLINE_PUBLIC_INDEX_KEY);
   } catch {
