@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  clearAppSearchReturn,
   clearLastAppSearchQuery,
+  readAppSearchReturn,
   readAppSearchState,
+  readPendingAppSearchRestore,
   rememberAppSearchQuery,
+  rememberAppSearchReturn,
 } from "@/lib/app-search-state";
 
 class MemoryStorage implements Storage {
@@ -41,6 +45,33 @@ describe("App Mode search state", () => {
     expect(readAppSearchState(storage)).toEqual({
       lastQuery: "",
       recentQueries: ["Oland"],
+    });
+  });
+  it("preserves search origin across a result route until the origin restores it", () => {
+    const storage = new MemoryStorage();
+    rememberAppSearchReturn("/results", "oland", "/countries/OL", storage);
+
+    expect(readAppSearchReturn("/countries/OL", storage)).toMatchObject({
+      originPath: "/results",
+      query: "oland",
+      resultPath: "/countries/OL",
+    });
+    expect(readAppSearchReturn("/countries/XX", storage)).toBeNull();
+    expect(readPendingAppSearchRestore("/results", storage)).toMatchObject({
+      query: "oland",
+    });
+
+    clearAppSearchReturn(storage);
+    expect(readAppSearchReturn(undefined, storage)).toBeNull();
+  });
+
+  it("normalizes unsafe search-return paths instead of persisting external navigation", () => {
+    const storage = new MemoryStorage();
+    rememberAppSearchReturn("//evil.example", "test", "https://evil.example/x", storage);
+
+    expect(readAppSearchReturn(undefined, storage)).toMatchObject({
+      originPath: "/",
+      resultPath: "/",
     });
   });
 });
