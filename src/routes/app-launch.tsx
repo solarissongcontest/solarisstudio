@@ -5,9 +5,11 @@ import { useSolarisApp } from "@/components/app/AppRuntime";
 import { supabase } from "@/integrations/supabase/client";
 import {
   appEntryHref,
+  appTabForPath,
   getAppLaunchDestination,
   markAppNavigationRestore,
 } from "@/lib/app-navigation";
+import { trackPublicUxEvent } from "@/lib/public-ux-events";
 
 export const Route = createFileRoute("/app-launch")({
   head: () => ({
@@ -36,6 +38,13 @@ function AppLaunchPage() {
     void supabase.auth.getUser().then(({ data }) => {
       if (!alive) return;
       const target = getAppLaunchDestination(Boolean(data.user));
+      trackPublicUxEvent("app_cold_launch_restored", {
+        target: appEntryHref(target),
+        metadata: {
+          area: appTabForPath(target.pathname) ?? "app",
+          source: "cold_launch",
+        },
+      });
       markAppNavigationRestore(target);
       void navigate({
         to: appEntryHref(target) as any,
