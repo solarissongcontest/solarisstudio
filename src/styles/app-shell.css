@@ -1493,3 +1493,75 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
     justify-content: center;
   }
 }
+
+
+/* App Experience v3: cold-launch restoration ------------------------------- */
+.solaris-app-launch-screen {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: .7rem;
+  padding:
+    max(2rem, env(safe-area-inset-top))
+    1.25rem
+    max(2rem, env(safe-area-inset-bottom));
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 8%, rgb(51 101 150 / .24), transparent 31rem),
+    linear-gradient(180deg, rgb(2 8 23), rgb(1 4 13));
+}
+
+.solaris-app-launch-icon {
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 1.25rem;
+  box-shadow: 0 18px 48px rgb(0 0 0 / .28);
+}
+
+.solaris-app-launch-eyebrow {
+  margin: .65rem 0 0;
+  color: var(--primary);
+  font-size: .66rem;
+  font-weight: 850;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.solaris-app-launch-screen h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 6vw, 2rem);
+  letter-spacing: -.035em;
+}
+
+.solaris-app-launch-progress {
+  width: min(11rem, 52vw);
+  height: .24rem;
+  margin-top: .45rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / .07);
+}
+
+.solaris-app-launch-progress::after {
+  content: "";
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  animation: solaris-app-launch-progress 1s ease-in-out infinite alternate;
+}
+
+@keyframes solaris-app-launch-progress {
+  from { transform: translateX(-8%); opacity: .45; }
+  to { transform: translateX(150%); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .solaris-app-launch-progress::after {
+    width: 100%;
+    animation: none;
+    opacity: .6;
+  }
+}
