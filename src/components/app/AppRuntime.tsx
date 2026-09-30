@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { AppFirstRun } from "@/components/app/AppFirstRun";
 import { AppInstallPrompt } from "@/components/app/AppInstallPrompt";
 import { AppOfflineBanner } from "@/components/app/AppOfflineBanner";
 import { AppUpdatePrompt } from "@/components/app/AppUpdatePrompt";
@@ -210,6 +211,7 @@ export function AppRuntime({ children }: { children: ReactNode }) {
   return (
     <AppRuntimeContext.Provider value={value}>
       {children}
+      <AppFirstRun isAppMode={platform.isAppMode} pathname={pathname} />
       {!platform.isAppMode ? <AppInstallPrompt isAppMode={platform.isAppMode} /> : null}
       {platform.isAppMode ? (
         <AppOfflineBanner connectivity={connectivity} />
