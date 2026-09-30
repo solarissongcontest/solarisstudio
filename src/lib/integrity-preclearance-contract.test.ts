@@ -76,9 +76,12 @@ describe("Integrity pre-clearance rulings", () => {
     expect(adminRoute).not.toContain("admin_publish_rule_interpretation");
   });
 
-  it("gives participants read access to their rulings without organizer RPCs", () => {
+  it("gives participants a private ask-before-acting flow plus read access to rulings without organizer RPCs", () => {
     expect(reporterRoute).toContain("getReporterPreclearanceRulings");
-    expect(reporterRoute).toContain("My rule rulings");
+    expect(reporterRoute).toContain("Ask before acting");
+    expect(reporterRoute).toContain("createProtectedIntegrityCase");
+    expect(reporterRoute).toContain('caseKind: "rule_question"');
+    expect(reporterRoute).toContain("Questions & rulings");
     expect(reporterRoute).not.toContain("admin_integrity_preclearance_rulings");
     expect(reporterRoute).not.toContain("admin_record_integrity_preclearance_ruling");
   });
