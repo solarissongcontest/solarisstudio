@@ -29,7 +29,7 @@ export function RulePlainSummary({ rule }: { rule: SscRule }) {
 
         <Link
           to="/integrity/preclearance"
-          search={{}}
+          search={{ rule: undefined }}
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-sky-200/15 bg-sky-200/[0.05] px-4 text-xs font-bold text-sky-100 transition-colors hover:bg-sky-200/[0.09]"
         >
           <MessageCircleQuestion className="size-4" aria-hidden="true" />
