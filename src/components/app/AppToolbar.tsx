@@ -13,6 +13,7 @@ import {
   type AppHistoryEntry,
 } from "@/lib/app-navigation";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
+import { readAppSearchReturn } from "@/lib/app-search-state";
 
 export function AppToolbar({
   pathname,
@@ -32,11 +33,19 @@ export function AppToolbar({
   }, [pathname, searchStr]);
 
   const fallback = chrome.backFallback;
-  const backLabel = backTarget
-    ? resolveAppRouteChrome(backTarget.pathname).title
-    : fallback?.label;
+  const searchReturn = readAppSearchReturn(pathname);
+  const backLabel = searchReturn
+    ? "Search"
+    : backTarget
+      ? resolveAppRouteChrome(backTarget.pathname).title
+      : fallback?.label;
 
   const goBack = () => {
+    if (searchReturn) {
+      void navigate({ to: searchReturn.originPath as any });
+      return;
+    }
+
     const target = popAppBackTarget(pathname, searchStr);
     if (target) {
       markAppNavigationRestore(target);
@@ -52,7 +61,7 @@ export function AppToolbar({
     <header className="solaris-app-toolbar" data-app-screen={chrome.archetype}>
       <div className="solaris-app-toolbar-inner">
         <div className="min-w-0 flex-1">
-          {backTarget || fallback ? (
+          {searchReturn || backTarget || fallback ? (
             <button
               type="button"
               className="solaris-app-back"
@@ -69,7 +78,7 @@ export function AppToolbar({
           )}
         </div>
 
-        {!chrome.root && (backTarget || fallback) ? (
+        {!chrome.root && (searchReturn || backTarget || fallback) ? (
           chrome.archetype === "task" ? (
             <h1 className="solaris-app-toolbar-context-title">{chrome.title}</h1>
           ) : (
