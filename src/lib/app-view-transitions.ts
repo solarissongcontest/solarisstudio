@@ -33,13 +33,16 @@ export async function runAppViewTransition(
   const root = document.documentElement;
   root.dataset.solarisViewTransition = kind;
 
+  let updateRan = false;
+
   try {
     const transition = transitionDocument.startViewTransition(async () => {
+      updateRan = true;
       await update();
     });
     await transition.finished;
   } catch {
-    await update();
+    if (!updateRan) await update();
   } finally {
     delete root.dataset.solarisViewTransition;
   }
