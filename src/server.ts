@@ -33,6 +33,7 @@ const MAINTENANCE_ASSET_PATHS = new Set([
   "/icon-192.png",
   "/icon-512.png",
   "/icon-1024.png",
+  "/icon-maskable.svg",
   "/site.webmanifest",
   "/sw.js",
   "/offline.html",
