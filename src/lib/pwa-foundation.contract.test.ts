@@ -33,18 +33,20 @@ describe("Solaris installed-app foundation", () => {
     expect(tabs).toContain("KubeLiquidGlassBackdrop");
     expect(kube).toContain("convexSquircle");
     expect(kube).toContain("squircleDerivative");
-    expect(kube).toContain("refractiveIndex = 1.5");
+    expect(kube).toContain("RAY_SAMPLE_COUNT = 127");
+    expect(kube).toContain("nGlass = 1.5");
     expect(kube).toContain("feDisplacementMap");
     expect(kube).toContain('xChannelSelector="R"');
     expect(kube).toContain('yChannelSelector="G"');
     expect(kube).toContain("feBlend");
     expect(kube).toContain("specularUrl");
     expect(kube).toContain('data-kube-liquid-glass={blink ? "svg-refraction" : "safari-mirrored-refraction"}');
-    expect(kube).toContain('blur(10px) saturate(1.08) brightness(1.05)');
+    expect(kube).toContain('const backdropFilter = blink && maps ? `url(#${filterId})` : "none"');
     expect(kube).toContain("source.cloneNode(true)");
     expect(kube).toContain('document.querySelector<HTMLElement>(".app-main")');
     expect(kube).toContain("mirror.replaceChildren(clone)");
-    expect(kube).toContain("style={{ filter: mirrorFilter }}");
+    expect(kube).toContain("WebkitFilter: mirrorFilter");
+    expect(kube).toContain("filter: mirrorFilter");
     expect(styles).toContain(".solaris-app-tabbar-backdrop");
     expect(styles).toContain(".solaris-kube-safari-mirror");
     expect(styles).toContain(".solaris-kube-mirror-clone");
@@ -58,7 +60,7 @@ describe("Solaris installed-app foundation", () => {
 
   it("bumps the installed-app static cache when liquid glass rendering changes", () => {
     const worker = source("public/sw.js");
-    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v6"');
+    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v7"');
   });
 
   it("lets the active tab indicator drag across destinations", () => {

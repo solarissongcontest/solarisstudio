@@ -10,6 +10,8 @@ type Maps = {
   height: number;
 };
 
+const RAY_SAMPLE_COUNT = 127;
+
 function isBlinkEngine() {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent;
@@ -32,6 +34,37 @@ function squircleDerivative(x: number) {
   const a = convexSquircle(Math.max(0, x - delta));
   const b = convexSquircle(Math.min(1, x + delta));
   return (b - a) / (2 * delta);
+}
+
+function buildRaySamples(
+  bezel: number,
+  glassThickness: number,
+  scaleDown: number,
+) {
+  const samples = new Float32Array(RAY_SAMPLE_COUNT);
+  const nAir = 1;
+  const nGlass = 1.5;
+
+  for (let index = 0; index < RAY_SAMPLE_COUNT; index += 1) {
+    const t = index / (RAY_SAMPLE_COUNT - 1);
+    if (t >= 0.999) {
+      samples[index] = 0;
+      continue;
+    }
+
+    const slope = Math.abs(squircleDerivative(t));
+    const incidence = Math.atan(Math.min(32, slope));
+    const refracted = Math.asin(
+      Math.min(0.999, (nAir / nGlass) * Math.sin(incidence)),
+    );
+    const rayBend = Math.max(0, incidence - refracted);
+    samples[index] = Math.min(
+      28 / scaleDown,
+      Math.tan(rayBend) * Math.min(bezel, glassThickness),
+    );
+  }
+
+  return samples;
 }
 
 function roundedRectSdf(
@@ -73,15 +106,13 @@ function roundedRectNormal(
 function buildMaps(width: number, height: number): Maps | null {
   if (typeof document === "undefined" || width < 2 || height < 2) return null;
 
-  // Keep the map small enough to regenerate during elastic resizing while
-  // preserving the rounded-rectangle field shape.
   const scaleDown = Math.max(1, Math.max(width, height) / 420);
   const mapWidth = Math.max(2, Math.round(width / scaleDown));
   const mapHeight = Math.max(2, Math.round(height / scaleDown));
   const radius = Math.min(mapHeight / 2 - 1, 30 / scaleDown);
   const bezel = Math.max(8, Math.min(mapHeight * 0.42, 24 / scaleDown));
   const glassThickness = 18 / scaleDown;
-  const refractiveIndex = 1.5;
+  const raySamples = buildRaySamples(bezel, glassThickness, scaleDown);
   const lightAngle = (-60 * Math.PI) / 180;
   const light = { x: Math.cos(lightAngle), y: Math.sin(lightAngle) };
 
@@ -108,14 +139,11 @@ function buildMaps(width: number, height: number): Maps | null {
 
       const distanceFromEdge = Math.min(bezel, Math.max(0, -sdf));
       const t = Math.min(1, distanceFromEdge / bezel);
-      const slope = Math.abs(squircleDerivative(t));
-      const incidence = Math.atan(Math.min(32, slope));
-      const refracted = Math.asin(
-        Math.min(0.999, Math.sin(incidence) / refractiveIndex),
+      const sampleIndex = Math.min(
+        RAY_SAMPLE_COUNT - 1,
+        Math.max(0, Math.round(t * (RAY_SAMPLE_COUNT - 1))),
       );
-      const rayBend = Math.max(0, incidence - refracted);
-      const magnitude =
-        t >= 0.999 ? 0 : Math.min(28 / scaleDown, Math.tan(rayBend) * glassThickness);
+      const magnitude = raySamples[sampleIndex];
 
       const normal = roundedRectNormal(
         x + 0.5,
@@ -125,7 +153,6 @@ function buildMaps(width: number, height: number): Maps | null {
         radius,
       );
 
-      // Convex glass bends the sampled backdrop inward.
       const vx = -normal.x * magnitude;
       const vy = -normal.y * magnitude;
       vectors[index * 2] = vx;
@@ -135,12 +162,12 @@ function buildMaps(width: number, height: number): Maps | null {
       const edge = Math.pow(1 - t, 1.8);
       const directional = Math.max(0, normal.x * light.x + normal.y * light.y);
       const highlight = Math.min(1, edge * (0.16 + directional * 1.35));
-      const s = index * 4;
+      const specularOffset = index * 4;
       const value = Math.round(highlight * 255);
-      specular.data[s] = value;
-      specular.data[s + 1] = value;
-      specular.data[s + 2] = value;
-      specular.data[s + 3] = Math.round(highlight * 185);
+      specular.data[specularOffset] = value;
+      specular.data[specularOffset + 1] = value;
+      specular.data[specularOffset + 2] = value;
+      specular.data[specularOffset + 3] = Math.round(highlight * 185);
     }
   }
 
@@ -167,7 +194,30 @@ function buildMaps(width: number, height: number): Maps | null {
   };
 }
 
-export function KubeLiquidGlassBackdrop({ className, sourceKey }: { className?: string; sourceKey?: string }) {
+function sanitizeClone(clone: HTMLElement) {
+  clone.classList.add("solaris-kube-mirror-clone");
+  clone.setAttribute("aria-hidden", "true");
+  clone.setAttribute("inert", "");
+  clone.removeAttribute("id");
+  clone.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
+  clone.querySelectorAll("[for]").forEach((element) => element.removeAttribute("for"));
+  clone
+    .querySelectorAll("script, iframe, video, audio, .solaris-app-tabbar, .solaris-app-toolbar")
+    .forEach((element) => element.remove());
+  clone.querySelectorAll<HTMLElement>("input,button,select,textarea,a").forEach((node) => {
+    node.setAttribute("tabindex", "-1");
+    node.setAttribute("aria-hidden", "true");
+  });
+  return clone;
+}
+
+export function KubeLiquidGlassBackdrop({
+  className,
+  sourceKey,
+}: {
+  className?: string;
+  sourceKey?: string;
+}) {
   const rawId = useId();
   const filterId = useMemo(
     () => `solaris-kube-liquid-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`,
@@ -215,17 +265,6 @@ export function KubeLiquidGlassBackdrop({ className, sourceKey }: { className?: 
     let currentClone: HTMLElement | null = null;
     let alignFrame = 0;
     let cloneTimer = 0;
-
-    const sanitizeClone = (clone: HTMLElement) => {
-      clone.classList.add("solaris-kube-mirror-clone");
-      clone.setAttribute("aria-hidden", "true");
-      clone.setAttribute("inert", "");
-      clone.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
-      clone
-        .querySelectorAll("script, iframe, video, audio, .solaris-app-tabbar, .solaris-app-toolbar")
-        .forEach((element) => element.remove());
-      return clone;
-    };
 
     const align = () => {
       cancelAnimationFrame(alignFrame);
@@ -288,10 +327,7 @@ export function KubeLiquidGlassBackdrop({ className, sourceKey }: { className?: 
     };
   }, [blink, sourceKey]);
 
-  const backdropFilter =
-    blink && maps
-      ? `url(#${filterId})`
-      : "blur(10px) saturate(1.08) brightness(1.05)";
+  const backdropFilter = blink && maps ? `url(#${filterId})` : "none";
   const mirrorFilter = !blink && maps ? `url(#${filterId})` : "none";
 
   return (
@@ -351,16 +387,23 @@ export function KubeLiquidGlassBackdrop({ className, sourceKey }: { className?: 
         aria-hidden="true"
         data-kube-liquid-glass={blink ? "svg-refraction" : "safari-mirrored-refraction"}
         className={cn("solaris-app-tabbar-backdrop", className)}
-        style={{
-          WebkitBackdropFilter: backdropFilter,
-          backdropFilter,
-        }}
+        style={
+          blink
+            ? {
+                WebkitBackdropFilter: backdropFilter,
+                backdropFilter,
+              }
+            : undefined
+        }
       >
         {!blink ? (
           <span
             ref={mirrorRef}
             className="solaris-kube-safari-mirror"
-            style={{ filter: mirrorFilter }}
+            style={{
+              WebkitFilter: mirrorFilter,
+              filter: mirrorFilter,
+            }}
           />
         ) : null}
       </span>
