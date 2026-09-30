@@ -2,6 +2,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { createRouter, useRouterState } from "@tanstack/react-router";
 import { AppRouteSkeleton, AppRouteStateFrame } from "@/components/app/AppRouteStateFrame";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { solarisQueryPolicy } from "@/lib/app-query-policy";
 import { routeTree } from "./routeTree.gen";
 
 function RoutePending() {
@@ -47,13 +48,9 @@ export const getRouter = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
-        // Most Solaris data does not need to be downloaded again every time a
-        // visitor changes page or returns to the tab. Explicit live surfaces,
-        // mutations and targeted invalidations still refresh when necessary.
-        staleTime: 2 * 60 * 1000,
-        gcTime: 15 * 60 * 1000,
-        refetchOnWindowFocus: false,
-        refetchOnReconnect: true,
+        // Warm is the default. Individual live or archival queries opt into a
+        // stricter policy rather than every screen refetching on every focus.
+        ...solarisQueryPolicy("warm"),
       },
     },
   });
