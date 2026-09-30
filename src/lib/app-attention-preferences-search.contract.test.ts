@@ -37,4 +37,25 @@ describe("App Experience v3 attention preferences and search", () => {
     expect(styles).toContain(".solaris-app-search-dialog");
     expect(styles).toContain(".solaris-app-search-list");
   });
+  it("persists user spoiler changes without reflecting server hydration back as a user action", () => {
+    const experience = source("src/lib/app-experience.ts");
+    const sync = source("src/components/app/AppExperiencePreferenceSync.tsx");
+    const root = source("src/routes/__root.tsx");
+    expect(experience).toContain("APP_EXPERIENCE_USER_CHANGE_EVENT");
+    expect(experience).toContain("persistAppExperiencePreferences(next, false)");
+    expect(sync).toContain("useSaveNotificationPreferences");
+    expect(sync).toContain("APP_EXPERIENCE_USER_CHANGE_EVENT");
+    expect(root).toContain("<AppExperiencePreferenceSync />");
+  });
+
+  it("restores Search as the contextual back destination even across primary tabs", () => {
+    const palette = source("src/components/public/PublicCommandPalette.tsx");
+    const toolbar = source("src/components/app/AppToolbar.tsx");
+    const searchState = source("src/lib/app-search-state.ts");
+    expect(palette).toContain("rememberAppSearchReturn(originPath, normalized, result.href)");
+    expect(palette).toContain("readPendingAppSearchRestore(pathname)");
+    expect(toolbar).toContain("readAppSearchReturn(pathname)");
+    expect(toolbar).toContain('searchReturn ? "Search"');
+    expect(searchState).toContain("solaris:app-search-return:v1");
+  });
 });
