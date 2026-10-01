@@ -13,7 +13,6 @@ export const SOLARIS_FEATURE_FLAGS = [
   'edition_simulator',
   'rules_engine',
   'public_encyclopedia',
-  'public_ia_v3',
   'country_voting_dna',
   'prediction_league',
   'fantasy_ssc',
