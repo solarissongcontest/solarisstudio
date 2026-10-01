@@ -64,7 +64,9 @@ describe("default page colour system", () => {
     const guide = read("src/components/GuideFAQ.tsx");
 
     expect(harmony).toContain(".page-header:not(.directory-page-hero)::after");
-    expect(editions).toContain("solaris-family-card");
+    expect(editions).toContain("overflow-hidden rounded-2xl");
+    expect(editions).toContain("Past editions");
+    expect(editions).not.toContain("BackgroundFlag");
     expect(editions).not.toContain("rgba(10,30,58,.97)");
     expect(shows).toContain("solaris-family-card-overlay");
     expect(tools).toContain("solaris-family-card");
