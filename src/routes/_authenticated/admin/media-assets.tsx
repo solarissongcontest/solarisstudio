@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
+import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminEmptyState, AdminPageHeader, AdminSheet, AdminStatus } from '@/components/admin/AdminUI';
 import { useCountries, useEditions } from '@/lib/data';
@@ -101,6 +102,64 @@ function MediaAssetsPage() {
   });
   const selectedAsset = inventory.find((item) => item.assetKey === search.asset) ?? null;
   const summary = summarizeStudio2MediaAssets(inventory);
+  const assetColumns = [
+    {
+      key: 'select',
+      header: 'Select',
+      render: (item) => {
+        const reviewable = Boolean(item.sourceFingerprint) && !item.processing;
+        return (
+          <input
+            type="checkbox"
+            checked={selectedKeys.has(item.assetKey)}
+            disabled={!reviewable}
+            onChange={() => toggleSelection(item.assetKey)}
+            aria-label={`Select ${item.title}`}
+          />
+        );
+      },
+    },
+    {
+      key: 'asset',
+      header: 'Asset',
+      primary: true,
+      render: (item) => (
+        <div className="min-w-0">
+          <p>{item.title}</p>
+          <p className="mt-1 truncate text-xs font-normal text-muted-foreground">
+            {item.sourceUrl ?? (item.required ? 'Required source not supplied' : 'No source supplied')}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: 'country-entry',
+      header: 'Country / entry',
+      render: (item) => (
+        <div className="min-w-0">
+          <p>{item.countryName ?? selectedEdition?.name ?? 'Edition'}</p>
+          {item.entryLabel ? <p className="mt-1 truncate text-xs text-muted-foreground">{item.entryLabel}</p> : null}
+        </div>
+      ),
+    },
+    { key: 'class', header: 'Class', render: (item) => assetTypeLabel(item.assetType) },
+    {
+      key: 'state',
+      header: 'State',
+      render: (item) => <AdminStatus tone={stateTone(item.state)}>{stateLabel(item.state)}</AdminStatus>,
+    },
+    { key: 'validation', header: 'Validation', render: (item) => validationSummary(item) },
+    {
+      key: 'detail',
+      header: 'Detail',
+      align: 'right' as const,
+      render: (item) => (
+        <button type="button" className="admin-action-secondary" onClick={() => updateSearch({ asset: item.assetKey })}>
+          Inspect
+        </button>
+      ),
+    },
+  ] satisfies readonly AdminDataColumn<Studio2MediaAssetItem>[];
   const selectedItems = inventory.filter((item) => selectedKeys.has(item.assetKey));
   const reviewableSelected = selectedItems.filter((item) => Boolean(item.sourceFingerprint) && !item.processing);
   const canApproveSelected = reviewableSelected.length === selectedItems.length
@@ -230,48 +289,17 @@ function MediaAssetsPage() {
               {selectedKeys.size ? <p className="mt-3 text-xs text-muted-foreground">{selectedKeys.size} selected · {reviewableSelected.length} reviewable</p> : null}
             </AdminCard>
 
-            <AdminCard className="!p-0 overflow-hidden">
+            <AdminCard>
               {filtered.length ? (
-                <div className="overflow-x-auto">
-                  <table className="min-w-[1100px] w-full text-left text-sm">
-                    <thead className="border-b border-white/[0.07] bg-white/[0.018] text-[11px] uppercase tracking-[0.11em] text-muted-foreground">
-                      <tr>
-                        <th className="w-12 px-4 py-3"><span className="sr-only">Select</span></th>
-                        <th className="px-3 py-3">Asset</th>
-                        <th className="px-3 py-3">Country / entry</th>
-                        <th className="px-3 py-3">Class</th>
-                        <th className="px-3 py-3">State</th>
-                        <th className="px-3 py-3">Validation</th>
-                        <th className="px-4 py-3 text-right">Detail</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.06]">
-                      {filtered.map((item) => {
-                        const reviewable = Boolean(item.sourceFingerprint) && !item.processing;
-                        return (
-                          <tr key={item.assetKey} className="hover:bg-white/[0.02]">
-                            <td className="px-4 py-4">
-                              <input type="checkbox" checked={selectedKeys.has(item.assetKey)} disabled={!reviewable} onChange={() => toggleSelection(item.assetKey)} aria-label={`Select ${item.title}`} />
-                            </td>
-                            <td className="px-3 py-4">
-                              <p className="font-semibold">{item.title}</p>
-                              <p className="mt-1 max-w-[330px] truncate text-xs text-muted-foreground">{item.sourceUrl ?? (item.required ? 'Required source not supplied' : 'No source supplied')}</p>
-                            </td>
-                            <td className="px-3 py-4">
-                              <p>{item.countryName ?? selectedEdition?.name ?? 'Edition'}</p>
-                              {item.entryLabel ? <p className="mt-1 max-w-[260px] truncate text-xs text-muted-foreground">{item.entryLabel}</p> : null}
-                            </td>
-                            <td className="px-3 py-4">{assetTypeLabel(item.assetType)}</td>
-                            <td className="px-3 py-4"><AdminStatus tone={stateTone(item.state)}>{stateLabel(item.state)}</AdminStatus></td>
-                            <td className="px-3 py-4">{validationSummary(item)}</td>
-                            <td className="px-4 py-4 text-right"><button type="button" className="admin-action-secondary" onClick={() => updateSearch({ asset: item.assetKey })}>Inspect</button></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              ) : <AdminEmptyState icon={Images} title="No media assets match" description="Adjust the search, state, class or country filter." />}
+                <AdminDataView
+                  rows={filtered}
+                  columns={assetColumns}
+                  rowKey={(item) => item.assetKey}
+                  ariaLabel="Media asset inventory"
+                />
+              ) : (
+                <AdminEmptyState icon={Images} title="No media assets match" description="Adjust the search, state, class or country filter." />
+              )}
             </AdminCard>
           </>
         )}
