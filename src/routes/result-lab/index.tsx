@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
+import { PublicResponsiveDataView, type PublicDataColumn } from "@/components/public/PublicResponsiveDataView";
 import {
   editionLabel,
   matchVoterKey,
@@ -219,6 +220,75 @@ function ResultLabPage() {
     .filter((row) => (row.rankDelta ?? 0) < 0)
     .sort((a, b) => (a.rankDelta ?? 0) - (b.rankDelta ?? 0))
     .slice(0, 3);
+  const scoreboardColumns = [
+    {
+      key: "rank",
+      header: "#",
+      mobileLabel: "Simulated rank",
+      render: (row) => <span className="tabular-nums font-semibold">#{row.simulatedRank}</span>,
+    },
+    {
+      key: "entry",
+      header: "Entry",
+      primary: true,
+      render: (row) => {
+        const display = displayMap.get(row.id);
+        return (
+          <span className="flex min-w-0 items-center gap-2">
+            {display ? (
+              <FlagChip
+                code={display.short_code}
+                color={display.accent_color}
+                image={display.flag_image}
+                size="sm"
+              />
+            ) : null}
+            <span className="min-w-0 truncate">{row.name}</span>
+          </span>
+        );
+      },
+    },
+    {
+      key: "jury",
+      header: "Jury",
+      align: "right" as const,
+      render: (row) => <span className="tabular-nums">{row.simulatedJuryPoints}</span>,
+    },
+    {
+      key: "televote",
+      header: "Tele",
+      mobileLabel: "Televote",
+      align: "right" as const,
+      render: (row) => <span className="tabular-nums">{row.simulatedTelevotePoints}</span>,
+    },
+    {
+      key: "score",
+      header: "Score",
+      align: "right" as const,
+      render: (row) => (
+        <span className="tabular-nums font-semibold">
+          {row.simulatedScore.toFixed(blendMode === "raw" ? 1 : 2)}
+        </span>
+      ),
+    },
+    {
+      key: "official",
+      header: "Official",
+      mobileLabel: "Official rank",
+      align: "right" as const,
+      render: (row) => <span className="tabular-nums">{row.officialRank ?? "—"}</span>,
+    },
+    {
+      key: "change",
+      header: "Change",
+      align: "right" as const,
+      render: (row) => (
+        <span className="tabular-nums font-semibold">
+          {row.rankDelta == null ? "—" : row.rankDelta > 0 ? `+${row.rankDelta}` : row.rankDelta}
+        </span>
+      ),
+    },
+  ] satisfies readonly PublicDataColumn<(typeof simulation.rows)[number]>[];
 
   const toggleVoter = (key: string) => {
     setExcludedVoters((current) => {
@@ -524,96 +594,12 @@ function ResultLabPage() {
 
           {simulation.rows.length > 0 && (
             <Panel title="Recalculated scoreboard" description="Official data stays untouched">
-              <div className="space-y-2 sm:hidden">
-                {simulation.rows.map((row) => {
-                  const display = displayMap.get(row.id);
-                  return (
-                    <div key={row.id} className="min-w-0 rounded-xl bg-surface p-3">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="w-7 shrink-0 font-display text-lg font-semibold">{row.simulatedRank}</span>
-                        {display && (
-                          <FlagChip
-                            code={display.short_code}
-                            color={display.accent_color}
-                            image={display.flag_image}
-                            size="sm"
-                          />
-                        )}
-                        <span className="min-w-0 flex-1 truncate text-sm font-semibold">{row.name}</span>
-                        <span className="shrink-0 text-xs font-semibold tabular-nums">
-                          {row.rankDelta == null ? "" : row.rankDelta > 0 ? `+${row.rankDelta}` : row.rankDelta}
-                        </span>
-                      </div>
-                      <div className="mt-3 grid min-w-0 grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                        <div className="min-w-0">
-                          <span className="block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">Jury</span>
-                          <strong className="tabular-nums">{row.simulatedJuryPoints}</strong>
-                        </div>
-                        <div className="min-w-0">
-                          <span className="block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">Televote</span>
-                          <strong className="tabular-nums">{row.simulatedTelevotePoints}</strong>
-                        </div>
-                        <div className="min-w-0">
-                          <span className="block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">Score</span>
-                          <strong className="tabular-nums">{row.simulatedScore.toFixed(blendMode === "raw" ? 1 : 2)}</strong>
-                        </div>
-                        <div className="min-w-0">
-                          <span className="block text-[9px] uppercase tracking-[0.12em] text-muted-foreground">Official rank</span>
-                          <strong className="tabular-nums">{row.officialRank ?? "—"}</strong>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="hidden max-w-full overflow-x-auto sm:block">
-                <table className="w-full min-w-[680px] text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                      <th className="pb-3 pr-3">#</th>
-                      <th className="pb-3 pr-3">Entry</th>
-                      <th className="pb-3 pr-3 text-right">Jury</th>
-                      <th className="pb-3 pr-3 text-right">Tele</th>
-                      <th className="pb-3 pr-3 text-right">Score</th>
-                      <th className="pb-3 pr-3 text-right">Official</th>
-                      <th className="pb-3 text-right">Change</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {simulation.rows.map((row) => {
-                      const display = displayMap.get(row.id);
-                      return (
-                        <tr key={row.id} className="border-b border-border/50 last:border-0">
-                          <td className="py-3 pr-3 font-display text-lg font-semibold">{row.simulatedRank}</td>
-                          <td className="py-3 pr-3">
-                            <div className="flex min-w-0 items-center gap-2">
-                              {display && (
-                                <FlagChip
-                                  code={display.short_code}
-                                  color={display.accent_color}
-                                  image={display.flag_image}
-                                  size="sm"
-                                />
-                              )}
-                              <span className="font-semibold">{row.name}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 pr-3 text-right tabular-nums">{row.simulatedJuryPoints}</td>
-                          <td className="py-3 pr-3 text-right tabular-nums">{row.simulatedTelevotePoints}</td>
-                          <td className="py-3 pr-3 text-right font-semibold tabular-nums">
-                            {row.simulatedScore.toFixed(blendMode === "raw" ? 1 : 2)}
-                          </td>
-                          <td className="py-3 pr-3 text-right tabular-nums">{row.officialRank ?? "—"}</td>
-                          <td className="py-3 text-right font-semibold tabular-nums">
-                            {row.rankDelta == null ? "—" : row.rankDelta > 0 ? `+${row.rankDelta}` : row.rankDelta}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <PublicResponsiveDataView
+                rows={simulation.rows}
+                columns={scoreboardColumns}
+                rowKey={(row) => row.id}
+                ariaLabel="Recalculated scoreboard"
+              />
             </Panel>
           )}
         </div>
