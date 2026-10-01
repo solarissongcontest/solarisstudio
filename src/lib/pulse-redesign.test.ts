@@ -6,16 +6,19 @@ const source = readFileSync(resolve(process.cwd(), "src/routes/pulse/index.tsx")
 const strip = readFileSync(resolve(process.cwd(), "src/components/PulseStrip.tsx"), "utf8");
 
 describe("Solaris Pulse newsroom redesign", () => {
-  it("puts the catch-up hierarchy on the page without rebuilding the old mega-dashboard", () => {
+  it("keeps one catch-up hierarchy on the page", () => {
     expect(source).toContain('eyebrow="What changed"');
     expect(source).toContain(">Important<");
     expect(source).toContain("Since your last visit");
+    expect(source).toContain("More updates");
     expect(source).toContain("More from Solaris");
-    expect(source).toContain("Quick updates");
     expect(source).toContain("Numbers worth knowing");
     expect(source).toContain("Catch me up");
     expect(source).not.toContain("What’s happening now");
-    expect(source).not.toContain("Around Terra Solaris");
+    expect(source).not.toContain("Quick updates");
+    expect(source).not.toContain("secondaryStories");
+    expect(source).not.toContain("quickUpdates");
+    expect(source).toContain("const moreUpdates = filteredEvents");
   });
 
   it("keeps Pulse and Analysis separate", () => {
