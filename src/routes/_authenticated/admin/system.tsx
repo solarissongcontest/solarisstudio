@@ -15,10 +15,16 @@ import {
   AdminCard,
   AdminCardHeader,
   AdminEmptyState,
-  AdminPageHeader,
   AdminSheet,
   AdminStatus,
 } from "@/components/admin/AdminUI";
+import {
+  AuditTimeline,
+  MetricStrip,
+  WorkQueue,
+  WorkspaceActionBar,
+  WorkspaceHeader,
+} from "@/components/admin/AdminWorkspacePrimitives";
 import {
   useAdminAudit,
   useAdminDeadlines,
@@ -101,7 +107,7 @@ function AdminSystemPage() {
 
   return (
     <AdminPage>
-      <AdminPageHeader
+      <WorkspaceHeader
         eyebrow="Administration · System"
         title="Schedule & audit"
         description={
@@ -111,11 +117,11 @@ function AdminSystemPage() {
         }
       />
 
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+      <MetricStrip className="grid-cols-3 sm:grid-cols-3 xl:grid-cols-3">
         <Metric label="Workflow dates" value={relevantSchedule.length} />
         <Metric label="Custom reminders" value={openReminders.length} />
         <Metric label="Overdue reminders" value={overdueReminders.length} attention={overdueReminders.length > 0} />
-      </div>
+      </MetricStrip>
 
       <AdminCard>
         <AdminCardHeader
@@ -191,7 +197,7 @@ function AdminSystemPage() {
             description="Good. Workflow-owned dates should stay in their workflows rather than being duplicated here."
           />
         ) : (
-          <div className="divide-y divide-white/[0.07]">
+          <WorkQueue>
             {[...deadlines]
               .sort((a, b) => {
                 if (Boolean(a.completed_at) !== Boolean(b.completed_at)) return a.completed_at ? 1 : -1;
@@ -236,7 +242,7 @@ function AdminSystemPage() {
                   </button>
                 );
               })}
-          </div>
+          </WorkQueue>
         )}
       </AdminCard>
 
@@ -254,9 +260,10 @@ function AdminSystemPage() {
             description="Important organizer changes will appear here when available."
           />
         ) : (
-          <div className="divide-y divide-white/[0.07]">
+          <AuditTimeline>
             {audit.map((row) => (
-              <div key={row.id} className="py-3 first:pt-0 last:pb-0">
+              <li key={row.id} className="relative list-none py-3 first:pt-0 last:pb-0">
+                <span className="absolute -left-[1.18rem] top-5 size-2 rounded-full bg-sky-200/65" aria-hidden="true" />
                 <div className="flex min-w-0 items-start gap-3">
                   <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-muted-foreground">
                     <History className="size-3.5" />
@@ -281,9 +288,9 @@ function AdminSystemPage() {
                     ) : null}
                   </div>
                 </div>
-              </div>
+              </li>
             ))}
-          </div>
+          </AuditTimeline>
         )}
       </AdminCard>
 
@@ -328,7 +335,7 @@ function AdminSystemPage() {
             />
           </label>
 
-          <div className="admin-sticky-actions grid grid-cols-[auto_minmax(0,1fr)] gap-2">
+          <WorkspaceActionBar className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
             <button
               type="button"
               disabled={createDeadline.isPending}
@@ -344,7 +351,7 @@ function AdminSystemPage() {
             >
               {createDeadline.isPending ? "Saving…" : "Add reminder"}
             </button>
-          </div>
+          </WorkspaceActionBar>
         </form>
       </AdminSheet>
     </AdminPage>
