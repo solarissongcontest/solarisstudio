@@ -130,6 +130,7 @@ function BroadcastRundownPage() {
   const readiness = useMemo(() => buildStudio2BroadcastReadiness(draft), [draft]);
   const selectedShow = shows.find((show) => show.id === showId) ?? null;
   const structureLocked = mode === 'production' && Boolean(draft?.lockedAt);
+  type TimingRow = NonNullable<typeof calculated>["segments"][number];
   const timingColumns = calculated ? [
     {
       key: 'number',
@@ -167,7 +168,7 @@ function BroadcastRundownPage() {
       header: 'State',
       render: (segment) => <AdminStatus tone={statusTone(segment.status)}>{segment.status}</AdminStatus>,
     },
-  ] satisfies readonly AdminDataColumn<(typeof calculated.segments)[number]>[] : [];
+  ] satisfies readonly AdminDataColumn<TimingRow>[] : [];
 
   const updateSegment = (index: number, patch: Partial<RundownSegment>) => {
     if (structureLocked) return;
