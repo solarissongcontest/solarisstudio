@@ -67,6 +67,29 @@ describe("final UI completion contracts", () => {
     expect(source("src/routes/_authenticated/admin/eligibility.tsx")).toContain("<FilterBar");
     expect(source("src/routes/_authenticated/admin/results-reveal.tsx")).toContain("<ObjectPage");
     expect(source("src/routes/televoting/admin/combined.tsx")).toContain("<DangerZone");
+
+    const design = source("src/routes/_authenticated/admin/design.$slug.tsx");
+    expect(design).toContain("<WorkspaceHeader");
+    expect(design).toContain("<WorkspaceActionBar");
+    expect(design).not.toContain("overflow-x-auto");
+
+    const editions = source("src/routes/_authenticated/admin/editions.tsx");
+    expect(editions).toContain("<WorkspaceHeader");
+    expect(editions).toContain("<MetricStrip");
+    expect(editions).toContain("<WorkspaceActionBar");
+    expect(editions).not.toContain("overflow-x-auto");
+
+    const system = source("src/routes/_authenticated/admin/system.tsx");
+    expect(system).toContain("<WorkspaceHeader");
+    expect(system).toContain("<MetricStrip");
+    expect(system).toContain("<WorkQueue");
+    expect(system).toContain("<AuditTimeline");
+    expect(system).toContain("<WorkspaceActionBar");
+
+    const audit = source("src/routes/televoting/admin/audit-log.tsx");
+    expect(audit).toContain("<ObjectPage");
+    expect(audit).toContain("<FilterBar");
+    expect(audit).toContain("<AuditTimeline");
   });
 
   it("centralizes app overlays and harmonizes secondary governance routes", () => {
