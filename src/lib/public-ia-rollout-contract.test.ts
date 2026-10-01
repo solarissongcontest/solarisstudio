@@ -10,7 +10,6 @@ describe("public IA v3 rollout contract", () => {
   const flags = source("src/lib/feature-flags.ts");
   const surfaces = source("src/lib/studio2-product-surfaces.ts");
   const shell = source("src/components/AppShell.tsx");
-  const legacy = source("src/components/public/LegacyPublicNavigation.tsx");
   const beta = source("src/routes/beta-test/index.tsx");
   const initialMigration = source(
     "supabase/migrations/20260919113422_public_ia_v3_rollout_flag.sql",
@@ -28,20 +27,18 @@ describe("public IA v3 rollout contract", () => {
     expect(initialMigration).toContain("'public_ia_v3'");
   });
 
-  it("uses the new IA as the default public chrome while retaining legacy only for rollback", () => {
-    expect(shell).toContain("useState(true)");
-    expect(shell).toContain("resolvePublicIaV3Enabled()");
+  it("uses the final public IA as the only public chrome", () => {
     expect(shell).toContain("<NewPublicDesktopNavigation");
     expect(shell).toContain("<PublicDrawerNavigation");
     expect(shell).toContain("<PublicSectionNav");
     expect(shell).toContain("<PublicBreadcrumbs");
     expect(shell).toContain("<PublicFooter");
 
-    expect(shell).toContain("<LegacyPublicDesktopNavigation");
-    expect(shell).toContain("<LegacyPublicDrawerNavigation");
-    expect(shell).toContain("<LegacyPublicSiteSidebar");
-    expect(legacy).toContain("LEGACY_PUBLIC_NAVIGATION_GROUPS");
-    expect(shell).not.toContain("LegacyPublicRoute");
+    expect(shell).not.toContain("LegacyPublicDesktopNavigation");
+    expect(shell).not.toContain("LegacyPublicDrawerNavigation");
+    expect(shell).not.toContain("LegacyPublicSiteSidebar");
+    expect(shell).not.toContain("publicIaV3Enabled");
+    expect(shell).not.toContain("resolvePublicIaV3Enabled");
   });
 
   it("promotes public IA v3 from organizer-only rollout to a global default", () => {
@@ -58,10 +55,9 @@ describe("public IA v3 rollout contract", () => {
     expect(shell).not.toContain("solaris:public-ia-v3-beta");
   });
 
-  it("keeps legacy navigation available only behind the explicit rollout boolean", () => {
-    expect(shell).toContain("publicIaV3Enabled ? (");
-    expect(shell).toContain("LegacyPublicDesktopNavigation");
-    expect(shell).toContain("LegacyPublicDrawerNavigation");
-    expect(shell).toContain("LegacyPublicSiteSidebar");
+  it("retires the legacy navigation compatibility layer after global promotion", () => {
+    expect(shell).not.toContain("legacyPublic");
+    expect(shell).not.toContain("LEGACY_");
+    expect(shell).not.toContain("source: \"legacy_");
   });
 });
