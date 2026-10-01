@@ -14,6 +14,7 @@ import { toast } from "sonner";
 
 import { AdminDataView, type AdminDataColumn } from "@/components/admin/AdminDataView";
 import { AdminConfirmSheet, AdminPageHeader } from "@/components/admin/AdminUI";
+import { DangerZone } from "@/components/admin/AdminWorkspacePrimitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -523,13 +524,12 @@ function CombinedWorkspace({
         />
       </section>
 
-      <section className="glass flex flex-col gap-3 border-red-300/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-        <div>
-          <p className="text-sm font-semibold">Delete combined result</p>
-          <p className="mt-1 text-xs text-muted-foreground">Published combined results are protected from deletion.</p>
-        </div>
+      <DangerZone
+        title="Delete combined result"
+        description="Published combined results are protected from deletion."
+      >
         <Button variant="destructive" disabled={aggregation.status === "published" || actionBusy} onClick={() => setDeleteOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
-      </section>
+      </DangerZone>
 
       <AdminConfirmSheet
         open={publishOpen}
