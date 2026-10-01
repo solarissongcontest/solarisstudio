@@ -49,10 +49,10 @@ describe("Solaris visual-system completion contract", () => {
       expect(route).not.toContain(legacyWidth);
     }
 
-    expect(source("src/routes/voting-dna/$code.tsx")).toContain("<PublicResponsiveDataView");
+    expect(source("src/routes/voting-dna/$code.tsx")).toContain("<ResponsiveHistory");
     expect(source("src/routes/prediction-league/index.tsx")).toContain("<PublicResponsiveDataView");
-    expect(source("src/routes/result-lab/index.tsx")).toContain("<PublicResponsiveDataView");
-    expect(source("src/routes/broadcast-intelligence/index.tsx")).toContain("<PublicResponsiveDataView");
+    expect(source("src/routes/result-lab/index.tsx")).toContain("<ResponsiveHistory");
+    expect(source("src/routes/broadcast-intelligence/index.tsx")).toContain("<ResponsiveHistory");
     expect(source("src/routes/televoting/admin/backtest.tsx")).toContain("<AdminDataView");
     expect(source("src/routes/televoting/admin/combined.tsx")).toContain("<AdminDataView");
     expect(source("src/routes/_authenticated/admin/countries.tsx")).toContain("<AdminDataView");
@@ -93,10 +93,13 @@ describe("Solaris visual-system completion contract", () => {
     const rollout = source("src/routes/_authenticated/admin/feature-rollout.tsx");
     const analytics = source("src/routes/televoting/admin/analytics.tsx");
 
-    expect(hosts).toContain("grid grid-cols-2 gap-2 sm:flex sm:flex-wrap");
-    expect(access).toContain("grid grid-cols-2 gap-1 sm:flex sm:flex-wrap");
-    expect(rollout).toContain("grid grid-cols-2 gap-1 sm:flex sm:flex-wrap");
+    expect(hosts).toContain("<WorkspaceTabs");
+    expect(access).toContain("<WorkspaceTabs");
+    expect(rollout).toContain("<WorkspaceTabs");
     expect(analytics).toContain("grid grid-cols-2 gap-1");
+
+    const primitives = source("src/components/admin/AdminWorkspacePrimitives.tsx");
+    expect(primitives).toContain("grid grid-cols-2 gap-1 sm:flex sm:flex-wrap");
   });
 
   it("keeps MySolaris and Country Hub on one workspace model with explicit edge states", () => {
