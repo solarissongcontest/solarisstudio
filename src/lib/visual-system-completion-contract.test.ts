@@ -40,6 +40,8 @@ describe("Solaris visual-system completion contract", () => {
       ["Broadcast Intelligence", "src/routes/broadcast-intelligence/index.tsx", "min-w-[680px]"],
       ["Televote Backtest", "src/routes/televoting/admin/backtest.tsx", "min-w-[620px]"],
       ["Combined Results", "src/routes/televoting/admin/combined.tsx", "min-w-[680px]"],
+      ["Country cockpit", "src/routes/_authenticated/admin/countries.tsx", "min-w-[980px]"],
+      ["Voting Laboratory", "src/routes/_authenticated/admin/voting-lab.tsx", "min-w-[760px]"],
     ] as const;
 
     for (const [, path, legacyWidth] of migrated) {
@@ -53,6 +55,8 @@ describe("Solaris visual-system completion contract", () => {
     expect(source("src/routes/broadcast-intelligence/index.tsx")).toContain("<PublicResponsiveDataView");
     expect(source("src/routes/televoting/admin/backtest.tsx")).toContain("<AdminDataView");
     expect(source("src/routes/televoting/admin/combined.tsx")).toContain("<AdminDataView");
+    expect(source("src/routes/_authenticated/admin/countries.tsx")).toContain("<AdminDataView");
+    expect(source("src/routes/_authenticated/admin/voting-lab.tsx")).toContain("<AdminDataView");
   });
 
   it("keeps Pulse centred on catch-up while demoting specialist tools", () => {
@@ -93,6 +97,29 @@ describe("Solaris visual-system completion contract", () => {
     expect(access).toContain("grid grid-cols-2 gap-1 sm:flex sm:flex-wrap");
     expect(rollout).toContain("grid grid-cols-2 gap-1 sm:flex sm:flex-wrap");
     expect(analytics).toContain("grid grid-cols-2 gap-1");
+  });
+
+  it("keeps MySolaris and Country Hub on one workspace model with explicit edge states", () => {
+    const countryHub = source("src/routes/_authenticated/country-hub/index.tsx");
+    const countryReadiness = source("src/routes/_authenticated/country-hub/readiness.tsx");
+    const tasks = source("src/components/mysolaris/modules/MySolarisTasksModule.tsx");
+    const notices = source("src/components/mysolaris/modules/MySolarisNoticesModule.tsx");
+
+    expect(countryHub).toContain("NAV_TARGETS.mySolarisCountry");
+    expect(countryReadiness).toContain("NAV_TARGETS.mySolarisEntry");
+    expect(countryReadiness).toContain('view: "readiness"');
+
+    expect(tasks).toContain("Loading MySolaris tasks");
+    expect(tasks).toContain("Country account suspended");
+    expect(tasks).toContain("No country selected");
+    expect(tasks).toContain("No Solaris edition is linked to this delegation yet");
+    expect(tasks).toContain("Required notices");
+    expect(tasks).toContain("Upcoming & deadlines");
+
+    expect(notices).toContain("Loading notices");
+    expect(notices).toContain("No delegation account");
+    expect(notices).toContain("No notices in this view");
+    expect(notices).toContain("Acknowledgement required");
   });
 
   it("has one public navigation universe", () => {
