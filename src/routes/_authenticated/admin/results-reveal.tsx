@@ -5,6 +5,7 @@ import { Sparkles, Trophy } from 'lucide-react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
+import { MetricStrip, ObjectPage } from '@/components/admin/AdminWorkspacePrimitives';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
 import { useContestEntities, useCountries, useResults, useShows } from '@/lib/data';
@@ -134,7 +135,7 @@ function ResultsRevealPage() {
 
   return (
     <AdminPage>
-      <div className="mx-auto max-w-7xl space-y-4">
+      <ObjectPage className="max-w-7xl">
         <AdminPageHeader
           eyebrow="Solaris Studio 2"
           title="Results Reveal Director"
@@ -179,12 +180,12 @@ function ResultsRevealPage() {
           <AdminCard><AdminEmptyState icon={Trophy} title="No result rows yet" description="Reveal simulations become available once jury and televote result rows exist for this show." /></AdminCard>
         ) : (
           <>
-            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricStrip>
               <Metric label="Final winner" value={nameOf(simulation.finalWinner, displayMap)} tone="ready" />
               <Metric label="Winner certain" value={simulation.certaintyStep == null ? 'Never early' : `Step ${simulation.certaintyStep}`} />
               <Metric label="Suspense" value={`${Math.round(simulation.suspenseRatio * 100)}%`} tone={simulation.suspenseRatio >= 0.8 ? 'ready' : 'attention'} />
               <Metric label="Reveals" value={`${simulation.steps.length}`} />
-            </section>
+            </MetricStrip>
 
             <AdminCard>
               <AdminCardHeader eyebrow="Strategy comparison" title="Which order keeps the result alive longest?" />
@@ -240,7 +241,7 @@ function ResultsRevealPage() {
             </AdminCard>
           </>
         )}
-      </div>
+      </ObjectPage>
     </AdminPage>
   );
 }
