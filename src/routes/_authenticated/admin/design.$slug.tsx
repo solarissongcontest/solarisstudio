@@ -8,9 +8,12 @@ import {
   AdminCard,
   AdminCardHeader,
   AdminEmptyState,
-  AdminPageHeader,
   AdminStatus,
 } from "@/components/admin/AdminUI";
+import {
+  WorkspaceActionBar,
+  WorkspaceHeader,
+} from "@/components/admin/AdminWorkspacePrimitives";
 import { BroadcastEditor } from "@/components/studio/BroadcastEditor";
 import { EditionArtworkControl } from "@/components/studio/EditionArtworkControl";
 import { ScoreboardEditor } from "@/components/studio/ScoreboardEditor";
@@ -322,7 +325,7 @@ function EditionDesignPage() {
 
   return (
     <AdminPage>
-      <AdminPageHeader
+      <WorkspaceHeader
         eyebrow="Present"
         title="Design & broadcast"
         description={`Control the visual identity, scoreboard and broadcast behaviour for ${editionLabel(edition)}. Start with the edition default and only create show overrides when they are genuinely needed.`}
@@ -368,7 +371,7 @@ function EditionDesignPage() {
         <div className="p-4 sm:p-5">
           <AdminCardHeader eyebrow="Scoreboard" title={scope === "edition" ? "Scoreboard & country cards" : `${selectedShow?.name ?? "Show"} scoreboard`} description={scope === "edition" ? "The main presentation editor for scoreboard layout, country cards and background treatment." : "Only change what should be different for this show."} action={<MonitorPlay className="size-4 text-sky-100" />} />
         </div>
-        <div className="min-w-0 overflow-x-auto border-t border-white/[0.07] p-3 sm:p-5">
+        <div className="min-w-0 max-w-full border-t border-white/[0.07] p-3 sm:p-5">
           {previewShow ? (
             <ScoreboardEditor config={scoreboardDraft} onChange={setScoreboardDraft} rows={previewRows} theme={themeDraft} showName={previewShow.name} onReset={scope === "edition" ? undefined : () => setScoreboardDraft(normalizeScoreboard(editionScoreboard, previewParticipants.length))} />
           ) : (
@@ -384,7 +387,7 @@ function EditionDesignPage() {
             <div className="min-w-0"><p className="admin-section-label">Theme</p><h2 className="mt-1 text-base font-bold text-foreground">Branding & visual identity</h2><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Logo, base colours, fonts and the general contest background. Open only when you need the deeper visual controls.</p></div>
           </div>
         </summary>
-        <div className="min-w-0 overflow-x-auto border-t border-white/[0.07] p-3 sm:p-5"><ThemeEditor theme={themeDraft} onChange={setThemeDraft} /></div>
+        <div className="min-w-0 max-w-full border-t border-white/[0.07] p-3 sm:p-5"><ThemeEditor theme={themeDraft} onChange={setThemeDraft} /></div>
       </details>
 
       <details className="admin-card overflow-hidden">
@@ -394,7 +397,7 @@ function EditionDesignPage() {
             <div className="min-w-0"><p className="admin-section-label">Broadcast</p><h2 className="mt-1 text-base font-bold text-foreground">Reveal & production behaviour</h2><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Timing and production behaviour. Leave this closed when you only need appearance changes.</p></div>
           </div>
         </summary>
-        <div className="min-w-0 overflow-x-auto border-t border-white/[0.07] p-3 sm:p-5"><BroadcastEditor config={broadcastDraft} onChange={setBroadcastDraft} /></div>
+        <div className="min-w-0 max-w-full border-t border-white/[0.07] p-3 sm:p-5"><BroadcastEditor config={broadcastDraft} onChange={setBroadcastDraft} /></div>
       </details>
 
       <AdminCard>
@@ -404,12 +407,12 @@ function EditionDesignPage() {
         </div>
       </AdminCard>
 
-      <div className="admin-sticky-actions rounded-2xl border border-white/[0.08] bg-[#081326]/95 p-2.5 backdrop-blur-xl">
+      <WorkspaceActionBar className="flex-col items-stretch rounded-2xl border border-white/[0.08] bg-[#081326]/95 p-2.5 backdrop-blur-xl">
         <button type="button" disabled={saving || !previewShow} onClick={() => void (scope === "edition" ? saveEditionDefault() : saveRoundOverride())} className="admin-action-primary min-h-12 w-full">
           <Save className="size-4" /> {saving ? "Saving…" : scope === "edition" ? `Save default to all ${editionShows.length} show${editionShows.length === 1 ? "" : "s"}` : `Save ${selectedShow?.name ?? "show"} override`}
         </button>
         {scope === "edition" ? <p className="mt-2 px-2 text-center text-xs leading-relaxed text-muted-foreground">The theme is shared at edition level. Broadcast and scoreboard settings are normalized and copied to each show.</p> : null}
-      </div>
+      </WorkspaceActionBar>
     </AdminPage>
   );
 }
