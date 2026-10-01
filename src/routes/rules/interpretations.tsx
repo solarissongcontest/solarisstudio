@@ -4,6 +4,7 @@ import { BadgeCheck, History, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import { GovernanceDepthLayout } from "@/components/SolarisDepth";
 import { getPublicRuleInterpretations } from "@/lib/rule-interpretations";
 
 export const Route = createFileRoute("/rules/interpretations")({
@@ -51,7 +52,7 @@ function InterpretationsIndex() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-4xl pb-20">
+      <GovernanceDepthLayout tone="rules" context="rules" className="mx-auto max-w-4xl pb-20">
         <header className="border-b border-border/65 pb-5">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-primary/80">
             Rules
@@ -166,7 +167,7 @@ function InterpretationsIndex() {
             </div>
           )}
         </section>
-      </div>
+      </GovernanceDepthLayout>
     </AppShell>
   );
 }
