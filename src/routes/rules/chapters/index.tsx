@@ -1,7 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Search } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import {
+  GovernanceStatusStrip,
+  SolarisDepthEyebrow,
+  SolarisDepthPage,
+  SolarisDepthSafeZone,
+  SolarisDepthSurface,
+} from "@/components/SolarisDepth";
 import { RULE_CHAPTER_GROUPS } from "@/lib/governance-v5";
 import { SSC_RULE_CHAPTERS } from "@/lib/ssc-rules-v4";
 
@@ -18,47 +25,65 @@ export const Route = createFileRoute("/rules/chapters/")({
 function RuleChaptersPage() {
   return (
     <AppShell>
-      <div className="mx-auto max-w-4xl pb-20">
-        <header className="border-b border-border/65 pb-5">
-          <p className="text-xs font-black uppercase tracking-[0.12em] text-primary/80">Official rulebook</p>
-          <h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">21 chapters</h1>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Browse by what the rules control. The official chapter numbering stays unchanged.
-          </p>
-        </header>
+      <SolarisDepthPage tone="rules">
+        <SolarisDepthSafeZone>
+          <header>
+            <SolarisDepthEyebrow tone="primary">Official rulebook</SolarisDepthEyebrow>
+            <div className="mt-2 flex flex-wrap items-baseline gap-2">
+              <h1 className="text-2xl font-bold tracking-[-0.025em]">21 chapters</h1>
+              <span className="text-xs text-muted-foreground">General Regulations · current edition</span>
+            </div>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+              Browse by what the rules control. Official chapter numbering stays unchanged.
+            </p>
+            <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+              <Search className="size-3.5 text-primary" />
+              <Link to="/rules/search" search={{ q: "" }} className="font-semibold text-primary">
+                Search chapters or rules
+              </Link>
+            </div>
+            <GovernanceStatusStrip context="rules" className="mt-3" />
+          </header>
+        </SolarisDepthSafeZone>
 
-        <div className="mt-6 space-y-8">
-          {RULE_CHAPTER_GROUPS.map((group) => (
-            <section key={group.title}>
-              <h2 className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">{group.title}</h2>
-              <div className="mt-2 divide-y divide-border/60 border-y border-border/60">
-                {group.chapters.map((number) => {
-                  const chapter = SSC_RULE_CHAPTERS.find((item) => item.number === number);
-                  if (!chapter) return null;
-                  return (
-                    <Link
-                      key={chapter.number}
-                      to="/rules/chapters/$chapter"
-                      params={{ chapter: chapter.slug }}
-                      className="flex min-h-16 items-center gap-3 py-3"
-                    >
-                      <span className="w-10 shrink-0 font-mono text-sm font-black text-primary">
-                        {String(chapter.number).padStart(2, "0")}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold">{chapter.title}</span>
-                        <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{chapter.description}</span>
-                      </span>
-                      <span className="text-xs text-muted-foreground">{chapter.rules.length}</span>
-                      <ArrowRight className="size-4 text-muted-foreground" />
-                    </Link>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-        </div>
-      </div>
+        <SolarisDepthSafeZone className="mt-5">
+          <SolarisDepthSurface variant="reading">
+            <div className="solaris-depth-rule-index">
+              {RULE_CHAPTER_GROUPS.map((group) => (
+                <section key={group.title} className="solaris-depth-rule-index-group">
+                  <SolarisDepthEyebrow>{group.title}</SolarisDepthEyebrow>
+                  <div className="mt-2">
+                    {group.chapters.map((number) => {
+                      const chapter = SSC_RULE_CHAPTERS.find((item) => item.number === number);
+                      if (!chapter) return null;
+                      return (
+                        <Link
+                          key={chapter.number}
+                          to="/rules/chapters/$chapter"
+                          params={{ chapter: chapter.slug }}
+                          className="solaris-depth-row"
+                        >
+                          <span className="w-9 shrink-0 font-mono text-xs font-black text-primary">
+                            {String(chapter.number).padStart(2, "0")}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-semibold">{chapter.title}</span>
+                            <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-muted-foreground">
+                              {chapter.description}
+                            </span>
+                          </span>
+                          <span className="text-[11px] text-muted-foreground">{chapter.rules.length}</span>
+                          <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </SolarisDepthSurface>
+        </SolarisDepthSafeZone>
+      </SolarisDepthPage>
     </AppShell>
   );
 }
