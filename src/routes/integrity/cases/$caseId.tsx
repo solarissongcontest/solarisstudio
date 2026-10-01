@@ -288,5 +288,5 @@ function humanEvent(value: string) {
   return value
     .replaceAll(".", " ")
     .replaceAll("_", " ")
-    .replace(/w/g, (letter) => letter.toUpperCase());
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
