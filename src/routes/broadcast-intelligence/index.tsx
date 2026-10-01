@@ -934,6 +934,7 @@ function BroadcastIntelligencePage() {
             </Panel>
           )}
         </div>
+        </div>
       </DataStoryPage>
     </AppShell>
   );
