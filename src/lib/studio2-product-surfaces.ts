@@ -154,14 +154,6 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
       description:
         "Publication-safe historical reference across editions, countries, entries, artists, shows and results.",
     },
-    public_ia_v3: {
-      key: "public_ia_v3",
-      label: "Public IA v3",
-      state: "product_surface",
-      audience: "public",
-      description:
-        "Reversible public navigation and information-architecture rollout for the five-area Solaris shell.",
-    },
     country_voting_dna: {
       key: "country_voting_dna",
       label: "Country Voting DNA",
