@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
+import { WorkspaceTabs } from '@/components/admin/AdminWorkspacePrimitives';
 import { supabase } from '@/integrations/supabase/client';
 import { SOLARIS_FEATURE_FLAGS, type SolarisFeatureFlag } from '@/lib/feature-flags';
 import {
@@ -181,7 +182,7 @@ function FeatureRolloutPage() {
         ) : (
           <>
             <AdminCard className="!p-2 sm:!p-2">
-              <nav className="grid grid-cols-2 gap-1 sm:flex sm:flex-wrap" aria-label="Feature rollout views">
+              <WorkspaceTabs label="Feature rollout views">
                 {STUDIO2_ROLLOUT_VIEWS.map((candidate) => {
                   const active = candidate.id === view;
                   return (
