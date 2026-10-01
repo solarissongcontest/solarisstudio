@@ -27,16 +27,16 @@ export function AdminPageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="mb-5 border-b border-white/[0.07] pb-4 sm:mb-6 sm:pb-5">
+    <header className="admin-workspace-header mb-4 border-b border-white/[0.07] pb-3.5 sm:mb-5 sm:pb-4">
       {eyebrow ? <p className="admin-section-label">{eyebrow}</p> : null}
-      <div className="mt-1 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mt-1 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="admin-page-title text-[2.45rem] leading-[.92] sm:text-[2.7rem] lg:text-[2.9rem]">{title}</h1>
+          <h1 className="admin-page-title break-words text-[1.65rem] font-bold leading-[1.05] tracking-[-.035em] sm:text-[1.85rem] lg:text-[2rem]">{title}</h1>
           {description ? (
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">{description}</p>
+            <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-muted-foreground">{description}</p>
           ) : null}
         </div>
-        {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
+        {actions ? <div className="flex min-w-0 shrink-0 flex-wrap gap-2 sm:justify-end">{actions}</div> : null}
       </div>
     </header>
   );
