@@ -173,6 +173,9 @@ describe("final UI completion contracts", () => {
     expect(editions).not.toContain("BackgroundFlag");
     expect(editions).toContain("overflow-hidden rounded-2xl");
     expect(pulse).toContain("Important");
+    expect(pulse).toContain("More updates");
+    expect(pulse).toContain("More from Solaris");
+    expect(pulse).not.toContain("Quick updates");
     expect(pulse).not.toContain('["music", "Music"]');
     expect(pulse).not.toContain('["announcements", "Announcements"]');
   });
