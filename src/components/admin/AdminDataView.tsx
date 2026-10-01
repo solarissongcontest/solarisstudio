@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 export type AdminDataColumn<T> = {
   key: string;
   header: string;
-  render: (row: T) => ReactNode;
+  render: (row: T, index: number) => ReactNode;
   mobileLabel?: string;
   primary?: boolean;
   align?: "left" | "right";
@@ -64,7 +64,7 @@ export function AdminDataView<T>({
                     column.className,
                   )}
                 >
-                  {column.render(row)}
+                  {column.render(row, rowIndex)}
                 </div>
               </div>
             ))}
@@ -104,7 +104,7 @@ export function AdminDataView<T>({
                       column.className,
                     )}
                   >
-                    {column.render(row)}
+                    {column.render(row, rowIndex)}
                   </td>
                 ))}
               </tr>
