@@ -634,7 +634,7 @@ function SolarisPulsePage() {
                         ) : null}
                       </div>
                       <span className="text-sm font-semibold text-primary sm:shrink-0">
-                        ${actionLabel(event)} →
+                        {actionLabel(event)} →
                       </span>
                     </Link>
                   </li>
@@ -649,7 +649,7 @@ function SolarisPulsePage() {
             <summary className="cursor-pointer list-none px-4 py-4 text-sm font-semibold sm:px-5">
               <span className="flex items-center justify-between gap-3">
                 <span>
-                  <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">More</span>
+                  <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">More from Solaris</span>
                   <span className="mt-1 block">Analysis, country stories, catch-up and preferences</span>
                 </span>
                 <span className="text-primary" aria-hidden="true">＋</span>
