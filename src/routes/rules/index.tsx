@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
-import { RulebookVersionBanner } from "@/components/rules/RulebookVersionBanner";
 import { RulesHomeV5 } from "@/components/rules/RulesHomeV5";
 import { usePublishedRulebook } from "@/lib/rules-governance";
 
@@ -23,7 +22,6 @@ function RulesPage() {
   const published = usePublishedRulebook();
   return (
     <AppShell>
-      <RulebookVersionBanner />
       <RulesHomeV5 key={published.version} version={published.version} />
     </AppShell>
   );
