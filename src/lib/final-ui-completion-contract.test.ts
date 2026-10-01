@@ -128,6 +128,21 @@ describe("final UI completion contracts", () => {
     expect(jury).not.toContain("Your jury ballot was automatically flagged");
   });
 
+  it("keeps directory typography functional and ships installed iOS QA", () => {
+    const shows = source("src/routes/shows/index.tsx");
+    const playwright = source("playwright.config.ts");
+    const installed = source("e2e/installed-app.e2e.ts");
+    const workflow = source(".github/workflows/browser-audit.yml");
+
+    expect(shows).not.toContain('"text-4xl sm:text-5xl"');
+    expect(shows).not.toContain("font-display font-black leading-[0.96]");
+    expect(playwright).toContain('"ios-pwa-portrait"');
+    expect(playwright).toContain('"ios-pwa-landscape"');
+    expect(installed).toContain('navigator, "standalone"');
+    expect(installed).toContain("data-solaris-runtime");
+    expect(workflow).toContain("chromium webkit");
+  });
+
   it("keeps the edition archive and Pulse hierarchy in the compact public system", () => {
     const editions = source("src/routes/editions/index.tsx");
     const pulse = source("src/routes/pulse/index.tsx");
