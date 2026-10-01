@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
+import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
 import { AdminPage } from '@/components/admin/AdminShell';
 import {
   AdminCard,
@@ -87,6 +88,54 @@ function EligibilityPage() {
   });
   const selected = matrix.find((row) => row.countryId === search.country) ?? null;
   const error = editionsQuery.error ?? cockpitQuery.error ?? overridesQuery.error;
+  const eligibilityColumns = [
+    {
+      key: 'country',
+      header: 'Country',
+      primary: true,
+      render: (row) => row.countryName,
+    },
+    {
+      key: 'participation',
+      header: 'Participation',
+      render: (row) => <AdminStatus tone={tone(row.participation)}>{statusLabel(row.participation)}</AdminStatus>,
+    },
+    {
+      key: 'entry',
+      header: 'Entry',
+      render: (row) => <AdminStatus tone={tone(row.entry)}>{statusLabel(row.entry)}</AdminStatus>,
+    },
+    {
+      key: 'jury',
+      header: 'Jury',
+      render: (row) => <AdminStatus tone={tone(row.jury)}>{statusLabel(row.jury)}</AdminStatus>,
+    },
+    {
+      key: 'media',
+      header: 'Media',
+      render: (row) => <AdminStatus tone={tone(row.media)}>{statusLabel(row.media)}</AdminStatus>,
+    },
+    {
+      key: 'deadlines',
+      header: 'Deadlines',
+      render: (row) => <AdminStatus tone={tone(row.deadlines)}>{statusLabel(row.deadlines)}</AdminStatus>,
+    },
+    {
+      key: 'overall',
+      header: 'Overall',
+      render: (row) => <AdminStatus tone={tone(row.overall)}>{statusLabel(row.overall)}</AdminStatus>,
+    },
+    {
+      key: 'detail',
+      header: 'Detail',
+      align: 'right' as const,
+      render: (row) => (
+        <button type="button" className="admin-action-secondary" onClick={() => updateSearch({ country: row.countryId })}>
+          Inspect
+        </button>
+      ),
+    },
+  ] satisfies readonly AdminDataColumn<Studio2EligibilityCountry>[];
 
   const counts = Object.fromEntries(
     STATUSES.map((status) => [status, matrix.filter((row) => row.overall === status).length]),
@@ -185,42 +234,14 @@ function EligibilityPage() {
               </div>
             </AdminCard>
 
-            <AdminCard className="!p-0 overflow-hidden">
+            <AdminCard>
               {filtered.length ? (
-                <div className="overflow-x-auto">
-                  <table className="min-w-[980px] w-full text-left text-sm">
-                    <thead className="border-b border-white/[0.07] bg-white/[0.018] text-[11px] uppercase tracking-[0.11em] text-muted-foreground">
-                      <tr>
-                        <th className="px-4 py-3">Country</th>
-                        <th className="px-3 py-3">Participation</th>
-                        <th className="px-3 py-3">Entry</th>
-                        <th className="px-3 py-3">Jury</th>
-                        <th className="px-3 py-3">Media</th>
-                        <th className="px-3 py-3">Deadlines</th>
-                        <th className="px-3 py-3">Overall</th>
-                        <th className="px-4 py-3 text-right">Detail</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.06]">
-                      {filtered.map((row) => (
-                        <tr key={row.countryId} className="hover:bg-white/[0.02]">
-                          <td className="px-4 py-4 font-semibold">{row.countryName}</td>
-                          <StatusCell status={row.participation} />
-                          <StatusCell status={row.entry} />
-                          <StatusCell status={row.jury} />
-                          <StatusCell status={row.media} />
-                          <StatusCell status={row.deadlines} />
-                          <StatusCell status={row.overall} strong />
-                          <td className="px-4 py-4 text-right">
-                            <button type="button" className="admin-action-secondary" onClick={() => updateSearch({ country: row.countryId })}>
-                              Inspect
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <AdminDataView
+                  rows={filtered}
+                  columns={eligibilityColumns}
+                  rowKey={(row) => row.countryId}
+                  ariaLabel="Country eligibility matrix"
+                />
               ) : (
                 <AdminEmptyState icon={ShieldCheck} title="No countries match" description="Adjust the search or eligibility filter." />
               )}
@@ -479,14 +500,6 @@ function RevokeSheet({
         </button>
       </div>
     </AdminSheet>
-  );
-}
-
-function StatusCell({ status, strong = false }: { status: Studio2EligibilityStatus; strong?: boolean }) {
-  return (
-    <td className={`px-3 py-4 ${strong ? 'font-semibold' : ''}`}>
-      <AdminStatus tone={tone(status)}>{statusLabel(status)}</AdminStatus>
-    </td>
   );
 }
 
