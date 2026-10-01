@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
+import { GovernanceDepthLayout } from "@/components/SolarisDepth";
 import { RulesApplyingHere } from "@/components/rules/GovernanceRules";
 import {
   getProtectedIntegrityResolution,
@@ -55,9 +56,9 @@ function ProtectedAppealPage() {
   if (resolution.isLoading) {
     return (
       <AppShell>
-        <p className="mx-auto max-w-3xl py-12 text-sm text-muted-foreground">
-          Loading the decision…
-        </p>
+        <GovernanceDepthLayout tone="integrity" context="report" className="mx-auto max-w-3xl py-12">
+          <p className="text-sm text-muted-foreground">Loading the decision…</p>
+        </GovernanceDepthLayout>
       </AppShell>
     );
   }
@@ -65,7 +66,7 @@ function ProtectedAppealPage() {
   if (resolution.isError) {
     return (
       <AppShell>
-        <div className="mx-auto max-w-2xl py-12">
+        <GovernanceDepthLayout tone="integrity" context="report" className="mx-auto max-w-2xl py-12">
           <div className="border-l-2 border-rose-300/45 px-4 py-2">
             <AlertTriangle className="size-5 text-rose-200" />
             <h1 className="mt-3 text-2xl font-black">This protected case is not available</h1>
@@ -76,7 +77,7 @@ function ProtectedAppealPage() {
               My cases
             </Link>
           </div>
-        </div>
+        </GovernanceDepthLayout>
       </AppShell>
     );
   }
@@ -96,7 +97,7 @@ function ProtectedAppealPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-4xl pb-20">
+      <GovernanceDepthLayout tone="integrity" context="report" className="mx-auto max-w-4xl pb-20">
         <header className="border-b border-border/65 pb-5">
           <div className="flex items-center gap-2 text-amber-200">
             <Gavel className="size-4" />
@@ -201,7 +202,7 @@ function ProtectedAppealPage() {
             </div>
           )}
         </section>
-      </div>
+      </GovernanceDepthLayout>
     </AppShell>
   );
 }
