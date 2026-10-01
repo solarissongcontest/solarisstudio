@@ -4,12 +4,11 @@ import {
   AdminCard,
   AdminCardHeader,
   AdminMoreMenu,
-  AdminPageHeader,
   AdminSheet,
+  WorkspaceHeader,
 } from "@/components/admin/AdminUI";
 import { cn } from "@/lib/utils";
 
-export const WorkspaceHeader = AdminPageHeader;
 export const InspectorSheet = AdminSheet;
 export const CommandMenu = AdminMoreMenu;
 
