@@ -534,9 +534,9 @@ function HostTabs({ view, onChange }: { view: HostView; onChange: (view: HostVie
     { id: 'selected', label: 'Selected host' },
     { id: 'operations', label: 'Operations' },
   ];
-  return <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" aria-label="Host management sections">
+  return <WorkspaceTabs label="Host management sections" className="gap-2">
     {tabs.map((tab) => <button key={tab.id} type="button" className={view === tab.id ? 'admin-action-primary min-w-0' : 'admin-action-secondary min-w-0'} onClick={() => onChange(tab.id)}>{tab.label}</button>)}
-  </div>;
+  </WorkspaceTabs>;
 }
 
 function OverviewView({ snapshot, summary, onView, onCreateBid }: {
