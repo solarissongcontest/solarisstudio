@@ -65,9 +65,7 @@ const FEED_CATEGORIES: ReadonlyArray<readonly [FeedCategory, string]> = [
   ["latest", "Latest"],
   ["contest", "Contest"],
   ["countries", "Countries"],
-  ["music", "Music"],
   ["numbers", "Numbers"],
-  ["announcements", "Announcements"],
 ];
 
 const CATCH_UP_WINDOWS: ReadonlyArray<readonly [CatchUpWindow, string]> = [
@@ -485,8 +483,8 @@ function SolarisPulsePage() {
         </Link>
       )}
 
-      <div className="mb-5 overflow-x-auto pb-1">
-        <div className="flex min-w-max gap-2">
+      <div className="mb-5">
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Pulse filters">
           {FEED_CATEGORIES.map(([value, label]) => (
             <button
               key={value}
@@ -519,57 +517,43 @@ function SolarisPulsePage() {
         <div className="space-y-6">
           {leadEvent ? (
             <section
-              className="overflow-hidden rounded-3xl border border-border/70 bg-surface"
+              className="rounded-2xl border border-primary/20 bg-surface p-4 sm:p-5"
               aria-labelledby="pulse-lead-story"
             >
-              <div className="grid min-h-[15rem] sm:min-h-[18rem] lg:min-h-[22rem] lg:grid-cols-[1.15fr_.85fr]">
-                <Link
-                  to={leadEvent.route}
-                  onClick={() => user && markRead.mutate(leadEvent.id)}
-                  className="flex flex-col justify-end bg-gradient-to-br from-primary/20 via-surface to-background p-6 sm:p-8 lg:p-10"
-                >
-                  <EventMeta event={leadEvent} unread={Boolean(user && !readIds.has(leadEvent.id))} />
-                  <h2
-                    id="pulse-lead-story"
-                    className="mt-4 max-w-3xl font-display text-3xl font-bold tracking-tight sm:text-4xl"
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Important</p>
+                {latestEdition ? (
+                  <Link
+                    to="/editions/$slug"
+                    params={{ slug: latestEdition.slug }}
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground"
                   >
-                    {leadEvent.title}
-                  </h2>
-                  {leadEvent.summary && (
-                    <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
-                      {leadEvent.summary}
-                    </p>
-                  )}
-                  <span className="mt-6 text-sm font-bold text-primary">
-                    {actionLabel(leadEvent)} →
-                  </span>
-                </Link>
-
-                <div className="flex flex-col justify-between border-t border-border/70 p-6 lg:border-l lg:border-t-0 lg:p-8">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">
-                      What’s happening now
-                    </p>
-                    <p className="mt-3 text-2xl font-bold">
-                      {latestEdition ? editionLabel(latestEdition) : "No public edition"}
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      {latestEdition
-                        ? `${latestShows.length} public show${latestShows.length === 1 ? "" : "s"} are available for the current edition.`
-                        : "There is no public edition to show yet."}
-                    </p>
-                  </div>
-                  {latestEdition && (
-                    <Link
-                      to="/editions/$slug"
-                      params={{ slug: latestEdition.slug }}
-                      className="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-semibold"
-                    >
-                      Open {editionLabel(latestEdition)} →
-                    </Link>
-                  )}
-                </div>
+                    {editionLabel(latestEdition)} · {latestShows.length} public show{latestShows.length === 1 ? "" : "s"}
+                  </Link>
+                ) : null}
               </div>
+
+              <Link
+                to={leadEvent.route}
+                onClick={() => user && markRead.mutate(leadEvent.id)}
+                className="mt-3 block rounded-xl border border-border/60 bg-background/30 p-4 transition-colors hover:bg-surface-strong sm:p-5"
+              >
+                <EventMeta event={leadEvent} unread={Boolean(user && !readIds.has(leadEvent.id))} />
+                <h2
+                  id="pulse-lead-story"
+                  className="mt-3 max-w-3xl text-xl font-bold leading-tight tracking-[-.025em] sm:text-2xl"
+                >
+                  {leadEvent.title}
+                </h2>
+                {leadEvent.summary ? (
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                    {leadEvent.summary}
+                  </p>
+                ) : null}
+                <span className="mt-4 inline-flex text-sm font-bold text-primary">
+                  {actionLabel(leadEvent)} →
+                </span>
+              </Link>
             </section>
           ) : (
             <EmptyFeed>There are no public Pulse stories yet.</EmptyFeed>
