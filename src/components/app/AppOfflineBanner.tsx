@@ -11,11 +11,11 @@ export function AppOfflineBanner({
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   if (connectivity.status === "online") return null;
 
-  // The focused Integrity report shell owns its own strong, pre-submit service
-  // warning. Do not cover sensitive form content with a second floating banner.
-  if (pathname.startsWith("/integrity/report")) return null;
+  // Governance pages own contextual inline service state through the Solaris
+  // Depth System. Never float a global outage pill over Rules or Integrity.
+  if (pathname.startsWith("/rules") || pathname.startsWith("/integrity")) return null;
 
-  const rulesReadOnly = pathname.startsWith("/rules");
+  const rulesReadOnly = false;
   const restricted = connectivity.status === "service-restricted";
   const offline = connectivity.status === "offline";
   const Icon = offline ? WifiOff : AlertTriangle;
