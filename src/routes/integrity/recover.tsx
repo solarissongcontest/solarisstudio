@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
+import { GovernanceDepthLayout } from "@/components/SolarisDepth";
 import {
   getAnonymousIntegrityCase,
   replyToAnonymousIntegrityCase,
@@ -88,7 +89,7 @@ function RecoverAnonymousCasePage() {
 
     return (
       <AppShell>
-        <div className="mx-auto max-w-4xl pb-20">
+        <GovernanceDepthLayout tone="integrity" context="report" className="mx-auto max-w-4xl pb-20">
           <header className="border-b border-border/65 pb-5">
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-xs font-black text-primary">
@@ -309,14 +310,14 @@ function RecoverAnonymousCasePage() {
               </button>
             </div>
           </section>
-        </div>
+        </GovernanceDepthLayout>
       </AppShell>
     );
   }
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-xl pb-20">
+      <GovernanceDepthLayout tone="integrity" context="report" className="mx-auto max-w-xl pb-20">
         <header className="border-b border-border/65 pb-5">
           <div className="flex items-center gap-2 text-emerald-200">
             <KeyRound className="size-4" />
@@ -386,7 +387,7 @@ function RecoverAnonymousCasePage() {
             {busy ? "Recovering…" : "Open case"}
           </button>
         </div>
-      </div>
+      </GovernanceDepthLayout>
     </AppShell>
   );
 }
