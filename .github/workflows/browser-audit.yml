@@ -40,7 +40,7 @@ jobs:
       - name: Install browser-audit runner
         run: |
           bun add --dev @playwright/test@1.55.0
-          bunx playwright install --with-deps chromium
+          bunx playwright install --with-deps chromium webkit
 
       - name: Start stable audit server
         env:
