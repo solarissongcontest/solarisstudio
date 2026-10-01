@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
-import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { AppShell, Panel } from "@/components/AppShell";
+import { PredictionWorkspaceHeader } from "@/components/predictions/PredictionWorkspaceHeader";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { usePredictionRounds } from "@/lib/prediction-data";
 import { formatEventDateTime } from "@/lib/public-time";
@@ -38,15 +39,10 @@ function PredictionArenaPage() {
 
   return (
     <AppShell>
-      <PageHeader
-        eyebrow="Predict before the show"
+      <PredictionWorkspaceHeader
+        active="arena"
         title="Prediction Arena"
         description="Make your picks before the round locks, then return after the result to see what you got right. Community consensus stays hidden until you submit."
-        actions={
-          <Link to="/me" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-            My prediction history
-          </Link>
-        }
       />
 
       {isLoading ? (
