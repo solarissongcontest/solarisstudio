@@ -206,6 +206,43 @@ The recent Solaris Depth pass has materially improved this family:
 
 Remaining work is mostly consistency with the rest of Solaris rather than a structural redesign.
 
+
+## Route consolidation findings
+
+The route inventory also reveals a substantial compatibility layer. That is not automatically bad, but it is a design-governance risk because an obsolete URL can keep an old mental model alive even after the visible navigation has moved on.
+
+Confirmed compatibility / redirect examples include:
+
+- `/library` → `/rules`
+- `/integrity/report` → first reporting step
+- `/confirmations/next-in-line` → `/next-in-line`
+- `/admin` → `/admin/operations`
+- `/admin/action-centre` → `/admin/operations`
+- `/admin/control-room-v2` → `/admin/control-room`
+- `/admin/status` → `/admin/sync-health`
+- `/admin/integrity` → `/admin/integrity-investigations`
+- old Televoting admin detection / anti-abuse / intelligence routes → current friend-voting / operations surfaces
+- old Televoting and Confirmations admin sign-in routes → unified Solaris authentication
+- Country Hub routes → corresponding MySolaris routes
+- edition-theme compatibility route → current admin design route
+
+This compatibility layer should be treated as **URL support only**. It should not own unique design code, unique navigation labels or unique information architecture.
+
+### Route-governance recommendation
+
+Create a route registry with explicit status:
+
+- `canonical`
+- `compatibility redirect`
+- `internal-only`
+- `beta/archive`
+- `dev-only`
+
+Then require public navigation, search, sitemap and app route chrome to reference canonical routes only.
+
+The current beta-feedback routes are a legitimate archive family rather than accidental duplicates, but they should live under a clearly labelled Organizer research/archive area so they do not visually compete with current operational tools.
+
+
 ## Static-risk legend
 
 - **P0 mobile** — forced minimum width + horizontal overflow; requires deliberate mobile redesign.
