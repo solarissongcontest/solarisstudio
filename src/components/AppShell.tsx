@@ -346,7 +346,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="relative isolate min-h-screen overflow-x-clip">
         <div aria-hidden="true" className="app-background" />
 
-        {isAppMode ? (
+        {isAppMode && !pathname.startsWith("/integrity/report") ? (
           <AppToolbar pathname={pathname} searchStr={searchStr} access={access} />
         ) : null}
 
