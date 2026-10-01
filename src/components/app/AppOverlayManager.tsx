@@ -21,7 +21,7 @@ export function AppOverlayManager({
   updateSafe: boolean;
   onUpdate: () => void;
 }) {
-  const [firstRunComplete, setFirstRunComplete] = useState(true);
+  const [firstRunComplete, setFirstRunComplete] = useState(() => !isAppMode || appFirstRunComplete());
 
   useEffect(() => {
     setFirstRunComplete(!isAppMode || appFirstRunComplete());
