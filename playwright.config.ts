@@ -137,5 +137,23 @@ export default defineConfig({
       testMatch: /organizer-routes\.e2e\.ts/,
       use: { viewport: { width: 390, height: 844 } },
     },
+    {
+      name: "ios-pwa-portrait",
+      testMatch: /installed-app\.e2e\.ts/,
+      use: {
+        ...devices["iPhone 13"],
+        browserName: "webkit",
+        viewport: { width: 390, height: 844 },
+      },
+    },
+    {
+      name: "ios-pwa-landscape",
+      testMatch: /installed-app\.e2e\.ts/,
+      use: {
+        ...devices["iPhone 13"],
+        browserName: "webkit",
+        viewport: { width: 844, height: 390 },
+      },
+    },
   ],
 });
