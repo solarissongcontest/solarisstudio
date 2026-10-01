@@ -18,13 +18,6 @@ import { AppTabBar } from "@/components/app/AppTabBar";
 import { AppToolbar } from "@/components/app/AppToolbar";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { MySolarisWorkspaceShell } from "@/components/mysolaris/MySolarisWorkspaceShell";
-import {
-  LegacyPublicDrawerNavigation,
-  LegacyPublicSiteSidebar,
-  legacyPublicGroup,
-  legacyPublicPathMatches,
-  type LegacyPublicNavigationItem,
-} from "@/components/public/LegacyPublicNavigation";
 import { PublicBreadcrumbs } from "@/components/public/PublicBreadcrumbs";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { PublicFooter } from "@/components/public/PublicFooter";
@@ -43,7 +36,6 @@ import {
 } from "@/lib/app-navigation";
 import { useAppAttentionSummary } from "@/lib/app-attention";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
-import { resolvePublicIaV3Enabled } from "@/lib/public-ia-rollout";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
 import {
   publicCanvasForArchetype,
@@ -95,34 +87,6 @@ const GLOBAL_ICON_BY_AREA: Record<(typeof PUBLIC_GLOBAL_AREAS)[number]["id"], Lu
   me: User,
 };
 
-const LEGACY_EXPLORE_NAV = legacyPublicGroup("explore").items;
-const LEGACY_REFERENCE_NAV = legacyPublicGroup("reference").items;
-const LEGACY_INSIGHTS_NAV = legacyPublicGroup("insights").items;
-const LEGACY_PARTICIPATE_NAV = legacyPublicGroup("participate").items;
-const LEGACY_TOOL_NAV = legacyPublicGroup("tools").items;
-
-const LEGACY_EXPLORE_ROUTES = LEGACY_EXPLORE_NAV.map((item) => item.to);
-const LEGACY_RESULT_ROUTES = [
-  "/results",
-  "/scorecharts",
-  "/analysis",
-  "/records",
-  "/relationships",
-  "/compare",
-  "/result-lab",
-  "/taste-dna",
-  "/broadcast-intelligence",
-] as const;
-const LEGACY_PARTICIPATE_ROUTES = LEGACY_PARTICIPATE_NAV.map((item) => item.to);
-const LEGACY_INSIGHT_ROUTES = [...LEGACY_INSIGHTS_NAV, ...LEGACY_TOOL_NAV].map(
-  (item) => item.to,
-);
-const LEGACY_REFERENCE_ROUTES = LEGACY_REFERENCE_NAV.map((item) => item.to);
-
-function legacyAnyPathMatches(pathname: string, routes: readonly string[]) {
-  return routes.some((route) => legacyPublicPathMatches(pathname, route));
-}
-
 export function AppShell({ children }: { children: ReactNode }) {
   const { isAppMode } = useSolarisApp();
   const attention = useAppAttentionSummary();
@@ -131,7 +95,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState<string | null>(null);
   const [access, setAccess] = useState<AccountAccess>(EMPTY_ACCESS);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [publicIaV3Enabled, setPublicIaV3Enabled] = useState(true);
 
   useEffect(() => {
     let alive = true;
@@ -200,16 +163,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       updateAppScrollPosition(pathname, searchStr, window.scrollY);
     };
   }, [isAppMode, pathname, searchStr]);
-
-  useEffect(() => {
-    let alive = true;
-    void resolvePublicIaV3Enabled().then((enabled) => {
-      if (alive) setPublicIaV3Enabled(enabled);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   useEffect(() => {
     const confirmationComplete = () =>
@@ -295,51 +248,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       publicArea === "participate" ||
       publicArea === "results" ||
       publicArea === "help");
-  const showLegacySidebar =
-    !isAppMode &&
-    !isMySolarisWorkspace &&
-    !pathname.startsWith("/auth") &&
-    !pathname.startsWith("/reset") &&
-    !pathname.startsWith("/recover") &&
-    !pathname.startsWith("/broadcast/");
-  const quickNavigation =
-    publicIaV3Enabled
-      ? globalAreas.map((item) => ({
-            to: item.to,
-            label: item.label,
-            icon: GLOBAL_ICON_BY_AREA[item.id],
-            active: !pathname.startsWith("/site-directory") && publicArea === item.id,
-          }))
-      : [
-        { to: "/", label: "Home", icon: Home, active: pathname === "/" },
-        {
-          to: "/explore",
-          label: "Explore",
-          icon: Compass,
-          active: legacyAnyPathMatches(pathname, LEGACY_EXPLORE_ROUTES),
-        },
-        {
-          to: "/participate",
-          label: "Participate",
-          icon: Vote,
-          active: legacyAnyPathMatches(pathname, LEGACY_PARTICIPATE_ROUTES),
-        },
-        {
-          to: "/results",
-          label: "Results",
-          icon: Trophy,
-          active: legacyAnyPathMatches(pathname, LEGACY_RESULT_ROUTES),
-        },
-        {
-          to: email ? "/my-solaris" : "/auth",
-          label: "Me",
-          icon: User,
-          active:
-            pathname.startsWith("/me") ||
-            pathname.startsWith("/my-solaris") ||
-            pathname.startsWith("/auth"),
-        },
-      ];
+  const quickNavigation = globalAreas.map((item) => ({
+    to: item.to,
+    label: item.label,
+    icon: GLOBAL_ICON_BY_AREA[item.id],
+    active: !pathname.startsWith("/site-directory") && publicArea === item.id,
+  }));
 
   return (
     <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
@@ -355,25 +269,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Brand />
 
             <nav className="ml-auto hidden items-center gap-1 lg:flex" aria-label="Main navigation">
-              {publicIaV3Enabled ? (
-                <NewPublicDesktopNavigation
-                  pathname={pathname}
-                  publicArea={publicArea}
-                  globalAreas={globalAreas}
-                  access={access}
-                  email={email}
-                  visibleAccountEmail={visibleAccountEmail}
-                  signOut={signOut}
-                />
-              ) : (
-                <LegacyPublicDesktopNavigation
-                  pathname={pathname}
-                  access={access}
-                  email={email}
-                  visibleAccountEmail={visibleAccountEmail}
-                  signOut={signOut}
-                />
-              )}
+              <NewPublicDesktopNavigation
+                pathname={pathname}
+                publicArea={publicArea}
+                globalAreas={globalAreas}
+                access={access}
+                email={email}
+                visibleAccountEmail={visibleAccountEmail}
+                signOut={signOut}
+              />
             </nav>
 
             <SheetTrigger asChild>
@@ -424,14 +328,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <nav className="scroll-slim flex-1 overflow-y-auto overscroll-contain p-3" aria-label="Mobile navigation">
-            {publicIaV3Enabled ? (
-              <PublicDrawerNavigation pathname={pathname} user={publicUser} />
-            ) : (
-              <LegacyPublicDrawerNavigation
-                pathname={pathname}
-                isOrganizer={access.isOrganizer}
-              />
-            )}
+            <PublicDrawerNavigation pathname={pathname} user={publicUser} />
           </nav>
 
           <div
@@ -498,7 +395,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </>
           ) : isMySolarisWorkspace ? (
             <MySolarisWorkspaceShell>{children}</MySolarisWorkspaceShell>
-          ) : publicIaV3Enabled && showSectionNavigation ? (
+          ) : showSectionNavigation ? (
             <div className="public-site-layout">
               <PublicSectionNav
                 pathname={pathname}
@@ -520,26 +417,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                 )}
               </div>
             </div>
-          ) : publicIaV3Enabled === false && showLegacySidebar ? (
-            <div className="public-site-layout">
-              <LegacyPublicSiteSidebar
-                pathname={pathname}
-                isOrganizer={access.isOrganizer}
-              />
-              <div className="public-site-content min-w-0">
-                {showHomeAnniversaryTakeover && (
-                  <Suspense fallback={null}>
-                    <LazyHomeAnniversaryTakeover />
-                  </Suspense>
-                )}
-                {children}
-                {isEditionPage && (
-                  <Suspense fallback={null}>
-                    <LazyEditionHostingExtension pathname={pathname} />
-                  </Suspense>
-                )}
-              </div>
-            </div>
           ) : (
             <>
               {showHomeAnniversaryTakeover && (
@@ -547,7 +424,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <LazyHomeAnniversaryTakeover />
                 </Suspense>
               )}
-              {publicIaV3Enabled ? <PublicBreadcrumbs pathname={pathname} /> : null}
+              <PublicBreadcrumbs pathname={pathname} />
               {children}
               {isEditionPage && (
                 <Suspense fallback={null}>
@@ -558,7 +435,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
         </main>
 
-        {!isAppMode && publicIaV3Enabled && !isMySolarisWorkspace && !focusedParticipationTask ? (
+        {!isAppMode && !isMySolarisWorkspace && !focusedParticipationTask ? (
           <PublicFooter />
         ) : null}
 
@@ -714,225 +591,6 @@ function NewPublicDesktopNavigation({
         </details>
       ) : null}
     </>
-  );
-}
-
-function LegacyPublicDesktopNavigation({
-  pathname,
-  access,
-  email,
-  visibleAccountEmail,
-  signOut,
-}: {
-  pathname: string;
-  access: AccountAccess;
-  email: string | null;
-  visibleAccountEmail: string | null;
-  signOut: () => Promise<void>;
-}) {
-  const resultsActive = legacyPublicPathMatches(pathname, "/results");
-  const exploreActive = legacyAnyPathMatches(pathname, LEGACY_EXPLORE_ROUTES);
-  const insightsActive = legacyAnyPathMatches(pathname, LEGACY_INSIGHT_ROUTES);
-  const participateActive = legacyAnyPathMatches(pathname, LEGACY_PARTICIPATE_ROUTES);
-  const referenceActive = legacyAnyPathMatches(pathname, LEGACY_REFERENCE_ROUTES);
-  const accountActive =
-    pathname.startsWith("/me") ||
-    pathname.startsWith("/my-solaris") ||
-    pathname.startsWith("/auth") ||
-    pathname.startsWith("/admin");
-
-  return (
-    <>
-      <LegacyDesktopLink to="/" label="Home" active={pathname === "/"} area="home" />
-      <LegacyDesktopLink
-        to="/results"
-        label="Results"
-        active={resultsActive}
-        area="results"
-      />
-      <LegacyDesktopNavMenu
-        label="Explore"
-        active={exploreActive}
-        items={LEGACY_EXPLORE_NAV}
-        area="explore"
-      />
-      <LegacyDesktopNavMenu
-        label="Insights"
-        active={insightsActive}
-        items={LEGACY_INSIGHTS_NAV}
-        area="insights"
-        footer={{
-          to: "/tools",
-          label: "Open tools",
-          description: "Try Result Lab, Taste DNA, comparisons and archive games.",
-        }}
-      />
-      <LegacyDesktopLink
-        to="/participate"
-        label="Participate"
-        active={participateActive}
-        area="participate"
-        emphasized
-      />
-      <LegacyDesktopNavMenu
-        label="Rules & help"
-        active={referenceActive}
-        items={LEGACY_REFERENCE_NAV}
-        area="reference"
-      />
-
-      {email ? (
-        <details key={"legacy-account-" + pathname} className="group relative ml-1">
-          <summary
-            className={cn(
-              desktopNavClass(accountActive),
-              "flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden",
-            )}
-          >
-            Me
-            <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
-          </summary>
-          <div className="nav-menu-panel absolute right-0 top-[calc(100%+.6rem)] w-64 overflow-hidden rounded-2xl border border-border/70 p-2 shadow-2xl">
-            <div className="border-b border-border/55 px-3 py-2.5">
-              <p className="truncate text-xs font-semibold text-foreground">MySolaris</p>
-              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                {visibleAccountEmail ?? "Country account"}
-              </p>
-            </div>
-            <Link to="/my-solaris" className="nav-menu-item mt-1">
-              <span className="font-semibold">Open MySolaris</span>
-              <span className="text-[11px] text-muted-foreground">
-                Dashboard, participation
-                {access.countryId ? " & country tools" : " & country setup"}
-              </span>
-            </Link>
-            {access.isOrganizer ? (
-              <Link to="/admin/operations" className="nav-menu-item">
-                <span className="font-semibold">Organizer workspace</span>
-              </Link>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => void signOut()}
-              className="mt-1 flex min-h-11 w-full items-center rounded-xl px-3 text-left text-xs font-semibold text-muted-foreground transition-colors hover:bg-surface hover:text-foreground"
-            >
-              Sign out
-            </button>
-          </div>
-        </details>
-      ) : (
-        <LegacyDesktopLink
-          to="/auth"
-          label="Sign in"
-          active={pathname.startsWith("/auth")}
-          area="me"
-        />
-      )}
-    </>
-  );
-}
-
-function LegacyDesktopLink({
-  to,
-  label,
-  active,
-  area,
-  emphasized = false,
-}: {
-  to: string;
-  label: string;
-  active: boolean;
-  area: string;
-  emphasized?: boolean;
-}) {
-  return (
-    <Link
-      to={to as any}
-      aria-current={active ? "page" : undefined}
-      onClick={() =>
-        trackPublicUxEvent("public_nav_clicked", {
-          target: to,
-          metadata: { area, source: "legacy_desktop" },
-        })
-      }
-      className={
-        emphasized
-          ? cn(
-              "ml-1 rounded-xl border px-3.5 py-2 text-sm font-semibold transition-colors",
-              active
-                ? "border-primary/35 bg-primary/12 text-foreground"
-                : "border-border/75 bg-surface/55 text-foreground hover:border-primary/30 hover:bg-surface-strong",
-            )
-          : desktopNavClass(active)
-      }
-    >
-      {label}
-    </Link>
-  );
-}
-
-function LegacyDesktopNavMenu({
-  label,
-  active,
-  items,
-  area,
-  footer,
-}: {
-  label: string;
-  active: boolean;
-  items: LegacyPublicNavigationItem[];
-  area: string;
-  footer?: LegacyPublicNavigationItem;
-}) {
-  return (
-    <details className="group relative">
-      <summary
-        className={cn(
-          desktopNavClass(active),
-          "flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden",
-        )}
-      >
-        {label}
-        <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
-      </summary>
-      <div className="nav-menu-panel absolute left-0 top-[calc(100%+.6rem)] w-80 overflow-hidden rounded-2xl border border-border/70 p-2 shadow-2xl">
-        {items.map((item) => (
-          <Link
-            key={item.to}
-            to={item.to as any}
-            onClick={() =>
-              trackPublicUxEvent("public_nav_clicked", {
-                target: item.to,
-                metadata: { area, source: "legacy_desktop_menu" },
-              })
-            }
-            className="nav-menu-item"
-          >
-            <span className="font-semibold text-foreground">{item.label}</span>
-            <span className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-              {item.description}
-            </span>
-          </Link>
-        ))}
-        {footer ? (
-          <Link
-            to={footer.to as any}
-            onClick={() =>
-              trackPublicUxEvent("public_nav_clicked", {
-                target: footer.to,
-                metadata: { area, source: "legacy_desktop_menu" },
-              })
-            }
-            className="mt-1 flex min-h-12 flex-col justify-center rounded-xl border border-primary/12 bg-primary/[0.055] px-3 py-2 text-xs transition-colors hover:bg-primary/[0.09]"
-          >
-            <span className="font-semibold text-foreground">{footer.label}</span>
-            <span className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
-              {footer.description}
-            </span>
-          </Link>
-        ) : null}
-      </div>
-    </details>
   );
 }
 
