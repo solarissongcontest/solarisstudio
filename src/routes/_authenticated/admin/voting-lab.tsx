@@ -5,6 +5,7 @@ import { FlaskConical, ShieldCheck, SlidersHorizontal, Trophy } from 'lucide-rea
 import { useEffect, useMemo, useState } from 'react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
+import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
 import { getVotingLabData } from '@/integrations/televoting/voting-lab.functions';
@@ -105,6 +106,47 @@ function VotingLabPage() {
 
   const current = comparison?.current ?? null;
   const experiment = comparison?.experiment ?? null;
+  const movementRows = current && experiment ? comparisonRows(current, experiment) : [];
+  const movementColumns = [
+    {
+      key: 'entry',
+      header: 'Entry',
+      primary: true,
+      render: (row) => nameOf(row.countryId, displayMap),
+    },
+    {
+      key: 'current-rank',
+      header: 'Current rank',
+      render: (row) => <span className="tabular-nums">{row.currentRank ?? '—'}</span>,
+    },
+    {
+      key: 'experiment-rank',
+      header: 'Experiment rank',
+      render: (row) => <span className="tabular-nums">{row.experimentRank ?? '—'}</span>,
+    },
+    {
+      key: 'current-points',
+      header: 'Current points',
+      align: 'right' as const,
+      render: (row) => <span className="tabular-nums">{row.currentPoints}</span>,
+    },
+    {
+      key: 'experiment-points',
+      header: 'Experiment points',
+      align: 'right' as const,
+      render: (row) => <span className="tabular-nums">{row.experimentPoints}</span>,
+    },
+    {
+      key: 'delta',
+      header: 'Δ points',
+      align: 'right' as const,
+      render: (row) => (
+        <AdminStatus tone={row.delta === 0 ? 'neutral' : row.delta > 0 ? 'ready' : 'attention'}>
+          {row.delta > 0 ? '+' : ''}{row.delta}
+        </AdminStatus>
+      ),
+    },
+  ] satisfies readonly AdminDataColumn<(typeof movementRows)[number]>[];
 
   return (
     <AdminPage>
@@ -278,36 +320,13 @@ function VotingLabPage() {
             {current && experiment ? (
               <AdminCard>
                 <AdminCardHeader eyebrow="Standings" title="Result movement" />
-                <div className="mt-4 overflow-x-auto">
-                  <table className="w-full min-w-[760px] text-left text-sm">
-                    <thead className="text-xs uppercase tracking-[0.1em] text-muted-foreground">
-                      <tr>
-                        <th className="pb-3">Entry</th>
-                        <th className="pb-3">Current rank</th>
-                        <th className="pb-3">Experiment rank</th>
-                        <th className="pb-3">Current points</th>
-                        <th className="pb-3">Experiment points</th>
-                        <th className="pb-3">Δ points</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.07]">
-                      {comparisonRows(current, experiment).map((row) => (
-                        <tr key={row.countryId}>
-                          <td className="py-3 font-semibold">{nameOf(row.countryId, displayMap)}</td>
-                          <td className="py-3 tabular-nums">{row.currentRank ?? '—'}</td>
-                          <td className="py-3 tabular-nums">{row.experimentRank ?? '—'}</td>
-                          <td className="py-3 tabular-nums">{row.currentPoints}</td>
-                          <td className="py-3 tabular-nums">{row.experimentPoints}</td>
-                          <td className="py-3 tabular-nums">
-                            <AdminStatus tone={row.delta === 0 ? 'neutral' : row.delta > 0 ? 'ready' : 'attention'}>
-                              {row.delta > 0 ? '+' : ''}{row.delta}
-                            </AdminStatus>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <AdminDataView
+                  className="mt-4"
+                  rows={movementRows}
+                  columns={movementColumns}
+                  rowKey={(row) => row.countryId}
+                  ariaLabel="Voting system result movement"
+                />
               </AdminCard>
             ) : null}
 
