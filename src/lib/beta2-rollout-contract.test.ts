@@ -13,7 +13,7 @@ describe("Beta 2 hardened rollout contract", () => {
     expect(shell).toContain("<PublicSectionNav");
     expect(shell).toContain("publicGlobalAreasForContext");
     expect(shell).toContain("globalAreas.map");
-    expect(shell).toContain("resolvePublicIaV3Enabled");
+    expect(shell).not.toContain("LegacyPublicNavigation");
     for (const route of ["/", "/explore", "/participate", "/results", "/my-solaris"])
       expect(navigation).toContain(`to: "${route}"`);
     for (const label of ["Home", "Explore", "Participate", "Results", "Me"])
