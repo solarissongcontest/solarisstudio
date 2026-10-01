@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
-export function AdminPageHeader({
+export function WorkspaceHeader({
   eyebrow,
   title,
   description,
@@ -41,6 +41,8 @@ export function AdminPageHeader({
     </header>
   );
 }
+
+export const AdminPageHeader = WorkspaceHeader;
 
 export function AdminCard({
   children,
