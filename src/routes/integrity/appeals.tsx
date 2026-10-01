@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, EyeOff, Gavel, KeyRound, ShieldCheck } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { GovernanceDepthLayout } from "@/components/SolarisDepth";
 import { RulesApplyingHere } from "@/components/rules/GovernanceRules";
 import { formatIntegrityStatus, getIntegrityCategory } from "@/lib/integrity";
 import {
@@ -38,7 +39,7 @@ function IntegrityAppealsLanding() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-4xl pb-20">
+      <GovernanceDepthLayout tone="integrity" context="integrity" className="mx-auto max-w-4xl pb-20">
         <header className="border-b border-border/65 pb-5">
           <div className="flex items-center gap-2 text-amber-200">
             <Gavel className="size-4" />
@@ -152,7 +153,7 @@ function IntegrityAppealsLanding() {
             </div>
           </div>
         </section>
-      </div>
+      </GovernanceDepthLayout>
     </AppShell>
   );
 }

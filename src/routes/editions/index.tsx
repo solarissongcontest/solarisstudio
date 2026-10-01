@@ -3,7 +3,6 @@ import { useMemo } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
-import { BackgroundFlag } from "@/components/BackgroundFlag";
 import { FlagChip } from "@/components/FlagChip";
 import {
   editionLabel,
@@ -160,7 +159,7 @@ function EditionsPage() {
             <p className="numeric shrink-0 text-xs text-muted-foreground">{cards.length} editions</p>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface/55 divide-y divide-border/60">
             {archive.map((card) => (
               <ArchiveEdition key={card.edition.id} card={card} />
             ))}
@@ -175,112 +174,74 @@ function EditionsPage() {
   );
 }
 
+function HostLine({ hosts }: { hosts: HostLocation[] }) {
+  if (!hosts.length) return <span className="text-muted-foreground">Host TBC</span>;
+  return (
+    <span className="inline-flex min-w-0 flex-wrap items-center gap-1.5">
+      {hosts.slice(0, 2).map((host, index) => (
+        <span key={host.key} className="inline-flex min-w-0 items-center gap-1.5">
+          {host.country ? (
+            <FlagChip
+              code={host.country.short_code}
+              color={host.country.accent_color}
+              image={host.country.flag_image}
+              size="sm"
+            />
+          ) : null}
+          <span className="truncate">
+            {[host.city, host.country?.name].filter(Boolean).join(", ") || "TBC"}
+          </span>
+          {index < Math.min(hosts.length, 2) - 1 ? <span aria-hidden="true">·</span> : null}
+        </span>
+      ))}
+      {hosts.length > 2 ? <span className="text-muted-foreground">+{hosts.length - 2}</span> : null}
+    </span>
+  );
+}
+
+function WinnerLine({ winner, points }: { winner: any; points?: number | null }) {
+  if (!winner) return <span className="text-muted-foreground">Result not public yet</span>;
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5">
+      <FlagChip
+        code={winner.short_code}
+        color={winner.accent_color}
+        image={winner.flag_image}
+        size="sm"
+      />
+      <span className="truncate">{winner.name}</span>
+      {points != null ? <span className="numeric text-muted-foreground">· {points} pts</span> : null}
+    </span>
+  );
+}
+
 function LatestEdition({ card }: { card: EditionCard }) {
   const { edition, editionShows, winner, winnerResult, hosts } = card;
-  const backgroundFlag = winner?.flag_image ?? hosts[0]?.country?.flag_image;
 
   return (
-    <section>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-[9px] font-black uppercase tracking-[0.22em] text-muted-foreground">
-          Latest edition
-        </p>
-        <p className="text-[9px] font-medium text-muted-foreground">
-          {editionShows.length} public show{editionShows.length === 1 ? "" : "s"}
-        </p>
-      </div>
-
+    <section aria-labelledby="current-edition-heading">
+      <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-primary">Current</p>
       <Link
         to="/editions/$slug"
         params={{ slug: edition.slug }}
-        className="solaris-family-card group relative block min-w-0 overflow-hidden rounded-[1.6rem] border p-4 sm:p-6"
+        className="group block rounded-2xl border border-primary/20 bg-surface p-4 transition-colors hover:bg-surface-strong sm:p-5"
       >
-        <BackgroundFlag
-          image={backgroundFlag}
-          className="-bottom-24 -right-20 h-72 w-72 sm:-bottom-28 sm:-right-14 sm:h-80 sm:w-80"
-          opacity={0.09}
-        />
-        <div className="solaris-family-card-overlay pointer-events-none absolute inset-0" />
-
-        <div className="relative z-10 min-w-0">
-          <div className="flex min-w-0 items-start justify-between gap-4">
-            <div className="min-w-0">
-              <span className="inline-flex rounded-full border border-primary/25 bg-primary/[0.075] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-primary">
-                {edition.status === "completed" ? "Completed edition" : "Current edition"}
-              </span>
-              <p className="mt-4 text-[9px] font-black uppercase tracking-[0.2em] text-primary">
-                Edition {edition.edition_number ?? "—"}
-              </p>
-              <h2 className="display-headline mt-1 text-3xl leading-[0.95] text-white sm:text-4xl">
-                {editionLabel(edition)}
-              </h2>
-              {edition.name && edition.name !== editionLabel(edition) && (
-                <p className="mt-2 text-sm font-medium text-white/62 sm:text-base">{edition.name}</p>
-              )}
-            </div>
-
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.035] text-lg text-primary transition-transform group-hover:translate-x-0.5">
-              →
-            </span>
+        <div className="flex min-w-0 items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-muted-foreground">
+              SSC {edition.edition_number ?? "—"} · {edition.status === "completed" ? "Completed" : "In progress"}
+            </p>
+            <h2 id="current-edition-heading" className="mt-1 break-words text-2xl font-bold tracking-[-.035em] sm:text-3xl">
+              {editionLabel(edition)}
+            </h2>
           </div>
+          <span className="shrink-0 text-lg font-semibold text-primary transition-transform group-hover:translate-x-0.5">→</span>
+        </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-2.5 border-t border-border/55 pt-4">
-            <LatestInfoBlock label={hosts.length > 1 ? "Hosts" : "Host"}>
-              {hosts.length ? (
-                <div className="space-y-2">
-                  {hosts.map((host) => (
-                    <div key={host.key} className="flex min-w-0 items-center gap-2">
-                      {host.country && (
-                        <FlagChip
-                          code={host.country.short_code}
-                          color={host.country.accent_color}
-                          image={host.country.flag_image}
-                          size="sm"
-                        />
-                      )}
-                      <p className="min-w-0 break-words text-[11px] font-semibold leading-tight text-foreground sm:text-xs">
-                        {[host.city, host.country?.name].filter(Boolean).join(", ") || "TBC"}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[11px] text-muted-foreground">TBC</p>
-              )}
-            </LatestInfoBlock>
-
-            <LatestInfoBlock label="Winner">
-              {winner ? (
-                <div className="flex min-w-0 items-center gap-2">
-                  <FlagChip
-                    code={winner.short_code}
-                    color={winner.accent_color}
-                    image={winner.flag_image}
-                    size="sm"
-                  />
-                  <div className="min-w-0">
-                    <p className="truncate text-[11px] font-semibold leading-tight text-foreground sm:text-xs">
-                      {winner.name}
-                    </p>
-                    {winnerResult && (
-                      <p className="numeric mt-0.5 text-[9px] text-muted-foreground">
-                        {winnerResult.total_points} pts
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-[10px] leading-snug text-muted-foreground">Not public yet</p>
-              )}
-            </LatestInfoBlock>
-          </div>
-
-          <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/45 pt-3">
-            <p className="text-[10px] text-muted-foreground">Solaris Song Contest archive</p>
-            <span className="text-xs font-bold text-primary transition-transform group-hover:translate-x-0.5">
-              Open edition →
-            </span>
-          </div>
+        <div className="mt-4 grid gap-2 border-t border-border/60 pt-4 text-sm sm:grid-cols-3">
+          <p><span className="text-muted-foreground">Shows:</span> {editionShows.length}</p>
+          <p className="min-w-0"><span className="text-muted-foreground">Host:</span> <HostLine hosts={hosts} /></p>
+          <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p>
         </div>
       </Link>
     </section>
@@ -289,174 +250,32 @@ function LatestEdition({ card }: { card: EditionCard }) {
 
 function ArchiveEdition({ card }: { card: EditionCard }) {
   const { edition, editionShows, winner, winnerResult, hosts } = card;
-  const backgroundFlag = winner?.flag_image ?? hosts[0]?.country?.flag_image;
 
   return (
     <Link
       to="/editions/$slug"
       params={{ slug: edition.slug }}
-      className="solaris-family-card group relative min-w-0 overflow-hidden rounded-2xl border p-4 transition-[background-color,border-color,box-shadow,transform] duration-150 ease-out hover:-translate-y-0.5 sm:p-5"
+      className="group grid min-w-0 gap-2 px-4 py-4 transition-colors hover:bg-surface sm:grid-cols-[5rem_minmax(0,1fr)_minmax(12rem,.8fr)_auto] sm:items-center sm:gap-4 sm:px-5"
     >
-      <BackgroundFlag
-        image={backgroundFlag}
-        className="-bottom-20 -right-16 h-56 w-56 sm:-bottom-24 sm:-right-20 sm:h-64 sm:w-64"
-        opacity={0.075}
-      />
-      <div className="solaris-family-card-overlay pointer-events-none absolute inset-0" />
-
-      <div className="relative z-10 min-w-0">
-        <div className="flex min-w-0 items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <p className="text-[9px] font-black uppercase tracking-[0.19em] text-primary">
-              Edition {edition.edition_number ?? "—"}
-            </p>
-            <h3 className="mt-1 truncate text-[1.35rem] font-bold leading-tight tracking-[-0.035em] text-foreground sm:text-[1.5rem]">
-              {editionLabel(edition)}
-            </h3>
-            {edition.name && edition.name !== editionLabel(edition) && (
-              <p className="mt-1 truncate text-[11px] text-muted-foreground sm:text-xs">{edition.name}</p>
-            )}
-          </div>
-
-          <div className="flex shrink-0 flex-col items-end gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/[0.035] text-base text-primary transition-transform group-hover:translate-x-0.5">
-              →
-            </span>
-            <p className="text-[9px] font-medium text-muted-foreground">
-              {editionShows.length} show{editionShows.length === 1 ? "" : "s"}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-2.5 border-t border-border/50 pt-4">
-          <ArchiveInfoBlock label={hosts.length > 1 ? "Hosts" : "Host"}>
-            {hosts.length ? (
-              <div className="space-y-2">
-                {hosts.map((host) => (
-                  <div key={host.key} className="flex min-w-0 items-center gap-2">
-                    {host.country && (
-                      <FlagChip
-                        code={host.country.short_code}
-                        color={host.country.accent_color}
-                        image={host.country.flag_image}
-                        size="sm"
-                      />
-                    )}
-                    <p className="min-w-0 break-words text-[11px] font-semibold leading-tight text-foreground/92 sm:text-xs">
-                      {[host.city, host.country?.name].filter(Boolean).join(", ") || "TBC"}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[11px] text-muted-foreground">TBC</p>
-            )}
-          </ArchiveInfoBlock>
-
-          <ArchiveInfoBlock label="Winner">
-            {winner ? (
-              <div className="flex min-w-0 items-center gap-2">
-                <FlagChip
-                  code={winner.short_code}
-                  color={winner.accent_color}
-                  image={winner.flag_image}
-                  size="sm"
-                />
-                <div className="min-w-0">
-                  <p className="truncate text-[11px] font-semibold leading-tight text-foreground/92 sm:text-xs">
-                    {winner.name}
-                  </p>
-                  {winnerResult && (
-                    <p className="numeric mt-0.5 text-[9px] text-muted-foreground">
-                      {winnerResult.total_points} pts
-                    </p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <p className="text-[10px] leading-snug text-muted-foreground">Not public yet</p>
-            )}
-          </ArchiveInfoBlock>
-        </div>
+      <div className="flex items-baseline gap-2 sm:block">
+        <p className="numeric text-lg font-bold text-foreground">{edition.edition_number ?? "—"}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground sm:mt-0.5">SSC</p>
       </div>
+
+      <div className="min-w-0">
+        <p className="truncate text-base font-semibold">{editionLabel(edition)}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {editionShows.length} public show{editionShows.length === 1 ? "" : "s"}
+        </p>
+      </div>
+
+      <div className="min-w-0 space-y-1 text-xs">
+        <p className="min-w-0"><span className="text-muted-foreground">Host:</span> <HostLine hosts={hosts} /></p>
+        <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p>
+      </div>
+
+      <span className="hidden shrink-0 text-base font-semibold text-primary transition-transform group-hover:translate-x-0.5 sm:block">→</span>
     </Link>
   );
 }
 
-function LatestInfoBlock({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="min-w-0 rounded-xl bg-white/[0.028] p-2.5 sm:p-3">
-      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
-        {label}
-      </p>
-      {children}
-    </div>
-  );
-}
-
-function ArchiveInfoBlock({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="min-w-0 rounded-xl border border-white/[0.055] bg-black/10 p-2.5 sm:p-3">
-      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
-        {label}
-      </p>
-      {children}
-    </div>
-  );
-}
-
-function HostSummary({ hosts, prominent = false }: { hosts: HostLocation[]; prominent?: boolean }) {
-  if (!hosts.length) {
-    return (
-      <div className={prominent ? "mt-5" : ""}>
-        <p className={prominent ? "text-xs font-semibold text-white/50" : "text-[10px] text-muted-foreground"}>
-          Host location TBC
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className={prominent ? "mt-5 flex flex-wrap gap-2" : "space-y-1.5"}>
-      {hosts.map((host, index) => (
-        <div
-          key={host.key}
-          className={
-            prominent
-              ? "flex min-w-0 items-center gap-2 rounded-xl border border-white/12 bg-black/20 px-3 py-2 backdrop-blur-md"
-              : "flex min-w-0 items-center gap-2"
-          }
-        >
-          {host.country && (
-            <FlagChip
-              code={host.country.short_code}
-              color={host.country.accent_color}
-              image={host.country.flag_image}
-              size="sm"
-            />
-          )}
-          <div className="min-w-0">
-            <p
-              className={
-                prominent
-                  ? "text-[10px] font-bold uppercase tracking-[0.14em] text-white/45"
-                  : "text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground"
-              }
-            >
-              {hosts.length > 1 ? `Host ${index + 1}` : "Host"}
-            </p>
-            <p
-              className={
-                prominent
-                  ? "break-words text-xs font-semibold text-white"
-                  : "break-words text-[11px] font-semibold leading-tight"
-              }
-            >
-              {[host.city, host.country?.name].filter(Boolean).join(", ") || "Host location TBC"}
-            </p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}

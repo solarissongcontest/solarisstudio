@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { AdminConfirmSheet } from "@/components/admin/AdminUI";
+import { AdminDataView, type AdminDataColumn } from "@/components/admin/AdminDataView";
+import { AdminConfirmSheet, AdminPageHeader } from "@/components/admin/AdminUI";
+import { DangerZone } from "@/components/admin/AdminWorkspacePrimitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -180,20 +182,16 @@ function CombinedResultsPage() {
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-5 py-2">
-      <header className="glass-strong p-5 sm:p-7">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-100/65">Televoting · Component pool</p>
-        <div className="mt-2 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="font-display text-4xl uppercase leading-none sm:text-5xl">Combined Results</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-              Combine website rounds, Instagram, external televotes, activity points and corrections into one exact point pool. Every source is calculated independently before the finished component allocations are added together.
-            </p>
-          </div>
+      <AdminPageHeader
+        eyebrow="Televoting · Component pool"
+        title="Combined Results"
+        description="Combine website rounds, Instagram, external televotes, activity points and corrections into one exact point pool. Every source is calculated independently before the finished component allocations are added together."
+        actions={
           <Button onClick={() => setCreateOpen((value) => !value)}>
             <Plus className="mr-2 h-4 w-4" /> New combined result
           </Button>
-        </div>
-      </header>
+        }
+      />
 
       {createOpen ? (
         <section className="glass p-4 sm:p-5">
@@ -289,6 +287,43 @@ function CombinedWorkspace({
 
   const catalogMap = useMemo(() => new Map(detail.catalog.map((entry: any) => [entry.key, entry])), [detail.catalog]);
   const resolvedById = useMemo(() => new Map(detail.resolved.map((source: any) => [source.id, source])), [detail.resolved]);
+  const previewColumns = [
+    {
+      key: "rank",
+      header: "Rank",
+      render: (row: any) => <span className="numeric font-semibold">#{row.finalRank}</span>,
+    },
+    {
+      key: "entry",
+      header: "Entry",
+      primary: true,
+      render: (row: any) => (catalogMap.get(row.code) as any)?.name ?? row.code,
+    },
+    {
+      key: "voting",
+      header: "Voting",
+      align: "right" as const,
+      render: (row: any) => <span className="numeric">{row.totalVotingPoints}</span>,
+    },
+    {
+      key: "activity",
+      header: "Activity",
+      align: "right" as const,
+      render: (row: any) => <span className="numeric">{row.totalActivityPoints}</span>,
+    },
+    {
+      key: "correction",
+      header: "Correction",
+      align: "right" as const,
+      render: (row: any) => <span className="numeric">{row.finalCorrection}</span>,
+    },
+    {
+      key: "final",
+      header: "Final",
+      align: "right" as const,
+      render: (row: any) => <span className="numeric text-base font-semibold">{row.finalCombinedPoints}</span>,
+    },
+  ] satisfies readonly AdminDataColumn<any>[];
 
   async function saveSettings() {
     try {
@@ -401,7 +436,7 @@ function CombinedWorkspace({
       <section className="glass p-4 sm:p-6">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="font-display text-3xl uppercase">Eligible entries</h2>
+            <h2 className="text-lg font-bold tracking-[-.02em]">Eligible entries</h2>
             <p className="mt-2 text-xs text-muted-foreground">Identity is the stable round entry key, so country and custom entries can coexist safely.</p>
           </div>
           <Button variant="outline" onClick={syncParticipants}><RefreshCw className="mr-2 h-4 w-4" /> Sync from linked rounds</Button>
@@ -417,7 +452,7 @@ function CombinedWorkspace({
 
       <section className="glass p-4 sm:p-6">
         <div className="mb-5">
-          <h2 className="font-display text-3xl uppercase">Components</h2>
+          <h2 className="text-lg font-bold tracking-[-.02em]">Components</h2>
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Enabled non-correction source weights must total exactly 100%. Website rounds can use raw totals or already-converted points without double conversion.</p>
         </div>
 
@@ -452,7 +487,7 @@ function CombinedWorkspace({
       <section className="glass p-4 sm:p-6">
         <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="font-display text-3xl uppercase">Calculation preview</h2>
+            <h2 className="text-lg font-bold tracking-[-.02em]">Calculation preview</h2>
             <p className="mt-2 text-xs text-muted-foreground">Preview uses the same component-pool-v2 engine as the persisted calculation.</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -480,34 +515,21 @@ function CombinedWorkspace({
           <Stat label="Final total" value={detail.preview.finalTotal} />
         </div>
 
-        <div className="mt-5 overflow-x-auto rounded-2xl border border-white/10">
-          <table className="w-full min-w-[680px] text-left text-xs">
-            <thead className="bg-white/[0.04] text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-              <tr><th className="px-4 py-3">Rank</th><th className="px-4 py-3">Entry</th><th className="px-4 py-3 text-right">Voting</th><th className="px-4 py-3 text-right">Activity</th><th className="px-4 py-3 text-right">Correction</th><th className="px-4 py-3 text-right">Final</th></tr>
-            </thead>
-            <tbody>
-              {detail.preview.rows.map((row: any) => (
-                <tr key={row.code} className="border-t border-white/10">
-                  <td className="px-4 py-3 font-semibold">{row.finalRank}</td>
-                  <td className="px-4 py-3">{(catalogMap.get(row.code) as any)?.name ?? row.code}</td>
-                  <td className="px-4 py-3 text-right">{row.totalVotingPoints}</td>
-                  <td className="px-4 py-3 text-right">{row.totalActivityPoints}</td>
-                  <td className="px-4 py-3 text-right">{row.finalCorrection}</td>
-                  <td className="px-4 py-3 text-right text-base font-semibold">{row.finalCombinedPoints}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <AdminDataView
+          className="mt-5"
+          rows={detail.preview.rows}
+          columns={previewColumns}
+          rowKey={(row: any) => row.code}
+          ariaLabel="Combined result calculation preview"
+        />
       </section>
 
-      <section className="glass flex flex-col gap-3 border-red-300/10 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-        <div>
-          <p className="text-sm font-semibold">Delete combined result</p>
-          <p className="mt-1 text-xs text-muted-foreground">Published combined results are protected from deletion.</p>
-        </div>
+      <DangerZone
+        title="Delete combined result"
+        description="Published combined results are protected from deletion."
+      >
         <Button variant="destructive" disabled={aggregation.status === "published" || actionBusy} onClick={() => setDeleteOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
-      </section>
+      </DangerZone>
 
       <AdminConfirmSheet
         open={publishOpen}

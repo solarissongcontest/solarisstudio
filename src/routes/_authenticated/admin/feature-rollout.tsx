@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
+import { WorkspaceTabs } from '@/components/admin/AdminWorkspacePrimitives';
 import { supabase } from '@/integrations/supabase/client';
 import { SOLARIS_FEATURE_FLAGS, type SolarisFeatureFlag } from '@/lib/feature-flags';
 import {
@@ -181,7 +182,7 @@ function FeatureRolloutPage() {
         ) : (
           <>
             <AdminCard className="!p-2 sm:!p-2">
-              <nav className="scroll-slim flex gap-1 overflow-x-auto" aria-label="Feature rollout views">
+              <WorkspaceTabs label="Feature rollout views">
                 {STUDIO2_ROLLOUT_VIEWS.map((candidate) => {
                   const active = candidate.id === view;
                   return (
@@ -194,14 +195,14 @@ function FeatureRolloutPage() {
                       }}
                       aria-pressed={active}
                       className={active
-                        ? 'min-h-10 shrink-0 rounded-xl border border-sky-200/15 bg-sky-200/[0.09] px-3 text-xs font-semibold text-sky-50'
-                        : 'min-h-10 shrink-0 rounded-xl border border-transparent px-3 text-xs font-semibold text-muted-foreground hover:border-white/[0.07] hover:bg-white/[0.035] hover:text-foreground'}
+                        ? 'min-h-10 min-w-0 rounded-xl border border-sky-200/15 bg-sky-200/[0.09] px-3 text-xs font-semibold text-sky-50'
+                        : 'min-h-10 min-w-0 rounded-xl border border-transparent px-3 text-xs font-semibold text-muted-foreground hover:border-white/[0.07] hover:bg-white/[0.035] hover:text-foreground'}
                     >
                       {candidate.label} <span className="numeric ml-1 text-[10px] opacity-70">{counts[candidate.id]}</span>
                     </button>
                   );
                 })}
-              </nav>
+              </WorkspaceTabs>
             </AdminCard>
 
             <div className={selectedRow ? 'grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start' : undefined}>

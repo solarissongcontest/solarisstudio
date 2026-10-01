@@ -22,6 +22,7 @@ import {
   AdminPageHeader,
   AdminStatus,
 } from "@/components/admin/AdminUI";
+import { WorkspaceTabs } from "@/components/admin/AdminWorkspacePrimitives";
 import {
   assignAccessRole,
   grantDirectCapability,
@@ -220,10 +221,7 @@ function AccessPermissionsPage() {
         </section>
 
         <AdminCard className="!p-2 sm:!p-2">
-          <nav
-            className="scroll-slim flex gap-1 overflow-x-auto"
-            aria-label="Access and permissions sections"
-          >
+          <WorkspaceTabs label="Access and permissions sections">
             {TABS.map((item) => (
               <button
                 key={item.id}
@@ -232,14 +230,14 @@ function AccessPermissionsPage() {
                 aria-pressed={tab === item.id}
                 className={
                   tab === item.id
-                    ? "min-h-10 shrink-0 rounded-xl border border-sky-200/15 bg-sky-200/[0.09] px-4 text-sm font-semibold text-sky-50"
-                    : "min-h-10 shrink-0 rounded-xl border border-transparent px-4 text-sm font-semibold text-muted-foreground hover:border-white/[0.07] hover:bg-white/[0.035] hover:text-foreground"
+                    ? "min-h-10 min-w-0 rounded-xl border border-sky-200/15 bg-sky-200/[0.09] px-4 text-sm font-semibold text-sky-50"
+                    : "min-h-10 min-w-0 rounded-xl border border-transparent px-4 text-sm font-semibold text-muted-foreground hover:border-white/[0.07] hover:bg-white/[0.035] hover:text-foreground"
                 }
               >
                 {item.label}
               </button>
             ))}
-          </nav>
+          </WorkspaceTabs>
         </AdminCard>
 
         {message ? <Notice>{message}</Notice> : null}

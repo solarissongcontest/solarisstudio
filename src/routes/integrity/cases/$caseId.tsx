@@ -11,6 +11,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
+import { GovernanceDepthLayout } from "@/components/SolarisDepth";
 import { RulesApplyingHere } from "@/components/rules/GovernanceRules";
 import { formatIntegrityStatus, getIntegrityCategory } from "@/lib/integrity";
 import {
@@ -64,16 +65,16 @@ function ProtectedIntegrityCasePage() {
   });
 
   if (caseQuery.isLoading) {
-    return <AppShell><p className="py-10 text-sm text-muted-foreground">Loading protected case…</p></AppShell>;
+    return <AppShell><GovernanceDepthLayout tone="integrity" context="report" className="mx-auto max-w-4xl py-10"><p className="text-sm text-muted-foreground">Loading protected case…</p></GovernanceDepthLayout></AppShell>;
   }
   if (caseQuery.isError || !caseQuery.data) {
     return (
       <AppShell>
-        <div className="mx-auto max-w-2xl py-12">
+        <GovernanceDepthLayout tone="integrity" context="report" className="mx-auto max-w-2xl py-12">
           <h1 className="text-2xl font-black">This case is not available</h1>
           <p className="mt-2 text-sm text-muted-foreground">Sign in with the Solaris account that owns the protected case.</p>
           <Link to="/integrity/cases" className="mt-4 inline-flex text-sm font-bold text-primary">My cases</Link>
-        </div>
+        </GovernanceDepthLayout>
       </AppShell>
     );
   }
@@ -88,7 +89,7 @@ function ProtectedIntegrityCasePage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-4xl pb-20">
+      <GovernanceDepthLayout tone="integrity" context="report" className="mx-auto max-w-4xl pb-20">
         <header className="border-b border-border/65 pb-5">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-xs font-black text-primary">{item.public_code}</span>
@@ -279,7 +280,7 @@ function ProtectedIntegrityCasePage() {
             </p>
           </section>
         ) : null}
-      </div>
+      </GovernanceDepthLayout>
     </AppShell>
   );
 }

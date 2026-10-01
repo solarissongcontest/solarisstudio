@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BadgeCheck } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { GovernanceDepthLayout } from "@/components/SolarisDepth";
 import {
   getPublicIntegrityDecisions,
   getPublicIntegrityStats,
@@ -35,7 +36,7 @@ export function IntegrityDecisionsPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-5xl pb-20">
+      <GovernanceDepthLayout tone="integrity" context="integrity" className="mx-auto max-w-5xl pb-20">
         <header className="border-b border-border/65 pb-5">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Trust & Integrity</p>
           <h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">Published decisions</h1>
@@ -90,7 +91,7 @@ export function IntegrityDecisionsPage() {
             <p className="mt-3 text-sm text-muted-foreground">No anonymised public decisions have been published yet.</p>
           )}
         </section>
-      </div>
+      </GovernanceDepthLayout>
     </AppShell>
   );
 }

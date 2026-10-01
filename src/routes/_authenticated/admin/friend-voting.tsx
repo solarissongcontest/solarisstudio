@@ -230,13 +230,13 @@ function FriendVotingPage() {
         </AdminCard>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:overflow-x-auto sm:pb-1">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         {tabs.map(([value, label, Icon]) => (
           <button
             key={value}
             type="button"
             onClick={() => setTab(value)}
-            className={`inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border px-3 text-xs font-semibold transition sm:w-auto sm:shrink-0 sm:rounded-full sm:px-4 ${tab === value ? "border-sky-200/20 bg-sky-200/10 text-sky-50" : "border-white/10 bg-white/[0.03] text-muted-foreground"}`}
+            className={`inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border px-3 text-xs font-semibold transition sm:w-auto sm:rounded-full sm:px-4 ${tab === value ? "border-sky-200/20 bg-sky-200/10 text-sky-50" : "border-white/10 bg-white/[0.03] text-muted-foreground"}`}
           >
             <Icon className="size-3.5 shrink-0" /> <span className="truncate">{label}</span>
           </button>

@@ -1,7 +1,8 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
-import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { AppShell, Panel } from "@/components/AppShell";
+import { PredictionWorkspaceHeader } from "@/components/predictions/PredictionWorkspaceHeader";
 import { FlagChip } from "@/components/FlagChip";
 import { useContestEntities, useCountries, useShow, useShowParticipants } from "@/lib/data";
 import { entityDisplayMap, entityKeyOf, type EntityDisplay } from "@/lib/entities";
@@ -219,18 +220,13 @@ function PredictionBuilderPage() {
 
   return (
     <AppShell>
-      <PageHeader
-        eyebrow="Prediction Arena"
+      <PredictionWorkspaceHeader
+        active="arena"
         title={show?.name ?? "Make a prediction"}
         description="Your picks stay private. Consensus remains hidden until you submit, preventing other predictions from anchoring yours."
-        actions={
-          <Link
-            to="/predictions"
-            className="rounded-xl border border-border bg-surface px-3 py-2 text-sm"
-          >
-            ← All rounds
-          </Link>
-        }
+        roundStatus={round?.status ?? null}
+        locksAt={round?.locks_at ?? null}
+        saved={Boolean(savedPrediction)}
       />
 
       {roundData?.schemaReady === false ? (

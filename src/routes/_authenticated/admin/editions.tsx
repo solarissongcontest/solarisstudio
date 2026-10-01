@@ -19,10 +19,14 @@ import {
   AdminConfirmSheet,
   AdminEmptyState,
   AdminMoreMenu,
-  AdminPageHeader,
   AdminSheet,
   AdminStatus,
 } from "@/components/admin/AdminUI";
+import {
+  MetricStrip,
+  WorkspaceActionBar,
+  WorkspaceHeader,
+} from "@/components/admin/AdminWorkspacePrimitives";
 import { Field, Select, TextInput } from "@/components/studio/Controls";
 import { supabase } from "@/integrations/supabase/client";
 import { reportSupabaseError } from "@/lib/errors";
@@ -256,7 +260,7 @@ function AdminHome() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <AdminPageHeader
+      <WorkspaceHeader
         eyebrow="Contest archive"
         title="Editions"
         description="Open an edition to work on it. Creation and destructive actions stay out of the way until you actually need them."
@@ -290,11 +294,11 @@ function AdminHome() {
         </div>
       ) : null}
 
-      <div className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
+      <MetricStrip className="mb-4 grid-cols-3 sm:grid-cols-3 xl:grid-cols-3">
         <MiniMetric label="Editions" value={editions.length} />
         <MiniMetric label="Public" value={publicEditionCount} />
         <MiniMetric label="Shows" value={shows.length} />
-      </div>
+      </MetricStrip>
 
       {editions.length ? (
         <div className="space-y-3">
@@ -348,7 +352,7 @@ function AdminHome() {
                     </div>
 
                     {editionShows.length ? (
-                      <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 scroll-slim">
+                      <div className="mt-3 flex flex-wrap gap-1.5">
                         {editionShows.slice(0, 5).map((show) => (
                           <span
                             key={show.id}
@@ -555,7 +559,7 @@ function AdminHome() {
             </div>
           ) : null}
 
-          <div className="admin-sticky-actions grid grid-cols-[auto_minmax(0,1fr)] gap-2">
+          <WorkspaceActionBar className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
             <button
               type="button"
               disabled={saving}
@@ -571,7 +575,7 @@ function AdminHome() {
             >
               {saving ? "Creating…" : "Create private edition"}
             </button>
-          </div>
+          </WorkspaceActionBar>
         </form>
       </AdminSheet>
 

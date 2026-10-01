@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { BookOpen, CalendarClock, FileClock } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { GovernanceDepthLayout } from "@/components/SolarisDepth";
 import { rulebookReleaseAnchor } from "@/lib/public-library-governance";
 import {
   useRulebookReleaseHistory,
@@ -28,7 +29,7 @@ function RulebookChangesPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-4xl pb-20">
+      <GovernanceDepthLayout tone="rules" context="rules" className="mx-auto max-w-4xl pb-20">
         <header className="border-b border-border/65 pb-5">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-primary/80">
             Rules
@@ -61,7 +62,7 @@ function RulebookChangesPage() {
             ))}
           </ol>
         ) : null}
-      </div>
+      </GovernanceDepthLayout>
     </AppShell>
   );
 }

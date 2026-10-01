@@ -40,7 +40,7 @@ jobs:
       - name: Install browser-audit runner
         run: |
           bun add --dev @playwright/test@1.55.0
-          bunx playwright install --with-deps chromium
+          bunx playwright install --with-deps chromium webkit
 
       - name: Start stable audit server
         env:
@@ -91,7 +91,7 @@ jobs:
           # turning every PR into a 40-minute crawl of the same archive data.
           # The final public-quality release branch also runs the exhaustive set
           # once before merge.
-          E2E_FULL_AUDIT: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'feature/public-final-quality' || github.head_ref == 'chatgpt/completion-programme-20260920') && '1' || '0' }}
+          E2E_FULL_AUDIT: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'feature/public-final-quality' || github.head_ref == 'chatgpt/completion-programme-20260920' || github.head_ref == 'feature/final-ui-completion-20261001') && '1' || '0' }}
           PERSONALITY_REFERENCE_CAPTURE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
           E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
           E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}

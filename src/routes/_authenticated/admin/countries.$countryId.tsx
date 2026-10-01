@@ -87,7 +87,7 @@ function CountryDetailPage() {
         />
 
         <nav
-          className="flex gap-2 overflow-x-auto rounded-2xl border border-white/[0.07] bg-white/[0.02] p-2"
+          className="grid grid-cols-2 gap-2 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-2 sm:flex sm:flex-wrap"
           aria-label="Country cockpit sections"
         >
           {TABS.map((item) => (
@@ -98,8 +98,8 @@ function CountryDetailPage() {
               search={{ tab: item }}
               className={
                 tab === item
-                  ? "admin-action-primary whitespace-nowrap"
-                  : "admin-action-secondary whitespace-nowrap"
+                  ? "admin-action-primary min-w-0"
+                  : "admin-action-secondary min-w-0"
               }
             >
               {tabLabel(item)}

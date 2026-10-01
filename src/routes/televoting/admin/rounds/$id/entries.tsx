@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowDown, ArrowUp, Globe, Link2, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { AdminPageHeader } from "@/components/admin/AdminUI";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -212,13 +213,11 @@ function RoundEntriesPage() {
         </Link>
       </div>
 
-      <header className="mb-8">
-        <p className="text-[10px] uppercase tracking-[0.22em] text-sky-100/65">Participant editor</p>
-        <h1 className="font-display mt-2 text-5xl uppercase leading-none sm:text-6xl">{data?.round.name ?? "Round entries"}</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          The suggested line-up uses participation and entry details from Solaris. You can still add or change entries for special rounds.
-        </p>
-      </header>
+      <AdminPageHeader
+        eyebrow="Participant editor"
+        title={data?.round.name ?? "Round entries"}
+        description="The suggested line-up uses participation and entry details from Solaris. You can still add or change entries for special rounds."
+      />
 
       {adminLoading || isLoading ? (
         <section className="glass-strong p-8 text-center text-sm text-muted-foreground">Loading entries…</section>

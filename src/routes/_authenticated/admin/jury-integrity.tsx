@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, CheckCircle2, Scale, ShieldAlert, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { AdminDataView, type AdminDataColumn } from "@/components/admin/AdminDataView";
 import { AdminCard, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { getJuryIntegrityCases } from "@/integrations/jury-voting/jury-integrity-admin.functions";
 import type { JuryIntegrityCase } from "@/integrations/jury-voting/jury-integrity-admin.server";
@@ -117,6 +118,39 @@ function Metric({ label, value, icon: Icon }: { label: string; value: number; ic
 }
 
 function CaseCard({ row }: { row: JuryIntegrityCase }) {
+  const targetColumns = [
+    {
+      key: "target",
+      header: "Target",
+      primary: true,
+      render: (target) => target.targetName,
+    },
+    {
+      key: "score",
+      header: "Score",
+      render: (target) => <span className="numeric">{target.score}</span>,
+    },
+    {
+      key: "expected",
+      header: "Peer expected",
+      render: (target) => <span className="numeric">{Math.round(target.expectedNormalizedScore * 100)}%</span>,
+    },
+    {
+      key: "deviation",
+      header: "Positive deviation",
+      render: (target) => <span className="numeric">+{Math.round(target.positiveDeviation * 100)}pp</span>,
+    },
+    {
+      key: "z",
+      header: "Z-score",
+      render: (target) => <span className="numeric">{target.zScore.toFixed(2)}</span>,
+    },
+    {
+      key: "signal",
+      header: "Signal",
+      render: (target) => <AdminStatus tone={target.risk >= 70 ? "attention" : "neutral"}>{target.risk}</AdminStatus>,
+    },
+  ] satisfies readonly AdminDataColumn<JuryIntegrityCase["targets"][number]>[];
   return (
     <AdminCard strong>
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -148,32 +182,13 @@ function CaseCard({ row }: { row: JuryIntegrityCase }) {
       </div>
 
       {row.targets.length ? (
-        <div className="mt-4 overflow-x-auto rounded-xl border border-white/[0.07]">
-          <table className="w-full min-w-[680px] text-left text-xs">
-            <thead className="bg-white/[0.025] text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2.5">Target</th>
-                <th className="px-3 py-2.5">Score</th>
-                <th className="px-3 py-2.5">Peer expected</th>
-                <th className="px-3 py-2.5">Positive deviation</th>
-                <th className="px-3 py-2.5">Z-score</th>
-                <th className="px-3 py-2.5">Signal</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/[0.06]">
-              {row.targets.slice(0, 8).map((target) => (
-                <tr key={target.targetCountryId}>
-                  <td className="px-3 py-2.5 font-semibold">{target.targetName}</td>
-                  <td className="px-3 py-2.5 numeric">{target.score}</td>
-                  <td className="px-3 py-2.5 numeric">{Math.round(target.expectedNormalizedScore * 100)}%</td>
-                  <td className="px-3 py-2.5 numeric">+{Math.round(target.positiveDeviation * 100)}pp</td>
-                  <td className="px-3 py-2.5 numeric">{target.zScore.toFixed(2)}</td>
-                  <td className="px-3 py-2.5"><AdminStatus tone={target.risk >= 70 ? "attention" : "neutral"}>{target.risk}</AdminStatus></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <AdminDataView
+          className="mt-4"
+          rows={row.targets.slice(0, 8)}
+          columns={targetColumns}
+          rowKey={(target) => target.targetCountryId}
+          ariaLabel={`${row.countryCode} integrity evidence targets`}
+        />
       ) : null}
     </AdminCard>
   );

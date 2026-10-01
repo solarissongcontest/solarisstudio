@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Activity, BarChart3, CalendarDays, Scale, ShieldAlert, Trophy, UserRoundCog, Users } from "lucide-react";
 
+import { AdminPageHeader } from "@/components/admin/AdminUI";
 import { getMergedTelevotingAdmin } from "@/integrations/televoting/admin-auth.functions";
 import { getMergedScopedAnalytics, type MergedAnalysisScope } from "@/integrations/televoting/analytics.functions";
 import { cn } from "@/lib/utils";
@@ -76,11 +77,11 @@ function TelevotingAnalyticsPage() {
         </div>
       </div>
 
-      <header className="mb-8">
-        <p className="text-[10px] uppercase tracking-[0.22em] text-sky-100/65">Cross-channel voting intelligence</p>
-        <h1 className="font-display mt-2 text-5xl uppercase leading-none sm:text-6xl">Analytics</h1>
-        <p className="mt-3 max-w-4xl text-sm leading-relaxed text-muted-foreground">Televoting and jury history are analysed together. Country view covers the whole delegation; Head of Delegation view separates periods led by different people.</p>
-      </header>
+      <AdminPageHeader
+        eyebrow="Cross-channel voting intelligence"
+        title="Analytics"
+        description="Televoting and jury history are analysed together. Country view covers the whole delegation; Head of Delegation view separates periods led by different people."
+      />
 
       <section className="glass mb-4 grid gap-4 p-4 lg:grid-cols-2">
         <div>
@@ -112,8 +113,8 @@ function TelevotingAnalyticsPage() {
         </div>
       </section>
 
-      <div className="mb-4 flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-white/8 bg-black/10 p-1.5">
-        {(["summary", "editions", "delegations", "controllers", "entries", "channels", "distribution", "activity"] as View[]).map((item) => <button key={item} type="button" onClick={() => setView(item)} className={cn("shrink-0 rounded-xl px-3 py-2 text-xs capitalize transition", view === item ? "bg-sky-200/12 text-sky-100" : "text-muted-foreground hover:text-foreground")}>{item}</button>)}
+      <div className="mb-4 grid grid-cols-2 gap-1 rounded-2xl border border-white/8 bg-black/10 p-1.5 sm:grid-cols-4 xl:grid-cols-8">
+        {(["summary", "editions", "delegations", "controllers", "entries", "channels", "distribution", "activity"] as View[]).map((item) => <button key={item} type="button" onClick={() => setView(item)} className={cn("min-w-0 rounded-xl px-3 py-2 text-xs capitalize transition", view === item ? "bg-sky-200/12 text-sky-100" : "text-muted-foreground hover:text-foreground")}>{item}</button>)}
       </div>
 
       {adminLoading || isLoading ? <section className="glass-strong p-8 text-center text-sm text-muted-foreground">Calculating jury, televote and HOD-aware analytics…</section> : error || !data ? <section className="glass-strong border-destructive/30 p-6 text-sm text-destructive">{error instanceof Error ? error.message : "Analytics could not be loaded."}</section> : (
@@ -130,11 +131,11 @@ function TelevotingAnalyticsPage() {
 
           {view === "delegations" ? <List>{data.delegationRows.map((row) => <article key={row.identity} className="glass grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_repeat(5,78px)] md:items-center"><Identity name={row.name} code={`${row.code} · ${row.editions} edition${row.editions === 1 ? "" : "s"}`} image={row.flag_url} fallback={row.flag} /><SmallMetric label="TV ballots" value={row.ballots} /><SmallMetric label="Jury ballots" value={row.juryBallots} /><SmallMetric label="Jury pts" value={row.juryPoints} /><SmallMetric label="Supported" value={row.avgSupported.toFixed(1)} /><SmallMetric label="Risk" value={row.avgRisk.toFixed(1)} /></article>)}{!data.delegationRows.length ? <Empty>No delegation activity in this scope.</Empty> : null}</List> : null}
 
-          {view === "controllers" ? <List><div className="glass-strong p-5"><h2 className="font-display text-3xl uppercase">HOD controller history</h2><p className="mt-2 text-sm text-muted-foreground">The same person can be followed across multiple countries or non-consecutive tenures without inheriting other controllers’ voting history.</p></div>{data.hodRows.map((row) => <article key={row.personId} className="glass grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_repeat(5,90px)] md:items-center"><div><p className="font-medium">{row.displayName}</p><p className="mt-1 text-xs text-muted-foreground">{row.countries.join(" · ") || "No country code"} · {row.editions} edition{row.editions === 1 ? "" : "s"}</p></div><SmallMetric label="TV ballots" value={row.televoteBallots} /><SmallMetric label="Jury ballots" value={row.juryBallots} /><SmallMetric label="TV points" value={row.televotePoints} /><SmallMetric label="Jury points" value={row.juryPoints} /><SmallMetric label="Jury scores" value={row.juryVotes} /></article>)}{!data.hodRows.length ? <Empty>No HOD-attributed activity yet. Add historical assignments in HOD History.</Empty> : null}</List> : null}
+          {view === "controllers" ? <List><div className="glass-strong p-5"><h2 className="text-lg font-bold tracking-[-.02em]">HOD controller history</h2><p className="mt-2 text-sm text-muted-foreground">The same person can be followed across multiple countries or non-consecutive tenures without inheriting other controllers’ voting history.</p></div>{data.hodRows.map((row) => <article key={row.personId} className="glass grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_repeat(5,90px)] md:items-center"><div><p className="font-medium">{row.displayName}</p><p className="mt-1 text-xs text-muted-foreground">{row.countries.join(" · ") || "No country code"} · {row.editions} edition{row.editions === 1 ? "" : "s"}</p></div><SmallMetric label="TV ballots" value={row.televoteBallots} /><SmallMetric label="Jury ballots" value={row.juryBallots} /><SmallMetric label="TV points" value={row.televotePoints} /><SmallMetric label="Jury points" value={row.juryPoints} /><SmallMetric label="Jury scores" value={row.juryVotes} /></article>)}{!data.hodRows.length ? <Empty>No HOD-attributed activity yet. Add historical assignments in HOD History.</Empty> : null}</List> : null}
 
           {view === "entries" ? <List>{data.targetRows.map((row, index) => <article key={row.entryKey} className="glass grid gap-3 p-4 md:grid-cols-[34px_minmax(0,1fr)_repeat(5,80px)] md:items-center"><span className="text-center text-xs tabular-nums text-muted-foreground">{index + 1}</span><Identity name={row.name} code={row.code} image={row.image} fallback={row.flag} /><SmallMetric label="TV points" value={row.points} /><SmallMetric label="Jury pts" value={row.juryPoints} /><SmallMetric label="TV scores" value={row.scores} /><SmallMetric label="Jury scores" value={row.juryScores} /><SmallMetric label="Max scores" value={row.maxScores + row.juryMaximums} /></article>)}{!data.targetRows.length ? <Empty>No scored entries in this scope.</Empty> : null}</List> : null}
 
-          {view === "channels" ? <List><div className="glass-strong p-5"><h2 className="font-display text-3xl uppercase">Jury vs televote</h2><p className="mt-2 text-sm text-muted-foreground">Raw point systems differ, so each entry is compared by its share of all points in that channel. Delta is televote share minus jury share.</p></div>{data.channelComparisonRows.map((row) => <article key={row.entryKey} className="glass grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_repeat(5,90px)] md:items-center"><div><p className="font-medium">{row.name}</p><p className="mt-1 text-xs text-muted-foreground">{row.code}</p></div><SmallMetric label="TV points" value={row.televotePoints} /><SmallMetric label="Jury points" value={row.juryPoints} /><SmallMetric label="TV share" value={`${row.televoteShare}%`} /><SmallMetric label="Jury share" value={`${row.juryShare}%`} /><SmallMetric label="Delta" value={`${row.shareDelta > 0 ? "+" : ""}${row.shareDelta} pp`} /></article>)}{!data.channelComparisonRows.length ? <Empty>No comparable jury/televote scores in this scope.</Empty> : null}</List> : null}
+          {view === "channels" ? <List><div className="glass-strong p-5"><h2 className="text-lg font-bold tracking-[-.02em]">Jury vs televote</h2><p className="mt-2 text-sm text-muted-foreground">Raw point systems differ, so each entry is compared by its share of all points in that channel. Delta is televote share minus jury share.</p></div>{data.channelComparisonRows.map((row) => <article key={row.entryKey} className="glass grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_repeat(5,90px)] md:items-center"><div><p className="font-medium">{row.name}</p><p className="mt-1 text-xs text-muted-foreground">{row.code}</p></div><SmallMetric label="TV points" value={row.televotePoints} /><SmallMetric label="Jury points" value={row.juryPoints} /><SmallMetric label="TV share" value={`${row.televoteShare}%`} /><SmallMetric label="Jury share" value={`${row.juryShare}%`} /><SmallMetric label="Delta" value={`${row.shareDelta > 0 ? "+" : ""}${row.shareDelta} pp`} /></article>)}{!data.channelComparisonRows.length ? <Empty>No comparable jury/televote scores in this scope.</Empty> : null}</List> : null}
 
           {view === "distribution" ? <section className="glass-strong p-5"><h2 className="font-medium">Televote score distribution</h2><p className="mt-1 text-sm text-muted-foreground">How often each 1–10 website score appears across valid Televoting ballots.</p><div className="mt-5 grid grid-cols-10 items-end gap-2" style={{ height: 240 }}>{data.scoreDistribution.map((count, index) => <div key={index} className="flex h-full min-w-0 flex-col justify-end gap-2"><span className="text-center text-[10px] tabular-nums text-muted-foreground">{count}</span><div className="min-h-1 rounded-t-lg bg-primary/70" style={{ height: `${Math.max(2, (count / scoreMax) * 100)}%` }} /><span className="text-center text-xs font-medium">{index + 1}</span></div>)}</div></section> : null}
 

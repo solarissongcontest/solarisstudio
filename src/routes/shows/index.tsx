@@ -187,7 +187,7 @@ function ArchiveEditionGroup({ cards, defaultOpen }: { cards: ShowCard[]; defaul
     <details open={defaultOpen} className="group overflow-hidden rounded-2xl border border-border/65 bg-surface/25">
       <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 marker:hidden sm:px-5 [&::-webkit-details-marker]:hidden">
         <div className="min-w-0">
-          <p className="truncate font-display text-base font-bold sm:text-lg">{editionLabel(edition)}</p>
+          <p className="truncate text-sm font-bold sm:text-base">{editionLabel(edition)}</p>
           <p className="mt-0.5 text-[10px] text-muted-foreground">{cards.length} show{cards.length === 1 ? "" : "s"} · {resultCount} result{resultCount === 1 ? "" : "s"}</p>
         </div>
         <span className="shrink-0 text-xs font-semibold text-primary group-open:hidden">Open ↓</span>
@@ -207,7 +207,7 @@ function FeaturedShow({ card, priority }: { card: ShowCard; priority?: boolean }
     <Link
       to="/shows/$showId"
       params={{ showId: show.id }}
-      className={`solaris-family-card group relative min-w-0 overflow-hidden rounded-[1.6rem] border ${priority ? "min-h-[330px] lg:row-span-2" : "min-h-[260px]"}`}
+      className={`solaris-family-card group relative min-w-0 overflow-hidden rounded-2xl border ${priority ? "min-h-[250px]" : "min-h-[220px]"}`}
     >
       <BackgroundFlag
         image={winner?.flag_image}
@@ -229,11 +229,11 @@ function FeaturedShow({ card, priority }: { card: ShowCard; priority?: boolean }
           <span className="text-primary transition-transform group-hover:translate-x-1">→</span>
         </div>
 
-        <div className="mt-12 min-w-0">
+        <div className="mt-8 min-w-0">
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">
             {hasResults ? "Result published" : "Broadcast page"}
           </p>
-          <h2 className={`mt-2 break-words font-display font-black leading-[0.96] tracking-[-0.045em] text-white ${priority ? "text-4xl sm:text-5xl" : "text-3xl"}`}>
+          <h2 className={`mt-2 break-words font-bold leading-tight tracking-[-0.025em] text-white ${priority ? "text-2xl sm:text-3xl" : "text-xl sm:text-2xl"}`}>
             {show.name}
           </h2>
 
@@ -278,7 +278,7 @@ function ArchiveShow({ card }: { card: ShowCard }) {
           <p className="text-[10px] font-black uppercase tracking-[0.17em] text-primary">
             {editionLabel(edition)} · {showKindLabel(show.kind)}
           </p>
-          <h3 className="mt-1 break-words font-display text-xl font-black tracking-[-0.035em]">
+          <h3 className="mt-1 break-words text-base font-bold tracking-[-0.02em] sm:text-lg">
             {show.name}
           </h3>
         </div>
@@ -328,7 +328,7 @@ function SectionHeading({ kicker, title, count }: { kicker: string; title: strin
     <div className="flex items-end justify-between gap-4 border-b border-border/60 pb-3">
       <div className="min-w-0">
         <p className="text-[9px] font-black uppercase tracking-[0.22em] text-primary">{kicker}</p>
-        <h2 className="mt-1 break-words font-display text-xl font-black tracking-[-0.035em] sm:text-2xl">{title}</h2>
+        <h2 className="mt-1 break-words text-lg font-bold tracking-[-0.02em] sm:text-xl">{title}</h2>
       </div>
       <p className="numeric shrink-0 text-xs text-muted-foreground">{count}</p>
     </div>

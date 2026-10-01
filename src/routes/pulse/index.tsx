@@ -65,9 +65,7 @@ const FEED_CATEGORIES: ReadonlyArray<readonly [FeedCategory, string]> = [
   ["latest", "Latest"],
   ["contest", "Contest"],
   ["countries", "Countries"],
-  ["music", "Music"],
   ["numbers", "Numbers"],
-  ["announcements", "Announcements"],
 ];
 
 const CATCH_UP_WINDOWS: ReadonlyArray<readonly [CatchUpWindow, string]> = [
@@ -293,12 +291,9 @@ function SolarisPulsePage() {
 
   const leadEvent =
     filteredEvents.find((event) => event.importance === "important") ?? filteredEvents[0];
-  const secondaryStories = filteredEvents
+  const moreUpdates = filteredEvents
     .filter((event) => event.id !== leadEvent?.id)
-    .slice(0, 5);
-  const quickUpdates = filteredEvents
-    .filter((event) => event.id !== leadEvent?.id)
-    .slice(5, 11);
+    .slice(0, 11);
 
   const sinceVisitEvents = useMemo(() => {
     if (!previousVisit) return allEvents.slice(0, 3);
@@ -485,8 +480,8 @@ function SolarisPulsePage() {
         </Link>
       )}
 
-      <div className="mb-5 overflow-x-auto pb-1">
-        <div className="flex min-w-max gap-2">
+      <div className="mb-5">
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Pulse filters">
           {FEED_CATEGORIES.map(([value, label]) => (
             <button
               key={value}
@@ -519,57 +514,43 @@ function SolarisPulsePage() {
         <div className="space-y-6">
           {leadEvent ? (
             <section
-              className="overflow-hidden rounded-3xl border border-border/70 bg-surface"
+              className="rounded-2xl border border-primary/20 bg-surface p-4 sm:p-5"
               aria-labelledby="pulse-lead-story"
             >
-              <div className="grid min-h-[15rem] sm:min-h-[18rem] lg:min-h-[22rem] lg:grid-cols-[1.15fr_.85fr]">
-                <Link
-                  to={leadEvent.route}
-                  onClick={() => user && markRead.mutate(leadEvent.id)}
-                  className="flex flex-col justify-end bg-gradient-to-br from-primary/20 via-surface to-background p-6 sm:p-8 lg:p-10"
-                >
-                  <EventMeta event={leadEvent} unread={Boolean(user && !readIds.has(leadEvent.id))} />
-                  <h2
-                    id="pulse-lead-story"
-                    className="mt-4 max-w-3xl font-display text-3xl font-bold tracking-tight sm:text-4xl"
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-primary">Important</p>
+                {latestEdition ? (
+                  <Link
+                    to="/editions/$slug"
+                    params={{ slug: latestEdition.slug }}
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground"
                   >
-                    {leadEvent.title}
-                  </h2>
-                  {leadEvent.summary && (
-                    <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
-                      {leadEvent.summary}
-                    </p>
-                  )}
-                  <span className="mt-6 text-sm font-bold text-primary">
-                    {actionLabel(leadEvent)} →
-                  </span>
-                </Link>
-
-                <div className="flex flex-col justify-between border-t border-border/70 p-6 lg:border-l lg:border-t-0 lg:p-8">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">
-                      What’s happening now
-                    </p>
-                    <p className="mt-3 text-2xl font-bold">
-                      {latestEdition ? editionLabel(latestEdition) : "No public edition"}
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      {latestEdition
-                        ? `${latestShows.length} public show${latestShows.length === 1 ? "" : "s"} are available for the current edition.`
-                        : "There is no public edition to show yet."}
-                    </p>
-                  </div>
-                  {latestEdition && (
-                    <Link
-                      to="/editions/$slug"
-                      params={{ slug: latestEdition.slug }}
-                      className="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-semibold"
-                    >
-                      Open {editionLabel(latestEdition)} →
-                    </Link>
-                  )}
-                </div>
+                    {editionLabel(latestEdition)} · {latestShows.length} public show{latestShows.length === 1 ? "" : "s"}
+                  </Link>
+                ) : null}
               </div>
+
+              <Link
+                to={leadEvent.route}
+                onClick={() => user && markRead.mutate(leadEvent.id)}
+                className="mt-3 block rounded-xl border border-border/60 bg-background/30 p-4 transition-colors hover:bg-surface-strong sm:p-5"
+              >
+                <EventMeta event={leadEvent} unread={Boolean(user && !readIds.has(leadEvent.id))} />
+                <h2
+                  id="pulse-lead-story"
+                  className="mt-3 max-w-3xl text-xl font-bold leading-tight tracking-[-.025em] sm:text-2xl"
+                >
+                  {leadEvent.title}
+                </h2>
+                {leadEvent.summary ? (
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                    {leadEvent.summary}
+                  </p>
+                ) : null}
+                <span className="mt-4 inline-flex text-sm font-bold text-primary">
+                  {actionLabel(leadEvent)} →
+                </span>
+              </Link>
             </section>
           ) : (
             <EmptyFeed>There are no public Pulse stories yet.</EmptyFeed>
@@ -626,11 +607,60 @@ function SolarisPulsePage() {
             )}
           </section>
 
+          <section aria-labelledby="more-updates">
+            <div className="mb-3">
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">Latest</p>
+              <h2 id="more-updates" className="mt-1 text-2xl font-bold">
+                More updates
+              </h2>
+            </div>
+
+            {moreUpdates.length ? (
+              <ol className="divide-y divide-border/70 overflow-hidden rounded-2xl border border-border/70 bg-surface">
+                {moreUpdates.map((event) => (
+                  <li key={event.id}>
+                    <Link
+                      to={event.route}
+                      onClick={() => user && markRead.mutate(event.id)}
+                      className="grid min-h-20 gap-2 px-4 py-4 transition-colors hover:bg-surface-strong sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-5 sm:px-5"
+                    >
+                      <div className="min-w-0">
+                        <EventMeta event={event} unread={Boolean(user && !readIds.has(event.id))} />
+                        <h3 className="mt-2 text-base font-bold leading-snug">{event.title}</h3>
+                        {event.summary ? (
+                          <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
+                            {event.summary}
+                          </p>
+                        ) : null}
+                      </div>
+                      <span className="text-sm font-semibold text-primary sm:shrink-0">
+                        {actionLabel(event)} →
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <EmptyFeed>No more updates in this category yet.</EmptyFeed>
+            )}
+          </section>
+
+          <details className="rounded-2xl border border-border/70 bg-surface/55">
+            <summary className="cursor-pointer list-none px-4 py-4 text-sm font-semibold sm:px-5">
+              <span className="flex items-center justify-between gap-3">
+                <span>
+                  <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">More from Solaris</span>
+                  <span className="mt-1 block">Analysis, country stories, catch-up and preferences</span>
+                </span>
+                <span className="text-primary" aria-hidden="true">＋</span>
+              </span>
+            </summary>
+            <div className="space-y-6 border-t border-border/60 p-4 sm:p-5">
           {forYouEvents.length > 0 && (
             <section aria-labelledby="for-you">
               <div className="mb-3">
                 <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">For you</p>
-                <h2 id="for-you" className="mt-1 text-2xl font-bold">
+                <h2 id="for-you" className="mt-1 text-xl font-bold">
                   Updates from things you follow
                 </h2>
               </div>
@@ -649,70 +679,6 @@ function SolarisPulsePage() {
                         {event.summary}
                       </p>
                     )}
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
-
-          <section aria-labelledby="latest-stories">
-            <div className="mb-3">
-              <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">Latest</p>
-              <h2 id="latest-stories" className="mt-1 text-2xl font-bold">
-                More from Solaris
-              </h2>
-            </div>
-
-            {secondaryStories.length ? (
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {secondaryStories.map((event) => (
-                  <Link
-                    key={event.id}
-                    to={event.route}
-                    onClick={() => user && markRead.mutate(event.id)}
-                    className="group rounded-2xl border border-border/70 bg-surface p-5"
-                  >
-                    <EventMeta event={event} unread={Boolean(user && !readIds.has(event.id))} />
-                    <h3 className="mt-3 text-lg font-bold leading-snug group-hover:text-primary">
-                      {event.title}
-                    </h3>
-                    {event.summary && (
-                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">
-                        {event.summary}
-                      </p>
-                    )}
-                    <p className="mt-4 text-sm font-semibold text-primary">{actionLabel(event)} →</p>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <EmptyFeed>No more stories in this category yet.</EmptyFeed>
-            )}
-          </section>
-
-          {quickUpdates.length > 0 && (
-            <section aria-labelledby="quick-updates">
-              <div className="mb-3">
-                <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">Quick updates</p>
-                <h2 id="quick-updates" className="mt-1 text-2xl font-bold">
-                  Small changes, no essay required
-                </h2>
-              </div>
-              <div className="divide-y divide-border/70 rounded-2xl border border-border/70 bg-surface px-4 sm:px-5">
-                {quickUpdates.map((event) => (
-                  <Link
-                    key={event.id}
-                    to={event.route}
-                    onClick={() => user && markRead.mutate(event.id)}
-                    className="flex min-h-16 items-center justify-between gap-4 py-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold">{event.title}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {eventTypeLabel(event.event_type)} · {shortDateLabel(event.published_at)}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-sm font-bold text-primary">→</span>
                   </Link>
                 ))}
               </div>
@@ -1039,6 +1005,8 @@ function SolarisPulsePage() {
               )}
             </Panel>
           </section>
+            </div>
+          </details>
         </div>
       )}
     </AppShell>

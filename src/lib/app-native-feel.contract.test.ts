@@ -30,10 +30,13 @@ describe("App Experience v3 native-feel polish", () => {
     expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
   });
 
-  it("shows minimal first-run guidance only inside the installed app", () => {
+  it("shows minimal first-run guidance through the single app overlay manager", () => {
     const runtime = source("src/components/app/AppRuntime.tsx");
+    const manager = source("src/components/app/AppOverlayManager.tsx");
     const firstRun = source("src/components/app/AppFirstRun.tsx");
-    expect(runtime).toContain("<AppFirstRun");
+    expect(runtime).toContain("<AppOverlayManager");
+    expect(manager).toContain("<AppFirstRun");
+    expect(manager).toContain("!firstRunComplete");
     expect(firstRun).toContain("solaris:app-first-run-complete:v1");
     expect(firstRun).toContain("Your SSC companion");
     expect(firstRun).toContain("allowedOnPath");

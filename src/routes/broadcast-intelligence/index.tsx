@@ -17,6 +17,7 @@ import {
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 
 import { FlagChip } from "@/components/FlagChip";
+import { DataStoryPage, ResponsiveHistory, type PublicDataColumn } from "@/components/public/PublicDataStory";
 
 import {
   broadcastEntriesFromResults,
@@ -217,6 +218,72 @@ function BroadcastIntelligencePage() {
     ],
   );
 
+  const comparisonColumns = [
+    {
+      key: "final",
+      header: "Final",
+      mobileLabel: "Final rank",
+      render: (row) => <span className="tabular-nums font-semibold">#{row.finalRank}</span>,
+    },
+    {
+      key: "entry",
+      header: "Entry",
+      primary: true,
+      render: (row) => {
+        const display = displayMap.get(row.id);
+        return (
+          <span className="flex min-w-0 items-center gap-2">
+            {display ? (
+              <FlagChip
+                code={display.short_code}
+                color={display.accent_color}
+                image={display.flag_image}
+                size="sm"
+              />
+            ) : null}
+            <span className="min-w-0 truncate">{row.name}</span>
+          </span>
+        );
+      },
+    },
+    {
+      key: "jury",
+      header: "Jury",
+      align: "right" as const,
+      render: (row) => (
+        <span className="tabular-nums">
+          {row.juryPoints} <span className="text-xs text-muted-foreground">(#{row.juryRank})</span>
+        </span>
+      ),
+    },
+    {
+      key: "televote",
+      header: "Televote",
+      align: "right" as const,
+      render: (row) => (
+        <span className="tabular-nums">
+          {row.televotePoints} <span className="text-xs text-muted-foreground">(#{row.televoteRank})</span>
+        </span>
+      ),
+    },
+    {
+      key: "total",
+      header: "Total",
+      align: "right" as const,
+      render: (row) => <span className="tabular-nums font-semibold">{row.totalPoints}</span>,
+    },
+    {
+      key: "change",
+      header: "Jury → final",
+      align: "right" as const,
+      render: (row) => (
+        <span className="tabular-nums font-semibold">
+          {row.juryToFinalChange > 0 ? `+${row.juryToFinalChange}` : row.juryToFinalChange}
+        </span>
+      ),
+    },
+  ] satisfies readonly PublicDataColumn<(typeof intelligence.rows)[number]>[];
+
   const selectedEdition =
     (editions ?? []).find(
       (edition) =>
@@ -327,7 +394,8 @@ function BroadcastIntelligencePage() {
         }
       />
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-5">
+      <DataStoryPage>
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-5">
         <div className="min-w-0 space-y-4">
           <Panel
             title="Choose a result"
@@ -843,229 +911,12 @@ function BroadcastIntelligencePage() {
                 title="Jury vs televote"
                 description="How each entry's position changed after the two voting groups were combined"
               >
-                <div className="space-y-2 sm:hidden">
-                  {intelligence.rows.map(
-                    (row) => {
-                      const display =
-                        displayMap.get(
-                          row.id,
-                        );
-
-                      return (
-                        <div
-                          key={
-                            row.id
-                          }
-                          className="min-w-0 rounded-xl bg-surface p-3"
-                        >
-                          <div className="flex min-w-0 items-center gap-2">
-                            <span className="w-7 shrink-0 font-display text-lg font-semibold">
-                              #
-                              {
-                                row.finalRank
-                              }
-                            </span>
-
-                            {display && (
-                              <FlagChip
-                                code={
-                                  display.short_code
-                                }
-                                color={
-                                  display.accent_color
-                                }
-                                image={
-                                  display.flag_image
-                                }
-                                size="sm"
-                              />
-                            )}
-
-                            <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                              {
-                                row.name
-                              }
-                            </span>
-                          </div>
-
-                          <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                            <div>
-                              <p className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground">
-                                Jury
-                              </p>
-                              <strong>
-                                #
-                                {
-                                  row.juryRank
-                                }
-                              </strong>
-                              <p className="text-[10px] text-muted-foreground">
-                                {
-                                  row.juryPoints
-                                }{" "}
-                                pts
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground">
-                                Tele
-                              </p>
-                              <strong>
-                                #
-                                {
-                                  row.televoteRank
-                                }
-                              </strong>
-                              <p className="text-[10px] text-muted-foreground">
-                                {
-                                  row.televotePoints
-                                }{" "}
-                                pts
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="text-[9px] uppercase tracking-[0.1em] text-muted-foreground">
-                                Change
-                              </p>
-                              <strong>
-                                {row.juryToFinalChange >
-                                0
-                                  ? `+${row.juryToFinalChange}`
-                                  : row.juryToFinalChange}
-                              </strong>
-                              <p className="text-[10px] text-muted-foreground">
-                                jury → final
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    },
-                  )}
-                </div>
-
-                <div className="hidden max-w-full overflow-x-auto sm:block">
-                  <table className="w-full min-w-[680px] text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-border text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                        <th className="pb-3 pr-3">
-                          Final
-                        </th>
-
-                        <th className="pb-3 pr-3">
-                          Entry
-                        </th>
-
-                        <th className="pb-3 pr-3 text-right">
-                          Jury
-                        </th>
-
-                        <th className="pb-3 pr-3 text-right">
-                          Televote
-                        </th>
-
-                        <th className="pb-3 pr-3 text-right">
-                          Total
-                        </th>
-
-                        <th className="pb-3 text-right">
-                          Jury → final
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {intelligence.rows.map(
-                        (row) => {
-                          const display =
-                            displayMap.get(
-                              row.id,
-                            );
-
-                          return (
-                            <tr
-                              key={
-                                row.id
-                              }
-                              className="border-b border-border/50 last:border-0"
-                            >
-                              <td className="py-3 pr-3 font-display text-lg font-semibold">
-                                #
-                                {
-                                  row.finalRank
-                                }
-                              </td>
-
-                              <td className="py-3 pr-3">
-                                <div className="flex items-center gap-2">
-                                  {display && (
-                                    <FlagChip
-                                      code={
-                                        display.short_code
-                                      }
-                                      color={
-                                        display.accent_color
-                                      }
-                                      image={
-                                        display.flag_image
-                                      }
-                                      size="sm"
-                                    />
-                                  )}
-
-                                  <span className="font-semibold">
-                                    {
-                                      row.name
-                                    }
-                                  </span>
-                                </div>
-                              </td>
-
-                              <td className="py-3 pr-3 text-right tabular-nums">
-                                {
-                                  row.juryPoints
-                                }{" "}
-                                <span className="text-xs text-muted-foreground">
-                                  (#
-                                  {
-                                    row.juryRank
-                                  })
-                                </span>
-                              </td>
-
-                              <td className="py-3 pr-3 text-right tabular-nums">
-                                {
-                                  row.televotePoints
-                                }{" "}
-                                <span className="text-xs text-muted-foreground">
-                                  (#
-                                  {
-                                    row.televoteRank
-                                  })
-                                </span>
-                              </td>
-
-                              <td className="py-3 pr-3 text-right font-semibold tabular-nums">
-                                {
-                                  row.totalPoints
-                                }
-                              </td>
-
-                              <td className="py-3 text-right font-semibold tabular-nums">
-                                {row.juryToFinalChange >
-                                0
-                                  ? `+${row.juryToFinalChange}`
-                                  : row.juryToFinalChange}
-                              </td>
-                            </tr>
-                          );
-                        },
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                <ResponsiveHistory
+                  rows={intelligence.rows}
+                  columns={comparisonColumns}
+                  rowKey={(row) => row.id}
+                  ariaLabel="Jury and televote result comparison"
+                />
               </Panel>
             </>
           ) : (
@@ -1083,7 +934,8 @@ function BroadcastIntelligencePage() {
             </Panel>
           )}
         </div>
-      </div>
+        </div>
+      </DataStoryPage>
     </AppShell>
   );
 }

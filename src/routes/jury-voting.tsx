@@ -348,10 +348,25 @@ function JuryBallotBooth({ round, country, accessToken, onSubmitted }: { round: 
     const canSign = signedName.trim().toLowerCase() === country.username.trim().toLowerCase() && acceptedAutomatic && acceptedIndependence && acceptedCoordination && acceptedPressure && acceptedConsequences;
     return (
       <div className="space-y-4">
-        <section className={cn("rounded-2xl border p-5 sm:p-7", severityClass(report.severity))}>
+        <section className={cn("rounded-2xl border p-4 sm:p-5", severityClass(report.severity))}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><ShieldAlert className="size-6 shrink-0" /><p className="text-xs font-black uppercase tracking-[0.15em]">Automatic Voting Integrity System</p><span className="rounded-full border border-current/20 px-2.5 py-1 text-[10px] font-bold">{severityLabel(report.severity)} · {report.riskScore}/100</span></div><h2 className="mt-4 text-2xl font-black sm:text-3xl">Your jury ballot was automatically flagged</h2><p className="mt-3 text-sm leading-6 opacity-90"><strong>No person flagged this ballot.</strong> Solaris compared it with recent-weighted historical jury and televote patterns connected to your delegation and HOD history.</p><p className="mt-2 text-sm leading-6 opacity-80">A flag is not proof of misconduct. You may change the ballot, or sign the declaration if it is genuinely independent.</p></div>
-            <button type="button" onClick={returnToBallot} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-current/25 bg-black/15 px-4 text-sm font-bold"><ArrowLeft className="size-4" /> Change my votes</button>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <ShieldAlert className="size-5 shrink-0" />
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em]">Voting integrity review</p>
+                <span className="rounded-full border border-current/20 px-2.5 py-1 text-[10px] font-semibold">
+                  Risk signal {report.riskScore}/100
+                </span>
+              </div>
+              <h2 className="mt-3 text-xl font-bold tracking-[-.02em]">Solaris found an unusual pattern</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 opacity-90">
+                This is not a finding of misconduct. Automated analysis compared this ballot with recent-weighted historical jury and televote patterns connected to your delegation and HOD history.
+              </p>
+              <p className="mt-2 text-sm leading-6 opacity-80">
+                You can change the ballot, or continue with the declaration if the ballot genuinely reflects your independent preferences.
+              </p>
+            </div>
+            <button type="button" onClick={returnToBallot} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-current/25 bg-black/10 px-4 text-sm font-semibold"><ArrowLeft className="size-4" /> Change ballot</button>
           </div>
         </section>
         <IntegrityEvidence report={report} />

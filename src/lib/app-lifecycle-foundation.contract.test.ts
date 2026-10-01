@@ -44,7 +44,9 @@ describe("App Experience v3 lifecycle foundation", () => {
 
   it("never offers a service-worker reload while a route is safety-blocked", () => {
     const runtime = source("src/components/app/AppRuntime.tsx");
-    expect(runtime).toContain("waitingWorker && updateSafety.safe");
+    const manager = source("src/components/app/AppOverlayManager.tsx");
     expect(runtime).toContain("if (!waitingWorker || !updateSafety.safe) return");
+    expect(runtime).toContain("updateSafe={updateSafety.safe}");
+    expect(manager).toContain("updateAvailable && updateSafe");
   });
 });

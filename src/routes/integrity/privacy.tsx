@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { EyeOff, LockKeyhole, ShieldCheck } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { GovernanceDepthLayout } from "@/components/SolarisDepth";
 import { INTEGRITY_IDENTITY_MODES } from "@/lib/integrity";
 
 export const Route = createFileRoute("/integrity/privacy")({
@@ -47,7 +48,7 @@ const MODES = [
 export function IntegrityPrivacyPage() {
   return (
     <AppShell>
-      <div className="mx-auto max-w-5xl pb-20">
+      <GovernanceDepthLayout tone="integrity" context="integrity" className="mx-auto max-w-5xl pb-20">
         <header className="border-b border-border/65 pb-5">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Trust & Integrity</p>
           <h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">Privacy & anonymity</h1>
@@ -88,7 +89,7 @@ export function IntegrityPrivacyPage() {
           <Link to="/integrity/report/category" search={{ category: undefined }} className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground">Report a concern</Link>
           <Link to="/integrity/process" className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-sm font-bold">How the process works</Link>
         </div>
-      </div>
+      </GovernanceDepthLayout>
     </AppShell>
   );
 }

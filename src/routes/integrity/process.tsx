@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { GovernanceDepthLayout } from "@/components/SolarisDepth";
 import { RulesApplyingHere } from "@/components/rules/GovernanceRules";
 
 export const Route = createFileRoute("/integrity/process")({
@@ -47,7 +48,7 @@ const STEPS = [
 export function IntegrityProcessPage() {
   return (
     <AppShell>
-      <div className="mx-auto max-w-4xl pb-20">
+      <GovernanceDepthLayout tone="integrity" context="integrity" className="mx-auto max-w-4xl pb-20">
         <header className="border-b border-border/65 pb-5">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-200">Trust & Integrity</p>
           <h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">How the process works</h1>
@@ -95,7 +96,7 @@ export function IntegrityProcessPage() {
             Privacy & anonymity
           </Link>
         </div>
-      </div>
+      </GovernanceDepthLayout>
     </AppShell>
   );
 }

@@ -6,14 +6,19 @@ const source = readFileSync(resolve(process.cwd(), "src/routes/pulse/index.tsx")
 const strip = readFileSync(resolve(process.cwd(), "src/components/PulseStrip.tsx"), "utf8");
 
 describe("Solaris Pulse newsroom redesign", () => {
-  it("puts the most useful update structures on the page", () => {
+  it("keeps one catch-up hierarchy on the page", () => {
     expect(source).toContain('eyebrow="What changed"');
-    expect(source).toContain("What’s happening now");
+    expect(source).toContain(">Important<");
     expect(source).toContain("Since your last visit");
-    expect(source).toContain("Quick updates");
+    expect(source).toContain("More updates");
+    expect(source).toContain("More from Solaris");
     expect(source).toContain("Numbers worth knowing");
-    expect(source).toContain("Around Terra Solaris");
     expect(source).toContain("Catch me up");
+    expect(source).not.toContain("What’s happening now");
+    expect(source).not.toContain("Quick updates");
+    expect(source).not.toContain("secondaryStories");
+    expect(source).not.toContain("quickUpdates");
+    expect(source).toContain("const moreUpdates = filteredEvents");
   });
 
   it("keeps Pulse and Analysis separate", () => {
@@ -21,17 +26,19 @@ describe("Solaris Pulse newsroom redesign", () => {
     expect(source).toContain('to="/analysis"');
   });
 
-  it("supports a neutral latest feed plus simple public categories", () => {
-    for (const label of ["Latest", "Contest", "Countries", "Music", "Numbers", "Announcements"]) {
+  it("supports a neutral latest feed plus the four public catch-up categories", () => {
+    for (const label of ["Latest", "Contest", "Countries", "Numbers"]) {
       expect(source).toContain(`"${label}"`);
     }
+    expect(source).not.toContain('["music", "Music"]');
+    expect(source).not.toContain('["announcements", "Announcements"]');
   });
 
-  it("uses readable mobile copy instead of tiny feed typography", () => {
+  it("uses readable mobile copy without a horizontally scrolling category rail", () => {
     expect(source).not.toContain("text-[9px]");
     expect(source).not.toContain("text-[8px]");
     expect(source).toContain("line-clamp-2 text-sm leading-6");
-    expect(source).toContain("overflow-x-auto");
+    expect(source).not.toContain("overflow-x-auto");
     expect(strip).not.toContain("text-[9px]");
     expect(strip).not.toContain("text-[8px]");
   });

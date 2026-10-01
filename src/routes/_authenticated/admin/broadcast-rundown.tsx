@@ -16,6 +16,7 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
+import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
 import { AdminPage } from '@/components/admin/AdminShell';
 import {
   AdminCard,
@@ -129,6 +130,45 @@ function BroadcastRundownPage() {
   const readiness = useMemo(() => buildStudio2BroadcastReadiness(draft), [draft]);
   const selectedShow = shows.find((show) => show.id === showId) ?? null;
   const structureLocked = mode === 'production' && Boolean(draft?.lockedAt);
+  type TimingRow = NonNullable<typeof calculated>["segments"][number];
+  const timingColumns = calculated ? [
+    {
+      key: 'number',
+      header: '#',
+      render: (_segment, index) => <span className="tabular-nums">{index + 1}</span>,
+    },
+    {
+      key: 'segment',
+      header: 'Segment',
+      primary: true,
+      render: (segment) => segment.label,
+    },
+    {
+      key: 'planned',
+      header: 'Planned',
+      render: (segment) => <span className="tabular-nums">{formatClock(segment.plannedStartedAt)}</span>,
+    },
+    {
+      key: 'estimated',
+      header: 'Estimated',
+      render: (segment) => <span className="tabular-nums">{formatClock(segment.estimatedStartedAt)}</span>,
+    },
+    {
+      key: 'finish',
+      header: 'Finish',
+      render: (segment) => <span className="tabular-nums">{formatClock(segment.plannedCompletedAt)}</span>,
+    },
+    {
+      key: 'drift',
+      header: 'Drift',
+      render: (segment) => <span className="tabular-nums">{formatDrift(segment.driftSeconds)}</span>,
+    },
+    {
+      key: 'state',
+      header: 'State',
+      render: (segment) => <AdminStatus tone={statusTone(segment.status)}>{segment.status}</AdminStatus>,
+    },
+  ] satisfies readonly AdminDataColumn<TimingRow>[] : [];
 
   const updateSegment = (index: number, patch: Partial<RundownSegment>) => {
     if (structureLocked) return;
@@ -381,26 +421,13 @@ function BroadcastRundownPage() {
 
             <AdminCard>
               <AdminCardHeader eyebrow="Timing" title="Estimated broadcast clock" />
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full min-w-[760px] text-left text-sm">
-                  <thead className="text-xs uppercase tracking-[0.1em] text-muted-foreground">
-                    <tr><th className="pb-3">#</th><th className="pb-3">Segment</th><th className="pb-3">Planned</th><th className="pb-3">Estimated</th><th className="pb-3">Finish</th><th className="pb-3">Drift</th><th className="pb-3">State</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/[0.07]">
-                    {calculated.segments.map((segment, index) => (
-                      <tr key={segment.id}>
-                        <td className="py-3 text-muted-foreground">{index + 1}</td>
-                        <td className="py-3 font-semibold">{segment.label}</td>
-                        <td className="py-3 tabular-nums">{formatClock(segment.plannedStartedAt)}</td>
-                        <td className="py-3 tabular-nums">{formatClock(segment.estimatedStartedAt)}</td>
-                        <td className="py-3 tabular-nums">{formatClock(segment.plannedCompletedAt)}</td>
-                        <td className="py-3 tabular-nums">{formatDrift(segment.driftSeconds)}</td>
-                        <td className="py-3"><AdminStatus tone={statusTone(segment.status)}>{segment.status}</AdminStatus></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <AdminDataView
+                className="mt-4"
+                rows={calculated.segments}
+                columns={timingColumns}
+                rowKey={(segment) => segment.id}
+                ariaLabel="Estimated broadcast clock"
+              />
             </AdminCard>
           </>
         ) : null}

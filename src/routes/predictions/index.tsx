@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
-import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { AppShell, Panel } from "@/components/AppShell";
+import { PredictionWorkspaceHeader } from "@/components/predictions/PredictionWorkspaceHeader";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { usePredictionRounds } from "@/lib/prediction-data";
 import { formatEventDateTime } from "@/lib/public-time";
@@ -38,15 +39,10 @@ function PredictionArenaPage() {
 
   return (
     <AppShell>
-      <PageHeader
-        eyebrow="Predict before the show"
+      <PredictionWorkspaceHeader
+        active="arena"
         title="Prediction Arena"
         description="Make your picks before the round locks, then return after the result to see what you got right. Community consensus stays hidden until you submit."
-        actions={
-          <Link to="/me" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-            My prediction history
-          </Link>
-        }
       />
 
       {isLoading ? (
@@ -71,19 +67,19 @@ function PredictionArenaPage() {
                 key={round.id}
                 to="/predictions/$showId"
                 params={{ showId: round.show_id }}
-                className="glass block p-4 transition-transform hover:-translate-y-0.5"
+                className="group block rounded-2xl border border-border/70 bg-surface p-4 transition-colors hover:bg-surface-strong"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
                       {edition ? editionLabel(edition) : "Solaris Song Contest"}
                     </p>
-                    <h2 className="mt-2 truncate font-display text-xl font-semibold">
+                    <h2 className="mt-1.5 truncate text-lg font-bold tracking-[-.02em]">
                       {show?.name ?? "Prediction round"}
                     </h2>
                   </div>
 
-                  <span className="shrink-0 rounded-full bg-surface px-2.5 py-1 text-[10px] font-semibold uppercase text-muted-foreground">
+                  <span className="shrink-0 rounded-full border border-border/70 bg-background/40 px-2.5 py-1 text-[10px] font-semibold uppercase text-muted-foreground">
                     {locked ? "Locked" : round.status}
                   </span>
                 </div>

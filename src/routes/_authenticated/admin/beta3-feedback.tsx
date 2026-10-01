@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { BarChart3, Bug, ExternalLink, Gauge, RefreshCw, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { AdminDataView, type AdminDataColumn } from "@/components/admin/AdminDataView";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminCardHeader, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { formatBetaAnswer } from "@/features/beta-test/sections";
@@ -129,6 +130,28 @@ function Beta3FeedbackDashboard() {
       }),
     [submissions],
   );
+  const taskColumns = [
+    { key: "task", header: "Task", primary: true, render: (task) => task.section },
+    {
+      key: "success",
+      header: "Success",
+      align: "right" as const,
+      render: (task) => task.success == null ? "—" : Math.round(task.success) + "%",
+    },
+    {
+      key: "immediate",
+      header: "Immediate",
+      align: "right" as const,
+      render: (task) => task.immediate == null ? "—" : Math.round(task.immediate) + "%",
+    },
+    {
+      key: "responses",
+      header: "Responses",
+      align: "right" as const,
+      render: () => <span className="text-muted-foreground">{submissions.length}</span>,
+    },
+  ] satisfies readonly AdminDataColumn<(typeof taskRows)[number]>[];
+
 
   const mobile = submissions.filter((submission) => ["Phone", "Tablet"].includes(submission.device));
   const desktop = submissions.filter((submission) => ["Laptop", "Desktop"].includes(submission.device));
@@ -303,32 +326,13 @@ function Beta3FeedbackDashboard() {
             title="Where people still struggle"
             description="Success includes immediate, eventually and difficult-but-found outcomes. Immediate stays separate because findability should not require a scavenger hunt."
           />
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] text-left text-xs">
-              <thead className="border-b border-white/[0.08] text-muted-foreground">
-                <tr>
-                  <th className="py-2 pr-3 font-semibold">Task</th>
-                  <th className="px-3 py-2 text-right font-semibold">Success</th>
-                  <th className="px-3 py-2 text-right font-semibold">Immediate</th>
-                  <th className="pl-3 py-2 text-right font-semibold">Responses</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/[0.06]">
-                {taskRows.map((task) => (
-                  <tr key={task.id}>
-                    <td className="py-3 pr-3 font-semibold">{task.section}</td>
-                    <td className="px-3 py-3 text-right">
-                      {task.success == null ? "—" : Math.round(task.success) + "%"}
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      {task.immediate == null ? "—" : Math.round(task.immediate) + "%"}
-                    </td>
-                    <td className="pl-3 py-3 text-right text-muted-foreground">{submissions.length}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <AdminDataView
+            className="mt-4"
+            rows={taskRows}
+            columns={taskColumns}
+            rowKey={(task) => task.id}
+            ariaLabel="Beta 3 task success matrix"
+          />
         </AdminCard>
 
         <AdminCard>

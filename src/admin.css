@@ -33,12 +33,22 @@
   font-family: var(--admin-ui-font);
 }
 
-.admin-control-room .admin-brand-title,
-.admin-control-room .admin-page-title {
+.admin-control-room .admin-brand-title {
   font-family: var(--admin-display-font) !important;
   font-weight: 400 !important;
   text-transform: uppercase;
   letter-spacing: .025em;
+}
+
+.admin-control-room .admin-page-title {
+  font-family: var(--admin-ui-font) !important;
+  font-weight: 700 !important;
+  text-transform: none;
+  letter-spacing: -.035em;
+}
+
+.admin-workspace-header {
+  scroll-margin-top: 6.5rem;
 }
 
 .admin-control-room .font-display:not(.admin-page-title):not(.admin-brand-title) {
@@ -288,7 +298,7 @@
 .admin-sticky-actions {
   position: sticky;
   bottom: calc(4.6rem + env(safe-area-inset-bottom));
-  z-index: 30;
+  z-index: 24;
   margin-inline: -.75rem;
   border-top: 1px solid var(--admin-border);
   background: rgba(5, 12, 25, .92);
@@ -314,7 +324,7 @@
   .admin-control-room .text-\[9px\] { font-size: .72rem !important; line-height: 1rem !important; }
   .admin-control-room .text-\[10px\] { font-size: .75rem !important; line-height: 1.05rem !important; }
   .admin-page { padding-inline: .75rem !important; }
-  .admin-page-title { font-size: clamp(2rem, 10vw, 2.75rem) !important; line-height: .92 !important; }
+  .admin-page-title { font-size: clamp(1.55rem, 7vw, 1.9rem) !important; line-height: 1.06 !important; }
   .admin-control-room h1.font-display:not(.admin-page-title) { font-size: clamp(1.9rem, 9vw, 2.35rem) !important; }
   .admin-control-room h2.font-display:not(.admin-page-title) { font-size: clamp(1.3rem, 7vw, 1.65rem) !important; }
   .admin-card,
