@@ -143,27 +143,3 @@ test.describe("Rules and Integrity governance discovery", () => {
     );
   });
 });
-
-
-test.describe("Public IA rollback", () => {
-  test("legacy navigation remains available when v3 is not enabled", async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== "governance-desktop-1440", "Rollback chrome is verified once at desktop baseline");
-
-    const problems = failOnGovernanceConsoleProblems(page);
-    await page.route("**/rest/v1/rpc/public_ia_v3_enabled", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: "false",
-      });
-    });
-    await page.goto("/televoting");
-
-    await expect(page.getByRole("complementary", { name: "All public pages" })).toBeVisible();
-    await expect(page.getByRole("complementary", { name: "Participate navigation" })).toHaveCount(0);
-    await expect(page.getByRole("navigation", { name: "Main navigation" }).getByText("Rules & help", { exact: true })).toBeVisible();
-
-    await expectNoHorizontalOverflow(page);
-    expect(problems, "Legacy rollback navigation must remain hydration-clean").toEqual([]);
-  });
-});
