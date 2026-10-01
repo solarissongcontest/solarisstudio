@@ -202,7 +202,7 @@ function FeatureRolloutPage() {
                     </button>
                   );
                 })}
-              </nav>
+              </WorkspaceTabs>
             </AdminCard>
 
             <div className={selectedRow ? 'grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start' : undefined}>
