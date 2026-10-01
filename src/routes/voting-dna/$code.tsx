@@ -4,7 +4,7 @@ import { useMemo } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
-import { PublicResponsiveDataView, type PublicDataColumn } from "@/components/public/PublicResponsiveDataView";
+import { DataStoryPage, MethodologyDisclosure, ResponsiveHistory, StatSummary, type PublicDataColumn } from "@/components/public/PublicDataStory";
 import { supabase } from "@/integrations/supabase/client";
 import { editionLabel, useCountries, useEditions } from "@/lib/data";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
@@ -228,7 +228,8 @@ function VotingDnaPage() {
         }
       />
 
-      <div className="mb-5 flex items-center gap-3 rounded-2xl border border-border bg-surface p-4">
+      <DataStoryPage>
+        <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-4">
         <FlagChip
           code={country.short_code}
           color={country.accent_color}
@@ -247,12 +248,12 @@ function VotingDnaPage() {
         title="Sample"
         description="The sample changes when Solaris has not published detailed ballots for an older show."
       >
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <StatSummary>
           <StatTile label="Detailed editions" value={dna.data.sample.detailedEditions} />
           <StatTile label="Jury points given" value={dna.data.sample.givenPoints} />
           <StatTile label="Jury points received" value={dna.data.sample.receivedPoints} />
           <StatTile label="Result editions" value={dna.data.sample.resultEditions} />
-        </div>
+        </StatSummary>
       </Panel>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
@@ -275,7 +276,7 @@ function VotingDnaPage() {
         description="Aggregate result totals, kept separate rather than flattened into fake precision."
         className="mt-5"
       >
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <StatSummary>
           <StatTile label="Avg jury points" value={average(juryValues)?.toFixed(1) ?? "—"} />
           <StatTile
             label="Avg televote points"
@@ -289,9 +290,9 @@ function VotingDnaPage() {
             label="Best televote total"
             value={teleValues.length ? Math.max(...teleValues) : "—"}
           />
-        </div>
+        </StatSummary>
 
-        <PublicResponsiveDataView
+        <ResponsiveHistory
           className="mt-5"
           rows={editionRows}
           columns={historyColumns}
@@ -300,15 +301,14 @@ function VotingDnaPage() {
         />
       </Panel>
 
-      <Panel title="Methodology" className="mt-5">
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          Voting DNA uses a compact database aggregate over published editions, result layers and
-          detailed jury ballots. Jury and televote totals remain separate. Directional support uses
-          detailed jury ballots because aggregate televote totals do not identify individual
-          voter-country relationships. Missing historical detail is excluded, and the sample counts
-          above show how much published evidence exists.
-        </p>
-      </Panel>
+      <MethodologyDisclosure title="Methodology">
+        Voting DNA uses a compact database aggregate over published editions, result layers and
+        detailed jury ballots. Jury and televote totals remain separate. Directional support uses
+        detailed jury ballots because aggregate televote totals do not identify individual
+        voter-country relationships. Missing historical detail is excluded, and the sample counts
+        above show how much published evidence exists.
+      </MethodologyDisclosure>
+      </DataStoryPage>
     </AppShell>
   );
 }
