@@ -118,8 +118,8 @@ describe("Governance OS v5 contract", () => {
     expect(chrome).toContain('/^\\/integrity\\/report');
     expect(chrome).toContain('tabBar: "hidden"');
     expect(archetypes).toContain('/^\\/integrity\\/report');
-    expect(banner).toContain('pathname.startsWith("/integrity/report")');
-    expect(banner).toContain("Published or cached Rules remain available");
+    expect(banner).toContain('pathname.startsWith("/rules") || pathname.startsWith("/integrity")');
+    expect(banner).toContain("Never float a global outage pill over Rules or Integrity");
   });
 
   it("shows rule publication impact before an organizer makes a draft current", () => {
