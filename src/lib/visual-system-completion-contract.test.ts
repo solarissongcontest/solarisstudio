@@ -76,7 +76,7 @@ describe("Solaris visual-system completion contract", () => {
 
     expect(editions).not.toContain("BackgroundFlag");
     expect(editions).toContain(">Current<");
-    expect(editions).toContain(">Archive<");
+    expect(editions).toContain("Past editions");
 
     expect(confirmationEdit).toContain("<ParticipationRouteChrome>");
     expect(confirmationEdit).toContain("<ParticipationServiceShell");
