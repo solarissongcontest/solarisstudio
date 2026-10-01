@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
+import { FilterBar } from '@/components/admin/AdminWorkspacePrimitives';
 import { AdminPage } from '@/components/admin/AdminShell';
 import {
   AdminCard,
@@ -210,29 +211,27 @@ function EligibilityPage() {
               </div>
             </AdminCard>
 
-            <AdminCard>
-              <div className="grid gap-3 md:grid-cols-[1fr_220px]">
-                <label className="relative block">
-                  <span className="sr-only">Search countries</span>
-                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    value={search.q ?? ''}
-                    onChange={(event) => updateSearch({ q: event.target.value || undefined })}
-                    className="admin-input w-full pl-9"
-                    placeholder="Search countries"
-                  />
-                </label>
-                <select
-                  value={statusFilter}
-                  onChange={(event) => updateSearch({ status: event.target.value as EligibilitySearch['status'] })}
-                  className="admin-input w-full"
-                  aria-label="Filter eligibility status"
-                >
-                  <option value="all">All statuses</option>
-                  {STATUSES.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}
-                </select>
-              </div>
-            </AdminCard>
+            <FilterBar className="[&>div]:md:grid-cols-[1fr_220px] [&>div]:xl:grid-cols-[1fr_220px]">
+              <label className="relative block">
+                <span className="sr-only">Search countries</span>
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={search.q ?? ''}
+                  onChange={(event) => updateSearch({ q: event.target.value || undefined })}
+                  className="admin-input w-full pl-9"
+                  placeholder="Search countries"
+                />
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(event) => updateSearch({ status: event.target.value as EligibilitySearch['status'] })}
+                className="admin-input w-full"
+                aria-label="Filter eligibility status"
+              >
+                <option value="all">All statuses</option>
+                {STATUSES.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}
+              </select>
+            </FilterBar>
 
             <AdminCard>
               {filtered.length ? (
