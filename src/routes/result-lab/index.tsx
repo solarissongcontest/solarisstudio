@@ -604,6 +604,7 @@ function ResultLabPage() {
             </Panel>
           )}
         </div>
+        </div>
       </DataStoryPage>
     </AppShell>
   );
