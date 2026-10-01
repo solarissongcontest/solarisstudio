@@ -27,14 +27,68 @@ describe("final UI completion contracts", () => {
     expect(shell).not.toContain("resolvePublicIaV3Enabled");
   });
 
-  it("uses responsive data stories on the audited public data surfaces", () => {
+  it("uses shared responsive data stories on the audited public data surfaces", () => {
+    expect(source("src/routes/prediction-league/index.tsx")).toContain("PublicResponsiveDataView");
+
     for (const path of [
-      "src/routes/prediction-league/index.tsx",
       "src/routes/voting-dna/$code.tsx",
       "src/routes/result-lab/index.tsx",
       "src/routes/broadcast-intelligence/index.tsx",
     ]) {
-      expect(source(path)).toContain("PublicResponsiveDataView");
+      const page = source(path);
+      expect(page).toContain("PublicDataStory");
+      expect(page).toContain("<ResponsiveHistory");
+      expect(page).toContain("<DataStoryPage");
+    }
+  });
+
+  it("keeps Organizer V3 primitives explicit and adopted", () => {
+    const primitives = source("src/components/admin/AdminWorkspacePrimitives.tsx");
+    for (const name of [
+      "WorkspaceHeader",
+      "WorkspaceTabs",
+      "MetricStrip",
+      "ObjectPage",
+      "WorkQueue",
+      "InspectorSheet",
+      "WorkspaceActionBar",
+      "FilterBar",
+      "FormSection",
+      "DangerZone",
+      "AuditTimeline",
+      "CommandMenu",
+    ]) {
+      expect(primitives).toContain(name);
+    }
+
+    expect(source("src/routes/_authenticated/admin/access-permissions.tsx")).toContain("<WorkspaceTabs");
+    expect(source("src/routes/_authenticated/admin/feature-rollout.tsx")).toContain("<WorkspaceTabs");
+    expect(source("src/routes/_authenticated/admin/hosts.tsx")).toContain("<WorkspaceTabs");
+    expect(source("src/routes/_authenticated/admin/eligibility.tsx")).toContain("<FilterBar");
+    expect(source("src/routes/_authenticated/admin/results-reveal.tsx")).toContain("<ObjectPage");
+    expect(source("src/routes/televoting/admin/combined.tsx")).toContain("<DangerZone");
+  });
+
+  it("centralizes app overlays and harmonizes secondary governance routes", () => {
+    const runtime = source("src/components/app/AppRuntime.tsx");
+    const manager = source("src/components/app/AppOverlayManager.tsx");
+    expect(runtime).toContain("<AppOverlayManager");
+    expect(manager).toContain("<AppOfflineBanner");
+    expect(manager).toContain("<AppFirstRun");
+    expect(manager).toContain("<AppUpdatePrompt");
+
+    for (const path of [
+      "src/routes/integrity/appeals.tsx",
+      "src/routes/integrity/decisions.tsx",
+      "src/routes/integrity/process.tsx",
+      "src/routes/integrity/privacy.tsx",
+      "src/routes/integrity/cases/$caseId.tsx",
+      "src/routes/integrity/appeal.$caseId.tsx",
+      "src/routes/integrity/recover.tsx",
+      "src/routes/rules/changes.tsx",
+      "src/routes/rules/interpretations.tsx",
+    ]) {
+      expect(source(path)).toContain("<GovernanceDepthLayout");
     }
   });
 
