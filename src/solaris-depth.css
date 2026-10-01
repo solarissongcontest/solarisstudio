@@ -1,0 +1,301 @@
+/* Solaris Depth System ------------------------------------------------------
+   Governance pages keep the Solaris constellation identity while guaranteeing
+   a protected reading plane. Decorative stars live in negative space; content
+   sits on semantic surfaces above a soft local scrim. */
+
+.solaris-depth-page {
+  --depth-surface: rgb(5 19 41 / .91);
+  --depth-surface-strong: rgb(5 18 38 / .965);
+  --depth-surface-quiet: rgb(4 17 37 / .78);
+  --depth-border: rgb(198 229 242 / .12);
+  --depth-highlight: rgb(255 255 255 / .045);
+  --depth-shadow: rgb(0 5 22 / .22);
+  position: relative;
+  isolation: isolate;
+  width: min(100%, 72rem);
+  margin-inline: auto;
+  padding-bottom: 1rem;
+}
+
+.solaris-depth-page[data-solaris-depth-tone="integrity"] {
+  --depth-surface: rgb(3 26 34 / .925);
+  --depth-surface-strong: rgb(3 23 31 / .97);
+  --depth-surface-quiet: rgb(4 27 35 / .80);
+  --depth-border: rgb(151 235 213 / .13);
+  --depth-highlight: rgb(194 255 236 / .045);
+}
+
+.solaris-depth-safe-zone {
+  position: relative;
+  isolation: isolate;
+}
+
+.solaris-depth-safe-zone::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -1.15rem;
+  border-radius: 2rem;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at center, rgb(var(--solaris-bg-deep) / .72) 0%, rgb(var(--solaris-bg-deep) / .42) 52%, transparent 78%);
+  filter: blur(10px);
+  opacity: .72;
+}
+
+.solaris-depth-surface {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--depth-border);
+  border-radius: 1.35rem;
+  background:
+    linear-gradient(180deg, var(--depth-highlight), transparent 24%),
+    var(--depth-surface);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .035),
+    0 14px 38px var(--depth-shadow);
+}
+
+.solaris-depth-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(120deg, rgb(255 255 255 / .025), transparent 35%, rgb(79 177 220 / .018));
+}
+
+.solaris-depth-surface[data-solaris-depth-surface="reading"] {
+  padding: clamp(1rem, 3vw, 1.45rem);
+}
+
+.solaris-depth-surface[data-solaris-depth-surface="action"] {
+  padding: 1rem;
+  background:
+    radial-gradient(circle at 8% 0%, rgb(var(--solaris-bg-tertiary) / .08), transparent 40%),
+    linear-gradient(180deg, var(--depth-highlight), transparent 26%),
+    var(--depth-surface);
+}
+
+.solaris-depth-surface[data-solaris-depth-surface="task"] {
+  overflow: visible;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / .035), transparent 16%),
+    var(--depth-surface-strong);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .05),
+    0 20px 54px rgb(0 5 24 / .30);
+}
+
+.solaris-depth-surface[data-solaris-depth-surface="quiet"] {
+  padding: .9rem 1rem;
+  background: var(--depth-surface-quiet);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .025);
+}
+
+.solaris-depth-eyebrow {
+  font-size: .66rem;
+  font-weight: 900;
+  letter-spacing: .14em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.solaris-depth-eyebrow[data-tone="primary"] { color: var(--primary); }
+.solaris-depth-eyebrow[data-tone="integrity"] { color: rgb(167 243 208); }
+.solaris-depth-eyebrow[data-tone="urgent"] { color: rgb(254 202 202); }
+
+.solaris-depth-status-strip {
+  display: inline-flex;
+  min-height: 2rem;
+  max-width: 100%;
+  align-items: center;
+  gap: .42rem;
+  border: 1px solid rgb(250 204 21 / .20);
+  border-radius: .75rem;
+  padding: .38rem .62rem;
+  background: rgb(55 38 9 / .68);
+  color: rgb(254 240 188);
+  font-size: .68rem;
+  font-weight: 760;
+  line-height: 1.25;
+}
+
+.solaris-depth-status-strip[data-status="offline"] {
+  border-color: rgb(125 211 252 / .17);
+  background: rgb(5 31 48 / .70);
+  color: rgb(207 244 255);
+}
+
+.solaris-depth-status-strip[data-status="degraded"] {
+  border-color: rgb(125 211 252 / .17);
+  background: rgb(5 31 48 / .70);
+  color: rgb(207 244 255);
+}
+
+.solaris-depth-row {
+  display: flex;
+  min-height: 3.65rem;
+  align-items: center;
+  gap: .75rem;
+  border-top: 1px solid rgb(197 225 238 / .08);
+  padding-block: .72rem;
+}
+
+.solaris-depth-row:first-child { border-top: 0; }
+
+.solaris-depth-verdict {
+  display: inline-flex;
+  min-height: 1.55rem;
+  align-items: center;
+  border: 1px solid rgb(117 207 242 / .16);
+  border-radius: 999px;
+  padding-inline: .52rem;
+  background: rgb(75 168 210 / .08);
+  color: var(--primary);
+  font-size: .65rem;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.solaris-depth-rule-ref {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  gap: .28rem;
+  border-bottom: 1px solid rgb(119 196 231 / .26);
+  color: var(--primary);
+  font-size: .72rem;
+  font-weight: 760;
+}
+
+.solaris-depth-rule-index {
+  display: grid;
+  gap: 1.2rem;
+}
+
+.solaris-depth-rule-index-group + .solaris-depth-rule-index-group {
+  padding-top: .3rem;
+}
+
+.solaris-depth-task {
+  width: min(100%, 48rem);
+  margin-inline: auto;
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+
+.solaris-depth-task-header {
+  border-bottom: 1px solid rgb(194 229 239 / .10);
+  padding: 1rem 1rem .9rem;
+}
+
+.solaris-depth-task-body {
+  padding: 1rem;
+}
+
+.solaris-depth-task-progress {
+  overflow: hidden;
+  height: 2px;
+  margin-top: .8rem;
+  border-radius: 99px;
+  background: rgb(255 255 255 / .07);
+}
+
+.solaris-depth-task-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: rgb(109 223 190);
+  transition: width 180ms ease;
+}
+
+.solaris-depth-task-footer {
+  position: fixed;
+  z-index: 42;
+  inset-inline: 0;
+  bottom: 0;
+  border-top: 1px solid rgb(194 229 239 / .10);
+  padding: .72rem max(1rem, env(safe-area-inset-right)) max(.9rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  background: rgb(3 16 31 / .94);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: blur(22px) saturate(150%);
+}
+
+.solaris-depth-task-footer > div {
+  width: min(100%, 46rem);
+  margin-inline: auto;
+}
+
+/* Keep constellation art recognisable but pull the large near stars out of
+   the reading column on governance routes. */
+body[data-solaris-family="rules"] .solaris-star-layer-near,
+body[data-solaris-family="integrity"] .solaris-star-layer-near {
+  opacity: .78;
+}
+
+body[data-solaris-family="rules"] .solaris-star-anchor[data-star-id="n1"],
+body[data-solaris-family="integrity"] .solaris-star-anchor[data-star-id="n1"] {
+  left: -7% !important;
+}
+
+body[data-solaris-family="rules"] .solaris-star-anchor[data-star-id="n2"],
+body[data-solaris-family="integrity"] .solaris-star-anchor[data-star-id="n2"] {
+  left: 101% !important;
+  top: 37% !important;
+}
+
+body[data-solaris-family="rules"] .solaris-star-anchor[data-star-id="n3"],
+body[data-solaris-family="integrity"] .solaris-star-anchor[data-star-id="n3"] {
+  left: 106% !important;
+}
+
+body[data-solaris-family="rules"] .solaris-star-anchor[data-star-id="m1"],
+body[data-solaris-family="integrity"] .solaris-star-anchor[data-star-id="m1"] {
+  left: 3% !important;
+}
+
+body[data-solaris-family="rules"] .solaris-star-anchor[data-star-id="m2"],
+body[data-solaris-family="integrity"] .solaris-star-anchor[data-star-id="m2"] {
+  left: 96% !important;
+}
+
+/* The app tab bar remains Liquid Glass, but governance pages get enough
+   scroll runway to lift the final row completely above it. */
+@media (display-mode: standalone) and (max-width: 899px) {
+  .solaris-depth-page {
+    padding-bottom: calc(var(--solaris-app-tabbar-height) + 3.6rem + env(safe-area-inset-bottom));
+  }
+
+  .solaris-depth-task {
+    padding-bottom: calc(5.6rem + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 640px) {
+  .solaris-depth-surface {
+    border-radius: 1.15rem;
+  }
+
+  .solaris-depth-safe-zone::before {
+    inset: -.8rem;
+  }
+
+  .solaris-depth-task {
+    width: 100%;
+  }
+
+  .solaris-depth-task .solaris-depth-surface[data-solaris-depth-surface="task"] {
+    border-radius: 1.25rem 1.25rem 0 0;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .solaris-depth-surface,
+  .solaris-depth-task-footer {
+    background: rgb(var(--solaris-bg-deep) / .98) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
