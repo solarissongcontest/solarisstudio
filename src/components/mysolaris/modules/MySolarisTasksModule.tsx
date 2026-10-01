@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { AppTaskCenter } from "@/components/app/AppTaskCenter";
+import { GovernanceInlineReference } from "@/components/rules/GovernanceRules";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { EventTime } from "@/components/public/EventTime";
 import { useCountries, useEditions } from "@/lib/data";
+import { governanceActionForPath, governanceRules } from "@/lib/governance-v5";
 import { useMyCountryAccount } from "@/lib/country-account";
 import { listStudio2EligibilityOverrides } from "@/lib/studio2-eligibility";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
@@ -279,6 +281,7 @@ export function MySolarisTasksModule() {
                         <p className="mt-1 text-xs leading-5 text-muted-foreground">
                           {action.description}
                         </p>
+                        <TaskGovernanceLinks href={action.href} />
                       </div>
                       {!organizerInspection ? (
                         <Link
@@ -662,5 +665,23 @@ function ErrorText({ error }: { error: unknown }) {
     <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
       {error instanceof Error ? error.message : "We couldn’t complete that request."}
     </p>
+  );
+}
+
+
+function TaskGovernanceLinks({ href }: { href: string }) {
+  const context = governanceActionForPath(href);
+  if (!context) return null;
+  const ruleIds = governanceRules(context)
+    .filter((rule) => rule.prominence === "primary")
+    .slice(0, 3)
+    .map((rule) => rule.id);
+  if (!ruleIds.length) return null;
+  return (
+    <GovernanceInlineReference
+      context={context}
+      ruleIds={ruleIds}
+      label="Rules for this task"
+    />
   );
 }

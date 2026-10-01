@@ -1,18 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
-import { AdvancedRulesTools } from "@/components/rules/AdvancedRulesTools";
-import { RulesExperience } from "@/components/rules/RulesExperience";
 import { RulebookVersionBanner } from "@/components/rules/RulebookVersionBanner";
+import { RulesHomeV5 } from "@/components/rules/RulesHomeV5";
 import { usePublishedRulebook } from "@/lib/rules-governance";
 
 export const Route = createFileRoute("/rules/")({
   head: () => ({
     meta: [
-      { title: "Official Rules — Solaris Song Contest" },
+      { title: "Rules — Solaris Song Contest" },
       {
         name: "description",
-        content: "Read and search the official Solaris Song Contest regulations.",
+        content:
+          "Search, understand and browse the official Solaris Song Contest rules and the rules that apply to current Solaris tasks.",
       },
     ],
   }),
@@ -21,12 +21,10 @@ export const Route = createFileRoute("/rules/")({
 
 function RulesPage() {
   const published = usePublishedRulebook();
-
   return (
     <AppShell>
       <RulebookVersionBanner />
-      <RulesExperience key={published.version} version={published.version} />
-      <AdvancedRulesTools />
+      <RulesHomeV5 key={published.version} version={published.version} />
     </AppShell>
   );
 }

@@ -25,6 +25,7 @@ import {
   type RulebookChange,
   type RulebookRelease,
 } from "@/lib/rules-governance";
+import { governanceImpactForRuleIds } from "@/lib/governance-v5";
 import { SSC_RULEBOOK, SSC_RULES, getRuleById, type RuleTone } from "@/lib/ssc-rules-v4";
 import { cn } from "@/lib/utils";
 
@@ -390,6 +391,9 @@ function ReleaseWorkspace(props: {
   const { release, editor, setEditor } = props;
   const isDraft = release.status === "draft";
   const currentChange = release.changes?.find((change) => change.rule_id === editor.ruleId) ?? null;
+  const productImpact = governanceImpactForRuleIds(
+    (release.changes ?? []).map((change) => change.rule_id),
+  );
 
   return (
     <>
@@ -423,8 +427,30 @@ function ReleaseWorkspace(props: {
               <div>
                 <p className="font-black text-amber-50">Publish v{release.version} as the current official rulebook?</p>
                 <p className="mt-1 text-xs leading-5 text-amber-50/70">
-                  This makes its recorded modifications live across the Rules Hub and contextual rule drawers. The previous version remains in public history.
+                  This makes its recorded modifications live across Rules and every contextual Governance OS surface. The previous version remains in public history.
                 </p>
+                {productImpact.length ? (
+                  <div className="mt-3 rounded-xl border border-amber-100/15 bg-black/10 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-amber-100">
+                      Product impact · {productImpact.length} surface{productImpact.length === 1 ? "" : "s"}
+                    </p>
+                    <div className="mt-2 space-y-1.5">
+                      {productImpact.map((impact) => (
+                        <div key={impact.action} className="flex items-center justify-between gap-3 text-xs">
+                          <span className="font-semibold text-amber-50">{impact.title}</span>
+                          <span className="font-mono text-amber-100/70">{impact.changedRuleIds.join(" · ")}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-[10px] leading-4 text-amber-50/65">
+                      Publishing changes the participant-facing guidance on these workflows immediately.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-[10px] text-amber-50/65">
+                    No current participant workflow is directly bound to the changed rule IDs.
+                  </p>
+                )}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button type="button" onClick={() => props.setPublishArmed(false)} className="admin-action-secondary">Cancel</button>
                   <button type="button" disabled={props.publishPending} onClick={props.onPublish} className="admin-action-primary">

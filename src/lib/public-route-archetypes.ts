@@ -12,6 +12,8 @@ export type PublicRouteArchetype =
 export function publicRouteArchetype(pathname: string): PublicRouteArchetype {
   if (pathname === "/") return "home";
 
+  if (/^\/integrity\/report(\/|$)/.test(pathname)) return "focused-task";
+
   if (/^\/(guide|rules|integrity)(\/|$)/.test(pathname)) return "reading";
 
   if (/^\/(auth|reset|recover)(\/|$)/.test(pathname)) return "focused-task";

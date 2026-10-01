@@ -1,5 +1,6 @@
 /** Browser-session identity + local draft cache for public submissions. */
 
+import { captureGovernanceSnapshot } from "@/lib/governance-v5";
 import {
   CONFIRMATION_SUBMITTED_EVENT,
   dispatchSubmissionReceipt,
@@ -72,5 +73,12 @@ export function clearLocalDraft(
   // ConfirmationForm only clears the draft after the server has accepted the
   // response. Broadcasting that fact lets the route show the shared pending →
   // confirmed receipt state without coupling the giant form to presentation UI.
-  dispatchSubmissionReceipt(CONFIRMATION_SUBMITTED_EVENT, roundId, receipt);
+  dispatchSubmissionReceipt(CONFIRMATION_SUBMITTED_EVENT, roundId, {
+    ...receipt,
+    governance:
+      receipt.governance ??
+      (receipt.kind === "confirmation"
+        ? captureGovernanceSnapshot("confirmation.submit")
+        : null),
+  });
 }

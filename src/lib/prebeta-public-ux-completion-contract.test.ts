@@ -13,8 +13,8 @@ describe("Pre-Beta public UX completion contract", () => {
   const guide = source("src/routes/guide/index.tsx");
   const breadcrumbs = source("src/lib/public-breadcrumbs.ts");
   const confirmation = source("src/components/ConfirmationForm.tsx");
-  const rules = source("src/components/rules/RulesExperience.tsx");
-  const integrity = source("src/components/integrity/TrustIntegrityHub.tsx");
+  const rules = source("src/components/rules/RulesHomeV5.tsx");
+  const integrity = source("src/components/integrity/IntegrityHomeV5.tsx");
   const mySolarisContext = source("src/components/mysolaris/MySolarisContext.tsx");
   const priorities = source("src/lib/my-solaris-priorities.ts");
   const palette = source("src/components/public/PublicCommandPalette.tsx");
@@ -56,19 +56,19 @@ describe("Pre-Beta public UX completion contract", () => {
     expect(breadcrumbs).toContain("to: `/editions/${edition.slug}`");
   });
 
-  it("puts eligibility help directly inside confirmation before submission", () => {
-    expect(confirmation).toContain("Unsure whether your song is eligible?");
-    expect(confirmation).toContain("Check song eligibility →");
+  it("puts eligibility rules and guided help directly inside confirmation before submission", () => {
+    expect(confirmation).toContain('context="entry.submit"');
+    expect(confirmation).toContain("Check entry eligibility →");
     expect(confirmation).toContain("Still unsure? Ask before submitting →");
     expect(confirmation).toContain('to="/integrity/preclearance"');
     expect((confirmation.match(/<EntryEligibilityHelp \/>/g) ?? []).length).toBeGreaterThanOrEqual(2);
   });
 
-  it("exposes the planned Rules and Integrity information hierarchy", () => {
-    for (const label of ["Browse chapters", "Rule clarifications", "Rule changes"]) {
+  it("exposes the Governance OS Rules and Integrity information hierarchy", () => {
+    for (const label of ["Browse the 21 chapters", "Official clarifications", "Rule changes & history"]) {
       expect(rules).toContain(label);
     }
-    for (const label of ["Follow a case", "How reporting works", "Privacy"]) {
+    for (const label of ["Follow or recover a case", "How the process works", "Privacy & anonymity"]) {
       expect(integrity).toContain(label);
     }
   });

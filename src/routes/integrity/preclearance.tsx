@@ -1,37 +1,34 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  ArrowLeft,
-  BookOpen,
-  CheckCircle2,
-  CircleHelp,
-  Gavel,
-  KeyRound,
-  RefreshCw,
-  ShieldCheck,
-  XCircle,
-} from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleHelp, MessageCircleQuestion } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { AppShell } from "@/components/AppShell";
+import { RulesApplyingHere } from "@/components/rules/GovernanceRules";
 import {
   getReporterPreclearanceRulings,
-  type IntegrityPreclearanceRuling,
   type PreclearanceOutcome,
 } from "@/lib/integrity-preclearance";
 import {
+  createProtectedIntegrityCase,
   getCurrentIntegrityUser,
   listProtectedIntegrityCases,
 } from "@/lib/integrity-portal";
 import { getRuleById } from "@/lib/ssc-rules-v4";
 
 export const Route = createFileRoute("/integrity/preclearance")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    rule: typeof search.rule === "string" ? search.rule : undefined,
+  }),
   head: () => ({
     meta: [
-      { title: "My Private Rule Rulings — Solaris Song Contest" },
+      { title: "Private Rule Guidance — Solaris Song Contest" },
+      { name: "robots", content: "noindex" },
       {
         name: "description",
-        content: "Review TSBC pre-clearance rulings issued on your protected private rule questions.",
+        content:
+          "Ask TSBC privately how an SSC rule applies before acting, and review official private rulings.",
       },
     ],
   }),
@@ -39,9 +36,14 @@ export const Route = createFileRoute("/integrity/preclearance")({
 });
 
 function ParticipantPreclearancePage() {
-  const userQuery = useQuery({ queryKey: ["integrity-user", "preclearance"], queryFn: getCurrentIntegrityUser });
+  const { rule } = Route.useSearch();
+  const queryClient = useQueryClient();
+  const userQuery = useQuery({
+    queryKey: ["integrity-user", "preclearance-v5"],
+    queryFn: getCurrentIntegrityUser,
+  });
   const casesQuery = useQuery({
-    queryKey: ["integrity-protected-cases", "preclearance"],
+    queryKey: ["integrity-protected-cases", "preclearance-v5"],
     queryFn: listProtectedIntegrityCases,
     enabled: Boolean(userQuery.data),
   });
@@ -50,144 +52,225 @@ function ParticipantPreclearancePage() {
     [casesQuery.data],
   );
   const [selectedCase, setSelectedCase] = useState("");
+  const [plan, setPlan] = useState("");
+  const [uncertainty, setUncertainty] = useState("");
+  const [selectedRule, setSelectedRule] = useState(rule ?? "");
   const caseId = selectedCase || questions[0]?.id || "";
-  const rulingsQuery = useQuery({
+
+  const rulings = useQuery({
     queryKey: ["integrity-reporter-preclearance", caseId],
     queryFn: () => getReporterPreclearanceRulings(caseId),
     enabled: Boolean(caseId && userQuery.data),
   });
-  const selected = questions.find((item) => item.id === caseId) ?? null;
+
+  const askMutation = useMutation({
+    mutationFn: () =>
+      createProtectedIntegrityCase({
+        identityMode: "sealed",
+        caseKind: "rule_question",
+        category: "other",
+        summary: plan.trim().slice(0, 180),
+        details: [
+          plan.trim(),
+          uncertainty.trim() ? `Question: ${uncertainty.trim()}` : "",
+          selectedRule ? `Related rule: ${selectedRule}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
+      }),
+    onSuccess: async (result) => {
+      setPlan("");
+      setUncertainty("");
+      setSelectedRule(rule ?? "");
+      setSelectedCase(result.case_id);
+      await queryClient.invalidateQueries({
+        queryKey: ["integrity-protected-cases", "preclearance-v5"],
+      });
+      toast.success("Private rule question sent");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not send private rule question"),
+  });
+
+  const valid = plan.trim().length >= 20 && plan.trim().length <= 8000 && Boolean(userQuery.data);
 
   return (
     <AppShell>
       <div className="mx-auto max-w-5xl pb-20">
-        <Link to="/integrity" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[0.08] px-3 text-xs font-bold text-muted-foreground hover:bg-white/[0.04] hover:text-white">
-          <ArrowLeft className="size-4" /> Trust & Integrity
-        </Link>
+        <header className="border-b border-border/65 pb-5">
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-sky-200">
+            Private Rule Guidance
+          </p>
+          <h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">
+            Ask before acting
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Describe what you plan to do and what is unclear. TSBC can answer privately and cite the exact current rules that apply to the circumstances you described.
+          </p>
+        </header>
 
-        <section className="relative mt-4 overflow-hidden rounded-[2rem] border border-sky-200/14 bg-[#06152d] p-6 sm:p-8">
-          <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle_at_84%_14%,rgba(77,177,255,.16),transparent_32%),radial-gradient(circle_at_10%_90%,rgba(133,93,255,.12),transparent_30%)]" />
-          <div className="relative max-w-3xl">
-            <p className="text-[10px] font-black uppercase tracking-[.18em] text-sky-200/70">PRIVATE RULE GUIDANCE</p>
-            <h1 className="mt-3 text-4xl font-black tracking-[-.05em] text-white sm:text-5xl">My rule rulings</h1>
-            <p className="mt-4 text-sm leading-7 text-slate-200/72">These are the dated TSBC answers issued on your protected private rule questions. They explain how the current rules apply to the facts you presented before you act.</p>
-          </div>
+        <section className="mt-6" aria-labelledby="new-rule-question">
+          <h2 id="new-rule-question" className="text-lg font-bold">
+            New private question
+          </h2>
+          {!userQuery.isLoading && !userQuery.data ? (
+            <div className="mt-3 border-l-2 border-sky-300/40 px-4 py-2">
+              <p className="text-sm font-semibold">Sign in to ask privately</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Private guidance uses your account for recovery. If you need to report a concern without an account link, use the anonymous reporting flow instead.
+              </p>
+              <Link to="/auth" className="mt-2 inline-flex min-h-10 items-center text-xs font-bold text-primary">
+                Sign in
+              </Link>
+            </div>
+          ) : (
+            <div className="mt-3 space-y-4">
+              <label className="block">
+                <span className="text-sm font-semibold">What are you planning to do?</span>
+                <textarea
+                  value={plan}
+                  onChange={(event) => setPlan(event.target.value)}
+                  rows={4}
+                  maxLength={8000}
+                  className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm leading-6"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold">What are you unsure about?</span>
+                <span className="mt-1 block text-xs text-muted-foreground">Optional</span>
+                <textarea
+                  value={uncertainty}
+                  onChange={(event) => setUncertainty(event.target.value)}
+                  rows={3}
+                  maxLength={3500}
+                  className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm leading-6"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm font-semibold">Related rule</span>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  Optional · enter an exact rule ID if you already know it
+                </span>
+                <input
+                  value={selectedRule}
+                  onChange={(event) => setSelectedRule(event.target.value)}
+                  placeholder="e.g. 6.4"
+                  className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 font-mono text-sm"
+                />
+                {selectedRule && getRuleById(selectedRule) ? (
+                  <Link
+                    to="/rules/$ruleId"
+                    params={{ ruleId: selectedRule }}
+                    className="mt-2 inline-flex min-h-9 items-center gap-1 text-xs font-bold text-primary"
+                  >
+                    {getRuleById(selectedRule)?.title} <ArrowRight className="size-3.5" />
+                  </Link>
+                ) : null}
+              </label>
+              <button
+                type="button"
+                disabled={!valid || askMutation.isPending}
+                onClick={() => askMutation.mutate()}
+                className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground disabled:opacity-40"
+              >
+                {askMutation.isPending ? "Sending…" : "Send private question"}
+              </button>
+            </div>
+          )}
         </section>
 
-        {userQuery.isLoading ? <LoadingCard text="Checking sign-in…" /> : !userQuery.data ? <SignInCard /> : casesQuery.isLoading ? <LoadingCard text="Loading your private rule questions…" /> : !questions.length ? <EmptyCard /> : (
-          <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,.72fr)_minmax(0,1.28fr)]">
-            <section className="rounded-[1.5rem] border border-white/[0.08] bg-white/[0.02] p-4">
-              <p className="text-[9px] font-black uppercase tracking-[.15em] text-muted-foreground">Your private questions</p>
-              <div className="mt-3 space-y-2">
+        <RulesApplyingHere
+          context="integrity.guidance"
+          initiallyExpanded
+          primaryLimit={2}
+          className="mt-6"
+        />
+
+        <section className="mt-8" aria-labelledby="my-private-rulings">
+          <div className="border-b border-border/65 pb-3">
+            <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">
+              Your private guidance
+            </p>
+            <h2 id="my-private-rulings" className="mt-1 text-xl font-bold">
+              My rule rulings
+            </h2>
+          </div>
+
+          {userQuery.isLoading || casesQuery.isLoading ? (
+            <p className="py-6 text-sm text-muted-foreground">Loading private guidance…</p>
+          ) : !userQuery.data ? (
+            <p className="py-6 text-sm text-muted-foreground">Sign in to see private rulings.</p>
+          ) : !questions.length ? (
+            <div className="py-7 text-center">
+              <CircleHelp className="mx-auto size-6 text-muted-foreground" />
+              <p className="mt-2 text-sm font-semibold">No private rule questions yet</p>
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-5 lg:grid-cols-[16rem_minmax(0,1fr)]">
+              <nav className="divide-y divide-border/60 border-y border-border/60" aria-label="Private rule questions">
                 {questions.map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => setSelectedCase(item.id)}
-                    className={`w-full rounded-xl border p-3 text-left transition ${caseId === item.id ? "border-sky-200/22 bg-sky-200/[0.06]" : "border-white/[0.07] bg-black/10 hover:border-white/[0.12]"}`}
+                    className={`w-full py-3 text-left ${caseId === item.id ? "text-foreground" : "text-muted-foreground"}`}
                   >
-                    <p className="font-mono text-[9px] font-black text-sky-200">{item.public_code}</p>
-                    <p className="mt-1 text-xs font-black text-white">{item.summary}</p>
-                    <p className="mt-1 text-[9px] uppercase text-muted-foreground">{item.status.replaceAll("_", " ")}</p>
+                    <span className="block font-mono text-[11px] font-bold text-primary">{item.public_code}</span>
+                    <span className="mt-1 block text-sm font-semibold">{item.summary}</span>
                   </button>
                 ))}
-              </div>
-            </section>
+              </nav>
 
-            <section className="rounded-[1.5rem] border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-mono text-[10px] font-black text-sky-200">{selected?.public_code}</p>
-                  <h2 className="mt-1 text-xl font-black">{selected?.summary}</h2>
-                </div>
-                <Link to="/integrity" className="rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground hover:text-white">Open case centre</Link>
-              </div>
-
-              <div className="mt-4 space-y-3">
-                {rulingsQuery.isLoading ? <LoadingCard text="Loading rulings…" embedded /> : null}
-                {(rulingsQuery.data ?? []).map((ruling) => <ParticipantRuling key={ruling.id} ruling={ruling} />)}
-                {!rulingsQuery.isLoading && !(rulingsQuery.data ?? []).length ? (
-                  <div className="rounded-xl border border-dashed border-white/[0.08] p-6 text-center">
-                    <CircleHelp className="mx-auto size-6 text-muted-foreground" />
-                    <p className="mt-2 text-sm font-bold">No ruling yet</p>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">TSBC has not issued a formal pre-clearance ruling on this question yet. Continue using the protected case thread if more facts are needed.</p>
+              <div>
+                {rulings.isLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading rulings…</p>
+                ) : rulings.data?.length ? (
+                  <div className="space-y-5">
+                    {rulings.data.map((ruling) => (
+                      <article key={ruling.id} className="border-l-2 border-sky-300/35 pl-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <MessageCircleQuestion className="size-4 text-sky-200" />
+                          <span className="text-xs font-black uppercase tracking-[0.1em] text-sky-200">
+                            {outcomeLabel(ruling.outcome)}
+                          </span>
+                        </div>
+                        <h3 className="mt-2 text-base font-bold">{ruling.summary}</h3>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">{ruling.rationale}</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {ruling.rule_ids.map((ruleId) => (
+                            <Link
+                              key={ruleId}
+                              to="/rules/$ruleId"
+                              params={{ ruleId }}
+                              className="inline-flex min-h-9 items-center rounded-lg border border-border px-2.5 font-mono text-xs font-bold text-primary"
+                            >
+                              Rule {ruleId}
+                            </Link>
+                          ))}
+                        </div>
+                      </article>
+                    ))}
                   </div>
-                ) : null}
+                ) : (
+                  <div className="border-l-2 border-border px-4 py-2">
+                    <p className="text-sm font-semibold">No ruling yet</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      TSBC has not issued formal private guidance on this question yet.
+                    </p>
+                  </div>
+                )}
               </div>
-            </section>
-          </div>
-        )}
+            </div>
+          )}
+        </section>
       </div>
     </AppShell>
   );
-}
-
-function ParticipantRuling({ ruling }: { ruling: IntegrityPreclearanceRuling }) {
-  return (
-    <article className="rounded-[1.25rem] border border-violet-200/10 bg-violet-200/[0.03] p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[.08em] ${outcomeClass(ruling.outcome)}`}>
-          {outcomeIcon(ruling.outcome)}{outcomeLabel(ruling.outcome)}
-        </span>
-        <span className="text-[9px] text-muted-foreground">{new Date(ruling.created_at).toLocaleString()}</span>
-      </div>
-      <h3 className="mt-3 text-base font-black">{ruling.summary}</h3>
-      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{ruling.rationale}</p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {ruling.rule_ids.map((ruleId) => (
-          <Link key={ruleId} to="/rules/$ruleId" params={{ ruleId }} className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200/10 bg-sky-200/[0.045] px-2.5 py-1.5 text-[10px] font-bold text-sky-100">
-            <BookOpen className="size-3" />Rule {ruleId} · {getRuleById(ruleId)?.title ?? "Current rule"}
-          </Link>
-        ))}
-      </div>
-      <p className="mt-4 text-[9px] leading-4 text-muted-foreground">This ruling answers the facts described in your private question. It does not silently rewrite the General Regulations. Any broader Official Interpretation is published separately in the public rules archive.</p>
-    </article>
-  );
-}
-
-function SignInCard() {
-  return (
-    <div className="mt-5 rounded-[1.5rem] border border-sky-200/12 bg-sky-200/[0.035] p-7 text-center">
-      <KeyRound className="mx-auto size-7 text-sky-200" />
-      <h2 className="mt-3 text-xl font-black">Sign in to see your protected rulings</h2>
-      <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Private rule questions use sealed or confidential protected cases tied to your Solaris account for recovery.</p>
-      <Link to="/auth" className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-sky-200 px-4 text-sm font-black text-slate-950">Sign in</Link>
-    </div>
-  );
-}
-
-function EmptyCard() {
-  return (
-    <div className="mt-5 rounded-[1.5rem] border border-dashed border-white/[0.09] p-8 text-center">
-      <Gavel className="mx-auto size-7 text-muted-foreground" />
-      <h2 className="mt-3 text-lg font-black">No private rule questions yet</h2>
-      <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Use “Ask TSBC privately” in Trust & Integrity when you want a rule position before taking an action.</p>
-      <Link to="/integrity" className="mt-4 inline-flex items-center gap-2 text-xs font-black text-sky-200"><ShieldCheck className="size-4" />Open Trust & Integrity</Link>
-    </div>
-  );
-}
-
-function LoadingCard({ text, embedded = false }: { text: string; embedded?: boolean }) {
-  return <div className={`${embedded ? "" : "mt-5"} rounded-xl border border-white/[0.08] p-6 text-center`}><RefreshCw className="mx-auto size-5 animate-spin text-sky-200" /><p className="mt-2 text-xs text-muted-foreground">{text}</p></div>;
 }
 
 function outcomeLabel(outcome: PreclearanceOutcome) {
   if (outcome === "allowed") return "Allowed";
   if (outcome === "not_allowed") return "Not allowed";
   if (outcome === "needs_more_information") return "Needs more information";
-  return "Guidance only";
-}
-
-function outcomeIcon(outcome: PreclearanceOutcome) {
-  if (outcome === "allowed") return <CheckCircle2 className="size-3" />;
-  if (outcome === "not_allowed") return <XCircle className="size-3" />;
-  if (outcome === "needs_more_information") return <CircleHelp className="size-3" />;
-  return <ShieldCheck className="size-3" />;
-}
-
-function outcomeClass(outcome: PreclearanceOutcome) {
-  if (outcome === "allowed") return "border-emerald-200/15 bg-emerald-200/[0.05] text-emerald-100";
-  if (outcome === "not_allowed") return "border-rose-200/15 bg-rose-200/[0.05] text-rose-100";
-  if (outcome === "needs_more_information") return "border-amber-200/15 bg-amber-200/[0.05] text-amber-100";
-  return "border-sky-200/15 bg-sky-200/[0.05] text-sky-100";
+  return "Guidance";
 }

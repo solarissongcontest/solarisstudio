@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -68,6 +68,31 @@ const TOTAL = 20;
 const MAX_PER_ENTRY = 10;
 const MIN_ENTRIES = 5;
 const receiptKey = (roundId: string) => `ssc_vote_receipt:${roundId}`;
+const taskDraftKey = (roundId: string) => `solaris:televote-task-draft:${roundId}`;
+
+type TelevoteTaskDraft = {
+  username: string;
+  home: string;
+  points: Record<string, number>;
+  stage: "register" | "vote";
+};
+
+function readTaskDraft(roundId: string): TelevoteTaskDraft | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(taskDraftKey(roundId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<TelevoteTaskDraft>;
+    return {
+      username: typeof parsed.username === "string" ? parsed.username : "",
+      home: typeof parsed.home === "string" ? parsed.home : "",
+      points: parsed.points && typeof parsed.points === "object" ? parsed.points as Record<string, number> : {},
+      stage: parsed.stage === "vote" ? "vote" : "register",
+    };
+  } catch {
+    return null;
+  }
+}
 
 function storedReceipt(roundId: string) {
   if (typeof window === "undefined") return false;
@@ -118,10 +143,11 @@ export function TelevotingBooth({
   selfVotingMode?: string | null;
 }) {
   const alreadyVoted = hasSubmittedTelevotingRound(roundId) || storedReceipt(roundId);
-  const [stage, setStage] = useState<Stage>(alreadyVoted ? "done" : "register");
-  const [username, setUsername] = useState("");
-  const [home, setHome] = useState("");
-  const [points, setPoints] = useState<Record<string, number>>({});
+  const restoredTask = useMemo(() => readTaskDraft(roundId), [roundId]);
+  const [stage, setStage] = useState<Stage>(alreadyVoted ? "done" : restoredTask?.stage ?? "register");
+  const [username, setUsername] = useState(restoredTask?.username ?? "");
+  const [home, setHome] = useState(restoredTask?.home ?? "");
+  const [points, setPoints] = useState<Record<string, number>>(restoredTask?.points ?? {});
   const [search, setSearch] = useState("");
   const [integrityReport, setIntegrityReport] = useState<VoteIntegrityReport | null>(null);
   const [pendingBallot, setPendingBallot] = useState<TelevotingVoteEntry[]>([]);
@@ -153,6 +179,23 @@ export function TelevotingBooth({
   const entriesUsed = Object.values(points).filter((value) => value > 0).length;
   const remaining = Math.max(0, TOTAL - used);
   const unrestricted = selfVotingMode === "unrestricted";
+
+  useEffect(() => {
+    if (typeof window === "undefined" || alreadyVoted || stage === "done") return;
+    try {
+      window.sessionStorage.setItem(
+        taskDraftKey(roundId),
+        JSON.stringify({
+          username,
+          home,
+          points,
+          stage: stage === "register" ? "register" : "vote",
+        } satisfies TelevoteTaskDraft),
+      );
+    } catch {
+      // The active ballot still remains in memory.
+    }
+  }, [alreadyVoted, home, points, roundId, stage, username]);
 
   const visibleEntries = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -195,17 +238,27 @@ export function TelevotingBooth({
       return { result, ballot };
     },
     onSuccess: ({ result, ballot }) => {
-      markTelevotingRoundSubmitted(roundId, {
+      const governance = markTelevotingRoundSubmitted(roundId, {
         submissionId: result.id,
         acknowledgedAt: new Date().toISOString(),
       });
       try {
         localStorage.setItem(
           receiptKey(roundId),
-          JSON.stringify({ username: username.trim(), home, breakdown: ballot }),
+          JSON.stringify({
+            username: username.trim(),
+            home,
+            breakdown: ballot,
+            governance,
+          }),
         );
       } catch {
         // The database remains authoritative.
+      }
+      try {
+        window.sessionStorage.removeItem(taskDraftKey(roundId));
+      } catch {
+        // The recorded ballot is authoritative.
       }
       setStage("done");
       toast.success("Your vote has been recorded");

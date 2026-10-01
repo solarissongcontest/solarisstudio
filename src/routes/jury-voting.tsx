@@ -9,11 +9,12 @@ import {
   ShieldCheck,
   Vote,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { Panel } from "@/components/AppShell";
 import { DelayedConfirmationState } from "@/components/DelayedConfirmationState";
+import { GovernanceInlineReference, GovernanceSnapshot, RulesApplyingHere } from "@/components/rules/GovernanceRules";
 import { ParticipationRouteChrome, ParticipationServiceShell } from "@/components/ParticipationServiceShell";
 import { Button } from "@/components/ui/button";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
@@ -31,6 +32,7 @@ import {
   type VoteIntegrityReport,
   type VoteIntegritySeverity,
 } from "@/integrations/televoting/integrity";
+import { captureGovernanceSnapshot, type GovernanceReceiptSnapshot } from "@/lib/governance-v5";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
@@ -156,15 +158,11 @@ function JuryVotingPage() {
   return (
     <JuryVotingFrame description={`Signed in for ${context.country?.name ?? "your country"}. Jury voting only becomes available when the organizer opens it for a show.`}>
       <div className="space-y-4">
-        <Panel>
-          <div className="flex items-start gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-amber-300/25 bg-amber-300/10 text-amber-200"><ShieldAlert className="size-4.5" /></span>
-            <div className="min-w-0">
-              <p className="text-sm font-bold">Friend voting is not allowed</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Your jury ballot must reflect your own independent preferences. Do not coordinate votes, trade support, reward friends, copy another delegation, or vote under pressure. Solaris automatically checks historical <strong className="text-foreground">jury and televote</strong> patterns before accepting the ballot.</p>
-            </div>
-          </div>
-        </Panel>
+        <RulesApplyingHere
+          context="jury.vote"
+          title="Before you vote"
+          primaryLimit={3}
+        />
 
         {openRound && context.country && context.accessToken ? (
           <JuryBallotBooth round={openRound} country={context.country} accessToken={context.accessToken} onSubmitted={() => void queryClient.invalidateQueries({ queryKey: ["country-jury-voting-context"] })} />
@@ -196,8 +194,21 @@ function JuryVotingFrame({ children, description }: { children: ReactNode; descr
 function JuryBallotBooth({ round, country, accessToken, onSubmitted }: { round: JuryRound; country: JuryCountry; accessToken: string; onSubmitted: () => void }) {
   const preflight = useServerFn(preflightCountryJuryVote);
   const attest = useServerFn(attestCountryJuryVote);
+  const draftKey = `solaris:jury-ballot-draft:${round.show_id}`;
   const [stage, setStage] = useState<Stage>("vote");
-  const [selections, setSelections] = useState<Array<string | null>>(() => round.point_scale.map(() => null));
+  const [selections, setSelections] = useState<Array<string | null>>(() => {
+    if (typeof window === "undefined") return round.point_scale.map(() => null);
+    try {
+      const raw = window.sessionStorage.getItem(draftKey);
+      if (!raw) return round.point_scale.map(() => null);
+      const parsed = JSON.parse(raw) as { selections?: Array<string | null> };
+      return Array.isArray(parsed.selections) && parsed.selections.length === round.point_scale.length
+        ? parsed.selections
+        : round.point_scale.map(() => null);
+    } catch {
+      return round.point_scale.map(() => null);
+    }
+  });
   const [acceptedRule, setAcceptedRule] = useState(false);
   const [report, setReport] = useState<VoteIntegrityReport | null>(null);
   const [signedName, setSignedName] = useState("");
@@ -206,9 +217,22 @@ function JuryBallotBooth({ round, country, accessToken, onSubmitted }: { round: 
   const [acceptedCoordination, setAcceptedCoordination] = useState(false);
   const [acceptedPressure, setAcceptedPressure] = useState(false);
   const [acceptedConsequences, setAcceptedConsequences] = useState(false);
+  const [governanceReceipt, setGovernanceReceipt] = useState<GovernanceReceiptSnapshot | null>(null);
 
   const ballot = useMemo(() => round.point_scale.map((points, index) => ({ target_country_id: selections[index], points })).filter((entry): entry is { target_country_id: string; points: number } => Boolean(entry.target_country_id)), [round.point_scale, selections]);
   const complete = ballot.length === round.point_scale.length;
+
+  useEffect(() => {
+    if (typeof window === "undefined" || stage === "done") return;
+    try {
+      window.sessionStorage.setItem(
+        draftKey,
+        JSON.stringify({ selections, savedAt: new Date().toISOString() }),
+      );
+    } catch {
+      // The live ballot remains authoritative in memory.
+    }
+  }, [draftKey, selections, stage]);
 
   const submitMutation = useMutation({
     mutationFn: async (token: string) => {
@@ -217,6 +241,12 @@ function JuryBallotBooth({ round, country, accessToken, onSubmitted }: { round: 
       return data as string;
     },
     onSuccess: () => {
+      setGovernanceReceipt(captureGovernanceSnapshot("jury.vote"));
+      try {
+        window.sessionStorage.removeItem(draftKey);
+      } catch {
+        // Submission is already authoritative.
+      }
       setStage("done");
       onSubmitted();
       trackPublicUxEvent("task_completed", {
@@ -288,7 +318,16 @@ function JuryBallotBooth({ round, country, accessToken, onSubmitted }: { round: 
   }
 
   if (stage === "done") {
-    return <DelayedConfirmationState pendingTitle="Jury ballot stored" pendingDescription={`Solaris has accepted ${country.name}'s jury ballot for ${round.show_name}. The official vote is already in the database.`} confirmedTitle="Jury vote confirmed" confirmedDescription={`${country.name}'s jury ballot for ${round.show_name} is recorded. The organizer can still correct it from the existing admin jury workspace if needed.`} />;
+    return (
+      <div className="space-y-4">
+        <DelayedConfirmationState pendingTitle="Jury ballot stored" pendingDescription={`Solaris has accepted ${country.name}'s jury ballot for ${round.show_name}. The official vote is already in the database.`} confirmedTitle="Jury vote confirmed" confirmedDescription={`${country.name}'s jury ballot for ${round.show_name} is recorded. The organizer can still correct it from the existing admin jury workspace if needed.`} />
+        <GovernanceSnapshot
+          context="jury.vote"
+          label="Rules shown for this jury ballot"
+          snapshot={governanceReceipt}
+        />
+      </div>
+    );
   }
 
   if (stage === "review" && report) {
@@ -345,7 +384,8 @@ function JuryBallotBooth({ round, country, accessToken, onSubmitted }: { round: 
             );
           })}
         </div>
-        <label className="flex items-start gap-3 rounded-xl border border-border bg-surface p-3 text-sm"><input type="checkbox" checked={acceptedRule} onChange={(event) => setAcceptedRule(event.target.checked)} className="mt-0.5" /><span className="leading-relaxed text-muted-foreground">I understand that <strong className="text-foreground">friend voting is not allowed</strong> and confirm that this jury ballot reflects my own independent preferences.</span></label>
+        <label className="flex items-start gap-3 rounded-xl border border-border bg-surface p-3 text-sm"><input type="checkbox" checked={acceptedRule} onChange={(event) => setAcceptedRule(event.target.checked)} className="mt-0.5" /><span className="leading-relaxed text-muted-foreground">I confirm that this ballot reflects my own independent preferences and is not part of an agreed or reciprocal voting arrangement.</span></label>
+        <GovernanceInlineReference context="jury.vote" ruleIds={["9.2", "11.2", "11.4"]} label="Voting rules" />
         <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3 text-xs text-muted-foreground"><span>{ballot.length}/{round.point_scale.length} scores assigned</span><span className="inline-flex items-center gap-1.5"><ShieldCheck className="size-3.5 text-primary" /> Integrity v4 · recent editions weighted most</span></div>
         <Button className="w-full" disabled={!complete || !acceptedRule || preflightMutation.isPending || submitMutation.isPending} onClick={() => preflightMutation.mutate()}><Vote className="size-4" />{preflightMutation.isPending || submitMutation.isPending ? "Checking ballot…" : "Review and submit jury vote"}</Button>
       </div>
