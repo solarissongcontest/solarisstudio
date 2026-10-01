@@ -17,7 +17,7 @@ import {
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 
 import { FlagChip } from "@/components/FlagChip";
-import { PublicResponsiveDataView, type PublicDataColumn } from "@/components/public/PublicResponsiveDataView";
+import { DataStoryPage, ResponsiveHistory, type PublicDataColumn } from "@/components/public/PublicDataStory";
 
 import {
   broadcastEntriesFromResults,
@@ -394,7 +394,8 @@ function BroadcastIntelligencePage() {
         }
       />
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-5">
+      <DataStoryPage>
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-5">
         <div className="min-w-0 space-y-4">
           <Panel
             title="Choose a result"
@@ -910,7 +911,7 @@ function BroadcastIntelligencePage() {
                 title="Jury vs televote"
                 description="How each entry's position changed after the two voting groups were combined"
               >
-                <PublicResponsiveDataView
+                <ResponsiveHistory
                   rows={intelligence.rows}
                   columns={comparisonColumns}
                   rowKey={(row) => row.id}
@@ -933,7 +934,7 @@ function BroadcastIntelligencePage() {
             </Panel>
           )}
         </div>
-      </div>
+      </DataStoryPage>
     </AppShell>
   );
 }
