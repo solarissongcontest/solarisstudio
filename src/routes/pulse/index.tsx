@@ -1033,10 +1033,9 @@ function SolarisPulsePage() {
                 </details>
               )}
             </Panel>
+          </section>
             </div>
           </details>
-
-          </section>
         </div>
       )}
     </AppShell>
