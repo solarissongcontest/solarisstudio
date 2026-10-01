@@ -35,6 +35,7 @@ import {
   AdminSheet,
   AdminStatus,
 } from '@/components/admin/AdminUI';
+import { WorkspaceTabs } from '@/components/admin/AdminWorkspacePrimitives';
 import { editionLabel, useCountries, useEditions } from '@/lib/data';
 import {
   HOST_EVALUATION_CRITERIA,
