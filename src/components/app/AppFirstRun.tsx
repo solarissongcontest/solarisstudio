@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-export const APP_FIRST_RUN_APP_FIRST_RUN_COMPLETE_KEY = "solaris:app-first-run-complete:v1";
+export const APP_FIRST_RUN_COMPLETE_KEY = "solaris:app-first-run-complete:v1";
 const SHOW_DELAY_MS = 500;
 
 function allowedOnPath(pathname: string) {
