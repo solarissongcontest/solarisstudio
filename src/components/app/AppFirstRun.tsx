@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const COMPLETE_KEY = "solaris:app-first-run-complete:v1";
+export const APP_FIRST_RUN_APP_FIRST_RUN_COMPLETE_KEY = "solaris:app-first-run-complete:v1";
 const SHOW_DELAY_MS = 500;
 
 function allowedOnPath(pathname: string) {
@@ -25,26 +25,34 @@ function allowedOnPath(pathname: string) {
   );
 }
 
+export function appFirstRunComplete() {
+  if (typeof window === "undefined") return true;
+  return window.localStorage.getItem(APP_FIRST_RUN_COMPLETE_KEY) === "1";
+}
+
 export function AppFirstRun({
   isAppMode,
   pathname,
+  onComplete,
 }: {
   isAppMode: boolean;
   pathname: string;
+  onComplete?: () => void;
 }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!isAppMode || !allowedOnPath(pathname)) return;
-    if (window.localStorage.getItem(COMPLETE_KEY) === "1") return;
+    if (window.localStorage.getItem(APP_FIRST_RUN_COMPLETE_KEY) === "1") return;
 
     const timer = window.setTimeout(() => setOpen(true), SHOW_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, [isAppMode, pathname]);
 
   const complete = () => {
-    window.localStorage.setItem(COMPLETE_KEY, "1");
+    window.localStorage.setItem(APP_FIRST_RUN_COMPLETE_KEY, "1");
     setOpen(false);
+    onComplete?.();
   };
 
   if (!isAppMode) return null;
