@@ -65,8 +65,11 @@ describe("Pre-Beta public UX completion contract", () => {
   });
 
   it("exposes the Governance OS Rules and Integrity information hierarchy", () => {
-    for (const label of ["Browse the 21 chapters", "Official clarifications", "Rule changes & history"]) {
-      expect(rules).toContain(label);
+    for (const target of ["/rules/chapters", "/rules/interpretations", "/rules/changes"]) {
+      expect(rules).toContain(`to="${target}"`);
+    }
+    for (const label of ["21 chapters", "Official clarifications", "Changes & history"]) {
+      expect(rules).toContain(`title="${label}"`);
     }
     for (const label of ["Follow or recover a case", "How the process works", "Privacy & anonymity"]) {
       expect(integrity).toContain(label);

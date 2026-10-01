@@ -194,20 +194,45 @@ export function resolveAppRouteChrome(pathname: string): AppRouteChrome {
     };
   }
 
-  if (/^\/(guide|rules|integrity)(\/|$)/.test(pathname)) {
+  if (/^\/rules(\/|$)/.test(pathname)) {
+    const destination = publicDestinationForPath(pathname);
+    const parent = destination?.parent ? publicDestinationById(destination.parent) : null;
+    return {
+      title: destination?.label ?? "Rules",
+      tab: "explore",
+      archetype: "reading",
+      root: false,
+      tabBar: "visible",
+      backFallback: parent
+        ? { label: parent.label, to: parent.to }
+        : { label: "Explore", to: "/explore" },
+    };
+  }
+
+  if (/^\/integrity(\/|$)/.test(pathname)) {
+    const destination = publicDestinationForPath(pathname);
+    const parent = destination?.parent ? publicDestinationById(destination.parent) : null;
+    return {
+      title: destination?.label ?? "Trust & Integrity",
+      tab: "participate",
+      archetype: "reading",
+      root: false,
+      tabBar: "visible",
+      backFallback: parent
+        ? { label: parent.label, to: parent.to }
+        : { label: "Participate", to: "/participate" },
+    };
+  }
+
+  if (/^\/guide(\/|$)/.test(pathname)) {
     const destination = publicDestinationForPath(pathname);
     return {
-      title: destination?.label ?? "More",
+      title: destination?.label ?? "Guide",
       tab: areaTab(pathname),
       archetype: "reading",
       root: false,
       tabBar: "visible",
-      backFallback: destination?.parent
-        ? (() => {
-            const parent = publicDestinationById(destination.parent!);
-            return parent ? { label: parent.label, to: parent.to } : undefined;
-          })()
-        : undefined,
+      backFallback: { label: "Explore", to: "/explore" },
     };
   }
 

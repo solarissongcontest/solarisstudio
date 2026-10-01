@@ -123,7 +123,7 @@ export function SolarisAmbientBackground() {
               };
 
               return (
-                <span key={star.id} className="solaris-star-anchor" style={style}>
+                <span key={star.id} data-star-id={star.id} className="solaris-star-anchor" style={style}>
                   <img
                     src="/IMG_6171.png"
                     alt=""

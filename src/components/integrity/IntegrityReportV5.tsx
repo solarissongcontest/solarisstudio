@@ -8,7 +8,6 @@ import {
   Check,
   Copy,
   EyeOff,
-  KeyRound,
   LockKeyhole,
   Save,
   ShieldCheck,
@@ -43,6 +42,24 @@ import {
 
 const buttonClass =
   "inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-bold";
+
+const CATEGORY_GROUPS: Array<{
+  label: string;
+  ids: IntegrityCategory[];
+}> = [
+  {
+    label: "Fair participation",
+    ids: ["voting_integrity", "vote_coordination", "entry_eligibility"],
+  },
+  {
+    label: "Safety & conduct",
+    ids: ["conduct", "safety", "privacy"],
+  },
+  {
+    label: "Platform & governance",
+    ids: ["account_abuse", "technical_exploit", "tsbc_conduct", "other"],
+  },
+];
 
 export function IntegrityCategoryStep({ initialCategory }: { initialCategory?: string }) {
   const navigate = useNavigate();
@@ -80,22 +97,36 @@ export function IntegrityCategoryStep({ initialCategory }: { initialCategory?: s
         <p className="mb-4 text-sm leading-6 text-muted-foreground">
           Choose the closest match. You do not need to know which rule may have been broken, and “something else” is completely valid.
         </p>
-        <div className="divide-y divide-border/60 border-y border-border/60">
-          {INTEGRITY_CATEGORIES.map((item) => (
-            <label key={item.id} className="flex min-h-16 cursor-pointer items-start gap-3 py-3">
-              <input
-                type="radio"
-                name="integrity-category"
-                value={item.id}
-                checked={selected === item.id}
-                onChange={() => setSelected(item.id)}
-                className="mt-1 size-5"
-              />
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold">{item.label}</span>
-                <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span>
-              </span>
-            </label>
+        <div className="space-y-5">
+          {CATEGORY_GROUPS.map((group) => (
+            <section key={group.label} aria-label={group.label}>
+              <p className="solaris-depth-eyebrow">{group.label}</p>
+              <div className="mt-2 divide-y divide-white/[0.07] border-y border-white/[0.07]">
+                {group.ids.map((id) => {
+                  const item = INTEGRITY_CATEGORIES.find((candidate) => candidate.id === id);
+                  if (!item) return null;
+                  return (
+                    <label
+                      key={item.id}
+                      className={`flex min-h-16 cursor-pointer items-start gap-3 rounded-lg px-1 py-3 transition-colors ${selected === item.id ? "bg-emerald-300/[0.045]" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="integrity-category"
+                        value={item.id}
+                        checked={selected === item.id}
+                        onChange={() => setSelected(item.id)}
+                        className="mt-1 size-5"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold">{item.label}</span>
+                        <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </section>
           ))}
         </div>
       </fieldset>
@@ -140,7 +171,7 @@ export function IntegrityPrivacyStep() {
         This choice controls recovery and who can identify the reporter. You can inspect exactly what an ordinary reviewer sees before continuing.
       </p>
 
-      <div className="space-y-2">
+      <div className="divide-y divide-white/[0.07] border-y border-white/[0.07]">
         {(["anonymous", "sealed", "confidential"] as const).map((id) => {
           const item = INTEGRITY_IDENTITY_MODES[id];
           const Icon = id === "anonymous" ? EyeOff : id === "sealed" ? LockKeyhole : ShieldCheck;
@@ -150,7 +181,7 @@ export function IntegrityPrivacyStep() {
               type="button"
               aria-pressed={mode === id}
               onClick={() => setMode(id)}
-              className={`w-full rounded-2xl border p-4 text-left ${mode === id ? "border-emerald-300/30 bg-emerald-300/[0.06]" : "border-border/70 bg-surface/35"}`}
+              className={`w-full px-1 py-4 text-left transition-colors ${mode === id ? "bg-emerald-300/[0.045]" : ""}`}
             >
               <div className="flex gap-3">
                 <Icon className="mt-0.5 size-5 shrink-0 text-emerald-200" />
