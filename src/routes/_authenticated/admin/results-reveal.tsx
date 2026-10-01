@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Sparkles, Trophy } from 'lucide-react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
+import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
 import { useContestEntities, useCountries, useResults, useShows } from '@/lib/data';
@@ -77,6 +78,43 @@ function ResultsRevealPage() {
   const simulation = model.simulations[strategy];
   const revealOrder = model.strategies[strategy];
   const selectedShow = shows.find((show) => show.id === showId) ?? null;
+  const revealColumns = [
+    {
+      key: 'step',
+      header: 'Step',
+      render: (step) => <span className="tabular-nums">{step.step}</span>,
+    },
+    {
+      key: 'country',
+      header: 'Country',
+      primary: true,
+      render: (step) => nameOf(step.countryId, displayMap),
+    },
+    {
+      key: 'televote',
+      header: 'Televote',
+      align: 'right' as const,
+      render: (step) => <span className="tabular-nums">+{step.revealedPoints}</span>,
+    },
+    {
+      key: 'leader',
+      header: 'Leader after reveal',
+      render: (step) => nameOf(step.leaderCountryId, displayMap),
+    },
+    {
+      key: 'leader-total',
+      header: 'Leader total',
+      align: 'right' as const,
+      render: (step) => <span className="tabular-nums">{step.leaderPoints}</span>,
+    },
+    {
+      key: 'certainty',
+      header: 'Certainty',
+      render: (step) => step.winnerCertain
+        ? <AdminStatus tone="attention">{nameOf(step.mathematicallyCertainCountryId, displayMap)} certain</AdminStatus>
+        : <AdminStatus tone="info">Open</AdminStatus>,
+    },
+  ] satisfies readonly AdminDataColumn<(typeof simulation.steps)[number]>[];
 
   if (featureQuery.isLoading) {
     return <AdminPage><p className="text-sm text-muted-foreground">Loading Results Reveal Director…</p></AdminPage>;
@@ -177,29 +215,13 @@ function ResultsRevealPage() {
 
             <AdminCard>
               <AdminCardHeader eyebrow="Reveal sequence" title={STRATEGY_LABELS[strategy]} />
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full min-w-[780px] text-left text-sm">
-                  <thead className="text-xs uppercase tracking-[0.1em] text-muted-foreground">
-                    <tr><th className="pb-3">Step</th><th className="pb-3">Country</th><th className="pb-3">Televote</th><th className="pb-3">Leader after reveal</th><th className="pb-3">Leader total</th><th className="pb-3">Certainty</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/[0.07]">
-                    {simulation.steps.map((step) => (
-                      <tr key={`${step.step}-${step.countryId}`}>
-                        <td className="py-3 text-muted-foreground">{step.step}</td>
-                        <td className="py-3 font-semibold">{nameOf(step.countryId, displayMap)}</td>
-                        <td className="py-3 tabular-nums">+{step.revealedPoints}</td>
-                        <td className="py-3">{nameOf(step.leaderCountryId, displayMap)}</td>
-                        <td className="py-3 tabular-nums">{step.leaderPoints}</td>
-                        <td className="py-3">
-                          {step.winnerCertain
-                            ? <AdminStatus tone="attention">{nameOf(step.mathematicallyCertainCountryId, displayMap)} certain</AdminStatus>
-                            : <AdminStatus tone="info">Open</AdminStatus>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <AdminDataView
+                className="mt-4"
+                rows={simulation.steps}
+                columns={revealColumns}
+                rowKey={(step) => `${step.step}-${step.countryId}`}
+                ariaLabel="Results reveal sequence"
+              />
             </AdminCard>
 
             <AdminCard>
