@@ -4,6 +4,7 @@ import { useMemo } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
+import { PublicResponsiveDataView, type PublicDataColumn } from "@/components/public/PublicResponsiveDataView";
 import { supabase } from "@/integrations/supabase/client";
 import { editionLabel, useCountries, useEditions } from "@/lib/data";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
@@ -178,6 +179,37 @@ function VotingDnaPage() {
 
   const juryValues = editionRows.map((row) => row.result.juryPoints);
   const teleValues = editionRows.map((row) => row.result.televotePoints);
+  const historyColumns = [
+    {
+      key: "edition",
+      header: "Edition",
+      primary: true,
+      render: (row) => editionLabel(row.edition),
+    },
+    {
+      key: "rank",
+      header: "Rank",
+      render: (row) => <span className="tabular-nums">{row.result.finalRank ?? "—"}</span>,
+    },
+    {
+      key: "jury",
+      header: "Jury",
+      align: "right" as const,
+      render: (row) => <span className="tabular-nums">{row.result.juryPoints}</span>,
+    },
+    {
+      key: "televote",
+      header: "Televote",
+      align: "right" as const,
+      render: (row) => <span className="tabular-nums">{row.result.televotePoints}</span>,
+    },
+    {
+      key: "total",
+      header: "Total",
+      align: "right" as const,
+      render: (row) => <span className="tabular-nums font-semibold">{row.result.totalPoints}</span>,
+    },
+  ] satisfies readonly PublicDataColumn<(typeof editionRows)[number]>[];
 
   return (
     <AppShell>
@@ -259,30 +291,13 @@ function VotingDnaPage() {
           />
         </div>
 
-        <div className="mt-5 overflow-x-auto">
-          <table className="w-full min-w-[520px] text-left text-sm">
-            <thead className="text-xs text-muted-foreground">
-              <tr>
-                <th className="pb-2">Edition</th>
-                <th className="pb-2">Rank</th>
-                <th className="pb-2">Jury</th>
-                <th className="pb-2">Televote</th>
-                <th className="pb-2">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {editionRows.map(({ edition, result }) => (
-                <tr key={edition.id} className="border-t border-border/60">
-                  <td className="py-2.5 font-semibold">{editionLabel(edition)}</td>
-                  <td className="py-2.5 tabular-nums">{result.finalRank ?? "—"}</td>
-                  <td className="py-2.5 tabular-nums">{result.juryPoints}</td>
-                  <td className="py-2.5 tabular-nums">{result.televotePoints}</td>
-                  <td className="py-2.5 tabular-nums">{result.totalPoints}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <PublicResponsiveDataView
+          className="mt-5"
+          rows={editionRows}
+          columns={historyColumns}
+          rowKey={(row) => row.edition.id}
+          ariaLabel={`${country.name} published result history`}
+        />
       </Panel>
 
       <Panel title="Methodology" className="mt-5">
