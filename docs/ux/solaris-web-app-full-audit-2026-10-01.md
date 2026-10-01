@@ -243,6 +243,40 @@ Then require public navigation, search, sitemap and app route chrome to referenc
 The current beta-feedback routes are a legitimate archive family rather than accidental duplicates, but they should live under a clearly labelled Organizer research/archive area so they do not visually compete with current operational tools.
 
 
+
+## Remaining family notes
+
+### Account / auth
+
+The sign-in and reset flows have almost no breakpoint-specific classes, but they are intentionally narrow single-column tasks. Treat them as **focused forms**, not failed responsive pages. The redesign requirement is consistency of spacing, field states, error presentation and password/recovery guidance rather than adding gratuitous grids.
+
+Settings is structurally healthier and already introduces multi-column layout only at wider widths.
+
+### Wiki / Encyclopedia / Fantasy
+
+Wiki is generally responsive. Its horizontally scrollable category rail is an intentional navigation affordance, but it should have:
+- clear edge fade / scroll affordance;
+- selected state always fully visible;
+- keyboard scroll/focus support;
+- no hidden category due to the app viewport.
+
+Encyclopedia and Fantasy are comparatively restrained and should inherit the same directory/filter primitives rather than becoming separate visual systems.
+
+### Archive Games
+
+Archive Games is another high-density dashboard family: many surfaces, game controls and results coexist. Keep the playful identity but reduce simultaneous containers and make one current challenge/action visually dominant.
+
+### Show Mode
+
+Show Mode should remain a separate presentation archetype. It is not supposed to look like a normal content page. Its criteria are:
+- stage readability at distance;
+- clear current state;
+- safe TV/projector aspect ratios;
+- strong keyboard/remote controls;
+- no normal app chrome during presentation;
+- responsive fallback for smaller monitoring windows.
+
+
 ## Static-risk legend
 
 - **P0 mobile** — forced minimum width + horizontal overflow; requires deliberate mobile redesign.
