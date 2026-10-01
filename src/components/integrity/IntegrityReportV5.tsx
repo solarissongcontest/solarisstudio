@@ -8,7 +8,6 @@ import {
   Check,
   Copy,
   EyeOff,
-  KeyRound,
   LockKeyhole,
   Save,
   ShieldCheck,
