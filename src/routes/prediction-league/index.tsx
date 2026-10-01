@@ -2,7 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { AppShell, Panel } from "@/components/AppShell";
+import { PredictionWorkspaceHeader } from "@/components/predictions/PredictionWorkspaceHeader";
 import { PublicResponsiveDataView, type PublicDataColumn } from "@/components/public/PublicResponsiveDataView";
 import { supabase } from "@/integrations/supabase/client";
 import { editionLabel, useEditions } from "@/lib/data";
@@ -78,11 +79,10 @@ function PredictionLeaguePage() {
 
   return (
     <AppShell>
-      <PageHeader
-        eyebrow="Predictions"
+      <PredictionWorkspaceHeader
+        active="league"
         title="Prediction League"
         description="Objective scoring from published outcomes. Predictions lock on server time, and only people who opt into a public profile appear here."
-        actions={<Link to="/predictions" className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold">Make predictions →</Link>}
       />
 
       {feature.isLoading ? (
