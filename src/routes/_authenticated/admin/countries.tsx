@@ -3,6 +3,7 @@ import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-r
 import { AlertTriangle, Flag, Search } from 'lucide-react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
+import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
 import { useEditions } from '@/lib/data';
@@ -71,6 +72,99 @@ function CountriesCockpitPage() {
   });
   const summary = summarizeCountryCockpit(rows);
   const error = editionsQuery.error ?? cockpitQuery.error;
+  const countryColumns = [
+    {
+      key: 'country',
+      header: 'Country',
+      primary: true,
+      render: (row) => (
+        <div>
+          <p>{row.context.countryName}</p>
+          <p className="mt-1 text-xs font-normal text-muted-foreground">{row.workflow.progress}% entry workflow</p>
+        </div>
+      ),
+    },
+    {
+      key: 'readiness',
+      header: 'Readiness',
+      render: (row) => (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold">{row.operationalReadiness.score}%</span>
+          <ReadinessStatus state={row.operationalReadiness.state} />
+        </div>
+      ),
+    },
+    {
+      key: 'confirmation',
+      header: 'Confirmation',
+      render: (row) => <SignalStatus state={row.operationalReadiness.signals.find((signal) => signal.id === 'participation')?.state} />,
+    },
+    {
+      key: 'entry',
+      header: 'Entry',
+      render: (row) => <SignalStatus state={row.operationalReadiness.signals.find((signal) => signal.id === 'entry-validity')?.state} />,
+    },
+    {
+      key: 'media',
+      header: 'Media',
+      render: (row) => <SignalStatus state={row.operationalReadiness.signals.find((signal) => signal.id === 'media')?.state} />,
+    },
+    {
+      key: 'jury',
+      header: 'Jury',
+      render: (row) => (
+        <div>
+          <SignalStatus state={row.operationalReadiness.signals.find((signal) => signal.id === 'jury')?.state} />
+          <p className="mt-1 text-xs text-muted-foreground">{row.model.jury.assigned}/{row.model.jury.required}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'deadlines',
+      header: 'Deadlines',
+      render: (row) => (
+        <div>
+          <SignalStatus state={row.operationalReadiness.signals.find((signal) => signal.id === 'deadlines')?.state} />
+          {row.operationalReadiness.overdueDeadlines.length ? (
+            <p className="mt-1 text-xs text-muted-foreground">{row.operationalReadiness.overdueDeadlines.length} overdue</p>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      key: 'notices',
+      header: 'Notices',
+      render: (row) => (
+        <AdminStatus tone={row.model.outstandingAcknowledgements ? 'attention' : 'ready'}>
+          {row.model.outstandingAcknowledgements ? `${row.model.outstandingAcknowledgements} pending` : 'Clear'}
+        </AdminStatus>
+      ),
+    },
+    {
+      key: 'issues',
+      header: 'Issues',
+      render: (row) => (
+        <AdminStatus tone={row.context.unresolvedOrganizerIssues ? 'attention' : 'ready'}>
+          {row.context.unresolvedOrganizerIssues || 'Clear'}
+        </AdminStatus>
+      ),
+    },
+    {
+      key: 'open',
+      header: 'Open',
+      align: 'right' as const,
+      render: (row) => (
+        <Link
+          to="/admin/countries/$countryId"
+          params={{ countryId: row.context.countryId }}
+          search={{ tab: 'overview' }}
+          className="admin-action-secondary"
+        >
+          Inspect
+        </Link>
+      ),
+    },
+  ] satisfies readonly AdminDataColumn<(typeof filteredRows)[number]>[];
 
   return (
     <AdminPage>
@@ -180,76 +274,12 @@ function CountriesCockpitPage() {
 
             <AdminCard>
               {filteredRows.length ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[980px] border-collapse text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-white/[0.08] text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                        <th className="px-3 py-3">Country</th>
-                        <th className="px-3 py-3">Readiness</th>
-                        <th className="px-3 py-3">Confirmation</th>
-                        <th className="px-3 py-3">Entry</th>
-                        <th className="px-3 py-3">Media</th>
-                        <th className="px-3 py-3">Jury</th>
-                        <th className="px-3 py-3">Deadlines</th>
-                        <th className="px-3 py-3">Notices</th>
-                        <th className="px-3 py-3">Issues</th>
-                        <th className="px-3 py-3 text-right">Open</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredRows.map((row) => {
-                        const signals = new Map(row.operationalReadiness.signals.map((signal) => [signal.id, signal]));
-                        return (
-                          <tr key={row.context.countryId} className="border-b border-white/[0.05] align-top last:border-0">
-                            <td className="px-3 py-4">
-                              <p className="font-semibold">{row.context.countryName}</p>
-                              <p className="mt-1 text-xs text-muted-foreground">{row.workflow.progress}% entry workflow</p>
-                            </td>
-                            <td className="px-3 py-4">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold">{row.operationalReadiness.score}%</span>
-                                <ReadinessStatus state={row.operationalReadiness.state} />
-                              </div>
-                            </td>
-                            <td className="px-3 py-4"><SignalStatus state={signals.get('participation')?.state} /></td>
-                            <td className="px-3 py-4"><SignalStatus state={signals.get('entry-validity')?.state} /></td>
-                            <td className="px-3 py-4"><SignalStatus state={signals.get('media')?.state} /></td>
-                            <td className="px-3 py-4">
-                              <SignalStatus state={signals.get('jury')?.state} />
-                              <p className="mt-1 text-xs text-muted-foreground">{row.model.jury.assigned}/{row.model.jury.required}</p>
-                            </td>
-                            <td className="px-3 py-4">
-                              <SignalStatus state={signals.get('deadlines')?.state} />
-                              {row.operationalReadiness.overdueDeadlines.length ? (
-                                <p className="mt-1 text-xs text-muted-foreground">{row.operationalReadiness.overdueDeadlines.length} overdue</p>
-                              ) : null}
-                            </td>
-                            <td className="px-3 py-4">
-                              <AdminStatus tone={row.model.outstandingAcknowledgements ? 'attention' : 'ready'}>
-                                {row.model.outstandingAcknowledgements ? `${row.model.outstandingAcknowledgements} pending` : 'Clear'}
-                              </AdminStatus>
-                            </td>
-                            <td className="px-3 py-4">
-                              <AdminStatus tone={row.context.unresolvedOrganizerIssues ? 'attention' : 'ready'}>
-                                {row.context.unresolvedOrganizerIssues || 'Clear'}
-                              </AdminStatus>
-                            </td>
-                            <td className="px-3 py-4 text-right">
-                              <Link
-                                to="/admin/countries/$countryId"
-                                params={{ countryId: row.context.countryId }}
-                                search={{ tab: 'overview' }}
-                                className="admin-action-secondary"
-                              >
-                                Inspect
-                              </Link>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <AdminDataView
+                  rows={filteredRows}
+                  columns={countryColumns}
+                  rowKey={(row) => row.context.countryId}
+                  ariaLabel="Delegation readiness matrix"
+                />
               ) : (
                 <AdminEmptyState
                   icon={Search}
