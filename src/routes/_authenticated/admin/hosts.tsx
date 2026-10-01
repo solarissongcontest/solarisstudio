@@ -534,8 +534,8 @@ function HostTabs({ view, onChange }: { view: HostView; onChange: (view: HostVie
     { id: 'selected', label: 'Selected host' },
     { id: 'operations', label: 'Operations' },
   ];
-  return <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Host management sections">
-    {tabs.map((tab) => <button key={tab.id} type="button" className={view === tab.id ? 'admin-action-primary shrink-0' : 'admin-action-secondary shrink-0'} onClick={() => onChange(tab.id)}>{tab.label}</button>)}
+  return <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" aria-label="Host management sections">
+    {tabs.map((tab) => <button key={tab.id} type="button" className={view === tab.id ? 'admin-action-primary min-w-0' : 'admin-action-secondary min-w-0'} onClick={() => onChange(tab.id)}>{tab.label}</button>)}
   </div>;
 }
 
@@ -658,7 +658,33 @@ function EvaluationView({ snapshot, onEvaluate }: { snapshot: HostManagementSnap
 
   return <div className="space-y-4">
     <AdminCard>
-      <div className="overflow-x-auto">
+      <div className="space-y-3 lg:hidden">
+        {averages.map((row) => (
+          <section key={row.criterion} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+            <h3 className="text-sm font-semibold text-foreground">{criterionLabels[row.criterion]}</h3>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {row.bids.map(({ bid, average }) => (
+                <div key={bid.id} className="flex items-center justify-between gap-3 rounded-lg bg-black/10 px-3 py-2">
+                  <span className="min-w-0 truncate text-xs text-muted-foreground">{bid.city}</span>
+                  <span className="numeric shrink-0 font-bold text-foreground">{average == null ? '—' : average.toFixed(1)}<span className="text-[10px] font-normal text-muted-foreground"> / 10</span></span>
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+        <section className="rounded-xl border border-white/[0.09] bg-white/[0.03] p-3">
+          <h3 className="text-sm font-semibold text-foreground">Overall</h3>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {active.map((bid) => (
+              <div key={bid.id} className="flex items-center justify-between gap-3 rounded-lg bg-black/10 px-3 py-2">
+                <div className="min-w-0"><p className="truncate text-xs text-muted-foreground">{bid.city}</p><p className="numeric mt-0.5 font-bold">{bid.averageScore == null ? '—' : bid.averageScore.toFixed(2)}</p></div>
+                <button type="button" className="admin-action-quiet" onClick={() => onEvaluate(bid)}>Score</button>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+      <div className="hidden overflow-x-auto lg:block">
         <table className="w-full min-w-[820px] text-left text-sm">
           <thead><tr className="border-b border-white/[0.07] text-xs uppercase tracking-[0.16em] text-muted-foreground"><th className="px-3 py-3">Criterion</th>{active.map((bid) => <th key={bid.id} className="px-3 py-3">{bid.city}</th>)}</tr></thead>
           <tbody>{averages.map((row) => <tr key={row.criterion} className="border-b border-white/[0.05]"><td className="px-3 py-3 font-semibold text-foreground">{criterionLabels[row.criterion]}</td>{row.bids.map(({ bid, average }) => <td key={bid.id} className="px-3 py-3"><span className="numeric font-bold text-foreground">{average == null ? '—' : average.toFixed(1)}</span><span className="text-xs text-muted-foreground"> / 10</span></td>)}</tr>)}</tbody>
