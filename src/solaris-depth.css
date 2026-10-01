@@ -320,3 +320,14 @@ body[data-solaris-family="integrity"] {
   --solaris-bg-deep-2: 4 35 42;
   --solaris-bg-angle: 142deg;
 }
+
+
+/* Governance is functional UI, not poster typography. Keep Crastao elsewhere
+   in Solaris, but use Gotham/system UI inside the knowledge and protected
+   service layers. */
+.solaris-depth-page :is(h1, h2, h3, h4) {
+  font-family: var(--font-sans) !important;
+  font-weight: 700;
+  text-transform: none !important;
+  letter-spacing: -.025em !important;
+}
