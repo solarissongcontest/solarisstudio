@@ -126,7 +126,7 @@ export function RulesHomeV5({ version }: { version: string }) {
           >
             <label className="flex min-h-12 items-center gap-3 rounded-xl border border-white/[0.08] bg-black/10 px-3 focus-within:border-primary/35">
               <Search className="size-4.5 shrink-0 text-primary" aria-hidden="true" />
-              <span className="sr-only">Search rules or ask a question</span>
+              <span className="sr-only">Ask about a rule</span>
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
