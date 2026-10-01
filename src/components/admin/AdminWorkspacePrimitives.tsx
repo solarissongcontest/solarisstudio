@@ -9,6 +9,8 @@ import {
 } from "@/components/admin/AdminUI";
 import { cn } from "@/lib/utils";
 
+export { WorkspaceHeader };
+
 export const InspectorSheet = AdminSheet;
 export const CommandMenu = AdminMoreMenu;
 
