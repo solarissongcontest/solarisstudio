@@ -8,9 +8,14 @@ import {
   AdminCard,
   AdminCardHeader,
   AdminEmptyState,
-  AdminPageHeader,
   AdminStatus,
 } from "@/components/admin/AdminUI";
+import {
+  AuditTimeline,
+  FilterBar,
+  ObjectPage,
+  WorkspaceHeader,
+} from "@/components/admin/AdminWorkspacePrimitives";
 import { getMergedTelevotingAdmin } from "@/integrations/televoting/admin-auth.functions";
 import { listMergedAuditLog, type MergedAuditRow } from "@/integrations/televoting/audit.functions";
 import type { AuditJson } from "@/integrations/televoting/audit.server";
@@ -50,31 +55,33 @@ function AuditLogPage() {
   }, [query, rows]);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
-      <AdminPageHeader
+    <ObjectPage className="max-w-5xl">
+      <WorkspaceHeader
         eyebrow="Voting service"
         title="Audit log"
         description="Trace result, round, moderation and integrity changes in one chronological organizer history. Technical payloads stay collapsed until you need them."
         actions={<Link to="/televoting/admin" className="admin-action-secondary">Back to Voting</Link>}
       />
 
-      <AdminCard>
-        <AdminCardHeader eyebrow="Filter" title={`${filtered.length} visible event${filtered.length === 1 ? "" : "s"}`} description="Search the actor, action, reason, target or changed values." />
-        <div className="grid gap-2 sm:grid-cols-3">
-          <label className="relative block sm:col-span-1"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search audit history…" className="min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] pl-9 pr-3 text-sm text-foreground outline-none focus:border-sky-200/30" /></label>
-          <select value={action} onChange={(event) => setAction(event.target.value)} className="min-h-11 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none"><option value="">All actions</option>{actions.map((item) => <option key={item} value={item}>{humanize(item)}</option>)}</select>
-          <select value={targetType} onChange={(event) => setTargetType(event.target.value)} className="min-h-11 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none"><option value="">All targets</option>{targetTypes.map((item) => <option key={item} value={item}>{humanize(item)}</option>)}</select>
+      <FilterBar className="[&>div]:sm:grid-cols-3 [&>div]:xl:grid-cols-3">
+        <div className="sm:col-span-3">
+          <AdminCardHeader eyebrow="Filter" title={`${filtered.length} visible event${filtered.length === 1 ? "" : "s"}`} description="Search the actor, action, reason, target or changed values." />
         </div>
-      </AdminCard>
+        <label className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search audit history…" className="min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] pl-9 pr-3 text-sm text-foreground outline-none focus:border-sky-200/30" /></label>
+        <select value={action} onChange={(event) => setAction(event.target.value)} className="min-h-11 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none"><option value="">All actions</option>{actions.map((item) => <option key={item} value={item}>{humanize(item)}</option>)}</select>
+        <select value={targetType} onChange={(event) => setTargetType(event.target.value)} className="min-h-11 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none"><option value="">All targets</option>{targetTypes.map((item) => <option key={item} value={item}>{humanize(item)}</option>)}</select>
+      </FilterBar>
 
       {adminLoading || isLoading ? (
         <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading audit history…</p></AdminCard>
       ) : error ? (
         <AdminCard className="!border-rose-200/15 !bg-rose-200/[0.045]"><p className="text-sm text-rose-100">{error instanceof Error ? error.message : "Audit log could not be loaded."}</p></AdminCard>
       ) : filtered.length ? (
-        <div className="space-y-2">
+        <AuditTimeline className="space-y-2">
           {filtered.map((row) => (
-            <AdminCard key={row.id} className="!p-4">
+            <li key={row.id} className="relative list-none">
+              <span className="absolute -left-[1.18rem] top-5 size-2 rounded-full bg-sky-200/65" aria-hidden="true" />
+              <AdminCard className="!p-4">
               <div className="flex min-w-0 items-start gap-3">
                 <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-sky-100"><FileClock className="size-4" /></span>
                 <div className="min-w-0 flex-1">
@@ -90,13 +97,14 @@ function AuditLogPage() {
                   ) : null}
                 </div>
               </div>
-            </AdminCard>
+              </AdminCard>
+            </li>
           ))}
-        </div>
+        </AuditTimeline>
       ) : (
         <AdminCard><AdminEmptyState icon={FileClock} title="No events match" description="Change the filters to widen the audit history." /></AdminCard>
       )}
-    </div>
+    </ObjectPage>
   );
 }
 
