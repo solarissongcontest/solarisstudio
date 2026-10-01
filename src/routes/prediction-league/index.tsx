@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { PublicResponsiveDataView, type PublicDataColumn } from "@/components/public/PublicResponsiveDataView";
 import { supabase } from "@/integrations/supabase/client";
 import { editionLabel, useEditions } from "@/lib/data";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
@@ -25,6 +26,34 @@ type Standing = {
   position: number;
   lastScoredAt: string | null;
 };
+
+
+const standingColumns: readonly PublicDataColumn<Standing>[] = [
+  {
+    key: "position",
+    header: "#",
+    mobileLabel: "Position",
+    render: (row) => <span className="tabular-nums">{row.position}</span>,
+  },
+  {
+    key: "player",
+    header: "Player",
+    primary: true,
+    render: (row) => row.displayName,
+  },
+  {
+    key: "score",
+    header: "Score",
+    align: "right",
+    render: (row) => <span className="tabular-nums">{row.score.toFixed(1)}</span>,
+  },
+  {
+    key: "rounds",
+    header: "Rounds",
+    align: "right",
+    render: (row) => <span className="tabular-nums">{row.rounds}</span>,
+  },
+];
 
 function PredictionLeaguePage() {
   const { data: editions = [] } = useEditions();
@@ -78,21 +107,12 @@ function PredictionLeaguePage() {
             ) : standings.isError ? (
               <p className="text-sm text-destructive">The standings could not be loaded.</p>
             ) : standings.data?.length ? (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[480px] text-left text-sm">
-                  <thead className="text-xs text-muted-foreground"><tr><th className="pb-2">#</th><th className="pb-2">Player</th><th className="pb-2">Score</th><th className="pb-2">Rounds</th></tr></thead>
-                  <tbody>
-                    {standings.data.map((row) => (
-                      <tr key={row.profileId} className="border-t border-border/60">
-                        <td className="py-3 font-semibold tabular-nums">{row.position}</td>
-                        <td className="py-3 font-semibold">{row.displayName}</td>
-                        <td className="py-3 tabular-nums">{row.score.toFixed(1)}</td>
-                        <td className="py-3 tabular-nums">{row.rounds}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <PublicResponsiveDataView
+                rows={standings.data}
+                columns={standingColumns}
+                rowKey={(row) => row.profileId}
+                ariaLabel="Prediction League standings"
+              />
             ) : (
               <p className="text-sm text-muted-foreground">No public scored league entries are available for this scope yet.</p>
             )}
