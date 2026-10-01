@@ -19,6 +19,7 @@ import cardTypographyCss from "../card-typography.css?url";
 import solarisMotionCss from "../solaris-motion.css?url";
 import flagMediaCss from "../flag-media.css?url";
 import appShellCss from "../styles/app-shell.css?url";
+import solarisDepthCss from "../solaris-depth.css?url";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
 import { AppRuntime, useSolarisApp } from "../components/app/AppRuntime";
 import { AppExperiencePreferenceSync } from "../components/app/AppExperiencePreferenceSync";
@@ -62,9 +63,13 @@ type BackgroundFamily =
   | "archive-games"
   | "scorecharts"
   | "tools"
+  | "rules"
+  | "integrity"
   | "core";
 
 function backgroundFamilyFor(pathname: string): BackgroundFamily {
+  if (pathname.startsWith("/rules")) return "rules";
+  if (pathname.startsWith("/integrity")) return "integrity";
   if (pathname.startsWith("/confirmations")) return "confirmations";
   if (pathname.startsWith("/televoting")) return "televoting";
   if (pathname.startsWith("/jury-voting") || pathname.startsWith("/next-in-line")) return "participate";
@@ -243,6 +248,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: solarisMotionCss },
       { rel: "stylesheet", href: flagMediaCss },
       { rel: "stylesheet", href: appShellCss },
+      { rel: "stylesheet", href: solarisDepthCss },
     ],
   }),
   shellComponent: RootShell,
