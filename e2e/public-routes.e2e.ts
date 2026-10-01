@@ -140,3 +140,55 @@ for (let shard = 0; shard < 4; shard += 1) {
     );
   });
 }
+
+test("representative page families remain usable at 200% text size", async ({ page }, testInfo) => {
+  test.skip(
+    !["public-390", "public-1440"].includes(testInfo.project.name),
+    "Text zoom runs once on a mobile and desktop baseline",
+  );
+
+  for (const route of ["/editions", "/pulse", "/prediction-league", "/result-lab", "/rules", "/integrity"]) {
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "200%";
+    });
+    await page.waitForTimeout(100);
+
+    const geometry = await page.evaluate(() => ({
+      overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+      h1Visible: [...document.querySelectorAll<HTMLElement>("h1")].filter((node) => {
+        const rect = node.getBoundingClientRect();
+        const style = getComputedStyle(node);
+        return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+      }).length,
+    }));
+
+    expect(geometry.overflow, `${route} should not horizontally overflow at 200% text`).toBeLessThanOrEqual(2);
+    expect(geometry.h1Visible, `${route} should retain one visible page heading at 200% text`).toBe(1);
+  }
+});
+
+test("captures the final visual archetypes for review", async ({ page }, testInfo) => {
+  test.skip(
+    !["public-390", "public-1440"].includes(testInfo.project.name),
+    "Archetype captures run on one mobile and one desktop baseline",
+  );
+
+  const archetypes = [
+    ["directory", "/editions"],
+    ["data", "/result-lab"],
+    ["operational", "/confirmations"],
+    ["governance", "/rules"],
+    ["feed", "/pulse"],
+  ] as const;
+
+  for (const [name, route] of archetypes) {
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("main").first()).toBeVisible();
+    await testInfo.attach(
+      `final-${name}-${testInfo.project.name}.png`,
+      { body: await page.screenshot({ fullPage: true }), contentType: "image/png" },
+    );
+  }
+});
+
