@@ -27,7 +27,8 @@ describe('Studio 2 Feature Rollout UX integration', () => {
   });
 
   it('keeps the view selector and feature details responsive', () => {
-    expect(route).toContain('overflow-x-auto');
+    expect(route).toContain('<WorkspaceTabs label="Feature rollout views">');
+    expect(route).not.toContain('overflow-x-auto');
     expect(route).toContain('xl:grid-cols-[minmax(0,1fr)_22rem]');
     expect(route).toContain('xl:sticky xl:top-24');
   });
