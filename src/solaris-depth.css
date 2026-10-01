@@ -299,3 +299,24 @@ body[data-solaris-family="integrity"] .solaris-star-anchor[data-star-id="m2"] {
     backdrop-filter: none !important;
   }
 }
+
+
+/* Purpose-built governance atmospheres. The stars stay Solaris, while the
+   colour field becomes calmer and more document/service appropriate. */
+body[data-solaris-family="rules"] {
+  --solaris-bg-primary: 70 166 218;
+  --solaris-bg-secondary: 39 91 159;
+  --solaris-bg-tertiary: 75 190 210;
+  --solaris-bg-deep: 2 12 29;
+  --solaris-bg-deep-2: 5 28 49;
+  --solaris-bg-angle: 151deg;
+}
+
+body[data-solaris-family="integrity"] {
+  --solaris-bg-primary: 72 198 170;
+  --solaris-bg-secondary: 38 111 128;
+  --solaris-bg-tertiary: 82 164 206;
+  --solaris-bg-deep: 2 17 27;
+  --solaris-bg-deep-2: 4 35 42;
+  --solaris-bg-angle: 142deg;
+}
