@@ -15,10 +15,12 @@ describe("App Experience v3 task and route-state foundation", () => {
     expect(toolbar).toContain("solaris-app-toolbar-context-title");
   });
 
-  it("actually renders the contextual install prompt from AppRuntime", () => {
+  it("renders the contextual install prompt through the shared overlay manager", () => {
     const runtime = source("src/components/app/AppRuntime.tsx");
+    const manager = source("src/components/app/AppOverlayManager.tsx");
     const prompt = source("src/components/app/AppInstallPrompt.tsx");
-    expect(runtime).toContain("<AppInstallPrompt");
+    expect(runtime).toContain("<AppOverlayManager");
+    expect(manager).toContain("<AppInstallPrompt");
     expect(prompt).toContain("MIN_VISITS = 2");
     expect(prompt).toContain("REVEAL_DELAY_MS");
     expect(prompt).toContain("installPromptAllowedOnPath");
