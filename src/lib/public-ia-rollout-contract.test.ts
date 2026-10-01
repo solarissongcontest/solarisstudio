@@ -1,12 +1,11 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-function source(path: string) {
-  return readFileSync(resolve(process.cwd(), path), "utf8");
-}
+const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
+const exists = (path: string) => existsSync(resolve(process.cwd(), path));
 
-describe("public IA v3 rollout contract", () => {
+describe("public IA retirement contract", () => {
   const flags = source("src/lib/feature-flags.ts");
   const surfaces = source("src/lib/studio2-product-surfaces.ts");
   const shell = source("src/components/AppShell.tsx");
@@ -18,46 +17,38 @@ describe("public IA v3 rollout contract", () => {
     "supabase/migrations/20260919220333_public_ia_v3_global_default.sql",
   );
 
-  it("registers the rollout flag as a real public product surface", () => {
-    expect(flags).toContain("'public_ia_v3'");
-    expect(surfaces).toContain("public_ia_v3:");
-    expect(surfaces).toContain('label: "Public IA v3"');
-    expect(surfaces).toContain('state: "product_surface"');
-    expect(surfaces).toContain('audience: "public"');
-    expect(initialMigration).toContain("'public_ia_v3'");
-  });
-
-  it("uses the final public IA as the only public chrome", () => {
+  it("keeps the final public IA as the only runtime chrome", () => {
     expect(shell).toContain("<NewPublicDesktopNavigation");
     expect(shell).toContain("<PublicDrawerNavigation");
     expect(shell).toContain("<PublicSectionNav");
     expect(shell).toContain("<PublicBreadcrumbs");
     expect(shell).toContain("<PublicFooter");
 
-    expect(shell).not.toContain("LegacyPublicDesktopNavigation");
-    expect(shell).not.toContain("LegacyPublicDrawerNavigation");
-    expect(shell).not.toContain("LegacyPublicSiteSidebar");
+    expect(shell).not.toContain("LegacyPublic");
     expect(shell).not.toContain("publicIaV3Enabled");
     expect(shell).not.toContain("resolvePublicIaV3Enabled");
   });
 
-  it("promotes public IA v3 from organizer-only rollout to a global default", () => {
+  it("removes the retired rollout switch from active application registries", () => {
+    expect(flags).not.toContain("'public_ia_v3'");
+    expect(surfaces).not.toContain("public_ia_v3:");
+    expect(exists("src/lib/public-ia-rollout.ts")).toBe(false);
+    expect(exists("src/lib/public-ia-rollout.test.ts")).toBe(false);
+    expect(exists("src/lib/public-ia-stability.ts")).toBe(false);
+    expect(exists("src/lib/public-ia-stability.test.ts")).toBe(false);
+  });
+
+  it("preserves the historical rollout migrations as an audit trail", () => {
+    expect(initialMigration).toContain("'public_ia_v3'");
     expect(globalMigration).toContain("'public_ia_v3'");
-    expect(globalMigration).toContain("true,");
-    expect(globalMigration).toContain("false,");
     expect(globalMigration).toContain("admins_only = false");
     expect(globalMigration).toContain("public.public_ia_v3_enabled()");
-    expect(globalMigration).toContain("to anon, authenticated");
   });
 
-  it("does not require a Beta 3 localStorage override anymore", () => {
+  it("does not require the old Beta 3 override or rollback path", () => {
     expect(beta).not.toContain("enablePublicIaV3BetaOverride");
     expect(shell).not.toContain("solaris:public-ia-v3-beta");
-  });
-
-  it("retires the legacy navigation compatibility layer after global promotion", () => {
-    expect(shell).not.toContain("legacyPublic");
-    expect(shell).not.toContain("LEGACY_");
-    expect(shell).not.toContain("source: \"legacy_");
+    expect(source("e2e/governance.e2e.ts")).not.toContain("Public IA rollback");
+    expect(source("e2e/governance.e2e.ts")).not.toContain("public_ia_v3_enabled");
   });
 });
