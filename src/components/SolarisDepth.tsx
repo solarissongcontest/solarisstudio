@@ -36,6 +36,25 @@ export function SolarisDepthSafeZone({
   return <div className={cn("solaris-depth-safe-zone", className)}>{children}</div>;
 }
 
+export function GovernanceDepthLayout({
+  tone,
+  context,
+  children,
+  className,
+}: {
+  tone: Extract<SolarisDepthTone, "rules" | "integrity">;
+  context: "rules" | "integrity" | "report";
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <SolarisDepthPage tone={tone}>
+      <GovernanceStatusStrip context={context} />
+      <SolarisDepthSafeZone className={className}>{children}</SolarisDepthSafeZone>
+    </SolarisDepthPage>
+  );
+}
+
 export function SolarisDepthSurface({
   variant = "reading",
   children,
