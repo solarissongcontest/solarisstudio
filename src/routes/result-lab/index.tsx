@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
-import { PublicResponsiveDataView, type PublicDataColumn } from "@/components/public/PublicResponsiveDataView";
+import { DataStoryPage, ResponsiveHistory, type PublicDataColumn } from "@/components/public/PublicDataStory";
 import {
   editionLabel,
   matchVoterKey,
@@ -334,7 +334,8 @@ function ResultLabPage() {
         }
       />
 
-      <div className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+      <DataStoryPage>
+        <div className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
         <div className="min-w-0 space-y-4 sm:space-y-5">
           <Panel title="1. Pick a result" description="Only shows with public jury and televote totals appear">
             <label className="block text-xs font-semibold text-muted-foreground">Edition</label>
@@ -594,7 +595,7 @@ function ResultLabPage() {
 
           {simulation.rows.length > 0 && (
             <Panel title="Recalculated scoreboard" description="Official data stays untouched">
-              <PublicResponsiveDataView
+              <ResponsiveHistory
                 rows={simulation.rows}
                 columns={scoreboardColumns}
                 rowKey={(row) => row.id}
@@ -603,7 +604,7 @@ function ResultLabPage() {
             </Panel>
           )}
         </div>
-      </div>
+      </DataStoryPage>
     </AppShell>
   );
 }
