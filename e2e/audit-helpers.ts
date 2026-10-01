@@ -156,6 +156,33 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
         })
         .map((node) => node.outerHTML.slice(0, 180));
 
+      const visibleHeadingOnes = [...document.querySelectorAll<HTMLElement>("h1")].filter((node) => {
+        const style = getComputedStyle(node);
+        const rect = node.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      });
+
+      const undersizedControls = [
+        ...document.querySelectorAll<HTMLElement>(
+          "button, input:not([type='hidden']), select, textarea, [role='button'], [role='switch'], [role='checkbox'], [role='radio']",
+        ),
+      ].flatMap((node) => {
+        if (node.closest("[inert], [aria-hidden='true']")) return [];
+        const style = getComputedStyle(node);
+        if (style.display === "none" || style.visibility === "hidden" || style.pointerEvents === "none") return [];
+        let rect = node.getBoundingClientRect();
+        if (
+          node instanceof HTMLInputElement &&
+          ["checkbox", "radio"].includes(node.type) &&
+          node.closest("label")
+        ) {
+          rect = node.closest("label")!.getBoundingClientRect();
+        }
+        if (rect.width === 0 || rect.height === 0) return [];
+        if (rect.width >= 24 && rect.height >= 24) return [];
+        return [`${node.tagName.toLowerCase()}${node.getAttribute("aria-label") ? `[${node.getAttribute("aria-label")}]` : ""}: ${Math.round(rect.width)}×${Math.round(rect.height)}`];
+      });
+
       const intersects = (first: DOMRect, second: DOMRect) => {
         const width = Math.min(first.right, second.right) - Math.max(first.left, second.left);
         const height = Math.min(first.bottom, second.bottom) - Math.max(first.top, second.top);
@@ -265,6 +292,8 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
         duplicateIds: [...new Set(duplicateIds)],
         brokenImages,
         unnamedControls,
+        visibleH1Count: visibleHeadingOnes.length,
+        undersizedControls,
         countryHeroCollisions,
         officialFlagProblems,
         countryHeroTitleProblems,
@@ -280,6 +309,8 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
     expect(result.duplicateIds, `${path} has duplicate element IDs`).toEqual([]);
     expect(result.brokenImages, `${path} has broken images`).toEqual([]);
     expect(result.unnamedControls, `${path} has controls without accessible names`).toEqual([]);
+    expect(result.visibleH1Count, `${path} should expose exactly one visible h1`).toBe(1);
+    expect(result.undersizedControls, `${path} has controls below the WCAG 2.2 24px target minimum`).toEqual([]);
     expect(result.countryHeroCollisions, `${path} has overlapping country hero semantic regions`).toEqual([]);
     expect(result.officialFlagProblems, `${path} distorts or hides official flag media`).toEqual([]);
     expect(result.countryHeroTitleProblems, `${path} clips a Country hero title`).toEqual([]);
