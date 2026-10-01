@@ -9,10 +9,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { AppFirstRun } from "@/components/app/AppFirstRun";
-import { AppInstallPrompt } from "@/components/app/AppInstallPrompt";
-import { AppOfflineBanner } from "@/components/app/AppOfflineBanner";
-import { AppUpdatePrompt } from "@/components/app/AppUpdatePrompt";
+import { AppOverlayManager } from "@/components/app/AppOverlayManager";
 import {
   createAppConnectivityController,
   initialAppConnectivitySnapshot,
@@ -211,14 +208,14 @@ export function AppRuntime({ children }: { children: ReactNode }) {
   return (
     <AppRuntimeContext.Provider value={value}>
       {children}
-      <AppFirstRun isAppMode={platform.isAppMode} pathname={pathname} />
-      {!platform.isAppMode ? <AppInstallPrompt isAppMode={platform.isAppMode} /> : null}
-      {platform.isAppMode ? (
-        <AppOfflineBanner connectivity={connectivity} />
-      ) : null}
-      {platform.isAppMode && waitingWorker && updateSafety.safe ? (
-        <AppUpdatePrompt onUpdate={applyUpdate} />
-      ) : null}
+      <AppOverlayManager
+        isAppMode={platform.isAppMode}
+        pathname={pathname}
+        connectivity={connectivity}
+        updateAvailable={Boolean(waitingWorker)}
+        updateSafe={updateSafety.safe}
+        onUpdate={applyUpdate}
+      />
     </AppRuntimeContext.Provider>
   );
 }
