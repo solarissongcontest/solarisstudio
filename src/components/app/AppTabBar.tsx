@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
 import {
   appEntryHref,
+  appTabForLocation,
   appTabRoot,
   getAppTabDestination,
   markAppNavigationRestore,
@@ -46,17 +47,20 @@ function rootDestinationForIndex(index: number, signedIn: boolean) {
 
 export function AppTabBar({
   pathname,
+  searchStr = "",
   signedIn,
   participateBadge = 0,
   meBadge = 0,
 }: {
   pathname: string;
+  searchStr?: string;
   signedIn: boolean;
   participateBadge?: number;
   meBadge?: number;
 }) {
   const navigate = useNavigate();
-  const routeArea = publicAreaForPath(pathname);
+  const contextualArea = appTabForLocation(pathname, searchStr);
+  const routeArea = contextualArea ?? publicAreaForPath(pathname);
   const [collapsed, setCollapsed] = useState(false);
   const [railMode, setRailMode] = useState(false);
   const [fallbackArea, setFallbackArea] = useState<PrimaryArea>("home");
@@ -95,7 +99,7 @@ export function AppTabBar({
     lastScrollY.current = window.scrollY;
     downTravel.current = 0;
     upTravel.current = 0;
-  }, [pathname, routeArea]);
+  }, [pathname, routeArea, searchStr]);
 
   useEffect(() => {
     lastScrollY.current = window.scrollY;

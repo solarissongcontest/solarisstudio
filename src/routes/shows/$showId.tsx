@@ -71,6 +71,7 @@ const TAB_VALUES = new Set<Tab>([
 type ShowSearch = {
   tab?: Tab;
   story?: string;
+  from?: "results";
 };
 
 export const Route = createFileRoute("/shows/$showId")({
@@ -121,6 +122,10 @@ export const Route = createFileRoute("/shows/$showId")({
       validated.story = search.story;
     }
 
+    if (search.from === "results") {
+      validated.from = "results";
+    }
+
     return validated;
   },
   component: ShowPage,
@@ -129,6 +134,7 @@ export const Route = createFileRoute("/shows/$showId")({
 function ShowPage() {
   const { showId } = Route.useParams();
   const search = Route.useSearch();
+  const resultsContext = search.from === "results";
   const showQuery = useShow(showId);
   const participantsQuery = usePublicShowParticipants(showId);
   const resultsQuery = useResults(showId);
@@ -431,7 +437,7 @@ function ShowPage() {
     .map((item) => ({
       key: item.id,
       label: item.name,
-      href: `/shows/${encodeURIComponent(item.id)}`,
+      href: `/shows/${encodeURIComponent(item.id)}${resultsContext ? "?from=results" : ""}`,
       meta: item.kind.replace("-", " "),
     }));
 
@@ -441,7 +447,7 @@ function ShowPage() {
         <AppEntitySidebar
           title="Shows"
           items={showSidebarItems}
-          currentHref={`/shows/${encodeURIComponent(show.id)}`}
+          currentHref={`/shows/${encodeURIComponent(show.id)}${resultsContext ? "?from=results" : ""}`}
           footer={
             <Link to="/shows" className="solaris-app-entity-sidebar-all">
               All shows

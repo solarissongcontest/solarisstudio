@@ -272,7 +272,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     email && !email.toLowerCase().endsWith("@country.solaris.invalid") ? email : null;
   const isEditionPage = /^\/editions\/[^/]+\/?$/i.test(pathname);
   const isHomePage = pathname === "/";
-  const appChrome = resolveAppRouteChrome(pathname);
+  const appChrome = resolveAppRouteChrome(pathname, searchStr);
   const isAppRootDestination = appChrome.root;
   const showHomeAnniversaryTakeover =
     isHomePage &&
@@ -565,6 +565,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {isAppMode && appChrome.tabBar !== "hidden" ? (
           <AppTabBar
             pathname={pathname}
+            searchStr={searchStr}
             signedIn={Boolean(access.userId)}
             participateBadge={attention.participate}
             meBadge={attention.me}

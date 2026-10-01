@@ -60,4 +60,18 @@ describe("installed app route chrome", () => {
     });
   });
 
+  it("keeps Show chrome in Results when the result context owns the entity", () => {
+    expect(resolveAppRouteChrome("/shows/show-22", "?from=results")).toMatchObject({
+      title: "Show",
+      tab: "results",
+      archetype: "entity",
+      backFallback: { label: "Results", to: "/results" },
+    });
+
+    expect(resolveAppRouteChrome("/shows/show-22")).toMatchObject({
+      tab: "explore",
+      backFallback: { label: "Shows", to: "/shows" },
+    });
+  });
+
 });

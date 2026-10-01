@@ -137,6 +137,7 @@ function ResultsOverviewPage() {
             <Link
               to="/shows/$showId"
               params={{ showId: latestShow.id }}
+              search={{ from: "results" }}
               className="text-xs font-semibold text-primary"
             >
               Reveal official result →
@@ -222,7 +223,7 @@ function ResultsOverviewPage() {
         </div>
         <PublicDestinationGrid columns={2}>
           <PublicPrimaryAction
-            to={latestShow ? `/shows/${latestShow.id}` : "/editions"}
+            to={latestShow ? `/shows/${latestShow.id}?from=results` : "/editions"}
             icon={Trophy}
             eyebrow="Official result"
             title="Latest result"
@@ -311,6 +312,7 @@ function ResultsOverviewPage() {
             <Link
               to="/shows/$showId"
               params={{ showId: latestShow.id }}
+              search={{ from: "results" }}
               className="inline-flex items-center gap-1 text-xs font-semibold text-primary"
             >
               Full result <ArrowRight className="size-3.5" />
