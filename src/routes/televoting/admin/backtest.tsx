@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Activity, FlaskConical, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
+import { AdminDataView, type AdminDataColumn } from "@/components/admin/AdminDataView";
 import {
   AdminCard,
   AdminCardHeader,
@@ -12,6 +13,50 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { runHistoricalTelevoteBacktest } from "@/integrations/televoting/backtest.functions";
+
+type AttackRow = {
+  attackers: number;
+  target: string;
+  legacyRankBefore: number;
+  legacyRankAfter: number;
+  legacyPointGain: number;
+  robustRankBefore: number;
+  robustRankAfter: number;
+  robustPointGain: number;
+};
+
+const attackColumns: readonly AdminDataColumn<AttackRow>[] = [
+  {
+    key: "attackers",
+    header: "Attackers",
+    mobileLabel: "Attack",
+    primary: true,
+    render: (attack) => `${attack.attackers} attacker${attack.attackers === 1 ? "" : "s"}`,
+  },
+  { key: "target", header: "Target", render: (attack) => attack.target },
+  {
+    key: "legacy-rank",
+    header: "Legacy rank",
+    render: (attack) => <>#{attack.legacyRankBefore} → #{attack.legacyRankAfter}</>,
+  },
+  {
+    key: "legacy-gain",
+    header: "Legacy gain",
+    align: "right",
+    render: (attack) => <>+{attack.legacyPointGain}</>,
+  },
+  {
+    key: "robust-rank",
+    header: "Robust rank",
+    render: (attack) => <>#{attack.robustRankBefore} → #{attack.robustRankAfter}</>,
+  },
+  {
+    key: "robust-gain",
+    header: "Robust gain",
+    align: "right",
+    render: (attack) => <>+{attack.robustPointGain}</>,
+  },
+];
 
 export const Route = createFileRoute("/televoting/admin/backtest")({
   component: TelevoteBacktestPage,
@@ -87,23 +132,13 @@ function TelevoteBacktestPage() {
               </div>
               <div className="mt-4 rounded-xl border border-white/[0.07] bg-black/10 p-4">
                 <div className="flex items-center gap-2"><Activity className="size-4 text-amber-200" /><p className="text-sm font-semibold">Coordinated attack simulation</p></div>
-                <div className="mt-3 overflow-x-auto">
-                  <table className="w-full min-w-[620px] text-left text-xs">
-                    <thead className="text-muted-foreground"><tr><th className="pb-2">Attackers</th><th className="pb-2">Target</th><th className="pb-2">Legacy rank</th><th className="pb-2">Legacy gain</th><th className="pb-2">Robust rank</th><th className="pb-2">Robust gain</th></tr></thead>
-                    <tbody className="divide-y divide-white/[0.06]">
-                      {round.attacks.map((attack) => (
-                        <tr key={attack.attackers}>
-                          <td className="py-2 font-semibold">{attack.attackers}</td>
-                          <td className="py-2">{attack.target}</td>
-                          <td className="py-2">#{attack.legacyRankBefore} → #{attack.legacyRankAfter}</td>
-                          <td className="py-2">+{attack.legacyPointGain}</td>
-                          <td className="py-2">#{attack.robustRankBefore} → #{attack.robustRankAfter}</td>
-                          <td className="py-2">+{attack.robustPointGain}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <AdminDataView
+                  className="mt-3"
+                  rows={round.attacks}
+                  rowKey={(attack) => String(attack.attackers)}
+                  ariaLabel={`${round.roundName} coordinated attack simulation`}
+                  columns={attackColumns}
+                />
               </div>
             </AdminCard>
           ))}
