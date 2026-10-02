@@ -1,0 +1,100 @@
+import { readFileSync } from "node:fs";
+
+import { describe, expect, it } from "vitest";
+
+const source = (path: string) => readFileSync(path, "utf8");
+
+describe("Mobile App V2 architectural invariants", () => {
+  it("keeps route chrome as the single source of active tab truth", () => {
+    const tabs = source("src/components/app/AppTabBar.tsx");
+    const toolbar = source("src/components/app/AppToolbar.tsx");
+
+    expect(tabs).toContain("resolveAppRouteChrome(pathname, searchStr)");
+    expect(tabs).not.toContain("publicAreaForPath");
+    expect(toolbar).toContain("resolveAppRouteChrome(pathname, searchStr)");
+    expect(toolbar).toContain("historyChrome?.tab === chrome.tab");
+  });
+
+  it("keeps route loading and error states on the canonical AppShell", () => {
+    const frame = source("src/components/app/AppRouteStateFrame.tsx");
+
+    expect(frame).toContain("<AppShell>");
+    expect(frame).not.toContain("<AppTabBar");
+    expect(frame).not.toContain("solaris-app-toolbar");
+    expect(frame).not.toContain("signedIn={false}");
+  });
+
+  it("uses measured app chrome obstruction instead of another guessed runway", () => {
+    const tabs = source("src/components/app/AppTabBar.tsx");
+    const css = source("src/styles/app-shell.css");
+
+    expect(tabs).toContain("ResizeObserver");
+    expect(tabs).toContain("--solaris-app-bottom-obstruction");
+    expect(css).toContain("var(--solaris-app-bottom-obstruction");
+    expect(css).toContain('data-solaris-app-tabbar="hidden"');
+  });
+
+  it("implements visible, minimal and hidden tab bar modes", () => {
+    const tabs = source("src/components/app/AppTabBar.tsx");
+    expect(tabs).toContain('tabbarMode === "hidden"');
+    expect(tabs).toContain('tabbarMode === "minimal"');
+    expect(tabs).toContain("is-minimal");
+  });
+
+  it("does not stack a second MySolaris phone navigation inside the app", () => {
+    const nav = source("src/components/mysolaris/MySolarisWorkspaceNav.tsx");
+    expect(nav).toContain("useSolarisApp");
+    expect(nav).toContain("!isAppMode ? <section");
+    expect(nav).toContain("data-mysolaris-mobile-nav");
+  });
+
+  it("uses actual sheets for first run and Wiki app tools", () => {
+    const firstRun = source("src/components/app/AppFirstRun.tsx");
+    const wiki = source("src/components/wiki/CountryWikiExperience.tsx");
+    const sheet = source("src/components/ui/sheet.tsx");
+
+    expect(firstRun).toContain("<Sheet");
+    expect(firstRun).not.toContain("<Dialog");
+    expect(wiki).toContain("<SheetContent");
+    expect(sheet).toContain("z-[90]");
+    expect(sheet).toContain("size-11");
+  });
+
+  it("keeps canonical flags clipped with an optical default radius", () => {
+    const media = source("src/components/FlagMedia.tsx");
+    const css = source("src/flag-media.css");
+    expect(media).toContain('rounded-[.6rem]');
+    expect(css).toContain("overflow: hidden");
+  });
+
+  it("detects all installed display modes requested by the manifest", () => {
+    const platform = source("src/lib/platform.ts");
+    const runtime = source("src/components/app/AppRuntime.tsx");
+    const manifest = source("public/site.webmanifest");
+
+    expect(manifest).toContain("window-controls-overlay");
+    expect(platform).toContain("(display-mode: window-controls-overlay)");
+    expect(runtime).toContain("(display-mode: window-controls-overlay)");
+  });
+
+  it("does not expose push deployment internals to users", () => {
+    const notifications = source("src/lib/app-notifications.ts");
+    const panel = source("src/components/mysolaris/MySolarisNotificationsPanel.tsx");
+
+    expect(notifications).not.toContain("Solaris push delivery is not configured on this deployment yet");
+    expect(notifications).toContain("Push notifications are temporarily unavailable.");
+    expect(panel).toContain("pushState.configured");
+  });
+
+  it("uses app-specific compositions for major browsing roots", () => {
+    const explore = source("src/routes/explore/index.tsx");
+    const results = source("src/routes/results/index.tsx");
+    const directory = source("src/routes/site-directory/index.tsx");
+    const editions = source("src/routes/editions/index.tsx");
+
+    expect(explore).toContain("solaris-app-grouped-list");
+    expect(results).toContain("solaris-app-result-hero");
+    expect(directory).toContain("solaris-app-list-row");
+    expect(editions).toContain("solaris-app-edition-row");
+  });
+});
