@@ -2,6 +2,11 @@
 @source "../src";
 @import "tw-animate-css";
 
+/* Solaris cascade ownership. Dynamic personality CSS is explicitly placed in
+   the personality layer; protected app chrome remains later/unlayered until
+   the remaining legacy web sheets have been retired. */
+@layer reset, tokens, base, web, personality, app, accessibility;
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
