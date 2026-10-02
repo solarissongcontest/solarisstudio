@@ -58,7 +58,7 @@ describe("Organisation OS V5 canonical Organizer Task Engine", () => {
     expect(operationalSources).toContain("submission.reviewed = false");
     expect(operationalSources).toContain("internal_entry.review_status = 'pending'");
     expect(operationalSources).toContain("'jury_missing_ballots'");
-    expect(operationalSources).toContain("window.status = 'open'");
+    expect(operationalSources).toContain("jury_window.status = 'open'");
     expect(operationalSources).toContain("ballot.status = 'submitted'");
     expect(operationalSources).toContain("ballot_status.status = 'did_not_vote'");
     expect(operationalSources).toContain("'televote_suspicious'");
@@ -80,7 +80,7 @@ describe("Organisation OS V5 canonical Organizer Task Engine", () => {
 
   it("keeps each operational source deduplicated by its domain object", () => {
     expect(operationalSources).toContain("'confirmation-review:' || submission.id::text");
-    expect(operationalSources).toContain("'jury-missing-ballots:' || window.show_id::text");
+    expect(operationalSources).toContain("'jury-missing-ballots:' || jury_window.show_id::text");
     expect(operationalSources).toContain("'televote-suspicious:' || round.id::text");
     expect(operationalSources).toContain("'result-lifecycle:' || result_operation.show_id::text");
     expect(operationalSources).toContain("on conflict (source_key) do update");
