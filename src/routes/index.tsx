@@ -277,39 +277,66 @@ function HomePage() {
           </header>
         ) : null}
 
-        <section className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,.65fr)]">
+        <section className={isAppMode ? "grid min-w-0 gap-4" : "grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,.65fr)]"}>
           <CurrentContestHero state={contestState} compact={isAppMode} />
 
-          <aside className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-            {leadStory && latestCompletedShow ? (
-              <HeadlineCard
-                story={leadStory}
-                to={`/shows/${latestCompletedShow.id}`}
-              />
-            ) : null}
-            {newsroomStories
-              .filter((story) => story.id !== leadStory?.id)
-              .slice(0, leadStory ? 1 : 2)
-              .map((story) => (
-                <HeadlineCard
-                  key={story.id}
-                  story={story}
-                  to={storyRoute(story, latestCompletedShow?.id)}
+          {isAppMode ? (
+            <div className="solaris-app-grouped-list" aria-label="Latest Solaris stories">
+              {leadStory && latestCompletedShow ? (
+                <AppHeadlineRow story={leadStory} to={`/shows/${latestCompletedShow.id}`} />
+              ) : null}
+              {newsroomStories
+                .filter((story) => story.id !== leadStory?.id)
+                .slice(0, leadStory ? 1 : 2)
+                .map((story) => (
+                  <AppHeadlineRow
+                    key={story.id}
+                    story={story}
+                    to={storyRoute(story, latestCompletedShow?.id)}
+                  />
+                ))}
+              {!leadStory && !newsroomStories.length ? (
+                <AppHeadlineRow
+                  story={{
+                    id: "analysis-fallback",
+                    label: "Analysis",
+                    headline: "The scoreboard is only the beginning",
+                    detail: "Explore voting patterns, records and country relationships.",
+                    intensity: "standard",
+                  }}
+                  to="/analysis"
                 />
-              ))}
-            {!leadStory && !newsroomStories.length ? (
-              <HeadlineCard
-                story={{
-                  id: "analysis-fallback",
-                  label: "Analysis",
-                  headline: "The scoreboard is only the beginning",
-                  detail: "Explore voting patterns, records and country relationships.",
-                  intensity: "standard",
-                }}
-                to="/analysis"
-              />
-            ) : null}
-          </aside>
+              ) : null}
+            </div>
+          ) : (
+            <aside className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+              {leadStory && latestCompletedShow ? (
+                <HeadlineCard story={leadStory} to={`/shows/${latestCompletedShow.id}`} />
+              ) : null}
+              {newsroomStories
+                .filter((story) => story.id !== leadStory?.id)
+                .slice(0, leadStory ? 1 : 2)
+                .map((story) => (
+                  <HeadlineCard
+                    key={story.id}
+                    story={story}
+                    to={storyRoute(story, latestCompletedShow?.id)}
+                  />
+                ))}
+              {!leadStory && !newsroomStories.length ? (
+                <HeadlineCard
+                  story={{
+                    id: "analysis-fallback",
+                    label: "Analysis",
+                    headline: "The scoreboard is only the beginning",
+                    detail: "Explore voting patterns, records and country relationships.",
+                    intensity: "standard",
+                  }}
+                  to="/analysis"
+                />
+              ) : null}
+            </aside>
+          )}
         </section>
 
         {isAppMode ? <HomePersonalAttention editionId={latestEdition?.id ?? null} /> : null}
@@ -349,7 +376,7 @@ function HomePage() {
               linkTo={latestCompletedShow ? `/shows/${latestCompletedShow.id}` : "/editions"}
             />
 
-            <div className="glass mt-3 min-w-0 overflow-hidden p-2 sm:p-3">
+            <div className={isAppMode ? "solaris-app-grouped-list mt-3 min-w-0 overflow-hidden" : "glass mt-3 min-w-0 overflow-hidden p-2 sm:p-3"}>
               {topFive.length ? (
                 topFive.map((result, index) => {
                   const country = countryMap.get(result.country_id);
@@ -360,7 +387,9 @@ function HomePage() {
                       key={result.id}
                       to="/countries/$code"
                       params={{ code: country.short_code }}
-                      className={`grid min-w-0 grid-cols-[34px_38px_minmax(0,1fr)_auto] items-center gap-2 rounded-xl px-2 py-3 transition-colors hover:bg-surface sm:grid-cols-[42px_44px_minmax(0,1fr)_auto] sm:gap-3 ${index === 0 ? "bg-primary/5" : ""}`}
+                      className={isAppMode
+                        ? "solaris-app-score-row"
+                        : `grid min-w-0 grid-cols-[34px_38px_minmax(0,1fr)_auto] items-center gap-2 rounded-xl px-2 py-3 transition-colors hover:bg-surface sm:grid-cols-[42px_44px_minmax(0,1fr)_auto] sm:gap-3 ${index === 0 ? "bg-primary/5" : ""}`}
                     >
                       <span
                         className={`numeric text-center text-xs font-black sm:text-sm ${index === 0 ? "text-primary" : "text-muted-foreground"}`}
@@ -435,27 +464,45 @@ function HomePage() {
           ) : null}
         </section>
 
-        <section className="border-y border-border/60 py-6">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.24em] text-primary">Public archive</p>
-              <h2 className="mt-1 font-display text-xl font-black sm:text-2xl">Solaris at a glance</h2>
+        {isAppMode ? (
+          <section aria-labelledby="app-home-archive">
+            <div className="solaris-app-section-heading">
+              <p>Public archive</p>
+              <h2 id="app-home-archive">Solaris at a glance</h2>
             </div>
-            <Link
-              to="/records"
-              className="text-[10px] font-black uppercase tracking-[0.12em] text-primary"
-            >
+            <div className="solaris-app-stat-grid">
+              <AppNumberStat label="Editions" value={editionList.length} />
+              <AppNumberStat label="Countries" value={countryList.length} />
+              <AppNumberStat label="Public shows" value={publicShowCount} />
+              <AppNumberStat label="Final winners" value={totalWinners} />
+            </div>
+            <Link to="/records" className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary">
               Browse records →
             </Link>
-          </div>
+          </section>
+        ) : (
+          <section className="border-y border-border/60 py-6">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.24em] text-primary">Public archive</p>
+                <h2 className="mt-1 font-display text-xl font-black sm:text-2xl">Solaris at a glance</h2>
+              </div>
+              <Link
+                to="/records"
+                className="text-[10px] font-black uppercase tracking-[0.12em] text-primary"
+              >
+                Browse records →
+              </Link>
+            </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-5 sm:grid-cols-4">
-            <NumberStat label="Editions" value={editionList.length} />
-            <NumberStat label="Countries" value={countryList.length} />
-            <NumberStat label="Public shows" value={publicShowCount} />
-            <NumberStat label="Grand Final winners" value={totalWinners} />
-          </div>
-        </section>
+            <div className="mt-5 grid grid-cols-2 gap-5 sm:grid-cols-4">
+              <NumberStat label="Editions" value={editionList.length} />
+              <NumberStat label="Countries" value={countryList.length} />
+              <NumberStat label="Public shows" value={publicShowCount} />
+              <NumberStat label="Grand Final winners" value={totalWinners} />
+            </div>
+          </section>
+        )}
       </div>
     </AppShell>
   );
@@ -474,6 +521,30 @@ function storyRoute(story: HomeNewsStory, showId?: string) {
     return showId ? `/shows/${showId}` : "/result-lab";
   }
   return "/analysis";
+}
+
+function AppHeadlineRow({ story, to }: { story: HomeNewsStory; to: string }) {
+  return (
+    <Link to={to} className="solaris-app-list-row">
+      <span className="min-w-0">
+        <span className="block text-[10px] font-black uppercase tracking-[.11em] text-primary">
+          {story.intensity === "breaking" ? "Breaking · " : ""}{story.label}
+        </span>
+        <span className="mt-1 block text-sm font-semibold leading-5">{story.headline}</span>
+        <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-muted-foreground">{story.detail}</span>
+      </span>
+      <span className="text-muted-foreground" aria-hidden="true">›</span>
+    </Link>
+  );
+}
+
+function AppNumberStat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="solaris-app-stat-cell">
+      <span className="numeric block text-lg font-bold">{value}</span>
+      <span className="mt-0.5 block text-xs text-muted-foreground">{label}</span>
+    </div>
+  );
 }
 
 function HeadlineCard({ story, to }: { story: HomeNewsStory; to: string }) {
