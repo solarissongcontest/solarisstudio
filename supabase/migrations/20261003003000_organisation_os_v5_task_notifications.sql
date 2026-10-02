@@ -91,13 +91,20 @@ security invoker
 set search_path = pg_catalog, public, private
 as $guard$
 begin
+  if current_user in ('authenticated', 'anon')
+     and (
+       (to_jsonb(new) - array['read_at', 'resolved_at']::text[])
+       is distinct from
+       (to_jsonb(old) - array['read_at', 'resolved_at']::text[])
+     ) then
+    raise exception
+      'Notification delivery fields are server-authoritative.'
+      using errcode = '42501';
+  end if;
+
   if old.resolution_mode = 'domain'
      and current_user in ('authenticated', 'anon')
-     and (
-       (to_jsonb(new) - 'read_at')
-       is distinct from
-       (to_jsonb(old) - 'read_at')
-     ) then
+     and new.resolved_at is distinct from old.resolved_at then
     raise exception
       'Task-backed notifications may only be marked seen; task state follows authoritative domain state.'
       using errcode = '42501';
