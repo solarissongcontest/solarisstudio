@@ -7,4 +7,4 @@ import { supabase as solarisSupabase } from "@/integrations/supabase/client";
  * Keeping this name avoids a noisy UI rewrite while ensuring auth, RPCs and
  * data all use one client, one session and one database.
  */
-export const confirmationsSupabase = solarisSupabase;
+export const confirmationsSupabase = solarisSupabase as any;
