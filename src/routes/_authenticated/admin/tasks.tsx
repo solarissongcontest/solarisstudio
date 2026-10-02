@@ -153,8 +153,7 @@ function OrganizerTasksPage() {
         )}
 
         <p className="px-1 text-[11px] leading-5 text-muted-foreground">
-          Task state is recalculated from incidents, governed approvals, Integrity work and paused
-          edition subsystems. There is intentionally no generic “Mark resolved” button.
+          Task state is recalculated from confirmation requirements and reviews, entries, required media, voting, results, integrations, incidents, governed approvals, Integrity work and paused edition subsystems. There is intentionally no generic “Mark resolved” button.
         </p>
       </div>
     </AdminPage>
