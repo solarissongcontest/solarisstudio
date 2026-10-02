@@ -311,7 +311,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = pg_catalog, public, private
-as $
+as $guard$
 declare
   v_country_id uuid;
   v_requirement_status text;
@@ -340,7 +340,7 @@ begin
 
   return new;
 end
-$;
+$guard$;
 
 revoke all on function private.studio2_guard_duplicate_confirmation_submission()
   from public, anon, authenticated;
