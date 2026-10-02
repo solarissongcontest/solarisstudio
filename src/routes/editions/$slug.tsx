@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Clock3, Radio, Trophy, Vote } from "lucide-react";
 
 import { AppShell, Panel } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
@@ -74,6 +75,7 @@ export const Route = createFileRoute("/editions/$slug")({
 });
 
 function EditionPage() {
+  const { isAppMode } = useSolarisApp();
   const { slug } = Route.useParams();
   const editionQuery = useEdition(slug);
   const { data: edition } = editionQuery;
@@ -217,8 +219,10 @@ function EditionPage() {
   return (
     <AppShell>
       <div className="edition-public-page">
-        <div className="edition-page-toolbar">
-          <Link to="/editions" className="text-xs font-medium text-muted-foreground hover:text-foreground">← Editions</Link>
+        <div className="edition-page-toolbar" data-app-compact={isAppMode ? "true" : undefined}>
+          {!isAppMode ? (
+            <Link to="/editions" className="text-xs font-medium text-muted-foreground hover:text-foreground">← Editions</Link>
+          ) : null}
           <FollowButton entityType="edition" entityId={edition.id} label={editionLabel(edition)} />
         </div>
 
