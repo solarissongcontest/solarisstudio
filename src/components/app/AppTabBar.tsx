@@ -394,12 +394,7 @@ export function AppTabBar({
         {PUBLIC_GLOBAL_AREAS.map((area, index) => {
           const Icon = ICONS[area.id];
           const to = rootDestinationForIndex(index, signedIn)!;
-          const active =
-            area.id === "me"
-              ? pathname.startsWith("/my-solaris") ||
-                pathname.startsWith("/me") ||
-                pathname.startsWith("/auth")
-              : activeArea === area.id;
+          const active = activeArea === area.id;
           const visuallyActive = index === visualActiveIndex;
           const badge =
             area.id === "participate"
