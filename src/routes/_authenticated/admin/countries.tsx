@@ -197,6 +197,7 @@ function CountriesCockpitPage() {
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
             <Link to="/confirmations/admin" className="admin-action-secondary justify-start">Overview</Link>
             <Link to="/confirmations/admin/responses" className="admin-action-secondary justify-start">Responses</Link>
+            <Link to="/admin/next-in-line" className="admin-action-secondary justify-start">Next in Line</Link>
             <Link to="/confirmations/admin/rounds" className="admin-action-secondary justify-start">Rounds</Link>
             <Link to="/confirmations/admin/calendar" className="admin-action-secondary justify-start">Schedule</Link>
             <Link to="/confirmations/admin/recovery-codes" className="admin-action-secondary justify-start">Access</Link>
