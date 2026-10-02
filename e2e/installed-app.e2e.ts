@@ -158,6 +158,17 @@ test("installed app keeps exactly one visible screen heading on app-owned screen
   }
 });
 
+test("content-owned screens do not repeat their title inside the toolbar", async ({ page }) => {
+  for (const route of ["/analysis", "/records", "/rules", "/result-lab"]) {
+    await expectInstalledShell(page, route);
+    await expect(page.locator(".solaris-app-toolbar-context-title")).toHaveCount(0);
+    await expect(page.locator("h1:visible")).toHaveCount(1);
+  }
+
+  await expectInstalledShell(page, "/settings");
+  await expect(page.locator(".solaris-app-toolbar-context-title")).toHaveCount(1);
+});
+
 test("installed app chrome keeps Apple-sized effective touch targets", async ({ page }) => {
   await expectInstalledShell(page, "/explore");
 
