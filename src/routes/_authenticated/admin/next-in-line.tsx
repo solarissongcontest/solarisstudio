@@ -64,7 +64,7 @@ function NextInLineAdminPage() {
 
     void confirmationsSupabase
       .rpc("admin_confirmation_next_in_line", { _edition_id: editionId || null })
-      .then((result) => {
+      .then((result: { data: unknown; error: { message: string } | null }) => {
         if (!alive) return;
         if (result.error) {
           setRows([]);
