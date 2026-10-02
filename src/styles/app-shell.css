@@ -2426,3 +2426,35 @@ html[data-solaris-app] .solaris-app-country-row + .solaris-app-country-row {
 html[data-solaris-app] .solaris-app-country-row:active {
   background: rgb(255 255 255 / .045);
 }
+
+
+html[data-solaris-app] .solaris-mysolaris-workspace .data-panel {
+  border: 1px solid rgb(210 236 248 / .10) !important;
+  border-radius: 1.05rem !important;
+  background: rgb(255 255 255 / .022) !important;
+  box-shadow: none !important;
+  padding: .85rem !important;
+}
+
+html[data-solaris-app] .solaris-mysolaris-workspace .data-panel > div:first-child h2 {
+  font-family: inherit !important;
+  font-size: .95rem !important;
+  font-weight: 750 !important;
+  letter-spacing: -.015em !important;
+}
+
+html[data-solaris-app] .solaris-mysolaris-workspace .data-panel > div:first-child {
+  margin-bottom: .7rem !important;
+}
+
+html[data-solaris-app] .solaris-mysolaris-workspace .page-header.solaris-app-page-context {
+  margin-bottom: .75rem !important;
+  padding: 0 .1rem !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+html[data-solaris-app] .solaris-mysolaris-workspace .page-header.solaris-app-page-context::before,
+html[data-solaris-app] .solaris-mysolaris-workspace .page-header.solaris-app-page-context::after {
+  display: none !important;
+}
