@@ -4,12 +4,14 @@ import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { Panel } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
   getSolarisAccountProfile,
   setSolarisRecoveryEmail,
 } from "@/lib/country-auth";
 
 export function MySolarisAccountPanel() {
+  const { isAppMode } = useSolarisApp();
   const profile = useQuery({
     queryKey: ["mysolaris-account-profile"],
     queryFn: getSolarisAccountProfile,
@@ -57,6 +59,84 @@ export function MySolarisAccountPanel() {
       setBusy(false);
     }
   };
+
+  if (isAppMode) {
+    if (profile.isLoading) {
+      return <p className="text-sm text-muted-foreground">Loading your account…</p>;
+    }
+    if (profile.isError) {
+      return <p className="text-sm text-destructive">Your account details could not be loaded.</p>;
+    }
+
+    return (
+      <section aria-labelledby="app-account-profile">
+        <div className="solaris-app-section-heading">
+          <p>Profile</p>
+          <h2 id="app-account-profile">Account details</h2>
+        </div>
+
+        <div className="solaris-app-grouped-list">
+          <div className="solaris-app-setting-row">
+            <span className="solaris-app-list-icon"><AtSign className="size-4" aria-hidden="true" /></span>
+            <span className="min-w-0">
+              <span className="block text-xs text-muted-foreground">Solaris username</span>
+              <span className="mt-0.5 block truncate text-sm font-semibold">
+                {profile.data?.instagramUsername ? `@${profile.data.instagramUsername}` : "Not available"}
+              </span>
+            </span>
+          </div>
+          <div className="solaris-app-setting-row">
+            <span className="solaris-app-list-icon"><UserRound className="size-4" aria-hidden="true" /></span>
+            <span className="min-w-0">
+              <span className="block text-xs text-muted-foreground">Name or nickname</span>
+              <span className="mt-0.5 block truncate text-sm font-semibold">
+                {profile.data?.displayName || "Not available"}
+              </span>
+            </span>
+          </div>
+        </div>
+
+        <form onSubmit={submit} className="solaris-app-settings-form mt-4">
+          <div className="flex items-start gap-3">
+            <span className="solaris-app-list-icon"><Mail className="size-4" aria-hidden="true" /></span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">
+                {profile.data?.hasRecoveryEmail ? "Recovery email" : "Add a recovery email"}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Used only for account recovery. It never appears on public country or Wiki pages.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-3 grid gap-2">
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="name@example.com"
+              autoComplete="email"
+              className="min-h-11 w-full rounded-xl border border-border bg-background px-3 text-base outline-none ring-primary/50 focus:ring-2"
+            />
+            <button
+              type="submit"
+              disabled={busy || !email.trim() || email.trim().toLowerCase() === (profile.data?.email ?? "").toLowerCase()}
+              className="min-h-11 rounded-xl bg-aurora px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+            >
+              {busy ? "Saving…" : profile.data?.hasRecoveryEmail ? "Change email" : "Add email"}
+            </button>
+          </div>
+
+          {message ? (
+            <p className="mt-3 rounded-xl bg-surface px-3 py-2 text-xs text-muted-foreground" aria-live="polite">
+              {message}
+            </p>
+          ) : null}
+        </form>
+      </section>
+    );
+  }
 
   return (
     <Panel
