@@ -2476,3 +2476,27 @@ html[data-solaris-app] .solaris-mysolaris-workspace .solaris-app-page-context::b
 html[data-solaris-app] .solaris-mysolaris-workspace .solaris-app-page-context::after {
   display: none !important;
 }
+
+
+html[data-solaris-app] .solaris-app-notification-row {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 4rem;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem .85rem;
+}
+
+html[data-solaris-app] .solaris-app-notification-row:not(:has(.solaris-app-list-icon)) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+html[data-solaris-app] .solaris-app-notification-detail {
+  padding: .85rem;
+}
+
+html[data-solaris-app] .solaris-app-list-icon.is-muted {
+  background: rgb(255 255 255 / .035);
+  color: var(--muted-foreground);
+}
