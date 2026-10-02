@@ -227,6 +227,11 @@ function EditionsPage() {
             <AppEmptyState
               title="No public editions yet"
               description="Published Solaris Song Contest editions will appear here."
+              action={
+                <Link to="/explore" className="solaris-app-empty-action">
+                  Back to Explore
+                </Link>
+              }
             />
           ) : null}
         </AppScreen>
