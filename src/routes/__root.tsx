@@ -337,6 +337,7 @@ function RootComponent() {
 }
 
 function ToolQuickGuide({ pathname }: { pathname: string }) {
+  const { isAppMode } = useSolarisApp();
   const guide = pathname.startsWith("/result-lab")
     ? {
         title: "How Result Lab works",
@@ -372,7 +373,11 @@ function ToolQuickGuide({ pathname }: { pathname: string }) {
           }
         : null;
 
-  if (!guide) return null;
+  // The website uses a floating quick-guide affordance. In installed mode
+  // that extra fixed bubble competes with the app tab bar and makes the screen
+  // feel like a website embedded in a shell, so app routes keep help inside
+  // their own content / toolbar instead.
+  if (!guide || isAppMode) return null;
 
   return (
     <details
