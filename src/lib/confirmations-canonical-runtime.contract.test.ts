@@ -52,13 +52,24 @@ describe("canonical Confirmations runtime", () => {
     const authFix = source(
       "supabase/migrations/20261002165500_fix_canonical_confirmations_auth_uid.sql",
     );
+    const grants = source(
+      "supabase/migrations/20261002170500_harden_canonical_confirmations_rpc_grants.sql",
+    );
+    const account = source("src/lib/confirmation-country-account.ts");
 
     expect(runtime).toContain(
       "grant execute on function public.public_confirmation_rounds() to anon, authenticated",
     );
-    expect(authFix).toContain(
+    expect(grants).toContain(
+      "revoke execute on function public.public_country_account_confirmation_access() from anon",
+    );
+    expect(grants).toContain(
+      "revoke execute on function public.public_create_country_account_edit_token(uuid) from anon",
+    );
+    expect(grants).toContain(
       "grant execute on function public.public_create_country_account_edit_token(uuid) to authenticated",
     );
+    expect(account).toContain("if (!sessionData.session)");
     expect(authFix).toContain("ca.user_id = caller_user_id");
     expect(authFix).toContain("ca.status = 'active'");
   });
