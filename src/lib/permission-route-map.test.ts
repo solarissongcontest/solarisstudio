@@ -10,6 +10,7 @@ describe("Organizer permission shadow routing", () => {
     ["/admin/system", "system.read"],
     ["/admin/sync-health", "system.read"],
     ["/admin/communications", "communications.read"],
+    ["/admin/community-moderation", "community.read"],
     ["/admin/rules-manager", "rules.read"],
     ["/admin/integrity-evidence", "integrity.read"],
     ["/admin/results-reveal", "results.preview"],
