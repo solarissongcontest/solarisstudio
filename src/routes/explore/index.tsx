@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   BookOpen,
   CalendarDays,
@@ -7,6 +7,7 @@ import {
   History,
   RadioTower,
   Sparkles,
+  ChevronRight,
   type LucideIcon,
 } from "lucide-react";
 
@@ -104,24 +105,50 @@ function ExplorePage() {
 
       {isAppMode ? <AppExplorePersonalized /> : null}
 
-      <section className="public-hub-section" aria-labelledby="explore-primary-title">
-        <div className="public-hub-section-heading">
-          <p className="public-hub-eyebrow">Start here</p>
-          <h2 id="explore-primary-title">What do you want to explore?</h2>
-        </div>
+      {isAppMode ? (
+        <section aria-labelledby="explore-primary-title">
+          <div className="solaris-app-section-heading">
+            <p>Browse Solaris</p>
+            <h2 id="explore-primary-title">Explore</h2>
+          </div>
+          <div className="solaris-app-grouped-list">
+            {[...PRIMARY_DESTINATIONS, ...SECONDARY_DESTINATIONS].map((destination) => {
+              const Icon = destination.icon;
+              return (
+                <Link key={destination.to} to={destination.to as any} className="solaris-app-list-row">
+                  <span className="solaris-app-list-icon"><Icon className="size-4" aria-hidden="true" /></span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold">{destination.title}</span>
+                    <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{destination.description}</span>
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      ) : (
+        <>
+          <section className="public-hub-section" aria-labelledby="explore-primary-title">
+            <div className="public-hub-section-heading">
+              <p className="public-hub-eyebrow">Start here</p>
+              <h2 id="explore-primary-title">What do you want to explore?</h2>
+            </div>
 
-        <PublicDestinationGrid columns={2}>
-          {PRIMARY_DESTINATIONS.map((destination) => (
-            <PublicPrimaryAction key={destination.to} {...destination} />
-          ))}
-        </PublicDestinationGrid>
-      </section>
+            <PublicDestinationGrid columns={2}>
+              {PRIMARY_DESTINATIONS.map((destination) => (
+                <PublicPrimaryAction key={destination.to} {...destination} />
+              ))}
+            </PublicDestinationGrid>
+          </section>
 
-      <PublicSecondaryLinks
-        eyebrow="More from Solaris"
-        title="Go deeper"
-        items={SECONDARY_DESTINATIONS}
-      />
+          <PublicSecondaryLinks
+            eyebrow="More from Solaris"
+            title="Go deeper"
+            items={SECONDARY_DESTINATIONS}
+          />
+        </>
+      )}
     </AppShell>
   );
 }
