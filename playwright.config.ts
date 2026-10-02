@@ -158,6 +158,24 @@ export default defineConfig({
       use: { viewport: { width: 390, height: 844 } },
     },
     {
+      name: "visual-ios-320",
+      testMatch: /app-visual-capture\.e2e\.ts/,
+      use: {
+        ...devices["iPhone 13"],
+        browserName: "webkit",
+        viewport: { width: 320, height: 568 },
+      },
+    },
+    {
+      name: "visual-ios-390",
+      testMatch: /app-visual-capture\.e2e\.ts/,
+      use: {
+        ...devices["iPhone 13"],
+        browserName: "webkit",
+        viewport: { width: 390, height: 844 },
+      },
+    },
+    {
       name: "ios-pwa-narrow-320",
       testMatch: /installed-app\.e2e\.ts/,
       use: {
