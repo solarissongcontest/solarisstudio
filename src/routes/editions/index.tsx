@@ -222,7 +222,9 @@ function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?:
 
   return (
     <section aria-labelledby="current-edition-heading">
-      <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-primary">Current</p>
+      <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-primary">
+        {edition.status === "completed" ? "Latest published edition" : "Current edition"}
+      </p>
       <Link
         to="/editions/$slug"
         params={{ slug: edition.slug }}
