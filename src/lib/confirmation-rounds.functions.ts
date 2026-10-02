@@ -2,8 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
 
-const CONFIRMATIONS_LEGACY_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3dm5ycHVxZWhxY2F0b3d4ZnB4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzMDcwOTQsImV4cCI6MjEwMTg4MzA5NH0.TsV-Osg8YAqR6jqVLGkDTya97THNAkDtD0S3Ddd6Eu0";
 
 export interface PublicRound {
   id: string;
