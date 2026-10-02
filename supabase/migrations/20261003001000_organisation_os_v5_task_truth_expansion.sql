@@ -58,6 +58,20 @@ as $media$
 
     union all
 
+    -- The shared media model blocks malformed required HTTP(S) sources even
+    -- before an Organizer review decision exists.
+    select
+      delegation.edition_id,
+      delegation.country_id,
+      country.name as country_name,
+      'invalid'::text as fault_state
+    from active_delegations delegation
+    join public.countries country on country.id = delegation.country_id
+    where nullif(btrim(country.flag_image), '') is not null
+      and btrim(country.flag_image) !~* '^https?://'
+
+    union all
+
     -- An explicit invalid review applies only while it matches the current
     -- source fingerprint. Replacing the source therefore clears this condition
     -- until the replacement is reviewed.
@@ -69,6 +83,7 @@ as $media$
     from active_delegations delegation
     join public.countries country on country.id = delegation.country_id
     where nullif(btrim(country.flag_image), '') is not null
+      and btrim(country.flag_image) ~* '^https?://'
       and exists (
         select 1
         from public.studio2_media_asset_reviews review
@@ -98,6 +113,8 @@ as $media$
 
     union all
 
+    -- Processing is its own non-blocking state in the shared media model.
+    -- Only a stable current source can become an invalid required-media fault.
     select
       entry.edition_id,
       entry.country_id,
@@ -107,6 +124,31 @@ as $media$
     join public.countries country on country.id = entry.country_id
     where entry.status = 'confirmed'
       and nullif(btrim(entry.song_url), '') is not null
+      and btrim(entry.song_url) !~* '^https?://'
+      and coalesce(
+        (entry.metadata ->> 'video_processing')::boolean,
+        (entry.metadata ->> 'videoProcessing')::boolean,
+        false
+      ) = false
+      and (p_edition_id is null or entry.edition_id = p_edition_id)
+
+    union all
+
+    select
+      entry.edition_id,
+      entry.country_id,
+      country.name as country_name,
+      'invalid'::text as fault_state
+    from public.entries entry
+    join public.countries country on country.id = entry.country_id
+    where entry.status = 'confirmed'
+      and nullif(btrim(entry.song_url), '') is not null
+      and btrim(entry.song_url) ~* '^https?://'
+      and coalesce(
+        (entry.metadata ->> 'video_processing')::boolean,
+        (entry.metadata ->> 'videoProcessing')::boolean,
+        false
+      ) = false
       and (p_edition_id is null or entry.edition_id = p_edition_id)
       and exists (
         select 1
