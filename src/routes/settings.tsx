@@ -196,7 +196,7 @@ function AppSettingsPage() {
               <Link
                 to="/auth"
                 search={{ redirect: "/settings" }}
-                className="inline-flex min-h-10 items-center rounded-xl bg-primary px-3 text-xs font-semibold text-primary-foreground"
+                className="inline-flex min-h-11 items-center rounded-xl bg-primary px-3 text-xs font-semibold text-primary-foreground"
               >
                 Sign in
               </Link>
@@ -345,7 +345,7 @@ function SettingRow({
   control: ReactNode;
 }) {
   return (
-    <div className="flex min-h-16 items-center gap-3 rounded-2xl border border-border/70 bg-background/35 p-4">
+    <div className="solaris-settings-row flex min-h-16 items-center gap-3 rounded-2xl border border-border/70 bg-background/35 p-4">
       <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
         <Icon className="size-4" aria-hidden="true" />
       </span>
@@ -370,7 +370,7 @@ function StatusCard({
   description: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-background/35 p-4">
+    <div className="solaris-settings-status rounded-2xl border border-border/70 bg-background/35 p-4">
       <div className="flex items-center gap-2">
         <Icon className="size-4 text-primary" aria-hidden="true" />
         <p className="text-[10px] font-black uppercase tracking-[0.13em] text-muted-foreground">
