@@ -2588,3 +2588,71 @@ html[data-solaris-app] .solaris-app-settings-group > .solaris-settings-status + 
     grid-template-columns: minmax(0, 1fr) !important;
   }
 }
+
+
+/* App content surfaces -------------------------------------------------------
+   Installed routes keep content flatter than the website. Navigation and
+   overlays may use glass; ordinary reading/data sections should not look like
+   desktop cards shrunk into a phone. Entity personality pages are excluded. */
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="data"]
+  :is(.data-panel, .glass),
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="reading"]
+  :is(.data-panel, .glass),
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="core"]
+  :is(.data-panel, .glass),
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="task"]
+  :is(.data-panel, .glass),
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="workspace"]
+  :is(.data-panel, .glass),
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="settings"]
+  :is(.data-panel, .glass) {
+  border-color: rgb(210 236 248 / .10) !important;
+  border-radius: 1rem !important;
+  background: rgb(255 255 255 / .024) !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="data"]
+  :is(.data-panel, .glass) h2,
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="reading"]
+  :is(.data-panel, .glass) h2,
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="core"]
+  :is(.data-panel, .glass) h2,
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="task"]
+  :is(.data-panel, .glass) h2,
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="workspace"]
+  :is(.data-panel, .glass) h2,
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="settings"]
+  :is(.data-panel, .glass) h2 {
+  font-family: inherit !important;
+  letter-spacing: -.018em !important;
+}
+
+@media (max-width: 430px) {
+  html[data-solaris-app]
+    .app-main[data-solaris-app-mode="true"]
+    :is(.data-panel, .glass) {
+    padding: .85rem !important;
+  }
+
+  html[data-solaris-app]
+    .app-main[data-solaris-app-mode="true"]
+    :is(.data-panel, .glass)
+    :is(.rounded-2xl, .rounded-3xl) {
+    border-radius: .9rem;
+  }
+}
