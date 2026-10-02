@@ -60,9 +60,7 @@ let headCommit;
 try {
   headCommit = git(["rev-parse", "HEAD"]);
   git(["cat-file", "-e", `${sourceCommit}^{commit}`]);
-  execFileSync("git", ["merge-base", "--is-ancestor", sourceCommit, headCommit], {
-    stdio: "ignore",
-  });
+  git(["merge-base", "--is-ancestor", sourceCommit, headCommit]);
 } catch {
   console.error(
     `Mobile V2 source_commit ${sourceCommit} is not an ancestor of the checked-out certification commit.`,
