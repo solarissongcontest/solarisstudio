@@ -43,7 +43,10 @@ begin
         updated_at = excluded.updated_at;
   end if;
 
-  return case when tg_op = 'DELETE' then old else new end;
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
 end
 $touch$;
 
