@@ -2278,19 +2278,11 @@ html[data-solaris-app] .solaris-app-search-field input {
 }
 
 html[data-solaris-app] .solaris-app-current-contest {
-  border: 1px solid rgb(210 236 248 / .12);
   border-radius: 1.25rem;
-  padding: 1rem;
-  background:
-    radial-gradient(circle at 100% 0%, rgb(var(--solaris-accent, 139 198 222) / .10), transparent 42%),
-    rgb(255 255 255 / .028);
 }
 
 html[data-solaris-app] .solaris-app-edition-current {
-  border: 1px solid rgb(210 236 248 / .12);
   border-radius: 1.15rem;
-  padding: .9rem;
-  background: rgb(255 255 255 / .028);
 }
 
 html[data-solaris-app] .solaris-app-edition-current > div:last-child {
@@ -2324,12 +2316,7 @@ html[data-solaris-app] .solaris-app-edition-row + .solaris-app-edition-row {
 
 
 html[data-solaris-app] .solaris-app-result-hero {
-  border: 1px solid rgb(210 236 248 / .12);
   border-radius: 1.25rem;
-  padding: 1rem;
-  background:
-    radial-gradient(circle at 100% 0%, rgb(var(--solaris-accent, 139 198 222) / .11), transparent 42%),
-    rgb(255 255 255 / .028);
 }
 
 html[data-solaris-app] .solaris-app-result-kicker {
@@ -2898,6 +2885,26 @@ html[data-solaris-app] [data-solaris-sheet][data-side="responsive"] {
 
 
 /* Canonical mobile composition primitives -------------------------------- */
+html[data-solaris-app] .solaris-app-card {
+  min-width: 0;
+  border: 1px solid rgb(210 236 248 / .11);
+  border-radius: 1.15rem;
+  padding: .9rem;
+  background: rgb(255 255 255 / .026);
+  box-shadow: none;
+}
+
+html[data-solaris-app] .solaris-app-card[data-tone="accent"] {
+  background:
+    radial-gradient(circle at 100% 0%, rgb(var(--solaris-accent, 139 198 222) / .10), transparent 42%),
+    rgb(255 255 255 / .028);
+}
+
+html[data-solaris-app] .solaris-app-card[data-tone="quiet"] {
+  border-color: rgb(210 236 248 / .08);
+  background: rgb(255 255 255 / .018);
+}
+
 html[data-solaris-app] .solaris-app-empty-state {
   border: 1px solid rgb(210 236 248 / .10);
   border-radius: 1rem;
