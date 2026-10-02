@@ -112,7 +112,7 @@ export function adminCasesRoute(path: string) {
 export function adminAppTabRoot(tab: AdminAppTabId, slug?: string | null) {
   if (tab === "home") return "/admin/operations";
   if (tab === "edition") return slug ? "/admin/" + slug : "/admin";
-  if (tab === "tasks") return "/admin/action-center";
+  if (tab === "tasks") return "/admin/tasks";
   if (tab === "delegations") return "/admin/countries";
   return "/admin/more";
 }
@@ -121,7 +121,7 @@ export function adminAppTabForPath(pathname: string, slug?: string | null): Admi
   if (!safeAdminPath(pathname)) return null;
   if (pathname.startsWith("/admin/operations")) return "home";
   if (
-    pathname.startsWith("/admin/action-center") ||
+    pathname.startsWith("/admin/tasks") ||\n    pathname.startsWith("/admin/action-center") ||
     pathname.startsWith("/admin/action-centre") ||
     pathname.startsWith("/admin/inbox")
   ) return "tasks";
