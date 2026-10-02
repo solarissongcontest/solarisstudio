@@ -101,8 +101,8 @@ printf 'Exporting source auth.users + auth.identities to a protected temporary f
 pg_dump "$SOURCE_DB_URL"   --data-only   --column-inserts   --no-owner   --no-privileges   --table=auth.users   --table=auth.identities   > "$tmp_dump"
 
 # Sanity-check that pg_dump actually emitted both tables before touching target.
-grep -q 'auth.users' "$tmp_dump" || die "Source dump does not contain auth.users."
-grep -q 'auth.identities' "$tmp_dump" || die "Source dump does not contain auth.identities."
+grep -Eq 'auth(.|"|\\.)+users|INSERT INTO .*users' "$tmp_dump" || die "Source dump does not contain auth.users."
+grep -Eq 'auth(.|"|\\.)+identities|INSERT INTO .*identities' "$tmp_dump" || die "Source dump does not contain auth.identities."
 
 printf 'Replacing only target Auth user/identity rows in one transaction ...\n'
 {
