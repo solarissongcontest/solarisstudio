@@ -130,7 +130,7 @@ describe("Solaris Participation OS", () => {
     const confirmationTasks = tasks.filter((task) => task.kind === "confirmation");
     expect(confirmationTasks).toHaveLength(1);
     expect(confirmationTasks[0]).toMatchObject({
-      id: "confirmation:edition-22",
+      id: "confirmation:edition-22:g1",
       title: "Country confirmed",
       state: "completed",
       actionRequired: false,
@@ -190,7 +190,7 @@ describe("Solaris Participation OS", () => {
     const confirmationTasks = tasks.filter((task) => task.kind === "confirmation");
     expect(confirmationTasks).toHaveLength(1);
     expect(confirmationTasks[0]).toMatchObject({
-      id: "confirmation-missing:edition-22",
+      id: "confirmation-required:requirement-1",
       title: "Confirm participation",
       state: "needs_attention",
       actionRequired: true,
