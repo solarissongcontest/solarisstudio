@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
 import {
   MY_SOLARIS_MOBILE_PRIMARY_IDS,
@@ -46,6 +47,7 @@ const ICONS: Record<MySolarisSectionId, LucideIcon> = {
 
 export function MySolarisWorkspaceNav() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { isAppMode } = useSolarisApp();
   const workspace = useMySolaris();
   const primaryIds = new Set<MySolarisSectionId>(MY_SOLARIS_MOBILE_PRIMARY_IDS);
   const primaryItems = mySolarisNavigationItems().filter((item) => primaryIds.has(item.id));
@@ -94,7 +96,7 @@ export function MySolarisWorkspaceNav() {
         </nav>
       </aside>
 
-      <section
+      {!isAppMode ? <section
         className="mb-4 rounded-2xl border border-border/70 bg-surface/75 p-1.5 lg:hidden"
         data-mysolaris-mobile-nav
       >
@@ -138,7 +140,7 @@ export function MySolarisWorkspaceNav() {
             </div>
           </details>
         </nav>
-      </section>
+      </section> : null}
     </>
   );
 }
