@@ -306,6 +306,52 @@ $$;
 revoke all on function private.studio2_reconcile_confirmation_requirement(uuid, uuid)
   from public, anon, authenticated;
 
+create or replace function private.studio2_guard_duplicate_confirmation_submission()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $
+declare
+  v_country_id uuid;
+  v_requirement_status text;
+  v_requirement_generation integer;
+begin
+  v_country_id := private.studio2_confirmation_country_id(new.country);
+
+  if v_country_id is null then
+    return new;
+  end if;
+
+  select requirement.status, requirement.generation
+  into v_requirement_status, v_requirement_generation
+  from public.studio2_confirmation_requirements requirement
+  where requirement.edition_id = new.edition_id
+    and requirement.country_id = v_country_id
+    and requirement.superseded_at is null
+  limit 1;
+
+  if v_requirement_status in ('satisfied', 'waived') then
+    raise exception
+      'This delegation already completed confirmation requirement generation %. A new submission requires explicit reconfirmation.',
+      v_requirement_generation
+      using errcode = '23505';
+  end if;
+
+  return new;
+end
+$;
+
+revoke all on function private.studio2_guard_duplicate_confirmation_submission()
+  from public, anon, authenticated;
+
+drop trigger if exists studio2_confirmation_duplicate_submission_guard
+  on public.submissions;
+create trigger studio2_confirmation_duplicate_submission_guard
+before insert on public.submissions
+for each row
+execute function private.studio2_guard_duplicate_confirmation_submission();
+
 create or replace function private.studio2_confirmation_submission_requirement_trigger()
 returns trigger
 language plpgsql
