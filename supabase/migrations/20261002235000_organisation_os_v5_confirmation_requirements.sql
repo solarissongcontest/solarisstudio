@@ -619,21 +619,14 @@ begin
   select *
   into v_current
   from public.studio2_confirmation_requirements requirement
-  where requirement.id = p_requirement_id
-    and requirement.superseded_at is null
-  for update;
+  where requirement.id = p_requirement_id;
 
   if v_current.id is null then
-    raise exception 'Current confirmation requirement not found' using errcode = 'P0002';
+    raise exception 'Confirmation requirement not found' using errcode = 'P0002';
   end if;
 
   if not private.solaris_confirmation_admin_allowed() then
     raise exception 'Missing Solaris capability: delegation.manage' using errcode = '42501';
-  end if;
-
-  if v_current.status = 'required' then
-    raise exception 'This delegation already has an unresolved confirmation requirement'
-      using errcode = '23514';
   end if;
 
   v_claim := private.studio2_claim_operation(
@@ -652,6 +645,22 @@ begin
     return v_claim -> 'result';
   end if;
   v_operation_id := (v_claim ->> 'operationId')::uuid;
+
+  select *
+  into v_current
+  from public.studio2_confirmation_requirements requirement
+  where requirement.id = p_requirement_id
+    and requirement.superseded_at is null
+  for update;
+
+  if v_current.id is null then
+    raise exception 'Current confirmation requirement not found' using errcode = 'P0002';
+  end if;
+
+  if v_current.status = 'required' then
+    raise exception 'This delegation already has an unresolved confirmation requirement'
+      using errcode = '23514';
+  end if;
 
   update public.studio2_confirmation_requirements
   set
@@ -752,20 +761,14 @@ begin
   select *
   into v_requirement
   from public.studio2_confirmation_requirements requirement
-  where requirement.id = p_requirement_id
-    and requirement.superseded_at is null
-  for update;
+  where requirement.id = p_requirement_id;
 
   if v_requirement.id is null then
-    raise exception 'Current confirmation requirement not found' using errcode = 'P0002';
+    raise exception 'Confirmation requirement not found' using errcode = 'P0002';
   end if;
 
   if not private.solaris_confirmation_admin_allowed() then
     raise exception 'Missing Solaris capability: delegation.manage' using errcode = '42501';
-  end if;
-
-  if v_requirement.status <> 'required' then
-    raise exception 'Only a required confirmation can be waived' using errcode = '23514';
   end if;
 
   v_claim := private.studio2_claim_operation(
@@ -784,6 +787,21 @@ begin
     return v_claim -> 'result';
   end if;
   v_operation_id := (v_claim ->> 'operationId')::uuid;
+
+  select *
+  into v_requirement
+  from public.studio2_confirmation_requirements requirement
+  where requirement.id = p_requirement_id
+    and requirement.superseded_at is null
+  for update;
+
+  if v_requirement.id is null then
+    raise exception 'Current confirmation requirement not found' using errcode = 'P0002';
+  end if;
+
+  if v_requirement.status <> 'required' then
+    raise exception 'Only a required confirmation can be waived' using errcode = '23514';
+  end if;
 
   update public.studio2_confirmation_requirements
   set
