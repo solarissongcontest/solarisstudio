@@ -216,6 +216,17 @@ export function resolveAppRouteChrome(pathname: string, searchStr = ""): AppRout
     };
   }
 
+  if (pathname === "/site-directory" || pathname === "/site-directory/") {
+    return {
+      title: "All Solaris pages",
+      tab: "explore",
+      archetype: "directory",
+      root: false,
+      tabBar: "visible",
+      backFallback: { label: "Explore", to: "/explore" },
+    };
+  }
+
   if (/^\/integrity(\/|$)/.test(pathname)) {
     const destination = publicDestinationForPath(pathname);
     const parent = destination?.parent ? publicDestinationById(destination.parent) : null;
@@ -235,7 +246,7 @@ export function resolveAppRouteChrome(pathname: string, searchStr = ""): AppRout
     const destination = publicDestinationForPath(pathname);
     return {
       title: destination?.label ?? "Guide",
-      tab: areaTab(pathname),
+      tab: "explore",
       archetype: "reading",
       root: false,
       tabBar: "visible",
