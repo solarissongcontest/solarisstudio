@@ -102,8 +102,8 @@ describe("Organisation OS V5 canonical Organizer Task Engine", () => {
     expect(truthSources).toContain("review.superseded_at is null");
     expect(truthSources).toContain("btrim(country.flag_image) !~* '^https?://'");
     expect(truthSources).toContain("btrim(entry.song_url) !~* '^https?://'");
-    expect(truthSources).toContain("entry.metadata ->> 'video_processing' = 'true'");
-    expect(truthSources).toContain("entry.metadata ->> 'videoProcessing' = 'true'");
+    expect(truthSources).toContain("coalesce(entry.metadata ->> 'video_processing', '') = 'true'");
+    expect(truthSources).toContain("coalesce(entry.metadata ->> 'videoProcessing', '') = 'true'");
 
     expect(truthSources).toContain("'integration_link_error'");
     expect(truthSources).toContain("link.sync_status = 'error'");
