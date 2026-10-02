@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { AppShell } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 
 export function AppRouteStateFrame({
@@ -15,16 +16,18 @@ export function AppRouteStateFrame({
 
   if (!isAppMode) return <>{children}</>;
 
+  // Route-state screens use the same AppShell as ordinary routes. They never
+  // implement a second toolbar/tabbar or invent separate navigation state.
   return (
-    <main
-      id="main-content"
-      className="app-main relative z-10 mx-auto w-full min-w-0 px-4 py-6 sm:px-5"
-      aria-busy={busy || undefined}
-      aria-label={title}
-      data-solaris-app-route-state
-    >
-      {children}
-    </main>
+    <AppShell>
+      <div
+        aria-busy={busy || undefined}
+        aria-label={title}
+        data-solaris-app-route-state
+      >
+        {children}
+      </div>
+    </AppShell>
   );
 }
 
