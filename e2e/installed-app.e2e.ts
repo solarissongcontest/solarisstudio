@@ -745,6 +745,71 @@ test("installed app survives navigation, background-resume and offline-reconnect
   await expectTabbarGeometry(page, "after offline reconnect");
 });
 
+test("installed app connectivity states obey each screen's offline policy", async ({ page, context }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "ios-pwa-portrait",
+    "Connectivity policy matrix runs once at the representative iPhone viewport.",
+  );
+
+  await expectInstalledShell(page, "/explore");
+  await expect(page.locator(".app-main")).toHaveAttribute("data-solaris-app-offline", "readable");
+
+  await context.setOffline(true);
+  await expect(page.locator("html")).toHaveAttribute("data-solaris-connectivity", "offline");
+  await expect(page.locator("[data-solaris-app-connectivity='offline']")).toContainText(
+    /showing the data already available/i,
+  );
+
+  await context.setOffline(false);
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(page.locator("html")).toHaveAttribute("data-solaris-connectivity", "online", {
+    timeout: 10_000,
+  });
+
+  await page.goto("/confirmations", { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".app-main")).toHaveAttribute("data-solaris-app-offline", "online-required");
+  await expect(page.locator(".app-main")).toHaveAttribute("data-solaris-app-critical-task", "true");
+  await expect(page.locator(".solaris-app-tabbar")).toHaveCount(0);
+
+  await context.setOffline(true);
+  await expect(page.locator("[data-solaris-app-connectivity='offline']")).toContainText(
+    /needs a live Solaris connection/i,
+  );
+
+  await context.setOffline(false);
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(page.locator("html")).toHaveAttribute("data-solaris-connectivity", "online", {
+    timeout: 10_000,
+  });
+
+  await page.goto("/rules", { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".app-main")).toHaveAttribute("data-solaris-app-offline", "ready");
+
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent("solaris:supabase-service-restriction"));
+  });
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-solaris-connectivity",
+    "service-restricted",
+  );
+  await expect(page.locator("[data-solaris-app-connectivity]")).toHaveCount(0);
+
+  await page.goto("/explore", { waitUntil: "domcontentloaded" });
+  await page.evaluate(() => {
+    window.dispatchEvent(new CustomEvent("solaris:supabase-service-restriction"));
+  });
+  await expect(page.locator("[data-solaris-app-connectivity='service-restricted']")).toContainText(
+    /temporarily restricted/i,
+  );
+
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event("solaris:supabase-service-recovered"));
+  });
+  await expect(page.locator("html")).toHaveAttribute("data-solaris-connectivity", "online", {
+    timeout: 10_000,
+  });
+});
+
 test("installed app does not leak duplicate website chrome", async ({ page }) => {
   for (const route of ["/explore", "/results", "/site-directory"]) {
     await expectInstalledShell(page, route);
