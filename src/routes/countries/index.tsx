@@ -150,6 +150,18 @@ function AppCountriesPage() {
               className="my-3"
               title="No countries found"
               description="No country matches the current search and region filters."
+              action={
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    setRegion("all");
+                  }}
+                  className="solaris-app-empty-action"
+                >
+                  Clear filters
+                </button>
+              }
             />
           ) : null}
 
