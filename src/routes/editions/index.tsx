@@ -321,7 +321,7 @@ function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?:
       <Link
         to="/editions/$slug"
         params={{ slug: edition.slug }}
-        className={appMode ? "solaris-app-edition-current group block" : "group block rounded-2xl border border-primary/20 bg-surface p-4 transition-colors hover:bg-surface-strong sm:p-5"}
+        className={appMode ? "solaris-app-card solaris-app-edition-current group block" : "group block rounded-2xl border border-primary/20 bg-surface p-4 transition-colors hover:bg-surface-strong sm:p-5"}
       >
         <div className="flex min-w-0 items-start justify-between gap-4">
           <div className="min-w-0">
