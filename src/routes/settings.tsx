@@ -151,7 +151,7 @@ function AppSettingsPage() {
           title="App experience"
           description="Preferences that change how the installed Solaris experience behaves."
         >
-          <div className="solaris-app-settings-group grid gap-3"
+          <div className="solaris-app-settings-group grid gap-3">
             <SettingRow
               icon={EyeOff}
               title="Spoiler-free mode"
