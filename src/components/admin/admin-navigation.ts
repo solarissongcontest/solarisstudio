@@ -278,6 +278,14 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
           (path) => path === "/confirmations/admin" || path === "/confirmations/admin/",
         ),
         item(
+          "Confirmation requirements",
+          "Manage one current edition-level confirmation obligation per delegation.",
+          "/confirmations/admin/requirements",
+          ClipboardCheck,
+          "confirmation requirements generations reconfirm waive delegation",
+          (path) => path.startsWith("/confirmations/admin/requirements"),
+        ),
+        item(
           "Confirmation responses",
           "Review submitted delegation confirmations and entry details.",
           "/confirmations/admin/responses",
