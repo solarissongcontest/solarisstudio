@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Search } from "lucide-react";
+import { ChevronRight, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { ArchiveDataError, ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { useCountries } from "@/lib/data";
@@ -23,6 +24,105 @@ export const Route = createFileRoute("/wiki/")({
 const DIRECTORY_PAGE_SIZE = 18;
 
 function WikiIndexPage() {
+  const { isAppMode } = useSolarisApp();
+  return isAppMode ? <AppWikiIndexPage /> : <WebWikiIndexPage />;
+}
+
+function AppWikiIndexPage() {
+  const countriesQuery = useCountries();
+  const { data: countries } = countriesQuery;
+  const [search, setSearch] = useState("");
+  const [region, setRegion] = useState("all");
+
+  const regions = useMemo(
+    () => [...new Set((countries ?? []).map((country) => country.region).filter(Boolean))].sort(),
+    [countries],
+  );
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return [...(countries ?? [])]
+      .filter((country) => region === "all" || country.region === region)
+      .filter((country) =>
+        !query ||
+        country.name.toLowerCase().includes(query) ||
+        country.short_code.toLowerCase().includes(query) ||
+        (country.native_name ?? "").toLowerCase().includes(query),
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [countries, region, search]);
+
+  if (countriesQuery.isLoading) return <AppShell><ArchiveDataLoading label="Loading the Wiki…" /></AppShell>;
+  if (countriesQuery.isError) return <AppShell><ArchiveDataError /></AppShell>;
+
+  return (
+    <AppShell>
+      <div className="space-y-4">
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_11rem]">
+          <label className="solaris-app-search-field">
+            <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className="sr-only">Search the Wiki</span>
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search country or code…"
+              autoComplete="off"
+              className="min-w-0 flex-1 border-0 bg-transparent outline-none"
+            />
+          </label>
+          <label>
+            <span className="sr-only">Filter Wiki by region</span>
+            <select
+              value={region}
+              onChange={(event) => setRegion(event.target.value)}
+              className="min-h-11 w-full rounded-xl border border-border bg-background/45 px-3 text-sm outline-none"
+            >
+              <option value="all">All regions</option>
+              {regions.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </label>
+        </div>
+
+        <section aria-labelledby="app-wiki-directory">
+          <div className="solaris-app-section-heading">
+            <p>{filtered.length} articles</p>
+            <h2 id="app-wiki-directory">Terra Solaris Wiki</h2>
+          </div>
+          <div className="solaris-app-grouped-list">
+            {filtered.map((country) => (
+              <Link
+                key={country.id}
+                to="/wiki/$code"
+                params={{ code: country.short_code }}
+                className="solaris-app-country-row"
+              >
+                <FlagChip
+                  code={country.short_code}
+                  color={country.accent_color}
+                  image={country.flag_image}
+                  size="md"
+                />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold">{country.name}</span>
+                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                    {country.region || "Terra Solaris"} · {country.short_code}
+                  </span>
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              </Link>
+            ))}
+          </div>
+
+          {!filtered.length ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">No Wiki article matches those filters.</p>
+          ) : null}
+        </section>
+      </div>
+    </AppShell>
+  );
+}
+
+function WebWikiIndexPage() {
   const countriesQuery = useCountries();
   const { data: countries } = countriesQuery;
   const [search, setSearch] = useState("");
