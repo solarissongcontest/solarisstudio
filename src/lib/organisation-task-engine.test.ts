@@ -15,6 +15,9 @@ describe("Organisation OS V5 canonical Organizer Task Engine", () => {
   const operationalSources = source(
     "supabase/migrations/20261002234500_organisation_os_v5_task_sources.sql",
   );
+  const truthSources = source(
+    "supabase/migrations/20261003001000_organisation_os_v5_task_truth_expansion.sql",
+  );
 
   it("stores one task per source condition and keeps direct browser writes closed", () => {
     expect(migration).toContain("create table if not exists public.studio2_organizer_tasks");
@@ -86,6 +89,54 @@ describe("Organisation OS V5 canonical Organizer Task Engine", () => {
     expect(operationalSources).toContain("on conflict (source_key) do update");
   });
 
+  it("projects persisted entry, media and integration failures into canonical Tasks", () => {
+    expect(truthSources).toContain("'entry_approval'");
+    expect(truthSources).toContain("entry.status = 'pending'");
+    expect(truthSources).toContain("nullif(btrim(entry.artist), '') is not null");
+    expect(truthSources).toContain("nullif(btrim(entry.song_title), '') is not null");
+
+    expect(truthSources).toContain("'media_required_fault'");
+    expect(truthSources).toContain("participant.participation_status = 'confirmed'");
+    expect(truthSources).toContain("entry.status = 'confirmed'");
+    expect(truthSources).toContain("review.source_fingerprint = btrim(entry.song_url)");
+    expect(truthSources).toContain("review.superseded_at is null");
+
+    expect(truthSources).toContain("'integration_link_error'");
+    expect(truthSources).toContain("link.sync_status = 'error'");
+    expect(truthSources).toContain("'integration_failure'");
+    expect(truthSources).toContain("private.studio2_current_integration_failures");
+    expect(truthSources).toContain("failure.service = 'confirmations'");
+  });
+
+  it("uses one integration event vocabulary and resolves failed retries from later truth", () => {
+    expect(truthSources).toContain(
+      "check (status in ('pending', 'retrying', 'completed', 'failed', 'skipped'))",
+    );
+    expect(truthSources).toContain("'round.lineup.autosynced'");
+    expect(truthSources).toContain("'round.lineup.autosync_failed'");
+    expect(truthSources).toContain("'round.lineup.autosync'");
+    expect(truthSources).toContain("distinct on (");
+    expect(truthSources).toContain("latest.status = 'failed'");
+  });
+
+  it("does not invent publication work from optional staged release state", () => {
+    expect(truthSources).toContain(
+      "Do not create publication work merely because a result is",
+    );
+    expect(truthSources).not.toContain("'publication_pending'");
+    expect(truthSources).not.toContain("'publish_results_now'");
+    expect(truthSources).not.toContain("reveal_ready_version = calculation_version");
+  });
+
+  it("runs the truth reconciler inside the single authoritative Task wrapper", () => {
+    expect(truthSources).toContain(
+      "perform private.studio2_reconcile_organizer_tasks_truth(p_edition_id);",
+    );
+    expect(truthSources).toContain(
+      "perform private.studio2_reconcile_confirmation_requirement_tasks(p_edition_id);",
+    );
+  });
+
   it("uses canonical Tasks for the mobile badge and dedicated Tasks screen", () => {
     const frame = source("src/components/admin/AdminFrame.tsx");
     const route = source("src/routes/_authenticated/admin/tasks.tsx");
@@ -95,6 +146,7 @@ describe("Organisation OS V5 canonical Organizer Task Engine", () => {
     expect(frame).toContain("unresolvedTaskCount");
     expect(route).toContain("useOrganizerTasksV5");
     expect(route).toContain("There is intentionally no generic “Mark resolved” button.");
+    expect(route).toContain("confirmation requirements and reviews, entries, required media, voting, results, integrations");
     expect(route).toContain('to="/admin/inbox"');
   });
 
