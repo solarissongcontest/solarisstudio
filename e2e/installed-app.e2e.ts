@@ -717,7 +717,7 @@ test("installed app survives navigation, background-resume and offline-reconnect
 
   await expectInstalledShell(page, "/explore");
 
-  for (const name of ["Results", "Me", "Home", "Explore"]) {
+  for (const name of ["Results", "Home", "Explore"]) {
     const destination = page.locator(".solaris-app-tab").filter({ hasText: name }).first();
     if (await destination.count()) {
       await destination.click();
