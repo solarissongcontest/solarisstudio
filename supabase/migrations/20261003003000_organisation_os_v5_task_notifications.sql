@@ -87,7 +87,7 @@ with check (
 create or replace function private.studio2_guard_domain_notification_resolution()
 returns trigger
 language plpgsql
-security definer
+security invoker
 set search_path = pg_catalog, public, private
 as $guard$
 begin
