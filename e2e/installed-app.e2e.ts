@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
 
 import { STATIC_PUBLIC_ROUTES } from "./audit-helpers";
 
@@ -36,6 +36,72 @@ async function skipFirstRun(page: Page) {
       // Storage can be unavailable before the first document; the app remains testable.
     }
   });
+}
+
+async function addCountrySession(context: BrowserContext) {
+  const url = process.env.E2E_SUPABASE_URL;
+  const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
+  const email = process.env.E2E_COUNTRY_EMAIL;
+  const password = process.env.E2E_COUNTRY_PASSWORD;
+
+  if (!url || !publishableKey || !email || !password) return false;
+
+  const response = await fetch(`${url.replace(/\/$/, "")}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { apikey: publishableKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  expect(response.ok, "The configured country E2E account must be able to sign in").toBeTruthy();
+
+  const session = await response.json();
+  const projectRef = new URL(url).hostname.split(".")[0];
+  const storageKey = `sb-${projectRef}-auth-token`;
+  await context.addInitScript(
+    ({ key, value }) => localStorage.setItem(key, JSON.stringify(value)),
+    { key: storageKey, value: session },
+  );
+  return true;
+}
+
+async function expectLastContentClearsTabbar(page: Page, route: string) {
+  await page.goto(route, { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle", { timeout: 4_000 }).catch(() => undefined);
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.waitForTimeout(120);
+
+  const geometry = await page.evaluate(() => {
+    const visible = (node: Element) => {
+      const element = node as HTMLElement;
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    };
+
+    const main = document.querySelector<HTMLElement>(".app-main[data-solaris-app-mode='true']");
+    const tabbar = [...document.querySelectorAll<HTMLElement>(".solaris-app-tabbar")].find(visible);
+    if (!main || !tabbar) return null;
+
+    const candidates = [...main.querySelectorAll<HTMLElement>(
+      "button, a[href], input:not([type='hidden']), select, textarea, [role='button']",
+    )].filter(visible);
+    const last = candidates.at(-1);
+    if (!last) return null;
+
+    return {
+      lastBottom: last.getBoundingClientRect().bottom,
+      tabbarTop: tabbar.getBoundingClientRect().top,
+      label:
+        last.getAttribute("aria-label") ||
+        last.textContent?.trim().slice(0, 80) ||
+        last.tagName.toLowerCase(),
+    };
+  });
+
+  expect(geometry, `${route} should expose app content and a tab bar`).not.toBeNull();
+  expect(
+    geometry!.lastBottom,
+    `${route} final control "${geometry!.label}" must remain above the tab bar`,
+  ).toBeLessThanOrEqual(geometry!.tabbarTop - 2);
 }
 
 async function expectInstalledShell(
@@ -344,6 +410,52 @@ for (let shard = 0; shard < 4; shard += 1) {
     expect(failures, "Every static public route should preserve installed-app invariants").toEqual([]);
   });
 }
+
+test("signed-in country workspace keeps one mobile navigation system", async ({ page, context }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "ios-pwa-portrait",
+    "Authenticated installed-app coverage runs once at the representative iPhone width.",
+  );
+
+  await skipFirstRun(page);
+  const configured = await addCountrySession(context);
+  test.skip(!configured, "Country E2E credentials are not configured");
+
+  for (const route of ["/my-solaris", "/my-solaris/account", "/my-solaris/tasks"]) {
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+    await page.waitForLoadState("networkidle", { timeout: 4_000 }).catch(() => undefined);
+
+    await expect(page.locator("html")).toHaveAttribute("data-solaris-app", "");
+    await expect(page.locator(".solaris-app-toolbar:visible")).toHaveCount(1);
+    await expect(page.locator(".solaris-app-tabbar:visible")).toHaveCount(1);
+    await expect(page.locator("[data-mysolaris-mobile-nav]:visible")).toHaveCount(0);
+    await expect(page.locator(".site-nav:visible, .mobile-quick-nav:visible")).toHaveCount(0);
+    await expect(page.locator("h1:visible"), `${route} should expose one visible screen heading`).toHaveCount(1);
+    await expect(page.locator("body")).not.toContainText("This page didn't load");
+  }
+
+  await expectLastContentClearsTabbar(page, "/my-solaris/account");
+  await expectLastContentClearsTabbar(page, "/settings");
+});
+
+test("signed-in app settings keep notification configuration user-facing", async ({ page, context }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "ios-pwa-portrait",
+    "Authenticated notification settings run once at the representative iPhone width.",
+  );
+
+  await skipFirstRun(page);
+  const configured = await addCountrySession(context);
+  test.skip(!configured, "Country E2E credentials are not configured");
+
+  await page.goto("/settings", { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle", { timeout: 4_000 }).catch(() => undefined);
+
+  await expect(page.locator("body")).toContainText(/Notifications|Push notifications/i);
+  await expect(page.locator("body")).not.toContainText(/VAPID|deployment secret|dispatch secret|not configured on this deployment/i);
+  await expect(page.locator("[data-mysolaris-mobile-nav]:visible")).toHaveCount(0);
+  await expect(page.locator("h1:visible")).toHaveCount(1);
+});
 
 test("installed app does not leak duplicate website chrome", async ({ page }) => {
   for (const route of ["/explore", "/results", "/site-directory"]) {
