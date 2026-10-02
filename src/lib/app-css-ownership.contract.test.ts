@@ -81,6 +81,17 @@ describe("installed app CSS ownership", () => {
     ).toEqual([]);
   });
 
+  it("keeps Wiki mobile tools on the shared overlay primitive", () => {
+    const wiki = source("src/components/wiki/CountryWikiExperience.tsx");
+    const wikiCss = source("src/country-wiki-v8.css");
+
+    expect(wiki).toContain("<SheetContent");
+    expect(wiki).toContain('className="solaris-app-wiki-sheet wiki-sheet-panel"');
+    expect(wikiCss).not.toContain(".wiki-sheet {");
+    expect(wikiCss).not.toContain(".wiki-sheet-backdrop");
+    expect(wikiCss).not.toContain("z-index: 120");
+  });
+
   it("makes modal surfaces suppress the installed tab bar", () => {
     const css = source("src/styles/app-shell.css");
     expect(css).toContain(':has([data-solaris-sheet][data-state="open"]) .solaris-app-tabbar');
