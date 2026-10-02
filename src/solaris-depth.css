@@ -263,9 +263,9 @@ body[data-solaris-family="integrity"] .solaris-star-anchor[data-star-id="m2"] {
 
 /* The app tab bar remains Liquid Glass, but governance pages get enough
    scroll runway to lift the final row completely above it. */
-@media (display-mode: standalone) and (max-width: 899px) {
-  .solaris-depth-page {
-    padding-bottom: calc(var(--solaris-app-tabbar-height) + 3.6rem + env(safe-area-inset-bottom));
+@media (max-width: 899px) {
+  html[data-solaris-app] .solaris-depth-page {
+    padding-bottom: 1.25rem;
   }
 
   .solaris-depth-task {
