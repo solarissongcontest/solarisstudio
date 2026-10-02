@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, BarChart3, Beaker, GitCompareArrows, Table2, Trophy } from "lucide-react";
+import { ArrowRight, BarChart3, Beaker, ChevronRight, GitCompareArrows, Table2, Trophy } from "lucide-react";
 import { useMemo } from "react";
 
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
@@ -115,6 +115,151 @@ function ResultsOverviewPage() {
     return (
       <AppShell>
         <ArchiveDataError />
+      </AppShell>
+    );
+  }
+
+  if (isAppMode) {
+    const appDestinations = [
+      {
+        to: latestShow ? `/shows/${latestShow.id}?from=results` : "/editions",
+        title: "Latest result",
+        description: latestShow && latestEdition
+          ? `${editionLabel(latestEdition)} · ${latestShow.name}`
+          : "Open the newest published ranking.",
+        icon: Trophy,
+      },
+      {
+        to: "/scorecharts",
+        title: "Full scorecharts",
+        description: "Published ballots, points and detailed voting.",
+        icon: Table2,
+      },
+      {
+        to: "/analysis",
+        title: "Analysis",
+        description: "Voting splits, patterns and contest statistics.",
+        icon: BarChart3,
+      },
+      {
+        to: "/records",
+        title: "Records",
+        description: "All-time records, milestones and historical extremes.",
+        icon: Trophy,
+      },
+      {
+        to: "/relationships",
+        title: "Voting relationships",
+        description: "See countries that repeatedly support or resemble one another.",
+        icon: GitCompareArrows,
+      },
+      {
+        to: "/result-lab",
+        title: "Result Lab",
+        description: "Test alternate voting scenarios without changing official results.",
+        icon: Beaker,
+      },
+    ] as const;
+
+    return (
+      <AppShell>
+        <div className="space-y-5">
+          {hideSpoilers && latestShow && latestEdition ? (
+            <section className="solaris-app-result-hero">
+              <p className="solaris-app-result-kicker">Latest result</p>
+              <h2>Results are available</h2>
+              <p>{editionLabel(latestEdition)} · {latestShow.name}</p>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                Spoiler-free mode is on. Winner and score previews stay hidden until you open the result.
+              </p>
+              <Link
+                to="/shows/$showId"
+                params={{ showId: latestShow.id }}
+                search={{ from: "results" }}
+                className="solaris-app-primary-action mt-4"
+              >
+                Reveal official result
+              </Link>
+            </section>
+          ) : latestShow && latestEdition && winner && winnerRow ? (
+            <section className="solaris-app-result-hero">
+              <p className="solaris-app-result-kicker">Latest published result</p>
+              <p className="text-xs text-muted-foreground">{editionLabel(latestEdition)} · {latestShow.name}</p>
+              <div className="mt-3 flex min-w-0 items-center gap-3">
+                <FlagChip
+                  code={winner.short_code}
+                  color={winner.accent_color}
+                  image={winner.flag_image}
+                  size="lg"
+                />
+                <div className="min-w-0">
+                  <h2 className="truncate text-xl font-bold">{winner.name}</h2>
+                  <p className="numeric mt-1 text-sm text-muted-foreground">{winnerRow.total_points} points</p>
+                </div>
+              </div>
+              <Link
+                to="/shows/$showId"
+                params={{ showId: latestShow.id }}
+                search={{ from: "results" }}
+                className="solaris-app-primary-action mt-4"
+              >
+                Open full result
+              </Link>
+            </section>
+          ) : (
+            <PublicDataState
+              kind="empty"
+              title="No public result yet"
+              description="The newest result will appear here automatically when a show publishes its ranking."
+              compact
+            />
+          )}
+
+          <section aria-labelledby="app-results-explore">
+            <div className="solaris-app-section-heading">
+              <p>Explore results</p>
+              <h2 id="app-results-explore">Results & insights</h2>
+            </div>
+            <div className="solaris-app-grouped-list">
+              {appDestinations.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link key={item.to} to={item.to as any} className="solaris-app-list-row">
+                    <span className="solaris-app-list-icon"><Icon className="size-4" aria-hidden="true" /></span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold">{item.title}</span>
+                      <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span>
+                    </span>
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+
+          {!hideSpoilers && latestRows.length > 0 ? (
+            <section aria-labelledby="app-results-top-five">
+              <div className="solaris-app-section-heading">
+                <p>Latest scoreboard</p>
+                <h2 id="app-results-top-five">Top five</h2>
+              </div>
+              <div className="solaris-app-grouped-list">
+                {latestRows.slice(0, 5).map((row, index) => {
+                  const country = displayMap.get(row.country_id);
+                  if (!country) return null;
+                  return (
+                    <div key={row.id} className="solaris-app-score-row">
+                      <span className="numeric text-xs text-muted-foreground">#{row.final_rank ?? index + 1}</span>
+                      <FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="sm" />
+                      <span className="min-w-0 truncate text-sm font-semibold">{country.name}</span>
+                      <span className="numeric text-sm font-bold">{row.total_points}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+        </div>
       </AppShell>
     );
   }
