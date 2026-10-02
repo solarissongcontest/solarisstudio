@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Search, SlidersHorizontal, Trophy } from "lucide-react";
+import { ChevronRight, Search, SlidersHorizontal, Trophy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
@@ -39,6 +40,124 @@ type CountryRow = {
 const DIRECTORY_PAGE_SIZE = 18;
 
 function CountriesPage() {
+  const { isAppMode } = useSolarisApp();
+  return isAppMode ? <AppCountriesPage /> : <WebCountriesPage />;
+}
+
+function AppCountriesPage() {
+  const countriesQuery = useCountries();
+  const { data: countries } = countriesQuery;
+  const [search, setSearch] = useState("");
+  const [region, setRegion] = useState("all");
+  const [visibleCount, setVisibleCount] = useState(30);
+
+  const regions = useMemo(
+    () => [...new Set((countries ?? []).map((country) => country.region).filter(Boolean))].sort(),
+    [countries],
+  );
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return [...(countries ?? [])]
+      .filter((country) => region === "all" || country.region === region)
+      .filter((country) =>
+        !query ||
+        country.name.toLowerCase().includes(query) ||
+        country.short_code.toLowerCase().includes(query) ||
+        (country.native_name ?? "").toLowerCase().includes(query),
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [countries, region, search]);
+
+  useEffect(() => setVisibleCount(30), [region, search]);
+
+  if (countriesQuery.isLoading) {
+    return <AppShell><ArchiveDataLoading label="Loading countries…" /></AppShell>;
+  }
+  if (countriesQuery.isError) {
+    return <AppShell><ArchiveDataError /></AppShell>;
+  }
+
+  const visible = filtered.slice(0, visibleCount);
+
+  return (
+    <AppShell>
+      <div className="space-y-4">
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_11rem]">
+          <label className="solaris-app-search-field">
+            <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className="sr-only">Search countries</span>
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search country or code…"
+              autoComplete="off"
+              className="min-w-0 flex-1 border-0 bg-transparent outline-none"
+            />
+          </label>
+          <label>
+            <span className="sr-only">Filter by region</span>
+            <select
+              value={region}
+              onChange={(event) => setRegion(event.target.value)}
+              className="min-h-11 w-full rounded-xl border border-border bg-background/45 px-3 text-sm outline-none"
+            >
+              <option value="all">All regions</option>
+              {regions.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </label>
+        </div>
+
+        <section aria-labelledby="app-country-directory">
+          <div className="solaris-app-section-heading">
+            <p>{filtered.length} delegations</p>
+            <h2 id="app-country-directory">Countries</h2>
+          </div>
+          <div className="solaris-app-grouped-list">
+            {visible.map((country) => (
+              <Link
+                key={country.id}
+                to="/countries/$code"
+                params={{ code: country.short_code }}
+                className="solaris-app-country-row"
+              >
+                <FlagChip
+                  code={country.short_code}
+                  color={country.accent_color}
+                  image={country.flag_image}
+                  size="md"
+                />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold">{country.name}</span>
+                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                    {country.short_code} · {country.region || "Terra Solaris"}
+                  </span>
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              </Link>
+            ))}
+          </div>
+
+          {!filtered.length ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">No country matches those filters.</p>
+          ) : null}
+
+          {visible.length < filtered.length ? (
+            <button
+              type="button"
+              onClick={() => setVisibleCount((count) => count + 30)}
+              className="mt-3 min-h-11 w-full rounded-xl border border-border bg-surface px-4 text-sm font-semibold"
+            >
+              Show more · {filtered.length - visible.length} remaining
+            </button>
+          ) : null}
+        </section>
+      </div>
+    </AppShell>
+  );
+}
+
+function WebCountriesPage() {
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
