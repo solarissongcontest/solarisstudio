@@ -72,11 +72,18 @@ export function HomePersonalAttention({
         buildPersonalAttentionItems({
           editionId,
           responses: confirmationQuery.data?.responses ?? [],
+          requirements: confirmationQuery.data?.requirements ?? [],
           rounds: roundsQuery.data ?? [],
           jury: juryQuery.data ?? null,
         }),
       ),
-    [confirmationQuery.data?.responses, editionId, juryQuery.data, roundsQuery.data],
+    [
+      confirmationQuery.data?.requirements,
+      confirmationQuery.data?.responses,
+      editionId,
+      juryQuery.data,
+      roundsQuery.data,
+    ],
   );
 
   // Home is exception-driven. Anonymous users, users without a delegation,
