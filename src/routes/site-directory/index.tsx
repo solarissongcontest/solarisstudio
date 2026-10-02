@@ -5,6 +5,12 @@ import { useMemo, useState } from "react";
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
+  AppEmptyState,
+  AppGroupedList,
+  AppScreen,
+  AppSectionHeader,
+} from "@/components/app/AppPrimitives";
+import {
   PUBLIC_DESTINATIONS,
   publicSearchText,
   type PublicArea,
@@ -51,14 +57,8 @@ function SiteDirectoryPage() {
     });
   }, [normalizedQuery]);
 
-  return (
-    <AppShell>
-      <PageHeader
-        eyebrow="Find"
-        title="All Solaris pages"
-        description="Search every public destination, including advanced tools and older Solaris names."
-      />
-
+  const content = (
+    <>
       <label className={isAppMode ? "solaris-app-search-field mb-5" : "mx-auto mb-7 flex min-h-12 max-w-2xl items-center gap-3 rounded-2xl border border-border/75 bg-surface/70 px-4"}>
         <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span className="sr-only">Search Solaris Studio pages</span>
@@ -80,51 +80,62 @@ function SiteDirectoryPage() {
 
             return (
               <section key={area} aria-labelledby={`directory-${area}`}>
-                <div className={isAppMode ? "solaris-app-section-heading" : "mb-3 border-b border-border/60 pb-2"}>
-                  {isAppMode ? <p>{area === "help" ? "Reference" : "Browse"}</p> : null}
-                  <h2
+                {isAppMode ? (
+                  <AppSectionHeader
+                    eyebrow={area === "help" ? "Reference" : "Browse"}
+                    title={AREA_LABELS[area]}
                     id={`directory-${area}`}
-                    className={isAppMode ? undefined : "font-display text-xl font-bold"}
-                  >
-                    {AREA_LABELS[area]}
-                  </h2>
-                </div>
-                <div className={isAppMode ? "solaris-app-grouped-list" : "grid gap-2 md:grid-cols-2 xl:grid-cols-3"}>
-                  {items.map((item) => (
-                    <Link
-                      key={item.id}
-                      to={item.to as any}
-                      className={isAppMode ? "solaris-app-list-row" : "group min-w-0 rounded-xl border border-border/70 bg-surface/45 p-4 transition-colors hover:border-primary/30 hover:bg-surface/75"}
-                    >
-                      {isAppMode ? (
-                        <>
-                          <span className="min-w-0">
-                            <span className="block text-sm font-semibold text-foreground">{item.label}</span>
-                            <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span>
-                          </span>
-                          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                        </>
-                      ) : (
-                        <>
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <h3 className="font-semibold text-foreground">{item.label}</h3>
-                              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.description}</p>
-                            </div>
-                            <span className="shrink-0 rounded-full border border-border/70 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{item.visibility}</span>
+                  />
+                ) : (
+                  <div className="mb-3 border-b border-border/60 pb-2">
+                    <h2 id={`directory-${area}`} className="font-display text-xl font-bold">
+                      {AREA_LABELS[area]}
+                    </h2>
+                  </div>
+                )}
+                {isAppMode ? (
+                  <AppGroupedList>
+                    {items.map((item) => (
+                      <Link key={item.id} to={item.to as any} className="solaris-app-list-row">
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold text-foreground">{item.label}</span>
+                          <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span>
+                        </span>
+                        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                      </Link>
+                    ))}
+                  </AppGroupedList>
+                ) : (
+                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                    {items.map((item) => (
+                      <Link
+                        key={item.id}
+                        to={item.to as any}
+                        className="group min-w-0 rounded-xl border border-border/70 bg-surface/45 p-4 transition-colors hover:border-primary/30 hover:bg-surface/75"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className="font-semibold text-foreground">{item.label}</h3>
+                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.description}</p>
                           </div>
-                          {item.aliases?.length ? (
-                            <p className="mt-3 text-[11px] text-muted-foreground">Also known as {item.aliases.join(", ")}</p>
-                          ) : null}
-                        </>
-                      )}
-                    </Link>
-                  ))}
-                </div>
+                          <span className="shrink-0 rounded-full border border-border/70 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{item.visibility}</span>
+                        </div>
+                        {item.aliases?.length ? (
+                          <p className="mt-3 text-[11px] text-muted-foreground">Also known as {item.aliases.join(", ")}</p>
+                        ) : null}
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </section>
             );
           })}
         </div>
+      ) : isAppMode ? (
+        <AppEmptyState
+          title="No matching page"
+          description="Try a product name, task, country-related term or an older Solaris feature name."
+        />
       ) : (
         <div className="rounded-2xl border border-border/70 bg-surface/45 px-5 py-10 text-center">
           <h2 className="font-display text-xl font-bold">No matching page</h2>
@@ -132,6 +143,23 @@ function SiteDirectoryPage() {
             Try a product name, task, country-related term or an older Solaris feature name.
           </p>
         </div>
+      )}
+    </>
+  );
+
+  return (
+    <AppShell>
+      {isAppMode ? (
+        <AppScreen>{content}</AppScreen>
+      ) : (
+        <>
+          <PageHeader
+            eyebrow="Find"
+            title="All Solaris pages"
+            description="Search every public destination, including advanced tools and older Solaris names."
+          />
+          {content}
+        </>
       )}
     </AppShell>
   );
