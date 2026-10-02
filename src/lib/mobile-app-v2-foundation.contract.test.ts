@@ -65,6 +65,7 @@ describe("Mobile App V2 architectural invariants", () => {
     const css = source("src/flag-media.css");
     expect(media).toContain('rounded-[.6rem]');
     expect(css).toContain("overflow: hidden");
+    expect(css).not.toMatch(/\\.flag-media-frame\\s*\\{[^}]*border-radius:/s);
   });
 
   it("detects all installed display modes requested by the manifest", () => {
