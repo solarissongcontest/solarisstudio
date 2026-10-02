@@ -45,6 +45,7 @@ const groups = [
     title: "Engagement",
     items: [
       { label: "Predictions", description: "Create and manage prediction rounds for visitors.", to: "/admin/predictions", icon: Sparkles },
+      { label: "Community moderation", description: "Moderate public fan display identities without changing scores.", to: "/admin/community-moderation", icon: Sparkles },
       { label: "Public UX", description: "Review public navigation, search and task-completion telemetry.", to: "/admin/public-ux", icon: BarChart3 },
       { label: "Beta 3 feedback", description: "Review navigation and findability study results.", to: "/admin/beta3-feedback", icon: BarChart3 },
       { label: "Beta 2 feedback", description: "See current public-site usability results and comparisons.", to: "/admin/beta2-feedback", icon: BarChart3 },
