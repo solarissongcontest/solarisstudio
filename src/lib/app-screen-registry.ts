@@ -405,7 +405,7 @@ export function resolveSolarisAppScreen(pathname: string, searchStr = ""): Solar
 
   const destination = publicDestinationForPath(pathname);
   if (destination) {
-    const rootTab = areaTab(pathname);
+    const rootTab = areaTab(pathname) ?? "home";
     const root =
       destination.to === "/" ||
       destination.to === "/explore" ||
@@ -433,7 +433,7 @@ export function resolveSolarisAppScreen(pathname: string, searchStr = ""): Solar
     };
   }
 
-  const rootTab = areaTab(pathname);
+  const rootTab = areaTab(pathname) ?? "home";
   return {
     id: "fallback",
     title:
