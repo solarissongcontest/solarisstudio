@@ -81,6 +81,7 @@ describe("Organizer domain navigation", () => {
     expect(delegations?.workflow?.tabs.map((tab) => tab.label)).toEqual([
       "Countries",
       "Confirmations",
+      "Requirements",
       "Responses",
       "Next in Line",
       "Rounds",
