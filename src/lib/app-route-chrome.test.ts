@@ -89,6 +89,8 @@ describe("installed app route chrome", () => {
 
   it("uses useful compact entity titles instead of repeating parent names", () => {
     expect(resolveAppRouteChrome("/editions/ssc-21").title).toBe("SSC 21");
+    expect(resolveAppRouteChrome("/countries/abe").title).toBe("ABE");
+    expect(resolveAppRouteChrome("/wiki/abe").title).toBe("ABE");
   });
 
 });
