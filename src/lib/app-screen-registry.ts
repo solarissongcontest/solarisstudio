@@ -415,6 +415,7 @@ export function resolveSolarisAppScreen(pathname: string, searchStr = ""): Solar
       destination.to === "/my-solaris";
     const parent = destination.parent ? publicDestinationById(destination.parent) : null;
     const directory = /^\/(countries|editions|shows|wiki|encyclopedia)(\/|$)/.test(pathname);
+    const localDirectorySearch = /^\/(countries|wiki|encyclopedia)(\/|$)/.test(pathname);
 
     return {
       id: `destination.${destination.id}`,
@@ -429,7 +430,7 @@ export function resolveSolarisAppScreen(pathname: string, searchStr = ""): Solar
         ? ROOT_DEFAULTS.chrome
         : {
             ...BROWSE_DEFAULTS.chrome,
-            search: directory ? "local" : "global",
+            search: localDirectorySearch ? "local" : "global",
           },
     };
   }
