@@ -105,12 +105,15 @@ describe("Solaris installed-app foundation", () => {
     expect(more).not.toContain("publicDestinationsForArea");
   });
 
-  it("keeps utility route titles route-aware in the installed app toolbar", () => {
+  it("keeps utility route titles route-aware through the canonical screen registry", () => {
     const toolbar = source("src/components/app/AppToolbar.tsx");
     const chrome = source("src/lib/app-route-chrome.ts");
+    const registry = source("src/lib/app-screen-registry.ts");
     expect(toolbar).toContain("resolveAppRouteChrome");
-    expect(chrome).toContain("publicDestinationForPath");
-    expect(chrome).toContain("destination.label");
+    expect(chrome).toContain("resolveSolarisAppScreen");
+    expect(chrome).not.toContain("publicDestinationForPath");
+    expect(registry).toContain("publicDestinationForPath");
+    expect(registry).toContain("destination.label");
   });
 
   it("never turns maintenance into stale cached application HTML", () => {
