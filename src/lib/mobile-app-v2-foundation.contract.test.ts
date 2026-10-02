@@ -91,10 +91,27 @@ describe("Mobile App V2 architectural invariants", () => {
     const results = source("src/routes/results/index.tsx");
     const directory = source("src/routes/site-directory/index.tsx");
     const editions = source("src/routes/editions/index.tsx");
+    const countries = source("src/routes/countries/index.tsx");
+    const shows = source("src/routes/shows/index.tsx");
+    const wiki = source("src/routes/wiki/index.tsx");
 
     expect(explore).toContain("solaris-app-grouped-list");
     expect(results).toContain("solaris-app-result-hero");
     expect(directory).toContain("solaris-app-list-row");
     expect(editions).toContain("solaris-app-edition-row");
+    expect(countries).toContain("AppCountriesPage");
+    expect(countries).toContain("solaris-app-country-row");
+    expect(shows).toContain("AppShowsPage");
+    expect(wiki).toContain("AppWikiIndexPage");
+  });
+
+  it("keeps installed-app search off the full archive query fan-out", () => {
+    const search = source("src/components/public/PublicCommandPalette.tsx");
+    const migration = source("supabase/migrations/20261002153000_public_app_search.sql");
+
+    expect(search).toContain("AppPublicPaletteDialog");
+    expect(search).toContain('rpc("solaris_public_search"');
+    expect(search).toContain("if (props.appMode)");
+    expect(migration).toContain("create or replace function public.solaris_public_search");
   });
 });
