@@ -638,6 +638,14 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
           (path) => path.startsWith("/admin/hod-history"),
         ),
         item(
+          "Community moderation",
+          "Hide or restore public fan display identity without changing competitive data.",
+          "/admin/community-moderation",
+          ShieldCheck,
+          "community moderation fan profile prediction league identity",
+          (path) => path.startsWith("/admin/community-moderation"),
+        ),
+        item(
           "Predictions",
           "Create and manage visitor prediction rounds.",
           "/admin/predictions",
