@@ -140,6 +140,22 @@ test("Show Mode renders the real minimal tab bar mode", async ({ page }) => {
   await expect(page.locator(".solaris-app-tabbar")).toHaveClass(/is-minimal/);
 });
 
+test("installed app keeps exactly one visible screen heading on app-owned screens", async ({ page }) => {
+  for (const route of [
+    "/",
+    "/explore",
+    "/results",
+    "/countries",
+    "/editions",
+    "/shows",
+    "/site-directory",
+    "/settings",
+  ]) {
+    await expectInstalledShell(page, route);
+    await expect(page.locator("h1:visible"), `${route} should expose one visible h1`).toHaveCount(1);
+  }
+});
+
 test("installed app chrome keeps Apple-sized effective touch targets", async ({ page }) => {
   await expectInstalledShell(page, "/explore");
 
