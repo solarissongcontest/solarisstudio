@@ -37,6 +37,9 @@ jobs:
       - name: Production build
         run: bun run build
 
+      - name: Enforce client performance budget
+        run: bun run budget:client
+
       - name: Install browser-audit runner
         run: |
           bun add --dev @playwright/test@1.55.0
