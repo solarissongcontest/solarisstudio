@@ -36,7 +36,7 @@ describe("canonical Confirmations runtime", () => {
     const env = source(".env");
 
     expect(client).toContain('supabase as solarisSupabase');
-    expect(client).toContain("export const confirmationsSupabase = solarisSupabase");
+    expect(client).toContain("export const confirmationsSupabase = solarisSupabase as any");
     expect(client).not.toContain("createClient");
     expect(client).not.toContain("CONFIRMATIONS_LEGACY_ANON_KEY");
     expect(client).not.toContain("VITE_CONFIRMATIONS_SUPABASE");
