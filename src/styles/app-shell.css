@@ -2190,10 +2190,20 @@ html[data-solaris-app]:has([data-solaris-dialog]) .solaris-app-tabbar {
   transition: opacity 120ms ease;
 }
 
-html[data-solaris-app] .edition-page-toolbar[data-app-compact="true"] {
-  justify-content: flex-end;
-  min-height: 0;
-  margin-bottom: .35rem;
+html[data-solaris-app] body[data-entity-theme="edition"] .edition-public-page {
+  padding-bottom: var(--ed-space-4) !important;
+}
+
+html[data-solaris-app] body[data-entity-theme="edition"] .edition-navigation,
+html[data-solaris-app] body[data-entity-theme="edition"][data-edition-public-style="glass"] .edition-navigation {
+  position: relative;
+  top: auto;
+  margin-block: 0;
+  z-index: var(--solaris-z-content);
+}
+
+html[data-solaris-app] body[data-entity-theme="edition"] .edition-hero-actions {
+  justify-content: center;
 }
 
 
