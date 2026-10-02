@@ -36,6 +36,7 @@ import {
 } from "@/lib/app-navigation";
 import { useAppAttentionSummary } from "@/lib/app-attention";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
+import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
 import {
   publicCanvasForArchetype,
@@ -95,6 +96,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState<string | null>(null);
   const [access, setAccess] = useState<AccountAccess>(EMPTY_ACCESS);
   const [menuOpen, setMenuOpen] = useState(false);
+  const appScreen = resolveSolarisAppScreen(pathname, searchStr);
 
   useEffect(() => {
     let alive = true;
@@ -134,13 +136,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isAppMode) return;
 
-    const restoreY = consumeAppNavigationRestore(pathname, searchStr);
-    rememberAppLocation(pathname, searchStr, restoreY ?? undefined);
+    const preserveScroll = appScreen.behavior.preserveScroll;
+    const restoreY = preserveScroll
+      ? consumeAppNavigationRestore(pathname, searchStr)
+      : null;
+    rememberAppLocation(pathname, searchStr, preserveScroll ? restoreY ?? undefined : 0);
 
-    if (restoreY != null) {
+    if (preserveScroll && restoreY != null) {
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => window.scrollTo({ top: restoreY, behavior: "auto" }));
       });
+    }
+
+    if (!preserveScroll) {
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+      return;
     }
 
     let frame: number | null = null;
@@ -162,7 +172,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (frame != null) window.cancelAnimationFrame(frame);
       updateAppScrollPosition(pathname, searchStr, window.scrollY);
     };
-  }, [isAppMode, pathname, searchStr]);
+  }, [appScreen.behavior.preserveScroll, isAppMode, pathname, searchStr]);
 
   useEffect(() => {
     const confirmationComplete = () =>
@@ -235,7 +245,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     pathname === "/my-solaris" ||
     pathname === "/my-solaris/" ||
     pathname.startsWith("/my-solaris/");
-  const focusedParticipationTask = appChrome.archetype === "task";
+  const focusedParticipationTask = appScreen.behavior.criticalTask;
   const showSectionNavigation =
     !isAppMode &&
     !isMySolarisWorkspace &&
