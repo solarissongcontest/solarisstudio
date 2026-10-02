@@ -2317,3 +2317,54 @@ html[data-solaris-app] .solaris-app-score-row {
 html[data-solaris-app] .solaris-app-score-row + .solaris-app-score-row {
   border-top: 1px solid rgb(210 236 248 / .085);
 }
+
+
+html[data-solaris-app] .solaris-app-setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 3.65rem;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem .85rem;
+}
+
+html[data-solaris-app] .solaris-app-setting-row:has(.solaris-app-list-icon) {
+  grid-template-columns: 2rem minmax(0, 1fr);
+}
+
+html[data-solaris-app] .solaris-app-setting-row + .solaris-app-setting-row {
+  border-top: 1px solid rgb(210 236 248 / .085);
+}
+
+html[data-solaris-app] .solaris-app-settings-form {
+  border: 1px solid rgb(210 236 248 / .11);
+  border-radius: 1.15rem;
+  padding: .85rem;
+  background: rgb(255 255 255 / .025);
+}
+
+html[data-solaris-app] .solaris-app-wiki-sheet {
+  position: fixed !important;
+  inset-inline: 0 !important;
+  top: auto !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  max-height: min(82dvh, 46rem) !important;
+  overflow: hidden !important;
+  border-radius: 1.4rem 1.4rem 0 0 !important;
+  padding:
+    1rem
+    1rem
+    max(1rem, calc(env(safe-area-inset-bottom) + .5rem)) !important;
+  background: rgb(4 14 32 / .985) !important;
+  color: var(--foreground) !important;
+}
+
+html[data-solaris-app] .solaris-app-wiki-sheet .wiki-infobox-mobile {
+  margin: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
