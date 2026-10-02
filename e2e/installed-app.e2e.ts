@@ -308,6 +308,31 @@ test("content-owned screens do not repeat their title inside the toolbar", async
   await expect(page.locator(".solaris-app-toolbar-context-title")).toHaveCount(1);
 });
 
+test("installed toolbar does not duplicate page-owned local search", async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "ios-pwa-portrait",
+    "Search ownership is certified once at the representative installed-iPhone viewport.",
+  );
+
+  for (const route of ["/countries", "/wiki", "/site-directory", "/rules"]) {
+    await expectInstalledShell(page, route);
+    await expect(page.locator(".solaris-app-toolbar")).toHaveAttribute("data-search-mode", "local");
+    await expect(
+      page.locator('.solaris-app-toolbar [aria-label="Search Solaris Studio"]'),
+      `${route} must not show a duplicate global-search trigger`,
+    ).toHaveCount(0);
+  }
+
+  for (const route of ["/explore", "/results", "/editions", "/shows"]) {
+    await expectInstalledShell(page, route);
+    await expect(page.locator(".solaris-app-toolbar")).toHaveAttribute("data-search-mode", "global");
+    await expect(
+      page.locator('.solaris-app-toolbar [aria-label="Search Solaris Studio"]'),
+      `${route} should keep the global-search trigger`,
+    ).toHaveCount(1);
+  }
+});
+
 test("installed app chrome keeps Apple-sized effective touch targets", async ({ page }) => {
   await expectInstalledShell(page, "/explore");
 
