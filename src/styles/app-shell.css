@@ -10,10 +10,44 @@ html[data-solaris-app-boot] body::before {
   z-index: 2147483647;
   visibility: visible;
   background:
+    radial-gradient(circle at 50% 38%, rgb(83 153 202 / .15), transparent 28rem),
+    radial-gradient(circle at 18% 84%, rgb(66 111 179 / .08), transparent 22rem),
     #020817
     url("/solaris-studio-mark.png")
-    center / 4.25rem 4.25rem
+    center calc(50% - 1.2rem) / 4.25rem 4.25rem
     no-repeat;
+}
+
+html[data-solaris-app-boot] body::after {
+  content: "Solaris Studio\AOpening app";
+  white-space: pre;
+  position: fixed;
+  z-index: 2147483647;
+  left: 50%;
+  top: calc(50% + 2.6rem);
+  width: min(18rem, calc(100vw - 3rem));
+  transform: translateX(-50%);
+  visibility: visible;
+  text-align: center;
+  color: rgb(236 246 252 / .94);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: .84rem;
+  font-weight: 720;
+  line-height: 1.65;
+  letter-spacing: -.01em;
+  text-shadow: 0 2px 18px rgb(0 5 20 / .38);
+  animation: solaris-app-boot-pulse 1.25s ease-in-out infinite alternate;
+}
+
+@keyframes solaris-app-boot-pulse {
+  from { opacity: .58; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-solaris-app-boot] body::after {
+    animation: none;
+  }
 }
 
 /* Solaris Studio installed-app chrome ---------------------------------------
@@ -2654,5 +2688,48 @@ html[data-solaris-app]
     :is(.data-panel, .glass)
     :is(.rounded-2xl, .rounded-3xl) {
     border-radius: .9rem;
+  }
+}
+
+
+/* Installed-app content hierarchy ------------------------------------------ */
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
+  .solaris-ambient-background {
+    opacity: .48;
+  }
+
+  .solaris-star-layer-near {
+    opacity: .52;
+  }
+
+  .app-main[data-solaris-app-mode="true"][data-solaris-app-screen="task"] .data-panel,
+  .app-main[data-solaris-app-mode="true"][data-solaris-app-screen="settings"] .data-panel,
+  .app-main[data-solaris-app-mode="true"][data-solaris-app-screen="workspace"] .data-panel {
+    border: 1px solid rgb(210 236 248 / .09) !important;
+    border-radius: 1.05rem !important;
+    background: rgb(255 255 255 / .018) !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .solaris-app-rules-summary {
+    border: 1px solid rgb(210 236 248 / .10);
+    border-radius: 1.05rem;
+    padding: .85rem;
+    background: rgb(255 255 255 / .018);
+    box-shadow: none;
+  }
+
+  .solaris-app-task-shell > .solaris-app-rules-summary:first-child {
+    margin-top: 0;
+  }
+
+  .solaris-app-task-utilities {
+    margin-bottom: .75rem;
+  }
+
+  .solaris-app-task-utility {
+    min-height: 2.75rem;
   }
 }
