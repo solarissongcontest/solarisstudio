@@ -114,6 +114,7 @@ export function AppRuntime({ children }: { children: ReactNode }) {
     root.dataset.solarisConnectivity = connectivity.status;
     root.dataset.solarisLifecycle = lifecycle.phase;
     root.toggleAttribute("data-solaris-app", platform.isAppMode);
+    root.removeAttribute("data-solaris-app-boot");
     return () => {
       delete root.dataset.solarisRuntime;
       delete root.dataset.solarisConnectivity;
