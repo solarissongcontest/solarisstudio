@@ -1233,7 +1233,7 @@ html[data-solaris-app-boot] body::before {
 
 /* App Experience v3: resilient route states -------------------------------- */
 @media (display-mode: standalone), (display-mode: window-controls-overlay) {
-  [data-solaris-app-route-state] .app-main {
+  .app-main[data-solaris-app-mode="true"]:has([data-solaris-app-route-state]) {
     min-height: calc(
       var(--solaris-visual-viewport-height, 100dvh) -
       var(--solaris-app-toolbar-height) -
