@@ -63,6 +63,78 @@ async function addCountrySession(context: BrowserContext) {
   return true;
 }
 
+async function readTabbarGeometry(page: Page) {
+  return page.evaluate(() => {
+    const visible = (node: Element) => {
+      const element = node as HTMLElement;
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+    };
+
+    const bar = [...document.querySelectorAll<HTMLElement>(".solaris-app-tabbar")].find(visible);
+    if (!bar) return null;
+
+    const material = bar.querySelector<HTMLElement>(".solaris-app-tabbar-material");
+    const backdrop = bar.querySelector<HTMLElement>(".solaris-app-tabbar-backdrop");
+    if (!material || !backdrop) return null;
+
+    const rect = (element: HTMLElement) => {
+      const value = element.getBoundingClientRect();
+      return {
+        top: value.top,
+        right: value.right,
+        bottom: value.bottom,
+        left: value.left,
+        width: value.width,
+        height: value.height,
+      };
+    };
+
+    const rootStyle = getComputedStyle(document.documentElement);
+    return {
+      bar: rect(bar),
+      material: rect(material),
+      backdrop: rect(backdrop),
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      visualViewportHeight: window.visualViewport?.height ?? window.innerHeight,
+      inlineDesignHeight: document.documentElement.style
+        .getPropertyValue("--solaris-app-tabbar-height")
+        .trim(),
+      computedDesignHeight: rootStyle
+        .getPropertyValue("--solaris-app-tabbar-height")
+        .trim(),
+      obstruction: Number.parseFloat(
+        rootStyle.getPropertyValue("--solaris-app-bottom-obstruction"),
+      ) || 0,
+    };
+  });
+}
+
+async function expectTabbarGeometry(page: Page, context: string) {
+  const geometry = await readTabbarGeometry(page);
+  expect(geometry, `${context} should expose measurable tab-bar geometry`).not.toBeNull();
+
+  const value = geometry!;
+  expect(value.inlineDesignHeight, `${context} must not write measured height back into its sizing token`).toBe("");
+  expect(value.bar.height, `${context} tab bar must stay vertically bounded`).toBeLessThanOrEqual(110);
+  expect(value.material.height, `${context} material must stay vertically bounded`).toBeLessThanOrEqual(110);
+  expect(value.backdrop.height, `${context} glass must stay vertically bounded`).toBeLessThanOrEqual(110);
+  expect(
+    Math.abs(value.material.height - value.backdrop.height),
+    `${context} glass must match the material bounds`,
+  ).toBeLessThanOrEqual(2);
+  expect(value.material.width, `${context} material must stay inside the viewport`).toBeLessThanOrEqual(
+    value.viewportWidth + 2,
+  );
+  expect(value.bar.top, `${context} bottom navigation must remain in the lower viewport`).toBeGreaterThan(
+    value.viewportHeight * 0.6,
+  );
+  expect(value.obstruction, `${context} measured bottom obstruction must stay bounded`).toBeLessThanOrEqual(128);
+  expect(value.computedDesignHeight, `${context} should retain a CSS design-height token`).not.toBe("");
+}
+
 async function expectLastContentClearsTabbar(page: Page, route: string) {
   await page.goto(route, { waitUntil: "domcontentloaded" });
   await page.waitForLoadState("networkidle", { timeout: 4_000 }).catch(() => undefined);
@@ -121,6 +193,7 @@ async function expectInstalledShell(
   } else {
     await expect(page.locator(".solaris-app-tabbar")).toHaveCount(1);
     await expect(page.locator(".solaris-app-tabbar")).toBeVisible();
+    await expectTabbarGeometry(page, route);
   }
 
   const geometry = await page.evaluate(() => ({
@@ -251,6 +324,74 @@ test("installed app chrome keeps Apple-sized effective touch targets", async ({ 
   );
 
   expect(undersized).toEqual([]);
+});
+
+test("tab bar geometry stays bounded through drag, collapse and interrupted gestures", async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "ios-pwa-portrait",
+    "The destructive geometry stress test runs once at the representative iPhone width.",
+  );
+
+  const resizeLoopMessages: string[] = [];
+  page.on("console", (message) => {
+    if (/ResizeObserver loop/i.test(message.text())) resizeLoopMessages.push(message.text());
+  });
+  page.on("pageerror", (error) => {
+    if (/ResizeObserver loop/i.test(error.message)) resizeLoopMessages.push(error.message);
+  });
+
+  await expectInstalledShell(page, "/explore");
+  await expectTabbarGeometry(page, "initial Explore state");
+
+  const active = page.locator(".solaris-app-tab[aria-current='page']");
+  const activeBox = await active.boundingBox();
+  expect(activeBox, "active tab should expose pointer geometry").not.toBeNull();
+
+  const startX = activeBox!.x + activeBox!.width / 2;
+  const startY = activeBox!.y + activeBox!.height / 2;
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + Math.min(72, activeBox!.width * 0.8), startY, { steps: 5 });
+  await page.waitForTimeout(60);
+  await expectTabbarGeometry(page, "active drag state");
+  await page.mouse.up();
+
+  await page.waitForTimeout(360);
+  await expectTabbarGeometry(page, "settled drag state");
+
+  await page.evaluate(() => window.scrollTo(0, Math.min(900, document.documentElement.scrollHeight)));
+  await page.waitForTimeout(320);
+  await expectTabbarGeometry(page, "collapsed scroll state");
+
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(240);
+  await expectTabbarGeometry(page, "expanded scroll state");
+
+  await page.evaluate(() => window.dispatchEvent(new Event("orientationchange")));
+  await page.waitForTimeout(80);
+  await expectTabbarGeometry(page, "interrupted gesture reset");
+
+  const stableHeights = await page.evaluate(async () => {
+    const samples: number[] = [];
+    for (let index = 0; index < 8; index += 1) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const material = document.querySelector<HTMLElement>(".solaris-app-tabbar-material");
+      if (material) samples.push(material.getBoundingClientRect().height);
+    }
+    return samples;
+  });
+
+  expect(stableHeights.length).toBeGreaterThanOrEqual(6);
+  expect(
+    Math.max(...stableHeights) - Math.min(...stableHeights),
+    "settled tab-bar height must not grow frame over frame",
+  ).toBeLessThanOrEqual(1.5);
+  expect(resizeLoopMessages, "tab bar must not trigger ResizeObserver feedback loops").toEqual([]);
+
+  await testInfo.attach("tabbar-geometry-stress.png", {
+    body: await page.screenshot({ fullPage: false }),
+    contentType: "image/png",
+  });
 });
 
 test("first run is a contained bottom sheet and suppresses global tabs", async ({ page }) => {
