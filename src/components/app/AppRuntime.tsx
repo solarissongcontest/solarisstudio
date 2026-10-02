@@ -34,6 +34,8 @@ import {
   detectSolarisPlatform,
   type SolarisPlatformSnapshot,
 } from "@/lib/platform";
+import { refreshAppPushSubscription } from "@/lib/app-notifications";
+import { supabase } from "@/integrations/supabase/client";
 
 type AppRuntimeValue = SolarisPlatformSnapshot & {
   connectivity: AppConnectivitySnapshot;
@@ -122,6 +124,33 @@ export function AppRuntime({ children }: { children: ReactNode }) {
       root.removeAttribute("data-solaris-app");
     };
   }, [connectivity.status, lifecycle.phase, platform.isAppMode, platform.mode]);
+
+  useEffect(() => {
+    if (!platform.isAppMode) return;
+
+    let active = true;
+    const syncPushSubscription = async () => {
+      if (!active || !navigator.onLine) return;
+      try {
+        const { data } = await supabase.auth.getSession();
+        const userId = data.session?.user?.id;
+        if (!userId || !active) return;
+        await refreshAppPushSubscription(userId);
+      } catch (error) {
+        console.warn("[solaris-push] Existing device subscription sync failed", error);
+      }
+    };
+
+    void syncPushSubscription();
+    window.addEventListener("online", syncPushSubscription);
+    window.addEventListener(APP_RESUME_EVENT, syncPushSubscription);
+
+    return () => {
+      active = false;
+      window.removeEventListener("online", syncPushSubscription);
+      window.removeEventListener(APP_RESUME_EVENT, syncPushSubscription);
+    };
+  }, [platform.isAppMode]);
 
   useEffect(() => {
     if (!import.meta.env.PROD || !platform.canInstallServiceWorker) return;
