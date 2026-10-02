@@ -270,7 +270,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="relative isolate min-h-screen overflow-x-clip">
         <div aria-hidden="true" className="app-background" />
 
-        {isAppMode && !pathname.startsWith("/integrity/report") ? (
+        {isAppMode && appScreen.chrome.toolbar !== "hidden" ? (
           <AppToolbar pathname={pathname} searchStr={searchStr} access={access} />
         ) : null}
 
@@ -379,8 +379,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           data-public-layout={publicLayout}
           data-solaris-app-mode={isAppMode ? "true" : undefined}
           data-solaris-app-root={isAppMode && isAppRootDestination ? "true" : undefined}
+          data-solaris-screen-id={isAppMode ? appScreen.id : undefined}
           data-solaris-app-screen={isAppMode ? appChrome.archetype : undefined}
+          data-solaris-app-root-tab={isAppMode ? appScreen.hierarchy.rootTab ?? "none" : undefined}
+          data-solaris-app-toolbar={isAppMode ? appScreen.chrome.toolbar : undefined}
           data-solaris-app-tabbar={isAppMode ? appChrome.tabBar : undefined}
+          data-solaris-app-search={isAppMode ? appScreen.chrome.search : undefined}
+          data-solaris-app-offline={isAppMode ? appScreen.behavior.offline : undefined}
+          data-solaris-app-critical-task={isAppMode && appScreen.behavior.criticalTask ? "true" : undefined}
           className={cn(
             "app-main relative z-10 mx-auto w-full min-w-0 px-3 pb-24 pt-4 sm:px-5 sm:pb-24 sm:pt-6 lg:px-8 lg:py-8 2xl:px-10",
             publicCanvasForArchetype(publicArchetype),
