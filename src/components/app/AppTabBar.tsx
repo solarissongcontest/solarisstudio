@@ -168,10 +168,11 @@ export function AppTabBar({
     };
 
     updateMetrics();
-    const observer = typeof ResizeObserver !== "undefined" && bar
-      ? new ResizeObserver(updateMetrics)
-      : null;
-    observer?.observe(bar);
+    const observer =
+      typeof ResizeObserver !== "undefined" && bar
+        ? new ResizeObserver(updateMetrics)
+        : null;
+    if (observer && bar) observer.observe(bar);
     window.addEventListener("resize", updateMetrics);
     window.visualViewport?.addEventListener("resize", updateMetrics);
 
