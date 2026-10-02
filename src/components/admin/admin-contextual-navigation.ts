@@ -146,6 +146,11 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
           (path) => path === "/confirmations/admin" || path === "/confirmations/admin/",
         ),
         tab(
+          "Requirements",
+          "/confirmations/admin/requirements",
+          (path) => path.startsWith("/confirmations/admin/requirements"),
+        ),
+        tab(
           "Responses",
           "/confirmations/admin/responses",
           (path) =>
