@@ -137,7 +137,7 @@ export function CountryPicker({
       {open && matches.length > 0 && (
         <ul
           className={cn(
-            "scroll-slim absolute z-[90] max-h-[min(18rem,45vh)] w-full overflow-auto rounded-xl border border-border bg-popover p-1 shadow-2xl",
+            "scroll-slim absolute z-[var(--solaris-z-popover)] max-h-[min(18rem,45vh)] w-full overflow-auto rounded-xl border border-border bg-popover p-1 shadow-2xl",
             openUp ? "bottom-full mb-1" : "top-full mt-1",
           )}
         >
