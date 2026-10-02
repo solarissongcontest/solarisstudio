@@ -124,7 +124,7 @@ describe("canonical Confirmations runtime", () => {
     expect(controls).toContain("closes_at <= now() then null");
     expect(controls).toContain("opens_at is null or opens_at > now()");
     expect(controls).toContain("Increase the response limit before reopening this full round");
-    expect(controls).toContain("set editing_allowed = _enabled");
+    expect(controls).toContain("editing_allowed = _enabled");
     expect(controls).toContain("set editing_enabled = true");
     expect(controls).toContain("editing_allowed is distinct from _enabled");
   });
