@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Panel } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import {
   DEFAULT_SOLARIS_NOTIFICATION_CATEGORIES,
@@ -42,6 +44,7 @@ const EMPTY_PUSH: AppPushState = {
 };
 
 export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { includeSpoilerFree?: boolean } = {}) {
+  const { isAppMode } = useSolarisApp();
   const userQuery = useQuery({
     queryKey: ["mysolaris-notification-user"],
     queryFn: async () => {
@@ -190,6 +193,141 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
     }
     await push.refetch();
   };
+
+  if (isAppMode) {
+    return (
+      <div className="space-y-5">
+        <section aria-labelledby="app-notification-categories">
+          <div className="solaris-app-section-heading">
+            <p>Alerts</p>
+            <h2 id="app-notification-categories">What can notify you</h2>
+          </div>
+          <div className="solaris-app-grouped-list">
+            {CATEGORIES.map(([key, label, description]) => {
+              const enabled = selected.includes(key);
+              return (
+                <div key={key} className="solaris-app-notification-row">
+                  <span className={`solaris-app-list-icon ${enabled ? "" : "is-muted"}`}>
+                    {enabled ? <BellRing className="size-4" aria-hidden="true" /> : <BellOff className="size-4" aria-hidden="true" />}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold">{label}</span>
+                    <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{description}</span>
+                  </span>
+                  <Switch
+                    checked={enabled}
+                    onCheckedChange={() => toggleCategory(key)}
+                    aria-label={`${label} notifications`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section aria-labelledby="app-notification-delivery">
+          <div className="solaris-app-section-heading">
+            <p>Delivery</p>
+            <h2 id="app-notification-delivery">Device & quiet hours</h2>
+          </div>
+          <div className="solaris-app-grouped-list">
+            <div className="solaris-app-notification-detail">
+              <div className="flex items-start gap-3">
+                <span className="solaris-app-list-icon"><Smartphone className="size-4" aria-hidden="true" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold">Push notifications</span>
+                  <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                    {!pushState.configured
+                      ? "Push service is temporarily unavailable."
+                      : pushState.supported
+                        ? pushState.subscribed
+                          ? "This device is subscribed to Solaris notifications."
+                          : pushState.permission === "denied"
+                            ? "Notifications are blocked in your system settings."
+                            : "Receive Solaris alerts on this device."
+                        : "Web Push is not available on this browser."}
+                  </span>
+                </span>
+                {pushState.configured && pushState.supported ? (
+                  pushState.subscribed ? (
+                    <button type="button" onClick={() => void disablePush()} className="min-h-11 shrink-0 rounded-xl border border-border px-3 text-xs font-semibold">
+                      Disable
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => void enablePush()} className="min-h-11 shrink-0 rounded-xl bg-primary px-3 text-xs font-semibold text-primary-foreground">
+                      Enable
+                    </button>
+                  )
+                ) : null}
+              </div>
+            </div>
+
+            <div className="solaris-app-notification-detail border-t border-border/60">
+              <p className="text-sm font-semibold">Quiet hours</p>
+              <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                Routine alerts wait until quiet hours end.
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <label className="text-[11px] font-semibold text-muted-foreground">
+                  From
+                  <input
+                    type="time"
+                    value={quietStart}
+                    onChange={(event) => setQuietStart(event.target.value)}
+                    className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-base"
+                  />
+                </label>
+                <label className="text-[11px] font-semibold text-muted-foreground">
+                  Until
+                  <input
+                    type="time"
+                    value={quietEnd}
+                    onChange={(event) => setQuietEnd(event.target.value)}
+                    className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-base"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="solaris-app-notification-row border-t border-border/60">
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">Urgent deadline reminders</span>
+                <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                  Allow 3-hour and 1-hour required-task reminders during quiet hours.
+                </span>
+              </span>
+              <Switch checked={urgent} onCheckedChange={setUrgent} aria-label="Urgent deadline reminders during quiet hours" />
+            </div>
+
+            {includeSpoilerFree ? (
+              <div className="solaris-app-notification-row border-t border-border/60">
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold">Spoiler-free results</span>
+                  <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                    Result alerts never reveal the winner in notification text.
+                  </span>
+                </span>
+                <Switch
+                  checked={spoilerFree}
+                  onCheckedChange={(checked) => updateAppExperience({ spoilerFree: checked })}
+                  aria-label="Hide result spoilers"
+                />
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        <button
+          type="button"
+          disabled={!dirty || save.isPending}
+          onClick={() => void savePreferences()}
+          className="min-h-12 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-45"
+        >
+          {save.isPending ? "Saving…" : "Save notification settings"}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <Panel
