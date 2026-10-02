@@ -147,10 +147,11 @@ function AppSettingsPage() {
 
       <div className="space-y-4">
         <Panel
+          className={app.isAppMode ? "solaris-app-settings-panel" : undefined}
           title="App experience"
           description="Preferences that change how the installed Solaris experience behaves."
         >
-          <div className="grid gap-3">
+          <div className="solaris-app-settings-group grid gap-3"
             <SettingRow
               icon={EyeOff}
               title="Spoiler-free mode"
@@ -182,6 +183,7 @@ function AppSettingsPage() {
           <MySolarisNotificationsPanel includeSpoilerFree={false} />
         ) : userId === null ? (
           <Panel
+            className={app.isAppMode ? "solaris-app-settings-panel" : undefined}
             title="Notifications"
             description="Push categories and quiet hours are attached to your Solaris account."
           >
@@ -203,16 +205,17 @@ function AppSettingsPage() {
             </div>
           </Panel>
         ) : (
-          <Panel title="Notifications" description="Checking your Solaris notification settings…">
+          <Panel className={app.isAppMode ? "solaris-app-settings-panel" : undefined} title="Notifications" description="Checking your Solaris notification settings…">
             <p className="text-sm text-muted-foreground">Loading account state…</p>
           </Panel>
         )}
 
         <Panel
+          className={app.isAppMode ? "solaris-app-settings-panel" : undefined}
           title="Appearance & accessibility"
           description="Solaris follows system accessibility signals instead of hiding competing controls in five different menus."
         >
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="solaris-app-settings-group grid gap-3 sm:grid-cols-2"
             <StatusCard
               icon={accessibility.reducedMotion ? MoonStar : Sun}
               label="Motion"
@@ -237,10 +240,11 @@ function AppSettingsPage() {
         </Panel>
 
         <Panel
+          className={app.isAppMode ? "solaris-app-settings-panel" : undefined}
           title="Storage & offline"
           description="Public app assets may be cached for continuity. Official submissions are never queued as offline submissions."
         >
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="solaris-app-settings-group grid gap-3 md:grid-cols-3"
             <StatusCard
               icon={Database}
               label="Browser storage in use"
@@ -288,8 +292,8 @@ function AppSettingsPage() {
           ) : null}
         </Panel>
 
-        <Panel title="Install" description="How Solaris Studio is currently running on this device.">
-          <div className="grid gap-3 sm:grid-cols-2">
+        <Panel className={app.isAppMode ? "solaris-app-settings-panel" : undefined} title="Install" description="How Solaris Studio is currently running on this device.">
+          <div className="solaris-app-settings-group grid gap-3 sm:grid-cols-2"
             <StatusCard
               icon={Smartphone}
               label="Launch mode"
@@ -313,6 +317,7 @@ function AppSettingsPage() {
         </Panel>
 
         <Panel
+          className={app.isAppMode ? "solaris-app-settings-panel" : undefined}
           title="Privacy & app information"
           description="App diagnostics are deliberately narrow."
         >
