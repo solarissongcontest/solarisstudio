@@ -2139,3 +2139,129 @@ html[data-solaris-app] .edition-page-toolbar[data-app-compact="true"] {
   min-height: 0;
   margin-bottom: .35rem;
 }
+
+
+/* Mobile App V2 screen composition primitives ----------------------------- */
+html[data-solaris-app] .solaris-app-section-heading {
+  margin: 0 0 .55rem;
+  padding-inline: .15rem;
+}
+
+html[data-solaris-app] .solaris-app-section-heading > p {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: .65rem;
+  font-weight: 750;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+html[data-solaris-app] .solaris-app-section-heading > h2 {
+  margin: .18rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 750;
+  letter-spacing: -.02em;
+}
+
+html[data-solaris-app] .solaris-app-grouped-list {
+  overflow: hidden;
+  border: 1px solid rgb(210 236 248 / .11);
+  border-radius: 1.15rem;
+  background: rgb(255 255 255 / .025);
+}
+
+html[data-solaris-app] .solaris-app-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 3.65rem;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem .85rem;
+  color: var(--foreground);
+  text-align: left;
+}
+
+html[data-solaris-app] .solaris-app-list-row + .solaris-app-list-row {
+  border-top: 1px solid rgb(210 236 248 / .085);
+}
+
+html[data-solaris-app] .solaris-app-list-row:active {
+  background: rgb(255 255 255 / .045);
+}
+
+html[data-solaris-app] .solaris-app-list-row:has(.solaris-app-list-icon) {
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+}
+
+html[data-solaris-app] .solaris-app-list-icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: .7rem;
+  background: rgb(var(--solaris-accent, 139 198 222) / .09);
+  color: var(--primary);
+}
+
+html[data-solaris-app] .solaris-app-search-field {
+  display: flex;
+  min-height: 3.25rem;
+  width: 100%;
+  align-items: center;
+  gap: .65rem;
+  border: 1px solid rgb(210 236 248 / .12);
+  border-radius: 1rem;
+  padding-inline: .85rem;
+  background: rgb(255 255 255 / .035);
+}
+
+html[data-solaris-app] .solaris-app-search-field input {
+  min-height: 3rem;
+  font-size: 1rem;
+}
+
+html[data-solaris-app] .solaris-app-current-contest {
+  border: 1px solid rgb(210 236 248 / .12);
+  border-radius: 1.25rem;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(var(--solaris-accent, 139 198 222) / .10), transparent 42%),
+    rgb(255 255 255 / .028);
+}
+
+html[data-solaris-app] .solaris-app-edition-current {
+  border: 1px solid rgb(210 236 248 / .12);
+  border-radius: 1.15rem;
+  padding: .9rem;
+  background: rgb(255 255 255 / .028);
+}
+
+html[data-solaris-app] .solaris-app-edition-current > div:last-child {
+  grid-template-columns: 1fr !important;
+}
+
+html[data-solaris-app] .solaris-app-edition-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  align-items: center;
+  gap: .75rem;
+  padding: .85rem .95rem;
+}
+
+html[data-solaris-app] .solaris-app-edition-row + .solaris-app-edition-row {
+  border-top: 1px solid rgb(210 236 248 / .085);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html[data-solaris-app] .solaris-app-list-row,
+  html[data-solaris-app] .solaris-app-edition-row {
+    transition: background-color 120ms ease, transform 120ms ease;
+  }
+
+  html[data-solaris-app] .solaris-app-list-row:active,
+  html[data-solaris-app] .solaris-app-edition-row:active {
+    transform: scale(.995);
+  }
+}
