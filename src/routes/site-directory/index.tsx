@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Search } from "lucide-react";
+import { ChevronRight, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
   PUBLIC_DESTINATIONS,
   publicSearchText,
@@ -34,6 +35,7 @@ const AREA_LABELS: Record<PublicArea, string> = {
 };
 
 function SiteDirectoryPage() {
+  const { isAppMode } = useSolarisApp();
   const [query, setQuery] = useState("");
   const normalizedQuery = query.trim().toLowerCase();
 
@@ -57,7 +59,7 @@ function SiteDirectoryPage() {
         description="Search every public destination, including advanced tools and older Solaris names."
       />
 
-      <label className="mx-auto mb-7 flex min-h-12 max-w-2xl items-center gap-3 rounded-2xl border border-border/75 bg-surface/70 px-4">
+      <label className={isAppMode ? "solaris-app-search-field mb-5" : "mx-auto mb-7 flex min-h-12 max-w-2xl items-center gap-3 rounded-2xl border border-border/75 bg-surface/70 px-4"}>
         <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span className="sr-only">Search Solaris Studio pages</span>
         <input
@@ -83,29 +85,35 @@ function SiteDirectoryPage() {
                     {AREA_LABELS[area]}
                   </h2>
                 </div>
-                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                <div className={isAppMode ? "solaris-app-grouped-list" : "grid gap-2 md:grid-cols-2 xl:grid-cols-3"}>
                   {items.map((item) => (
                     <Link
                       key={item.id}
                       to={item.to as any}
-                      className="group min-w-0 rounded-xl border border-border/70 bg-surface/45 p-4 transition-colors hover:border-primary/30 hover:bg-surface/75"
+                      className={isAppMode ? "solaris-app-list-row" : "group min-w-0 rounded-xl border border-border/70 bg-surface/45 p-4 transition-colors hover:border-primary/30 hover:bg-surface/75"}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="font-semibold text-foreground">{item.label}</h3>
-                          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                            {item.description}
-                          </p>
-                        </div>
-                        <span className="shrink-0 rounded-full border border-border/70 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                          {item.visibility}
-                        </span>
-                      </div>
-                      {item.aliases?.length ? (
-                        <p className="mt-3 text-[11px] text-muted-foreground">
-                          Also known as {item.aliases.join(", ")}
-                        </p>
-                      ) : null}
+                      {isAppMode ? (
+                        <>
+                          <span className="min-w-0">
+                            <span className="block text-sm font-semibold text-foreground">{item.label}</span>
+                            <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span>
+                          </span>
+                          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <h3 className="font-semibold text-foreground">{item.label}</h3>
+                              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.description}</p>
+                            </div>
+                            <span className="shrink-0 rounded-full border border-border/70 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{item.visibility}</span>
+                          </div>
+                          {item.aliases?.length ? (
+                            <p className="mt-3 text-[11px] text-muted-foreground">Also known as {item.aliases.join(", ")}</p>
+                          ) : null}
+                        </>
+                      )}
                     </Link>
                   ))}
                 </div>
