@@ -103,6 +103,7 @@
   --solaris-z-dialog-backdrop: 99;
   --solaris-z-dialog: 100;
   --solaris-z-system-critical: 120;
+  --solaris-z-boot: 2147483647;
 }
 
 .dark { color-scheme: dark; }
