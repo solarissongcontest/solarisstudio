@@ -128,8 +128,8 @@ function OrganizerHome() {
                   }
                   description="Only actionable edition problems appear here. Each item opens the place where it can be fixed."
                   action={
-                    <Link to="/admin/action-center" className="text-xs font-semibold text-sky-100">
-                      Action Center →
+                    <Link to="/admin/tasks" className="text-xs font-semibold text-sky-100">
+                      Tasks →
                     </Link>
                   }
                 />
@@ -168,12 +168,12 @@ function OrganizerHome() {
               <div className="space-y-4">
                 <AdminCard>
                   <AdminCardHeader
-                    eyebrow="Inbox"
+                    eyebrow="Notifications"
                     title={unresolvedInbox.length ? `${unresolvedInbox.length} need attention` : "All caught up"}
                     description={unread.length ? `${unread.length} unseen · unresolved work stays here after it is read.` : "Complaints, appeals, beta feedback and connected administrative events."}
                     action={
                       <Link to="/admin/inbox" className="text-xs font-semibold text-sky-100">
-                        View Inbox →
+                        Open notifications →
                       </Link>
                     }
                   />
@@ -216,7 +216,7 @@ function OrganizerHome() {
                       )}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No unresolved Inbox items.</p>
+                    <p className="text-sm text-muted-foreground">No unresolved notification items.</p>
                   )}
                 </AdminCard>
 
