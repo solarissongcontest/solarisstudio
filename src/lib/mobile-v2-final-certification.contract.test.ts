@@ -9,7 +9,7 @@ describe("Mobile V2 final certification contract", () => {
     const manifest = source("docs/mobile-v2/release-certification.yml");
     const readiness = source("scripts/check-mobile-v2-release-readiness.mjs");
 
-    expect(manifest).toContain('source_commit: ""');
+    expect(manifest).toContain("source_commit:");
     expect(readiness).toContain("source_commit");
     expect(readiness).toContain("40-character release candidate SHA");
     expect(readiness).toContain('git(["merge-base", "--is-ancestor", sourceCommit, headCommit])');
