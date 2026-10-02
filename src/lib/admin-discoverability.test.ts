@@ -34,6 +34,7 @@ describe("Organizer discoverability", () => {
 
     expect(countries).toContain("Delegation workflows");
     expect(countries).toContain('to="/confirmations/admin"');
+    expect(countries).toContain('to="/confirmations/admin/requirements"');
     expect(countries).toContain('to="/confirmations/admin/responses"');
     expect(countries).toContain('to="/admin/next-in-line"');
     expect(countries).toContain('to="/confirmations/admin/rounds"');
