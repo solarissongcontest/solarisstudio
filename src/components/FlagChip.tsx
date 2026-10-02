@@ -12,8 +12,8 @@ export function FlagChip({ code, color, image, size = "md", className }: {
     xs: "h-5 w-7.5 text-[8px] rounded-[3px]",
     sm: "h-6 w-9 text-[10px] rounded-[4px]",
     md: "h-8 w-12 text-xs rounded-md",
-    lg: "h-12 w-18 text-sm rounded-[10px]",
-    xl: "h-24 w-36 text-2xl rounded-xl",
+    lg: "h-12 w-18 text-sm rounded-[12px]",
+    xl: "h-24 w-36 text-2xl rounded-[18px]",
   }[size];
   return <FlagFrame
     chip
