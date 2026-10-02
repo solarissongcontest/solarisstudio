@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -43,6 +44,41 @@ describe("installed app CSS ownership", () => {
     expect(dialog).toContain("var(--solaris-z-dialog)");
     expect(popover).toContain("var(--solaris-z-popover)");
     expect(menu).toContain("var(--solaris-z-popover)");
+  });
+
+  it("keeps protected installed-app geometry out of legacy CSS files", () => {
+    const protectedTokens = [
+      ".solaris-app-toolbar",
+      ".solaris-app-tabbar",
+      "--solaris-app-toolbar-height",
+      "--solaris-app-tabbar-height",
+      "--solaris-app-bottom-obstruction",
+    ];
+    const violations: string[] = [];
+
+    const visit = (directory: string) => {
+      for (const name of readdirSync(directory)) {
+        const path = join(directory, name);
+        const entry = statSync(path);
+        if (entry.isDirectory()) {
+          if (path.includes("styles/personality-sources")) continue;
+          visit(path);
+          continue;
+        }
+        if (!name.endsWith(".css") || path === "src/styles/app-shell.css") continue;
+        const css = readFileSync(path, "utf8");
+        for (const token of protectedTokens) {
+          if (css.includes(token)) violations.push(`${path}: ${token}`);
+        }
+      }
+    };
+
+    visit("src");
+
+    expect(
+      violations,
+      "Installed toolbar/tabbar geometry belongs only to styles/app-shell.css.",
+    ).toEqual([]);
   });
 
   it("makes modal surfaces suppress the installed tab bar", () => {
