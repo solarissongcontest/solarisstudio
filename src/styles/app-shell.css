@@ -2500,3 +2500,13 @@ html[data-solaris-app] .solaris-app-list-icon.is-muted {
   background: rgb(255 255 255 / .035);
   color: var(--muted-foreground);
 }
+
+
+html[data-solaris-app] .solaris-app-search-action {
+  display: flex;
+  min-height: 4rem;
+  min-width: 0;
+  align-items: center;
+  gap: .75rem;
+  padding: .6rem .65rem .6rem .85rem;
+}
