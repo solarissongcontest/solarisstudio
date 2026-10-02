@@ -68,13 +68,15 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
           (path) => path.startsWith("/admin/operations"),
         ),
         item(
-          "Action Center",
-          "Urgent blockers, upcoming deadlines and recent activity.",
-          "/admin/action-center",
+          "Tasks",
+          "Every unresolved organizer action, blocker and due item.",
+          "/admin/tasks",
           BellRing,
           "alerts blockers deadlines tasks",
           (path) =>
-            path.startsWith("/admin/action-center") || path.startsWith("/admin/action-centre"),
+            path.startsWith("/admin/tasks") ||
+            path.startsWith("/admin/action-center") ||
+            path.startsWith("/admin/action-centre"),
         ),
         item(
           "Delegations",
