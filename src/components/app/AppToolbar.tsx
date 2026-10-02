@@ -101,14 +101,8 @@ export function AppToolbar({
           )}
         </div>
 
-        {showBack ? (
-          toolbarOwnsHeading ? (
-            <h1 className="solaris-app-toolbar-context-title">{chrome.title}</h1>
-          ) : (
-            <span className="solaris-app-toolbar-context-title" aria-hidden="true">
-              {chrome.title}
-            </span>
-          )
+        {showBack && toolbarOwnsHeading ? (
+          <h1 className="solaris-app-toolbar-context-title">{chrome.title}</h1>
         ) : null}
 
         <div className="flex items-center gap-1">
