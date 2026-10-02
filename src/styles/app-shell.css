@@ -798,14 +798,14 @@ html[data-solaris-app-boot] body::before {
   }
 }
 
-@media (display-mode: standalone), (display-mode: window-controls-overlay) and (max-width: 767px) {
+@media (display-mode: standalone) and (max-width: 767px), (display-mode: window-controls-overlay) and (max-width: 767px) {
   .solaris-app-tabbar-material {
     left: calc(var(--solaris-tabbar-pull-width) / -2);
     width: calc(100% + var(--solaris-tabbar-pull-width));
   }
 }
 
-@media (display-mode: standalone), (display-mode: window-controls-overlay) and (max-width: 430px) {
+@media (display-mode: standalone) and (max-width: 430px), (display-mode: window-controls-overlay) and (max-width: 430px) {
   .solaris-app-search-card {
     gap: .5rem;
   }
@@ -888,7 +888,7 @@ html[data-solaris-app-boot] body::before {
 
 
 /* Installed iPad / large-screen rail --------------------------------------- */
-@media (display-mode: standalone), (display-mode: window-controls-overlay) and (min-width: 900px) {
+@media (display-mode: standalone) and (min-width: 900px), (display-mode: window-controls-overlay) and (min-width: 900px) {
   html {
     scroll-padding-bottom: 1.5rem;
     scroll-padding-left: 7.35rem;
@@ -1033,7 +1033,7 @@ html[data-solaris-app-boot] body::before {
   }
 }
 
-@media (display-mode: standalone), (display-mode: window-controls-overlay) and (max-width: 430px) {
+@media (display-mode: standalone) and (max-width: 430px), (display-mode: window-controls-overlay) and (max-width: 430px) {
   .app-main[data-solaris-app-mode="true"] {
     padding-inline: 1rem !important;
   }
@@ -1073,7 +1073,7 @@ html[data-solaris-app-boot] body::before {
   }
 }
 
-@media (display-mode: standalone), (display-mode: window-controls-overlay) and (max-width: 899px) {
+@media (display-mode: standalone) and (max-width: 899px), (display-mode: window-controls-overlay) and (max-width: 899px) {
   html[data-solaris-keyboard-open] .solaris-app-tabbar {
     opacity: 0;
     transform: translateY(calc(100% + 2rem));
@@ -1086,7 +1086,7 @@ html[data-solaris-app-boot] body::before {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  @media (display-mode: standalone), (display-mode: window-controls-overlay) and (max-width: 899px) {
+  @media (display-mode: standalone) and (max-width: 899px), (display-mode: window-controls-overlay) and (max-width: 899px) {
     html[data-solaris-keyboard-open] .solaris-app-tabbar {
       transition: none;
     }
@@ -1595,7 +1595,7 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
   }
 }
 
-@media (display-mode: standalone), (display-mode: window-controls-overlay) and (max-width: 599px) {
+@media (display-mode: standalone) and (max-width: 599px), (display-mode: window-controls-overlay) and (max-width: 599px) {
   .solaris-app-first-run {
     top: auto !important;
     bottom: max(.65rem, env(safe-area-inset-bottom));
@@ -1681,7 +1681,7 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
   min-width: 0;
 }
 
-@media (display-mode: standalone), (display-mode: window-controls-overlay) and (min-width: 900px) {
+@media (display-mode: standalone) and (min-width: 900px), (display-mode: window-controls-overlay) and (min-width: 900px) {
   .solaris-app-entity-workspace {
     display: grid;
     grid-template-columns: minmax(13.5rem, 15.5rem) minmax(0, 1fr);
@@ -1826,7 +1826,7 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
   }
 }
 
-@media (display-mode: standalone), (display-mode: window-controls-overlay) and (min-width: 1200px) {
+@media (display-mode: standalone) and (min-width: 1200px), (display-mode: window-controls-overlay) and (min-width: 1200px) {
   .solaris-app-entity-workspace {
     grid-template-columns: minmax(15.5rem, 17.5rem) minmax(0, 1fr);
     gap: 1.4rem;
@@ -1845,7 +1845,7 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
   display: none;
 }
 
-@media (display-mode: standalone), (display-mode: window-controls-overlay) and (min-width: 900px) {
+@media (display-mode: standalone) and (min-width: 900px), (display-mode: window-controls-overlay) and (min-width: 900px) {
   .solaris-app-adaptive-workspace {
     display: grid;
     grid-template-columns: minmax(13.5rem, 16rem) minmax(0, 1fr);
