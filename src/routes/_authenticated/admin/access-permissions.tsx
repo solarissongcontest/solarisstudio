@@ -345,7 +345,9 @@ function AccessPermissionsPage() {
           onClose={() => {
             if (!change.isPending) setPendingChange(null);
           }}
-          onConfirm={() => pendingChange ? change.mutateAsync(pendingChange) : undefined}
+          onConfirm={async () => {
+            if (pendingChange) await change.mutateAsync(pendingChange);
+          }}
           title={pendingChange ? permissionChangeTitle(pendingChange.change) : "Confirm access change"}
           description={
             pendingChange ? (
@@ -366,6 +368,119 @@ function AccessPermissionsPage() {
         />
       </div>
     </AdminPage>
+  );
+}
+
+function permissionCommand(change: AccessChange): PermissionChangeInput {
+  if (change.kind === "assign-role") {
+    return {
+      userId: change.userId,
+      kind: "assign_role",
+      key: change.roleKey,
+      editionId: change.editionId,
+    };
+  }
+  if (change.kind === "revoke-role") {
+    return {
+      userId: change.userId,
+      kind: "revoke_role",
+      key: change.roleKey,
+      editionId: change.editionId,
+    };
+  }
+  if (change.kind === "grant-capability") {
+    return {
+      userId: change.userId,
+      kind: "grant_capability",
+      key: change.capability,
+      editionId: change.editionId,
+    };
+  }
+  return {
+    userId: change.userId,
+    kind: "revoke_capability",
+    key: change.capability,
+    editionId: change.editionId,
+  };
+}
+
+function permissionChangeTitle(change: AccessChange) {
+  if (change.kind === "assign-role") return "Assign access role?";
+  if (change.kind === "revoke-role") return "Remove access role?";
+  if (change.kind === "grant-capability") return "Grant direct capability?";
+  return "Remove direct capability?";
+}
+
+function PermissionImpactPreview({ pending }: { pending: PendingAccessChange }) {
+  const warnings = Object.values(pending.preview.warnings).filter(
+    (warning): warning is string => Boolean(warning),
+  );
+
+  return (
+    <div className="space-y-3">
+      <p>
+        This is a <strong className="text-foreground">Risk R3</strong> permission mutation for{" "}
+        <strong className="text-foreground">{pending.preview.targetDisplayName}</strong>.
+        Solaris will reject it if that user&apos;s access changed after this preview was loaded.
+      </p>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Scope
+          </span>
+          <strong className="mt-1 block text-sm text-foreground">
+            {pending.preview.globalScope ? "Every edition" : "Selected edition"}
+          </strong>
+        </div>
+        <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Expected access version
+          </span>
+          <strong className="mt-1 block text-sm text-foreground">
+            v{pending.preview.expectedVersion}
+          </strong>
+        </div>
+      </div>
+
+      <div>
+        <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          Capabilities affected
+        </span>
+        <div className="mt-2 flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
+          {pending.preview.affectedCapabilities.length ? (
+            pending.preview.affectedCapabilities.map((capability) => (
+              <code
+                key={capability}
+                className="rounded-lg border border-white/[0.08] bg-white/[0.035] px-2 py-1 text-[11px] text-sky-100"
+              >
+                {capability}
+              </code>
+            ))
+          ) : (
+            <span className="text-xs text-muted-foreground">No capabilities are attached.</span>
+          )}
+        </div>
+      </div>
+
+      {warnings.length ? (
+        <div className="space-y-1.5">
+          {warnings.map((warning) => (
+            <p
+              key={warning}
+              className="rounded-lg border border-rose-200/15 bg-rose-200/[0.045] px-3 py-2 text-xs leading-5 text-rose-50"
+            >
+              {warning}
+            </p>
+          ))}
+        </div>
+      ) : null}
+
+      <p className="text-xs leading-5 text-muted-foreground">
+        The confirmed command receives one operation ID and one idempotency key. Retrying the same
+        confirmation replays the canonical receipt instead of applying the change twice.
+      </p>
+    </div>
   );
 }
 
