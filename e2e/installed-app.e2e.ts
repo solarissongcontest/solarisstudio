@@ -394,6 +394,77 @@ test("tab bar geometry stays bounded through drag, collapse and interrupted gest
   });
 });
 
+test("feature sheets trap focus, suppress app navigation and restore the trigger", async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "ios-pwa-portrait",
+    "Overlay interaction certification runs once at the representative iPhone width.",
+  );
+
+  await expectInstalledShell(page, "/explore");
+  const trigger = page.getByRole("button", { name: "More" }).first();
+  await trigger.click();
+
+  const sheet = page.locator('[data-solaris-sheet][data-state="open"]').last();
+  await expect(sheet).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-solaris-feature-overlay-open", "");
+  await expect(page.locator("html")).toHaveAttribute("data-solaris-overlay-kind", "sheet");
+  await expect(page.locator(".solaris-app-tabbar")).toHaveCSS("pointer-events", "none");
+
+  const focusedInside = await page.evaluate(() => {
+    const sheet = document.querySelector<HTMLElement>('[data-solaris-sheet][data-state="open"]');
+    return Boolean(sheet && document.activeElement && sheet.contains(document.activeElement));
+  });
+  expect(focusedInside, "opening a modal sheet must move focus inside it").toBe(true);
+
+  await page.keyboard.press("Tab");
+  const stillInside = await page.evaluate(() => {
+    const sheet = document.querySelector<HTMLElement>('[data-solaris-sheet][data-state="open"]');
+    return Boolean(sheet && document.activeElement && sheet.contains(document.activeElement));
+  });
+  expect(stillInside, "tab focus must remain inside the modal sheet").toBe(true);
+
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(page.locator("html")).not.toHaveAttribute("data-solaris-feature-overlay-open", "");
+  await expect(trigger).toBeFocused();
+});
+
+test("core installed screens reflow at 200 percent text on the narrow iPhone viewport", async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "ios-pwa-narrow-320",
+    "Large-text reflow is certified at the narrow 320 CSS-pixel viewport.",
+  );
+
+  for (const route of ["/", "/explore", "/results", "/rules", "/site-directory"]) {
+    await skipFirstRun(page);
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+    await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
+    await page.waitForTimeout(120);
+
+    const geometry = await page.evaluate(() => ({
+      overflow:
+        Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) -
+        window.innerWidth,
+      clippedControls: [...document.querySelectorAll<HTMLElement>(
+        "button, a[href], input, select, textarea",
+      )].flatMap((node) => {
+        if (node.getClientRects().length === 0) return [];
+        const style = getComputedStyle(node);
+        if (style.display === "none" || style.visibility === "hidden") return [];
+        const rect = node.getBoundingClientRect();
+        const overflowX = node.scrollWidth - node.clientWidth;
+        const overflowY = node.scrollHeight - node.clientHeight;
+        return overflowX > 3 || overflowY > 3
+          ? [`${node.tagName.toLowerCase()}:${Math.round(rect.width)}x${Math.round(rect.height)}`]
+          : [];
+      }),
+    }));
+
+    expect(geometry.overflow, `${route} must reflow at 200% text without horizontal scrolling`).toBeLessThanOrEqual(2);
+    expect(geometry.clippedControls, `${route} must not clip control labels at 200% text`).toEqual([]);
+  }
+});
+
 test("first run is a contained bottom sheet and suppresses global tabs", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded" });
 
