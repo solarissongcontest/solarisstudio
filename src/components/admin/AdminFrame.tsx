@@ -1,10 +1,10 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
-  Inbox,
+  BellRing,
+  Flag,
   LayoutDashboard,
   Layers3,
   MoreHorizontal,
-  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, type MouseEvent, type ReactNode } from "react";
@@ -12,7 +12,7 @@ import { useEffect, type MouseEvent, type ReactNode } from "react";
 import { DelegationColourOverview } from "@/components/confirmations/DelegationColourOverview";
 import {
   adminAppTabRoot,
-  adminCasesRoute,
+  adminDelegationRoute,
   adminEditionRoute,
   adminEntryHref,
   consumeAdminNavigationRestore,
@@ -58,17 +58,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
       label: "Home",
       href: "/admin/operations",
       icon: LayoutDashboard,
-      active: (path) =>
-        path.startsWith("/admin/operations") ||
-        path.startsWith("/admin/action-center") ||
-        path.startsWith("/admin/action-centre"),
-    },
-    {
-      id: "inbox",
-      label: "Inbox",
-      href: "/admin/inbox",
-      icon: Inbox,
-      active: (path) => path.startsWith("/admin/inbox"),
+      active: (path) => path.startsWith("/admin/operations"),
     },
     {
       id: "edition",
@@ -78,11 +68,21 @@ export function AdminFrame({ children }: { children: ReactNode }) {
       active: (path) => adminEditionRoute(path, slug),
     },
     {
-      id: "cases",
-      label: "Cases",
-      href: "/admin/integrity-investigations",
-      icon: ShieldCheck,
-      active: adminCasesRoute,
+      id: "tasks",
+      label: "Tasks",
+      href: "/admin/action-center",
+      icon: BellRing,
+      active: (path) =>
+        path.startsWith("/admin/action-center") ||
+        path.startsWith("/admin/action-centre") ||
+        path.startsWith("/admin/inbox"),
+    },
+    {
+      id: "delegations",
+      label: "Delegations",
+      href: "/admin/countries",
+      icon: Flag,
+      active: adminDelegationRoute,
     },
     {
       id: "more",
@@ -91,11 +91,13 @@ export function AdminFrame({ children }: { children: ReactNode }) {
       icon: MoreHorizontal,
       active: (path) =>
         !path.startsWith("/admin/operations") &&
-        !path.startsWith("/admin/action-center") &&
-        !path.startsWith("/admin/action-centre") &&
-        !path.startsWith("/admin/inbox") &&
-        !adminEditionRoute(path, slug) &&
-        !adminCasesRoute(path),
+        !(
+          path.startsWith("/admin/action-center") ||
+          path.startsWith("/admin/action-centre") ||
+          path.startsWith("/admin/inbox")
+        ) &&
+        !adminDelegationRoute(path) &&
+        !adminEditionRoute(path, slug),
     },
   ];
 
