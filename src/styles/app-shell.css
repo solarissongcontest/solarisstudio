@@ -2784,10 +2784,6 @@ html[data-solaris-app] .solaris-app-directory-tools > label {
     padding-bottom: 0;
   }
 
-  html[data-solaris-app] body[data-entity-theme="edition"] .edition-page-toolbar[data-app-compact="true"] {
-    margin-bottom: -.35rem;
-  }
-
   html[data-solaris-app] body[data-entity-theme="edition"] .edition-navigation,
   html[data-solaris-app] body[data-entity-theme="edition"][data-edition-public-style="glass"] .edition-navigation {
     position: relative;
@@ -2843,7 +2839,12 @@ html[data-solaris-app] .solaris-app-directory-tools > label {
     padding: .7rem .85rem;
   }
 
-  html[data-solaris-app] body[data-entity-theme="edition"] .edition-country-item + .edition-country-item {
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-country-list > :is(a, div) {
+    display: block;
+    min-width: 0;
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-country-list > :is(a, div) + :is(a, div) .edition-country-item {
     border-top: 1px solid rgb(210 236 248 / .085);
   }
 
