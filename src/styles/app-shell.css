@@ -2751,3 +2751,25 @@ html[data-solaris-app]
     padding: .9rem !important;
   }
 }
+
+
+html[data-solaris-app] .solaris-app-directory-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(7.5rem, 8.5rem);
+  gap: .5rem;
+  align-items: stretch;
+}
+
+html[data-solaris-app] .solaris-app-directory-tools > label {
+  min-width: 0;
+}
+
+@media (max-width: 340px) {
+  html[data-solaris-app] .solaris-app-directory-tools {
+    grid-template-columns: minmax(0, 1fr) 7.25rem;
+  }
+
+  html[data-solaris-app] .solaris-app-directory-tools select {
+    padding-inline: .6rem;
+  }
+}
