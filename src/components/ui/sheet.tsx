@@ -71,6 +71,7 @@ const SheetContent = React.forwardRef<
       <SheetPrimitive.Content
         ref={ref}
         data-solaris-sheet=""
+        data-side={side}
         className={cn(sheetVariants({ side }), className)}
         {...props}
       >
