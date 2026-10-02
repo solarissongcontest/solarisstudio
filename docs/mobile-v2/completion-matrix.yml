@@ -22,7 +22,7 @@ items:
   - { id: 16, name: touch-targets, status: verified, release_blocking: true, evidence: ["e2e/installed-app.e2e.ts"] }
   - { id: 17, name: flag-media-system, status: verified, release_blocking: true, evidence: ["src/components/FlagMedia.tsx", "src/flag-media.css", "e2e/installed-app.e2e.ts"] }
   - { id: 18, name: personality-guardrails, status: implemented, release_blocking: true, evidence: ["src/components/CountryPersonalityStyles.tsx", "src/country-personality-shared-foundation.css", "src/lib/app-personality-containment.contract.test.ts"] }
-  - { id: 19, name: css-architecture-cleanup, status: partial, release_blocking: true, evidence: ["src/lib/app-css-ownership.contract.test.ts"] }
+  - { id: 19, name: css-architecture-cleanup, status: implemented, release_blocking: true, evidence: ["src/styles.css", "src/styles/app-shell.css", "src/country-wiki-v8.css", "src/lib/app-css-ownership.contract.test.ts"] }
   - { id: 20, name: pwa-runtime-detection, status: verified, release_blocking: true, evidence: ["src/lib/platform.ts", "public/site.webmanifest"] }
   - { id: 21, name: viewport-keyboard-system, status: implemented, release_blocking: true, evidence: ["src/components/app/AppRuntime.tsx", "src/styles/app-shell.css"] }
   - { id: 22, name: cold-launch, status: implemented, release_blocking: true, evidence: ["src/lib/app-navigation.ts", "src/routes/app-launch.tsx"] }
@@ -69,10 +69,10 @@ items:
   - { id: 63, name: app-route-matrix, status: implemented, release_blocking: true, evidence: ["src/lib/app-screen-registry.ts", "e2e/installed-app.e2e.ts"] }
   - { id: 64, name: automated-mobile-invariant-crawler, status: implemented, release_blocking: true, evidence: ["e2e/installed-app.e2e.ts"] }
   - { id: 65, name: state-matrix, status: implemented, release_blocking: true, evidence: ["e2e/installed-app.e2e.ts", "e2e/account-states.e2e.ts", "e2e/organizer-routes.e2e.ts", "playwright.config.ts"] }
-  - { id: 66, name: visual-regression, status: partial, release_blocking: true, evidence: ["e2e/installed-app.e2e.ts"] }
+  - { id: 66, name: visual-regression, status: manual_gate, release_blocking: true, evidence: ["e2e/app-visual-capture.e2e.ts", ".github/workflows/browser-audit.yml", "docs/mobile-v2/release-certification.yml"] }
   - { id: 67, name: interaction-regression, status: implemented, release_blocking: true, evidence: ["e2e/installed-app.e2e.ts", "src/components/app/AppTabBar.tsx", "src/components/app/AppOverlayManager.tsx"] }
-  - { id: 68, name: physical-device-qa, status: manual_gate, release_blocking: true, evidence: [] }
+  - { id: 68, name: physical-device-qa, status: manual_gate, release_blocking: true, evidence: ["docs/mobile-v2/release-certification.md", "docs/mobile-v2/release-certification.yml"] }
   - { id: 69, name: web-regression-protection, status: implemented, release_blocking: true, evidence: ["playwright.config.ts", "e2e/public-routes.e2e.ts"] }
   - { id: 70, name: ci-quality-gates, status: implemented, release_blocking: true, evidence: [".github/workflows/browser-audit.yml", ".github/workflows/quality.yml"] }
-  - { id: 71, name: production-smoke-test, status: manual_gate, release_blocking: true, evidence: [] }
-  - { id: 72, name: implementation-sequence-and-cleanup, status: partial, release_blocking: true, evidence: ["src/lib/app-css-ownership.contract.test.ts"] }
+  - { id: 71, name: production-smoke-test, status: manual_gate, release_blocking: true, evidence: ["docs/mobile-v2/release-certification.md", "docs/mobile-v2/release-certification.yml"] }
+  - { id: 72, name: implementation-sequence-and-cleanup, status: implemented, release_blocking: true, evidence: ["src/lib/app-css-ownership.contract.test.ts", "docs/mobile-v2/completion-matrix.yml", "scripts/check-mobile-v2-release-readiness.mjs", ".github/workflows/mobile-v2-certification.yml"] }
