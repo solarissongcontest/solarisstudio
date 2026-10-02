@@ -28,6 +28,40 @@ describe("canonical Confirmations runtime", () => {
     expect(account).not.toContain("confirmationsSupabase");
   });
 
+  it("retires the standalone Confirmations Supabase client and admin bridge", () => {
+    const client = source("src/integrations/confirmations/client.ts");
+    const adminMigration = source(
+      "supabase/migrations/20261002174000_canonical_confirmations_admin_runtime.sql",
+    );
+    const env = source(".env");
+
+    expect(client).toContain('supabase as solarisSupabase');
+    expect(client).toContain("export const confirmationsSupabase = solarisSupabase");
+    expect(client).not.toContain("createClient");
+    expect(client).not.toContain("CONFIRMATIONS_LEGACY_ANON_KEY");
+    expect(client).not.toContain("VITE_CONFIRMATIONS_SUPABASE");
+    expect(env).not.toContain("CONFIRMATIONS_SUPABASE_");
+    expect(env).not.toContain("xwvnrpuqehqcatowxfpx");
+
+    for (const rpc of [
+      "admin_confirmation_editions",
+      "admin_confirmation_responses",
+      "admin_confirmation_response",
+      "admin_review_confirmation_entry",
+      "admin_confirmation_technical",
+      "admin_confirmation_version_summary",
+      "admin_confirmation_versions",
+      "admin_restore_confirmation_version",
+      "set_confirmation_national_final_winner_from_solaris",
+    ]) {
+      expect(adminMigration).toContain(rpc);
+    }
+
+    expect(adminMigration).toContain("private.solaris_confirmation_admin_allowed");
+    expect(adminMigration).toContain("delegation.manage");
+    expect(adminMigration).not.toContain("oxtbskojiexkaspputvo");
+  });
+
   it("restores the three public RPCs that were missing after the Supabase migration", () => {
     const runtime = source(
       "supabase/migrations/20261002164500_canonical_confirmations_public_runtime.sql",
