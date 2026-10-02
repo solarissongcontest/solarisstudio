@@ -1,3 +1,21 @@
+/* Installed-app first-paint guard ------------------------------------------- */
+html[data-solaris-app-boot] body > * {
+  visibility: hidden !important;
+}
+
+html[data-solaris-app-boot] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  visibility: visible;
+  background:
+    #020817
+    url("/solaris-studio-mark.png")
+    center / 4.25rem 4.25rem
+    no-repeat;
+}
+
 /* Solaris Studio installed-app chrome ---------------------------------------
    Web routes remain the source of truth. These rules only own the navigation
    and control layer when the site is running as an installed standalone app. */
