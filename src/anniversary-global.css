@@ -9,7 +9,7 @@ body.solaris-anniversary-day {
 .solaris-anniversary-global {
   position: fixed;
   inset: 0;
-  z-index: 96;
+  z-index: var(--solaris-z-sticky);
   pointer-events: none;
   overflow: hidden;
   isolation: isolate;
@@ -118,7 +118,7 @@ body.solaris-anniversary-day {
 
 .solaris-anniversary-star-burst {
   position: fixed;
-  z-index: 140;
+  z-index: var(--solaris-z-popover);
   width: 1px;
   height: 1px;
   pointer-events: none;
