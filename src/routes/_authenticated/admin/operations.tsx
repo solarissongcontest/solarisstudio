@@ -128,7 +128,7 @@ function OrganizerHome() {
                   }
                   description="Only actionable edition problems appear here. Each item opens the place where it can be fixed."
                   action={
-                    <Link to="/admin/tasks" className="text-xs font-semibold text-sky-100">
+                    <Link to="/admin/tasks" search={{ filter: "all" }} className="text-xs font-semibold text-sky-100">
                       Tasks →
                     </Link>
                   }
