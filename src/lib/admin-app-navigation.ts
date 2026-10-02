@@ -121,7 +121,8 @@ export function adminAppTabForPath(pathname: string, slug?: string | null): Admi
   if (!safeAdminPath(pathname)) return null;
   if (pathname.startsWith("/admin/operations")) return "home";
   if (
-    pathname.startsWith("/admin/tasks") ||\n    pathname.startsWith("/admin/action-center") ||
+    pathname.startsWith("/admin/tasks") ||
+    pathname.startsWith("/admin/action-center") ||
     pathname.startsWith("/admin/action-centre") ||
     pathname.startsWith("/admin/inbox")
   ) return "tasks";
