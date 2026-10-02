@@ -35,22 +35,31 @@ function AppLaunchPage() {
       };
     }
 
-    void supabase.auth.getUser().then(({ data }) => {
-      if (!alive) return;
-      const target = getAppLaunchDestination(Boolean(data.user));
-      trackPublicUxEvent("app_cold_launch_restored", {
-        target: appEntryHref(target),
-        metadata: {
-          area: appTabForPath(target.pathname) ?? "app",
-          source: "cold_launch",
-        },
+    // getSession reads the locally persisted Supabase session. Cold launch must
+    // not wait for a remote auth round-trip before the app can render.
+    void supabase.auth.getSession()
+      .then(({ data }) => {
+        if (!alive) return;
+        const target = getAppLaunchDestination(Boolean(data.session?.user));
+        trackPublicUxEvent("app_cold_launch_restored", {
+          target: appEntryHref(target),
+          metadata: {
+            area: appTabForPath(target.pathname) ?? "app",
+            source: "cold_launch_local_session",
+          },
+        });
+        markAppNavigationRestore(target);
+        void navigate({
+          to: appEntryHref(target) as any,
+          replace: true,
+        });
+      })
+      .catch(() => {
+        if (!alive) return;
+        const target = getAppLaunchDestination(false);
+        markAppNavigationRestore(target);
+        void navigate({ to: appEntryHref(target) as any, replace: true });
       });
-      markAppNavigationRestore(target);
-      void navigate({
-        to: appEntryHref(target) as any,
-        replace: true,
-      });
-    });
 
     return () => {
       alive = false;
