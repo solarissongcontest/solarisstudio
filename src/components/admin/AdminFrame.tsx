@@ -23,6 +23,7 @@ import {
   updateAdminScrollPosition,
   type AdminAppTabId,
 } from "@/lib/admin-app-navigation";
+import { useOrganizerTaskCountV5 } from "@/lib/admin-tasks-v5";
 import { useEditions } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { useAdminContext } from "./AdminContext";
@@ -51,6 +52,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
     null;
   const slug = activeEdition?.slug;
   const editionHref = slug ? `/admin/${slug}` : "/admin";
+  const { data: unresolvedTaskCount = 0 } = useOrganizerTaskCountV5(activeEdition?.id ?? null);
 
   const mobileItems: MobileItem[] = [
     {
@@ -226,7 +228,17 @@ export function AdminFrame({ children }: { children: ReactNode }) {
                     : "text-muted-foreground hover:bg-white/[0.035] hover:text-foreground",
                 )}
               >
-                <Icon className="size-[1.08rem]" />
+                <span className="relative">
+                  <Icon className="size-[1.08rem]" />
+                  {item.id === "tasks" && unresolvedTaskCount > 0 ? (
+                    <span
+                      className="absolute -right-3 -top-2 min-w-4 rounded-full border border-[#06101f] bg-rose-500 px-1 text-center text-[8px] font-bold leading-4 text-white"
+                      aria-label={`${unresolvedTaskCount} unresolved organizer task${unresolvedTaskCount === 1 ? "" : "s"}`}
+                    >
+                      {unresolvedTaskCount > 99 ? "99+" : unresolvedTaskCount}
+                    </span>
+                  ) : null}
+                </span>
                 <span className="w-full truncate text-center">{item.label}</span>
               </Link>
             );
