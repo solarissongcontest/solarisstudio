@@ -15,8 +15,8 @@ items:
   - { id: 9, name: screen-title-rules, status: implemented, release_blocking: true, evidence: ["src/components/app/AppToolbar.tsx", "e2e/installed-app.e2e.ts"] }
   - { id: 10, name: toolbar-actions, status: implemented, release_blocking: false, evidence: ["src/components/app/AppToolbar.tsx"] }
   - { id: 11, name: search-architecture, status: implemented, release_blocking: true, evidence: ["src/components/public/PublicCommandPalette.tsx", "supabase/migrations/20261002153000_public_app_search.sql"] }
-  - { id: 12, name: app-primitives, status: partial, release_blocking: false, evidence: ["src/styles/app-shell.css", "src/components/app"] }
-  - { id: 13, name: card-rules, status: partial, release_blocking: false, evidence: ["src/styles/app-shell.css"] }
+  - { id: 12, name: app-primitives, status: implemented, release_blocking: false, evidence: ["src/components/app/AppPrimitives.tsx", "src/styles/app-shell.css", "src/lib/mobile-v2-composition.contract.test.ts"] }
+  - { id: 13, name: card-rules, status: implemented, release_blocking: false, evidence: ["src/components/app/AppPrimitives.tsx", "src/styles/app-shell.css", "src/lib/mobile-v2-composition.contract.test.ts"] }
   - { id: 14, name: liquid-glass-policy, status: implemented, release_blocking: true, evidence: ["src/components/app/KubeLiquidGlassBackdrop.tsx", "src/styles/app-shell.css"] }
   - { id: 15, name: tabbar-readability, status: implemented, release_blocking: true, evidence: ["src/styles/app-shell.css"] }
   - { id: 16, name: touch-targets, status: verified, release_blocking: true, evidence: ["e2e/installed-app.e2e.ts"] }
@@ -39,7 +39,7 @@ items:
   - { id: 33, name: shows, status: implemented, release_blocking: false, evidence: ["src/routes/shows/index.tsx", "src/routes/shows/$showId.tsx"] }
   - { id: 34, name: show-mode, status: implemented, release_blocking: true, evidence: ["src/routes/show-mode/index.tsx", "src/lib/app-screen-registry.ts"] }
   - { id: 35, name: results-root, status: implemented, release_blocking: false, evidence: ["src/routes/results/index.tsx"] }
-  - { id: 36, name: heavy-data-experiences, status: partial, release_blocking: false, evidence: ["src/routes/analysis", "src/routes/result-lab", "src/routes/scorecharts"] }
+  - { id: 36, name: heavy-data-experiences, status: implemented, release_blocking: false, evidence: ["src/routes/analysis/index.tsx", "src/routes/result-lab/index.tsx", "src/routes/scorecharts/index.tsx", "src/lib/mobile-v2-composition.contract.test.ts"] }
   - { id: 37, name: wiki-redesign, status: implemented, release_blocking: false, evidence: ["src/components/wiki/CountryWikiExperience.tsx"] }
   - { id: 38, name: wiki-performance, status: implemented, release_blocking: true, evidence: ["src/components/wiki/CountryWikiExperience.tsx", "src/lib/data-live.ts"] }
   - { id: 39, name: rules, status: implemented, release_blocking: false, evidence: ["src/routes/rules", "src/components/rules/RulesHomeV5.tsx"] }
@@ -54,7 +54,7 @@ items:
   - { id: 48, name: notification-policy, status: implemented, release_blocking: true, evidence: ["src/lib/app-notifications.ts"] }
   - { id: 49, name: error-states, status: implemented, release_blocking: true, evidence: ["src/components/app/AppRouteStateFrame.tsx", "src/lib/app-error-state.ts", "src/lib/app-error-state.test.ts", "src/routes/__root.tsx"] }
   - { id: 50, name: loading-states, status: implemented, release_blocking: false, evidence: ["src/components/app/AppRouteStateFrame.tsx"] }
-  - { id: 51, name: empty-states, status: partial, release_blocking: false, evidence: ["src/components/public/PublicDataState.tsx"] }
+  - { id: 51, name: empty-states, status: implemented, release_blocking: false, evidence: ["src/components/app/AppPrimitives.tsx", "src/components/public/PublicDataState.tsx", "src/routes/countries/index.tsx", "src/routes/editions/index.tsx", "src/routes/shows/index.tsx", "src/routes/site-directory/index.tsx"] }
   - { id: 52, name: offline-behaviour, status: implemented, release_blocking: true, evidence: ["src/lib/app-screen-registry.ts", "public/offline.html"] }
   - { id: 53, name: pwa-lifecycle, status: implemented, release_blocking: true, evidence: ["src/components/app/AppRuntime.tsx", "src/lib/app-lifecycle.ts", "src/lib/app-connectivity.ts", "e2e/installed-app.e2e.ts"] }
   - { id: 54, name: accessibility, status: implemented, release_blocking: true, evidence: ["src/styles.css", "e2e/audit-helpers.ts", "e2e/installed-app.e2e.ts"] }
@@ -64,7 +64,7 @@ items:
   - { id: 58, name: telemetry, status: implemented, release_blocking: false, evidence: ["src/lib/public-ux-events.ts", "src/components/app/AppTelemetryBridge.tsx"] }
   - { id: 59, name: performance-budget, status: implemented, release_blocking: true, evidence: ["src/lib/public-web-vitals.ts", "scripts/check-client-bundle-budget.mjs", ".github/workflows/ci.yml", ".github/workflows/browser-audit.yml"] }
   - { id: 60, name: data-overfetching, status: implemented, release_blocking: true, evidence: ["src/lib/data.ts", "src/lib/data-live.ts", "src/routes/countries/index.tsx", "src/routes/countries/$code.tsx", "src/routes/editions/$slug.tsx", "src/components/wiki/CountryWikiExperience.tsx", "src/lib/app-data-overfetch.contract.test.ts"] }
-  - { id: 61, name: route-code-splitting, status: partial, release_blocking: false, evidence: ["src/components/AppShell.tsx", "src/routes/countries/$code.tsx"] }
+  - { id: 61, name: route-code-splitting, status: implemented, release_blocking: false, evidence: ["src/components/AppShell.tsx", "src/routes/countries/$code.tsx", "src/routes/analysis/index.tsx", "scripts/check-client-bundle-budget.mjs", "src/lib/mobile-v2-composition.contract.test.ts"] }
   - { id: 62, name: image-media-performance, status: implemented, release_blocking: false, evidence: ["src/components/FlagMedia.tsx"] }
   - { id: 63, name: app-route-matrix, status: implemented, release_blocking: true, evidence: ["src/lib/app-screen-registry.ts", "e2e/installed-app.e2e.ts"] }
   - { id: 64, name: automated-mobile-invariant-crawler, status: implemented, release_blocking: true, evidence: ["e2e/installed-app.e2e.ts"] }
