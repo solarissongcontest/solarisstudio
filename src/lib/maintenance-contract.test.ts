@@ -28,6 +28,14 @@ describe("emergency global maintenance mode", () => {
     expect(envExample).not.toContain('VITE_MAINTENANCE_ADMIN_SECRET');
   });
 
+  it("allows browser CI to audit the hidden application only on localhost", () => {
+    expect(server).toContain('SOLARIS_E2E_BYPASS_MAINTENANCE !== "1"');
+    expect(server).toContain('url.hostname === "127.0.0.1" || url.hostname === "localhost"');
+    expect(server).toContain('x-solaris-e2e-bypass-maintenance');
+    expect(server).toContain('!hasLocalE2EMaintenanceBypass(request)');
+    expect(server).not.toContain('VITE_SOLARIS_E2E_BYPASS_MAINTENANCE');
+  });
+
   it("uses the canonical Solaris visual system and reduced-motion-safe animation", () => {
     expect(page).toContain('font-family: "Classica Crastao"');
     expect(page).toContain('font-family: "Gotham"');
