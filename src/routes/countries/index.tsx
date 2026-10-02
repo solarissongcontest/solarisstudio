@@ -119,6 +119,7 @@ function AppCountriesPage() {
             eyebrow={`${filtered.length} delegations`}
             title="Countries"
             id="app-country-directory"
+            headingLevel={1}
           />
           <AppGroupedList>
             {visible.map((country) => (
