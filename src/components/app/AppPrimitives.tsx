@@ -20,18 +20,21 @@ export function AppSectionHeader({
   id,
   trailing,
   className,
+  headingLevel = 2,
 }: {
   eyebrow: ReactNode;
   title: ReactNode;
   id?: string;
   trailing?: ReactNode;
   className?: string;
+  headingLevel?: 1 | 2;
 }) {
+  const Heading = headingLevel === 1 ? "h1" : "h2";
   return (
     <div className={cn("solaris-app-section-heading", className)}>
       <div className="min-w-0">
         <p>{eyebrow}</p>
-        <h2 id={id}>{title}</h2>
+        <Heading id={id}>{title}</Heading>
       </div>
       {trailing ? <div className="shrink-0">{trailing}</div> : null}
     </div>
