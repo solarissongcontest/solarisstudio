@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ChevronRight } from "lucide-react";
 import { useMemo } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { BackgroundFlag } from "@/components/BackgroundFlag";
 import { FlagChip } from "@/components/FlagChip";
@@ -44,6 +46,86 @@ type ShowCard = {
 };
 
 function ShowsPage() {
+  const { isAppMode } = useSolarisApp();
+  return isAppMode ? <AppShowsPage /> : <WebShowsPage />;
+}
+
+function AppShowsPage() {
+  const editionsQuery = useEditions();
+  const showsQuery = useAllShows();
+  const { data: editions } = editionsQuery;
+  const { data: shows } = showsQuery;
+
+  const editionMap = useMemo(
+    () => new Map((editions ?? []).map((edition) => [edition.id, edition])),
+    [editions],
+  );
+
+  const groups = useMemo(() => {
+    const map = new Map<string, { edition: any; shows: any[] }>();
+    for (const show of shows ?? []) {
+      if (!isShowPublic(show)) continue;
+      const edition = editionMap.get(show.edition_id);
+      if (!edition?.published) continue;
+      const current = map.get(edition.id) ?? { edition, shows: [] };
+      current.shows.push(show);
+      map.set(edition.id, current);
+    }
+
+    return [...map.values()]
+      .map((group) => ({
+        ...group,
+        shows: [...group.shows].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+      }))
+      .sort((a, b) => (b.edition.edition_number ?? -1) - (a.edition.edition_number ?? -1));
+  }, [editionMap, shows]);
+
+  if (archiveIsLoading(editionsQuery, showsQuery)) {
+    return <AppShell><ArchiveDataLoading label="Loading shows…" /></AppShell>;
+  }
+  if (archiveHasError(editionsQuery, showsQuery)) {
+    return <AppShell><ArchiveDataError /></AppShell>;
+  }
+
+  return (
+    <AppShell>
+      <div className="space-y-5">
+        {groups.map((group) => (
+          <section key={group.edition.id} aria-labelledby={`app-shows-${group.edition.id}`}>
+            <div className="solaris-app-section-heading">
+              <p>{group.shows.length} show{group.shows.length === 1 ? "" : "s"}</p>
+              <h2 id={`app-shows-${group.edition.id}`}>{editionLabel(group.edition)}</h2>
+            </div>
+            <div className="solaris-app-grouped-list">
+              {group.shows.map((show) => (
+                <Link
+                  key={show.id}
+                  to="/shows/$showId"
+                  params={{ showId: show.id }}
+                  className="solaris-app-list-row"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold">{show.name}</span>
+                    <span className="mt-0.5 block text-xs capitalize text-muted-foreground">
+                      {showKindLabel(show.kind)}
+                    </span>
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                </Link>
+              ))}
+            </div>
+          </section>
+        ))}
+
+        {!groups.length ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">No public shows are available yet.</p>
+        ) : null}
+      </div>
+    </AppShell>
+  );
+}
+
+function WebShowsPage() {
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
   const countriesQuery = useCountries();
