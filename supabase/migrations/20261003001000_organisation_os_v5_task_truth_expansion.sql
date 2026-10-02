@@ -125,11 +125,10 @@ as $media$
     where entry.status = 'confirmed'
       and nullif(btrim(entry.song_url), '') is not null
       and btrim(entry.song_url) !~* '^https?://'
-      and coalesce(
-        (entry.metadata ->> 'video_processing')::boolean,
-        (entry.metadata ->> 'videoProcessing')::boolean,
-        false
-      ) = false
+      and not (
+        entry.metadata ->> 'video_processing' = 'true'
+        or entry.metadata ->> 'videoProcessing' = 'true'
+      )
       and (p_edition_id is null or entry.edition_id = p_edition_id)
 
     union all
@@ -144,11 +143,10 @@ as $media$
     where entry.status = 'confirmed'
       and nullif(btrim(entry.song_url), '') is not null
       and btrim(entry.song_url) ~* '^https?://'
-      and coalesce(
-        (entry.metadata ->> 'video_processing')::boolean,
-        (entry.metadata ->> 'videoProcessing')::boolean,
-        false
-      ) = false
+      and not (
+        entry.metadata ->> 'video_processing' = 'true'
+        or entry.metadata ->> 'videoProcessing' = 'true'
+      )
       and (p_edition_id is null or entry.edition_id = p_edition_id)
       and exists (
         select 1
