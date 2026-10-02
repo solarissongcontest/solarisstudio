@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
+import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
 import type { PublicRound } from "@/lib/public.functions";
 
 type JsonValue =
@@ -14,29 +14,9 @@ type JsonValue =
 
 type ConfirmationSubmission = { [key: string]: JsonValue };
 
-function getConfirmationsSupabase() {
-  const url =
-    import.meta.env.VITE_CONFIRMATIONS_SUPABASE_URL ||
-    process.env["CONFIRMATIONS_SUPABASE_URL"];
-  const key =
-    import.meta.env.VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY ||
-    process.env["CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY"];
-
-  if (!url || !key) {
-    throw new Error("Missing Confirmations Supabase configuration.");
-  }
-
-  return createClient(url, key, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      storage: undefined,
-    },
-  });
-}
 
 async function rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
-  const db = getConfirmationsSupabase();
+  const db = createConfirmationPublicRuntimeClient();
   const { data, error } = await db.rpc(name, args);
   if (error) throw new Error(error.message);
   return data as T;
