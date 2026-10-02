@@ -74,4 +74,23 @@ describe("installed app route chrome", () => {
     });
   });
 
+  it("pins Rules and the site directory to Explore instead of remembered tab state", () => {
+    expect(resolveAppRouteChrome("/rules")).toMatchObject({
+      tab: "explore",
+      archetype: "reading",
+      backFallback: { label: "Explore", to: "/explore" },
+    });
+    expect(resolveAppRouteChrome("/site-directory")).toMatchObject({
+      tab: "explore",
+      archetype: "directory",
+      backFallback: { label: "Explore", to: "/explore" },
+    });
+  });
+
+  it("uses useful compact entity titles instead of repeating parent names", () => {
+    expect(resolveAppRouteChrome("/editions/ssc-21").title).toBe("SSC 21");
+    expect(resolveAppRouteChrome("/countries/abe").title).toBe("ABE");
+    expect(resolveAppRouteChrome("/wiki/abe").title).toBe("ABE");
+  });
+
 });

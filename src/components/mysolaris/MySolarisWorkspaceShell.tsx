@@ -7,7 +7,7 @@ import { MySolarisWorkspaceNav } from "@/components/mysolaris/MySolarisWorkspace
 export function MySolarisWorkspaceShell({ children }: { children: ReactNode }) {
   return (
     <MySolarisProvider>
-      <div className="min-w-0 lg:grid lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:items-start lg:gap-6 xl:grid-cols-[14.5rem_minmax(0,1fr)]">
+      <div className="solaris-mysolaris-workspace min-w-0 lg:grid lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:items-start lg:gap-6 xl:grid-cols-[14.5rem_minmax(0,1fr)]">
         <MySolarisWorkspaceNav />
         <div className="min-w-0">
           <MySolarisAnniversaryRecap />

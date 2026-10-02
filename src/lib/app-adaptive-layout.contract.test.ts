@@ -11,7 +11,7 @@ describe("installed app adaptive layout", () => {
     expect(tabs).toContain('data-layout={railMode ? "rail" : "bar"}');
     expect(tabs).toContain("railMode ||");
     expect(css).toContain("Installed iPad / large-screen rail");
-    expect(css).toContain("@media (display-mode: standalone) and (min-width: 900px)");
+    expect(css).toContain("@media (display-mode: standalone) and (min-width: 900px), (display-mode: window-controls-overlay) and (min-width: 900px)");
     expect(css).toContain("grid-template-columns: 1fr");
   });
 

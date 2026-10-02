@@ -1,3 +1,21 @@
+/* Installed-app first-paint guard ------------------------------------------- */
+html[data-solaris-app-boot] body > * {
+  visibility: hidden !important;
+}
+
+html[data-solaris-app-boot] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  visibility: visible;
+  background:
+    #020817
+    url("/solaris-studio-mark.png")
+    center / 4.25rem 4.25rem
+    no-repeat;
+}
+
 /* Solaris Studio installed-app chrome ---------------------------------------
    Web routes remain the source of truth. These rules only own the navigation
    and control layer when the site is running as an installed standalone app. */
@@ -44,7 +62,7 @@
 
 .solaris-install-action,
 .solaris-install-dismiss {
-  min-height: 2.65rem;
+  min-height: 2.75rem;
   border-radius: .85rem;
   font-size: .72rem;
   font-weight: 800;
@@ -57,11 +75,11 @@
 }
 
 .solaris-install-dismiss {
-  min-width: 2.65rem;
+  min-width: 2.75rem;
   color: var(--muted-foreground);
 }
 
-@media (display-mode: standalone) {
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
   html,
   body {
     min-height: 100%;
@@ -380,7 +398,7 @@
 
   .solaris-app-update-button {
     display: inline-flex;
-    min-height: 2.65rem;
+    min-height: 2.75rem;
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;
@@ -601,7 +619,7 @@
 
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  @media (display-mode: standalone) {
+  @media (display-mode: standalone), (display-mode: window-controls-overlay) {
     .solaris-app-toolbar,
     .solaris-app-tabbar-backdrop {
       background: rgb(5 18 41 / .98);
@@ -610,7 +628,7 @@
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  @media (display-mode: standalone) {
+  @media (display-mode: standalone), (display-mode: window-controls-overlay) {
     .solaris-app-toolbar,
     .solaris-app-tabbar-backdrop {
       -webkit-backdrop-filter: none;
@@ -621,7 +639,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  @media (display-mode: standalone) {
+  @media (display-mode: standalone), (display-mode: window-controls-overlay) {
     .solaris-app-tab {
       transition: none;
     }
@@ -630,7 +648,7 @@
 
 
 /* Installed-app navigation polish ------------------------------------------ */
-@media (display-mode: standalone) {
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
   html {
     scroll-padding-bottom: calc(
       var(--solaris-app-tabbar-height) +
@@ -688,7 +706,7 @@
   }
 
   .solaris-app-tabbar.is-collapsed .solaris-app-tab {
-    min-height: 2.72rem;
+    min-height: 2.75rem;
     gap: 0;
   }
 
@@ -780,14 +798,14 @@
   }
 }
 
-@media (display-mode: standalone) and (max-width: 767px) {
+@media (display-mode: standalone) and (max-width: 767px), (display-mode: window-controls-overlay) and (max-width: 767px) {
   .solaris-app-tabbar-material {
     left: calc(var(--solaris-tabbar-pull-width) / -2);
     width: calc(100% + var(--solaris-tabbar-pull-width));
   }
 }
 
-@media (display-mode: standalone) and (max-width: 430px) {
+@media (display-mode: standalone) and (max-width: 430px), (display-mode: window-controls-overlay) and (max-width: 430px) {
   .solaris-app-search-card {
     gap: .5rem;
   }
@@ -799,7 +817,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  @media (display-mode: standalone) {
+  @media (display-mode: standalone), (display-mode: window-controls-overlay) {
     .solaris-app-tabbar,
     .solaris-app-tabbar-material,
     .solaris-app-tab-label,
@@ -810,7 +828,7 @@
 }
 
 
-@media (display-mode: standalone) {
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
   .solaris-kube-liquid-filter {
     position: absolute;
     width: 0;
@@ -870,7 +888,7 @@
 
 
 /* Installed iPad / large-screen rail --------------------------------------- */
-@media (display-mode: standalone) and (min-width: 900px) {
+@media (display-mode: standalone) and (min-width: 900px), (display-mode: window-controls-overlay) and (min-width: 900px) {
   html {
     scroll-padding-bottom: 1.5rem;
     scroll-padding-left: 7.35rem;
@@ -946,7 +964,7 @@
 /* Installed-app information hierarchy --------------------------------------
    Website mode keeps its editorial heroes. Installed App Mode is operational:
    the toolbar owns root-page identity, while content begins with useful state. */
-@media (display-mode: standalone) {
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
   .app-main[data-solaris-app-mode="true"] {
     padding-top: .55rem !important;
   }
@@ -1015,7 +1033,7 @@
   }
 }
 
-@media (display-mode: standalone) and (max-width: 430px) {
+@media (display-mode: standalone) and (max-width: 430px), (display-mode: window-controls-overlay) and (max-width: 430px) {
   .app-main[data-solaris-app-mode="true"] {
     padding-inline: 1rem !important;
   }
@@ -1027,7 +1045,7 @@
 
 
 /* App Experience v3: lifecycle, keyboard and connectivity ------------------ */
-@media (display-mode: standalone) {
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
   html {
     --solaris-keyboard-inset: 0px;
     --solaris-visual-viewport-height: 100dvh;
@@ -1055,7 +1073,7 @@
   }
 }
 
-@media (display-mode: standalone) and (max-width: 899px) {
+@media (display-mode: standalone) and (max-width: 899px), (display-mode: window-controls-overlay) and (max-width: 899px) {
   html[data-solaris-keyboard-open] .solaris-app-tabbar {
     opacity: 0;
     transform: translateY(calc(100% + 2rem));
@@ -1068,7 +1086,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  @media (display-mode: standalone) and (max-width: 899px) {
+  @media (display-mode: standalone) and (max-width: 899px), (display-mode: window-controls-overlay) and (max-width: 899px) {
     html[data-solaris-keyboard-open] .solaris-app-tabbar {
       transition: none;
     }
@@ -1077,7 +1095,7 @@
 
 
 /* App Experience v3: focused task and install surfaces --------------------- */
-@media (display-mode: standalone) {
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
   .solaris-app-toolbar {
     position: relative;
   }
@@ -1110,7 +1128,7 @@
 
   .solaris-app-task-utility {
     display: inline-flex;
-    min-height: 2.5rem;
+    min-height: 2.75rem;
     align-items: center;
     justify-content: center;
     border: 1px solid rgb(210 236 248 / .13);
@@ -1176,7 +1194,7 @@
 .solaris-install-action,
 .solaris-install-dismiss {
   display: inline-flex;
-  min-height: 2.65rem;
+  min-height: 2.75rem;
   align-items: center;
   justify-content: center;
   border-radius: .85rem;
@@ -1191,7 +1209,7 @@
 }
 
 .solaris-install-dismiss {
-  min-width: 2.65rem;
+  min-width: 2.75rem;
   border: 1px solid rgb(210 236 248 / .13);
   background: rgb(255 255 255 / .035);
   color: var(--muted-foreground);
@@ -1214,8 +1232,8 @@
 
 
 /* App Experience v3: resilient route states -------------------------------- */
-@media (display-mode: standalone) {
-  [data-solaris-app-route-state] .app-main {
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
+  .app-main[data-solaris-app-mode="true"]:has([data-solaris-app-route-state]) {
     min-height: calc(
       var(--solaris-visual-viewport-height, 100dvh) -
       var(--solaris-app-toolbar-height) -
@@ -1306,7 +1324,7 @@
 
 
 /* App Experience v3: full-screen mobile search ----------------------------- */
-@media (display-mode: standalone) {
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
   .solaris-app-search-dialog {
     inset: 0 !important;
     left: 0 !important;
@@ -1393,7 +1411,7 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
 }
 
 .solaris-show-mode-picker button {
-  min-height: 2.65rem;
+  min-height: 2.75rem;
   flex: 0 0 auto;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -1471,7 +1489,7 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
   background: rgb(139 198 222 / .05);
 }
 
-@media (display-mode: standalone) {
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
   [data-solaris-app-screen="live"] {
     padding-top: .7rem !important;
   }
@@ -1496,7 +1514,7 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
 
 
 /* App Experience v3: native-feel transitions and first run ---------------- */
-@media (display-mode: standalone) {
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
   .solaris-app-toolbar {
     view-transition-name: solaris-app-toolbar;
   }
@@ -1577,7 +1595,7 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
   }
 }
 
-@media (display-mode: standalone) and (max-width: 599px) {
+@media (display-mode: standalone) and (max-width: 599px), (display-mode: window-controls-overlay) and (max-width: 599px) {
   .solaris-app-first-run {
     top: auto !important;
     bottom: max(.65rem, env(safe-area-inset-bottom));
@@ -1663,7 +1681,7 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
   min-width: 0;
 }
 
-@media (display-mode: standalone) and (min-width: 900px) {
+@media (display-mode: standalone) and (min-width: 900px), (display-mode: window-controls-overlay) and (min-width: 900px) {
   .solaris-app-entity-workspace {
     display: grid;
     grid-template-columns: minmax(13.5rem, 15.5rem) minmax(0, 1fr);
@@ -1808,7 +1826,7 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
   }
 }
 
-@media (display-mode: standalone) and (min-width: 1200px) {
+@media (display-mode: standalone) and (min-width: 1200px), (display-mode: window-controls-overlay) and (min-width: 1200px) {
   .solaris-app-entity-workspace {
     grid-template-columns: minmax(15.5rem, 17.5rem) minmax(0, 1fr);
     gap: 1.4rem;
@@ -1827,7 +1845,7 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
   display: none;
 }
 
-@media (display-mode: standalone) and (min-width: 900px) {
+@media (display-mode: standalone) and (min-width: 900px), (display-mode: window-controls-overlay) and (min-width: 900px) {
   .solaris-app-adaptive-workspace {
     display: grid;
     grid-template-columns: minmax(13.5rem, 16rem) minmax(0, 1fr);
@@ -1976,12 +1994,665 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
 
 
 /* Governance OS v5: read-only connectivity should inform, not obstruct. */
-@media (display-mode: standalone) {
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
   .solaris-app-offline[data-solaris-app-banner-context="reading"] {
     width: auto;
     max-width: calc(100vw - 2rem);
     padding: .4rem .65rem;
     font-size: .66rem;
     box-shadow: 0 8px 22px rgb(0 3 20 / .14);
+  }
+}
+
+
+/* Mobile App V2 foundations -------------------------------------------------
+   App chrome owns viewport geometry. Feature/personality styles may decorate
+   content but must not guess fixed navigation clearance or overlay order. */
+:root {
+  --solaris-app-bottom-obstruction:
+    calc(var(--solaris-app-tabbar-height) + max(1rem, env(safe-area-inset-bottom)));
+  --solaris-z-toolbar: 55;
+  --solaris-z-tabbar: 60;
+  --solaris-z-popover: 80;
+  --solaris-z-sheet-backdrop: 89;
+  --solaris-z-sheet: 90;
+  --solaris-z-dialog-backdrop: 99;
+  --solaris-z-dialog: 100;
+}
+
+html[data-solaris-app] .app-main[data-solaris-app-mode="true"] {
+  padding-bottom:
+    calc(var(--solaris-app-bottom-obstruction, 0px) + 1.25rem) !important;
+  scroll-padding-bottom:
+    calc(var(--solaris-app-bottom-obstruction, 0px) + 1.25rem);
+}
+
+html[data-solaris-app]
+  .app-main[data-solaris-app-mode="true"][data-solaris-app-tabbar="hidden"] {
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom)) !important;
+  scroll-padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+}
+
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="settings"]
+  .page-header,
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="workspace"]
+  .page-header,
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="directory"]
+  .page-header {
+  display: none !important;
+}
+
+html[data-solaris-app] .solaris-app-tabbar.is-minimal {
+  left: 50%;
+  right: auto;
+  width: min(18rem, calc(100vw - 1.3rem));
+  transform: translateX(-50%);
+}
+
+html[data-solaris-app] .solaris-app-tabbar.is-minimal .solaris-app-tabbar-material,
+html[data-solaris-app] .solaris-app-tabbar.is-minimal.is-collapsed .solaris-app-tabbar-material {
+  --solaris-tab-pad: .25rem;
+  --solaris-tab-total-inset: .5rem;
+  width: 100%;
+  min-height: 3.25rem;
+  padding: var(--solaris-tab-pad);
+  border-radius: 1.3rem;
+}
+
+html[data-solaris-app] .solaris-app-tabbar.is-minimal .solaris-app-tab {
+  min-height: 2.75rem;
+  gap: 0;
+}
+
+html[data-solaris-app] .solaris-app-tabbar.is-minimal .solaris-app-tab-label {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(.15rem);
+}
+
+html[data-solaris-app] .solaris-app-tabbar.is-minimal .solaris-app-tab-indicator {
+  height: 2.7rem;
+  border-radius: .95rem;
+}
+
+/* Glass is navigation material, not a second reading layer. Give it a stable
+   legibility floor across light/bright personality backgrounds. */
+html[data-solaris-app] .solaris-app-tabbar-backdrop {
+  background:
+    linear-gradient(145deg, rgb(9 21 43 / .82), rgb(6 17 37 / .74) 52%, rgb(8 21 43 / .80));
+  -webkit-backdrop-filter: blur(26px) saturate(165%);
+  backdrop-filter: blur(26px) saturate(165%);
+}
+
+html[data-solaris-app] .solaris-app-first-run {
+  inset-inline: 0 !important;
+  top: auto !important;
+  bottom: 0 !important;
+  width: min(calc(100% - 1rem), 30rem) !important;
+  max-width: none !important;
+  max-height: min(88dvh, 46rem);
+  margin-inline: auto;
+  overflow-y: auto;
+  transform: none !important;
+  border-radius: 1.5rem 1.5rem 0 0 !important;
+  padding:
+    1rem
+    1rem
+    max(1rem, calc(env(safe-area-inset-bottom) + .65rem)) !important;
+}
+
+html[data-solaris-app] .solaris-app-first-run-continue {
+  min-height: 3rem;
+}
+
+@media (max-width: 360px) {
+  html[data-solaris-app] .solaris-app-first-run {
+    width: 100% !important;
+    border-inline: 0 !important;
+  }
+
+  html[data-solaris-app] .solaris-app-first-run-row {
+    padding: .7rem;
+  }
+}
+
+@media (min-width: 900px) {
+  html[data-solaris-app] .solaris-app-tabbar.is-minimal {
+    left: max(.8rem, env(safe-area-inset-left));
+    right: auto;
+    width: 6.15rem;
+    transform: none;
+  }
+
+  html[data-solaris-app] .app-main[data-solaris-app-mode="true"] {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom)) !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-solaris-app] .solaris-app-tabbar-backdrop {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background: rgb(5 16 35 / .985) !important;
+  }
+}
+
+
+html[data-solaris-app]:has([data-solaris-sheet]) .solaris-app-tabbar,
+html[data-solaris-app]:has([data-solaris-dialog]) .solaris-app-tabbar {
+  opacity: 0;
+  pointer-events: none;
+}
+
+html[data-solaris-app]:has([data-solaris-sheet]) .solaris-app-tabbar,
+html[data-solaris-app]:has([data-solaris-dialog]) .solaris-app-tabbar {
+  transition: opacity 120ms ease;
+}
+
+html[data-solaris-app] .edition-page-toolbar[data-app-compact="true"] {
+  justify-content: flex-end;
+  min-height: 0;
+  margin-bottom: .35rem;
+}
+
+
+/* Mobile App V2 screen composition primitives ----------------------------- */
+html[data-solaris-app] .solaris-app-section-heading {
+  margin: 0 0 .55rem;
+  padding-inline: .15rem;
+}
+
+html[data-solaris-app] .solaris-app-section-heading > p {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: .65rem;
+  font-weight: 750;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+html[data-solaris-app] .solaris-app-section-heading > h2 {
+  margin: .18rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 750;
+  letter-spacing: -.02em;
+}
+
+html[data-solaris-app] .solaris-app-grouped-list {
+  overflow: hidden;
+  border: 1px solid rgb(210 236 248 / .11);
+  border-radius: 1.15rem;
+  background: rgb(255 255 255 / .025);
+}
+
+html[data-solaris-app] .solaris-app-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 3.65rem;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem .85rem;
+  color: var(--foreground);
+  text-align: left;
+}
+
+html[data-solaris-app] .solaris-app-list-row + .solaris-app-list-row {
+  border-top: 1px solid rgb(210 236 248 / .085);
+}
+
+html[data-solaris-app] .solaris-app-list-row:active {
+  background: rgb(255 255 255 / .045);
+}
+
+html[data-solaris-app] .solaris-app-list-row:has(.solaris-app-list-icon) {
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+}
+
+html[data-solaris-app] .solaris-app-list-icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: .7rem;
+  background: rgb(var(--solaris-accent, 139 198 222) / .09);
+  color: var(--primary);
+}
+
+html[data-solaris-app] .solaris-app-search-field {
+  display: flex;
+  min-height: 3.25rem;
+  width: 100%;
+  align-items: center;
+  gap: .65rem;
+  border: 1px solid rgb(210 236 248 / .12);
+  border-radius: 1rem;
+  padding-inline: .85rem;
+  background: rgb(255 255 255 / .035);
+}
+
+html[data-solaris-app] .solaris-app-search-field input {
+  min-height: 3rem;
+  font-size: 1rem;
+}
+
+html[data-solaris-app] .solaris-app-current-contest {
+  border: 1px solid rgb(210 236 248 / .12);
+  border-radius: 1.25rem;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(var(--solaris-accent, 139 198 222) / .10), transparent 42%),
+    rgb(255 255 255 / .028);
+}
+
+html[data-solaris-app] .solaris-app-edition-current {
+  border: 1px solid rgb(210 236 248 / .12);
+  border-radius: 1.15rem;
+  padding: .9rem;
+  background: rgb(255 255 255 / .028);
+}
+
+html[data-solaris-app] .solaris-app-edition-current > div:last-child {
+  grid-template-columns: 1fr !important;
+}
+
+html[data-solaris-app] .solaris-app-edition-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  align-items: center;
+  gap: .75rem;
+  padding: .85rem .95rem;
+}
+
+html[data-solaris-app] .solaris-app-edition-row + .solaris-app-edition-row {
+  border-top: 1px solid rgb(210 236 248 / .085);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html[data-solaris-app] .solaris-app-list-row,
+  html[data-solaris-app] .solaris-app-edition-row {
+    transition: background-color 120ms ease, transform 120ms ease;
+  }
+
+  html[data-solaris-app] .solaris-app-list-row:active,
+  html[data-solaris-app] .solaris-app-edition-row:active {
+    transform: scale(.995);
+  }
+}
+
+
+html[data-solaris-app] .solaris-app-result-hero {
+  border: 1px solid rgb(210 236 248 / .12);
+  border-radius: 1.25rem;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(var(--solaris-accent, 139 198 222) / .11), transparent 42%),
+    rgb(255 255 255 / .028);
+}
+
+html[data-solaris-app] .solaris-app-result-kicker {
+  margin: 0 0 .35rem;
+  color: var(--primary);
+  font-size: .65rem;
+  font-weight: 800;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+html[data-solaris-app] .solaris-app-result-hero > h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 750;
+  letter-spacing: -.025em;
+}
+
+html[data-solaris-app] .solaris-app-primary-action {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: .9rem;
+  background: var(--primary);
+  padding-inline: .9rem;
+  color: var(--primary-foreground);
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+html[data-solaris-app] .solaris-app-score-row {
+  display: grid;
+  grid-template-columns: 2rem auto minmax(0, 1fr) auto;
+  min-height: 3.6rem;
+  align-items: center;
+  gap: .65rem;
+  padding: .65rem .85rem;
+}
+
+html[data-solaris-app] .solaris-app-score-row + .solaris-app-score-row {
+  border-top: 1px solid rgb(210 236 248 / .085);
+}
+
+
+html[data-solaris-app] .solaris-app-setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 3.65rem;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem .85rem;
+}
+
+html[data-solaris-app] .solaris-app-setting-row:has(.solaris-app-list-icon) {
+  grid-template-columns: 2rem minmax(0, 1fr);
+}
+
+html[data-solaris-app] .solaris-app-setting-row + .solaris-app-setting-row {
+  border-top: 1px solid rgb(210 236 248 / .085);
+}
+
+html[data-solaris-app] .solaris-app-settings-form {
+  border: 1px solid rgb(210 236 248 / .11);
+  border-radius: 1.15rem;
+  padding: .85rem;
+  background: rgb(255 255 255 / .025);
+}
+
+.solaris-app-wiki-sheet {
+  position: fixed !important;
+  inset-inline: 0 !important;
+  top: auto !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  max-height: min(82dvh, 46rem) !important;
+  overflow: hidden !important;
+  border-radius: 1.4rem 1.4rem 0 0 !important;
+  padding:
+    1rem
+    1rem
+    max(1rem, calc(env(safe-area-inset-bottom) + .5rem)) !important;
+  background: rgb(4 14 32 / .985) !important;
+  color: var(--foreground) !important;
+}
+
+.solaris-app-wiki-sheet .wiki-infobox-mobile {
+  margin: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+
+html[data-solaris-app] .solaris-app-me-summary {
+  border: 1px solid rgb(210 236 248 / .12);
+  border-radius: 1.2rem;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(var(--solaris-accent, 139 198 222) / .09), transparent 44%),
+    rgb(255 255 255 / .026);
+}
+
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="settings"]
+  .data-panel {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="settings"]
+  .data-panel + .data-panel {
+  margin-top: 1.25rem;
+}
+
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="settings"]
+  .solaris-settings-row {
+  border-radius: .95rem !important;
+  background: rgb(255 255 255 / .025) !important;
+}
+
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="settings"]
+  .solaris-settings-status {
+  border-radius: .95rem !important;
+  background: rgb(255 255 255 / .025) !important;
+}
+
+
+html[data-solaris-app] .solaris-app-country-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 4rem;
+  align-items: center;
+  gap: .75rem;
+  padding: .7rem .85rem;
+}
+
+html[data-solaris-app] .solaris-app-country-row + .solaris-app-country-row {
+  border-top: 1px solid rgb(210 236 248 / .085);
+}
+
+html[data-solaris-app] .solaris-app-country-row:active {
+  background: rgb(255 255 255 / .045);
+}
+
+
+html[data-solaris-app] .solaris-mysolaris-workspace .data-panel {
+  border: 1px solid rgb(210 236 248 / .10) !important;
+  border-radius: 1.05rem !important;
+  background: rgb(255 255 255 / .022) !important;
+  box-shadow: none !important;
+  padding: .85rem !important;
+}
+
+html[data-solaris-app] .solaris-mysolaris-workspace .data-panel > div:first-child h2 {
+  font-family: inherit !important;
+  font-size: .95rem !important;
+  font-weight: 750 !important;
+  letter-spacing: -.015em !important;
+}
+
+html[data-solaris-app] .solaris-mysolaris-workspace .data-panel > div:first-child {
+  margin-bottom: .7rem !important;
+}
+
+html[data-solaris-app] .solaris-mysolaris-workspace .solaris-app-page-context {
+  margin-bottom: .75rem !important;
+  padding: 0 .1rem !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+html[data-solaris-app] .solaris-mysolaris-workspace .solaris-app-page-context::before,
+html[data-solaris-app] .solaris-mysolaris-workspace .solaris-app-page-context::after {
+  display: none !important;
+}
+
+
+html[data-solaris-app] .solaris-app-notification-row {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 4rem;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem .85rem;
+}
+
+html[data-solaris-app] .solaris-app-notification-row:not(:has(.solaris-app-list-icon)) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+html[data-solaris-app] .solaris-app-notification-detail {
+  padding: .85rem;
+}
+
+html[data-solaris-app] .solaris-app-list-icon.is-muted {
+  background: rgb(255 255 255 / .035);
+  color: var(--muted-foreground);
+}
+
+
+html[data-solaris-app] .solaris-app-search-action {
+  display: flex;
+  min-height: 4rem;
+  min-width: 0;
+  align-items: center;
+  gap: .75rem;
+  padding: .6rem .65rem .6rem .85rem;
+}
+
+
+html[data-solaris-app] .solaris-app-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid rgb(210 236 248 / .10);
+  border-radius: 1.05rem;
+  background: rgb(255 255 255 / .022);
+}
+
+html[data-solaris-app] .solaris-app-stat-cell {
+  min-width: 0;
+  padding: .85rem;
+}
+
+html[data-solaris-app] .solaris-app-stat-cell:nth-child(even) {
+  border-left: 1px solid rgb(210 236 248 / .085);
+}
+
+html[data-solaris-app] .solaris-app-stat-cell:nth-child(n + 3) {
+  border-top: 1px solid rgb(210 236 248 / .085);
+}
+
+
+/* Settings should read like an installed settings app, not a stack of website cards. */
+html[data-solaris-app] .solaris-app-settings-panel {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+html[data-solaris-app] .solaris-app-settings-panel > div:first-child {
+  margin: 0 0 .55rem !important;
+  padding-inline: .15rem;
+}
+
+html[data-solaris-app] .solaris-app-settings-panel > div:first-child h2 {
+  font-family: inherit !important;
+  font-size: 1.05rem !important;
+  font-weight: 750 !important;
+  letter-spacing: -.02em !important;
+}
+
+html[data-solaris-app] .solaris-app-settings-panel > div:first-child p {
+  margin-top: .18rem !important;
+  font-size: .72rem !important;
+  line-height: 1.45 !important;
+}
+
+html[data-solaris-app] .solaris-app-settings-group {
+  gap: 0 !important;
+  overflow: hidden;
+  border: 1px solid rgb(210 236 248 / .11);
+  border-radius: 1.15rem;
+  background: rgb(255 255 255 / .025);
+}
+
+html[data-solaris-app] .solaris-app-settings-group > .solaris-settings-row,
+html[data-solaris-app] .solaris-app-settings-group > .solaris-settings-status {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html[data-solaris-app] .solaris-app-settings-group > .solaris-settings-row + .solaris-settings-row,
+html[data-solaris-app] .solaris-app-settings-group > .solaris-settings-status + .solaris-settings-status {
+  border-top: 1px solid rgb(210 236 248 / .085) !important;
+}
+
+@media (max-width: 899px) {
+  html[data-solaris-app] .solaris-app-settings-group {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+
+/* App content surfaces -------------------------------------------------------
+   Installed routes keep content flatter than the website. Navigation and
+   overlays may use glass; ordinary reading/data sections should not look like
+   desktop cards shrunk into a phone. Entity personality pages are excluded. */
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="data"]
+  :is(.data-panel, .glass),
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="reading"]
+  :is(.data-panel, .glass),
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="core"]
+  :is(.data-panel, .glass),
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="task"]
+  :is(.data-panel, .glass),
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="workspace"]
+  :is(.data-panel, .glass),
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="settings"]
+  :is(.data-panel, .glass) {
+  border-color: rgb(210 236 248 / .10) !important;
+  border-radius: 1rem !important;
+  background: rgb(255 255 255 / .024) !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="data"]
+  :is(.data-panel, .glass) h2,
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="reading"]
+  :is(.data-panel, .glass) h2,
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="core"]
+  :is(.data-panel, .glass) h2,
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="task"]
+  :is(.data-panel, .glass) h2,
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="workspace"]
+  :is(.data-panel, .glass) h2,
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="settings"]
+  :is(.data-panel, .glass) h2 {
+  font-family: inherit !important;
+  letter-spacing: -.018em !important;
+}
+
+@media (max-width: 430px) {
+  html[data-solaris-app]
+    .app-main[data-solaris-app-mode="true"]
+    :is(.data-panel, .glass) {
+    padding: .85rem !important;
+  }
+
+  html[data-solaris-app]
+    .app-main[data-solaris-app-mode="true"]
+    :is(.data-panel, .glass)
+    :is(.rounded-2xl, .rounded-3xl) {
+    border-radius: .9rem;
   }
 }

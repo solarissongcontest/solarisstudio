@@ -48,6 +48,11 @@ function entityChrome(pathname: string, searchStr = ""): AppRouteChrome | null {
   const match = pathname.match(/^\/(countries|editions|shows|wiki)\/[^/]+/);
   if (!match) return null;
   const section = match[1]!;
+  const entitySegment = decodeURIComponent(pathname.split("/")[2] ?? "");
+  const editionNumber =
+    section === "editions"
+      ? entitySegment.match(/^ssc[-_ ]?(\d+)$/i)?.[1] ?? null
+      : null;
   const metadata = {
     countries: { title: "Country", label: "Countries", to: "/countries" },
     editions: { title: "Edition", label: "Editions", to: "/editions" },
@@ -60,8 +65,15 @@ function entityChrome(pathname: string, searchStr = ""): AppRouteChrome | null {
   );
   const resultsContext = section === "shows" && params.get("from") === "results";
 
+  const entityTitle =
+    editionNumber
+      ? `SSC ${editionNumber}`
+      : section === "countries" || section === "wiki"
+        ? entitySegment.toUpperCase()
+        : metadata.title;
+
   return {
-    title: metadata.title,
+    title: entityTitle,
     tab: resultsContext ? "results" : "explore",
     archetype: "entity",
     root: false,
@@ -216,6 +228,17 @@ export function resolveAppRouteChrome(pathname: string, searchStr = ""): AppRout
     };
   }
 
+  if (pathname === "/site-directory" || pathname === "/site-directory/") {
+    return {
+      title: "All Solaris pages",
+      tab: "explore",
+      archetype: "directory",
+      root: false,
+      tabBar: "visible",
+      backFallback: { label: "Explore", to: "/explore" },
+    };
+  }
+
   if (/^\/integrity(\/|$)/.test(pathname)) {
     const destination = publicDestinationForPath(pathname);
     const parent = destination?.parent ? publicDestinationById(destination.parent) : null;
@@ -235,7 +258,7 @@ export function resolveAppRouteChrome(pathname: string, searchStr = ""): AppRout
     const destination = publicDestinationForPath(pathname);
     return {
       title: destination?.label ?? "Guide",
-      tab: areaTab(pathname),
+      tab: "explore",
       archetype: "reading",
       root: false,
       tabBar: "visible",

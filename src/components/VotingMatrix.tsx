@@ -110,7 +110,7 @@ export function VotingMatrix({
                     alt=""
                     loading="lazy"
                     decoding="async"
-                    className="h-4 w-6 shrink-0 rounded-[2px] object-cover"
+                    className="h-4 w-6 shrink-0 rounded-[.3rem] object-cover"
                   />
                 ) : null}
                 <span className="truncate text-sm font-semibold">{country?.name ?? to}</span>
@@ -152,7 +152,7 @@ export function VotingMatrix({
                         alt={c.name}
                         loading="lazy"
                         decoding="async"
-                        className="h-4 w-6 rounded-[2px] object-cover"
+                        className="h-4 w-6 rounded-[.3rem] object-cover"
                       />
                     ) : null}
                     <span className="numeric max-w-[4.5rem] truncate text-[10px] text-muted-foreground">
@@ -178,7 +178,7 @@ export function VotingMatrix({
                         alt={rc.name}
                         loading="lazy"
                         decoding="async"
-                        className="h-4 w-6 rounded-[2px] object-cover"
+                        className="h-4 w-6 rounded-[.3rem] object-cover"
                       />
                     ) : null}
                     <span className="truncate">{rc?.name}</span>
@@ -253,7 +253,7 @@ export function VotingMatrix({
                         alt={c.name}
                         loading="lazy"
                         decoding="async"
-                        className="h-4 w-6 rounded-[2px] object-cover"
+                        className="h-4 w-6 rounded-[.3rem] object-cover"
                       />
                     ) : null}
                     <span className="numeric max-w-[4.5rem] truncate text-[10px] text-muted-foreground">
@@ -279,7 +279,7 @@ export function VotingMatrix({
                         alt={rc.name}
                         loading="lazy"
                         decoding="async"
-                        className="h-4 w-6 rounded-[2px] object-cover"
+                        className="h-4 w-6 rounded-[.3rem] object-cover"
                       />
                     ) : null}
                     <span className="truncate">{rc?.name}</span>

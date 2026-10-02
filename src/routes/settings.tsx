@@ -147,10 +147,11 @@ function AppSettingsPage() {
 
       <div className="space-y-4">
         <Panel
+          className={app.isAppMode ? "solaris-app-settings-panel" : undefined}
           title="App experience"
           description="Preferences that change how the installed Solaris experience behaves."
         >
-          <div className="grid gap-3">
+          <div className="solaris-app-settings-group grid gap-3">
             <SettingRow
               icon={EyeOff}
               title="Spoiler-free mode"
@@ -182,6 +183,7 @@ function AppSettingsPage() {
           <MySolarisNotificationsPanel includeSpoilerFree={false} />
         ) : userId === null ? (
           <Panel
+            className={app.isAppMode ? "solaris-app-settings-panel" : undefined}
             title="Notifications"
             description="Push categories and quiet hours are attached to your Solaris account."
           >
@@ -196,23 +198,24 @@ function AppSettingsPage() {
               <Link
                 to="/auth"
                 search={{ redirect: "/settings" }}
-                className="inline-flex min-h-10 items-center rounded-xl bg-primary px-3 text-xs font-semibold text-primary-foreground"
+                className="inline-flex min-h-11 items-center rounded-xl bg-primary px-3 text-xs font-semibold text-primary-foreground"
               >
                 Sign in
               </Link>
             </div>
           </Panel>
         ) : (
-          <Panel title="Notifications" description="Checking your Solaris notification settings…">
+          <Panel className={app.isAppMode ? "solaris-app-settings-panel" : undefined} title="Notifications" description="Checking your Solaris notification settings…">
             <p className="text-sm text-muted-foreground">Loading account state…</p>
           </Panel>
         )}
 
         <Panel
+          className={app.isAppMode ? "solaris-app-settings-panel" : undefined}
           title="Appearance & accessibility"
           description="Solaris follows system accessibility signals instead of hiding competing controls in five different menus."
         >
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="solaris-app-settings-group grid gap-3 sm:grid-cols-2">
             <StatusCard
               icon={accessibility.reducedMotion ? MoonStar : Sun}
               label="Motion"
@@ -237,10 +240,11 @@ function AppSettingsPage() {
         </Panel>
 
         <Panel
+          className={app.isAppMode ? "solaris-app-settings-panel" : undefined}
           title="Storage & offline"
           description="Public app assets may be cached for continuity. Official submissions are never queued as offline submissions."
         >
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="solaris-app-settings-group grid gap-3 md:grid-cols-3">
             <StatusCard
               icon={Database}
               label="Browser storage in use"
@@ -288,8 +292,8 @@ function AppSettingsPage() {
           ) : null}
         </Panel>
 
-        <Panel title="Install" description="How Solaris Studio is currently running on this device.">
-          <div className="grid gap-3 sm:grid-cols-2">
+        <Panel className={app.isAppMode ? "solaris-app-settings-panel" : undefined} title="Install" description="How Solaris Studio is currently running on this device.">
+          <div className="solaris-app-settings-group grid gap-3 sm:grid-cols-2">
             <StatusCard
               icon={Smartphone}
               label="Launch mode"
@@ -313,6 +317,7 @@ function AppSettingsPage() {
         </Panel>
 
         <Panel
+          className={app.isAppMode ? "solaris-app-settings-panel" : undefined}
           title="Privacy & app information"
           description="App diagnostics are deliberately narrow."
         >
@@ -345,7 +350,7 @@ function SettingRow({
   control: ReactNode;
 }) {
   return (
-    <div className="flex min-h-16 items-center gap-3 rounded-2xl border border-border/70 bg-background/35 p-4">
+    <div className="solaris-settings-row flex min-h-16 items-center gap-3 rounded-2xl border border-border/70 bg-background/35 p-4">
       <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
         <Icon className="size-4" aria-hidden="true" />
       </span>
@@ -370,7 +375,7 @@ function StatusCard({
   description: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-background/35 p-4">
+    <div className="solaris-settings-status rounded-2xl border border-border/70 bg-background/35 p-4">
       <div className="flex items-center gap-2">
         <Icon className="size-4 text-primary" aria-hidden="true" />
         <p className="text-[10px] font-black uppercase tracking-[0.13em] text-muted-foreground">

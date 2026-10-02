@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import {
@@ -48,6 +49,7 @@ type EditionCard = {
 };
 
 function EditionsPage() {
+  const { isAppMode } = useSolarisApp();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
   const resultsQuery = useAllResults();
@@ -147,7 +149,7 @@ function EditionsPage() {
         description="Every published Solaris chapter, from the latest contest back through the archive."
       />
 
-      {latest && <LatestEdition card={latest} />}
+      {latest && <LatestEdition card={latest} appMode={isAppMode} />}
 
       {archive.length > 0 && (
         <section className="mt-7 sm:mt-9">
@@ -161,7 +163,7 @@ function EditionsPage() {
 
           <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface/55 divide-y divide-border/60">
             {archive.map((card) => (
-              <ArchiveEdition key={card.edition.id} card={card} />
+              <ArchiveEdition key={card.edition.id} card={card} appMode={isAppMode} />
             ))}
           </div>
         </section>
@@ -215,7 +217,7 @@ function WinnerLine({ winner, points }: { winner: any; points?: number | null })
   );
 }
 
-function LatestEdition({ card }: { card: EditionCard }) {
+function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?: boolean }) {
   const { edition, editionShows, winner, winnerResult, hosts } = card;
 
   return (
@@ -224,14 +226,14 @@ function LatestEdition({ card }: { card: EditionCard }) {
       <Link
         to="/editions/$slug"
         params={{ slug: edition.slug }}
-        className="group block rounded-2xl border border-primary/20 bg-surface p-4 transition-colors hover:bg-surface-strong sm:p-5"
+        className={appMode ? "solaris-app-edition-current group block" : "group block rounded-2xl border border-primary/20 bg-surface p-4 transition-colors hover:bg-surface-strong sm:p-5"}
       >
         <div className="flex min-w-0 items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-muted-foreground">
-              SSC {edition.edition_number ?? "—"} · {edition.status === "completed" ? "Completed" : "In progress"}
+              {edition.status === "completed" ? "Completed" : "In progress"}
             </p>
-            <h2 id="current-edition-heading" className="mt-1 break-words text-2xl font-bold tracking-[-.035em] sm:text-3xl">
+            <h2 id="current-edition-heading" className={appMode ? "mt-1 break-words text-xl font-bold tracking-[-.025em]" : "mt-1 break-words text-2xl font-bold tracking-[-.035em] sm:text-3xl"}>
               {editionLabel(edition)}
             </h2>
           </div>
@@ -248,33 +250,46 @@ function LatestEdition({ card }: { card: EditionCard }) {
   );
 }
 
-function ArchiveEdition({ card }: { card: EditionCard }) {
+function ArchiveEdition({ card, appMode = false }: { card: EditionCard; appMode?: boolean }) {
   const { edition, editionShows, winner, winnerResult, hosts } = card;
 
   return (
     <Link
       to="/editions/$slug"
       params={{ slug: edition.slug }}
-      className="group grid min-w-0 gap-2 px-4 py-4 transition-colors hover:bg-surface sm:grid-cols-[5rem_minmax(0,1fr)_minmax(12rem,.8fr)_auto] sm:items-center sm:gap-4 sm:px-5"
+      className={appMode ? "solaris-app-edition-row group" : "group grid min-w-0 gap-2 px-4 py-4 transition-colors hover:bg-surface sm:grid-cols-[5rem_minmax(0,1fr)_minmax(12rem,.8fr)_auto] sm:items-center sm:gap-4 sm:px-5"}
     >
-      <div className="flex items-baseline gap-2 sm:block">
-        <p className="numeric text-lg font-bold text-foreground">{edition.edition_number ?? "—"}</p>
-        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground sm:mt-0.5">SSC</p>
-      </div>
+      {appMode ? (
+        <>
+          <div className="min-w-0">
+            <p className="truncate text-base font-semibold">{editionLabel(edition)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {editionShows.length} public show{editionShows.length === 1 ? "" : "s"}
+            </p>
+            <p className="mt-1 min-w-0 text-xs"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p>
+          </div>
+          <span className="shrink-0 text-primary" aria-hidden="true">›</span>
+        </>
+      ) : (
+        <>
+          <div className="flex items-baseline gap-2 sm:block">
+            <p className="numeric text-lg font-bold text-foreground">{edition.edition_number ?? "—"}</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground sm:mt-0.5">SSC</p>
+          </div>
 
-      <div className="min-w-0">
-        <p className="truncate text-base font-semibold">{editionLabel(edition)}</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {editionShows.length} public show{editionShows.length === 1 ? "" : "s"}
-        </p>
-      </div>
+          <div className="min-w-0">
+            <p className="truncate text-base font-semibold">{editionLabel(edition)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{editionShows.length} public show{editionShows.length === 1 ? "" : "s"}</p>
+          </div>
 
-      <div className="min-w-0 space-y-1 text-xs">
-        <p className="min-w-0"><span className="text-muted-foreground">Host:</span> <HostLine hosts={hosts} /></p>
-        <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p>
-      </div>
+          <div className="min-w-0 space-y-1 text-xs">
+            <p className="min-w-0"><span className="text-muted-foreground">Host:</span> <HostLine hosts={hosts} /></p>
+            <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p>
+          </div>
 
-      <span className="hidden shrink-0 text-base font-semibold text-primary transition-transform group-hover:translate-x-0.5 sm:block">→</span>
+          <span className="hidden shrink-0 text-base font-semibold text-primary transition-transform group-hover:translate-x-0.5 sm:block">→</span>
+        </>
+      )}
     </Link>
   );
 }

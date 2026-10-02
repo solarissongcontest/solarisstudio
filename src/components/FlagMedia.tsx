@@ -43,7 +43,7 @@ export function FlagFrame({ image, alt, fallback, crop, className, imageClassNam
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [image]);
   return (
-    <span data-flag-frame="standard" data-flag-chip={chip ? "true" : undefined} className={cn("flag-media-frame", className)} style={style}>
+    <span data-flag-frame="standard" data-flag-chip={chip ? "true" : undefined} className={cn("flag-media-frame rounded-[.6rem]", className)} style={style}>
       {image && !failed
         ? <FlagMedia image={image} alt={alt} crop={crop} className={imageClassName} loading={loading} decoding="async" onError={() => setFailed(true)} />
         : <span className="flag-media-fallback" aria-label={`${alt} unavailable`}>{fallback}</span>}

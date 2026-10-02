@@ -2,12 +2,30 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type AppPushState = {
   supported: boolean;
+  configured: boolean;
   permission: NotificationPermission | "unsupported";
   subscribed: boolean;
 };
 
-function vapidPublicKey() {
-  return (import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY as string | undefined)?.trim() ?? "";
+let runtimeVapidKeyPromise: Promise<string> | null = null;
+
+async function vapidPublicKey() {
+  const buildTimeKey =
+    (import.meta.env.VITE_WEB_PUSH_PUBLIC_KEY as string | undefined)?.trim() ?? "";
+  if (buildTimeKey) return buildTimeKey;
+
+  if (!runtimeVapidKeyPromise) {
+    runtimeVapidKeyPromise = (async () => {
+      const { data, error } = await (supabase as any).rpc("solaris_web_push_public_key");
+      if (error) {
+        console.warn("[solaris-push] Public VAPID configuration could not be loaded", error);
+        return "";
+      }
+      return typeof data === "string" ? data.trim() : "";
+    })();
+  }
+
+  return runtimeVapidKeyPromise;
 }
 
 function base64UrlToBytes(value: string) {
@@ -27,13 +45,20 @@ function pushSupported() {
 }
 
 export async function getAppPushState(): Promise<AppPushState> {
+  const key = await vapidPublicKey();
   if (!pushSupported()) {
-    return { supported: false, permission: "unsupported", subscribed: false };
+    return {
+      supported: false,
+      configured: Boolean(key),
+      permission: "unsupported",
+      subscribed: false,
+    };
   }
   const registration = await navigator.serviceWorker.getRegistration("/");
   const subscription = await registration?.pushManager.getSubscription();
   return {
     supported: true,
+    configured: Boolean(key),
     permission: Notification.permission,
     subscribed: Boolean(subscription),
   };
@@ -67,8 +92,8 @@ async function storeSubscription(userId: string, subscription: PushSubscription)
 
 export async function enableAppPush(userId: string) {
   if (!pushSupported()) throw new Error("Push notifications are not supported on this browser.");
-  const key = vapidPublicKey();
-  if (!key) throw new Error("Solaris push delivery is not configured on this deployment yet.");
+  const key = await vapidPublicKey();
+  if (!key) throw new Error("Push notifications are temporarily unavailable.");
 
   const permission =
     Notification.permission === "granted"

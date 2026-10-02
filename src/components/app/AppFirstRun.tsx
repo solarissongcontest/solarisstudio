@@ -2,15 +2,14 @@ import { Compass, RadioTower, Vote } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 export const APP_FIRST_RUN_COMPLETE_KEY = "solaris:app-first-run-complete:v1";
-const SHOW_DELAY_MS = 500;
 
 function allowedOnPath(pathname: string) {
   return !(
@@ -44,9 +43,7 @@ export function AppFirstRun({
   useEffect(() => {
     if (!isAppMode || !allowedOnPath(pathname)) return;
     if (window.localStorage.getItem(APP_FIRST_RUN_COMPLETE_KEY) === "1") return;
-
-    const timer = window.setTimeout(() => setOpen(true), SHOW_DELAY_MS);
-    return () => window.clearTimeout(timer);
+    setOpen(true);
   }, [isAppMode, pathname]);
 
   const complete = () => {
@@ -58,24 +55,22 @@ export function AppFirstRun({
   if (!isAppMode) return null;
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next && open) complete();
-        else setOpen(next);
-      }}
-    >
-      <DialogContent
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetContent
+        side="bottom"
+        showCloseButton={false}
+        aria-label="Welcome to Solaris Studio"
         className="solaris-app-first-run"
-        onEscapeKeyDown={complete}
+        onInteractOutside={(event) => event.preventDefault()}
+        onEscapeKeyDown={(event) => event.preventDefault()}
       >
-        <DialogHeader>
+        <SheetHeader>
           <p className="solaris-app-first-run-eyebrow">Solaris Studio</p>
-          <DialogTitle>Your SSC companion</DialogTitle>
-          <DialogDescription>
+          <SheetTitle>Your SSC companion</SheetTitle>
+          <SheetDescription>
             Solaris keeps the contest, participation and live-event state in one app.
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
         <div className="solaris-app-first-run-grid">
           <div className="solaris-app-first-run-row">
@@ -108,7 +103,7 @@ export function AppFirstRun({
         >
           Continue
         </button>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

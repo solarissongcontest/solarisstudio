@@ -264,34 +264,36 @@ export function AppShell({ children }: { children: ReactNode }) {
           <AppToolbar pathname={pathname} searchStr={searchStr} access={access} />
         ) : null}
 
-        <header className="site-nav sticky top-0 z-40 border-b border-border/60">
-          <div className="mx-auto flex h-16 max-w-[1680px] items-center gap-4 px-3 sm:px-5 lg:px-8 2xl:px-10">
-            <Brand />
+        {!isAppMode ? (
+          <header className="site-nav sticky top-0 z-40 border-b border-border/60">
+            <div className="mx-auto flex h-16 max-w-[1680px] items-center gap-4 px-3 sm:px-5 lg:px-8 2xl:px-10">
+              <Brand />
 
-            <nav className="ml-auto hidden items-center gap-1 lg:flex" aria-label="Main navigation">
-              <NewPublicDesktopNavigation
-                pathname={pathname}
-                publicArea={publicArea}
-                globalAreas={globalAreas}
-                access={access}
-                email={email}
-                visibleAccountEmail={visibleAccountEmail}
-                signOut={signOut}
-              />
-            </nav>
+              <nav className="ml-auto hidden items-center gap-1 lg:flex" aria-label="Main navigation">
+                <NewPublicDesktopNavigation
+                  pathname={pathname}
+                  publicArea={publicArea}
+                  globalAreas={globalAreas}
+                  access={access}
+                  email={email}
+                  visibleAccountEmail={visibleAccountEmail}
+                  signOut={signOut}
+                />
+              </nav>
 
-            <SheetTrigger asChild>
-              <button
-                type="button"
-                className="ml-auto grid h-11 w-11 place-items-center rounded-xl border border-border/75 bg-surface/70 transition-[background-color,transform] duration-150 ease-out active:scale-[0.96] motion-reduce:active:scale-100 lg:hidden"
-                aria-label="Open navigation"
-                aria-expanded={menuOpen}
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-            </SheetTrigger>
-          </div>
-        </header>
+              <SheetTrigger asChild>
+                <button
+                  type="button"
+                  className="ml-auto grid h-11 w-11 place-items-center rounded-xl border border-border/75 bg-surface/70 transition-[background-color,transform] duration-150 ease-out active:scale-[0.96] motion-reduce:active:scale-100 lg:hidden"
+                  aria-label="Open navigation"
+                  aria-expanded={menuOpen}
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+              </SheetTrigger>
+            </div>
+          </header>
+        ) : null}
 
         <SheetContent
           side={isAppMode ? "bottom" : "right"}
@@ -368,6 +370,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           data-solaris-app-mode={isAppMode ? "true" : undefined}
           data-solaris-app-root={isAppMode && isAppRootDestination ? "true" : undefined}
           data-solaris-app-screen={isAppMode ? appChrome.archetype : undefined}
+          data-solaris-app-tabbar={isAppMode ? appChrome.tabBar : undefined}
           className={cn(
             "app-main relative z-10 mx-auto w-full min-w-0 px-3 pb-24 pt-4 sm:px-5 sm:pb-24 sm:pt-6 lg:px-8 lg:py-8 2xl:px-10",
             publicCanvasForArchetype(publicArchetype),
@@ -636,7 +639,28 @@ export function PageHeader({
   actions?: ReactNode;
   className?: string;
 }) {
+  const { isAppMode } = useSolarisApp();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const visibleEyebrow = productEyebrow(eyebrow);
+  const chrome = resolveAppRouteChrome(pathname, searchStr);
+  const toolbarOwnsIdentity =
+    isAppMode &&
+    ["root", "directory", "workspace", "settings", "task"].includes(chrome.archetype);
+
+  if (toolbarOwnsIdentity) {
+    if (!description && !actions) return null;
+    return (
+      <header className={cn("solaris-app-page-context mb-4 min-w-0", className)}>
+        {description ? (
+          <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+        ) : null}
+        {actions ? (
+          <div className="mt-3 flex min-w-0 flex-wrap gap-2">{actions}</div>
+        ) : null}
+      </header>
+    );
+  }
 
   return (
     <header

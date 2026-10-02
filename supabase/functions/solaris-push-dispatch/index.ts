@@ -81,27 +81,60 @@ function isUrgentDeadline(delivery: Delivery) {
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed." }, 405);
 
-  const dispatchSecret = Deno.env.get("SOLARIS_PUSH_DISPATCH_SECRET") ?? "";
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceRoleKey) {
+    return json({ error: "Push delivery service credentials are unavailable." }, 500);
+  }
+
+  const service = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data: runtimeRows, error: runtimeError } = await service.rpc(
+    "solaris_get_push_runtime_secrets",
+  );
+  if (runtimeError) {
+    console.error("[solaris-push-dispatch] runtime configuration load failed", runtimeError);
+  }
+
+  const runtime =
+    Array.isArray(runtimeRows) && runtimeRows.length
+      ? (runtimeRows[0] as {
+          dispatch_secret?: string | null;
+          vapid_public_key?: string | null;
+          vapid_private_key?: string | null;
+          vapid_subject?: string | null;
+        })
+      : null;
+
+  const dispatchSecret =
+    Deno.env.get("SOLARIS_PUSH_DISPATCH_SECRET") ??
+    runtime?.dispatch_secret ??
+    "";
   const suppliedSecret = req.headers.get("x-solaris-push-secret") ?? "";
   if (!dispatchSecret || suppliedSecret !== dispatchSecret) {
     return json({ error: "Push dispatcher access denied." }, 401);
   }
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const vapidPublicKey = Deno.env.get("WEB_PUSH_VAPID_PUBLIC_KEY");
-  const vapidPrivateKey = Deno.env.get("WEB_PUSH_VAPID_PRIVATE_KEY");
-  const vapidSubject = Deno.env.get("WEB_PUSH_VAPID_SUBJECT") || "mailto:solaris@localhost.invalid";
+  const vapidPublicKey =
+    Deno.env.get("WEB_PUSH_VAPID_PUBLIC_KEY") ??
+    runtime?.vapid_public_key ??
+    "";
+  const vapidPrivateKey =
+    Deno.env.get("WEB_PUSH_VAPID_PRIVATE_KEY") ??
+    runtime?.vapid_private_key ??
+    "";
+  const vapidSubject =
+    Deno.env.get("WEB_PUSH_VAPID_SUBJECT") ??
+    runtime?.vapid_subject ??
+    "mailto:notifications@solaris-song-contest.workers.dev";
 
-  if (!supabaseUrl || !serviceRoleKey || !vapidPublicKey || !vapidPrivateKey) {
+  if (!vapidPublicKey || !vapidPrivateKey) {
     return json({ error: "Push delivery is not fully configured." }, 500);
   }
 
   webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
-
-  const service = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
 
   const { data: enqueueCount, error: enqueueError } = await service.rpc(
     "solaris_enqueue_app_notifications",

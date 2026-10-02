@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
   GovernanceStatusStrip,
   SolarisDepthEyebrow,
@@ -70,6 +71,7 @@ const FOR_YOU_COPY: Partial<Record<GovernanceActionKey, { title: string; descrip
 };
 
 export function RulesHomeV5({ version }: { version: string }) {
+  const { isAppMode } = useSolarisApp();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [context, setContext] = useState<GovernanceActionKey | null>(null);
@@ -107,8 +109,8 @@ export function RulesHomeV5({ version }: { version: string }) {
     <SolarisDepthPage tone="rules">
       <SolarisDepthSafeZone>
         <header className="pb-2">
-          <SolarisDepthEyebrow tone="primary">Rules</SolarisDepthEyebrow>
-          <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          {!isAppMode ? <SolarisDepthEyebrow tone="primary">Rules</SolarisDepthEyebrow> : null}
+          <div className={isAppMode ? "flex flex-wrap items-baseline gap-x-2 gap-y-1" : "mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1"}>
             <h1 className="text-2xl font-bold tracking-[-0.025em]">Official regulations</h1>
             <span className="text-xs text-muted-foreground">General Regulations · v{version}</span>
           </div>
@@ -131,14 +133,17 @@ export function RulesHomeV5({ version }: { version: string }) {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search rules or ask a question…"
-                className="min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/65"
+                className={isAppMode ? "min-w-0 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-muted-foreground/65" : "min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/65"}
+                enterKeyHint="search"
               />
-              <button
-                type="submit"
-                className="inline-flex min-h-9 items-center rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground"
-              >
-                Search
-              </button>
+              {!isAppMode ? (
+                <button
+                  type="submit"
+                  className="inline-flex min-h-9 items-center rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground"
+                >
+                  Search
+                </button>
+              ) : null}
             </label>
           </form>
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
