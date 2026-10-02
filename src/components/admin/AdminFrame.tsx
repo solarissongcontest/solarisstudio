@@ -70,10 +70,10 @@ export function AdminFrame({ children }: { children: ReactNode }) {
     {
       id: "tasks",
       label: "Tasks",
-      href: "/admin/action-center",
+      href: "/admin/tasks",
       icon: BellRing,
       active: (path) =>
-        path.startsWith("/admin/action-center") ||
+        path.startsWith("/admin/tasks") ||\n        path.startsWith("/admin/action-center") ||
         path.startsWith("/admin/action-centre") ||
         path.startsWith("/admin/inbox"),
     },
