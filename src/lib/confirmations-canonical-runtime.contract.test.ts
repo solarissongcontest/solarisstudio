@@ -116,4 +116,17 @@ describe("canonical Confirmations runtime", () => {
     expect(authFix).toContain("ca.user_id = caller_user_id");
     expect(authFix).toContain("ca.status = 'active'");
   });
+  it("keeps organizer round controls consistent with participant availability", () => {
+    const controls = source(
+      "supabase/migrations/20261002212500_fix_confirmation_round_reopen_and_editing.sql",
+    );
+
+    expect(controls).toContain("closes_at <= now() then null");
+    expect(controls).toContain("opens_at is null or opens_at > now()");
+    expect(controls).toContain("Increase the response limit before reopening this full round");
+    expect(controls).toContain("set editing_allowed = _enabled");
+    expect(controls).toContain("set editing_enabled = true");
+    expect(controls).toContain("editing_allowed is distinct from _enabled");
+  });
+
 });
