@@ -2,9 +2,9 @@ import type {
   ConfirmationReviewEntry,
   ConfirmationReviewNationalFinal,
 } from "@/components/ConfirmationReviewStatus";
-import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { supabase } from "@/integrations/supabase/client";
 
-const confirmations = confirmationsSupabase as any;
+const confirmations = supabase as any;
 
 export type CountryConfirmationResponse = {
   submission_id: string;
