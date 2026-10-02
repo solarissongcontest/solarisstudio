@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Compass, Home, Trophy, UserRound, Vote, type LucideIcon } from "lucide-react";
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
 import {
@@ -161,9 +161,14 @@ export function AppTabBar({
         root.style.setProperty("--solaris-app-bottom-obstruction", "0px");
         return;
       }
+
       const rect = bar.getBoundingClientRect();
-      const obstruction = Math.max(0, window.innerHeight - rect.top);
-      root.style.setProperty("--solaris-app-tabbar-height", `${Math.ceil(rect.height)}px`);
+      // This value is deliberately output-only. Never feed a measured tab-bar
+      // height back into the CSS variable that sizes the tab bar itself:
+      // doing so creates a ResizeObserver feedback loop when drag elasticity
+      // temporarily changes the material height.
+      const rawObstruction = Math.max(0, window.innerHeight - rect.top);
+      const obstruction = Math.min(rawObstruction, 128);
       root.style.setProperty("--solaris-app-bottom-obstruction", `${Math.ceil(obstruction)}px`);
     };
 
@@ -255,7 +260,7 @@ export function AppTabBar({
     return nearest;
   };
 
-  const clearDrag = () => {
+  const clearDrag = useCallback(() => {
     const material = materialRef.current;
     material?.style.setProperty("--solaris-tab-drag-x", "0px");
     material?.style.setProperty("--solaris-tab-drag-scale-x", "1");
@@ -264,9 +269,28 @@ export function AppTabBar({
     material?.style.setProperty("--solaris-tabbar-pull-radius", "0px");
     material?.removeAttribute("data-drag-direction");
     dragState.current = null;
+    suppressClick.current = false;
     setDragging(false);
     setDragPreviewIndex(null);
-  };
+  }, []);
+
+  useEffect(() => {
+    const resetInterruptedGesture = () => clearDrag();
+    const resetWhenHidden = () => {
+      if (document.visibilityState !== "visible") clearDrag();
+    };
+
+    window.addEventListener("blur", resetInterruptedGesture);
+    window.addEventListener("orientationchange", resetInterruptedGesture);
+    document.addEventListener("visibilitychange", resetWhenHidden);
+
+    return () => {
+      window.removeEventListener("blur", resetInterruptedGesture);
+      window.removeEventListener("orientationchange", resetInterruptedGesture);
+      document.removeEventListener("visibilitychange", resetWhenHidden);
+      clearDrag();
+    };
+  }, [clearDrag, pathname, searchStr]);
 
   const startDrag = (
     event: ReactPointerEvent<HTMLAnchorElement>,
@@ -415,6 +439,7 @@ export function AppTabBar({
               onPointerMove={moveDrag}
               onPointerUp={finishDrag}
               onPointerCancel={cancelDrag}
+              onLostPointerCapture={cancelDrag}
               onClick={(event) => {
                 if (suppressClick.current) {
                   suppressClick.current = false;
