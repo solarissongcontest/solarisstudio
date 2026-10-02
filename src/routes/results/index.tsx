@@ -4,6 +4,7 @@ import { useMemo } from "react";
 
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { AppGroupedList, AppScreen, AppSectionHeader } from "@/components/app/AppPrimitives";
 import { PublicAdvancedDisclosure } from "@/components/public/PublicAdvancedDisclosure";
 import { PublicDataState } from "@/components/public/PublicDataState";
 import { PublicDestinationGrid } from "@/components/public/PublicDestinationGrid";
@@ -163,7 +164,7 @@ function ResultsOverviewPage() {
 
     return (
       <AppShell>
-        <div className="space-y-5">
+        <AppScreen>
           {hideSpoilers && latestShow && latestEdition ? (
             <section className="solaris-app-result-hero">
               <p className="solaris-app-result-kicker">Latest result</p>
@@ -216,11 +217,12 @@ function ResultsOverviewPage() {
           )}
 
           <section aria-labelledby="app-results-explore">
-            <div className="solaris-app-section-heading">
-              <p>Explore results</p>
-              <h2 id="app-results-explore">Results & insights</h2>
-            </div>
-            <div className="solaris-app-grouped-list">
+            <AppSectionHeader
+              eyebrow="Explore results"
+              title="Results & insights"
+              id="app-results-explore"
+            />
+            <AppGroupedList>
               {appDestinations.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -234,16 +236,17 @@ function ResultsOverviewPage() {
                   </Link>
                 );
               })}
-            </div>
+            </AppGroupedList>
           </section>
 
           {!hideSpoilers && latestRows.length > 0 ? (
             <section aria-labelledby="app-results-top-five">
-              <div className="solaris-app-section-heading">
-                <p>Latest scoreboard</p>
-                <h2 id="app-results-top-five">Top five</h2>
-              </div>
-              <div className="solaris-app-grouped-list">
+              <AppSectionHeader
+                eyebrow="Latest scoreboard"
+                title="Top five"
+                id="app-results-top-five"
+              />
+              <AppGroupedList>
                 {latestRows.slice(0, 5).map((row, index) => {
                   const country = displayMap.get(row.country_id);
                   if (!country) return null;
@@ -256,10 +259,10 @@ function ResultsOverviewPage() {
                     </div>
                   );
                 })}
-              </div>
+              </AppGroupedList>
             </section>
           ) : null}
-        </div>
+        </AppScreen>
       </AppShell>
     );
   }
