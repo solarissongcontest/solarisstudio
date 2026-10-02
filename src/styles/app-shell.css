@@ -2344,7 +2344,7 @@ html[data-solaris-app] .solaris-app-settings-form {
   background: rgb(255 255 255 / .025);
 }
 
-html[data-solaris-app] .solaris-app-wiki-sheet {
+.solaris-app-wiki-sheet {
   position: fixed !important;
   inset-inline: 0 !important;
   top: auto !important;
@@ -2362,7 +2362,7 @@ html[data-solaris-app] .solaris-app-wiki-sheet {
   color: var(--foreground) !important;
 }
 
-html[data-solaris-app] .solaris-app-wiki-sheet .wiki-infobox-mobile {
+.solaris-app-wiki-sheet .wiki-infobox-mobile {
   margin: 0 !important;
   border: 0 !important;
   background: transparent !important;
