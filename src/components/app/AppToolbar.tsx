@@ -27,7 +27,7 @@ export function AppToolbar({
   access: AccountAccess;
 }) {
   const navigate = useNavigate();
-  const chrome = resolveAppRouteChrome(pathname);
+  const chrome = resolveAppRouteChrome(pathname, searchStr);
   const [backTarget, setBackTarget] = useState<AppHistoryEntry | null>(null);
 
   useEffect(() => {
@@ -35,11 +35,19 @@ export function AppToolbar({
   }, [pathname, searchStr]);
 
   const fallback = chrome.backFallback;
-  const searchReturn = readAppSearchReturn(pathname);
+  const searchReturn = chrome.root ? null : readAppSearchReturn(pathname);
+  const historyChrome = backTarget
+    ? resolveAppRouteChrome(backTarget.pathname, backTarget.searchStr)
+    : null;
+  const effectiveBackTarget =
+    !chrome.root && backTarget && historyChrome?.tab === chrome.tab
+      ? backTarget
+      : null;
+  const showBack = !chrome.root && Boolean(searchReturn || effectiveBackTarget || fallback);
   const backLabel = searchReturn
     ? "Search"
-    : backTarget
-      ? resolveAppRouteChrome(backTarget.pathname).title
+    : effectiveBackTarget
+      ? historyChrome?.title
       : fallback?.label;
 
   const goBack = () => {
@@ -50,13 +58,15 @@ export function AppToolbar({
       return;
     }
 
-    const target = popAppBackTarget(pathname, searchStr);
-    if (target) {
-      markAppNavigationRestore(target);
-      void runAppViewTransition("pop", () =>
-        navigate({ to: appEntryHref(target) as any }),
-      );
-      return;
+    if (effectiveBackTarget) {
+      const target = popAppBackTarget(pathname, searchStr);
+      if (target) {
+        markAppNavigationRestore(target);
+        void runAppViewTransition("pop", () =>
+          navigate({ to: appEntryHref(target) as any }),
+        );
+        return;
+      }
     }
     if (fallback) {
       void runAppViewTransition("pop", () =>
@@ -69,7 +79,7 @@ export function AppToolbar({
     <header className="solaris-app-toolbar" data-app-screen={chrome.archetype}>
       <div className="solaris-app-toolbar-inner">
         <div className="min-w-0 flex-1">
-          {searchReturn || backTarget || fallback ? (
+          {showBack ? (
             <button
               type="button"
               className="solaris-app-back"
@@ -86,7 +96,7 @@ export function AppToolbar({
           )}
         </div>
 
-        {!chrome.root && (searchReturn || backTarget || fallback) ? (
+        {showBack ? (
           chrome.archetype === "task" ? (
             <h1 className="solaris-app-toolbar-context-title">{chrome.title}</h1>
           ) : (
