@@ -34,7 +34,7 @@ describe("App Experience v3 adaptive data and iPad workspace", () => {
     expect(sidebar).toContain("if (!isAppMode || !items.length) return null");
     expect(sidebar).toContain('preload="intent"');
     expect(styles).toContain("App Experience v3: iPad list/detail entity workspaces");
-    expect(styles).toContain("@media (display-mode: standalone) and (min-width: 900px)");
+    expect(styles).toContain("@media (display-mode: standalone) and (min-width: 900px), (display-mode: window-controls-overlay) and (min-width: 900px)");
     expect(styles).toContain(".solaris-app-entity-workspace");
     expect(styles).toContain(".solaris-app-entity-sidebar");
   });
