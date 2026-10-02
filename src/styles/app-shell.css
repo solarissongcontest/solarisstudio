@@ -2777,3 +2777,86 @@ html[data-solaris-app] .solaris-app-directory-tools > label {
     padding-inline: .6rem;
   }
 }
+
+
+/* Installed edition pages: local section navigation belongs to the edition
+   content, not to the global app chrome. Keep it compact and non-obstructive. */
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-public-page {
+    gap: 1.6rem;
+    padding-bottom: 0;
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-page-toolbar[data-app-compact="true"] {
+    margin-bottom: -.35rem;
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-navigation,
+  html[data-solaris-app] body[data-entity-theme="edition"][data-edition-public-style="glass"] .edition-navigation {
+    position: relative;
+    top: auto;
+    z-index: 4;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 28rem;
+    box-shadow: none;
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-navigation-mobile {
+    width: 100%;
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-entry-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid rgb(210 236 248 / .10);
+    border-radius: 1.05rem;
+    background: transparent;
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-entry {
+    border: 0;
+    border-radius: 0;
+    background: rgb(255 255 255 / .018) !important;
+    padding: .85rem;
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-entry + .edition-entry {
+    border-top: 1px solid rgb(210 236 248 / .085);
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-country-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    overflow: hidden;
+    margin-top: .75rem;
+    border: 1px solid rgb(210 236 248 / .10);
+    border-radius: 1.05rem;
+    background: rgb(255 255 255 / .018);
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-country-item {
+    min-height: 4rem;
+    width: 100%;
+    border: 0;
+    border-radius: 0;
+    background: transparent !important;
+    padding: .7rem .85rem;
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-country-item + .edition-country-item {
+    border-top: 1px solid rgb(210 236 248 / .085);
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-section-heading {
+    margin-bottom: .85rem;
+    padding-bottom: .7rem;
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-section-heading h2,
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-ranking h2 {
+    font-size: clamp(1.35rem, 6vw, 1.8rem);
+  }
+}
