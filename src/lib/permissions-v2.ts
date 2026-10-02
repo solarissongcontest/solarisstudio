@@ -40,6 +40,8 @@ export const SOLARIS_CAPABILITIES = [
   'broadcast.manage',
   'system.read',
   'system.manage',
+  'community.read',
+  'community.moderate',
   'rollout.read',
   'rollout.manage',
   'permissions.read',
