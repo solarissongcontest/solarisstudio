@@ -308,35 +308,63 @@ async function expectNoBottomChromeCollision(page: Page, route: string) {
   const tabbar = page.locator(".solaris-app-tabbar");
   if ((await tabbar.count()) === 0 || !(await tabbar.isVisible())) return;
 
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  await page.waitForTimeout(80);
+  await page.waitForLoadState("networkidle", { timeout: 4_000 }).catch(() => undefined);
+
+  // Several public routes finish async hydration after DOMContentLoaded. Scroll
+  // more than once so the audit measures the settled bottom of the document,
+  // not a position that became stale when late content increased scrollHeight.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.waitForTimeout(100);
+  }
 
   const collision = await page.evaluate(() => {
+    const visible = (node: Element) => {
+      const element = node as HTMLElement;
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return (
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        rect.width > 0 &&
+        rect.height > 0
+      );
+    };
+
     const bar = document.querySelector<HTMLElement>(".solaris-app-tabbar");
     const main = document.querySelector<HTMLElement>(".app-main[data-solaris-app-mode='true']");
     if (!bar || !main) return null;
 
     const barRect = bar.getBoundingClientRect();
-    const children = [...main.children].filter(
-      (node): node is HTMLElement => node instanceof HTMLElement && node.getClientRects().length > 0,
-    );
-    const last = children.at(-1);
+    const meaningful = [
+      ...main.querySelectorAll<HTMLElement>(
+        "a[href], button, input:not([type='hidden']), select, textarea, h1, h2, h3, h4, p, li, dt, dd, figure, img, [role='status'], [role='alert']",
+      ),
+    ].filter(visible);
+
+    const last = meaningful
+      .map((element) => ({ element, rect: element.getBoundingClientRect() }))
+      .sort((a, b) => b.rect.bottom - a.rect.bottom)[0];
+
     if (!last) return null;
 
-    const rect = last.getBoundingClientRect();
     return {
-      lastBottom: Math.round(rect.bottom),
+      lastBottom: Math.round(last.rect.bottom),
       barTop: Math.round(barRect.top),
       obstruction: getComputedStyle(document.documentElement)
         .getPropertyValue("--solaris-app-bottom-obstruction")
         .trim(),
+      label:
+        last.element.getAttribute("aria-label") ||
+        last.element.textContent?.trim().slice(0, 80) ||
+        last.element.tagName.toLowerCase(),
     };
   });
 
   if (collision) {
     expect(
       collision.lastBottom,
-      `${route} final content must clear the tab bar (obstruction ${collision.obstruction})`,
+      `${route} final content "${collision.label}" must clear the tab bar (obstruction ${collision.obstruction})`,
     ).toBeLessThanOrEqual(collision.barTop + 2);
   }
 }
@@ -968,6 +996,10 @@ test("installed app connectivity states obey each screen's offline policy", asyn
   await expect(page.locator(".app-main")).toHaveAttribute("data-solaris-app-offline", "ready");
 
   await page.evaluate(() => {
+    sessionStorage.setItem(
+      "solaris:supabase-service-restriction",
+      JSON.stringify({ status: 402, detectedAt: new Date().toISOString() }),
+    );
     window.dispatchEvent(new CustomEvent("solaris:supabase-service-restriction"));
   });
   await expect(page.locator("html")).toHaveAttribute(
@@ -977,14 +1009,16 @@ test("installed app connectivity states obey each screen's offline policy", asyn
   await expect(page.locator("[data-solaris-app-connectivity]")).toHaveCount(0);
 
   await page.goto("/explore", { waitUntil: "domcontentloaded" });
-  await page.evaluate(() => {
-    window.dispatchEvent(new CustomEvent("solaris:supabase-service-restriction"));
-  });
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-solaris-connectivity",
+    "service-restricted",
+  );
   await expect(page.locator("[data-solaris-app-connectivity='service-restricted']")).toContainText(
     /temporarily restricted/i,
   );
 
   await page.evaluate(() => {
+    sessionStorage.removeItem("solaris:supabase-service-restriction");
     window.dispatchEvent(new Event("solaris:supabase-service-recovered"));
   });
   await expect(page.locator("html")).toHaveAttribute("data-solaris-connectivity", "online", {
