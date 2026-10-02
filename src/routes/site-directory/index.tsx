@@ -80,8 +80,12 @@ function SiteDirectoryPage() {
 
             return (
               <section key={area} aria-labelledby={`directory-${area}`}>
-                <div className="mb-3 border-b border-border/60 pb-2">
-                  <h2 id={`directory-${area}`} className="font-display text-xl font-bold">
+                <div className={isAppMode ? "solaris-app-section-heading" : "mb-3 border-b border-border/60 pb-2"}>
+                  {isAppMode ? <p>{area === "help" ? "Reference" : "Browse"}</p> : null}
+                  <h2
+                    id={`directory-${area}`}
+                    className={isAppMode ? undefined : "font-display text-xl font-bold"}
+                  >
                     {AREA_LABELS[area]}
                   </h2>
                 </div>
