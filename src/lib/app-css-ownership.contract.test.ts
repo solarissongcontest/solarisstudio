@@ -36,6 +36,7 @@ describe("installed app CSS ownership", () => {
       "--solaris-z-dialog-backdrop",
       "--solaris-z-dialog",
       "--solaris-z-system-critical",
+      "--solaris-z-boot",
     ]) {
       expect(base).toContain(token);
     }
@@ -79,6 +80,23 @@ describe("installed app CSS ownership", () => {
       violations,
       "Installed toolbar/tabbar geometry belongs only to styles/app-shell.css.",
     ).toEqual([]);
+  });
+
+  it("keeps seasonal overlays on the same named global z-index stack", () => {
+    const anniversaryGlobal = source("src/anniversary-global.css");
+    const anniversarySitewide = source("src/anniversary-sitewide.css");
+    const anniversarySeason = source("src/anniversary-season.css");
+    const anniversary = source("src/anniversary.css");
+
+    expect(anniversaryGlobal).toContain("var(--solaris-z-sticky)");
+    expect(anniversaryGlobal).toContain("var(--solaris-z-popover)");
+    expect(anniversarySitewide).toContain("var(--solaris-z-system-critical)");
+    expect(anniversarySeason).toContain("var(--solaris-z-popover)");
+    expect(anniversary).toContain("var(--solaris-z-popover)");
+
+    for (const css of [anniversaryGlobal, anniversarySitewide, anniversarySeason, anniversary]) {
+      expect(css).not.toMatch(/z-index:\s*(?:9\d|[1-9]\d{2,})\s*;/);
+    }
   });
 
   it("keeps Wiki mobile tools on the shared overlay primitive", () => {
