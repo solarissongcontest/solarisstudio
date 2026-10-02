@@ -709,6 +709,42 @@ test("signed-in app settings keep notification configuration user-facing", async
   await expect(page.locator("h1:visible")).toHaveCount(1);
 });
 
+test("installed app survives navigation, background-resume and offline-reconnect as one session", async ({ page, context }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "ios-pwa-portrait",
+    "Lifecycle journey runs once at the representative installed-iPhone viewport.",
+  );
+
+  await expectInstalledShell(page, "/explore");
+
+  for (const name of ["Results", "Me", "Home", "Explore"]) {
+    const destination = page.locator(".solaris-app-tab").filter({ hasText: name }).first();
+    if (await destination.count()) {
+      await destination.click();
+      await page.waitForTimeout(80);
+      await expectTabbarGeometry(page, `after ${name} tab navigation`);
+    }
+  }
+
+  await page.evaluate(() => window.dispatchEvent(new Event("pagehide")));
+  await expect(page.locator("html")).toHaveAttribute("data-solaris-lifecycle", "background");
+
+  await page.evaluate(() => window.dispatchEvent(new Event("pageshow")));
+  await expect(page.locator("html")).toHaveAttribute("data-solaris-lifecycle", "foreground");
+  await expectTabbarGeometry(page, "after app resume");
+
+  await context.setOffline(true);
+  await expect(page.locator("html")).toHaveAttribute("data-solaris-connectivity", "offline");
+  await expect(page.locator("[data-solaris-app-connectivity='offline']")).toBeVisible();
+
+  await context.setOffline(false);
+  await page.evaluate(() => window.dispatchEvent(new Event("online")));
+  await expect(page.locator("html")).toHaveAttribute("data-solaris-connectivity", "online", {
+    timeout: 10_000,
+  });
+  await expectTabbarGeometry(page, "after offline reconnect");
+});
+
 test("installed app does not leak duplicate website chrome", async ({ page }) => {
   for (const route of ["/explore", "/results", "/site-directory"]) {
     await expectInstalledShell(page, route);
