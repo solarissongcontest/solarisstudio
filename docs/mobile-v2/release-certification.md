@@ -1,12 +1,14 @@
 # Solaris Studio Mobile App V2 release certification
 
-This is the final human gate after automated Quality and Browser audit are green. It exists because an iPhone home indicator remains stubbornly unwilling to testify in unit tests. The checked application behavior must match the current commit, not a previous build.
+This is the final human gate after automated Quality and Browser audit are green. It exists because an iPhone home indicator remains stubbornly unwilling to testify in unit tests. The checked application behavior must match one explicit release source commit, not a vaguely similar build.
+
+Before approving any gate, set `source_commit` in `docs/mobile-v2/release-certification.yml` to the exact 40-character commit SHA that produced the Browser audit and the device/production candidate. Evidence may then be committed on top of that source commit. The certification script rejects any code change after `source_commit`; only the certification manifest itself may differ. This prevents an approval from silently surviving a later implementation change.
 
 ## Visual review
 
 Open the latest **Browser audit** artifact for the release commit. Review both `visual-ios-320` and `visual-ios-390` captures, including the discovered Edition, Country and Wiki entity pages. Reject the build for clipped content, unexplained dead space, overlapping sticky navigation, incorrect flags, duplicated headers, hidden final rows, broken safe-area spacing, or any screen that reads like desktop UI compressed into a phone.
 
-Record the workflow run URL or artifact identifier in `docs/mobile-v2/release-certification.yml` and change only the reviewed gate to `approved: true`.
+Record the workflow run URL or artifact identifier in `docs/mobile-v2/release-certification.yml` and change only the reviewed gate to `approved: true`. The workflow run must belong to `source_commit`.
 
 ## Physical iPhone and iPad pass
 
