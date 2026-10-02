@@ -18,6 +18,7 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { supabase } from "@/integrations/supabase/client";
+import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
 
 type DeliveryStatus = "pending" | "processing" | "sent" | "failed" | "suppressed";
 
@@ -86,9 +87,19 @@ function SystemOperationsPage() {
 
   const retry = useMutation({
     mutationFn: async (deliveryId: string) => {
+      const command = createOrganisationCommand({
+        command: "system.push.retry_failed",
+        riskClass: "R1",
+        scope: { entityId: deliveryId },
+        payload: { deliveryId },
+      });
       const { data, error } = await (supabase as any).rpc(
         "admin_retry_failed_notification_delivery",
-        { p_delivery_id: deliveryId },
+        {
+          p_delivery_id: deliveryId,
+          p_operation_id: command.operationId,
+          p_idempotency_key: command.idempotencyKey,
+        },
       );
       if (error) throw error;
       return data;
