@@ -8,10 +8,15 @@ import {
   AdminCard,
   AdminEmptyState,
   AdminPageHeader,
+  AdminSheet,
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  createOrganisationCommand,
+  requiresImpactPreview,
+} from "@/lib/organisation-operation-contract";
 
 type FanProfileModerationRow = {
   profileId: string;
@@ -23,6 +28,13 @@ type FanProfileModerationRow = {
   updatedAt: string;
   predictionCount: number;
 };
+
+type PendingModeration = {
+  profile: FanProfileModerationRow;
+  hidden: boolean;
+};
+
+const MODERATION_RISK = "R2" as const;
 
 export const Route = createFileRoute("/_authenticated/admin/community-moderation")({
   head: () => ({
@@ -36,6 +48,8 @@ export const Route = createFileRoute("/_authenticated/admin/community-moderation
 
 function CommunityModerationPage() {
   const [query, setQuery] = useState("");
+  const [pendingModeration, setPendingModeration] = useState<PendingModeration | null>(null);
+  const [moderationReason, setModerationReason] = useState("");
   const queryClient = useQueryClient();
 
   const profilesQuery = useQuery({
@@ -55,10 +69,14 @@ function CommunityModerationPage() {
       profileId,
       hidden,
       reason,
+      operationId,
+      idempotencyKey,
     }: {
       profileId: string;
       hidden: boolean;
       reason: string;
+      operationId: string;
+      idempotencyKey: string;
     }) => {
       const { data, error } = await (supabase as any).rpc(
         "admin_set_fan_profile_moderation",
@@ -66,13 +84,18 @@ function CommunityModerationPage() {
           p_profile_id: profileId,
           p_hidden: hidden,
           p_reason: reason,
+          p_operation_id: operationId,
+          p_idempotency_key: idempotencyKey,
         },
       );
       if (error) throw error;
       return data;
     },
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["admin-fan-profile-moderation"] }),
+    onSuccess: async () => {
+      setPendingModeration(null);
+      setModerationReason("");
+      await queryClient.invalidateQueries({ queryKey: ["admin-fan-profile-moderation"] });
+    },
   });
 
   const profiles = profilesQuery.data ?? [];
@@ -92,19 +115,36 @@ function CommunityModerationPage() {
     (profile) => profile.visibility === "public" && profile.leaderboardOptIn,
   ).length;
 
-  function hide(profile: FanProfileModerationRow) {
-    const reason = window.prompt(
-      `Why should “${profile.displayName}” be hidden from public community identity surfaces?`,
-    );
-    if (!reason?.trim()) return;
-    moderate.mutate({ profileId: profile.profileId, hidden: true, reason: reason.trim() });
+  function requestModeration(profile: FanProfileModerationRow, hidden: boolean) {
+    setModerationReason("");
+    moderate.reset();
+    setPendingModeration({ profile, hidden });
   }
 
-  function restore(profile: FanProfileModerationRow) {
-    if (!window.confirm(`Restore “${profile.displayName}” to eligible public identity surfaces?`)) {
-      return;
-    }
-    moderate.mutate({ profileId: profile.profileId, hidden: false, reason: "Restored by Organizer" });
+  function confirmModeration() {
+    if (!pendingModeration) return;
+    const reason = pendingModeration.hidden
+      ? moderationReason.trim()
+      : "Restored by Organizer";
+    if (pendingModeration.hidden && !reason) return;
+
+    const command = createOrganisationCommand({
+      command: "community.fan_identity.moderate",
+      riskClass: MODERATION_RISK,
+      scope: { entityId: pendingModeration.profile.profileId },
+      payload: {
+        profileId: pendingModeration.profile.profileId,
+        hidden: pendingModeration.hidden,
+      },
+    });
+
+    moderate.mutate({
+      profileId: pendingModeration.profile.profileId,
+      hidden: pendingModeration.hidden,
+      reason,
+      operationId: command.operationId,
+      idempotencyKey: command.idempotencyKey,
+    });
   }
 
   return (
@@ -190,7 +230,7 @@ function CommunityModerationPage() {
                       type="button"
                       className="admin-action-secondary shrink-0"
                       disabled={moderate.isPending}
-                      onClick={() => restore(profile)}
+                      onClick={() => requestModeration(profile, false)}
                     >
                       <RotateCcw className="size-4" />
                       Restore identity
@@ -200,7 +240,7 @@ function CommunityModerationPage() {
                       type="button"
                       className="admin-action-secondary shrink-0"
                       disabled={moderate.isPending}
-                      onClick={() => hide(profile)}
+                      onClick={() => requestModeration(profile, true)}
                     >
                       <EyeOff className="size-4" />
                       Hide public identity
@@ -220,7 +260,7 @@ function CommunityModerationPage() {
           </AdminCard>
         )}
 
-        {moderate.error ? (
+        {moderate.error && !pendingModeration ? (
           <AdminCard className="!border-rose-200/15 !bg-rose-200/[0.045]">
             <p className="text-sm font-semibold text-rose-100">Moderation was not saved</p>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -231,6 +271,101 @@ function CommunityModerationPage() {
           </AdminCard>
         ) : null}
       </div>
+
+      <AdminSheet
+        open={Boolean(pendingModeration)}
+        onClose={() => {
+          if (moderate.isPending) return;
+          setPendingModeration(null);
+          setModerationReason("");
+          moderate.reset();
+        }}
+        title={
+          pendingModeration?.hidden
+            ? "Hide public fan identity"
+            : "Restore public fan identity"
+        }
+        description="Review the affected public surfaces before applying this moderation decision."
+      >
+        {pendingModeration ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <AdminStatus tone="attention">{MODERATION_RISK}</AdminStatus>
+              <p className="text-xs font-semibold text-muted-foreground">
+                {requiresImpactPreview(MODERATION_RISK)
+                  ? "Impact review required"
+                  : "Review"}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-amber-200/15 bg-amber-200/[0.05] p-3">
+              <p className="text-sm font-semibold">{pendingModeration.profile.displayName}</p>
+              <ul className="mt-2 space-y-1.5 text-xs leading-5 text-muted-foreground">
+                <li>
+                  {pendingModeration.hidden
+                    ? "The display identity will disappear from eligible public leaderboard surfaces."
+                    : "The display identity can appear again wherever the profile has opted into public identity."}
+                </li>
+                <li>Shared prediction pages will use the moderated identity projection.</li>
+                <li>Predictions, scores, percentiles and historical competitive data remain unchanged.</li>
+                <li>The Organizer decision is written to the canonical audit log.</li>
+              </ul>
+            </div>
+
+            {pendingModeration.hidden ? (
+              <label className="block">
+                <span className="text-xs font-semibold text-foreground">
+                  Moderation reason
+                </span>
+                <textarea
+                  value={moderationReason}
+                  onChange={(event) => setModerationReason(event.target.value)}
+                  className="mt-2 min-h-28 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] p-3 text-sm outline-none focus:border-sky-200/30"
+                  placeholder="Record the concrete reason for hiding this public identity…"
+                />
+              </label>
+            ) : null}
+
+            {moderate.error ? (
+              <p className="rounded-xl border border-rose-200/15 bg-rose-200/[0.05] p-3 text-xs text-rose-100">
+                {moderate.error instanceof Error
+                  ? moderate.error.message
+                  : "The moderation command failed."}
+              </p>
+            ) : null}
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                className="admin-action-secondary w-full"
+                disabled={moderate.isPending}
+                onClick={() => {
+                  setPendingModeration(null);
+                  setModerationReason("");
+                  moderate.reset();
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={pendingModeration.hidden ? "admin-action-danger w-full" : "admin-action-primary w-full"}
+                disabled={
+                  moderate.isPending ||
+                  (pendingModeration.hidden && !moderationReason.trim())
+                }
+                onClick={confirmModeration}
+              >
+                {moderate.isPending
+                  ? "Applying…"
+                  : pendingModeration.hidden
+                    ? "Hide identity"
+                    : "Restore identity"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </AdminSheet>
     </AdminPage>
   );
 }
