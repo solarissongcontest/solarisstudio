@@ -31,7 +31,7 @@ describe("emergency global maintenance mode", () => {
   it("allows browser CI to audit the hidden application only on localhost", () => {
     expect(server).toContain('SOLARIS_E2E_BYPASS_MAINTENANCE !== "1"');
     expect(server).toContain('url.hostname === "127.0.0.1" || url.hostname === "localhost"');
-    expect(server).toContain('x-solaris-e2e-bypass-maintenance');
+    expect(server).toContain('solaris_e2e_maintenance_bypass');
     expect(server).toContain('!hasLocalE2EMaintenanceBypass(request)');
     expect(server).not.toContain('VITE_SOLARIS_E2E_BYPASS_MAINTENANCE');
   });
