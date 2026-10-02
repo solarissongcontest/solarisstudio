@@ -3,6 +3,7 @@ import { ChevronDown, Info, ListTree } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { ArchiveDataError } from "@/components/ArchiveDataState";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
@@ -89,16 +90,42 @@ function qualificationBadgeClass(status: QualificationStatus) {
 }
 
 export function CountryWikiExperience({ code }: { code: string }) {
+  const { isAppMode } = useSolarisApp();
+  const [archiveEnabled, setArchiveEnabled] = useState(!isAppMode);
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
-  const participantsQuery = useAllParticipants();
-  const resultsQuery = useAllResults();
-  const juryQuery = useAllJuryVotes();
-  const televoteQuery = useAllTelevotes();
+  const participantsQuery = useAllParticipants({ enabled: archiveEnabled });
+  const resultsQuery = useAllResults({ enabled: archiveEnabled });
+  const juryQuery = useAllJuryVotes({ enabled: archiveEnabled });
+  const televoteQuery = useAllTelevotes({ enabled: archiveEnabled });
   const country = (countriesQuery.data ?? []).find(
     (item) => item.short_code.toUpperCase() === code.toUpperCase(),
   );
+
+  useEffect(() => {
+    if (!isAppMode) {
+      setArchiveEnabled(true);
+      return;
+    }
+
+    let timeout = 0;
+    let idle: number | null = null;
+    const enable = () => setArchiveEnabled(true);
+
+    if ("requestIdleCallback" in window) {
+      idle = window.requestIdleCallback(enable, { timeout: 700 });
+    } else {
+      timeout = window.setTimeout(enable, 250);
+    }
+
+    return () => {
+      if (idle != null && "cancelIdleCallback" in window) {
+        window.cancelIdleCallback(idle);
+      }
+      if (timeout) window.clearTimeout(timeout);
+    };
+  }, [isAppMode]);
 
   const opts = useMemo(
     () =>
@@ -128,7 +155,7 @@ export function CountryWikiExperience({ code }: { code: string }) {
     () => (country ? computeCountryForm(country.id, opts) : null),
     [country, opts],
   );
-  const archivePending = [
+  const archivePending = !archiveEnabled || [
     editionsQuery,
     showsQuery,
     participantsQuery,
