@@ -286,6 +286,14 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
           (path) => path.startsWith("/confirmations/admin/responses"),
         ),
         item(
+          "Next in Line",
+          "Review side-competition participation and unused-song submissions.",
+          "/admin/next-in-line",
+          Sparkles,
+          "next in line side competition submissions",
+          (path) => path.startsWith("/admin/next-in-line"),
+        ),
+        item(
           "Responses by country",
           "Inspect confirmation state and historical context country by country.",
           "/confirmations/admin/countries",
