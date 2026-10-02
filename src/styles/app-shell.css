@@ -140,7 +140,7 @@ html[data-solaris-app-boot] body::after {
   .solaris-app-toolbar {
     position: sticky;
     top: 0;
-    z-index: 55;
+    z-index: var(--solaris-z-toolbar);
     display: block;
     padding-top: env(safe-area-inset-top);
     border-bottom: 1px solid rgb(215 238 247 / .13);
@@ -208,7 +208,7 @@ html[data-solaris-app-boot] body::after {
 
   .solaris-app-tabbar {
     position: fixed;
-    z-index: 60;
+    z-index: var(--solaris-z-tabbar);
     left: max(.65rem, var(--solaris-app-safe-left));
     right: max(.65rem, var(--solaris-app-safe-right));
     bottom: max(.45rem, var(--solaris-app-safe-bottom));
