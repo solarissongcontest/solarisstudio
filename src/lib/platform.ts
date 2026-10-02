@@ -28,8 +28,10 @@ type CapacitorWindow = Window & {
 export function isStandaloneDisplayMode() {
   if (typeof window === "undefined") return false;
   const mediaStandalone = window.matchMedia?.("(display-mode: standalone)").matches ?? false;
+  const windowControlsOverlay =
+    window.matchMedia?.("(display-mode: window-controls-overlay)").matches ?? false;
   const iosStandalone = Boolean((window.navigator as IOSNavigator).standalone);
-  return mediaStandalone || iosStandalone;
+  return mediaStandalone || windowControlsOverlay || iosStandalone;
 }
 
 export function isNativeSolarisRuntime() {
