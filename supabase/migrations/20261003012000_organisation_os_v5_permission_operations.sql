@@ -17,6 +17,51 @@ alter table public.studio2_permission_subject_versions enable row level security
 revoke all on table public.studio2_permission_subject_versions from public, anon, authenticated;
 grant all on table public.studio2_permission_subject_versions to service_role;
 
+create or replace function private.studio2_touch_permission_subject_version()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $touch$
+declare
+  v_user_id uuid;
+begin
+  v_user_id := case when tg_op = 'DELETE' then old.user_id else new.user_id end;
+
+  insert into public.studio2_permission_subject_versions (user_id, version, updated_at)
+  values (v_user_id, 1, now())
+  on conflict (user_id) do update
+  set version = public.studio2_permission_subject_versions.version + 1,
+      updated_at = excluded.updated_at;
+
+  if tg_op = 'UPDATE'
+     and old.user_id is distinct from new.user_id then
+    insert into public.studio2_permission_subject_versions (user_id, version, updated_at)
+    values (old.user_id, 1, now())
+    on conflict (user_id) do update
+    set version = public.studio2_permission_subject_versions.version + 1,
+        updated_at = excluded.updated_at;
+  end if;
+
+  return case when tg_op = 'DELETE' then old else new end;
+end
+$touch$;
+
+revoke all on function private.studio2_touch_permission_subject_version()
+  from public, anon, authenticated;
+
+drop trigger if exists studio2_role_assignments_touch_subject_version
+  on public.studio2_role_assignments;
+create trigger studio2_role_assignments_touch_subject_version
+after insert or update or delete on public.studio2_role_assignments
+for each row execute function private.studio2_touch_permission_subject_version();
+
+drop trigger if exists studio2_capability_grants_touch_subject_version
+  on public.studio2_capability_grants;
+create trigger studio2_capability_grants_touch_subject_version
+after insert or update or delete on public.studio2_capability_grants
+for each row execute function private.studio2_touch_permission_subject_version();
+
 create or replace function private.studio2_permission_subject_snapshot(
   p_user_id uuid
 )
@@ -146,10 +191,12 @@ begin
 
   v_capabilities := private.studio2_permission_change_capabilities(p_change_kind, p_key);
 
-  select coalesce(version, 0)
-  into v_version
-  from public.studio2_permission_subject_versions
-  where user_id = p_user_id;
+  select coalesce((
+    select subject.version
+    from public.studio2_permission_subject_versions subject
+    where subject.user_id = p_user_id
+  ), 0)
+  into v_version;
 
   select coalesce(
     nullif(btrim(u.raw_user_meta_data ->> 'display_name'), ''),
@@ -356,13 +403,12 @@ begin
       using errcode = '22023';
   end if;
 
-  if v_changed then
-    update public.studio2_permission_subject_versions
-    set version = version + 1,
-        updated_at = now()
-    where user_id = p_user_id
-    returning version into v_next_version;
-  else
+  select version
+  into v_next_version
+  from public.studio2_permission_subject_versions
+  where user_id = p_user_id;
+
+  if v_next_version is null then
     v_next_version := v_current_version;
   end if;
 
