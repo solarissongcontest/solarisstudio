@@ -1,11 +1,17 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronDown, Info, ListTree, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, Info, ListTree } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { ArchiveDataError } from "@/components/ArchiveDataState";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   CountryCustomSectionContent,
   FormerCountryIdentities,
@@ -666,50 +672,59 @@ function WikiMobileToolbar({
   onNavigate: (id: string) => void;
 }) {
   const [sheet, setSheet] = useState<"contents" | "facts" | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const closeRef = useRef<HTMLButtonElement | null>(null);
-
-  const openSheet = (next: "contents" | "facts", trigger: HTMLButtonElement) => {
-    triggerRef.current = trigger;
-    setSheet(next);
-  };
-
-  useEffect(() => {
-    if (!sheet) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSheet(null);
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    window.requestAnimationFrame(() => closeRef.current?.focus());
-    return () => {
-      document.body.style.overflow = previous;
-      document.removeEventListener("keydown", handleKeyDown);
-      window.requestAnimationFrame(() => triggerRef.current?.focus());
-    };
-  }, [sheet]);
 
   return (
-    <div className="wiki-mobile-tools lg:hidden">
-      <div className="wiki-mobile-toolbar">
-        <button type="button" onClick={(event) => openSheet("contents", event.currentTarget)}><ListTree aria-hidden="true" />Contents</button>
-        <button type="button" onClick={(event) => openSheet("facts", event.currentTarget)}><Info aria-hidden="true" />Quick facts</button>
+    <Sheet
+      open={Boolean(sheet)}
+      onOpenChange={(open) => {
+        if (!open) setSheet(null);
+      }}
+    >
+      <div className="wiki-mobile-tools lg:hidden">
+        <div className="wiki-mobile-toolbar">
+          <button type="button" onClick={() => setSheet("contents")}>
+            <ListTree aria-hidden="true" />
+            Contents
+          </button>
+          <button type="button" onClick={() => setSheet("facts")}>
+            <Info aria-hidden="true" />
+            Quick facts
+          </button>
+        </div>
       </div>
-      {sheet && (
-        <div className="wiki-sheet" role="dialog" aria-modal="true" aria-label={sheet === "contents" ? "Article contents" : `Quick facts about ${country.name}`}>
-          <button className="wiki-sheet-backdrop" type="button" aria-label="Close" onClick={() => setSheet(null)} />
-          <div className="wiki-sheet-panel">
-            <header><div><p>Terra Solaris Wiki</p><h2>{sheet === "contents" ? "Article contents" : `Quick facts about ${country.name}`}</h2></div><button ref={closeRef} type="button" onClick={() => setSheet(null)} aria-label="Close"><X /></button></header>
+
+      {sheet ? (
+        <SheetContent
+          side="bottom"
+          aria-label={sheet === "contents" ? "Article contents" : `Quick facts about ${country.name}`}
+          className="solaris-app-wiki-sheet wiki-sheet-panel"
+        >
+          <SheetHeader className="pr-12 text-left">
+            <p className="text-[10px] font-black uppercase tracking-[.14em] text-primary">
+              Terra Solaris Wiki
+            </p>
+            <SheetTitle>
+              {sheet === "contents" ? "Article contents" : `Quick facts about ${country.name}`}
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="min-h-0 overflow-y-auto pt-2">
             {sheet === "contents" ? (
-              <WikiContentsNav sections={sections} activeId={activeId} onNavigate={(id) => { setSheet(null); window.setTimeout(() => onNavigate(id), 0); }} />
+              <WikiContentsNav
+                sections={sections}
+                activeId={activeId}
+                onNavigate={(id) => {
+                  setSheet(null);
+                  window.setTimeout(() => onNavigate(id), 0);
+                }}
+              />
             ) : (
               <WikiInfobox country={country} profile={profile} infoRows={infoRows} mobile />
             )}
           </div>
-        </div>
-      )}
-    </div>
+        </SheetContent>
+      ) : null}
+    </Sheet>
   );
 }
 
