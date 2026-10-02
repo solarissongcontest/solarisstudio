@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
 const matrix = readFileSync("docs/mobile-v2/completion-matrix.yml", "utf8");
@@ -38,4 +39,61 @@ if (unresolved.length) {
   process.exit(1);
 }
 
-console.log(`Mobile V2 release certification passed: ${gates.length} manual gates approved with evidence.`);
+const sourceMatch = certification.match(/^source_commit:\s*"([0-9a-f]{40})"\s*$/m);
+if (!sourceMatch) {
+  console.error(
+    "Mobile V2 certification requires source_commit to be the exact 40-character release candidate SHA.",
+  );
+  process.exit(1);
+}
+
+const sourceCommit = sourceMatch[1];
+
+function git(args) {
+  return execFileSync("git", args, {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
+}
+
+let headCommit;
+try {
+  headCommit = git(["rev-parse", "HEAD"]);
+  git(["cat-file", "-e", `${sourceCommit}^{commit}`]);
+  execFileSync("git", ["merge-base", "--is-ancestor", sourceCommit, headCommit], {
+    stdio: "ignore",
+  });
+} catch {
+  console.error(
+    `Mobile V2 source_commit ${sourceCommit} is not an ancestor of the checked-out certification commit.`,
+  );
+  process.exit(1);
+}
+
+const changedSinceSource = git(["diff", "--name-only", `${sourceCommit}..HEAD`])
+  .split("\n")
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+const allowedEvidenceFiles = new Set([
+  "docs/mobile-v2/release-certification.yml",
+]);
+
+const implementationChanges = changedSinceSource.filter(
+  (path) => !allowedEvidenceFiles.has(path),
+);
+
+if (implementationChanges.length) {
+  console.error(
+    "Mobile V2 certification evidence is stale because implementation changed after source_commit:",
+  );
+  for (const path of implementationChanges) console.error(`  - ${path}`);
+  console.error(
+    "Choose the latest implementation commit as source_commit and repeat visual/device/production evidence.",
+  );
+  process.exit(1);
+}
+
+console.log(
+  `Mobile V2 release certification passed: ${gates.length} manual gates approved with evidence for source ${sourceCommit}.`,
+);
