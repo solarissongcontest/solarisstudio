@@ -22,11 +22,11 @@ describe("Permission Engine v2 dual enforcement batch", () => {
     expect(probe).toContain("retry: false");
   });
 
-  it("keeps Access & Permissions inside the mobile Administration family", () => {
+  it("keeps Access & Permissions inside the mobile More family", () => {
     expect(frame).toContain('label: "More"');
     expect(frame).toContain('href: "/admin/more"');
     expect(frame).toContain('!adminEditionRoute(path, slug)');
-    expect(frame).toContain('!adminCasesRoute(path)');
+    expect(frame).toContain('!adminDelegationRoute(path)');
   });
 
   it("adds capability checks to the remaining legacy-only Studio 2 writes", () => {
