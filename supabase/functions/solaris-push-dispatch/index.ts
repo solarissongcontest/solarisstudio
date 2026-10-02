@@ -7,6 +7,7 @@ type Delivery = {
   user_id: string;
   category: string;
   event_type: string;
+  subject_id: string;
   route: string;
   title: string;
   body: string;
@@ -74,8 +75,11 @@ function inQuietHours(preference: Preference, now = new Date()) {
     : current >= start || current < end;
 }
 
-function isUrgentDeadline(delivery: Delivery) {
-  return /deadline_(?:3h|1h)$/.test(delivery.event_type);
+function isUrgentDelivery(delivery: Delivery) {
+  return (
+    /deadline_(?:3h|1h)$/.test(delivery.event_type) ||
+    delivery.event_type === "organizer_task.critical"
+  );
 }
 
 Deno.serve(async (req) => {
@@ -136,6 +140,14 @@ Deno.serve(async (req) => {
 
   webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
+  const { error: organizerTaskError } = await service.rpc(
+    "solaris_prepare_organizer_task_delivery",
+  );
+  if (organizerTaskError) {
+    console.error("[solaris-push-dispatch] Organizer Task reconciliation failed", organizerTaskError);
+    return json({ error: "Organizer task notifications could not be prepared." }, 500);
+  }
+
   const { data: enqueueCount, error: enqueueError } = await service.rpc(
     "solaris_enqueue_app_notifications",
     { p_now: new Date().toISOString() },
@@ -161,6 +173,43 @@ Deno.serve(async (req) => {
   let deferred = 0;
 
   for (const delivery of (deliveries ?? []) as Delivery[]) {
+    if (delivery.category === "organizer_tasks") {
+      const { data: task, error: taskError } = await service
+        .from("studio2_organizer_tasks")
+        .select("state,resolved_at")
+        .eq("id", delivery.subject_id)
+        .maybeSingle();
+
+      if (taskError) {
+        console.error("[solaris-push-dispatch] Organizer Task lookup failed", delivery.id, taskError);
+        await service
+          .from("notification_deliveries")
+          .update({
+            status: "pending",
+            processing_started_at: null,
+            scheduled_for: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+            error: "Organizer Task lookup failed; retry scheduled.",
+          })
+          .eq("id", delivery.id)
+          .eq("status", "processing");
+        continue;
+      }
+
+      if (!task || task.state === "resolved" || task.resolved_at) {
+        await service
+          .from("notification_deliveries")
+          .update({
+            status: "suppressed",
+            processing_started_at: null,
+            error: "Organizer Task resolved before delivery.",
+          })
+          .eq("id", delivery.id)
+          .eq("status", "processing");
+        suppressed += 1;
+        continue;
+      }
+    }
+
     const { data: preferenceData, error: preferenceError } = await service
       .from("notification_preferences")
       .select("external_enabled,categories,quiet_hours_start,quiet_hours_end,urgent_deadline_reminders,timezone")
@@ -183,11 +232,11 @@ Deno.serve(async (req) => {
     }
 
     const preference = preferenceData as Preference | null;
-    if (
-      !preference?.external_enabled ||
-      !Array.isArray(preference.categories) ||
-      !preference.categories.includes(delivery.category)
-    ) {
+    const categoryEnabled =
+      delivery.category === "organizer_tasks" ||
+      (Array.isArray(preference?.categories) &&
+        preference.categories.includes(delivery.category));
+    if (!preference?.external_enabled || !categoryEnabled) {
       await service
         .from("notification_deliveries")
         .update({
@@ -203,7 +252,7 @@ Deno.serve(async (req) => {
 
     if (
       inQuietHours(preference) &&
-      !(preference.urgent_deadline_reminders && isUrgentDeadline(delivery))
+      !(preference.urgent_deadline_reminders && isUrgentDelivery(delivery))
     ) {
       await service
         .from("notification_deliveries")
