@@ -92,10 +92,14 @@ set search_path = pg_catalog, public, private
 as $guard$
 begin
   if old.resolution_mode = 'domain'
-     and new.resolved_at is distinct from old.resolved_at
-     and current_user in ('authenticated', 'anon') then
+     and current_user in ('authenticated', 'anon')
+     and (
+       (to_jsonb(new) - 'read_at')
+       is distinct from
+       (to_jsonb(old) - 'read_at')
+     ) then
     raise exception
-      'Task-backed notification resolution follows authoritative domain state.'
+      'Task-backed notifications may only be marked seen; task state follows authoritative domain state.'
       using errcode = '42501';
   end if;
 
