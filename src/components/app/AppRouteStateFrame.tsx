@@ -1,9 +1,6 @@
-import { useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { AppTabBar } from "@/components/app/AppTabBar";
 import { useSolarisApp } from "@/components/app/AppRuntime";
-import { useAppAttentionSummary } from "@/lib/app-attention";
 
 export function AppRouteStateFrame({
   title,
@@ -15,36 +12,19 @@ export function AppRouteStateFrame({
   busy?: boolean;
 }) {
   const { isAppMode } = useSolarisApp();
-  const attention = useAppAttentionSummary();
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const searchStr = useRouterState({ select: (state) => state.location.searchStr });
 
   if (!isAppMode) return <>{children}</>;
 
   return (
-    <div className="app-shell min-h-screen" data-solaris-app-route-state>
-      <header className="solaris-app-toolbar">
-        <div className="solaris-app-toolbar-inner">
-          <h1 className="solaris-app-toolbar-title">{title}</h1>
-        </div>
-      </header>
-
-      <main
-        id="main-content"
-        className="app-main relative z-10 mx-auto w-full min-w-0 px-4 py-6 sm:px-5"
-        aria-busy={busy || undefined}
-      >
-        {children}
-      </main>
-
-      <AppTabBar
-        pathname={pathname}
-        searchStr={searchStr}
-        signedIn={false}
-        participateBadge={attention.participate}
-        meBadge={attention.me}
-      />
-    </div>
+    <main
+      id="main-content"
+      className="app-main relative z-10 mx-auto w-full min-w-0 px-4 py-6 sm:px-5"
+      aria-busy={busy || undefined}
+      aria-label={title}
+      data-solaris-app-route-state
+    >
+      {children}
+    </main>
   );
 }
 
