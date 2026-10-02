@@ -126,8 +126,8 @@ as $media$
       and nullif(btrim(entry.song_url), '') is not null
       and btrim(entry.song_url) !~* '^https?://'
       and not (
-        entry.metadata ->> 'video_processing' = 'true'
-        or entry.metadata ->> 'videoProcessing' = 'true'
+        coalesce(entry.metadata ->> 'video_processing', '') = 'true'
+        or coalesce(entry.metadata ->> 'videoProcessing', '') = 'true'
       )
       and (p_edition_id is null or entry.edition_id = p_edition_id)
 
@@ -144,8 +144,8 @@ as $media$
       and nullif(btrim(entry.song_url), '') is not null
       and btrim(entry.song_url) ~* '^https?://'
       and not (
-        entry.metadata ->> 'video_processing' = 'true'
-        or entry.metadata ->> 'videoProcessing' = 'true'
+        coalesce(entry.metadata ->> 'video_processing', '') = 'true'
+        or coalesce(entry.metadata ->> 'videoProcessing', '') = 'true'
       )
       and (p_edition_id is null or entry.edition_id = p_edition_id)
       and exists (
