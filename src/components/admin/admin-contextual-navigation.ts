@@ -112,6 +112,7 @@ function domainTabs(
           "/admin/system",
           (path) =>
             path.startsWith("/admin/system") ||
+            path.startsWith("/admin/system-operations") ||
             path.startsWith("/admin/sync-health") ||
             path.startsWith("/admin/feature-rollout") ||
             path.startsWith("/admin/anniversary"),
