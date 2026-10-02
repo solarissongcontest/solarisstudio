@@ -54,7 +54,7 @@ describe("personal attention resolver", () => {
       now: new Date("2026-09-19T12:00:00Z").getTime(),
     });
 
-    expect(items.map((item) => item.id)).toContain("confirmation-missing:round-22");
+    expect(items.map((item) => item.id)).toContain("confirmation-missing:edition-22");
     expect(items[0]?.actionRequired).toBe(true);
   });
 
