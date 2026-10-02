@@ -2447,14 +2447,14 @@ html[data-solaris-app] .solaris-mysolaris-workspace .data-panel > div:first-chil
   margin-bottom: .7rem !important;
 }
 
-html[data-solaris-app] .solaris-mysolaris-workspace .page-header.solaris-app-page-context {
+html[data-solaris-app] .solaris-mysolaris-workspace .solaris-app-page-context {
   margin-bottom: .75rem !important;
   padding: 0 .1rem !important;
   border: 0 !important;
   background: transparent !important;
 }
 
-html[data-solaris-app] .solaris-mysolaris-workspace .page-header.solaris-app-page-context::before,
-html[data-solaris-app] .solaris-mysolaris-workspace .page-header.solaris-app-page-context::after {
+html[data-solaris-app] .solaris-mysolaris-workspace .solaris-app-page-context::before,
+html[data-solaris-app] .solaris-mysolaris-workspace .solaris-app-page-context::after {
   display: none !important;
 }
