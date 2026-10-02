@@ -58,7 +58,7 @@ function AppWikiIndexPage() {
   return (
     <AppShell>
       <div className="space-y-4">
-        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_11rem]">
+        <div className="solaris-app-directory-tools">
           <label className="solaris-app-search-field">
             <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <span className="sr-only">Search the Wiki</span>
@@ -75,7 +75,7 @@ function AppWikiIndexPage() {
             <select
               value={region}
               onChange={(event) => setRegion(event.target.value)}
-              className="min-h-11 w-full rounded-xl border border-border bg-background/45 px-3 text-sm outline-none"
+              className="min-h-[3.25rem] w-full rounded-xl border border-border bg-background/45 px-3 text-sm outline-none"
             >
               <option value="all">All regions</option>
               {regions.map((item) => <option key={item} value={item}>{item}</option>)}
