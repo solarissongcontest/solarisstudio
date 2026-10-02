@@ -81,16 +81,19 @@ export function AppRuntime({ children }: { children: ReactNode }) {
   useEffect(() => {
     const refresh = () => setPlatform(detectSolarisPlatform());
     const standalone = window.matchMedia?.("(display-mode: standalone)");
+    const windowControlsOverlay = window.matchMedia?.("(display-mode: window-controls-overlay)");
 
     refresh();
     window.addEventListener("online", refresh);
     window.addEventListener("offline", refresh);
     standalone?.addEventListener?.("change", refresh);
+    windowControlsOverlay?.addEventListener?.("change", refresh);
 
     return () => {
       window.removeEventListener("online", refresh);
       window.removeEventListener("offline", refresh);
       standalone?.removeEventListener?.("change", refresh);
+      windowControlsOverlay?.removeEventListener?.("change", refresh);
     };
   }, []);
 
