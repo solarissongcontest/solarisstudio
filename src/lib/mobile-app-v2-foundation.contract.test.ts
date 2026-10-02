@@ -105,6 +105,24 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(wiki).toContain("AppWikiIndexPage");
   });
 
+  it("prevents website chrome from flashing before installed-app hydration", () => {
+    const root = source("src/routes/__root.tsx");
+    const runtime = source("src/components/app/AppRuntime.tsx");
+    const css = source("src/styles/app-shell.css");
+
+    expect(root).toContain("data-solaris-app-boot");
+    expect(root).toContain('navigator.standalone === true');
+    expect(runtime).toContain('removeAttribute("data-solaris-app-boot")');
+    expect(css).toContain('html[data-solaris-app-boot] body::before');
+  });
+
+  it("lets app toolbar identity replace repeated PageHeader titles without losing actions", () => {
+    const shell = source("src/components/AppShell.tsx");
+    expect(shell).toContain("toolbarOwnsIdentity");
+    expect(shell).toContain("solaris-app-page-context");
+    expect(shell).toContain("{actions ? (");
+  });
+
   it("keeps installed-app search off the full archive query fan-out", () => {
     const search = source("src/components/public/PublicCommandPalette.tsx");
     const migration = source("supabase/migrations/20261002153000_public_app_search.sql");
