@@ -42,6 +42,11 @@ export type CountryConfirmationAccess = {
 };
 
 export async function getCountryConfirmationAccess(): Promise<CountryConfirmationAccess> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) {
+    return { authenticated: false, country: null, responses: [] };
+  }
+
   const { data, error } = await confirmations.rpc("public_country_account_confirmation_access");
   if (error) throw error;
 
