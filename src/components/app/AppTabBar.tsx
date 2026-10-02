@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
 import {
   appEntryHref,
-  appTabForLocation,
   appTabRoot,
   getAppTabDestination,
   markAppNavigationRestore,
@@ -34,8 +33,6 @@ type DragState = {
   moved: boolean;
 };
 
-const LAST_PRIMARY_AREA_KEY = "solaris:app-last-primary-area";
-
 function isPrimaryArea(value: string): value is PrimaryArea {
   return PUBLIC_GLOBAL_AREAS.some((area) => area.id === value);
 }
@@ -61,12 +58,11 @@ export function AppTabBar({
 }) {
   const navigate = useNavigate();
   const chrome = resolveAppRouteChrome(pathname, searchStr);
-  const contextualArea = appTabForLocation(pathname, searchStr);
-  const routeArea = chrome.tab ?? contextualArea;
+  const routeArea: PrimaryArea =
+    chrome.tab && isPrimaryArea(chrome.tab) ? chrome.tab : "home";
   const tabbarMode = chrome.tabBar;
   const [collapsed, setCollapsed] = useState(false);
   const [railMode, setRailMode] = useState(false);
-  const [fallbackArea, setFallbackArea] = useState<PrimaryArea>("home");
   const [dragPreviewIndex, setDragPreviewIndex] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
   const lastScrollY = useRef(0);
@@ -90,15 +86,6 @@ export function AppTabBar({
   }, []);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(LAST_PRIMARY_AREA_KEY);
-    if (stored && isPrimaryArea(stored)) setFallbackArea(stored);
-  }, []);
-
-  useEffect(() => {
-    if (routeArea && isPrimaryArea(routeArea)) {
-      setFallbackArea(routeArea);
-      window.localStorage.setItem(LAST_PRIMARY_AREA_KEY, routeArea);
-    }
     setCollapsed(false);
     lastScrollY.current = window.scrollY;
     downTravel.current = 0;
@@ -189,8 +176,7 @@ export function AppTabBar({
     };
   }, [collapsed, railMode, tabbarMode, pathname]);
 
-  const activeArea: PrimaryArea =
-    routeArea && isPrimaryArea(routeArea) ? routeArea : fallbackArea;
+  const activeArea: PrimaryArea = routeArea;
   const activeIndex = Math.max(
     0,
     PUBLIC_GLOBAL_AREAS.findIndex((area) => area.id === activeArea),
