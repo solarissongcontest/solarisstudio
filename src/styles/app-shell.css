@@ -2368,3 +2368,42 @@ html[data-solaris-app] .solaris-app-wiki-sheet .wiki-infobox-mobile {
   background: transparent !important;
   box-shadow: none !important;
 }
+
+
+html[data-solaris-app] .solaris-app-me-summary {
+  border: 1px solid rgb(210 236 248 / .12);
+  border-radius: 1.2rem;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(var(--solaris-accent, 139 198 222) / .09), transparent 44%),
+    rgb(255 255 255 / .026);
+}
+
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="settings"]
+  .data-panel {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="settings"]
+  .data-panel + .data-panel {
+  margin-top: 1.25rem;
+}
+
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="settings"]
+  .solaris-settings-row {
+  border-radius: .95rem !important;
+  background: rgb(255 255 255 / .025) !important;
+}
+
+html[data-solaris-app]
+  .app-main[data-solaris-app-screen="settings"]
+  .solaris-settings-status {
+  border-radius: .95rem !important;
+  background: rgb(255 255 255 / .025) !important;
+}
