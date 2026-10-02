@@ -2510,3 +2510,26 @@ html[data-solaris-app] .solaris-app-search-action {
   gap: .75rem;
   padding: .6rem .65rem .6rem .85rem;
 }
+
+
+html[data-solaris-app] .solaris-app-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid rgb(210 236 248 / .10);
+  border-radius: 1.05rem;
+  background: rgb(255 255 255 / .022);
+}
+
+html[data-solaris-app] .solaris-app-stat-cell {
+  min-width: 0;
+  padding: .85rem;
+}
+
+html[data-solaris-app] .solaris-app-stat-cell:nth-child(even) {
+  border-left: 1px solid rgb(210 236 248 / .085);
+}
+
+html[data-solaris-app] .solaris-app-stat-cell:nth-child(n + 3) {
+  border-top: 1px solid rgb(210 236 248 / .085);
+}
