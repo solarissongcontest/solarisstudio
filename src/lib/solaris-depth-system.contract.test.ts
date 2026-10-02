@@ -54,12 +54,12 @@ describe("Solaris Depth System governance visual contract", () => {
   });
 
   it("gives Rules and Integrity intentional app tab ownership", () => {
-    const chrome = source("src/lib/app-route-chrome.ts");
+    const registry = source("src/lib/app-screen-registry.ts");
 
-    expect(chrome).toContain('if (/^\\/rules(\\/|$)/.test(pathname))');
-    expect(chrome).toContain('tab: "explore"');
-    expect(chrome).toContain('if (/^\\/integrity(\\/|$)/.test(pathname))');
-    expect(chrome).toContain('tab: "participate"');
+    expect(registry).toContain('if (/^\\/rules(\\/|$)/.test(pathname))');
+    expect(registry).toContain('rootTab: "explore"');
+    expect(registry).toContain('if (/^\\/integrity(\\/|$)/.test(pathname))');
+    expect(registry).toContain('rootTab: "participate"');
   });
 
   it("reserves measured mobile scroll runway above the Liquid Glass tab bar", () => {
