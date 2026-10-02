@@ -2,6 +2,7 @@ import type { AppTabId } from "@/lib/app-navigation";
 import {
   resolveSolarisAppScreen,
   type SolarisAppPresentation,
+  type SolarisAppSearchMode,
 } from "@/lib/app-screen-registry";
 
 export type AppScreenArchetype =
@@ -25,6 +26,7 @@ export type AppRouteChrome = {
   archetype: AppScreenArchetype;
   root: boolean;
   tabBar: AppTabBarMode;
+  search: SolarisAppSearchMode;
   backFallback?: {
     label: string;
     to: string;
@@ -57,6 +59,7 @@ export function resolveAppRouteChrome(pathname: string, searchStr = ""): AppRout
       screen.chrome.tabbar === "full"
         ? "visible"
         : screen.chrome.tabbar,
+    search: screen.chrome.search,
     backFallback: screen.hierarchy.parent
       ? {
           label: screen.hierarchy.parent.label,
