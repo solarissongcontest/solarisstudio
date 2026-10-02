@@ -24,7 +24,7 @@ const MAINTENANCE_ADMIN_LOGOUT_PATH = "/__maintenance-admin/logout";
 const MAINTENANCE_BYPASS_COOKIE = "solaris_maintenance_admin";
 const MAINTENANCE_BYPASS_VERSION = "v1";
 const MAINTENANCE_BYPASS_MAX_AGE_SECONDS = 12 * 60 * 60;
-const E2E_MAINTENANCE_BYPASS_HEADER = "x-solaris-e2e-bypass-maintenance";
+const E2E_MAINTENANCE_BYPASS_COOKIE = "solaris_e2e_maintenance_bypass";
 const MAINTENANCE_ASSET_PATHS = new Set([
   "/tsbc-maintenance-mark.svg",
   "/solaris-studio-mark.png",
@@ -74,7 +74,7 @@ function hasLocalE2EMaintenanceBypass(request: Request) {
   const localHost = url.hostname === "127.0.0.1" || url.hostname === "localhost";
   if (!localHost) return false;
 
-  return request.headers.get(E2E_MAINTENANCE_BYPASS_HEADER) === "1";
+  return readCookie(request, E2E_MAINTENANCE_BYPASS_COOKIE) === "1";
 }
 
 function bytesToHex(bytes: ArrayBuffer) {
