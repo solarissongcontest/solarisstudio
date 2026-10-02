@@ -264,7 +264,9 @@ begin
   from recipients recipient
   join active_tasks task on task.id = recipient.task_id
   where recipient.user_id is not null
-  on conflict (recipient_id, source_key) do update set
+  on conflict (recipient_id, source_key)
+    where source_key is not null
+  do update set
     severity = excluded.severity,
     title = excluded.title,
     body = excluded.body,
@@ -370,6 +372,26 @@ $prepare$;
 
 revoke all on function private.studio2_prepare_organizer_task_delivery()
   from public, anon, authenticated;
+
+create or replace function public.solaris_prepare_organizer_task_delivery()
+returns void
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private, televoting
+as $service$
+begin
+  if not private.studio2_request_is_service_role() then
+    raise exception 'Service role required' using errcode = '42501';
+  end if;
+
+  perform private.studio2_prepare_organizer_task_delivery();
+end
+$service$;
+
+revoke all on function public.solaris_prepare_organizer_task_delivery()
+  from public, anon, authenticated;
+grant execute on function public.solaris_prepare_organizer_task_delivery()
+  to service_role;
 
 notify pgrst, 'reload schema';
 
