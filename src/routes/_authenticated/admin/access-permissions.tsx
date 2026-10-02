@@ -18,24 +18,25 @@ import { PermissionCutoverReadinessPanel } from "@/components/admin/PermissionCu
 import {
   AdminCard,
   AdminCardHeader,
+  AdminConfirmSheet,
   AdminEmptyState,
   AdminPageHeader,
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { WorkspaceTabs } from "@/components/admin/AdminWorkspacePrimitives";
 import {
-  assignAccessRole,
-  grantDirectCapability,
+  applyPermissionChange,
   loadAccessUsers,
   loadPermissionCatalog,
   loadPermissionEvents,
   loadPermissionSummary,
+  previewPermissionChange,
   recordPermissionEvaluation,
-  revokeAccessRole,
-  revokeDirectCapability,
   viewAccessAs,
   type AccessUser,
   type PermissionCapability,
+  type PermissionChangeInput,
+  type PermissionChangePreview,
 } from "@/lib/permission-engine-admin";
 import type { SolarisCapability } from "@/lib/permissions-v2";
 
@@ -76,6 +77,14 @@ type AccessChange =
       editionId: string | null;
     };
 
+type PendingAccessChange = {
+  change: AccessChange;
+  command: PermissionChangeInput;
+  preview: PermissionChangePreview;
+  operationId: string;
+  idempotencyKey: string;
+};
+
 const TABS: Array<{ id: AccessTab; label: string }> = [
   { id: "users", label: "Users" },
   { id: "roles", label: "Roles" },
@@ -95,6 +104,7 @@ function AccessPermissionsPage() {
   const [capabilityKey, setCapabilityKey] = useState<SolarisCapability | "">("");
   const [mismatchesOnly, setMismatchesOnly] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [pendingChange, setPendingChange] = useState<PendingAccessChange | null>(null);
 
   const catalogQuery = useQuery({
     queryKey: ["permission-engine-catalog"],
@@ -148,22 +158,49 @@ function AccessPermissionsPage() {
     return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
   }, [catalog?.capabilities]);
 
-  const change = useMutation({
-    mutationFn: async (input: AccessChange) => {
-      if (input.kind === "assign-role") await assignAccessRole(input);
-      if (input.kind === "revoke-role") await revokeAccessRole(input);
-      if (input.kind === "grant-capability") await grantDirectCapability(input);
-      if (input.kind === "revoke-capability") await revokeDirectCapability(input);
-      return input;
+  const previewChange = useMutation({
+    mutationFn: async (change: AccessChange): Promise<PendingAccessChange> => {
+      const command = permissionCommand(change);
+      const preview = await previewPermissionChange(command);
+      return {
+        change,
+        command,
+        preview,
+        operationId: crypto.randomUUID(),
+        idempotencyKey: crypto.randomUUID(),
+      };
     },
-    onSuccess: async (input) => {
-      setMessage(changeMessage(input));
+    onSuccess: (pending) => {
+      if (pending.preview.alreadyApplied) {
+        setPendingChange(null);
+        setMessage("That access state is already current.");
+        return;
+      }
+      setMessage(null);
+      setPendingChange(pending);
+    },
+  });
+
+  const change = useMutation({
+    mutationFn: async (pending: PendingAccessChange) =>
+      applyPermissionChange({
+        ...pending.command,
+        operationId: pending.operationId,
+        idempotencyKey: pending.idempotencyKey,
+        expectedVersion: pending.preview.expectedVersion,
+      }),
+    onSuccess: async (_receipt, pending) => {
+      setPendingChange(null);
+      setMessage(changeMessage(pending.change));
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["permission-engine-users"],
         }),
         queryClient.invalidateQueries({
           queryKey: ["permission-engine-summary"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["permission-engine-events"],
         }),
       ]);
     },
@@ -241,6 +278,7 @@ function AccessPermissionsPage() {
         </AdminCard>
 
         {message ? <Notice>{message}</Notice> : null}
+        {previewChange.error ? <ErrorNotice error={previewChange.error} /> : null}
         {change.error ? <ErrorNotice error={change.error} /> : null}
 
         {loading ? (
@@ -266,6 +304,7 @@ function AccessPermissionsPage() {
             onSelectUser={(userId) => {
               setSelectedUserId(userId);
               simulation.reset();
+              setPendingChange(null);
               setMessage(null);
             }}
             roles={catalog?.roles ?? []}
@@ -278,8 +317,8 @@ function AccessPermissionsPage() {
             capabilityKey={capabilityKey}
             onCapabilityKey={setCapabilityKey}
             effectiveScope={effectiveScope}
-            busy={change.isPending}
-            onChange={(input) => change.mutate(input)}
+            busy={previewChange.isPending || change.isPending}
+            onChange={(input) => previewChange.mutate(input)}
             onSimulate={(userId) => simulation.mutate({ userId })}
             simulation={simulation.data ?? null}
             simulationError={simulation.error}
@@ -300,6 +339,31 @@ function AccessPermissionsPage() {
         ) : (
           <PermissionCutoverReadinessPanel summary={summary} />
         )}
+
+        <AdminConfirmSheet
+          open={Boolean(pendingChange)}
+          onClose={() => {
+            if (!change.isPending) setPendingChange(null);
+          }}
+          onConfirm={() => pendingChange ? change.mutateAsync(pendingChange) : undefined}
+          title={pendingChange ? permissionChangeTitle(pendingChange.change) : "Confirm access change"}
+          description={
+            pendingChange ? (
+              <PermissionImpactPreview pending={pendingChange} />
+            ) : (
+              "Review the access impact before applying this change."
+            )
+          }
+          confirmLabel="Apply access change"
+          confirmationText={pendingChange?.preview.targetDisplayName}
+          confirmationHint={
+            pendingChange
+              ? `Type ${pendingChange.preview.targetDisplayName} to confirm this R3 access change`
+              : undefined
+          }
+          busy={change.isPending}
+          danger
+        />
       </div>
     </AdminPage>
   );
