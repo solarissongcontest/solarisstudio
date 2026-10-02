@@ -4,7 +4,7 @@ import { useMemo } from "react";
 
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
-import { AppGroupedList, AppScreen, AppSectionHeader } from "@/components/app/AppPrimitives";
+import { AppCard, AppGroupedList, AppScreen, AppSectionHeader } from "@/components/app/AppPrimitives";
 import { PublicAdvancedDisclosure } from "@/components/public/PublicAdvancedDisclosure";
 import { PublicDataState } from "@/components/public/PublicDataState";
 import { PublicDestinationGrid } from "@/components/public/PublicDestinationGrid";
@@ -166,7 +166,7 @@ function ResultsOverviewPage() {
       <AppShell>
         <AppScreen>
           {hideSpoilers && latestShow && latestEdition ? (
-            <section className="solaris-app-result-hero">
+            <AppCard tone="accent" className="solaris-app-result-hero">
               <p className="solaris-app-result-kicker">Latest result</p>
               <h2>Results are available</h2>
               <p>{editionLabel(latestEdition)} · {latestShow.name}</p>
@@ -181,9 +181,9 @@ function ResultsOverviewPage() {
               >
                 Reveal official result
               </Link>
-            </section>
+            </AppCard>
           ) : latestShow && latestEdition && winner && winnerRow ? (
-            <section className="solaris-app-result-hero">
+            <AppCard tone="accent" className="solaris-app-result-hero">
               <p className="solaris-app-result-kicker">Latest published result</p>
               <p className="text-xs text-muted-foreground">{editionLabel(latestEdition)} · {latestShow.name}</p>
               <div className="mt-3 flex min-w-0 items-center gap-3">
@@ -206,7 +206,7 @@ function ResultsOverviewPage() {
               >
                 Open full result
               </Link>
-            </section>
+            </AppCard>
           ) : (
             <PublicDataState
               kind="empty"
