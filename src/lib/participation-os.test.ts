@@ -37,7 +37,7 @@ describe("Solaris Participation OS", () => {
     });
 
     expect(tasks[0]).toMatchObject({
-      id: "confirmation-missing:edition-22",
+      id: "confirmation-required:requirement-1",
       state: "needs_attention",
       actionRequired: true,
       blocking: true,
