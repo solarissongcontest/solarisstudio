@@ -2860,3 +2860,36 @@ html[data-solaris-app] .solaris-app-directory-tools > label {
     font-size: clamp(1.35rem, 6vw, 1.8rem);
   }
 }
+
+
+/* Global overlay contract: modal surfaces always outrank app chrome and
+   suppress background navigation while open. Radix owns focus trapping and
+   restoration; this layer owns app-shell geometry and safe-area behavior. */
+html[data-solaris-app]:has([data-solaris-sheet][data-state="open"]) .solaris-app-tabbar,
+html[data-solaris-app]:has([data-solaris-dialog][data-state="open"]) .solaris-app-tabbar {
+  pointer-events: none;
+  opacity: .22;
+  transform: translateY(.35rem);
+}
+
+html[data-solaris-app] [data-solaris-sheet][data-side="bottom"] {
+  padding-bottom: max(1.25rem, calc(1rem + var(--solaris-app-safe-bottom)));
+}
+
+html[data-solaris-app] [data-solaris-sheet][data-side="responsive"] {
+  padding-bottom: max(1.25rem, calc(1rem + var(--solaris-app-safe-bottom)));
+}
+
+@media (min-width: 640px) {
+  html[data-solaris-app] [data-solaris-sheet][data-side="responsive"] {
+    padding-bottom: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-solaris-app]:has([data-solaris-sheet][data-state="open"]) .solaris-app-tabbar,
+  html[data-solaris-app]:has([data-solaris-dialog][data-state="open"]) .solaris-app-tabbar {
+    transform: none;
+    transition: none;
+  }
+}
