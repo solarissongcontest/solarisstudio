@@ -46,6 +46,7 @@ jobs:
         env:
           E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
           E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
+          SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
         run: |
           # Only override the app's normal public configuration when both E2E
           # endpoint secrets exist. Empty GitHub secrets must not replace the
@@ -86,6 +87,7 @@ jobs:
         run: bunx playwright test
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
+          SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
           # Pull requests run a representative smoke set. Manual dispatch keeps
           # the exhaustive ten-viewport + sitemap inventory available without
           # turning every PR into a 40-minute crawl of the same archive data.
