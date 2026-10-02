@@ -24,9 +24,13 @@ describe("Mobile App V2 architectural invariants", () => {
     const toolbar = source("src/components/app/AppToolbar.tsx");
     const registry = source("src/lib/app-screen-registry.ts");
 
-    expect(toolbar).toContain("resolveSolarisAppScreen(pathname, searchStr)");
-    expect(toolbar).toContain('data-search-mode={screen.chrome.search}');
-    expect(toolbar).toContain('screen.chrome.search === "global"');
+    const chrome = source("src/lib/app-route-chrome.ts");
+
+    expect(toolbar).toContain("resolveAppRouteChrome(pathname, searchStr)");
+    expect(toolbar).not.toContain("resolveSolarisAppScreen(pathname, searchStr)");
+    expect(toolbar).toContain('data-search-mode={chrome.search}');
+    expect(toolbar).toContain('chrome.search === "global"');
+    expect(chrome).toContain("search: screen.chrome.search");
     expect(registry).toContain("localDirectorySearch");
   });
 
