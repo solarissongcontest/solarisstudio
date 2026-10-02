@@ -22,7 +22,7 @@ const SheetOverlay = React.forwardRef<
   <SheetPrimitive.Overlay
     data-solaris-sheet-overlay=""
     className={cn(
-      "fixed inset-0 z-[89] bg-black/65 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:duration-150 data-[state=closed]:duration-150",
+      "fixed inset-0 z-[var(--solaris-z-sheet-backdrop)] bg-black/65 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:duration-150 data-[state=closed]:duration-150",
       className,
     )}
     {...props}
@@ -32,7 +32,7 @@ const SheetOverlay = React.forwardRef<
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName;
 
 const sheetVariants = cva(
-  "fixed z-[90] gap-4 bg-background p-6 shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:duration-[240ms] data-[state=closed]:duration-200 [animation-timing-function:cubic-bezier(0.32,0.72,0,1)]",
+  "fixed z-[var(--solaris-z-sheet)] gap-4 bg-background p-6 shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:duration-[240ms] data-[state=closed]:duration-200 [animation-timing-function:cubic-bezier(0.32,0.72,0,1)]",
   {
     variants: {
       side: {
