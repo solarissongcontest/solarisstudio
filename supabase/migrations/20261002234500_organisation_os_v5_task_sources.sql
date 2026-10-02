@@ -135,25 +135,25 @@ begin
     and (p_edition_id is null or task.edition_id = p_edition_id)
     and not exists (
       select 1
-      from public.jury_voting_windows window
-      where window.show_id::text = task.source_id
-        and window.status = 'open'
+      from public.jury_voting_windows jury_window
+      where jury_window.show_id::text = task.source_id
+        and jury_window.status = 'open'
         and exists (
           select 1
           from public.voters voter
-          where voter.show_id = window.show_id
+          where voter.show_id = jury_window.show_id
             and voter.country_id is not null
             and not exists (
               select 1
               from public.jury_ballot_submissions ballot
-              where ballot.show_id = window.show_id
+              where ballot.show_id = jury_window.show_id
                 and ballot.voter_country_id = voter.country_id
                 and ballot.status = 'submitted'
             )
             and not exists (
               select 1
               from public.jury_ballot_statuses ballot_status
-              where ballot_status.show_id = window.show_id
+              where ballot_status.show_id = jury_window.show_id
                 and ballot_status.status = 'did_not_vote'
                 and (
                   ballot_status.voter_id = voter.id
@@ -189,10 +189,10 @@ begin
     updated_at
   )
   select
-    window.edition_id,
+    jury_window.edition_id,
     'jury_missing_ballots',
-    window.show_id::text,
-    'jury-missing-ballots:' || window.show_id::text,
+    jury_window.show_id::text,
+    'jury-missing-ballots:' || jury_window.show_id::text,
     'jury.ballots.missing',
     'jury.ballots.manage',
     'high',
@@ -203,31 +203,31 @@ begin
     '/admin/jury/' || edition.slug,
     jsonb_build_object(
       'table', 'jury_voting_windows',
-      'showId', window.show_id,
+      'showId', jury_window.show_id,
       'resolvedWhen', 'window closed or every expected jury has submitted / DNV state'
     ),
-    coalesce(window.opened_at, window.updated_at),
+    coalesce(jury_window.opened_at, jury_window.updated_at),
     null,
     now(),
     now()
-  from public.jury_voting_windows window
-  join public.editions edition on edition.id = window.edition_id
+  from public.jury_voting_windows jury_window
+  join public.editions edition on edition.id = jury_window.edition_id
   cross join lateral (
     select count(*)::integer as missing_count
     from public.voters voter
-    where voter.show_id = window.show_id
+    where voter.show_id = jury_window.show_id
       and voter.country_id is not null
       and not exists (
         select 1
         from public.jury_ballot_submissions ballot
-        where ballot.show_id = window.show_id
+        where ballot.show_id = jury_window.show_id
           and ballot.voter_country_id = voter.country_id
           and ballot.status = 'submitted'
       )
       and not exists (
         select 1
         from public.jury_ballot_statuses ballot_status
-        where ballot_status.show_id = window.show_id
+        where ballot_status.show_id = jury_window.show_id
           and ballot_status.status = 'did_not_vote'
           and (
             ballot_status.voter_id = voter.id
@@ -239,9 +239,9 @@ begin
           )
       )
   ) missing
-  where window.status = 'open'
+  where jury_window.status = 'open'
     and missing.missing_count > 0
-    and (p_edition_id is null or window.edition_id = p_edition_id)
+    and (p_edition_id is null or jury_window.edition_id = p_edition_id)
   on conflict (source_key) do update set
     edition_id = excluded.edition_id,
     required_capability = excluded.required_capability,
