@@ -8,6 +8,10 @@ describe("Permission Engine v2 capability model", () => {
     expect(SOLARIS_CAPABILITIES).toContain("entry.publish");
     expect(SOLARIS_CAPABILITIES).toContain("results.verify");
     expect(SOLARIS_CAPABILITIES).toContain("permissions.manage");
+    expect(SOLARIS_CAPABILITIES).toContain("system.read");
+    expect(SOLARIS_CAPABILITIES).toContain("system.manage");
+    expect(SOLARIS_CAPABILITIES).toContain("community.read");
+    expect(SOLARIS_CAPABILITIES).toContain("community.moderate");
     expect(new Set(SOLARIS_CAPABILITIES).size).toBe(SOLARIS_CAPABILITIES.length);
   });
 
