@@ -124,8 +124,8 @@ function OrganizerTasksPage() {
           </AdminCard>
         ) : tasks.length ? (
           <AdminCard strong className="!p-0 overflow-hidden">
-            <AdminCardHeader
-              className="p-4 sm:p-5"
+            <div className="p-4 sm:p-5">
+              <AdminCardHeader
               eyebrow={filter === "resolved" ? "History" : "Canonical queue"}
               title={filterTitle(filter)}
               description={
@@ -134,7 +134,8 @@ function OrganizerTasksPage() {
                   : "Tasks are deduplicated by source condition and disappear only when domain truth resolves them."
               }
               action={<AdminStatus tone="neutral">{tasks.length}</AdminStatus>}
-            />
+              />
+            </div>
             <div className="divide-y divide-white/[0.07] border-t border-white/[0.07]">
               {tasks.map((task) => (
                 <TaskRow key={task.id} task={task} />
