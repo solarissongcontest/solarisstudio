@@ -453,7 +453,18 @@ async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo
       ".app-main[data-solaris-app-mode='true']",
     );
     const requestedTabbar = main?.dataset.solarisAppTabbar ?? "visible";
+    const requestedToolbar = main?.dataset.solarisAppToolbar ?? "back";
+    const rootTab = main?.dataset.solarisAppRootTab ?? "none";
+    const screenId = main?.dataset.solarisScreenId ?? "";
+    const searchMode = main?.dataset.solarisAppSearch ?? "";
+    const offlinePolicy = main?.dataset.solarisAppOffline ?? "";
+    const criticalTask = main?.dataset.solarisAppCriticalTask === "true";
     const tabbars = [...document.querySelectorAll(".solaris-app-tabbar")].filter(visible);
+    const selectedTab = tabbars
+      .flatMap((bar) => [...bar.querySelectorAll<HTMLElement>(".solaris-app-tab[aria-current='page']")])
+      .find(visible)
+      ?.getAttribute("aria-label")
+      ?.toLowerCase() ?? null;
     const websiteChrome = [
       ...document.querySelectorAll(".site-nav, .mobile-quick-nav, .public-footer"),
     ].filter(visible);
@@ -499,8 +510,15 @@ async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo
         window.innerWidth,
       visibleH1: visibleH1.length,
       toolbarCount: [...document.querySelectorAll(".solaris-app-toolbar")].filter(visible).length,
+      requestedToolbar,
       requestedTabbar,
       tabbarCount: tabbars.length,
+      rootTab,
+      selectedTab,
+      screenId,
+      searchMode,
+      offlinePolicy,
+      criticalTask,
       websiteChrome: websiteChrome.map((node) => (node as HTMLElement).className),
       flagProblems,
       chromeControls,
@@ -510,7 +528,15 @@ async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo
 
   expect(result.overflow, `${route} horizontal overflow in installed mode`).toBeLessThanOrEqual(2);
   expect(result.visibleH1, `${route} should expose exactly one visible h1`).toBe(1);
-  expect(result.toolbarCount, `${route} should expose one app toolbar`).toBe(1);
+  expect(result.screenId, `${route} should expose a canonical screen contract`).not.toBe("");
+  expect(["none", "home", "explore", "participate", "results", "me"]).toContain(result.rootTab);
+  expect(["none", "global", "local"]).toContain(result.searchMode);
+  expect(["ready", "readable", "online-required"]).toContain(result.offlinePolicy);
+  if (result.requestedToolbar === "hidden") {
+    expect(result.toolbarCount, `${route} should hide app toolbar`).toBe(0);
+  } else {
+    expect(result.toolbarCount, `${route} should expose one app toolbar`).toBe(1);
+  }
   expect(result.websiteChrome, `${route} leaked website chrome`).toEqual([]);
   expect(result.flagProblems, `${route} has non-canonical flag frames`).toEqual([]);
   expect(result.chromeControls, `${route} has undersized app chrome controls`).toEqual([]);
@@ -518,8 +544,18 @@ async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo
 
   if (result.requestedTabbar === "hidden") {
     expect(result.tabbarCount, `${route} should hide the global tab bar`).toBe(0);
+    expect(result.selectedTab, `${route} hidden tabbar cannot expose a selected tab`).toBeNull();
   } else {
     expect(result.tabbarCount, `${route} should expose one global tab bar`).toBe(1);
+    expect(
+      result.selectedTab,
+      `${route} selected global tab must agree with the canonical screen contract`,
+    ).toBe(result.rootTab);
+  }
+
+  if (result.criticalTask) {
+    expect(result.requestedTabbar, `${route} critical tasks must suppress global navigation`).toBe("hidden");
+    expect(result.offlinePolicy, `${route} critical tasks cannot pretend to submit offline`).toBe("online-required");
   }
 
   await testInfo.attach(`installed-route-${route.replace(/[^a-z0-9]+/gi, "-") || "home"}.json`, {
