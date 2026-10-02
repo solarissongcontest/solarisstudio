@@ -2121,3 +2121,21 @@ html[data-solaris-app] .solaris-app-first-run-continue {
     background: rgb(5 16 35 / .985) !important;
   }
 }
+
+
+html[data-solaris-app]:has([data-solaris-sheet]) .solaris-app-tabbar,
+html[data-solaris-app]:has([data-solaris-dialog]) .solaris-app-tabbar {
+  opacity: 0;
+  pointer-events: none;
+}
+
+html[data-solaris-app]:has([data-solaris-sheet]) .solaris-app-tabbar,
+html[data-solaris-app]:has([data-solaris-dialog]) .solaris-app-tabbar {
+  transition: opacity 120ms ease;
+}
+
+html[data-solaris-app] .edition-page-toolbar[data-app-compact="true"] {
+  justify-content: flex-end;
+  min-height: 0;
+  margin-bottom: .35rem;
+}
