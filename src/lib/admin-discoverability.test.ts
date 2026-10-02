@@ -26,7 +26,7 @@ describe("Organizer discoverability", () => {
     expect(home).toContain('label="Delegations"');
     expect(home).toContain('label="Voting & results"');
     expect(home).toContain('label="Live"');
-    expect(home).toContain('to="/admin/action-center"');
+    expect(home).toContain('to="/admin/tasks"');
   });
 
   it("makes confirmations reachable from the Delegations hub without search", () => {
@@ -35,6 +35,7 @@ describe("Organizer discoverability", () => {
     expect(countries).toContain("Delegation workflows");
     expect(countries).toContain('to="/confirmations/admin"');
     expect(countries).toContain('to="/confirmations/admin/responses"');
+    expect(countries).toContain('to="/admin/next-in-line"');
     expect(countries).toContain('to="/confirmations/admin/rounds"');
     expect(countries).toContain('to="/confirmations/admin/calendar"');
     expect(countries).toContain('to="/confirmations/admin/recovery-codes"');
