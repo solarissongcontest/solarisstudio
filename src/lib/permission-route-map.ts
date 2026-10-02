@@ -11,6 +11,7 @@ const ROUTE_CAPABILITY_RULES: RouteCapabilityRule[] = [
   rule(["/televoting/admin"], "voting.read"),
   rule(["/admin/access-permissions"], "permissions.read"),
   rule(["/admin/feature-rollout"], "rollout.read"),
+  rule(["/admin/system-operations", "/admin/system", "/admin/sync-health"], "system.read"),
   rule(["/admin/communications"], "communications.read"),
   rule(["/admin/rules-manager", "/admin/rule-interpretations"], "rules.read"),
   rule(["/admin/integrity"], "integrity.read"),
@@ -34,6 +35,7 @@ const ROUTE_CAPABILITY_RULES: RouteCapabilityRule[] = [
   rule(
     [
       "/admin/countries",
+      "/admin/next-in-line",
       "/admin/country-accounts",
       "/admin/hod-history",
       "/admin/eligibility",
