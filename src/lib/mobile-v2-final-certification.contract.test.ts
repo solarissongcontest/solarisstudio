@@ -27,6 +27,7 @@ describe("Mobile V2 final certification contract", () => {
   it("requires all automated release workflows green on the reviewed source commit", () => {
     const workflow = source(".github/workflows/mobile-v2-certification.yml");
 
+    expect(workflow).toContain("fetch-depth: 0");
     expect(workflow).toContain("actions: read");
     expect(workflow).toContain("head_sha: source");
     expect(workflow).toContain('"Quality"');
