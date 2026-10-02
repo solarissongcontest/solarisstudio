@@ -22,7 +22,7 @@ const SheetOverlay = React.forwardRef<
   <SheetPrimitive.Overlay
     data-solaris-sheet-overlay=""
     className={cn(
-      "fixed inset-0 z-50 bg-black/65 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:duration-150 data-[state=closed]:duration-150",
+      "fixed inset-0 z-[89] bg-black/65 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=open]:duration-150 data-[state=closed]:duration-150",
       className,
     )}
     {...props}
@@ -32,7 +32,7 @@ const SheetOverlay = React.forwardRef<
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName;
 
 const sheetVariants = cva(
-  "fixed z-50 gap-4 bg-background p-6 shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:duration-[240ms] data-[state=closed]:duration-200 [animation-timing-function:cubic-bezier(0.32,0.72,0,1)]",
+  "fixed z-[90] gap-4 bg-background p-6 shadow-2xl data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:duration-[240ms] data-[state=closed]:duration-200 [animation-timing-function:cubic-bezier(0.32,0.72,0,1)]",
   {
     variants: {
       side: {
@@ -78,7 +78,7 @@ const SheetContent = React.forwardRef<
           <SheetPrimitive.Title className="sr-only">{accessibleTitle}</SheetPrimitive.Title>
         ) : null}
         {showCloseButton ? (
-          <SheetPrimitive.Close className="absolute right-4 top-4 z-10 grid size-9 place-items-center rounded-xl text-muted-foreground transition-[background-color,color,transform] duration-150 ease-out hover:bg-white/[0.06] hover:text-foreground active:scale-[0.96] motion-reduce:active:scale-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+          <SheetPrimitive.Close className="absolute right-3 top-3 z-10 grid size-11 place-items-center rounded-xl text-muted-foreground transition-[background-color,color,transform] duration-150 ease-out hover:bg-white/[0.06] hover:text-foreground active:scale-[0.96] motion-reduce:active:scale-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
           </SheetPrimitive.Close>
