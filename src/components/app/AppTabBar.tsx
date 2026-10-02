@@ -269,7 +269,6 @@ export function AppTabBar({
     material?.style.setProperty("--solaris-tabbar-pull-radius", "0px");
     material?.removeAttribute("data-drag-direction");
     dragState.current = null;
-    suppressClick.current = false;
     setDragging(false);
     setDragPreviewIndex(null);
   }, []);
