@@ -50,6 +50,25 @@ export function AppGroupedList({
   );
 }
 
+export function AppCard({
+  children,
+  className,
+  tone = "neutral",
+  ...props
+}: HTMLAttributes<HTMLDivElement> & {
+  tone?: "neutral" | "accent" | "quiet";
+}) {
+  return (
+    <div
+      className={cn("solaris-app-card", className)}
+      data-tone={tone}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function AppEmptyState({
   title,
   description,
