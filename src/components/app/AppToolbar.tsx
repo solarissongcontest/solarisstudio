@@ -44,6 +44,11 @@ export function AppToolbar({
       ? backTarget
       : null;
   const showBack = !chrome.root && Boolean(searchReturn || effectiveBackTarget || fallback);
+  const toolbarOwnsHeading =
+    chrome.archetype === "task" ||
+    chrome.archetype === "settings" ||
+    chrome.archetype === "workspace" ||
+    chrome.archetype === "directory";
   const backLabel = searchReturn
     ? "Search"
     : effectiveBackTarget
@@ -97,7 +102,7 @@ export function AppToolbar({
         </div>
 
         {showBack ? (
-          chrome.archetype === "task" ? (
+          toolbarOwnsHeading ? (
             <h1 className="solaris-app-toolbar-context-title">{chrome.title}</h1>
           ) : (
             <span className="solaris-app-toolbar-context-title" aria-hidden="true">
