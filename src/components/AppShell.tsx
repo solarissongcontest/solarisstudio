@@ -264,34 +264,36 @@ export function AppShell({ children }: { children: ReactNode }) {
           <AppToolbar pathname={pathname} searchStr={searchStr} access={access} />
         ) : null}
 
-        <header className="site-nav sticky top-0 z-40 border-b border-border/60">
-          <div className="mx-auto flex h-16 max-w-[1680px] items-center gap-4 px-3 sm:px-5 lg:px-8 2xl:px-10">
-            <Brand />
+        {!isAppMode ? (
+          <header className="site-nav sticky top-0 z-40 border-b border-border/60">
+            <div className="mx-auto flex h-16 max-w-[1680px] items-center gap-4 px-3 sm:px-5 lg:px-8 2xl:px-10">
+              <Brand />
 
-            <nav className="ml-auto hidden items-center gap-1 lg:flex" aria-label="Main navigation">
-              <NewPublicDesktopNavigation
-                pathname={pathname}
-                publicArea={publicArea}
-                globalAreas={globalAreas}
-                access={access}
-                email={email}
-                visibleAccountEmail={visibleAccountEmail}
-                signOut={signOut}
-              />
-            </nav>
+              <nav className="ml-auto hidden items-center gap-1 lg:flex" aria-label="Main navigation">
+                <NewPublicDesktopNavigation
+                  pathname={pathname}
+                  publicArea={publicArea}
+                  globalAreas={globalAreas}
+                  access={access}
+                  email={email}
+                  visibleAccountEmail={visibleAccountEmail}
+                  signOut={signOut}
+                />
+              </nav>
 
-            <SheetTrigger asChild>
-              <button
-                type="button"
-                className="ml-auto grid h-11 w-11 place-items-center rounded-xl border border-border/75 bg-surface/70 transition-[background-color,transform] duration-150 ease-out active:scale-[0.96] motion-reduce:active:scale-100 lg:hidden"
-                aria-label="Open navigation"
-                aria-expanded={menuOpen}
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-            </SheetTrigger>
-          </div>
-        </header>
+              <SheetTrigger asChild>
+                <button
+                  type="button"
+                  className="ml-auto grid h-11 w-11 place-items-center rounded-xl border border-border/75 bg-surface/70 transition-[background-color,transform] duration-150 ease-out active:scale-[0.96] motion-reduce:active:scale-100 lg:hidden"
+                  aria-label="Open navigation"
+                  aria-expanded={menuOpen}
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+              </SheetTrigger>
+            </div>
+          </header>
+        ) : null}
 
         <SheetContent
           side={isAppMode ? "bottom" : "right"}
