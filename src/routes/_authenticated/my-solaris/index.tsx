@@ -14,6 +14,10 @@ import {
   Send,
   Sparkles,
   Vote,
+  Bell,
+  Bookmark,
+  ChevronRight,
+  CircleUserRound,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -311,21 +315,25 @@ function MySolarisPage() {
 
       <div className="mt-5 space-y-5">
         {tab === "home" && (
-          <HomeTab
-            country={country}
-            currentEdition={currentEdition}
-            currentEntry={currentEntry}
-            currentConfirmation={currentConfirmation}
-            currentPlacement={currentPlacement}
-            currentNationalFinal={currentNationalFinal}
-            nextRound={nextRound}
-            nextRoundState={nextRoundState}
-            untilRound={untilRound}
-            publication={publication}
-            countryEvents={countryEvents.slice(0, 5)}
-            listeningLinkCount={listeningLinkCount}
-            onTabChange={setTab}
-          />
+          isAppMode ? (
+            <AppMySolarisHome countryName={country.name} editionNumber={currentEdition?.edition_number ?? null} />
+          ) : (
+            <HomeTab
+              country={country}
+              currentEdition={currentEdition}
+              currentEntry={currentEntry}
+              currentConfirmation={currentConfirmation}
+              currentPlacement={currentPlacement}
+              currentNationalFinal={currentNationalFinal}
+              nextRound={nextRound}
+              nextRoundState={nextRoundState}
+              untilRound={untilRound}
+              publication={publication}
+              countryEvents={countryEvents.slice(0, 5)}
+              listeningLinkCount={listeningLinkCount}
+              onTabChange={setTab}
+            />
+          )
         )}
 
         {tab === "entry" && (
@@ -518,6 +526,90 @@ function MySolarisPage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+function AppMySolarisHome({
+  countryName,
+  editionNumber,
+}: {
+  countryName: string;
+  editionNumber: number | null;
+}) {
+  const workspace = useMySolaris();
+  const primary = workspace.priorities.find((item) => item.actionRequired) ?? null;
+  const destinations = [
+    {
+      to: "/my-solaris/tasks",
+      label: "Tasks",
+      detail: workspace.taskCounts.needsAction
+        ? `${workspace.taskCounts.needsAction} need attention`
+        : "Nothing urgent",
+      icon: ListChecks,
+    },
+    { to: "/my-solaris/entry", label: "Entry", detail: "Current entry and reveal status", icon: ClipboardCheck },
+    { to: "/my-solaris/voting", label: "Voting", detail: "Jury and public voting", icon: Vote },
+    { to: "/my-solaris/country", label: "Country tools", detail: countryName, icon: LayoutDashboard },
+    { to: "/my-solaris/notices", label: "Notices", detail: workspace.unreadNoticeCount ? `${workspace.unreadNoticeCount} unread` : "Up to date", icon: Bell },
+    { to: "/my-solaris/saved", label: "Saved", detail: "Followed and saved Solaris items", icon: Bookmark },
+    { to: "/my-solaris/account", label: "Account", detail: "Profile and security", icon: CircleUserRound },
+    { to: "/settings", label: "Settings", detail: "Notifications and app preferences", icon: Palette },
+  ] as const;
+
+  return (
+    <div className="space-y-5">
+      <section className="solaris-app-me-summary" aria-labelledby="app-me-summary">
+        <p className="solaris-app-task-kicker">MySolaris</p>
+        <h2 id="app-me-summary" className="mt-1 text-xl font-bold tracking-[-.025em]">
+          {countryName}
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {editionNumber ? `SSC ${editionNumber}` : "No current edition"}
+        </p>
+
+        {primary ? (
+          <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[.055] p-3">
+            <p className="text-[10px] font-black uppercase tracking-[.12em] text-amber-200">Next action</p>
+            <p className="mt-1 text-sm font-semibold">{primary.title}</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">{primary.description}</p>
+            <Link
+              to={primary.to as any}
+              search={primary.search as any}
+              className="solaris-app-primary-action mt-3"
+            >
+              Continue
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-4 flex items-center gap-2 text-sm">
+            <CheckCircle2 className="size-4 text-emerald-300" aria-hidden="true" />
+            <span>Nothing urgent right now</span>
+          </div>
+        )}
+      </section>
+
+      <section aria-labelledby="app-me-destinations">
+        <div className="solaris-app-section-heading">
+          <p>Your Solaris</p>
+          <h2 id="app-me-destinations">Manage</h2>
+        </div>
+        <div className="solaris-app-grouped-list">
+          {destinations.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.to} to={item.to as any} className="solaris-app-list-row">
+                <span className="solaris-app-list-icon"><Icon className="size-4" aria-hidden="true" /></span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold">{item.label}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">{item.detail}</span>
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+    </div>
   );
 }
 
