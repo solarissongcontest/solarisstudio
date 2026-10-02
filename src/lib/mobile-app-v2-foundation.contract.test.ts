@@ -5,14 +5,19 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("Mobile App V2 architectural invariants", () => {
-  it("keeps route chrome as the single source of active tab truth", () => {
+  it("keeps the canonical screen registry as the single source of active tab truth", () => {
     const tabs = source("src/components/app/AppTabBar.tsx");
     const toolbar = source("src/components/app/AppToolbar.tsx");
+    const navigation = source("src/lib/app-navigation.ts");
+    const chrome = source("src/lib/app-route-chrome.ts");
 
     expect(tabs).toContain("resolveAppRouteChrome(pathname, searchStr)");
     expect(tabs).not.toContain("publicAreaForPath");
+    expect(tabs).not.toContain("appTabForLocation(pathname, searchStr)");
     expect(toolbar).toContain("resolveAppRouteChrome(pathname, searchStr)");
     expect(toolbar).toContain("historyChrome?.tab === chrome.tab");
+    expect(navigation).toContain("resolveSolarisAppScreen(pathname, searchStr)");
+    expect(chrome).toContain("resolveSolarisAppScreen(pathname, searchStr)");
   });
 
   it("keeps route loading and error states on the canonical AppShell", () => {
