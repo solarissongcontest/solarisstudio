@@ -36,6 +36,7 @@ const DEFAULT_CATEGORIES = [...DEFAULT_SOLARIS_NOTIFICATION_CATEGORIES];
 
 const EMPTY_PUSH: AppPushState = {
   supported: false,
+  configured: false,
   permission: "unsupported",
   subscribed: false,
 };
@@ -287,20 +288,24 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">Push notifications</p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                {pushState.supported
-                  ? pushState.subscribed
-                    ? "This device is subscribed to Solaris notifications."
-                    : "Enable notifications on this device. Installed Home Screen apps get the best experience."
-                  : "This browser does not expose Web Push for Solaris."}
+                {!pushState.configured
+                  ? "Push notifications are temporarily unavailable."
+                  : pushState.supported
+                    ? pushState.subscribed
+                      ? "This device is subscribed to Solaris notifications."
+                      : pushState.permission === "denied"
+                        ? "Notifications are blocked for Solaris in your system settings."
+                        : "Enable notifications on this device. Installed Home Screen apps get the best experience."
+                    : "This browser does not expose Web Push for Solaris."}
               </p>
             </div>
-            {pushState.supported ? (
+            {pushState.configured && pushState.supported ? (
               pushState.subscribed ? (
-                <button type="button" onClick={() => void disablePush()} className="min-h-10 rounded-xl border border-border px-3 text-xs font-semibold">
+                <button type="button" onClick={() => void disablePush()} className="min-h-11 rounded-xl border border-border px-3 text-xs font-semibold">
                   Disable
                 </button>
               ) : (
-                <button type="button" onClick={() => void enablePush()} className="min-h-10 rounded-xl bg-primary px-3 text-xs font-semibold text-primary-foreground">
+                <button type="button" onClick={() => void enablePush()} className="min-h-11 rounded-xl bg-primary px-3 text-xs font-semibold text-primary-foreground">
                   Enable
                 </button>
               )
