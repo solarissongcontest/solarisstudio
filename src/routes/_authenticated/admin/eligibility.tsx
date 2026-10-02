@@ -10,6 +10,7 @@ import { FilterBar } from '@/components/admin/AdminWorkspacePrimitives';
 import { AdminPage } from '@/components/admin/AdminShell';
 import {
   AdminCard,
+  AdminConfirmSheet,
   AdminEmptyState,
   AdminPageHeader,
   AdminSheet,
@@ -18,12 +19,13 @@ import {
 import { useEditions } from '@/lib/data';
 import { loadStudio2CountryCockpit } from '@/lib/studio2-country-cockpit';
 import {
+  applyStudio2EligibilityOverrideChange,
   buildStudio2EligibilityMatrix,
-  createStudio2EligibilityOverride,
   listStudio2EligibilityOverrides,
-  revokeStudio2EligibilityOverride,
+  previewStudio2EligibilityOverrideChange,
   type Studio2EligibilityCountry,
   type Studio2EligibilityOverride,
+  type Studio2EligibilityOverridePreview,
   type Studio2EligibilityRule,
   type Studio2EligibilityStatus,
 } from '@/lib/studio2-eligibility';
@@ -32,6 +34,17 @@ type EligibilitySearch = {
   q?: string;
   status?: 'all' | Studio2EligibilityStatus;
   country?: string;
+};
+
+type PendingEligibilityChange = {
+  action: 'create' | 'revoke';
+  rule: Studio2EligibilityRule;
+  override: Studio2EligibilityOverride | null;
+  reason: string;
+  expiresAt: string | null;
+  preview: Studio2EligibilityOverridePreview;
+  operationId: string;
+  idempotencyKey: string;
 };
 
 const STATUSES: Studio2EligibilityStatus[] = ['eligible', 'incomplete', 'warning', 'blocked', 'overridden'];
@@ -270,36 +283,106 @@ function EligibilityDetailSheet({
   const queryClient = useQueryClient();
   const [overrideTarget, setOverrideTarget] = useState<Studio2EligibilityRule | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<Studio2EligibilityOverride | null>(null);
+  const [pendingChange, setPendingChange] = useState<PendingEligibilityChange | null>(null);
 
   async function refresh() {
-    await queryClient.invalidateQueries({ queryKey: ['studio2-eligibility-overrides'] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['studio2-eligibility-overrides'] }),
+      queryClient.invalidateQueries({ queryKey: ['studio2-country-cockpit'] }),
+      queryClient.invalidateQueries({ queryKey: ['organizer-tasks-v5'] }),
+    ]);
   }
 
-  const createMutation = useMutation({
-    mutationFn: (input: { rule: Studio2EligibilityRule; reason: string; expiresAt: string | null }) => {
+  const createPreviewMutation = useMutation({
+    mutationFn: async (input: { rule: Studio2EligibilityRule; reason: string; expiresAt: string | null }) => {
       if (!country) throw new Error('Country is no longer selected.');
-      return createStudio2EligibilityOverride({
+      const preview = await previewStudio2EligibilityOverrideChange({
+        action: 'create',
         editionId: country.editionId,
         countryId: country.countryId,
         affectedRule: input.rule.id,
+      });
+      return {
+        action: 'create',
+        rule: input.rule,
+        override: null,
         reason: input.reason,
         expiresAt: input.expiresAt,
-      });
+        preview,
+        operationId: crypto.randomUUID(),
+        idempotencyKey: crypto.randomUUID(),
+      } satisfies PendingEligibilityChange;
     },
-    onSuccess: async () => {
-      toast.success('Eligibility override recorded');
+    onSuccess: async (pending) => {
+      if (pending.preview.alreadyApplied) {
+        setOverrideTarget(null);
+        toast.message('An active override already exists for this factual rule.');
+        await refresh();
+        return;
+      }
       setOverrideTarget(null);
-      await refresh();
+      setPendingChange(pending);
     },
     onError: (caught) => toast.error(errorText(caught)),
   });
 
-  const revokeMutation = useMutation({
-    mutationFn: (input: { override: Studio2EligibilityOverride; reason: string }) =>
-      revokeStudio2EligibilityOverride(input.override.id, input.reason),
-    onSuccess: async () => {
-      toast.success('Eligibility override revoked');
+  const revokePreviewMutation = useMutation({
+    mutationFn: async (input: { override: Studio2EligibilityOverride; reason: string }) => {
+      if (!country) throw new Error('Country is no longer selected.');
+      const rule = country.rules.find((item) => item.id === input.override.affectedRule);
+      if (!rule) throw new Error('The affected factual eligibility rule is no longer available.');
+      const preview = await previewStudio2EligibilityOverrideChange({
+        action: 'revoke',
+        editionId: input.override.editionId,
+        countryId: input.override.countryId,
+        affectedRule: input.override.affectedRule,
+        overrideId: input.override.id,
+      });
+      return {
+        action: 'revoke',
+        rule,
+        override: input.override,
+        reason: input.reason,
+        expiresAt: null,
+        preview,
+        operationId: crypto.randomUUID(),
+        idempotencyKey: crypto.randomUUID(),
+      } satisfies PendingEligibilityChange;
+    },
+    onSuccess: async (pending) => {
+      if (pending.preview.alreadyApplied) {
+        setRevokeTarget(null);
+        toast.message('That eligibility override is already revoked.');
+        await refresh();
+        return;
+      }
       setRevokeTarget(null);
+      setPendingChange(pending);
+    },
+    onError: (caught) => toast.error(errorText(caught)),
+  });
+
+  const applyMutation = useMutation({
+    mutationFn: (pending: PendingEligibilityChange) =>
+      applyStudio2EligibilityOverrideChange({
+        action: pending.action,
+        editionId: pending.preview.editionId,
+        countryId: pending.preview.countryId,
+        affectedRule: pending.preview.affectedRule,
+        overrideId: pending.override?.id ?? null,
+        reason: pending.reason,
+        expiresAt: pending.expiresAt,
+        operationId: pending.operationId,
+        idempotencyKey: pending.idempotencyKey,
+        expectedVersion: pending.preview.expectedVersion,
+      }),
+    onSuccess: async (_receipt, pending) => {
+      setPendingChange(null);
+      toast.success(
+        pending.action === 'create'
+          ? 'Eligibility override recorded'
+          : 'Eligibility override revoked',
+      );
       await refresh();
     },
     onError: (caught) => toast.error(errorText(caught)),
@@ -370,17 +453,115 @@ function EligibilityDetailSheet({
 
       <OverrideSheet
         rule={overrideTarget}
-        busy={createMutation.isPending}
+        busy={createPreviewMutation.isPending}
         onClose={() => setOverrideTarget(null)}
-        onConfirm={(reason, expiresAt) => overrideTarget && createMutation.mutate({ rule: overrideTarget, reason, expiresAt })}
+        onConfirm={(reason, expiresAt) => overrideTarget && createPreviewMutation.mutate({ rule: overrideTarget, reason, expiresAt })}
       />
       <RevokeSheet
         override={revokeTarget}
-        busy={revokeMutation.isPending}
+        busy={revokePreviewMutation.isPending}
         onClose={() => setRevokeTarget(null)}
-        onConfirm={(reason) => revokeTarget && revokeMutation.mutate({ override: revokeTarget, reason })}
+        onConfirm={(reason) => revokeTarget && revokePreviewMutation.mutate({ override: revokeTarget, reason })}
+      />
+
+      <AdminConfirmSheet
+        open={Boolean(pendingChange)}
+        onClose={() => {
+          if (!applyMutation.isPending) setPendingChange(null);
+        }}
+        onConfirm={async () => {
+          if (pendingChange) await applyMutation.mutateAsync(pendingChange);
+        }}
+        title={
+          pendingChange?.action === 'create'
+            ? 'Apply eligibility exception?'
+            : 'Revoke eligibility exception?'
+        }
+        description={
+          pendingChange ? (
+            <EligibilityOverrideImpactPreview pending={pendingChange} />
+          ) : (
+            'Review the eligibility decision impact before continuing.'
+          )
+        }
+        confirmLabel={
+          pendingChange?.action === 'create'
+            ? 'Apply override'
+            : 'Revoke override'
+        }
+        confirmationText={pendingChange?.preview.countryName}
+        confirmationHint={
+          pendingChange
+            ? `Type ${pendingChange.preview.countryName} to confirm this R2 eligibility decision`
+            : undefined
+        }
+        busy={applyMutation.isPending}
+        danger
       />
     </>
+  );
+}
+
+function EligibilityOverrideImpactPreview({ pending }: { pending: PendingEligibilityChange }) {
+  const preview = pending.preview;
+  const nextEffective = pending.action === 'create' ? 'Overridden' : statusLabel(pending.rule.factualStatus);
+
+  return (
+    <div className="space-y-3">
+      <p>
+        This is a <strong className="text-foreground">Risk R2</strong> exception decision for{' '}
+        <strong className="text-foreground">{preview.countryName}</strong>.
+      </p>
+
+      <div className="grid grid-cols-2 gap-2">
+        <EligibilityImpactMetric label="Factual state" value={statusLabel(pending.rule.factualStatus)} />
+        <EligibilityImpactMetric label="Effective after change" value={nextEffective} />
+        <EligibilityImpactMetric label="Rule" value={pending.rule.id} />
+        <EligibilityImpactMetric label="Prior decisions" value={preview.historyCount} />
+      </div>
+
+      <div className="rounded-lg border border-amber-200/15 bg-amber-200/[0.05] p-3">
+        <p className="text-xs font-semibold text-amber-50">
+          The factual eligibility result does not change.
+        </p>
+        <p className="mt-1 text-xs leading-5 text-amber-100/85">
+          {pending.rule.message}
+        </p>
+        {pending.rule.evidence.length ? (
+          <ul className="mt-2 space-y-1 text-xs leading-5 text-amber-100/80">
+            {pending.rule.evidence.map((evidence, index) => (
+              <li key={`${pending.rule.id}-impact-${index}`}>• {evidence}</li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+
+      <div>
+        <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          Recorded reason
+        </span>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{pending.reason}</p>
+      </div>
+
+      {pending.expiresAt ? (
+        <p className="text-xs leading-5 text-muted-foreground">
+          The override expires {formatDate(pending.expiresAt)} unless it is revoked first.
+        </p>
+      ) : null}
+
+      <p className="text-xs leading-5 text-muted-foreground">
+        Expected override version: v{preview.expectedVersion}. Any concurrent decision for this country and factual rule makes this preview stale. Retrying this confirmation replays its canonical receipt.
+      </p>
+    </div>
+  );
+}
+
+function EligibilityImpactMetric({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-lg border border-white/[0.08] bg-black/10 p-2.5">
+      <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
+      <strong className="mt-1 block text-xs text-foreground">{value}</strong>
+    </div>
   );
 }
 
