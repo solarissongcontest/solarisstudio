@@ -221,7 +221,7 @@ test("first run is a contained bottom sheet and suppresses global tabs", async (
 async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo) {
   await skipFirstRun(page);
   const response = await page.goto(route, { waitUntil: "domcontentloaded" });
-  expect(response?.status(), \`\${route} document status\`).toBeLessThan(400);
+  expect(response?.status(), `${route} document status`).toBeLessThan(400);
   await expect(page.locator("html")).toHaveAttribute("data-solaris-app", "");
   await expect(page.locator("main").first()).toBeVisible();
 
@@ -262,14 +262,14 @@ async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo
       const imageStyle = image ? getComputedStyle(image) : null;
       const problems: string[] = [];
       if (Math.abs(rect.width / rect.height - 1.5) > 0.04) {
-        problems.push(\`ratio \${(rect.width / rect.height).toFixed(2)}\`);
+        problems.push(`ratio ${(rect.width / rect.height).toFixed(2)}`);
       }
       if (style.overflow !== "hidden" && style.overflow !== "clip") {
-        problems.push(\`overflow \${style.overflow}\`);
+        problems.push(`overflow ${style.overflow}`);
       }
       if (!(radius > 0)) problems.push("square corners");
       if (imageStyle && imageStyle.objectFit !== "cover") {
-        problems.push(\`object-fit \${imageStyle.objectFit}\`);
+        problems.push(`object-fit ${imageStyle.objectFit}`);
       }
       return problems.length ? [problems.join(", ")] : [];
     });
@@ -283,7 +283,7 @@ async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo
       const rect = node.getBoundingClientRect();
       return rect.width >= 44 && rect.height >= 44
         ? []
-        : [\`\${node.tagName.toLowerCase()} \${Math.round(rect.width)}×\${Math.round(rect.height)}\`];
+        : [`${node.tagName.toLowerCase()} ${Math.round(rect.width)}×${Math.round(rect.height)}`];
     });
 
     return {
@@ -301,28 +301,28 @@ async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo
     };
   });
 
-  expect(result.overflow, \`\${route} horizontal overflow in installed mode\`).toBeLessThanOrEqual(2);
-  expect(result.visibleH1, \`\${route} should expose exactly one visible h1\`).toBe(1);
-  expect(result.toolbarCount, \`\${route} should expose one app toolbar\`).toBe(1);
-  expect(result.websiteChrome, \`\${route} leaked website chrome\`).toEqual([]);
-  expect(result.flagProblems, \`\${route} has non-canonical flag frames\`).toEqual([]);
-  expect(result.chromeControls, \`\${route} has undersized app chrome controls\`).toEqual([]);
-  expect(result.bootGuardStillPresent, \`\${route} first-paint guard must clear after hydration\`).toBe(false);
+  expect(result.overflow, `${route} horizontal overflow in installed mode`).toBeLessThanOrEqual(2);
+  expect(result.visibleH1, `${route} should expose exactly one visible h1`).toBe(1);
+  expect(result.toolbarCount, `${route} should expose one app toolbar`).toBe(1);
+  expect(result.websiteChrome, `${route} leaked website chrome`).toEqual([]);
+  expect(result.flagProblems, `${route} has non-canonical flag frames`).toEqual([]);
+  expect(result.chromeControls, `${route} has undersized app chrome controls`).toEqual([]);
+  expect(result.bootGuardStillPresent, `${route} first-paint guard must clear after hydration`).toBe(false);
 
   if (result.requestedTabbar === "hidden") {
-    expect(result.tabbarCount, \`\${route} should hide the global tab bar\`).toBe(0);
+    expect(result.tabbarCount, `${route} should hide the global tab bar`).toBe(0);
   } else {
-    expect(result.tabbarCount, \`\${route} should expose one global tab bar\`).toBe(1);
+    expect(result.tabbarCount, `${route} should expose one global tab bar`).toBe(1);
   }
 
-  await testInfo.attach(\`installed-route-\${route.replace(/[^a-z0-9]+/gi, "-") || "home"}.json\`, {
+  await testInfo.attach(`installed-route-${route.replace(/[^a-z0-9]+/gi, "-") || "home"}.json`, {
     body: Buffer.from(JSON.stringify(result, null, 2)),
     contentType: "application/json",
   });
 }
 
 for (let shard = 0; shard < 4; shard += 1) {
-  test(\`installed-app route invariant crawl — shard \${shard + 1}\`, async ({ page }, testInfo) => {
+  test(`installed-app route invariant crawl — shard ${shard + 1}`, async ({ page }, testInfo) => {
     test.skip(
       testInfo.project.name !== "ios-pwa-portrait",
       "The exhaustive installed-app crawl runs once at the representative iPhone width.",
@@ -337,7 +337,7 @@ for (let shard = 0; shard < 4; shard += 1) {
       try {
         await test.step(route, () => auditInstalledRoute(page, route, testInfo));
       } catch (error) {
-        failures.push(\`\${route}: \${error instanceof Error ? error.message : String(error)}\`);
+        failures.push(`${route}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
