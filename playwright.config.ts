@@ -37,17 +37,21 @@ const personalityViewportMatrix = [
   { width: 1920, height: 1080 },
 ] as const;
 const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4173";
+const maintenanceAuditBypass = process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1";
+const appAuditHeaders = maintenanceAuditBypass
+  ? { "x-solaris-e2e-bypass-maintenance": "1" }
+  : undefined;
 
 const maintenanceProjects = [
   {
     name: "maintenance-mobile-390",
     testMatch: /maintenance\.e2e\.ts/,
-    use: { viewport: { width: 390, height: 844 } },
+    use: { viewport: { width: 390, height: 844 }, extraHTTPHeaders: {} },
   },
   {
     name: "maintenance-desktop-1440",
     testMatch: /maintenance\.e2e\.ts/,
-    use: { viewport: { width: 1440, height: 900 } },
+    use: { viewport: { width: 1440, height: 900 }, extraHTTPHeaders: {} },
   },
 ];
 
@@ -79,6 +83,7 @@ export default defineConfig({
     reducedMotion: "reduce",
     colorScheme: "dark",
     ...devices["Desktop Chrome"],
+    extraHTTPHeaders: appAuditHeaders,
   },
   // CI starts and health-checks its server explicitly and passes E2E_BASE_URL.
   // For local runs, use Vite dev rather than Vite preview because the production
@@ -91,7 +96,8 @@ export default defineConfig({
         reuseExistingServer: true,
         timeout: 120_000,
       },
-  projects: GLOBAL_MAINTENANCE_MODE ? maintenanceProjects : [
+  projects: GLOBAL_MAINTENANCE_MODE && !maintenanceAuditBypass ? maintenanceProjects : [
+    ...(GLOBAL_MAINTENANCE_MODE ? maintenanceProjects : []),
     ...publicViewportMatrix.map(({ width, height }) => ({
       name: `public-${width}`,
       testMatch: /public-routes\.e2e\.ts/,
