@@ -152,8 +152,9 @@ describe("Organisation OS V5 canonical Organizer Task Engine", () => {
     expect(notificationProjection).toContain("resolution_mode in ('manual', 'domain')");
     expect(notificationProjection).toContain("Task-backed notifications may only be marked seen; task state follows authoritative domain state.");
     expect(notificationProjection).toContain("security invoker");
-    expect(notificationProjection).toContain("(to_jsonb(new) - 'read_at')");
-    expect(notificationProjection).toContain("(to_jsonb(old) - 'read_at')");
+    expect(notificationProjection).toContain("(to_jsonb(new) - array['read_at', 'resolved_at']::text[])");
+    expect(notificationProjection).toContain("(to_jsonb(old) - array['read_at', 'resolved_at']::text[])");
+    expect(notificationProjection).toContain("Notification delivery fields are server-authoritative.");
     expect(notificationProjection).toContain("current_user in ('authenticated', 'anon')");
   });
 
