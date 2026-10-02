@@ -62,7 +62,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
     },
     {
       id: "edition",
-      label: activeEdition?.edition_number ? `SSC${activeEdition.edition_number}` : "Edition",
+      label: "Edition",
       href: editionHref,
       icon: Layers3,
       active: (path) => adminEditionRoute(path, slug),
