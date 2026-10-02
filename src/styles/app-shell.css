@@ -7,7 +7,7 @@ html[data-solaris-app-boot] body::before {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: 2147483647;
+  z-index: var(--solaris-z-boot);
   visibility: visible;
   background:
     radial-gradient(circle at 50% 38%, rgb(83 153 202 / .15), transparent 28rem),
@@ -22,7 +22,7 @@ html[data-solaris-app-boot] body::after {
   content: "Solaris Studio\AOpening app";
   white-space: pre;
   position: fixed;
-  z-index: 2147483647;
+  z-index: var(--solaris-z-boot);
   left: 50%;
   top: calc(50% + 2.6rem);
   width: min(18rem, calc(100vw - 3rem));
@@ -76,7 +76,7 @@ html[data-solaris-app-boot] body::after {
 
 .solaris-install-prompt {
   position: fixed;
-  z-index: 70;
+  z-index: var(--solaris-z-popover);
   left: 50%;
   bottom: calc(5.9rem + max(.55rem, env(safe-area-inset-bottom)));
   display: flex;
