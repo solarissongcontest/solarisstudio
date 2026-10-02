@@ -558,6 +558,10 @@ async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo
     expect(result.offlinePolicy, `${route} critical tasks cannot pretend to submit offline`).toBe("online-required");
   }
 
+  if (result.requestedTabbar !== "hidden") {
+    await expectNoBottomChromeCollision(page, route);
+  }
+
   await testInfo.attach(`installed-route-${route.replace(/[^a-z0-9]+/gi, "-") || "home"}.json`, {
     body: Buffer.from(JSON.stringify(result, null, 2)),
     contentType: "application/json",
