@@ -6,6 +6,9 @@ describe("Organizer permission shadow routing", () => {
   it.each([
     ["/admin/access-permissions", "permissions.read"],
     ["/admin/feature-rollout", "rollout.read"],
+    ["/admin/system-operations", "system.read"],
+    ["/admin/system", "system.read"],
+    ["/admin/sync-health", "system.read"],
     ["/admin/communications", "communications.read"],
     ["/admin/rules-manager", "rules.read"],
     ["/admin/integrity-evidence", "integrity.read"],
@@ -17,6 +20,7 @@ describe("Organizer permission shadow routing", () => {
     ["/admin/hosts", "host.read"],
     ["/admin/entries/ssc-21", "entry.read_private"],
     ["/admin/countries", "delegation.read"],
+    ["/admin/next-in-line", "delegation.read"],
     ["/admin/operations", "edition.read"],
     ["/confirmations/admin/responses", "confirmation.read"],
     ["/televoting/admin/rounds", "voting.read"],
