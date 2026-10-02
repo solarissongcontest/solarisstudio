@@ -14,7 +14,6 @@ import {
   type AppHistoryEntry,
 } from "@/lib/app-navigation";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
-import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { readAppSearchReturn } from "@/lib/app-search-state";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 
@@ -29,7 +28,6 @@ export function AppToolbar({
 }) {
   const navigate = useNavigate();
   const chrome = resolveAppRouteChrome(pathname, searchStr);
-  const screen = resolveSolarisAppScreen(pathname, searchStr);
   const [backTarget, setBackTarget] = useState<AppHistoryEntry | null>(null);
 
   useEffect(() => {
@@ -86,7 +84,7 @@ export function AppToolbar({
     <header
       className="solaris-app-toolbar"
       data-app-screen={chrome.archetype}
-      data-search-mode={screen.chrome.search}
+      data-search-mode={chrome.search}
     >
       <div className="solaris-app-toolbar-inner">
         <div className="min-w-0 flex-1">
@@ -126,7 +124,7 @@ export function AppToolbar({
             <>
               {chrome.archetype === "entity" ? (
                 <AppNativeShareButton />
-              ) : screen.chrome.search === "global" ? (
+              ) : chrome.search === "global" ? (
                 <PublicCommandPalette compact access={access} />
               ) : null}
               <SheetTrigger asChild>
