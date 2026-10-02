@@ -62,11 +62,13 @@ describe("Solaris Depth System governance visual contract", () => {
     expect(chrome).toContain('tab: "participate"');
   });
 
-  it("reserves extra mobile scroll runway above the Liquid Glass tab bar", () => {
-    const css = source("src/solaris-depth.css");
+  it("reserves measured mobile scroll runway above the Liquid Glass tab bar", () => {
+    const shellCss = source("src/styles/app-shell.css");
+    const depthCss = source("src/solaris-depth.css");
 
-    expect(css).toContain("var(--solaris-app-tabbar-height)");
-    expect(css).toContain("env(safe-area-inset-bottom)");
-    expect(css).toContain(".solaris-depth-page");
+    expect(shellCss).toContain("--solaris-app-bottom-obstruction");
+    expect(shellCss).toContain("env(safe-area-inset-bottom)");
+    expect(shellCss).toContain('data-solaris-app-tabbar="hidden"');
+    expect(depthCss).toContain(".solaris-depth-page");
   });
 });
