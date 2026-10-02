@@ -2265,3 +2265,55 @@ html[data-solaris-app] .solaris-app-edition-row + .solaris-app-edition-row {
     transform: scale(.995);
   }
 }
+
+
+html[data-solaris-app] .solaris-app-result-hero {
+  border: 1px solid rgb(210 236 248 / .12);
+  border-radius: 1.25rem;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at 100% 0%, rgb(var(--solaris-accent, 139 198 222) / .11), transparent 42%),
+    rgb(255 255 255 / .028);
+}
+
+html[data-solaris-app] .solaris-app-result-kicker {
+  margin: 0 0 .35rem;
+  color: var(--primary);
+  font-size: .65rem;
+  font-weight: 800;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+html[data-solaris-app] .solaris-app-result-hero > h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 750;
+  letter-spacing: -.025em;
+}
+
+html[data-solaris-app] .solaris-app-primary-action {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: .9rem;
+  background: var(--primary);
+  padding-inline: .9rem;
+  color: var(--primary-foreground);
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+html[data-solaris-app] .solaris-app-score-row {
+  display: grid;
+  grid-template-columns: 2rem auto minmax(0, 1fr) auto;
+  min-height: 3.6rem;
+  align-items: center;
+  gap: .65rem;
+  padding: .65rem .85rem;
+}
+
+html[data-solaris-app] .solaris-app-score-row + .solaris-app-score-row {
+  border-top: 1px solid rgb(210 236 248 / .085);
+}
