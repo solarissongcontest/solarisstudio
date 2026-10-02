@@ -18,6 +18,9 @@ describe("Organisation OS V5 canonical Organizer Task Engine", () => {
   const truthSources = source(
     "supabase/migrations/20261003001000_organisation_os_v5_task_truth_expansion.sql",
   );
+  const notificationProjection = source(
+    "supabase/migrations/20261003003000_organisation_os_v5_task_notifications.sql",
+  );
 
   it("stores one task per source condition and keeps direct browser writes closed", () => {
     expect(migration).toContain("create table if not exists public.studio2_organizer_tasks");
@@ -139,6 +142,38 @@ describe("Organisation OS V5 canonical Organizer Task Engine", () => {
     expect(truthSources).toContain(
       "perform private.studio2_reconcile_confirmation_requirement_tasks(p_edition_id);",
     );
+  });
+
+  it("projects Tasks into capability-aware Inbox delivery without manual domain resolution", () => {
+    expect(notificationProjection).toContain("private.studio2_sync_task_notifications");
+    expect(notificationProjection).toContain("task.required_capability");
+    expect(notificationProjection).toContain("direct_grant.capability = task.required_capability");
+    expect(notificationProjection).toContain("role_capability.capability = task.required_capability");
+    expect(notificationProjection).toContain("resolution_mode in ('manual', 'domain')");
+    expect(notificationProjection).toContain("Task-backed notification resolution follows authoritative domain state.");
+    expect(notificationProjection).toContain("security invoker");
+    expect(notificationProjection).toContain("current_user in ('authenticated', 'anon')");
+  });
+
+  it("prepares high-risk Task push through the existing queue and suppresses stale work", () => {
+    const dispatcher = source("supabase/functions/solaris-push-dispatch/index.ts");
+    expect(notificationProjection).toContain("'organizer_tasks'");
+    expect(notificationProjection).toContain("'organizer_task.critical'");
+    expect(notificationProjection).toContain("'organizer_task.high'");
+    expect(notificationProjection).toContain("public.solaris_prepare_organizer_task_delivery");
+    expect(notificationProjection).toContain("delivery.subject_id");
+    expect(dispatcher).toContain('service.rpc(\n    "solaris_prepare_organizer_task_delivery"');
+    expect(dispatcher).toContain('delivery.category === "organizer_tasks"');
+    expect(dispatcher).toContain('task.state === "resolved" || task.resolved_at');
+    expect(dispatcher).toContain('delivery.event_type === "organizer_task.critical"');
+  });
+
+  it("keeps Task-backed Inbox resolution visibly domain-owned", () => {
+    const ops = source("src/lib/admin-ops.ts");
+    const inbox = source("src/routes/_authenticated/admin/inbox.tsx");
+    expect(ops).toContain('resolution_mode: "manual" | "domain"');
+    expect(inbox).toContain('item.resolution_mode === "domain"');
+    expect(inbox).toContain("Resolves automatically from the source workflow");
   });
 
   it("uses canonical Tasks for the mobile badge and dedicated Tasks screen", () => {
