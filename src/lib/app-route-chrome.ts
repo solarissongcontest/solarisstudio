@@ -65,8 +65,15 @@ function entityChrome(pathname: string, searchStr = ""): AppRouteChrome | null {
   );
   const resultsContext = section === "shows" && params.get("from") === "results";
 
+  const entityTitle =
+    editionNumber
+      ? `SSC ${editionNumber}`
+      : section === "countries" || section === "wiki"
+        ? entitySegment.toUpperCase()
+        : metadata.title;
+
   return {
-    title: editionNumber ? `SSC ${editionNumber}` : metadata.title,
+    title: entityTitle,
     tab: resultsContext ? "results" : "explore",
     archetype: "entity",
     root: false,
