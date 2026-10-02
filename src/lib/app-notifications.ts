@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type AppPushState = {
   supported: boolean;
+  configured: boolean;
   permission: NotificationPermission | "unsupported";
   subscribed: boolean;
 };
@@ -28,12 +29,18 @@ function pushSupported() {
 
 export async function getAppPushState(): Promise<AppPushState> {
   if (!pushSupported()) {
-    return { supported: false, permission: "unsupported", subscribed: false };
+    return {
+      supported: false,
+      configured: Boolean(vapidPublicKey()),
+      permission: "unsupported",
+      subscribed: false,
+    };
   }
   const registration = await navigator.serviceWorker.getRegistration("/");
   const subscription = await registration?.pushManager.getSubscription();
   return {
     supported: true,
+    configured: Boolean(vapidPublicKey()),
     permission: Notification.permission,
     subscribed: Boolean(subscription),
   };
@@ -68,7 +75,7 @@ async function storeSubscription(userId: string, subscription: PushSubscription)
 export async function enableAppPush(userId: string) {
   if (!pushSupported()) throw new Error("Push notifications are not supported on this browser.");
   const key = vapidPublicKey();
-  if (!key) throw new Error("Solaris push delivery is not configured on this deployment yet.");
+  if (!key) throw new Error("Push notifications are temporarily unavailable.");
 
   const permission =
     Notification.permission === "granted"
