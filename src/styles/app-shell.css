@@ -2912,6 +2912,25 @@ html[data-solaris-app] .solaris-app-empty-state {
   background: rgb(255 255 255 / .025);
 }
 
+html[data-solaris-app] .solaris-app-empty-action {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(210 236 248 / .13);
+  border-radius: .85rem;
+  padding-inline: .85rem;
+  background: rgb(255 255 255 / .035);
+  color: var(--foreground);
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+html[data-solaris-app] .solaris-app-empty-action:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 html[data-solaris-app] .solaris-app-status-badge {
   display: inline-flex;
   min-height: 1.75rem;
