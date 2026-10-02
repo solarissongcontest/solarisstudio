@@ -1,6 +1,7 @@
 version: 1
 product: Solaris Studio Mobile App V2
 candidate_branch: mobile-app-v2-final-verification
+source_commit: ""
 rule: "Every manual gate must be approved with evidence before production V2 sign-off."
 manual_gates:
   - id: visual-baseline-review
