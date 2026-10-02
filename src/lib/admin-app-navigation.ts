@@ -62,6 +62,7 @@ function safeAdminPath(pathname: string) {
 export function adminDelegationRoute(path: string) {
   return (
     path.startsWith("/admin/countries") ||
+    path.startsWith("/admin/next-in-line") ||
     path.startsWith("/confirmations/admin") ||
     path.startsWith("/admin/submission-versions")
   );
