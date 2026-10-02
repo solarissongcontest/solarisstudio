@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   certify:
@@ -29,6 +30,46 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Verify source commit CI gates
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const manifest = fs.readFileSync("docs/mobile-v2/release-certification.yml", "utf8");
+            const match = manifest.match(/^source_commit:\\s*"([0-9a-f]{40})"\\s*$/m);
+            if (!match) {
+              core.setFailed("release-certification.yml must contain an exact 40-character source_commit.");
+              return;
+            }
+
+            const source = match[1];
+            const { owner, repo } = context.repo;
+            const { data } = await github.rest.actions.listWorkflowRunsForRepo({
+              owner,
+              repo,
+              head_sha: source,
+              per_page: 100,
+            });
+
+            const required = [
+              "Quality",
+              "Browser audit",
+              "Rules + Integrity migration rehearsal",
+            ];
+
+            for (const workflowName of required) {
+              const successful = data.workflow_runs
+                .filter((run) => run.name === workflowName && run.conclusion === "success")
+                .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))[0];
+
+              if (!successful) {
+                core.setFailed(`${workflowName} is not green for source commit ${source}.`);
+                return;
+              }
+
+              core.info(`${workflowName}: ${successful.html_url}`);
+            }
+
       - name: Production build
         run: bun run build
 
@@ -52,6 +93,7 @@ jobs:
             echo
             echo "### Solaris Studio Mobile App V2 certification"
             echo
+            echo "- Source commit Quality / Browser audit / Rules + Integrity gates: verified green"
             echo "- Production build: executed"
             echo "- Client performance budget: enforced"
             echo "- TypeScript: executed"
