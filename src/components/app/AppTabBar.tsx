@@ -12,7 +12,8 @@ import {
   resetAppTabToRoot,
 } from "@/lib/app-navigation";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
-import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
+import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
+import { PUBLIC_GLOBAL_AREAS } from "@/lib/public-navigation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
@@ -59,8 +60,10 @@ export function AppTabBar({
   meBadge?: number;
 }) {
   const navigate = useNavigate();
+  const chrome = resolveAppRouteChrome(pathname, searchStr);
   const contextualArea = appTabForLocation(pathname, searchStr);
-  const routeArea = contextualArea ?? publicAreaForPath(pathname);
+  const routeArea = chrome.tab ?? contextualArea;
+  const tabbarMode = chrome.tabBar;
   const [collapsed, setCollapsed] = useState(false);
   const [railMode, setRailMode] = useState(false);
   const [fallbackArea, setFallbackArea] = useState<PrimaryArea>("home");
@@ -70,6 +73,7 @@ export function AppTabBar({
   const downTravel = useRef(0);
   const upTravel = useRef(0);
   const frame = useRef<number | null>(null);
+  const barRef = useRef<HTMLElement | null>(null);
   const materialRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<DragState | null>(null);
   const suppressClick = useRef(false);
@@ -91,7 +95,7 @@ export function AppTabBar({
   }, []);
 
   useEffect(() => {
-    if (routeArea !== "help" && isPrimaryArea(routeArea)) {
+    if (routeArea && isPrimaryArea(routeArea)) {
       setFallbackArea(routeArea);
       window.localStorage.setItem(LAST_PRIMARY_AREA_KEY, routeArea);
     }
@@ -148,8 +152,39 @@ export function AppTabBar({
     };
   }, [railMode]);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    const bar = barRef.current;
+
+    const updateMetrics = () => {
+      if (!bar || railMode || tabbarMode === "hidden") {
+        root.style.setProperty("--solaris-app-bottom-obstruction", "0px");
+        return;
+      }
+      const rect = bar.getBoundingClientRect();
+      const obstruction = Math.max(0, window.innerHeight - rect.top);
+      root.style.setProperty("--solaris-app-tabbar-height", `${Math.ceil(rect.height)}px`);
+      root.style.setProperty("--solaris-app-bottom-obstruction", `${Math.ceil(obstruction)}px`);
+    };
+
+    updateMetrics();
+    const observer = typeof ResizeObserver !== "undefined" && bar
+      ? new ResizeObserver(updateMetrics)
+      : null;
+    observer?.observe(bar);
+    window.addEventListener("resize", updateMetrics);
+    window.visualViewport?.addEventListener("resize", updateMetrics);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", updateMetrics);
+      window.visualViewport?.removeEventListener("resize", updateMetrics);
+      root.style.setProperty("--solaris-app-bottom-obstruction", "0px");
+    };
+  }, [collapsed, railMode, tabbarMode, pathname]);
+
   const activeArea: PrimaryArea =
-    routeArea === "help" ? fallbackArea : isPrimaryArea(routeArea) ? routeArea : fallbackArea;
+    routeArea && isPrimaryArea(routeArea) ? routeArea : fallbackArea;
   const activeIndex = Math.max(
     0,
     PUBLIC_GLOBAL_AREAS.findIndex((area) => area.id === activeArea),
@@ -329,12 +364,20 @@ export function AppTabBar({
     clearDrag();
   };
 
+  if (tabbarMode === "hidden") return null;
+
   return (
     <nav
-      className={cn("solaris-app-tabbar", collapsed && "is-collapsed")}
+      ref={barRef}
+      className={cn(
+        "solaris-app-tabbar",
+        collapsed && "is-collapsed",
+        tabbarMode === "minimal" && "is-minimal",
+      )}
       aria-label="Solaris Studio"
       data-collapsed={collapsed ? "true" : "false"}
       data-layout={railMode ? "rail" : "bar"}
+      data-mode={tabbarMode}
       onPointerDown={() => {
         if (collapsed) setCollapsed(false);
       }}
@@ -355,8 +398,7 @@ export function AppTabBar({
             area.id === "me"
               ? pathname.startsWith("/my-solaris") ||
                 pathname.startsWith("/me") ||
-                pathname.startsWith("/auth") ||
-                (routeArea === "help" && activeArea === "me")
+                pathname.startsWith("/auth")
               : activeArea === area.id;
           const visuallyActive = index === visualActiveIndex;
           const badge =
