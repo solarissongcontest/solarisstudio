@@ -112,17 +112,19 @@ export function CountryWikiExperience({ code }: { code: string }) {
     let timeout = 0;
     let idle: number | null = null;
     const enable = () => setArchiveEnabled(true);
+    const idleWindow = window as typeof window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
 
-    if ("requestIdleCallback" in window) {
-      idle = window.requestIdleCallback(enable, { timeout: 700 });
+    if (idleWindow.requestIdleCallback) {
+      idle = idleWindow.requestIdleCallback(enable, { timeout: 700 });
     } else {
       timeout = window.setTimeout(enable, 250);
     }
 
     return () => {
-      if (idle != null && "cancelIdleCallback" in window) {
-        window.cancelIdleCallback(idle);
-      }
+      if (idle != null) idleWindow.cancelIdleCallback?.(idle);
       if (timeout) window.clearTimeout(timeout);
     };
   }, [isAppMode]);
