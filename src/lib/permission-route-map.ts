@@ -13,6 +13,7 @@ const ROUTE_CAPABILITY_RULES: RouteCapabilityRule[] = [
   rule(["/admin/feature-rollout"], "rollout.read"),
   rule(["/admin/system-operations", "/admin/system", "/admin/sync-health"], "system.read"),
   rule(["/admin/communications"], "communications.read"),
+  rule(["/admin/community-moderation"], "community.read"),
   rule(["/admin/rules-manager", "/admin/rule-interpretations"], "rules.read"),
   rule(["/admin/integrity"], "integrity.read"),
   rule(["/admin/results"], "results.preview"),
