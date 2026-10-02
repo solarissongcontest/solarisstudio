@@ -2222,7 +2222,7 @@ html[data-solaris-app] .solaris-app-section-heading > p {
   text-transform: uppercase;
 }
 
-html[data-solaris-app] .solaris-app-section-heading > h2 {
+html[data-solaris-app] .solaris-app-section-heading > :is(h1, h2) {
   margin: .18rem 0 0;
   font-size: 1.05rem;
   font-weight: 750;
