@@ -734,6 +734,14 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
           (path) => path.startsWith("/admin/sync-health"),
         ),
         item(
+          "Delivery & jobs",
+          "Inspect push delivery state and Solaris scheduler runs.",
+          "/admin/system-operations",
+          BellRing,
+          "system push notifications delivery jobs cron diagnostics",
+          (path) => path.startsWith("/admin/system-operations"),
+        ),
+        item(
           "System settings",
           "Manage deadlines, audit history and maintenance controls.",
           "/admin/system",
