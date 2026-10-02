@@ -59,40 +59,46 @@ begin
     raise exception 'Invalid operation risk class' using errcode = '22023';
   end if;
 
-  begin
-    insert into public.studio2_operation_receipts (
-      operation_id,
-      actor_id,
-      idempotency_key,
-      command,
-      risk_class,
-      scope
-    )
-    values (
-      p_operation_id,
-      v_actor,
-      v_key,
-      v_command,
-      p_risk_class,
-      coalesce(p_scope, '{}'::jsonb)
-    )
-    on conflict (actor_id, command, idempotency_key) do nothing;
-  exception
-    when unique_violation then
-      raise exception 'Operation id is already used by another command'
-        using errcode = '23505';
-  end;
+  insert into public.studio2_operation_receipts (
+    operation_id,
+    actor_id,
+    idempotency_key,
+    command,
+    risk_class,
+    scope
+  )
+  values (
+    p_operation_id,
+    v_actor,
+    v_key,
+    v_command,
+    p_risk_class,
+    coalesce(p_scope, '{}'::jsonb)
+  )
+  on conflict do nothing;
 
   select *
   into v_receipt
   from public.studio2_operation_receipts
-  where actor_id = v_actor
-    and command = v_command
-    and idempotency_key = v_key
+  where operation_id = p_operation_id
+     or (
+       actor_id = v_actor
+       and command = v_command
+       and idempotency_key = v_key
+     )
+  order by case when operation_id = p_operation_id then 0 else 1 end
+  limit 1
   for update;
 
   if v_receipt.operation_id is null then
     raise exception 'Operation receipt could not be claimed' using errcode = 'P0001';
+  end if;
+
+  if v_receipt.actor_id <> v_actor
+     or v_receipt.command <> v_command
+     or v_receipt.idempotency_key <> v_key then
+    raise exception 'Operation id is already used by another command'
+      using errcode = '23505';
   end if;
 
   if v_receipt.status = 'succeeded' then
