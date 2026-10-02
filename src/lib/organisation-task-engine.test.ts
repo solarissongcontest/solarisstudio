@@ -12,6 +12,9 @@ describe("Organisation OS V5 canonical Organizer Task Engine", () => {
   const migration = source(
     "supabase/migrations/20261002211500_organisation_os_v5_task_engine.sql",
   );
+  const operationalSources = source(
+    "supabase/migrations/20261002234500_organisation_os_v5_task_sources.sql",
+  );
 
   it("stores one task per source condition and keeps direct browser writes closed", () => {
     expect(migration).toContain("create table if not exists public.studio2_organizer_tasks");
@@ -47,6 +50,40 @@ describe("Organisation OS V5 canonical Organizer Task Engine", () => {
     expect(migration).toContain("'integrity.manage'");
     expect(migration).toContain("'incident.read'");
     expect(migration).toContain("'edition.manage'");
+  });
+
+
+  it("expands canonical tasks across submitted confirmations, jury, televote and results", () => {
+    expect(operationalSources).toContain("'confirmation_review'");
+    expect(operationalSources).toContain("submission.reviewed = false");
+    expect(operationalSources).toContain("internal_entry.review_status = 'pending'");
+    expect(operationalSources).toContain("'jury_missing_ballots'");
+    expect(operationalSources).toContain("window.status = 'open'");
+    expect(operationalSources).toContain("ballot.status = 'submitted'");
+    expect(operationalSources).toContain("ballot_status.status = 'did_not_vote'");
+    expect(operationalSources).toContain("'televote_suspicious'");
+    expect(operationalSources).toContain("submission.status = 'suspicious'");
+    expect(operationalSources).toContain("'result_lifecycle'");
+    expect(operationalSources).toContain(
+      "result_operation.reveal_ready_version is distinct from result_operation.calculation_version",
+    );
+  });
+
+  it("never turns an open confirmation round into a second confirmation requirement", () => {
+    expect(operationalSources).toContain(
+      "a round is a submission window, not a new requirement",
+    );
+    expect(operationalSources).not.toContain("submission_rounds round\n  where round.status = 'open'");
+    expect(operationalSources).not.toContain("'confirmation_missing'");
+    expect(operationalSources).not.toContain("'reconfirmation'");
+  });
+
+  it("keeps each operational source deduplicated by its domain object", () => {
+    expect(operationalSources).toContain("'confirmation-review:' || submission.id::text");
+    expect(operationalSources).toContain("'jury-missing-ballots:' || window.show_id::text");
+    expect(operationalSources).toContain("'televote-suspicious:' || round.id::text");
+    expect(operationalSources).toContain("'result-lifecycle:' || result_operation.show_id::text");
+    expect(operationalSources).toContain("on conflict (source_key) do update");
   });
 
   it("uses canonical Tasks for the mobile badge and dedicated Tasks screen", () => {
