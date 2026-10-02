@@ -135,6 +135,15 @@ function SiteDirectoryPage() {
         <AppEmptyState
           title="No matching page"
           description="Try a product name, task, country-related term or an older Solaris feature name."
+          action={
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="solaris-app-empty-action"
+            >
+              Clear search
+            </button>
+          }
         />
       ) : (
         <div className="rounded-2xl border border-border/70 bg-surface/45 px-5 py-10 text-center">
