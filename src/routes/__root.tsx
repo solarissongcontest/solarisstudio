@@ -220,6 +220,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     scripts: [
       {
+        children: `(() => {
+          try {
+            const installed =
+              window.matchMedia("(display-mode: standalone)").matches ||
+              window.matchMedia("(display-mode: window-controls-overlay)").matches ||
+              navigator.standalone === true;
+            if (!installed) return;
+            const root = document.documentElement;
+            root.setAttribute("data-solaris-app-boot", "");
+            window.setTimeout(() => root.removeAttribute("data-solaris-app-boot"), 4000);
+          } catch {}
+        })();`,
+      },
+      {
         type: "application/ld+json",
         children: JSON.stringify({
           "@context": "https://schema.org",
