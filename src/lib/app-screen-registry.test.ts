@@ -30,6 +30,16 @@ describe("Solaris app screen registry", () => {
     expect(screen.behavior.offline).toBe("ready");
   });
 
+  it("distinguishes page-owned local search from global browse search", () => {
+    for (const path of ["/countries", "/wiki", "/site-directory", "/rules"]) {
+      expect(resolveSolarisAppScreen(path).chrome.search, path).toBe("local");
+    }
+
+    for (const path of ["/explore", "/results", "/editions", "/shows"]) {
+      expect(resolveSolarisAppScreen(path).chrome.search, path).toBe("global");
+    }
+  });
+
   it("lets result-owned show entities stay in Results", () => {
     const screen = resolveSolarisAppScreen("/shows/show-22", "?from=results");
     expect(screen.hierarchy.rootTab).toBe("results");
