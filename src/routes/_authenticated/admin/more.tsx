@@ -63,6 +63,7 @@ const groups = [
     items: [
       { label: "All Organizer tools", description: "Open the complete categorized directory when you need a specialist page.", to: "/admin/menu", icon: ListTree },
       { label: "System health", description: "Check data synchronization, stale bindings and integration failures.", to: "/admin/sync-health", icon: Settings },
+      { label: "Delivery & jobs", description: "Inspect push delivery receipts, queue state and Solaris scheduler runs.", to: "/admin/system-operations", icon: Settings },
       { label: "System settings", description: "Manage deadlines, audit history and maintenance settings.", to: "/admin/system", icon: Settings },
     ],
   },
