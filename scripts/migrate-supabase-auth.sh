@@ -148,34 +148,45 @@ target_identities_fp="$(query_one "$TARGET_DB_URL" "$identity_rows_fingerprint_s
   die "Identity row fingerprints differ after migration."
 
 # Ensure every Solaris application FK still points at an existing auth user.
-orphan_count="$(query_one "$TARGET_DB_URL" "
-with fk_columns as (
-  select n.nspname, c.relname, a.attname
-  from pg_constraint con
-  join pg_class c on c.oid = con.conrelid
-  join pg_namespace n on n.oid = c.relnamespace
-  join unnest(con.conkey) with ordinality ck(attnum, ord) on true
-  join unnest(con.confkey) with ordinality fk(attnum, ord) using (ord)
-  join pg_attribute a on a.attrelid = c.oid and a.attnum = ck.attnum
-  join pg_attribute ra on ra.attrelid = con.confrelid and ra.attnum = fk.attnum
-  where con.contype = 'f'
-    and con.confrelid = 'auth.users'::regclass
-    and ra.attname = 'id'
-    and n.nspname in ('public','televoting')
-),
-checks as (
-  select format(
-    'select count(*) from %I.%I t left join auth.users u on u.id = t.%I where t.%I is not null and u.id is null',
-    nspname, relname, attname, attname
-  ) sql
-  from fk_columns
-)
-select count(*) from auth.users where false;
-")"
+printf 'Checking application foreign keys to auth.users ...\n'
+psql "$TARGET_DB_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+do $$
+declare
+  r record;
+  orphan_count bigint;
+begin
+  for r in
+    select
+      n.nspname as schema_name,
+      c.relname as table_name,
+      a.attname as column_name
+    from pg_constraint con
+    join pg_class c on c.oid = con.conrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    join unnest(con.conkey) with ordinality ck(attnum, ord) on true
+    join unnest(con.confkey) with ordinality fk(attnum, ord) using (ord)
+    join pg_attribute a on a.attrelid = c.oid and a.attnum = ck.attnum
+    join pg_attribute ra on ra.attrelid = con.confrelid and ra.attnum = fk.attnum
+    where con.contype = 'f'
+      and con.confrelid = 'auth.users'::regclass
+      and ra.attname = 'id'
+      and n.nspname in ('public','televoting')
+  loop
+    execute format(
+      'select count(*) from %I.%I t left join auth.users u on u.id = t.%I where t.%I is not null and u.id is null',
+      r.schema_name, r.table_name, r.column_name, r.column_name
+    )
+    into orphan_count;
 
-# The dynamic FK audit is performed by the migration verification tooling after this
-# script. The important guarantee here is that IDs were preserved and credential
-# fingerprints exactly match the source.
+    if orphan_count <> 0 then
+      raise exception
+        'Auth migration left % orphan row(s) in %.% column %',
+        orphan_count, r.schema_name, r.table_name, r.column_name;
+    end if;
+  end loop;
+end
+$$;
+SQL
 
 printf '\nAuth migration verified successfully.\n'
 printf '  users:      %s\n' "$EXPECTED_USERS"
