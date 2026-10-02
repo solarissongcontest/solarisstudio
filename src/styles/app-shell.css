@@ -2533,3 +2533,58 @@ html[data-solaris-app] .solaris-app-stat-cell:nth-child(even) {
 html[data-solaris-app] .solaris-app-stat-cell:nth-child(n + 3) {
   border-top: 1px solid rgb(210 236 248 / .085);
 }
+
+
+/* Settings should read like an installed settings app, not a stack of website cards. */
+html[data-solaris-app] .solaris-app-settings-panel {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+html[data-solaris-app] .solaris-app-settings-panel > div:first-child {
+  margin: 0 0 .55rem !important;
+  padding-inline: .15rem;
+}
+
+html[data-solaris-app] .solaris-app-settings-panel > div:first-child h2 {
+  font-family: inherit !important;
+  font-size: 1.05rem !important;
+  font-weight: 750 !important;
+  letter-spacing: -.02em !important;
+}
+
+html[data-solaris-app] .solaris-app-settings-panel > div:first-child p {
+  margin-top: .18rem !important;
+  font-size: .72rem !important;
+  line-height: 1.45 !important;
+}
+
+html[data-solaris-app] .solaris-app-settings-group {
+  gap: 0 !important;
+  overflow: hidden;
+  border: 1px solid rgb(210 236 248 / .11);
+  border-radius: 1.15rem;
+  background: rgb(255 255 255 / .025);
+}
+
+html[data-solaris-app] .solaris-app-settings-group > .solaris-settings-row,
+html[data-solaris-app] .solaris-app-settings-group > .solaris-settings-status {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html[data-solaris-app] .solaris-app-settings-group > .solaris-settings-row + .solaris-settings-row,
+html[data-solaris-app] .solaris-app-settings-group > .solaris-settings-status + .solaris-settings-status {
+  border-top: 1px solid rgb(210 236 248 / .085) !important;
+}
+
+@media (max-width: 899px) {
+  html[data-solaris-app] .solaris-app-settings-group {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
