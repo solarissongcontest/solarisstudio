@@ -6,6 +6,11 @@ async function enableInstalledIosMode(page: Page) {
       configurable: true,
       value: true,
     });
+  });
+}
+
+async function skipFirstRun(page: Page) {
+  await page.addInitScript(() => {
     try {
       localStorage.setItem("solaris:app-first-run-complete:v1", "1");
     } catch {
@@ -19,6 +24,7 @@ async function expectInstalledShell(
   route: string,
   options: { tabbar?: "visible" | "hidden" } = {},
 ) {
+  await skipFirstRun(page);
   await page.goto(route, { waitUntil: "domcontentloaded" });
   await expect(page.locator("html")).toHaveAttribute("data-solaris-runtime", "standalone");
   await expect(page.locator("html")).toHaveAttribute("data-solaris-app", "");
@@ -137,8 +143,6 @@ test("installed app chrome keeps Apple-sized effective touch targets", async ({ 
 
 test("first run is a contained bottom sheet and suppresses global tabs", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  await page.evaluate(() => localStorage.removeItem("solaris:app-first-run-complete:v1"));
-  await page.reload({ waitUntil: "domcontentloaded" });
 
   const sheet = page.locator(".solaris-app-first-run");
   await expect(sheet).toBeVisible();
