@@ -73,6 +73,6 @@ items:
   - { id: 67, name: interaction-regression, status: implemented, release_blocking: true, evidence: ["e2e/installed-app.e2e.ts", "src/components/app/AppTabBar.tsx", "src/components/app/AppOverlayManager.tsx"] }
   - { id: 68, name: physical-device-qa, status: manual_gate, release_blocking: true, evidence: ["docs/mobile-v2/release-certification.md", "docs/mobile-v2/release-certification.yml"] }
   - { id: 69, name: web-regression-protection, status: implemented, release_blocking: true, evidence: ["playwright.config.ts", "e2e/public-routes.e2e.ts"] }
-  - { id: 70, name: ci-quality-gates, status: implemented, release_blocking: true, evidence: [".github/workflows/browser-audit.yml", ".github/workflows/quality.yml"] }
+  - { id: 70, name: ci-quality-gates, status: implemented, release_blocking: true, evidence: [".github/workflows/browser-audit.yml", ".github/workflows/ci.yml", ".github/workflows/rules-integrity-migration-rehearsal.yml"] }
   - { id: 71, name: production-smoke-test, status: manual_gate, release_blocking: true, evidence: ["docs/mobile-v2/release-certification.md", "docs/mobile-v2/release-certification.yml"] }
   - { id: 72, name: implementation-sequence-and-cleanup, status: implemented, release_blocking: true, evidence: ["src/lib/app-css-ownership.contract.test.ts", "docs/mobile-v2/completion-matrix.yml", "scripts/check-mobile-v2-release-readiness.mjs", ".github/workflows/mobile-v2-certification.yml"] }
