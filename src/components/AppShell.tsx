@@ -639,7 +639,28 @@ export function PageHeader({
   actions?: ReactNode;
   className?: string;
 }) {
+  const { isAppMode } = useSolarisApp();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const visibleEyebrow = productEyebrow(eyebrow);
+  const chrome = resolveAppRouteChrome(pathname, searchStr);
+  const toolbarOwnsIdentity =
+    isAppMode &&
+    ["root", "directory", "workspace", "settings", "task"].includes(chrome.archetype);
+
+  if (toolbarOwnsIdentity) {
+    if (!description && !actions) return null;
+    return (
+      <header className={cn("solaris-app-page-context mb-4 min-w-0", className)}>
+        {description ? (
+          <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+        ) : null}
+        {actions ? (
+          <div className="mt-3 flex min-w-0 flex-wrap gap-2">{actions}</div>
+        ) : null}
+      </header>
+    );
+  }
 
   return (
     <header
