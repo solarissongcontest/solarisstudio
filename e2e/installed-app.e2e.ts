@@ -6,6 +6,23 @@ async function enableInstalledIosMode(page: Page) {
       configurable: true,
       value: true,
     });
+
+    const originalMatchMedia = window.matchMedia.bind(window);
+    window.matchMedia = ((query: string) => {
+      if (query === "(display-mode: standalone)") {
+        return {
+          matches: true,
+          media: query,
+          onchange: null,
+          addListener: () => undefined,
+          removeListener: () => undefined,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+          dispatchEvent: () => false,
+        } as MediaQueryList;
+      }
+      return originalMatchMedia(query);
+    }) as typeof window.matchMedia;
   });
 }
 
