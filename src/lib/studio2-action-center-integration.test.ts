@@ -10,11 +10,11 @@ const nav = source('src/components/admin/admin-navigation.ts');
 const route = source('src/routes/_authenticated/admin/action-center.tsx');
 const model = source('src/lib/studio2-action-center.ts');
 
-describe('Studio 2 Action Center integration', () => {
+describe('Studio 2 Tasks integration', () => {
   it('is discoverable from Organizer navigation', () => {
-    expect(nav).toContain('"Action Center",');
-    expect(nav).toContain('"/admin/action-center"');
-    expect(nav).toContain('label: "Operations"');
+    expect(nav).toContain('"Tasks",');
+    expect(nav).toContain('"/admin/tasks"');
+    expect(nav).toContain('label: "Current edition"');
   });
 
   it('aggregates the existing Control Room rather than duplicating operational persistence', () => {

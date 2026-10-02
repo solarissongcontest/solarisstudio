@@ -161,12 +161,27 @@ function ConfirmationsPage() {
 
   const accountAccess = accountAccessQuery.data;
   const accountResponses = accountAccess?.responses ?? [];
+  const accountRequirements = accountAccess?.requirements ?? [];
   const preferredAccountResponse = preferredCountryConfirmationResponse(accountResponses);
+  const preferredRequirement = preferredAccountResponse
+    ? accountRequirements.find(
+        (requirement) => requirement.edition_id === preferredAccountResponse.edition_id,
+      ) ?? null
+    : null;
+  const selectedRequirement = selected
+    ? accountRequirements.find((requirement) => requirement.edition_id === selected.edition_id) ?? null
+    : null;
   const selectedAccountState = selected
     ? resolveCountryConfirmationRoundState(accountResponses, selected.id)
     : null;
   const selectedAccountResponse =
     selectedAccountState?.kind === "edit" ? selectedAccountState.response : null;
+  const selectedRequirementBlocksNewSubmission = Boolean(
+    accountAccess?.authenticated &&
+      accountAccess.country &&
+      !selectedAccountResponse &&
+      (!selectedRequirement || selectedRequirement.status !== "required"),
+  );
 
   async function editCountryAccountResponse(response: CountryConfirmationResponse) {
     setAccountEditError(null);
@@ -229,8 +244,9 @@ function ConfirmationsPage() {
                     Signed in as {accountAccess.country.name}
                   </h2>
                   <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                    Solaris Studio found your existing confirmation automatically. You do not need the recovery
-                    code while you are signed in to this country account.
+                    {preferredRequirement?.status === "required"
+                      ? "TSBC has explicitly requested a new confirmation generation. Your earlier response remains in history; update it or use an open submission window to satisfy the current requirement."
+                      : "Solaris Studio found your completed edition confirmation automatically. A later submission round does not require you to confirm again."}
                   </p>
                   <p className="mt-2 text-xs text-muted-foreground">
                     SSC {preferredAccountResponse.edition_number} · {preferredAccountResponse.round_name}
@@ -319,6 +335,24 @@ function ConfirmationsPage() {
                     )}
                   </Button>
                 </div>
+              ) : selectedRequirementBlocksNewSubmission ? (
+                <div className="data-panel p-5 text-center sm:p-6">
+                  <UserRoundCheck className="mx-auto size-6 text-primary" />
+                  <h2 className="mt-3 font-display text-xl font-bold">
+                    {selectedRequirement?.status === "waived"
+                      ? "No confirmation is required"
+                      : selectedRequirement?.status === "satisfied"
+                        ? "Your edition confirmation is complete"
+                        : "No current confirmation requirement"}
+                  </h2>
+                  <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
+                    {selectedRequirement?.status === "satisfied"
+                      ? "This country already satisfied its edition-level confirmation requirement. Opening another round does not create another obligation."
+                      : selectedRequirement?.status === "waived"
+                        ? "TSBC has waived this country’s current edition confirmation requirement."
+                        : "This country does not currently have an edition-level confirmation requirement. A round is only a submission window."}
+                  </p>
+                </div>
               ) : (
                 <ConfirmationFormWithReceipt round={selected} availability={roundReason(selected)} />
               )}
@@ -349,6 +383,14 @@ function ConfirmationsPage() {
                     ? null
                     : Math.max(round.response_limit - round.response_count, 0);
                 const ownResponse = accountResponses.find((response) => response.round_id === round.id) ?? null;
+                const roundRequirement =
+                  accountRequirements.find(
+                    (requirement) => requirement.edition_id === round.edition_id,
+                  ) ?? null;
+                const signedInCountry = Boolean(accountAccess?.authenticated && accountAccess.country);
+                const requirementAllowsNewSubmission =
+                  !signedInCountry || roundRequirement?.status === "required";
+                const canStartNewSubmission = canOpen && requirementAllowsNewSubmission;
 
                 return (
                   <article key={round.id} className="data-panel p-4 sm:p-5">
@@ -371,11 +413,17 @@ function ConfirmationsPage() {
                             ? ownResponse.can_edit
                               ? "Your response is saved and editing is open."
                               : "Your response is saved. Editing is currently closed."
-                            : canOpen
-                              ? remaining === null
-                                ? "Responses are being accepted."
-                                : `${remaining} ${remaining === 1 ? "place" : "places"} remaining.`
-                              : reason === "NOT_OPEN_YET" && opens
+                            : signedInCountry && roundRequirement?.status === "satisfied"
+                              ? "Your edition confirmation requirement is already satisfied. This later round does not require another response."
+                              : signedInCountry && roundRequirement?.status === "waived"
+                                ? "TSBC has waived your current edition confirmation requirement."
+                                : signedInCountry && !roundRequirement
+                                  ? "No edition-level confirmation requirement is currently assigned to your delegation."
+                                  : canOpen
+                                    ? remaining === null
+                                      ? "Responses are being accepted."
+                                      : `${remaining} ${remaining === 1 ? "place" : "places"} remaining.`
+                                    : reason === "NOT_OPEN_YET" && opens
                                 ? `Opens ${opens}.`
                                 : reason === "DEADLINE_PASSED" && closes
                                   ? `Closed ${closes}.`
@@ -428,12 +476,18 @@ function ConfirmationsPage() {
                       ) : (
                         <Button
                           type="button"
-                          disabled={!canOpen}
+                          disabled={!canStartNewSubmission}
                           onClick={() => setSelectedId(round.id)}
                           className="shrink-0"
                         >
-                          {canOpen ? (
+                          {canStartNewSubmission ? (
                             <>Open confirmation <ArrowRight className="size-4" /></>
+                          ) : signedInCountry && roundRequirement?.status === "satisfied" ? (
+                            <><UserRoundCheck className="size-4" /> Already confirmed</>
+                          ) : signedInCountry && roundRequirement?.status === "waived" ? (
+                            <><UserRoundCheck className="size-4" /> Not required</>
+                          ) : signedInCountry && !roundRequirement ? (
+                            <><LockKeyhole className="size-4" /> No requirement</>
                           ) : (
                             <><LockKeyhole className="size-4" /> {reason === "NOT_OPEN_YET" ? "Upcoming" : reason === "RESPONSE_LIMIT_REACHED" ? "Full" : "Closed"}</>
                           )}

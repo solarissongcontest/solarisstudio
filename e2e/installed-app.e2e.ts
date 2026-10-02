@@ -11,7 +11,10 @@ async function enableInstalledIosMode(page: Page) {
 
     const originalMatchMedia = window.matchMedia.bind(window);
     window.matchMedia = ((query: string) => {
-      if (query === "(display-mode: standalone)") {
+      if (
+        query === "(display-mode: standalone)" ||
+        query === "(display-mode: window-controls-overlay)"
+      ) {
         return {
           matches: true,
           media: query,
@@ -25,6 +28,98 @@ async function enableInstalledIosMode(page: Page) {
       }
       return originalMatchMedia(query);
     }) as typeof window.matchMedia;
+
+    // WebKit does not expose a Playwright API for emulating the CSS
+    // display-mode media feature. Overriding window.matchMedia only affects
+    // JavaScript; it does not make @media (display-mode: standalone) rules
+    // participate in the CSS cascade. Mirror those exact stylesheet rules into
+    // a test-only style element so the installed-iOS audit exercises the real
+    // production declarations instead of an unstyled "standalone" runtime.
+    const installStandaloneCssEmulation = () => {
+      if (document.querySelector("style[data-solaris-installed-css-emulation]")) return;
+
+      const stripInstalledDisplayMode = (mediaText: string) => {
+        const alternatives = mediaText
+          .split(",")
+          .map((part) => part.trim())
+          .filter(Boolean);
+        const rewritten = alternatives.flatMap((part) => {
+          if (
+            !part.includes("(display-mode: standalone)") &&
+            !part.includes("(display-mode: window-controls-overlay)")
+          ) {
+            return [];
+          }
+
+          const remainder = part
+            .replaceAll("(display-mode: standalone)", "")
+            .replaceAll("(display-mode: window-controls-overlay)", "")
+            .replace(/^\s*and\s*/i, "")
+            .replace(/\s*and\s*$/i, "")
+            .trim();
+
+          return [remainder || "all"];
+        });
+
+        return [...new Set(rewritten)].join(", ");
+      };
+
+      const emulateRule = (rule: CSSRule): string => {
+        if (rule instanceof CSSMediaRule) {
+          const installedMedia = stripInstalledDisplayMode(rule.media.mediaText);
+          if (installedMedia) {
+            const body = Array.from(rule.cssRules)
+              .map((child) => child.cssText)
+              .join("\n");
+            return installedMedia === "all"
+              ? body
+              : `@media ${installedMedia} {\n${body}\n}`;
+          }
+
+          const nested = Array.from(rule.cssRules)
+            .map((child) => emulateRule(child))
+            .filter(Boolean)
+            .join("\n");
+          return nested
+            ? `@media ${rule.media.mediaText} {\n${nested}\n}`
+            : "";
+        }
+
+        if (rule instanceof CSSSupportsRule) {
+          const nested = Array.from(rule.cssRules)
+            .map((child) => emulateRule(child))
+            .filter(Boolean)
+            .join("\n");
+          return nested
+            ? `@supports ${rule.conditionText} {\n${nested}\n}`
+            : "";
+        }
+
+        return "";
+      };
+
+      const css: string[] = [];
+      for (const sheet of Array.from(document.styleSheets)) {
+        try {
+          for (const rule of Array.from(sheet.cssRules)) {
+            const emulated = emulateRule(rule);
+            if (emulated) css.push(emulated);
+          }
+        } catch {
+          // A cross-origin stylesheet would be unreadable through CSSOM.
+          // Solaris app CSS is same-origin, so skipping foreign sheets is safe.
+        }
+      }
+
+      const style = document.createElement("style");
+      style.setAttribute("data-solaris-installed-css-emulation", "");
+      style.textContent = css.join("\n");
+      document.head.append(style);
+    };
+
+    document.addEventListener("DOMContentLoaded", installStandaloneCssEmulation, {
+      once: true,
+    });
   });
 }
 

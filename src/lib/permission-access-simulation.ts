@@ -134,16 +134,20 @@ export const ORGANIZER_ACCESS_SURFACES: readonly OrganizerSurfaceDefinition[] = 
   {
     id: "administration",
     label: "Administration",
-    description: "Access, rollout and system configuration.",
+    description: "Access, rollout, community moderation and system operations.",
     routes: [
       route("Access & permissions", "/admin/access-permissions", "permissions.read"),
       route("Feature rollout", "/admin/feature-rollout", "rollout.read"),
+      route("System operations", "/admin/system-operations", "system.read"),
+      route("Community moderation", "/admin/community-moderation", "community.read"),
       route("Edition administration", "/admin", "edition.read"),
     ],
     actions: [
       action("Manage access", "permissions.manage"),
       action("Audit permissions", "permissions.audit"),
       action("Manage feature rollout", "rollout.manage"),
+      action("Manage system recovery", "system.manage"),
+      action("Moderate public fan identity", "community.moderate"),
       action("Archive editions", "edition.archive"),
     ],
   },
