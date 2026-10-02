@@ -128,6 +128,11 @@ function AppShowsPage() {
           <AppEmptyState
             title="No public shows yet"
             description="Published shows will appear here when their public pages become available."
+            action={
+              <Link to="/editions" className="solaris-app-empty-action">
+                Browse editions
+              </Link>
+            }
           />
         ) : null}
       </AppScreen>
