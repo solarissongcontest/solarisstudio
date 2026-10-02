@@ -333,6 +333,68 @@ test("installed toolbar does not duplicate page-owned local search", async ({ pa
   }
 });
 
+test("installed edition navigation stays in document flow instead of covering entries", async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "ios-pwa-portrait",
+    "Edition overlay regression is certified once at the representative installed-iPhone viewport.",
+  );
+
+  await expectInstalledShell(page, "/editions");
+  const editionHref = await page
+    .locator('main a[href^="/editions/"]')
+    .first()
+    .getAttribute("href")
+    .catch(() => null);
+  test.skip(!editionHref, "No published edition is available for the overlay regression test.");
+
+  await expectInstalledShell(page, editionHref!);
+  const navigation = page.locator(".edition-navigation");
+  await expect(navigation).toBeVisible();
+
+  const initial = await navigation.evaluate((node) => {
+    const style = getComputedStyle(node);
+    const rect = node.getBoundingClientRect();
+    return {
+      position: style.position,
+      top: rect.top,
+      bottom: rect.bottom,
+      height: rect.height,
+      viewportHeight: window.innerHeight,
+    };
+  });
+
+  expect(initial.position, "installed edition section navigation must not become sticky or fixed").toBe("relative");
+  expect(initial.height, "edition section navigation must stay compact").toBeLessThanOrEqual(72);
+
+  const entries = page.locator("#edition-entries");
+  if (await entries.count()) {
+    await entries.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(100);
+
+    const geometry = await page.evaluate(() => {
+      const nav = document.querySelector<HTMLElement>(".edition-navigation");
+      const section = document.querySelector<HTMLElement>("#edition-entries");
+      if (!nav || !section) return null;
+      const navRect = nav.getBoundingClientRect();
+      const sectionRect = section.getBoundingClientRect();
+      return {
+        navBottom: navRect.bottom,
+        navTop: navRect.top,
+        sectionTop: sectionRect.top,
+        viewportHeight: window.innerHeight,
+      };
+    });
+
+    expect(geometry).not.toBeNull();
+    expect(
+      geometry!.navBottom <= 0 || geometry!.navTop >= geometry!.viewportHeight,
+      "edition section navigation should scroll away instead of floating over the entry list",
+    ).toBe(true);
+  }
+
+  await expectTabbarGeometry(page, "edition detail after section navigation");
+});
+
 test("installed app chrome keeps Apple-sized effective touch targets", async ({ page }) => {
   await expectInstalledShell(page, "/explore");
 
