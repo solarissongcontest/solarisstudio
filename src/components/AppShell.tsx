@@ -368,6 +368,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           data-solaris-app-mode={isAppMode ? "true" : undefined}
           data-solaris-app-root={isAppMode && isAppRootDestination ? "true" : undefined}
           data-solaris-app-screen={isAppMode ? appChrome.archetype : undefined}
+          data-solaris-app-tabbar={isAppMode ? appChrome.tabBar : undefined}
           className={cn(
             "app-main relative z-10 mx-auto w-full min-w-0 px-3 pb-24 pt-4 sm:px-5 sm:pb-24 sm:pt-6 lg:px-8 lg:py-8 2xl:px-10",
             publicCanvasForArchetype(publicArchetype),
