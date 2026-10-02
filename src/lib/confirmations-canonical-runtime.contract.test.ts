@@ -45,6 +45,15 @@ describe("canonical Confirmations runtime", () => {
     expect(authFix).not.toContain("current_user uuid");
   });
 
+  it("gives confirmation route failures a recoverable in-app state", () => {
+    const route = source("src/routes/confirmations/index.tsx");
+
+    expect(route).toContain("errorComponent: ConfirmationsRouteError");
+    expect(route).toContain("Try again");
+    expect(route).toContain("router.invalidate()");
+    expect(route).toContain("Your saved response has not been changed.");
+  });
+
   it("keeps anonymous browsing separate from authenticated country editing", () => {
     const runtime = source(
       "supabase/migrations/20261002164500_canonical_confirmations_public_runtime.sql",
