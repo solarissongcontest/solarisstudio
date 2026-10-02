@@ -268,6 +268,7 @@ export function resolveSolarisAppScreen(pathname: string, searchStr = ""): Solar
       },
       presentation: "task",
       ...TASK_DEFAULTS,
+      chrome: { ...TASK_DEFAULTS.chrome, toolbar: "hidden" },
       helpTo: "/integrity/process",
     };
   }
