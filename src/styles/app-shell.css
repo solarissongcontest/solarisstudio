@@ -62,7 +62,7 @@ html[data-solaris-app-boot] body::before {
 
 .solaris-install-action,
 .solaris-install-dismiss {
-  min-height: 2.65rem;
+  min-height: 2.75rem;
   border-radius: .85rem;
   font-size: .72rem;
   font-weight: 800;
@@ -75,7 +75,7 @@ html[data-solaris-app-boot] body::before {
 }
 
 .solaris-install-dismiss {
-  min-width: 2.65rem;
+  min-width: 2.75rem;
   color: var(--muted-foreground);
 }
 
@@ -398,7 +398,7 @@ html[data-solaris-app-boot] body::before {
 
   .solaris-app-update-button {
     display: inline-flex;
-    min-height: 2.65rem;
+    min-height: 2.75rem;
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;
@@ -706,7 +706,7 @@ html[data-solaris-app-boot] body::before {
   }
 
   .solaris-app-tabbar.is-collapsed .solaris-app-tab {
-    min-height: 2.72rem;
+    min-height: 2.75rem;
     gap: 0;
   }
 
@@ -1128,7 +1128,7 @@ html[data-solaris-app-boot] body::before {
 
   .solaris-app-task-utility {
     display: inline-flex;
-    min-height: 2.5rem;
+    min-height: 2.75rem;
     align-items: center;
     justify-content: center;
     border: 1px solid rgb(210 236 248 / .13);
@@ -1194,7 +1194,7 @@ html[data-solaris-app-boot] body::before {
 .solaris-install-action,
 .solaris-install-dismiss {
   display: inline-flex;
-  min-height: 2.65rem;
+  min-height: 2.75rem;
   align-items: center;
   justify-content: center;
   border-radius: .85rem;
@@ -1209,7 +1209,7 @@ html[data-solaris-app-boot] body::before {
 }
 
 .solaris-install-dismiss {
-  min-width: 2.65rem;
+  min-width: 2.75rem;
   border: 1px solid rgb(210 236 248 / .13);
   background: rgb(255 255 255 / .035);
   color: var(--muted-foreground);
@@ -1411,7 +1411,7 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
 }
 
 .solaris-show-mode-picker button {
-  min-height: 2.65rem;
+  min-height: 2.75rem;
   flex: 0 0 auto;
   border: 1px solid var(--border);
   border-radius: 999px;
