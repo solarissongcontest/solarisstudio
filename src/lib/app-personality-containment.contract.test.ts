@@ -30,6 +30,13 @@ describe("country personality app-chrome containment", () => {
     ).toEqual([]);
   });
 
+  it("loads dynamic personality CSS inside the personality cascade layer", () => {
+    const styles = readFileSync("src/components/CountryPersonalityStyles.tsx", "utf8");
+    const cascade = readFileSync("src/styles.css", "utf8");
+    expect(styles).toContain("@layer personality");
+    expect(cascade).toContain("@layer reset, tokens, base, web, personality, app, accessibility");
+  });
+
   it("keeps the app shell as the only owner of installed navigation geometry", () => {
     const app = readFileSync("src/styles/app-shell.css", "utf8");
     expect(app).toContain("--solaris-app-toolbar-height");
