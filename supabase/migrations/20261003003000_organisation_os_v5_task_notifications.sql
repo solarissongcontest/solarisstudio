@@ -393,6 +393,102 @@ revoke all on function public.solaris_prepare_organizer_task_delivery()
 grant execute on function public.solaris_prepare_organizer_task_delivery()
   to service_role;
 
+-- The push worker must verify a claimed Organizer Task is still unresolved.
+-- Extend the lease payload with subject_id while preserving the same atomic
+-- SKIP LOCKED claim semantics.
+drop function if exists public.solaris_claim_pending_notification_deliveries(
+  timestamptz,
+  integer
+);
+
+create function public.solaris_claim_pending_notification_deliveries(
+  p_now timestamptz default now(),
+  p_limit integer default 100
+)
+returns table (
+  id uuid,
+  user_id uuid,
+  category text,
+  event_type text,
+  subject_id text,
+  route text,
+  title text,
+  body text,
+  dedupe_key text
+)
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $claim$
+declare
+  v_limit integer := greatest(1, least(coalesce(p_limit, 100), 250));
+begin
+  if not private.studio2_request_is_service_role() then
+    raise exception 'Service role required' using errcode = '42501';
+  end if;
+
+  update public.notification_deliveries delivery
+  set
+    status = 'pending',
+    processing_started_at = null,
+    error = coalesce(delivery.error, 'Recovered abandoned delivery lease')
+  where delivery.status = 'processing'
+    and delivery.processing_started_at < p_now - interval '10 minutes';
+
+  return query
+  with candidate as (
+    select delivery.id
+    from public.notification_deliveries delivery
+    where delivery.status = 'pending'
+      and delivery.scheduled_for <= p_now
+    order by delivery.scheduled_for, delivery.created_at
+    for update skip locked
+    limit v_limit
+  ),
+  claimed as (
+    update public.notification_deliveries delivery
+    set
+      status = 'processing',
+      processing_started_at = p_now,
+      last_attempt_at = p_now,
+      attempt_count = delivery.attempt_count + 1,
+      error = null
+    from candidate
+    where delivery.id = candidate.id
+    returning
+      delivery.id,
+      delivery.user_id,
+      delivery.category,
+      delivery.event_type,
+      delivery.subject_id,
+      delivery.route,
+      delivery.title,
+      delivery.body,
+      delivery.dedupe_key
+  )
+  select
+    claimed.id,
+    claimed.user_id,
+    claimed.category,
+    claimed.event_type,
+    claimed.subject_id,
+    claimed.route,
+    claimed.title,
+    claimed.body,
+    claimed.dedupe_key
+  from claimed;
+end
+$claim$;
+
+revoke all on function public.solaris_claim_pending_notification_deliveries(
+  timestamptz,
+  integer
+) from public, anon, authenticated;
+grant execute on function public.solaris_claim_pending_notification_deliveries(
+  timestamptz,
+  integer
+) to service_role;
+
 notify pgrst, 'reload schema';
 
 commit;
