@@ -20,6 +20,16 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(chrome).toContain("resolveSolarisAppScreen(pathname, searchStr)");
   });
 
+  it("lets the screen contract decide whether the toolbar owns global search", () => {
+    const toolbar = source("src/components/app/AppToolbar.tsx");
+    const registry = source("src/lib/app-screen-registry.ts");
+
+    expect(toolbar).toContain("resolveSolarisAppScreen(pathname, searchStr)");
+    expect(toolbar).toContain('data-search-mode={screen.chrome.search}');
+    expect(toolbar).toContain('screen.chrome.search === "global"');
+    expect(registry).toContain("localDirectorySearch");
+  });
+
   it("keeps route loading and error states on the canonical AppShell", () => {
     const frame = source("src/components/app/AppRouteStateFrame.tsx");
 
