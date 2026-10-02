@@ -1,4 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type TestInfo } from "@playwright/test";
+
+import { STATIC_PUBLIC_ROUTES } from "./audit-helpers";
 
 async function enableInstalledIosMode(page: Page) {
   await page.addInitScript(() => {
@@ -203,6 +205,134 @@ test("first run is a contained bottom sheet and suppresses global tabs", async (
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(sheet).toHaveCount(0);
 });
+
+
+async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo) {
+  await skipFirstRun(page);
+  const response = await page.goto(route, { waitUntil: "domcontentloaded" });
+  expect(response?.status(), \`\${route} document status\`).toBeLessThan(400);
+  await expect(page.locator("html")).toHaveAttribute("data-solaris-app", "");
+  await expect(page.locator("main").first()).toBeVisible();
+
+  await page.waitForLoadState("networkidle", { timeout: 4_000 }).catch(() => undefined);
+  await page.waitForTimeout(120);
+
+  const result = await page.evaluate(() => {
+    const visible = (node: Element) => {
+      const element = node as HTMLElement;
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return (
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        rect.width > 0 &&
+        rect.height > 0
+      );
+    };
+
+    const visibleH1 = [...document.querySelectorAll("h1")].filter(visible);
+    const main = document.querySelector<HTMLElement>(
+      ".app-main[data-solaris-app-mode='true']",
+    );
+    const requestedTabbar = main?.dataset.solarisAppTabbar ?? "visible";
+    const tabbars = [...document.querySelectorAll(".solaris-app-tabbar")].filter(visible);
+    const websiteChrome = [
+      ...document.querySelectorAll(".site-nav, .mobile-quick-nav, .public-footer"),
+    ].filter(visible);
+
+    const flagProblems = [
+      ...document.querySelectorAll<HTMLElement>('[data-flag-frame="standard"]'),
+    ].flatMap((frame) => {
+      if (!visible(frame)) return [];
+      const rect = frame.getBoundingClientRect();
+      const style = getComputedStyle(frame);
+      const radius = Number.parseFloat(style.borderTopLeftRadius || "0");
+      const image = frame.querySelector<HTMLImageElement>('[data-flag-role="standard"]');
+      const imageStyle = image ? getComputedStyle(image) : null;
+      const problems: string[] = [];
+      if (Math.abs(rect.width / rect.height - 1.5) > 0.04) {
+        problems.push(\`ratio \${(rect.width / rect.height).toFixed(2)}\`);
+      }
+      if (style.overflow !== "hidden" && style.overflow !== "clip") {
+        problems.push(\`overflow \${style.overflow}\`);
+      }
+      if (!(radius > 0)) problems.push("square corners");
+      if (imageStyle && imageStyle.objectFit !== "cover") {
+        problems.push(\`object-fit \${imageStyle.objectFit}\`);
+      }
+      return problems.length ? [problems.join(", ")] : [];
+    });
+
+    const chromeControls = [
+      ...document.querySelectorAll<HTMLElement>(
+        ".solaris-app-toolbar button, .solaris-app-toolbar a, .solaris-app-tabbar button, .solaris-app-tabbar a",
+      ),
+    ].flatMap((node) => {
+      if (!visible(node) || getComputedStyle(node).pointerEvents === "none") return [];
+      const rect = node.getBoundingClientRect();
+      return rect.width >= 44 && rect.height >= 44
+        ? []
+        : [\`\${node.tagName.toLowerCase()} \${Math.round(rect.width)}×\${Math.round(rect.height)}\`];
+    });
+
+    return {
+      overflow:
+        Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) -
+        window.innerWidth,
+      visibleH1: visibleH1.length,
+      toolbarCount: [...document.querySelectorAll(".solaris-app-toolbar")].filter(visible).length,
+      requestedTabbar,
+      tabbarCount: tabbars.length,
+      websiteChrome: websiteChrome.map((node) => (node as HTMLElement).className),
+      flagProblems,
+      chromeControls,
+      bootGuardStillPresent: document.documentElement.hasAttribute("data-solaris-app-boot"),
+    };
+  });
+
+  expect(result.overflow, \`\${route} horizontal overflow in installed mode\`).toBeLessThanOrEqual(2);
+  expect(result.visibleH1, \`\${route} should expose exactly one visible h1\`).toBe(1);
+  expect(result.toolbarCount, \`\${route} should expose one app toolbar\`).toBe(1);
+  expect(result.websiteChrome, \`\${route} leaked website chrome\`).toEqual([]);
+  expect(result.flagProblems, \`\${route} has non-canonical flag frames\`).toEqual([]);
+  expect(result.chromeControls, \`\${route} has undersized app chrome controls\`).toEqual([]);
+  expect(result.bootGuardStillPresent, \`\${route} first-paint guard must clear after hydration\`).toBe(false);
+
+  if (result.requestedTabbar === "hidden") {
+    expect(result.tabbarCount, \`\${route} should hide the global tab bar\`).toBe(0);
+  } else {
+    expect(result.tabbarCount, \`\${route} should expose one global tab bar\`).toBe(1);
+  }
+
+  await testInfo.attach(\`installed-route-\${route.replace(/[^a-z0-9]+/gi, "-") || "home"}.json\`, {
+    body: Buffer.from(JSON.stringify(result, null, 2)),
+    contentType: "application/json",
+  });
+}
+
+for (let shard = 0; shard < 4; shard += 1) {
+  test(\`installed-app route invariant crawl — shard \${shard + 1}\`, async ({ page }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "ios-pwa-portrait",
+      "The exhaustive installed-app crawl runs once at the representative iPhone width.",
+    );
+
+    const failures: string[] = [];
+    const routes = [...STATIC_PUBLIC_ROUTES]
+      .sort()
+      .filter((_, index) => index % 4 === shard);
+
+    for (const route of routes) {
+      try {
+        await test.step(route, () => auditInstalledRoute(page, route, testInfo));
+      } catch (error) {
+        failures.push(\`\${route}: \${error instanceof Error ? error.message : String(error)}\`);
+      }
+    }
+
+    expect(failures, "Every static public route should preserve installed-app invariants").toEqual([]);
+  });
+}
 
 test("installed app does not leak duplicate website chrome", async ({ page }) => {
   for (const route of ["/explore", "/results", "/site-directory"]) {
