@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Clock3, Star } from "lucide-react";
+import { ChevronRight, Clock3, Search, Star } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
@@ -88,31 +88,41 @@ export function AppExplorePersonalized() {
 
   return (
     <div className="space-y-5" data-solaris-app-explore-personalized>
-      <section className="solaris-app-search-card" aria-label="Search Solaris">
-        <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[.14em] text-primary">
-            Find anything
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Countries, editions, shows, entries, results and rules.
-          </p>
+      <section aria-labelledby="app-explore-search">
+        <div className="solaris-app-section-heading">
+          <p>Find anything</p>
+          <h2 id="app-explore-search">Search Solaris</h2>
         </div>
-        <PublicCommandPalette />
+        <div className="solaris-app-grouped-list">
+          <div className="solaris-app-search-action">
+            <span className="solaris-app-list-icon">
+              <Search className="size-4" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1 text-xs leading-5 text-muted-foreground">
+              Countries, editions, shows, entries, results and rules.
+            </span>
+            <PublicCommandPalette compact />
+          </div>
+        </div>
       </section>
 
       {recents.length ? (
         <section aria-labelledby="app-explore-recent">
-          <div className="mb-2 flex items-center gap-2">
-            <Clock3 className="size-4 text-primary" aria-hidden="true" />
-            <h2 id="app-explore-recent" className="text-sm font-semibold">
+          <div className="solaris-app-section-heading">
+            <p>Continue</p>
+            <h2 id="app-explore-recent" className="flex items-center gap-2">
+              <Clock3 className="size-4 text-primary" aria-hidden="true" />
               Recently viewed
             </h2>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="solaris-app-grouped-list">
             {recents.map((item) => (
-              <Link key={item.path} to={item.path as any} className="solaris-app-compact-link">
-                <span className="truncate font-semibold">{item.label}</span>
-                <span className="text-[11px] text-muted-foreground">Continue →</span>
+              <Link key={item.path} to={item.path as any} className="solaris-app-list-row">
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold">{item.label}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">Recently viewed</span>
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               </Link>
             ))}
           </div>
@@ -121,22 +131,21 @@ export function AppExplorePersonalized() {
 
       {followed.length ? (
         <section aria-labelledby="app-explore-following">
-          <div className="mb-2 flex items-center gap-2">
-            <Star className="size-4 text-primary" aria-hidden="true" />
-            <h2 id="app-explore-following" className="text-sm font-semibold">
+          <div className="solaris-app-section-heading">
+            <p>Your Solaris</p>
+            <h2 id="app-explore-following" className="flex items-center gap-2">
+              <Star className="size-4 text-primary" aria-hidden="true" />
               Following
             </h2>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="solaris-app-grouped-list">
             {followed.map((item) => (
-              <Link key={item.id} to={item.to as any} className="solaris-app-compact-link">
+              <Link key={item.id} to={item.to as any} className="solaris-app-list-row">
                 <span className="min-w-0">
-                  <span className="block truncate font-semibold">{item.label}</span>
-                  <span className="text-[10px] font-black uppercase tracking-[.12em] text-muted-foreground">
-                    {item.meta}
-                  </span>
+                  <span className="block truncate text-sm font-semibold">{item.label}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">{item.meta}</span>
                 </span>
-                <span aria-hidden="true">→</span>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               </Link>
             ))}
           </div>
