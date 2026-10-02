@@ -228,19 +228,7 @@ function HomePage() {
   return (
     <AppShell>
       <div className="min-w-0 space-y-7 sm:space-y-9">
-        {isAppMode ? (
-          <section className="solaris-app-home-context min-w-0 pb-1" aria-label="Current Solaris status">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
-              {contestState.edition ? contestState.statusLabel : "Solaris"}
-            </p>
-            <p className="mt-1 break-words text-lg font-bold tracking-[-0.025em]">
-              {latestEdition ? editionLabel(latestEdition) : "Solaris Song Contest"}
-            </p>
-            <p className="mt-1 text-sm leading-5 text-muted-foreground">
-              {latestEdition ? contestState.headline : contestState.description}
-            </p>
-          </section>
-        ) : (
+        {!isAppMode ? (
           <header className="min-w-0 border-b border-border/70 pb-4">
             <div className="flex min-w-0 items-end justify-between gap-4">
               <div className="min-w-0">
@@ -290,7 +278,7 @@ function HomePage() {
         )}
 
         <section className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,.65fr)]">
-          <CurrentContestHero state={contestState} />
+          <CurrentContestHero state={contestState} compact={isAppMode} />
 
           <aside className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-1">
             {leadStory && latestCompletedShow ? (
@@ -348,7 +336,7 @@ function HomePage() {
           </div>
         </section> : null}
 
-        <section className="grid min-w-0 gap-5 lg:grid-cols-[1.15fr_.85fr]">
+        <section className={isAppMode ? "grid min-w-0 gap-5" : "grid min-w-0 gap-5 lg:grid-cols-[1.15fr_.85fr]"}>
           <div className="min-w-0">
             <SectionHeader
               kicker="Latest scoreboard"
@@ -406,43 +394,45 @@ function HomePage() {
             </div>
           </div>
 
-          <div className="min-w-0">
-            <SectionHeader
-              kicker="Current edition"
-              title={latestEdition ? editionLabel(latestEdition) : "Current edition"}
-              linkLabel="Open edition"
-              linkTo={latestEdition ? `/editions/${latestEdition.slug}` : "/editions"}
-            />
-            <div className="glass mt-3 min-w-0 p-4">
-              {latestEditionShows.length ? (
-                <div className="divide-y divide-border/50">
-                  {latestEditionShows.map((show, index) => (
-                    <Link
-                      key={show.id}
-                      to="/shows/$showId"
-                      params={{ showId: show.id }}
-                      className="group flex min-w-0 items-center gap-3 py-3 first:pt-0 last:pb-0"
-                    >
-                      <span className="numeric w-6 shrink-0 text-[10px] font-black text-muted-foreground">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold">{show.name}</p>
-                        <p className="mt-1 truncate text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
-                          {show.kind.replaceAll("-", " ")}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-primary transition-transform group-hover:translate-x-1">→</span>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  No public shows from this edition yet.
-                </p>
-              )}
+          {!isAppMode ? (
+            <div className="min-w-0">
+              <SectionHeader
+                kicker="Current edition"
+                title={latestEdition ? editionLabel(latestEdition) : "Current edition"}
+                linkLabel="Open edition"
+                linkTo={latestEdition ? `/editions/${latestEdition.slug}` : "/editions"}
+              />
+              <div className="glass mt-3 min-w-0 p-4">
+                {latestEditionShows.length ? (
+                  <div className="divide-y divide-border/50">
+                    {latestEditionShows.map((show, index) => (
+                      <Link
+                        key={show.id}
+                        to="/shows/$showId"
+                        params={{ showId: show.id }}
+                        className="group flex min-w-0 items-center gap-3 py-3 first:pt-0 last:pb-0"
+                      >
+                        <span className="numeric w-6 shrink-0 text-[10px] font-black text-muted-foreground">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold">{show.name}</p>
+                          <p className="mt-1 truncate text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                            {show.kind.replaceAll("-", " ")}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-primary transition-transform group-hover:translate-x-1">→</span>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    No public shows from this edition yet.
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
+          ) : null}
         </section>
 
         <section className="border-y border-border/60 py-6">
