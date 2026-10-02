@@ -20,8 +20,8 @@ import {
 import { AdminCard, AdminCardHeader, AdminPageHeader } from "@/components/admin/AdminUI";
 
 export const Route = createFileRoute("/_authenticated/admin/more")({
-  head: () => ({ meta: [{ title: "Administration — Solaris Organizer" }] }),
-  component: AdministrationAdmin,
+  head: () => ({ meta: [{ title: "More — Solaris Organizer" }] }),
+  component: MoreAdmin,
 });
 
 const groups = [
@@ -90,7 +90,7 @@ const groups = [
   },
 ] as const;
 
-function AdministrationAdmin() {
+function MoreAdmin() {
   return (
     <div className="mx-auto max-w-3xl">
       <AdminPageHeader
