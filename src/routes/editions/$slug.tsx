@@ -250,12 +250,12 @@ function EditionPage() {
   return (
     <AppShell>
       <div className="edition-public-page">
-        <div className="edition-page-toolbar" data-app-compact={isAppMode ? "true" : undefined}>
-          {!isAppMode ? (
+        {!isAppMode ? (
+          <div className="edition-page-toolbar">
             <Link to="/editions" className="text-xs font-medium text-muted-foreground hover:text-foreground">← Editions</Link>
-          ) : null}
-          <FollowButton entityType="edition" entityId={edition.id} label={editionLabel(edition)} />
-        </div>
+            <FollowButton entityType="edition" entityId={edition.id} label={editionLabel(edition)} />
+          </div>
+        ) : null}
 
         <EditionHero
           eyebrow={edition.host_city ?? "Solaris Song Contest"}
@@ -272,6 +272,9 @@ function EditionPage() {
               className="edition-status-chip"
             />}
           liquidGlass={liquidGlass}
+          actions={isAppMode ? (
+            <FollowButton entityType="edition" entityId={edition.id} label={editionLabel(edition)} />
+          ) : null}
           winner={winner && winnerResult && grandFinalPublication?.results ? (
                 <div className="edition-winner-identity">
                   <FlagChip code={winner.short_code} color={winner.accent_color} image={winner.flag_image} size="xl" />
