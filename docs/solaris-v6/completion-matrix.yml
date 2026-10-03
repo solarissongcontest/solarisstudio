@@ -6,9 +6,9 @@ status_values: [verified, implemented, in_progress, partial, missing, manual_gat
 release_rule: "V6 is complete only when every release-blocking requirement is verified and physical/manual gates carry real evidence."
 
 implementation_phases:
-  - { id: 1, key: canonical-truth, status: in_progress, release_blocking: true, evidence: ["src/lib/solaris-v6-domain-registry.ts", "src/lib/solaris-v6-registry.test.ts", "docs/organisation-os-v5/completion-matrix.yml"] }
+  - { id: 1, key: canonical-truth, status: in_progress, release_blocking: true, evidence: ["src/lib/solaris-v6-domain-registry.ts", "src/lib/solaris-v6-edition-context.ts", "src/lib/solaris-v6-registry.test.ts", "docs/solaris-v6/legacy-retirement.yml", "docs/organisation-os-v5/completion-matrix.yml"] }
   - { id: 2, key: surface-registry, status: in_progress, release_blocking: true, evidence: ["src/lib/solaris-v6-surface-registry.ts", "src/lib/organisation-os-v5-counterparts.ts"] }
-  - { id: 3, key: application-shell, status: in_progress, release_blocking: true, evidence: ["src/components/AppShell.tsx", "src/components/app/AppRuntime.tsx", "src/components/app/AppOverlayManager.tsx", "src/lib/app-screen-registry.ts"] }
+  - { id: 3, key: application-shell, status: in_progress, release_blocking: true, evidence: ["src/components/AppShell.tsx", "src/components/app/AppRuntime.tsx", "src/components/app/AppOverlayManager.tsx", "src/lib/app-screen-registry.ts", "src/lib/solaris-screen-contract.ts", "src/lib/organizer-v6-screen-registry.ts"] }
   - { id: 4, key: interaction-physics-foundation, status: in_progress, release_blocking: true, evidence: ["src/lib/interaction-physics.ts", "src/components/interaction/SolarisPressable.tsx", "src/components/app/AppTabBar.tsx"] }
   - { id: 5, key: navigation-choreography, status: in_progress, release_blocking: true, evidence: ["src/components/app/AppTabBar.tsx", "src/lib/app-view-transitions.ts"] }
   - { id: 6, key: participant-workflows, status: partial, release_blocking: true, evidence: ["src/components/mysolaris/MySolarisWorkspaceShell.tsx"] }
