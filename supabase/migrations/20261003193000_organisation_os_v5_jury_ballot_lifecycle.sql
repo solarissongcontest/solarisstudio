@@ -31,6 +31,16 @@ alter table public.jury_ballot_submissions
     )
   );
 
+-- Pre-V5 submitted ballots were already accepted as canonical scoring input.
+-- Preserve that historical meaning during upgrade; submissions created after
+-- this migration still default to Submitted and enter the new review queue.
+update public.jury_ballot_submissions
+set
+  status = 'valid',
+  review_reason = 'Migrated from the pre-V5 submitted state as previously accepted ballot evidence.',
+  reviewed_at = coalesce(updated_at, submitted_at)
+where status = 'submitted';
+
 alter table public.jury_ballot_statuses
   add column if not exists version bigint not null default 1,
   add column if not exists changed_by uuid references auth.users(id) on delete set null,
@@ -369,7 +379,22 @@ begin
       (v_action = 'set' and v_existing.id is not null)
       or (v_action = 'clear' and v_existing.id is null),
     'riskClass', 'R2',
-    'savedVoteRows', v_saved_votes
+    'savedVoteRows', v_saved_votes,
+    'readinessEffect',
+      case when v_action = 'set'
+        then 'Authorized DNV replaces the missing ballot requirement.'
+        else 'The jury ballot requirement becomes active again.'
+      end,
+    'resultsEffect',
+      case when v_action = 'set'
+        then 'DNV contributes no jury points and may unblock result readiness.'
+        else 'Result readiness requires a valid ballot or another authorized DNV.'
+      end,
+    'taskEffect',
+      case when v_action = 'set'
+        then 'Missing-ballot work resolves from canonical DNV truth.'
+        else 'Missing-ballot work may reopen until a valid ballot exists.'
+      end
   );
 end
 $preview$;
