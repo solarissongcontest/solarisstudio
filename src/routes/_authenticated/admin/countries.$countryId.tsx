@@ -3,6 +3,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AlertTriangle, ArrowLeft, ExternalLink, Flag } from "lucide-react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import {
+  countrySurfaceLinks,
+  SolarisSurfaceSwitch,
+} from "@/components/surfaces/SolarisSurfaceSwitch";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminCard,
@@ -89,6 +93,18 @@ function CountryDetailPage() {
             </div>
           }
         />
+
+        {country ? (
+          <SolarisSurfaceSwitch
+            label={`${country.name} perspectives`}
+            links={countrySurfaceLinks({
+              countryId,
+              countryCode: country.short_code,
+              current: "organizer",
+              includeDiagnostics: true,
+            })}
+          />
+        ) : null}
 
         <nav
           className="grid grid-cols-2 gap-2 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-2 sm:flex sm:flex-wrap"
