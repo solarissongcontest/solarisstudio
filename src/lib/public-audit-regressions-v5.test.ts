@@ -46,10 +46,23 @@ describe("public audit regressions after Organisation OS V5 hardening", () => {
     expect(route.match(/<RuleDetailV5 rule=\{rule\} \/>/g)).toHaveLength(1);
   });
 
-  it("gives the installed Countries directory one screen-level H1", () => {
-    const primitives = source("src/components/app/AppPrimitives.tsx");
+  it("keeps installed Countries identity owned by the app toolbar", () => {
+    const toolbar = source("src/components/app/AppToolbar.tsx");
     const countries = source("src/routes/countries/index.tsx");
-    expect(primitives).toContain('const Heading = headingLevel === 1 ? "h1" : "h2"');
-    expect(countries).toContain("headingLevel={1}");
+    expect(toolbar).toContain('<h1 className="solaris-app-toolbar-title">{chrome.title}</h1>');
+    expect(countries).not.toContain("headingLevel={1}");
+  });
+
+  it("keeps Wiki loading states visibly headed", () => {
+    const wiki = source("src/components/wiki/CountryWikiExperience.tsx");
+    expect(wiki).toContain('<h1 className="wiki-loading-title">Terra Solaris Wiki</h1>');
+  });
+
+  it("reserves bottom-tab space with a shell-owned spacer", () => {
+    const shell = source("src/components/AppShell.tsx");
+    const css = source("src/styles/app-shell.css");
+    expect(shell).toContain('data-solaris-app-bottom-spacer=""');
+    expect(css).toContain(".solaris-app-bottom-spacer");
+    expect(css).toContain("var(--solaris-app-bottom-obstruction, 0px)");
   });
 });
