@@ -60,7 +60,7 @@ const incident: Studio2IncidentRecord = {
   title: 'Voting outage',
   severity: 'sev1',
   category: 'voting',
-  status: 'open',
+  status: 'detected',
   affectedSystems: ['televote'],
   description: 'Voting feed is unavailable.',
   commanderId: null,
