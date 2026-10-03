@@ -360,8 +360,8 @@ test.describe("Solaris Organizer route reliability", () => {
 
   test("critical Organizer work remains usable on mobile", async ({ page }, testInfo) => {
     test.skip(
-      testInfo.project.name !== "organizer-admin-mobile",
-      "Critical mobile Organizer surfaces run at the phone baseline",
+      !["organizer-admin-mobile", "organizer-admin-landscape"].includes(testInfo.project.name),
+      "Critical mobile Organizer surfaces run at the portrait and landscape phone baselines",
     );
 
     for (const path of criticalMobileDestinations) {
