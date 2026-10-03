@@ -609,3 +609,157 @@ function RoundsPage() {
     </div>
   );
 }
+
+
+function roundChangeTitle(pending: PendingRoundChange) {
+  if (pending.kind === "create") return "Create submission round?";
+  if (pending.kind === "update") return "Apply round configuration?";
+  if (pending.kind === "editing") {
+    return pending.preview.targetEditingEnabled
+      ? "Allow delegation corrections?"
+      : "Pause delegation corrections?";
+  }
+  if (pending.kind === "delete") return "Delete unused submission round?";
+  return pending.preview.targetStatus === "open"
+    ? "Open submissions?"
+    : "Close new submissions?";
+}
+
+function roundChangeConfirmLabel(pending: PendingRoundChange) {
+  if (pending.preview.blockers.length) return "Blocked";
+  if (pending.kind === "create") return "Create draft round";
+  if (pending.kind === "update") return "Apply configuration";
+  if (pending.kind === "editing") {
+    return pending.preview.targetEditingEnabled ? "Allow corrections" : "Pause corrections";
+  }
+  if (pending.kind === "delete") return "Delete round";
+  return pending.preview.targetStatus === "open" ? "Open submissions" : "Close submissions";
+}
+
+function RoundImpactPreview({ pending }: { pending: PendingRoundChange }) {
+  const preview = pending.preview;
+  const statusOpening = pending.kind === "status" && preview.targetStatus === "open";
+  const statusClosing = pending.kind === "status" && preview.targetStatus === "closed";
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <AdminStatus tone={preview.riskClass === "R3" ? "blocked" : "attention"}>
+          {preview.riskClass}
+        </AdminStatus>
+        <span className="text-xs font-semibold text-foreground">
+          {preview.roundName ?? "New submission round"}
+        </span>
+        <span className="text-[11px] text-muted-foreground">
+          state version {preview.expectedVersion}
+        </span>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Responses
+          </span>
+          <strong className="mt-1 block text-sm text-foreground">
+            {preview.responseCount}
+          </strong>
+        </div>
+        <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Response access changed
+          </span>
+          <strong className="mt-1 block text-sm text-foreground">
+            {preview.affectedResponses}
+          </strong>
+        </div>
+        <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Confirmation requirements created
+          </span>
+          <strong className="mt-1 block text-sm text-emerald-100">
+            {preview.requirementsCreated}
+          </strong>
+        </div>
+      </div>
+
+      <div className="space-y-1.5 text-xs leading-5 text-muted-foreground">
+        {pending.kind === "create" ? (
+          <p>
+            This creates a <strong className="text-foreground">draft submission window</strong>.
+            It does not open submissions and does not create a delegation confirmation requirement.
+          </p>
+        ) : null}
+
+        {pending.kind === "update" ? (
+          <p>
+            Name, schedule, capacity and default correction access are updated. The round&apos;s
+            current <strong className="text-foreground">open/closed lifecycle state stays unchanged</strong>.
+          </p>
+        ) : null}
+
+        {statusOpening ? (
+          <>
+            <p>
+              New confirmations become available immediately. The edition currently has{" "}
+              <strong className="text-foreground">{preview.unresolvedRequirementCount}</strong>{" "}
+              unresolved confirmation requirement
+              {preview.unresolvedRequirementCount === 1 ? "" : "s"}; this action creates{" "}
+              <strong className="text-emerald-100">zero new requirements</strong>.
+            </p>
+            {preview.willMoveOpeningTimeToNow ? (
+              <p>The opening timestamp will move to the server&apos;s current time.</p>
+            ) : null}
+            {preview.willClearExpiredClosingTime ? (
+              <p>
+                The expired closing timestamp will be cleared so the reopened round does not
+                immediately appear closed again.
+              </p>
+            ) : null}
+          </>
+        ) : null}
+
+        {statusClosing ? (
+          <p>
+            New submissions stop. Existing confirmation responses remain recorded and the round&apos;s
+            correction-access setting is left unchanged.
+          </p>
+        ) : null}
+
+        {pending.kind === "editing" ? (
+          <p>
+            This changes correction access for{" "}
+            <strong className="text-foreground">{preview.affectedResponses}</strong> existing
+            response{preview.affectedResponses === 1 ? "" : "s"}. It does not open or close new
+            submissions.
+          </p>
+        ) : null}
+
+        {pending.kind === "delete" ? (
+          <p>
+            Deletion is allowed only while this round has{" "}
+            <strong className="text-foreground">zero responses</strong>. A used round is preserved
+            for history instead of cascading deletion into confirmation data.
+          </p>
+        ) : null}
+      </div>
+
+      {preview.blockers.length ? (
+        <div className="space-y-1.5">
+          {preview.blockers.map((blocker) => (
+            <p
+              key={blocker}
+              className="rounded-lg border border-rose-200/15 bg-rose-200/[0.05] px-3 py-2 text-xs leading-5 text-rose-50"
+            >
+              {blocker}
+            </p>
+          ))}
+        </div>
+      ) : null}
+
+      <p className="text-[11px] leading-5 text-muted-foreground">
+        Solaris will reject this operation if the round or any of its responses changes after this
+        preview. Retrying the same confirmation replays the canonical operation receipt.
+      </p>
+    </div>
+  );
+}
