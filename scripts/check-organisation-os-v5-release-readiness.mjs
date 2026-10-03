@@ -1,10 +1,80 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
+const matrix = readFileSync(
+  "docs/organisation-os-v5/completion-matrix.yml",
+  "utf8",
+);
 const certification = readFileSync(
   "docs/organisation-os-v5/release-certification.yml",
   "utf8",
 );
+
+const requirementLines = matrix
+  .split("\n")
+  .filter((line) => /^  - \{ id: \d+, key: /.test(line));
+
+if (requirementLines.length !== 39) {
+  console.error(
+    `Organisation OS V5 completion matrix must contain exactly 39 §240 requirements; found ${requirementLines.length}.`,
+  );
+  process.exit(1);
+}
+
+const requirementIds = requirementLines.map((line) => {
+  const match = line.match(/^  - \{ id: (\d+),/);
+  return match ? Number(match[1]) : NaN;
+});
+if (
+  requirementIds.some((id, index) => id !== index + 1)
+) {
+  console.error("Organisation OS V5 completion requirement ids must be contiguous 1..39.");
+  process.exit(1);
+}
+
+const partialReleaseBlockers = requirementLines.filter(
+  (line) =>
+    line.includes("release_blocking: true") &&
+    line.includes("status: partial"),
+);
+if (partialReleaseBlockers.length) {
+  console.error(
+    "Organisation OS V5 cannot be certified while release-blocking implementation proof is partial:",
+  );
+  for (const row of partialReleaseBlockers) console.error(`  - ${row.trim()}`);
+  process.exit(1);
+}
+
+function sectionListCount(sectionName, listName, nextSectionName) {
+  const start = matrix.indexOf(`${sectionName}:\n`);
+  if (start < 0) return -1;
+  const end = nextSectionName
+    ? matrix.indexOf(`\n${nextSectionName}:\n`, start)
+    : matrix.length;
+  const section = matrix.slice(start, end < 0 ? matrix.length : end);
+  const listStart = section.indexOf(`  ${listName}:\n`);
+  if (listStart < 0) return -1;
+  return section
+    .slice(listStart + `  ${listName}:\n`.length)
+    .split("\n")
+    .filter((line) => /^    - [a-z0-9-]+$/.test(line))
+    .length;
+}
+
+const phoneSteps = sectionListCount("phone_exam", "steps", "mandatory_failures");
+const failureCases = sectionListCount("mandatory_failures", "cases", null);
+if (phoneSteps !== 42) {
+  console.error(
+    `Organisation OS V5 phone exam must contain exactly 42 source-defined steps; found ${phoneSteps}.`,
+  );
+  process.exit(1);
+}
+if (failureCases !== 17) {
+  console.error(
+    `Organisation OS V5 failure injection must contain exactly 17 source-defined cases; found ${failureCases}.`,
+  );
+  process.exit(1);
+}
 
 const gates = [...certification.matchAll(
   /- id: ([^\n]+)\n\s+approved: (true|false)\n\s+evidence: "([^"]*)"/g,
