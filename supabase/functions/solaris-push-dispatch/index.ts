@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
     if (delivery.category === "organizer_tasks") {
       const { data: task, error: taskError } = await service
         .from("studio2_organizer_tasks")
-        .select("state,resolved_at")
+        .select("state,resolved_at,source_key")
         .eq("id", delivery.subject_id)
         .maybeSingle();
 
@@ -208,6 +208,49 @@ Deno.serve(async (req) => {
         suppressed += 1;
         continue;
       }
+    }
+
+    const { data: recipientNotification, error: recipientNotificationError } = await service
+      .from("admin_notifications")
+      .select("id")
+      .eq("recipient_id", delivery.user_id)
+      .eq("source_key", task.source_key)
+      .eq("resolution_mode", "domain")
+      .eq("requires_action", true)
+      .is("resolved_at", null)
+      .maybeSingle();
+
+    if (recipientNotificationError) {
+      console.error(
+        "[solaris-push-dispatch] Organizer Task recipient revalidation failed",
+        delivery.id,
+        recipientNotificationError,
+      );
+      await service
+        .from("notification_deliveries")
+        .update({
+          status: "pending",
+          processing_started_at: null,
+          scheduled_for: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+          error: "Organizer Task recipient revalidation failed; retry scheduled.",
+        })
+        .eq("id", delivery.id)
+        .eq("status", "processing");
+      continue;
+    }
+
+    if (!recipientNotification) {
+      await service
+        .from("notification_deliveries")
+        .update({
+          status: "suppressed",
+          processing_started_at: null,
+          error: "Organizer Task recipient is no longer eligible.",
+        })
+        .eq("id", delivery.id)
+        .eq("status", "processing");
+      suppressed += 1;
+      continue;
     }
 
     const { data: preferenceData, error: preferenceError } = await service
@@ -311,7 +354,7 @@ Deno.serve(async (req) => {
           }),
           {
             TTL: 60 * 60 * 12,
-            urgency: isUrgentDeadline(delivery) ? "high" : "normal",
+            urgency: isUrgentDelivery(delivery) ? "high" : "normal",
           },
         );
         delivered = true;
