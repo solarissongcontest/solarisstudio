@@ -17,6 +17,10 @@ const TABS = [
   "overview",
   "entry",
   "eligibility",
+  "participant-view",
+  "public-profile",
+  "appearance",
+  "next-in-line",
   "assets",
   "communications",
   "voting",
@@ -142,6 +146,7 @@ function CountryDetailPage() {
             tab={tab}
             snapshot={snapshot}
             editionSlug={selectedEdition?.slug ?? ""}
+            countryId={countryId}
           />
         )}
       </div>
@@ -153,10 +158,12 @@ function CountryTabContent({
   tab,
   snapshot,
   editionSlug,
+  countryId,
 }: {
   tab: CountryTab;
   snapshot: Awaited<ReturnType<typeof loadStudio2HodWorkspace>>;
   editionSlug: string;
+  countryId: string;
 }) {
   if (tab === "overview") {
     return (
@@ -268,6 +275,142 @@ function CountryTabContent({
             </div>
           ))}
         </div>
+      </AdminCard>
+    );
+  }
+
+  if (tab === "participant-view") {
+    return (
+      <>
+        <AdminCard>
+          <SectionHeading
+            title="Participant View"
+            href={`/my-solaris/tasks?country=${encodeURIComponent(countryId)}`}
+            action="Open exact HOD projection"
+          />
+          <div className="mt-4 rounded-xl border border-sky-200/15 bg-sky-200/[0.045] p-3">
+            <p className="font-semibold">Read-only organizer inspection</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              This mirrors the delegation task projection without impersonating the country account.
+              Organizer actions remain disabled in the participant workspace.
+            </p>
+          </div>
+        </AdminCard>
+
+        <AdminCard>
+          <h2 className="text-base font-semibold">What this delegation currently sees</h2>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Each action below comes from canonical confirmation, entry, jury, notice or deadline state.
+          </p>
+          {snapshot.model.actions.length ? (
+            <div className="mt-4 space-y-2">
+              {snapshot.model.actions.map((action) => (
+                <div
+                  key={action.id}
+                  className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold">{action.label}</p>
+                    <AdminStatus
+                      tone={action.priority === "critical" ? "blocked" : "attention"}
+                    >
+                      {action.priority}
+                    </AdminStatus>
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                    {action.description}
+                  </p>
+                  <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+                    Why visible: the underlying domain condition is still unresolved.
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-muted-foreground">
+              No participant action is required for this delegation right now.
+            </p>
+          )}
+        </AdminCard>
+
+        <section className="grid gap-3 sm:grid-cols-3">
+          <Metric
+            label="Required notices"
+            value={String(snapshot.model.outstandingAcknowledgements)}
+            tone={snapshot.model.outstandingAcknowledgements ? "attention" : "ready"}
+          />
+          <Metric
+            label="Open deadlines"
+            value={String(snapshot.context.deadlines.filter((item) => !item.completedAt).length)}
+            tone={snapshot.operationalReadiness.overdueDeadlines.length ? "blocked" : "neutral"}
+          />
+          <Metric
+            label="Readiness"
+            value={`${snapshot.model.readiness}%`}
+            tone={readinessTone(snapshot.model.readinessState)}
+          />
+        </section>
+      </>
+    );
+  }
+
+  if (tab === "public-profile") {
+    return (
+      <AdminCard>
+        <h2 className="text-base font-semibold">Public country & Wiki profile</h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Inspect or support the delegation's canonical country identity, national facts, page blocks,
+          reusable media and Country/Wiki visibility. Organizer override is explicit and audited by the
+          underlying MySolaris country tools.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <a
+            href={`/my-solaris/country?country=${encodeURIComponent(countryId)}`}
+            className="admin-action-primary"
+          >
+            Open country profile
+            <ExternalLink className="size-4" />
+          </a>
+          <a
+            href={`/my-solaris/page-builder?country=${encodeURIComponent(countryId)}`}
+            className="admin-action-secondary"
+          >
+            Open page & media
+            <ExternalLink className="size-4" />
+          </a>
+        </div>
+      </AdminCard>
+    );
+  }
+
+  if (tab === "appearance") {
+    return (
+      <AdminCard>
+        <SectionHeading
+          title="Country appearance"
+          href={`/my-solaris/theme?country=${encodeURIComponent(countryId)}`}
+          action="Open organizer design override"
+        />
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">
+          Preview the currently published Country/Wiki design and support safe changes to typography,
+          surfaces, hero, background and reusable design settings without claiming the country account.
+        </p>
+      </AdminCard>
+    );
+  }
+
+  if (tab === "next-in-line") {
+    return (
+      <AdminCard>
+        <SectionHeading
+          title="Next in Line"
+          href={`/admin/next-in-line?country=${encodeURIComponent(snapshot.context.countryName)}`}
+          action="Open Next in Line operations"
+        />
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">
+          Next in Line is a separate participation domain, not a second confirmation requirement.
+          Review this country's side-competition submission independently from its official SSC entry.
+        </p>
       </AdminCard>
     );
   }
@@ -495,7 +638,11 @@ function readinessTone(state: "ready" | "attention_required" | "blocked") {
 }
 
 function tabLabel(tab: CountryTab) {
-  return tab === "communications" ? "Comms" : tab.charAt(0).toUpperCase() + tab.slice(1);
+  if (tab === "communications") return "Comms";
+  if (tab === "participant-view") return "Participant View";
+  if (tab === "public-profile") return "Public Profile";
+  if (tab === "next-in-line") return "Next in Line";
+  return tab.charAt(0).toUpperCase() + tab.slice(1);
 }
 
 function formatDate(value: string) {

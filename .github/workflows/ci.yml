@@ -51,6 +51,9 @@ jobs:
       - name: Production build
         run: bun run build
 
+      - name: Enforce client performance budget
+        run: bun run budget:client
+
       - name: Verify route tree was generated
         shell: bash
         run: |
@@ -139,6 +142,7 @@ jobs:
             echo "- Fresh TanStack route generation: verified"
             echo "- Generated route tree: untracked and ignored"
             echo "- Production build: executed"
+            echo "- Client bundle budget: enforced"
             echo "- TypeScript: executed"
             echo "- Unit tests: executed and output retained"
             echo "- Lint: executed as a blocking quality gate"

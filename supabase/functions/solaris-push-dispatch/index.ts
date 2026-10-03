@@ -145,15 +145,15 @@ Deno.serve(async (req) => {
     return json({ error: "Notification candidates could not be prepared." }, 500);
   }
 
-  const { data: deliveries, error: deliveryError } = await service
-    .from("notification_deliveries")
-    .select("id,user_id,category,event_type,route,title,body,dedupe_key")
-    .eq("status", "pending")
-    .lte("scheduled_for", new Date().toISOString())
-    .order("scheduled_for", { ascending: true })
-    .limit(100);
+  const { data: deliveries, error: deliveryError } = await service.rpc(
+    "solaris_claim_pending_notification_deliveries",
+    {
+      p_now: new Date().toISOString(),
+      p_limit: 100,
+    },
+  );
 
-  if (deliveryError) return json({ error: "Pending notifications could not be loaded." }, 500);
+  if (deliveryError) return json({ error: "Pending notifications could not be claimed." }, 500);
 
   let sent = 0;
   let failed = 0;
@@ -169,6 +169,16 @@ Deno.serve(async (req) => {
 
     if (preferenceError) {
       console.error("[solaris-push-dispatch] preference load failed", delivery.id, preferenceError);
+      await service
+        .from("notification_deliveries")
+        .update({
+          status: "pending",
+          processing_started_at: null,
+          scheduled_for: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+          error: "Preference lookup failed; retry scheduled.",
+        })
+        .eq("id", delivery.id)
+        .eq("status", "processing");
       continue;
     }
 
@@ -180,8 +190,13 @@ Deno.serve(async (req) => {
     ) {
       await service
         .from("notification_deliveries")
-        .update({ status: "suppressed", error: "Preference disabled" })
-        .eq("id", delivery.id);
+        .update({
+          status: "suppressed",
+          processing_started_at: null,
+          error: "Preference disabled",
+        })
+        .eq("id", delivery.id)
+        .eq("status", "processing");
       suppressed += 1;
       continue;
     }
@@ -190,6 +205,16 @@ Deno.serve(async (req) => {
       inQuietHours(preference) &&
       !(preference.urgent_deadline_reminders && isUrgentDeadline(delivery))
     ) {
+      await service
+        .from("notification_deliveries")
+        .update({
+          status: "pending",
+          processing_started_at: null,
+          scheduled_for: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+          error: null,
+        })
+        .eq("id", delivery.id)
+        .eq("status", "processing");
       deferred += 1;
       continue;
     }
@@ -202,6 +227,16 @@ Deno.serve(async (req) => {
 
     if (subscriptionError) {
       console.error("[solaris-push-dispatch] subscription load failed", delivery.id, subscriptionError);
+      await service
+        .from("notification_deliveries")
+        .update({
+          status: "pending",
+          processing_started_at: null,
+          scheduled_for: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+          error: "Subscription lookup failed; retry scheduled.",
+        })
+        .eq("id", delivery.id)
+        .eq("status", "processing");
       continue;
     }
 
@@ -251,14 +286,25 @@ Deno.serve(async (req) => {
     if (delivered) {
       await service
         .from("notification_deliveries")
-        .update({ status: "sent", sent_at: new Date().toISOString(), error: null })
-        .eq("id", delivery.id);
+        .update({
+          status: "sent",
+          sent_at: new Date().toISOString(),
+          processing_started_at: null,
+          error: null,
+        })
+        .eq("id", delivery.id)
+        .eq("status", "processing");
       sent += 1;
     } else {
       await service
         .from("notification_deliveries")
-        .update({ status: "failed", error: lastError.slice(0, 500) })
-        .eq("id", delivery.id);
+        .update({
+          status: "failed",
+          processing_started_at: null,
+          error: lastError.slice(0, 500),
+        })
+        .eq("id", delivery.id)
+        .eq("status", "processing");
       failed += 1;
     }
   }

@@ -2,9 +2,9 @@ import type {
   ConfirmationReviewEntry,
   ConfirmationReviewNationalFinal,
 } from "@/components/ConfirmationReviewStatus";
-import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { supabase } from "@/integrations/supabase/client";
 
-const confirmations = confirmationsSupabase as any;
+const confirmations = supabase as any;
 
 export type CountryConfirmationResponse = {
   submission_id: string;
@@ -31,6 +31,19 @@ export type CountryConfirmationResponse = {
   reason: "open" | "editing_closed" | "locked" | string;
 };
 
+export type CountryConfirmationRequirement = {
+  id: string;
+  edition_id: string;
+  country_id: string;
+  generation: number;
+  status: "required" | "satisfied" | "waived" | "invalidated";
+  reason: string;
+  valid_from: string;
+  resolved_by_submission_id: string | null;
+  resolved_at: string | null;
+  created_at: string;
+};
+
 export type CountryConfirmationAccess = {
   authenticated: boolean;
   country: {
@@ -39,17 +52,31 @@ export type CountryConfirmationAccess = {
     short_code: string;
   } | null;
   responses: CountryConfirmationResponse[];
+  requirements: CountryConfirmationRequirement[];
 };
 
 export async function getCountryConfirmationAccess(): Promise<CountryConfirmationAccess> {
-  const { data, error } = await confirmations.rpc("public_country_account_confirmation_access");
-  if (error) throw error;
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) {
+    return { authenticated: false, country: null, responses: [], requirements: [] };
+  }
 
-  const result = (data ?? {}) as Partial<CountryConfirmationAccess>;
+  const [accessResult, requirementsResult] = await Promise.all([
+    confirmations.rpc("public_country_account_confirmation_access"),
+    confirmations.rpc("public_country_account_confirmation_requirements"),
+  ]);
+
+  if (accessResult.error) throw accessResult.error;
+  if (requirementsResult.error) throw requirementsResult.error;
+
+  const result = (accessResult.data ?? {}) as Partial<CountryConfirmationAccess>;
   return {
     authenticated: result.authenticated === true,
     country: result.country ?? null,
     responses: Array.isArray(result.responses) ? result.responses : [],
+    requirements: Array.isArray(requirementsResult.data)
+      ? (requirementsResult.data as CountryConfirmationRequirement[])
+      : [],
   };
 }
 

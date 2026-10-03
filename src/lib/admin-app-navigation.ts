@@ -1,4 +1,4 @@
-export type AdminAppTabId = "home" | "inbox" | "edition" | "cases" | "more";
+export type AdminAppTabId = "home" | "edition" | "tasks" | "delegations" | "more";
 
 export type AdminHistoryEntry = {
   pathname: string;
@@ -59,18 +59,24 @@ function safeAdminPath(pathname: string) {
   );
 }
 
+export function adminDelegationRoute(path: string) {
+  return (
+    path.startsWith("/admin/countries") ||
+    path.startsWith("/admin/next-in-line") ||
+    path.startsWith("/confirmations/admin") ||
+    path.startsWith("/admin/submission-versions")
+  );
+}
+
 export function adminEditionRoute(path: string, slug?: string | null) {
   return (
     (slug ? path === "/admin/" + slug : false) ||
-    path.startsWith("/admin/countries") ||
-    path.startsWith("/confirmations/admin") ||
     path.startsWith("/admin/shows/") ||
     path.startsWith("/admin/entries/") ||
     path.startsWith("/admin/lineup-sync/") ||
     path.startsWith("/admin/participant-status/") ||
     path.startsWith("/admin/hosts") ||
     path.startsWith("/admin/eligibility") ||
-    path.startsWith("/admin/submission-versions") ||
     path.startsWith("/televoting/admin") ||
     path.startsWith("/admin/jury/") ||
     path.startsWith("/admin/voting-system/") ||
@@ -106,22 +112,23 @@ export function adminCasesRoute(path: string) {
 
 export function adminAppTabRoot(tab: AdminAppTabId, slug?: string | null) {
   if (tab === "home") return "/admin/operations";
-  if (tab === "inbox") return "/admin/inbox";
   if (tab === "edition") return slug ? "/admin/" + slug : "/admin";
-  if (tab === "cases") return "/admin/integrity-investigations";
+  if (tab === "tasks") return "/admin/tasks";
+  if (tab === "delegations") return "/admin/countries";
   return "/admin/more";
 }
 
 export function adminAppTabForPath(pathname: string, slug?: string | null): AdminAppTabId | null {
   if (!safeAdminPath(pathname)) return null;
+  if (pathname.startsWith("/admin/operations")) return "home";
   if (
-    pathname.startsWith("/admin/operations") ||
+    pathname.startsWith("/admin/tasks") ||
     pathname.startsWith("/admin/action-center") ||
-    pathname.startsWith("/admin/action-centre")
-  ) return "home";
-  if (pathname.startsWith("/admin/inbox")) return "inbox";
+    pathname.startsWith("/admin/action-centre") ||
+    pathname.startsWith("/admin/inbox")
+  ) return "tasks";
+  if (adminDelegationRoute(pathname)) return "delegations";
   if (adminEditionRoute(pathname, slug)) return "edition";
-  if (adminCasesRoute(pathname)) return "cases";
   return "more";
 }
 
@@ -168,23 +175,51 @@ export function readAdminNavigationState(
   try {
     const raw = storage.getItem(STORAGE_KEY);
     if (!raw) return emptyState();
-    const parsed = JSON.parse(raw) as Partial<AdminNavigationState>;
-    const validTabs: AdminAppTabId[] = ["home", "inbox", "edition", "cases", "more"];
-    const activeTab = validTabs.includes(parsed.activeTab as AdminAppTabId)
-      ? (parsed.activeTab as AdminAppTabId)
-      : "home";
+    const parsed = JSON.parse(raw) as Partial<AdminNavigationState> & {
+      activeTab?: AdminAppTabId | "inbox" | "cases";
+      tabs?: Record<string, AdminTabState | undefined>;
+    };
+    const validTabs: AdminAppTabId[] = ["home", "edition", "tasks", "delegations", "more"];
+    const migrateTab = (value: unknown): AdminAppTabId => {
+      if (value === "inbox") return "tasks";
+      if (value === "cases") return "more";
+      return validTabs.includes(value as AdminAppTabId) ? (value as AdminAppTabId) : "home";
+    };
+    const activeTab = migrateTab(parsed.activeTab);
     const tabs: Partial<Record<AdminAppTabId, AdminTabState>> = {};
+    const sourceNames: Record<AdminAppTabId, string[]> = {
+      home: ["home"],
+      edition: ["edition"],
+      tasks: ["tasks", "inbox"],
+      delegations: ["delegations"],
+      more: ["more", "cases"],
+    };
 
     for (const tab of validTabs) {
-      const candidate = parsed.tabs?.[tab];
-      if (!candidate) continue;
-      const history = (Array.isArray(candidate.history) ? candidate.history : [])
+      const candidates = sourceNames[tab]
+        .map((name) => parsed.tabs?.[name])
+        .filter((candidate): candidate is AdminTabState => Boolean(candidate));
+      if (!candidates.length) continue;
+
+      const history = candidates
+        .flatMap((candidate) => (Array.isArray(candidate.history) ? candidate.history : []))
         .map(sanitizeEntry)
         .filter((entry): entry is AdminHistoryEntry => Boolean(entry))
         .filter((entry) => adminAppTabForPath(entry.pathname, slug) === tab)
+        .sort((a, b) => a.visitedAt.localeCompare(b.visitedAt))
         .slice(-MAX_HISTORY_PER_TAB);
-      const current = sanitizeEntry(candidate.current) ?? history.at(-1) ?? null;
-      if (!current || adminAppTabForPath(current.pathname, slug) !== tab) continue;
+
+      const current =
+        candidates
+          .map((candidate) => sanitizeEntry(candidate.current))
+          .filter((entry): entry is AdminHistoryEntry => Boolean(entry))
+          .filter((entry) => adminAppTabForPath(entry.pathname, slug) === tab)
+          .sort((a, b) => a.visitedAt.localeCompare(b.visitedAt))
+          .at(-1) ??
+        history.at(-1) ??
+        null;
+
+      if (!current) continue;
       tabs[tab] = { current, history: history.length ? history : [current] };
     }
     return { version: 1, activeTab, tabs };

@@ -1,0 +1,78 @@
+version: 1
+product: Solaris Studio Mobile App V2
+source: Finalised master plan
+status_values: [verified, implemented, partial, manual_gate]
+release_rule: "No partial release_blocking item may remain before V2 sign-off."
+items:
+  - { id: 1, name: product-architecture, status: implemented, release_blocking: true, evidence: ["src/components/AppShell.tsx", "src/components/app/AppRuntime.tsx"] }
+  - { id: 2, name: four-layer-ownership, status: implemented, release_blocking: true, evidence: ["src/styles.css", "src/lib/app-screen-registry.ts", "src/lib/app-css-ownership.contract.test.ts"] }
+  - { id: 3, name: canonical-screen-contract, status: implemented, release_blocking: true, evidence: ["src/lib/app-screen-registry.ts", "src/lib/app-screen-registry.test.ts"] }
+  - { id: 4, name: single-app-shell, status: verified, release_blocking: true, evidence: ["src/components/app/AppRouteStateFrame.tsx", "e2e/installed-app.e2e.ts"] }
+  - { id: 5, name: global-tabbar, status: implemented, release_blocking: true, evidence: ["src/components/app/AppTabBar.tsx", "src/lib/app-screen-registry.ts"] }
+  - { id: 6, name: bottom-obstruction, status: verified, release_blocking: true, evidence: ["src/styles/app-shell.css", "e2e/installed-app.e2e.ts"] }
+  - { id: 7, name: global-overlay-architecture, status: implemented, release_blocking: true, evidence: ["src/components/app/AppOverlayManager.tsx", "src/components/ui/sheet.tsx", "src/components/ui/dialog.tsx", "src/lib/app-css-ownership.contract.test.ts", "e2e/installed-app.e2e.ts"] }
+  - { id: 8, name: first-run-sheet, status: verified, release_blocking: true, evidence: ["src/components/app/AppFirstRun.tsx", "e2e/installed-app.e2e.ts"] }
+  - { id: 9, name: screen-title-rules, status: implemented, release_blocking: true, evidence: ["src/components/app/AppToolbar.tsx", "e2e/installed-app.e2e.ts"] }
+  - { id: 10, name: toolbar-actions, status: implemented, release_blocking: false, evidence: ["src/components/app/AppToolbar.tsx"] }
+  - { id: 11, name: search-architecture, status: implemented, release_blocking: true, evidence: ["src/components/public/PublicCommandPalette.tsx", "supabase/migrations/20261002153000_public_app_search.sql"] }
+  - { id: 12, name: app-primitives, status: implemented, release_blocking: false, evidence: ["src/components/app/AppPrimitives.tsx", "src/styles/app-shell.css", "src/lib/mobile-v2-composition.contract.test.ts"] }
+  - { id: 13, name: card-rules, status: implemented, release_blocking: false, evidence: ["src/components/app/AppPrimitives.tsx", "src/styles/app-shell.css", "src/lib/mobile-v2-composition.contract.test.ts"] }
+  - { id: 14, name: liquid-glass-policy, status: implemented, release_blocking: true, evidence: ["src/components/app/KubeLiquidGlassBackdrop.tsx", "src/styles/app-shell.css"] }
+  - { id: 15, name: tabbar-readability, status: implemented, release_blocking: true, evidence: ["src/styles/app-shell.css"] }
+  - { id: 16, name: touch-targets, status: verified, release_blocking: true, evidence: ["e2e/installed-app.e2e.ts"] }
+  - { id: 17, name: flag-media-system, status: verified, release_blocking: true, evidence: ["src/components/FlagMedia.tsx", "src/flag-media.css", "e2e/installed-app.e2e.ts"] }
+  - { id: 18, name: personality-guardrails, status: implemented, release_blocking: true, evidence: ["src/components/CountryPersonalityStyles.tsx", "src/country-personality-shared-foundation.css", "src/lib/app-personality-containment.contract.test.ts"] }
+  - { id: 19, name: css-architecture-cleanup, status: implemented, release_blocking: true, evidence: ["src/styles.css", "src/styles/app-shell.css", "src/country-wiki-v8.css", "src/lib/app-css-ownership.contract.test.ts"] }
+  - { id: 20, name: pwa-runtime-detection, status: verified, release_blocking: true, evidence: ["src/lib/platform.ts", "public/site.webmanifest"] }
+  - { id: 21, name: viewport-keyboard-system, status: implemented, release_blocking: true, evidence: ["src/components/app/AppRuntime.tsx", "src/styles/app-shell.css"] }
+  - { id: 22, name: cold-launch, status: implemented, release_blocking: true, evidence: ["src/lib/app-navigation.ts", "src/routes/app-launch.tsx"] }
+  - { id: 23, name: service-worker-update-safety, status: verified, release_blocking: true, evidence: ["src/components/app/AppRuntime.tsx", "public/sw.js"] }
+  - { id: 24, name: home, status: implemented, release_blocking: false, evidence: ["src/routes/index.tsx"] }
+  - { id: 25, name: explore, status: implemented, release_blocking: false, evidence: ["src/routes/explore/index.tsx", "src/components/app/AppExplorePersonalized.tsx"] }
+  - { id: 26, name: all-pages, status: implemented, release_blocking: false, evidence: ["src/routes/site-directory/index.tsx"] }
+  - { id: 27, name: editions-archive, status: implemented, release_blocking: false, evidence: ["src/routes/editions/index.tsx"] }
+  - { id: 28, name: edition-detail, status: implemented, release_blocking: false, evidence: ["src/routes/editions/$slug.tsx", "src/edition-public-v5.css"] }
+  - { id: 29, name: edition-entries, status: implemented, release_blocking: false, evidence: ["src/edition-public-v5.css"] }
+  - { id: 30, name: edition-country-grid, status: implemented, release_blocking: false, evidence: ["src/edition-public-v5.css"] }
+  - { id: 31, name: countries-directory, status: implemented, release_blocking: false, evidence: ["src/routes/countries/index.tsx"] }
+  - { id: 32, name: country-page, status: implemented, release_blocking: false, evidence: ["src/routes/countries/$code.tsx"] }
+  - { id: 33, name: shows, status: implemented, release_blocking: false, evidence: ["src/routes/shows/index.tsx", "src/routes/shows/$showId.tsx"] }
+  - { id: 34, name: show-mode, status: implemented, release_blocking: true, evidence: ["src/routes/show-mode/index.tsx", "src/lib/app-screen-registry.ts"] }
+  - { id: 35, name: results-root, status: implemented, release_blocking: false, evidence: ["src/routes/results/index.tsx"] }
+  - { id: 36, name: heavy-data-experiences, status: implemented, release_blocking: false, evidence: ["src/routes/analysis/index.tsx", "src/routes/result-lab/index.tsx", "src/routes/scorecharts/index.tsx", "src/lib/mobile-v2-composition.contract.test.ts"] }
+  - { id: 37, name: wiki-redesign, status: implemented, release_blocking: false, evidence: ["src/components/wiki/CountryWikiExperience.tsx"] }
+  - { id: 38, name: wiki-performance, status: implemented, release_blocking: true, evidence: ["src/components/wiki/CountryWikiExperience.tsx", "src/lib/data-live.ts"] }
+  - { id: 39, name: rules, status: implemented, release_blocking: false, evidence: ["src/routes/rules", "src/components/rules/RulesHomeV5.tsx"] }
+  - { id: 40, name: integrity, status: implemented, release_blocking: true, evidence: ["src/components/integrity/IntegrityReportV5.tsx", "src/lib/app-screen-registry.ts"] }
+  - { id: 41, name: participate-root, status: implemented, release_blocking: false, evidence: ["src/routes/participate/index.tsx", "src/components/app/AppTaskCenter.tsx"] }
+  - { id: 42, name: critical-task-architecture, status: implemented, release_blocking: true, evidence: ["src/components/ParticipationServiceShell.tsx", "src/lib/submission-receipts.ts"] }
+  - { id: 43, name: me-mysolaris, status: verified, release_blocking: true, evidence: ["src/components/mysolaris/MySolarisWorkspaceNav.tsx", "e2e/installed-app.e2e.ts"] }
+  - { id: 44, name: account, status: implemented, release_blocking: false, evidence: ["src/routes/_authenticated/my-solaris/account.tsx"] }
+  - { id: 45, name: settings, status: implemented, release_blocking: false, evidence: ["src/routes/settings.tsx"] }
+  - { id: 46, name: notification-backend, status: implemented, release_blocking: true, evidence: ["supabase/functions/solaris-push-dispatch/index.ts", "supabase/migrations/20261002155500_push_runtime_vault_and_cron.sql"] }
+  - { id: 47, name: notification-ui, status: implemented, release_blocking: true, evidence: ["src/components/mysolaris/MySolarisNotificationsPanel.tsx"] }
+  - { id: 48, name: notification-policy, status: implemented, release_blocking: true, evidence: ["src/lib/app-notifications.ts"] }
+  - { id: 49, name: error-states, status: implemented, release_blocking: true, evidence: ["src/components/app/AppRouteStateFrame.tsx", "src/lib/app-error-state.ts", "src/lib/app-error-state.test.ts", "src/routes/__root.tsx"] }
+  - { id: 50, name: loading-states, status: implemented, release_blocking: false, evidence: ["src/components/app/AppRouteStateFrame.tsx"] }
+  - { id: 51, name: empty-states, status: implemented, release_blocking: false, evidence: ["src/components/app/AppPrimitives.tsx", "src/components/public/PublicDataState.tsx", "src/routes/countries/index.tsx", "src/routes/editions/index.tsx", "src/routes/shows/index.tsx", "src/routes/site-directory/index.tsx"] }
+  - { id: 52, name: offline-behaviour, status: implemented, release_blocking: true, evidence: ["src/lib/app-screen-registry.ts", "public/offline.html"] }
+  - { id: 53, name: pwa-lifecycle, status: implemented, release_blocking: true, evidence: ["src/components/app/AppRuntime.tsx", "src/lib/app-lifecycle.ts", "src/lib/app-connectivity.ts", "e2e/installed-app.e2e.ts"] }
+  - { id: 54, name: accessibility, status: implemented, release_blocking: true, evidence: ["src/styles.css", "e2e/audit-helpers.ts", "e2e/installed-app.e2e.ts"] }
+  - { id: 55, name: typography, status: implemented, release_blocking: false, evidence: ["src/styles/app-shell.css", "src/card-typography.css"] }
+  - { id: 56, name: motion, status: implemented, release_blocking: false, evidence: ["src/solaris-motion.css", "src/lib/app-view-transitions.ts"] }
+  - { id: 57, name: no-gesture-only-functionality, status: verified, release_blocking: true, evidence: ["src/components/app/AppTabBar.tsx"] }
+  - { id: 58, name: telemetry, status: implemented, release_blocking: false, evidence: ["src/lib/public-ux-events.ts", "src/components/app/AppTelemetryBridge.tsx"] }
+  - { id: 59, name: performance-budget, status: implemented, release_blocking: true, evidence: ["src/lib/public-web-vitals.ts", "scripts/check-client-bundle-budget.mjs", ".github/workflows/ci.yml", ".github/workflows/browser-audit.yml"] }
+  - { id: 60, name: data-overfetching, status: implemented, release_blocking: true, evidence: ["src/lib/data.ts", "src/lib/data-live.ts", "src/routes/countries/index.tsx", "src/routes/countries/$code.tsx", "src/routes/editions/$slug.tsx", "src/components/wiki/CountryWikiExperience.tsx", "src/lib/app-data-overfetch.contract.test.ts"] }
+  - { id: 61, name: route-code-splitting, status: implemented, release_blocking: false, evidence: ["src/components/AppShell.tsx", "src/routes/countries/$code.tsx", "src/routes/analysis/index.tsx", "scripts/check-client-bundle-budget.mjs", "src/lib/mobile-v2-composition.contract.test.ts"] }
+  - { id: 62, name: image-media-performance, status: implemented, release_blocking: false, evidence: ["src/components/FlagMedia.tsx"] }
+  - { id: 63, name: app-route-matrix, status: implemented, release_blocking: true, evidence: ["src/lib/app-screen-registry.ts", "e2e/installed-app.e2e.ts"] }
+  - { id: 64, name: automated-mobile-invariant-crawler, status: implemented, release_blocking: true, evidence: ["e2e/installed-app.e2e.ts"] }
+  - { id: 65, name: state-matrix, status: implemented, release_blocking: true, evidence: ["e2e/installed-app.e2e.ts", "e2e/account-states.e2e.ts", "e2e/organizer-routes.e2e.ts", "playwright.config.ts"] }
+  - { id: 66, name: visual-regression, status: manual_gate, release_blocking: true, evidence: ["e2e/app-visual-capture.e2e.ts", ".github/workflows/browser-audit.yml", "docs/mobile-v2/release-certification.yml"] }
+  - { id: 67, name: interaction-regression, status: implemented, release_blocking: true, evidence: ["e2e/installed-app.e2e.ts", "src/components/app/AppTabBar.tsx", "src/components/app/AppOverlayManager.tsx"] }
+  - { id: 68, name: physical-device-qa, status: manual_gate, release_blocking: true, evidence: ["docs/mobile-v2/release-certification.md", "docs/mobile-v2/release-certification.yml"] }
+  - { id: 69, name: web-regression-protection, status: implemented, release_blocking: true, evidence: ["playwright.config.ts", "e2e/public-routes.e2e.ts"] }
+  - { id: 70, name: ci-quality-gates, status: implemented, release_blocking: true, evidence: [".github/workflows/browser-audit.yml", ".github/workflows/ci.yml", ".github/workflows/rules-integrity-migration-rehearsal.yml"] }
+  - { id: 71, name: production-smoke-test, status: manual_gate, release_blocking: true, evidence: ["docs/mobile-v2/release-certification.md", "docs/mobile-v2/release-certification.yml"] }
+  - { id: 72, name: implementation-sequence-and-cleanup, status: implemented, release_blocking: true, evidence: ["src/lib/app-css-ownership.contract.test.ts", "docs/mobile-v2/completion-matrix.yml", "scripts/check-mobile-v2-release-readiness.mjs", ".github/workflows/mobile-v2-certification.yml"] }
