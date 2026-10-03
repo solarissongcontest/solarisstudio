@@ -256,6 +256,13 @@ begin
     );
   end if;
 
+  if p_status in ('open', 'draft')
+     and v_round.results_status in ('locked', 'published') then
+    v_blockers := v_blockers || jsonb_build_array(
+      'Locked or published televote results must be unlocked before voting workflow can reopen.'
+    );
+  end if;
+
   return jsonb_build_object(
     'riskClass', 'R2',
     'roundId', v_round.id,
@@ -395,6 +402,12 @@ begin
       using errcode = '40001';
   end if;
 
+  if p_status in ('open', 'draft')
+     and v_round.results_status in ('locked', 'published') then
+    raise exception 'Locked or published televote results must be unlocked before voting workflow can reopen.'
+      using errcode = '23514';
+  end if;
+
   if p_status = 'open' then
     select count(*)::integer
     into v_entry_count
@@ -423,6 +436,10 @@ begin
   set status = p_status::televoting.round_status,
       opened_at = case when p_status = 'open' then v_now else opened_at end,
       closed_at = case when p_status = 'closed' then v_now else closed_at end,
+      results_outdated = case
+        when p_status = 'open' and calculation_version > 0 then true
+        else results_outdated
+      end,
       updated_at = v_now
   where id = p_round_id;
 
