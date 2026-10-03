@@ -1,20 +1,9 @@
 name: Browser audit
 
-# Browser audits are intentionally manual. They are expensive end-to-end tests
-# and must never be triggered by every pull-request update.
 on:
+  pull_request:
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      full_audit:
-        description: Run the exhaustive viewport + sitemap audit
-        required: true
-        type: boolean
-        default: false
-      capture_personality_reference:
-        description: Capture personality reference artifacts
-        required: true
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -24,67 +13,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Browser CI is forbidden from using hosted Supabase. It runs against an
+  # isolated local stack and hard-fails if a non-local API URL reaches the job.
+  # Egress guard: this must stay local even when production configuration changes.
   public-routes:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 55
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Require an isolated non-production Supabase backend
-        env:
-          E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
-          E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
-        run: |
-          set -euo pipefail
-
-          if [ -z "${E2E_SUPABASE_URL:-}" ] || [ -z "${E2E_SUPABASE_PUBLISHABLE_KEY:-}" ]; then
-            echo "::error::Browser audit is blocked: configure a dedicated non-production E2E Supabase URL and publishable key."
-            exit 1
-          fi
-
-          prod_url="$(python - <<'PY'
-          from pathlib import Path
-
-          value = ""
-          for line in Path(".env").read_text().splitlines():
-              if line.startswith("VITE_SUPABASE_URL="):
-                  value = line.split("=", 1)[1].strip().strip('"').strip("'").rstrip("/")
-                  break
-          print(value)
-          PY
-          )"
-
-          e2e_url="${E2E_SUPABASE_URL%/}"
-
-          if [ -z "$prod_url" ]; then
-            echo "::error::Browser audit is blocked: could not determine the production Supabase URL from .env."
-            exit 1
-          fi
-
-          if [ "$e2e_url" = "$prod_url" ]; then
-            echo "::error::Browser audit refused to run against the production Supabase project. Use a dedicated E2E project."
-            exit 1
-          fi
-
-          case "$e2e_url" in
-            https://*.supabase.co) ;;
-            *)
-              echo "::error::Browser audit is blocked: E2E_SUPABASE_URL must be a dedicated Supabase project URL."
-              exit 1
-              ;;
-          esac
-
-          # Force every build/server/browser process in this job onto the isolated
-          # E2E backend. This also prevents Vite from silently falling back to the
-          # checked-in production .env during the production build.
-          {
-            echo "VITE_SUPABASE_URL=$E2E_SUPABASE_URL"
-            echo "VITE_SUPABASE_PUBLISHABLE_KEY=$E2E_SUPABASE_PUBLISHABLE_KEY"
-            echo "SUPABASE_URL=$E2E_SUPABASE_URL"
-            echo "SUPABASE_PUBLISHABLE_KEY=$E2E_SUPABASE_PUBLISHABLE_KEY"
-          } >> "$GITHUB_ENV"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -96,20 +34,83 @@ jobs:
         with:
           node-version: 22
 
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
       - name: Install app dependencies
         run: bun install --frozen-lockfile
 
       - name: Production build
+        env:
+          VITE_SUPABASE_URL: http://127.0.0.1:54321
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_browser_audit_local_only
+          SUPABASE_URL: http://127.0.0.1:54321
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_browser_audit_local_only
         run: bun run build
+
+      - name: Enforce client performance budget
+        run: bun run budget:client
 
       - name: Install browser-audit runner
         run: |
           bun add --dev @playwright/test@1.55.0
           bunx playwright install --with-deps chromium webkit
 
-      - name: Start stable audit server
+      - name: Start isolated local Supabase for browser audit
+        shell: bash
         run: |
           set -euo pipefail
+
+          supabase start
+          supabase db reset --local --no-seed
+          supabase status -o env > /tmp/solaris-browser-supabase.env
+
+          set -a
+          source /tmp/solaris-browser-supabase.env
+          set +a
+
+          local_url="${API_URL:-}"
+          local_key="${PUBLISHABLE_KEY:-${ANON_KEY:-}}"
+
+          if [ -z "$local_url" ] || [ -z "$local_key" ]; then
+            echo "Local Supabase did not expose API_URL plus a publishable/anon key."
+            cat /tmp/solaris-browser-supabase.env
+            exit 1
+          fi
+
+          case "$local_url" in
+            http://127.0.0.1:*|http://localhost:*) ;;
+            *)
+              echo "Refusing browser audit against non-local Supabase URL: $local_url"
+              exit 1
+              ;;
+          esac
+
+          {
+            echo "VITE_SUPABASE_URL=$local_url"
+            echo "VITE_SUPABASE_PUBLISHABLE_KEY=$local_key"
+            echo "SUPABASE_URL=$local_url"
+            echo "SUPABASE_PUBLISHABLE_KEY=$local_key"
+            echo "E2E_SUPABASE_URL=$local_url"
+            echo "E2E_SUPABASE_PUBLISHABLE_KEY=$local_key"
+          } >> "$GITHUB_ENV"
+
+      - name: Start stable audit server
+        shell: bash
+        env:
+          SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
+        run: |
+          set -euo pipefail
+
+          case "$E2E_SUPABASE_URL" in
+            http://127.0.0.1:*|http://localhost:*) ;;
+            *)
+              echo "Refusing audit server with hosted Supabase URL: $E2E_SUPABASE_URL"
+              exit 1
+              ;;
+          esac
 
           bun run dev --host 127.0.0.1 --port 4173 --strictPort > /tmp/solaris-audit-server.log 2>&1 &
           echo $! > /tmp/solaris-audit-server.pid
@@ -140,16 +141,17 @@ jobs:
         run: bunx playwright test
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
-          E2E_FULL_AUDIT: ${{ inputs.full_audit && '1' || '0' }}
-          PERSONALITY_REFERENCE_CAPTURE: ${{ inputs.capture_personality_reference && '1' || '0' }}
-          E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
-          E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
-          E2E_COUNTRY_EMAIL: ${{ secrets.E2E_COUNTRY_EMAIL }}
-          E2E_COUNTRY_PASSWORD: ${{ secrets.E2E_COUNTRY_PASSWORD }}
-          E2E_ORGANIZER_EMAIL: ${{ secrets.E2E_ORGANIZER_EMAIL }}
-          E2E_ORGANIZER_PASSWORD: ${{ secrets.E2E_ORGANIZER_PASSWORD }}
-          E2E_SUSPENDED_EMAIL: ${{ secrets.E2E_SUSPENDED_EMAIL }}
-          E2E_SUSPENDED_PASSWORD: ${{ secrets.E2E_SUSPENDED_PASSWORD }}
+          SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
+          # Pull requests run a representative smoke set. Manual dispatch keeps
+          # the exhaustive ten-viewport + sitemap inventory available without
+          # turning every PR into a 40-minute crawl of the same archive data.
+          # The final public-quality release branch also runs the exhaustive set
+          # once before merge.
+          E2E_FULL_AUDIT: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'feature/public-final-quality' || github.head_ref == 'chatgpt/completion-programme-20260920' || github.head_ref == 'feature/final-ui-completion-20261001' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}
+          PERSONALITY_REFERENCE_CAPTURE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
+          E2E_VISUAL_CAPTURE: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}
+          # E2E Supabase URL/key are inherited from the isolated local stack.
+          # Hosted account credentials are intentionally unavailable in browser CI.
 
       - name: Print audit server log on failure
         if: failure()
@@ -161,6 +163,10 @@ jobs:
           if [ -f /tmp/solaris-audit-server.pid ]; then
             kill "$(cat /tmp/solaris-audit-server.pid)" 2>/dev/null || true
           fi
+
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
 
       - name: Upload browser summary
         if: always()
