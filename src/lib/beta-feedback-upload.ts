@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { uploadServerAuthorizedFile } from "@/lib/upload-safety";
+import { uploadVerifiedFile } from "@/lib/upload-safety";
 
 const ALLOWED_BETA_SCREENSHOT_TYPES = new Set([
   "image/png",
@@ -8,14 +8,6 @@ const ALLOWED_BETA_SCREENSHOT_TYPES = new Set([
   "image/gif",
 ]);
 const MAX_BETA_SCREENSHOT_BYTES = 8 * 1024 * 1024;
-
-function safeFileName(name: string) {
-  const cleaned = name
-    .replace(/[^a-zA-Z0-9._-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-  return cleaned || "screenshot";
-}
 
 export async function uploadBetaFeedbackScreenshot(input: {
   submissionId: string;
@@ -33,19 +25,20 @@ export async function uploadBetaFeedbackScreenshot(input: {
     throw new Error(`Screenshot “${input.file.name}” is larger than 8 MB.`);
   }
 
-  const prefix = input.admin ? "admin/" : "";
-  const storagePath =
-    `${prefix}${input.submissionId}/${input.bugId}-${safeFileName(input.file.name)}`;
-
-  await uploadServerAuthorizedFile({
+  const receipt = await uploadVerifiedFile({
     client: supabase,
-    descriptor: {
-      bucket: "beta-feedback",
-      object_path: storagePath,
-    },
+    domain: "beta_feedback",
     file: input.file,
-    cacheControl: "3600",
+    context: {
+      admin: Boolean(input.admin),
+      submissionId: input.submissionId,
+      bugId: input.bugId,
+    },
   });
 
-  return storagePath;
+  if (receipt.bucket !== "beta-feedback") {
+    throw new Error("Solaris verified the beta screenshot into an unexpected bucket.");
+  }
+
+  return receipt.object_path;
 }
