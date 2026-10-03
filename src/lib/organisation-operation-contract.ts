@@ -11,6 +11,9 @@ export const ORGANISATION_SCREEN_STATES = [
   "expired",
   "submitting",
   "acknowledged",
+  "read-only",
+  "maintenance",
+  "degraded",
 ] as const;
 
 export type OrganisationScreenState = (typeof ORGANISATION_SCREEN_STATES)[number];
