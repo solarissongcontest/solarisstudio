@@ -28,12 +28,12 @@ foundation_requirements:
   - { key: bounded-drag-elasticity, status: implemented, evidence: ["src/lib/interaction-physics.ts", "src/components/app/AppTabBar.tsx"] }
   - { key: pressable-primitive, status: implemented, evidence: ["src/components/interaction/SolarisPressable.tsx"] }
   - { key: organiser-shared-shell-cutover, status: missing, evidence: ["src/components/admin/AdminFrame.tsx"] }
-  - { key: draggable-sheet-primitive, status: missing, evidence: [] }
-  - { key: morphing-selection-primitive, status: missing, evidence: [] }
-  - { key: swipe-action-row-primitive, status: missing, evidence: [] }
-  - { key: reorderable-list-primitive, status: missing, evidence: [] }
-  - { key: gesture-coordinator, status: in_progress, evidence: ["src/lib/interaction-physics.ts"] }
-  - { key: canonical-motion-preferences, status: in_progress, evidence: ["src/lib/interaction-physics.ts", "src/lib/app-view-transitions.ts"] }
+  - { key: draggable-sheet-primitive, status: implemented, evidence: ["src/components/interaction/SolarisDraggableSheet.tsx"] }
+  - { key: morphing-selection-primitive, status: implemented, evidence: ["src/components/interaction/SolarisMorphingSelection.tsx"] }
+  - { key: swipe-action-row-primitive, status: implemented, evidence: ["src/components/interaction/SolarisSwipeActionRow.tsx"] }
+  - { key: reorderable-list-primitive, status: implemented, evidence: ["src/components/interaction/SolarisReorderableList.tsx"] }
+  - { key: gesture-coordinator, status: implemented, evidence: ["src/lib/interaction-physics.ts", "src/lib/gesture-coordinator.ts"] }
+  - { key: canonical-motion-preferences, status: implemented, evidence: ["src/lib/interaction-physics.ts", "src/lib/interaction-preferences.ts", "src/lib/app-view-transitions.ts"] }
 
 manual_gates:
   - { key: physical-ios-pwa, status: manual_gate, release_blocking: true }

@@ -15,8 +15,8 @@ import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
 import {
   prefersReducedMotion,
   resolveElasticDrag,
-  resolveScrollResponsiveBar,
 } from "@/lib/interaction-physics";
+import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
 import { PUBLIC_GLOBAL_AREAS } from "@/lib/public-navigation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
@@ -66,14 +66,13 @@ export function AppTabBar({
   const routeArea: PrimaryArea =
     chrome.tab && isPrimaryArea(chrome.tab) ? chrome.tab : "home";
   const tabbarMode = chrome.tabBar;
-  const [collapsed, setCollapsed] = useState(false);
   const [railMode, setRailMode] = useState(false);
   const [dragPreviewIndex, setDragPreviewIndex] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
-  const lastScrollY = useRef(0);
-  const downTravel = useRef(0);
-  const upTravel = useRef(0);
-  const frame = useRef<number | null>(null);
+  const { collapsed, expand: expandTabBar } = useScrollResponsiveBar({
+    enabled: !railMode,
+    resetKey: `${pathname}|${routeArea}|${searchStr}`,
+  });
   const barRef = useRef<HTMLElement | null>(null);
   const materialRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<DragState | null>(null);
@@ -83,58 +82,12 @@ export function AppTabBar({
     const media = window.matchMedia("(min-width: 900px)");
     const refresh = () => {
       setRailMode(media.matches);
-      if (media.matches) setCollapsed(false);
+      if (media.matches) expandTabBar();
     };
     refresh();
     media.addEventListener?.("change", refresh);
     return () => media.removeEventListener?.("change", refresh);
-  }, []);
-
-  useEffect(() => {
-    setCollapsed(false);
-    lastScrollY.current = window.scrollY;
-    downTravel.current = 0;
-    upTravel.current = 0;
-  }, [pathname, routeArea, searchStr]);
-
-  useEffect(() => {
-    lastScrollY.current = window.scrollY;
-    if (railMode) {
-      setCollapsed(false);
-      return;
-    }
-
-    const evaluate = () => {
-      frame.current = null;
-      const current = Math.max(0, window.scrollY);
-      const delta = current - lastScrollY.current;
-
-      setCollapsed((currentCollapsed) => {
-        const next = resolveScrollResponsiveBar({
-          collapsed: currentCollapsed,
-          currentY: current,
-          lastY: lastScrollY.current,
-          downTravel: downTravel.current,
-          upTravel: upTravel.current,
-        });
-        downTravel.current = next.downTravel;
-        upTravel.current = next.upTravel;
-        return next.collapsed;
-      });
-      lastScrollY.current = current;
-    };
-
-    const onScroll = () => {
-      if (frame.current != null) return;
-      frame.current = window.requestAnimationFrame(evaluate);
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (frame.current != null) window.cancelAnimationFrame(frame.current);
-    };
-  }, [railMode]);
+  }, [expandTabBar]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -379,7 +332,7 @@ export function AppTabBar({
       data-layout={railMode ? "rail" : "bar"}
       data-mode={tabbarMode}
       onPointerDown={() => {
-        if (collapsed) setCollapsed(false);
+        if (collapsed) expandTabBar();
       }}
     >
       <div
@@ -423,7 +376,7 @@ export function AppTabBar({
                 }
 
                 const wasCollapsed = collapsed;
-                setCollapsed(false);
+                expandTabBar();
                 if (wasCollapsed && active) {
                   event.preventDefault();
                   return;

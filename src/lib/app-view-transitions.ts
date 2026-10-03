@@ -1,3 +1,5 @@
+import { prefersReducedMotion } from "@/lib/interaction-physics";
+
 export type AppViewTransitionKind = "push" | "pop" | "tab";
 
 type ViewTransitionLike = {
@@ -9,11 +11,6 @@ type ViewTransitionDocument = Document & {
     update: () => void | Promise<void>,
   ) => ViewTransitionLike;
 };
-
-function prefersReducedMotion() {
-  if (typeof window === "undefined") return true;
-  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-}
 
 export async function runAppViewTransition(
   kind: AppViewTransitionKind,
