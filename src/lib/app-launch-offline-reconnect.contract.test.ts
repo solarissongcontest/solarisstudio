@@ -12,8 +12,22 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     expect(launch).toContain('createFileRoute("/app-launch")');
     expect(launch).toContain("getAppLaunchDestination");
     expect(launch).toContain("supabase.auth.getSession");
+    expect(launch).toContain("APP_LAUNCH_SESSION_TIMEOUT_MS");
+    expect(launch).toContain("Promise.race");
+    expect(launch).toContain('"cold_launch_session_timeout"');
+    expect(launch).toContain('pathname: "/"');
     expect(launch).toContain("markAppNavigationRestore");
     expect(launch).toContain("replace: true");
+  });
+
+  it("hydrates app connectivity from deterministic HTML before browser state is read", () => {
+    const connectivity = source("src/lib/app-connectivity.ts");
+    const runtime = source("src/components/app/AppRuntime.tsx");
+    expect(connectivity).toContain("hydrationSafeAppConnectivitySnapshot");
+    expect(connectivity).toContain('status: "online"');
+    expect(connectivity).toContain("serviceRestricted: false");
+    expect(runtime).toContain("hydrationSafeAppConnectivitySnapshot()");
+    expect(runtime).toContain("createAppConnectivityController(setConnectivity)");
   });
 
   it("never cold-launches directly into critical official submission routes", () => {
