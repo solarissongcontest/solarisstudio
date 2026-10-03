@@ -712,8 +712,8 @@ export async function uploadCountryFont(countryId: string, file: File, label?: s
   if (!auth.user) throw new Error("Sign in to upload a font.");
 
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-  if (!["woff2", "woff", "ttf", "otf"].includes(extension)) {
-    throw new Error("Use WOFF2, WOFF, TTF or OTF font files.");
+  if (extension !== "woff2" || file.type !== "font/woff2") {
+    throw new Error("Custom font delivery accepts WOFF2 files only.");
   }
   if (file.size <= 0) throw new Error("Choose a non-empty font file.");
   if (file.size > 4 * 1024 * 1024) throw new Error("Custom fonts must be 4 MB or smaller.");
