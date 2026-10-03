@@ -1,0 +1,46 @@
+version: 1
+product: Solaris Studio Organisation OS V5
+candidate_branch: feature/organisation-os-v5-task-truth
+source_commit: ""
+rule: "Organisation OS V5 is not production-complete until every automated source-commit gate is green and every manual gate below is approved with evidence."
+manual_gates:
+  - id: physical-iphone-portrait
+    approved: false
+    evidence: ""
+    note: "Physical iPhone portrait QA for Today, Tasks, edition workspace, Inbox, More, Access & Permissions, sheets, keyboard, safe areas and one-handed reachability."
+  - id: physical-iphone-landscape
+    approved: false
+    evidence: ""
+    note: "Physical iPhone landscape QA for the Organizer shell, critical operation sheets, keyboard, bottom safe area and scroll clearance."
+  - id: phone-only-simulated-edition
+    approved: false
+    evidence: ""
+    note: "Run one complete simulated edition from a phone: confirmations, entry/media review, Next in Line, jury, televote, results/reveal, publishing and official communications."
+  - id: r3-two-operator-physical
+    approved: false
+    evidence: ""
+    note: "On two real authenticated Organizer sessions, request, independently approve and consume one R3 permission mutation; verify self-approval, stale approval and replay are rejected."
+  - id: failure-injection-network-and-concurrency
+    approved: false
+    evidence: ""
+    note: "Inject lost responses, duplicate submits, reconnects and concurrent/stale-version mutations into critical Organizer commands; verify idempotent receipts and conflict recovery."
+  - id: failure-injection-auth-and-permissions
+    approved: false
+    evidence: ""
+    note: "Expire/revoke Organizer authorization during active work; verify fresh-auth, capability revocation and approval expiry fail closed without partial mutation."
+  - id: degraded-offline-and-maintenance
+    approved: false
+    evidence: ""
+    note: "Verify offline/degraded state keeps critical writes unavailable, cached/read-only information understandable, and production maintenance bypass inspection-only through recovery."
+  - id: task-inbox-push-recovery
+    approved: false
+    evidence: ""
+    note: "Verify canonical Task creation/resolution, Inbox seen-vs-resolved semantics, reassignment/capability-loss pruning, push failure/retry/suppression and stale-recipient protection."
+  - id: immutable-audit-and-operation-receipts
+    approved: false
+    evidence: ""
+    note: "Review representative R2/R3 command receipts and audit events, including deleted-account retention, actor/session evidence, second approver and one-time approval consumption."
+  - id: production-organizer-smoke
+    approved: false
+    evidence: ""
+    note: "After deployment, verify real production Organizer entry, critical navigation, one safe read-only inspection of each major domain, notifications and no maintenance bypass mutation path."
