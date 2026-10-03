@@ -438,14 +438,14 @@ function RoundsPage() {
                             : "Existing responses in this round can be corrected even if submissions stay closed. Individually locked responses stay locked."
                         }
                         disabled={isBusy}
-                        onClick={() => void changeEditing(round, !round.editing_enabled)}
+                        onClick={() => void requestEditingChange(round, !round.editing_enabled)}
                       />
                       <AdminActionItem
                         icon={Trash2}
                         title="Delete round"
-                        description="Permanently remove this submission round if the database allows it."
+                        description="Remove an unused round. Any round with responses is protected from deletion."
                         tone="danger"
-                        onClick={() => setDeleteTarget(round)}
+                        onClick={() => void requestDelete(round)}
                       />
                     </div>
                   </AdminMoreMenu>
@@ -455,7 +455,7 @@ function RoundsPage() {
                   <button
                     type="button"
                     disabled={isBusy}
-                    onClick={() => void changeStatus(round, isOpen ? "closed" : "open")}
+                    onClick={() => void requestStatusChange(round, isOpen ? "closed" : "open")}
                     className={isOpen ? "admin-action-secondary w-full" : "admin-action-primary w-full"}
                   >
                     {isBusy
@@ -573,26 +573,38 @@ function RoundsPage() {
               onClick={() => void submit()}
               className="admin-action-primary"
             >
-              {busy ? "Saving…" : form.id ? "Save changes" : "Create round"}
+              {busy ? "Preparing…" : form.id ? "Review changes" : "Review new round"}
             </button>
           </div>
         </div>
       </AdminSheet>
 
       <AdminConfirmSheet
-        open={Boolean(deleteTarget)}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={removeRound}
-        title="Delete submission round?"
+        open={Boolean(pendingChange)}
+        onClose={cancelPendingChange}
+        onConfirm={applyPendingChange}
+        title={pendingChange ? roundChangeTitle(pendingChange) : "Confirm round change"}
         description={
-          <>
-            <strong className="text-foreground">{deleteTarget?.name}</strong> will be permanently removed.
-            Any dependent responses are still protected by the database rules, so deletion may be refused if the round is already in use.
-          </>
+          pendingChange ? (
+            <RoundImpactPreview pending={pendingChange} />
+          ) : (
+            "Review the server-computed impact before applying this round change."
+          )
         }
-        confirmLabel="Delete round"
-        danger
-        busy={Boolean(deleteTarget && roundBusy === deleteTarget.id)}
+        confirmLabel={pendingChange ? roundChangeConfirmLabel(pendingChange) : "Apply change"}
+        confirmationText={
+          pendingChange?.preview.riskClass === "R3"
+            ? pendingChange.preview.roundName ?? undefined
+            : undefined
+        }
+        confirmationHint={
+          pendingChange?.preview.riskClass === "R3" && pendingChange.preview.roundName
+            ? `Type ${pendingChange.preview.roundName} to confirm this R3 deletion`
+            : undefined
+        }
+        busy={busy || Boolean(pendingChange?.roundId && roundBusy === pendingChange.roundId)}
+        danger={pendingChange?.preview.riskClass === "R3"}
+        confirmDisabled={Boolean(pendingChange?.preview.blockers.length)}
       />
     </div>
   );
