@@ -30,8 +30,14 @@ for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies rea
     const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
     const email = process.env[`E2E_${state}_EMAIL`];
     const password = process.env[`E2E_${state}_PASSWORD`];
+    const missingConfig = !url || !publishableKey || !email || !password;
+    if (missingConfig && process.env.CI) {
+      throw new Error(
+        `Browser Audit must seed local ${state} credentials; refusing to skip authenticated account-state coverage in CI.`,
+      );
+    }
     test.skip(
-      !url || !publishableKey || !email || !password,
+      missingConfig,
       `${state} browser credentials or E2E Supabase public config are not configured`,
     );
 
