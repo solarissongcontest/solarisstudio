@@ -27,6 +27,28 @@ export type ConfirmationEdition = {
   rounds: ConfirmationRound[];
 };
 
+export type ConfirmationRoundStatusPreview = {
+  riskClass: "R2";
+  roundId: string;
+  roundName: string;
+  editionId: string;
+  requestedStatus: "open" | "closed";
+  currentStatus: ConfirmationRound["status"];
+  expectedVersion: number;
+  responseCount: number;
+  responseLimit: number | null;
+  opensAt: string | null;
+  closesAt: string | null;
+  requiredRequirementCount: number;
+  satisfiedRequirementCount: number;
+  waivedRequirementCount: number;
+  invalidatedRequirementCount: number;
+  expiredClosingTimeWillBeCleared: boolean;
+  futureOpeningTimeWillBecomeNow: boolean;
+  alreadyApplied: boolean;
+  blockers: string[];
+};
+
 export type ConfirmationCalendarRow = {
   id: string;
   country: string;
@@ -151,16 +173,49 @@ export async function deleteConfirmationRound(id: string) {
   return data === true;
 }
 
-export async function setConfirmationRoundStatus(
-  id: string,
-  status: ConfirmationRound["status"],
-) {
-  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_set_round_status", {
-    _id: id,
-    _status: status,
-  });
+export async function previewConfirmationRoundStatus(input: {
+  roundId: string;
+  status: "open" | "closed";
+}): Promise<ConfirmationRoundStatusPreview> {
+  const { data, error } = await confirmationsSupabase.rpc(
+    "admin_confirmation_round_status_preview",
+    {
+      p_round_id: input.roundId,
+      p_status: input.status,
+    },
+  );
   if (error) throw error;
-  return data === true;
+  return data as unknown as ConfirmationRoundStatusPreview;
+}
+
+export async function applyConfirmationRoundStatus(input: {
+  roundId: string;
+  status: "open" | "closed";
+  operationId: string;
+  idempotencyKey: string;
+  expectedVersion: number;
+}) {
+  const { data, error } = await confirmationsSupabase.rpc(
+    "admin_confirmation_apply_round_status",
+    {
+      p_round_id: input.roundId,
+      p_status: input.status,
+      p_operation_id: input.operationId,
+      p_idempotency_key: input.idempotencyKey,
+      p_expected_version: input.expectedVersion,
+    },
+  );
+  if (error) throw error;
+  return data as unknown as {
+    ok: boolean;
+    changed: boolean;
+    riskClass: "R2";
+    roundId: string;
+    previousStatus: ConfirmationRound["status"];
+    status: "open" | "closed";
+    version: number;
+    operationId: string;
+  };
 }
 
 export async function setConfirmationRoundEditing(id: string, enabled: boolean) {
