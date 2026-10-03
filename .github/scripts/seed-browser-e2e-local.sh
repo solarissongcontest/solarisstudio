@@ -176,7 +176,7 @@ set country_id = excluded.country_id,
     updated_at = now();
 "
 
-[[ "$(db_scalar "select count(*) from public.studio2_role_assignments where user_id='$ORGANIZER_ID'::uuid and role_key='organizer';")" == "1" ]]   || fail "Organizer authoritative role was not created"
+[[ "$(db_scalar "select count(*) from public.studio2_role_assignments where user_id in ('$ORGANIZER_ID'::uuid,'$ORGANIZER_B_ID'::uuid) and role_key='organizer';")" == "2" ]]   || fail "Both Organizer authoritative roles were not created"
 [[ "$(db_scalar "select count(*) from public.studio2_role_assignments where user_id='$ORGANIZER_B_ID'::uuid and role_key='organizer';")" == "1" ]]   || fail "Second Organizer authoritative role was not created"
 [[ "$(db_scalar "select status from public.country_accounts where user_id='$COUNTRY_ID'::uuid;")" == "active" ]]   || fail "Country browser account was not active"
 [[ "$(db_scalar "select status from public.country_accounts where user_id='$SUSPENDED_ID'::uuid;")" == "suspended" ]]   || fail "Suspended browser account was not suspended"
