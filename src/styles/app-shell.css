@@ -2057,10 +2057,18 @@ html[data-solaris-keyboard-open] .solaris-app-search-dialog {
 }
 
 html[data-solaris-app] .app-main[data-solaris-app-mode="true"] {
-  padding-bottom:
-    calc(var(--solaris-app-bottom-obstruction, 0px) + 1.25rem) !important;
+  padding-bottom: 1.25rem !important;
   scroll-padding-bottom:
     calc(var(--solaris-app-bottom-obstruction, 0px) + 1.25rem);
+}
+
+html[data-solaris-app] .solaris-app-bottom-spacer {
+  display: block;
+  width: 100%;
+  height: calc(var(--solaris-app-bottom-obstruction, 0px) + 1.25rem);
+  min-height: calc(var(--solaris-app-bottom-obstruction, 0px) + 1.25rem);
+  flex: 0 0 auto;
+  pointer-events: none;
 }
 
 html[data-solaris-app]
