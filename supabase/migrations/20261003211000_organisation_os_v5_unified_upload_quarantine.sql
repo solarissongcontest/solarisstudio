@@ -86,13 +86,13 @@ set search_path = pg_catalog, public, private
 as $allowed$
   select exists (
     select 1
-    from public.studio2_upload_authorizations authorization
-    where authorization.quarantine_path = p_path
-      and authorization.status = 'prepared'
-      and authorization.expires_at > now()
+    from public.studio2_upload_authorizations as upload_auth
+    where upload_auth.quarantine_path = p_path
+      and upload_auth.status = 'prepared'
+      and upload_auth.expires_at > now()
       and (
-        authorization.actor_id = p_actor
-        or (authorization.actor_id is null and p_actor is null)
+        upload_auth.actor_id = p_actor
+        or (upload_auth.actor_id is null and p_actor is null)
       )
   );
 $allowed$;

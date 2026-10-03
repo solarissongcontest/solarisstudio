@@ -34,6 +34,10 @@ describe("Organisation OS V5 unified upload safety", () => {
     quarantine.indexOf("create or replace function public.studio2_prepare_upload"),
     quarantine.indexOf("-- Final application buckets"),
   );
+  const uploadExtension = quarantine.slice(
+    quarantine.indexOf("create or replace function private.studio2_upload_extension"),
+    quarantine.indexOf("create or replace function public.studio2_prepare_upload"),
+  );
   const finalizer = source("supabase/functions/solaris-upload-finalize/index.ts");
 
   it("keeps one raw Storage upload implementation for all production source", () => {
@@ -177,8 +181,9 @@ describe("Organisation OS V5 unified upload safety", () => {
   });
 
   it("restricts public custom-font delivery to structurally validated WOFF2", () => {
-    expect(prepareUpload).toContain("v_ext = 'woff2'");
-    expect(prepareUpload).toContain("lower(p_mime) = 'font/woff2'");
+    expect(uploadExtension).toContain("v_ext = 'woff2'");
+    expect(uploadExtension).toContain("v_mime = 'font/woff2'");
+    expect(uploadExtension).toContain("v_mime text := lower(coalesce(p_mime, ''))");
     expect(prepareUpload).toContain("v_mime <> 'font/woff2'");
     expect(prepareUpload).not.toContain("'font/ttf'");
     expect(prepareUpload).not.toContain("'font/otf'");
@@ -238,11 +243,11 @@ describe("Organisation OS V5 unified upload safety", () => {
   });
 
   it("rejects extension and MIME mismatches before bytes enter quarantine", () => {
-    expect(prepareUpload).toContain("v_mime = 'image/jpeg' and v_ext in ('jpg', 'jpeg')");
-    expect(prepareUpload).toContain("v_mime = 'image/png' and v_ext = 'png'");
-    expect(prepareUpload).toContain("v_mime = 'image/webp' and v_ext = 'webp'");
-    expect(prepareUpload).toContain("v_ext = 'woff2'");
-    expect(prepareUpload).toContain("v_mime = 'font/woff2'");
+    expect(uploadExtension).toContain("v_mime = 'image/jpeg' and v_ext in ('jpg', 'jpeg')");
+    expect(uploadExtension).toContain("v_mime = 'image/png' and v_ext = 'png'");
+    expect(uploadExtension).toContain("v_mime = 'image/webp' and v_ext = 'webp'");
+    expect(uploadExtension).toContain("v_ext = 'woff2'");
+    expect(uploadExtension).toContain("v_mime = 'font/woff2'");
 
     const evidenceBridge = source(
       "supabase/migrations/20261003214000_organisation_os_v5_integrity_upload_quarantine.sql",
