@@ -5,6 +5,7 @@ import {
   initializeImageMagick,
   MagickFormat,
 } from "npm:@imagemagick/magick-wasm@0.0.30";
+import woff2 from "npm:wawoff2@2.0.1";
 
 const magickWasm = await Deno.readFile(
   new URL(
@@ -483,7 +484,85 @@ function processPublicImage(
   });
 }
 
-function validateWoff2(bytes: Uint8Array) {
+function sfntTag(bytes: Uint8Array, offset: number) {
+  return ascii(bytes, offset, 4);
+}
+
+function validateSfnt(bytes: Uint8Array) {
+  if (bytes.length < 12) throw new Error("WOFF2 decompressed into a truncated font.");
+
+  const version = be32(bytes, 0);
+  const versionTag = ascii(bytes, 0, 4);
+  if (
+    version !== 0x00010000 &&
+    versionTag !== "OTTO" &&
+    versionTag !== "true" &&
+    versionTag !== "typ1"
+  ) {
+    throw new Error("WOFF2 decompressed into an unsupported SFNT flavor.");
+  }
+
+  const numTables = be16(bytes, 4);
+  if (numTables <= 0 || numTables > 128 || 12 + numTables * 16 > bytes.length) {
+    throw new Error("WOFF2 SFNT table directory is malformed.");
+  }
+
+  const tables = new Map<string, { offset: number; length: number }>();
+  for (let index = 0; index < numTables; index += 1) {
+    const entry = 12 + index * 16;
+    const tag = sfntTag(bytes, entry);
+    const offset = be32(bytes, entry + 8);
+    const length = be32(bytes, entry + 12);
+    if (!/^[\x20-\x7e]{4}$/.test(tag) || tables.has(tag)) {
+      throw new Error("WOFF2 SFNT contains an invalid or duplicate table tag.");
+    }
+    if (length <= 0 || offset > bytes.length || length > bytes.length - offset) {
+      throw new Error(`WOFF2 SFNT table ${tag} is outside the decompressed font.`);
+    }
+    tables.set(tag, { offset, length });
+  }
+
+  for (const required of ["head", "maxp", "name", "cmap"]) {
+    if (!tables.has(required)) {
+      throw new Error(`WOFF2 font is missing required ${required} table.`);
+    }
+  }
+  if (!tables.has("glyf") && !tables.has("CFF ") && !tables.has("CFF2")) {
+    throw new Error("WOFF2 font has no supported glyph-outline table.");
+  }
+
+  const head = tables.get("head")!;
+  const maxp = tables.get("maxp")!;
+  const name = tables.get("name")!;
+  const cmap = tables.get("cmap")!;
+  if (head.length < 54 || maxp.length < 6 || name.length < 6 || cmap.length < 4) {
+    throw new Error("WOFF2 required font tables are truncated.");
+  }
+  if (be32(bytes, head.offset + 12) !== 0x5f0f3cf5) {
+    throw new Error("WOFF2 head table magic number is invalid.");
+  }
+  const unitsPerEm = be16(bytes, head.offset + 18);
+  if (unitsPerEm < 16 || unitsPerEm > 16384) {
+    throw new Error("WOFF2 units-per-em value is outside the OpenType safety range.");
+  }
+  const numGlyphs = be16(bytes, maxp.offset + 4);
+  if (numGlyphs <= 0) throw new Error("WOFF2 font contains no glyphs.");
+  if (be16(bytes, cmap.offset) !== 0) {
+    throw new Error("WOFF2 cmap table version is invalid.");
+  }
+  const nameCount = be16(bytes, name.offset + 2);
+  if (nameCount <= 0) throw new Error("WOFF2 font contains no naming records.");
+
+  return {
+    sfntFlavor: versionTag === "\u0000\u0001\u0000\u0000" ? "truetype" : versionTag,
+    numTables,
+    numGlyphs,
+    unitsPerEm,
+    tableTags: [...tables.keys()].sort(),
+  };
+}
+
+async function processWoff2Font(bytes: Uint8Array) {
   if (bytes.length < 48 || ascii(bytes, 0, 4) !== "wOF2") {
     throw new Error("Custom font is not a valid WOFF2 file.");
   }
@@ -497,16 +576,33 @@ function validateWoff2(bytes: Uint8Array) {
     numTables <= 0 ||
     reserved !== 0 ||
     totalSfntSize <= 0 ||
+    totalSfntSize > 16 * 1024 * 1024 ||
     totalCompressedSize <= 0 ||
     totalCompressedSize > bytes.length
   ) {
     throw new Error("Custom WOFF2 font header is malformed.");
   }
+
+  const decompressed = Uint8Array.from(await woff2.decompress(bytes));
+  if (decompressed.length !== totalSfntSize) {
+    throw new Error("WOFF2 decompressed size does not match its authenticated header.");
+  }
+  const sfnt = validateSfnt(decompressed);
+
+  const normalized = Uint8Array.from(await woff2.compress(decompressed));
+  if (normalized.length < 48 || ascii(normalized, 0, 4) !== "wOF2") {
+    throw new Error("Solaris could not normalize the verified font back to WOFF2.");
+  }
+
   return {
-    format: "woff2",
-    numTables,
-    totalSfntSize,
-    totalCompressedSize,
+    bytes: normalized,
+    metadata: {
+      format: "woff2",
+      sourceBytes: bytes.length,
+      normalizedBytes: normalized.length,
+      decompressedBytes: decompressed.length,
+      ...sfnt,
+    },
   };
 }
 
@@ -720,6 +816,7 @@ Deno.serve(async (request) => {
     "height" in detected! && typeof detected!.height === "number" ? detected!.height : null;
   let thumbnailWidth: number | null = null;
   let thumbnailHeight: number | null = null;
+  let fontProcessingMetadata: Record<string, unknown> | null = null;
   let processingDecision = "verified_original";
 
   try {
@@ -741,8 +838,10 @@ Deno.serve(async (request) => {
       thumbnailHeight = processed.thumbnailHeight;
       processingDecision = "decoded_oriented_stripped_reencoded";
     } else if (row.domain === "country_font") {
-      validateWoff2(bytes);
-      processingDecision = "validated_woff2_delivery";
+      const processedFont = await processWoff2Font(bytes);
+      publishBytes = processedFont.bytes;
+      processingDecision = "decompressed_validated_recompressed_woff2";
+      fontProcessingMetadata = processedFont.metadata;
     }
   } catch (processingError) {
     const message =
@@ -789,6 +888,7 @@ Deno.serve(async (request) => {
     thumbnailWidth,
     thumbnailHeight,
     fontDeliveryFormat: row.domain === "country_font" ? "woff2" : null,
+    fontProcessing: fontProcessingMetadata,
     malwareScan: "not_available_in_current_runtime",
     malwareScanSupported: false,
     moderationDecision: "auto_approved",
