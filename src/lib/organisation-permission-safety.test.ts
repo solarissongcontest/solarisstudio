@@ -29,6 +29,8 @@ describe("Organisation OS V5 R3 permission safety", () => {
     expect(migration).toContain("private.studio2_claim_operation(");
     expect(migration).toContain("'permissions.' || p_change_kind");
     expect(migration).toContain("'R3'");
+    expect(migration).toContain("'expiresAt', p_expires_at");
+    expect(migration).toContain("'expectedVersion', p_expected_version");
     expect(migration).toContain("private.studio2_complete_operation");
     expect(migration).toContain("'operationId', v_operation_id");
   });
