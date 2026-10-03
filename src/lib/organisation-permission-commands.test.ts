@@ -1,3 +1,4 @@
+// Validation run 2: exact R3 permission code plus a no-op test marker.
 import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
