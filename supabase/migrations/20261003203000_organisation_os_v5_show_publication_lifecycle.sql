@@ -20,6 +20,7 @@ create table if not exists public.studio2_show_publication_controls (
   source_show_updated_at timestamptz,
   source_result_version bigint,
   scheduled_by uuid references auth.users(id) on delete set null,
+  scheduled_operation_id uuid,
   last_failure text,
   last_failure_at timestamptz,
   updated_by uuid references auth.users(id) on delete set null,
@@ -257,6 +258,46 @@ select
 from public.shows show
 on conflict (show_id) do nothing;
 
+create or replace function private.studio2_create_show_publication_control()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $bootstrap$
+begin
+  insert into public.studio2_show_publication_controls (
+    show_id,
+    edition_id,
+    state,
+    frozen_config,
+    source_show_updated_at
+  )
+  values (
+    new.id,
+    new.edition_id,
+    case
+      when new.published
+        and private.studio2_publication_has_any(new.publication_config)
+      then 'public'
+      else 'draft'
+    end,
+    private.studio2_normalise_publication_config(new.publication_config),
+    new.updated_at
+  )
+  on conflict (show_id) do nothing;
+
+  return new;
+end
+$bootstrap$;
+
+revoke all on function private.studio2_create_show_publication_control()
+  from public, anon, authenticated;
+
+drop trigger if exists studio2_create_show_publication_control on public.shows;
+create trigger studio2_create_show_publication_control
+after insert on public.shows
+for each row execute function private.studio2_create_show_publication_control();
+
 create or replace function private.studio2_ensure_show_publication_control(
   p_show_id uuid
 )
@@ -352,28 +393,6 @@ begin
     raise exception 'Publishing read capability required' using errcode = '42501';
   end if;
 
-  insert into public.studio2_show_publication_controls (
-    show_id,
-    edition_id,
-    state,
-    frozen_config,
-    source_show_updated_at
-  )
-  select
-    show.id,
-    show.edition_id,
-    case
-      when show.published
-        and private.studio2_publication_has_any(show.publication_config)
-      then 'public'
-      else 'draft'
-    end,
-    private.studio2_normalise_publication_config(show.publication_config),
-    show.updated_at
-  from public.shows show
-  where show.edition_id = p_edition_id
-  on conflict (show_id) do nothing;
-
   select coalesce(
     jsonb_agg(
       jsonb_build_object(
@@ -387,6 +406,7 @@ begin
         'sourceShowUpdatedAt', control.source_show_updated_at,
         'sourceResultVersion', control.source_result_version,
         'scheduledBy', control.scheduled_by,
+        'scheduledOperationId', control.scheduled_operation_id,
         'lastFailure', control.last_failure,
         'lastFailureAt', control.last_failure_at,
         'updatedAt', control.updated_at
@@ -439,7 +459,14 @@ begin
     raise exception 'Show not found' using errcode = 'P0002';
   end if;
 
-  v_control := private.studio2_ensure_show_publication_control(p_show_id);
+  select *
+  into v_control
+  from public.studio2_show_publication_controls
+  where show_id = p_show_id;
+
+  if v_control.show_id is null then
+    raise exception 'Publication control not found for show' using errcode = 'P0002';
+  end if;
 
   if v_target not in ('draft', 'scheduled', 'public', 'hidden') then
     raise exception 'Unknown publication state' using errcode = '22023';
@@ -654,6 +681,7 @@ begin
       source_show_updated_at = (v_preview ->> 'sourceShowUpdatedAt')::timestamptz,
       source_result_version = nullif(v_preview ->> 'sourceResultVersion', '')::bigint,
       scheduled_by = v_actor,
+      scheduled_operation_id = v_operation_id,
       last_failure = null,
       last_failure_at = null,
       updated_by = v_actor,
@@ -679,6 +707,7 @@ begin
       source_show_updated_at = v_show.updated_at,
       source_result_version = nullif(v_preview ->> 'sourceResultVersion', '')::bigint,
       scheduled_by = null,
+      scheduled_operation_id = null,
       last_failure = null,
       last_failure_at = null,
       updated_by = v_actor,
@@ -710,6 +739,7 @@ begin
       source_show_updated_at = v_show.updated_at,
       source_result_version = null,
       scheduled_by = null,
+      scheduled_operation_id = null,
       last_failure = null,
       last_failure_at = null,
       updated_by = v_actor,
@@ -882,6 +912,7 @@ begin
         scheduled_from_state = null,
         source_show_updated_at = v_show.updated_at,
         scheduled_by = null,
+        scheduled_operation_id = null,
         last_failure = null,
         last_failure_at = null,
         updated_at = now()
@@ -900,6 +931,7 @@ begin
       insert into public.studio2_show_publication_executions (
         show_id,
         edition_id,
+        scheduled_operation_id,
         status,
         intended_config,
         source_show_updated_at,
@@ -909,6 +941,7 @@ begin
       values (
         v_control.show_id,
         v_control.edition_id,
+        v_control.scheduled_operation_id,
         'succeeded',
         v_control.frozen_config,
         v_control.source_show_updated_at,
@@ -925,6 +958,7 @@ begin
         scheduled_for = null,
         scheduled_from_state = null,
         scheduled_by = null,
+        scheduled_operation_id = null,
         last_failure = v_failure,
         last_failure_at = now(),
         updated_at = now()
@@ -943,6 +977,7 @@ begin
       values (
         v_control.show_id,
         v_control.edition_id,
+        v_control.scheduled_operation_id,
         'blocked',
         v_control.frozen_config,
         v_control.source_show_updated_at,
