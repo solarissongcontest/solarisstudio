@@ -281,6 +281,24 @@ Deno.serve(async (request) => {
     return json({ error: row.rejection_reason || "Upload authorization is no longer usable." }, 409);
   }
 
+  const { data: platformState, error: platformStateError } = await service
+    .from("studio2_platform_operational_state")
+    .select("mode")
+    .eq("singleton", true)
+    .maybeSingle();
+
+  if (platformStateError || !platformState) {
+    console.error("[solaris-upload-finalize] platform state lookup failed", platformStateError);
+    return json({ error: "Solaris platform state could not be verified." }, 503);
+  }
+
+  if (platformState.mode === "read_only" || platformState.mode === "maintenance") {
+    return json(
+      { error: "Upload publication is unavailable while Solaris is Read-only or in Maintenance." },
+      409,
+    );
+  }
+
   if (new Date(row.expires_at).getTime() <= Date.now()) {
     await service
       .from("studio2_upload_authorizations")
