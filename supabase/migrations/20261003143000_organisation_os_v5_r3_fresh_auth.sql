@@ -32,7 +32,7 @@ begin
   into
     v_method,
     v_authenticated_at
-  from jsonb_array_elements(coalesce(v_claims -> 'amr', '[]'::jsonb)) entry
+  from jsonb_array_elements(coalesce(v_claims -> 'amr', '[]'::jsonb)) as amr(entry)
   where coalesce(entry ->> 'method', '') not in ('token_refresh', 'anonymous')
     and coalesce(entry ->> 'timestamp', '') ~ '^[0-9]+([.][0-9]+)?$'
   order by (entry ->> 'timestamp')::double precision desc
