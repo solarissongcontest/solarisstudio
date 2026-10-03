@@ -122,13 +122,14 @@ domains:
       - src/lib/organisation-high-risk-operations-v5.test.ts
 
   - id: publication-layer
-    status: partial
+    status: verified
     source_sections: [118, 119]
     evidence:
+      - supabase/migrations/20261003203000_organisation_os_v5_show_publication_lifecycle.sql
+      - src/lib/organisation-v5-show-publication-lifecycle.test.ts
+      - src/lib/show-publication-lifecycle.ts
       - src/routes/_authenticated/admin/publication/$slug.tsx
-      - src/lib/production-organizer-audit-regressions.test.ts
-    blocker: "Publication preflight is strong, but Draft/Scheduled/Public/Hidden transition enforcement needs one explicit server transition inventory."
-
+    note: "Draft/Scheduled/Public/Hidden is canonical and versioned; scheduled intent is frozen and revalidated at execution; direct browser visibility writes are blocked."
   - id: incident
     status: implemented
     source_sections: [122]
