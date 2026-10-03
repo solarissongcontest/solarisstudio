@@ -48,12 +48,13 @@ domains:
     note: "Winner select/clear is version-bound, idempotent, audited and accepts only active accepted NF candidates."
 
   - id: next-in-line-control
-    status: partial
+    status: implemented
     source_sections: [59, 60, 61]
     evidence:
+      - supabase/migrations/20261003183000_organisation_os_v5_next_in_line_runtime.sql
+      - src/lib/organisation-v5-next-in-line-runtime.test.ts
       - src/routes/_authenticated/admin/next-in-line.tsx
-      - src/lib/jury-next-in-line-contract.test.ts
-    blocker: "Explicit organiser administration exists, but lifecycle transitions are not yet proven by one server-authoritative V5 transition contract."
+    note: "Draft/Scheduled/Open/Closed/Cancelled is server-authoritative, version-bound and operated from the Organizer surface."
 
   - id: public-design-preset-moderation
     status: implemented
