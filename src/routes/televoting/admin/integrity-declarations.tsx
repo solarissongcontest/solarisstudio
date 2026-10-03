@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   AlertTriangle,
@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AdminCard,
   AdminCardHeader,
+  AdminConfirmSheet,
   AdminEmptyState,
   AdminPageHeader,
   AdminStatus,
@@ -24,6 +25,11 @@ import {
   listMergedIntegrityDeclarations,
 } from "@/integrations/televoting/integrity-declarations.functions";
 import type { IntegrityDeclarationRow } from "@/integrations/televoting/integrity-declarations.server";
+import {
+  applyVotingDeclarationInvalidation,
+  previewVotingDeclarationInvalidation,
+  type VotingDeclarationInvalidationPreview,
+} from "@/lib/voting-declaration-admin";
 
 export const Route = createFileRoute("/televoting/admin/integrity-declarations")({
   head: () => ({
@@ -39,10 +45,19 @@ type Filter = "all" | "signed" | "submitted" | "unsigned";
 
 function IntegrityDeclarationsPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const getAdmin = useServerFn(getMergedTelevotingAdmin);
   const getDeclarations = useServerFn(listMergedIntegrityDeclarations);
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
+  const [pendingInvalidation, setPendingInvalidation] = useState<{
+    row: IntegrityDeclarationRow;
+    preview: VotingDeclarationInvalidationPreview;
+    reason: string;
+    operationId: string;
+    idempotencyKey: string;
+  } | null>(null);
+
 
   const { data: admin, isLoading: adminLoading } = useQuery({
     queryKey: ["merged-televoting-admin"],
@@ -63,6 +78,40 @@ function IntegrityDeclarationsPage() {
     queryFn: () => getDeclarations({ data: { limit: 500, signedOnly: false } }),
     enabled: Boolean(admin),
     refetchInterval: 60_000,
+  });
+
+  const previewInvalidation = useMutation({
+    mutationFn: previewVotingDeclarationInvalidation,
+    onSuccess: async (preview, preflightId) => {
+      if (preview.alreadyApplied) {
+        await queryClient.invalidateQueries({ queryKey: ["merged-integrity-declarations"] });
+        return;
+      }
+      const row = rows.find((item) => item.id === preflightId);
+      if (!row) return;
+      const operationId = crypto.randomUUID();
+      setPendingInvalidation({
+        row,
+        preview,
+        reason: "",
+        operationId,
+        idempotencyKey: operationId,
+      });
+    },
+  });
+
+  const invalidateDeclaration = useMutation({
+    mutationFn: async (pending: NonNullable<typeof pendingInvalidation>) =>
+      applyVotingDeclarationInvalidation({
+        preview: pending.preview,
+        reason: pending.reason.trim(),
+        operationId: pending.operationId,
+        idempotencyKey: pending.idempotencyKey,
+      }),
+    onSuccess: async () => {
+      setPendingInvalidation(null);
+      await queryClient.invalidateQueries({ queryKey: ["merged-integrity-declarations"] });
+    },
   });
 
   const now = Date.now();
@@ -152,7 +201,14 @@ function IntegrityDeclarationsPage() {
         <AdminCard className="!border-rose-200/15 !bg-rose-200/[0.045]"><p className="text-sm text-rose-100">{error instanceof Error ? error.message : "Integrity declarations could not be loaded."}</p></AdminCard>
       ) : filtered.length ? (
         <div className="space-y-3">
-          {filtered.map((row) => <DeclarationCard key={row.id} row={row} />)}
+          {filtered.map((row) => (
+            <DeclarationCard
+              key={row.id}
+              row={row}
+              busy={previewInvalidation.isPending || invalidateDeclaration.isPending}
+              onInvalidate={(preflightId) => previewInvalidation.mutate(preflightId)}
+            />
+          ))}
         </div>
       ) : (
         <AdminCard>
@@ -163,6 +219,60 @@ function IntegrityDeclarationsPage() {
           />
         </AdminCard>
       )}
+
+      <AdminConfirmSheet
+        open={Boolean(pendingInvalidation)}
+        onClose={() => {
+          if (!invalidateDeclaration.isPending) setPendingInvalidation(null);
+        }}
+        onConfirm={async () => {
+          if (!pendingInvalidation) return;
+          await invalidateDeclaration.mutateAsync(pendingInvalidation);
+        }}
+        title="Invalidate voting declaration?"
+        description={
+          pendingInvalidation ? (
+            <div className="space-y-3">
+              <p>
+                This invalidates the declaration signed by{" "}
+                <strong className="text-foreground">{pendingInvalidation.row.username}</strong>.
+                It does not silently delete or invalidate the ballot; ballot action remains a
+                separate governed integrity decision.
+              </p>
+              <p>
+                Declaration v{pendingInvalidation.preview.statementVersion} · required v
+                {pendingInvalidation.preview.requiredStatementVersion} · state{" "}
+                {declarationLabel(pendingInvalidation.preview.state)}.
+              </p>
+              <label className="block">
+                <span className="text-xs font-semibold text-foreground">Reason</span>
+                <textarea
+                  value={pendingInvalidation.reason}
+                  onChange={(event) =>
+                    setPendingInvalidation((value) =>
+                      value ? { ...value, reason: event.target.value } : value,
+                    )
+                  }
+                  placeholder="Why this signed declaration is no longer valid"
+                  className="admin-input mt-2 min-h-24 resize-y py-2"
+                />
+              </label>
+            </div>
+          ) : (
+            "Review the declaration before invalidating it."
+          )
+        }
+        confirmLabel="Invalidate declaration"
+        confirmationText={pendingInvalidation?.row.username}
+        confirmationHint={
+          pendingInvalidation
+            ? `Type ${pendingInvalidation.row.username} to confirm invalidation`
+            : undefined
+        }
+        busy={invalidateDeclaration.isPending}
+        confirmDisabled={(pendingInvalidation?.reason.trim().length ?? 0) < 5}
+        danger
+      />
 
       {unsignedCount > 0 ? (
         <AdminCard className="!border-sky-200/10 !bg-sky-200/[0.025]">
@@ -179,16 +289,17 @@ function IntegrityDeclarationsPage() {
   );
 }
 
-function DeclarationCard({ row }: { row: IntegrityDeclarationRow }) {
-  const expired = !row.submitted_at && new Date(row.expires_at).getTime() <= Date.now();
-  const state = row.submitted_at
-    ? "Submitted after declaration"
-    : row.attested_at
-      ? "Signed, not submitted"
-      : expired
-        ? "Warning expired"
-        : "Awaiting decision";
-  const stateTone = row.submitted_at ? "ready" : row.attested_at ? "attention" : expired ? "neutral" : "info";
+function DeclarationCard({
+  row,
+  busy,
+  onInvalidate,
+}: {
+  row: IntegrityDeclarationRow;
+  busy: boolean;
+  onInvalidate: (preflightId: string) => void;
+}) {
+  const state = declarationLabel(row.declaration_state);
+  const stateTone = declarationTone(row.declaration_state);
 
   return (
     <AdminCard className="!p-4 sm:!p-5">
@@ -202,7 +313,19 @@ function DeclarationCard({ row }: { row: IntegrityDeclarationRow }) {
           <p className="mt-1 text-xs text-muted-foreground">{row.edition_name ? `${row.edition_name} · ` : ""}{row.round_name}</p>
           <p className="mt-1 text-[11px] text-muted-foreground">Automatic check {new Date(row.created_at).toLocaleString()}</p>
         </div>
-        <AdminStatus tone={stateTone}>{state}</AdminStatus>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <AdminStatus tone={stateTone}>{state}</AdminStatus>
+          {row.declaration_state === "signed" || row.declaration_state === "wrong_version" ? (
+            <button
+              type="button"
+              className="admin-action-danger !min-h-9 !px-3"
+              disabled={busy}
+              onClick={() => onInvalidate(row.id)}
+            >
+              Invalidate
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-2">
@@ -253,16 +376,45 @@ function DeclarationCard({ row }: { row: IntegrityDeclarationRow }) {
         <summary className="cursor-pointer text-sm font-semibold">Declaration & submission trail</summary>
         <div className="mt-4 space-y-3 text-xs leading-5">
           <TimelineRow icon={ShieldAlert} label="Automatic warning generated" value={new Date(row.created_at).toLocaleString()} />
-          {row.attested_at ? <TimelineRow icon={UserCheck} label={`Signed by ${row.signed_name ?? row.username}`} value={new Date(row.attested_at).toLocaleString()} /> : <TimelineRow icon={Clock3} label="No declaration signed" value={expired ? "Warning expired without submission" : "Voter can still change the ballot or sign"} />}
+          {row.attested_at ? (
+            <TimelineRow
+              icon={UserCheck}
+              label={`Signed by ${row.signed_name ?? row.username}`}
+              value={new Date(row.attested_at).toLocaleString()}
+            />
+          ) : (
+            <TimelineRow
+              icon={Clock3}
+              label="No declaration signed"
+              value={
+                row.declaration_state === "missing"
+                  ? "Declaration deadline expired unsigned"
+                  : "Voter can still change the ballot or sign"
+              }
+            />
+          )}
           {row.submitted_at ? <TimelineRow icon={CheckCircle2} label="Ballot submitted" value={`${new Date(row.submitted_at).toLocaleString()}${row.submission_status ? ` · ${humanize(row.submission_status)}` : ""}`} /> : null}
 
           {row.attestation_text ? (
             <div className="rounded-xl border border-rose-200/10 bg-rose-200/[0.035] p-3">
-              <p className="admin-section-label">Recorded declaration · v{row.statement_version}</p>
+              <p className="admin-section-label">
+                Recorded declaration · v{row.statement_version} · required v
+                {row.required_statement_version}
+              </p>
               <p className="mt-2 whitespace-pre-line text-xs leading-5 text-muted-foreground">{row.attestation_text}</p>
             </div>
           ) : null}
           {row.submission_id ? <p className="break-all text-[10px] text-muted-foreground">Submission ID: {row.submission_id}</p> : null}
+          {row.declaration_invalidated_at ? (
+            <div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.045] p-3">
+              <p className="text-xs font-semibold text-rose-100">
+                Declaration invalidated {new Date(row.declaration_invalidated_at).toLocaleString()}
+              </p>
+              <p className="mt-1 text-[11px] leading-5 text-muted-foreground">
+                {row.declaration_invalidation_reason ?? "No invalidation reason recorded."}
+              </p>
+            </div>
+          ) : null}
         </div>
       </details>
     </AdminCard>
@@ -279,6 +431,37 @@ function Metric({ icon: Icon, label, value, attention = false }: { icon: typeof 
 
 function MiniMetric({ label, value }: { label: string; value: string }) {
   return <div className="rounded-lg border border-white/[0.06] bg-black/10 p-2.5 text-center"><p className="numeric text-sm font-bold text-foreground">{value}</p><p className="mt-1 text-[9px] uppercase tracking-[0.1em] text-muted-foreground">{label}</p></div>;
+}
+
+function declarationLabel(state: IntegrityDeclarationRow["declaration_state"]) {
+  switch (state) {
+    case "required":
+      return "Required";
+    case "signed":
+      return "Signed";
+    case "missing":
+      return "Missing";
+    case "wrong_version":
+      return "Wrong version";
+    case "invalidated":
+      return "Invalidated";
+  }
+}
+
+function declarationTone(
+  state: IntegrityDeclarationRow["declaration_state"],
+): "ready" | "attention" | "blocked" | "info" | "neutral" {
+  switch (state) {
+    case "signed":
+      return "ready";
+    case "required":
+      return "info";
+    case "missing":
+    case "wrong_version":
+      return "attention";
+    case "invalidated":
+      return "blocked";
+  }
 }
 
 function severityTone(severity: string): "ready" | "attention" | "blocked" | "info" | "neutral" {
