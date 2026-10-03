@@ -106,12 +106,18 @@ language plpgsql
 security definer
 set search_path = pg_catalog, public, private
 as $permtrigger$
-declare
-  v_user_id uuid;
 begin
-  v_user_id := case when tg_op = 'DELETE' then old.user_id else new.user_id end;
-  perform private.studio2_bump_permission_version(v_user_id);
-  return case when tg_op = 'DELETE' then old else new end;
+  if tg_op = 'DELETE' then
+    perform private.studio2_bump_permission_version(old.user_id);
+    return old;
+  end if;
+
+  if tg_op = 'UPDATE' and old.user_id is distinct from new.user_id then
+    perform private.studio2_bump_permission_version(old.user_id);
+  end if;
+
+  perform private.studio2_bump_permission_version(new.user_id);
+  return new;
 end
 $permtrigger$;
 
@@ -360,6 +366,7 @@ declare
   v_changed boolean := false;
   v_before jsonb;
   v_after jsonb;
+  v_before_expires_at timestamptz;
   v_result jsonb;
   v_table_name text;
 begin
@@ -411,16 +418,15 @@ begin
   if p_change_kind = 'assign_role' then
     v_table_name := 'studio2_role_assignments';
 
-    select to_jsonb(assignment)
-    into v_before
+    select to_jsonb(assignment), assignment.expires_at
+    into v_before, v_before_expires_at
     from public.studio2_role_assignments assignment
     where assignment.user_id = p_user_id
       and assignment.role_key = p_key
       and assignment.edition_id is not distinct from p_edition_id;
 
     if v_before is null
-       or (v_before ->> 'expires_at') is distinct from
-          case when p_expires_at is null then null else to_jsonb(p_expires_at) #>> '{}' end then
+       or v_before_expires_at is distinct from p_expires_at then
       insert into public.studio2_role_assignments (
         user_id,
         role_key,
@@ -472,17 +478,17 @@ begin
 
   elsif p_change_kind = 'grant_capability' then
     v_table_name := 'studio2_capability_grants';
+    v_before_expires_at := null;
 
-    select to_jsonb(grant_row)
-    into v_before
+    select to_jsonb(grant_row), grant_row.expires_at
+    into v_before, v_before_expires_at
     from public.studio2_capability_grants grant_row
     where grant_row.user_id = p_user_id
       and grant_row.capability = p_key
       and grant_row.edition_id is not distinct from p_edition_id;
 
     if v_before is null
-       or (v_before ->> 'expires_at') is distinct from
-          case when p_expires_at is null then null else to_jsonb(p_expires_at) #>> '{}' end then
+       or v_before_expires_at is distinct from p_expires_at then
       insert into public.studio2_capability_grants (
         user_id,
         capability,
