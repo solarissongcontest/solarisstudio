@@ -28,7 +28,9 @@ import {
   type AdminAppTabId,
 } from "@/lib/admin-app-navigation";
 import { useOrganizerTaskCountV5 } from "@/lib/admin-tasks-v5";
+import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { prefersReducedMotion } from "@/lib/interaction-physics";
+import { resolveOrganizerV6Screen } from "@/lib/organizer-v6-screen-registry";
 import { useEditions } from "@/lib/data";
 import { useAdminContext } from "./AdminContext";
 import { AdminFeatureBoundary } from "./AdminFeatureBoundary";
@@ -47,6 +49,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const navigate = useNavigate();
+  const screen = resolveOrganizerV6Screen(pathname);
   const { editionId } = useAdminContext();
   const { data: editions = [] } = useEditions();
 
@@ -171,7 +174,9 @@ export function AdminFrame({ children }: { children: ReactNode }) {
       ? resetAdminAppTabToRoot(item.id, slug)
       : getAdminAppTabDestination(item.id, slug);
     markAdminNavigationRestore(target);
-    void navigate({ to: adminEntryHref(target) as any });
+    void runAppViewTransition(active ? "pop" : "tab", () =>
+      navigate({ to: adminEntryHref(target) as any }),
+    );
   };
 
   return (
@@ -213,6 +218,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
 
       <OrganizerV6TabBar
         pathname={pathname}
+        mode={screen.tabbar}
         items={mobileItems.map(
           (item): OrganizerV6TabItem => ({
             id: item.id,

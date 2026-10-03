@@ -8,6 +8,7 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminNotifications } from "@/lib/admin-ops";
+import { resolveOrganizerV6Screen } from "@/lib/organizer-v6-screen-registry";
 import { useScrollMorphProgress } from "@/lib/use-scroll-morph-progress";
 import { AdminCommandPalette } from "./AdminCommandPalette";
 import { AdminContextProvider } from "./AdminContext";
@@ -20,6 +21,7 @@ import { AdminSelectors } from "./AdminSelectors";
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const screen = resolveOrganizerV6Screen(pathname);
   const morphProgress = useScrollMorphProgress({ resetKey: pathname });
   const organizerToolbarStyle = {
     "--organizer-toolbar-title-scale": (1.035 - morphProgress * 0.035).toFixed(4),
@@ -45,6 +47,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <header
           className="sticky top-0 z-[70] border-b border-white/[0.07] bg-[#06101f]/88 backdrop-blur-2xl"
           data-solaris-organizer-toolbar=""
+          data-screen-id={screen.id}
+          data-screen-presentation={screen.presentation}
+          data-toolbar-mode={screen.toolbar}
           data-scroll-compressed={morphProgress > 0.72 ? "true" : "false"}
           style={organizerToolbarStyle}
         >

@@ -13,6 +13,7 @@ import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdro
 import { resolveElasticDrag } from "@/lib/interaction-physics";
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
 import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
+import type { SolarisTabbarMode } from "@/lib/solaris-screen-contract";
 import { cn } from "@/lib/utils";
 
 export type OrganizerV6TabItem = {
@@ -35,10 +36,12 @@ export function OrganizerV6TabBar({
   pathname,
   items,
   onSelect,
+  mode = "full",
 }: {
   pathname: string;
   items: readonly OrganizerV6TabItem[];
   onSelect: (item: OrganizerV6TabItem) => void;
+  mode?: SolarisTabbarMode;
 }) {
   const activeIndex = Math.max(0, items.findIndex((item) => item.active));
   const [dragPreviewIndex, setDragPreviewIndex] = useState<number | null>(null);
@@ -59,13 +62,14 @@ export function OrganizerV6TabBar({
   });
 
   const visualActiveIndex = dragPreviewIndex ?? activeIndex;
+  const compact = collapsed || mode === "compact";
 
   useEffect(() => {
     const root = document.documentElement;
     const bar = barRef.current;
 
     const sync = () => {
-      if (!bar || window.innerWidth >= 720) {
+      if (!bar || window.innerWidth >= 720 || mode === "hidden") {
         root.style.setProperty("--solaris-bottom-obstruction", "0px");
         return;
       }
@@ -95,7 +99,7 @@ export function OrganizerV6TabBar({
       window.visualViewport?.removeEventListener("resize", sync);
       root.style.setProperty("--solaris-bottom-obstruction", "0px");
     };
-  }, [collapsed, pathname]);
+  }, [collapsed, mode, pathname]);
 
   const tabRects = () => {
     const material = materialRef.current;
@@ -235,6 +239,8 @@ export function OrganizerV6TabBar({
     transform: `translate3d(calc(${visualActiveIndex} * (100% + .15rem) + var(--organizer-tab-drag-x)), -50%, 0) scaleX(var(--organizer-tab-scale-x))`,
   } as CSSProperties;
 
+  if (mode === "hidden") return null;
+
   return (
     <nav
       ref={barRef}
@@ -242,7 +248,8 @@ export function OrganizerV6TabBar({
       style={{ paddingBottom: "max(.45rem, env(safe-area-inset-bottom))" }}
       aria-label="Organizer navigation"
       data-v6-organizer-tabbar=""
-      data-collapsed={collapsed ? "true" : "false"}
+      data-mode={mode}
+      data-collapsed={compact ? "true" : "false"}
       onPointerDown={() => {
         if (collapsed) expand();
       }}
@@ -253,7 +260,7 @@ export function OrganizerV6TabBar({
           "relative mx-auto grid max-w-xl overflow-hidden rounded-[1.45rem] border border-white/[0.14]",
           "bg-[#06101f]/80 p-[.375rem] shadow-[0_12px_34px_rgba(0,0,0,.2)] backdrop-blur-2xl",
           "transition-[height,border-radius,transform] duration-200 ease-out motion-reduce:transition-none",
-          collapsed ? "h-[3.35rem]" : "h-[4.7rem]",
+          compact ? "h-[3.35rem]" : "h-[4.7rem]",
           held && "scale-x-[1.01] scale-y-[1.025]",
         )}
         style={{
@@ -275,7 +282,7 @@ export function OrganizerV6TabBar({
           className={cn(
             "pointer-events-none absolute left-[.375rem] top-1/2 z-[1] rounded-[1rem] bg-white/[0.075]",
             "transition-transform duration-200 ease-out motion-reduce:transition-none",
-            collapsed ? "h-[2.55rem]" : "h-[3.7rem]",
+            compact ? "h-[2.55rem]" : "h-[3.7rem]",
             dragging && "transition-none",
           )}
           style={indicatorStyle}
@@ -310,7 +317,7 @@ export function OrganizerV6TabBar({
                 "relative z-[2] flex min-w-0 items-center justify-center rounded-[1rem] px-1",
                 "text-[11px] font-semibold transition-[color,transform] duration-150",
                 "active:scale-[0.96] motion-reduce:active:scale-100",
-                collapsed ? "flex-row" : "flex-col gap-1",
+                compact ? "flex-row" : "flex-col gap-1",
                 item.active ? "text-sky-50" : "text-muted-foreground",
               )}
             >
@@ -325,7 +332,7 @@ export function OrganizerV6TabBar({
                   </span>
                 ) : null}
               </span>
-              <span className={cn("w-full truncate text-center", collapsed && "sr-only")}>
+              <span className={cn("w-full truncate text-center", compact && "sr-only")}>
                 {item.label}
               </span>
             </Link>
