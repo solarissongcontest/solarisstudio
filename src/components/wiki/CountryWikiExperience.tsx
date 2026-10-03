@@ -866,6 +866,7 @@ function WikiPageSkeleton() {
   return (
     <AppShell>
       <div className="wiki-canvas wiki-loading" role="status" aria-label="Loading Wiki article">
+        <h1 className="wiki-loading-title">Terra Solaris Wiki</h1>
         <div className="wiki-loading-header" />
         <div className="wiki-loading-grid"><div /><div><i /><i /><i /><i /></div><div /></div>
       </div>
