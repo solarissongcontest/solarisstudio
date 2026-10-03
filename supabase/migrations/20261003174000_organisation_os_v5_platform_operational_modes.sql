@@ -383,6 +383,12 @@ begin
   if not public.studio2_access_allowed('maintenance.manage', null, false) then
     raise exception 'Missing Solaris capability: maintenance.manage' using errcode = '42501';
   end if;
+
+  -- This transaction is the explicit recovery mutation permitted while the
+  -- platform is Read-only/Maintenance. Generic direct-write guards remain
+  -- active for every other request.
+  perform set_config('studio2.platform_recovery_write', 'on', true);
+
   if v_reason is null or length(v_reason) < 5 then
     raise exception 'A platform mode change reason of at least 5 characters is required'
       using errcode = '22023';
