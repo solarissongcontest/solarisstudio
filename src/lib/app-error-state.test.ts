@@ -7,6 +7,7 @@ describe("app error taxonomy", () => {
     expect(classifyAppError(new Error("anything"), false)).toBe("offline");
     expect(classifyAppError({ status: 401, message: "JWT expired" })).toBe("authentication-expired");
     expect(classifyAppError({ status: 403, message: "permission denied" })).toBe("permission-denied");
+    expect(classifyAppError({ status: 409, message: "Expected version 4, found 5" })).toBe("conflict");
     expect(classifyAppError(new Error("Failed to fetch"))).toBe("request-failed");
   });
 
@@ -20,6 +21,10 @@ describe("app error taxonomy", () => {
     expect(appErrorPresentation("authentication-expired")).toMatchObject({
       retry: false,
       primaryHref: "/auth",
+    });
+    expect(appErrorPresentation("conflict")).toMatchObject({
+      retry: false,
+      kind: "conflict",
     });
   });
 });

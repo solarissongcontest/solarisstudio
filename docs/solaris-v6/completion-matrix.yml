@@ -15,7 +15,7 @@ implementation_phases:
   - { id: 7, key: organizer-mobile, status: in_progress, release_blocking: true, evidence: ["src/components/admin/AdminFrame.tsx", "src/components/admin/OrganizerV6TabBar.tsx", "src/routes/_authenticated/admin/tasks.tsx", "src/components/interaction/SolarisMorphingSelection.tsx", "src/lib/organizer-v6-screen-registry.ts", "docs/organisation-os-v5/completion-matrix.yml"] }
   - { id: 8, key: public-depth, status: partial, release_blocking: true, evidence: ["src/components/AppShell.tsx"] }
   - { id: 9, key: notifications-live-mode, status: in_progress, release_blocking: true, evidence: ["src/lib/app-notifications.ts", "src/components/app/AppOverlayManager.tsx", "src/routes/_authenticated/admin/inbox.tsx", "src/components/interaction/SolarisSwipeActionRow.tsx"] }
-  - { id: 10, key: failure-recovery, status: partial, release_blocking: true, evidence: ["docs/organisation-os-v5/failure-injection-coverage.yml"] }
+  - { id: 10, key: failure-recovery, status: in_progress, release_blocking: true, evidence: ["docs/organisation-os-v5/failure-injection-coverage.yml", "docs/solaris-v6/failure-recovery-coverage.yml", "src/lib/solaris-v6-operation-recovery.ts", "src/lib/solaris-v6-operation-recovery.test.ts", "src/routes/_authenticated/admin/results.tsx"] }
   - { id: 11, key: full-microinteraction-pass, status: missing, release_blocking: true, evidence: [] }
   - { id: 12, key: legacy-cleanup, status: missing, release_blocking: true, evidence: [] }
 

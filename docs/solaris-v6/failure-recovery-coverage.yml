@@ -1,0 +1,76 @@
+version: 1
+product: Solaris Studio V6
+extends: "docs/organisation-os-v5/failure-injection-coverage.yml"
+rule: "V6 recovery UI never guesses a consequential command outcome. Canonical state, stable command identity and server receipts remain authoritative."
+
+cases:
+  - id: ambiguous-response-after-command
+    status: automated
+    evidence:
+      - src/lib/solaris-v6-operation-recovery.test.ts
+      - src/routes/_authenticated/admin/results.tsx
+      - src/lib/organisation-operation-contract.test.ts
+    invariant: "A lost response reuses the same operation identity; it never creates a second logical command."
+
+  - id: stale-concurrent-edit
+    status: automated
+    evidence:
+      - src/lib/app-error-state.test.ts
+      - src/lib/solaris-v6-operation-recovery.test.ts
+      - docs/organisation-os-v5/failure-injection-coverage.yml
+    invariant: "409/stale-version failures refresh canonical state and are not blindly replayed."
+
+  - id: expired-authentication
+    status: automated
+    evidence:
+      - src/lib/app-error-state.test.ts
+      - src/lib/solaris-v6-operation-recovery.test.ts
+      - docs/organisation-os-v5/failure-injection-coverage.yml
+    invariant: "Expired authority stops the command and requires re-authentication."
+
+  - id: permission-revocation
+    status: automated
+    evidence:
+      - src/lib/app-error-state.test.ts
+      - src/lib/solaris-v6-operation-recovery.test.ts
+      - docs/organisation-os-v5/failure-injection-coverage.yml
+    invariant: "Permission changes stop replay and force access/canonical-state refresh."
+
+  - id: offline-official-mutation
+    status: automated
+    evidence:
+      - src/lib/app-launch-offline-reconnect.contract.test.ts
+      - public/offline.html
+      - public/sw.js
+    invariant: "Official mutations are never queued or replayed from the offline shell."
+
+  - id: reconnect-reconciliation
+    status: automated
+    evidence:
+      - src/lib/app-launch-offline-reconnect.contract.test.ts
+      - src/components/app/AppReconnectReconciler.tsx
+      - src/lib/app-connectivity.ts
+    invariant: "Reconnect invalidates safe read state only after verified connectivity recovery and never replays mutations."
+
+  - id: deferred-update-during-critical-work
+    status: automated
+    evidence:
+      - src/lib/app-update-safety.test.ts
+      - src/lib/app-update-safety.ts
+      - src/components/app/AppRuntime.tsx
+    invariant: "Service-worker activation is deferred while focused participation or Organizer work could be interrupted."
+
+  - id: conflicting-edition-context
+    status: automated
+    evidence:
+      - src/lib/solaris-v6-edition-context.test.ts
+      - src/lib/solaris-v6-edition-context.ts
+    invariant: "Route, command, entity and capability edition identities must agree before a command is considered valid."
+
+  - id: interrupted-gesture
+    status: automated
+    evidence:
+      - src/lib/solaris-v6-organizer-interaction.contract.test.ts
+      - src/components/app/AppTabBar.tsx
+      - src/components/admin/OrganizerV6TabBar.tsx
+    invariant: "Pointer cancel, lost capture, blur, orientation and visibility interruption reset transient gesture state."
