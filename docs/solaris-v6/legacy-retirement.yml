@@ -27,9 +27,16 @@ domains:
       - "Every consumer uses the canonical governed result version/lifecycle."
   tasks:
     state: canonical-write
-    legacy_authority: ["Action Center state", "Inbox read state as work state"]
+    retired_authority: ["Action Center state"]
+    compatibility_routes: ["/admin/action-center", "/admin/action-centre"]
+    legacy_authority: ["Inbox read state as work state"]
+    retirement_evidence:
+      - "Both Action Center routes redirect to /admin/tasks."
+      - "The independent studio2-action-center model and dedicated tests are deleted."
+      - "Operational workflows link directly to canonical Tasks."
     retirement_criteria:
       - "Domain-backed tasks resolve only from canonical domain truth."
+      - "Inbox read state remains delivery state and cannot resolve a domain-owned task."
   notifications:
     state: canonical-read
     legacy_authority: ["push payload as truth", "unread count as task count"]
