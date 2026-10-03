@@ -16,6 +16,7 @@ import { AdminFeatureBoundary } from "./AdminFeatureBoundary";
 import { AdminFrame } from "./AdminFrame";
 import { AdminHealthStrip } from "./AdminHealthStrip";
 import { AdminPermissionShadowProbe } from "./AdminPermissionShadowProbe";
+import { OrganizerV6MobileChrome } from "./OrganizerV6MobileChrome";
 import { JuryVotingWindowControl } from "./JuryVotingWindowControl";
 import { AdminSelectors } from "./AdminSelectors";
 
@@ -117,6 +118,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             ) : null}
             {children}
           </AdminFrame>
+          <OrganizerV6MobileChrome />
         </div>
       </div>
     </AdminContextProvider>
