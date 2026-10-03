@@ -54,6 +54,8 @@ describe("Solaris V6 legacy authority retirement", () => {
     expect(taskEngine).toContain("private.studio2_reconcile_organizer_tasks");
     expect(taskEngine).not.toContain("admin_mark_organizer_task_resolved");
     expect(tasksRoute).toContain("useOrganizerTasksV5");
+    expect(tasksRoute).not.toContain("/admin/action-center");
+    expect(tasksRoute).not.toContain("/admin/action-centre");
     expect(tasksRoute).toContain("There is intentionally no generic “Mark resolved” button.");
     expect(inbox).toContain('item.resolution_mode === "domain"');
     expect(inbox).toContain("Resolves automatically from the source workflow");
