@@ -142,7 +142,7 @@ export function SolarisDraggableSheetContent({
           </button>
         </SheetClose>
       </div>
-      <div className="h-[calc(100%-3.5rem)] overflow-y-auto overscroll-contain">
+      <div className="h-[calc(100%_-_3.5rem)] overflow-y-auto overscroll-contain">
         {children}
       </div>
     </SheetContent>

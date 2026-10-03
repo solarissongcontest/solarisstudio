@@ -121,7 +121,7 @@ export function SolarisSwipeActionRow({
       </div>
 
       {actions.length ? (
-        <div className="relative z-[2] flex justify-end gap-1 border-t border-border/50 bg-background/90 p-1 sm:hidden">
+        <div className="relative z-[2] flex justify-end gap-1 border-t border-border/50 bg-background/90 p-1">
           <button
             type="button"
             aria-expanded={open}

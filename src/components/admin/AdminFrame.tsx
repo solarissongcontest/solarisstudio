@@ -28,6 +28,7 @@ import {
   type AdminAppTabId,
 } from "@/lib/admin-app-navigation";
 import { useOrganizerTaskCountV5 } from "@/lib/admin-tasks-v5";
+import { prefersReducedMotion } from "@/lib/interaction-physics";
 import { useEditions } from "@/lib/data";
 import { useAdminContext } from "./AdminContext";
 import { AdminFeatureBoundary } from "./AdminFeatureBoundary";
@@ -159,9 +160,10 @@ export function AdminFrame({ children }: { children: ReactNode }) {
       : root;
 
     if (active && normalizedPath === normalizedRoot) {
-      const reducedMotion =
-        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-      window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
+      window.scrollTo({
+        top: 0,
+        behavior: prefersReducedMotion() ? "auto" : "smooth",
+      });
       return;
     }
 

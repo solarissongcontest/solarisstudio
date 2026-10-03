@@ -125,6 +125,24 @@ export function OrganizerV6TabBar({
     setDragPreviewIndex(null);
   }, []);
 
+  useEffect(() => {
+    const resetInterruptedGesture = () => clearDrag();
+    const resetWhenHidden = () => {
+      if (document.visibilityState !== "visible") clearDrag();
+    };
+
+    window.addEventListener("blur", resetInterruptedGesture);
+    window.addEventListener("orientationchange", resetInterruptedGesture);
+    document.addEventListener("visibilitychange", resetWhenHidden);
+
+    return () => {
+      window.removeEventListener("blur", resetInterruptedGesture);
+      window.removeEventListener("orientationchange", resetInterruptedGesture);
+      document.removeEventListener("visibilitychange", resetWhenHidden);
+      clearDrag();
+    };
+  }, [clearDrag, pathname]);
+
   const startDrag = (
     event: ReactPointerEvent<HTMLAnchorElement>,
     index: number,
