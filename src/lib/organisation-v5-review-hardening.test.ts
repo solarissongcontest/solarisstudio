@@ -33,6 +33,19 @@ describe("Organisation OS V5 review hardening", () => {
     expect(organizerBlock).toContain('"solaris_organizer_task_recipient_eligible"');
     expect(organizerBlock).toContain('.eq("source_key", task.source_key)');
     expect(dispatcher).toContain('"Organizer Task recipient is no longer eligible."');
+
+    const organizerBranchIndex = dispatcher.indexOf(
+      'if (delivery.category === "organizer_tasks")',
+    );
+    const eligibilityIndex = dispatcher.indexOf(
+      '"solaris_organizer_task_recipient_eligible"',
+    );
+    const preferencesIndex = dispatcher.indexOf(
+      "const { data: preferenceData, error: preferenceError }",
+    );
+    expect(organizerBranchIndex).toBeGreaterThanOrEqual(0);
+    expect(eligibilityIndex).toBeGreaterThan(organizerBranchIndex);
+    expect(preferencesIndex).toBeGreaterThan(eligibilityIndex);
   });
 
   it("treats expiry changes as real governed permission mutations", () => {
