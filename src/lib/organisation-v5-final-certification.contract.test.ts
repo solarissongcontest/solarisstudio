@@ -87,9 +87,10 @@ describe("Organisation OS V5 final certification contract", () => {
       expect(failureCoverage).toContain(`  - id: ${id}`);
     }
 
-    expect(failureCoverage).toContain("status: partial");
+    expect(failureCoverage).not.toContain("status: partial");
+    expect(failureCoverage).not.toContain("status: manual");
     expect(failureCoverage).toContain(
-      "the final phone exam still injects a live cross-service confirmation synchronization failure",
+      "The final phone exam still injects this failure as an end-to-end recovery drill.",
     );
   });
 
