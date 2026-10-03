@@ -31,7 +31,7 @@ foundation_requirements:
   - { key: draggable-sheet-primitive, status: implemented, evidence: ["src/components/interaction/SolarisDraggableSheet.tsx", "src/components/AppShell.tsx"] }
   - { key: morphing-selection-primitive, status: implemented, evidence: ["src/components/interaction/SolarisMorphingSelection.tsx", "src/routes/_authenticated/admin/tasks.tsx"] }
   - { key: swipe-action-row-primitive, status: implemented, evidence: ["src/components/interaction/SolarisSwipeActionRow.tsx"] }
-  - { key: reorderable-list-primitive, status: implemented, evidence: ["src/components/interaction/SolarisReorderableList.tsx"] }
+  - { key: reorderable-list-primitive, status: implemented, evidence: ["src/components/interaction/SolarisReorderableList.tsx", "src/routes/_authenticated/admin/broadcast-rundown.tsx"] }
   - { key: gesture-coordinator, status: implemented, evidence: ["src/lib/interaction-physics.ts", "src/lib/gesture-coordinator.ts"] }
   - { key: canonical-motion-preferences, status: implemented, evidence: ["src/lib/interaction-physics.ts", "src/lib/interaction-preferences.ts", "src/lib/app-view-transitions.ts"] }
   - { key: shared-keyboard-viewport-metrics, status: implemented, evidence: ["src/components/app/AppChromeMetrics.tsx", "src/components/app/AppRuntime.tsx"] }

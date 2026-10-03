@@ -1,8 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import {
-  ArrowDown,
-  ArrowUp,
   CheckCircle2,
   Clock3,
   Lock,
@@ -16,6 +14,7 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
+import { SolarisReorderableList } from '@/components/interaction/SolarisReorderableList';
 import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
 import { AdminPage } from '@/components/admin/AdminShell';
 import {
@@ -203,14 +202,22 @@ function BroadcastRundownPage() {
     } : current);
   };
 
-  const moveSegment = (index: number, direction: -1 | 1) => {
-    if (structureLocked) return;
+  const moveSegment = (fromIndex: number, toIndex: number) => {
+    if (structureLocked || fromIndex === toIndex) return;
     setDraft((current) => {
       if (!current) return current;
-      const target = index + direction;
-      if (target < 0 || target >= current.segments.length) return current;
+      if (
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= current.segments.length ||
+        toIndex >= current.segments.length
+      ) {
+        return current;
+      }
       const segments = [...current.segments];
-      [segments[index], segments[target]] = [segments[target]!, segments[index]!];
+      const [moved] = segments.splice(fromIndex, 1);
+      if (!moved) return current;
+      segments.splice(toIndex, 0, moved);
       return { ...current, segments };
     });
   };
@@ -366,56 +373,64 @@ function BroadcastRundownPage() {
                 </button>
               </div>
 
-              <div className="mt-4 space-y-2">
+              <div className="mt-4">
                 {draft.segments.length === 0 ? (
                   <AdminEmptyState icon={Clock3} title="No segments" description="Add the first segment to begin planning this show." />
-                ) : draft.segments.map((segment, index) => {
-                  const timing = calculated.segments[index];
-                  return (
-                    <article key={segment.id} className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
-                      <div className="grid gap-3 xl:grid-cols-[90px_minmax(0,1fr)_145px_120px_auto] xl:items-center">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Start</p>
-                          <p className="mt-1 text-sm font-semibold tabular-nums">{timing ? formatClock(timing.estimatedStartedAt) : '—'}</p>
-                        </div>
-                        <label className="space-y-1 text-sm">
-                          <span className="text-xs text-muted-foreground">Segment</span>
-                          <input
-                            value={segment.label}
-                            disabled={structureLocked}
-                            onChange={(event) => updateSegment(index, { label: event.target.value })}
-                            className="min-h-10 w-full rounded-lg border border-white/[0.08] bg-background px-3 font-semibold disabled:opacity-50"
-                          />
-                        </label>
-                        <label className="space-y-1 text-sm">
-                          <span className="text-xs text-muted-foreground">Duration (min)</span>
-                          <input
-                            type="number"
-                            min="1"
-                            step="0.5"
-                            value={segment.plannedDurationSeconds / 60}
-                            disabled={structureLocked}
-                            onChange={(event) => updateSegment(index, { plannedDurationSeconds: Math.max(30, Math.round(Number(event.target.value || 0) * 60)) })}
-                            className="min-h-10 w-full rounded-lg border border-white/[0.08] bg-background px-3 disabled:opacity-50"
-                          />
-                        </label>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Status</p>
-                          <div className="mt-1"><AdminStatus tone={statusTone(segment.status)}>{segment.status}</AdminStatus></div>
-                        </div>
-                        <div className="flex flex-wrap justify-end gap-1">
-                          {segment.status === 'planned' ? <CommandButton label="Mark ready" onClick={() => transitionSegment(segment, 'ready')}><CheckCircle2 className="size-4" /></CommandButton> : null}
-                          {segment.status === 'ready' ? <CommandButton label="Go live" onClick={() => transitionSegment(segment, 'live')}><Play className="size-4" /></CommandButton> : null}
-                          {segment.status === 'live' ? <CommandButton label="Complete" onClick={() => transitionSegment(segment, 'completed')}><CheckCircle2 className="size-4" /></CommandButton> : null}
-                          {['planned', 'ready', 'live'].includes(segment.status) ? <CommandButton label="Skip" onClick={() => transitionSegment(segment, 'skipped')}><SkipForward className="size-4" /></CommandButton> : null}
-                          <IconButton label="Move up" disabled={structureLocked || index === 0} onClick={() => moveSegment(index, -1)}><ArrowUp className="size-4" /></IconButton>
-                          <IconButton label="Move down" disabled={structureLocked || index === draft.segments.length - 1} onClick={() => moveSegment(index, 1)}><ArrowDown className="size-4" /></IconButton>
-                          <IconButton label="Remove" disabled={structureLocked} onClick={() => removeSegment(index)}><Trash2 className="size-4" /></IconButton>
-                        </div>
-                      </div>
-                    </article>
-                  );
-                })}
+                ) : (
+                  <SolarisReorderableList
+                    disabled={structureLocked}
+                    onMove={moveSegment}
+                    items={draft.segments.map((segment, index) => {
+                      const timing = calculated.segments[index];
+                      return {
+                        id: segment.id,
+                        ariaLabel: segment.label,
+                        content: (
+                          <article className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
+                            <div className="grid gap-3 xl:grid-cols-[90px_minmax(0,1fr)_145px_120px_auto] xl:items-center">
+                              <div>
+                                <p className="text-xs text-muted-foreground">Start</p>
+                                <p className="mt-1 text-sm font-semibold tabular-nums">{timing ? formatClock(timing.estimatedStartedAt) : '—'}</p>
+                              </div>
+                              <label className="space-y-1 text-sm">
+                                <span className="text-xs text-muted-foreground">Segment</span>
+                                <input
+                                  value={segment.label}
+                                  disabled={structureLocked}
+                                  onChange={(event) => updateSegment(index, { label: event.target.value })}
+                                  className="min-h-10 w-full rounded-lg border border-white/[0.08] bg-background px-3 font-semibold disabled:opacity-50"
+                                />
+                              </label>
+                              <label className="space-y-1 text-sm">
+                                <span className="text-xs text-muted-foreground">Duration (min)</span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  step="0.5"
+                                  value={segment.plannedDurationSeconds / 60}
+                                  disabled={structureLocked}
+                                  onChange={(event) => updateSegment(index, { plannedDurationSeconds: Math.max(30, Math.round(Number(event.target.value || 0) * 60)) })}
+                                  className="min-h-10 w-full rounded-lg border border-white/[0.08] bg-background px-3 disabled:opacity-50"
+                                />
+                              </label>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Status</p>
+                                <div className="mt-1"><AdminStatus tone={statusTone(segment.status)}>{segment.status}</AdminStatus></div>
+                              </div>
+                              <div className="flex flex-wrap justify-end gap-1">
+                                {segment.status === 'planned' ? <CommandButton label="Mark ready" onClick={() => transitionSegment(segment, 'ready')}><CheckCircle2 className="size-4" /></CommandButton> : null}
+                                {segment.status === 'ready' ? <CommandButton label="Go live" onClick={() => transitionSegment(segment, 'live')}><Play className="size-4" /></CommandButton> : null}
+                                {segment.status === 'live' ? <CommandButton label="Complete" onClick={() => transitionSegment(segment, 'completed')}><CheckCircle2 className="size-4" /></CommandButton> : null}
+                                {['planned', 'ready', 'live'].includes(segment.status) ? <CommandButton label="Skip" onClick={() => transitionSegment(segment, 'skipped')}><SkipForward className="size-4" /></CommandButton> : null}
+                                <IconButton label="Remove" disabled={structureLocked} onClick={() => removeSegment(index)}><Trash2 className="size-4" /></IconButton>
+                              </div>
+                            </div>
+                          </article>
+                        ),
+                      };
+                    })}
+                  />
+                )}
               </div>
             </AdminCard>
 

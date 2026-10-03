@@ -21,6 +21,17 @@ describe("Solaris V6 interaction primitives in real product flows", () => {
     expect(tasks).toContain("There is intentionally no generic “Mark resolved” button.");
   });
 
+  it("uses the reorder primitive for the canonical broadcast rundown without removing explicit keyboard controls", () => {
+    const rundown = source("src/routes/_authenticated/admin/broadcast-rundown.tsx");
+    const reorder = source("src/components/interaction/SolarisReorderableList.tsx");
+    expect(rundown).toContain("SolarisReorderableList");
+    expect(rundown).toContain("disabled={structureLocked}");
+    expect(rundown).toContain("onMove={moveSegment}");
+    expect(reorder).toContain("Move ${item.ariaLabel} up");
+    expect(reorder).toContain("Move ${item.ariaLabel} down");
+    expect(reorder).toContain("disabled={disabled || index === 0}");
+  });
+
   it("uses semantic pending press feedback for participant notice acknowledgement", () => {
     const tasks = source("src/components/mysolaris/modules/MySolarisTasksModule.tsx");
     expect(tasks).toContain("SolarisPressable");
