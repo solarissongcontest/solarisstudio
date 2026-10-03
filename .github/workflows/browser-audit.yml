@@ -13,6 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Browser CI is forbidden from using hosted Supabase. It runs against an
+  # isolated local stack and hard-fails if a non-local API URL reaches the job.
   public-routes:
     runs-on: ubuntu-latest
     timeout-minutes: 55
@@ -31,10 +33,20 @@ jobs:
         with:
           node-version: 22
 
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
       - name: Install app dependencies
         run: bun install --frozen-lockfile
 
       - name: Production build
+        env:
+          VITE_SUPABASE_URL: http://127.0.0.1:54321
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_browser_audit_local_only
+          SUPABASE_URL: http://127.0.0.1:54321
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_browser_audit_local_only
         run: bun run build
 
       - name: Enforce client performance budget
@@ -45,21 +57,59 @@ jobs:
           bun add --dev @playwright/test@1.55.0
           bunx playwright install --with-deps chromium webkit
 
+      - name: Start isolated local Supabase for browser audit
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          supabase start
+          supabase db reset --local --no-seed
+          supabase status -o env > /tmp/solaris-browser-supabase.env
+
+          set -a
+          source /tmp/solaris-browser-supabase.env
+          set +a
+
+          local_url="${API_URL:-}"
+          local_key="${PUBLISHABLE_KEY:-${ANON_KEY:-}}"
+
+          if [ -z "$local_url" ] || [ -z "$local_key" ]; then
+            echo "Local Supabase did not expose API_URL plus a publishable/anon key."
+            cat /tmp/solaris-browser-supabase.env
+            exit 1
+          fi
+
+          case "$local_url" in
+            http://127.0.0.1:*|http://localhost:*) ;;
+            *)
+              echo "Refusing browser audit against non-local Supabase URL: $local_url"
+              exit 1
+              ;;
+          esac
+
+          {
+            echo "VITE_SUPABASE_URL=$local_url"
+            echo "VITE_SUPABASE_PUBLISHABLE_KEY=$local_key"
+            echo "SUPABASE_URL=$local_url"
+            echo "SUPABASE_PUBLISHABLE_KEY=$local_key"
+            echo "E2E_SUPABASE_URL=$local_url"
+            echo "E2E_SUPABASE_PUBLISHABLE_KEY=$local_key"
+          } >> "$GITHUB_ENV"
+
       - name: Start stable audit server
+        shell: bash
         env:
-          E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
-          E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
           SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
         run: |
-          # Only override the app's normal public configuration when both E2E
-          # endpoint secrets exist. Empty GitHub secrets must not replace the
-          # checked public development config with empty VITE_ variables.
-          if [ -n "$E2E_SUPABASE_URL" ] && [ -n "$E2E_SUPABASE_PUBLISHABLE_KEY" ]; then
-            export VITE_SUPABASE_URL="$E2E_SUPABASE_URL"
-            export VITE_SUPABASE_PUBLISHABLE_KEY="$E2E_SUPABASE_PUBLISHABLE_KEY"
-            export SUPABASE_URL="$E2E_SUPABASE_URL"
-            export SUPABASE_PUBLISHABLE_KEY="$E2E_SUPABASE_PUBLISHABLE_KEY"
-          fi
+          set -euo pipefail
+
+          case "$E2E_SUPABASE_URL" in
+            http://127.0.0.1:*|http://localhost:*) ;;
+            *)
+              echo "Refusing audit server with hosted Supabase URL: $E2E_SUPABASE_URL"
+              exit 1
+              ;;
+          esac
 
           bun run dev --host 127.0.0.1 --port 4173 --strictPort > /tmp/solaris-audit-server.log 2>&1 &
           echo $! > /tmp/solaris-audit-server.pid
@@ -99,14 +149,8 @@ jobs:
           E2E_FULL_AUDIT: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'feature/public-final-quality' || github.head_ref == 'chatgpt/completion-programme-20260920' || github.head_ref == 'feature/final-ui-completion-20261001' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}
           PERSONALITY_REFERENCE_CAPTURE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
           E2E_VISUAL_CAPTURE: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}
-          E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
-          E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
-          E2E_COUNTRY_EMAIL: ${{ secrets.E2E_COUNTRY_EMAIL }}
-          E2E_COUNTRY_PASSWORD: ${{ secrets.E2E_COUNTRY_PASSWORD }}
-          E2E_ORGANIZER_EMAIL: ${{ secrets.E2E_ORGANIZER_EMAIL }}
-          E2E_ORGANIZER_PASSWORD: ${{ secrets.E2E_ORGANIZER_PASSWORD }}
-          E2E_SUSPENDED_EMAIL: ${{ secrets.E2E_SUSPENDED_EMAIL }}
-          E2E_SUSPENDED_PASSWORD: ${{ secrets.E2E_SUSPENDED_PASSWORD }}
+          # E2E Supabase URL/key are inherited from the isolated local stack.
+          # Hosted account credentials are intentionally unavailable in browser CI.
 
       - name: Print audit server log on failure
         if: failure()
@@ -118,6 +162,10 @@ jobs:
           if [ -f /tmp/solaris-audit-server.pid ]; then
             kill "$(cat /tmp/solaris-audit-server.pid)" 2>/dev/null || true
           fi
+
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
 
       - name: Upload browser summary
         if: always()
