@@ -688,8 +688,214 @@ function PermissionImpactPreview({
       </label>
 
       <p className="text-xs leading-5 text-muted-foreground">
-        The confirmed command receives one operation ID and one idempotency key. Retrying the same
-        confirmation replays the canonical receipt instead of applying the change twice.
+        This request is bound to one operation ID, one idempotency key and the previewed access
+        version. A different authorized organizer must approve that exact operation before it can
+        be applied.
+      </p>
+    </div>
+  );
+}
+
+function PermissionApprovalQueue({
+  approvals,
+  loading,
+  error,
+  onApprove,
+  onApply,
+}: {
+  approvals: PermissionChangeApproval[];
+  loading: boolean;
+  error: Error | null;
+  onApprove: (approval: PermissionChangeApproval) => void;
+  onApply: (approval: PermissionChangeApproval) => void;
+}) {
+  const actionable = approvals.filter((approval) => approval.canApprove || approval.canApply).length;
+
+  return (
+    <AdminCard strong>
+      <AdminCardHeader
+        eyebrow="Risk R3"
+        title="Second-operator approvals"
+        description="Permission mutations are bound to one reviewed operation. The requester cannot approve their own request, and approved requests expire before they can become stale standing authority."
+        action={
+          <AdminStatus tone={actionable ? "attention" : "ready"}>
+            {actionable ? `${actionable} actionable` : "No action"}
+          </AdminStatus>
+        }
+      />
+
+      {loading ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">
+          Loading R3 approval queue…
+        </p>
+      ) : error ? (
+        <AdminEmptyState
+          icon={ShieldEllipsis}
+          title="R3 approval queue unavailable"
+          description={errorText(error)}
+        />
+      ) : approvals.length ? (
+        <div className="mt-4 divide-y divide-white/[0.07]">
+          {approvals.map((approval) => {
+            const status = approval.canApply
+              ? "Approved for you"
+              : approval.canApprove
+                ? "Needs your approval"
+                : approval.approvedBy
+                  ? "Approved"
+                  : "Waiting for another operator";
+
+            return (
+              <div
+                key={approval.id}
+                className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 lg:flex-row lg:items-center lg:justify-between"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold">{approval.targetDisplayName}</p>
+                    <AdminStatus
+                      tone={
+                        approval.canApply
+                          ? "ready"
+                          : approval.canApprove
+                            ? "attention"
+                            : "neutral"
+                      }
+                    >
+                      {status}
+                    </AdminStatus>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {humanize(approval.changeKind)} · {approval.key} ·{" "}
+                    {approval.editionId ? "Selected edition" : "Every edition"}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Requested by {approval.requesterDisplayName} · expires{" "}
+                    {formatDateTime(approval.approvalExpiresAt)}
+                  </p>
+                  {approval.approverDisplayName ? (
+                    <p className="mt-1 text-[11px] text-emerald-100/75">
+                      Approved by {approval.approverDisplayName}
+                    </p>
+                  ) : null}
+                </div>
+
+                {approval.canApprove ? (
+                  <button
+                    type="button"
+                    className="admin-action-secondary shrink-0"
+                    onClick={() => onApprove(approval)}
+                  >
+                    Approve as second operator
+                  </button>
+                ) : approval.canApply ? (
+                  <button
+                    type="button"
+                    className="admin-action-primary shrink-0"
+                    onClick={() => onApply(approval)}
+                  >
+                    Apply approved change
+                  </button>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="mt-4 text-sm text-muted-foreground">
+          No active permission approvals. New R3 requests appear here for a different authorized
+          organizer to approve.
+        </p>
+      )}
+    </AdminCard>
+  );
+}
+
+function PermissionApprovalActionPreview({
+  approval,
+  mode,
+  password,
+  onPassword,
+}: {
+  approval: PermissionChangeApproval;
+  mode: "approve" | "apply";
+  password: string;
+  onPassword: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <p>
+        {mode === "approve" ? (
+          <>
+            You are acting as the independent second operator for a permission change requested by{" "}
+            <strong className="text-foreground">{approval.requesterDisplayName}</strong>.
+          </>
+        ) : (
+          <>
+            This permission change has independent approval
+            {approval.approverDisplayName ? (
+              <>
+                {" "}
+                from <strong className="text-foreground">{approval.approverDisplayName}</strong>
+              </>
+            ) : null}
+            . The server will consume that approval exactly once.
+          </>
+        )}
+      </p>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Target
+          </span>
+          <strong className="mt-1 block text-sm text-foreground">
+            {approval.targetDisplayName}
+          </strong>
+        </div>
+        <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Expected access version
+          </span>
+          <strong className="mt-1 block text-sm text-foreground">
+            v{approval.expectedVersion}
+          </strong>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3 text-xs leading-5">
+        <p>
+          <strong className="text-foreground">{humanize(approval.changeKind)}</strong> ·{" "}
+          <code className="text-sky-100">{approval.key}</code>
+        </p>
+        <p className="mt-1 text-muted-foreground">
+          Scope: {approval.editionId ? "selected edition" : "every edition"} · approval expires{" "}
+          {formatDateTime(approval.approvalExpiresAt)}
+        </p>
+      </div>
+
+      <label className="block rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3">
+        <span className="block text-xs font-bold text-amber-50">
+          Fresh authentication required
+        </span>
+        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+          Re-enter your own current Solaris password. The server validates recent signed
+          authentication evidence for this account before accepting the R3 action.
+        </span>
+        <input
+          type="password"
+          value={password}
+          onChange={(event) => onPassword(event.target.value)}
+          autoComplete="current-password"
+          placeholder="Current Solaris password"
+          className="admin-input mt-3"
+          required
+        />
+      </label>
+
+      <p className="text-xs leading-5 text-muted-foreground">
+        Solaris rejects self-approval, expired approval, a changed access version, or any mismatch
+        between this approval and the exact operation being applied.
       </p>
     </div>
   );
