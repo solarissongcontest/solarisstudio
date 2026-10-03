@@ -11,6 +11,9 @@ describe("Organisation OS V5 jury ballot lifecycle", () => {
   const tasks = source(
     "supabase/migrations/20261003194500_organisation_os_v5_jury_ballot_tasks.sql",
   );
+  const juryResults = source(
+    "supabase/migrations/20261003195500_organisation_os_v5_jury_result_truth.sql",
+  );
   const route = source("src/routes/_authenticated/admin/jury/$slug.tsx");
 
   it("keeps submitted evidence immutable while reviewing its lifecycle", () => {
@@ -74,6 +77,36 @@ describe("Organisation OS V5 jury ballot lifecycle", () => {
     expect(route).toContain("Needs review");
     expect(route).toContain("Invalidate");
     expect(route).toContain("Supersede");
+  });
+
+  it("preserves pre-V5 accepted ballots while making new submissions reviewable", () => {
+    expect(lifecycle).toContain("Pre-V5 submitted ballots were already accepted");
+    expect(lifecycle).toContain("status = 'valid'");
+    expect(lifecycle).toContain("where status = 'submitted'");
+    expect(lifecycle).toContain("submissions created after");
+  });
+
+  it("makes ballot review state authoritative for canonical Results", () => {
+    expect(juryResults).toContain("j.ballot_submission_id is null");
+    expect(juryResults).toContain("submission.status = 'valid'");
+    expect(juryResults).toContain(
+      "jury_vote.ballot_submission_id is null",
+    );
+    expect(juryResults).toContain(
+      "studio2_sync_results_after_jury_ballot_review",
+    );
+    expect(juryResults).toContain("after update of status on public.jury_ballot_submissions");
+    expect(juryResults).toContain("'juryPendingReviewCount'");
+    expect(juryResults).toContain("'juryInvalidatedCount'");
+  });
+
+  it("previews the required DNV effects instead of treating DNV as a naked flag", () => {
+    expect(lifecycle).toContain("'readinessEffect'");
+    expect(lifecycle).toContain("'resultsEffect'");
+    expect(lifecycle).toContain("'taskEffect'");
+    expect(lifecycle).toContain(
+      "Authorized DNV replaces the missing ballot requirement.",
+    );
   });
 
   it("projects outstanding validation into canonical Tasks and Inbox", () => {
