@@ -10,8 +10,14 @@ async function addOrganizerSession(context: BrowserContext) {
   const email = process.env.E2E_ORGANIZER_EMAIL;
   const password = process.env.E2E_ORGANIZER_PASSWORD;
 
+  const missingConfig = !url || !publishableKey || !email || !password;
+  if (missingConfig && process.env.CI) {
+    throw new Error(
+      "Browser Audit must seed local Organizer credentials; refusing to skip authenticated Organizer coverage in CI.",
+    );
+  }
   test.skip(
-    !url || !publishableKey || !email || !password,
+    missingConfig,
     "Organizer browser credentials or E2E Supabase public config are not configured",
   );
 
@@ -213,15 +219,22 @@ test.describe("Solaris Organizer route reliability", () => {
     const countryPassword = process.env.E2E_COUNTRY_PASSWORD;
     const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4173";
 
-    test.skip(
+    const missingR3Config =
       !url ||
-        !publishableKey ||
-        !organizerEmail ||
-        !organizerPassword ||
-        !organizerBEmail ||
-        !organizerBPassword ||
-        !countryEmail ||
-        !countryPassword,
+      !publishableKey ||
+      !organizerEmail ||
+      !organizerPassword ||
+      !organizerBEmail ||
+      !organizerBPassword ||
+      !countryEmail ||
+      !countryPassword;
+    if (missingR3Config && process.env.CI) {
+      throw new Error(
+        "Browser Audit must seed both local Organizers and the local Country account for R3 certification.",
+      );
+    }
+    test.skip(
+      missingR3Config,
       "Local two-operator Browser Audit credentials are not configured",
     );
 
