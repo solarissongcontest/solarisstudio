@@ -402,6 +402,29 @@ export async function previewPermissionChange(
   );
 }
 
+export async function reauthenticatePermissionR3(password: string): Promise<void> {
+  const secret = password.trim();
+  if (!secret) throw new Error("Enter your current Solaris password to authorize this R3 change.");
+
+  const { data: current, error: currentError } = await supabase.auth.getUser();
+  if (currentError) throw currentError;
+  const user = current.user;
+  if (!user?.id || !user.email) {
+    throw new Error("This organizer account cannot be reauthenticated with a password.");
+  }
+
+  const originalUserId = user.id;
+  const { data: signedIn, error: signInError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: secret,
+  });
+  if (signInError) throw signInError;
+  if (!signedIn.user || signedIn.user.id !== originalUserId) {
+    await supabase.auth.signOut();
+    throw new Error("Fresh authentication returned a different Solaris account.");
+  }
+}
+
 export async function applyPermissionChange(
   input: PermissionChangeInput & {
     operationId: string;
@@ -410,7 +433,7 @@ export async function applyPermissionChange(
   },
 ): Promise<PermissionChangeReceipt> {
   return mapPermissionChangeReceipt(
-    await rpc("studio2_apply_permission_change", {
+    await rpc("studio2_apply_permission_change_r3", {
       p_user_id: input.userId,
       p_change_kind: input.kind,
       p_key: input.key,
