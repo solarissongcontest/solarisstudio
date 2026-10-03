@@ -96,12 +96,12 @@ set search_path = pg_catalog, public, private
 as $is_open$
   select coalesce((
     select
-      window.enabled
-      and window.status = 'open'
-      and (window.opens_at is null or window.opens_at <= now())
-      and (window.closes_at is null or window.closes_at > now())
-    from public.studio2_next_in_line_windows window
-    where window.edition_id = p_edition_id
+      nil_window.enabled
+      and nil_window.status = 'open'
+      and (nil_window.opens_at is null or nil_window.opens_at <= now())
+      and (nil_window.closes_at is null or nil_window.closes_at > now())
+    from public.studio2_next_in_line_windows nil_window
+    where nil_window.edition_id = p_edition_id
   ), false);
 $is_open$;
 
@@ -182,13 +182,13 @@ begin
 
   return jsonb_build_object(
     'editionId', p_edition_id,
-    'enabled', coalesce(v_window.enabled, false),
-    'status', coalesce(v_window.status, 'draft'),
-    'opensAt', v_window.opens_at,
-    'closesAt', v_window.closes_at,
+    'enabled', coalesce(v_nil_window.enabled, false),
+    'status', coalesce(v_nil_window.status, 'draft'),
+    'opensAt', v_nil_window.opens_at,
+    'closesAt', v_nil_window.closes_at,
     'version', coalesce(v_window.version, 0),
     'reason', v_window.reason,
-    'changedAt', v_window.changed_at,
+    'changedAt', v_nil_window.changed_at,
     'effectiveOpen', private.studio2_next_in_line_window_is_open(p_edition_id),
     'eligibleCountries', (
       select count(*)
@@ -258,7 +258,7 @@ begin
   from public.studio2_next_in_line_windows
   where edition_id = p_edition_id;
 
-  v_current_status := coalesce(v_window.status, 'draft');
+  v_current_status := coalesce(v_nil_window.status, 'draft');
   v_version := coalesce(v_window.version, 0);
 
   if not private.studio2_next_in_line_transition_allowed(v_current_status, v_target) then
@@ -339,7 +339,7 @@ begin
   where edition_id = p_edition_id
   for update;
 
-  v_current_status := coalesce(v_window.status, 'draft');
+  v_current_status := coalesce(v_nil_window.status, 'draft');
 
   if coalesce(v_window.version, 0) is distinct from p_expected_version then
     raise exception 'Next in Line state changed since this preview was loaded. Refresh before continuing.'
@@ -374,7 +374,7 @@ begin
   end if;
   v_operation_id := (v_claim ->> 'operationId')::uuid;
 
-  if v_window.edition_id is null then
+  if v_nil_window.edition_id is null then
     insert into public.studio2_next_in_line_windows (
       edition_id,
       enabled,
@@ -434,10 +434,10 @@ begin
       'version', p_expected_version
     ),
     jsonb_build_object(
-      'status', v_window.status,
-      'enabled', v_window.enabled,
-      'opensAt', v_window.opens_at,
-      'closesAt', v_window.closes_at,
+      'status', v_nil_window.status,
+      'enabled', v_nil_window.enabled,
+      'opensAt', v_nil_window.opens_at,
+      'closesAt', v_nil_window.closes_at,
       'version', v_window.version,
       'reason', v_window.reason,
       'operationId', v_operation_id
@@ -447,10 +447,10 @@ begin
   v_result := jsonb_build_object(
     'ok', true,
     'editionId', p_edition_id,
-    'status', v_window.status,
-    'enabled', v_window.enabled,
-    'opensAt', v_window.opens_at,
-    'closesAt', v_window.closes_at,
+    'status', v_nil_window.status,
+    'enabled', v_nil_window.enabled,
+    'opensAt', v_nil_window.opens_at,
+    'closesAt', v_nil_window.closes_at,
     'version', v_window.version,
     'operationId', v_operation_id
   );
@@ -479,21 +479,21 @@ declare
 begin
   select *
   into v_window
-  from public.studio2_next_in_line_windows window
-  where window.enabled = true
-    and window.status = 'open'
-    and (window.opens_at is null or window.opens_at <= now())
-    and (window.closes_at is null or window.closes_at > now())
-  order by window.changed_at desc
+  from public.studio2_next_in_line_windows nil_window
+  where nil_window.enabled = true
+    and nil_window.status = 'open'
+    and (nil_window.opens_at is null or nil_window.opens_at <= now())
+    and (nil_window.closes_at is null or nil_window.closes_at > now())
+  order by nil_window.changed_at desc
   limit 1;
 
-  if v_window.edition_id is null then
+  if v_nil_window.edition_id is null then
     return jsonb_build_object('ok', false, 'error', 'closed', 'countries', '[]'::jsonb);
   end if;
 
   select * into v_edition
   from public.editions
-  where id = v_window.edition_id;
+  where id = v_nil_window.edition_id;
 
   return jsonb_build_object(
     'ok', true,
@@ -508,7 +508,7 @@ begin
         order by source.country
       )
       from public.submissions source
-      where source.edition_id = v_window.edition_id
+      where source.edition_id = v_nil_window.edition_id
         and private.studio2_next_in_line_source_eligible(source.id)
     ), '[]'::jsonb)
   );
