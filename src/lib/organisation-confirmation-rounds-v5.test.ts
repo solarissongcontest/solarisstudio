@@ -115,6 +115,9 @@ describe("Organisation OS V5 confirmation round operations", () => {
     }
     expect(migration).toContain("from authenticated");
     expect(migration).toContain(
+      "grant execute on function public.admin_confirmation_save_round(jsonb)\n  to service_role",
+    );
+    expect(migration).toContain(
       "before insert or update on public.submission_rounds",
     );
     expect(migration).toContain(
