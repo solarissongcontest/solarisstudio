@@ -167,6 +167,66 @@ function RoundsPage() {
     setFormOpen(true);
   }
 
+  async function prepareChange(input: {
+    kind: ConfirmationRoundChangeKind;
+    roundId?: string | null;
+    payload?: ConfirmationRoundChangePayload;
+    restoreFormOnCancel?: boolean;
+  }) {
+    setError(null);
+    if (input.roundId) setRoundBusy(input.roundId);
+    else setBusy(true);
+
+    try {
+      const preview = await previewConfirmationRoundChange({
+        roundId: input.roundId ?? null,
+        kind: input.kind,
+        payload: input.payload ?? {},
+      });
+
+      if (preview.alreadyApplied && preview.blockers.length === 0) {
+        if (input.restoreFormOnCancel) setFormOpen(false);
+        toast.success("That round state is already current.");
+        return;
+      }
+
+      const operation = createOrganisationCommand({
+        command: `confirmation.round.${input.kind}`,
+        riskClass: preview.riskClass,
+        expectedVersion: preview.expectedVersion,
+        scope: {
+          editionId: preview.editionId,
+          entityId: preview.roundId ?? preview.editionId,
+        },
+        payload: {
+          roundId: preview.roundId,
+          changeKind: input.kind,
+          payload: input.payload ?? {},
+        },
+      });
+
+      if (input.restoreFormOnCancel) setFormOpen(false);
+
+      setPendingChange({
+        kind: input.kind,
+        roundId: input.roundId ?? null,
+        payload: input.payload ?? {},
+        preview,
+        operationId: operation.operationId,
+        idempotencyKey: operation.idempotencyKey,
+        restoreFormOnCancel: input.restoreFormOnCancel === true,
+      });
+    } catch (caught) {
+      const message =
+        caught instanceof Error ? caught.message : "Round impact preview could not be loaded.";
+      if (input.restoreFormOnCancel) setError(message);
+      else toast.error(message);
+    } finally {
+      if (input.roundId) setRoundBusy(null);
+      else setBusy(false);
+    }
+  }
+
   async function submit() {
     setError(null);
     if (!editionId) return setError("Create an edition first.");
@@ -181,80 +241,105 @@ function RoundsPage() {
       return setError("Closing time must be after opening time.");
     }
 
+    const payload: ConfirmationRoundChangePayload = {
+      editionId,
+      name: form.name.trim(),
+      opensAt: opens,
+      closesAt: closes,
+      responseLimit: form.response_limit ? Number(form.response_limit) : null,
+      editingEnabled: form.editing_enabled,
+    };
+
+    await prepareChange({
+      kind: form.id ? "update" : "create",
+      roundId: form.id ?? null,
+      payload,
+      restoreFormOnCancel: true,
+    });
+  }
+
+  async function requestStatusChange(
+    round: ConfirmationRound,
+    status: "open" | "closed",
+  ) {
+    await prepareChange({
+      kind: "status",
+      roundId: round.id,
+      payload: { status },
+    });
+  }
+
+  async function requestEditingChange(
+    round: ConfirmationRound,
+    enabled: boolean,
+  ) {
+    await prepareChange({
+      kind: "editing",
+      roundId: round.id,
+      payload: { enabled },
+    });
+  }
+
+  async function requestDelete(round: ConfirmationRound) {
+    await prepareChange({
+      kind: "delete",
+      roundId: round.id,
+      payload: {},
+    });
+  }
+
+  async function applyPendingChange() {
+    if (!pendingChange || pendingChange.preview.blockers.length > 0) return;
+
+    const pending = pendingChange;
     setBusy(true);
+    if (pending.roundId) setRoundBusy(pending.roundId);
+
     try {
-      await saveConfirmationRound({
-        ...(form.id ? { id: form.id } : {}),
-        edition_id: editionId,
-        name: form.name.trim(),
-        status: form.status,
-        opens_at: opens,
-        closes_at: closes,
-        response_limit: form.response_limit ? Number(form.response_limit) : null,
-        editing_enabled: form.editing_enabled,
+      const receipt = await applyConfirmationRoundChange({
+        roundId: pending.roundId,
+        kind: pending.kind,
+        payload: pending.payload,
+        operationId: pending.operationId,
+        idempotencyKey: pending.idempotencyKey,
+        expectedVersion: pending.preview.expectedVersion,
       });
-      toast.success(form.id ? "Round updated" : "Round created");
+
+      setPendingChange(null);
       setForm(emptyForm);
-      setFormOpen(false);
       await refresh(editionId);
+
+      if (pending.kind === "create") {
+        toast.success("Submission round created as a draft.");
+      } else if (pending.kind === "delete") {
+        toast.success("Submission round deleted.");
+      } else if (pending.kind === "editing") {
+        toast.success(
+          receipt.editingEnabled
+            ? `Corrections enabled for ${receipt.affectedResponses} response${receipt.affectedResponses === 1 ? "" : "s"}.`
+            : `Corrections paused for ${receipt.affectedResponses} response${receipt.affectedResponses === 1 ? "" : "s"}.`,
+        );
+      } else if (pending.kind === "status") {
+        toast.success(
+          receipt.status === "open"
+            ? "Submissions are open. No new confirmation requirements were created."
+            : "New submissions are closed. Existing correction access is unchanged.",
+        );
+      } else {
+        toast.success("Round configuration updated.");
+      }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Round could not be saved.");
+      toast.error(caught instanceof Error ? caught.message : "Round change could not be applied.");
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function changeStatus(round: ConfirmationRound, status: "open" | "closed") {
-    setRoundBusy(round.id);
-    try {
-      const hadExpiredClosingTime =
-        status === "open" &&
-        Boolean(round.closes_at) &&
-        new Date(round.closes_at as string).getTime() <= Date.now();
-
-      await setConfirmationRoundStatus(round.id, status);
-      await refresh(editionId);
-      toast.success(
-        status === "open"
-          ? hadExpiredClosingTime
-            ? `${round.name} is open. Its expired closing time was cleared.`
-            : `${round.name} is open`
-          : `${round.name} is closed`,
-      );
-    } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Round status could not be changed");
-    } finally {
       setRoundBusy(null);
     }
   }
 
-  async function changeEditing(round: ConfirmationRound, enabled: boolean) {
-    setRoundBusy(round.id);
-    try {
-      await setConfirmationRoundEditing(round.id, enabled);
-      await refresh(editionId);
-      toast.success(enabled ? "Corrections enabled for unlocked responses" : "Delegation corrections paused");
-    } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Editing access could not be changed");
-    } finally {
-      setRoundBusy(null);
-    }
-  }
-
-  async function removeRound() {
-    if (!deleteTarget) return;
-    const target = deleteTarget;
-    setRoundBusy(target.id);
-    try {
-      await deleteConfirmationRound(target.id);
-      await refresh(editionId);
-      toast.success("Round deleted");
-      setDeleteTarget(null);
-    } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Round could not be deleted");
-    } finally {
-      setRoundBusy(null);
-    }
+  function cancelPendingChange() {
+    const reopenForm = pendingChange?.restoreFormOnCancel === true;
+    setPendingChange(null);
+    if (reopenForm) setFormOpen(true);
   }
 
   return (
