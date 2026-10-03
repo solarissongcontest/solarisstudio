@@ -3,10 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import type { Country } from "@/lib/data";
-import {
-  uploadServerAuthorizedFile,
-  type ServerAuthorizedUploadDescriptor,
-} from "@/lib/upload-safety";
+import { uploadVerifiedFile } from "@/lib/upload-safety";
 
 const supabase = typedSupabase as any;
 
@@ -551,11 +548,6 @@ export function useDeleteCountryMedia(countryId?: string) {
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
-type CountryMediaUploadDescriptor = ServerAuthorizedUploadDescriptor & {
-  token_id: string;
-  expires_at: string;
-};
-
 export async function uploadCountryAsset(
   countryId: string,
   file: File,
@@ -571,51 +563,20 @@ export async function uploadCountryAsset(
     throw new Error("Images can be at most 8 MB.");
   }
 
-  const { data: prepared, error: prepareError } = await (typedSupabase as any).rpc(
-    "studio2_create_country_media_upload",
-    {
-      p_country_id: countryId,
-      p_folder: folder,
-      p_name: file.name,
-      p_mime: file.type,
-      p_size: file.size,
-    },
-  );
-  if (prepareError) throw prepareError;
-
-  const descriptor = prepared as CountryMediaUploadDescriptor | null;
-  if (!descriptor?.token_id || descriptor.bucket !== "country-media" || !descriptor.object_path) {
-    throw new Error("Country media upload service returned an invalid authorization.");
-  }
-
-  await uploadServerAuthorizedFile({
+  const receipt = await uploadVerifiedFile({
     client: typedSupabase,
-    descriptor,
+    domain: "country_media",
+    entityId: countryId,
+    scope: folder,
     file,
-    cacheControl: "3600",
   });
 
-  const { data: finalized, error: finalizeError } = await (typedSupabase as any).rpc(
-    "studio2_finalize_country_media_upload",
-    {
-      p_token_id: descriptor.token_id,
-    },
-  );
-  if (finalizeError) throw finalizeError;
-
-  const finalizedPath =
-    finalized &&
-    typeof finalized === "object" &&
-    typeof (finalized as Record<string, unknown>).object_path === "string"
-      ? String((finalized as Record<string, unknown>).object_path)
-      : descriptor.object_path;
-
-  if (finalizedPath !== descriptor.object_path) {
-    throw new Error("Country media upload finalization returned a mismatched object path.");
+  if (receipt.bucket !== "country-media") {
+    throw new Error("Solaris verified the country image into an unexpected bucket.");
   }
 
-  const { data } = typedSupabase.storage.from("country-media").getPublicUrl(finalizedPath);
-  return { storagePath: finalizedPath, publicUrl: data.publicUrl };
+  const { data } = typedSupabase.storage.from("country-media").getPublicUrl(receipt.object_path);
+  return { storagePath: receipt.object_path, publicUrl: data.publicUrl };
 }
 
 type EntryInput = {
