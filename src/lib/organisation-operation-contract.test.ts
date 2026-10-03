@@ -26,6 +26,9 @@ describe("Organisation OS V5 operation contract", () => {
       "expired",
       "submitting",
       "acknowledged",
+      "read-only",
+      "maintenance",
+      "degraded",
     ]);
     expect(ORGANISATION_RISK_CLASSES).toEqual(["R0", "R1", "R2", "R3"]);
     expect(requiresImpactPreview("R2")).toBe(true);
