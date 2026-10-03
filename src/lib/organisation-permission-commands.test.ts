@@ -40,6 +40,9 @@ describe("Organisation OS V5 governed permission commands", () => {
     expect(migration).toContain("'selfChange'");
     expect(client).toContain('rpc("studio2_permission_change_preview"');
     expect(route).toContain("PermissionImpactPreview");
+    expect(route).toContain("createOrganisationCommand");
+    expect(route).toContain('command: "permissions.access_change"');
+    expect(route).toContain('riskClass: "R3"');
     expect(route).toContain("Risk R3");
     expect(route).toContain("confirmationText={pendingChange?.preview.targetDisplayName}");
   });
