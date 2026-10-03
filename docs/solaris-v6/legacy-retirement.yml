@@ -59,8 +59,14 @@ domains:
     retirement_criteria:
       - "Push and Inbox are delivery projections; required work survives delivery failure."
   organizer-shell:
-    state: dual-read
-    legacy_authority: ["independent admin chrome ownership"]
+    state: v6-owned
+    retired_authority: ["independent admin chrome ownership"]
+    legacy_authority: []
+    retirement_evidence:
+      - "AdminShell owns OrganizerV6MobileChrome and the shared V6 screen contract."
+      - "OrganizerV6MobileChrome owns tab memory, scroll restoration, task badges and transition choreography."
+      - "AdminFrame is layout/content only and no longer imports OrganizerV6TabBar or admin tab-history authority."
+      - "Shared AppChromeMetrics, overlay ownership and bottom-obstruction variables remain global across perspectives."
     retirement_criteria:
       - "Organizer consumes the shared V6 screen/chrome/overlay/safe-area contracts."
       - "AdminFrame no longer owns a competing mobile shell."
