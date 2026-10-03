@@ -88,7 +88,9 @@ as $valid$
 $valid$;
 
 revoke all on function private.studio2_country_media_upload_token_valid(uuid, text)
-  from public, anon, authenticated;
+  from public, anon, service_role;
+grant execute on function private.studio2_country_media_upload_token_valid(uuid, text)
+  to authenticated;
 
 create or replace function public.studio2_create_country_media_upload(
   p_country_id uuid,
