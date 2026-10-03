@@ -37,27 +37,35 @@ security definer
 set search_path = pg_catalog, public
 as $version$
 declare
-  v_user_id uuid := coalesce(new.user_id, old.user_id);
+  v_user_id uuid;
 begin
-  if v_user_id is null then
-    return coalesce(new, old);
+  if tg_op = 'DELETE' then
+    v_user_id := old.user_id;
+  else
+    v_user_id := new.user_id;
   end if;
 
-  insert into public.studio2_permission_subject_versions (
-    user_id,
-    version,
-    updated_at
-  )
-  values (
-    v_user_id,
-    2,
-    now()
-  )
-  on conflict (user_id) do update set
-    version = public.studio2_permission_subject_versions.version + 1,
-    updated_at = now();
+  if v_user_id is not null then
+    insert into public.studio2_permission_subject_versions as subject_version (
+      user_id,
+      version,
+      updated_at
+    )
+    values (
+      v_user_id,
+      2,
+      now()
+    )
+    on conflict (user_id) do update set
+      version = subject_version.version + 1,
+      updated_at = now();
+  end if;
 
-  return coalesce(new, old);
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+
+  return new;
 end
 $version$;
 
