@@ -13,7 +13,7 @@ implementation_phases:
   - { id: 5, key: navigation-choreography, status: in_progress, release_blocking: true, evidence: ["src/components/app/AppTabBar.tsx", "src/lib/app-view-transitions.ts"] }
   - { id: 6, key: participant-workflows, status: in_progress, release_blocking: true, evidence: ["src/components/mysolaris/MySolarisWorkspaceShell.tsx", "src/components/mysolaris/modules/MySolarisTasksModule.tsx", "src/components/interaction/SolarisPressable.tsx"] }
   - { id: 7, key: organizer-mobile, status: in_progress, release_blocking: true, evidence: ["src/components/admin/AdminFrame.tsx", "src/components/admin/OrganizerV6TabBar.tsx", "src/routes/_authenticated/admin/tasks.tsx", "src/components/interaction/SolarisMorphingSelection.tsx", "src/lib/organizer-v6-screen-registry.ts", "docs/organisation-os-v5/completion-matrix.yml"] }
-  - { id: 8, key: public-depth, status: partial, release_blocking: true, evidence: ["src/components/AppShell.tsx"] }
+  - { id: 8, key: public-depth, status: implemented, release_blocking: true, evidence: ["src/components/SolarisDepth.tsx", "src/solaris-depth.css", "src/lib/solaris-v6-public-depth.contract.test.ts", "src/routes/integrity/cases/$caseId.tsx", "src/routes/integrity/appeal.$caseId.tsx", "src/routes/integrity/decisions.tsx", "src/routes/integrity/process.tsx", "src/routes/integrity/privacy.tsx", "src/routes/rules/changes.tsx", "src/routes/rules/interpretations.tsx"] }
   - { id: 9, key: notifications-live-mode, status: in_progress, release_blocking: true, evidence: ["src/lib/app-notifications.ts", "src/components/app/AppOverlayManager.tsx", "src/routes/_authenticated/admin/inbox.tsx", "src/components/interaction/SolarisSwipeActionRow.tsx"] }
   - { id: 10, key: failure-recovery, status: in_progress, release_blocking: true, evidence: ["docs/organisation-os-v5/failure-injection-coverage.yml", "docs/solaris-v6/failure-recovery-coverage.yml", "src/lib/solaris-v6-operation-recovery.ts", "src/lib/solaris-v6-operation-recovery.test.ts", "src/routes/_authenticated/admin/results.tsx"] }
   - { id: 11, key: full-microinteraction-pass, status: missing, release_blocking: true, evidence: [] }
@@ -34,6 +34,7 @@ foundation_requirements:
   - { key: reorderable-list-primitive, status: implemented, evidence: ["src/components/interaction/SolarisReorderableList.tsx", "src/routes/_authenticated/admin/broadcast-rundown.tsx"] }
   - { key: gesture-coordinator, status: implemented, evidence: ["src/lib/interaction-physics.ts", "src/lib/gesture-coordinator.ts"] }
   - { key: canonical-motion-preferences, status: implemented, evidence: ["src/lib/interaction-physics.ts", "src/lib/interaction-preferences.ts", "src/lib/app-view-transitions.ts"] }
+  - { key: governance-depth-harmonisation, status: implemented, evidence: ["src/components/SolarisDepth.tsx", "src/solaris-depth.css", "src/lib/solaris-v6-public-depth.contract.test.ts"] }
   - { key: shared-keyboard-viewport-metrics, status: implemented, evidence: ["src/components/app/AppChromeMetrics.tsx", "src/components/app/AppRuntime.tsx"] }
   - { key: shared-bottom-obstruction, status: implemented, evidence: ["src/components/app/AppTabBar.tsx", "src/components/admin/OrganizerV6TabBar.tsx", "src/styles/app-shell.css", "src/admin-desktop.css"] }
 
