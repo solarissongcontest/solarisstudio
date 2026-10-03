@@ -62,6 +62,44 @@ $touch$;
 revoke all on function private.studio2_touch_confirmation_review_version()
   from public, anon, authenticated;
 
+create or replace function private.studio2_guard_direct_confirmation_review_transition()
+returns trigger
+language plpgsql
+set search_path = pg_catalog, public, private
+as $guard$
+begin
+  if current_user in ('authenticated', 'anon') then
+    raise exception 'Selection review transitions must use the Organisation OS V5 operation contract.'
+      using errcode = '42501';
+  end if;
+  return coalesce(new, old);
+end
+$guard$;
+
+revoke all on function private.studio2_guard_direct_confirmation_review_transition()
+  from public, anon, authenticated;
+
+drop trigger if exists studio2_guard_internal_entry_review_transition
+  on public.internal_entries;
+create trigger studio2_guard_internal_entry_review_transition
+before update of review_status, review_reason, reviewed_at, reviewed_by
+on public.internal_entries
+for each row execute function private.studio2_guard_direct_confirmation_review_transition();
+
+drop trigger if exists studio2_guard_nf_entry_review_transition
+  on public.national_final_entries;
+create trigger studio2_guard_nf_entry_review_transition
+before update of review_status, review_reason, reviewed_at, reviewed_by, removed, removed_at
+on public.national_final_entries
+for each row execute function private.studio2_guard_direct_confirmation_review_transition();
+
+drop trigger if exists studio2_guard_nf_winner_transition
+  on public.national_finals;
+create trigger studio2_guard_nf_winner_transition
+before update of winning_entry_id
+on public.national_finals
+for each row execute function private.studio2_guard_direct_confirmation_review_transition();
+
 drop trigger if exists studio2_touch_internal_entry_review_version
   on public.internal_entries;
 create trigger studio2_touch_internal_entry_review_version
