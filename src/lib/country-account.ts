@@ -3,6 +3,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import type { Country } from "@/lib/data";
+import {
+  uploadServerAuthorizedFile,
+  type ServerAuthorizedUploadDescriptor,
+} from "@/lib/upload-safety";
 
 const supabase = typedSupabase as any;
 
@@ -547,14 +551,10 @@ export function useDeleteCountryMedia(countryId?: string) {
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
-function safeFileName(name: string) {
-  const cleaned = name
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-  return cleaned || "image";
-}
+type CountryMediaUploadDescriptor = ServerAuthorizedUploadDescriptor & {
+  token_id: string;
+  expires_at: string;
+};
 
 export async function uploadCountryAsset(
   countryId: string,
@@ -564,20 +564,58 @@ export async function uploadCountryAsset(
   if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
     throw new Error("Use a JPG, PNG, WebP or GIF image.");
   }
+  if (file.size <= 0) {
+    throw new Error("Choose a non-empty image.");
+  }
   if (file.size > MAX_IMAGE_BYTES) {
     throw new Error("Images can be at most 8 MB.");
   }
 
-  const storagePath = `${countryId}/${folder}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
-  const { error } = await typedSupabase.storage.from("country-media").upload(storagePath, file, {
-    cacheControl: "3600",
-    upsert: false,
-    contentType: file.type,
-  });
-  if (error) throw error;
+  const { data: prepared, error: prepareError } = await (typedSupabase as any).rpc(
+    "studio2_create_country_media_upload",
+    {
+      p_country_id: countryId,
+      p_folder: folder,
+      p_name: file.name,
+      p_mime: file.type,
+      p_size: file.size,
+    },
+  );
+  if (prepareError) throw prepareError;
 
-  const { data } = typedSupabase.storage.from("country-media").getPublicUrl(storagePath);
-  return { storagePath, publicUrl: data.publicUrl };
+  const descriptor = prepared as CountryMediaUploadDescriptor | null;
+  if (!descriptor?.token_id || descriptor.bucket !== "country-media" || !descriptor.object_path) {
+    throw new Error("Country media upload service returned an invalid authorization.");
+  }
+
+  await uploadServerAuthorizedFile({
+    client: typedSupabase,
+    descriptor,
+    file,
+    cacheControl: "3600",
+  });
+
+  const { data: finalized, error: finalizeError } = await (typedSupabase as any).rpc(
+    "studio2_finalize_country_media_upload",
+    {
+      p_token_id: descriptor.token_id,
+    },
+  );
+  if (finalizeError) throw finalizeError;
+
+  const finalizedPath =
+    finalized &&
+    typeof finalized === "object" &&
+    typeof (finalized as Record<string, unknown>).object_path === "string"
+      ? String((finalized as Record<string, unknown>).object_path)
+      : descriptor.object_path;
+
+  if (finalizedPath !== descriptor.object_path) {
+    throw new Error("Country media upload finalization returned a mismatched object path.");
+  }
+
+  const { data } = typedSupabase.storage.from("country-media").getPublicUrl(finalizedPath);
+  return { storagePath: finalizedPath, publicUrl: data.publicUrl };
 }
 
 type EntryInput = {
