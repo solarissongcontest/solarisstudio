@@ -165,6 +165,18 @@ describe("Organisation OS V5 high-risk operation contracts", () => {
     expect(permissionRoute).toContain("confirmDisabled={!approvalPassword}");
   });
 
+  it("runs R3 separation, replay and stale-version failure injection against local Supabase", () => {
+    const rehearsal = source(".github/scripts/rules-integrity-security-rehearsal.sh");
+    expect(rehearsal).toContain("Organisation OS V5 R3 permission separation-of-duties tests");
+    expect(rehearsal).toContain("R3 requester cannot self-approve");
+    expect(rehearsal).toContain("different Organizer approves R3 permission change");
+    expect(rehearsal).toContain("R3 retry replays the canonical receipt");
+    expect(rehearsal).toContain("R3 replay does not duplicate permission grant");
+    expect(rehearsal).toContain("R3 approval rejects stale access version");
+    expect(rehearsal).toContain("studio2_permission_subject_versions set version=version+1");
+    expect(rehearsal).toContain('eval "$(supabase status -o env)"');
+  });
+
   it("keeps Results on its existing equivalent concurrency and replay contract", () => {
     expect(resultsMigration).toContain("p_execution_id uuid");
     expect(resultsMigration).toContain("p_expected_version bigint");
