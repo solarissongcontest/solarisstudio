@@ -76,8 +76,9 @@ describe("Organisation OS V5 high-risk operation contracts", () => {
 
     expect(permissionRoute).toContain("AdminConfirmSheet");
     expect(permissionRoute).toContain("previewPermissionChange(command)");
-    expect(permissionRoute).toContain("operationId: crypto.randomUUID()");
-    expect(permissionRoute).toContain("idempotencyKey: crypto.randomUUID()");
+    expect(permissionRoute).toContain("createOrganisationCommand");
+    expect(permissionRoute).toContain("operationId: operation.operationId");
+    expect(permissionRoute).toContain("idempotencyKey: operation.idempotencyKey");
     expect(permissionRoute).toContain(
       "expectedVersion: pending.preview.expectedVersion",
     );
