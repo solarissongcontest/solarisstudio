@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 
 const ROOTS = [
+  ".output/public/_build/assets",
   ".output/public/assets",
   "dist/client/assets",
   "dist/assets",
