@@ -5,6 +5,10 @@ const matrix = readFileSync(
   "docs/organisation-os-v5/completion-matrix.yml",
   "utf8",
 );
+const transitionInventory = readFileSync(
+  "docs/organisation-os-v5/state-transition-inventory.yml",
+  "utf8",
+);
 const certification = readFileSync(
   "docs/organisation-os-v5/release-certification.yml",
   "utf8",
@@ -42,6 +46,23 @@ if (partialReleaseBlockers.length) {
     "Organisation OS V5 cannot be certified while release-blocking implementation proof is partial:",
   );
   for (const row of partialReleaseBlockers) console.error(`  - ${row.trim()}`);
+  process.exit(1);
+}
+
+const transitionBlockers = transitionInventory
+  .split("\n")
+  .filter((line) => /^    status: (partial|missing)$/.test(line))
+  .map((line, index, lines) => {
+    let cursor = index;
+    while (cursor >= 0 && !/^  - id: /.test(lines[cursor] ?? "")) cursor -= 1;
+    return cursor >= 0 ? lines[cursor].trim() : line.trim();
+  });
+
+if (transitionBlockers.length) {
+  console.error(
+    "Organisation OS V5 mutable-state transition inventory still contains partial or missing domains:",
+  );
+  for (const row of transitionBlockers) console.error(`  - ${row}`);
   process.exit(1);
 }
 
