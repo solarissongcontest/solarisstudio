@@ -30,6 +30,52 @@ from (
 where source.user_id is not null
 on conflict (user_id) do nothing;
 
+create or replace function private.studio2_bump_permission_subject_version()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $version$
+declare
+  v_user_id uuid := coalesce(new.user_id, old.user_id);
+begin
+  if v_user_id is null then
+    return coalesce(new, old);
+  end if;
+
+  insert into public.studio2_permission_subject_versions (
+    user_id,
+    version,
+    updated_at
+  )
+  values (
+    v_user_id,
+    2,
+    now()
+  )
+  on conflict (user_id) do update set
+    version = public.studio2_permission_subject_versions.version + 1,
+    updated_at = now();
+
+  return coalesce(new, old);
+end
+$version$;
+
+revoke all on function private.studio2_bump_permission_subject_version()
+  from public, anon, authenticated;
+
+drop trigger if exists studio2_role_assignment_version_bump
+  on public.studio2_role_assignments;
+create trigger studio2_role_assignment_version_bump
+after insert or update or delete on public.studio2_role_assignments
+for each row execute function private.studio2_bump_permission_subject_version();
+
+drop trigger if exists studio2_capability_grant_version_bump
+  on public.studio2_capability_grants;
+create trigger studio2_capability_grant_version_bump
+after insert or update or delete on public.studio2_capability_grants
+for each row execute function private.studio2_bump_permission_subject_version();
+
 create or replace function private.studio2_permission_target_label(
   p_user_id uuid
 )
@@ -475,12 +521,10 @@ begin
   end if;
 
   if v_changed then
-    update public.studio2_permission_subject_versions
-    set
-      version = version + 1,
-      updated_at = now()
-    where user_id = p_user_id
-    returning version into v_next_version;
+    select subject_version.version
+    into v_next_version
+    from public.studio2_permission_subject_versions subject_version
+    where subject_version.user_id = p_user_id;
 
     insert into public.admin_audit_log (
       actor_id,
