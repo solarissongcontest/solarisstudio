@@ -12,6 +12,9 @@ describe("Organisation OS V5 platform operational modes", () => {
   const emergencyConfig = source("src/lib/maintenance.ts");
   const client = source("src/lib/platform-operational-mode.ts");
   const systemRoute = source("src/routes/_authenticated/admin/system.tsx");
+  const platformPermissionEnforcement = source(
+    "supabase/migrations/20261003212000_organisation_os_v5_platform_permission_enforcement.sql",
+  );
 
   it("defines one canonical four-mode platform state and permission", () => {
     expect(migration).toContain("'maintenance.manage'");
@@ -72,6 +75,34 @@ describe("Organisation OS V5 platform operational modes", () => {
     );
     expect(migration).toContain("using errcode = '25006'");
     expect(migration).toContain("false\n  );");
+  });
+
+  it("enforces restricted modes at the authoritative capability boundary", () => {
+    expect(platformPermissionEnforcement).toContain(
+      "private.studio2_capability_allowed_in_platform_mode",
+    );
+    expect(platformPermissionEnforcement).toContain(
+      "create or replace function public.studio2_access_allowed",
+    );
+    expect(platformPermissionEnforcement).toContain("p_access_level = 'read'");
+    expect(platformPermissionEnforcement).toContain("'maintenance.manage'");
+    expect(platformPermissionEnforcement).toContain("'incident.manage'");
+    expect(platformPermissionEnforcement).toContain("'communications.send'");
+    expect(platformPermissionEnforcement).toContain(
+      "private.studio2_user_has_capability",
+    );
+    expect(platformPermissionEnforcement).toContain(
+      "studio2_platform_operational_state",
+    );
+  });
+
+  it("blocks new upload authorizations while the platform is restricted", () => {
+    expect(platformPermissionEnforcement).toContain(
+      "private.studio2_upload_platform_allows_prepare",
+    );
+    expect(platformPermissionEnforcement).toContain(
+      "Uploads are unavailable while Solaris is Read-only or in Maintenance",
+    );
   });
 
   it("exposes canonical mode state and stable retry identity through the Organizer client", () => {
