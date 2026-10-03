@@ -6,7 +6,6 @@ export type PlatformExitPreflightCheck = {
   pass: boolean;
   critical: boolean;
   detail: string;
-  [key: string]: unknown;
 };
 
 export type PlatformExitPreflightReceipt = {
@@ -44,7 +43,6 @@ function parseReceipt(value: unknown): PlatformExitPreflightReceipt {
   for (const [key, raw] of Object.entries(rawChecks)) {
     const check = object(raw, `platform exit check ${key}`);
     checks[key] = {
-      ...check,
       pass: check.pass === true,
       critical: check.critical === true,
       detail: typeof check.detail === "string" ? check.detail : "",
