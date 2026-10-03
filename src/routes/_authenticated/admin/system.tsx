@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowRight,
   CalendarClock,
@@ -44,6 +45,10 @@ import {
   type PlatformModeChangePreview,
   type PlatformOperationalMode,
 } from "@/lib/platform-operational-mode";
+import {
+  runPlatformExitPreflight,
+  type PlatformExitPreflightReceipt,
+} from "@/lib/platform-exit-preflight.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/system")({
   head: () => ({
@@ -68,6 +73,7 @@ type PendingPlatformModeChange = {
   form: PlatformModeForm;
   operationId: string;
   idempotencyKey: string;
+  exitPreflight: PlatformExitPreflightReceipt | null;
 };
 
 function AdminSystemPage() {
@@ -101,6 +107,11 @@ function AdminSystemPage() {
   });
   const previewPlatformMode = useMutation({
     mutationFn: previewPlatformModeChange,
+  });
+  const runExitPreflight = useServerFn(runPlatformExitPreflight);
+  const exitPreflight = useMutation({
+    mutationFn: (targetMode: PlatformOperationalMode) =>
+      runExitPreflight({ data: { targetMode } }),
   });
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -139,6 +150,7 @@ function AdminSystemPage() {
         incidentReference: pending.form.incidentReference.trim() || null,
         operationId: pending.operationId,
         idempotencyKey: pending.idempotencyKey,
+        exitPreflightId: pending.exitPreflight?.id ?? null,
       });
     },
     onSuccess: async () => {
@@ -177,6 +189,9 @@ function AdminSystemPage() {
       message: modeForm.message.trim() || null,
       incidentReference: modeForm.incidentReference.trim() || null,
     });
+    const preflight = requiresExitPreflight(preview.currentMode, preview.targetMode)
+      ? await exitPreflight.mutateAsync(preview.targetMode)
+      : null;
     const operationId = crypto.randomUUID();
     setPlatformPassword("");
     setPendingModeChange({
@@ -184,6 +199,7 @@ function AdminSystemPage() {
       form: { ...modeForm, reason: modeForm.reason.trim() },
       operationId,
       idempotencyKey: operationId,
+      exitPreflight: preflight,
     });
   };
 
@@ -383,6 +399,9 @@ function AdminSystemPage() {
             {previewPlatformMode.error ? (
               <p className="text-xs text-rose-200">{errorText(previewPlatformMode.error)}</p>
             ) : null}
+            {exitPreflight.error ? (
+              <p className="text-xs text-rose-200">{errorText(exitPreflight.error)}</p>
+            ) : null}
             {applyPlatformMode.error ? (
               <p className="text-xs text-rose-200">{errorText(applyPlatformMode.error)}</p>
             ) : null}
@@ -393,12 +412,15 @@ function AdminSystemPage() {
                 className="admin-action-primary"
                 disabled={
                   previewPlatformMode.isPending ||
+                  exitPreflight.isPending ||
                   !modeForm.targetMode ||
                   modeForm.reason.trim().length < 5
                 }
                 onClick={() => void reviewPlatformChange()}
               >
-                {previewPlatformMode.isPending ? "Checking…" : "Review mode change"}
+                {previewPlatformMode.isPending || exitPreflight.isPending
+                  ? "Running checks…"
+                  : "Review mode change"}
               </button>
             </div>
           </div>
@@ -617,6 +639,46 @@ function AdminSystemPage() {
                   Solaris may return to Normal.
                 </p>
               ) : null}
+              {pendingModeChange.exitPreflight ? (
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold text-foreground">
+                      Maintenance exit preflight
+                    </p>
+                    <AdminStatus tone={pendingModeChange.exitPreflight.ready ? "ready" : "blocked"}>
+                      {pendingModeChange.exitPreflight.ready ? "Critical checks passed" : "Blocked"}
+                    </AdminStatus>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {Object.entries(pendingModeChange.exitPreflight.checks).map(
+                      ([key, check]) => (
+                        <div
+                          key={key}
+                          className="flex min-w-0 items-start justify-between gap-3 text-xs"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-semibold text-foreground">
+                              {preflightCheckLabel(key)}
+                            </p>
+                            <p className="mt-0.5 leading-5 text-muted-foreground">
+                              {check.detail}
+                            </p>
+                          </div>
+                          <AdminStatus
+                            tone={check.pass ? "ready" : check.critical ? "blocked" : "attention"}
+                          >
+                            {check.pass ? "Pass" : check.critical ? "Block" : "Review"}
+                          </AdminStatus>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                  <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
+                    Receipt expires {new Date(pendingModeChange.exitPreflight.expiresAt).toLocaleString()}.
+                    Database-critical checks run again when you apply the transition.
+                  </p>
+                </div>
+              ) : null}
               {pendingModeChange.preview.riskClass === "R3" ? (
                 <label className="block">
                   <span className="text-xs font-semibold text-foreground">
@@ -648,7 +710,8 @@ function AdminSystemPage() {
         }
         busy={applyPlatformMode.isPending}
         confirmDisabled={
-          Boolean(pendingModeChange?.preview.riskClass === "R3") && !platformPassword
+          (Boolean(pendingModeChange?.preview.riskClass === "R3") && !platformPassword) ||
+          Boolean(pendingModeChange?.exitPreflight && !pendingModeChange.exitPreflight.ready)
         }
         danger={pendingModeChange?.preview.riskClass === "R3"}
       />
@@ -715,6 +778,22 @@ function AdminSystemPage() {
       </AdminSheet>
     </AdminPage>
   );
+}
+
+function requiresExitPreflight(
+  from: PlatformOperationalMode,
+  to: PlatformOperationalMode,
+) {
+  return (
+    (from === "maintenance" && to === "read_only") ||
+    (from === "read_only" && to === "degraded")
+  );
+}
+
+function preflightCheckLabel(key: string) {
+  return key
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function nextPlatformModes(mode: PlatformOperationalMode): PlatformOperationalMode[] {
