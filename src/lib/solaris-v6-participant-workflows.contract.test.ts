@@ -1,0 +1,42 @@
+import { readFileSync } from "node:fs";
+
+import { describe, expect, it } from "vitest";
+
+const source = (path: string) => readFileSync(path, "utf8");
+
+describe("Solaris V6 participant workflow inspection contract", () => {
+  it("keeps Organizer inspection explicit and read-only in Tasks", () => {
+    const tasks = source(
+      "src/components/mysolaris/modules/MySolarisTasksModule.tsx",
+    );
+    expect(tasks).toContain("organizerInspection");
+    expect(tasks).toContain("Participant View · read-only");
+    expect(tasks).toContain("<SolarisSurfaceSwitch");
+    expect(tasks).toContain("!organizerInspection ? (");
+    expect(tasks).toContain("acknowledgeNotice.mutate");
+  });
+
+  it("keeps Organizer inspection out of participant confirmation mutation paths", () => {
+    const entry = source(
+      "src/components/mysolaris/modules/MySolarisEntryModule.tsx",
+    );
+    expect(entry).toContain("organizerInspection");
+    expect(entry).toContain("Participant View · read-only");
+    expect(entry).toContain("<SolarisSurfaceSwitch");
+    expect(entry).toContain('"/confirmations/admin/countries"');
+    expect(entry).toContain("!organizerInspection");
+    expect(entry).toContain(
+      "includeOrganizer: Boolean(access?.isOrganizer)",
+    );
+  });
+
+  it("uses the same registry-driven perspective switch in the country workspace", () => {
+    const country = source(
+      "src/components/mysolaris/modules/MySolarisCountryModule.tsx",
+    );
+    expect(country).toContain("<SolarisSurfaceSwitch");
+    expect(country).toContain("countrySurfaceLinks");
+    expect(country).toContain("includeOrganizer: isOrganizer");
+    expect(country).toContain("includeDiagnostics: isOrganizer");
+  });
+});
