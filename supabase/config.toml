@@ -2,3 +2,7 @@ project_id = "dkxmnvekiopyesuzggeu"
 
 [functions.solaris-push-dispatch]
 verify_jwt = false
+
+
+[functions.solaris-upload-finalize]
+verify_jwt = false

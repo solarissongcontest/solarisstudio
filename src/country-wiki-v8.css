@@ -658,23 +658,10 @@ body[data-entity-theme="country"][data-country-hero-layout="newspaper"] .wiki-ca
   font-weight: 750;
 }
 
-.wiki-sheet {
-  position: fixed;
-  z-index: 120;
-  inset: 0;
-}
-
-.wiki-sheet-backdrop {
-  position: absolute;
-  inset: 0;
-  border: 0;
-  background: rgb(0 0 0 / .7);
-}
-
+/* Mobile Wiki tools use the shared Radix Sheet primitive. This class only
+   supplies Wiki content styling; positioning, backdrop, z-index, focus trap and
+   safe-area geometry belong to the global overlay system. */
 .wiki-sheet-panel {
-  position: absolute;
-  inset-inline: 0;
-  inset-block-end: 0;
   max-block-size: min(82dvh, 46rem);
   overflow-y: auto;
   border-radius: 1.25rem 1.25rem 0 0;

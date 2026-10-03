@@ -977,7 +977,7 @@ function SectionBuilderCard({
                   <ImagePlus className="mr-1 inline size-3" /> Upload
                   <input
                     type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    accept="image/jpeg,image/png,image/webp"
                     className="hidden"
                     onChange={(event) =>
                       event.target.files?.[0] && void onAddMedia(event.target.files[0])

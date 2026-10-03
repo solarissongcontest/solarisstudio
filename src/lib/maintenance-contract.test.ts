@@ -28,6 +28,36 @@ describe("emergency global maintenance mode", () => {
     expect(envExample).not.toContain('VITE_MAINTENANCE_ADMIN_SECRET');
   });
 
+  it("allows browser CI to audit the hidden application only on localhost", () => {
+    expect(server).toContain('SOLARIS_E2E_BYPASS_MAINTENANCE !== "1"');
+    expect(server).toContain('url.hostname === "127.0.0.1" || url.hostname === "localhost"');
+    expect(server).toContain('solaris_e2e_maintenance_bypass');
+    expect(server).toContain('const localE2EBypass = hasLocalE2EMaintenanceBypass(request)');
+    expect(server).toContain('!localE2EBypass && (await hasValidMaintenanceBypass(request, secret))');
+    expect(server).not.toContain('VITE_SOLARIS_E2E_BYPASS_MAINTENANCE');
+  });
+
+  it("keeps the production maintenance bypass inspection-only", () => {
+    expect(server).toContain("Production maintenance bypass is deliberately inspection-only");
+    expect(server).toContain("maintenanceAdminBypass");
+    expect(server).toContain('request.method !== "GET"');
+    expect(server).toContain('request.method !== "HEAD"');
+    expect(server).toContain('"solaris_studio_maintenance_read_only"');
+    expect(server).toContain(
+      "Maintenance access is read-only. Mutating operations remain disabled until maintenance ends.",
+    );
+  });
+
+  it("does not apply the production read-only bypass rule to isolated localhost E2E", () => {
+    const readOnlyGuard = server.slice(
+      server.indexOf("Production maintenance bypass is deliberately inspection-only"),
+      server.indexOf("const handler = await getServerEntry()"),
+    );
+    expect(readOnlyGuard).toContain("maintenanceAdminBypass");
+    expect(readOnlyGuard).not.toContain("if (localE2EBypass");
+    expect(readOnlyGuard).not.toContain("if (!localE2EBypass");
+  });
+
   it("uses the canonical Solaris visual system and reduced-motion-safe animation", () => {
     expect(page).toContain('font-family: "Classica Crastao"');
     expect(page).toContain('font-family: "Gotham"');

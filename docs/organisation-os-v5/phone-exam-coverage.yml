@@ -1,0 +1,55 @@
+version: 1
+product: Solaris Studio Organisation OS V5
+source: "V5 §238 Phone-only scenario"
+required_steps: 42
+status_values: [automated, partial, manual]
+rule: "Automated evidence reduces risk but never self-approves the physical phone-only release gate."
+
+steps:
+  - { id: create-select-test-edition, status: partial, evidence: ["e2e/organizer-routes.e2e.ts", "src/routes/_authenticated/admin/editions.tsx"] }
+  - { id: configure-host, status: automated, evidence: ["src/lib/studio2-host-management-integration.test.ts", "src/routes/_authenticated/admin/hosts.tsx"] }
+  - { id: configure-shows, status: partial, evidence: ["e2e/organizer-routes.e2e.ts", "src/routes/_authenticated/admin/shows/$slug.tsx"] }
+  - { id: configure-delegations, status: partial, evidence: ["e2e/organizer-routes.e2e.ts", "src/routes/_authenticated/admin/countries.tsx"] }
+  - { id: participant-view, status: automated, evidence: ["src/lib/organisation-os-v5-counterparts.test.ts", "src/lib/studio2-hod-workspace.test.ts"] }
+  - { id: open-confirmation-round, status: automated, evidence: ["src/lib/organisation-confirmation-rounds-v5.test.ts"] }
+  - { id: receive-submissions, status: partial, evidence: ["src/lib/organisation-confirmation-requirements.test.ts"] }
+  - { id: review-internal-entry, status: automated, evidence: ["src/lib/organisation-v5-selection-review-transitions.test.ts"] }
+  - { id: review-national-final-entries, status: automated, evidence: ["src/lib/organisation-v5-selection-review-transitions.test.ts"] }
+  - { id: select-national-final-winner, status: automated, evidence: ["src/lib/organisation-v5-selection-review-transitions.test.ts"] }
+  - { id: handle-corrections, status: automated, evidence: ["src/lib/organisation-confirmation-rounds-v5.test.ts", "src/lib/confirmation-version-history-integration.test.ts"] }
+  - { id: operate-next-in-line, status: automated, evidence: ["src/lib/organisation-v5-next-in-line-runtime.test.ts", "src/lib/jury-next-in-line-contract.test.ts"] }
+  - { id: review-eligibility, status: automated, evidence: ["src/lib/organisation-eligibility-overrides-v5.test.ts"] }
+  - { id: review-media, status: automated, evidence: ["src/lib/studio2-media-assets-integration.test.ts", "src/lib/organisation-v5-upload-safety.contract.test.ts"] }
+  - { id: review-country-public-content, status: automated, evidence: ["src/lib/organisation-os-v5-counterparts.test.ts"] }
+  - { id: inspect-country-appearance, status: automated, evidence: ["src/lib/organisation-os-v5-counterparts.test.ts", "src/lib/country-personality-v5-extra.test.ts"] }
+  - { id: configure-running-order, status: automated, evidence: ["src/lib/show-lineup-lifecycle.test.ts", "src/components/admin/ShowLineupWorkspace.tsx"] }
+  - { id: configure-jury, status: automated, evidence: ["src/lib/organisation-jury-window-v5.test.ts"] }
+  - { id: open-jury, status: automated, evidence: ["src/lib/organisation-jury-window-v5.test.ts"] }
+  - { id: handle-invalid-missing-ballot, status: automated, evidence: ["src/lib/organisation-v5-jury-ballot-lifecycle.test.ts"] }
+  - { id: dnv-where-appropriate, status: automated, evidence: ["src/lib/organisation-v5-jury-ballot-lifecycle.test.ts"] }
+  - { id: close-jury, status: automated, evidence: ["src/lib/organisation-jury-window-v5.test.ts"] }
+  - { id: configure-televote, status: automated, evidence: ["src/lib/organisation-televote-rounds-v5.test.ts", "src/components/televoting/VotingRoundsView.tsx"] }
+  - { id: open-televote, status: automated, evidence: ["src/lib/organisation-televote-rounds-v5.test.ts"] }
+  - { id: review-integrity-signal, status: automated, evidence: ["src/lib/governance-os-v5.contract.test.ts", "src/integrations/televoting/integrity-human-moderation.test.ts"] }
+  - { id: close-incomplete-televote, status: automated, evidence: ["src/lib/organisation-televote-rounds-v5.test.ts"] }
+  - { id: calculate-results, status: automated, evidence: ["src/lib/studio2-results-operations.test.ts"] }
+  - { id: verify-results, status: automated, evidence: ["src/lib/studio2-results-operations.test.ts"] }
+  - { id: lock-results, status: automated, evidence: ["src/lib/studio2-results-operations.test.ts", "src/lib/organisation-high-risk-operations-v5.test.ts"] }
+  - { id: run-reveal-director, status: automated, evidence: ["src/lib/results-reveal-director.test.ts", "src/lib/studio2-results-reveal-integration.test.ts", "src/routes/_authenticated/admin/results-reveal.tsx"] }
+  - { id: publish, status: automated, evidence: ["src/lib/organisation-v5-show-publication-lifecycle.test.ts"] }
+  - { id: send-required-notice, status: automated, evidence: ["src/lib/official-communications-record-lifecycle.integration.test.ts"] }
+  - { id: acknowledge-from-participant-test-account, status: partial, evidence: ["src/lib/official-communications-record-lifecycle.integration.test.ts", "src/lib/studio2-recipient-inbox.ts"] }
+  - { id: handle-outstanding-acknowledgement, status: automated, evidence: ["src/lib/organisation-acknowledgement-ownership.test.ts", "src/lib/official-communications-record-lifecycle.integration.test.ts"] }
+  - { id: simulate-failed-automation, status: automated, evidence: ["src/lib/organisation-v5-system-job-recovery.test.ts"] }
+  - { id: recover-failed-automation, status: automated, evidence: ["src/lib/organisation-v5-system-job-recovery.test.ts"] }
+  - { id: simulate-failed-push, status: automated, evidence: ["src/lib/notification-engine.test.ts", "src/lib/organisation-v5-review-hardening.test.ts"] }
+  - { id: simulate-service-degradation, status: automated, evidence: ["src/lib/organisation-v5-platform-modes.test.ts"] }
+  - { id: enter-read-only, status: automated, evidence: ["src/lib/organisation-v5-platform-modes.test.ts", "src/lib/organisation-v5-read-only-enforcement.test.ts"] }
+  - { id: recover-from-read-only, status: automated, evidence: ["src/lib/organisation-v5-platform-exit-preflight.test.ts"] }
+  - { id: handle-sev-1-incident, status: automated, evidence: ["src/lib/organisation-v5-incident-lifecycle.test.ts"] }
+  - { id: inspect-audit, status: partial, evidence: ["src/routes/_authenticated/admin/system.tsx", "src/lib/admin-ops.ts", "src/lib/organisation-high-risk-operations-v5.test.ts"] }
+
+manual_focus:
+  - "Operate all 42 steps in sequence from one physical phone without desktop fallback."
+  - "Verify keyboard/safe-area/scroll/focus behavior during real mutations, not only route rendering."
+  - "Confirm state changes are understandable after interruptions and app relaunches."

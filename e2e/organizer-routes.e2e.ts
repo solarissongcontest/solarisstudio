@@ -1,4 +1,4 @@
-import { expect, test, type BrowserContext } from "@playwright/test";
+import { expect, test, type Browser, type BrowserContext } from "@playwright/test";
 
 import { buildAdminNavigation } from "../src/components/admin/admin-navigation";
 import { buildAdminDomainNavigation } from "../src/components/admin/admin-domains";
@@ -10,8 +10,14 @@ async function addOrganizerSession(context: BrowserContext) {
   const email = process.env.E2E_ORGANIZER_EMAIL;
   const password = process.env.E2E_ORGANIZER_PASSWORD;
 
+  const missingConfig = !url || !publishableKey || !email || !password;
+  if (missingConfig && process.env.CI) {
+    throw new Error(
+      "Browser Audit must seed local Organizer credentials; refusing to skip authenticated Organizer coverage in CI.",
+    );
+  }
   test.skip(
-    !url || !publishableKey || !email || !password,
+    missingConfig,
     "Organizer browser credentials or E2E Supabase public config are not configured",
   );
 
@@ -28,6 +34,73 @@ async function addOrganizerSession(context: BrowserContext) {
     ({ key, value }) => localStorage.setItem(key, JSON.stringify(value)),
     { key: `sb-${projectRef}-auth-token`, value: session },
   );
+}
+
+type E2ESession = {
+  access_token: string;
+  user: { id: string; email?: string | null };
+  [key: string]: unknown;
+};
+
+async function signInLocalAccount(
+  url: string,
+  publishableKey: string,
+  email: string,
+  password: string,
+): Promise<E2ESession> {
+  const response = await fetch(`${url.replace(/\/$/, "")}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { apikey: publishableKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  expect(response.ok, `Local E2E account ${email} must be able to sign in`).toBeTruthy();
+  return (await response.json()) as E2ESession;
+}
+
+async function localRpc<T>(
+  url: string,
+  publishableKey: string,
+  token: string,
+  name: string,
+  body: Record<string, unknown>,
+): Promise<T> {
+  const response = await fetch(`${url.replace(/\/$/, "")}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: {
+      apikey: publishableKey,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const raw = await response.text();
+  expect(response.ok, `${name} must succeed in isolated local E2E: ${raw}`).toBeTruthy();
+  return (raw ? JSON.parse(raw) : null) as T;
+}
+
+async function newLocalOrganizerContext(
+  browser: Browser,
+  baseURL: string,
+  supabaseUrl: string,
+  session: E2ESession,
+) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
+  await context.addCookies([
+    {
+      name: "solaris_e2e_maintenance_bypass",
+      value: "1",
+      url: baseURL,
+      httpOnly: true,
+      secure: false,
+      sameSite: "Lax",
+    },
+  ]);
+  await context.addInitScript(
+    ({ key, value }) => localStorage.setItem(key, JSON.stringify(value)),
+    { key: `sb-${projectRef}-auth-token`, value: session },
+  );
+  return context;
 }
 
 const organizerDestinations = [
@@ -48,14 +121,29 @@ const organizerDestinations = [
 
 const criticalMobileDestinations = [
   "/admin/operations",
+  "/admin/tasks",
   "/admin/inbox",
+  "/admin/action-centre",
   "/admin/ssc22",
-  "/admin/integrity-investigations",
-  "/admin/more",
+  "/admin/countries",
+  "/confirmations/admin",
+  "/confirmations/admin/sync",
   "/admin/entries/ssc22",
   "/admin/shows/ssc22",
-  "/admin/design/ssc22",
+  "/admin/voting-system/ssc22",
   "/televoting/admin",
+  "/admin/results",
+  "/admin/results-reveal",
+  "/admin/publication/ssc22",
+  "/admin/communications",
+  "/admin/integrity-investigations",
+  "/admin/incidents",
+  "/admin/access-permissions",
+  "/admin/sync-health",
+  "/admin/system-operations",
+  "/admin/system",
+  "/admin/design/ssc22",
+  "/admin/more",
   "/admin/fantasy",
   "/admin/time-machine",
   "/admin/command-assistant",
@@ -130,10 +218,150 @@ test.describe("Solaris Organizer route reliability", () => {
     }
   });
 
-  test("critical Organizer work remains usable on mobile", async ({ page }, testInfo) => {
+  test("R3 permission changes require a second Organizer on mobile", async ({ browser }, testInfo) => {
     test.skip(
       testInfo.project.name !== "organizer-admin-mobile",
-      "Critical mobile Organizer surfaces run at the phone baseline",
+      "The two-operator R3 browser protocol is certified once at the phone baseline",
+    );
+
+    const url = process.env.E2E_SUPABASE_URL;
+    const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
+    const organizerEmail = process.env.E2E_ORGANIZER_EMAIL;
+    const organizerPassword = process.env.E2E_ORGANIZER_PASSWORD;
+    const organizerBEmail = process.env.E2E_ORGANIZER_B_EMAIL;
+    const organizerBPassword = process.env.E2E_ORGANIZER_B_PASSWORD;
+    const countryEmail = process.env.E2E_COUNTRY_EMAIL;
+    const countryPassword = process.env.E2E_COUNTRY_PASSWORD;
+    const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4173";
+
+    const missingR3Config =
+      !url ||
+      !publishableKey ||
+      !organizerEmail ||
+      !organizerPassword ||
+      !organizerBEmail ||
+      !organizerBPassword ||
+      !countryEmail ||
+      !countryPassword;
+    if (missingR3Config && process.env.CI) {
+      throw new Error(
+        "Browser Audit must seed both local Organizers and the local Country account for R3 certification.",
+      );
+    }
+    test.skip(
+      missingR3Config,
+      "Local two-operator Browser Audit credentials are not configured",
+    );
+
+    expect(url).toMatch(/^http:\/\/(?:127\.0\.0\.1|localhost):\d+/);
+
+    const [organizerA, organizerB, country] = await Promise.all([
+      signInLocalAccount(url!, publishableKey!, organizerEmail!, organizerPassword!),
+      signInLocalAccount(url!, publishableKey!, organizerBEmail!, organizerBPassword!),
+      signInLocalAccount(url!, publishableKey!, countryEmail!, countryPassword!),
+    ]);
+
+    const preview = await localRpc<{ expectedVersion: number; alreadyApplied: boolean }>(
+      url!,
+      publishableKey!,
+      organizerA.access_token,
+      "studio2_permission_change_preview",
+      {
+        p_user_id: country.user.id,
+        p_change_kind: "grant_capability",
+        p_key: "broadcast.control",
+        p_edition_id: null,
+        p_expires_at: null,
+      },
+    );
+    expect(preview.alreadyApplied).toBe(false);
+
+    const operationId = crypto.randomUUID();
+    const idempotencyKey = `browser-r3-${operationId}`;
+
+    const approval = await localRpc<{ id: string; canApply: boolean; canApprove: boolean }>(
+      url!,
+      publishableKey!,
+      organizerA.access_token,
+      "studio2_request_permission_change_approval",
+      {
+        p_user_id: country.user.id,
+        p_change_kind: "grant_capability",
+        p_key: "broadcast.control",
+        p_edition_id: null,
+        p_expires_at: null,
+        p_operation_id: operationId,
+        p_idempotency_key: idempotencyKey,
+        p_expected_version: preview.expectedVersion,
+      },
+    );
+    expect(approval.id).toBeTruthy();
+    expect(approval.canApply).toBe(false);
+    expect(approval.canApprove).toBe(false);
+
+    const contextB = await newLocalOrganizerContext(browser, baseURL, url!, organizerB);
+    try {
+      const pageB = await contextB.newPage();
+      await pageB.goto(`${baseURL}/admin/access-permissions`, { waitUntil: "domcontentloaded" });
+      await expect(pageB).not.toHaveURL(/\/auth(?:\?|$)/);
+      await expect(pageB.getByText("Needs your approval", { exact: true })).toBeVisible();
+
+      await pageB.getByRole("button", { name: "Approve as second operator" }).first().click();
+      await expect(pageB.getByText("Fresh authentication required", { exact: true })).toBeVisible();
+      await pageB.locator('input[type="password"]').fill(organizerBPassword!);
+      await pageB.locator('input[autocomplete="off"]').fill("Browser HOD");
+      await pageB.getByRole("button", { name: "Approve as second operator" }).last().click();
+      await expect(pageB.getByText(/R3 permission change approved/i)).toBeVisible();
+    } finally {
+      await contextB.close();
+    }
+
+    const contextA = await newLocalOrganizerContext(browser, baseURL, url!, organizerA);
+    try {
+      const pageA = await contextA.newPage();
+      await pageA.goto(`${baseURL}/admin/access-permissions`, { waitUntil: "domcontentloaded" });
+      await expect(pageA.getByText("Approved for you", { exact: true })).toBeVisible();
+
+      await pageA.getByRole("button", { name: "Apply approved change" }).first().click();
+      await pageA.locator('input[type="password"]').fill(organizerPassword!);
+      await pageA.locator('input[autocomplete="off"]').fill("Browser HOD");
+      await pageA.getByRole("button", { name: "Apply approved change" }).last().click();
+      await expect(pageA.getByText(/Access change applied with fresh authentication/i)).toBeVisible();
+      await expect(pageA.getByText("Approved for you", { exact: true })).toHaveCount(0);
+    } finally {
+      await contextA.close();
+    }
+
+    const accessSimulation = await localRpc<{
+      userId: string;
+      capabilities: string[];
+    }>(
+      url!,
+      publishableKey!,
+      organizerA.access_token,
+      "studio2_view_access_as",
+      {
+        p_user_id: country.user.id,
+        p_edition_id: null,
+      },
+    );
+    expect(accessSimulation.userId).toBe(country.user.id);
+    expect(accessSimulation.capabilities).toContain("broadcast.control");
+
+    const remaining = await localRpc<Array<{ id: string }>>(
+      url!,
+      publishableKey!,
+      organizerA.access_token,
+      "studio2_list_permission_change_approvals",
+      {},
+    );
+    expect(remaining.some((item) => item.id === approval.id)).toBe(false);
+  });
+
+  test("critical Organizer work remains usable on mobile", async ({ page }, testInfo) => {
+    test.skip(
+      !["organizer-admin-mobile", "organizer-admin-landscape"].includes(testInfo.project.name),
+      "Critical mobile Organizer surfaces run at the portrait and landscape phone baselines",
     );
 
     for (const path of criticalMobileDestinations) {

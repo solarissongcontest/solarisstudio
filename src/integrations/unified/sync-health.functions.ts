@@ -57,8 +57,7 @@ export type SyncHealthSummary = {
   };
 };
 
-export const getUnifiedSyncHealth = createServerFn({ method: "GET" }).handler(
-  async (): Promise<SyncHealthSummary> => {
+export async function loadUnifiedSyncHealthServer(): Promise<SyncHealthSummary> {
     const { requireSolarisOrganizerServer } = await import("@/integrations/supabase/organizer.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await requireSolarisOrganizerServer();
@@ -195,5 +194,8 @@ export const getUnifiedSyncHealth = createServerFn({ method: "GET" }).handler(
         hodChannelOverrides: hodAssignments.filter((row: any) => row.channel === "jury" || row.channel === "televote").length,
       },
     };
-  },
+}
+
+export const getUnifiedSyncHealth = createServerFn({ method: "GET" }).handler(
+  loadUnifiedSyncHealthServer,
 );

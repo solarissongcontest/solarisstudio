@@ -697,7 +697,7 @@ function OwnedCountryHub({
                 </div>
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  accept="image/jpeg,image/png,image/webp"
                   disabled={flagBusy}
                   onChange={(event) =>
                     event.target.files?.[0] && void uploadFlag(event.target.files[0])
@@ -1005,11 +1005,11 @@ function OwnedCountryHub({
 
             <Panel
               title="Country media"
-              description="Upload reusable images for your article and gallery. JPG, PNG, WebP or GIF, maximum 8 MB."
+              description="Upload reusable images for your article and gallery. JPG, PNG or WebP, maximum 5 MB. Solaris verifies and re-processes public images before delivery."
             >
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
+                accept="image/jpeg,image/png,image/webp"
                 onChange={(event) => setGalleryFile(event.target.files?.[0] ?? null)}
                 className="block w-full text-xs"
               />

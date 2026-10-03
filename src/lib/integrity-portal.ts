@@ -1,6 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
+import {
+  uploadPreparedQuarantineFile,
+  type PreparedExistingQuarantineUpload,
+} from "@/lib/upload-safety";
 import type {
   IntegrityCaseKind,
   IntegrityCaseSnapshot,
@@ -134,10 +138,8 @@ export async function getCurrentIntegrityUser() {
   return data.user ?? null;
 }
 
-export type EvidenceUploadDescriptor = {
+export type EvidenceUploadDescriptor = PreparedExistingQuarantineUpload & {
   token_id: string;
-  object_path: string;
-  bucket: string;
 };
 
 export async function sanitizeEvidenceFile(file: File): Promise<File> {
@@ -262,14 +264,11 @@ export async function uploadAnonymousEvidence(
   if (prepareError) throw new Error(prepareError.message);
   const upload = descriptor as EvidenceUploadDescriptor;
 
-  const { error: uploadError } = await client.storage
-    .from(upload.bucket)
-    .upload(upload.object_path, file, {
-      upsert: false,
-      contentType: file.type || "text/plain",
-      cacheControl: "0",
-    });
-  if (uploadError) throw new Error(uploadError.message);
+  await uploadPreparedQuarantineFile({
+    client,
+    descriptor: upload,
+    file,
+  });
 
   const { data: finalized, error: finalizeError } = await (client as any).rpc(
     "public_finalize_anonymous_evidence",
@@ -295,14 +294,11 @@ export async function uploadProtectedEvidence(caseId: string, sourceFile: File) 
     },
   );
 
-  const { error: uploadError } = await supabase.storage
-    .from(descriptor.bucket)
-    .upload(descriptor.object_path, file, {
-      upsert: false,
-      contentType: file.type || "text/plain",
-      cacheControl: "0",
-    });
-  if (uploadError) throw new Error(uploadError.message);
+  await uploadPreparedQuarantineFile({
+    client: supabase,
+    descriptor,
+    file,
+  });
 
   const finalized = await rpc<{ snapshot: IntegrityCaseSnapshot }>(
     "finalize_protected_evidence",

@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
-import { AdminCard, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
+import { AdminCard, AdminConfirmSheet, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { FlagChip } from "@/components/FlagChip";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -37,6 +37,31 @@ type StatusGroup = {
   contestEntityId: string | null;
 };
 
+type ParticipationStatusPreview = {
+  riskClass: "R2";
+  editionId: string;
+  countryId: string | null;
+  contestEntityId: string | null;
+  subjectKey: string;
+  requestedStatus: ParticipationStatus;
+  currentStatus: ParticipationStatus;
+  expectedVersion: number;
+  participantRows: number;
+  entryRows: number;
+  resultRows: number;
+  publishedResultRows: number;
+  shows: Array<{ showId: string; showName: string; published: boolean }>;
+  alreadyApplied: boolean;
+};
+
+type PendingStatusChange = {
+  group: StatusGroup;
+  displayName: string;
+  preview: ParticipationStatusPreview;
+  operationId: string;
+  idempotencyKey: string;
+};
+
 function ParticipantStatusWorkspace() {
   const { slug } = Route.useParams();
   const qc = useQueryClient();
@@ -46,6 +71,7 @@ function ParticipantStatusWorkspace() {
   const { data: entities = [] } = useContestEntities(edition?.id);
   const { data: shows = [] } = useShows(edition?.id);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [pendingChange, setPendingChange] = useState<PendingStatusChange | null>(null);
 
   const displays = useMemo(() => entityDisplayMap(entities, countries), [entities, countries]);
   const countryIds = useMemo(() => new Set(countries.map((country) => country.id)), [countries]);
@@ -82,24 +108,71 @@ function ParticipantStatusWorkspace() {
       });
   }, [participants, countryIds, displays]);
 
-  async function setStatus(group: StatusGroup, status: ParticipationStatus) {
+  async function requestStatusChange(group: StatusGroup, status: ParticipationStatus) {
     if (!edition || group.status === status) return;
     setBusyKey(group.key);
     try {
-      const { error } = await (supabase as any).rpc("admin_set_participation_status", {
-        _edition_id: edition.id,
-        _country_id: group.countryId,
-        _contest_entity_id: group.contestEntityId,
-        _status: status,
+      const { data, error } = await (supabase as any).rpc(
+        "studio2_participation_status_change_preview",
+        {
+          p_edition_id: edition.id,
+          p_country_id: group.countryId,
+          p_contest_entity_id: group.contestEntityId,
+          p_status: status,
+        },
+      );
+      if (error) throw error;
+
+      const preview = data as ParticipationStatusPreview;
+      const displayName = displays.get(group.key)?.name ?? "Country";
+      if (preview.alreadyApplied) {
+        toast.message(`${displayName} is already marked ${participationStatusLabel(status).toLowerCase()}.`);
+        return;
+      }
+
+      setPendingChange({
+        group,
+        displayName,
+        preview,
+        operationId: crypto.randomUUID(),
+        idempotencyKey: crypto.randomUUID(),
       });
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "Participation impact could not be loaded");
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function confirmStatusChange() {
+    if (!edition || !pendingChange) return;
+    const pending = pendingChange;
+    setBusyKey(pending.group.key);
+    try {
+      const { error } = await (supabase as any).rpc(
+        "studio2_apply_participation_status",
+        {
+          p_edition_id: edition.id,
+          p_country_id: pending.group.countryId,
+          p_contest_entity_id: pending.group.contestEntityId,
+          p_status: pending.preview.requestedStatus,
+          p_operation_id: pending.operationId,
+          p_idempotency_key: pending.idempotencyKey,
+          p_expected_version: pending.preview.expectedVersion,
+        },
+      );
       if (error) throw error;
 
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["participants"] }),
         qc.invalidateQueries({ queryKey: ["public-participants"] }),
         qc.invalidateQueries({ queryKey: ["results"] }),
+        qc.invalidateQueries({ queryKey: ["organizer-tasks-v5"] }),
       ]);
-      toast.success(`${displays.get(group.key)?.name ?? "Country"} marked ${participationStatusLabel(status).toLowerCase()}`);
+      toast.success(
+        `${pending.displayName} marked ${participationStatusLabel(pending.preview.requestedStatus).toLowerCase()}`,
+      );
+      setPendingChange(null);
     } catch (caught) {
       toast.error(caught instanceof Error ? caught.message : "Participation status could not be changed");
     } finally {
@@ -156,9 +229,9 @@ function ParticipantStatusWorkspace() {
                   </div>
 
                   <div className="mt-3 grid grid-cols-3 gap-2">
-                    <button type="button" disabled={busy || group.status === "confirmed"} onClick={() => void setStatus(group, "confirmed")} className="admin-action-secondary !min-h-10 !px-2"><UserCheck className="size-3.5" /> Active</button>
-                    <button type="button" disabled={busy || group.status === "withdrawn"} onClick={() => void setStatus(group, "withdrawn")} className="admin-action-secondary !min-h-10 !px-2"><Ban className="size-3.5" /> Withdrawn</button>
-                    <button type="button" disabled={busy || group.status === "disqualified"} onClick={() => void setStatus(group, "disqualified")} className="admin-action-secondary !min-h-10 !px-2"><ShieldX className="size-3.5" /> Disqualified</button>
+                    <button type="button" disabled={busy || group.status === "confirmed"} onClick={() => void requestStatusChange(group, "confirmed")} className="admin-action-secondary !min-h-10 !px-2"><UserCheck className="size-3.5" /> Active</button>
+                    <button type="button" disabled={busy || group.status === "withdrawn"} onClick={() => void requestStatusChange(group, "withdrawn")} className="admin-action-secondary !min-h-10 !px-2"><Ban className="size-3.5" /> Withdrawn</button>
+                    <button type="button" disabled={busy || group.status === "disqualified"} onClick={() => void requestStatusChange(group, "disqualified")} className="admin-action-secondary !min-h-10 !px-2"><ShieldX className="size-3.5" /> Disqualified</button>
                   </div>
                 </div>
               );
@@ -166,7 +239,95 @@ function ParticipantStatusWorkspace() {
           </div>
         </AdminCard>
       )}
+
+      <AdminConfirmSheet
+        open={Boolean(pendingChange)}
+        onClose={() => {
+          if (!busyKey) setPendingChange(null);
+        }}
+        onConfirm={confirmStatusChange}
+        title={
+          pendingChange
+            ? `Mark ${pendingChange.displayName} ${participationStatusLabel(pendingChange.preview.requestedStatus).toLowerCase()}?`
+            : "Change participation status?"
+        }
+        description={
+          pendingChange ? (
+            <ParticipationStatusImpactPreview pending={pendingChange} />
+          ) : (
+            "Review the participation impact before continuing."
+          )
+        }
+        confirmLabel={
+          pendingChange
+            ? `Mark ${participationStatusLabel(pendingChange.preview.requestedStatus).toLowerCase()}`
+            : "Apply status"
+        }
+        confirmationText={
+          pendingChange && pendingChange.preview.requestedStatus !== "confirmed"
+            ? pendingChange.displayName
+            : undefined
+        }
+        confirmationHint={
+          pendingChange && pendingChange.preview.requestedStatus !== "confirmed"
+            ? `Type ${pendingChange.displayName} to confirm this R2 participation change`
+            : undefined
+        }
+        busy={Boolean(busyKey)}
+        danger={pendingChange?.preview.requestedStatus !== "confirmed"}
+      />
     </AdminPage>
+  );
+}
+
+function ParticipationStatusImpactPreview({ pending }: { pending: PendingStatusChange }) {
+  const preview = pending.preview;
+  const publishedShows = preview.shows.filter((show) => show.published);
+
+  return (
+    <div className="space-y-3">
+      <p>
+        This is a <strong className="text-foreground">Risk R2</strong> participation change for{" "}
+        <strong className="text-foreground">{pending.displayName}</strong>.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <ImpactMetric label="Current → requested" value={`${participationStatusLabel(preview.currentStatus)} → ${participationStatusLabel(preview.requestedStatus)}`} />
+        <ImpactMetric label="Show rows affected" value={preview.participantRows} />
+        <ImpactMetric label="Result rows present" value={preview.resultRows} />
+        <ImpactMetric label="Published result rows" value={preview.publishedResultRows} />
+      </div>
+
+      {preview.publishedResultRows > 0 ? (
+        <p className="rounded-lg border border-rose-200/15 bg-rose-200/[0.05] px-3 py-2 text-xs leading-5 text-rose-50">
+          Published result visibility/statistics are affected immediately by this status. Existing score rows are not deleted.
+        </p>
+      ) : null}
+
+      {publishedShows.length ? (
+        <div>
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Published shows in scope
+          </span>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            {publishedShows.map((show) => show.showName).join(" · ")}
+          </p>
+        </div>
+      ) : null}
+
+      <p className="text-xs leading-5 text-muted-foreground">
+        Solaris will reject this command if participant or entry truth changes after preview version v{preview.expectedVersion}.
+        Retrying this same confirmation replays its operation receipt instead of applying the status twice.
+      </p>
+    </div>
+  );
+}
+
+function ImpactMetric({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-lg border border-white/[0.08] bg-black/10 p-2.5">
+      <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
+      <strong className="mt-1 block text-xs text-foreground">{value}</strong>
+    </div>
   );
 }
 

@@ -2,6 +2,11 @@
 @source "../src";
 @import "tw-animate-css";
 
+/* Solaris cascade ownership. Dynamic personality CSS is explicitly placed in
+   the personality layer; protected app chrome remains later/unlayered until
+   the remaining legacy web sheets have been retired. */
+@layer reset, tokens, base, web, personality, app, accessibility;
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -85,6 +90,20 @@
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Global overlay stack. Feature CSS must use these tokens instead of
+     inventing local z-index ladders that can overtake app chrome. */
+  --solaris-z-content: 0;
+  --solaris-z-sticky: 30;
+  --solaris-z-toolbar: 50;
+  --solaris-z-tabbar: 60;
+  --solaris-z-popover: 80;
+  --solaris-z-sheet-backdrop: 89;
+  --solaris-z-sheet: 90;
+  --solaris-z-dialog-backdrop: 99;
+  --solaris-z-dialog: 100;
+  --solaris-z-system-critical: 120;
+  --solaris-z-boot: 2147483647;
 }
 
 .dark { color-scheme: dark; }
@@ -299,7 +318,9 @@ a.bg-primary:active,
 @utility numeric { font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
 @utility scroll-slim { scrollbar-width: thin; scrollbar-color: rgba(120, 180, 205, 0.38) transparent; }
 
-.app-main { padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)); }
+html:not([data-solaris-app]) .app-main {
+  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
+}
 .app-background {
   position: fixed;
   inset: 0;
@@ -327,7 +348,9 @@ a.bg-primary:active,
   body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
 }
 
-@media (min-width: 1024px) { .app-main { padding-bottom: 2rem; } }
+@media (min-width: 1024px) {
+  html:not([data-solaris-app]) .app-main { padding-bottom: 2rem; }
+}
 
 @media (max-width: 767px) {
   body { background-color: #020817; background-image: none; background-attachment: scroll; }

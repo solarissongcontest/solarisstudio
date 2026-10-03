@@ -171,12 +171,14 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
       buildParticipationTasks({
         editionId: currentEdition?.id ?? null,
         responses: confirmationQuery.data?.responses ?? [],
+        requirements: confirmationQuery.data?.requirements ?? [],
         rounds: roundsQuery.data ?? [],
         acknowledgementTasks,
       }),
     [
       acknowledgementTasks,
       confirmationQuery.data?.responses,
+      confirmationQuery.data?.requirements,
       currentEdition?.id,
       roundsQuery.data,
     ],

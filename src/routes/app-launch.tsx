@@ -68,10 +68,9 @@ function AppLaunchPage() {
       };
     }
 
-    // getSession normally reads the locally persisted Supabase session without
-    // a network round-trip. On some PWA/iOS storage-lock failures it can still
-    // stall, so cold launch has a hard circuit breaker instead of leaving the
-    // user on "Opening your app…" forever.
+    // Local Supabase session recovery normally resolves immediately, but an
+    // installed browser can occasionally stall on storage/session locking.
+    // Cold launch therefore has a hard circuit breaker.
     void resolveAppLaunchSession().then(({ signedIn, source }) => {
       if (!alive) return;
 
@@ -97,11 +96,20 @@ function AppLaunchPage() {
                 : "cold_launch_local_session",
         },
       });
+      const targetHref = appEntryHref(target);
       markAppNavigationRestore(target);
       void navigate({
-        to: appEntryHref(target) as any,
+        to: targetHref as any,
         replace: true,
       });
+
+      // TanStack navigation should complete immediately, but an installed
+      // browser can occasionally end up with a half-restored router during a
+      // cold PWA launch. Never allow /app-launch to become a permanent screen.
+      window.setTimeout(() => {
+        if (!alive || window.location.pathname !== "/app-launch") return;
+        window.location.replace(targetHref);
+      }, 1_000);
     });
 
     return () => {

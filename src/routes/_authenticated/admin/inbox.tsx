@@ -187,6 +187,7 @@ function InboxRow({
   const attention = urgent || item.severity === "warning" || item.severity === "action";
   const Icon = urgent ? ShieldAlert : attention ? TriangleAlert : Inbox;
   const resolved = Boolean(item.resolved_at);
+  const domainResolved = item.resolution_mode === "domain";
 
   return (
     <div className="admin-list-row">
@@ -227,10 +228,15 @@ function InboxRow({
               Mark seen
             </button>
           ) : null}
-          {!resolved ? (
+          {!resolved && !domainResolved ? (
             <button type="button" disabled={resolving} onClick={onResolve} className="admin-action-quiet">
               <CheckCircle2 className="size-4" /> Mark resolved
             </button>
+          ) : null}
+          {!resolved && domainResolved ? (
+            <span className="inline-flex min-h-9 items-center text-[11px] font-semibold text-muted-foreground">
+              Resolves automatically from the source workflow
+            </span>
           ) : null}
         </span>
       </span>

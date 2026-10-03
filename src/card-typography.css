@@ -69,8 +69,9 @@ h1.font-display,
   letter-spacing: 0.025em !important;
 }
 
-/* Keep fixed mobile navigation from covering the final rows/cards on pages. */
-.app-main {
+/* Website/mobile-browser fallback only. Installed-app obstruction is measured
+   and owned by app-shell.css. */
+html:not([data-solaris-app]) .app-main {
   padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)) !important;
 }
 

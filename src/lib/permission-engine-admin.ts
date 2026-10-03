@@ -55,6 +55,76 @@ export type PermissionSummary = {
   legacyDeniedCapabilityAllowed: number;
 };
 
+export type PermissionChangeKind =
+  | "assign_role"
+  | "revoke_role"
+  | "grant_capability"
+  | "revoke_capability";
+
+export type PermissionChangeInput = {
+  userId: string;
+  kind: PermissionChangeKind;
+  key: string;
+  editionId?: string | null;
+  expiresAt?: string | null;
+};
+
+export type PermissionChangePreview = {
+  riskClass: "R3";
+  targetUserId: string;
+  targetDisplayName: string;
+  changeKind: PermissionChangeKind;
+  key: string;
+  editionId: string | null;
+  expiresAt: string | null;
+  expectedVersion: number;
+  alreadyApplied: boolean;
+  affectedCapabilities: SolarisCapability[];
+  globalScope: boolean;
+  grantsPermissionAdministration: boolean;
+  warnings: {
+    globalScope?: string;
+    permissionAdministration?: string;
+    selfChange?: string;
+  };
+};
+
+export type PermissionChangeReceipt = {
+  ok: true;
+  changed: boolean;
+  riskClass: "R3";
+  targetUserId: string;
+  changeKind: PermissionChangeKind;
+  key: string;
+  editionId: string | null;
+  previousVersion: number;
+  version: number;
+  operationId: string;
+};
+
+export type PermissionChangeApproval = {
+  id: string;
+  operationId: string;
+  idempotencyKey: string | null;
+  targetUserId: string | null;
+  targetDisplayName: string;
+  changeKind: PermissionChangeKind;
+  key: string;
+  editionId: string | null;
+  expiresAt: string | null;
+  expectedVersion: number;
+  requestedBy: string | null;
+  requesterDisplayName: string;
+  requestedAt: string;
+  approvalExpiresAt: string;
+  approvedBy: string | null;
+  approverDisplayName: string | null;
+  approvedAt: string | null;
+  canApprove: boolean;
+  canApply: boolean;
+  consumedAt: string | null;
+};
+
 export type PermissionEvent = {
   id: number;
   userId: string | null;
@@ -275,56 +345,193 @@ export async function loadPermissionEvents(mismatchesOnly = false): Promise<Perm
   ).map(mapEvent);
 }
 
-export async function assignAccessRole(input: {
-  userId: string;
-  roleKey: string;
-  editionId?: string | null;
-  expiresAt?: string | null;
-}): Promise<void> {
-  await rpc("studio2_assign_access_role", {
-    p_user_id: input.userId,
-    p_role_key: input.roleKey,
-    p_edition_id: input.editionId ?? null,
-    p_expires_at: input.expiresAt ?? null,
-  });
+function permissionChangeKind(value: unknown): PermissionChangeKind {
+  const candidate = string(value, "permission change kind");
+  if (
+    candidate !== "assign_role" &&
+    candidate !== "revoke_role" &&
+    candidate !== "grant_capability" &&
+    candidate !== "revoke_capability"
+  ) {
+    throw new Error(`Unknown permission change kind: ${candidate}`);
+  }
+  return candidate;
 }
 
-export async function revokeAccessRole(input: {
-  userId: string;
-  roleKey: string;
-  editionId?: string | null;
-}): Promise<void> {
-  await rpc("studio2_revoke_access_role", {
-    p_user_id: input.userId,
-    p_role_key: input.roleKey,
-    p_edition_id: input.editionId ?? null,
-  });
+function mapPermissionChangeApproval(value: unknown): PermissionChangeApproval {
+  const row = object(value, "permission change approval");
+  return {
+    id: string(row.id, "permission approval id"),
+    operationId: string(row.operationId, "permission approval operation id"),
+    idempotencyKey: nullableString(row.idempotencyKey),
+    targetUserId: nullableString(row.targetUserId),
+    targetDisplayName: string(row.targetDisplayName, "permission approval target"),
+    changeKind: permissionChangeKind(row.changeKind),
+    key: string(row.key, "permission approval key"),
+    editionId: nullableString(row.editionId),
+    expiresAt: nullableString(row.expiresAt),
+    expectedVersion: number(row.expectedVersion, "permission approval expected version"),
+    requestedBy: nullableString(row.requestedBy),
+    requesterDisplayName: string(row.requesterDisplayName, "permission approval requester"),
+    requestedAt: string(row.requestedAt, "permission approval requested at"),
+    approvalExpiresAt: string(row.approvalExpiresAt, "permission approval expiry"),
+    approvedBy: nullableString(row.approvedBy),
+    approverDisplayName: nullableString(row.approverDisplayName),
+    approvedAt: nullableString(row.approvedAt),
+    canApprove: boolean(row.canApprove, "permission approval canApprove"),
+    canApply: boolean(row.canApply, "permission approval canApply"),
+    consumedAt: nullableString(row.consumedAt),
+  };
 }
 
-export async function grantDirectCapability(input: {
-  userId: string;
-  capability: SolarisCapability;
-  editionId?: string | null;
-  expiresAt?: string | null;
-}): Promise<void> {
-  await rpc("studio2_grant_capability", {
-    p_user_id: input.userId,
-    p_capability: input.capability,
-    p_edition_id: input.editionId ?? null,
-    p_expires_at: input.expiresAt ?? null,
-  });
+function mapPermissionChangePreview(value: unknown): PermissionChangePreview {
+  const row = object(value, "permission change preview");
+  const warningsValue = object(row.warnings ?? {}, "permission change warnings");
+  const riskClass = string(row.riskClass, "permission risk class");
+  if (riskClass !== "R3") throw new Error("Permission changes must be R3 operations.");
+
+  return {
+    riskClass: "R3",
+    targetUserId: string(row.targetUserId, "permission target user"),
+    targetDisplayName: string(row.targetDisplayName, "permission target display name"),
+    changeKind: permissionChangeKind(row.changeKind),
+    key: string(row.key, "permission change key"),
+    editionId: nullableString(row.editionId),
+    expiresAt: nullableString(row.expiresAt),
+    expectedVersion: number(row.expectedVersion, "permission expected version"),
+    alreadyApplied: boolean(row.alreadyApplied, "permission preview applied state"),
+    affectedCapabilities: capabilityArray(row.affectedCapabilities),
+    globalScope: boolean(row.globalScope, "permission global scope"),
+    grantsPermissionAdministration: boolean(
+      row.grantsPermissionAdministration,
+      "permission administration impact",
+    ),
+    warnings: {
+      globalScope: nullableString(warningsValue.globalScope) ?? undefined,
+      permissionAdministration:
+        nullableString(warningsValue.permissionAdministration) ?? undefined,
+      selfChange: nullableString(warningsValue.selfChange) ?? undefined,
+    },
+  };
 }
 
-export async function revokeDirectCapability(input: {
-  userId: string;
-  capability: SolarisCapability;
-  editionId?: string | null;
-}): Promise<void> {
-  await rpc("studio2_revoke_capability", {
-    p_user_id: input.userId,
-    p_capability: input.capability,
-    p_edition_id: input.editionId ?? null,
+function mapPermissionChangeReceipt(value: unknown): PermissionChangeReceipt {
+  const row = object(value, "permission change receipt");
+  const riskClass = string(row.riskClass, "permission receipt risk class");
+  if (riskClass !== "R3") throw new Error("Permission receipt must be R3.");
+  if (!boolean(row.ok, "permission receipt status")) {
+    throw new Error("Permission change did not complete.");
+  }
+
+  return {
+    ok: true,
+    changed: boolean(row.changed, "permission changed state"),
+    riskClass: "R3",
+    targetUserId: string(row.targetUserId, "permission target user"),
+    changeKind: permissionChangeKind(row.changeKind),
+    key: string(row.key, "permission receipt key"),
+    editionId: nullableString(row.editionId),
+    previousVersion: number(row.previousVersion, "permission previous version"),
+    version: number(row.version, "permission version"),
+    operationId: string(row.operationId, "permission operation id"),
+  };
+}
+
+export async function previewPermissionChange(
+  input: PermissionChangeInput,
+): Promise<PermissionChangePreview> {
+  return mapPermissionChangePreview(
+    await rpc("studio2_permission_change_preview", {
+      p_user_id: input.userId,
+      p_change_kind: input.kind,
+      p_key: input.key,
+      p_edition_id: input.editionId ?? null,
+      p_expires_at: input.expiresAt ?? null,
+    }),
+  );
+}
+
+export async function loadPermissionChangeApprovals(): Promise<PermissionChangeApproval[]> {
+  return array(await rpc("studio2_list_permission_change_approvals")).map(
+    mapPermissionChangeApproval,
+  );
+}
+
+export async function requestPermissionChangeApproval(
+  input: PermissionChangeInput & {
+    operationId: string;
+    idempotencyKey: string;
+    expectedVersion: number;
+  },
+): Promise<PermissionChangeApproval> {
+  return mapPermissionChangeApproval(
+    await rpc("studio2_request_permission_change_approval", {
+      p_user_id: input.userId,
+      p_change_kind: input.kind,
+      p_key: input.key,
+      p_edition_id: input.editionId ?? null,
+      p_expires_at: input.expiresAt ?? null,
+      p_operation_id: input.operationId,
+      p_idempotency_key: input.idempotencyKey,
+      p_expected_version: input.expectedVersion,
+    }),
+  );
+}
+
+export async function approvePermissionChangeApproval(
+  requestId: string,
+): Promise<PermissionChangeApproval> {
+  return mapPermissionChangeApproval(
+    await rpc("studio2_approve_permission_change", {
+      p_request_id: requestId,
+    }),
+  );
+}
+
+export async function reauthenticatePermissionR3(password: string): Promise<void> {
+  if (!password) throw new Error("Enter your current Solaris password to authorize this R3 change.");
+  const secret = password;
+
+  const { data: current, error: currentError } = await supabase.auth.getUser();
+  if (currentError) throw currentError;
+  const user = current.user;
+  if (!user?.id || !user.email) {
+    throw new Error("This organizer account cannot be reauthenticated with a password.");
+  }
+
+  const originalUserId = user.id;
+  const { data: signedIn, error: signInError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: secret,
   });
+  if (signInError) throw signInError;
+  if (!signedIn.user || signedIn.user.id !== originalUserId) {
+    await supabase.auth.signOut();
+    throw new Error("Fresh authentication returned a different Solaris account.");
+  }
+}
+
+export async function applyPermissionChange(
+  input: PermissionChangeInput & {
+    operationId: string;
+    idempotencyKey: string;
+    expectedVersion: number;
+    approvalRequestId: string;
+  },
+): Promise<PermissionChangeReceipt> {
+  return mapPermissionChangeReceipt(
+    await rpc("studio2_apply_permission_change_r3", {
+      p_user_id: input.userId,
+      p_change_kind: input.kind,
+      p_key: input.key,
+      p_edition_id: input.editionId ?? null,
+      p_expires_at: input.expiresAt ?? null,
+      p_operation_id: input.operationId,
+      p_idempotency_key: input.idempotencyKey,
+      p_expected_version: input.expectedVersion,
+      p_approval_request_id: input.approvalRequestId,
+    }),
+  );
 }
 
 export async function viewAccessAs(

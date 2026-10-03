@@ -32,6 +32,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
 import {
   syncConfirmationSnapshotToSolaris,
   type ConfirmationSolarisSyncResult,
@@ -269,12 +270,39 @@ function EntryReviewCard({
     setBusy(true);
     setError(null);
     try {
-      const { error: rpcError } = await confirmationsSupabase.rpc("admin_review_confirmation_entry", {
-        _target_type: targetType,
-        _entry_id: entry.id,
-        _status: nextStatus,
-        _reason: reason.trim(),
+      const { data: previewData, error: previewError } = await confirmationsSupabase.rpc(
+        "studio2_confirmation_entry_review_preview",
+        {
+          p_target_type: targetType,
+          p_entry_id: entry.id,
+          p_target_status: nextStatus,
+        },
+      );
+      if (previewError) throw previewError;
+      const preview = previewData as { expectedVersion?: number } | null;
+      if (!preview || typeof preview.expectedVersion !== "number") {
+        throw new Error("Selection review preview did not return a version.");
+      }
+
+      const command = createOrganisationCommand({
+        command: "confirmation.entry.review",
+        riskClass: "R2",
+        scope: { entityId: entry.id },
+        payload: { targetType, targetStatus: nextStatus },
+        expectedVersion: preview.expectedVersion,
       });
+      const { error: rpcError } = await confirmationsSupabase.rpc(
+        "studio2_apply_confirmation_entry_review",
+        {
+          p_target_type: targetType,
+          p_entry_id: entry.id,
+          p_target_status: nextStatus,
+          p_reason: reason.trim(),
+          p_operation_id: command.operationId,
+          p_idempotency_key: command.idempotencyKey,
+          p_expected_version: preview.expectedVersion,
+        },
+      );
       if (rpcError) throw rpcError;
       toast.success(
         nextStatus === "accepted"
@@ -590,25 +618,56 @@ function ResponseDetailPage() {
     }
   }
 
-  async function setWinner(entry: ReviewEntry, reason: string) {
+  async function changeWinner(
+    action: "select" | "clear",
+    reason: string,
+    entryId: string | null,
+  ) {
     if (!data?.national_final) return;
-    const { error: rpcError } = await confirmationsSupabase.rpc("admin_set_confirmation_winner", {
-      _national_final_id: data.national_final.id,
-      _entry_id: entry.id,
-      _reason: reason,
+
+    const { data: previewData, error: previewError } = await confirmationsSupabase.rpc(
+      "studio2_confirmation_winner_change_preview",
+      {
+        p_national_final_id: data.national_final.id,
+        p_action: action,
+        p_entry_id: entryId,
+      },
+    );
+    if (previewError) throw previewError;
+    const preview = previewData as { expectedVersion?: number } | null;
+    if (!preview || typeof preview.expectedVersion !== "number") {
+      throw new Error("National Final winner preview did not return a version.");
+    }
+
+    const command = createOrganisationCommand({
+      command: `confirmation.nf_winner.${action}`,
+      riskClass: "R2",
+      scope: { entityId: data.national_final.id },
+      payload: { action, entryId },
+      expectedVersion: preview.expectedVersion,
     });
+    const { error: rpcError } = await confirmationsSupabase.rpc(
+      "studio2_apply_confirmation_winner_change",
+      {
+        p_national_final_id: data.national_final.id,
+        p_action: action,
+        p_entry_id: entryId,
+        p_reason: reason,
+        p_operation_id: command.operationId,
+        p_idempotency_key: command.idempotencyKey,
+        p_expected_version: preview.expectedVersion,
+      },
+    );
     if (rpcError) throw rpcError;
     await load();
   }
 
+  async function setWinner(entry: ReviewEntry, reason: string) {
+    await changeWinner("select", reason, entry.id);
+  }
+
   async function clearWinner(reason: string) {
-    if (!data?.national_final) return;
-    const { error: rpcError } = await confirmationsSupabase.rpc("admin_clear_confirmation_winner", {
-      _national_final_id: data.national_final.id,
-      _reason: reason,
-    });
-    if (rpcError) throw rpcError;
-    await load();
+    await changeWinner("clear", reason, null);
   }
 
   async function manualSync() {
