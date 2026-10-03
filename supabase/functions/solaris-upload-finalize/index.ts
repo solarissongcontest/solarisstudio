@@ -9,7 +9,12 @@ const corsHeaders = {
 type UploadAuthorization = {
   id: string;
   actor_id: string | null;
-  domain: "country_media" | "edition_artwork" | "country_font" | "beta_feedback";
+  domain:
+    | "country_media"
+    | "edition_artwork"
+    | "country_font"
+    | "beta_feedback"
+    | "integrity_evidence";
   final_bucket: string;
   quarantine_path: string;
   final_path: string;
@@ -182,6 +187,45 @@ function detectFile(bytes: Uint8Array) {
     }
   }
 
+  if (
+    bytes.length >= 8 &&
+    ascii(bytes, 0, 5) === "%PDF-" &&
+    new TextDecoder("latin1").decode(bytes.slice(Math.max(0, bytes.length - 2048))).includes("%%EOF")
+  ) {
+    const text = new TextDecoder("latin1").decode(bytes);
+    const activeMarkers = [
+      "/JavaScript",
+      "/JS ",
+      "/JS/",
+      "/Launch",
+      "/EmbeddedFile",
+      "/RichMedia",
+      "/OpenAction",
+      "/AA ",
+      "/AA/",
+    ];
+    const dangerous = activeMarkers.filter((marker) => text.includes(marker));
+    return {
+      kind: "document",
+      format: "pdf",
+      mime: "application/pdf",
+      dangerousMarkers: dangerous,
+    };
+  }
+
+  if (bytes.length > 0 && !bytes.includes(0)) {
+    try {
+      new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      return {
+        kind: "text",
+        format: "utf8",
+        mime: "text/plain",
+      };
+    } catch {
+      // Non-UTF-8 arbitrary bytes are not evidence text.
+    }
+  }
+
   return null;
 }
 
@@ -189,11 +233,20 @@ function imageDomain(domain: UploadAuthorization["domain"]) {
   return domain === "country_media" || domain === "edition_artwork" || domain === "beta_feedback";
 }
 
-function declaredTypeMatches(row: UploadAuthorization, detected: NonNullable<ReturnType<typeof detectFile>>) {
+function declaredTypeMatches(
+  row: UploadAuthorization,
+  detected: NonNullable<ReturnType<typeof detectFile>>,
+) {
   if (imageDomain(row.domain)) {
     return detected.kind === "image" && detected.mime === row.declared_mime;
   }
-  return row.domain === "country_font" && detected.kind === "font";
+  if (row.domain === "country_font") {
+    return detected.kind === "font";
+  }
+  if (row.domain === "integrity_evidence") {
+    return detected.mime === row.declared_mime;
+  }
+  return false;
 }
 
 async function callerUserId(
@@ -331,6 +384,14 @@ Deno.serve(async (request) => {
     rejection = "Uploaded file signature is not an allowed Solaris file type.";
   } else if (!declaredTypeMatches(row, detected)) {
     rejection = "Uploaded file signature does not match the authorized file type.";
+  } else if (
+    row.domain === "integrity_evidence" &&
+    detected.kind === "document" &&
+    Array.isArray(detected.dangerousMarkers) &&
+    detected.dangerousMarkers.length > 0
+  ) {
+    rejection =
+      "PDF evidence contains active or embedded-content markers that Solaris does not permit.";
   }
 
   if (rejection) {
@@ -359,6 +420,8 @@ Deno.serve(async (request) => {
     format: detected!.format,
     width: "width" in detected! ? detected!.width ?? null : null,
     height: "height" in detected! ? detected!.height ?? null : null,
+    dangerousMarkers:
+      "dangerousMarkers" in detected! ? detected!.dangerousMarkers ?? [] : [],
     signatureVerified: true,
     malwareScan: "not_available_in_current_runtime",
     quarantined: true,
