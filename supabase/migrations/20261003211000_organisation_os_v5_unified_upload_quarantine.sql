@@ -130,13 +130,14 @@ begin
       when 'image/jpeg' then 'jpg'
       when 'image/png' then 'png'
       when 'image/webp' then 'webp'
-      when 'image/gif' then 'gif'
       else null
     end;
   end if;
 
-  if p_domain = 'country_font' and v_ext in ('woff2', 'woff', 'ttf', 'otf') then
-    return v_ext;
+  if p_domain = 'country_font'
+     and v_ext = 'woff2'
+     and lower(p_mime) = 'font/woff2' then
+    return 'woff2';
   end if;
 
   return null;
@@ -196,9 +197,9 @@ begin
     if v_scope not in ('flags', 'gallery', 'backgrounds') then
       raise exception 'Unknown country media folder' using errcode = '22023';
     end if;
-    if v_mime not in ('image/jpeg', 'image/png', 'image/webp', 'image/gif')
-       or p_size > 8388608 then
-      raise exception 'Country media must be an allowed image no larger than 8 MB'
+    if v_mime not in ('image/jpeg', 'image/png', 'image/webp')
+       or p_size > 5242880 then
+      raise exception 'Country media must be JPG, PNG or WebP and no larger than 5 MB'
         using errcode = '22023';
     end if;
     v_final_bucket := 'country-media';
@@ -211,8 +212,8 @@ begin
       raise exception 'Edition design access required' using errcode = '42501';
     end if;
     if v_mime not in ('image/jpeg', 'image/png', 'image/webp')
-       or p_size > 15728640 then
-      raise exception 'Edition artwork must be JPG, PNG or WebP and no larger than 15 MB'
+       or p_size > 5242880 then
+      raise exception 'Edition artwork must be JPG, PNG or WebP and no larger than 5 MB'
         using errcode = '22023';
     end if;
     v_final_bucket := 'edition-artwork';
@@ -224,17 +225,8 @@ begin
        or not private.studio2_can_upload_country_media(v_actor, p_entity_id) then
       raise exception 'Country font upload access required' using errcode = '42501';
     end if;
-    if v_mime not in (
-      'font/woff2',
-      'font/woff',
-      'font/ttf',
-      'font/otf',
-      'application/font-woff',
-      'application/x-font-ttf',
-      'application/x-font-opentype',
-      'application/octet-stream'
-    ) or p_size > 4194304 then
-      raise exception 'Custom fonts must be WOFF2, WOFF, TTF or OTF and no larger than 4 MB'
+    if v_mime <> 'font/woff2' or v_extension <> 'woff2' or p_size > 4194304 then
+      raise exception 'Custom font delivery accepts validated WOFF2 files only, no larger than 4 MB'
         using errcode = '22023';
     end if;
     v_final_bucket := 'country-fonts';
@@ -245,9 +237,9 @@ begin
       raise exception 'Authenticated Organizer session required for admin beta feedback'
         using errcode = '42501';
     end if;
-    if v_mime not in ('image/jpeg', 'image/png', 'image/webp', 'image/gif')
-       or p_size > 8388608 then
-      raise exception 'Beta screenshots must be an allowed image no larger than 8 MB'
+    if v_mime not in ('image/jpeg', 'image/png', 'image/webp')
+       or p_size > 5242880 then
+      raise exception 'Beta screenshots must be JPG, PNG or WebP and no larger than 5 MB'
         using errcode = '22023';
     end if;
     v_final_bucket := 'beta-feedback';
