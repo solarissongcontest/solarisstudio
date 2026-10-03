@@ -1,3 +1,4 @@
+// CI validation marker: R3 permission backend exact-code rehearsal.
 import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
