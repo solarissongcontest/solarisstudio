@@ -86,12 +86,15 @@ domains:
       - src/lib/organisation-jury-window-v5.test.ts
 
   - id: jury-ballot
-    status: partial
+    status: implemented
     source_sections: [88, 90]
     evidence:
-      - supabase/migrations/20260821204500_country_account_jury_voting.sql
-      - src/lib/jury-next-in-line-contract.test.ts
-    blocker: "Ballot states exist, but Expected → Submitted → Valid/Needs review/Invalidated/DNV/Superseded transition enforcement is not yet centrally proven."
+      - supabase/migrations/20261003193000_organisation_os_v5_jury_ballot_lifecycle.sql
+      - supabase/migrations/20261003194500_organisation_os_v5_jury_ballot_tasks.sql
+      - supabase/migrations/20261003195500_organisation_os_v5_jury_result_truth.sql
+      - src/lib/organisation-v5-jury-ballot-lifecycle.test.ts
+      - src/routes/_authenticated/admin/jury/$slug.tsx
+    note: "Expected is derived from missing evidence; Submitted enters Organizer validation; Valid/Needs review/Invalidated/Superseded are versioned transitions; DNV is a separate previewed absence transition; only Valid participant ballots score."
 
   - id: televote-round
     status: verified
