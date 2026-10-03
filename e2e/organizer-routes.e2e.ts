@@ -122,6 +122,7 @@ const organizerDestinations = [
 const criticalMobileDestinations = [
   "/admin/operations",
   "/admin/inbox",
+  "/admin/access-permissions",
   "/admin/ssc22",
   "/admin/integrity-investigations",
   "/admin/more",
@@ -317,17 +318,21 @@ test.describe("Solaris Organizer route reliability", () => {
       await contextA.close();
     }
 
-    const hasCapability = await localRpc<boolean>(
+    const accessSimulation = await localRpc<{
+      userId: string;
+      capabilities: string[];
+    }>(
       url!,
       publishableKey!,
-      country.access_token,
-      "studio2_has_capability",
+      organizerA.access_token,
+      "studio2_view_access_as",
       {
-        p_capability: "broadcast.control",
+        p_user_id: country.user.id,
         p_edition_id: null,
       },
     );
-    expect(hasCapability).toBe(true);
+    expect(accessSimulation.userId).toBe(country.user.id);
+    expect(accessSimulation.capabilities).toContain("broadcast.control");
 
     const remaining = await localRpc<Array<{ id: string }>>(
       url!,
