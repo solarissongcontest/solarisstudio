@@ -16,16 +16,25 @@ describe("Solaris V6 Organizer interaction parity", () => {
     expect(organizer).toContain('if (mode === "hidden") return null;');
   });
 
-  it("preserves the existing Organizer navigation-memory contract underneath V6 chrome", () => {
+  it("preserves navigation memory in the canonical V6 mobile chrome owner", () => {
+    const chrome = source("src/components/admin/OrganizerV6MobileChrome.tsx");
+    expect(chrome).toContain("consumeAdminNavigationRestore");
+    expect(chrome).toContain("rememberAdminLocation");
+    expect(chrome).toContain("getAdminAppTabDestination");
+    expect(chrome).toContain("resetAdminAppTabToRoot");
+    expect(chrome).toContain("<OrganizerV6TabBar");
+    expect(chrome).toContain("resolveOrganizerV6Screen");
+    expect(chrome).toContain("mode={screen.tabbar}");
+    expect(chrome).toContain("runAppViewTransition");
+  });
+
+  it("keeps AdminFrame layout-only instead of owning a competing mobile shell", () => {
     const frame = source("src/components/admin/AdminFrame.tsx");
-    expect(frame).toContain("consumeAdminNavigationRestore");
-    expect(frame).toContain("rememberAdminLocation");
-    expect(frame).toContain("getAdminAppTabDestination");
-    expect(frame).toContain("resetAdminAppTabToRoot");
-    expect(frame).toContain("<OrganizerV6TabBar");
-    expect(frame).toContain("resolveOrganizerV6Screen");
-    expect(frame).toContain("mode={screen.tabbar}");
-    expect(frame).toContain("runAppViewTransition");
+    const shell = source("src/components/admin/AdminShell.tsx");
+    expect(frame).not.toContain("OrganizerV6TabBar");
+    expect(frame).not.toContain("consumeAdminNavigationRestore");
+    expect(frame).not.toContain("adminAppTabRoot");
+    expect(shell).toContain("<OrganizerV6MobileChrome />");
   });
 
   it("drives Organizer toolbar presentation from the shared V6 screen contract", () => {
