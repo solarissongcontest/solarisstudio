@@ -105,6 +105,10 @@ jobs:
             echo "CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=$local_key"
           } >> "$GITHUB_ENV"
 
+      - name: Seed authenticated local browser accounts
+        shell: bash
+        run: bash .github/scripts/seed-browser-e2e-local.sh
+
       - name: Start stable audit server
         shell: bash
         env:
@@ -158,8 +162,8 @@ jobs:
           E2E_FULL_AUDIT: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'feature/public-final-quality' || github.head_ref == 'chatgpt/completion-programme-20260920' || github.head_ref == 'feature/final-ui-completion-20261001' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}
           PERSONALITY_REFERENCE_CAPTURE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
           E2E_VISUAL_CAPTURE: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}
-          # E2E Supabase URL/key are inherited from the isolated local stack.
-          # Hosted account credentials are intentionally unavailable in browser CI.
+          # E2E Supabase URL/key and throwaway account credentials are inherited
+          # from the isolated local stack. No hosted account credentials are used.
 
       - name: Print audit server log on failure
         if: failure()
