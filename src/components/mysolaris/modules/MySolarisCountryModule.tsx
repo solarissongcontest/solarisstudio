@@ -6,6 +6,10 @@ import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
 import { FlagChip } from "@/components/FlagChip";
 import { ProfileActivityPanel } from "@/components/country/ProfileActivityPanel";
 import {
+  countrySurfaceLinks,
+  SolarisSurfaceSwitch,
+} from "@/components/surfaces/SolarisSurfaceSwitch";
+import {
   uploadCountryAsset,
   useAddCountryMedia,
   useAvailableCountryClaims,
@@ -527,6 +531,18 @@ function OwnedCountryHub({
             )}
           </div>
         }
+      />
+
+      <SolarisSurfaceSwitch
+        className="mb-5"
+        label={`${country.name} perspectives`}
+        links={countrySurfaceLinks({
+          countryId: country.id,
+          countryCode: country.short_code,
+          current: "participant",
+          includeOrganizer: isOrganizer,
+          includeDiagnostics: isOrganizer,
+        })}
       />
 
       {message && (
