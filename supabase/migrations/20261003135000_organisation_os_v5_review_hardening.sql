@@ -62,6 +62,31 @@ $eligible$;
 revoke all on function private.studio2_task_recipient_eligible(uuid, uuid)
   from public, anon, authenticated;
 
+
+create or replace function public.solaris_organizer_task_recipient_eligible(
+  p_task_id uuid,
+  p_user_id uuid
+)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = pg_catalog, public, private
+as $service_eligible$
+begin
+  if not private.studio2_request_is_service_role() then
+    raise exception 'Service role required' using errcode = '42501';
+  end if;
+
+  return private.studio2_task_recipient_eligible(p_task_id, p_user_id);
+end
+$service_eligible$;
+
+revoke all on function public.solaris_organizer_task_recipient_eligible(uuid, uuid)
+  from public, anon, authenticated;
+grant execute on function public.solaris_organizer_task_recipient_eligible(uuid, uuid)
+  to service_role;
+
 create or replace function private.studio2_prune_stale_task_notifications(
   p_edition_id uuid default null
 )
