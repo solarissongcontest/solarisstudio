@@ -58,7 +58,7 @@ describe("Organisation OS V5 governed permission commands", () => {
     expect(migration).toContain("'R3'");
     expect(migration).toContain("return v_claim -> 'result'");
     expect(migration).toContain("private.studio2_complete_operation");
-    expect(client).toContain('rpc("studio2_apply_permission_change"');
+    expect(client).toContain('rpc("studio2_apply_permission_change_r3"');
     expect(client).toContain("p_operation_id");
     expect(client).toContain("p_idempotency_key");
     expect(client).toContain("p_expected_version");
