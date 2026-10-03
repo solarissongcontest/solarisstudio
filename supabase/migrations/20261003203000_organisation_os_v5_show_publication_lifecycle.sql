@@ -967,6 +967,7 @@ begin
       insert into public.studio2_show_publication_executions (
         show_id,
         edition_id,
+        scheduled_operation_id,
         status,
         intended_config,
         source_show_updated_at,
@@ -1046,7 +1047,7 @@ begin
   end loop;
 
   if v_count > 0 then
-    perform private.studio2_sync_task_notifications(null);
+    perform private.studio2_sync_task_notifications(null::uuid);
   else
     -- Blocked schedules can also create Tasks, so projection refresh is still
     -- required even when no publication succeeded.
