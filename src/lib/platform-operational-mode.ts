@@ -181,6 +181,7 @@ export async function applyPlatformModeChange(input: {
   incidentReference?: string | null;
   operationId?: string;
   idempotencyKey?: string;
+  exitPreflightId?: string | null;
 }): Promise<PlatformModeChangeReceipt> {
   const command = createOrganisationCommand({
     command: "system.platform_mode.change",
@@ -207,6 +208,7 @@ export async function applyPlatformModeChange(input: {
       p_operation_id: command.operationId,
       p_idempotency_key: command.idempotencyKey,
       p_expected_version: input.preview.expectedVersion,
+      p_exit_preflight_id: input.exitPreflightId ?? null,
     }),
     "platform mode receipt",
   );
