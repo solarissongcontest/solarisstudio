@@ -23,19 +23,23 @@ const incidents: Incident[] = [
     editionId: 'ssc21',
     title: 'Late media asset',
     severity: 'sev3',
-    status: 'open',
+    status: 'detected',
     startedAt: '2026-09-10T17:00:00.000Z',
     resolvedAt: null,
   },
 ];
 
 describe('incident command engine', () => {
-  it('supports controlled reopen into monitoring while rejecting illegal jumps', () => {
-    expect(canTransitionIncident('open', 'mitigating')).toBe(true);
+  it('supports the V5 five-state lifecycle with controlled reopen', () => {
+    expect(canTransitionIncident('detected', 'investigating')).toBe(true);
+    expect(canTransitionIncident('detected', 'mitigating')).toBe(true);
+    expect(canTransitionIncident('investigating', 'monitoring')).toBe(true);
     expect(canTransitionIncident('monitoring', 'resolved')).toBe(true);
-    expect(canTransitionIncident('resolved', 'monitoring')).toBe(true);
-    expect(canTransitionIncident('resolved', 'open')).toBe(false);
-    expect(() => assertIncidentTransition('resolved', 'open')).toThrow(/Illegal incident transition/);
+    expect(canTransitionIncident('resolved', 'investigating')).toBe(true);
+    expect(canTransitionIncident('resolved', 'detected')).toBe(false);
+    expect(() => assertIncidentTransition('resolved', 'detected')).toThrow(
+      /Illegal incident transition/,
+    );
   });
 
   it('keeps the canonical incident category vocabulary stable', () => {
