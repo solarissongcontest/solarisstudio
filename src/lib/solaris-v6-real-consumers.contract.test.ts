@@ -39,7 +39,7 @@ describe("Solaris V6 interaction primitives in real product flows", () => {
     expect(inbox).toContain('showFallbackActions={false}');
     expect(inbox).toContain('id: "seen"');
     expect(inbox).toContain("!resolved && !domainResolved");
-    expect(inbox).toContain("Resolving automatically from the source workflow").toBe(false);
+    expect(inbox).not.toContain("Resolving automatically from the source workflow");
     expect(inbox).toContain("Resolves automatically from the source workflow");
     expect(swipe).toContain("tabIndex={open ? 0 : -1}");
     expect(swipe).toContain("aria-hidden={!open}");
