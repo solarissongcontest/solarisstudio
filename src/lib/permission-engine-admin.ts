@@ -403,8 +403,8 @@ export async function previewPermissionChange(
 }
 
 export async function reauthenticatePermissionR3(password: string): Promise<void> {
-  const secret = password.trim();
-  if (!secret) throw new Error("Enter your current Solaris password to authorize this R3 change.");
+  if (!password) throw new Error("Enter your current Solaris password to authorize this R3 change.");
+  const secret = password;
 
   const { data: current, error: currentError } = await supabase.auth.getUser();
   if (currentError) throw currentError;
