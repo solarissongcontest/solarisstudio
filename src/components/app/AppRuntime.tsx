@@ -9,7 +9,6 @@ import {
   type ReactNode,
 } from "react";
 
-import { AppChromeMetrics } from "@/components/app/AppChromeMetrics";
 import { AppOverlayManager } from "@/components/app/AppOverlayManager";
 import {
   createAppConnectivityController,
@@ -241,7 +240,6 @@ export function AppRuntime({ children }: { children: ReactNode }) {
 
   return (
     <AppRuntimeContext.Provider value={value}>
-      <AppChromeMetrics />
       {children}
       <AppOverlayManager
         isAppMode={platform.isAppMode}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { AppChromeMetrics } from "@/components/app/AppChromeMetrics";
 import { AppFirstRun, appFirstRunComplete } from "@/components/app/AppFirstRun";
 import { AppInstallPrompt } from "@/components/app/AppInstallPrompt";
 import { AppOfflineBanner } from "@/components/app/AppOfflineBanner";
@@ -31,6 +32,7 @@ export function AppOverlayManager({
     if (typeof document === "undefined") return;
 
     const root = document.documentElement;
+    root.dataset.solarisChromeOwner = "overlay-manager";
     const selector =
       '[data-solaris-sheet][data-state="open"], [data-solaris-dialog][data-state="open"]';
 
@@ -59,30 +61,32 @@ export function AppOverlayManager({
       observer.disconnect();
       root.removeAttribute("data-solaris-feature-overlay-open");
       delete root.dataset.solarisOverlayKind;
+      delete root.dataset.solarisChromeOwner;
     };
   }, []);
 
+  let overlay = null;
+
   if (!isAppMode) {
-    return <AppInstallPrompt isAppMode={false} />;
-  }
-
-  if (connectivity.status !== "online") {
-    return <AppOfflineBanner connectivity={connectivity} />;
-  }
-
-  if (!firstRunComplete) {
-    return (
+    overlay = <AppInstallPrompt isAppMode={false} />;
+  } else if (connectivity.status !== "online") {
+    overlay = <AppOfflineBanner connectivity={connectivity} />;
+  } else if (!firstRunComplete) {
+    overlay = (
       <AppFirstRun
         isAppMode
         pathname={pathname}
         onComplete={() => setFirstRunComplete(true)}
       />
     );
+  } else if (updateAvailable && updateSafe) {
+    overlay = <AppUpdatePrompt onUpdate={onUpdate} />;
   }
 
-  if (updateAvailable && updateSafe) {
-    return <AppUpdatePrompt onUpdate={onUpdate} />;
-  }
-
-  return null;
+  return (
+    <>
+      <AppChromeMetrics />
+      {overlay}
+    </>
+  );
 }

@@ -9,6 +9,10 @@ import { useEffect } from "react";
 export function AppChromeMetrics() {
   useEffect(() => {
     const root = document.documentElement;
+    root.style.setProperty("--solaris-safe-top", "env(safe-area-inset-top)");
+    root.style.setProperty("--solaris-safe-right", "env(safe-area-inset-right)");
+    root.style.setProperty("--solaris-safe-bottom", "env(safe-area-inset-bottom)");
+    root.style.setProperty("--solaris-safe-left", "env(safe-area-inset-left)");
 
     const sync = () => {
       const viewport = window.visualViewport;
@@ -38,6 +42,10 @@ export function AppChromeMetrics() {
       window.visualViewport?.removeEventListener("scroll", sync);
       root.style.removeProperty("--solaris-visual-viewport-height");
       root.style.removeProperty("--solaris-keyboard-inset");
+      root.style.removeProperty("--solaris-safe-top");
+      root.style.removeProperty("--solaris-safe-right");
+      root.style.removeProperty("--solaris-safe-bottom");
+      root.style.removeProperty("--solaris-safe-left");
       root.removeAttribute("data-solaris-keyboard-open");
     };
   }, []);
