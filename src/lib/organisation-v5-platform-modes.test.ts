@@ -10,6 +10,8 @@ describe("Organisation OS V5 platform operational modes", () => {
   );
   const emergencyServer = source("src/server.ts");
   const emergencyConfig = source("src/lib/maintenance.ts");
+  const client = source("src/lib/platform-operational-mode.ts");
+  const systemRoute = source("src/routes/_authenticated/admin/system.tsx");
 
   it("defines one canonical four-mode platform state and permission", () => {
     expect(migration).toContain("'maintenance.manage'");
@@ -70,6 +72,29 @@ describe("Organisation OS V5 platform operational modes", () => {
     );
     expect(migration).toContain("using errcode = '25006'");
     expect(migration).toContain("false\n  );");
+  });
+
+  it("exposes canonical mode state and stable retry identity through the Organizer client", () => {
+    expect(client).toContain("studio2_platform_operational_snapshot");
+    expect(client).toContain("studio2_platform_mode_change_preview");
+    expect(client).toContain("studio2_apply_platform_mode_change");
+    expect(client).toContain("reauthenticatePlatformR3");
+    expect(client).toContain("supabase.auth.signInWithPassword");
+    expect(client).toContain("operationId: input.operationId");
+    expect(client).toContain("idempotencyKey: input.idempotencyKey");
+  });
+
+  it("makes platform mode transitions usable from the existing Organizer System surface", () => {
+    expect(systemRoute).toContain("Platform operational mode");
+    expect(systemRoute).toContain("Choose a legal transition");
+    expect(systemRoute).toContain("Review mode change");
+    expect(systemRoute).toContain("Fresh authentication required");
+    expect(systemRoute).toContain("Maintenance cannot jump directly to Normal");
+    expect(systemRoute).toContain("operationId");
+    expect(systemRoute).toContain("idempotencyKey");
+    expect(systemRoute).toContain("nextPlatformModes");
+    expect(systemRoute).toContain('case "maintenance":');
+    expect(systemRoute).toContain('return ["read_only"]');
   });
 
   it("audits transitions without replacing the independent emergency circuit breaker", () => {
