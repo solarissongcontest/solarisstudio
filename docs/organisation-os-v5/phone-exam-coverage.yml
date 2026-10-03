@@ -22,7 +22,7 @@ steps:
   - { id: review-media, status: automated, evidence: ["src/lib/studio2-media-assets-integration.test.ts", "src/lib/organisation-v5-upload-safety.contract.test.ts"] }
   - { id: review-country-public-content, status: automated, evidence: ["src/lib/organisation-os-v5-counterparts.test.ts"] }
   - { id: inspect-country-appearance, status: automated, evidence: ["src/lib/organisation-os-v5-counterparts.test.ts", "src/lib/country-personality-v5-extra.test.ts"] }
-  - { id: configure-running-order, status: partial, evidence: ["src/routes/_authenticated/admin/running-order/$slug.tsx"] }
+  - { id: configure-running-order, status: partial, evidence: ["src/components/admin/ShowLineupWorkspace.tsx"] }
   - { id: configure-jury, status: automated, evidence: ["src/lib/organisation-jury-window-v5.test.ts"] }
   - { id: open-jury, status: automated, evidence: ["src/lib/organisation-jury-window-v5.test.ts"] }
   - { id: handle-invalid-missing-ballot, status: automated, evidence: ["src/lib/organisation-v5-jury-ballot-lifecycle.test.ts"] }
@@ -35,7 +35,7 @@ steps:
   - { id: calculate-results, status: automated, evidence: ["src/lib/studio2-results-operations.test.ts"] }
   - { id: verify-results, status: automated, evidence: ["src/lib/studio2-results-operations.test.ts"] }
   - { id: lock-results, status: automated, evidence: ["src/lib/studio2-results-operations.test.ts", "src/lib/organisation-high-risk-operations-v5.test.ts"] }
-  - { id: run-reveal-director, status: partial, evidence: ["src/routes/_authenticated/admin/reveal/$slug.tsx"] }
+  - { id: run-reveal-director, status: partial, evidence: ["src/routes/_authenticated/admin/results-reveal.tsx"] }
   - { id: publish, status: automated, evidence: ["src/lib/organisation-v5-show-publication-lifecycle.test.ts"] }
   - { id: send-required-notice, status: automated, evidence: ["src/lib/official-communications-record-lifecycle.integration.test.ts"] }
   - { id: acknowledge-from-participant-test-account, status: partial, evidence: ["src/lib/official-communications-record-lifecycle.integration.test.ts", "src/lib/studio2-recipient-inbox.ts"] }
@@ -47,7 +47,7 @@ steps:
   - { id: enter-read-only, status: automated, evidence: ["src/lib/organisation-v5-platform-modes.test.ts", "src/lib/organisation-v5-read-only-enforcement.test.ts"] }
   - { id: recover-from-read-only, status: automated, evidence: ["src/lib/organisation-v5-platform-exit-preflight.test.ts"] }
   - { id: handle-sev-1-incident, status: automated, evidence: ["src/lib/organisation-v5-incident-lifecycle.test.ts"] }
-  - { id: inspect-audit, status: partial, evidence: ["src/routes/_authenticated/admin/audit.tsx", "src/lib/organisation-high-risk-operations-v5.test.ts"] }
+  - { id: inspect-audit, status: partial, evidence: ["src/routes/_authenticated/admin/system.tsx", "src/lib/admin-ops.ts", "src/lib/organisation-high-risk-operations-v5.test.ts"] }
 
 manual_focus:
   - "Operate all 42 steps in sequence from one physical phone without desktop fallback."
