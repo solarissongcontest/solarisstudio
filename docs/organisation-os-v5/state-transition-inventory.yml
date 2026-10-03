@@ -157,12 +157,14 @@ domains:
     note: "Scheduler state is authoritative/derived; recovery transitions are reconciled into Tasks."
 
   - id: platform-operational-mode
-    status: missing
+    status: partial
     source_sections: [147, 148, 149, 150, 152]
     evidence:
+      - supabase/migrations/20261003174000_organisation_os_v5_platform_operational_modes.sql
+      - src/lib/organisation-v5-platform-modes.test.ts
       - src/lib/maintenance.ts
       - src/lib/maintenance-contract.test.ts
-    blocker: "The out-of-band emergency maintenance path exists, but there is no canonical Normal/Degraded/Read-only/Maintenance backend state machine with server-enforced transitions."
+    blocker: "Canonical V5 operation-contract writes now obey Normal/Degraded/Read-only/Maintenance, but legacy/direct write paths and the full Maintenance/Read-only exit preflight are not yet universally guarded."
 
   - id: system-health
     status: derived
