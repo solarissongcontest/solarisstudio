@@ -147,7 +147,11 @@ html[data-solaris-app-boot] body::after {
     padding-top: env(safe-area-inset-top);
     border-bottom: 1px solid rgb(215 238 247 / .13);
     background:
-      linear-gradient(180deg, rgb(9 26 54 / .66), rgb(3 14 34 / .50));
+      linear-gradient(
+        180deg,
+        rgb(9 26 54 / var(--solaris-toolbar-bg-top-alpha, .66)),
+        rgb(3 14 34 / var(--solaris-toolbar-bg-bottom-alpha, .50))
+      );
     -webkit-backdrop-filter: blur(24px) saturate(190%) brightness(1.04);
     backdrop-filter: blur(24px) saturate(190%) brightness(1.04);
     box-shadow:
@@ -171,6 +175,12 @@ html[data-solaris-app-boot] body::after {
     font-size: .94rem;
     font-weight: 700;
     letter-spacing: -.015em;
+    transform-origin: left center;
+    transform:
+      translateY(var(--solaris-toolbar-title-y, 0px))
+      scale(var(--solaris-toolbar-title-scale, 1));
+    transition: transform 90ms linear;
+    will-change: transform;
   }
 
   .solaris-app-back,
@@ -716,6 +726,16 @@ html[data-solaris-app-boot] body::after {
 
 @media (prefers-reduced-motion: reduce) {
   @media (display-mode: standalone), (display-mode: window-controls-overlay) {
+    .solaris-app-toolbar-title {
+      transform: none;
+      transition: none;
+    }
+
+    .solaris-app-toolbar-context-title {
+      transform: translate(-50%, -50%);
+      transition: none;
+    }
+
     .solaris-app-tab {
       transition: none;
     }
@@ -1162,7 +1182,9 @@ html[data-solaris-app-boot] body::after {
     left: 50%;
     top: 50%;
     max-width: min(42vw, 15rem);
-    transform: translate(-50%, -50%);
+    transform:
+      translate(-50%, calc(-50% + var(--solaris-toolbar-title-y, 0px)))
+      scale(var(--solaris-toolbar-title-scale, 1));
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
