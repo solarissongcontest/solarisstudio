@@ -1,0 +1,52 @@
+version: 1
+product: Solaris Studio V6
+source: "Solaris Studio V6 Master Product, Mobile UX, Interaction, Architecture, Reliability & Verification Specification"
+base_generation: "Organisation OS V5 + Mobile App V2"
+status_values: [verified, implemented, in_progress, partial, missing, manual_gate]
+release_rule: "V6 is complete only when every release-blocking requirement is verified and physical/manual gates carry real evidence."
+
+implementation_phases:
+  - { id: 1, key: canonical-truth, status: in_progress, release_blocking: true, evidence: ["src/lib/solaris-v6-domain-registry.ts", "src/lib/solaris-v6-registry.test.ts", "docs/organisation-os-v5/completion-matrix.yml"] }
+  - { id: 2, key: surface-registry, status: in_progress, release_blocking: true, evidence: ["src/lib/solaris-v6-surface-registry.ts", "src/lib/organisation-os-v5-counterparts.ts"] }
+  - { id: 3, key: application-shell, status: in_progress, release_blocking: true, evidence: ["src/components/AppShell.tsx", "src/components/app/AppRuntime.tsx", "src/components/app/AppOverlayManager.tsx", "src/lib/app-screen-registry.ts"] }
+  - { id: 4, key: interaction-physics-foundation, status: in_progress, release_blocking: true, evidence: ["src/lib/interaction-physics.ts", "src/components/interaction/SolarisPressable.tsx", "src/components/app/AppTabBar.tsx"] }
+  - { id: 5, key: navigation-choreography, status: in_progress, release_blocking: true, evidence: ["src/components/app/AppTabBar.tsx", "src/lib/app-view-transitions.ts"] }
+  - { id: 6, key: participant-workflows, status: partial, release_blocking: true, evidence: ["src/components/mysolaris/MySolarisWorkspaceShell.tsx"] }
+  - { id: 7, key: organizer-mobile, status: partial, release_blocking: true, evidence: ["src/components/admin/AdminFrame.tsx", "docs/organisation-os-v5/completion-matrix.yml"] }
+  - { id: 8, key: public-depth, status: partial, release_blocking: true, evidence: ["src/components/AppShell.tsx"] }
+  - { id: 9, key: notifications-live-mode, status: partial, release_blocking: true, evidence: ["src/lib/app-notifications.ts", "src/components/app/AppOverlayManager.tsx"] }
+  - { id: 10, key: failure-recovery, status: partial, release_blocking: true, evidence: ["docs/organisation-os-v5/failure-injection-coverage.yml"] }
+  - { id: 11, key: full-microinteraction-pass, status: missing, release_blocking: true, evidence: [] }
+  - { id: 12, key: legacy-cleanup, status: missing, release_blocking: true, evidence: [] }
+
+foundation_requirements:
+  - { key: canonical-domain-registry, status: implemented, evidence: ["src/lib/solaris-v6-domain-registry.ts"] }
+  - { key: cross-surface-registry, status: implemented, evidence: ["src/lib/solaris-v6-surface-registry.ts"] }
+  - { key: screen-contract, status: implemented, evidence: ["src/lib/app-screen-registry.ts"] }
+  - { key: single-public-app-overlay-manager, status: implemented, evidence: ["src/components/app/AppOverlayManager.tsx"] }
+  - { key: scroll-hysteresis-physics, status: implemented, evidence: ["src/lib/interaction-physics.ts", "src/components/app/AppTabBar.tsx"] }
+  - { key: bounded-drag-elasticity, status: implemented, evidence: ["src/lib/interaction-physics.ts", "src/components/app/AppTabBar.tsx"] }
+  - { key: pressable-primitive, status: implemented, evidence: ["src/components/interaction/SolarisPressable.tsx"] }
+  - { key: organiser-shared-shell-cutover, status: missing, evidence: ["src/components/admin/AdminFrame.tsx"] }
+  - { key: draggable-sheet-primitive, status: missing, evidence: [] }
+  - { key: morphing-selection-primitive, status: missing, evidence: [] }
+  - { key: swipe-action-row-primitive, status: missing, evidence: [] }
+  - { key: reorderable-list-primitive, status: missing, evidence: [] }
+  - { key: gesture-coordinator, status: in_progress, evidence: ["src/lib/interaction-physics.ts"] }
+  - { key: canonical-motion-preferences, status: in_progress, evidence: ["src/lib/interaction-physics.ts", "src/lib/app-view-transitions.ts"] }
+
+manual_gates:
+  - { key: physical-ios-pwa, status: manual_gate, release_blocking: true }
+  - { key: physical-safari, status: manual_gate, release_blocking: true }
+  - { key: physical-android-pwa, status: manual_gate, release_blocking: true }
+  - { key: physical-ipad-tablet, status: manual_gate, release_blocking: true }
+  - { key: voiceover-screen-reader, status: manual_gate, release_blocking: true }
+  - { key: interaction-feel-120hz, status: manual_gate, release_blocking: true }
+  - { key: full-phone-edition, status: manual_gate, release_blocking: true }
+  - { key: bounded-production-smoke, status: manual_gate, release_blocking: true }
+
+infrastructure_invariants:
+  production_runtime: Cloudflare
+  canonical_persistence: Supabase/PostgreSQL
+  normal_ci_backend: isolated_local_supabase
+  production_supabase_fallback: forbidden

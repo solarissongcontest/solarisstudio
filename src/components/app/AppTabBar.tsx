@@ -12,6 +12,11 @@ import {
 } from "@/lib/app-navigation";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
+import {
+  prefersReducedMotion,
+  resolveElasticDrag,
+  resolveScrollResponsiveBar,
+} from "@/lib/interaction-physics";
 import { PUBLIC_GLOBAL_AREAS } from "@/lib/public-navigation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
@@ -104,26 +109,16 @@ export function AppTabBar({
       const current = Math.max(0, window.scrollY);
       const delta = current - lastScrollY.current;
 
-      if (current < 80) {
-        setCollapsed(false);
-        downTravel.current = 0;
-        upTravel.current = 0;
-      } else if (delta > 0) {
-        downTravel.current += delta;
-        upTravel.current = 0;
-        if (current > 140 && downTravel.current >= 56) {
-          setCollapsed(true);
-          downTravel.current = 0;
-        }
-      } else if (delta < 0) {
-        upTravel.current += -delta;
-        downTravel.current = 0;
-        if (upTravel.current >= 18) {
-          setCollapsed(false);
-          upTravel.current = 0;
-        }
-      }
-
+      const next = resolveScrollResponsiveBar({
+        collapsed,
+        currentY: current,
+        lastY: lastScrollY.current,
+        downTravel: downTravel.current,
+        upTravel: upTravel.current,
+      });
+      setCollapsed(next.collapsed);
+      downTravel.current = next.downTravel;
+      upTravel.current = next.upTravel;
       lastScrollY.current = current;
     };
 
@@ -137,7 +132,7 @@ export function AppTabBar({
       window.removeEventListener("scroll", onScroll);
       if (frame.current != null) window.cancelAnimationFrame(frame.current);
     };
-  }, [railMode]);
+  }, [collapsed, railMode]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -218,8 +213,7 @@ export function AppTabBar({
       return;
     }
 
-    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-    window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
+    window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
   };
 
   const tabRects = () => {
@@ -311,27 +305,21 @@ export function AppTabBar({
     const minCenter = rects[0] ? rects[0].left + rects[0].width / 2 : originCenter;
     const lastRect = rects[rects.length - 1];
     const maxCenter = lastRect ? lastRect.left + lastRect.width / 2 : originCenter;
-    const rawDelta = event.clientX - drag.startX;
-    const delta = Math.min(maxCenter - originCenter, Math.max(minCenter - originCenter, rawDelta));
-    const distance = Math.abs(delta);
-    const slotWidth = Math.max(1, origin.width);
-    const pullProgress = Math.min(1, distance / Math.max(1, slotWidth * 1.15));
-    const indicatorStretch = 1 + pullProgress * 0.055;
-    const barGrowWidth = pullProgress * 10;
-    const barGrowHeight = pullProgress * 9;
-    const barGrowRadius = pullProgress * 4;
+    const response = resolveElasticDrag({
+      rawDelta: event.clientX - drag.startX,
+      minDelta: minCenter - originCenter,
+      maxDelta: maxCenter - originCenter,
+      slotWidth: origin.width,
+    });
 
-    if (distance >= 7) drag.moved = true;
+    if (response.moved) drag.moved = true;
     const material = materialRef.current;
-    material?.style.setProperty("--solaris-tab-drag-x", `${delta}px`);
-    material?.style.setProperty("--solaris-tab-drag-scale-x", indicatorStretch.toFixed(4));
-    material?.style.setProperty("--solaris-tabbar-pull-width", `${barGrowWidth.toFixed(2)}px`);
-    material?.style.setProperty("--solaris-tabbar-pull-height", `${barGrowHeight.toFixed(2)}px`);
-    material?.style.setProperty("--solaris-tabbar-pull-radius", `${barGrowRadius.toFixed(2)}px`);
-    material?.setAttribute(
-      "data-drag-direction",
-      delta > 2 ? "right" : delta < -2 ? "left" : "center",
-    );
+    material?.style.setProperty("--solaris-tab-drag-x", `${response.delta}px`);
+    material?.style.setProperty("--solaris-tab-drag-scale-x", response.scaleX.toFixed(4));
+    material?.style.setProperty("--solaris-tabbar-pull-width", `${response.growWidth.toFixed(2)}px`);
+    material?.style.setProperty("--solaris-tabbar-pull-height", `${response.growHeight.toFixed(2)}px`);
+    material?.style.setProperty("--solaris-tabbar-pull-radius", `${response.growRadius.toFixed(2)}px`);
+    material?.setAttribute("data-drag-direction", response.direction);
 
     const preview = nearestTabIndex(event.clientX);
     setDragPreviewIndex((current) => (current === preview ? current : preview));
