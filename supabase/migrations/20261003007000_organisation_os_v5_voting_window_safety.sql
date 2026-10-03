@@ -573,12 +573,6 @@ begin
   end if;
   v_operation_id := (v_claim ->> 'operationId')::uuid;
 
-  select control.version
-  into v_global_version
-  from televoting.studio2_round_control_state control
-  where control.singleton = true
-  for update;
-
   select *
   into v_round
   from televoting.rounds round_row
@@ -588,6 +582,12 @@ begin
   if v_round.id is null then
     raise exception 'Voting round not found' using errcode = 'P0002';
   end if;
+
+  select control.version
+  into v_global_version
+  from televoting.studio2_round_control_state control
+  where control.singleton = true
+  for update;
 
   perform 1
   from televoting.editions edition_row
