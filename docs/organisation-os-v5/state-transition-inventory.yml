@@ -124,11 +124,13 @@ domains:
     blocker: "Publication preflight is strong, but Draft/Scheduled/Public/Hidden transition enforcement needs one explicit server transition inventory."
 
   - id: incident
-    status: partial
+    status: implemented
     source_sections: [122]
     evidence:
+      - supabase/migrations/20261003190000_organisation_os_v5_incident_lifecycle.sql
+      - src/lib/organisation-v5-incident-lifecycle.test.ts
       - src/lib/studio2-incidents-integration.test.ts
-    blocker: "Detected/Investigating/Mitigating/Monitoring/Resolved is modeled, but invalid transition rejection is not yet mapped to a single server-side contract."
+    note: "Detected/Investigating/Mitigating/Monitoring/Resolved is canonical; legacy open rows migrate to Detected and invalid transitions fail server-side."
 
   - id: appeal
     status: implemented
