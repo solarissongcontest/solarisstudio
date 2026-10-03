@@ -179,6 +179,8 @@ export async function applyPlatformModeChange(input: {
   affectedServices: string[];
   message?: string | null;
   incidentReference?: string | null;
+  operationId?: string;
+  idempotencyKey?: string;
 }): Promise<PlatformModeChangeReceipt> {
   const command = createOrganisationCommand({
     command: "system.platform_mode.change",
@@ -191,6 +193,8 @@ export async function applyPlatformModeChange(input: {
     },
     riskClass: input.preview.riskClass,
     expectedVersion: input.preview.expectedVersion,
+    operationId: input.operationId,
+    idempotencyKey: input.idempotencyKey,
   });
 
   const row = record(
