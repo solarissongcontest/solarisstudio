@@ -70,9 +70,6 @@ function OrganizerTasksPage() {
                 <BellRing className="size-4" />
                 Notifications
               </Link>
-              <Link to="/admin/action-center" className="admin-action-secondary">
-                Operational signals
-              </Link>
             </div>
           }
         />
