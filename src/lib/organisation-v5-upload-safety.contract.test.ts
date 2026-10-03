@@ -28,7 +28,7 @@ function productionSourceFiles(directory = join(root, "src")): string[] {
 describe("Organisation OS V5 unified upload safety", () => {
   const helper = source("src/lib/upload-safety.ts");
   const quarantine = source(
-    "supabase/migrations/20261003210000_organisation_os_v5_unified_upload_quarantine.sql",
+    "supabase/migrations/20261003211000_organisation_os_v5_unified_upload_quarantine.sql",
   );
   const finalizer = source("supabase/functions/solaris-upload-finalize/index.ts");
 
@@ -148,7 +148,7 @@ describe("Organisation OS V5 unified upload safety", () => {
 
   it("keeps all unified upload artifacts present in the repository", () => {
     for (const path of [
-      "supabase/migrations/20261003210000_organisation_os_v5_unified_upload_quarantine.sql",
+      "supabase/migrations/20261003211000_organisation_os_v5_unified_upload_quarantine.sql",
       "supabase/functions/solaris-upload-finalize/index.ts",
       "src/lib/upload-safety.ts",
     ]) {
