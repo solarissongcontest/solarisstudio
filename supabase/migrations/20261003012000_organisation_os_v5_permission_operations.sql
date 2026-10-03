@@ -65,6 +65,12 @@ create trigger studio2_capability_grants_touch_subject_version
 after insert or update or delete on public.studio2_capability_grants
 for each row execute function private.studio2_touch_permission_subject_version();
 
+drop trigger if exists studio2_user_roles_touch_subject_version
+  on public.user_roles;
+create trigger studio2_user_roles_touch_subject_version
+after insert or update or delete on public.user_roles
+for each row execute function private.studio2_touch_permission_subject_version();
+
 create or replace function private.studio2_permission_subject_snapshot(
   p_user_id uuid
 )
@@ -75,6 +81,12 @@ security definer
 set search_path = pg_catalog, public, private
 as $snapshot$
   select jsonb_build_object(
+    'legacyRoles',
+    coalesce((
+      select jsonb_agg(legacy.role::text order by legacy.role::text)
+      from public.user_roles legacy
+      where legacy.user_id = p_user_id
+    ), '[]'::jsonb),
     'roles',
     coalesce((
       select jsonb_agg(
@@ -431,8 +443,20 @@ begin
       'permission_' || p_change_kind,
       'studio2_permission_subject',
       p_user_id::text,
-      v_before,
-      v_after
+      v_before || jsonb_build_object(
+        'operationId', v_operation_id,
+        'changeKind', p_change_kind,
+        'key', p_key,
+        'editionId', p_edition_id,
+        'riskClass', 'R3'
+      ),
+      v_after || jsonb_build_object(
+        'operationId', v_operation_id,
+        'changeKind', p_change_kind,
+        'key', p_key,
+        'editionId', p_edition_id,
+        'riskClass', 'R3'
+      )
     );
   end if;
 
