@@ -49,14 +49,11 @@ if (partialReleaseBlockers.length) {
   process.exit(1);
 }
 
-const transitionBlockers = transitionInventory
-  .split("\n")
-  .filter((line) => /^    status: (partial|missing)$/.test(line))
-  .map((line, index, lines) => {
-    let cursor = index;
-    while (cursor >= 0 && !/^  - id: /.test(lines[cursor] ?? "")) cursor -= 1;
-    return cursor >= 0 ? lines[cursor].trim() : line.trim();
-  });
+const transitionBlockers = [
+  ...transitionInventory.matchAll(
+    /  - id: ([^\n]+)\n(?:    [^\n]*\n)*?    status: (partial|missing)\n/g,
+  ),
+].map((match) => `${match[1].trim()} (${match[2]})`);
 
 if (transitionBlockers.length) {
   console.error(
