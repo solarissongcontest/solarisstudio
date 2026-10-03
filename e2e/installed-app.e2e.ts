@@ -578,7 +578,7 @@ test("tab bar geometry stays bounded through drag, collapse and interrupted gest
   await expectTabbarGeometry(page, "expanded scroll state");
 
   await page.evaluate(() => window.dispatchEvent(new Event("orientationchange")));
-  await page.waitForTimeout(80);
+  await page.waitForTimeout(320);
   await expectTabbarGeometry(page, "interrupted gesture reset");
 
   const stableHeights = await page.evaluate(async () => {
