@@ -111,6 +111,15 @@ test.beforeEach(async ({ page }) => {
   await enableInstalledIosMode(page);
 });
 
+test("installed app cold launch always leaves the intermediary launch route", async ({ page }) => {
+  await page.goto("/app-launch", { waitUntil: "domcontentloaded" });
+
+  await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/, {
+    timeout: 4_000,
+  });
+  await expect(page.getByRole("heading", { name: "Opening your app…" })).toHaveCount(0);
+});
+
 test("installed app shell survives representative navigation without duplicate chrome", async ({ page }) => {
   for (const route of [
     "/",
