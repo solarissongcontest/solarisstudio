@@ -52,6 +52,11 @@ jobs:
         with:
           node-version: 22
 
+      - name: Setup Deno for Supabase Edge Function checks
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v1.46.3
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -95,6 +100,12 @@ jobs:
 
       - name: TypeScript
         run: bun run typecheck
+
+      - name: Type-check Supabase upload finalizer
+        shell: bash
+        run: |
+          set -euo pipefail
+          deno check supabase/functions/solaris-upload-finalize/index.ts
 
       - name: Unit tests
         shell: bash
@@ -159,6 +170,7 @@ jobs:
             echo "- Production build: executed"
             echo "- Client bundle budget: enforced"
             echo "- TypeScript: executed"
+            echo "- Supabase upload finalizer: Deno type-check executed"
             echo "- Unit tests: executed and output retained"
             echo "- Lint: executed as a blocking quality gate"
           } >> "$GITHUB_STEP_SUMMARY"
