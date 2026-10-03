@@ -2,26 +2,73 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { mySolarisNavigationItems } from "./my-solaris-navigation";
 import { ORGANISATION_OS_V5_COUNTERPARTS } from "./organisation-os-v5-counterparts";
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("Organisation OS V5 feature counterparts", () => {
-  it("keeps every declared participant-facing feature paired with an organizer surface", () => {
-    expect(ORGANISATION_OS_V5_COUNTERPARTS.length).toBeGreaterThanOrEqual(9);
+  it("audits every MySolaris navigation section instead of relying on a hand-picked subset", () => {
+    const audited = new Set(
+      ORGANISATION_OS_V5_COUNTERPARTS
+        .filter((item) => item.id.startsWith("mysolaris."))
+        .map((item) => item.id.replace(/^mysolaris\./, "")),
+    );
+    const navigation = mySolarisNavigationItems().map((item) => item.id);
+
+    expect([...audited].sort()).toEqual([...navigation].sort());
+  });
+
+  it("requires every audited participant/public feature to declare a counterpart or deliberate none", () => {
+    expect(ORGANISATION_OS_V5_COUNTERPARTS.length).toBeGreaterThanOrEqual(24);
+
+    const ids = new Set<string>();
     for (const item of ORGANISATION_OS_V5_COUNTERPARTS) {
+      expect(ids.has(item.id), `duplicate counterpart id: ${item.id}`).toBe(false);
+      ids.add(item.id);
+
       expect(item.participantSurface, item.id).toMatch(/^\//);
-      expect(item.organizerSurface, item.id).toMatch(/^\/admin\//);
-      expect(item.rationale.trim().length, item.id).toBeGreaterThan(20);
+      expect(item.rationale.trim().length, item.id).toBeGreaterThan(30);
+
+      if (item.kind === "none") {
+        expect(item.organizerSurface, item.id).toBeNull();
+      } else {
+        expect(item.organizerSurface, item.id).not.toBeNull();
+        expect(item.organizerSurface!, item.id).toMatch(
+          /^\/(admin|confirmations\/admin|televoting\/admin)/,
+        );
+      }
+    }
+
+    expect(
+      ORGANISATION_OS_V5_COUNTERPARTS.filter((item) => item.kind === "none").length,
+    ).toBeGreaterThanOrEqual(2);
+  });
+
+  it("covers every critical participation workflow with an explicit Organizer counterpart", () => {
+    const expected = [
+      "participation.confirmations",
+      "participation.jury",
+      "participation.televoting",
+      "participation.next-in-line",
+      "participation.integrity-report",
+    ];
+
+    for (const id of expected) {
+      const item = ORGANISATION_OS_V5_COUNTERPARTS.find((candidate) => candidate.id === id);
+      expect(item, id).toBeTruthy();
+      expect(item?.kind, id).not.toBe("none");
+      expect(item?.organizerSurface, id).toBeTruthy();
     }
   });
 
-  it("ships dedicated organizer routes for the new V5 operational counterparts", () => {
+  it("ships dedicated Organizer routes for the new V5 operational counterparts", () => {
     for (const path of [
       "src/routes/_authenticated/admin/tasks.tsx",
       "src/routes/_authenticated/admin/next-in-line.tsx",
       "src/routes/_authenticated/admin/system-operations.tsx",
       "src/routes/_authenticated/admin/community-moderation.tsx",
+      "src/routes/_authenticated/admin/access-permissions.tsx",
     ]) {
       expect(existsSync(resolve(process.cwd(), path)), path).toBe(true);
     }
