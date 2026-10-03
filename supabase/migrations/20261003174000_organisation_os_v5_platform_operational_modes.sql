@@ -334,11 +334,14 @@ as $apply$
 declare
   v_actor uuid := auth.uid();
   v_state public.studio2_platform_operational_state;
+  v_existing public.studio2_operation_receipts;
   v_target text := lower(btrim(coalesce(p_target_mode, '')));
   v_reason text := nullif(btrim(coalesce(p_reason, '')), '');
+  v_before_mode text;
   v_risk text;
   v_claim jsonb;
   v_operation_id uuid;
+  v_auth_evidence jsonb;
   v_result jsonb;
 begin
   if not public.studio2_access_allowed('maintenance.manage', null, false) then
@@ -347,6 +350,22 @@ begin
   if v_reason is null or length(v_reason) < 5 then
     raise exception 'A platform mode change reason of at least 5 characters is required'
       using errcode = '22023';
+  end if;
+
+  -- Lost-response reconciliation must not require a new preview or another
+  -- fresh-auth ceremony for an operation that already succeeded.
+  select receipt.*
+  into v_existing
+  from public.studio2_operation_receipts receipt
+  where receipt.operation_id = p_operation_id
+    and receipt.actor_id = v_actor
+    and receipt.command = 'system.platform_mode.change'
+    and receipt.idempotency_key = nullif(btrim(coalesce(p_idempotency_key, '')), '')
+    and receipt.status = 'succeeded'
+  limit 1;
+
+  if v_existing.operation_id is not null then
+    return v_existing.result;
   end if;
 
   select *
@@ -359,6 +378,8 @@ begin
     raise exception 'Platform operating mode changed since this preview was loaded. Refresh before continuing.'
       using errcode = '40001';
   end if;
+
+  v_before_mode := v_state.mode;
 
   if not private.studio2_platform_mode_transition_allowed(v_state.mode, v_target) then
     raise exception 'Invalid platform mode transition: % -> %', v_state.mode, v_target
@@ -380,6 +401,10 @@ begin
     then 'R3'
     else 'R2'
   end;
+
+  if v_risk = 'R3' then
+    v_auth_evidence := private.studio2_require_fresh_auth(300);
+  end if;
 
   v_claim := private.studio2_claim_operation(
     p_operation_id,
@@ -425,7 +450,7 @@ begin
     'studio2_platform_operational_state',
     'platform',
     jsonb_build_object(
-      'fromMode', (v_claim -> 'scope' ->> 'fromMode'),
+      'fromMode', v_before_mode,
       'expectedVersion', p_expected_version
     ),
     jsonb_build_object(
@@ -437,6 +462,16 @@ begin
       'reason', v_state.reason
     )
   );
+
+  if v_auth_evidence is not null then
+    update public.studio2_operation_receipts
+    set
+      actor_session_id = v_auth_evidence ->> 'sessionId',
+      auth_freshness_evidence = v_auth_evidence,
+      updated_at = now()
+    where operation_id = v_operation_id
+      and actor_id = v_actor;
+  end if;
 
   v_result := jsonb_build_object(
     'ok', true,
