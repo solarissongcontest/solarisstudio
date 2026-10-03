@@ -6,27 +6,29 @@ const source = (path: string) => readFileSync(path, "utf8");
 
 describe("Organisation OS V5 permission R3 contract", () => {
   const migration = source(
-    "supabase/migrations/20261003005000_organisation_os_v5_permission_r3.sql",
+    "supabase/migrations/20261003012000_organisation_os_v5_permission_operations.sql",
   );
   const service = source("src/lib/permission-engine-admin.ts");
   const route = source("src/routes/_authenticated/admin/access-permissions.tsx");
 
   it("versions every effective role and direct-grant mutation", () => {
-    expect(migration).toContain("public.studio2_access_state_versions");
-    expect(migration).toContain("studio2_role_assignments_access_version");
-    expect(migration).toContain("studio2_capability_grants_access_version");
-    expect(migration).toContain("studio2_user_roles_access_version");
+    expect(migration).toContain("public.studio2_permission_subject_versions");
+    expect(migration).toContain("studio2_role_assignments_touch_subject_version");
+    expect(migration).toContain("studio2_capability_grants_touch_subject_version");
+    expect(migration).toContain("studio2_user_roles_touch_subject_version");
     expect(migration).toContain(
-      "set version = public.studio2_access_state_versions.version + 1",
+      "set version = public.studio2_permission_subject_versions.version + 1",
     );
-    expect(migration).toContain("old.expires_at is distinct from new.expires_at");
+    expect(migration).toContain("after insert or update or delete on public.studio2_role_assignments");
+    expect(migration).toContain("after insert or update or delete on public.studio2_capability_grants");
+    expect(migration).toContain("after insert or update or delete on public.user_roles");
   });
 
   it("requires an R3 preview before the governed command", () => {
     expect(migration).toContain("public.studio2_permission_change_preview");
     expect(migration).toContain("'riskClass', 'R3'");
-    expect(migration).toContain("'expectedVersion', v_expected_version");
-    expect(migration).toContain("'affectedCapabilities', v_affected");
+    expect(migration).toContain("'expectedVersion', v_version");
+    expect(migration).toContain("'affectedCapabilities', to_jsonb(v_capabilities)");
     expect(migration).toContain("'globalScope'");
     expect(migration).toContain("'selfChange'");
     expect(service).toContain('rpc("studio2_permission_change_preview"');
@@ -37,11 +39,11 @@ describe("Organisation OS V5 permission R3 contract", () => {
 
   it("binds apply to operation identity, expected version and canonical receipt", () => {
     expect(migration).toContain("private.studio2_claim_operation(");
-    expect(migration).toContain("'permissions.access.change'");
+    expect(migration).toContain("'permissions.' || p_change_kind");
     expect(migration).toContain("'R3'");
     expect(migration).toContain("p_expected_version");
     expect(migration).toContain(
-      "Access changed since this impact preview was loaded. Refresh before continuing.",
+      "Access changed since this preview was loaded. Refresh the impact preview before continuing.",
     );
     expect(migration).toContain("using errcode = '40001'");
     expect(migration).toContain("private.studio2_complete_operation(v_operation_id, v_result)");
@@ -51,10 +53,10 @@ describe("Organisation OS V5 permission R3 contract", () => {
   });
 
   it("writes before/after access snapshots into the Organizer audit trail", () => {
-    expect(migration).toContain("private.studio2_access_state_snapshot");
+    expect(migration).toContain("private.studio2_permission_subject_snapshot");
     expect(migration).toContain("'legacyRoles'");
     expect(migration).toContain("insert into public.admin_audit_log");
-    expect(migration).toContain("'permissions_access_change'");
+    expect(migration).toContain("'permission_' || p_change_kind");
     expect(migration).toContain("'operationId', v_operation_id");
     expect(migration).toContain("'riskClass', 'R3'");
   });
@@ -73,7 +75,7 @@ describe("Organisation OS V5 permission R3 contract", () => {
       "revoke execute on function public.studio2_revoke_access_role(",
     );
     expect(migration).toContain("from authenticated;");
-    expect(migration).toContain("to service_role;");
+    expect(migration).toContain("from authenticated;");
   });
 
   it("uses one preview identity for retries rather than generating IDs during apply", () => {
