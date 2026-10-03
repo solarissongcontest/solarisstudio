@@ -914,7 +914,7 @@ Deno.serve(async (request) => {
     .upload(row.final_path, finalBlob, {
       upsert: false,
       contentType: detected!.mime,
-      cacheControl: "3600",
+      cacheControl: row.domain === "integrity_evidence" ? "0" : "31536000",
     });
 
   if (publishError) {
@@ -931,7 +931,7 @@ Deno.serve(async (request) => {
       .upload(thumbnailPath, new Blob([thumbnailBytes], { type: detected!.mime }), {
         upsert: false,
         contentType: detected!.mime,
-        cacheControl: "86400",
+        cacheControl: "31536000",
       });
     if (thumbnailError && !/already exists|duplicate/i.test(thumbnailError.message || "")) {
       await service.storage.from(row.final_bucket).remove([row.final_path]);
