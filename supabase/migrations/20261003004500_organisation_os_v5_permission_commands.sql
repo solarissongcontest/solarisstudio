@@ -100,6 +100,36 @@ revoke all on function private.studio2_lock_permission_version(uuid)
 revoke all on function private.studio2_bump_permission_version(uuid)
   from public, anon, authenticated;
 
+create or replace function private.studio2_permission_state_version_trigger()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $permtrigger$
+declare
+  v_user_id uuid;
+begin
+  v_user_id := case when tg_op = 'DELETE' then old.user_id else new.user_id end;
+  perform private.studio2_bump_permission_version(v_user_id);
+  return case when tg_op = 'DELETE' then old else new end;
+end
+$permtrigger$;
+
+revoke all on function private.studio2_permission_state_version_trigger()
+  from public, anon, authenticated;
+
+drop trigger if exists studio2_role_assignment_version_bump
+  on public.studio2_role_assignments;
+create trigger studio2_role_assignment_version_bump
+after insert or update or delete on public.studio2_role_assignments
+for each row execute function private.studio2_permission_state_version_trigger();
+
+drop trigger if exists studio2_capability_grant_version_bump
+  on public.studio2_capability_grants;
+create trigger studio2_capability_grant_version_bump
+after insert or update or delete on public.studio2_capability_grants
+for each row execute function private.studio2_permission_state_version_trigger();
+
 create or replace function private.studio2_validate_permission_change(
   p_user_id uuid,
   p_change_kind text,
@@ -408,8 +438,15 @@ begin
       on conflict (user_id, role_key, edition_id)
       do update set
         expires_at = excluded.expires_at,
-        assigned_by = excluded.assigned_by
-      returning to_jsonb(studio2_role_assignments) into v_after;
+        assigned_by = excluded.assigned_by;
+
+      select to_jsonb(assignment)
+      into v_after
+      from public.studio2_role_assignments assignment
+      where assignment.user_id = p_user_id
+        and assignment.role_key = p_key
+        and assignment.edition_id is not distinct from p_edition_id;
+
       v_changed := true;
     else
       v_after := v_before;
@@ -463,8 +500,15 @@ begin
       on conflict (user_id, capability, edition_id)
       do update set
         expires_at = excluded.expires_at,
-        granted_by = excluded.granted_by
-      returning to_jsonb(studio2_capability_grants) into v_after;
+        granted_by = excluded.granted_by;
+
+      select to_jsonb(grant_row)
+      into v_after
+      from public.studio2_capability_grants grant_row
+      where grant_row.user_id = p_user_id
+        and grant_row.capability = p_key
+        and grant_row.edition_id is not distinct from p_edition_id;
+
       v_changed := true;
     else
       v_after := v_before;
@@ -490,7 +534,10 @@ begin
   end if;
 
   if v_changed then
-    v_next_version := private.studio2_bump_permission_version(p_user_id);
+    select state.version
+    into v_next_version
+    from public.studio2_permission_state_versions state
+    where state.user_id = p_user_id;
 
     insert into public.admin_audit_log (
       actor_id,
@@ -594,7 +641,6 @@ begin
     granted_by = excluded.granted_by
   returning * into v_grant;
 
-  perform private.studio2_bump_permission_version(p_user_id);
   return v_grant;
 end
 $legacygrant$;
@@ -630,9 +676,6 @@ begin
     and edition_id is not distinct from p_edition_id;
 
   v_changed := found;
-  if v_changed then
-    perform private.studio2_bump_permission_version(p_user_id);
-  end if;
   return v_changed;
 end
 $legacyrevoke$;
@@ -683,7 +726,6 @@ begin
     assigned_by = excluded.assigned_by
   returning * into v_assignment;
 
-  perform private.studio2_bump_permission_version(p_user_id);
   return v_assignment;
 end
 $legacyrole$;
@@ -719,9 +761,6 @@ begin
     and edition_id is not distinct from p_edition_id;
 
   v_changed := found;
-  if v_changed then
-    perform private.studio2_bump_permission_version(p_user_id);
-  end if;
   return v_changed;
 end
 $legacyrolerevoke$;
