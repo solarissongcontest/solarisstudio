@@ -4,6 +4,7 @@ import {
   ensureCanonicalTelevotingEditionsServer,
   syncMergedRoundFromSolarisServer,
 } from "@/integrations/televoting/solaris-sync.server";
+import type { MergedRoundStatusPreview } from "@/integrations/televoting/rounds.functions";
 
 export type MergedAdminRoundServer = {
   id: string;
@@ -156,55 +157,44 @@ export async function renameMergedTelevotingRoundServer(data: { id: string; name
   return { ok: true };
 }
 
-export async function setMergedTelevotingRoundStatusServer(data: { id: string; status: "draft" | "open" | "closed" }) {
-  const actor = await requireMergedTelevotingAdminServer();
+export async function previewMergedTelevotingRoundStatusServer(data: {
+  id: string;
+  status: "draft" | "open" | "closed";
+}): Promise<MergedRoundStatusPreview> {
+  await requireMergedTelevotingAdminServer();
+  const { data: preview, error } = await televotingAdmin.rpc(
+    "studio2_round_status_change_preview",
+    {
+      p_round_id: data.id,
+      p_status: data.status,
+    },
+  );
+  if (error) throw new Error(error.message);
+  return preview as MergedRoundStatusPreview;
+}
 
-  if (data.status === "open") {
-    const { count, error: countError } = await televotingAdmin
-      .from("round_entries")
-      .select("id", { count: "exact", head: true })
-      .eq("round_id", data.id);
-    if (countError) throw new Error(countError.message);
-    const entryCount = count ?? 0;
-    if (entryCount < 2 || entryCount > 50) {
-      throw new Error(`Round must have between 2 and 50 entries (has ${entryCount})`);
-    }
-  }
-
-  const patch: { status: "draft" | "open" | "closed"; opened_at?: string; closed_at?: string } = {
-    status: data.status,
-  };
-  if (data.status === "open") patch.opened_at = new Date().toISOString();
-  if (data.status === "closed") patch.closed_at = new Date().toISOString();
-
-  const { data: before } = await televotingAdmin.from("rounds").select("status").eq("id", data.id).maybeSingle();
-  const { error } = await televotingAdmin.from("rounds").update(patch).eq("id", data.id);
-  if (error) {
-    if (error.code === "23505") throw new Error("Another round is already open. Close it first.");
-    throw new Error(error.message);
-  }
-
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const solaris = supabaseAdmin as any;
-  if (data.status === "open") {
-    await solaris
-      .from("televoting_round_bindings")
-      .update({ frozen_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq("remote_round_id", data.id);
-  } else if (data.status === "draft") {
-    await solaris
-      .from("televoting_round_bindings")
-      .update({ frozen_at: null, updated_at: new Date().toISOString() })
-      .eq("remote_round_id", data.id);
-  }
-
-  await audit(actor, `round_${data.status}`, {
-    targetType: "round",
-    targetId: data.id,
-    oldValues: before,
-    newValues: { status: data.status },
-  });
-  return { ok: true };
+export async function setMergedTelevotingRoundStatusServer(data: {
+  id: string;
+  status: "draft" | "open" | "closed";
+  operationId: string;
+  idempotencyKey: string;
+  expectedGlobalVersion: number;
+  expectedRoundVersion: number;
+}) {
+  await requireMergedTelevotingAdminServer();
+  const { data: receipt, error } = await televotingAdmin.rpc(
+    "studio2_apply_round_status_change",
+    {
+      p_round_id: data.id,
+      p_status: data.status,
+      p_operation_id: data.operationId,
+      p_idempotency_key: data.idempotencyKey,
+      p_expected_global_version: data.expectedGlobalVersion,
+      p_expected_round_version: data.expectedRoundVersion,
+    },
+  );
+  if (error) throw new Error(error.message);
+  return receipt;
 }
 
 export async function deleteMergedTelevotingRoundServer(data: { id: string }) {

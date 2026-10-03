@@ -24,6 +24,7 @@ const MAINTENANCE_ADMIN_LOGOUT_PATH = "/__maintenance-admin/logout";
 const MAINTENANCE_BYPASS_COOKIE = "solaris_maintenance_admin";
 const MAINTENANCE_BYPASS_VERSION = "v1";
 const MAINTENANCE_BYPASS_MAX_AGE_SECONDS = 12 * 60 * 60;
+const E2E_MAINTENANCE_BYPASS_COOKIE = "solaris_e2e_maintenance_bypass";
 const MAINTENANCE_ASSET_PATHS = new Set([
   "/tsbc-maintenance-mark.svg",
   "/solaris-studio-mark.png",
@@ -64,6 +65,16 @@ function errorResponse() {
 function maintenanceSecret(env: unknown) {
   const workerEnv = env && typeof env === "object" ? (env as ServerEnv) : undefined;
   return workerEnv?.MAINTENANCE_ADMIN_SECRET ?? process.env.MAINTENANCE_ADMIN_SECRET ?? "";
+}
+
+function hasLocalE2EMaintenanceBypass(request: Request) {
+  if (process.env.SOLARIS_E2E_BYPASS_MAINTENANCE !== "1") return false;
+
+  const url = new URL(request.url);
+  const localHost = url.hostname === "127.0.0.1" || url.hostname === "localhost";
+  if (!localHost) return false;
+
+  return readCookie(request, E2E_MAINTENANCE_BYPASS_COOKIE) === "1";
 }
 
 function bytesToHex(bytes: ArrayBuffer) {
@@ -367,6 +378,7 @@ export default {
       if (
         GLOBAL_MAINTENANCE_MODE &&
         !MAINTENANCE_ASSET_PATHS.has(url.pathname) &&
+        !hasLocalE2EMaintenanceBypass(request) &&
         !(await hasValidMaintenanceBypass(request, secret))
       ) {
         return maintenanceResponse(request);

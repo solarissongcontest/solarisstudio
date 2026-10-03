@@ -20,6 +20,7 @@ import {
 } from "@/lib/governance-v5";
 import { rememberRuleReturnContext } from "@/lib/rule-return-context";
 import { usePublishedRulebook } from "@/lib/rules-governance";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { cn } from "@/lib/utils";
 
 const PURPOSE: Record<
@@ -149,12 +150,83 @@ export function RulesApplyingHere({
   title?: string;
   className?: string;
 }) {
+  const { isAppMode } = useSolarisApp();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const sourceLabel = sourceLabelForContext(context, pathname);
+  const compactId = useId().replaceAll(":", "");
   const definition = governanceDefinition(context);
   const rules = governanceRules(context);
   const primaries = rules.filter((rule) => rule.prominence === "primary");
   const initial = primaries.slice(0, primaryLimit);
   const rest = rules.filter((rule) => !initial.some((item) => item.id === rule.id));
   const [expanded, setExpanded] = useState(initiallyExpanded);
+
+  if (isAppMode) {
+    const visibleRules = expanded ? [...initial, ...rest] : initial;
+
+    return (
+      <section
+        className={cn("solaris-app-rules-summary", className)}
+        aria-label={title ?? definition.title}
+      >
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+            <BookOpen className="size-4" aria-hidden="true" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-primary/85">
+              Before this action
+            </p>
+            <h2 className="mt-0.5 text-sm font-semibold">{title ?? definition.title}</h2>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">{definition.intro}</p>
+          </div>
+        </div>
+
+        <div className="mt-3 overflow-hidden rounded-xl border border-border/60 bg-background/20">
+          {visibleRules.map((rule, index) => {
+            const linkId = `app-governance-${compactId}-${rule.id.replace(".", "-")}`;
+            return (
+              <Link
+                key={rule.id}
+                id={linkId}
+                to="/rules/$ruleId"
+                params={{ ruleId: rule.id }}
+                onClick={() => rememberRuleReturnContext(sourceLabel, linkId)}
+                className={cn(
+                  "grid min-h-12 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 px-3 py-2.5",
+                  index > 0 && "border-t border-border/55",
+                )}
+              >
+                <span className="font-mono text-[10px] font-bold text-primary">{rule.id}</span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold">{rule.title}</span>
+                  <span className="mt-0.5 block line-clamp-1 text-[11px] leading-4 text-muted-foreground">
+                    {rule.contextualSummary}
+                  </span>
+                </span>
+                <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              </Link>
+            );
+          })}
+        </div>
+
+        {rest.length ? (
+          <button
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            aria-expanded={expanded}
+            className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-xl px-1 text-xs font-semibold text-muted-foreground"
+          >
+            {expanded ? "Show essential rules" : `Show all ${rules.length} rules`}
+            <ChevronDown
+              className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
+              aria-hidden="true"
+            />
+          </button>
+        ) : null}
+      </section>
+    );
+  }
 
   return (
     <section

@@ -5,14 +5,33 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("Mobile App V2 architectural invariants", () => {
-  it("keeps route chrome as the single source of active tab truth", () => {
+  it("keeps the canonical screen registry as the single source of active tab truth", () => {
     const tabs = source("src/components/app/AppTabBar.tsx");
     const toolbar = source("src/components/app/AppToolbar.tsx");
+    const navigation = source("src/lib/app-navigation.ts");
+    const chrome = source("src/lib/app-route-chrome.ts");
 
     expect(tabs).toContain("resolveAppRouteChrome(pathname, searchStr)");
     expect(tabs).not.toContain("publicAreaForPath");
+    expect(tabs).not.toContain("appTabForLocation(pathname, searchStr)");
     expect(toolbar).toContain("resolveAppRouteChrome(pathname, searchStr)");
     expect(toolbar).toContain("historyChrome?.tab === chrome.tab");
+    expect(navigation).toContain("resolveSolarisAppScreen(pathname, searchStr)");
+    expect(chrome).toContain("resolveSolarisAppScreen(pathname, searchStr)");
+  });
+
+  it("lets the screen contract decide whether the toolbar owns global search", () => {
+    const toolbar = source("src/components/app/AppToolbar.tsx");
+    const registry = source("src/lib/app-screen-registry.ts");
+
+    const chrome = source("src/lib/app-route-chrome.ts");
+
+    expect(toolbar).toContain("resolveAppRouteChrome(pathname, searchStr)");
+    expect(toolbar).not.toContain("resolveSolarisAppScreen(pathname, searchStr)");
+    expect(toolbar).toContain('data-search-mode={chrome.search}');
+    expect(toolbar).toContain('chrome.search === "global"');
+    expect(chrome).toContain("search: screen.chrome.search");
+    expect(registry).toContain("localDirectorySearch");
   });
 
   it("keeps route loading and error states on the canonical AppShell", () => {
@@ -56,7 +75,7 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(firstRun).toContain("<Sheet");
     expect(firstRun).not.toContain("<Dialog");
     expect(wiki).toContain("<SheetContent");
-    expect(sheet).toContain("z-[90]");
+    expect(sheet).toContain("z-[var(--solaris-z-sheet)]");
     expect(sheet).toContain("size-11");
   });
 
@@ -65,6 +84,7 @@ describe("Mobile App V2 architectural invariants", () => {
     const css = source("src/flag-media.css");
     expect(media).toContain('rounded-[.6rem]');
     expect(css).toContain("overflow: hidden");
+    expect(css).not.toMatch(/\\.flag-media-frame\\s*\\{[^}]*border-radius:/s);
   });
 
   it("detects all installed display modes requested by the manifest", () => {

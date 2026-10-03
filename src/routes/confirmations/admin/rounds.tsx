@@ -195,9 +195,20 @@ function RoundsPage() {
   async function changeStatus(round: ConfirmationRound, status: "open" | "closed") {
     setRoundBusy(round.id);
     try {
+      const hadExpiredClosingTime =
+        status === "open" &&
+        Boolean(round.closes_at) &&
+        new Date(round.closes_at as string).getTime() <= Date.now();
+
       await setConfirmationRoundStatus(round.id, status);
       await refresh(editionId);
-      toast.success(status === "open" ? `${round.name} is open` : `${round.name} is closed`);
+      toast.success(
+        status === "open"
+          ? hadExpiredClosingTime
+            ? `${round.name} is open. Its expired closing time was cleared.`
+            : `${round.name} is open`
+          : `${round.name} is closed`,
+      );
     } catch (caught) {
       toast.error(caught instanceof Error ? caught.message : "Round status could not be changed");
     } finally {
@@ -210,7 +221,7 @@ function RoundsPage() {
     try {
       await setConfirmationRoundEditing(round.id, enabled);
       await refresh(editionId);
-      toast.success(enabled ? "Delegation corrections allowed" : "Delegation corrections paused");
+      toast.success(enabled ? "Corrections enabled for unlocked responses" : "Delegation corrections paused");
     } catch (caught) {
       toast.error(caught instanceof Error ? caught.message : "Editing access could not be changed");
     } finally {
@@ -239,7 +250,7 @@ function RoundsPage() {
       <AdminPageHeader
         eyebrow="Delegations"
         title="Submission rounds"
-        description="Control when new confirmations are accepted. Delegation corrections remain a separate switch, so a closed wave can still be edited when needed."
+        description="Control when new confirmations are accepted. Reopening an expired wave starts it now and clears its old closing time; set a new deadline in Edit round if needed. Delegation corrections remain separate from submissions."
         actions={
           <button type="button" onClick={startCreate} className="admin-action-primary">
             <Plus className="size-4" /> New round
@@ -326,8 +337,8 @@ function RoundsPage() {
                         title={round.editing_enabled ? "Pause delegation corrections" : "Allow delegation corrections"}
                         description={
                           round.editing_enabled
-                            ? "Existing responses will become read-only."
-                            : "Existing responses can be corrected even if the round stays closed."
+                            ? "Responses in this round will become read-only."
+                            : "Existing responses in this round can be corrected even if submissions stay closed. Individually locked responses stay locked."
                         }
                         disabled={isBusy}
                         onClick={() => void changeEditing(round, !round.editing_enabled)}
@@ -350,7 +361,13 @@ function RoundsPage() {
                     onClick={() => void changeStatus(round, isOpen ? "closed" : "open")}
                     className={isOpen ? "admin-action-secondary w-full" : "admin-action-primary w-full"}
                   >
-                    {isBusy ? "Working…" : isOpen ? "Close submissions" : "Open submissions"}
+                    {isBusy
+                      ? "Working…"
+                      : isOpen
+                        ? "Close submissions"
+                        : round.closes_at && new Date(round.closes_at).getTime() <= Date.now()
+                          ? "Reopen submissions"
+                          : "Open submissions"}
                   </button>
                   <AdminStatus tone={round.editing_enabled ? "info" : "neutral"}>
                     {round.editing_enabled ? "Corrections on" : "Corrections off"}
@@ -427,7 +444,7 @@ function RoundsPage() {
             <span>
               <span className="block font-semibold">Allow delegation corrections</span>
               <span className="mt-1 block text-xs text-muted-foreground">
-                Existing responses can be edited even after new submissions close.
+                Existing responses can be edited even after submissions close. Enabling this applies to responses in this round; individual locks still win.
               </span>
             </span>
             <input

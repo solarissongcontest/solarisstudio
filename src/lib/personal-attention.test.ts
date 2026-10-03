@@ -45,17 +45,43 @@ function response(
   };
 }
 
+const requirement = {
+  id: "requirement-22",
+  edition_id: "edition-22",
+  country_id: "oland",
+  generation: 1,
+  status: "required",
+  reason: "Edition confirmation required by TSBC",
+  valid_from: "2026-09-01T00:00:00Z",
+  resolved_by_submission_id: null,
+  resolved_at: null,
+  created_at: "2026-09-01T00:00:00Z",
+} as const;
+
 describe("personal attention resolver", () => {
   it("creates a submission task only while the relevant round is actually open", () => {
     const items = buildPersonalAttentionItems({
       editionId: "edition-22",
       responses: [],
+      requirements: [requirement],
       rounds: [round],
       now: new Date("2026-09-19T12:00:00Z").getTime(),
     });
 
-    expect(items.map((item) => item.id)).toContain("confirmation-missing:round-22");
+    expect(items.map((item) => item.id)).toContain("confirmation-required:requirement-22");
     expect(items[0]?.actionRequired).toBe(true);
+  });
+
+  it("does not turn an open round into personal attention without a requirement", () => {
+    const items = buildPersonalAttentionItems({
+      editionId: "edition-22",
+      responses: [],
+      requirements: [],
+      rounds: [round],
+      now: new Date("2026-09-19T12:00:00Z").getTime(),
+    });
+
+    expect(items).toEqual([]);
   });
 
   it("does not invent a missing-entry task when the country already submitted", () => {

@@ -27,12 +27,15 @@ describe("Solaris installed-app foundation", () => {
     expect(tabs).toContain("setCollapsed(false)");
   });
 
-  it("renders the installed bottom navigation with the Kube-style SVG refraction pipeline", () => {
+  it("renders bounded liquid glass with SVG refraction on Blink and a safe CSS fallback on WebKit", () => {
     const tabs = source("src/components/app/AppTabBar.tsx");
     const kube = source("src/components/app/KubeLiquidGlassBackdrop.tsx");
     const styles = source("src/styles/app-shell.css");
 
     expect(tabs).toContain("KubeLiquidGlassBackdrop");
+    expect(tabs).toContain("--solaris-app-bottom-obstruction");
+    expect(tabs).not.toContain('root.style.setProperty("--solaris-app-tabbar-height"');
+
     expect(kube).toContain("convexSquircle");
     expect(kube).toContain("squircleDerivative");
     expect(kube).toContain("RAY_SAMPLE_COUNT = 127");
@@ -45,19 +48,20 @@ describe("Solaris installed-app foundation", () => {
     expect(kube).toContain("Math.round(highlight * 30)");
     expect(kube).toContain('stdDeviation="13.5"');
     expect(kube).toContain("scale={maps.scale * 0.7}");
-    expect(kube).toContain('data-kube-liquid-glass={blink ? "svg-refraction" : "safari-mirrored-refraction"}');
+    expect(kube).toContain('data-kube-liquid-glass={blink ? "svg-refraction" : "css-backdrop"}');
     expect(kube).toContain('const backdropFilter = blink && maps ? `url(#${filterId})` : "none"');
-    expect(kube).toContain("source.cloneNode(true)");
-    expect(kube).toContain('document.querySelector<HTMLElement>(".app-main")');
-    expect(kube).toContain("mirror.replaceChildren(clone)");
     expect(kube).toContain('"blur(22px) saturate(1.16) brightness(1.08) contrast(1.01)"');
-    expect(kube).toContain("WebkitFilter: mirrorFilter");
-    expect(kube).toContain("filter: mirrorFilter");
+    expect(kube).not.toContain("source.cloneNode(true)");
+    expect(kube).not.toContain('document.querySelector<HTMLElement>(".app-main")');
+    expect(kube).not.toContain("MutationObserver");
+
     expect(styles).toContain(".solaris-app-tabbar-backdrop");
-    expect(styles).toContain(".solaris-kube-safari-mirror");
-    expect(styles).toContain(".solaris-kube-mirror-clone");
     expect(styles).toContain('data-kube-liquid-glass="svg-refraction"');
-    expect(styles).toContain('data-kube-liquid-glass="safari-mirrored-refraction"');
+    expect(styles).toContain('data-kube-liquid-glass="css-backdrop"');
+    expect(styles).not.toContain(".solaris-kube-safari-mirror");
+    expect(styles).not.toContain(".solaris-kube-mirror-clone");
+    expect(styles).toContain("--solaris-app-tabbar-max-height");
+    expect(styles).toContain("contain: layout paint");
     expect(styles).toContain(".solaris-app-tabbar-material");
     expect(styles).toContain("background: transparent");
     expect(styles).toContain("background: rgb(238 241 245 / .075)");
@@ -66,7 +70,7 @@ describe("Solaris installed-app foundation", () => {
 
   it("bumps the installed-app static cache when liquid glass rendering changes", () => {
     const worker = source("public/sw.js");
-    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v12"');
+    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v13"');
   });
 
   it("lets the active tab indicator drag across destinations", () => {
@@ -101,12 +105,15 @@ describe("Solaris installed-app foundation", () => {
     expect(more).not.toContain("publicDestinationsForArea");
   });
 
-  it("keeps utility route titles route-aware in the installed app toolbar", () => {
+  it("keeps utility route titles route-aware through the canonical screen registry", () => {
     const toolbar = source("src/components/app/AppToolbar.tsx");
     const chrome = source("src/lib/app-route-chrome.ts");
+    const registry = source("src/lib/app-screen-registry.ts");
     expect(toolbar).toContain("resolveAppRouteChrome");
-    expect(chrome).toContain("publicDestinationForPath");
-    expect(chrome).toContain("destination.label");
+    expect(chrome).toContain("resolveSolarisAppScreen");
+    expect(chrome).not.toContain("publicDestinationForPath");
+    expect(registry).toContain("publicDestinationForPath");
+    expect(registry).toContain("destination.label");
   });
 
   it("never turns maintenance into stale cached application HTML", () => {

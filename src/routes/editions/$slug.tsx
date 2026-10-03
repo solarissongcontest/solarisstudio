@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Clock3, Radio, Trophy, Vote } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { AppShell, Panel } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
@@ -22,6 +23,7 @@ import {
   useAllResults,
   useAllShows,
   useContestEntities,
+  useEditionResults,
   useCountries,
   useEdition,
   useShows,
@@ -79,19 +81,48 @@ function EditionPage() {
   const { slug } = Route.useParams();
   const editionQuery = useEdition(slug);
   const { data: edition } = editionQuery;
+  const [historyEnabled, setHistoryEnabled] = useState(!isAppMode);
   const showsQuery = useShows(edition?.id);
   const participantsQuery = usePublicEditionParticipants(edition?.id);
   const countriesQuery = useCountries();
   const entitiesQuery = useContestEntities(edition?.id);
-  const resultsQuery = useAllResults();
-  const allShowsQuery = useAllShows();
+  const resultsQuery = useEditionResults(edition?.id);
+  const historicalResultsQuery = useAllResults({ enabled: historyEnabled });
+  const allShowsQuery = useAllShows({ enabled: historyEnabled });
   const { data: shows } = showsQuery;
   const { data: participants } = participantsQuery;
   const { data: countries } = countriesQuery;
   const { data: entities } = entitiesQuery;
-  const { data: allResults } = resultsQuery;
+  const { data: editionResults } = resultsQuery;
+  const { data: allResults } = historicalResultsQuery;
   const { data: allShows } = allShowsQuery;
-  const archiveQueries = [editionQuery, showsQuery, participantsQuery, countriesQuery, entitiesQuery, resultsQuery, allShowsQuery];
+  const archiveQueries = [editionQuery, showsQuery, participantsQuery, countriesQuery, entitiesQuery, resultsQuery];
+
+  useEffect(() => {
+    if (!isAppMode) {
+      setHistoryEnabled(true);
+      return;
+    }
+
+    const idleWindow = window as typeof window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    let timeout = 0;
+    let idle: number | null = null;
+    const enable = () => setHistoryEnabled(true);
+
+    if (idleWindow.requestIdleCallback) {
+      idle = idleWindow.requestIdleCallback(enable, { timeout: 900 });
+    } else {
+      timeout = window.setTimeout(enable, 320);
+    }
+
+    return () => {
+      if (idle != null) idleWindow.cancelIdleCallback?.(idle);
+      if (timeout) window.clearTimeout(timeout);
+    };
+  }, [isAppMode]);
   const liquidGlass = resolveEditionPublicStyle(edition?.theme_colors) === "glass";
 
   if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading edition…" /></AppShell>;
@@ -126,7 +157,7 @@ function EditionPage() {
   const showList = shows ?? [];
   const participantList = participants ?? [];
   const displayMap = entityDisplayMap(entities, countries);
-  const resultList = (allResults ?? []).filter((result) => result.edition_id === edition.id);
+  const resultList = editionResults ?? [];
   const editionState = resolvePublicEditionState({
     edition,
     shows: showList,
@@ -211,20 +242,20 @@ function EditionPage() {
         results: resultList,
         jury: [],
         labels: new Map([...displayMap.entries()].map(([id, display]) => [id, display.name])),
-        allResults: allResults ?? [],
-        allShows: allShows ?? [],
+        allResults: allResults ?? resultList,
+        allShows: allShows ?? publicShows,
       })
     : [];
 
   return (
     <AppShell>
       <div className="edition-public-page">
-        <div className="edition-page-toolbar" data-app-compact={isAppMode ? "true" : undefined}>
-          {!isAppMode ? (
+        {!isAppMode ? (
+          <div className="edition-page-toolbar">
             <Link to="/editions" className="text-xs font-medium text-muted-foreground hover:text-foreground">← Editions</Link>
-          ) : null}
-          <FollowButton entityType="edition" entityId={edition.id} label={editionLabel(edition)} />
-        </div>
+            <FollowButton entityType="edition" entityId={edition.id} label={editionLabel(edition)} />
+          </div>
+        ) : null}
 
         <EditionHero
           eyebrow={edition.host_city ?? "Solaris Song Contest"}
@@ -241,6 +272,9 @@ function EditionPage() {
               className="edition-status-chip"
             />}
           liquidGlass={liquidGlass}
+          actions={isAppMode ? (
+            <FollowButton entityType="edition" entityId={edition.id} label={editionLabel(edition)} />
+          ) : null}
           winner={winner && winnerResult && grandFinalPublication?.results ? (
                 <div className="edition-winner-identity">
                   <FlagChip code={winner.short_code} color={winner.accent_color} image={winner.flag_image} size="xl" />

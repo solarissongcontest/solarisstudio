@@ -55,6 +55,53 @@ export type PermissionSummary = {
   legacyDeniedCapabilityAllowed: number;
 };
 
+export type PermissionChangeKind =
+  | "assign_role"
+  | "revoke_role"
+  | "grant_capability"
+  | "revoke_capability";
+
+export type PermissionChangeInput = {
+  userId: string;
+  kind: PermissionChangeKind;
+  key: string;
+  editionId?: string | null;
+  expiresAt?: string | null;
+};
+
+export type PermissionChangePreview = {
+  riskClass: "R3";
+  targetUserId: string;
+  targetDisplayName: string;
+  changeKind: PermissionChangeKind;
+  key: string;
+  editionId: string | null;
+  expiresAt: string | null;
+  expectedVersion: number;
+  alreadyApplied: boolean;
+  affectedCapabilities: SolarisCapability[];
+  globalScope: boolean;
+  grantsPermissionAdministration: boolean;
+  warnings: {
+    globalScope?: string;
+    permissionAdministration?: string;
+    selfChange?: string;
+  };
+};
+
+export type PermissionChangeReceipt = {
+  ok: true;
+  changed: boolean;
+  riskClass: "R3";
+  targetUserId: string;
+  changeKind: PermissionChangeKind;
+  key: string;
+  editionId: string | null;
+  previousVersion: number;
+  version: number;
+  operationId: string;
+};
+
 export type PermissionEvent = {
   id: number;
   userId: string | null;
@@ -275,56 +322,105 @@ export async function loadPermissionEvents(mismatchesOnly = false): Promise<Perm
   ).map(mapEvent);
 }
 
-export async function assignAccessRole(input: {
-  userId: string;
-  roleKey: string;
-  editionId?: string | null;
-  expiresAt?: string | null;
-}): Promise<void> {
-  await rpc("studio2_assign_access_role", {
-    p_user_id: input.userId,
-    p_role_key: input.roleKey,
-    p_edition_id: input.editionId ?? null,
-    p_expires_at: input.expiresAt ?? null,
-  });
+function permissionChangeKind(value: unknown): PermissionChangeKind {
+  const candidate = string(value, "permission change kind");
+  if (
+    candidate !== "assign_role" &&
+    candidate !== "revoke_role" &&
+    candidate !== "grant_capability" &&
+    candidate !== "revoke_capability"
+  ) {
+    throw new Error(`Unknown permission change kind: ${candidate}`);
+  }
+  return candidate;
 }
 
-export async function revokeAccessRole(input: {
-  userId: string;
-  roleKey: string;
-  editionId?: string | null;
-}): Promise<void> {
-  await rpc("studio2_revoke_access_role", {
-    p_user_id: input.userId,
-    p_role_key: input.roleKey,
-    p_edition_id: input.editionId ?? null,
-  });
+function mapPermissionChangePreview(value: unknown): PermissionChangePreview {
+  const row = object(value, "permission change preview");
+  const warningsValue = object(row.warnings ?? {}, "permission change warnings");
+  const riskClass = string(row.riskClass, "permission risk class");
+  if (riskClass !== "R3") throw new Error("Permission changes must be R3 operations.");
+
+  return {
+    riskClass: "R3",
+    targetUserId: string(row.targetUserId, "permission target user"),
+    targetDisplayName: string(row.targetDisplayName, "permission target display name"),
+    changeKind: permissionChangeKind(row.changeKind),
+    key: string(row.key, "permission change key"),
+    editionId: nullableString(row.editionId),
+    expiresAt: nullableString(row.expiresAt),
+    expectedVersion: number(row.expectedVersion, "permission expected version"),
+    alreadyApplied: boolean(row.alreadyApplied, "permission preview applied state"),
+    affectedCapabilities: capabilityArray(row.affectedCapabilities),
+    globalScope: boolean(row.globalScope, "permission global scope"),
+    grantsPermissionAdministration: boolean(
+      row.grantsPermissionAdministration,
+      "permission administration impact",
+    ),
+    warnings: {
+      globalScope: nullableString(warningsValue.globalScope) ?? undefined,
+      permissionAdministration:
+        nullableString(warningsValue.permissionAdministration) ?? undefined,
+      selfChange: nullableString(warningsValue.selfChange) ?? undefined,
+    },
+  };
 }
 
-export async function grantDirectCapability(input: {
-  userId: string;
-  capability: SolarisCapability;
-  editionId?: string | null;
-  expiresAt?: string | null;
-}): Promise<void> {
-  await rpc("studio2_grant_capability", {
-    p_user_id: input.userId,
-    p_capability: input.capability,
-    p_edition_id: input.editionId ?? null,
-    p_expires_at: input.expiresAt ?? null,
-  });
+function mapPermissionChangeReceipt(value: unknown): PermissionChangeReceipt {
+  const row = object(value, "permission change receipt");
+  const riskClass = string(row.riskClass, "permission receipt risk class");
+  if (riskClass !== "R3") throw new Error("Permission receipt must be R3.");
+  if (!boolean(row.ok, "permission receipt status")) {
+    throw new Error("Permission change did not complete.");
+  }
+
+  return {
+    ok: true,
+    changed: boolean(row.changed, "permission changed state"),
+    riskClass: "R3",
+    targetUserId: string(row.targetUserId, "permission target user"),
+    changeKind: permissionChangeKind(row.changeKind),
+    key: string(row.key, "permission receipt key"),
+    editionId: nullableString(row.editionId),
+    previousVersion: number(row.previousVersion, "permission previous version"),
+    version: number(row.version, "permission version"),
+    operationId: string(row.operationId, "permission operation id"),
+  };
 }
 
-export async function revokeDirectCapability(input: {
-  userId: string;
-  capability: SolarisCapability;
-  editionId?: string | null;
-}): Promise<void> {
-  await rpc("studio2_revoke_capability", {
-    p_user_id: input.userId,
-    p_capability: input.capability,
-    p_edition_id: input.editionId ?? null,
-  });
+export async function previewPermissionChange(
+  input: PermissionChangeInput,
+): Promise<PermissionChangePreview> {
+  return mapPermissionChangePreview(
+    await rpc("studio2_permission_change_preview", {
+      p_user_id: input.userId,
+      p_change_kind: input.kind,
+      p_key: input.key,
+      p_edition_id: input.editionId ?? null,
+      p_expires_at: input.expiresAt ?? null,
+    }),
+  );
+}
+
+export async function applyPermissionChange(
+  input: PermissionChangeInput & {
+    operationId: string;
+    idempotencyKey: string;
+    expectedVersion: number;
+  },
+): Promise<PermissionChangeReceipt> {
+  return mapPermissionChangeReceipt(
+    await rpc("studio2_apply_permission_change", {
+      p_user_id: input.userId,
+      p_change_kind: input.kind,
+      p_key: input.key,
+      p_edition_id: input.editionId ?? null,
+      p_expires_at: input.expiresAt ?? null,
+      p_operation_id: input.operationId,
+      p_idempotency_key: input.idempotencyKey,
+      p_expected_version: input.expectedVersion,
+    }),
+  );
 }
 
 export async function viewAccessAs(

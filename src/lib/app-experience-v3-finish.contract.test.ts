@@ -26,7 +26,7 @@ describe("App Experience v3 completion contract", () => {
     expect(frame).toContain("getAdminAppTabDestination");
     expect(frame).toContain("resetAdminAppTabToRoot");
     expect(frame).toContain("consumeAdminNavigationRestore");
-    expect(navigation).toContain('"home" | "inbox" | "edition" | "cases" | "more"');
+    expect(navigation).toContain('"home" | "edition" | "tasks" | "delegations" | "more"');
     expect(navigation).toContain("solaris:organizer-navigation:v1");
   });
 

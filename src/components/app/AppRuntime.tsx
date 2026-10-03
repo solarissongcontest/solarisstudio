@@ -12,7 +12,7 @@ import {
 import { AppOverlayManager } from "@/components/app/AppOverlayManager";
 import {
   createAppConnectivityController,
-  initialAppConnectivitySnapshot,
+  hydrationSafeAppConnectivitySnapshot,
   type AppConnectivitySnapshot,
 } from "@/lib/app-connectivity";
 import {
@@ -48,7 +48,7 @@ type AppRuntimeValue = SolarisPlatformSnapshot & {
 };
 
 const SERVER_SNAPSHOT = detectSolarisPlatform();
-const SERVER_CONNECTIVITY = initialAppConnectivitySnapshot();
+const SERVER_CONNECTIVITY = hydrationSafeAppConnectivitySnapshot();
 const SERVER_LIFECYCLE = initialAppLifecycleSnapshot();
 const SERVER_VIEWPORT = initialAppViewportSnapshot();
 
@@ -69,7 +69,7 @@ export function AppRuntime({ children }: { children: ReactNode }) {
     detectSolarisPlatform(),
   );
   const [connectivity, setConnectivity] = useState<AppConnectivitySnapshot>(() =>
-    initialAppConnectivitySnapshot(),
+    hydrationSafeAppConnectivitySnapshot(),
   );
   const [lifecycle, setLifecycle] = useState<AppLifecycleSnapshot>(() =>
     initialAppLifecycleSnapshot(),

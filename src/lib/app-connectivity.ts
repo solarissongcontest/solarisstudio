@@ -23,6 +23,16 @@ export type AppConnectivitySnapshot = {
 
 const PROBE_TIMEOUT_MS = 5_000;
 
+export function hydrationSafeAppConnectivitySnapshot(): AppConnectivitySnapshot {
+  return {
+    status: "online",
+    navigatorOnline: true,
+    originReachable: null,
+    serviceRestricted: false,
+    checkedAt: null,
+  };
+}
+
 export function initialAppConnectivitySnapshot(): AppConnectivitySnapshot {
   const navigatorOnline =
     typeof navigator === "undefined" ? true : navigator.onLine;

@@ -67,7 +67,13 @@ function isAnonymousResourceConsoleError(message: string) {
 }
 
 export async function sitemapRoutes(baseURL: string) {
-  const response = await fetch(new URL("/sitemap.xml", baseURL));
+  const maintenanceBypass =
+    process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1"
+      ? { cookie: "solaris_e2e_maintenance_bypass=1" }
+      : undefined;
+  const response = await fetch(new URL("/sitemap.xml", baseURL), {
+    headers: maintenanceBypass,
+  });
   if (!response.ok) return [];
   const xml = await response.text();
   return [...xml.matchAll(/<loc>(.*?)<\/loc>/g)]

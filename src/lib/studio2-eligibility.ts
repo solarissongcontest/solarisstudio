@@ -20,6 +20,33 @@ export type Studio2EligibilityOverride = {
   revocationReason: string | null;
 };
 
+export type Studio2EligibilityOverrideAction = 'create' | 'revoke';
+
+export type Studio2EligibilityOverridePreview = {
+  riskClass: 'R2';
+  action: Studio2EligibilityOverrideAction;
+  editionId: string;
+  countryId: string;
+  countryName: string;
+  affectedRule: string;
+  overrideId: string | null;
+  expectedVersion: number;
+  activeOverrideId: string | null;
+  activeOverrideReason: string | null;
+  activeOverrideExpiresAt: string | null;
+  historyCount: number;
+  alreadyApplied: boolean;
+};
+
+export type Studio2EligibilityOverrideReceipt = Studio2EligibilityOverride & {
+  ok: true;
+  riskClass: 'R2';
+  action: Studio2EligibilityOverrideAction;
+  operationId: string;
+  previousVersion: number;
+  version: number;
+};
+
 export type Studio2EligibilityRule = {
   id: string;
   label: string;
@@ -335,39 +362,99 @@ export async function listStudio2EligibilityOverrides(
   return Array.isArray(data) ? data.map(mapOverride) : [];
 }
 
-export async function createStudio2EligibilityOverride(
+function eligibilityOverrideAction(value: unknown): Studio2EligibilityOverrideAction {
+  if (value === 'create' || value === 'revoke') return value;
+  throw new Error('Invalid eligibility override action');
+}
+
+function mapEligibilityOverridePreview(value: unknown): Studio2EligibilityOverridePreview {
+  const row = object(value, 'eligibility override preview');
+  if (row.riskClass !== 'R2') throw new Error('Eligibility override changes must be R2.');
+  return {
+    riskClass: 'R2',
+    action: eligibilityOverrideAction(row.action),
+    editionId: string(row.editionId, 'preview edition id'),
+    countryId: string(row.countryId, 'preview country id'),
+    countryName: string(row.countryName, 'preview country name'),
+    affectedRule: string(row.affectedRule, 'preview affected rule'),
+    overrideId: nullableString(row.overrideId, 'preview override id'),
+    expectedVersion: Number(row.expectedVersion ?? 0),
+    activeOverrideId: nullableString(row.activeOverrideId, 'active override id'),
+    activeOverrideReason: nullableString(row.activeOverrideReason, 'active override reason'),
+    activeOverrideExpiresAt: nullableString(row.activeOverrideExpiresAt, 'active override expiry'),
+    historyCount: Number(row.historyCount ?? 0),
+    alreadyApplied: row.alreadyApplied === true,
+  };
+}
+
+export async function previewStudio2EligibilityOverrideChange(
   input: {
+    action: Studio2EligibilityOverrideAction;
     editionId: string;
     countryId: string;
     affectedRule: string;
-    reason: string;
-    expiresAt?: string | null;
+    overrideId?: string | null;
   },
   client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
-): Promise<Studio2EligibilityOverride> {
+): Promise<Studio2EligibilityOverridePreview> {
   const data = await rpc(
-    'studio2_create_eligibility_override',
+    'studio2_eligibility_override_change_preview',
     {
+      p_action: input.action,
       p_edition_id: input.editionId,
       p_country_id: input.countryId,
       p_affected_rule: input.affectedRule,
-      p_reason: input.reason,
-      p_expires_at: input.expiresAt ?? null,
+      p_override_id: input.overrideId ?? null,
     },
     client,
   );
-  return mapOverride(data);
+  return mapEligibilityOverridePreview(data);
 }
 
-export async function revokeStudio2EligibilityOverride(
-  overrideId: string,
-  reason: string,
+export async function applyStudio2EligibilityOverrideChange(
+  input: {
+    action: Studio2EligibilityOverrideAction;
+    editionId: string;
+    countryId: string;
+    affectedRule: string;
+    overrideId?: string | null;
+    reason: string;
+    expiresAt?: string | null;
+    operationId: string;
+    idempotencyKey: string;
+    expectedVersion: number;
+  },
   client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
-): Promise<Studio2EligibilityOverride> {
+): Promise<Studio2EligibilityOverrideReceipt> {
   const data = await rpc(
-    'studio2_revoke_eligibility_override',
-    { p_override_id: overrideId, p_reason: reason },
+    'studio2_apply_eligibility_override_change',
+    {
+      p_action: input.action,
+      p_edition_id: input.editionId,
+      p_country_id: input.countryId,
+      p_affected_rule: input.affectedRule,
+      p_override_id: input.overrideId ?? null,
+      p_reason: input.reason,
+      p_expires_at: input.expiresAt ?? null,
+      p_operation_id: input.operationId,
+      p_idempotency_key: input.idempotencyKey,
+      p_expected_version: input.expectedVersion,
+    },
     client,
   );
-  return mapOverride(data);
+
+  const row = object(data, 'eligibility override receipt');
+  const override = mapOverride(row);
+  if (row.ok !== true || row.riskClass !== 'R2') {
+    throw new Error('Eligibility override change did not return an R2 receipt.');
+  }
+  return {
+    ...override,
+    ok: true,
+    riskClass: 'R2',
+    action: eligibilityOverrideAction(row.action),
+    operationId: string(row.operationId, 'override operation id'),
+    previousVersion: Number(row.previousVersion ?? 0),
+    version: Number(row.version ?? 0),
+  };
 }
