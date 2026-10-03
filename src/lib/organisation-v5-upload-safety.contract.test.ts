@@ -73,10 +73,10 @@ describe("Organisation OS V5 unified upload safety", () => {
     expect(quarantine).toContain("studio2_prepare_upload");
     expect(quarantine).toContain("studio2_upload_quarantine_path_allowed");
     expect(quarantine).toContain(
-      "authorization.quarantine_path = p_path",
+      "upload_auth.quarantine_path = p_path",
     );
     expect(quarantine).toContain(
-      "authorization.actor_id = p_actor",
+      "upload_auth.actor_id = p_actor",
     );
 
     for (const domain of [

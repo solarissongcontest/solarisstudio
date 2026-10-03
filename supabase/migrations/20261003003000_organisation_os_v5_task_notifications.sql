@@ -268,8 +268,8 @@ begin
     task.description,
     task.href,
     task.source_key,
-    null,
-    null,
+    null::timestamptz,
+    null::timestamptz,
     true,
     'domain'
   from recipients recipient
