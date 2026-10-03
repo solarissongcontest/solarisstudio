@@ -26,14 +26,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  deleteConfirmationRound,
+  applyConfirmationRoundChange,
   loadConfirmationEditions,
-  saveConfirmationRound,
-  setConfirmationRoundEditing,
-  setConfirmationRoundStatus,
+  previewConfirmationRoundChange,
   type ConfirmationEdition,
   type ConfirmationRound,
+  type ConfirmationRoundChangeKind,
+  type ConfirmationRoundChangePayload,
+  type ConfirmationRoundChangePreview,
 } from "@/integrations/confirmations/admin";
+import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
 
 export const Route = createFileRoute("/confirmations/admin/rounds")({
   head: () => ({
@@ -44,6 +46,16 @@ export const Route = createFileRoute("/confirmations/admin/rounds")({
   }),
   component: RoundsPage,
 });
+
+type PendingRoundChange = {
+  kind: ConfirmationRoundChangeKind;
+  roundId: string | null;
+  payload: ConfirmationRoundChangePayload;
+  preview: ConfirmationRoundChangePreview;
+  operationId: string;
+  idempotencyKey: string;
+  restoreFormOnCancel: boolean;
+};
 
 const emptyForm = {
   name: "",
@@ -73,7 +85,7 @@ function RoundsPage() {
   const [editionId, setEditionId] = useState("");
   const [form, setForm] = useState<typeof emptyForm & { id?: string }>(emptyForm);
   const [formOpen, setFormOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<ConfirmationRound | null>(null);
+  const [pendingChange, setPendingChange] = useState<PendingRoundChange | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [roundBusy, setRoundBusy] = useState<string | null>(null);
