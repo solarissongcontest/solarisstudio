@@ -452,6 +452,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
             </>
           )}
+
+          {isAppMode && appChrome.tabBar !== "hidden" ? (
+            <div
+              className="solaris-app-bottom-spacer"
+              aria-hidden="true"
+              data-solaris-app-bottom-spacer=""
+            />
+          ) : null}
         </main>
 
         {!isAppMode && !isMySolarisWorkspace && !focusedParticipationTask ? (
