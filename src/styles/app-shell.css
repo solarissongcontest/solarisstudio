@@ -339,6 +339,17 @@ html[data-solaris-app-boot] body::after {
       scaleX(var(--solaris-tab-drag-scale-x));
   }
 
+  .solaris-app-tabbar-material[data-held="true"] {
+    --solaris-tabbar-pull-width: 8px;
+    --solaris-tabbar-pull-height: 7px;
+    --solaris-tabbar-pull-radius: 3px;
+  }
+
+  .solaris-app-tabbar-material[data-held="true"] .solaris-app-tab-indicator {
+    height: 3.82rem;
+    background: rgb(241 244 247 / .105);
+  }
+
   .solaris-app-tabbar-material[data-dragging="true"] {
     transition: none;
   }

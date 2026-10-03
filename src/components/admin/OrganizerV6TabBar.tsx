@@ -12,6 +12,7 @@ import type { LucideIcon } from "lucide-react";
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
 import { resolveElasticDrag } from "@/lib/interaction-physics";
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
+import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import { cn } from "@/lib/utils";
 
 export type OrganizerV6TabItem = {
@@ -46,6 +47,12 @@ export function OrganizerV6TabBar({
   const materialRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<DragState | null>(null);
   const suppressClick = useRef(false);
+  const {
+    held,
+    begin: beginHold,
+    move: moveHold,
+    end: endHold,
+  } = useSolarisPressHold();
   const { collapsed, expand } = useScrollResponsiveBar({
     enabled: true,
     resetKey: pathname,
@@ -115,6 +122,7 @@ export function OrganizerV6TabBar({
   };
 
   const clearDrag = useCallback(() => {
+    endHold();
     const material = materialRef.current;
     material?.style.setProperty("--organizer-tab-drag-x", "0px");
     material?.style.setProperty("--organizer-tab-scale-x", "1");
@@ -123,7 +131,7 @@ export function OrganizerV6TabBar({
     dragState.current = null;
     setDragging(false);
     setDragPreviewIndex(null);
-  }, []);
+  }, [endHold]);
 
   useEffect(() => {
     const resetInterruptedGesture = () => clearDrag();
@@ -163,12 +171,14 @@ export function OrganizerV6TabBar({
       moved: false,
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    beginHold(event.pointerId, event.clientX, event.clientY);
     setDragging(true);
   };
 
   const moveDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
+    moveHold(event.pointerId, event.clientX, event.clientY);
 
     const rects = tabRects();
     const origin = rects[drag.originIndex];
@@ -242,8 +252,9 @@ export function OrganizerV6TabBar({
         className={cn(
           "relative mx-auto grid max-w-xl overflow-hidden rounded-[1.45rem] border border-white/[0.14]",
           "bg-[#06101f]/80 p-[.375rem] shadow-[0_12px_34px_rgba(0,0,0,.2)] backdrop-blur-2xl",
-          "transition-[height,border-radius] duration-200 ease-out motion-reduce:transition-none",
+          "transition-[height,border-radius,transform] duration-200 ease-out motion-reduce:transition-none",
           collapsed ? "h-[3.35rem]" : "h-[4.7rem]",
+          held && "scale-x-[1.01] scale-y-[1.025]",
         )}
         style={{
           gridTemplateColumns: `repeat(${count}, minmax(0,1fr))`,
@@ -253,6 +264,7 @@ export function OrganizerV6TabBar({
           ["--organizer-bar-grow" as string]: "0px",
         } as CSSProperties}
         data-dragging={dragging ? "true" : "false"}
+        data-held={held ? "true" : "false"}
       >
         <KubeLiquidGlassBackdrop
           className="pointer-events-none absolute inset-0 size-full rounded-[inherit]"

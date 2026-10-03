@@ -17,6 +17,7 @@ import {
   resolveElasticDrag,
 } from "@/lib/interaction-physics";
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
+import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import { PUBLIC_GLOBAL_AREAS } from "@/lib/public-navigation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
@@ -77,6 +78,12 @@ export function AppTabBar({
   const materialRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<DragState | null>(null);
   const suppressClick = useRef(false);
+  const {
+    held,
+    begin: beginHold,
+    move: moveHold,
+    end: endHold,
+  } = useSolarisPressHold();
 
   useEffect(() => {
     const media = window.matchMedia("(min-width: 900px)");
@@ -199,6 +206,7 @@ export function AppTabBar({
   };
 
   const clearDrag = useCallback(() => {
+    endHold();
     const material = materialRef.current;
     material?.style.setProperty("--solaris-tab-drag-x", "0px");
     material?.style.setProperty("--solaris-tab-drag-scale-x", "1");
@@ -209,7 +217,7 @@ export function AppTabBar({
     dragState.current = null;
     setDragging(false);
     setDragPreviewIndex(null);
-  }, []);
+  }, [endHold]);
 
   useEffect(() => {
     const resetInterruptedGesture = () => clearDrag();
@@ -248,12 +256,14 @@ export function AppTabBar({
       moved: false,
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    beginHold(event.pointerId, event.clientX, event.clientY);
     setDragging(true);
   };
 
   const moveDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
+    moveHold(event.pointerId, event.clientX, event.clientY);
 
     const rects = tabRects();
     const origin = rects[drag.originIndex];
@@ -343,6 +353,7 @@ export function AppTabBar({
         className="solaris-app-tabbar-material"
         data-active-index={activeIndex}
         data-dragging={dragging ? "true" : "false"}
+        data-held={held ? "true" : "false"}
       >
         <KubeLiquidGlassBackdrop className="solaris-app-tabbar-backdrop" sourceKey={pathname} />
         <span className="solaris-app-tab-indicator" aria-hidden="true" />
