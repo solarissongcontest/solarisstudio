@@ -136,6 +136,62 @@ create trigger studio2_capability_grants_access_version
 after insert or update or delete on public.studio2_capability_grants
 for each row execute function private.studio2_bump_capability_grant_access_version();
 
+create or replace function private.studio2_bump_legacy_role_access_version()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $legacy_version$
+declare
+  v_old_user uuid;
+  v_new_user uuid;
+  v_semantic_change boolean := true;
+begin
+  if tg_op = 'UPDATE' then
+    v_semantic_change :=
+      old.user_id is distinct from new.user_id
+      or old.role is distinct from new.role;
+
+    if not v_semantic_change then
+      return new;
+    end if;
+  end if;
+
+  v_old_user := case when tg_op in ('UPDATE', 'DELETE') then old.user_id else null end;
+  v_new_user := case when tg_op in ('INSERT', 'UPDATE') then new.user_id else null end;
+
+  if v_old_user is not null then
+    insert into public.studio2_access_state_versions (user_id, version, updated_at)
+    values (v_old_user, 1, now())
+    on conflict (user_id) do update
+      set version = public.studio2_access_state_versions.version + 1,
+          updated_at = now();
+  end if;
+
+  if v_new_user is not null and v_new_user is distinct from v_old_user then
+    insert into public.studio2_access_state_versions (user_id, version, updated_at)
+    values (v_new_user, 1, now())
+    on conflict (user_id) do update
+      set version = public.studio2_access_state_versions.version + 1,
+          updated_at = now();
+  end if;
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end
+$legacy_version$;
+
+revoke all on function private.studio2_bump_legacy_role_access_version()
+  from public, anon, authenticated;
+
+drop trigger if exists studio2_user_roles_access_version
+  on public.user_roles;
+create trigger studio2_user_roles_access_version
+after insert or update or delete on public.user_roles
+for each row execute function private.studio2_bump_legacy_role_access_version();
+
 create or replace function private.studio2_access_state_version(
   p_user_id uuid
 )
