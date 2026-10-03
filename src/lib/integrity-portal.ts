@@ -1,7 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
-import { uploadServerAuthorizedFile } from "@/lib/upload-safety";
+import {
+  uploadPreparedQuarantineFile,
+  type PreparedExistingQuarantineUpload,
+} from "@/lib/upload-safety";
 import type {
   IntegrityCaseKind,
   IntegrityCaseSnapshot,
@@ -135,10 +138,8 @@ export async function getCurrentIntegrityUser() {
   return data.user ?? null;
 }
 
-export type EvidenceUploadDescriptor = {
+export type EvidenceUploadDescriptor = PreparedExistingQuarantineUpload & {
   token_id: string;
-  object_path: string;
-  bucket: string;
 };
 
 export async function sanitizeEvidenceFile(file: File): Promise<File> {
@@ -263,7 +264,7 @@ export async function uploadAnonymousEvidence(
   if (prepareError) throw new Error(prepareError.message);
   const upload = descriptor as EvidenceUploadDescriptor;
 
-  await uploadServerAuthorizedFile({
+  await uploadPreparedQuarantineFile({
     client,
     descriptor: upload,
     file,
@@ -293,7 +294,7 @@ export async function uploadProtectedEvidence(caseId: string, sourceFile: File) 
     },
   );
 
-  await uploadServerAuthorizedFile({
+  await uploadPreparedQuarantineFile({
     client: supabase,
     descriptor,
     file,
