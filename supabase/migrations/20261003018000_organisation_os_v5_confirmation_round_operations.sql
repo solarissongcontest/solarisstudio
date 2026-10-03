@@ -95,6 +95,12 @@ set search_path = pg_catalog
 as $guard$
 begin
   if current_user in ('authenticated', 'anon') then
+    if tg_op = 'INSERT' then
+      raise exception
+        'Confirmation rounds must be created through the Organisation OS operation contract.'
+        using errcode = '42501';
+    end if;
+
     if tg_op = 'DELETE' then
       raise exception
         'Confirmation rounds must be deleted through the Organisation OS operation contract.'
@@ -129,7 +135,7 @@ revoke all on function private.studio2_guard_direct_confirmation_round_mutation(
 drop trigger if exists studio2_guard_direct_confirmation_round_update
   on public.submission_rounds;
 create trigger studio2_guard_direct_confirmation_round_update
-before update on public.submission_rounds
+before insert or update on public.submission_rounds
 for each row execute function private.studio2_guard_direct_confirmation_round_mutation();
 
 drop trigger if exists studio2_guard_direct_confirmation_round_delete
@@ -178,6 +184,7 @@ declare
   v_version bigint := 0;
   v_response_count integer := 0;
   v_editable_response_count integer := 0;
+  v_affected_responses integer := 0;
   v_requirement_count integer := 0;
   v_target_status text;
   v_target_editing boolean;
@@ -264,10 +271,12 @@ begin
     raise exception 'Missing Solaris capability: confirmation.manage' using errcode = '42501';
   end if;
 
-  select coalesce(version_row.version, 0)
-  into v_version
-  from public.studio2_confirmation_round_versions version_row
-  where version_row.round_id = v_round.id;
+  select coalesce((
+    select version_row.version
+    from public.studio2_confirmation_round_versions version_row
+    where version_row.round_id = v_round.id
+  ), 0)
+  into v_version;
 
   select
     count(*)::integer,
@@ -360,6 +369,14 @@ begin
     end if;
   end if;
 
+  if p_change_kind in ('editing', 'update') then
+    select count(*)::integer
+    into v_affected_responses
+    from public.submissions submission
+    where submission.round_id = v_round.id
+      and submission.editing_allowed is distinct from v_target_editing;
+  end if;
+
   return jsonb_build_object(
     'riskClass', v_risk,
     'changeKind', p_change_kind,
@@ -368,11 +385,7 @@ begin
     'editionId', v_edition_id,
     'expectedVersion', v_version,
     'responseCount', v_response_count,
-    'affectedResponses', case
-      when p_change_kind = 'editing'
-        then count(*) filter (where submission.editing_allowed is distinct from v_target_editing)
-      else 0
-    end,
+    'affectedResponses', v_affected_responses,
     'currentlyEditableResponses', v_editable_response_count,
     'unresolvedRequirementCount', v_requirement_count,
     'currentStatus', v_round.status,
@@ -384,10 +397,7 @@ begin
     'requirementsCreated', 0,
     'alreadyApplied', v_already,
     'blockers', v_blockers
-  )
-  from public.submissions submission
-  where submission.round_id = v_round.id
-  having true;
+  );
 end
 $preview$;
 
@@ -585,11 +595,29 @@ begin
     raise exception 'Missing Solaris capability: confirmation.manage' using errcode = '42501';
   end if;
 
-  select coalesce(version_row.version, 0)
+  select version_row.version
   into v_current_version
   from public.studio2_confirmation_round_versions version_row
   where version_row.round_id = p_round_id
   for update;
+
+  if not found then
+    insert into public.studio2_confirmation_round_versions (
+      round_id,
+      version,
+      updated_at
+    )
+    values (p_round_id, 0, now())
+    on conflict (round_id) do nothing;
+
+    select version_row.version
+    into v_current_version
+    from public.studio2_confirmation_round_versions version_row
+    where version_row.round_id = p_round_id
+    for update;
+  end if;
+
+  v_current_version := coalesce(v_current_version, 0);
 
   if p_expected_version <> v_current_version then
     raise exception 'Confirmation round changed since this preview was loaded. Refresh before continuing.'
