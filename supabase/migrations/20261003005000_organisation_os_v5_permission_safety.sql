@@ -470,7 +470,9 @@ begin
     jsonb_build_object(
       'userId', p_user_id,
       'editionId', p_edition_id,
-      'key', p_key
+      'key', p_key,
+      'expiresAt', p_expires_at,
+      'expectedVersion', p_expected_version
     )
   );
 
