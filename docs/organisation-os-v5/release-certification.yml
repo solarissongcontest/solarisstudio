@@ -12,10 +12,14 @@ manual_gates:
     approved: false
     evidence: ""
     note: "Physical iPhone landscape QA for the Organizer shell, critical operation sheets, keyboard, bottom safe area and scroll clearance."
+  - id: wcag-2-2-aa-assistive-technology
+    approved: false
+    evidence: ""
+    note: "Run the V5 accessibility matrix: keyboard, VoiceOver/screen reader, 200% zoom, large text, reduced motion/transparency, long labels, non-colour status, focus restoration, keyboard-open sheets and bottom-nav focus clearance."
   - id: phone-only-simulated-edition
     approved: false
     evidence: ""
-    note: "Run one complete simulated edition from a phone: confirmations, entry/media review, Next in Line, jury, televote, results/reveal, publishing and official communications."
+    note: "Complete all 42 phone-only scenario steps listed in completion-matrix.yml, from edition setup through SEV-1 recovery and authoritative audit inspection."
   - id: r3-two-operator-physical
     approved: false
     evidence: ""
@@ -28,6 +32,10 @@ manual_gates:
     approved: false
     evidence: ""
     note: "Expire/revoke Organizer authorization during active work; verify fresh-auth, capability revocation and approval expiry fail closed without partial mutation."
+  - id: mandatory-failure-injection-suite
+    approved: false
+    evidence: ""
+    note: "Execute and record all 17 mandatory failures from completion-matrix.yml, including failed upload, confirmation sync, automation, duplicate scheduler, missing/late ballots, result blocker, stale publication schedule and maintenance recovery failure."
   - id: degraded-offline-and-maintenance
     approved: false
     evidence: ""
@@ -36,6 +44,10 @@ manual_gates:
     approved: false
     evidence: ""
     note: "Verify canonical Task creation/resolution, Inbox seen-vs-resolved semantics, reassignment/capability-loss pruning, push failure/retry/suppression and stale-recipient protection."
+  - id: push-disabled-path
+    approved: false
+    evidence: ""
+    note: "Disable/deny push entirely and operate the same required work through canonical Tasks and Inbox without losing blockers, acknowledgement or recovery state."
   - id: immutable-audit-and-operation-receipts
     approved: false
     evidence: ""
