@@ -111,9 +111,17 @@ describe("Organisation OS V5 high-risk operation contracts", () => {
     expect(r3ApprovalMigration).toContain(
       "create table if not exists public.studio2_permission_change_approval_requests",
     );
-    expect(r3ApprovalMigration).toContain(
-      "approved_by is null or requested_by is null or approved_by <> requested_by",
+    const secondOperatorConstraint = r3ApprovalMigration.slice(
+      r3ApprovalMigration.indexOf(
+        "constraint studio2_permission_change_approval_second_operator_check",
+      ),
+      r3ApprovalMigration.indexOf(
+        "constraint studio2_permission_change_approval_state_check",
+      ),
     );
+    expect(secondOperatorConstraint).toContain("approved_by is null");
+    expect(secondOperatorConstraint).toContain("requested_by is null");
+    expect(secondOperatorConstraint).toContain("approved_by <> requested_by");
     expect(r3ApprovalMigration).toContain(
       "A permission requester cannot approve their own R3 operation",
     );
