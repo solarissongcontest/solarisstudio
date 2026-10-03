@@ -110,8 +110,10 @@ function AdminSystemPage() {
   });
   const runExitPreflight = useServerFn(runPlatformExitPreflight);
   const exitPreflight = useMutation({
-    mutationFn: (targetMode: PlatformOperationalMode) =>
-      runExitPreflight({ data: { targetMode } }),
+    mutationFn: async (
+      targetMode: PlatformOperationalMode,
+    ): Promise<PlatformExitPreflightReceipt> =>
+      (await runExitPreflight({ data: { targetMode } })) as PlatformExitPreflightReceipt,
   });
 
   const [createOpen, setCreateOpen] = useState(false);
