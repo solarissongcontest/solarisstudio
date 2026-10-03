@@ -71,11 +71,13 @@ export function countrySurfaceLinks({
   countryId,
   countryCode,
   current,
+  includeOrganizer = true,
   includeDiagnostics = false,
 }: {
   countryId: string;
   countryCode: string;
   current: "public" | "participant" | "organizer";
+  includeOrganizer?: boolean;
   includeDiagnostics?: boolean;
 }): SolarisSurfaceSwitchLink[] {
   const publicPath = resolveSolarisV6SurfacePath("country-profile", "public", {
@@ -112,7 +114,7 @@ export function countrySurfaceLinks({
       current: current === "public",
     });
   }
-  if (organizerPath) {
+  if (includeOrganizer && organizerPath) {
     links.push({
       perspective: "organizer",
       label: "Manage",
