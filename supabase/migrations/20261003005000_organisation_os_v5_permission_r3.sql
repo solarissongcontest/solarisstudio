@@ -226,6 +226,14 @@ as $snapshot$
   select jsonb_build_object(
     'userId', p_user_id,
     'version', private.studio2_access_state_version(p_user_id),
+    'legacyRoles', coalesce(
+      (
+        select jsonb_agg(legacy.role::text order by legacy.role::text)
+        from public.user_roles legacy
+        where legacy.user_id = p_user_id
+      ),
+      '[]'::jsonb
+    ),
     'roles', coalesce(
       (
         select jsonb_agg(
