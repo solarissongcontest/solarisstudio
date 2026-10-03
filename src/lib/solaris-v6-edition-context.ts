@@ -30,7 +30,9 @@ export function validateEditionCommandScope(
     ["entity", normalized(scope.entityEditionId)],
     ["capability", normalized(scope.capabilityEditionId)],
   ] as const;
-  const present = entries.filter((entry): entry is readonly [string, string] => Boolean(entry[1]));
+  const present = entries.flatMap(([source, value]) =>
+    value ? ([[source, value]] as const) : [],
+  );
   const unique = new Set(present.map(([, value]) => value));
 
   if (unique.size <= 1) {
