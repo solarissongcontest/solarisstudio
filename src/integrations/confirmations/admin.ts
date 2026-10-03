@@ -15,6 +15,60 @@ export type ConfirmationRound = {
   created_at: string;
 };
 
+export type ConfirmationRoundChangeKind =
+  | "create"
+  | "update"
+  | "status"
+  | "editing"
+  | "delete";
+
+export type ConfirmationRoundChangePayload = {
+  editionId?: string;
+  name?: string;
+  status?: "open" | "closed";
+  opensAt?: string | null;
+  closesAt?: string | null;
+  responseLimit?: number | null;
+  editingEnabled?: boolean;
+  enabled?: boolean;
+};
+
+export type ConfirmationRoundChangePreview = {
+  riskClass: "R2" | "R3";
+  changeKind: ConfirmationRoundChangeKind;
+  roundId: string | null;
+  roundName: string | null;
+  editionId: string;
+  expectedVersion: number;
+  responseCount: number;
+  affectedResponses: number;
+  currentlyEditableResponses?: number;
+  unresolvedRequirementCount: number;
+  currentStatus?: ConfirmationRound["status"];
+  targetStatus?: ConfirmationRound["status"];
+  currentEditingEnabled?: boolean;
+  targetEditingEnabled?: boolean;
+  willMoveOpeningTimeToNow: boolean;
+  willClearExpiredClosingTime: boolean;
+  requirementsCreated: number;
+  alreadyApplied: boolean;
+  blockers: string[];
+};
+
+export type ConfirmationRoundChangeReceipt = {
+  ok: true;
+  riskClass: "R2" | "R3";
+  changeKind: ConfirmationRoundChangeKind;
+  roundId: string;
+  status: ConfirmationRound["status"] | null;
+  editingEnabled: boolean | null;
+  affectedResponses: number;
+  requirementsCreated: number;
+  previousVersion: number;
+  version: number;
+  operationId: string;
+};
+
 export type ConfirmationEdition = {
   id: string;
   name: string;
@@ -170,6 +224,46 @@ export async function setConfirmationRoundEditing(id: string, enabled: boolean) 
   });
   if (error) throw error;
   return data === true;
+}
+
+export async function previewConfirmationRoundChange(input: {
+  roundId?: string | null;
+  kind: ConfirmationRoundChangeKind;
+  payload?: ConfirmationRoundChangePayload;
+}): Promise<ConfirmationRoundChangePreview> {
+  const { data, error } = await confirmationsSupabase.rpc(
+    "studio2_confirmation_round_change_preview",
+    {
+      p_round_id: input.roundId ?? null,
+      p_change_kind: input.kind,
+      p_payload: input.payload ?? {},
+    },
+  );
+  if (error) throw error;
+  return data as unknown as ConfirmationRoundChangePreview;
+}
+
+export async function applyConfirmationRoundChange(input: {
+  roundId?: string | null;
+  kind: ConfirmationRoundChangeKind;
+  payload?: ConfirmationRoundChangePayload;
+  operationId: string;
+  idempotencyKey: string;
+  expectedVersion: number;
+}): Promise<ConfirmationRoundChangeReceipt> {
+  const { data, error } = await confirmationsSupabase.rpc(
+    "studio2_apply_confirmation_round_change",
+    {
+      p_round_id: input.roundId ?? null,
+      p_change_kind: input.kind,
+      p_payload: input.payload ?? {},
+      p_operation_id: input.operationId,
+      p_idempotency_key: input.idempotencyKey,
+      p_expected_version: input.expectedVersion,
+    },
+  );
+  if (error) throw error;
+  return data as unknown as ConfirmationRoundChangeReceipt;
 }
 
 export async function loadConfirmationCalendar(
