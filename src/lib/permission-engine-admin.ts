@@ -462,7 +462,6 @@ export async function requestPermissionChangeApproval(
     operationId: string;
     idempotencyKey: string;
     expectedVersion: number;
-    approvalRequestId: string;
   },
 ): Promise<PermissionChangeApproval> {
   return mapPermissionChangeApproval(
@@ -475,7 +474,6 @@ export async function requestPermissionChangeApproval(
       p_operation_id: input.operationId,
       p_idempotency_key: input.idempotencyKey,
       p_expected_version: input.expectedVersion,
-      p_approval_request_id: input.approvalRequestId,
     }),
   );
 }
@@ -518,6 +516,7 @@ export async function applyPermissionChange(
     operationId: string;
     idempotencyKey: string;
     expectedVersion: number;
+    approvalRequestId: string;
   },
 ): Promise<PermissionChangeReceipt> {
   return mapPermissionChangeReceipt(
@@ -530,6 +529,7 @@ export async function applyPermissionChange(
       p_operation_id: input.operationId,
       p_idempotency_key: input.idempotencyKey,
       p_expected_version: input.expectedVersion,
+      p_approval_request_id: input.approvalRequestId,
     }),
   );
 }
