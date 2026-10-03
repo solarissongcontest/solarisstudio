@@ -27,6 +27,13 @@ export type FinalizedUnifiedUpload = {
   replayed: boolean;
 };
 
+export type PreparedExistingQuarantineUpload = ServerAuthorizedUploadDescriptor & {
+  upload_authorization_id: string;
+  upload_secret: string;
+  final_bucket: string;
+  final_path: string;
+};
+
 type UploadRuntimeClient = {
   rpc: (
     fn: string,
@@ -160,6 +167,44 @@ export async function finalizeUnifiedUpload(input: {
     metadata,
     replayed: row.replayed === true,
   };
+}
+
+export async function uploadPreparedQuarantineFile(input: {
+  client: UploadRuntimeClient;
+  descriptor: PreparedExistingQuarantineUpload;
+  file: File;
+}): Promise<FinalizedUnifiedUpload> {
+  if (input.descriptor.bucket !== "solaris-upload-quarantine") {
+    throw new Error("Prepared upload did not use the Solaris quarantine bucket.");
+  }
+
+  await uploadServerAuthorizedFile({
+    client: input.client,
+    descriptor: input.descriptor,
+    file: input.file,
+    cacheControl: "0",
+  });
+
+  const receipt = await finalizeUnifiedUpload({
+    client: input.client,
+    prepared: {
+      token_id: input.descriptor.upload_authorization_id,
+      upload_secret: input.descriptor.upload_secret,
+      bucket: input.descriptor.bucket,
+      object_path: input.descriptor.object_path,
+      final_bucket: input.descriptor.final_bucket,
+      expires_at: "",
+    },
+  });
+
+  if (
+    receipt.bucket !== input.descriptor.final_bucket ||
+    receipt.object_path !== input.descriptor.final_path
+  ) {
+    throw new Error("Verified upload did not match the prepared final destination.");
+  }
+
+  return receipt;
 }
 
 export async function uploadVerifiedFile(input: {
