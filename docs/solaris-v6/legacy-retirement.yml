@@ -22,7 +22,12 @@ domains:
       - "Sensitive operations validate canonical server capabilities on every request."
   results:
     state: canonical-write
-    legacy_authority: ["screen-local result lifecycle interpretation"]
+    retired_authority: ["screen-local result lifecycle interpretation"]
+    legacy_authority: []
+    retirement_evidence:
+      - "Results Operations and Publication load the same studio2-results-operations snapshot."
+      - "Release readiness is decided by the shared isStudio2ResultReleaseReady helper."
+      - "Expected-version checks, operation identity and lifecycle receipts are server-authoritative."
     retirement_criteria:
       - "Every consumer uses the canonical governed result version/lifecycle."
   tasks:
