@@ -152,7 +152,6 @@ export async function saveConfirmationRound(payload: {
   id?: string;
   edition_id: string;
   name: string;
-  status: ConfirmationRound["status"];
   opens_at: string | null;
   closes_at: string | null;
   response_limit: number | null;
