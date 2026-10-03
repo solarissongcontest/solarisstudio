@@ -17,7 +17,7 @@ implementation_phases:
   - { id: 9, key: notifications-live-mode, status: in_progress, release_blocking: true, evidence: ["src/lib/app-notifications.ts", "src/components/app/AppOverlayManager.tsx", "src/routes/_authenticated/admin/inbox.tsx", "src/components/interaction/SolarisSwipeActionRow.tsx"] }
   - { id: 10, key: failure-recovery, status: in_progress, release_blocking: true, evidence: ["docs/organisation-os-v5/failure-injection-coverage.yml", "docs/solaris-v6/failure-recovery-coverage.yml", "src/lib/solaris-v6-operation-recovery.ts", "src/lib/solaris-v6-operation-recovery.test.ts", "src/routes/_authenticated/admin/results.tsx"] }
   - { id: 11, key: full-microinteraction-pass, status: in_progress, release_blocking: true, evidence: ["src/components/app/AppOverlayManager.tsx", "src/components/app/AppChromeMetrics.tsx", "src/lib/solaris-v6-overlay-ownership.contract.test.ts", "src/lib/interaction-physics.ts", "src/components/interaction", "src/components/app/AppTabBar.tsx", "src/components/admin/OrganizerV6TabBar.tsx"] }
-  - { id: 12, key: legacy-cleanup, status: missing, release_blocking: true, evidence: [] }
+  - { id: 12, key: legacy-cleanup, status: in_progress, release_blocking: true, evidence: ["docs/solaris-v6/legacy-retirement.yml", "src/lib/solaris-v6-legacy-retirement.contract.test.ts", "src/routes/_authenticated/admin/action-center.tsx", "src/routes/_authenticated/admin/action-centre.tsx", "src/routes/_authenticated/admin/tasks.tsx"] }
 
 foundation_requirements:
   - { key: canonical-domain-registry, status: implemented, evidence: ["src/lib/solaris-v6-domain-registry.ts"] }
@@ -35,7 +35,7 @@ foundation_requirements:
   - { key: gesture-coordinator, status: implemented, evidence: ["src/lib/interaction-physics.ts", "src/lib/gesture-coordinator.ts"] }
   - { key: canonical-motion-preferences, status: implemented, evidence: ["src/lib/interaction-physics.ts", "src/lib/interaction-preferences.ts", "src/lib/app-view-transitions.ts"] }
   - { key: governance-depth-harmonisation, status: implemented, evidence: ["src/components/SolarisDepth.tsx", "src/solaris-depth.css", "src/lib/solaris-v6-public-depth.contract.test.ts"] }
-  - { key: shared-keyboard-viewport-metrics, status: implemented, evidence: ["src/components/app/AppChromeMetrics.tsx", "src/components/app/AppRuntime.tsx"] }
+  - { key: shared-keyboard-viewport-metrics, status: implemented, evidence: ["src/components/app/AppChromeMetrics.tsx", "src/components/app/AppOverlayManager.tsx"] }
   - { key: shared-bottom-obstruction, status: implemented, evidence: ["src/components/app/AppTabBar.tsx", "src/components/admin/OrganizerV6TabBar.tsx", "src/styles/app-shell.css", "src/admin-desktop.css"] }
 
 manual_gates:
