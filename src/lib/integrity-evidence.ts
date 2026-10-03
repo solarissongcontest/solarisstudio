@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeEvidenceFile, type EvidenceUploadDescriptor } from "@/lib/integrity-portal";
-import { uploadServerAuthorizedFile } from "@/lib/upload-safety";
+import { uploadPreparedQuarantineFile } from "@/lib/upload-safety";
 
 export type DueEvidenceDeletion = {
   id: string;
@@ -188,7 +188,7 @@ export async function uploadOrganizerEvidenceDerivative(
     },
   );
 
-  await uploadServerAuthorizedFile({
+  await uploadPreparedQuarantineFile({
     client: supabase,
     descriptor,
     file,
