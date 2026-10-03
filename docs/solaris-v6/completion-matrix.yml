@@ -12,7 +12,7 @@ implementation_phases:
   - { id: 4, key: interaction-physics-foundation, status: in_progress, release_blocking: true, evidence: ["src/lib/interaction-physics.ts", "src/components/interaction/SolarisPressable.tsx", "src/components/app/AppTabBar.tsx"] }
   - { id: 5, key: navigation-choreography, status: in_progress, release_blocking: true, evidence: ["src/components/app/AppTabBar.tsx", "src/lib/app-view-transitions.ts"] }
   - { id: 6, key: participant-workflows, status: partial, release_blocking: true, evidence: ["src/components/mysolaris/MySolarisWorkspaceShell.tsx"] }
-  - { id: 7, key: organizer-mobile, status: partial, release_blocking: true, evidence: ["src/components/admin/AdminFrame.tsx", "docs/organisation-os-v5/completion-matrix.yml"] }
+  - { id: 7, key: organizer-mobile, status: in_progress, release_blocking: true, evidence: ["src/components/admin/AdminFrame.tsx", "src/components/admin/OrganizerV6TabBar.tsx", "src/lib/organizer-v6-screen-registry.ts", "docs/organisation-os-v5/completion-matrix.yml"] }
   - { id: 8, key: public-depth, status: partial, release_blocking: true, evidence: ["src/components/AppShell.tsx"] }
   - { id: 9, key: notifications-live-mode, status: partial, release_blocking: true, evidence: ["src/lib/app-notifications.ts", "src/components/app/AppOverlayManager.tsx"] }
   - { id: 10, key: failure-recovery, status: partial, release_blocking: true, evidence: ["docs/organisation-os-v5/failure-injection-coverage.yml"] }
