@@ -27,6 +27,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Isolate Quality CI from hosted Supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "VITE_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_quality_ci_local_only"
+            echo "SUPABASE_URL=http://127.0.0.1:54321"
+            echo "SUPABASE_PUBLISHABLE_KEY=sb_publishable_quality_ci_local_only"
+            echo "VITE_CONFIRMATIONS_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=sb_publishable_quality_ci_local_only"
+            echo "CONFIRMATIONS_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=sb_publishable_quality_ci_local_only"
+          } >> "$GITHUB_ENV"
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
