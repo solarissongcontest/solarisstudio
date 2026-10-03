@@ -12,6 +12,10 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     expect(launch).toContain('createFileRoute("/app-launch")');
     expect(launch).toContain("getAppLaunchDestination");
     expect(launch).toContain("supabase.auth.getSession");
+    expect(launch).toContain("APP_LAUNCH_SESSION_TIMEOUT_MS");
+    expect(launch).toContain("Promise.race");
+    expect(launch).toContain('"cold_launch_session_timeout"');
+    expect(launch).toContain('pathname: "/"');
     expect(launch).toContain("markAppNavigationRestore");
     expect(launch).toContain("replace: true");
   });
