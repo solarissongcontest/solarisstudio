@@ -11,7 +11,13 @@ domains:
       - "Tab selection remains session-scoped and never becomes authorization."
   confirmations:
     state: canonical-write
-    legacy_authority: ["legacy confirmations authority", "round-as-participation identity"]
+    retired_authority: ["legacy confirmations authority", "round-as-participation identity"]
+    legacy_authority: []
+    retirement_evidence:
+      - "The former confirmationsSupabase export aliases Solaris Studio's canonical Supabase client."
+      - "One current edition+country requirement exists independently of submission rounds."
+      - "Rounds are submission windows only and cannot create a new requirement generation."
+      - "Reconfirmation is an explicit audited R2 command."
     retirement_criteria:
       - "One edition+delegation participation can be satisfied by one valid confirmation version."
       - "Old authority cannot recreate duplicate requirements."
