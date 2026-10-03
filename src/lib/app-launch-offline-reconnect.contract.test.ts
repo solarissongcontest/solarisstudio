@@ -21,6 +21,16 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     expect(launch).toContain("replace: true");
   });
 
+  it("hydrates app connectivity from deterministic HTML before browser state is read", () => {
+    const connectivity = source("src/lib/app-connectivity.ts");
+    const runtime = source("src/components/app/AppRuntime.tsx");
+    expect(connectivity).toContain("hydrationSafeAppConnectivitySnapshot");
+    expect(connectivity).toContain('status: "online"');
+    expect(connectivity).toContain("serviceRestricted: false");
+    expect(runtime).toContain("hydrationSafeAppConnectivitySnapshot()");
+    expect(runtime).toContain("createAppConnectivityController(setConnectivity)");
+  });
+
   it("never cold-launches directly into critical official submission routes", () => {
     const navigation = source("src/lib/app-navigation.ts");
     expect(navigation).toContain("coldLaunchDestinationAllowed");
