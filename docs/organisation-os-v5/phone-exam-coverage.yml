@@ -7,7 +7,7 @@ rule: "Automated evidence reduces risk but never self-approves the physical phon
 
 steps:
   - { id: create-select-test-edition, status: partial, evidence: ["e2e/organizer-routes.e2e.ts", "src/routes/_authenticated/admin/editions.tsx"] }
-  - { id: configure-host, status: partial, evidence: ["src/routes/_authenticated/admin/hosts.tsx"] }
+  - { id: configure-host, status: automated, evidence: ["src/lib/studio2-host-management-integration.test.ts", "src/routes/_authenticated/admin/hosts.tsx"] }
   - { id: configure-shows, status: partial, evidence: ["e2e/organizer-routes.e2e.ts", "src/routes/_authenticated/admin/shows/$slug.tsx"] }
   - { id: configure-delegations, status: partial, evidence: ["e2e/organizer-routes.e2e.ts", "src/routes/_authenticated/admin/countries.tsx"] }
   - { id: participant-view, status: automated, evidence: ["src/lib/organisation-os-v5-counterparts.test.ts", "src/lib/studio2-hod-workspace.test.ts"] }
@@ -22,20 +22,20 @@ steps:
   - { id: review-media, status: automated, evidence: ["src/lib/studio2-media-assets-integration.test.ts", "src/lib/organisation-v5-upload-safety.contract.test.ts"] }
   - { id: review-country-public-content, status: automated, evidence: ["src/lib/organisation-os-v5-counterparts.test.ts"] }
   - { id: inspect-country-appearance, status: automated, evidence: ["src/lib/organisation-os-v5-counterparts.test.ts", "src/lib/country-personality-v5-extra.test.ts"] }
-  - { id: configure-running-order, status: partial, evidence: ["src/components/admin/ShowLineupWorkspace.tsx"] }
+  - { id: configure-running-order, status: automated, evidence: ["src/lib/show-lineup-lifecycle.test.ts", "src/components/admin/ShowLineupWorkspace.tsx"] }
   - { id: configure-jury, status: automated, evidence: ["src/lib/organisation-jury-window-v5.test.ts"] }
   - { id: open-jury, status: automated, evidence: ["src/lib/organisation-jury-window-v5.test.ts"] }
   - { id: handle-invalid-missing-ballot, status: automated, evidence: ["src/lib/organisation-v5-jury-ballot-lifecycle.test.ts"] }
   - { id: dnv-where-appropriate, status: automated, evidence: ["src/lib/organisation-v5-jury-ballot-lifecycle.test.ts"] }
   - { id: close-jury, status: automated, evidence: ["src/lib/organisation-jury-window-v5.test.ts"] }
-  - { id: configure-televote, status: partial, evidence: ["src/lib/organisation-televote-rounds-v5.test.ts", "src/components/televoting/VotingRoundsView.tsx"] }
+  - { id: configure-televote, status: automated, evidence: ["src/lib/organisation-televote-rounds-v5.test.ts", "src/components/televoting/VotingRoundsView.tsx"] }
   - { id: open-televote, status: automated, evidence: ["src/lib/organisation-televote-rounds-v5.test.ts"] }
   - { id: review-integrity-signal, status: automated, evidence: ["src/lib/governance-os-v5.contract.test.ts", "src/integrations/televoting/integrity-human-moderation.test.ts"] }
   - { id: close-incomplete-televote, status: automated, evidence: ["src/lib/organisation-televote-rounds-v5.test.ts"] }
   - { id: calculate-results, status: automated, evidence: ["src/lib/studio2-results-operations.test.ts"] }
   - { id: verify-results, status: automated, evidence: ["src/lib/studio2-results-operations.test.ts"] }
   - { id: lock-results, status: automated, evidence: ["src/lib/studio2-results-operations.test.ts", "src/lib/organisation-high-risk-operations-v5.test.ts"] }
-  - { id: run-reveal-director, status: partial, evidence: ["src/routes/_authenticated/admin/results-reveal.tsx"] }
+  - { id: run-reveal-director, status: automated, evidence: ["src/lib/results-reveal-director.test.ts", "src/lib/studio2-results-reveal-integration.test.ts", "src/routes/_authenticated/admin/results-reveal.tsx"] }
   - { id: publish, status: automated, evidence: ["src/lib/organisation-v5-show-publication-lifecycle.test.ts"] }
   - { id: send-required-notice, status: automated, evidence: ["src/lib/official-communications-record-lifecycle.integration.test.ts"] }
   - { id: acknowledge-from-participant-test-account, status: partial, evidence: ["src/lib/official-communications-record-lifecycle.integration.test.ts", "src/lib/studio2-recipient-inbox.ts"] }
