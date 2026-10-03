@@ -44,6 +44,13 @@ type JobRow = {
   lastStartAt: string | null;
   lastEndAt: string | null;
   lastMessage: string | null;
+  consecutiveFailures: number;
+  deadLettered: boolean;
+  recoveryMode:
+    | "healthy"
+    | "scheduled_retry"
+    | "scheduled_retry_dead_letter"
+    | "operator_intervention";
 };
 
 type RuntimeHealth = {
@@ -118,6 +125,7 @@ function SystemOperationsPage() {
     data?.jobs.some(
       (job) =>
         !job.active ||
+        job.deadLettered ||
         (job.lastStatus && !["succeeded", "success"].includes(job.lastStatus.toLowerCase())),
     ),
   );
@@ -284,7 +292,7 @@ function SystemOperationsPage() {
                         </div>
                         <AdminStatus
                           tone={
-                            !job.active
+                            !job.active || job.deadLettered
                               ? "blocked"
                               : job.lastStatus &&
                                   !["succeeded", "success"].includes(job.lastStatus.toLowerCase())
@@ -292,7 +300,11 @@ function SystemOperationsPage() {
                                 : "ready"
                           }
                         >
-                          {!job.active ? "inactive" : job.lastStatus ?? "waiting"}
+{!job.active
+                            ? "inactive"
+                            : job.deadLettered
+                              ? "dead-letter"
+                              : job.lastStatus ?? "waiting"}
                         </AdminStatus>
                       </div>
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -312,6 +324,31 @@ function SystemOperationsPage() {
                           {job.lastMessage}
                         </p>
                       ) : null}
+                      <div className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                          Recovery
+                        </p>
+                        <p className="mt-1 text-xs font-semibold">
+                          {job.recoveryMode === "healthy"
+                            ? "No recovery needed"
+                            : job.recoveryMode === "scheduled_retry"
+                              ? "Automatic retry on the next scheduled run"
+                              : job.recoveryMode === "scheduled_retry_dead_letter"
+                                ? "Dead-letter attention · scheduler still retries automatically"
+                                : "Operator intervention required · scheduler job is inactive"}
+                        </p>
+                        {job.consecutiveFailures > 0 ? (
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            {job.consecutiveFailures} recent completed run
+                            {job.consecutiveFailures === 1 ? "" : "s"} failed.
+                            {job.deadLettered
+                              ? " A canonical Organizer Task remains open until a successful run clears it."
+                              : " Solaris has created an Organizer Task for the failure."}
+                          </p>
+                        ) : null}
+                      </div>
+
+
                     </div>
                   ))}
                 </div>
