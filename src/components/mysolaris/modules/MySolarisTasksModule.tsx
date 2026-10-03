@@ -5,6 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { AppTaskCenter } from "@/components/app/AppTaskCenter";
 import { SolarisPressable } from "@/components/interaction/SolarisPressable";
+import {
+  countrySurfaceLinks,
+  SolarisSurfaceSwitch,
+} from "@/components/surfaces/SolarisSurfaceSwitch";
 import { GovernanceInlineReference } from "@/components/rules/GovernanceRules";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { EventTime } from "@/components/public/EventTime";
@@ -199,12 +203,24 @@ export function MySolarisTasksModule() {
         }
       />
 
+      <SolarisSurfaceSwitch
+        className="mb-5"
+        label={`${country.name} perspectives`}
+        links={countrySurfaceLinks({
+          countryId: country.id,
+          countryCode: country.short_code,
+          current: "participant",
+          includeOrganizer: Boolean(access?.isOrganizer),
+          includeDiagnostics: Boolean(access?.isOrganizer),
+        })}
+      />
+
       <div className="space-y-5">
         {organizerInspection ? (
           <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3">
-            <p className="text-sm font-semibold">Viewing as organizer</p>
+            <p className="text-sm font-semibold">Participant View · read-only</p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              This view is read-only. Acknowledgements can only be made by the delegation.
+              You are inspecting exactly what this delegation sees. Acknowledgements and participant actions remain disabled here; use Manage to change canonical Organizer state.
             </p>
           </div>
         ) : null}
