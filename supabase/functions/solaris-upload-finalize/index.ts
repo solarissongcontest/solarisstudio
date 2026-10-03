@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import {
   ImageMagick,
   initializeImageMagick,
+  MagickFormat,
 } from "npm:@imagemagick/magick-wasm@0.0.30";
 
 const magickWasm = await Deno.readFile(
@@ -280,10 +281,162 @@ function processedThumbnailPath(path: string) {
   return match ? `${match[1]}.thumb${match[2]}` : `${path}.thumb`;
 }
 
-function processPublicImage(bytes: Uint8Array) {
+function concatBytes(parts: Uint8Array[]) {
+  const length = parts.reduce((sum, part) => sum + part.byteLength, 0);
+  const output = new Uint8Array(length);
+  let offset = 0;
+  for (const part of parts) {
+    output.set(part, offset);
+    offset += part.byteLength;
+  }
+  return output;
+}
+
+function stripJpegMetadata(bytes: Uint8Array) {
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return bytes;
+  const parts: Uint8Array[] = [bytes.slice(0, 2)];
+  let offset = 2;
+
+  while (offset + 1 < bytes.length) {
+    const markerStart = offset;
+    if (bytes[offset] !== 0xff) return bytes;
+    while (offset < bytes.length && bytes[offset] === 0xff) offset += 1;
+    if (offset >= bytes.length) return bytes;
+
+    const marker = bytes[offset];
+    offset += 1;
+
+    if (marker === 0xda) {
+      parts.push(bytes.slice(markerStart));
+      break;
+    }
+    if (marker === 0xd9) {
+      parts.push(bytes.slice(markerStart, offset));
+      break;
+    }
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+      parts.push(bytes.slice(markerStart, offset));
+      continue;
+    }
+    if (offset + 2 > bytes.length) return bytes;
+
+    const length = be16(bytes, offset);
+    if (length < 2 || offset + length > bytes.length) return bytes;
+    const end = offset + length;
+
+    // APP1 = EXIF/XMP, APP13 = IPTC/Photoshop metadata, COM = comment.
+    if (marker !== 0xe1 && marker !== 0xed && marker !== 0xfe) {
+      parts.push(bytes.slice(markerStart, end));
+    }
+    offset = end;
+  }
+
+  return concatBytes(parts);
+}
+
+function stripPngMetadata(bytes: Uint8Array) {
+  if (
+    bytes.length < 12 ||
+    bytes[0] !== 0x89 ||
+    ascii(bytes, 1, 3) !== "PNG"
+  ) {
+    return bytes;
+  }
+
+  const parts: Uint8Array[] = [bytes.slice(0, 8)];
+  const dropped = new Set(["eXIf", "tEXt", "zTXt", "iTXt", "tIME"]);
+  let offset = 8;
+
+  while (offset + 12 <= bytes.length) {
+    const length = be32(bytes, offset);
+    const end = offset + 12 + length;
+    if (end > bytes.length) return bytes;
+    const type = ascii(bytes, offset + 4, 4);
+    if (!dropped.has(type)) parts.push(bytes.slice(offset, end));
+    offset = end;
+    if (type === "IEND") break;
+  }
+
+  return concatBytes(parts);
+}
+
+function le32(bytes: Uint8Array, offset: number) {
+  return (
+    bytes[offset] |
+    (bytes[offset + 1] << 8) |
+    (bytes[offset + 2] << 16) |
+    ((bytes[offset + 3] << 24) >>> 0)
+  ) >>> 0;
+}
+
+function writeLe32(bytes: Uint8Array, offset: number, value: number) {
+  bytes[offset] = value & 0xff;
+  bytes[offset + 1] = (value >>> 8) & 0xff;
+  bytes[offset + 2] = (value >>> 16) & 0xff;
+  bytes[offset + 3] = (value >>> 24) & 0xff;
+}
+
+function stripWebpMetadata(bytes: Uint8Array) {
+  if (
+    bytes.length < 12 ||
+    ascii(bytes, 0, 4) !== "RIFF" ||
+    ascii(bytes, 8, 4) !== "WEBP"
+  ) {
+    return bytes;
+  }
+
+  const chunks: Uint8Array[] = [];
+  let offset = 12;
+  while (offset + 8 <= bytes.length) {
+    const type = ascii(bytes, offset, 4);
+    const length = le32(bytes, offset + 4);
+    const paddedLength = length + (length % 2);
+    const end = offset + 8 + paddedLength;
+    if (end > bytes.length) return bytes;
+
+    if (type !== "EXIF" && type !== "XMP ") {
+      const chunk = bytes.slice(offset, end);
+      if (type === "VP8X" && length >= 1) {
+        // VP8X feature flags: clear EXIF (0x08) and XMP (0x04) after dropping
+        // those chunks so the container accurately describes its contents.
+        chunk[8] &= ~0x0c;
+      }
+      chunks.push(chunk);
+    }
+    offset = end;
+  }
+
+  const body = concatBytes(chunks);
+  const output = new Uint8Array(12 + body.length);
+  output.set(bytes.slice(0, 12), 0);
+  output.set(body, 12);
+  writeLe32(output, 4, output.length - 8);
+  return output;
+}
+
+function stripPublicImageMetadata(
+  bytes: Uint8Array,
+  format: "jpeg" | "png" | "webp",
+) {
+  if (format === "jpeg") return stripJpegMetadata(bytes);
+  if (format === "png") return stripPngMetadata(bytes);
+  return stripWebpMetadata(bytes);
+}
+
+function publicImageMagickFormat(format: "jpeg" | "png" | "webp") {
+  if (format === "jpeg") return MagickFormat.Jpeg;
+  if (format === "png") return MagickFormat.Png;
+  return MagickFormat.WebP;
+}
+
+function processPublicImage(
+  bytes: Uint8Array,
+  format: "jpeg" | "png" | "webp",
+) {
+  const outputFormat = publicImageMagickFormat(format);
+
   return ImageMagick.read(bytes, (image) => {
     image.autoOrient();
-    image.strip();
     image.comment = null;
     image.label = null;
 
@@ -300,17 +453,23 @@ function processPublicImage(bytes: Uint8Array) {
     }
 
     image.quality = 88;
-    const processed = image.write((data) => Uint8Array.from(data));
+    const processed = stripPublicImageMetadata(
+      image.write((data) => Uint8Array.from(data), outputFormat),
+      format,
+    );
+
     const thumbSize = thumbnailSize(width, height);
     const thumbnail = image.clone((thumb) => {
       if (thumb.width !== thumbSize.width || thumb.height !== thumbSize.height) {
         thumb.resize(thumbSize.width, thumbSize.height);
       }
-      thumb.strip();
       thumb.comment = null;
       thumb.label = null;
       thumb.quality = 82;
-      return thumb.write((data) => Uint8Array.from(data));
+      return stripPublicImageMetadata(
+        thumb.write((data) => Uint8Array.from(data), outputFormat),
+        format,
+      );
     });
 
     return {
@@ -565,7 +724,14 @@ Deno.serve(async (request) => {
 
   try {
     if (imageDomain(row.domain)) {
-      const processed = processPublicImage(bytes);
+      if (
+        detected!.format !== "jpeg" &&
+        detected!.format !== "png" &&
+        detected!.format !== "webp"
+      ) {
+        throw new Error("Solaris cannot process this public image format.");
+      }
+      const processed = processPublicImage(bytes, detected!.format);
       publishBytes = processed.bytes;
       thumbnailBytes = processed.thumbnail;
       thumbnailPath = processedThumbnailPath(row.final_path);
