@@ -11,7 +11,7 @@ create table if not exists public.studio2_country_media_upload_tokens (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   country_id uuid not null references public.countries(id) on delete cascade,
-  folder text not null check (folder in ('flags', 'gallery')),
+  folder text not null check (folder in ('flags', 'gallery', 'backgrounds')),
   object_path text not null unique,
   original_name text not null,
   mime_type text not null check (
@@ -117,7 +117,7 @@ begin
     raise exception 'Country media upload access required' using errcode = '42501';
   end if;
 
-  if v_folder not in ('flags', 'gallery') then
+  if v_folder not in ('flags', 'gallery', 'backgrounds') then
     raise exception 'Unknown country media folder' using errcode = '22023';
   end if;
 
