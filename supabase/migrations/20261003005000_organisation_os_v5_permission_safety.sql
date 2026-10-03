@@ -7,6 +7,104 @@ begin;
 -- the impact, then submit one idempotent R3 command against that exact version.
 -- Legacy direct mutation RPCs remain available only to service_role automation.
 
+-- Strengthen the shared V5 idempotency receipt before R3 permissions use it:
+-- replay is valid only for the same actor, command, risk class and scope.
+create or replace function private.studio2_claim_operation(
+  p_operation_id uuid,
+  p_idempotency_key text,
+  p_command text,
+  p_risk_class text,
+  p_scope jsonb default '{}'::jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $claim$
+declare
+  v_actor uuid := auth.uid();
+  v_key text := nullif(btrim(coalesce(p_idempotency_key, '')), '');
+  v_command text := nullif(btrim(coalesce(p_command, '')), '');
+  v_scope jsonb := coalesce(p_scope, '{}'::jsonb);
+  v_receipt public.studio2_operation_receipts;
+begin
+  if v_actor is null then
+    raise exception 'Authentication required' using errcode = '42501';
+  end if;
+  if p_operation_id is null or v_key is null or v_command is null then
+    raise exception 'Operation id, idempotency key and command are required'
+      using errcode = '22023';
+  end if;
+  if p_risk_class not in ('R0', 'R1', 'R2', 'R3') then
+    raise exception 'Invalid operation risk class' using errcode = '22023';
+  end if;
+
+  insert into public.studio2_operation_receipts (
+    operation_id,
+    actor_id,
+    idempotency_key,
+    command,
+    risk_class,
+    scope
+  )
+  values (
+    p_operation_id,
+    v_actor,
+    v_key,
+    v_command,
+    p_risk_class,
+    v_scope
+  )
+  on conflict do nothing;
+
+  select *
+  into v_receipt
+  from public.studio2_operation_receipts
+  where operation_id = p_operation_id
+     or (
+       actor_id = v_actor
+       and command = v_command
+       and idempotency_key = v_key
+     )
+  order by case when operation_id = p_operation_id then 0 else 1 end
+  limit 1
+  for update;
+
+  if v_receipt.operation_id is null then
+    raise exception 'Operation receipt could not be claimed' using errcode = 'P0001';
+  end if;
+
+  if v_receipt.actor_id <> v_actor
+     or v_receipt.command <> v_command
+     or v_receipt.idempotency_key <> v_key
+     or v_receipt.risk_class <> p_risk_class
+     or v_receipt.scope is distinct from v_scope then
+    raise exception 'Operation identity is already bound to a different command scope'
+      using errcode = '23505';
+  end if;
+
+  if v_receipt.status = 'succeeded' then
+    return jsonb_build_object(
+      'replayed', true,
+      'operationId', v_receipt.operation_id,
+      'result', v_receipt.result
+    );
+  end if;
+
+  update public.studio2_operation_receipts
+  set updated_at = now()
+  where operation_id = v_receipt.operation_id;
+
+  return jsonb_build_object(
+    'replayed', false,
+    'operationId', v_receipt.operation_id
+  );
+end
+$claim$;
+
+revoke all on function private.studio2_claim_operation(uuid, text, text, text, jsonb)
+  from public, anon, authenticated;
+
 create table if not exists public.studio2_permission_subject_versions (
   user_id uuid primary key references auth.users(id) on delete cascade,
   version bigint not null default 1 check (version >= 1),
