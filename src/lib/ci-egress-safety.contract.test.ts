@@ -64,6 +64,17 @@ describe("CI egress safety contracts", () => {
     expect(workflow).toContain("CONFIRMATIONS_SUPABASE_URL=http://127.0.0.1:54321");
   });
 
+  it("refuses to silently skip authenticated browser coverage in CI", () => {
+    const organizer = source("e2e/organizer-routes.e2e.ts");
+    const accounts = source("e2e/account-states.e2e.ts");
+
+    expect(organizer).toContain("refusing to skip authenticated Organizer coverage in CI");
+    expect(organizer).toContain(
+      "Browser Audit must seed both local Organizers and the local Country account for R3 certification.",
+    );
+    expect(accounts).toContain("refusing to skip authenticated account-state coverage in CI");
+  });
+
   it("keeps browser CI local even for legacy confirmations clients", () => {
     const workflow = source(".github/workflows/browser-audit.yml");
 
