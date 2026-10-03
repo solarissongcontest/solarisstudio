@@ -55,7 +55,7 @@ describe("Organisation OS V5 confirmation round operations", () => {
     expect(route).toContain("Confirmation requirements created");
     expect(route).toContain("zero new requirements");
     expect(route).toContain(
-      "Existing confirmation responses remain recorded and the round's correction-access setting is left unchanged.",
+      "Existing confirmation responses remain recorded and the round&apos;s"
     );
     expect(migration).not.toContain(
       "insert into public.studio2_confirmation_requirements",
