@@ -14,9 +14,16 @@ describe("Organisation OS V5 feature counterparts", () => {
         .filter((item) => item.id.startsWith("mysolaris."))
         .map((item) => item.id.replace(/^mysolaris\./, "")),
     );
-    const navigation = mySolarisNavigationItems().map((item) => item.id);
+    const navigation = mySolarisNavigationItems();
 
-    expect([...audited].sort()).toEqual([...navigation].sort());
+    expect([...audited].sort()).toEqual(navigation.map((item) => item.id).sort());
+
+    for (const item of navigation) {
+      const audit = ORGANISATION_OS_V5_COUNTERPARTS.find(
+        (candidate) => candidate.id === `mysolaris.${item.id}`,
+      );
+      expect(audit?.participantSurface, item.id).toBe(item.to);
+    }
   });
 
   it("requires every audited participant/public feature to declare a counterpart or deliberate none", () => {
