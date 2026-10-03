@@ -26,7 +26,13 @@ describe("Organisation OS V5 Read-only and Maintenance enforcement", () => {
     expect(enforcement).toContain("v_method in ('GET', 'HEAD', 'OPTIONS')");
     expect(enforcement).toContain("proc.provolatile in ('s', 'i')");
     expect(enforcement).toContain(
-      "v_rpc_name = 'studio2_apply_platform_mode_change'",
+      "'studio2_apply_platform_mode_change'",
+    );
+    expect(enforcement).toContain(
+      "'studio2_platform_exit_database_preflight'",
+    );
+    expect(enforcement).toContain(
+      "'studio2_record_platform_exit_preflight'",
     );
     expect(enforcement).toContain(
       "normal writes are unavailable",
@@ -72,7 +78,7 @@ describe("Organisation OS V5 Read-only and Maintenance enforcement", () => {
     );
   });
 
-  it("marks only the protected platform-mode operation as a recovery write", () => {
+  it("marks only the protected platform recovery transaction as a direct-write bypass", () => {
     expect(platform).toContain(
       "set_config('studio2.platform_recovery_write', 'on', true)",
     );
