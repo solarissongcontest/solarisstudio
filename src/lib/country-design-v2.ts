@@ -10,6 +10,7 @@ import {
   type CountryThemeRow,
   type CountryVisualTheme,
 } from "@/lib/visual-theme";
+import { uploadServerAuthorizedFile } from "@/lib/upload-safety";
 
 const supabase = typedSupabase as any;
 
@@ -718,10 +719,15 @@ export async function uploadCountryFont(countryId: string, file: File, label?: s
   const id = crypto.randomUUID();
   const family = `Solaris Custom ${id.slice(0, 8)}`;
   const storagePath = `${auth.user.id}/${countryId}/${id}.${extension}`;
-  const { error: uploadError } = await typedSupabase.storage
-    .from("country-fonts")
-    .upload(storagePath, file, { upsert: false, contentType: file.type || "application/octet-stream" });
-  if (uploadError) throw uploadError;
+  await uploadServerAuthorizedFile({
+    client: typedSupabase,
+    descriptor: {
+      bucket: "country-fonts",
+      object_path: storagePath,
+    },
+    file,
+    cacheControl: "3600",
+  });
   const { data: publicData } = typedSupabase.storage.from("country-fonts").getPublicUrl(storagePath);
   const { data, error } = await supabase
     .from("country_font_assets")
