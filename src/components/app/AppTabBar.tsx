@@ -109,16 +109,18 @@ export function AppTabBar({
       const current = Math.max(0, window.scrollY);
       const delta = current - lastScrollY.current;
 
-      const next = resolveScrollResponsiveBar({
-        collapsed,
-        currentY: current,
-        lastY: lastScrollY.current,
-        downTravel: downTravel.current,
-        upTravel: upTravel.current,
+      setCollapsed((currentCollapsed) => {
+        const next = resolveScrollResponsiveBar({
+          collapsed: currentCollapsed,
+          currentY: current,
+          lastY: lastScrollY.current,
+          downTravel: downTravel.current,
+          upTravel: upTravel.current,
+        });
+        downTravel.current = next.downTravel;
+        upTravel.current = next.upTravel;
+        return next.collapsed;
       });
-      setCollapsed(next.collapsed);
-      downTravel.current = next.downTravel;
-      upTravel.current = next.upTravel;
       lastScrollY.current = current;
     };
 
@@ -132,7 +134,7 @@ export function AppTabBar({
       window.removeEventListener("scroll", onScroll);
       if (frame.current != null) window.cancelAnimationFrame(frame.current);
     };
-  }, [collapsed, railMode]);
+  }, [railMode]);
 
   useEffect(() => {
     const root = document.documentElement;
