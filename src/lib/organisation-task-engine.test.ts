@@ -21,6 +21,9 @@ describe("Organisation OS V5 canonical Organizer Task Engine", () => {
   const notificationProjection = source(
     "supabase/migrations/20261003003000_organisation_os_v5_task_notifications.sql",
   );
+  const r3PermissionTasks = source(
+    "supabase/migrations/20261003154000_organisation_os_v5_r3_permission_tasks.sql",
+  );
 
   it("stores one task per source condition and keeps direct browser writes closed", () => {
     expect(migration).toContain("create table if not exists public.studio2_organizer_tasks");
@@ -169,6 +172,40 @@ describe("Organisation OS V5 canonical Organizer Task Engine", () => {
     expect(dispatcher).toContain('delivery.category === "organizer_tasks"');
     expect(dispatcher).toContain('task.state === "resolved" || task.resolved_at');
     expect(dispatcher).toContain('delivery.event_type === "organizer_task.critical"');
+  });
+
+  it("projects R3 permission approval and apply phases as assigned canonical Tasks", () => {
+    expect(r3PermissionTasks).toContain(
+      "private.studio2_reconcile_permission_approval_tasks",
+    );
+    expect(r3PermissionTasks).toContain("'permission_approval'");
+    expect(r3PermissionTasks).toContain("'permissions.r3.approve'");
+    expect(r3PermissionTasks).toContain("'permission_approval_apply'");
+    expect(r3PermissionTasks).toContain("'permissions.r3.apply'");
+    expect(r3PermissionTasks).toContain("'permissions.manage'");
+    expect(r3PermissionTasks).toContain(
+      "candidate.id <> request.requested_by",
+    );
+    expect(r3PermissionTasks).toContain(
+      "task.assigned_to = request.requested_by",
+    );
+    expect(r3PermissionTasks).toContain(
+      "task.source_kind not in ('permission_approval', 'permission_approval_apply')",
+    );
+    expect(r3PermissionTasks).toContain(
+      "perform private.studio2_reconcile_all_organizer_tasks(p_edition_id);",
+    );
+  });
+
+  it("keeps permission approval Tasks on the same Inbox and push projection", () => {
+    expect(r3PermissionTasks).toContain(
+      "perform private.studio2_sync_task_notifications(p_edition_id);",
+    );
+    expect(r3PermissionTasks).toContain(
+      "perform private.studio2_prune_stale_task_notifications(p_edition_id);",
+    );
+    expect(notificationProjection).toContain("task.assigned_to as user_id");
+    expect(notificationProjection).toContain("'organizer_tasks'");
   });
 
   it("keeps Task-backed Inbox resolution visibly domain-owned", () => {
