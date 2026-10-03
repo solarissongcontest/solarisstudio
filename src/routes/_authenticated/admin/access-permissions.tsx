@@ -26,16 +26,20 @@ import {
 import { WorkspaceTabs } from "@/components/admin/AdminWorkspacePrimitives";
 import {
   applyPermissionChange,
+  approvePermissionChangeApproval,
   loadAccessUsers,
   loadPermissionCatalog,
+  loadPermissionChangeApprovals,
   loadPermissionEvents,
   loadPermissionSummary,
   previewPermissionChange,
   reauthenticatePermissionR3,
   recordPermissionEvaluation,
+  requestPermissionChangeApproval,
   viewAccessAs,
   type AccessUser,
   type PermissionCapability,
+  type PermissionChangeApproval,
   type PermissionChangeInput,
   type PermissionChangePreview,
 } from "@/lib/permission-engine-admin";
@@ -108,6 +112,11 @@ function AccessPermissionsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [pendingChange, setPendingChange] = useState<PendingAccessChange | null>(null);
   const [reauthPassword, setReauthPassword] = useState("");
+  const [approvalAction, setApprovalAction] = useState<{
+    approval: PermissionChangeApproval;
+    mode: "approve" | "apply";
+  } | null>(null);
+  const [approvalPassword, setApprovalPassword] = useState("");
 
   const catalogQuery = useQuery({
     queryKey: ["permission-engine-catalog"],
@@ -124,6 +133,11 @@ function AccessPermissionsPage() {
   const eventsQuery = useQuery({
     queryKey: ["permission-engine-events", mismatchesOnly],
     queryFn: () => loadPermissionEvents(mismatchesOnly),
+  });
+  const approvalsQuery = useQuery({
+    queryKey: ["permission-engine-approvals"],
+    queryFn: loadPermissionChangeApprovals,
+    refetchInterval: 30_000,
   });
   useQuery({
     queryKey: ["permission-engine-evaluation", "permissions.read", editionId],
@@ -200,7 +214,7 @@ function AccessPermissionsPage() {
     },
   });
 
-  const change = useMutation({
+  const requestApproval = useMutation({
     mutationFn: async ({
       pending,
       password,
@@ -209,17 +223,72 @@ function AccessPermissionsPage() {
       password: string;
     }) => {
       await reauthenticatePermissionR3(password);
-      return applyPermissionChange({
+      return requestPermissionChangeApproval({
         ...pending.command,
         operationId: pending.operationId,
         idempotencyKey: pending.idempotencyKey,
         expectedVersion: pending.preview.expectedVersion,
       });
     },
-    onSuccess: async (_receipt, { pending }) => {
+    onSuccess: async () => {
       setPendingChange(null);
       setReauthPassword("");
-      setMessage(changeMessage(pending.change));
+      setMessage("Second-operator approval requested. Another authorized organizer must approve it before the change can be applied.");
+      await queryClient.invalidateQueries({
+        queryKey: ["permission-engine-approvals"],
+      });
+    },
+  });
+
+  const approveR3 = useMutation({
+    mutationFn: async ({
+      approval,
+      password,
+    }: {
+      approval: PermissionChangeApproval;
+      password: string;
+    }) => {
+      await reauthenticatePermissionR3(password);
+      return approvePermissionChangeApproval(approval.id);
+    },
+    onSuccess: async () => {
+      setApprovalAction(null);
+      setApprovalPassword("");
+      setMessage("R3 permission change approved. The original requester can now apply it.");
+      await queryClient.invalidateQueries({
+        queryKey: ["permission-engine-approvals"],
+      });
+    },
+  });
+
+  const applyApproved = useMutation({
+    mutationFn: async ({
+      approval,
+      password,
+    }: {
+      approval: PermissionChangeApproval;
+      password: string;
+    }) => {
+      if (!approval.targetUserId || !approval.idempotencyKey) {
+        throw new Error("This approval is not actionable by the current organizer.");
+      }
+      await reauthenticatePermissionR3(password);
+      return applyPermissionChange({
+        userId: approval.targetUserId,
+        kind: approval.changeKind,
+        key: approval.key,
+        editionId: approval.editionId,
+        expiresAt: approval.expiresAt,
+        operationId: approval.operationId,
+        idempotencyKey: approval.idempotencyKey,
+        expectedVersion: approval.expectedVersion,
+        approvalRequestId: approval.id,
+      });
+    },
+    onSuccess: async () => {
+      setApprovalAction(null);
+      setApprovalPassword("");
+      setMessage("Access change applied with fresh authentication and second-operator approval.");
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["permission-engine-users"],
@@ -229,6 +298,9 @@ function AccessPermissionsPage() {
         }),
         queryClient.invalidateQueries({
           queryKey: ["permission-engine-events"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["permission-engine-approvals"],
         }),
       ]);
     },
@@ -285,6 +357,20 @@ function AccessPermissionsPage() {
           />
         </section>
 
+        <PermissionApprovalQueue
+          approvals={approvalsQuery.data ?? []}
+          loading={approvalsQuery.isLoading}
+          error={approvalsQuery.error}
+          onApprove={(approval) => {
+            setApprovalPassword("");
+            setApprovalAction({ approval, mode: "approve" });
+          }}
+          onApply={(approval) => {
+            setApprovalPassword("");
+            setApprovalAction({ approval, mode: "apply" });
+          }}
+        />
+
         <AdminCard className="!p-2 sm:!p-2">
           <WorkspaceTabs label="Access and permissions sections">
             {TABS.map((item) => (
@@ -307,7 +393,9 @@ function AccessPermissionsPage() {
 
         {message ? <Notice>{message}</Notice> : null}
         {previewChange.error ? <ErrorNotice error={previewChange.error} /> : null}
-        {change.error ? <ErrorNotice error={change.error} /> : null}
+        {requestApproval.error ? <ErrorNotice error={requestApproval.error} /> : null}
+        {approveR3.error ? <ErrorNotice error={approveR3.error} /> : null}
+        {applyApproved.error ? <ErrorNotice error={applyApproved.error} /> : null}
 
         {loading ? (
           <AdminCard>
@@ -345,7 +433,7 @@ function AccessPermissionsPage() {
             capabilityKey={capabilityKey}
             onCapabilityKey={setCapabilityKey}
             effectiveScope={effectiveScope}
-            busy={previewChange.isPending || change.isPending}
+            busy={previewChange.isPending || requestApproval.isPending || applyApproved.isPending}
             onChange={(input) => previewChange.mutate(input)}
             onSimulate={(userId) => simulation.mutate({ userId })}
             simulation={simulation.data ?? null}
@@ -371,20 +459,20 @@ function AccessPermissionsPage() {
         <AdminConfirmSheet
           open={Boolean(pendingChange)}
           onClose={() => {
-            if (!change.isPending) {
+            if (!requestApproval.isPending) {
               setPendingChange(null);
               setReauthPassword("");
             }
           }}
           onConfirm={async () => {
             if (pendingChange) {
-              await change.mutateAsync({
+              await requestApproval.mutateAsync({
                 pending: pendingChange,
                 password: reauthPassword,
               });
             }
           }}
-          title={pendingChange ? permissionChangeTitle(pendingChange.change) : "Confirm access change"}
+          title={pendingChange ? permissionChangeTitle(pendingChange.change) : "Request access change approval"}
           description={
             pendingChange ? (
               <PermissionImpactPreview
@@ -396,14 +484,70 @@ function AccessPermissionsPage() {
               "Review the access impact before applying this change."
             )
           }
-          confirmLabel="Apply access change"
+          confirmLabel="Request second-operator approval"
           confirmationText={pendingChange?.preview.targetDisplayName}
           confirmationHint={
             pendingChange
               ? `Type ${pendingChange.preview.targetDisplayName} to confirm this R3 access change`
               : undefined
           }
-          busy={change.isPending}
+          busy={requestApproval.isPending}
+          confirmDisabled={!reauthPassword}
+          danger
+        />
+
+        <AdminConfirmSheet
+          open={Boolean(approvalAction)}
+          onClose={() => {
+            if (!approveR3.isPending && !applyApproved.isPending) {
+              setApprovalAction(null);
+              setApprovalPassword("");
+            }
+          }}
+          onConfirm={async () => {
+            if (!approvalAction) return;
+            if (approvalAction.mode === "approve") {
+              await approveR3.mutateAsync({
+                approval: approvalAction.approval,
+                password: approvalPassword,
+              });
+            } else {
+              await applyApproved.mutateAsync({
+                approval: approvalAction.approval,
+                password: approvalPassword,
+              });
+            }
+          }}
+          title={
+            approvalAction?.mode === "approve"
+              ? "Approve R3 permission change?"
+              : "Apply approved permission change?"
+          }
+          description={
+            approvalAction ? (
+              <PermissionApprovalActionPreview
+                approval={approvalAction.approval}
+                mode={approvalAction.mode}
+                password={approvalPassword}
+                onPassword={setApprovalPassword}
+              />
+            ) : (
+              "Review the bound R3 operation before continuing."
+            )
+          }
+          confirmLabel={
+            approvalAction?.mode === "approve"
+              ? "Approve as second operator"
+              : "Apply approved change"
+          }
+          confirmationText={approvalAction?.approval.targetDisplayName}
+          confirmationHint={
+            approvalAction
+              ? `Type ${approvalAction.approval.targetDisplayName} to confirm this R3 operation`
+              : undefined
+          }
+          busy={approveR3.isPending || applyApproved.isPending}
+          confirmDisabled={!approvalPassword}
           danger
         />
       </div>
