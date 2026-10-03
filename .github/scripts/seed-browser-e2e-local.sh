@@ -51,7 +51,16 @@ request() {
   local data="${5-}"
   local output
   output="$(mktemp)"
-  HTTP_STATUS="$(curl -sS -o "$output" -w '%{http_code}' -X "$method" "$url"     -H "apikey: $api_key"     -H "Authorization: Bearer $bearer"     -H "Content-Type: application/json"     ${data:+--data "$data"})"
+  local args=(
+    -sS -o "$output" -w '%{http_code}' -X "$method" "$url"
+    -H "apikey: $api_key"
+    -H "Authorization: Bearer $bearer"
+    -H "Content-Type: application/json"
+  )
+  if [[ -n "$data" ]]; then
+    args+=(--data "$data")
+  fi
+  HTTP_STATUS="$(curl "${args[@]}")"
   HTTP_BODY="$(cat "$output")"
   rm -f "$output"
 }
