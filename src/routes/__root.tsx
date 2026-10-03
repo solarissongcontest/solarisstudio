@@ -34,7 +34,7 @@ import { SolarisAmbientBackground } from "../components/SolarisAmbientBackground
 import { SolarisAnniversaryCelebration } from "../components/SolarisAnniversaryCelebration";
 import { Toaster } from "../components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { isSupabaseServiceRestrictionError } from "../lib/supabase-service-restriction";
+import { appErrorPresentation, classifyAppError } from "../lib/app-error-state";
 import { startPublicWebVitals } from "../lib/public-web-vitals";
 
 const SITE_DESCRIPTION =
@@ -140,34 +140,51 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
   console.error(error);
   const router = useRouter();
   const { isAppMode } = useSolarisApp();
-  const serviceRestricted = isSupabaseServiceRestrictionError(error);
+  const kind = classifyAppError(
+    error,
+    typeof navigator === "undefined" ? true : navigator.onLine,
+  );
+  const presentation = appErrorPresentation(kind);
+
   useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
+    reportLovableError(error, {
+      boundary: "tanstack_root_error_component",
+      app_error_kind: kind,
+    });
+  }, [error, kind]);
 
   const body = (
-    <div className={isAppMode ? "solaris-app-route-state-card" : "max-w-md text-center"}>
-      <p className="solaris-app-route-state-kicker">
-        {serviceRestricted ? "Data service" : "Solaris Studio"}
-      </p>
+    <div
+      className={isAppMode ? "solaris-app-route-state-card" : "max-w-md text-center"}
+      data-solaris-error-kind={kind}
+    >
+      <p className="solaris-app-route-state-kicker">{presentation.eyebrow}</p>
       <h1 className="mt-2 text-xl font-semibold tracking-tight text-foreground">
-        {serviceRestricted ? "Solaris data service is temporarily restricted" : "This page didn't load"}
+        {presentation.title}
       </h1>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        {serviceRestricted
-          ? "Published or cached areas may still work, but database-backed reads and saves can fail."
-          : "Something went wrong while opening this view. Other Solaris areas remain available."}
+        {presentation.description}
       </p>
       <div className="mt-5 flex flex-wrap gap-2">
-        <button
-          onClick={() => {
-            router.invalidate();
-            reset();
-          }}
-          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
-        >
-          Try again
-        </button>
+        {presentation.retry ? (
+          <button
+            onClick={() => {
+              router.invalidate();
+              reset();
+            }}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
+          >
+            Try again
+          </button>
+        ) : null}
+        {presentation.primaryHref ? (
+          <Link
+            to={presentation.primaryHref as any}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
+          >
+            {presentation.primaryLabel ?? "Continue"}
+          </Link>
+        ) : null}
         <Link
           to="/"
           className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border bg-surface px-4 text-sm font-semibold"
@@ -179,7 +196,7 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
   );
 
   if (isAppMode) {
-    return <AppRouteStateFrame title={serviceRestricted ? "Service unavailable" : "Couldn't load"}>{body}</AppRouteStateFrame>;
+    return <AppRouteStateFrame title={presentation.title}>{body}</AppRouteStateFrame>;
   }
 
   return (

@@ -1,4 +1,4 @@
-import { publicAreaForPath } from "@/lib/public-navigation";
+import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 
 export type AppTabId = "home" | "explore" | "participate" | "results" | "me";
 
@@ -108,27 +108,8 @@ export function appTabRoot(tab: AppTabId, signedIn = true) {
   return ROOTS[tab];
 }
 
-function contextualTabFromSearch(pathname: string, searchStr = ""): AppTabId | null {
-  if (!/^\/shows\/[^/]+\/?$/.test(pathname)) return null;
-
-  const params = new URLSearchParams(
-    searchStr.startsWith("?") ? searchStr.slice(1) : searchStr,
-  );
-  return params.get("from") === "results" ? "results" : null;
-}
-
 export function appTabForLocation(pathname: string, searchStr = ""): AppTabId | null {
-  const contextual = contextualTabFromSearch(pathname, searchStr);
-  if (contextual) return contextual;
-
-  const area = publicAreaForPath(pathname);
-  return area === "home" ||
-    area === "explore" ||
-    area === "participate" ||
-    area === "results" ||
-    area === "me"
-    ? area
-    : null;
+  return resolveSolarisAppScreen(pathname, searchStr).hierarchy.rootTab;
 }
 
 export function appTabForPath(pathname: string): AppTabId | null {

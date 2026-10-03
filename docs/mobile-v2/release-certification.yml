@@ -1,0 +1,54 @@
+version: 1
+product: Solaris Studio Mobile App V2
+candidate_branch: mobile-app-v2-final-verification
+source_commit: ""
+rule: "Every manual gate must be approved with evidence before production V2 sign-off."
+manual_gates:
+  - id: visual-baseline-review
+    approved: false
+    evidence: ""
+    note: "Review browser-audit visual-ios-320 and visual-ios-390 screenshots for every canonical route and dynamic entity capture."
+  - id: iphone-narrow-portrait
+    approved: false
+    evidence: ""
+    note: "Physical iPhone-class narrow portrait QA, including safe areas, tab bar, sheets, keyboard and scroll clearance."
+  - id: iphone-standard-portrait
+    approved: false
+    evidence: ""
+    note: "Physical iPhone standard portrait QA."
+  - id: iphone-large-portrait
+    approved: false
+    evidence: ""
+    note: "Physical large-iPhone portrait QA."
+  - id: iphone-landscape
+    approved: false
+    evidence: ""
+    note: "Physical iPhone landscape QA with keyboard and bottom safe area."
+  - id: ipad-portrait
+    approved: false
+    evidence: ""
+    note: "Physical iPad portrait QA, including list-detail entity workspaces."
+  - id: ipad-landscape
+    approved: false
+    evidence: ""
+    note: "Physical iPad landscape QA."
+  - id: add-to-home-screen
+    approved: false
+    evidence: ""
+    note: "Install from Safari, cold launch, resume, update and standalone chrome verified."
+  - id: critical-task-safety
+    approved: false
+    evidence: ""
+    note: "Confirmations, jury, televote and Integrity reporting verified for keyboard, focus, offline and receipt behavior."
+  - id: production-public-smoke
+    approved: false
+    evidence: ""
+    note: "Production public routes and dynamic Country/Edition/Show/Wiki entities verified after deployment."
+  - id: production-country-account-smoke
+    approved: false
+    evidence: ""
+    note: "Production signed-in Country / MySolaris / Settings / notifications smoke verified."
+  - id: production-organizer-smoke
+    approved: false
+    evidence: ""
+    note: "Production organizer/admin entry, permissions and critical management routes verified."

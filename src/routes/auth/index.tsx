@@ -261,7 +261,7 @@ function AuthPage() {
               type="button"
               disabled={busy}
               onClick={() => void recoverPassword()}
-              className="mt-3 w-full text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
+              className="mt-3 inline-flex min-h-10 w-full items-center justify-center text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
             >
               Forgot password?
             </button>
@@ -276,7 +276,7 @@ function AuthPage() {
               setMsg(null);
               setPassword("");
             }}
-            className="mt-4 w-full text-xs text-muted-foreground hover:text-foreground"
+            className="mt-4 inline-flex min-h-10 w-full items-center justify-center text-xs text-muted-foreground hover:text-foreground"
           >
             {mode === "signin"
               ? "No country account yet? Create one"

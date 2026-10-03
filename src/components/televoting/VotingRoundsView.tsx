@@ -21,10 +21,20 @@ import {
   createMergedTelevotingRound,
   deleteMergedTelevotingRound,
   getMergedTelevotingRoundsPage,
+  previewMergedTelevotingRoundStatus,
   renameMergedTelevotingRound,
   setMergedTelevotingRoundStatus,
   type MergedAdminRound,
+  type MergedRoundStatusPreview,
 } from "@/integrations/televoting/rounds.functions";
+
+type PendingRoundStatusChange = {
+  round: MergedAdminRound;
+  status: "draft" | "open" | "closed";
+  preview: MergedRoundStatusPreview;
+  operationId: string;
+  idempotencyKey: string;
+};
 
 export function VotingRoundsView() {
   const queryClient = useQueryClient();
@@ -32,6 +42,7 @@ export function VotingRoundsView() {
   const getRoundsPage = useServerFn(getMergedTelevotingRoundsPage);
   const createRound = useServerFn(createMergedTelevotingRound);
   const renameRound = useServerFn(renameMergedTelevotingRound);
+  const previewStatus = useServerFn(previewMergedTelevotingRoundStatus);
   const setStatus = useServerFn(setMergedTelevotingRoundStatus);
   const deleteRound = useServerFn(deleteMergedTelevotingRound);
 
@@ -40,6 +51,7 @@ export function VotingRoundsView() {
   const [editing, setEditing] = useState<MergedAdminRound | null>(null);
   const [editingName, setEditingName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<MergedAdminRound | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<PendingRoundStatusChange | null>(null);
   const [statusBusy, setStatusBusy] = useState<string | null>(null);
 
   const { data: pageData, isLoading, error } = useQuery({
@@ -79,17 +91,57 @@ export function VotingRoundsView() {
     onError: (caught) => toast.error(caught instanceof Error ? caught.message : "Round could not be renamed"),
   });
 
-  async function changeStatus(round: MergedAdminRound, status: "draft" | "open" | "closed") {
+  async function requestStatusChange(
+    round: MergedAdminRound,
+    status: "draft" | "open" | "closed",
+  ) {
     setStatusBusy(round.id);
     try {
-      await setStatus({ data: { id: round.id, status } });
+      const preview = await previewStatus({ data: { id: round.id, status } });
+      if (preview.alreadyApplied) {
+        toast.message(`${round.name} is already ${status}.`);
+        return;
+      }
+      if (preview.blockers.length) {
+        throw new Error(preview.blockers.join(" "));
+      }
+      setPendingStatus({
+        round,
+        status,
+        preview,
+        operationId: crypto.randomUUID(),
+        idempotencyKey: crypto.randomUUID(),
+      });
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "Round status impact could not be loaded");
+    } finally {
+      setStatusBusy(null);
+    }
+  }
+
+  async function confirmStatusChange() {
+    if (!pendingStatus) return;
+    const pending = pendingStatus;
+    setStatusBusy(pending.round.id);
+    try {
+      await setStatus({
+        data: {
+          id: pending.round.id,
+          status: pending.status,
+          operationId: pending.operationId,
+          idempotencyKey: pending.idempotencyKey,
+          expectedGlobalVersion: pending.preview.expectedGlobalVersion,
+          expectedRoundVersion: pending.preview.expectedRoundVersion,
+        },
+      });
       toast.success(
-        status === "open"
-          ? `${round.name} is accepting votes`
-          : status === "closed"
-            ? `${round.name} is closed`
-            : `${round.name} moved to draft`,
+        pending.status === "open"
+          ? `${pending.round.name} is accepting votes`
+          : pending.status === "closed"
+            ? `${pending.round.name} is closed`
+            : `${pending.round.name} moved to draft`,
       );
+      setPendingStatus(null);
       await refresh();
     } catch (caught) {
       toast.error(caught instanceof Error ? caught.message : "Round status could not be changed");
@@ -199,11 +251,11 @@ export function VotingRoundsView() {
 
                   <div className="mt-4 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
                     {round.status === "open" ? (
-                      <button type="button" disabled={busy} onClick={() => void changeStatus(round, "closed")} className="admin-action-primary w-full">
+                      <button type="button" disabled={busy} onClick={() => void requestStatusChange(round, "closed")} className="admin-action-primary w-full">
                         <Lock className="size-4" /> {busy ? "Working…" : "Close voting"}
                       </button>
                     ) : canOpen ? (
-                      <button type="button" disabled={busy} onClick={() => void changeStatus(round, "open")} className="admin-action-primary w-full">
+                      <button type="button" disabled={busy} onClick={() => void requestStatusChange(round, "open")} className="admin-action-primary w-full">
                         <Radio className="size-4" /> {busy ? "Working…" : "Open voting"}
                       </button>
                     ) : (
@@ -219,8 +271,8 @@ export function VotingRoundsView() {
                           <span className="min-w-0 flex-1 text-left"><span className="block text-sm font-semibold">Manage entries</span><span className="mt-1 block text-xs text-muted-foreground">Countries, custom entries, order and self-voting rules.</span></span>
                         </Link>
                         <AdminActionItem icon={Edit3} title="Rename round" description="Change the organizer-facing round name." onClick={() => { setEditing(round); setEditingName(round.name); }} />
-                        {round.status === "closed" ? <AdminActionItem icon={Radio} title="Reopen voting" description="Accept ballots again. Existing ballots stay stored." disabled={!canOpen || busy} onClick={() => void changeStatus(round, "open")} /> : null}
-                        {round.status !== "draft" ? <AdminActionItem icon={Layers3} title="Move to draft" description="Take the round out of active/closed workflow state." disabled={busy} onClick={() => void changeStatus(round, "draft")} /> : null}
+                        {round.status === "closed" ? <AdminActionItem icon={Radio} title="Reopen voting" description="Accept ballots again. Existing ballots stay stored." disabled={!canOpen || busy} onClick={() => void requestStatusChange(round, "open")} /> : null}
+                        {round.status !== "draft" ? <AdminActionItem icon={Layers3} title="Move to draft" description="Take the round out of active/closed workflow state." disabled={busy} onClick={() => void requestStatusChange(round, "draft")} /> : null}
                         <AdminActionItem icon={Trash2} title="Delete round" description={round.status === "draft" ? "Permanently remove this unused draft round." : "Only draft rounds can be deleted."} tone="danger" disabled={round.status !== "draft"} onClick={() => setDeleteTarget(round)} />
                       </div>
                     </AdminMoreMenu>
@@ -262,6 +314,43 @@ export function VotingRoundsView() {
       </AdminSheet>
 
       <AdminConfirmSheet
+        open={Boolean(pendingStatus)}
+        onClose={() => {
+          if (!statusBusy) setPendingStatus(null);
+        }}
+        onConfirm={confirmStatusChange}
+        title={
+          pendingStatus?.status === "open"
+            ? "Open televoting?"
+            : pendingStatus?.status === "closed"
+              ? "Close televoting?"
+              : "Move round to draft?"
+        }
+        description={
+          pendingStatus ? (
+            <TelevoteRoundImpactPreview pending={pendingStatus} />
+          ) : (
+            "Review the live voting impact before continuing."
+          )
+        }
+        confirmLabel={
+          pendingStatus?.status === "open"
+            ? "Open voting"
+            : pendingStatus?.status === "closed"
+              ? "Close voting"
+              : "Move to draft"
+        }
+        confirmationText={pendingStatus?.round.name}
+        confirmationHint={
+          pendingStatus
+            ? `Type ${pendingStatus.round.name} to confirm this R2 voting-state change`
+            : undefined
+        }
+        busy={Boolean(statusBusy)}
+        danger={pendingStatus?.status !== "open"}
+      />
+
+      <AdminConfirmSheet
         open={Boolean(deleteTarget)}
         onClose={() => setDeleteTarget(null)}
         onConfirm={removeRound}
@@ -272,6 +361,57 @@ export function VotingRoundsView() {
         confirmationHint={deleteTarget ? `Type ${deleteTarget.name} to confirm` : undefined}
         danger
       />
+    </div>
+  );
+}
+
+function TelevoteRoundImpactPreview({ pending }: { pending: PendingRoundStatusChange }) {
+  const preview = pending.preview;
+  return (
+    <div className="space-y-3">
+      <p>
+        This is a <strong className="text-foreground">Risk R2</strong> live-voting change for{" "}
+        <strong className="text-foreground">{pending.round.name}</strong>.
+      </p>
+
+      <div className="grid grid-cols-2 gap-2">
+        <RoundImpactMetric label="Current → requested" value={`${preview.currentStatus} → ${preview.requestedStatus}`} />
+        <RoundImpactMetric label="Entries" value={preview.entryCount} />
+        <RoundImpactMetric label="Stored ballots" value={preview.ballotCount} />
+        <RoundImpactMetric label="Suspicious ballots" value={preview.suspiciousBallotCount} />
+      </div>
+
+      <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3 text-xs leading-5 text-muted-foreground">
+        <strong className="text-foreground">Result state:</strong>{" "}
+        {preview.resultsStatus} · calculation v{preview.calculationVersion}
+        {preview.resultsOutdated ? " · already outdated" : ""}
+      </div>
+
+      {pending.status === "open" && preview.calculationVersion > 0 ? (
+        <p className="rounded-lg border border-amber-200/15 bg-amber-200/[0.05] px-3 py-2 text-xs leading-5 text-amber-50">
+          Reopening this round marks the existing calculated result outdated immediately. Locked or published results must be unlocked first.
+        </p>
+      ) : null}
+
+      {preview.otherOpenRound ? (
+        <p className="rounded-lg border border-rose-200/15 bg-rose-200/[0.05] px-3 py-2 text-xs leading-5 text-rose-50">
+          Another round is open: {preview.otherOpenRound.roundName}. Solaris will not open two rounds at once.
+        </p>
+      ) : null}
+
+      <p className="text-xs leading-5 text-muted-foreground">
+        Expected system version v{preview.expectedGlobalVersion} and round version v{preview.expectedRoundVersion}.
+        Any concurrent round-state or line-up change makes this preview stale. Retrying this confirmation replays the same operation receipt.
+      </p>
+    </div>
+  );
+}
+
+function RoundImpactMetric({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-lg border border-white/[0.08] bg-black/10 p-2.5">
+      <span className="block text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</span>
+      <strong className="mt-1 block text-xs text-foreground">{value}</strong>
     </div>
   );
 }

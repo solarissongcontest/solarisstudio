@@ -15,6 +15,7 @@ export function EditionHero({
   liquidGlass = false,
   status,
   winner,
+  actions,
 }: {
   eyebrow: string;
   title: string;
@@ -27,6 +28,7 @@ export function EditionHero({
   liquidGlass?: boolean;
   status: ReactNode;
   winner?: ReactNode;
+  actions?: ReactNode;
 }) {
   const plateImage = logo ?? artwork;
   const plateAlt = logo ? (logoAlt ?? `${title} logo`) : artworkAlt;
@@ -56,6 +58,7 @@ export function EditionHero({
         {subtitle ? <p className="edition-hero-subtitle">{subtitle}</p> : null}
         {description ? <p className="edition-hero-description">{description}</p> : null}
         {winner ? <div className="edition-hero-winner">{winner}</div> : null}
+        {actions ? <div className="edition-hero-actions">{actions}</div> : null}
       </div>
       {plateImage ? (
         <figure className="edition-artwork-plate">

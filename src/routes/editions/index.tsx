@@ -1,8 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import {
+  AppEmptyState,
+  AppGroupedList,
+  AppScreen,
+  AppSectionHeader,
+} from "@/components/app/AppPrimitives";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import {
@@ -50,14 +56,41 @@ type EditionCard = {
 
 function EditionsPage() {
   const { isAppMode } = useSolarisApp();
+  const [resultsEnabled, setResultsEnabled] = useState(!isAppMode);
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
-  const resultsQuery = useAllResults();
+  const resultsQuery = useAllResults({ enabled: resultsEnabled });
   const countriesQuery = useCountries();
   const { data: editions } = editionsQuery;
   const { data: shows } = showsQuery;
   const { data: results } = resultsQuery;
   const { data: countries } = countriesQuery;
+
+  useEffect(() => {
+    if (!isAppMode) {
+      setResultsEnabled(true);
+      return;
+    }
+
+    const idleWindow = window as typeof window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    let timeout = 0;
+    let idle: number | null = null;
+    const enable = () => setResultsEnabled(true);
+
+    if (idleWindow.requestIdleCallback) {
+      idle = idleWindow.requestIdleCallback(enable, { timeout: 650 });
+    } else {
+      timeout = window.setTimeout(enable, 220);
+    }
+
+    return () => {
+      if (idle != null) idleWindow.cancelIdleCallback?.(idle);
+      if (timeout) window.clearTimeout(timeout);
+    };
+  }, [isAppMode]);
 
   const editionList = useMemo(
     () =>
@@ -136,10 +169,75 @@ function EditionsPage() {
 
   const latest = cards[0] ?? null;
   const archive = cards.slice(1);
-  const archiveQueries = [editionsQuery, showsQuery, resultsQuery, countriesQuery];
+  const archiveQueries = isAppMode
+    ? [editionsQuery, showsQuery, countriesQuery]
+    : [editionsQuery, showsQuery, resultsQuery, countriesQuery];
 
-  if (archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Contest archive" title="Editions" description="Every published Solaris chapter, from the latest contest back through the archive." /><ArchiveDataLoading label="Loading editions and results…" /></AppShell>;
-  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Contest archive" title="Editions" description="Every published Solaris chapter, from the latest contest back through the archive." /><ArchiveDataError /></AppShell>;
+  if (archiveIsLoading(...archiveQueries)) {
+    return (
+      <AppShell>
+        {isAppMode ? null : (
+          <PageHeader
+            eyebrow="Contest archive"
+            title="Editions"
+            description="Every published Solaris chapter, from the latest contest back through the archive."
+          />
+        )}
+        <ArchiveDataLoading label={isAppMode ? "Loading editions…" : "Loading editions and results…"} />
+      </AppShell>
+    );
+  }
+  if (archiveHasError(...archiveQueries)) {
+    return (
+      <AppShell>
+        {isAppMode ? null : (
+          <PageHeader
+            eyebrow="Contest archive"
+            title="Editions"
+            description="Every published Solaris chapter, from the latest contest back through the archive."
+          />
+        )}
+        <ArchiveDataError />
+      </AppShell>
+    );
+  }
+
+  if (isAppMode) {
+    return (
+      <AppShell>
+        <AppScreen>
+          {latest ? <LatestEdition card={latest} appMode /> : null}
+
+          {archive.length > 0 ? (
+            <section aria-labelledby="app-edition-archive">
+              <AppSectionHeader
+                eyebrow={`${cards.length} editions`}
+                title="Past editions"
+                id="app-edition-archive"
+              />
+              <AppGroupedList>
+                {archive.map((card) => (
+                  <ArchiveEdition key={card.edition.id} card={card} appMode />
+                ))}
+              </AppGroupedList>
+            </section>
+          ) : null}
+
+          {!cards.length ? (
+            <AppEmptyState
+              title="No public editions yet"
+              description="Published Solaris Song Contest editions will appear here."
+              action={
+                <Link to="/explore" className="solaris-app-empty-action">
+                  Back to Explore
+                </Link>
+              }
+            />
+          ) : null}
+        </AppScreen>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -149,7 +247,7 @@ function EditionsPage() {
         description="Every published Solaris chapter, from the latest contest back through the archive."
       />
 
-      {latest && <LatestEdition card={latest} appMode={isAppMode} />}
+      {latest && <LatestEdition card={latest} />}
 
       {archive.length > 0 && (
         <section className="mt-7 sm:mt-9">
@@ -163,7 +261,7 @@ function EditionsPage() {
 
           <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface/55 divide-y divide-border/60">
             {archive.map((card) => (
-              <ArchiveEdition key={card.edition.id} card={card} appMode={isAppMode} />
+              <ArchiveEdition key={card.edition.id} card={card} />
             ))}
           </div>
         </section>
@@ -222,11 +320,13 @@ function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?:
 
   return (
     <section aria-labelledby="current-edition-heading">
-      <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-primary">Current</p>
+      <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-primary">
+        {edition.status === "completed" ? "Latest published edition" : "Current edition"}
+      </p>
       <Link
         to="/editions/$slug"
         params={{ slug: edition.slug }}
-        className={appMode ? "solaris-app-edition-current group block" : "group block rounded-2xl border border-primary/20 bg-surface p-4 transition-colors hover:bg-surface-strong sm:p-5"}
+        className={appMode ? "solaris-app-card solaris-app-edition-current group block" : "group block rounded-2xl border border-primary/20 bg-surface p-4 transition-colors hover:bg-surface-strong sm:p-5"}
       >
         <div className="flex min-w-0 items-start justify-between gap-4">
           <div className="min-w-0">

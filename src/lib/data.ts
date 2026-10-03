@@ -725,7 +725,7 @@ export function useShows(
   });
 }
 
-export function useAllShows() {
+export function useAllShows(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: [
       "shows",
@@ -737,6 +737,7 @@ export function useAllShows() {
         all<Show>(
           "shows",
         ),
+    enabled: options?.enabled ?? true,
     ...solarisQueryPolicy("warm"),
   });
 }
@@ -1229,9 +1230,32 @@ export function useResults(
   });
 }
 
-export function useAllResults() {
+export function useEditionResults(editionId?: string) {
+  return useQuery({
+    ...solarisQueryPolicy("warm"),
+    enabled: !!editionId,
+    queryKey: [
+      "results",
+      "edition",
+      editionId,
+    ],
+    queryFn:
+      () =>
+        all<ResultRow>(
+          "results",
+          (query) =>
+            query.eq(
+              "edition_id",
+              editionId,
+            ),
+        ),
+  });
+}
+
+export function useAllResults(options?: { enabled?: boolean }) {
   return useQuery({
     ...solarisQueryPolicy("cold"),
+    enabled: options?.enabled ?? true,
     queryKey: [
       "results",
       "all",

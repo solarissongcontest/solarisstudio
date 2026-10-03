@@ -7,10 +7,12 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 describe("Organizer rearchitecture foundation", () => {
   it("keeps the permanent Organizer navigation intentionally small", () => {
     const domains = source("src/components/admin/admin-domains.ts");
-    for (const label of ["Home", "Inbox", "Rules & Cases", "Administration"]) {
+    for (const label of ["Home", "Tasks", "Delegations", "More"]) {
       expect(domains).toContain(`label: "${label}"`);
     }
     expect(domains).toContain('id: "edition"');
+    expect(domains).toContain('id: "tasks"');
+    expect(domains).toContain('id: "delegations"');
     expect(domains).not.toContain('label: "Voting & Results"');
     expect(domains).not.toContain('label: "Publishing"');
   });

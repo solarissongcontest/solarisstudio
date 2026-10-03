@@ -23,7 +23,7 @@ export function FlagChip({ code, color, image, size = "md", className }: {
     className={cn("font-semibold tracking-widest text-background", dims, className)}
     style={{
       background: image ? undefined : `linear-gradient(135deg, ${color}, color-mix(in oklab, ${color} 45%, black))`,
-      boxShadow: `0 6px 22px -8px ${color}`,
+      boxShadow: size === "lg" || size === "xl" ? `0 6px 22px -10px ${color}` : "none",
     }}
   />;
 }

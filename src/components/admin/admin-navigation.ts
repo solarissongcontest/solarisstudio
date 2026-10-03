@@ -68,13 +68,15 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
           (path) => path.startsWith("/admin/operations"),
         ),
         item(
-          "Action Center",
-          "Urgent blockers, upcoming deadlines and recent activity.",
-          "/admin/action-center",
+          "Tasks",
+          "Every unresolved organizer action, blocker and due item.",
+          "/admin/tasks",
           BellRing,
           "alerts blockers deadlines tasks",
           (path) =>
-            path.startsWith("/admin/action-center") || path.startsWith("/admin/action-centre"),
+            path.startsWith("/admin/tasks") ||
+            path.startsWith("/admin/action-center") ||
+            path.startsWith("/admin/action-centre"),
         ),
         item(
           "Delegations",
@@ -276,12 +278,28 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
           (path) => path === "/confirmations/admin" || path === "/confirmations/admin/",
         ),
         item(
+          "Confirmation requirements",
+          "Manage one current edition-level confirmation obligation per delegation.",
+          "/confirmations/admin/requirements",
+          ClipboardCheck,
+          "confirmation requirements generations reconfirm waive delegation",
+          (path) => path.startsWith("/confirmations/admin/requirements"),
+        ),
+        item(
           "Confirmation responses",
           "Review submitted delegation confirmations and entry details.",
           "/confirmations/admin/responses",
           ClipboardCheck,
           "confirmation responses review submissions",
           (path) => path.startsWith("/confirmations/admin/responses"),
+        ),
+        item(
+          "Next in Line",
+          "Review side-competition participation and unused-song submissions.",
+          "/admin/next-in-line",
+          Sparkles,
+          "next in line side competition submissions",
+          (path) => path.startsWith("/admin/next-in-line"),
         ),
         item(
           "Responses by country",
@@ -628,6 +646,14 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
           (path) => path.startsWith("/admin/hod-history"),
         ),
         item(
+          "Community moderation",
+          "Hide or restore public fan display identity without changing competitive data.",
+          "/admin/community-moderation",
+          ShieldCheck,
+          "community moderation fan profile prediction league identity",
+          (path) => path.startsWith("/admin/community-moderation"),
+        ),
+        item(
           "Predictions",
           "Create and manage visitor prediction rounds.",
           "/admin/predictions",
@@ -722,6 +748,14 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
           Settings2,
           "diagnostics sync health",
           (path) => path.startsWith("/admin/sync-health"),
+        ),
+        item(
+          "Delivery & jobs",
+          "Inspect push delivery state and Solaris scheduler runs.",
+          "/admin/system-operations",
+          BellRing,
+          "system push notifications delivery jobs cron diagnostics",
+          (path) => path.startsWith("/admin/system-operations"),
         ),
         item(
           "System settings",

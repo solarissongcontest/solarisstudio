@@ -75,7 +75,7 @@ export function RuleDetailV5({ rule }: { rule: RuleWithChapter }) {
       <SolarisDepthSafeZone className="mt-5">
         <SolarisDepthSurface variant="reading">
           <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_15rem]">
-            <main className="min-w-0 space-y-7">
+            <div className="min-w-0 space-y-7">
               <section aria-labelledby="official-rule-text">
                 <SolarisDepthEyebrow>Official regulation</SolarisDepthEyebrow>
                 <div id="official-rule-text" className="mt-3 space-y-3 text-sm leading-7 text-foreground/90">
@@ -160,7 +160,7 @@ export function RuleDetailV5({ rule }: { rule: RuleWithChapter }) {
                   Ask TSBC about Rule {rule.id}
                 </Link>
               </section>
-            </main>
+            </div>
 
             <aside className="space-y-5 border-t border-white/[0.08] pt-5 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
               <div>
