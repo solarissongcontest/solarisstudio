@@ -5,9 +5,8 @@ const ALLOWED_BETA_SCREENSHOT_TYPES = new Set([
   "image/png",
   "image/jpeg",
   "image/webp",
-  "image/gif",
 ]);
-const MAX_BETA_SCREENSHOT_BYTES = 8 * 1024 * 1024;
+const MAX_BETA_SCREENSHOT_BYTES = 5 * 1024 * 1024;
 
 export async function uploadBetaFeedbackScreenshot(input: {
   submissionId: string;
@@ -22,7 +21,7 @@ export async function uploadBetaFeedbackScreenshot(input: {
     throw new Error(`Screenshot “${input.file.name}” is empty.`);
   }
   if (input.file.size > MAX_BETA_SCREENSHOT_BYTES) {
-    throw new Error(`Screenshot “${input.file.name}” is larger than 8 MB.`);
+    throw new Error(`Screenshot “${input.file.name}” is larger than 5 MB.`);
   }
 
   const receipt = await uploadVerifiedFile({
