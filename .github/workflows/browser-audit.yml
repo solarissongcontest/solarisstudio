@@ -1,6 +1,9 @@
 name: Browser audit
 
 on:
+  push:
+    branches:
+      - "feature/solaris-studio-v6-*"
   pull_request:
     branches: [main]
   workflow_dispatch:
