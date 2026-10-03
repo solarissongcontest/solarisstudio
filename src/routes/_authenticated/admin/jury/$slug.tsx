@@ -965,7 +965,7 @@ function humanizeLifecycle(value: string) {
 function ballotReviewTone(status: JurySubmissionState) {
   if (status === "valid") return "ready" as const;
   if (status === "needs_review" || status === "submitted") return "attention" as const;
-  if (status === "invalidated") return "critical" as const;
+  if (status === "invalidated") return "blocked" as const;
   return "neutral" as const;
 }
 
