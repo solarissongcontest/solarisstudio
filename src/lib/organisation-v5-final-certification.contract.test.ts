@@ -27,13 +27,13 @@ describe("Organisation OS V5 final certification contract", () => {
     const phoneSection = matrix
       .slice(matrix.indexOf("phone_exam:"), matrix.indexOf("\nmandatory_failures:"))
       .split("\n")
-      .filter((line) => /^    - [a-z0-9-]+$/.test(line));
+      .filter((line) => /^\\s{4}- [a-z0-9-]+$/.test(line));
     expect(phoneSection).toHaveLength(42);
 
     const failureSection = matrix
       .slice(matrix.indexOf("mandatory_failures:"))
       .split("\n")
-      .filter((line) => /^    - [a-z0-9-]+$/.test(line));
+      .filter((line) => /^\\s{4}- [a-z0-9-]+$/.test(line));
     expect(failureSection).toHaveLength(17);
   });
 
