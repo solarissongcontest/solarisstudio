@@ -1,0 +1,117 @@
+name: Organisation OS V5 final certification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  certify:
+    name: Organisation OS V5 certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify source commit CI gates
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const manifest = fs.readFileSync(
+              "docs/organisation-os-v5/release-certification.yml",
+              "utf8",
+            );
+            const match = manifest.match(/^source_commit:\\s*"([0-9a-f]{40})"\\s*$/m);
+            if (!match) {
+              core.setFailed(
+                "Organisation OS V5 release-certification.yml must contain an exact 40-character source_commit.",
+              );
+              return;
+            }
+
+            const source = match[1];
+            const { owner, repo } = context.repo;
+            const { data } = await github.rest.actions.listWorkflowRunsForRepo({
+              owner,
+              repo,
+              head_sha: source,
+              per_page: 100,
+            });
+
+            const required = [
+              "Quality",
+              "Browser audit",
+              "Rules + Integrity migration rehearsal",
+            ];
+
+            for (const workflowName of required) {
+              const successful = data.workflow_runs
+                .filter(
+                  (run) =>
+                    run.name === workflowName &&
+                    run.conclusion === "success",
+                )
+                .sort(
+                  (a, b) =>
+                    new Date(b.updated_at) - new Date(a.updated_at),
+                )[0];
+
+              if (!successful) {
+                core.setFailed(
+                  `${workflowName} is not green for Organisation OS V5 source commit ${source}.`,
+                );
+                return;
+              }
+
+              core.info(`${workflowName}: ${successful.html_url}`);
+            }
+
+      - name: Production build
+        run: bun run build
+
+      - name: Client performance budget
+        run: bun run budget:client
+
+      - name: TypeScript
+        run: bun run typecheck
+
+      - name: Unit tests
+        run: bun test
+
+      - name: Verify Organizer V5 manual release evidence
+        run: bun run certify:organisation-v5
+
+      - name: Certification summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo
+            echo "### Solaris Studio Organisation OS V5 certification"
+            echo
+            echo "- Same-source Quality / Browser audit / migration rehearsal: required green"
+            echo "- Authenticated local Organizer browser coverage: required by Browser audit"
+            echo "- Production build / performance budget / TypeScript / unit tests: executed"
+            echo "- Phone-only, physical-device and failure-injection evidence: validated by manifest"
+            echo "- Any implementation change after source_commit invalidates the evidence"
+          } >> "$GITHUB_STEP_SUMMARY"
