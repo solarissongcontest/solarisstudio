@@ -66,6 +66,30 @@ $allowed$;
 revoke all on function private.studio2_can_upload_country_media(uuid, uuid)
   from public, anon, authenticated;
 
+
+create or replace function private.studio2_country_media_upload_token_valid(
+  p_user_id uuid,
+  p_object_path text
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog, public, private
+as $valid$
+  select exists (
+    select 1
+    from public.studio2_country_media_upload_tokens token
+    where token.user_id = p_user_id
+      and token.object_path = p_object_path
+      and token.consumed_at is null
+      and token.expires_at > now()
+  );
+$valid$;
+
+revoke all on function private.studio2_country_media_upload_token_valid(uuid, text)
+  from public, anon, authenticated;
+
 create or replace function public.studio2_create_country_media_upload(
   p_country_id uuid,
   p_folder text,
@@ -241,14 +265,7 @@ for insert
 to authenticated
 with check (
   bucket_id = 'country-media'
-  and exists (
-    select 1
-    from public.studio2_country_media_upload_tokens token
-    where token.user_id = auth.uid()
-      and token.object_path = name
-      and token.consumed_at is null
-      and token.expires_at > now()
-  )
+  and private.studio2_country_media_upload_token_valid(auth.uid(), name)
 );
 
 drop policy if exists "country media bucket owner update" on storage.objects;
@@ -258,25 +275,11 @@ for update
 to authenticated
 using (
   bucket_id = 'country-media'
-  and exists (
-    select 1
-    from public.studio2_country_media_upload_tokens token
-    where token.user_id = auth.uid()
-      and token.object_path = name
-      and token.consumed_at is null
-      and token.expires_at > now()
-  )
+  and private.studio2_country_media_upload_token_valid(auth.uid(), name)
 )
 with check (
   bucket_id = 'country-media'
-  and exists (
-    select 1
-    from public.studio2_country_media_upload_tokens token
-    where token.user_id = auth.uid()
-      and token.object_path = name
-      and token.consumed_at is null
-      and token.expires_at > now()
-  )
+  and private.studio2_country_media_upload_token_valid(auth.uid(), name)
 );
 
 notify pgrst, 'reload schema';
