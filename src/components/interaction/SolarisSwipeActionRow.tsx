@@ -27,10 +27,12 @@ export function SolarisSwipeActionRow({
   children,
   actions,
   className,
+  showFallbackActions = true,
 }: {
   children: ReactNode;
   actions: readonly SolarisSwipeAction[];
   className?: string;
+  showFallbackActions?: boolean;
 }) {
   const [offset, setOffset] = useState(0);
   const [open, setOpen] = useState(false);
@@ -84,6 +86,7 @@ export function SolarisSwipeActionRow({
     >
       <div
         aria-label="Row actions"
+        aria-hidden={!open}
         className="absolute inset-y-0 right-0 flex items-stretch justify-end"
         style={{ width: maxReveal }}
       >
@@ -91,6 +94,7 @@ export function SolarisSwipeActionRow({
           <button
             key={action.id}
             type="button"
+            tabIndex={open ? 0 : -1}
             onClick={() => {
               action.onSelect();
               setOpen(false);
@@ -120,7 +124,7 @@ export function SolarisSwipeActionRow({
         {children}
       </div>
 
-      {actions.length ? (
+      {actions.length && showFallbackActions ? (
         <div className="relative z-[2] flex justify-end gap-1 border-t border-border/50 bg-background/90 p-1">
           <button
             type="button"

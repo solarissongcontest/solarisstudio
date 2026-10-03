@@ -10,6 +10,7 @@ import {
 import { useMemo, useState, type ReactNode } from "react";
 
 import { AdminPage } from "@/components/admin/AdminShell";
+import { SolarisSwipeActionRow } from "@/components/interaction/SolarisSwipeActionRow";
 import {
   AdminCard,
   AdminCardHeader,
@@ -188,8 +189,16 @@ function InboxRow({
   const Icon = urgent ? ShieldAlert : attention ? TriangleAlert : Inbox;
   const resolved = Boolean(item.resolved_at);
   const domainResolved = item.resolution_mode === "domain";
+  const swipeActions = [
+    ...(!item.read_at
+      ? [{ id: "seen", label: "Seen", onSelect: onSeen }]
+      : []),
+    ...(!resolved && !domainResolved && !resolving
+      ? [{ id: "resolve", label: "Resolve", onSelect: onResolve }]
+      : []),
+  ];
 
-  return (
+  const row = (
     <div className="admin-list-row">
       <span
         className={cn(
@@ -241,6 +250,18 @@ function InboxRow({
         </span>
       </span>
     </div>
+  );
+
+  if (!swipeActions.length) return row;
+
+  return (
+    <SolarisSwipeActionRow
+      actions={swipeActions}
+      showFallbackActions={false}
+      className="rounded-none"
+    >
+      {row}
+    </SolarisSwipeActionRow>
   );
 }
 

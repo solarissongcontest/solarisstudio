@@ -32,6 +32,19 @@ describe("Solaris V6 interaction primitives in real product flows", () => {
     expect(reorder).toContain("disabled={disabled || index === 0}");
   });
 
+  it("adds optional swipe actions to Organizer Inbox without confusing seen state with domain resolution", () => {
+    const inbox = source("src/routes/_authenticated/admin/inbox.tsx");
+    const swipe = source("src/components/interaction/SolarisSwipeActionRow.tsx");
+    expect(inbox).toContain("SolarisSwipeActionRow");
+    expect(inbox).toContain('showFallbackActions={false}');
+    expect(inbox).toContain('id: "seen"');
+    expect(inbox).toContain("!resolved && !domainResolved");
+    expect(inbox).toContain("Resolving automatically from the source workflow").toBe(false);
+    expect(inbox).toContain("Resolves automatically from the source workflow");
+    expect(swipe).toContain("tabIndex={open ? 0 : -1}");
+    expect(swipe).toContain("aria-hidden={!open}");
+  });
+
   it("uses semantic pending press feedback for participant notice acknowledgement", () => {
     const tasks = source("src/components/mysolaris/modules/MySolarisTasksModule.tsx");
     expect(tasks).toContain("SolarisPressable");
