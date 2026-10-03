@@ -65,6 +65,8 @@ html[data-solaris-app-boot] body::after {
   --solaris-app-safe-right: env(safe-area-inset-right);
   --solaris-app-safe-bottom: env(safe-area-inset-bottom);
   --solaris-app-safe-left: env(safe-area-inset-left);
+  --solaris-bottom-obstruction: 0px;
+  --solaris-keyboard-inset: 0px;
 }
 
 .solaris-app-toolbar,
@@ -403,10 +405,18 @@ html[data-solaris-app-boot] body::after {
   }
 
   .app-main {
-    padding-bottom: calc(
-      var(--solaris-app-tabbar-height) +
-      max(1.7rem, env(safe-area-inset-bottom))
+    padding-bottom: max(
+      calc(
+        var(--solaris-app-tabbar-height) +
+        max(1.7rem, env(safe-area-inset-bottom))
+      ),
+      calc(var(--solaris-bottom-obstruction) + 1rem)
     ) !important;
+    scroll-padding-bottom: calc(
+      var(--solaris-bottom-obstruction) +
+      var(--solaris-keyboard-inset) +
+      1rem
+    );
   }
 
   .solaris-app-offline {
