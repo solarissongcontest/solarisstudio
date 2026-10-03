@@ -46,10 +46,12 @@ describe('Studio 2 Phase 7 eligibility integration', () => {
     expect(route).toContain('The failed factual check remains recorded and visible.');
   });
 
-  it('uses narrow server RPCs for mutations rather than direct browser table writes', () => {
-    expect(model).toContain("'studio2_create_eligibility_override'");
-    expect(model).toContain("'studio2_revoke_eligibility_override'");
+  it('uses previewed R2 server RPCs for mutations rather than direct browser table writes', () => {
+    expect(model).toContain("'studio2_eligibility_override_change_preview'");
+    expect(model).toContain("'studio2_apply_eligibility_override_change'");
     expect(model).toContain("'studio2_list_eligibility_overrides'");
+    expect(model).not.toContain("await rpc(\n    'studio2_create_eligibility_override'");
+    expect(model).not.toContain("await rpc(\n    'studio2_revoke_eligibility_override'");
     expect(route).not.toContain('.insert(');
     expect(route).not.toContain('.update(');
     expect(route).not.toContain('.delete(');
