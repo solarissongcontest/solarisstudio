@@ -158,6 +158,11 @@ export default defineConfig({
       use: { viewport: { width: 390, height: 844 } },
     },
     {
+      name: "organizer-admin-landscape",
+      testMatch: /organizer-routes\.e2e\.ts/,
+      use: { viewport: { width: 844, height: 390 } },
+    },
+    {
       name: "visual-ios-320",
       testMatch: /app-visual-capture\.e2e\.ts/,
       use: {
