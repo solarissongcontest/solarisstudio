@@ -29,6 +29,7 @@ describe("first admin beta findings", () => {
     const fastEntry = source("src/components/studio/FastEntryImpl.tsx");
     const desktopCss = source("src/admin-desktop.css");
     const adminFrame = source("src/components/admin/AdminFrame.tsx");
+    const organizerTabBar = source("src/components/admin/OrganizerV6TabBar.tsx");
     const juryRoute = source("src/routes/_authenticated/admin/jury/$slug.tsx");
     const readiness = source("src/lib/admin-readiness.ts");
 
@@ -38,7 +39,8 @@ describe("first admin beta findings", () => {
     expect(fastEntry).toContain("admin-jury-entry");
     expect(fastEntry).toContain("Mark did not vote");
     expect(adminFrame).toContain("admin-frame");
-    expect(adminFrame).toContain("admin-mobile-nav");
+    expect(adminFrame).toContain("<OrganizerV6TabBar");
+    expect(organizerTabBar).toContain("admin-mobile-nav");
     expect(adminFrame).toContain("admin-sidebar");
     expect(desktopCss).toContain("@media (min-width: 720px)");
     expect(desktopCss).toContain(".admin-mobile-nav");

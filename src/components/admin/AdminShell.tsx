@@ -4,10 +4,11 @@ import "@/admin-storytelling.css";
 
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ExternalLink, Inbox } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminNotifications } from "@/lib/admin-ops";
+import { useScrollMorphProgress } from "@/lib/use-scroll-morph-progress";
 import { AdminCommandPalette } from "./AdminCommandPalette";
 import { AdminContextProvider } from "./AdminContext";
 import { AdminFeatureBoundary } from "./AdminFeatureBoundary";
@@ -19,6 +20,11 @@ import { AdminSelectors } from "./AdminSelectors";
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const morphProgress = useScrollMorphProgress({ resetKey: pathname });
+  const organizerToolbarStyle = {
+    "--organizer-toolbar-title-scale": (1.035 - morphProgress * 0.035).toFixed(4),
+    "--organizer-toolbar-title-y": `${(1 - morphProgress) * 1.25}px`,
+  } as CSSProperties;
   const [email, setEmail] = useState<string | null>(null);
   const { data: organizerNotifications = [] } = useAdminNotifications();
   const unreadInboxCount = organizerNotifications.filter(
@@ -36,7 +42,12 @@ export function AdminShell({ children }: { children: ReactNode }) {
     <AdminContextProvider>
       <div className="admin-control-room relative min-h-screen overflow-x-clip [&_.site-nav]:hidden [&_.mobile-quick-nav]:hidden [&_.app-background]:hidden [&_.app-main]:!max-w-none [&_.app-main]:!p-0">
         <AdminPermissionShadowProbe />
-        <header className="sticky top-0 z-[70] border-b border-white/[0.07] bg-[#06101f]/88 backdrop-blur-2xl">
+        <header
+          className="sticky top-0 z-[70] border-b border-white/[0.07] bg-[#06101f]/88 backdrop-blur-2xl"
+          data-solaris-organizer-toolbar=""
+          data-scroll-compressed={morphProgress > 0.72 ? "true" : "false"}
+          style={organizerToolbarStyle}
+        >
           <div className="admin-topbar relative flex min-h-[4rem] items-center gap-2 px-3 sm:gap-3 sm:px-5">
             <Link to="/admin/operations" className="min-w-0 shrink-0">
               <p className="admin-brand-title text-[1.02rem] leading-none text-foreground sm:text-lg">

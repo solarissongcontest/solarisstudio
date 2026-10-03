@@ -13,8 +13,14 @@
 .admin-main {
   width: 100%;
   max-width: none;
-  padding: .75rem .75rem calc(6.75rem + env(safe-area-inset-bottom));
-  scroll-padding-bottom: calc(6.75rem + env(safe-area-inset-bottom));
+  padding: .75rem .75rem max(
+    calc(6.75rem + env(safe-area-inset-bottom)),
+    calc(var(--solaris-bottom-obstruction, 0px) + 1rem)
+  );
+  scroll-padding-bottom: max(
+    calc(6.75rem + env(safe-area-inset-bottom)),
+    calc(var(--solaris-bottom-obstruction, 0px) + var(--solaris-keyboard-inset, 0px) + 1rem)
+  );
 }
 
 .admin-mobile-nav {
@@ -22,7 +28,10 @@
 }
 
 .admin-control-room {
-  scroll-padding-bottom: calc(6.75rem + env(safe-area-inset-bottom));
+  scroll-padding-bottom: max(
+    calc(6.75rem + env(safe-area-inset-bottom)),
+    calc(var(--solaris-bottom-obstruction, 0px) + var(--solaris-keyboard-inset, 0px) + 1rem)
+  );
 }
 
 /* FastJuryEntry owns its own ballot + live-standings desktop grid. Keep this

@@ -16,15 +16,18 @@ describe("Solaris installed-app foundation", () => {
 
   it("uses the stable five-area app navigation with Me as a permanent label", () => {
     const tabs = source("src/components/app/AppTabBar.tsx");
+    const scrollPhysics = source("src/lib/use-scroll-responsive-bar.ts");
     const navigation = source("src/lib/app-navigation.ts");
     expect(tabs).toContain("PUBLIC_GLOBAL_AREAS");
     expect(tabs).toContain('area.id === "me"');
     expect(navigation).toContain('if (tab === "me" && !signedIn) return "/auth"');
     expect(navigation).toContain('me: "/my-solaris"');
     expect(tabs).not.toContain('"Sign in"');
-    expect(tabs).toContain("downTravel");
+    expect(tabs).toContain("useScrollResponsiveBar");
+    expect(scrollPhysics).toContain("downTravel");
+    expect(scrollPhysics).toContain("resolveScrollResponsiveBar");
+    expect(scrollPhysics).toContain("setCollapsedState(false)");
     expect(tabs).toContain('data-collapsed={collapsed ? "true" : "false"}');
-    expect(tabs).toContain("setCollapsed(false)");
   });
 
   it("renders bounded liquid glass with SVG refraction on Blink and a safe CSS fallback on WebKit", () => {
@@ -75,6 +78,7 @@ describe("Solaris installed-app foundation", () => {
 
   it("lets the active tab indicator drag across destinations", () => {
     const tabs = source("src/components/app/AppTabBar.tsx");
+    const physics = source("src/lib/interaction-physics.ts");
     expect(tabs).toContain("data-app-tab-index");
     expect(tabs).toContain("setPointerCapture");
     expect(tabs).toContain("--solaris-tab-drag-x");
@@ -83,9 +87,11 @@ describe("Solaris installed-app foundation", () => {
     expect(tabs).toContain("--solaris-tab-drag-scale-x");
     expect(tabs).toContain("--solaris-tabbar-pull-width");
     expect(tabs).toContain("--solaris-tabbar-pull-height");
-    expect(tabs).toContain("indicatorStretch");
-    expect(tabs).toContain("barGrowWidth");
-    expect(tabs).toContain("barGrowHeight");
+    expect(tabs).toContain("resolveElasticDrag");
+    expect(physics).toContain("scaleX:");
+    expect(physics).toContain("growWidth:");
+    expect(physics).toContain("growHeight:");
+    expect(physics).toContain("stretch.standard");
   });
 
   it("keeps Explore personalized content separated from the next section", () => {
@@ -97,8 +103,12 @@ describe("Solaris installed-app foundation", () => {
 
   it("uses a bottom utility sheet instead of duplicating section navigation", () => {
     const shell = source("src/components/AppShell.tsx");
+    const draggable = source("src/components/interaction/SolarisDraggableSheet.tsx");
     const more = source("src/components/app/AppMoreNavigation.tsx");
-    expect(shell).toContain('side={isAppMode ? "bottom" : "right"}');
+    expect(shell).toContain("SolarisDraggableSheetContent");
+    expect(shell).toContain('side="right"');
+    expect(draggable).toContain("<SheetContent");
+    expect(draggable).toContain('side="bottom"');
     expect(more).toContain("All Solaris pages");
     expect(more).toContain("App settings");
     expect(more).toContain("Account & security");

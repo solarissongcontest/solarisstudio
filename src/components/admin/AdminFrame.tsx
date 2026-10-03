@@ -7,9 +7,13 @@ import {
   MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, type MouseEvent, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import { DelegationColourOverview } from "@/components/confirmations/DelegationColourOverview";
+import {
+  OrganizerV6TabBar,
+  type OrganizerV6TabItem,
+} from "@/components/admin/OrganizerV6TabBar";
 import {
   adminAppTabRoot,
   adminDelegationRoute,
@@ -24,8 +28,8 @@ import {
   type AdminAppTabId,
 } from "@/lib/admin-app-navigation";
 import { useOrganizerTaskCountV5 } from "@/lib/admin-tasks-v5";
+import { prefersReducedMotion } from "@/lib/interaction-physics";
 import { useEditions } from "@/lib/data";
-import { cn } from "@/lib/utils";
 import { useAdminContext } from "./AdminContext";
 import { AdminFeatureBoundary } from "./AdminFeatureBoundary";
 import { AdminNav } from "./AdminNav";
@@ -143,9 +147,8 @@ export function AdminFrame({ children }: { children: ReactNode }) {
     };
   }, [pathname, searchStr, slug]);
 
-  const openMobileItem = (event: MouseEvent<HTMLAnchorElement>, item: MobileItem) => {
+  const openMobileItem = (item: MobileItem) => {
     if (typeof window === "undefined" || window.innerWidth >= 900) return;
-    event.preventDefault();
 
     const active = item.active(pathname);
     const root = adminAppTabRoot(item.id, slug);
@@ -157,9 +160,10 @@ export function AdminFrame({ children }: { children: ReactNode }) {
       : root;
 
     if (active && normalizedPath === normalizedRoot) {
-      const reducedMotion =
-        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-      window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
+      window.scrollTo({
+        top: 0,
+        behavior: prefersReducedMotion() ? "auto" : "smooth",
+      });
       return;
     }
 
@@ -207,45 +211,23 @@ export function AdminFrame({ children }: { children: ReactNode }) {
         ) : null}
       </main>
 
-      <nav
-        className="admin-mobile-nav fixed inset-x-0 bottom-0 z-50 border-t border-white/[0.08] px-2 pt-2"
-        style={{ paddingBottom: "max(.45rem, env(safe-area-inset-bottom))" }}
-        aria-label="Organizer navigation"
-      >
-        <div className="mx-auto grid max-w-xl grid-cols-5 gap-1">
-          {mobileItems.map((item) => {
-            const Icon = item.icon;
-            const active = item.active(pathname);
-            return (
-              <Link
-                key={item.label}
-                to={item.href as any}
-                aria-current={active ? "page" : undefined}
-                onClick={(event) => openMobileItem(event, item)}
-                className={cn(
-                  "flex min-h-[3.45rem] flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-semibold transition-colors",
-                  active
-                    ? "bg-sky-200/[0.09] text-sky-50"
-                    : "text-muted-foreground hover:bg-white/[0.035] hover:text-foreground",
-                )}
-              >
-                <span className="relative">
-                  <Icon className="size-[1.08rem]" />
-                  {item.id === "tasks" && unresolvedTaskCount > 0 ? (
-                    <span
-                      className="absolute -right-3 -top-2 min-w-4 rounded-full border border-[#06101f] bg-rose-500 px-1 text-center text-[8px] font-bold leading-4 text-white"
-                      aria-label={`${unresolvedTaskCount} unresolved organizer task${unresolvedTaskCount === 1 ? "" : "s"}`}
-                    >
-                      {unresolvedTaskCount > 99 ? "99+" : unresolvedTaskCount}
-                    </span>
-                  ) : null}
-                </span>
-                <span className="w-full truncate text-center">{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+      <OrganizerV6TabBar
+        pathname={pathname}
+        items={mobileItems.map(
+          (item): OrganizerV6TabItem => ({
+            id: item.id,
+            label: item.label,
+            href: item.href,
+            icon: item.icon,
+            active: item.active(pathname),
+            badge: item.id === "tasks" ? unresolvedTaskCount : 0,
+          }),
+        )}
+        onSelect={(item) => {
+          const source = mobileItems.find((candidate) => candidate.id === item.id);
+          if (source) openMobileItem(source);
+        }}
+      />
     </div>
   );
 }

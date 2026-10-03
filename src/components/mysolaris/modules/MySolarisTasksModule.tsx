@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { AppTaskCenter } from "@/components/app/AppTaskCenter";
+import { SolarisPressable } from "@/components/interaction/SolarisPressable";
 import { GovernanceInlineReference } from "@/components/rules/GovernanceRules";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { EventTime } from "@/components/public/EventTime";
@@ -369,14 +370,14 @@ export function MySolarisTasksModule() {
                           </p>
                         </div>
                         {!organizerInspection ? (
-                          <button
-                            type="button"
-                            disabled={acknowledgeNotice.isPending}
+                          <SolarisPressable
+                            weight="standard"
+                            pending={acknowledgeNotice.isPending}
                             onClick={() => acknowledgeNotice.mutate(notice.id)}
-                            className="min-h-10 rounded-xl border border-border px-3 text-xs font-semibold disabled:opacity-50"
+                            className="min-h-10 border border-border px-3 text-xs font-semibold"
                           >
-                            Acknowledge
-                          </button>
+                            {acknowledgeNotice.isPending ? "Acknowledging…" : "Acknowledge"}
+                          </SolarisPressable>
                         ) : null}
                       </div>
                     ))}

@@ -5,6 +5,7 @@ export type AppErrorKind =
   | "service-unavailable"
   | "authentication-expired"
   | "permission-denied"
+  | "conflict"
   | "not-found"
   | "unpublished"
   | "request-failed"
@@ -52,6 +53,14 @@ export function classifyAppError(error: unknown, online = true): AppErrorKind {
   }
   if (status === 403 || /permission denied|not authorized|forbidden/.test(message)) {
     return "permission-denied";
+  }
+  if (
+    status === 409 ||
+    /version conflict|stale version|expected version|concurrent edit|conflict with (?:a )?newer/.test(
+      message,
+    )
+  ) {
+    return "conflict";
   }
   if (status === 404 || /not found/.test(message)) return "not-found";
   if (/not published|unpublished|results? (?:is|are) not public/.test(message)) {
@@ -106,6 +115,15 @@ export function appErrorPresentation(kind: AppErrorKind): AppErrorPresentation {
         title: "You don't have access to this view",
         description:
           "Your current Solaris account does not have permission for this action or page.",
+        retry: false,
+      };
+    case "conflict":
+      return {
+        kind,
+        eyebrow: "Changed elsewhere",
+        title: "This state changed before your action completed",
+        description:
+          "Solaris must refresh the canonical server state before this action can be attempted again. Your stale version will not overwrite newer work.",
         retry: false,
       };
     case "not-found":

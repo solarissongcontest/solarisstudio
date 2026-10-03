@@ -19,6 +19,10 @@ import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminConfirmSheet, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
 import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
+import {
+  resolveSolarisV6OperationRecovery,
+  type SolarisV6OperationRecovery,
+} from '@/lib/solaris-v6-operation-recovery';
 import { useEditions } from '@/lib/data';
 import {
   availableStudio2ResultActions,
@@ -52,6 +56,7 @@ function ResultsOperationsPage() {
   const editionsQuery = useEditions();
   const [pending, setPending] = useState<PendingOperation | null>(null);
   const [reason, setReason] = useState('');
+  const [recovery, setRecovery] = useState<SolarisV6OperationRecovery | null>(null);
 
   const editions = editionsQuery.data ?? [];
   // Results is edition-scoped. Never silently substitute another edition just
@@ -81,12 +86,33 @@ function ResultsOperationsPage() {
       toast.success(`${resultActionLabel(execution.action, execution.previousVersion)} completed for version ${execution.calculationVersion}.`);
       setPending(null);
       setReason('');
+      setRecovery(null);
     },
-    onError: (error) => toast.error(errorText(error)),
+    onError: async (error) => {
+      const next = resolveSolarisV6OperationRecovery(error, {
+        online: typeof navigator === 'undefined' ? true : navigator.onLine,
+        stableOperationIdentity: Boolean(pending?.executionId),
+      });
+      setRecovery(next);
+
+      if (next.shouldRefreshCanonical) {
+        await queryClient.invalidateQueries({
+          queryKey: ['studio2-results-operations', resolvedEditionId],
+        });
+      }
+
+      if (!next.keepOperationOpen) {
+        setPending(null);
+        setReason('');
+      }
+
+      toast.error(next.title);
+    },
   });
 
   function requestOperation(row: Studio2ResultOperationRow, action: Studio2ResultAction) {
     setReason('');
+    setRecovery(null);
     setPending({ row, action, executionId: crypto.randomUUID() });
   }
 
@@ -161,14 +187,44 @@ function ResultsOperationsPage() {
           </>
         )}
 
+        {recovery && !pending ? (
+          <div
+            role="status"
+            className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-sm"
+          >
+            <p className="font-semibold text-foreground">{recovery.title}</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              {recovery.description}
+            </p>
+          </div>
+        ) : null}
+
         <AdminConfirmSheet
           open={Boolean(pending)}
-          onClose={() => !mutation.isPending && setPending(null)}
+          onClose={() => {
+            if (mutation.isPending) return;
+            setPending(null);
+            setRecovery(null);
+          }}
           onConfirm={confirmOperation}
           title={pending ? resultActionLabel(pending.action, pending.row.calculationVersion) : 'Result operation'}
           description={pending ? (
             <div className="space-y-4">
               <p>{operationDescription(pending)}</p>
+              {recovery ? (
+                <div
+                  role="status"
+                  className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-3 text-xs leading-5"
+                >
+                  <p className="font-semibold text-amber-100">{recovery.title}</p>
+                  <p className="mt-1 text-muted-foreground">{recovery.description}</p>
+                  {recovery.outcomeUnknown ? (
+                    <p className="mt-2 font-semibold text-foreground">
+                      The previous response did not prove whether the server committed the operation.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3 text-xs leading-5 text-muted-foreground">
                 <p><strong className="text-foreground">Current version:</strong> {pending.row.calculationVersion || 'unversioned'}</p>
                 <p><strong className="text-foreground">Participants / result rows:</strong> {pending.row.preconditions.participantCount} / {pending.row.preconditions.resultRowCount}</p>
@@ -198,7 +254,13 @@ function ResultsOperationsPage() {
               </label>
             </div>
           ) : null}
-          confirmLabel={pending ? resultActionLabel(pending.action, pending.row.calculationVersion) : 'Confirm'}
+          confirmLabel={
+            recovery?.allowSameIdentityRetry
+              ? 'Retry same operation'
+              : pending
+                ? resultActionLabel(pending.action, pending.row.calculationVersion)
+                : 'Confirm'
+          }
           confirmationText={pending?.row.showName}
           confirmationHint={pending ? `Type ${pending.row.showName} to confirm` : undefined}
           busy={mutation.isPending}

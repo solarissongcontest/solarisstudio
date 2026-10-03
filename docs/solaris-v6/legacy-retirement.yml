@@ -1,0 +1,43 @@
+version: 1
+product: Solaris Studio V6
+rule: "Migration is complete only when the new authority works and the old authority can no longer contradict it."
+
+domains:
+  edition:
+    state: canonical-write
+    legacy_authority: ["browser-global selected edition", "direct lifecycle table mutations"]
+    retirement_criteria:
+      - "Operational commands validate route, command, entity and capability edition identity."
+      - "Tab selection remains session-scoped and never becomes authorization."
+  confirmations:
+    state: canonical-write
+    legacy_authority: ["legacy confirmations authority", "round-as-participation identity"]
+    retirement_criteria:
+      - "One edition+delegation participation can be satisfied by one valid confirmation version."
+      - "Old authority cannot recreate duplicate requirements."
+  permissions:
+    state: canonical-write
+    legacy_authority: ["client role checks", "legacy user_roles authorization"]
+    retirement_criteria:
+      - "Sensitive operations validate canonical server capabilities on every request."
+  results:
+    state: canonical-write
+    legacy_authority: ["screen-local result lifecycle interpretation"]
+    retirement_criteria:
+      - "Every consumer uses the canonical governed result version/lifecycle."
+  tasks:
+    state: canonical-write
+    legacy_authority: ["Action Center state", "Inbox read state as work state"]
+    retirement_criteria:
+      - "Domain-backed tasks resolve only from canonical domain truth."
+  notifications:
+    state: canonical-read
+    legacy_authority: ["push payload as truth", "unread count as task count"]
+    retirement_criteria:
+      - "Push and Inbox are delivery projections; required work survives delivery failure."
+  organizer-shell:
+    state: dual-read
+    legacy_authority: ["independent admin chrome ownership"]
+    retirement_criteria:
+      - "Organizer consumes the shared V6 screen/chrome/overlay/safe-area contracts."
+      - "AdminFrame no longer owns a competing mobile shell."

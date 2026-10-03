@@ -28,7 +28,7 @@ export function AppOverlayManager({
   }, [isAppMode, pathname]);
 
   useEffect(() => {
-    if (!isAppMode || typeof document === "undefined") return;
+    if (typeof document === "undefined") return;
 
     const root = document.documentElement;
     const selector =
@@ -60,7 +60,7 @@ export function AppOverlayManager({
       root.removeAttribute("data-solaris-feature-overlay-open");
       delete root.dataset.solarisOverlayKind;
     };
-  }, [isAppMode]);
+  }, []);
 
   if (!isAppMode) {
     return <AppInstallPrompt isAppMode={false} />;
