@@ -167,10 +167,30 @@ begin
   end if;
 
   if tg_op = 'DELETE' then
-    if old.status <> 'draft' and not v_governed then
-      raise exception 'Only draft rounds can be deleted directly.'
-        using errcode = '42501';
+    if not v_governed then
+      if old.status <> 'draft' then
+        raise exception 'Only unused draft rounds can be deleted.'
+          using errcode = '42501';
+      end if;
+
+      if old.calculation_version > 0
+         or exists (
+           select 1
+           from televoting.vote_submissions submission
+           where submission.round_id = old.id
+             and submission.status <> 'deleted'
+         )
+         or exists (
+           select 1
+           from televoting.round_results result_row
+           where result_row.round_id = old.id
+         ) then
+        raise exception
+          'This draft has voting or result history and cannot be deleted. Keep it in history instead.'
+          using errcode = '55000';
+      end if;
     end if;
+
     return old;
   end if;
 
