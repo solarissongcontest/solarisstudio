@@ -31,6 +31,7 @@ import {
   loadPermissionEvents,
   loadPermissionSummary,
   previewPermissionChange,
+  reauthenticatePermissionR3,
   recordPermissionEvaluation,
   viewAccessAs,
   type AccessUser,
@@ -106,6 +107,7 @@ function AccessPermissionsPage() {
   const [mismatchesOnly, setMismatchesOnly] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [pendingChange, setPendingChange] = useState<PendingAccessChange | null>(null);
+  const [reauthPassword, setReauthPassword] = useState("");
 
   const catalogQuery = useQuery({
     queryKey: ["permission-engine-catalog"],
@@ -193,20 +195,30 @@ function AccessPermissionsPage() {
         return;
       }
       setMessage(null);
+      setReauthPassword("");
       setPendingChange(pending);
     },
   });
 
   const change = useMutation({
-    mutationFn: async (pending: PendingAccessChange) =>
-      applyPermissionChange({
+    mutationFn: async ({
+      pending,
+      password,
+    }: {
+      pending: PendingAccessChange;
+      password: string;
+    }) => {
+      await reauthenticatePermissionR3(password);
+      return applyPermissionChange({
         ...pending.command,
         operationId: pending.operationId,
         idempotencyKey: pending.idempotencyKey,
         expectedVersion: pending.preview.expectedVersion,
-      }),
-    onSuccess: async (_receipt, pending) => {
+      });
+    },
+    onSuccess: async (_receipt, { pending }) => {
       setPendingChange(null);
+      setReauthPassword("");
       setMessage(changeMessage(pending.change));
       await Promise.all([
         queryClient.invalidateQueries({
@@ -359,15 +371,27 @@ function AccessPermissionsPage() {
         <AdminConfirmSheet
           open={Boolean(pendingChange)}
           onClose={() => {
-            if (!change.isPending) setPendingChange(null);
+            if (!change.isPending) {
+              setPendingChange(null);
+              setReauthPassword("");
+            }
           }}
           onConfirm={async () => {
-            if (pendingChange) await change.mutateAsync(pendingChange);
+            if (pendingChange) {
+              await change.mutateAsync({
+                pending: pendingChange,
+                password: reauthPassword,
+              });
+            }
           }}
           title={pendingChange ? permissionChangeTitle(pendingChange.change) : "Confirm access change"}
           description={
             pendingChange ? (
-              <PermissionImpactPreview pending={pendingChange} />
+              <PermissionImpactPreview
+                pending={pendingChange}
+                reauthPassword={reauthPassword}
+                onReauthPassword={setReauthPassword}
+              />
             ) : (
               "Review the access impact before applying this change."
             )
@@ -427,7 +451,15 @@ function permissionChangeTitle(change: AccessChange) {
   return "Remove direct capability?";
 }
 
-function PermissionImpactPreview({ pending }: { pending: PendingAccessChange }) {
+function PermissionImpactPreview({
+  pending,
+  reauthPassword,
+  onReauthPassword,
+}: {
+  pending: PendingAccessChange;
+  reauthPassword: string;
+  onReauthPassword: (value: string) => void;
+}) {
   const warnings = Object.values(pending.preview.warnings).filter(
     (warning): warning is string => Boolean(warning),
   );
@@ -491,6 +523,25 @@ function PermissionImpactPreview({ pending }: { pending: PendingAccessChange }) 
           ))}
         </div>
       ) : null}
+
+      <label className="block rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3">
+        <span className="block text-xs font-bold text-amber-50">
+          Fresh authentication required
+        </span>
+        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+          Re-enter your current Solaris password. The server accepts only recent signed authentication
+          evidence for this R3 mutation; a background token refresh does not count.
+        </span>
+        <input
+          type="password"
+          value={reauthPassword}
+          onChange={(event) => onReauthPassword(event.target.value)}
+          autoComplete="current-password"
+          placeholder="Current Solaris password"
+          className="admin-input mt-3"
+          required
+        />
+      </label>
 
       <p className="text-xs leading-5 text-muted-foreground">
         The confirmed command receives one operation ID and one idempotency key. Retrying the same
