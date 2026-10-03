@@ -15,7 +15,7 @@ concurrency:
 jobs:
   public-routes:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 55
 
     steps:
       - name: Checkout
@@ -37,6 +37,9 @@ jobs:
       - name: Production build
         run: bun run build
 
+      - name: Enforce client performance budget
+        run: bun run budget:client
+
       - name: Install browser-audit runner
         run: |
           bun add --dev @playwright/test@1.55.0
@@ -46,6 +49,7 @@ jobs:
         env:
           E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
           E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
+          SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
         run: |
           # Only override the app's normal public configuration when both E2E
           # endpoint secrets exist. Empty GitHub secrets must not replace the
@@ -86,13 +90,15 @@ jobs:
         run: bunx playwright test
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
+          SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
           # Pull requests run a representative smoke set. Manual dispatch keeps
           # the exhaustive ten-viewport + sitemap inventory available without
           # turning every PR into a 40-minute crawl of the same archive data.
           # The final public-quality release branch also runs the exhaustive set
           # once before merge.
-          E2E_FULL_AUDIT: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'feature/public-final-quality' || github.head_ref == 'chatgpt/completion-programme-20260920' || github.head_ref == 'feature/final-ui-completion-20261001') && '1' || '0' }}
+          E2E_FULL_AUDIT: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'feature/public-final-quality' || github.head_ref == 'chatgpt/completion-programme-20260920' || github.head_ref == 'feature/final-ui-completion-20261001' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}
           PERSONALITY_REFERENCE_CAPTURE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
+          E2E_VISUAL_CAPTURE: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}
           E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
           E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
           E2E_COUNTRY_EMAIL: ${{ secrets.E2E_COUNTRY_EMAIL }}

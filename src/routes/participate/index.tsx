@@ -319,6 +319,7 @@ function ParticipatePage() {
       tasks: buildParticipationTasks({
         editionId: currentRound?.edition_id ?? null,
         responses: access?.responses ?? [],
+        requirements: access?.requirements ?? [],
         rounds: participantRounds,
         jury: juryTask,
         televote: televoteTask,

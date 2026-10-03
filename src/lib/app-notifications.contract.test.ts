@@ -36,6 +36,21 @@ describe("Solaris app notification foundation", () => {
     expect(wrangler).toContain('"crons": ["*/15 * * * *"]');
   });
 
+  it("claims push deliveries atomically before sending and recovers abandoned leases", () => {
+    const lease = source(
+      "supabase/migrations/20261002194500_organisation_os_v5_push_queue_leasing.sql",
+    );
+    const edge = source("supabase/functions/solaris-push-dispatch/index.ts");
+
+    expect(lease).toContain("for update skip locked");
+    expect(lease).toContain("status = 'processing'");
+    expect(lease).toContain("processing_started_at < p_now - interval '10 minutes'");
+    expect(lease).toContain("admin_retry_failed_notification_delivery");
+    expect(edge).toContain("solaris_claim_pending_notification_deliveries");
+    expect(edge).toContain('.eq("status", "processing")');
+    expect(edge).not.toContain('.eq("status", "pending")\n    .lte("scheduled_for"');
+  });
+
   it("keeps deadline reminders conditional on the task still requiring action", () => {
     const engine = source("src/lib/notification-engine.ts");
     expect(engine).toContain("!task.actionRequired");

@@ -27,6 +27,28 @@ export type ConfirmationEdition = {
   rounds: ConfirmationRound[];
 };
 
+export type ConfirmationRoundStatusPreview = {
+  riskClass: "R2";
+  roundId: string;
+  roundName: string;
+  editionId: string;
+  requestedStatus: "open" | "closed";
+  currentStatus: ConfirmationRound["status"];
+  expectedVersion: number;
+  responseCount: number;
+  responseLimit: number | null;
+  opensAt: string | null;
+  closesAt: string | null;
+  requiredRequirementCount: number;
+  satisfiedRequirementCount: number;
+  waivedRequirementCount: number;
+  invalidatedRequirementCount: number;
+  expiredClosingTimeWillBeCleared: boolean;
+  futureOpeningTimeWillBecomeNow: boolean;
+  alreadyApplied: boolean;
+  blockers: string[];
+};
+
 export type ConfirmationCalendarRow = {
   id: string;
   country: string;
@@ -60,6 +82,22 @@ export type ConfirmationRecoveryCode = {
   edition_id: string;
   edition_name: string;
   edition_number: number;
+};
+
+export type ConfirmationRequirement = {
+  id: string;
+  editionId: string;
+  countryId: string;
+  countryName: string;
+  countryCode: string;
+  generation: number;
+  status: "required" | "satisfied" | "waived" | "invalidated";
+  reason: string;
+  validFrom: string;
+  resolvedBySubmissionId: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export async function requireConfirmationsAdmin() {
@@ -114,7 +152,6 @@ export async function saveConfirmationRound(payload: {
   id?: string;
   edition_id: string;
   name: string;
-  status: ConfirmationRound["status"];
   opens_at: string | null;
   closes_at: string | null;
   response_limit: number | null;
@@ -135,16 +172,49 @@ export async function deleteConfirmationRound(id: string) {
   return data === true;
 }
 
-export async function setConfirmationRoundStatus(
-  id: string,
-  status: ConfirmationRound["status"],
-) {
-  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_set_round_status", {
-    _id: id,
-    _status: status,
-  });
+export async function previewConfirmationRoundStatus(input: {
+  roundId: string;
+  status: "open" | "closed";
+}): Promise<ConfirmationRoundStatusPreview> {
+  const { data, error } = await confirmationsSupabase.rpc(
+    "admin_confirmation_round_status_preview",
+    {
+      p_round_id: input.roundId,
+      p_status: input.status,
+    },
+  );
   if (error) throw error;
-  return data === true;
+  return data as unknown as ConfirmationRoundStatusPreview;
+}
+
+export async function applyConfirmationRoundStatus(input: {
+  roundId: string;
+  status: "open" | "closed";
+  operationId: string;
+  idempotencyKey: string;
+  expectedVersion: number;
+}) {
+  const { data, error } = await confirmationsSupabase.rpc(
+    "admin_confirmation_apply_round_status",
+    {
+      p_round_id: input.roundId,
+      p_status: input.status,
+      p_operation_id: input.operationId,
+      p_idempotency_key: input.idempotencyKey,
+      p_expected_version: input.expectedVersion,
+    },
+  );
+  if (error) throw error;
+  return data as unknown as {
+    ok: boolean;
+    changed: boolean;
+    riskClass: "R2";
+    roundId: string;
+    previousStatus: ConfirmationRound["status"];
+    status: "open" | "closed";
+    version: number;
+    operationId: string;
+  };
 }
 
 export async function setConfirmationRoundEditing(id: string, enabled: boolean) {
@@ -166,6 +236,80 @@ export async function loadConfirmationCalendar(
   });
   if (error) throw error;
   return Array.isArray(data) ? (data as unknown as ConfirmationCalendarRow[]) : [];
+}
+
+export async function loadConfirmationRequirements(
+  editionId: string,
+): Promise<ConfirmationRequirement[]> {
+  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_requirements", {
+    p_edition_id: editionId,
+  });
+  if (error) throw error;
+  return Array.isArray(data) ? (data as unknown as ConfirmationRequirement[]) : [];
+}
+
+export async function ensureConfirmationRequirements(
+  editionId: string,
+  countryIds?: string[],
+) {
+  const { data, error } = await confirmationsSupabase.rpc(
+    "admin_confirmation_ensure_requirements",
+    {
+      p_edition_id: editionId,
+      p_country_ids: countryIds?.length ? countryIds : null,
+    },
+  );
+  if (error) throw error;
+  return data as { ok: boolean; editionId: string; created: number };
+}
+
+export async function reconfirmConfirmationRequirement(input: {
+  requirementId: string;
+  reason: string;
+  operationId: string;
+  idempotencyKey: string;
+}) {
+  const { data, error } = await confirmationsSupabase.rpc(
+    "admin_confirmation_reconfirm",
+    {
+      p_requirement_id: input.requirementId,
+      p_reason: input.reason,
+      p_operation_id: input.operationId,
+      p_idempotency_key: input.idempotencyKey,
+    },
+  );
+  if (error) throw error;
+  return data as {
+    ok: boolean;
+    operationId: string;
+    previousRequirementId: string;
+    requirementId: string;
+    generation: number;
+  };
+}
+
+export async function waiveConfirmationRequirement(input: {
+  requirementId: string;
+  reason: string;
+  operationId: string;
+  idempotencyKey: string;
+}) {
+  const { data, error } = await confirmationsSupabase.rpc(
+    "admin_confirmation_waive_requirement",
+    {
+      p_requirement_id: input.requirementId,
+      p_reason: input.reason,
+      p_operation_id: input.operationId,
+      p_idempotency_key: input.idempotencyKey,
+    },
+  );
+  if (error) throw error;
+  return data as {
+    ok: boolean;
+    operationId: string;
+    requirementId: string;
+    status: "waived";
+  };
 }
 
 export async function loadConfirmationRecoveryCodes(): Promise<ConfirmationRecoveryCode[]> {

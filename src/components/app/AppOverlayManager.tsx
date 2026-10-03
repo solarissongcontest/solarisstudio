@@ -27,6 +27,41 @@ export function AppOverlayManager({
     setFirstRunComplete(!isAppMode || appFirstRunComplete());
   }, [isAppMode, pathname]);
 
+  useEffect(() => {
+    if (!isAppMode || typeof document === "undefined") return;
+
+    const root = document.documentElement;
+    const selector =
+      '[data-solaris-sheet][data-state="open"], [data-solaris-dialog][data-state="open"]';
+
+    const sync = () => {
+      const active = document.querySelector(selector);
+      root.toggleAttribute("data-solaris-feature-overlay-open", Boolean(active));
+      if (active instanceof HTMLElement) {
+        root.dataset.solarisOverlayKind = active.hasAttribute("data-solaris-dialog")
+          ? "dialog"
+          : "sheet";
+      } else {
+        delete root.dataset.solarisOverlayKind;
+      }
+    };
+
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["data-state"],
+    });
+
+    return () => {
+      observer.disconnect();
+      root.removeAttribute("data-solaris-feature-overlay-open");
+      delete root.dataset.solarisOverlayKind;
+    };
+  }, [isAppMode]);
+
   if (!isAppMode) {
     return <AppInstallPrompt isAppMode={false} />;
   }

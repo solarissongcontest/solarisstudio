@@ -81,7 +81,11 @@ export function AppToolbar({
   };
 
   return (
-    <header className="solaris-app-toolbar" data-app-screen={chrome.archetype}>
+    <header
+      className="solaris-app-toolbar"
+      data-app-screen={chrome.archetype}
+      data-search-mode={chrome.search}
+    >
       <div className="solaris-app-toolbar-inner">
         <div className="min-w-0 flex-1">
           {showBack ? (
@@ -120,9 +124,9 @@ export function AppToolbar({
             <>
               {chrome.archetype === "entity" ? (
                 <AppNativeShareButton />
-              ) : (
+              ) : chrome.search === "global" ? (
                 <PublicCommandPalette compact access={access} />
-              )}
+              ) : null}
               <SheetTrigger asChild>
                 <button type="button" className="solaris-app-toolbar-button" aria-label="More">
                   <MoreHorizontal className="size-5" aria-hidden="true" />

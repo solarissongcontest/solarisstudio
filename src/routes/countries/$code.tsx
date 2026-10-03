@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Suspense, lazy, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 
 import { AppShell, Panel, StatTile } from "@/components/AppShell";
 import { AppEntitySidebar } from "@/components/app/AppEntitySidebar";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { CountryPersonalityStyles } from "@/components/CountryPersonalityStyles";
 import { CountryWorldOverview, CountryWorldSupplement } from "@/components/CountryWorldOverview";
@@ -113,13 +114,15 @@ type Tab = (typeof TABS)[number]["value"];
 
 function CountryProfilePage() {
   const { code } = Route.useParams();
+  const { isAppMode } = useSolarisApp();
+  const [archiveEnabled, setArchiveEnabled] = useState(!isAppMode);
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
-  const participantsQuery = useAllParticipants();
-  const resultsQuery = useAllResults();
-  const juryQuery = useAllJuryVotes();
-  const televoteQuery = useAllTelevotes();
+  const participantsQuery = useAllParticipants({ enabled: archiveEnabled });
+  const resultsQuery = useAllResults({ enabled: archiveEnabled });
+  const juryQuery = useAllJuryVotes({ enabled: archiveEnabled });
+  const televoteQuery = useAllTelevotes({ enabled: archiveEnabled });
   const { data: countries } = countriesQuery;
   const { data: editions } = editionsQuery;
   const { data: shows } = showsQuery;
@@ -128,6 +131,32 @@ function CountryProfilePage() {
   const { data: jury } = juryQuery;
   const { data: televote } = televoteQuery;
   const [tab, setTab] = useState<Tab>("overview");
+
+  useEffect(() => {
+    if (!isAppMode) {
+      setArchiveEnabled(true);
+      return;
+    }
+
+    const idleWindow = window as typeof window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    let timeout = 0;
+    let idle: number | null = null;
+    const enable = () => setArchiveEnabled(true);
+
+    if (idleWindow.requestIdleCallback) {
+      idle = idleWindow.requestIdleCallback(enable, { timeout: 650 });
+    } else {
+      timeout = window.setTimeout(enable, 220);
+    }
+
+    return () => {
+      if (idle != null) idleWindow.cancelIdleCallback?.(idle);
+      if (timeout) window.clearTimeout(timeout);
+    };
+  }, [isAppMode]);
 
   const country = (countries ?? []).find(
     (item) => item.short_code.toUpperCase() === code.toUpperCase(),
@@ -184,7 +213,7 @@ function CountryProfilePage() {
   );
 
   const archiveQueries = [editionsQuery, showsQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery];
-  const archiveLoading = archiveIsLoading(...archiveQueries);
+  const archiveLoading = !archiveEnabled || archiveIsLoading(...archiveQueries);
   const archiveError = archiveHasError(...archiveQueries);
   const visualLoading = Boolean(country?.id) && (countryThemeQuery.isLoading || designV2Query.isLoading);
 

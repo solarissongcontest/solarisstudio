@@ -1,4 +1,7 @@
-import type { CountryConfirmationResponse } from "./confirmation-country-account";
+import type {
+  CountryConfirmationRequirement,
+  CountryConfirmationResponse,
+} from "./confirmation-country-account";
 import type { PublicRound } from "./confirmation-rounds.functions";
 import { resolveScheduleState } from "./solaris-schedule";
 import type { Studio2HodWorkspaceSnapshot } from "./studio2-hod-workspace";
@@ -61,6 +64,7 @@ export type VotingTaskInput = {
 export type ParticipationOsInput = {
   editionId: string | null;
   responses: readonly CountryConfirmationResponse[];
+  requirements?: readonly CountryConfirmationRequirement[];
   rounds: readonly PublicRound[];
   acknowledgementTasks?: number;
   jury?: VotingTaskInput | null;
@@ -84,13 +88,6 @@ function reviewStatus(value?: string | null) {
   if (normalized === "declined" || normalized === "rejected") return "declined" as const;
   if (normalized === "removed") return "removed" as const;
   return "pending" as const;
-}
-
-function responseForRound(
-  responses: readonly CountryConfirmationResponse[],
-  roundId: string,
-) {
-  return responses.find((response) => response.round_id === roundId) ?? null;
 }
 
 function currentEditionResponses(
@@ -123,68 +120,129 @@ export function sortSolarisTasks(tasks: readonly SolarisTask[]) {
   });
 }
 
-function confirmationTask(
+function confirmationTaskForEdition(
   editionId: string,
-  round: PublicRound,
-  response: CountryConfirmationResponse | null,
+  rounds: readonly PublicRound[],
+  responses: readonly CountryConfirmationResponse[],
+  requirements: readonly CountryConfirmationRequirement[],
   now: number,
-): SolarisTask {
-  if (response) {
+): SolarisTask | null {
+  const editionResponses = currentEditionResponses(responses, editionId);
+  const requirement =
+    [...requirements]
+      .filter((item) => item.edition_id === editionId)
+      .sort((a, b) => b.generation - a.generation)[0] ?? null;
+
+  const latestResponse =
+    [...editionResponses].sort((a, b) => {
+      const bTime = new Date(b.updated_at || b.submitted_at).getTime();
+      const aTime = new Date(a.updated_at || a.submitted_at).getTime();
+      return bTime - aTime;
+    })[0] ?? null;
+
+  // A current requirement is authoritative. This is what makes explicit
+  // reconfirmation work even when an older edition response still exists.
+  if (requirement?.status === "satisfied") {
     return {
-      id: `confirmation:${round.id}`,
+      id: `confirmation:${editionId}:g${requirement.generation}`,
       editionId,
       kind: "confirmation",
-      title: round.name,
-      description: "Your delegation confirmation has been received.",
+      title: "Country confirmed",
+      description: "Your current edition confirmation requirement is satisfied.",
       state: "completed",
       importance: "required",
       blocking: false,
       actionRequired: false,
-      opensAt: round.opens_at,
-      deadline: round.closes_at,
+      opensAt: null,
+      deadline: null,
       route: "/confirmations",
       priority: 120,
-      why: `Solaris has a recorded confirmation response for ${round.name}.`,
+      why: latestResponse?.round_name
+        ? `Generation ${requirement.generation} is satisfied through ${latestResponse.round_name}.`
+        : `The server records confirmation requirement generation ${requirement.generation} as satisfied.`,
     };
   }
 
-  const schedule = resolveScheduleState(
-    {
-      status: round.status,
-      opensAt: round.opens_at,
-      closesAt: round.closes_at,
-    },
-    now,
-  );
-
-  if (schedule === "closed") {
+  if (requirement?.status === "waived") {
     return {
-      id: `confirmation-missing:${round.id}`,
+      id: `confirmation-waived:${editionId}:g${requirement.generation}`,
       editionId,
       kind: "confirmation",
-      title: "Confirmation is missing",
-      description: `${round.name} closed without a recorded response.`,
-      state: "problem",
-      importance: "required",
-      blocking: true,
-      actionRequired: true,
-      opensAt: round.opens_at,
-      deadline: round.closes_at,
+      title: "Confirmation not required",
+      description: "TSBC has waived the current confirmation requirement.",
+      state: "completed",
+      importance: "informational",
+      blocking: false,
+      actionRequired: false,
+      opensAt: null,
+      deadline: null,
       route: "/confirmations",
-      priority: 145,
-      why: `${round.name} is closed and Solaris has no confirmation response for this delegation.`,
+      priority: 55,
+      why: requirement.reason,
     };
   }
 
-  if (schedule === "open" || schedule === "closing-soon") {
+  // Compatibility only: a historical response with no migrated requirement is
+  // still completion evidence. Crucially, an open round with no requirement is
+  // never treated as a personal obligation.
+  if (!requirement) {
+    if (!latestResponse) return null;
     return {
-      id: `confirmation-missing:${round.id}`,
+      id: `confirmation:${editionId}`,
       editionId,
       kind: "confirmation",
-      title: "Submit your entry",
+      title: "Country confirmed",
+      description: "Your delegation confirmation for this edition has been received.",
+      state: "completed",
+      importance: "required",
+      blocking: false,
+      actionRequired: false,
+      opensAt: null,
+      deadline: null,
+      route: "/confirmations",
+      priority: 120,
+      why: latestResponse.round_name
+        ? `Solaris has a recorded confirmation response for this edition through ${latestResponse.round_name}.`
+        : "Solaris has a recorded confirmation response for this edition.",
+    };
+  }
+
+  if (requirement.status !== "required") return null;
+
+  const states = rounds.map((round) => ({
+    round,
+    schedule: resolveScheduleState(
+      {
+        status: round.status,
+        opensAt: round.opens_at,
+        closesAt: round.closes_at,
+      },
+      now,
+    ),
+  }));
+
+  const openRounds = states
+    .filter(({ schedule }) => schedule === "open" || schedule === "closing-soon")
+    .map(({ round }) => round)
+    .sort((a, b) => {
+      const deadline = deadlineTime(a.closes_at) - deadlineTime(b.closes_at);
+      if (deadline) return deadline;
+      return (
+        new Date(b.opens_at ?? 0).getTime() -
+        new Date(a.opens_at ?? 0).getTime()
+      );
+    });
+
+  if (openRounds.length) {
+    const round = openRounds[0];
+    return {
+      id: `confirmation-required:${requirement.id}`,
+      editionId,
+      kind: "confirmation",
+      title: requirement.generation > 1 ? "Confirm participation again" : "Confirm participation",
       description: round.closes_at
-        ? `${round.name} is open and no submission has been received yet.`
-        : `${round.name} is open and waiting for your submission.`,
+        ? `${round.name} is open and your current confirmation requirement is unresolved.`
+        : `${round.name} is open for your current confirmation requirement.`,
       state: "needs_attention",
       importance: "required",
       blocking: true,
@@ -193,27 +251,61 @@ function confirmationTask(
       deadline: round.closes_at,
       route: "/confirmations",
       priority: 120,
-      why: `${round.name} is open and Solaris has no recorded response for this delegation.`,
+      why: `Confirmation requirement generation ${requirement.generation} is required and ${round.name} is currently open.`,
     };
   }
 
+  const upcomingRounds = states
+    .filter(
+      ({ schedule }) =>
+        schedule === "upcoming" || schedule === "opening-soon",
+    )
+    .map(({ round }) => round)
+    .sort(
+      (a, b) =>
+        new Date(a.opens_at ?? Number.MAX_SAFE_INTEGER).getTime() -
+        new Date(b.opens_at ?? Number.MAX_SAFE_INTEGER).getTime(),
+    );
+
+  if (upcomingRounds.length) {
+    const round = upcomingRounds[0];
+    return {
+      id: `confirmation-upcoming:${requirement.id}`,
+      editionId,
+      kind: "confirmation",
+      title: requirement.generation > 1 ? "Reconfirmation upcoming" : "Confirmation upcoming",
+      description: round.opens_at
+        ? `${round.name} is the next window for your unresolved requirement.`
+        : `${round.name} is not open yet.`,
+      state: "upcoming",
+      importance: "required",
+      blocking: false,
+      actionRequired: false,
+      opensAt: round.opens_at,
+      deadline: round.closes_at,
+      route: "/confirmations",
+      priority: 70,
+      why: `Confirmation requirement generation ${requirement.generation} is unresolved, but its next submission window has not opened yet.`,
+    };
+  }
+
+  // The requirement exists but the participant cannot act. Closed rounds must
+  // never become impossible "do this now" tasks.
   return {
-    id: `confirmation-upcoming:${round.id}`,
+    id: `confirmation-waiting:${requirement.id}`,
     editionId,
     kind: "confirmation",
-    title: round.name,
-    description: round.opens_at
-      ? "Confirmation is scheduled but not open yet."
-      : "Confirmation is not open yet.",
-    state: "upcoming",
+    title: requirement.generation > 1 ? "Reconfirmation required" : "Confirmation required",
+    description: "Your requirement is still open, but no submission window is currently available.",
+    state: "waiting",
     importance: "required",
     blocking: false,
     actionRequired: false,
-    opensAt: round.opens_at,
-    deadline: round.closes_at,
+    opensAt: null,
+    deadline: null,
     route: "/confirmations",
-    priority: 70,
-    why: `${round.name} is scheduled for this edition but its participation window is not open.`,
+    priority: 65,
+    why: "TSBC must open or schedule a confirmation round before you can act.",
   };
 }
 
@@ -307,16 +399,14 @@ export function buildParticipationTasks(input: ParticipationOsInput): SolarisTas
 
   if (editionId) {
     const editionRounds = input.rounds.filter((round) => round.edition_id === editionId);
-    for (const round of editionRounds) {
-      tasks.push(
-        confirmationTask(
-          editionId,
-          round,
-          responseForRound(input.responses, round.id),
-          now,
-        ),
-      );
-    }
+    const confirmation = confirmationTaskForEdition(
+      editionId,
+      editionRounds,
+      input.responses,
+      input.requirements ?? [],
+      now,
+    );
+    if (confirmation) tasks.push(confirmation);
 
     for (const response of currentEditionResponses(input.responses, editionId)) {
       if (

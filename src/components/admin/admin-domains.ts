@@ -1,14 +1,14 @@
 import {
-  Inbox,
+  BellRing,
+  Flag,
   LayoutDashboard,
   Layers3,
-  Settings2,
-  ShieldCheck,
+  MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
 
 export type AdminDomainNavigationItem = {
-  id: "home" | "inbox" | "edition" | "rules-cases" | "administration";
+  id: "home" | "edition" | "tasks" | "delegations" | "more";
   label: string;
   description: string;
   to: string;
@@ -17,11 +17,11 @@ export type AdminDomainNavigationItem = {
 };
 
 /**
- * Permanent Organizer navigation stays deliberately small.
+ * Organisation OS V5 keeps five permanent Organizer destinations.
  *
- * This is not the full sitemap. Core work is exposed by its parent workspace;
- * low-frequency tools remain available through the complete Organizer menu
- * and Search so everyday work is not buried under implementation history.
+ * This is intentionally not the full sitemap. Specialist tools stay reachable
+ * through contextual workspaces, Organizer Search and the complete tool
+ * directory without turning permanent navigation into implementation history.
  */
 export function buildAdminDomainNavigation(
   slug?: string,
@@ -29,9 +29,19 @@ export function buildAdminDomainNavigation(
 ): AdminDomainNavigationItem[] {
   const editionHref = slug ? `/admin/${slug}` : "/admin";
 
-  const editionRoute = (path: string) =>
+  const tasksRoute = (path: string) =>
+    path.startsWith("/admin/tasks") ||
+    path.startsWith("/admin/action-center") ||
+    path.startsWith("/admin/action-centre") ||
+    path.startsWith("/admin/inbox");
+
+  const delegationsRoute = (path: string) =>
     path.startsWith("/admin/countries") ||
+    path.startsWith("/admin/next-in-line") ||
     path.startsWith("/confirmations/admin") ||
+    path.startsWith("/admin/submission-versions");
+
+  const editionRoute = (path: string) =>
     (slug ? path === `/admin/${slug}` : false) ||
     path.startsWith("/admin/shows/") ||
     path.startsWith("/admin/entries/") ||
@@ -39,7 +49,6 @@ export function buildAdminDomainNavigation(
     path.startsWith("/admin/participant-status/") ||
     path.startsWith("/admin/hosts") ||
     path.startsWith("/admin/eligibility") ||
-    path.startsWith("/admin/submission-versions") ||
     path.startsWith("/televoting/admin") ||
     path.startsWith("/admin/jury/") ||
     path.startsWith("/admin/voting-system/") ||
@@ -61,68 +70,52 @@ export function buildAdminDomainNavigation(
     path.startsWith("/admin/design/") ||
     path.startsWith("/admin/edition-theme/");
 
+  const homeRoute = (path: string) => path.startsWith("/admin/operations");
+
   return [
     {
       id: "home",
       label: "Home",
-      description: "What needs attention, what is coming up and the current edition state.",
+      description: "Current edition state, urgent attention and the next operation.",
       to: "/admin/operations",
       icon: LayoutDashboard,
-      active: (path) =>
-        path.startsWith("/admin/operations") ||
-        path.startsWith("/admin/action-center") ||
-        path.startsWith("/admin/action-centre"),
-    },
-    {
-      id: "inbox",
-      label: "Inbox",
-      description: "New submissions and events that may require organizer attention.",
-      to: "/admin/inbox",
-      icon: Inbox,
-      active: (path) => path.startsWith("/admin/inbox"),
+      active: homeRoute,
     },
     {
       id: "edition",
       label: editionLabel,
-      description: "Contest, voting, show operation and publication for the selected edition.",
+      description: "Contest structure, voting, results, publication and live show operation.",
       to: editionHref,
       icon: Layers3,
       active: editionRoute,
     },
     {
-      id: "rules-cases",
-      label: "Rules & Cases",
-      description: "Complaints, investigations, rulings, appeals and the governed rulebook.",
-      to: "/admin/integrity-investigations",
-      icon: ShieldCheck,
-      active: (path) =>
-        path === "/admin/integrity" ||
-        path.startsWith("/admin/integrity-") ||
-        path.startsWith("/admin/integrity-case/") ||
-        path.startsWith("/admin/integrity-resolution/") ||
-        path.startsWith("/admin/rules-manager") ||
-        path.startsWith("/admin/rule-interpretations"),
+      id: "tasks",
+      label: "Tasks",
+      description: "Every unresolved organizer action, blocker and due item.",
+      to: "/admin/tasks",
+      icon: BellRing,
+      active: tasksRoute,
     },
     {
-      id: "administration",
-      label: "Administration",
-      description: "People, access, editions, communications, system health and QA.",
+      id: "delegations",
+      label: "Delegations",
+      description: "Countries, confirmations, participation, readiness and delegation support.",
+      to: "/admin/countries",
+      icon: Flag,
+      active: delegationsRoute,
+    },
+    {
+      id: "more",
+      label: "More",
+      description: "Governance, people, system, archive, engagement, research and specialist tools.",
       to: "/admin/more",
-      icon: Settings2,
+      icon: MoreHorizontal,
       active: (path) =>
-        !path.startsWith("/admin/inbox") &&
-        !path.startsWith("/admin/operations") &&
-        !path.startsWith("/admin/action-center") &&
-        !path.startsWith("/admin/action-centre") &&
-        !editionRoute(path) &&
-        !(
-          path === "/admin/integrity" ||
-          path.startsWith("/admin/integrity-") ||
-          path.startsWith("/admin/integrity-case/") ||
-          path.startsWith("/admin/integrity-resolution/") ||
-          path.startsWith("/admin/rules-manager") ||
-          path.startsWith("/admin/rule-interpretations")
-        ),
+        !homeRoute(path) &&
+        !tasksRoute(path) &&
+        !delegationsRoute(path) &&
+        !editionRoute(path),
     },
   ];
 }

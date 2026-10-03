@@ -2,6 +2,7 @@ import { AlertTriangle, WifiOff } from "lucide-react";
 import { useRouterState } from "@tanstack/react-router";
 
 import type { AppConnectivitySnapshot } from "@/lib/app-connectivity";
+import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 
 export function AppOfflineBanner({
   connectivity,
@@ -9,6 +10,8 @@ export function AppOfflineBanner({
   connectivity: AppConnectivitySnapshot;
 }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const searchStr = useRouterState({ select: (state) => state.location.searchStr });
+  const screen = resolveSolarisAppScreen(pathname, searchStr);
   if (connectivity.status === "online") return null;
 
   // Governance pages own contextual inline service state through the Solaris
@@ -19,11 +22,22 @@ export function AppOfflineBanner({
   const offline = connectivity.status === "offline";
   const Icon = offline ? WifiOff : AlertTriangle;
 
+  const offlineMessage =
+    screen.behavior.offline === "online-required"
+      ? "You’re offline. This action needs a live Solaris connection. Local drafts stay on this device, but nothing is submitted until you reconnect."
+      : screen.behavior.offline === "ready"
+        ? "You’re offline. Saved Solaris content on this screen remains available; anything requiring fresh server data will resume after reconnecting."
+        : "You’re offline. Solaris is showing the data already available on this device and will refresh it after you reconnect.";
+
   const message = offline
-    ? "You’re offline. Solaris is read-only: local drafts stay on this device, and official submissions are disabled until you reconnect."
+    ? offlineMessage
     : restricted
-      ? "Solaris data service is temporarily restricted. Published or cached content may still work, but official saves and submissions can fail."
-      : "Your device appears online, but Solaris cannot currently reach its app service reliably. Keep critical submissions paused until the connection recovers.";
+      ? screen.behavior.criticalTask
+        ? "Solaris data service is temporarily unavailable. Keep this task paused until the service recovers; a failed request is never treated as a submission."
+        : "Solaris data service is temporarily restricted. Published or cached content may still work while live data recovers."
+      : screen.behavior.criticalTask
+        ? "Solaris cannot reliably reach the app service. Keep this task paused until the connection recovers."
+        : "Your device appears online, but Solaris cannot currently refresh live data reliably.";
 
   return (
     <div

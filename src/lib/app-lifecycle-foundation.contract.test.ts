@@ -32,6 +32,27 @@ describe("App Experience v3 lifecycle foundation", () => {
     expect(restriction).toContain("SUPABASE_SERVICE_RECOVERED_EVENT");
   });
 
+  it("hydrates connectivity from deterministic HTML before reading browser-only state", () => {
+    const connectivity = source("src/lib/app-connectivity.ts");
+    const runtime = source("src/components/app/AppRuntime.tsx");
+    expect(connectivity).toContain("hydrationSafeAppConnectivitySnapshot");
+    expect(connectivity).toContain('status: "online"');
+    expect(connectivity).toContain("serviceRestricted: false");
+    expect(runtime).toContain("hydrationSafeAppConnectivitySnapshot()");
+    expect(runtime).toContain("createAppConnectivityController(setConnectivity)");
+  });
+
+  it("derives offline recovery language from the canonical screen policy", () => {
+    const banner = source("src/components/app/AppOfflineBanner.tsx");
+    const registry = source("src/lib/app-screen-registry.ts");
+    expect(banner).toContain("resolveSolarisAppScreen(pathname, searchStr)");
+    expect(banner).toContain('screen.behavior.offline === "online-required"');
+    expect(banner).toContain('screen.behavior.offline === "ready"');
+    expect(registry).toContain('offline: "online-required"');
+    expect(registry).toContain('offline: "ready"');
+    expect(registry).toContain('offline: "readable"');
+  });
+
   it("uses VisualViewport to make installed chrome keyboard-aware", () => {
     const viewport = source("src/lib/app-viewport.ts");
     const styles = source("src/styles/app-shell.css");

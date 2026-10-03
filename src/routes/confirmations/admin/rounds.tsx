@@ -26,13 +26,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  applyConfirmationRoundStatus,
   deleteConfirmationRound,
   loadConfirmationEditions,
+  previewConfirmationRoundStatus,
   saveConfirmationRound,
   setConfirmationRoundEditing,
-  setConfirmationRoundStatus,
   type ConfirmationEdition,
   type ConfirmationRound,
+  type ConfirmationRoundStatusPreview,
 } from "@/integrations/confirmations/admin";
 
 export const Route = createFileRoute("/confirmations/admin/rounds")({
@@ -47,12 +49,95 @@ export const Route = createFileRoute("/confirmations/admin/rounds")({
 
 const emptyForm = {
   name: "",
-  status: "draft" as ConfirmationRound["status"],
   opens_at: "",
   closes_at: "",
   response_limit: "",
   editing_enabled: true,
 };
+
+function ConfirmationRoundImpactPreview({
+  pending,
+}: {
+  pending: {
+    round: ConfirmationRound;
+    status: "open" | "closed";
+    preview: ConfirmationRoundStatusPreview;
+  };
+}) {
+  const { preview, status } = pending;
+
+  return (
+    <div className="space-y-3">
+      <p>
+        <strong className="text-foreground">R2 impact review.</strong>{" "}
+        {status === "open"
+          ? "This opens a submission window only. It does not create a new confirmation requirement for anyone."
+          : "This stops new confirmation submissions. Existing responses and requirement history stay intact."}
+      </p>
+
+      <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+        <ImpactValue label="Responses" value={preview.responseCount} />
+        <ImpactValue
+          label="Still required"
+          value={preview.requiredRequirementCount}
+        />
+        <ImpactValue
+          label="Already satisfied"
+          value={preview.satisfiedRequirementCount}
+        />
+        <ImpactValue label="Waived" value={preview.waivedRequirementCount} />
+      </div>
+
+      {status === "open" ? (
+        <p className="text-xs leading-5">
+          Only the <strong className="text-foreground">{preview.requiredRequirementCount}</strong>{" "}
+          currently unresolved edition requirement
+          {preview.requiredRequirementCount === 1 ? "" : "s"} remain actionable.
+          The {preview.satisfiedRequirementCount} satisfied and {preview.waivedRequirementCount} waived
+          requirement{preview.satisfiedRequirementCount + preview.waivedRequirementCount === 1 ? "" : "s"} stay resolved.
+        </p>
+      ) : null}
+
+      {preview.futureOpeningTimeWillBecomeNow ? (
+        <p className="text-xs leading-5 text-amber-100">
+          The scheduled opening time is still in the future. Opening now will move it to the current server time.
+        </p>
+      ) : null}
+
+      {preview.expiredClosingTimeWillBeCleared ? (
+        <p className="text-xs leading-5 text-amber-100">
+          The saved closing time has already expired. Reopening will clear that old deadline until a new one is saved.
+        </p>
+      ) : null}
+
+      {preview.responseLimit !== null ? (
+        <p className="text-xs leading-5">
+          Capacity: <strong className="text-foreground">{preview.responseCount} / {preview.responseLimit}</strong>.
+        </p>
+      ) : null}
+
+      {preview.blockers.length ? (
+        <div className="rounded-lg border border-rose-200/20 bg-rose-200/[0.06] p-3 text-xs text-rose-100">
+          <p className="font-bold">This transition is blocked:</p>
+          <ul className="mt-1 list-disc space-y-1 pl-4">
+            {preview.blockers.map((blocker) => (
+              <li key={blocker}>{blocker}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ImpactValue({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg border border-white/[0.08] bg-white/[0.025] p-2">
+      <span className="block text-muted-foreground">{label}</span>
+      <strong className="mt-1 block text-base text-foreground tabular-nums">{value}</strong>
+    </div>
+  );
+}
 
 function toLocalInput(iso: string | null) {
   if (!iso) return "";
@@ -74,6 +159,13 @@ function RoundsPage() {
   const [form, setForm] = useState<typeof emptyForm & { id?: string }>(emptyForm);
   const [formOpen, setFormOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ConfirmationRound | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<{
+    round: ConfirmationRound;
+    status: "open" | "closed";
+    preview: ConfirmationRoundStatusPreview;
+    operationId: string;
+    idempotencyKey: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [roundBusy, setRoundBusy] = useState<string | null>(null);
@@ -145,7 +237,6 @@ function RoundsPage() {
     setForm({
       id: round.id,
       name: round.name,
-      status: round.status,
       opens_at: toLocalInput(round.opens_at),
       closes_at: toLocalInput(round.closes_at),
       response_limit: round.response_limit ? String(round.response_limit) : "",
@@ -175,7 +266,6 @@ function RoundsPage() {
         ...(form.id ? { id: form.id } : {}),
         edition_id: editionId,
         name: form.name.trim(),
-        status: form.status,
         opens_at: opens,
         closes_at: closes,
         response_limit: form.response_limit ? Number(form.response_limit) : null,
@@ -192,14 +282,59 @@ function RoundsPage() {
     }
   }
 
-  async function changeStatus(round: ConfirmationRound, status: "open" | "closed") {
+  async function requestStatus(round: ConfirmationRound, status: "open" | "closed") {
     setRoundBusy(round.id);
     try {
-      await setConfirmationRoundStatus(round.id, status);
-      await refresh(editionId);
-      toast.success(status === "open" ? `${round.name} is open` : `${round.name} is closed`);
+      const preview = await previewConfirmationRoundStatus({
+        roundId: round.id,
+        status,
+      });
+      setPendingStatus({
+        round,
+        status,
+        preview,
+        operationId: crypto.randomUUID(),
+        idempotencyKey: crypto.randomUUID(),
+      });
     } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Round status could not be changed");
+      toast.error(
+        caught instanceof Error
+          ? caught.message
+          : "Round impact preview could not be loaded",
+      );
+    } finally {
+      setRoundBusy(null);
+    }
+  }
+
+  async function confirmStatus() {
+    if (!pendingStatus || pendingStatus.preview.blockers.length) return;
+
+    const pending = pendingStatus;
+    setRoundBusy(pending.round.id);
+    try {
+      await applyConfirmationRoundStatus({
+        roundId: pending.round.id,
+        status: pending.status,
+        operationId: pending.operationId,
+        idempotencyKey: pending.idempotencyKey,
+        expectedVersion: pending.preview.expectedVersion,
+      });
+      await refresh(editionId);
+      toast.success(
+        pending.status === "open"
+          ? pending.preview.expiredClosingTimeWillBeCleared
+            ? `${pending.round.name} is open. Its expired closing time was cleared.`
+            : `${pending.round.name} is open`
+          : `${pending.round.name} is closed`,
+      );
+      setPendingStatus(null);
+    } catch (caught) {
+      toast.error(
+        caught instanceof Error
+          ? caught.message
+          : "Round status could not be changed",
+      );
     } finally {
       setRoundBusy(null);
     }
@@ -210,7 +345,7 @@ function RoundsPage() {
     try {
       await setConfirmationRoundEditing(round.id, enabled);
       await refresh(editionId);
-      toast.success(enabled ? "Delegation corrections allowed" : "Delegation corrections paused");
+      toast.success(enabled ? "Corrections enabled for unlocked responses" : "Delegation corrections paused");
     } catch (caught) {
       toast.error(caught instanceof Error ? caught.message : "Editing access could not be changed");
     } finally {
@@ -239,7 +374,7 @@ function RoundsPage() {
       <AdminPageHeader
         eyebrow="Delegations"
         title="Submission rounds"
-        description="Control when new confirmations are accepted. Delegation corrections remain a separate switch, so a closed wave can still be edited when needed."
+        description="Control when new confirmations are accepted. Reopening an expired wave starts it now and clears its old closing time; set a new deadline in Edit round if needed. Delegation corrections remain separate from submissions."
         actions={
           <button type="button" onClick={startCreate} className="admin-action-primary">
             <Plus className="size-4" /> New round
@@ -326,8 +461,8 @@ function RoundsPage() {
                         title={round.editing_enabled ? "Pause delegation corrections" : "Allow delegation corrections"}
                         description={
                           round.editing_enabled
-                            ? "Existing responses will become read-only."
-                            : "Existing responses can be corrected even if the round stays closed."
+                            ? "Responses in this round will become read-only."
+                            : "Existing responses in this round can be corrected even if submissions stay closed. Individually locked responses stay locked."
                         }
                         disabled={isBusy}
                         onClick={() => void changeEditing(round, !round.editing_enabled)}
@@ -347,10 +482,16 @@ function RoundsPage() {
                   <button
                     type="button"
                     disabled={isBusy}
-                    onClick={() => void changeStatus(round, isOpen ? "closed" : "open")}
+                    onClick={() => void requestStatus(round, isOpen ? "closed" : "open")}
                     className={isOpen ? "admin-action-secondary w-full" : "admin-action-primary w-full"}
                   >
-                    {isBusy ? "Working…" : isOpen ? "Close submissions" : "Open submissions"}
+                    {isBusy
+                      ? "Working…"
+                      : isOpen
+                        ? "Close submissions"
+                        : round.closes_at && new Date(round.closes_at).getTime() <= Date.now()
+                          ? "Reopen submissions"
+                          : "Open submissions"}
                   </button>
                   <AdminStatus tone={round.editing_enabled ? "info" : "neutral"}>
                     {round.editing_enabled ? "Corrections on" : "Corrections off"}
@@ -427,7 +568,7 @@ function RoundsPage() {
             <span>
               <span className="block font-semibold">Allow delegation corrections</span>
               <span className="mt-1 block text-xs text-muted-foreground">
-                Existing responses can be edited even after new submissions close.
+                Existing responses can be edited even after submissions close. Enabling this applies to responses in this round; individual locks still win.
               </span>
             </span>
             <input
@@ -464,6 +605,41 @@ function RoundsPage() {
           </div>
         </div>
       </AdminSheet>
+
+      <AdminConfirmSheet
+        open={Boolean(pendingStatus)}
+        onClose={() => {
+          if (pendingStatus && roundBusy === pendingStatus.round.id) return;
+          setPendingStatus(null);
+        }}
+        onConfirm={confirmStatus}
+        title={
+          pendingStatus?.status === "open"
+            ? "Open confirmation submissions?"
+            : "Close confirmation submissions?"
+        }
+        description={
+          pendingStatus ? (
+            <ConfirmationRoundImpactPreview pending={pendingStatus} />
+          ) : (
+            "Review this R2 submission-window transition."
+          )
+        }
+        confirmLabel={
+          pendingStatus?.status === "open" ? "Open submissions" : "Close submissions"
+        }
+        confirmationText={pendingStatus?.round.name}
+        confirmationHint={
+          pendingStatus
+            ? `Type ${pendingStatus.round.name} to confirm this R2 window change`
+            : undefined
+        }
+        confirmDisabled={Boolean(pendingStatus?.preview.blockers.length)}
+        danger={pendingStatus?.status === "closed"}
+        busy={Boolean(
+          pendingStatus && roundBusy === pendingStatus.round.id,
+        )}
+      />
 
       <AdminConfirmSheet
         open={Boolean(deleteTarget)}

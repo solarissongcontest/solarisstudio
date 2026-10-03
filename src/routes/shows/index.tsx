@@ -4,6 +4,12 @@ import { useMemo } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import {
+  AppEmptyState,
+  AppGroupedList,
+  AppScreen,
+  AppSectionHeader,
+} from "@/components/app/AppPrimitives";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { BackgroundFlag } from "@/components/BackgroundFlag";
 import { FlagChip } from "@/components/FlagChip";
@@ -89,14 +95,15 @@ function AppShowsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-5">
+      <AppScreen>
         {groups.map((group) => (
           <section key={group.edition.id} aria-labelledby={`app-shows-${group.edition.id}`}>
-            <div className="solaris-app-section-heading">
-              <p>{group.shows.length} show{group.shows.length === 1 ? "" : "s"}</p>
-              <h2 id={`app-shows-${group.edition.id}`}>{editionLabel(group.edition)}</h2>
-            </div>
-            <div className="solaris-app-grouped-list">
+            <AppSectionHeader
+              eyebrow={`${group.shows.length} show${group.shows.length === 1 ? "" : "s"}`}
+              title={editionLabel(group.edition)}
+              id={`app-shows-${group.edition.id}`}
+            />
+            <AppGroupedList>
               {group.shows.map((show) => (
                 <Link
                   key={show.id}
@@ -113,14 +120,22 @@ function AppShowsPage() {
                   <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                 </Link>
               ))}
-            </div>
+            </AppGroupedList>
           </section>
         ))}
 
         {!groups.length ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">No public shows are available yet.</p>
+          <AppEmptyState
+            title="No public shows yet"
+            description="Published shows will appear here when their public pages become available."
+            action={
+              <Link to="/editions" className="solaris-app-empty-action">
+                Browse editions
+              </Link>
+            }
+          />
         ) : null}
-      </div>
+      </AppScreen>
     </AppShell>
   );
 }
