@@ -8,11 +8,11 @@ release_rule: "V6 is complete only when every release-blocking requirement is ve
 implementation_phases:
   - { id: 1, key: canonical-truth, status: in_progress, release_blocking: true, evidence: ["src/lib/solaris-v6-domain-registry.ts", "src/lib/solaris-v6-edition-context.ts", "src/lib/solaris-v6-registry.test.ts", "docs/solaris-v6/legacy-retirement.yml", "docs/organisation-os-v5/completion-matrix.yml"] }
   - { id: 2, key: surface-registry, status: in_progress, release_blocking: true, evidence: ["src/lib/solaris-v6-surface-registry.ts", "src/lib/organisation-os-v5-counterparts.ts"] }
-  - { id: 3, key: application-shell, status: in_progress, release_blocking: true, evidence: ["src/components/AppShell.tsx", "src/components/app/AppRuntime.tsx", "src/components/app/AppOverlayManager.tsx", "src/lib/app-screen-registry.ts", "src/lib/solaris-screen-contract.ts", "src/lib/organizer-v6-screen-registry.ts"] }
+  - { id: 3, key: application-shell, status: in_progress, release_blocking: true, evidence: ["src/components/AppShell.tsx", "src/components/app/AppRuntime.tsx", "src/components/app/AppOverlayManager.tsx", "src/components/interaction/SolarisDraggableSheet.tsx", "src/lib/app-screen-registry.ts", "src/lib/solaris-screen-contract.ts", "src/lib/organizer-v6-screen-registry.ts"] }
   - { id: 4, key: interaction-physics-foundation, status: implemented, release_blocking: true, evidence: ["src/lib/interaction-physics.ts", "src/lib/use-scroll-responsive-bar.ts", "src/lib/gesture-coordinator.ts", "src/lib/interaction-preferences.ts", "src/components/interaction", "src/components/app/AppTabBar.tsx", "src/components/admin/OrganizerV6TabBar.tsx"] }
   - { id: 5, key: navigation-choreography, status: in_progress, release_blocking: true, evidence: ["src/components/app/AppTabBar.tsx", "src/lib/app-view-transitions.ts"] }
-  - { id: 6, key: participant-workflows, status: partial, release_blocking: true, evidence: ["src/components/mysolaris/MySolarisWorkspaceShell.tsx"] }
-  - { id: 7, key: organizer-mobile, status: in_progress, release_blocking: true, evidence: ["src/components/admin/AdminFrame.tsx", "src/components/admin/OrganizerV6TabBar.tsx", "src/lib/organizer-v6-screen-registry.ts", "docs/organisation-os-v5/completion-matrix.yml"] }
+  - { id: 6, key: participant-workflows, status: in_progress, release_blocking: true, evidence: ["src/components/mysolaris/MySolarisWorkspaceShell.tsx", "src/components/mysolaris/modules/MySolarisTasksModule.tsx", "src/components/interaction/SolarisPressable.tsx"] }
+  - { id: 7, key: organizer-mobile, status: in_progress, release_blocking: true, evidence: ["src/components/admin/AdminFrame.tsx", "src/components/admin/OrganizerV6TabBar.tsx", "src/routes/_authenticated/admin/tasks.tsx", "src/components/interaction/SolarisMorphingSelection.tsx", "src/lib/organizer-v6-screen-registry.ts", "docs/organisation-os-v5/completion-matrix.yml"] }
   - { id: 8, key: public-depth, status: partial, release_blocking: true, evidence: ["src/components/AppShell.tsx"] }
   - { id: 9, key: notifications-live-mode, status: partial, release_blocking: true, evidence: ["src/lib/app-notifications.ts", "src/components/app/AppOverlayManager.tsx"] }
   - { id: 10, key: failure-recovery, status: partial, release_blocking: true, evidence: ["docs/organisation-os-v5/failure-injection-coverage.yml"] }
@@ -26,10 +26,10 @@ foundation_requirements:
   - { key: single-public-app-overlay-manager, status: implemented, evidence: ["src/components/app/AppOverlayManager.tsx"] }
   - { key: scroll-hysteresis-physics, status: implemented, evidence: ["src/lib/interaction-physics.ts", "src/components/app/AppTabBar.tsx"] }
   - { key: bounded-drag-elasticity, status: implemented, evidence: ["src/lib/interaction-physics.ts", "src/components/app/AppTabBar.tsx"] }
-  - { key: pressable-primitive, status: implemented, evidence: ["src/components/interaction/SolarisPressable.tsx"] }
+  - { key: pressable-primitive, status: implemented, evidence: ["src/components/interaction/SolarisPressable.tsx", "src/components/mysolaris/modules/MySolarisTasksModule.tsx"] }
   - { key: organiser-shared-shell-cutover, status: in_progress, evidence: ["src/components/admin/AdminFrame.tsx", "src/components/admin/OrganizerV6TabBar.tsx", "src/components/app/AppChromeMetrics.tsx", "src/components/app/AppOverlayManager.tsx"] }
-  - { key: draggable-sheet-primitive, status: implemented, evidence: ["src/components/interaction/SolarisDraggableSheet.tsx"] }
-  - { key: morphing-selection-primitive, status: implemented, evidence: ["src/components/interaction/SolarisMorphingSelection.tsx"] }
+  - { key: draggable-sheet-primitive, status: implemented, evidence: ["src/components/interaction/SolarisDraggableSheet.tsx", "src/components/AppShell.tsx"] }
+  - { key: morphing-selection-primitive, status: implemented, evidence: ["src/components/interaction/SolarisMorphingSelection.tsx", "src/routes/_authenticated/admin/tasks.tsx"] }
   - { key: swipe-action-row-primitive, status: implemented, evidence: ["src/components/interaction/SolarisSwipeActionRow.tsx"] }
   - { key: reorderable-list-primitive, status: implemented, evidence: ["src/components/interaction/SolarisReorderableList.tsx"] }
   - { key: gesture-coordinator, status: implemented, evidence: ["src/lib/interaction-physics.ts", "src/lib/gesture-coordinator.ts"] }

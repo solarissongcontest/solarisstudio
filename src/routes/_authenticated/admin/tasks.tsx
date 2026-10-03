@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { SolarisMorphingSelection } from "@/components/interaction/SolarisMorphingSelection";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminCard,
@@ -48,6 +49,7 @@ export const Route = createFileRoute("/_authenticated/admin/tasks")({
 function OrganizerTasksPage() {
   const { editionId } = useAdminContext();
   const { filter } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const tasksQuery = useOrganizerTasksV5(editionId, filter);
   const tasks = tasksQuery.data ?? [];
 
@@ -75,26 +77,22 @@ function OrganizerTasksPage() {
           }
         />
 
-        <nav
-          className="grid grid-cols-4 gap-1 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-1.5"
-          aria-label="Task filters"
-        >
-          {FILTERS.map((value) => (
-            <Link
-              key={value}
-              to="/admin/tasks"
-              search={{ filter: value }}
-              aria-current={filter === value ? "page" : undefined}
-              className={
-                filter === value
-                  ? "admin-action-primary min-w-0 !px-2"
-                  : "admin-action-secondary min-w-0 !px-2"
-              }
-            >
-              {filterLabel(value)}
-            </Link>
-          ))}
-        </nav>
+        <SolarisMorphingSelection
+          value={filter}
+          ariaLabel="Task filters"
+          options={FILTERS.map((value) => ({
+            value,
+            label: filterLabel(value),
+          }))}
+          onChange={(next) => {
+            if (!FILTERS.includes(next as OrganizerTaskFilter)) return;
+            void navigate({
+              search: { filter: next as OrganizerTaskFilter },
+              replace: true,
+            });
+          }}
+          className="border-white/[0.07] bg-white/[0.02]"
+        />
 
         {filter !== "resolved" ? (
           <section className="grid grid-cols-3 gap-2 sm:gap-3">
