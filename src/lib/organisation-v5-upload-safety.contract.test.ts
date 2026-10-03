@@ -119,6 +119,15 @@ describe("Organisation OS V5 unified upload safety", () => {
     expect(finalizer).toContain('status: "verified"');
   });
 
+  it("rechecks platform mode before publishing quarantined bytes", () => {
+    expect(finalizer).toContain("studio2_platform_operational_state");
+    expect(finalizer).toContain('platformState.mode === "read_only"');
+    expect(finalizer).toContain('platformState.mode === "maintenance"');
+    expect(finalizer).toContain(
+      "Upload publication is unavailable while Solaris is Read-only or in Maintenance.",
+    );
+  });
+
   it("extracts verification metadata and records the scanner limitation explicitly", () => {
     expect(finalizer).toContain("jpegDimensions");
     expect(finalizer).toContain("width:");
