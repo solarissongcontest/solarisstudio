@@ -48,6 +48,10 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_browser_audit_local_only
           SUPABASE_URL: http://127.0.0.1:54321
           SUPABASE_PUBLISHABLE_KEY: sb_publishable_browser_audit_local_only
+          VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+          VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_browser_audit_local_only
+          CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+          CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_browser_audit_local_only
         run: bun run build
 
       - name: Enforce client performance budget
@@ -95,6 +99,10 @@ jobs:
             echo "SUPABASE_PUBLISHABLE_KEY=$local_key"
             echo "E2E_SUPABASE_URL=$local_url"
             echo "E2E_SUPABASE_PUBLISHABLE_KEY=$local_key"
+            echo "VITE_CONFIRMATIONS_SUPABASE_URL=$local_url"
+            echo "VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=$local_key"
+            echo "CONFIRMATIONS_SUPABASE_URL=$local_url"
+            echo "CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=$local_key"
           } >> "$GITHUB_ENV"
 
       - name: Start stable audit server
