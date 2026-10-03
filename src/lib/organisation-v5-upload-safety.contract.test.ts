@@ -30,6 +30,10 @@ describe("Organisation OS V5 unified upload safety", () => {
   const quarantine = source(
     "supabase/migrations/20261003211000_organisation_os_v5_unified_upload_quarantine.sql",
   );
+  const prepareUpload = quarantine.slice(
+    quarantine.indexOf("create or replace function public.studio2_prepare_upload"),
+    quarantine.indexOf("-- Final application buckets"),
+  );
   const finalizer = source("supabase/functions/solaris-upload-finalize/index.ts");
 
   it("keeps one raw Storage upload implementation for all production source", () => {
@@ -167,19 +171,28 @@ describe("Organisation OS V5 unified upload safety", () => {
     expect(finalizer).toContain("MAX_PUBLIC_IMAGE_BYTES = 5 * 1024 * 1024");
     expect(finalizer).toContain("MAX_PUBLIC_IMAGE_DIMENSION = 8192");
     expect(finalizer).toContain("MAX_PUBLIC_IMAGE_PIXELS = 40_000_000");
-    expect(quarantine).toContain("p_size > 5242880");
-    expect(quarantine).not.toContain("p_size > 15728640");
-    expect(quarantine).not.toContain("'image/gif'");
+    expect(prepareUpload).toContain("p_size > 5242880");
+    expect(prepareUpload).not.toContain("p_size > 15728640");
+    expect(prepareUpload).not.toContain("'image/gif'");
   });
 
   it("restricts public custom-font delivery to structurally validated WOFF2", () => {
-    expect(quarantine).toContain("v_ext = 'woff2'");
-    expect(quarantine).toContain("lower(p_mime) = 'font/woff2'");
-    expect(quarantine).toContain("v_mime <> 'font/woff2'");
-    expect(finalizer).toContain("validateWoff2");
+    expect(prepareUpload).toContain("v_ext = 'woff2'");
+    expect(prepareUpload).toContain("lower(p_mime) = 'font/woff2'");
+    expect(prepareUpload).toContain("v_mime <> 'font/woff2'");
+    expect(prepareUpload).not.toContain("'font/ttf'");
+    expect(prepareUpload).not.toContain("'font/otf'");
+    expect(prepareUpload).not.toContain("'font/woff'");
+    expect(finalizer).toContain('npm:wawoff2@2.0.1');
+    expect(finalizer).toContain("processWoff2Font");
     expect(finalizer).toContain('ascii(bytes, 0, 4) !== "wOF2"');
-    expect(finalizer).toContain("declaredLength !== bytes.length");
-    expect(finalizer).toContain("numTables <= 0");
+    expect(finalizer).toContain("woff2.decompress(bytes)");
+    expect(finalizer).toContain("validateSfnt(decompressed)");
+    expect(finalizer).toContain("woff2.compress(decompressed)");
+    expect(finalizer).toContain('processingDecision = "decompressed_validated_recompressed_woff2"');
+    expect(finalizer).toContain("WOFF2 SFNT table directory is malformed");
+    expect(finalizer).toContain('for (const required of ["head", "maxp", "name", "cmap"])');
+    expect(finalizer).toContain("0x5f0f3cf5");
     expect(finalizer).toContain('fontDeliveryFormat: row.domain === "country_font" ? "woff2" : null');
   });
 
