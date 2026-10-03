@@ -11,6 +11,39 @@ import {
 } from "@/lib/app-navigation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 
+const APP_LAUNCH_SESSION_TIMEOUT_MS = 1_500;
+
+type AppLaunchSessionResolution = {
+  signedIn: boolean;
+  source: "local_session" | "timeout" | "error";
+};
+
+async function resolveAppLaunchSession(): Promise<AppLaunchSessionResolution> {
+  let timeoutId: number | null = null;
+
+  const timeout = new Promise<AppLaunchSessionResolution>((resolve) => {
+    timeoutId = window.setTimeout(
+      () => resolve({ signedIn: false, source: "timeout" }),
+      APP_LAUNCH_SESSION_TIMEOUT_MS,
+    );
+  });
+
+  const session = supabase.auth
+    .getSession()
+    .then(({ data }) => ({
+      signedIn: Boolean(data.session?.user),
+      source: "local_session" as const,
+    }))
+    .catch(() => ({
+      signedIn: false,
+      source: "error" as const,
+    }));
+
+  const result = await Promise.race([session, timeout]);
+  if (timeoutId !== null) window.clearTimeout(timeoutId);
+  return result;
+}
+
 export const Route = createFileRoute("/app-launch")({
   head: () => ({
     meta: [
@@ -35,31 +68,40 @@ function AppLaunchPage() {
       };
     }
 
-    // getSession reads the locally persisted Supabase session. Cold launch must
-    // not wait for a remote auth round-trip before the app can render.
-    void supabase.auth.getSession()
-      .then(({ data }) => {
-        if (!alive) return;
-        const target = getAppLaunchDestination(Boolean(data.session?.user));
-        trackPublicUxEvent("app_cold_launch_restored", {
-          target: appEntryHref(target),
-          metadata: {
-            area: appTabForPath(target.pathname) ?? "app",
-            source: "cold_launch_local_session",
-          },
-        });
-        markAppNavigationRestore(target);
-        void navigate({
-          to: appEntryHref(target) as any,
-          replace: true,
-        });
-      })
-      .catch(() => {
-        if (!alive) return;
-        const target = getAppLaunchDestination(false);
-        markAppNavigationRestore(target);
-        void navigate({ to: appEntryHref(target) as any, replace: true });
+    // Local Supabase session recovery normally resolves immediately, but an
+    // installed browser can occasionally stall on storage/session locking.
+    // Cold launch therefore has a hard circuit breaker.
+    void resolveAppLaunchSession().then(({ signedIn, source }) => {
+      if (!alive) return;
+
+      const target =
+        source === "timeout"
+          ? {
+              pathname: "/",
+              searchStr: "",
+              scrollY: 0,
+              visitedAt: new Date().toISOString(),
+            }
+          : getAppLaunchDestination(signedIn);
+
+      trackPublicUxEvent("app_cold_launch_restored", {
+        target: appEntryHref(target),
+        metadata: {
+          area: appTabForPath(target.pathname) ?? "app",
+          source:
+            source === "timeout"
+              ? "cold_launch_session_timeout"
+              : source === "error"
+                ? "cold_launch_session_error"
+                : "cold_launch_local_session",
+        },
       });
+      markAppNavigationRestore(target);
+      void navigate({
+        to: appEntryHref(target) as any,
+        replace: true,
+      });
+    });
 
     return () => {
       alive = false;
