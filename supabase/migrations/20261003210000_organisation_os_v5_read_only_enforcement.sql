@@ -48,7 +48,11 @@ begin
     v_rpc_name := split_part(split_part(v_path, '/', 3), '?', 1);
 
     -- Explicit recovery mutation. All normal mutation RPCs remain denied.
-    if v_rpc_name = 'studio2_apply_platform_mode_change' then
+    if v_rpc_name in (
+      'studio2_apply_platform_mode_change',
+      'studio2_platform_exit_database_preflight',
+      'studio2_record_platform_exit_preflight'
+    ) then
       return;
     end if;
 
