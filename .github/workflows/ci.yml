@@ -107,6 +107,24 @@ jobs:
           set -euo pipefail
           deno check supabase/functions/solaris-upload-finalize/index.ts
 
+      - name: Smoke-start Supabase upload finalizer
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          timeout 15s deno run             --cached-only             --allow-env             --allow-read             --allow-net=0.0.0.0:8000,127.0.0.1:8000,127.0.0.1:54321             supabase/functions/solaris-upload-finalize/index.ts             > upload-finalizer-startup.txt 2>&1
+          status=$?
+          set -e
+          cat upload-finalizer-startup.txt
+          if [ "$status" -ne 124 ]; then
+            echo "::error::Upload finalizer exited before the smoke-test timeout (status $status)."
+            exit "$status"
+          fi
+          if ! grep -qi "Listening on" upload-finalizer-startup.txt; then
+            echo "::error::Upload finalizer never reached its listening state."
+            exit 1
+          fi
+
       - name: Unit tests
         shell: bash
         run: |
@@ -170,7 +188,7 @@ jobs:
             echo "- Production build: executed"
             echo "- Client bundle budget: enforced"
             echo "- TypeScript: executed"
-            echo "- Supabase upload finalizer: Deno type-check executed"
+            echo "- Supabase upload finalizer: Deno type-check + loopback-only startup smoke executed"
             echo "- Unit tests: executed and output retained"
             echo "- Lint: executed as a blocking quality gate"
           } >> "$GITHUB_STEP_SUMMARY"
