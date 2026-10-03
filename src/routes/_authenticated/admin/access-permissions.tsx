@@ -137,7 +137,8 @@ function AccessPermissionsPage() {
   const approvalsQuery = useQuery({
     queryKey: ["permission-engine-approvals"],
     queryFn: loadPermissionChangeApprovals,
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
   });
   useQuery({
     queryKey: ["permission-engine-evaluation", "permissions.read", editionId],
