@@ -137,7 +137,7 @@ export function resolveElasticDrag({
 export function resolveGestureOwner(
   deltaX: number,
   deltaY: number,
-  threshold = SOLARIS_INTERACTION_TOKENS.distance.small,
+  threshold: number = SOLARIS_INTERACTION_TOKENS.distance.small,
 ): SolarisGestureOwner {
   const x = Math.abs(deltaX);
   const y = Math.abs(deltaY);
