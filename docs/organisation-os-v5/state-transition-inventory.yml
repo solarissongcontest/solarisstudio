@@ -21,28 +21,31 @@ domains:
       - src/lib/organisation-participation-status-v5.test.ts
 
   - id: selection-review-internal
-    status: partial
+    status: implemented
     source_sections: [54, 55]
     evidence:
-      - supabase/migrations/20260816200158_integrate_confirmations_schema.sql
+      - supabase/migrations/20261003180000_organisation_os_v5_selection_review_transitions.sql
+      - src/lib/organisation-v5-selection-review-transitions.test.ts
       - src/routes/confirmations/admin/responses/$id.tsx
-    blocker: "States are constrained, but the V5 operation-contract/versioned transition proof is not yet explicit."
+    note: "Pending/accepted/declined transitions now use a versioned, idempotent R2 operation and direct browser updates are blocked."
 
   - id: selection-review-national-final
-    status: partial
+    status: implemented
     source_sections: [54, 55]
     evidence:
-      - supabase/migrations/20260816200158_integrate_confirmations_schema.sql
+      - supabase/migrations/20261003180000_organisation_os_v5_selection_review_transitions.sql
+      - src/lib/organisation-v5-selection-review-transitions.test.ts
       - src/routes/confirmations/admin/responses/$id.tsx
-    blocker: "Pending/accepted/declined/removed are constrained, but transition ordering and stale-write rejection need explicit V5 proof."
+    note: "Pending/accepted/declined/removed transitions reject stale writes and cannot invalidate the selected winner implicitly."
 
   - id: national-final-winner
-    status: partial
+    status: implemented
     source_sections: [54, 55]
     evidence:
-      - supabase/migrations/20260816200158_integrate_confirmations_schema.sql
+      - supabase/migrations/20261003180000_organisation_os_v5_selection_review_transitions.sql
+      - src/lib/organisation-v5-selection-review-transitions.test.ts
       - src/routes/confirmations/admin/responses/$id.tsx
-    blocker: "Winner select/clear is audited in the legacy confirmation domain but not yet bound to the canonical V5 operation/version contract."
+    note: "Winner select/clear is version-bound, idempotent, audited and accepts only active accepted NF candidates."
 
   - id: next-in-line-control
     status: partial
