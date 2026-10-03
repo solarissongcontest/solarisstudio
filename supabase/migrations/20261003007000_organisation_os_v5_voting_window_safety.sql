@@ -78,14 +78,15 @@ security definer
 set search_path = pg_catalog, public, private, televoting, auth
 as $guard$
 declare
-  v_service boolean := coalesce(auth.jwt() ->> 'role', '') = 'service_role';
+  v_request_role text := coalesce(auth.jwt() ->> 'role', '');
+  v_trusted_server boolean := v_request_role = '' or v_request_role = 'service_role';
   v_r2_allowed boolean := coalesce(
     current_setting('solaris.televote_round_r2', true),
     ''
   ) = 'allowed';
 begin
   if tg_op = 'INSERT' then
-    if new.status <> 'draft' and not v_service and not v_r2_allowed then
+    if new.status <> 'draft' and not v_trusted_server and not v_r2_allowed then
       raise exception 'Live Televote status changes require the R2 round-state command.'
         using errcode = '42501';
     end if;
@@ -93,7 +94,7 @@ begin
   end if;
 
   if tg_op = 'DELETE' then
-    if old.status <> 'draft' and not v_service and not v_r2_allowed then
+    if old.status <> 'draft' and not v_trusted_server and not v_r2_allowed then
       raise exception 'Only a draft Televote round can be deleted directly.'
         using errcode = '42501';
     end if;
@@ -101,7 +102,7 @@ begin
   end if;
 
   if old.status is distinct from new.status
-     and not v_service
+     and not v_trusted_server
      and not v_r2_allowed then
     raise exception 'Live Televote status changes require the R2 round-state command.'
       using errcode = '42501';
@@ -300,11 +301,23 @@ as $binding$
 declare
   v_old_round uuid;
   v_new_round uuid;
+  v_uuid_pattern text :=
+    '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$';
 begin
-  if tg_op <> 'INSERT' and old.remote_round_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12} then
+  if tg_op = 'UPDATE'
+     and old.remote_round_id is not distinct from new.remote_round_id
+     and old.remote_edition_id is not distinct from new.remote_edition_id
+     and old.edition_id is not distinct from new.edition_id
+     and old.show_id is not distinct from new.show_id
+     and old.source_mode is not distinct from new.source_mode
+     and old.frozen_at is not distinct from new.frozen_at then
+    return new;
+  end if;
+
+  if tg_op <> 'INSERT' and old.remote_round_id ~* v_uuid_pattern then
     v_old_round := old.remote_round_id::uuid;
   end if;
-  if tg_op <> 'DELETE' and new.remote_round_id ~* '^[0-9a-f-]{36}$' then
+  if tg_op <> 'DELETE' and new.remote_round_id ~* v_uuid_pattern then
     v_new_round := new.remote_round_id::uuid;
   end if;
 
@@ -317,9 +330,7 @@ begin
     perform televoting.studio2_bump_round_version(v_new_round, false);
   end if;
 
-  if tg_op = 'DELETE' then
-    return old;
-  end if;
+  if tg_op = 'DELETE' then return old; end if;
   return new;
 end
 $binding$;
@@ -772,20 +783,19 @@ security definer
 set search_path = pg_catalog, public, auth
 as $juryguard$
 declare
-  v_service boolean := coalesce(auth.jwt() ->> 'role', '') = 'service_role';
+  v_request_role text := coalesce(auth.jwt() ->> 'role', '');
+  v_trusted_server boolean := v_request_role = '' or v_request_role = 'service_role';
   v_r2_allowed boolean := coalesce(
     current_setting('solaris.jury_window_r2', true),
     ''
   ) = 'allowed';
 begin
-  if not v_service and not v_r2_allowed then
+  if not v_trusted_server and not v_r2_allowed then
     raise exception 'Jury voting window changes require the R2 window command.'
       using errcode = '42501';
   end if;
 
-  if tg_op = 'DELETE' then
-    return old;
-  end if;
+  if tg_op = 'DELETE' then return old; end if;
   return new;
 end
 $juryguard$;
