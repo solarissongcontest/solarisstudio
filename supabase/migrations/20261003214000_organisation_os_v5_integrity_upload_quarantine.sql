@@ -52,36 +52,33 @@ set search_path = pg_catalog
 as $extension$
 declare
   v_ext text := lower(regexp_replace(coalesce(p_name, ''), '^.*[.]', ''));
+  v_mime text := lower(coalesce(p_mime, ''));
 begin
   if p_domain in ('country_media', 'edition_artwork', 'beta_feedback') then
-    return case lower(p_mime)
-      when 'image/jpeg' then 'jpg'
-      when 'image/png' then 'png'
-      when 'image/webp' then 'webp'
-      when 'image/gif' then 'gif'
-      else null
-    end;
+    if v_mime = 'image/jpeg' and v_ext in ('jpg', 'jpeg') then return 'jpg'; end if;
+    if v_mime = 'image/png' and v_ext = 'png' then return 'png'; end if;
+    if v_mime = 'image/webp' and v_ext = 'webp' then return 'webp'; end if;
+    return null;
   end if;
 
-  if p_domain = 'country_font' and v_ext in ('woff2', 'woff', 'ttf', 'otf') then
-    return v_ext;
+  if p_domain = 'country_font'
+     and v_ext = 'woff2'
+     and v_mime = 'font/woff2' then
+    return 'woff2';
   end if;
 
   if p_domain = 'integrity_evidence' then
-    return case lower(p_mime)
-      when 'image/jpeg' then 'jpg'
-      when 'image/png' then 'png'
-      when 'image/webp' then 'webp'
-      when 'application/pdf' then 'pdf'
-      when 'text/plain' then 'txt'
-      else null
-    end;
+    if v_mime = 'image/jpeg' and v_ext in ('jpg', 'jpeg') then return 'jpg'; end if;
+    if v_mime = 'image/png' and v_ext = 'png' then return 'png'; end if;
+    if v_mime = 'image/webp' and v_ext = 'webp' then return 'webp'; end if;
+    if v_mime = 'application/pdf' and v_ext = 'pdf' then return 'pdf'; end if;
+    if v_mime = 'text/plain' and v_ext = 'txt' then return 'txt'; end if;
+    return null;
   end if;
 
   return null;
 end
 $extension$;
-
 revoke all on function private.studio2_upload_extension(text, text, text)
   from public, anon, authenticated;
 
