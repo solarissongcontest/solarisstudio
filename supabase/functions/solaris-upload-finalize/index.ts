@@ -455,7 +455,7 @@ function processPublicImage(
 
     image.quality = 88;
     const processed = stripPublicImageMetadata(
-      image.write((data) => Uint8Array.from(data), outputFormat),
+      image.write(outputFormat, (data: Uint8Array) => Uint8Array.from(data)),
       format,
     );
 
@@ -468,7 +468,7 @@ function processPublicImage(
       thumb.label = null;
       thumb.quality = 82;
       return stripPublicImageMetadata(
-        thumb.write((data) => Uint8Array.from(data), outputFormat),
+        thumb.write(outputFormat, (data: Uint8Array) => Uint8Array.from(data)),
         format,
       );
     });
