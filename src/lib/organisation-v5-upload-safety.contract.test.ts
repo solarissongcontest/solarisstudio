@@ -237,6 +237,35 @@ describe("Organisation OS V5 unified upload safety", () => {
     expect(finalizer).toContain('"/EmbeddedFile"');
   });
 
+  it("rejects extension and MIME mismatches before bytes enter quarantine", () => {
+    expect(prepareUpload).toContain("v_mime = 'image/jpeg' and v_ext in ('jpg', 'jpeg')");
+    expect(prepareUpload).toContain("v_mime = 'image/png' and v_ext = 'png'");
+    expect(prepareUpload).toContain("v_mime = 'image/webp' and v_ext = 'webp'");
+    expect(prepareUpload).toContain("v_ext = 'woff2'");
+    expect(prepareUpload).toContain("v_mime = 'font/woff2'");
+
+    const evidenceBridge = source(
+      "supabase/migrations/20261003214000_organisation_os_v5_integrity_upload_quarantine.sql",
+    );
+    expect(evidenceBridge).toContain(
+      "v_mime = 'application/pdf' and v_ext = 'pdf'",
+    );
+    expect(evidenceBridge).toContain(
+      "v_mime = 'text/plain' and v_ext = 'txt'",
+    );
+    expect(evidenceBridge).not.toContain("when 'image/gif' then 'gif'");
+  });
+
+  it("publishes generated public assets with immutable caching while evidence stays non-cacheable", () => {
+    expect(finalizer).toContain(
+      'cacheControl: row.domain === "integrity_evidence" ? "0" : "31536000"',
+    );
+    expect(finalizer).toContain('cacheControl: "31536000"');
+    expect(quarantine).toContain("v_token_id uuid := gen_random_uuid()");
+    expect(quarantine).toContain("v_token_id::text || '.' || v_extension");
+    expect(quarantine).not.toContain("v_final_path := v_name");
+  });
+
   it("keeps the shared raw upload fail-closed and non-overwriting", () => {
     expect(helper).toContain('objectPath.startsWith("/")');
     expect(helper).toContain('objectPath.split("/").includes("..")');
