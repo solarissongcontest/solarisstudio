@@ -18,22 +18,22 @@ describe("Organisation OS V5 final certification contract", () => {
 
     const requirements = matrix
       .split("\n")
-      .filter((line) => /^  - \{ id: \d+, key: /.test(line));
+      .filter((line) => /^\s{2}- \{ id: \d+, key: /.test(line));
     expect(requirements).toHaveLength(39);
     expect(
-      requirements.map((line) => Number(line.match(/^  - \{ id: (\d+),/)?.[1])),
+      requirements.map((line) => Number(line.match(/^\s{2}- \{ id: (\d+),/)?.[1])),
     ).toEqual(Array.from({ length: 39 }, (_, index) => index + 1));
 
     const phoneSection = matrix
       .slice(matrix.indexOf("phone_exam:"), matrix.indexOf("\nmandatory_failures:"))
       .split("\n")
-      .filter((line) => /^\\s{4}- [a-z0-9-]+$/.test(line));
+      .filter((line) => /^\s{4}- [a-z0-9-]+$/.test(line));
     expect(phoneSection).toHaveLength(42);
 
     const failureSection = matrix
       .slice(matrix.indexOf("mandatory_failures:"))
       .split("\n")
-      .filter((line) => /^\\s{4}- [a-z0-9-]+$/.test(line));
+      .filter((line) => /^\s{4}- [a-z0-9-]+$/.test(line));
     expect(failureSection).toHaveLength(17);
   });
 
