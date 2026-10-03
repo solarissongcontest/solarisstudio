@@ -377,11 +377,41 @@ export default {
 
       if (
         GLOBAL_MAINTENANCE_MODE &&
-        !MAINTENANCE_ASSET_PATHS.has(url.pathname) &&
-        !hasLocalE2EMaintenanceBypass(request) &&
-        !(await hasValidMaintenanceBypass(request, secret))
+        !MAINTENANCE_ASSET_PATHS.has(url.pathname)
       ) {
-        return maintenanceResponse(request);
+        const localE2EBypass = hasLocalE2EMaintenanceBypass(request);
+        const maintenanceAdminBypass =
+          !localE2EBypass && (await hasValidMaintenanceBypass(request, secret));
+
+        if (!localE2EBypass && !maintenanceAdminBypass) {
+          return maintenanceResponse(request);
+        }
+
+        // Production maintenance bypass is deliberately inspection-only.
+        // It lets authorized administrators verify the hidden application, but
+        // cannot turn an outage into an undocumented mutation channel. Local
+        // E2E may exercise writes because its Supabase stack is isolated.
+        if (
+          maintenanceAdminBypass &&
+          request.method !== "GET" &&
+          request.method !== "HEAD"
+        ) {
+          return new Response(
+            JSON.stringify({
+              error: "solaris_studio_maintenance_read_only",
+              message:
+                "Maintenance access is read-only. Mutating operations remain disabled until maintenance ends.",
+            }),
+            {
+              status: 503,
+              headers: {
+                "cache-control": "no-store, max-age=0",
+                "content-type": "application/json; charset=utf-8",
+                "retry-after": "Sat, 10 Oct 2026 00:00:00 GMT",
+              },
+            },
+          );
+        }
       }
 
       const handler = await getServerEntry();
