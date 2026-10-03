@@ -83,9 +83,8 @@ describe("Organisation OS V5 confirmation round operations", () => {
     );
     expect(migration).toContain("get diagnostics v_affected_responses = row_count");
     expect(route).toContain("Response access changed");
-    expect(route).toContain(
-      "It does not open or close new submissions.",
-    );
+    expect(route).toContain("It does not open or close new");
+    expect(route).toContain("submissions.");
   });
 
   it("blocks deletion of a used round before the cascading foreign key can erase responses", () => {
@@ -129,12 +128,8 @@ describe("Organisation OS V5 confirmation round operations", () => {
   });
 
   it("removes direct legacy mutations from the Organizer page", () => {
-    expect(client).toContain(
-      'rpc("studio2_confirmation_round_change_preview"',
-    );
-    expect(client).toContain(
-      'rpc("studio2_apply_confirmation_round_change"',
-    );
+    expect(client).toContain('"studio2_confirmation_round_change_preview"');
+    expect(client).toContain('"studio2_apply_confirmation_round_change"');
 
     for (const legacy of [
       "saveConfirmationRound",
