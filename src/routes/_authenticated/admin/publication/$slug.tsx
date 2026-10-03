@@ -14,7 +14,6 @@ import {
   AdminSheet,
   AdminStatus,
 } from "@/components/admin/AdminUI";
-import { supabase } from "@/integrations/supabase/client";
 import { editionLabel, useEdition, useShows, type Show } from "@/lib/data";
 import {
   PUBLICATION_LABELS,
@@ -31,6 +30,15 @@ import {
   isStudio2ResultReleaseReady,
   loadStudio2ResultsOperations,
 } from "@/lib/studio2-results-operations";
+import {
+  applyShowPublicationChange,
+  loadShowPublicationControls,
+  previewShowPublicationChange,
+  reauthenticateShowPublicationR3,
+  type ShowPublicationControl,
+  type ShowPublicationPreview,
+  type ShowPublicationState,
+} from "@/lib/show-publication-lifecycle";
 
 const PUBLICATION_KEYS = Object.keys(PUBLICATION_LABELS) as PublicationKey[];
 const OUTCOME_KEYS: PublicationKey[] = ["qualifiers", "results", "jury_results", "televote_results", "detailed_voting"];
@@ -42,7 +50,9 @@ type DraftState = {
 
 type PendingRelease = {
   show: Show;
-  config: PublicationConfig;
+  preview: ShowPublicationPreview;
+  operationId: string;
+  idempotencyKey: string;
 };
 
 export const Route = createFileRoute("/_authenticated/admin/publication/$slug")({
@@ -61,15 +71,30 @@ function PublicationWorkspace() {
     queryFn: () => loadStudio2ResultsOperations(edition!.id),
     staleTime: 10_000,
   });
+  const publicationControlsQuery = useQuery({
+    queryKey: ["studio2-show-publication-controls", edition?.id ?? "none"],
+    enabled: Boolean(edition?.id),
+    queryFn: () => loadShowPublicationControls(edition!.id),
+    staleTime: 5_000,
+  });
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [pendingRelease, setPendingRelease] = useState<PendingRelease | null>(null);
   const [discardDraftOpen, setDiscardDraftOpen] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState("");
+  const [publicationPassword, setPublicationPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
   const orderedShows = useMemo(() => [...shows].sort((a, b) => a.sort_order - b.sort_order), [shows]);
   const resultOperationByShow = useMemo(
     () => new Map((resultOperationsQuery.data ?? []).map((row) => [row.showId, row] as const)),
     [resultOperationsQuery.data],
+  );
+  const publicationControlByShow = useMemo(
+    () =>
+      new Map(
+        (publicationControlsQuery.data ?? []).map((row) => [row.showId, row] as const),
+      ),
+    [publicationControlsQuery.data],
   );
   const publicCount = orderedShows.filter((show) => show.published && hasAnyPublicInformation(resolveShowPublication(show))).length;
   const resultCount = orderedShows.filter((show) => show.published && resolveShowPublication(show).results).length;
@@ -79,11 +104,17 @@ function PublicationWorkspace() {
       qc.invalidateQueries({ queryKey: ["shows"] }),
       qc.invalidateQueries({ queryKey: ["edition"] }),
       qc.invalidateQueries({ queryKey: ["editions"] }),
+      qc.invalidateQueries({ queryKey: ["studio2-show-publication-controls"] }),
     ]);
   }
 
   function openShow(show: Show) {
-    setDraft({ show, config: resolveShowPublication(show) });
+    const control = publicationControlByShow.get(show.id);
+    setScheduleAt("");
+    setDraft({
+      show,
+      config: control?.state === "scheduled" ? control.frozenConfig : resolveShowPublication(show),
+    });
   }
 
   function presetFor(config: PublicationConfig) {
@@ -119,24 +150,85 @@ function PublicationWorkspace() {
     return isStudio2ResultReleaseReady(resultOperationByShow.get(show.id));
   }
 
-  async function persist(show: Show, config: PublicationConfig) {
+  async function reviewChange(
+    show: Show,
+    config: PublicationConfig,
+    targetState: ShowPublicationState,
+    scheduledFor: string | null = null,
+  ) {
     setBusy(true);
     try {
       const normalized = normalisePublicationDependencies(config);
-      if (newlyExposesOutcome(show, normalized) && !canReleaseResults(show)) {
-        throw new Error("Review, lock and mark the current result calculation reveal ready before exposing any new qualification or result outcome.");
+      if (
+        targetState !== "hidden" &&
+        newlyExposesOutcome(show, normalized) &&
+        !canReleaseResults(show)
+      ) {
+        throw new Error(
+          "New outcome publication is blocked. Finish result review, lock and reveal readiness first.",
+        );
       }
-      const shouldBePublic = hasAnyPublicInformation(normalized);
-      const { error } = await (supabase.from("shows") as any)
-        .update({ publication_config: normalized, published: shouldBePublic })
-        .eq("id", show.id);
-      if (error) throw error;
-      toast.success(shouldBePublic ? `${show.name} publication updated` : `${show.name} made private`);
+
+      const preview = await previewShowPublicationChange({
+        showId: show.id,
+        targetState,
+        config: normalized,
+        scheduledFor,
+      });
+      if (preview.alreadyApplied) {
+        toast.success(`${show.name} publication is already current`);
+        setDraft(null);
+        await refresh();
+        return;
+      }
+
+      const operationId = crypto.randomUUID();
+      setPublicationPassword("");
+      setPendingRelease({
+        show,
+        preview,
+        operationId,
+        idempotencyKey: operationId,
+      });
+    } catch (caught) {
+      toast.error(
+        caught instanceof Error ? caught.message : "Publication change could not be reviewed",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applyPendingRelease() {
+    if (!pendingRelease) return;
+    setBusy(true);
+    try {
+      if (pendingRelease.preview.riskClass === "R3") {
+        await reauthenticateShowPublicationR3(publicationPassword);
+      }
+      const receipt = await applyShowPublicationChange({
+        preview: pendingRelease.preview,
+        operationId: pendingRelease.operationId,
+        idempotencyKey: pendingRelease.idempotencyKey,
+      });
+      const label =
+        receipt.state === "scheduled"
+          ? `scheduled for ${receipt.scheduledFor ? new Date(receipt.scheduledFor).toLocaleString() : "later"}`
+          : receipt.state === "hidden"
+            ? "hidden"
+            : receipt.state === "public"
+              ? "public"
+              : "saved as draft";
+      toast.success(`${pendingRelease.show.name} ${label}`);
       setDraft(null);
       setPendingRelease(null);
+      setPublicationPassword("");
+      setScheduleAt("");
       await refresh();
     } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Publication settings could not be saved");
+      toast.error(
+        caught instanceof Error ? caught.message : "Publication settings could not be saved",
+      );
     } finally {
       setBusy(false);
     }
@@ -155,26 +247,30 @@ function PublicationWorkspace() {
       return;
     }
     setDraft(null);
+    setScheduleAt("");
   }
 
   function requestSave() {
     if (!draft) return;
-    if (newlyExposesOutcome(draft.show, draft.config) && !canReleaseResults(draft.show)) {
-      toast.error("New outcome publication is blocked. Finish result review, lock and reveal readiness first.");
+    const targetState = hasAnyPublicInformation(draft.config) ? "public" : "hidden";
+    void reviewChange(draft.show, draft.config, targetState);
+  }
+
+  function requestSchedule() {
+    if (!draft || !hasAnyPublicInformation(draft.config) || !scheduleAt) return;
+    const scheduled = new Date(scheduleAt);
+    if (Number.isNaN(scheduled.getTime())) {
+      toast.error("Choose a valid future publication time.");
       return;
     }
-    if (needsResultConfirmation(draft.show, draft.config)) {
-      setPendingRelease({ show: draft.show, config: draft.config });
-      return;
-    }
-    void persist(draft.show, draft.config);
+    void reviewChange(draft.show, draft.config, "scheduled", scheduled.toISOString());
   }
 
   async function makePrivate(show: Show) {
-    await persist(show, applyPublicationPreset("private"));
+    await reviewChange(show, resolveShowPublication(show), "hidden");
   }
 
-  if (loadingEdition || loadingShows) {
+  if (loadingEdition || loadingShows || publicationControlsQuery.isLoading) {
     return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading publication controls…</p></AdminCard>;
   }
 
@@ -212,10 +308,14 @@ function PublicationWorkspace() {
       ) : (
         <div className="space-y-3">
           {orderedShows.map((show) => {
-            const config = resolveShowPublication(show);
+            const control = publicationControlByShow.get(show.id);
+            const config =
+              control?.state === "scheduled" ? control.frozenConfig : resolveShowPublication(show);
             const resultOperation = resultOperationByShow.get(show.id);
             const resultReleaseReady = canReleaseResults(show);
-            const isPublic = show.published && hasAnyPublicInformation(config);
+            const isPublic = control?.state === "public" || (
+              !control && show.published && hasAnyPublicInformation(config)
+            );
             const preset = presetFor(config);
             const visibleLayers = PUBLICATION_KEYS.filter((key) => config[key]).length;
             return (
@@ -227,7 +327,27 @@ function PublicationWorkspace() {
                   <div className="min-w-0 flex-1">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
                       <h2 className="truncate text-base font-bold text-foreground">{show.name}</h2>
-                      <AdminStatus tone={isPublic ? (config.results ? "ready" : "info") : "neutral"}>{isPublic ? (config.results ? "Results live" : "Public") : "Private"}</AdminStatus>
+                      <AdminStatus
+                        tone={
+                          control?.state === "scheduled"
+                            ? "attention"
+                            : isPublic
+                              ? config.results
+                                ? "ready"
+                                : "info"
+                              : "neutral"
+                        }
+                      >
+                        {control?.state === "scheduled"
+                          ? `Scheduled · ${control.scheduledFor ? new Date(control.scheduledFor).toLocaleString() : "pending"}`
+                          : isPublic
+                            ? config.results
+                              ? "Results live"
+                              : "Public"
+                            : control?.state === "hidden"
+                              ? "Hidden"
+                              : "Draft"}
+                      </AdminStatus>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">{preset ? PUBLICATION_PRESETS.find((item) => item.id === preset)?.name : "Custom release"} · {visibleLayers}/10 layers visible</p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
@@ -307,7 +427,23 @@ function PublicationWorkspace() {
               </div>
             </section>
 
-            <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
+            {hasAnyPublicInformation(draft.config) ? (
+              <label className="block">
+                <span className="admin-section-label">Schedule exact frozen release</span>
+                <input
+                  type="datetime-local"
+                  value={scheduleAt}
+                  onChange={(event) => setScheduleAt(event.target.value)}
+                  className="admin-input mt-2"
+                />
+                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                  Solaris freezes this configuration, then revalidates show version, result version,
+                  permission, integrity blockers and platform mode when the time arrives.
+                </span>
+              </label>
+            ) : null}
+
+            <div className="grid gap-2 sm:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)]">
               <button
                 type="button"
                 disabled={busy}
@@ -316,7 +452,28 @@ function PublicationWorkspace() {
               >
                 Close
               </button>
-              <button type="button" disabled={busy} onClick={requestSave} className="admin-action-primary w-full">{busy ? "Saving…" : hasAnyPublicInformation(draft.config) ? "Save publication" : "Make show private"}</button>
+              {hasAnyPublicInformation(draft.config) ? (
+                <button
+                  type="button"
+                  disabled={busy || !scheduleAt}
+                  onClick={requestSchedule}
+                  className="admin-action-secondary w-full"
+                >
+                  Schedule
+                </button>
+              ) : null}
+              <button
+                type="button"
+                disabled={busy}
+                onClick={requestSave}
+                className="admin-action-primary w-full"
+              >
+                {busy
+                  ? "Checking…"
+                  : hasAnyPublicInformation(draft.config)
+                    ? "Review publication"
+                    : "Review hide"}
+              </button>
             </div>
           </div>
         ) : null}
@@ -337,17 +494,101 @@ function PublicationWorkspace() {
 
       <AdminConfirmSheet
         open={!!pendingRelease}
-        onClose={() => !busy && setPendingRelease(null)}
-        onConfirm={() => pendingRelease ? persist(pendingRelease.show, pendingRelease.config) : undefined}
-        title="Release result information?"
-        description={<>This change makes previously hidden result or voting information public. It does not recalculate anything, but visitors may immediately see the existing official data for this show.</>}
-        confirmLabel="Release results"
+        onClose={() => {
+          if (!busy) {
+            setPendingRelease(null);
+            setPublicationPassword("");
+          }
+        }}
+        onConfirm={applyPendingRelease}
+        title={
+          pendingRelease
+            ? `${publicationActionLabel(pendingRelease.preview.targetState)} ${pendingRelease.show.name}?`
+            : "Confirm publication change"
+        }
+        description={
+          pendingRelease ? (
+            <div className="space-y-3">
+              <p>
+                <strong className="text-foreground">
+                  {publicationStateLabel(pendingRelease.preview.currentState)} →{" "}
+                  {publicationStateLabel(pendingRelease.preview.targetState)}
+                </strong>{" "}
+                is a {pendingRelease.preview.riskClass} operation against publication version{" "}
+                {pendingRelease.preview.expectedVersion}.
+              </p>
+              {pendingRelease.preview.scheduledFor ? (
+                <p>
+                  Frozen execution time:{" "}
+                  <strong className="text-foreground">
+                    {new Date(pendingRelease.preview.scheduledFor).toLocaleString()}
+                  </strong>
+                </p>
+              ) : null}
+              <p>
+                Visible layers:{" "}
+                <strong className="text-foreground">
+                  {PUBLICATION_KEYS.filter((key) => pendingRelease.preview.config[key]).length}/10
+                </strong>
+                {pendingRelease.preview.hasOutcomes ? " · includes contest outcomes" : ""}
+              </p>
+              {pendingRelease.preview.riskClass === "R3" ? (
+                <label className="block">
+                  <span className="text-xs font-semibold text-foreground">
+                    Fresh authentication required
+                  </span>
+                  <input
+                    type="password"
+                    value={publicationPassword}
+                    onChange={(event) => setPublicationPassword(event.target.value)}
+                    autoComplete="current-password"
+                    placeholder="Current Solaris password"
+                    className="admin-input mt-2"
+                  />
+                </label>
+              ) : null}
+            </div>
+          ) : (
+            "Review the publication impact before continuing."
+          )
+        }
+        confirmLabel={pendingRelease ? publicationActionLabel(pendingRelease.preview.targetState) : "Apply"}
         confirmationText={pendingRelease?.show.name}
         confirmationHint={pendingRelease ? `Type ${pendingRelease.show.name} to confirm` : undefined}
         busy={busy}
+        confirmDisabled={
+          pendingRelease?.preview.riskClass === "R3" && !publicationPassword
+        }
+        danger={pendingRelease?.preview.riskClass === "R3"}
       />
     </AdminPage>
   );
+}
+
+function publicationStateLabel(state: ShowPublicationState) {
+  switch (state) {
+    case "draft":
+      return "Draft";
+    case "scheduled":
+      return "Scheduled";
+    case "public":
+      return "Public";
+    case "hidden":
+      return "Hidden";
+  }
+}
+
+function publicationActionLabel(state: ShowPublicationState) {
+  switch (state) {
+    case "draft":
+      return "Save draft";
+    case "scheduled":
+      return "Schedule publication";
+    case "public":
+      return "Publish";
+    case "hidden":
+      return "Hide";
+  }
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
