@@ -33,9 +33,13 @@ describe("Organisation OS V5 scheduler recovery", () => {
   });
 
   it("never exposes a generic browser path that executes stored cron SQL", () => {
-    expect(migration).not.toContain("job.command");
-    expect(migration).not.toContain("execute job.");
-    expect(migration).not.toContain("admin_retry_solaris_job");
+    const executableSql = migration
+      .replace(/--.*$/gm, "")
+      .replace(/\/\*[\s\S]*?\*\//g, "");
+
+    expect(executableSql).not.toContain("job.command");
+    expect(executableSql).not.toContain("execute job.");
+    expect(executableSql).not.toContain("admin_retry_solaris_job");
     expect(systemOperations).not.toContain("Run SQL");
     expect(systemOperations).not.toContain("Retry background job");
   });
