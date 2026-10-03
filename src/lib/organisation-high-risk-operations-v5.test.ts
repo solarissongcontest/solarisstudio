@@ -8,6 +8,9 @@ describe("Organisation OS V5 high-risk operation contracts", () => {
   const permissionMigration = source(
     "supabase/migrations/20261003012000_organisation_os_v5_permission_operations.sql",
   );
+  const r3FreshAuthMigration = source(
+    "supabase/migrations/20261003143000_organisation_os_v5_r3_fresh_auth.sql",
+  );
   const permissionClient = source("src/lib/permission-engine-admin.ts");
   const permissionRoute = source(
     "src/routes/_authenticated/admin/access-permissions.tsx",
@@ -65,7 +68,7 @@ describe("Organisation OS V5 high-risk operation contracts", () => {
 
   it("binds the permissions UI to impact preview and a stable retry identity", () => {
     expect(permissionClient).toContain('rpc("studio2_permission_change_preview"');
-    expect(permissionClient).toContain('rpc("studio2_apply_permission_change"');
+    expect(permissionClient).toContain('rpc("studio2_apply_permission_change_r3"');
     expect(permissionClient).not.toContain('rpc("studio2_assign_access_role"');
     expect(permissionClient).not.toContain('rpc("studio2_revoke_access_role"');
     expect(permissionClient).not.toContain('rpc("studio2_grant_capability"');
@@ -80,6 +83,24 @@ describe("Organisation OS V5 high-risk operation contracts", () => {
     );
     expect(permissionRoute).toContain("PermissionImpactPreview");
     expect(permissionRoute).toContain("Risk R3");
+  });
+
+  it("requires signed recent authentication evidence for new R3 permission mutations", () => {
+    expect(r3FreshAuthMigration).toContain("private.studio2_auth_freshness_evidence");
+    expect(r3FreshAuthMigration).toContain("private.studio2_require_fresh_auth");
+    expect(r3FreshAuthMigration).toContain("coalesce(v_claims -> 'amr', '[]'::jsonb)");
+    expect(r3FreshAuthMigration).toContain("not in ('token_refresh', 'anonymous')");
+    expect(r3FreshAuthMigration).toContain("Fresh authentication required for this R3 operation");
+    expect(r3FreshAuthMigration).toContain("studio2_apply_permission_change_r3");
+    expect(r3FreshAuthMigration).toContain("auth_freshness_evidence");
+    expect(r3FreshAuthMigration).toContain("actor_session_id");
+    expect(r3FreshAuthMigration).toContain("v_existing.operation_id is not null");
+
+    expect(permissionClient).toContain("reauthenticatePermissionR3");
+    expect(permissionClient).toContain("supabase.auth.signInWithPassword");
+    expect(permissionRoute).toContain("Fresh authentication required");
+    expect(permissionRoute).toContain('type="password"');
+    expect(permissionRoute).toContain('autoComplete="current-password"');
   });
 
   it("keeps Results on its existing equivalent concurrency and replay contract", () => {
