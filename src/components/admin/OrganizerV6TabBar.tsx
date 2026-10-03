@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import {
   useCallback,
+  useEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -41,6 +42,7 @@ export function OrganizerV6TabBar({
   const activeIndex = Math.max(0, items.findIndex((item) => item.active));
   const [dragPreviewIndex, setDragPreviewIndex] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
+  const barRef = useRef<HTMLElement | null>(null);
   const materialRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<DragState | null>(null);
   const suppressClick = useRef(false);
@@ -50,6 +52,43 @@ export function OrganizerV6TabBar({
   });
 
   const visualActiveIndex = dragPreviewIndex ?? activeIndex;
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const bar = barRef.current;
+
+    const sync = () => {
+      if (!bar || window.innerWidth >= 720) {
+        root.style.setProperty("--solaris-bottom-obstruction", "0px");
+        return;
+      }
+      const rect = bar.getBoundingClientRect();
+      const obstruction = Math.min(
+        128,
+        Math.max(0, window.innerHeight - rect.top),
+      );
+      root.style.setProperty(
+        "--solaris-bottom-obstruction",
+        `${Math.ceil(obstruction)}px`,
+      );
+    };
+
+    sync();
+    const observer =
+      typeof ResizeObserver !== "undefined" && bar
+        ? new ResizeObserver(sync)
+        : null;
+    if (observer && bar) observer.observe(bar);
+    window.addEventListener("resize", sync);
+    window.visualViewport?.addEventListener("resize", sync);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", sync);
+      window.visualViewport?.removeEventListener("resize", sync);
+      root.style.setProperty("--solaris-bottom-obstruction", "0px");
+    };
+  }, [collapsed, pathname]);
 
   const tabRects = () => {
     const material = materialRef.current;
@@ -170,6 +209,7 @@ export function OrganizerV6TabBar({
 
   return (
     <nav
+      ref={barRef}
       className="admin-mobile-nav fixed inset-x-0 bottom-0 z-[var(--solaris-z-tabbar)] px-2"
       style={{ paddingBottom: "max(.45rem, env(safe-area-inset-bottom))" }}
       aria-label="Organizer navigation"
