@@ -31,7 +31,7 @@ export const Route = createFileRoute('/_authenticated/admin/action-center')({
   component: ActionCenterPage,
 });
 
-function ActionCenterPage() {
+export function ActionCenterPage() {
   const { editionId } = useAdminContext();
   const editionsQuery = useEditions();
   const editions = editionsQuery.data ?? [];

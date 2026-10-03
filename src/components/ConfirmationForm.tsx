@@ -637,6 +637,9 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
         if (result.reason) setBlocked(availabilityMessage(result.reason));
         else if (result.error === "duplicate_song") setBlocked(duplicateMessage("song"));
         else if (result.error === "duplicate_artist") setBlocked(duplicateMessage("artist"));
+        else if (result.error === "confirmation_already_complete") {
+          setBlocked("Your delegation has already completed this edition’s confirmation requirement. A later submission round does not require you to confirm again unless TSBC explicitly requests reconfirmation.");
+        }
         else if (result.error === "editing_closed") setBlocked("Submission editing is currently closed.");
         else setBlocked("Something went wrong while saving. Please try again.");
         return;

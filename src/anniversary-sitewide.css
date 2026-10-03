@@ -71,7 +71,7 @@ body.solaris-anniversary-day .site-nav::after {
 
 .solaris-anniversary-context {
   position: fixed;
-  z-index: 91;
+  z-index: var(--solaris-z-popover);
   left: 50%;
   bottom: 1rem;
   transform: translateX(-50%);
@@ -166,7 +166,7 @@ body.solaris-anniversary-day .site-nav::after {
 .solaris-anniversary-intro {
   position: fixed;
   inset: 0;
-  z-index: 180;
+  z-index: var(--solaris-z-system-critical);
   display: grid;
   place-content: center;
   justify-items: center;

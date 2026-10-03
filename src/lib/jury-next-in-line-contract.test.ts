@@ -81,7 +81,8 @@ describe("country account jury voting contract", () => {
     const control = source("src/components/admin/JuryVotingWindowControl.tsx");
     const manual = source("src/routes/_authenticated/admin/jury/$slug.tsx");
     expect(shell).toContain("JuryVotingWindowControl");
-    expect(control).toContain("admin_set_jury_voting_status");
+    expect(control).toContain("studio2_jury_window_change_preview");
+    expect(control).toContain("studio2_apply_jury_voting_status");
     expect(control).toContain("Open jury voting");
     expect(control).toContain("Close jury voting");
     expect(manual).toContain('rpc("assign_jury_vote"');

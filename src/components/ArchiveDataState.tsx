@@ -1,3 +1,5 @@
+import { AppRouteSkeleton } from "@/components/app/AppRouteStateFrame";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicDataState } from "@/components/public/PublicDataState";
 
 export type ArchiveQueryState = {
@@ -14,6 +16,17 @@ export function archiveHasError(...queries: ArchiveQueryState[]) {
 }
 
 export function ArchiveDataLoading({ label = "Loading the archive…" }: { label?: string }) {
+  const { isAppMode } = useSolarisApp();
+
+  if (isAppMode) {
+    return (
+      <div className="py-2" aria-live="polite" aria-busy="true">
+        <span className="sr-only">{label}</span>
+        <AppRouteSkeleton />
+      </div>
+    );
+  }
+
   return (
     <div
       className="min-h-[calc(100svh-14rem)]"

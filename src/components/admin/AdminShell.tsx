@@ -59,7 +59,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
 
             <Link
               to="/admin/inbox"
-              aria-label={unreadInboxCount ? `Organizer Inbox, ${unreadInboxCount} unread` : "Organizer Inbox"}
+              aria-label={unreadInboxCount ? `Organizer notifications, ${unreadInboxCount} unread` : "Organizer notifications"}
               className="relative grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.03] text-muted-foreground transition hover:bg-white/[0.06] hover:text-foreground"
             >
               <Inbox className="size-4" />

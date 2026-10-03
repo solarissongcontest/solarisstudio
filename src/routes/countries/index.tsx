@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import {
+  AppEmptyState,
+  AppGroupedList,
+  AppScreen,
+  AppSectionHeader,
+} from "@/components/app/AppPrimitives";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
@@ -82,8 +88,8 @@ function AppCountriesPage() {
 
   return (
     <AppShell>
-      <div className="space-y-4">
-        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_11rem]">
+      <AppScreen className="space-y-4">
+        <div className="solaris-app-directory-tools">
           <label className="solaris-app-search-field">
             <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <span className="sr-only">Search countries</span>
@@ -100,7 +106,7 @@ function AppCountriesPage() {
             <select
               value={region}
               onChange={(event) => setRegion(event.target.value)}
-              className="min-h-11 w-full rounded-xl border border-border bg-background/45 px-3 text-sm outline-none"
+              className="min-h-[3.25rem] w-full rounded-xl border border-border bg-background/45 px-3 text-sm outline-none"
             >
               <option value="all">All regions</option>
               {regions.map((item) => <option key={item} value={item}>{item}</option>)}
@@ -109,11 +115,13 @@ function AppCountriesPage() {
         </div>
 
         <section aria-labelledby="app-country-directory">
-          <div className="solaris-app-section-heading">
-            <p>{filtered.length} delegations</p>
-            <h2 id="app-country-directory">Countries</h2>
-          </div>
-          <div className="solaris-app-grouped-list">
+          <AppSectionHeader
+            eyebrow={`${filtered.length} delegations`}
+            title="Countries"
+            id="app-country-directory"
+            headingLevel={1}
+          />
+          <AppGroupedList>
             {visible.map((country) => (
               <Link
                 key={country.id}
@@ -136,10 +144,26 @@ function AppCountriesPage() {
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               </Link>
             ))}
-          </div>
+          </AppGroupedList>
 
           {!filtered.length ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No country matches those filters.</p>
+            <AppEmptyState
+              className="my-3"
+              title="No countries found"
+              description="No country matches the current search and region filters."
+              action={
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    setRegion("all");
+                  }}
+                  className="solaris-app-empty-action"
+                >
+                  Clear filters
+                </button>
+              }
+            />
           ) : null}
 
           {visible.length < filtered.length ? (
@@ -152,7 +176,7 @@ function AppCountriesPage() {
             </button>
           ) : null}
         </section>
-      </div>
+      </AppScreen>
     </AppShell>
   );
 }
