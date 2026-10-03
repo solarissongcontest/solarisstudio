@@ -5,6 +5,9 @@ const source = (path: string) => readFileSync(path, "utf8");
 
 describe("Organisation OS V5 final certification contract", () => {
   const matrix = source("docs/organisation-os-v5/completion-matrix.yml");
+  const failureCoverage = source(
+    "docs/organisation-os-v5/failure-injection-coverage.yml",
+  );
   const manifest = source("docs/organisation-os-v5/release-certification.yml");
   const readiness = source("scripts/check-organisation-os-v5-release-readiness.mjs");
   const workflow = source(".github/workflows/organisation-os-v5-certification.yml");
@@ -52,6 +55,42 @@ describe("Organisation OS V5 final certification contract", () => {
     expect(readiness).toContain("release-blocking implementation proof is partial");
     expect(readiness).toContain("phone exam must contain exactly 42");
     expect(readiness).toContain("failure injection must contain exactly 17");
+  });
+
+  it("preserves all 17 mandatory injected failures as named coverage obligations", () => {
+    expect(failureCoverage).toContain("required_cases: 17");
+
+    const cases = failureCoverage
+      .split("\n")
+      .filter((line) => line.startsWith("  - id: "));
+    expect(cases).toHaveLength(17);
+
+    for (const id of [
+      "network-loss-after-server-commit",
+      "network-loss-before-commit",
+      "duplicate-command",
+      "stale-concurrent-edit",
+      "permission-revocation",
+      "expired-authentication",
+      "required-second-approval",
+      "failed-push",
+      "failed-upload",
+      "confirmation-sync-failure",
+      "failed-automation",
+      "duplicate-scheduler-trigger",
+      "missing-jury-ballot",
+      "late-televote-ballot",
+      "result-blocker",
+      "stale-publication-schedule",
+      "maintenance-recovery-failure",
+    ]) {
+      expect(failureCoverage).toContain(`  - id: ${id}`);
+    }
+
+    expect(failureCoverage).toContain("status: partial");
+    expect(failureCoverage).toContain(
+      "the final phone exam still injects a live cross-service confirmation synchronization failure",
+    );
   });
 
   it("binds certification evidence to one exact implementation commit", () => {
