@@ -175,11 +175,12 @@ domains:
     source_sections: [147, 148, 149, 150, 152]
     evidence:
       - supabase/migrations/20261003174000_organisation_os_v5_platform_operational_modes.sql
+      - supabase/migrations/20261003212000_organisation_os_v5_platform_permission_enforcement.sql
       - src/lib/organisation-v5-platform-modes.test.ts
+      - src/routes/_authenticated/admin/system.tsx
       - src/lib/maintenance.ts
       - src/lib/maintenance-contract.test.ts
-    blocker: "Canonical V5 operation-contract writes now obey Normal/Degraded/Read-only/Maintenance, but legacy/direct write paths and the full Maintenance/Read-only exit preflight are not yet universally guarded."
-
+    blocker: "Canonical operation-contract writes and capability-authorized legacy RPCs now obey Normal/Degraded/Read-only/Maintenance. Remaining work is exhaustive protection of direct/ownership-only write paths plus the full Maintenance/Read-only exit preflight."
   - id: system-health
     status: derived
     source_sections: [153]
