@@ -105,6 +105,15 @@ jobs:
             echo "CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=$local_key"
           } >> "$GITHUB_ENV"
 
+      - name: Ensure PostgreSQL client for local E2E seeding
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
       - name: Seed authenticated local browser accounts
         shell: bash
         run: bash .github/scripts/seed-browser-e2e-local.sh
