@@ -15,6 +15,7 @@ concurrency:
 jobs:
   # Browser CI is forbidden from using hosted Supabase. It runs against an
   # isolated local stack and hard-fails if a non-local API URL reaches the job.
+  # Egress guard: this must stay local even when production configuration changes.
   public-routes:
     runs-on: ubuntu-latest
     timeout-minutes: 55
