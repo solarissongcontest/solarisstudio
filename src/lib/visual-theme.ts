@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
+import { uploadServerAuthorizedFile } from "@/lib/upload-safety";
 
 const supabase = typedSupabase as any;
 
@@ -324,12 +325,27 @@ export function useSaveCountryTheme(countryId?: string | null) {
 }
 
 export async function uploadEditionArtwork(editionId: string, file: File) {
+  const allowed = new Set(["image/jpeg", "image/png", "image/webp"]);
+  if (!allowed.has(file.type)) {
+    throw new Error("Use a JPG, PNG or WebP image.");
+  }
+  if (file.size <= 0) throw new Error("Choose a non-empty artwork image.");
+  if (file.size > 15 * 1024 * 1024) {
+    throw new Error("Edition artwork can be at most 15 MB.");
+  }
+
   const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
   const storagePath = `${editionId}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
-  const { error } = await typedSupabase.storage
-    .from("edition-artwork")
-    .upload(storagePath, file, { upsert: false, contentType: file.type });
-  if (error) throw error;
+  await uploadServerAuthorizedFile({
+    client: typedSupabase,
+    descriptor: {
+      bucket: "edition-artwork",
+      object_path: storagePath,
+    },
+    file,
+    cacheControl: "3600",
+  });
+
   const { data } = typedSupabase.storage.from("edition-artwork").getPublicUrl(storagePath);
   return { storagePath, publicUrl: data.publicUrl };
 }
