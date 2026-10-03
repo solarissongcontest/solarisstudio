@@ -15,6 +15,7 @@ describe("Organisation OS V5 permission R3 contract", () => {
     expect(migration).toContain("public.studio2_access_state_versions");
     expect(migration).toContain("studio2_role_assignments_access_version");
     expect(migration).toContain("studio2_capability_grants_access_version");
+    expect(migration).toContain("studio2_user_roles_access_version");
     expect(migration).toContain(
       "set version = public.studio2_access_state_versions.version + 1",
     );
@@ -51,6 +52,7 @@ describe("Organisation OS V5 permission R3 contract", () => {
 
   it("writes before/after access snapshots into the Organizer audit trail", () => {
     expect(migration).toContain("private.studio2_access_state_snapshot");
+    expect(migration).toContain("'legacyRoles'");
     expect(migration).toContain("insert into public.admin_audit_log");
     expect(migration).toContain("'permissions_access_change'");
     expect(migration).toContain("'operationId', v_operation_id");
