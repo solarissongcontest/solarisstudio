@@ -60,6 +60,10 @@ type UploadRuntimeClient = {
   };
 };
 
+function runtimeClient(client: unknown): UploadRuntimeClient {
+  return client as UploadRuntimeClient;
+}
+
 function object(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`Solaris returned an invalid ${label}.`);
@@ -75,11 +79,12 @@ function requiredString(value: unknown, label: string) {
 }
 
 export async function uploadServerAuthorizedFile(input: {
-  client: Pick<UploadRuntimeClient, "storage">;
+  client: unknown;
   descriptor: ServerAuthorizedUploadDescriptor;
   file: File;
   cacheControl?: string;
 }): Promise<void> {
+  const client = runtimeClient(input.client);
   const bucket = input.descriptor.bucket.trim();
   const objectPath = input.descriptor.object_path.trim();
 
@@ -92,7 +97,7 @@ export async function uploadServerAuthorizedFile(input: {
   }
 
   const contentType = input.file.type.trim() || "application/octet-stream";
-  const { error } = await input.client.storage.from(bucket).upload(objectPath, input.file, {
+  const { error } = await client.storage.from(bucket).upload(objectPath, input.file, {
     upsert: false,
     contentType,
     cacheControl: input.cacheControl ?? "0",
@@ -103,7 +108,7 @@ export async function uploadServerAuthorizedFile(input: {
 }
 
 export async function prepareUnifiedUpload(input: {
-  client: Pick<UploadRuntimeClient, "rpc">;
+  client: unknown;
   domain: UnifiedUploadDomain;
   entityId?: string | null;
   scope?: string | null;
@@ -111,8 +116,9 @@ export async function prepareUnifiedUpload(input: {
   context?: Record<string, unknown>;
 }): Promise<PreparedUnifiedUpload> {
   if (!input.file || input.file.size <= 0) throw new Error("Cannot prepare an empty file.");
+  const client = runtimeClient(input.client);
 
-  const { data, error } = await input.client.rpc("studio2_prepare_upload", {
+  const { data, error } = await client.rpc("studio2_prepare_upload", {
     p_domain: input.domain,
     p_entity_id: input.entityId ?? null,
     p_scope: input.scope ?? null,
@@ -139,10 +145,11 @@ export async function prepareUnifiedUpload(input: {
 }
 
 export async function finalizeUnifiedUpload(input: {
-  client: Pick<UploadRuntimeClient, "functions">;
+  client: unknown;
   prepared: PreparedUnifiedUpload;
 }): Promise<FinalizedUnifiedUpload> {
-  const { data, error } = await input.client.functions.invoke("solaris-upload-finalize", {
+  const client = runtimeClient(input.client);
+  const { data, error } = await client.functions.invoke("solaris-upload-finalize", {
     body: {
       token_id: input.prepared.token_id,
       upload_secret: input.prepared.upload_secret,
@@ -170,7 +177,7 @@ export async function finalizeUnifiedUpload(input: {
 }
 
 export async function uploadPreparedQuarantineFile(input: {
-  client: UploadRuntimeClient;
+  client: unknown;
   descriptor: PreparedExistingQuarantineUpload;
   file: File;
 }): Promise<FinalizedUnifiedUpload> {
@@ -208,7 +215,7 @@ export async function uploadPreparedQuarantineFile(input: {
 }
 
 export async function uploadVerifiedFile(input: {
-  client: UploadRuntimeClient;
+  client: unknown;
   domain: UnifiedUploadDomain;
   entityId?: string | null;
   scope?: string | null;
