@@ -11,6 +11,9 @@ describe("Organisation OS V5 high-risk operation contracts", () => {
   const r3FreshAuthMigration = source(
     "supabase/migrations/20261003143000_organisation_os_v5_r3_fresh_auth.sql",
   );
+  const r3ApprovalMigration = source(
+    "supabase/migrations/20261003151000_organisation_os_v5_r3_permission_approvals.sql",
+  );
   const permissionClient = source("src/lib/permission-engine-admin.ts");
   const permissionRoute = source(
     "src/routes/_authenticated/admin/access-permissions.tsx",
@@ -102,6 +105,56 @@ describe("Organisation OS V5 high-risk operation contracts", () => {
     expect(permissionRoute).toContain("Fresh authentication required");
     expect(permissionRoute).toContain('type="password"');
     expect(permissionRoute).toContain('autoComplete="current-password"');
+  });
+
+  it("requires a different authenticated operator for every R3 permission mutation", () => {
+    expect(r3ApprovalMigration).toContain(
+      "create table if not exists public.studio2_permission_change_approval_requests",
+    );
+    expect(r3ApprovalMigration).toContain(
+      "approved_by is null or requested_by is null or approved_by <> requested_by",
+    );
+    expect(r3ApprovalMigration).toContain(
+      "A permission requester cannot approve their own R3 operation",
+    );
+    expect(r3ApprovalMigration).toContain("approval_expires_at > now()");
+    expect(r3ApprovalMigration).toContain("private.studio2_require_fresh_auth(300)");
+    expect(r3ApprovalMigration).toContain(
+      "Access changed after this R3 approval request was created",
+    );
+    expect(r3ApprovalMigration).toContain("v_approval.operation_id <> p_operation_id");
+    expect(r3ApprovalMigration).toContain(
+      "v_approval.idempotency_key <> v_idempotency",
+    );
+    expect(r3ApprovalMigration).toContain(
+      "v_approval.expected_version <> p_expected_version",
+    );
+    expect(r3ApprovalMigration).toContain("set consumed_at = now()");
+  });
+
+  it("closes the old authenticated fresh-auth-only R3 apply path", () => {
+    expect(r3ApprovalMigration).toContain(
+      "revoke all on function public.studio2_apply_permission_change_r3(",
+    );
+    expect(r3ApprovalMigration).toContain("from public, anon, authenticated");
+    expect(r3ApprovalMigration).toContain(
+      "An approved second-operator request is required for this R3 permission mutation",
+    );
+    expect(permissionClient).toContain("studio2_request_permission_change_approval");
+    expect(permissionClient).toContain("studio2_approve_permission_change");
+    expect(permissionClient).toContain("studio2_list_permission_change_approvals");
+    expect(permissionClient).toContain("p_approval_request_id: input.approvalRequestId");
+  });
+
+  it("makes the second-operator workflow usable from the Organizer permission surface", () => {
+    expect(permissionRoute).toContain("Second-operator approvals");
+    expect(permissionRoute).toContain("Approve as second operator");
+    expect(permissionRoute).toContain("Apply approved change");
+    expect(permissionRoute).toContain("requestPermissionChangeApproval");
+    expect(permissionRoute).toContain("approvePermissionChangeApproval");
+    expect(permissionRoute).toContain("approvalRequestId: approval.id");
+    expect(permissionRoute).toContain("reauthenticatePermissionR3(password)");
+    expect(permissionRoute).toContain("confirmDisabled={!approvalPassword}");
   });
 
   it("keeps Results on its existing equivalent concurrency and replay contract", () => {
