@@ -31,6 +31,7 @@ describe("Solaris V6 cross-surface navigation", () => {
       countryId: "country-22",
       countryCode: "OL",
       current: "organizer",
+      includeOrganizer: true,
       includeDiagnostics: true,
     });
     expect(links.map((item) => item.label)).toEqual([
@@ -43,6 +44,22 @@ describe("Solaris V6 cross-surface navigation", () => {
     expect(links.find((item) => item.label === "Participant view")?.href).toBe(
       "/my-solaris/tasks?country=country-22",
     );
+  });
+
+  it("does not expose Organizer or diagnostic surfaces to ordinary participants", () => {
+    const links = countrySurfaceLinks({
+      countryId: "country-22",
+      countryCode: "OL",
+      current: "participant",
+      includeOrganizer: false,
+      includeDiagnostics: false,
+    });
+    expect(links.map((item) => item.label)).toEqual([
+      "Participant view",
+      "Public page",
+    ]);
+    expect(links.some((item) => item.perspective === "organizer")).toBe(false);
+    expect(links.some((item) => item.perspective === "diagnostic")).toBe(false);
   });
 
   it("keeps the switch tied to canonical domain definitions", () => {
