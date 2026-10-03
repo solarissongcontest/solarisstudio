@@ -76,8 +76,13 @@ describe("Organisation OS V5 Televoting round R2 contract", () => {
       "Round status changes must use the governed R2 command.",
     );
     expect(migration).toContain(
-      "Only draft rounds can be deleted directly.",
+      "Only unused draft rounds can be deleted.",
     );
+    expect(migration).toContain(
+      "This draft has voting or result history and cannot be deleted. Keep it in history instead.",
+    );
+    expect(migration).toContain("submission.status <> 'deleted'");
+    expect(migration).toContain("from televoting.round_results result_row");
     expect(migration).toContain(
       "set_config('solaris.round_status_command', '1', true)",
     );
