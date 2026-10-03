@@ -129,7 +129,8 @@ domains:
       - src/lib/organisation-v5-show-publication-lifecycle.test.ts
       - src/lib/show-publication-lifecycle.ts
       - src/routes/_authenticated/admin/publication/$slug.tsx
-    note: "Draft/Scheduled/Public/Hidden is canonical and versioned; scheduled intent is frozen and revalidated at execution; direct browser visibility writes are blocked."
+      - src/routes/_authenticated/admin/editions.tsx
+    note: "Draft/Scheduled/Public/Hidden is server-authoritative, direct authenticated publication writes are blocked, scheduled intent is frozen and revalidated, failures create canonical Organizer Tasks, and R3 outcome release requires fresh authentication."
   - id: incident
     status: implemented
     source_sections: [122]
