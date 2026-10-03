@@ -36,6 +36,8 @@ describe("CI egress safety contracts", () => {
     expect(seed).not.toMatch(/https:\/\/[^\s"'$]+\.supabase\.co/i);
     expect(workflow).not.toContain("secrets.E2E_ORGANIZER_EMAIL");
     expect(workflow).not.toContain("secrets.E2E_ORGANIZER_PASSWORD");
+    expect(workflow).not.toContain("secrets.E2E_ORGANIZER_B_EMAIL");
+    expect(workflow).not.toContain("secrets.E2E_ORGANIZER_B_PASSWORD");
     expect(workflow).not.toContain("secrets.E2E_COUNTRY_EMAIL");
     expect(workflow).not.toContain("secrets.E2E_SUSPENDED_EMAIL");
   });
@@ -45,6 +47,7 @@ describe("CI egress safety contracts", () => {
 
     const githubEnvBlock = seed.slice(seed.indexOf('if [[ -n "${GITHUB_ENV:-}" ]]'));
     expect(githubEnvBlock).toContain("E2E_ORGANIZER_EMAIL=");
+    expect(githubEnvBlock).toContain("E2E_ORGANIZER_B_EMAIL=");
     expect(githubEnvBlock).toContain("E2E_COUNTRY_EMAIL=");
     expect(githubEnvBlock).toContain("E2E_SUSPENDED_EMAIL=");
     expect(githubEnvBlock).not.toContain("SERVICE_ROLE_KEY=");
