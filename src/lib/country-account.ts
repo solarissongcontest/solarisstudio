@@ -545,8 +545,8 @@ export function useDeleteCountryMedia(countryId?: string) {
   });
 }
 
-const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export async function uploadCountryAsset(
   countryId: string,
@@ -554,13 +554,13 @@ export async function uploadCountryAsset(
   folder: "flags" | "gallery" | "backgrounds",
 ) {
   if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-    throw new Error("Use a JPG, PNG, WebP or GIF image.");
+    throw new Error("Use a JPG, PNG or WebP image.");
   }
   if (file.size <= 0) {
     throw new Error("Choose a non-empty image.");
   }
   if (file.size > MAX_IMAGE_BYTES) {
-    throw new Error("Images can be at most 8 MB.");
+    throw new Error("Images can be at most 5 MB.");
   }
 
   const receipt = await uploadVerifiedFile({
