@@ -128,13 +128,100 @@ describe("Organisation OS V5 unified upload safety", () => {
     );
   });
 
-  it("extracts verification metadata and records the scanner limitation explicitly", () => {
+  it("extracts verification and processing metadata before public delivery", () => {
     expect(finalizer).toContain("jpegDimensions");
-    expect(finalizer).toContain("width:");
-    expect(finalizer).toContain("height:");
+    expect(finalizer).toContain("originalSize:");
+    expect(finalizer).toContain("publishedSize:");
     expect(finalizer).toContain("signatureVerified: true");
+    expect(finalizer).toContain("quarantineVerified: true");
+    expect(finalizer).toContain("orientationNormalized:");
+    expect(finalizer).toContain("metadataStripped:");
+    expect(finalizer).toContain("reencoded:");
+    expect(finalizer).toContain("thumbnailPath");
+  });
+
+  it("decodes, normalizes, re-encodes and metadata-strips public images server-side", () => {
+    expect(finalizer).toContain('npm:@imagemagick/magick-wasm@0.0.30');
+    expect(finalizer).toContain("initializeImageMagick");
+    expect(finalizer).toContain("image.autoOrient()");
+    expect(finalizer).toContain("image.comment = null");
+    expect(finalizer).toContain("image.label = null");
+    expect(finalizer).toContain("MagickFormat.Jpeg");
+    expect(finalizer).toContain("MagickFormat.Png");
+    expect(finalizer).toContain("MagickFormat.WebP");
+    expect(finalizer).toContain("stripJpegMetadata");
+    expect(finalizer).toContain("stripPngMetadata");
+    expect(finalizer).toContain("stripWebpMetadata");
+    expect(finalizer).toContain('new Set(["eXIf", "tEXt", "zTXt", "iTXt", "tIME"])');
+    expect(finalizer).toContain('type !== "EXIF" && type !== "XMP "');
+    expect(finalizer).toContain("marker !== 0xe1");
+    expect(finalizer).toContain("marker !== 0xed");
+    expect(finalizer).toContain("marker !== 0xfe");
+    expect(finalizer).toContain("processedThumbnailPath");
+    expect(finalizer).toContain("THUMBNAIL_MAX_EDGE = 512");
+    expect(finalizer).toContain('processingDecision = "decoded_oriented_stripped_reencoded"');
+    expect(finalizer).not.toContain("image.strip()");
+  });
+
+  it("keeps public image processing within the supported Edge Function budget", () => {
+    expect(finalizer).toContain("MAX_PUBLIC_IMAGE_BYTES = 5 * 1024 * 1024");
+    expect(finalizer).toContain("MAX_PUBLIC_IMAGE_DIMENSION = 8192");
+    expect(finalizer).toContain("MAX_PUBLIC_IMAGE_PIXELS = 40_000_000");
+    expect(quarantine).toContain("p_size > 5242880");
+    expect(quarantine).not.toContain("p_size > 15728640");
+    expect(quarantine).not.toContain("'image/gif'");
+  });
+
+  it("restricts public custom-font delivery to structurally validated WOFF2", () => {
+    expect(quarantine).toContain("v_ext = 'woff2'");
+    expect(quarantine).toContain("lower(p_mime) = 'font/woff2'");
+    expect(quarantine).toContain("v_mime <> 'font/woff2'");
+    expect(finalizer).toContain("validateWoff2");
+    expect(finalizer).toContain('ascii(bytes, 0, 4) !== "wOF2"');
+    expect(finalizer).toContain("declaredLength !== bytes.length");
+    expect(finalizer).toContain("numTables <= 0");
+    expect(finalizer).toContain('fontDeliveryFormat: row.domain === "country_font" ? "woff2" : null');
+  });
+
+  it("records every V5 upload pipeline stage without pretending a malware scanner exists", () => {
+    for (const stage of [
+      "authorized",
+      "size_checked",
+      "extension_allowlisted",
+      "mime_signature_verified",
+      "generated_storage_id",
+      "quarantined",
+      "type_processed",
+      "metadata_extracted",
+      "safe_transform_applied",
+      "moderation_decided",
+      "published",
+    ]) {
+      expect(finalizer).toContain(`"${stage}"`);
+    }
+
+    expect(finalizer).toContain('moderationDecision: "auto_approved"');
+    expect(finalizer).toContain('publicationDecision: "published_after_verification"');
     expect(finalizer).toContain('malwareScan: "not_available_in_current_runtime"');
+    expect(finalizer).toContain("malwareScanSupported: false");
     expect(finalizer).not.toContain('malwareScan: "clean"');
+  });
+
+  it("keeps evidence on the same quarantine verifier while preserving its stricter protected policy", () => {
+    const evidenceBridge = source(
+      "supabase/migrations/20261003214000_organisation_os_v5_integrity_upload_quarantine.sql",
+    );
+    expect(evidenceBridge).toContain("'integrity_evidence'");
+    expect(evidenceBridge).toContain("'application/pdf'");
+    expect(evidenceBridge).toContain("'text/plain'");
+    expect(evidenceBridge).toContain("'solaris-upload-quarantine'");
+    expect(evidenceBridge).toContain("private.studio2_create_evidence_upload_authorization");
+    expect(evidenceBridge).toContain(
+      'drop policy if exists "integrity evidence token upload" on storage.objects',
+    );
+    expect(finalizer).toContain('row.domain === "integrity_evidence"');
+    expect(finalizer).toContain('"/JavaScript"');
+    expect(finalizer).toContain('"/EmbeddedFile"');
   });
 
   it("keeps the shared raw upload fail-closed and non-overwriting", () => {
