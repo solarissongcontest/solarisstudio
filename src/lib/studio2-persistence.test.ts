@@ -153,6 +153,7 @@ describe('Studio 2 persistence row mapping', () => {
         updated_at: timestamp,
       }),
     ).toMatchObject({
+      status: 'detected',
       category: 'other',
       affectedSystems: [],
       description: '',
