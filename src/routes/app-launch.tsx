@@ -97,11 +97,19 @@ function AppLaunchPage() {
                 : "cold_launch_local_session",
         },
       });
+      const targetHref = appEntryHref(target);
       markAppNavigationRestore(target);
       void navigate({
-        to: appEntryHref(target) as any,
+        to: targetHref as any,
         replace: true,
       });
+
+      // Router restoration should complete immediately, but a cold installed
+      // launch must never be able to remain on the intermediary launch screen.
+      window.setTimeout(() => {
+        if (!alive || window.location.pathname !== "/app-launch") return;
+        window.location.replace(targetHref);
+      }, 1_000);
     });
 
     return () => {

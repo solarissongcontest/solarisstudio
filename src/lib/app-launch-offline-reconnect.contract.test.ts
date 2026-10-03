@@ -17,6 +17,9 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     expect(launch).toContain("Promise.race");
     expect(launch).toContain('"cold_launch_session_timeout"');
     expect(launch).toContain('pathname: "/"');
+    expect(launch).toContain('window.location.pathname !== "/app-launch"');
+    expect(launch).toContain("window.location.replace(targetHref)");
+    expect(launch).toContain("}, 1_000);");
     expect(launch).toContain("markAppNavigationRestore");
     expect(launch).toContain("replace: true");
   });
