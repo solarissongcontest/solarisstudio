@@ -1,5 +1,17 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import {
+  ImageMagick,
+  initializeImageMagick,
+} from "npm:@imagemagick/magick-wasm@0.0.30";
+
+const magickWasm = await Deno.readFile(
+  new URL(
+    "magick.wasm",
+    import.meta.resolve("npm:@imagemagick/magick-wasm@0.0.30"),
+  ),
+);
+await initializeImageMagick(magickWasm);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -233,6 +245,112 @@ function imageDomain(domain: UploadAuthorization["domain"]) {
   return domain === "country_media" || domain === "edition_artwork" || domain === "beta_feedback";
 }
 
+const MAX_PUBLIC_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_PUBLIC_IMAGE_DIMENSION = 8192;
+const MAX_PUBLIC_IMAGE_PIXELS = 40_000_000;
+const THUMBNAIL_MAX_EDGE = 512;
+
+function publicImageDimensionsSafe(detected: NonNullable<ReturnType<typeof detectFile>>) {
+  if (detected.kind !== "image") return false;
+  const width = "width" in detected && typeof detected.width === "number" ? detected.width : null;
+  const height = "height" in detected && typeof detected.height === "number" ? detected.height : null;
+  if (!width || !height) return true;
+  return (
+    width > 0 &&
+    height > 0 &&
+    width <= MAX_PUBLIC_IMAGE_DIMENSION &&
+    height <= MAX_PUBLIC_IMAGE_DIMENSION &&
+    width * height <= MAX_PUBLIC_IMAGE_PIXELS
+  );
+}
+
+function thumbnailSize(width: number, height: number) {
+  if (width <= THUMBNAIL_MAX_EDGE && height <= THUMBNAIL_MAX_EDGE) {
+    return { width, height };
+  }
+  const scale = Math.min(THUMBNAIL_MAX_EDGE / width, THUMBNAIL_MAX_EDGE / height);
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}
+
+function processedThumbnailPath(path: string) {
+  const match = path.match(/^(.*?)(\.[a-z0-9]+)$/i);
+  return match ? `${match[1]}.thumb${match[2]}` : `${path}.thumb`;
+}
+
+function processPublicImage(bytes: Uint8Array) {
+  return ImageMagick.read(bytes, (image) => {
+    image.autoOrient();
+    image.strip();
+    image.comment = null;
+    image.label = null;
+
+    const width = image.width;
+    const height = image.height;
+    if (
+      width <= 0 ||
+      height <= 0 ||
+      width > MAX_PUBLIC_IMAGE_DIMENSION ||
+      height > MAX_PUBLIC_IMAGE_DIMENSION ||
+      width * height > MAX_PUBLIC_IMAGE_PIXELS
+    ) {
+      throw new Error("Decoded image dimensions exceed Solaris safety limits.");
+    }
+
+    image.quality = 88;
+    const processed = image.write((data) => Uint8Array.from(data));
+    const thumbSize = thumbnailSize(width, height);
+    const thumbnail = image.clone((thumb) => {
+      if (thumb.width !== thumbSize.width || thumb.height !== thumbSize.height) {
+        thumb.resize(thumbSize.width, thumbSize.height);
+      }
+      thumb.strip();
+      thumb.comment = null;
+      thumb.label = null;
+      thumb.quality = 82;
+      return thumb.write((data) => Uint8Array.from(data));
+    });
+
+    return {
+      bytes: processed,
+      thumbnail,
+      width,
+      height,
+      thumbnailWidth: thumbSize.width,
+      thumbnailHeight: thumbSize.height,
+    };
+  });
+}
+
+function validateWoff2(bytes: Uint8Array) {
+  if (bytes.length < 48 || ascii(bytes, 0, 4) !== "wOF2") {
+    throw new Error("Custom font is not a valid WOFF2 file.");
+  }
+  const declaredLength = be32(bytes, 8);
+  const numTables = be16(bytes, 12);
+  const reserved = be16(bytes, 14);
+  const totalSfntSize = be32(bytes, 16);
+  const totalCompressedSize = be32(bytes, 20);
+  if (
+    declaredLength !== bytes.length ||
+    numTables <= 0 ||
+    reserved !== 0 ||
+    totalSfntSize <= 0 ||
+    totalCompressedSize <= 0 ||
+    totalCompressedSize > bytes.length
+  ) {
+    throw new Error("Custom WOFF2 font header is malformed.");
+  }
+  return {
+    format: "woff2",
+    numTables,
+    totalSfntSize,
+    totalCompressedSize,
+  };
+}
+
 function declaredTypeMatches(
   row: UploadAuthorization,
   detected: NonNullable<ReturnType<typeof detectFile>>,
@@ -241,7 +359,12 @@ function declaredTypeMatches(
     return detected.kind === "image" && detected.mime === row.declared_mime;
   }
   if (row.domain === "country_font") {
-    return detected.kind === "font";
+    return (
+      detected.kind === "font" &&
+      detected.format === "woff2" &&
+      detected.mime === "font/woff2" &&
+      row.declared_mime === "font/woff2"
+    );
   }
   if (row.domain === "integrity_evidence") {
     return detected.mime === row.declared_mime;
@@ -385,6 +508,21 @@ Deno.serve(async (request) => {
   } else if (!declaredTypeMatches(row, detected)) {
     rejection = "Uploaded file signature does not match the authorized file type.";
   } else if (
+    imageDomain(row.domain) &&
+    bytes.byteLength > MAX_PUBLIC_IMAGE_BYTES
+  ) {
+    rejection = "Public images must be no larger than 5 MB for server-side processing.";
+  } else if (
+    imageDomain(row.domain) &&
+    !publicImageDimensionsSafe(detected)
+  ) {
+    rejection = "Image dimensions exceed Solaris safety limits.";
+  } else if (
+    row.domain === "country_font" &&
+    detected.format !== "woff2"
+  ) {
+    rejection = "Custom font delivery is restricted to validated WOFF2 files.";
+  } else if (
     row.domain === "integrity_evidence" &&
     detected.kind === "document" &&
     Array.isArray(detected.dangerousMarkers) &&
@@ -414,20 +552,97 @@ Deno.serve(async (request) => {
     return json({ error: rejection }, 422);
   }
 
+  let publishBytes = bytes;
+  let thumbnailBytes: Uint8Array | null = null;
+  let thumbnailPath: string | null = null;
+  let processedWidth =
+    "width" in detected! && typeof detected!.width === "number" ? detected!.width : null;
+  let processedHeight =
+    "height" in detected! && typeof detected!.height === "number" ? detected!.height : null;
+  let thumbnailWidth: number | null = null;
+  let thumbnailHeight: number | null = null;
+  let processingDecision = "verified_original";
+
+  try {
+    if (imageDomain(row.domain)) {
+      const processed = processPublicImage(bytes);
+      publishBytes = processed.bytes;
+      thumbnailBytes = processed.thumbnail;
+      thumbnailPath = processedThumbnailPath(row.final_path);
+      processedWidth = processed.width;
+      processedHeight = processed.height;
+      thumbnailWidth = processed.thumbnailWidth;
+      thumbnailHeight = processed.thumbnailHeight;
+      processingDecision = "decoded_oriented_stripped_reencoded";
+    } else if (row.domain === "country_font") {
+      validateWoff2(bytes);
+      processingDecision = "validated_woff2_delivery";
+    }
+  } catch (processingError) {
+    const message =
+      processingError instanceof Error
+        ? processingError.message
+        : "Server-side file processing failed.";
+    await service.storage.from("solaris-upload-quarantine").remove([row.quarantine_path]);
+    await service
+      .from("studio2_upload_authorizations")
+      .update({
+        status: "rejected",
+        rejection_reason: message,
+        finalized_at: new Date().toISOString(),
+        verified_metadata: {
+          size: bytes.byteLength,
+          detected,
+          signatureVerified: true,
+          processing: "failed",
+          malwareScan: "not_available_in_current_runtime",
+          moderationDecision: "rejected",
+        },
+      })
+      .eq("id", row.id)
+      .eq("status", "prepared");
+    return json({ error: message }, 422);
+  }
+
   const metadata = {
-    size: bytes.byteLength,
+    originalSize: bytes.byteLength,
+    publishedSize: publishBytes.byteLength,
     kind: detected!.kind,
     format: detected!.format,
-    width: "width" in detected! ? detected!.width ?? null : null,
-    height: "height" in detected! ? detected!.height ?? null : null,
+    width: processedWidth,
+    height: processedHeight,
     dangerousMarkers:
       "dangerousMarkers" in detected! ? detected!.dangerousMarkers ?? [] : [],
     signatureVerified: true,
+    quarantineVerified: true,
+    processing: processingDecision,
+    orientationNormalized: imageDomain(row.domain),
+    metadataStripped: imageDomain(row.domain),
+    reencoded: imageDomain(row.domain),
+    thumbnailPath,
+    thumbnailWidth,
+    thumbnailHeight,
+    fontDeliveryFormat: row.domain === "country_font" ? "woff2" : null,
     malwareScan: "not_available_in_current_runtime",
-    quarantined: true,
+    malwareScanSupported: false,
+    moderationDecision: "auto_approved",
+    publicationDecision: "published_after_verification",
+    pipelineStages: [
+      "authorized",
+      "size_checked",
+      "extension_allowlisted",
+      "mime_signature_verified",
+      "generated_storage_id",
+      "quarantined",
+      "type_processed",
+      "metadata_extracted",
+      "safe_transform_applied",
+      "moderation_decided",
+      "published",
+    ],
   };
 
-  const finalBlob = new Blob([bytes], { type: detected!.mime });
+  const finalBlob = new Blob([publishBytes], { type: detected!.mime });
   const { error: publishError } = await service.storage
     .from(row.final_bucket)
     .upload(row.final_path, finalBlob, {
@@ -441,6 +656,21 @@ Deno.serve(async (request) => {
     if (!duplicate) {
       console.error("[solaris-upload-finalize] final publish failed", publishError);
       return json({ error: "Verified file could not be published." }, 500);
+    }
+  }
+
+  if (thumbnailBytes && thumbnailPath) {
+    const { error: thumbnailError } = await service.storage
+      .from(row.final_bucket)
+      .upload(thumbnailPath, new Blob([thumbnailBytes], { type: detected!.mime }), {
+        upsert: false,
+        contentType: detected!.mime,
+        cacheControl: "86400",
+      });
+    if (thumbnailError && !/already exists|duplicate/i.test(thumbnailError.message || "")) {
+      await service.storage.from(row.final_bucket).remove([row.final_path]);
+      console.error("[solaris-upload-finalize] thumbnail publish failed", thumbnailError);
+      return json({ error: "Verified image thumbnail could not be published." }, 500);
     }
   }
 
