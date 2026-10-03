@@ -8,6 +8,9 @@ describe("Organisation OS V5 final certification contract", () => {
   const failureCoverage = source(
     "docs/organisation-os-v5/failure-injection-coverage.yml",
   );
+  const phoneCoverage = source(
+    "docs/organisation-os-v5/phone-exam-coverage.yml",
+  );
   const manifest = source("docs/organisation-os-v5/release-certification.yml");
   const readiness = source("scripts/check-organisation-os-v5-release-readiness.mjs");
   const workflow = source(".github/workflows/organisation-os-v5-certification.yml");
@@ -55,6 +58,66 @@ describe("Organisation OS V5 final certification contract", () => {
     expect(readiness).toContain("release-blocking implementation proof is partial");
     expect(readiness).toContain("phone exam must contain exactly 42");
     expect(readiness).toContain("failure injection must contain exactly 17");
+  });
+
+  it("preserves all 42 phone-only exam steps as explicit evidence obligations", () => {
+    expect(phoneCoverage).toContain("required_steps: 42");
+
+    const steps = phoneCoverage
+      .split("\n")
+      .filter((line) => line.startsWith("  - { id: "));
+    expect(steps).toHaveLength(42);
+
+    for (const id of [
+      "create-select-test-edition",
+      "configure-host",
+      "configure-shows",
+      "configure-delegations",
+      "participant-view",
+      "open-confirmation-round",
+      "receive-submissions",
+      "review-internal-entry",
+      "review-national-final-entries",
+      "select-national-final-winner",
+      "handle-corrections",
+      "operate-next-in-line",
+      "review-eligibility",
+      "review-media",
+      "review-country-public-content",
+      "inspect-country-appearance",
+      "configure-running-order",
+      "configure-jury",
+      "open-jury",
+      "handle-invalid-missing-ballot",
+      "dnv-where-appropriate",
+      "close-jury",
+      "configure-televote",
+      "open-televote",
+      "review-integrity-signal",
+      "close-incomplete-televote",
+      "calculate-results",
+      "verify-results",
+      "lock-results",
+      "run-reveal-director",
+      "publish",
+      "send-required-notice",
+      "acknowledge-from-participant-test-account",
+      "handle-outstanding-acknowledgement",
+      "simulate-failed-automation",
+      "recover-failed-automation",
+      "simulate-failed-push",
+      "simulate-service-degradation",
+      "enter-read-only",
+      "recover-from-read-only",
+      "handle-sev-1-incident",
+      "inspect-audit",
+    ]) {
+      expect(phoneCoverage).toContain(`  - { id: ${id},`);
+    }
+
+    expect(phoneCoverage).toContain(
+      "Operate all 42 steps in sequence from one physical phone without desktop fallback.",
+    );
   });
 
   it("preserves all 17 mandatory injected failures as named coverage obligations", () => {
