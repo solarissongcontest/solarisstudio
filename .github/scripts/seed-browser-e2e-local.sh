@@ -24,6 +24,7 @@ esac
 
 PASSWORD='SolarisBrowserLocal2026!'
 ORGANIZER_EMAIL='organizer-browser-e2e@solaris.invalid'
+ORGANIZER_B_EMAIL='organizer-b-browser-e2e@solaris.invalid'
 COUNTRY_EMAIL='country-browser-e2e@solaris.invalid'
 SUSPENDED_EMAIL='suspended-browser-e2e@solaris.invalid'
 
@@ -129,6 +130,8 @@ set name = excluded.name,
 log "Creating local-only browser identities"
 create_user "$ORGANIZER_EMAIL" "Browser Organizer"
 ORGANIZER_ID="$LAST_USER_ID"
+create_user "$ORGANIZER_B_EMAIL" "Browser Organizer B"
+ORGANIZER_B_ID="$LAST_USER_ID"
 create_user "$COUNTRY_EMAIL" "Browser HOD"
 COUNTRY_ID="$LAST_USER_ID"
 create_user "$SUSPENDED_EMAIL" "Suspended Browser HOD"
@@ -139,9 +142,9 @@ db_exec "
 insert into public.studio2_role_assignments (
   user_id, role_key, edition_id, expires_at, assigned_by
 )
-values (
-  '$ORGANIZER_ID'::uuid, 'organizer', null, null, null
-)
+values
+  ('$ORGANIZER_ID'::uuid, 'organizer', null, null, null),
+  ('$ORGANIZER_B_ID'::uuid, 'organizer', null, null, null)
 on conflict on constraint studio2_role_assignments_scope_unique do nothing;
 
 insert into public.country_accounts (
@@ -174,6 +177,7 @@ set country_id = excluded.country_id,
 "
 
 [[ "$(db_scalar "select count(*) from public.studio2_role_assignments where user_id='$ORGANIZER_ID'::uuid and role_key='organizer';")" == "1" ]]   || fail "Organizer authoritative role was not created"
+[[ "$(db_scalar "select count(*) from public.studio2_role_assignments where user_id='$ORGANIZER_B_ID'::uuid and role_key='organizer';")" == "1" ]]   || fail "Second Organizer authoritative role was not created"
 [[ "$(db_scalar "select status from public.country_accounts where user_id='$COUNTRY_ID'::uuid;")" == "active" ]]   || fail "Country browser account was not active"
 [[ "$(db_scalar "select status from public.country_accounts where user_id='$SUSPENDED_ID'::uuid;")" == "suspended" ]]   || fail "Suspended browser account was not suspended"
 
@@ -183,6 +187,8 @@ if [[ -n "${GITHUB_ENV:-}" ]]; then
   {
     echo "E2E_ORGANIZER_EMAIL=$ORGANIZER_EMAIL"
     echo "E2E_ORGANIZER_PASSWORD=$PASSWORD"
+    echo "E2E_ORGANIZER_B_EMAIL=$ORGANIZER_B_EMAIL"
+    echo "E2E_ORGANIZER_B_PASSWORD=$PASSWORD"
     echo "E2E_COUNTRY_EMAIL=$COUNTRY_EMAIL"
     echo "E2E_COUNTRY_PASSWORD=$PASSWORD"
     echo "E2E_SUSPENDED_EMAIL=$SUSPENDED_EMAIL"
