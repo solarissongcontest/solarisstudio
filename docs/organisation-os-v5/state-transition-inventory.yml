@@ -1,0 +1,172 @@
+version: 1
+product: Solaris Studio Organisation OS V5
+source: "V5 mutable-state and explicit States/Lifecycle sections"
+status_values: [verified, implemented, partial, missing, derived]
+release_rule: "Every mutable domain must be verified or implemented with server-side transition validation before §240 transition completeness can be certified."
+
+domains:
+  - id: confirmation-round
+    status: verified
+    source_sections: [50, 51, 52]
+    evidence:
+      - supabase/migrations/20261003018000_organisation_os_v5_confirmation_round_operations.sql
+      - src/lib/organisation-confirmation-rounds-v5.test.ts
+    note: "Previewed/versioned R2/R3 operation path; direct authenticated mutation bypasses are revoked."
+
+  - id: participation-status
+    status: verified
+    source_sections: [62]
+    evidence:
+      - supabase/migrations/20261003015000_organisation_os_v5_participation_status_operations.sql
+      - src/lib/organisation-participation-status-v5.test.ts
+
+  - id: selection-review-internal
+    status: partial
+    source_sections: [54, 55]
+    evidence:
+      - supabase/migrations/20260816200158_integrate_confirmations_schema.sql
+      - src/routes/confirmations/admin/responses/$id.tsx
+    blocker: "States are constrained, but the V5 operation-contract/versioned transition proof is not yet explicit."
+
+  - id: selection-review-national-final
+    status: partial
+    source_sections: [54, 55]
+    evidence:
+      - supabase/migrations/20260816200158_integrate_confirmations_schema.sql
+      - src/routes/confirmations/admin/responses/$id.tsx
+    blocker: "Pending/accepted/declined/removed are constrained, but transition ordering and stale-write rejection need explicit V5 proof."
+
+  - id: national-final-winner
+    status: partial
+    source_sections: [54, 55]
+    evidence:
+      - supabase/migrations/20260816200158_integrate_confirmations_schema.sql
+      - src/routes/confirmations/admin/responses/$id.tsx
+    blocker: "Winner select/clear is audited in the legacy confirmation domain but not yet bound to the canonical V5 operation/version contract."
+
+  - id: next-in-line-control
+    status: partial
+    source_sections: [59, 60, 61]
+    evidence:
+      - src/routes/_authenticated/admin/next-in-line.tsx
+      - src/lib/jury-next-in-line-contract.test.ts
+    blocker: "Explicit organiser administration exists, but lifecycle transitions are not yet proven by one server-authoritative V5 transition contract."
+
+  - id: public-design-preset-moderation
+    status: implemented
+    source_sections: [70]
+    evidence:
+      - supabase/migrations/20261002200000_organisation_os_v5_community_moderation.sql
+      - src/lib/organisation-os-v5-counterparts.test.ts
+
+  - id: country-wiki-section-moderation
+    status: implemented
+    source_sections: [67]
+    evidence:
+      - supabase/migrations/20261002200000_organisation_os_v5_community_moderation.sql
+      - src/lib/organisation-os-v5-counterparts.test.ts
+
+  - id: media-asset-review
+    status: verified
+    source_sections: [76]
+    evidence:
+      - supabase/migrations/20260912143500_studio2_media_asset_operations.sql
+      - src/lib/studio2-media-assets-integration.test.ts
+    note: "Source-bound review decisions reject stale canonical media changes."
+
+  - id: jury-window
+    status: verified
+    source_sections: [87]
+    evidence:
+      - supabase/migrations/20261003014000_organisation_os_v5_jury_window_operations.sql
+      - src/lib/organisation-jury-window-v5.test.ts
+
+  - id: jury-ballot
+    status: partial
+    source_sections: [88, 90]
+    evidence:
+      - supabase/migrations/20260821204500_country_account_jury_voting.sql
+      - src/lib/jury-next-in-line-contract.test.ts
+    blocker: "Ballot states exist, but Expected → Submitted → Valid/Needs review/Invalidated/DNV/Superseded transition enforcement is not yet centrally proven."
+
+  - id: televote-round
+    status: verified
+    source_sections: [93, 94, 95, 96]
+    evidence:
+      - supabase/migrations/20261003017000_organisation_os_v5_televote_round_operations.sql
+      - src/lib/organisation-televote-rounds-v5.test.ts
+
+  - id: voting-declaration
+    status: partial
+    source_sections: [102]
+    evidence:
+      - src/lib/ssc-rules-online-base.ts
+    blocker: "Required/Signed/Missing/Wrong version/Invalidated is specified, but no canonical transition contract is mapped here yet."
+
+  - id: result-lifecycle
+    status: verified
+    source_sections: [108, 109, 110, 111, 112]
+    evidence:
+      - supabase/migrations/20260912154500_studio2_results_operations.sql
+      - src/lib/studio2-results-operations.test.ts
+      - src/lib/organisation-high-risk-operations-v5.test.ts
+
+  - id: publication-layer
+    status: partial
+    source_sections: [118, 119]
+    evidence:
+      - src/routes/_authenticated/admin/publication/$slug.tsx
+      - src/lib/production-organizer-audit-regressions.test.ts
+    blocker: "Publication preflight is strong, but Draft/Scheduled/Public/Hidden transition enforcement needs one explicit server transition inventory."
+
+  - id: incident
+    status: partial
+    source_sections: [122]
+    evidence:
+      - src/lib/studio2-incidents-integration.test.ts
+    blocker: "Detected/Investigating/Mitigating/Monitoring/Resolved is modeled, but invalid transition rejection is not yet mapped to a single server-side contract."
+
+  - id: appeal
+    status: implemented
+    source_sections: [133]
+    evidence:
+      - src/lib/governance-os-v5.contract.test.ts
+      - src/lib/integrity-portal.ts
+
+  - id: rules-release
+    status: implemented
+    source_sections: [135]
+    evidence:
+      - src/lib/governance-os-v5.contract.test.ts
+      - src/routes/_authenticated/admin/rules-manager.tsx
+
+  - id: permission-change-approval
+    status: verified
+    source_sections: [145, 146]
+    evidence:
+      - supabase/migrations/20261003151000_organisation_os_v5_r3_permission_approvals.sql
+      - src/lib/organisation-high-risk-operations-v5.test.ts
+      - e2e/organizer-routes.e2e.ts
+
+  - id: background-job-recovery
+    status: implemented
+    source_sections: [153]
+    evidence:
+      - supabase/migrations/20261003161000_organisation_os_v5_system_job_recovery.sql
+      - src/lib/organisation-v5-system-job-recovery.test.ts
+    note: "Scheduler state is authoritative/derived; recovery transitions are reconciled into Tasks."
+
+  - id: platform-operational-mode
+    status: missing
+    source_sections: [147, 148, 149, 150, 152]
+    evidence:
+      - src/lib/maintenance.ts
+      - src/lib/maintenance-contract.test.ts
+    blocker: "The out-of-band emergency maintenance path exists, but there is no canonical Normal/Degraded/Read-only/Maintenance backend state machine with server-enforced transitions."
+
+  - id: system-health
+    status: derived
+    source_sections: [153]
+    evidence:
+      - src/routes/_authenticated/admin/system-operations.tsx
+    note: "Operational/Degraded/Failed/Unknown is diagnostic state derived from services, not an organiser-mutated lifecycle."
