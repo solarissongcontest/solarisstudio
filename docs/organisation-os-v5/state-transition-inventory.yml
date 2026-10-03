@@ -171,16 +171,20 @@ domains:
     note: "Scheduler state is authoritative/derived; recovery transitions are reconciled into Tasks."
 
   - id: platform-operational-mode
-    status: partial
-    source_sections: [147, 148, 149, 150, 152]
+    status: verified
+    source_sections: [147, 148, 149, 150, 151, 152]
     evidence:
       - supabase/migrations/20261003174000_organisation_os_v5_platform_operational_modes.sql
+      - supabase/migrations/20261003210000_organisation_os_v5_read_only_enforcement.sql
       - supabase/migrations/20261003212000_organisation_os_v5_platform_permission_enforcement.sql
+      - supabase/migrations/20261003213000_organisation_os_v5_platform_exit_preflight.sql
       - src/lib/organisation-v5-platform-modes.test.ts
+      - src/lib/organisation-v5-read-only-enforcement.test.ts
+      - src/lib/organisation-v5-platform-exit-preflight.test.ts
+      - src/lib/platform-exit-preflight.functions.ts
       - src/routes/_authenticated/admin/system.tsx
-      - src/lib/maintenance.ts
       - src/lib/maintenance-contract.test.ts
-    blocker: "Canonical operation-contract writes and capability-authorized legacy RPCs now obey Normal/Degraded/Read-only/Maintenance. Remaining work is exhaustive protection of direct/ownership-only write paths plus the full Maintenance/Read-only exit preflight."
+    note: "Normal/Degraded/Read-only/Maintenance is canonical and versioned; operation-contract, Data API, direct table and Storage writes fail closed in restricted modes; the emergency Worker circuit breaker remains independent; leaving Maintenance/Read-only requires the exact §152 ten-check server preflight, cross-service/runtime attestation, fresh auth, a short-lived actor/version-bound receipt and an apply-time database recheck."
   - id: system-health
     status: derived
     source_sections: [153]
