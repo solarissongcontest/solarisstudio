@@ -26,7 +26,12 @@ describe("Organisation OS V5 review hardening", () => {
     const dispatcher = source("supabase/functions/solaris-push-dispatch/index.ts");
     expect(dispatcher).toContain('.select("state,resolved_at,source_key")');
     expect(dispatcher).toContain('"solaris_organizer_task_recipient_eligible"');
-    expect(dispatcher).toContain('"Organizer Task recipient revalidation failed"');
+    expect(dispatcher).toContain('"Organizer Task eligibility revalidation failed; retry scheduled."');
+    const organizerBlockStart = dispatcher.indexOf('if (delivery.category === "organizer_tasks")');
+    const preferenceStart = dispatcher.indexOf("const { data: preferenceData");
+    const organizerBlock = dispatcher.slice(organizerBlockStart, preferenceStart);
+    expect(organizerBlock).toContain('"solaris_organizer_task_recipient_eligible"');
+    expect(organizerBlock).toContain('.eq("source_key", task.source_key)');
     expect(dispatcher).toContain('"Organizer Task recipient is no longer eligible."');
   });
 
