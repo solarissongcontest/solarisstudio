@@ -103,8 +103,12 @@ describe("Solaris installed-app foundation", () => {
 
   it("uses a bottom utility sheet instead of duplicating section navigation", () => {
     const shell = source("src/components/AppShell.tsx");
+    const draggable = source("src/components/interaction/SolarisDraggableSheet.tsx");
     const more = source("src/components/app/AppMoreNavigation.tsx");
-    expect(shell).toContain('side={isAppMode ? "bottom" : "right"}');
+    expect(shell).toContain("SolarisDraggableSheetContent");
+    expect(shell).toContain('side="right"');
+    expect(draggable).toContain("<SheetContent");
+    expect(draggable).toContain('side="bottom"');
     expect(more).toContain("All Solaris pages");
     expect(more).toContain("App settings");
     expect(more).toContain("Account & security");

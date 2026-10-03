@@ -29,11 +29,15 @@ describe("Solaris UI craft foundations", () => {
 
   it("keeps public and Organizer drawers on the accessible shared Sheet primitive", () => {
     const appShell = source("src/components/AppShell.tsx");
+    const draggable = source("src/components/interaction/SolarisDraggableSheet.tsx");
     const adminUi = source("src/components/admin/AdminUI.tsx");
     const sheet = source("src/components/ui/sheet.tsx");
 
+    expect(appShell).toContain("SolarisDraggableSheetContent");
     expect(appShell).toContain("SheetContent");
-    expect(appShell).toContain('side={isAppMode ? "bottom" : "right"}');
+    expect(appShell).toContain('side="right"');
+    expect(draggable).toContain("<SheetContent");
+    expect(draggable).toContain('side="bottom"');
     expect(appShell).not.toContain("document.body.style.overflow");
     expect(adminUi).toContain('side="responsive"');
     expect(adminUi).not.toContain("createPortal");
