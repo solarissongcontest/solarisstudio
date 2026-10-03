@@ -210,6 +210,47 @@ Deno.serve(async (req) => {
       }
     }
 
+    const { data: recipientEligible, error: recipientEligibilityError } = await service.rpc(
+      "solaris_organizer_task_recipient_eligible",
+      {
+        p_task_id: delivery.subject_id,
+        p_user_id: delivery.user_id,
+      },
+    );
+
+    if (recipientEligibilityError) {
+      console.error(
+        "[solaris-push-dispatch] Organizer Task eligibility revalidation failed",
+        delivery.id,
+        recipientEligibilityError,
+      );
+      await service
+        .from("notification_deliveries")
+        .update({
+          status: "pending",
+          processing_started_at: null,
+          scheduled_for: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+          error: "Organizer Task eligibility revalidation failed; retry scheduled.",
+        })
+        .eq("id", delivery.id)
+        .eq("status", "processing");
+      continue;
+    }
+
+    if (!recipientEligible) {
+      await service
+        .from("notification_deliveries")
+        .update({
+          status: "suppressed",
+          processing_started_at: null,
+          error: "Organizer Task recipient is no longer eligible.",
+        })
+        .eq("id", delivery.id)
+        .eq("status", "processing");
+      suppressed += 1;
+      continue;
+    }
+
     const { data: recipientNotification, error: recipientNotificationError } = await service
       .from("admin_notifications")
       .select("id")
