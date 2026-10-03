@@ -102,6 +102,29 @@ export type PermissionChangeReceipt = {
   operationId: string;
 };
 
+export type PermissionChangeApproval = {
+  id: string;
+  operationId: string;
+  idempotencyKey: string | null;
+  targetUserId: string | null;
+  targetDisplayName: string;
+  changeKind: PermissionChangeKind;
+  key: string;
+  editionId: string | null;
+  expiresAt: string | null;
+  expectedVersion: number;
+  requestedBy: string | null;
+  requesterDisplayName: string;
+  requestedAt: string;
+  approvalExpiresAt: string;
+  approvedBy: string | null;
+  approverDisplayName: string | null;
+  approvedAt: string | null;
+  canApprove: boolean;
+  canApply: boolean;
+  consumedAt: string | null;
+};
+
 export type PermissionEvent = {
   id: number;
   userId: string | null;
@@ -335,6 +358,32 @@ function permissionChangeKind(value: unknown): PermissionChangeKind {
   return candidate;
 }
 
+function mapPermissionChangeApproval(value: unknown): PermissionChangeApproval {
+  const row = object(value, "permission change approval");
+  return {
+    id: string(row.id, "permission approval id"),
+    operationId: string(row.operationId, "permission approval operation id"),
+    idempotencyKey: nullableString(row.idempotencyKey),
+    targetUserId: nullableString(row.targetUserId),
+    targetDisplayName: string(row.targetDisplayName, "permission approval target"),
+    changeKind: permissionChangeKind(row.changeKind),
+    key: string(row.key, "permission approval key"),
+    editionId: nullableString(row.editionId),
+    expiresAt: nullableString(row.expiresAt),
+    expectedVersion: number(row.expectedVersion, "permission approval expected version"),
+    requestedBy: nullableString(row.requestedBy),
+    requesterDisplayName: string(row.requesterDisplayName, "permission approval requester"),
+    requestedAt: string(row.requestedAt, "permission approval requested at"),
+    approvalExpiresAt: string(row.approvalExpiresAt, "permission approval expiry"),
+    approvedBy: nullableString(row.approvedBy),
+    approverDisplayName: nullableString(row.approverDisplayName),
+    approvedAt: nullableString(row.approvedAt),
+    canApprove: boolean(row.canApprove, "permission approval canApprove"),
+    canApply: boolean(row.canApply, "permission approval canApply"),
+    consumedAt: nullableString(row.consumedAt),
+  };
+}
+
 function mapPermissionChangePreview(value: unknown): PermissionChangePreview {
   const row = object(value, "permission change preview");
   const warningsValue = object(row.warnings ?? {}, "permission change warnings");
@@ -398,6 +447,45 @@ export async function previewPermissionChange(
       p_key: input.key,
       p_edition_id: input.editionId ?? null,
       p_expires_at: input.expiresAt ?? null,
+    }),
+  );
+}
+
+export async function loadPermissionChangeApprovals(): Promise<PermissionChangeApproval[]> {
+  return array(await rpc("studio2_list_permission_change_approvals")).map(
+    mapPermissionChangeApproval,
+  );
+}
+
+export async function requestPermissionChangeApproval(
+  input: PermissionChangeInput & {
+    operationId: string;
+    idempotencyKey: string;
+    expectedVersion: number;
+    approvalRequestId: string;
+  },
+): Promise<PermissionChangeApproval> {
+  return mapPermissionChangeApproval(
+    await rpc("studio2_request_permission_change_approval", {
+      p_user_id: input.userId,
+      p_change_kind: input.kind,
+      p_key: input.key,
+      p_edition_id: input.editionId ?? null,
+      p_expires_at: input.expiresAt ?? null,
+      p_operation_id: input.operationId,
+      p_idempotency_key: input.idempotencyKey,
+      p_expected_version: input.expectedVersion,
+      p_approval_request_id: input.approvalRequestId,
+    }),
+  );
+}
+
+export async function approvePermissionChangeApproval(
+  requestId: string,
+): Promise<PermissionChangeApproval> {
+  return mapPermissionChangeApproval(
+    await rpc("studio2_approve_permission_change", {
+      p_request_id: requestId,
     }),
   );
 }
