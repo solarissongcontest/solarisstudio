@@ -7,6 +7,79 @@ export type AppPushState = {
   subscribed: boolean;
 };
 
+export type AppPushDeliveryMode =
+  | "active"
+  | "available"
+  | "permission-denied"
+  | "unsupported"
+  | "unconfigured";
+
+export type AppPushDeliveryStatus = {
+  mode: AppPushDeliveryMode;
+  title: string;
+  description: string;
+  requiredWorkAvailable: true;
+};
+
+/**
+ * Push is delivery infrastructure, never canonical work state.
+ *
+ * Every returned state deliberately keeps requiredWorkAvailable=true so UI
+ * cannot accidentally imply that disabling or losing push hides required
+ * participant work. Tasks and Notices remain the authoritative in-app path.
+ */
+export function describeAppPushDelivery(
+  state: AppPushState,
+): AppPushDeliveryStatus {
+  if (!state.configured) {
+    return {
+      mode: "unconfigured",
+      title: "Push temporarily unavailable",
+      description:
+        "Solaris cannot deliver device alerts right now. Required tasks and notices still remain available inside Solaris.",
+      requiredWorkAvailable: true,
+    };
+  }
+
+  if (!state.supported) {
+    return {
+      mode: "unsupported",
+      title: "Push is not supported here",
+      description:
+        "This browser cannot receive Solaris push alerts. Required tasks and notices still remain available inside Solaris.",
+      requiredWorkAvailable: true,
+    };
+  }
+
+  if (state.subscribed) {
+    return {
+      mode: "active",
+      title: "Push is active",
+      description:
+        "This device can receive Solaris alerts. Required work still remains available inside Solaris even if delivery is delayed.",
+      requiredWorkAvailable: true,
+    };
+  }
+
+  if (state.permission === "denied") {
+    return {
+      mode: "permission-denied",
+      title: "Push is blocked",
+      description:
+        "Your system blocks Solaris alerts on this device. Required tasks and notices still remain available inside Solaris.",
+      requiredWorkAvailable: true,
+    };
+  }
+
+  return {
+    mode: "available",
+    title: "Push is optional",
+    description:
+      "You can enable device alerts, but required tasks and notices remain available inside Solaris without push.",
+    requiredWorkAvailable: true,
+  };
+}
+
 let runtimeVapidKeyPromise: Promise<string> | null = null;
 
 async function vapidPublicKey() {
