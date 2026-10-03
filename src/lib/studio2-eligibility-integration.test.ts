@@ -11,7 +11,8 @@ const hodRoute = source('src/components/mysolaris/modules/MySolarisTasksModule.t
 const model = source('src/lib/studio2-eligibility.ts');
 const readiness = source('src/lib/country-operational-readiness.ts');
 const cockpit = source('src/lib/studio2-country-cockpit.ts');
-const actionCenterRoute = source('src/routes/_authenticated/admin/action-center.tsx');
+const tasksClient = source('src/lib/admin-tasks-v5.ts');
+const taskEngine = source('supabase/migrations/20261002211500_organisation_os_v5_task_engine.sql');
 const eventContract = source('src/lib/contest-events.ts');
 const nav = source('src/components/admin/admin-navigation.ts');
 const migration = source('supabase/migrations/20260911202500_studio2_eligibility_overrides.sql');
@@ -57,11 +58,13 @@ describe('Studio 2 Phase 7 eligibility integration', () => {
     expect(route).not.toContain('.delete(');
   });
 
-  it('feeds effective override-aware readiness to Action Center without replacing the shared readiness source', () => {
-    expect(actionCenterRoute).toContain('listStudio2EligibilityOverrides(resolvedEditionId)');
-    expect(actionCenterRoute).toContain('readiness: row.operationalReadiness');
-    expect(actionCenterRoute).toContain('applyStudio2EligibilityOverridesToReadiness');
+  it('keeps eligibility decisions canonical while Organizer Tasks stay server-derived', () => {
     expect(model).toContain('An organizer eligibility override is active.');
+    expect(tasksClient).toContain('client.rpc("admin_organizer_tasks"');
+    expect(tasksClient).not.toContain('listStudio2EligibilityOverrides');
+    expect(tasksClient).not.toContain('applyStudio2EligibilityOverridesToReadiness');
+    expect(taskEngine).toContain('private.studio2_reconcile_organizer_tasks');
+    expect(taskEngine).not.toContain('admin_mark_organizer_task_resolved');
   });
 
   it('shows active organizer decisions to HODs without exposing edit controls', () => {
