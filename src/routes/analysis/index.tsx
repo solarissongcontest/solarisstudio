@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
@@ -10,16 +10,11 @@ import {
   PublicInsightCard,
   PublicInsightRail,
 } from "@/components/public/PublicDataView";
-import { ChordDiagram } from "@/components/viz/ChordDiagram";
 import {
   DEFAULT_ANALYSIS_FILTERS,
   Filters,
   type AnalysisFiltersState,
 } from "@/components/viz/Filters";
-import { HistoricalLeaderboard } from "@/components/viz/HistoricalLeaderboard";
-import { JuryVsTelevote } from "@/components/viz/JuryVsTelevote";
-import { NetworkGraph } from "@/components/viz/NetworkGraph";
-import { VotingHeatmap } from "@/components/viz/VotingHeatmap";
 import { regionalBias, topRecipients, topSupporters, votingSimilarity } from "@/lib/analysis";
 import {
   type Country,
@@ -35,6 +30,46 @@ import { buildFanDiscovery, type DiscoveryStory } from "@/lib/fan-discovery";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 import { computeRelationship, computeVotingIntelligence } from "@/lib/stats";
 import { resolveVoting } from "@/lib/voting";
+
+const ChordDiagram = lazy(() =>
+  import("@/components/viz/ChordDiagram").then((module) => ({
+    default: module.ChordDiagram,
+  })),
+);
+const HistoricalLeaderboard = lazy(() =>
+  import("@/components/viz/HistoricalLeaderboard").then((module) => ({
+    default: module.HistoricalLeaderboard,
+  })),
+);
+const JuryVsTelevote = lazy(() =>
+  import("@/components/viz/JuryVsTelevote").then((module) => ({
+    default: module.JuryVsTelevote,
+  })),
+);
+const NetworkGraph = lazy(() =>
+  import("@/components/viz/NetworkGraph").then((module) => ({
+    default: module.NetworkGraph,
+  })),
+);
+const VotingHeatmap = lazy(() =>
+  import("@/components/viz/VotingHeatmap").then((module) => ({
+    default: module.VotingHeatmap,
+  })),
+);
+
+function VisualizationFallback() {
+  return (
+    <div
+      className="min-h-36 animate-pulse rounded-xl border border-border/60 bg-surface/30"
+      role="status"
+      aria-label="Loading visualization"
+    />
+  );
+}
+
+function DeferredVisualization({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<VisualizationFallback />}>{children}</Suspense>;
+}
 
 export const Route = createFileRoute("/analysis/")({
   head: () => ({ meta: [{ title: "Analysis — Solaris Studio" }] }),
@@ -314,7 +349,11 @@ function AnalysisPage() {
             description="Only published shows that actually used both jury and televote are included here."
           />
           <Panel title="Jury vs televote" description="Each dot is a country. Move right for more jury support and upward for more televote support.">
-            {splitVoteResults.length ? <JuryVsTelevote countries={cs} results={splitVoteResults} /> : <Empty />}
+            {splitVoteResults.length ? (
+              <DeferredVisualization>
+                <JuryVsTelevote countries={cs} results={splitVoteResults} />
+              </DeferredVisualization>
+            ) : <Empty />}
           </Panel>
           <div className="grid gap-5 lg:grid-cols-2">
             <DifferencePanel title="Most jury-favoured" description="Jury points most exceeded televote points in shows that used both components." rows={juryFavoured} />
@@ -355,7 +394,11 @@ function AnalysisPage() {
               ) : <Empty compact />}
             </Panel>
             <Panel title="Chord view" description="An optional visual summary of the strongest two-way jury flows.">
-              {filteredJury.length ? <ChordDiagram countries={cs} jury={filteredJury} /> : <Empty />}
+              {filteredJury.length ? (
+                <DeferredVisualization>
+                  <ChordDiagram countries={cs} jury={filteredJury} />
+                </DeferredVisualization>
+              ) : <Empty />}
             </Panel>
           </div>
         </div>
@@ -383,7 +426,13 @@ function AnalysisPage() {
               </div>
               <details className="glass overflow-hidden">
                 <summary className="cursor-pointer list-none px-4 py-4 text-sm font-semibold [&::-webkit-details-marker]:hidden">Advanced heat map ▾</summary>
-                <div className="border-t border-border/60 p-4">{filteredJury.length ? <VotingHeatmap countries={cs} jury={filteredJury} /> : <Empty />}</div>
+                <div className="border-t border-border/60 p-4">
+                  {filteredJury.length ? (
+                    <DeferredVisualization>
+                      <VotingHeatmap countries={cs} jury={filteredJury} />
+                    </DeferredVisualization>
+                  ) : <Empty />}
+                </div>
               </details>
             </>
           ) : <Empty />}
@@ -398,7 +447,11 @@ function AnalysisPage() {
             description="Each dot is a country and each arrow is published jury points flowing from giver to receiver."
           />
           <Panel>
-            {filteredJury.length ? <NetworkGraph countries={cs} jury={filteredJury} /> : <Empty />}
+            {filteredJury.length ? (
+              <DeferredVisualization>
+                <NetworkGraph countries={cs} jury={filteredJury} />
+              </DeferredVisualization>
+            ) : <Empty />}
           </Panel>
         </div>
       )}
@@ -411,7 +464,11 @@ function AnalysisPage() {
             description="Follow published placements over time and see which countries accumulated the most points in the selected archive. When all show types are selected, each country contributes only one result per edition, preferring its Grand Final result."
           />
           <Panel title="Historical leaderboard">
-            {filteredResults.length ? <HistoricalLeaderboard countries={cs} editions={es} results={filteredResults} shows={filteredShows} /> : <Empty />}
+            {filteredResults.length ? (
+              <DeferredVisualization>
+                <HistoricalLeaderboard countries={cs} editions={es} results={filteredResults} shows={filteredShows} />
+              </DeferredVisualization>
+            ) : <Empty />}
           </Panel>
           <Panel title="Most points in this filter">
             {historyRows.length ? (

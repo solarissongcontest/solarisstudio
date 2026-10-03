@@ -193,26 +193,8 @@ function buildMaps(width: number, height: number): Maps | null {
   };
 }
 
-function sanitizeClone(clone: HTMLElement) {
-  clone.classList.add("solaris-kube-mirror-clone");
-  clone.setAttribute("aria-hidden", "true");
-  clone.setAttribute("inert", "");
-  clone.removeAttribute("id");
-  clone.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
-  clone.querySelectorAll("[for]").forEach((element) => element.removeAttribute("for"));
-  clone
-    .querySelectorAll("script, iframe, video, audio, .solaris-app-tabbar, .solaris-app-toolbar")
-    .forEach((element) => element.remove());
-  clone.querySelectorAll<HTMLElement>("input,button,select,textarea,a").forEach((node) => {
-    node.setAttribute("tabindex", "-1");
-    node.setAttribute("aria-hidden", "true");
-  });
-  return clone;
-}
-
 export function KubeLiquidGlassBackdrop({
   className,
-  sourceKey,
 }: {
   className?: string;
   sourceKey?: string;
@@ -223,7 +205,6 @@ export function KubeLiquidGlassBackdrop({
     [rawId],
   );
   const surfaceRef = useRef<HTMLSpanElement | null>(null);
-  const mirrorRef = useRef<HTMLSpanElement | null>(null);
   const [maps, setMaps] = useState<Maps | null>(null);
   const [blink, setBlink] = useState(false);
 
@@ -233,7 +214,10 @@ export function KubeLiquidGlassBackdrop({
 
   useEffect(() => {
     const element = surfaceRef.current;
-    if (!element) return;
+    if (!element || !blink) {
+      setMaps(null);
+      return;
+    }
 
     let frame = 0;
     const update = () => {
@@ -251,83 +235,9 @@ export function KubeLiquidGlassBackdrop({
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, []);
-
-  useEffect(() => {
-    if (blink) return;
-
-    const surface = surfaceRef.current;
-    const mirror = mirrorRef.current;
-    const source = document.querySelector<HTMLElement>(".app-main");
-    if (!surface || !mirror || !source) return;
-
-    let currentClone: HTMLElement | null = null;
-    let alignFrame = 0;
-    let cloneTimer = 0;
-
-    const align = () => {
-      cancelAnimationFrame(alignFrame);
-      alignFrame = requestAnimationFrame(() => {
-        const clone = currentClone;
-        if (!clone) return;
-        const sourceRect = source.getBoundingClientRect();
-        const surfaceRect = surface.getBoundingClientRect();
-
-        clone.style.width = `${sourceRect.width}px`;
-        clone.style.minWidth = `${sourceRect.width}px`;
-        clone.style.maxWidth = "none";
-        clone.style.left = `${sourceRect.left - surfaceRect.left}px`;
-        clone.style.top = `${sourceRect.top - surfaceRect.top}px`;
-      });
-    };
-
-    const rebuild = () => {
-      const clone = sanitizeClone(source.cloneNode(true) as HTMLElement);
-      clone.style.position = "absolute";
-      clone.style.margin = "0";
-      clone.style.pointerEvents = "none";
-      clone.style.userSelect = "none";
-      currentClone = clone;
-      mirror.replaceChildren(clone);
-      align();
-    };
-
-    const scheduleRebuild = () => {
-      window.clearTimeout(cloneTimer);
-      cloneTimer = window.setTimeout(rebuild, 160);
-    };
-
-    rebuild();
-
-    const resizeObserver = new ResizeObserver(align);
-    resizeObserver.observe(surface);
-    resizeObserver.observe(source);
-
-    const mutationObserver = new MutationObserver(scheduleRebuild);
-    mutationObserver.observe(source, {
-      subtree: true,
-      childList: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ["class", "style", "src", "href", "hidden", "aria-hidden"],
-    });
-
-    window.addEventListener("scroll", align, { passive: true });
-    window.addEventListener("resize", align, { passive: true });
-
-    return () => {
-      cancelAnimationFrame(alignFrame);
-      window.clearTimeout(cloneTimer);
-      resizeObserver.disconnect();
-      mutationObserver.disconnect();
-      window.removeEventListener("scroll", align);
-      window.removeEventListener("resize", align);
-      mirror.replaceChildren();
-    };
-  }, [blink, sourceKey]);
+  }, [blink]);
 
   const backdropFilter = blink && maps ? `url(#${filterId})` : "none";
-  const mirrorFilter = !blink && maps ? `url(#${filterId})` : "none";
 
   return (
     <>
@@ -384,7 +294,7 @@ export function KubeLiquidGlassBackdrop({
       <span
         ref={surfaceRef}
         aria-hidden="true"
-        data-kube-liquid-glass={blink ? "svg-refraction" : "safari-mirrored-refraction"}
+        data-kube-liquid-glass={blink ? "svg-refraction" : "css-backdrop"}
         className={cn("solaris-app-tabbar-backdrop", className)}
         style={
           blink
@@ -399,18 +309,7 @@ export function KubeLiquidGlassBackdrop({
                   "blur(22px) saturate(1.16) brightness(1.08) contrast(1.01)",
               }
         }
-      >
-        {!blink ? (
-          <span
-            ref={mirrorRef}
-            className="solaris-kube-safari-mirror"
-            style={{
-              WebkitFilter: mirrorFilter,
-              filter: mirrorFilter,
-            }}
-          />
-        ) : null}
-      </span>
+      />
     </>
   );
 }

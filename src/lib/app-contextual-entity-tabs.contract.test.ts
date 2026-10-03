@@ -5,13 +5,15 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("App Experience v3 contextual entity ownership", () => {
-  it("makes app tab selection use the full route location, not pathname alone", () => {
+  it("makes app tab selection use the full route location from one registry", () => {
     const tabs = source("src/components/app/AppTabBar.tsx");
     const shell = source("src/components/AppShell.tsx");
     const navigation = source("src/lib/app-navigation.ts");
-    expect(tabs).toContain("appTabForLocation(pathname, searchStr)");
+    const registry = source("src/lib/app-screen-registry.ts");
+    expect(tabs).toContain("resolveAppRouteChrome(pathname, searchStr)");
     expect(shell).toContain("searchStr={searchStr}");
-    expect(navigation).toContain('params.get("from") === "results"');
+    expect(navigation).toContain("resolveSolarisAppScreen(pathname, searchStr)");
+    expect(registry).toContain('params.get("from") === "results"');
   });
 
   it("marks official-result Show links as Results-owned", () => {

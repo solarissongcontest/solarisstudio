@@ -14,7 +14,7 @@ body[data-solaris-anniversary-phase="countdown"] {
 
 .solaris-anniversary-season-notice {
   position: fixed;
-  z-index: 91;
+  z-index: var(--solaris-z-popover);
   left: 50%;
   bottom: 1rem;
   transform: translateX(-50%);

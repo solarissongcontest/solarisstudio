@@ -7,13 +7,47 @@ html[data-solaris-app-boot] body::before {
   content: "";
   position: fixed;
   inset: 0;
-  z-index: 2147483647;
+  z-index: var(--solaris-z-boot);
   visibility: visible;
   background:
+    radial-gradient(circle at 50% 38%, rgb(83 153 202 / .15), transparent 28rem),
+    radial-gradient(circle at 18% 84%, rgb(66 111 179 / .08), transparent 22rem),
     #020817
     url("/solaris-studio-mark.png")
-    center / 4.25rem 4.25rem
+    center calc(50% - 1.2rem) / 4.25rem 4.25rem
     no-repeat;
+}
+
+html[data-solaris-app-boot] body::after {
+  content: "Solaris Studio\AOpening app";
+  white-space: pre;
+  position: fixed;
+  z-index: var(--solaris-z-boot);
+  left: 50%;
+  top: calc(50% + 2.6rem);
+  width: min(18rem, calc(100vw - 3rem));
+  transform: translateX(-50%);
+  visibility: visible;
+  text-align: center;
+  color: rgb(236 246 252 / .94);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: .84rem;
+  font-weight: 720;
+  line-height: 1.65;
+  letter-spacing: -.01em;
+  text-shadow: 0 2px 18px rgb(0 5 20 / .38);
+  animation: solaris-app-boot-pulse 1.25s ease-in-out infinite alternate;
+}
+
+@keyframes solaris-app-boot-pulse {
+  from { opacity: .58; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-solaris-app-boot] body::after {
+    animation: none;
+  }
 }
 
 /* Solaris Studio installed-app chrome ---------------------------------------
@@ -22,7 +56,15 @@ html[data-solaris-app-boot] body::before {
 
 :root {
   --solaris-app-toolbar-height: 3.55rem;
+  /* Design tokens only. Runtime measurement must never write back into these
+     values because the material height depends on them. */
   --solaris-app-tabbar-height: 4.7rem;
+  --solaris-app-tabbar-collapsed-height: 3.25rem;
+  --solaris-app-tabbar-max-height: 5.35rem;
+  --solaris-app-safe-top: env(safe-area-inset-top);
+  --solaris-app-safe-right: env(safe-area-inset-right);
+  --solaris-app-safe-bottom: env(safe-area-inset-bottom);
+  --solaris-app-safe-left: env(safe-area-inset-left);
 }
 
 .solaris-app-toolbar,
@@ -34,7 +76,7 @@ html[data-solaris-app-boot] body::before {
 
 .solaris-install-prompt {
   position: fixed;
-  z-index: 70;
+  z-index: var(--solaris-z-popover);
   left: 50%;
   bottom: calc(5.9rem + max(.55rem, env(safe-area-inset-bottom)));
   display: flex;
@@ -98,7 +140,7 @@ html[data-solaris-app-boot] body::before {
   .solaris-app-toolbar {
     position: sticky;
     top: 0;
-    z-index: 55;
+    z-index: var(--solaris-z-toolbar);
     display: block;
     padding-top: env(safe-area-inset-top);
     border-bottom: 1px solid rgb(215 238 247 / .13);
@@ -166,11 +208,12 @@ html[data-solaris-app-boot] body::before {
 
   .solaris-app-tabbar {
     position: fixed;
-    z-index: 60;
-    left: max(.65rem, env(safe-area-inset-left));
-    right: max(.65rem, env(safe-area-inset-right));
-    bottom: max(.45rem, env(safe-area-inset-bottom));
+    z-index: var(--solaris-z-tabbar);
+    left: max(.65rem, var(--solaris-app-safe-left));
+    right: max(.65rem, var(--solaris-app-safe-right));
+    bottom: max(.45rem, var(--solaris-app-safe-bottom));
     display: block;
+    max-height: var(--solaris-app-tabbar-max-height);
     pointer-events: none;
   }
 
@@ -195,16 +238,24 @@ html[data-solaris-app-boot] body::before {
     overflow: hidden;
     pointer-events: auto;
     display: grid;
+    box-sizing: border-box;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: var(--solaris-tab-gap);
     width: min(40rem, 100%);
-    min-height: calc(var(--solaris-app-tabbar-height) + var(--solaris-tabbar-pull-height));
+    height: min(
+      calc(var(--solaris-app-tabbar-height) + var(--solaris-tabbar-pull-height)),
+      var(--solaris-app-tabbar-max-height)
+    );
+    min-height: 0;
+    max-height: var(--solaris-app-tabbar-max-height);
     margin-inline: auto;
     padding: var(--solaris-tab-pad);
     border: 0;
     border-radius: calc(1.55rem + var(--solaris-tabbar-pull-radius));
     background: transparent;
     box-shadow: none;
+    contain: layout paint;
+    isolation: isolate;
   }
 
   .solaris-app-tabbar-backdrop {
@@ -212,7 +263,11 @@ html[data-solaris-app-boot] body::before {
     inset: 0;
     z-index: 0;
     overflow: hidden;
+    inline-size: 100%;
+    block-size: 100%;
+    max-block-size: 100%;
     pointer-events: none;
+    contain: paint;
     border: 1px solid rgb(255 255 255 / .18);
     border-radius: inherit;
     background:
@@ -670,7 +725,7 @@ html[data-solaris-app-boot] body::before {
   .solaris-app-tabbar-material {
     transition:
       width 240ms cubic-bezier(.18,.86,.22,1),
-      min-height 240ms cubic-bezier(.18,.86,.22,1),
+      height 240ms cubic-bezier(.18,.86,.22,1),
       left 240ms cubic-bezier(.18,.86,.22,1),
       padding 180ms cubic-bezier(.32,.72,0,1),
       border-radius 240ms cubic-bezier(.18,.86,.22,1);
@@ -695,7 +750,9 @@ html[data-solaris-app-boot] body::before {
     --solaris-tab-pad: .24rem;
     --solaris-tab-total-inset: .48rem;
     width: min(24rem, calc(100% - 2.4rem));
-    min-height: 3.2rem;
+    height: var(--solaris-app-tabbar-collapsed-height);
+    min-height: 0;
+    max-height: var(--solaris-app-tabbar-collapsed-height);
     padding: var(--solaris-tab-pad);
     border-radius: 1.3rem;
   }
@@ -847,7 +904,7 @@ html[data-solaris-app-boot] body::before {
       );
   }
 
-  .solaris-app-tabbar-backdrop[data-kube-liquid-glass="safari-mirrored-refraction"] {
+  .solaris-app-tabbar-backdrop[data-kube-liquid-glass="css-backdrop"] {
     background:
       linear-gradient(
         145deg,
@@ -861,29 +918,6 @@ html[data-solaris-app-boot] body::before {
       0 10px 28px rgb(0 4 22 / .07);
   }
 
-  .solaris-kube-safari-mirror {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    border-radius: inherit;
-    pointer-events: none;
-    opacity: .56;
-    transform: translateZ(0);
-    transform-origin: center;
-  }
-
-  .solaris-kube-mirror-clone {
-    position: absolute !important;
-    pointer-events: none !important;
-    user-select: none !important;
-    -webkit-user-select: none !important;
-    transform: none !important;
-    contain: none !important;
-  }
-
-  .solaris-kube-mirror-clone * {
-    pointer-events: none !important;
-  }
 }
 
 
@@ -911,7 +945,9 @@ html[data-solaris-app-boot] body::before {
     display: grid;
     grid-template-columns: 1fr;
     width: 6.15rem;
+    height: auto;
     min-height: 0;
+    max-height: none;
     padding: var(--solaris-tab-pad);
     border-radius: 1.55rem;
   }
@@ -2057,7 +2093,9 @@ html[data-solaris-app] .solaris-app-tabbar.is-minimal.is-collapsed .solaris-app-
   --solaris-tab-pad: .25rem;
   --solaris-tab-total-inset: .5rem;
   width: 100%;
-  min-height: 3.25rem;
+  height: var(--solaris-app-tabbar-collapsed-height);
+  min-height: 0;
+  max-height: var(--solaris-app-tabbar-collapsed-height);
   padding: var(--solaris-tab-pad);
   border-radius: 1.3rem;
 }
@@ -2152,10 +2190,20 @@ html[data-solaris-app]:has([data-solaris-dialog]) .solaris-app-tabbar {
   transition: opacity 120ms ease;
 }
 
-html[data-solaris-app] .edition-page-toolbar[data-app-compact="true"] {
-  justify-content: flex-end;
-  min-height: 0;
-  margin-bottom: .35rem;
+html[data-solaris-app] body[data-entity-theme="edition"] .edition-public-page {
+  padding-bottom: var(--ed-space-4) !important;
+}
+
+html[data-solaris-app] body[data-entity-theme="edition"] .edition-navigation,
+html[data-solaris-app] body[data-entity-theme="edition"][data-edition-public-style="glass"] .edition-navigation {
+  position: relative;
+  top: auto;
+  margin-block: 0;
+  z-index: var(--solaris-z-content);
+}
+
+html[data-solaris-app] body[data-entity-theme="edition"] .edition-hero-actions {
+  justify-content: center;
 }
 
 
@@ -2240,19 +2288,11 @@ html[data-solaris-app] .solaris-app-search-field input {
 }
 
 html[data-solaris-app] .solaris-app-current-contest {
-  border: 1px solid rgb(210 236 248 / .12);
   border-radius: 1.25rem;
-  padding: 1rem;
-  background:
-    radial-gradient(circle at 100% 0%, rgb(var(--solaris-accent, 139 198 222) / .10), transparent 42%),
-    rgb(255 255 255 / .028);
 }
 
 html[data-solaris-app] .solaris-app-edition-current {
-  border: 1px solid rgb(210 236 248 / .12);
   border-radius: 1.15rem;
-  padding: .9rem;
-  background: rgb(255 255 255 / .028);
 }
 
 html[data-solaris-app] .solaris-app-edition-current > div:last-child {
@@ -2286,12 +2326,7 @@ html[data-solaris-app] .solaris-app-edition-row + .solaris-app-edition-row {
 
 
 html[data-solaris-app] .solaris-app-result-hero {
-  border: 1px solid rgb(210 236 248 / .12);
   border-radius: 1.25rem;
-  padding: 1rem;
-  background:
-    radial-gradient(circle at 100% 0%, rgb(var(--solaris-accent, 139 198 222) / .11), transparent 42%),
-    rgb(255 255 255 / .028);
 }
 
 html[data-solaris-app] .solaris-app-result-kicker {
@@ -2655,4 +2690,292 @@ html[data-solaris-app]
     :is(.rounded-2xl, .rounded-3xl) {
     border-radius: .9rem;
   }
+}
+
+
+/* Installed-app content hierarchy ------------------------------------------ */
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
+  .solaris-ambient-background {
+    opacity: .48;
+  }
+
+  .solaris-star-layer-near {
+    opacity: .52;
+  }
+
+  .app-main[data-solaris-app-mode="true"][data-solaris-app-screen="task"] .data-panel,
+  .app-main[data-solaris-app-mode="true"][data-solaris-app-screen="settings"] .data-panel,
+  .app-main[data-solaris-app-mode="true"][data-solaris-app-screen="workspace"] .data-panel {
+    border: 1px solid rgb(210 236 248 / .09) !important;
+    border-radius: 1.05rem !important;
+    background: rgb(255 255 255 / .018) !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .solaris-app-rules-summary {
+    border: 1px solid rgb(210 236 248 / .10);
+    border-radius: 1.05rem;
+    padding: .85rem;
+    background: rgb(255 255 255 / .018);
+    box-shadow: none;
+  }
+
+  .solaris-app-task-shell > .solaris-app-rules-summary:first-child {
+    margin-top: 0;
+  }
+
+  .solaris-app-task-utilities {
+    margin-bottom: .75rem;
+  }
+
+  .solaris-app-task-utility {
+    min-height: 2.75rem;
+  }
+}
+
+
+/* Functional app screens use the interface typeface for constrained controls.
+   Display typography stays available on editorial/entity surfaces. */
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
+  .app-main[data-solaris-app-mode="true"][data-solaris-app-screen="task"] .font-display,
+  .app-main[data-solaris-app-mode="true"][data-solaris-app-screen="settings"] .font-display,
+  .app-main[data-solaris-app-mode="true"][data-solaris-app-screen="workspace"] .font-display {
+    font-family: inherit !important;
+    letter-spacing: -.018em !important;
+  }
+
+  .app-main[data-solaris-app-mode="true"][data-solaris-app-screen="task"] .data-panel,
+  .app-main[data-solaris-app-mode="true"][data-solaris-app-screen="settings"] .data-panel,
+  .app-main[data-solaris-app-mode="true"][data-solaris-app-screen="workspace"] .data-panel {
+    padding: .9rem !important;
+  }
+}
+
+
+html[data-solaris-app] .solaris-app-directory-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(7.5rem, 8.5rem);
+  gap: .5rem;
+  align-items: stretch;
+}
+
+html[data-solaris-app] .solaris-app-directory-tools > label {
+  min-width: 0;
+}
+
+@media (max-width: 340px) {
+  html[data-solaris-app] .solaris-app-directory-tools {
+    grid-template-columns: minmax(0, 1fr) 7.25rem;
+  }
+
+  html[data-solaris-app] .solaris-app-directory-tools select {
+    padding-inline: .6rem;
+  }
+}
+
+
+/* Installed edition pages: local section navigation belongs to the edition
+   content, not to the global app chrome. Keep it compact and non-obstructive. */
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-public-page {
+    gap: 1.6rem;
+    padding-bottom: 0;
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-navigation,
+  html[data-solaris-app] body[data-entity-theme="edition"][data-edition-public-style="glass"] .edition-navigation {
+    position: relative;
+    top: auto;
+    z-index: 4;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 28rem;
+    box-shadow: none;
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-navigation-mobile {
+    width: 100%;
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-entry-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid rgb(210 236 248 / .10);
+    border-radius: 1.05rem;
+    background: transparent;
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-entry {
+    border: 0;
+    border-radius: 0;
+    background: rgb(255 255 255 / .018) !important;
+    padding: .85rem;
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-entry + .edition-entry {
+    border-top: 1px solid rgb(210 236 248 / .085);
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-country-list {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    overflow: hidden;
+    margin-top: .75rem;
+    border: 1px solid rgb(210 236 248 / .10);
+    border-radius: 1.05rem;
+    background: rgb(255 255 255 / .018);
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-country-item {
+    min-height: 4rem;
+    width: 100%;
+    border: 0;
+    border-radius: 0;
+    background: transparent !important;
+    padding: .7rem .85rem;
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-country-list > :is(a, div) {
+    display: block;
+    min-width: 0;
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-country-list > :is(a, div) + :is(a, div) .edition-country-item {
+    border-top: 1px solid rgb(210 236 248 / .085);
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-section-heading {
+    margin-bottom: .85rem;
+    padding-bottom: .7rem;
+  }
+
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-section-heading h2,
+  html[data-solaris-app] body[data-entity-theme="edition"] .edition-ranking h2 {
+    font-size: clamp(1.35rem, 6vw, 1.8rem);
+  }
+}
+
+
+/* Global overlay contract: modal surfaces always outrank app chrome and
+   suppress background navigation while open. Radix owns focus trapping and
+   restoration; this layer owns app-shell geometry and safe-area behavior. */
+html[data-solaris-app][data-solaris-feature-overlay-open] .solaris-app-tabbar,
+html[data-solaris-app]:has([data-solaris-sheet][data-state="open"]) .solaris-app-tabbar,
+html[data-solaris-app]:has([data-solaris-dialog][data-state="open"]) .solaris-app-tabbar {
+  pointer-events: none;
+  opacity: .22;
+  transform: translateY(.35rem);
+}
+
+html[data-solaris-app] [data-solaris-sheet][data-side="bottom"] {
+  padding-bottom: max(1.25rem, calc(1rem + var(--solaris-app-safe-bottom)));
+}
+
+html[data-solaris-app] [data-solaris-sheet][data-side="responsive"] {
+  padding-bottom: max(1.25rem, calc(1rem + var(--solaris-app-safe-bottom)));
+}
+
+@media (min-width: 640px) {
+  html[data-solaris-app] [data-solaris-sheet][data-side="responsive"] {
+    padding-bottom: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-solaris-app][data-solaris-feature-overlay-open] .solaris-app-tabbar,
+  html[data-solaris-app]:has([data-solaris-sheet][data-state="open"]) .solaris-app-tabbar,
+  html[data-solaris-app]:has([data-solaris-dialog][data-state="open"]) .solaris-app-tabbar {
+    transform: none;
+    transition: none;
+  }
+}
+
+
+/* Canonical mobile composition primitives -------------------------------- */
+html[data-solaris-app] .solaris-app-card {
+  min-width: 0;
+  border: 1px solid rgb(210 236 248 / .11);
+  border-radius: 1.15rem;
+  padding: .9rem;
+  background: rgb(255 255 255 / .026);
+  box-shadow: none;
+}
+
+html[data-solaris-app] .solaris-app-card[data-tone="accent"] {
+  background:
+    radial-gradient(circle at 100% 0%, rgb(var(--solaris-accent, 139 198 222) / .10), transparent 42%),
+    rgb(255 255 255 / .028);
+}
+
+html[data-solaris-app] .solaris-app-card[data-tone="quiet"] {
+  border-color: rgb(210 236 248 / .08);
+  background: rgb(255 255 255 / .018);
+}
+
+html[data-solaris-app] .solaris-app-empty-state {
+  border: 1px solid rgb(210 236 248 / .10);
+  border-radius: 1rem;
+  padding: 1rem;
+  background: rgb(255 255 255 / .025);
+}
+
+html[data-solaris-app] .solaris-app-empty-action {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgb(210 236 248 / .13);
+  border-radius: .85rem;
+  padding-inline: .85rem;
+  background: rgb(255 255 255 / .035);
+  color: var(--foreground);
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+html[data-solaris-app] .solaris-app-empty-action:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+html[data-solaris-app] .solaris-app-status-badge {
+  display: inline-flex;
+  min-height: 1.75rem;
+  align-items: center;
+  border: 1px solid rgb(210 236 248 / .12);
+  border-radius: 999px;
+  padding-inline: .6rem;
+  background: rgb(255 255 255 / .035);
+  color: var(--muted-foreground);
+  font-size: .68rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+html[data-solaris-app] .solaris-app-status-badge[data-tone="success"] {
+  border-color: rgb(52 211 153 / .24);
+  background: rgb(52 211 153 / .08);
+  color: rgb(167 243 208);
+}
+
+html[data-solaris-app] .solaris-app-status-badge[data-tone="warning"] {
+  border-color: rgb(251 191 36 / .24);
+  background: rgb(251 191 36 / .08);
+  color: rgb(253 230 138);
+}
+
+html[data-solaris-app] .solaris-app-status-badge[data-tone="danger"] {
+  border-color: rgb(248 113 113 / .24);
+  background: rgb(248 113 113 / .08);
+  color: rgb(254 202 202);
+}
+
+html[data-solaris-app] .solaris-app-status-badge[data-tone="info"] {
+  border-color: rgb(56 189 248 / .24);
+  background: rgb(56 189 248 / .08);
+  color: rgb(186 230 253);
 }

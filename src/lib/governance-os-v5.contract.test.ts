@@ -111,12 +111,12 @@ describe("Governance OS v5 contract", () => {
   });
 
   it("treats Integrity reporting as focused app chrome and avoids duplicate service-state overlays", () => {
-    const chrome = source("src/lib/app-route-chrome.ts");
+    const registry = source("src/lib/app-screen-registry.ts");
     const archetypes = source("src/lib/public-route-archetypes.ts");
     const banner = source("src/components/app/AppOfflineBanner.tsx");
 
-    expect(chrome).toContain('/^\\/integrity\\/report');
-    expect(chrome).toContain('tabBar: "hidden"');
+    expect(registry).toContain('/^\\/integrity\\/report');
+    expect(registry).toContain('tabbar: "hidden"');
     expect(archetypes).toContain('/^\\/integrity\\/report');
     expect(banner).toContain('pathname.startsWith("/rules") || pathname.startsWith("/integrity")');
     expect(banner).toContain("Never float a global outage pill over Rules or Integrity");

@@ -2,9 +2,9 @@ import type {
   ConfirmationReviewEntry,
   ConfirmationReviewNationalFinal,
 } from "@/components/ConfirmationReviewStatus";
-import { confirmationsSupabase } from "@/integrations/confirmations/client";
+import { supabase } from "@/integrations/supabase/client";
 
-const confirmations = confirmationsSupabase as any;
+const confirmations = supabase as any;
 
 export type CountryConfirmationResponse = {
   submission_id: string;
@@ -42,6 +42,11 @@ export type CountryConfirmationAccess = {
 };
 
 export async function getCountryConfirmationAccess(): Promise<CountryConfirmationAccess> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) {
+    return { authenticated: false, country: null, responses: [] };
+  }
+
   const { data, error } = await confirmations.rpc("public_country_account_confirmation_access");
   if (error) throw error;
 
