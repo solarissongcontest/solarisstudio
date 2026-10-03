@@ -39,7 +39,12 @@ domains:
       - "Inbox read state remains delivery state and cannot resolve a domain-owned task."
   notifications:
     state: canonical-read
-    legacy_authority: ["push payload as truth", "unread count as task count"]
+    retired_authority: ["push payload as truth", "unread count as task count"]
+    legacy_authority: []
+    retirement_evidence:
+      - "Push dispatch rechecks canonical Organizer Task state before task delivery."
+      - "Organizer task badges use the canonical Task Engine count, while unread badges are explicitly notification-only."
+      - "Task-backed Inbox resolution follows domain truth; read state cannot resolve the Task."
     retirement_criteria:
       - "Push and Inbox are delivery projections; required work survives delivery failure."
   organizer-shell:
