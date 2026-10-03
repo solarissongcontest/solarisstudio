@@ -1,9 +1,20 @@
 name: Browser audit
 
+# Browser audits are intentionally manual. They are expensive end-to-end tests
+# and must never be triggered by every pull-request update.
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      full_audit:
+        description: Run the exhaustive viewport + sitemap audit
+        required: true
+        type: boolean
+        default: false
+      capture_personality_reference:
+        description: Capture personality reference artifacts
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -20,6 +31,60 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Require an isolated non-production Supabase backend
+        env:
+          E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
+          E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${E2E_SUPABASE_URL:-}" ] || [ -z "${E2E_SUPABASE_PUBLISHABLE_KEY:-}" ]; then
+            echo "::error::Browser audit is blocked: configure a dedicated non-production E2E Supabase URL and publishable key."
+            exit 1
+          fi
+
+          prod_url="$(python - <<'PY'
+          from pathlib import Path
+
+          value = ""
+          for line in Path(".env").read_text().splitlines():
+              if line.startswith("VITE_SUPABASE_URL="):
+                  value = line.split("=", 1)[1].strip().strip('"').strip("'").rstrip("/")
+                  break
+          print(value)
+          PY
+          )"
+
+          e2e_url="${E2E_SUPABASE_URL%/}"
+
+          if [ -z "$prod_url" ]; then
+            echo "::error::Browser audit is blocked: could not determine the production Supabase URL from .env."
+            exit 1
+          fi
+
+          if [ "$e2e_url" = "$prod_url" ]; then
+            echo "::error::Browser audit refused to run against the production Supabase project. Use a dedicated E2E project."
+            exit 1
+          fi
+
+          case "$e2e_url" in
+            https://*.supabase.co) ;;
+            *)
+              echo "::error::Browser audit is blocked: E2E_SUPABASE_URL must be a dedicated Supabase project URL."
+              exit 1
+              ;;
+          esac
+
+          # Force every build/server/browser process in this job onto the isolated
+          # E2E backend. This also prevents Vite from silently falling back to the
+          # checked-in production .env during the production build.
+          {
+            echo "VITE_SUPABASE_URL=$E2E_SUPABASE_URL"
+            echo "VITE_SUPABASE_PUBLISHABLE_KEY=$E2E_SUPABASE_PUBLISHABLE_KEY"
+            echo "SUPABASE_URL=$E2E_SUPABASE_URL"
+            echo "SUPABASE_PUBLISHABLE_KEY=$E2E_SUPABASE_PUBLISHABLE_KEY"
+          } >> "$GITHUB_ENV"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -43,19 +108,8 @@ jobs:
           bunx playwright install --with-deps chromium webkit
 
       - name: Start stable audit server
-        env:
-          E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
-          E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
         run: |
-          # Only override the app's normal public configuration when both E2E
-          # endpoint secrets exist. Empty GitHub secrets must not replace the
-          # checked public development config with empty VITE_ variables.
-          if [ -n "$E2E_SUPABASE_URL" ] && [ -n "$E2E_SUPABASE_PUBLISHABLE_KEY" ]; then
-            export VITE_SUPABASE_URL="$E2E_SUPABASE_URL"
-            export VITE_SUPABASE_PUBLISHABLE_KEY="$E2E_SUPABASE_PUBLISHABLE_KEY"
-            export SUPABASE_URL="$E2E_SUPABASE_URL"
-            export SUPABASE_PUBLISHABLE_KEY="$E2E_SUPABASE_PUBLISHABLE_KEY"
-          fi
+          set -euo pipefail
 
           bun run dev --host 127.0.0.1 --port 4173 --strictPort > /tmp/solaris-audit-server.log 2>&1 &
           echo $! > /tmp/solaris-audit-server.pid
@@ -86,13 +140,8 @@ jobs:
         run: bunx playwright test
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
-          # Pull requests run a representative smoke set. Manual dispatch keeps
-          # the exhaustive ten-viewport + sitemap inventory available without
-          # turning every PR into a 40-minute crawl of the same archive data.
-          # The final public-quality release branch also runs the exhaustive set
-          # once before merge.
-          E2E_FULL_AUDIT: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'feature/public-final-quality' || github.head_ref == 'chatgpt/completion-programme-20260920' || github.head_ref == 'feature/final-ui-completion-20261001') && '1' || '0' }}
-          PERSONALITY_REFERENCE_CAPTURE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
+          E2E_FULL_AUDIT: ${{ inputs.full_audit && '1' || '0' }}
+          PERSONALITY_REFERENCE_CAPTURE: ${{ inputs.capture_personality_reference && '1' || '0' }}
           E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
           E2E_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.E2E_SUPABASE_PUBLISHABLE_KEY }}
           E2E_COUNTRY_EMAIL: ${{ secrets.E2E_COUNTRY_EMAIL }}
