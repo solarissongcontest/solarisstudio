@@ -96,6 +96,10 @@ export const SOLARIS_V6_RUNTIME_AUTHORITIES = {
 export type SolarisV6RuntimeAuthorityId =
   keyof typeof SOLARIS_V6_RUNTIME_AUTHORITIES;
 
-export function solarisV6RuntimeAuthority(id: SolarisV6RuntimeAuthorityId) {
+export function solarisV6RuntimeAuthority<
+  TId extends SolarisV6RuntimeAuthorityId,
+>(
+  id: TId,
+): (typeof SOLARIS_V6_RUNTIME_AUTHORITIES)[TId] {
   return SOLARIS_V6_RUNTIME_AUTHORITIES[id];
 }
