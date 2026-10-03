@@ -17,6 +17,7 @@ describe("Organisation OS V5 review hardening", () => {
   it("prunes stale task recipients before delivery", () => {
     expect(hardening).toContain("private.studio2_task_recipient_eligible");
     expect(hardening).toContain("private.studio2_prune_stale_task_notifications");
+    expect(hardening).toContain("public.solaris_organizer_task_recipient_eligible");
     expect(hardening).toContain("Organizer Task recipient is no longer eligible.");
     expect(hardening).toContain(
       "perform private.studio2_prune_stale_task_notifications(p_edition_id);",
@@ -24,6 +25,7 @@ describe("Organisation OS V5 review hardening", () => {
 
     const dispatcher = source("supabase/functions/solaris-push-dispatch/index.ts");
     expect(dispatcher).toContain('.select("state,resolved_at,source_key")');
+    expect(dispatcher).toContain('"solaris_organizer_task_recipient_eligible"');
     expect(dispatcher).toContain('"Organizer Task recipient revalidation failed"');
     expect(dispatcher).toContain('"Organizer Task recipient is no longer eligible."');
   });
