@@ -77,3 +77,51 @@ export const SOLARIS_V6_V5_COUNTERPART_IDS = new Set(
 export const SOLARIS_V5_COUNTERPART_IDS = new Set(
   ORGANISATION_OS_V5_COUNTERPARTS.map((item) => item.id),
 );
+
+
+export type SolarisV6Perspective =
+  | "public"
+  | "participant"
+  | "organizer"
+  | "moderation"
+  | "diagnostic";
+
+const SURFACE_FIELD: Record<
+  SolarisV6Perspective,
+  keyof Pick<
+    SolarisV6FeatureSurface,
+    | "publicSurface"
+    | "participantSurface"
+    | "organizerSurface"
+    | "moderationSurface"
+    | "diagnosticSurface"
+  >
+> = {
+  public: "publicSurface",
+  participant: "participantSurface",
+  organizer: "organizerSurface",
+  moderation: "moderationSurface",
+  diagnostic: "diagnosticSurface",
+};
+
+export function resolveSolarisV6SurfacePath(
+  featureId: string,
+  perspective: SolarisV6Perspective,
+  params: Readonly<Record<string, string>> = {},
+): string | null {
+  const feature = solarisV6Feature(featureId);
+  if (!feature) return null;
+  const template = feature[SURFACE_FIELD[perspective]];
+  if (!template) return null;
+
+  let missing = false;
+  const resolved = template.replace(/:([A-Za-z][A-Za-z0-9_]*)/g, (_, key: string) => {
+    const value = params[key];
+    if (!value) {
+      missing = true;
+      return "";
+    }
+    return encodeURIComponent(value);
+  });
+  return missing ? null : resolved;
+}
