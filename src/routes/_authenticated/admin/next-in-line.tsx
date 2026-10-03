@@ -1,17 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ExternalLink, Music2, RefreshCw, Search } from "lucide-react";
+import { Clock3, ExternalLink, Music2, RefreshCw, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminCard,
+  AdminConfirmSheet,
   AdminEmptyState,
   AdminPageHeader,
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import { Input } from "@/components/ui/input";
+import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
 
 type NextInLineRow = {
   id: string;
@@ -30,6 +32,51 @@ type NextInLineRow = {
   submitted_at: string;
   edition: { id: string; name: string; edition_number: number } | null;
 };
+
+type NextInLineWindowStatus = "draft" | "scheduled" | "open" | "closed" | "cancelled";
+
+type NextInLineWindowSnapshot = {
+  editionId: string;
+  enabled: boolean;
+  status: NextInLineWindowStatus;
+  opensAt: string | null;
+  closesAt: string | null;
+  version: number;
+  reason: string | null;
+  changedAt: string | null;
+  effectiveOpen: boolean;
+  eligibleCountries: number;
+  submittedCount: number;
+};
+
+type NextInLineWindowPreview = {
+  editionId: string;
+  currentStatus: NextInLineWindowStatus;
+  targetStatus: NextInLineWindowStatus;
+  enabled: boolean;
+  opensAt: string | null;
+  closesAt: string | null;
+  expectedVersion: number;
+  riskClass: "R1" | "R2";
+  eligibleCountries: number;
+  submittedCount: number;
+};
+
+type PendingWindowChange = {
+  preview: NextInLineWindowPreview;
+  operationId: string;
+  idempotencyKey: string;
+};
+
+type RpcResult = {
+  data: unknown;
+  error: { message: string } | null;
+};
+
+const nextInLineRpc = confirmationsSupabase.rpc as unknown as (
+  functionName: string,
+  args: Record<string, unknown>,
+) => Promise<RpcResult>;
 
 type SearchState = { country?: string };
 
@@ -56,11 +103,21 @@ function NextInLineAdminPage() {
   const [loading, setLoading] = useState(true);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [windowState, setWindowState] = useState<NextInLineWindowSnapshot | null>(null);
+  const [windowLoading, setWindowLoading] = useState(true);
+  const [windowError, setWindowError] = useState<string | null>(null);
+  const [opensAt, setOpensAt] = useState("");
+  const [closesAt, setClosesAt] = useState("");
+  const [changeReason, setChangeReason] = useState("");
+  const [pendingWindowChange, setPendingWindowChange] = useState<PendingWindowChange | null>(null);
+  const [windowBusy, setWindowBusy] = useState(false);
 
   useEffect(() => {
     let alive = true;
     setLoading(true);
     setError(null);
+    setWindowLoading(true);
+    setWindowError(null);
 
     void confirmationsSupabase
       .rpc("admin_confirmation_next_in_line", { _edition_id: editionId || null })
@@ -75,10 +132,105 @@ function NextInLineAdminPage() {
         setLoading(false);
       });
 
+    if (!editionId) {
+      setWindowState(null);
+      setWindowLoading(false);
+    } else {
+      void nextInLineRpc("studio2_next_in_line_admin_snapshot", {
+        p_edition_id: editionId,
+      }).then((result) => {
+        if (!alive) return;
+        if (result.error) {
+          setWindowState(null);
+          setWindowError(result.error.message);
+        } else {
+          const snapshot = result.data as NextInLineWindowSnapshot;
+          setWindowState(snapshot);
+          setOpensAt(toLocalDateTimeInput(snapshot.opensAt));
+          setClosesAt(toLocalDateTimeInput(snapshot.closesAt));
+        }
+        setWindowLoading(false);
+      });
+    }
+
     return () => {
       alive = false;
     };
   }, [editionId, refreshNonce]);
+
+  async function prepareWindowChange(targetStatus: NextInLineWindowStatus) {
+    if (!editionId || windowBusy) return;
+    setWindowBusy(true);
+    setWindowError(null);
+    try {
+      const enabled = targetStatus === "scheduled" || targetStatus === "open";
+      const requestedOpensAt =
+        targetStatus === "open" && !opensAt ? null : fromLocalDateTimeInput(opensAt);
+      const requestedClosesAt = fromLocalDateTimeInput(closesAt);
+
+      const previewResult = await nextInLineRpc("studio2_next_in_line_window_change_preview", {
+        p_edition_id: editionId,
+        p_target_status: targetStatus,
+        p_enabled: enabled,
+        p_opens_at: requestedOpensAt,
+        p_closes_at: requestedClosesAt,
+      });
+      if (previewResult.error) throw new Error(previewResult.error.message);
+
+      const preview = previewResult.data as NextInLineWindowPreview;
+      const operation = createOrganisationCommand({
+        command: `next_in_line.window.${targetStatus}`,
+        payload: {
+          targetStatus,
+          enabled,
+          opensAt: requestedOpensAt,
+          closesAt: requestedClosesAt,
+        },
+        riskClass: preview.riskClass,
+        scope: { editionId },
+        expectedVersion: preview.expectedVersion,
+      });
+
+      setChangeReason("");
+      setPendingWindowChange({
+        preview,
+        operationId: operation.operationId,
+        idempotencyKey: operation.idempotencyKey,
+      });
+    } catch (caught) {
+      setWindowError(errorText(caught));
+    } finally {
+      setWindowBusy(false);
+    }
+  }
+
+  async function applyWindowChange() {
+    if (!editionId || !pendingWindowChange || !changeReason.trim() || windowBusy) return;
+    setWindowBusy(true);
+    setWindowError(null);
+    try {
+      const preview = pendingWindowChange.preview;
+      const result = await nextInLineRpc("studio2_apply_next_in_line_window_change", {
+        p_edition_id: editionId,
+        p_target_status: preview.targetStatus,
+        p_enabled: preview.enabled,
+        p_opens_at: preview.opensAt,
+        p_closes_at: preview.closesAt,
+        p_reason: changeReason.trim(),
+        p_operation_id: pendingWindowChange.operationId,
+        p_idempotency_key: pendingWindowChange.idempotencyKey,
+        p_expected_version: preview.expectedVersion,
+      });
+      if (result.error) throw new Error(result.error.message);
+      setPendingWindowChange(null);
+      setChangeReason("");
+      setRefreshNonce((value) => value + 1);
+    } catch (caught) {
+      setWindowError(errorText(caught));
+    } finally {
+      setWindowBusy(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -131,6 +283,116 @@ function NextInLineAdminPage() {
             </div>
           }
         />
+
+        <AdminCard strong>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="admin-section-label">Participation window</p>
+                <h2 className="mt-1 text-lg font-bold">Next in Line runtime</h2>
+                <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
+                  Server-authoritative window state controls the public Next in Line experience.
+                  Opening, closing and cancelling use a versioned operation with an impact preview.
+                </p>
+              </div>
+              {windowLoading ? (
+                <AdminStatus tone="neutral">Loading…</AdminStatus>
+              ) : windowState ? (
+                <AdminStatus tone={windowState.effectiveOpen ? "ready" : "neutral"}>
+                  {windowState.effectiveOpen ? "Open now" : humanize(windowState.status)}
+                </AdminStatus>
+              ) : (
+                <AdminStatus tone="attention">Unavailable</AdminStatus>
+              )}
+            </div>
+
+            {windowError ? (
+              <div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.05] p-3 text-sm text-rose-100">
+                {windowError}
+              </div>
+            ) : null}
+
+            <div className="grid gap-3 md:grid-cols-4">
+              <Metric label="Eligible countries" value={windowState?.eligibleCountries ?? 0} />
+              <Metric label="Submitted" value={windowState?.submittedCount ?? 0} />
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.022] p-3">
+                <label className="text-xs font-semibold text-muted-foreground" htmlFor="nil-opens-at">
+                  Opens at
+                </label>
+                <input
+                  id="nil-opens-at"
+                  type="datetime-local"
+                  value={opensAt}
+                  onChange={(event) => setOpensAt(event.target.value)}
+                  className="admin-input mt-2"
+                />
+              </div>
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.022] p-3">
+                <label className="text-xs font-semibold text-muted-foreground" htmlFor="nil-closes-at">
+                  Closes at
+                </label>
+                <input
+                  id="nil-closes-at"
+                  type="datetime-local"
+                  value={closesAt}
+                  onChange={(event) => setClosesAt(event.target.value)}
+                  className="admin-input mt-2"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="admin-action-secondary"
+                disabled={!editionId || windowBusy}
+                onClick={() => void prepareWindowChange("draft")}
+              >
+                Draft
+              </button>
+              <button
+                type="button"
+                className="admin-action-secondary"
+                disabled={!editionId || windowBusy || !opensAt}
+                onClick={() => void prepareWindowChange("scheduled")}
+              >
+                <Clock3 className="size-4" />
+                Schedule
+              </button>
+              <button
+                type="button"
+                className="admin-action-primary"
+                disabled={!editionId || windowBusy}
+                onClick={() => void prepareWindowChange("open")}
+              >
+                Open
+              </button>
+              <button
+                type="button"
+                className="admin-action-secondary"
+                disabled={!editionId || windowBusy}
+                onClick={() => void prepareWindowChange("closed")}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="admin-action-danger"
+                disabled={!editionId || windowBusy}
+                onClick={() => void prepareWindowChange("cancelled")}
+              >
+                Cancel window
+              </button>
+            </div>
+
+            {windowState?.reason ? (
+              <p className="text-[11px] text-muted-foreground">
+                Last reason: {windowState.reason}
+                {windowState.changedAt ? ` · ${formatDate(windowState.changedAt)}` : ""}
+              </p>
+            ) : null}
+          </div>
+        </AdminCard>
 
         <section className="grid gap-3 sm:grid-cols-3">
           <Metric label="Responses" value={rows.length} />
@@ -223,6 +485,65 @@ function NextInLineAdminPage() {
             />
           </AdminCard>
         )}
+        <AdminConfirmSheet
+          open={Boolean(pendingWindowChange)}
+          onClose={() => {
+            if (!windowBusy) {
+              setPendingWindowChange(null);
+              setChangeReason("");
+            }
+          }}
+          onConfirm={applyWindowChange}
+          title={
+            pendingWindowChange
+              ? `${humanize(pendingWindowChange.preview.targetStatus)} Next in Line window?`
+              : "Change Next in Line window?"
+          }
+          description={
+            pendingWindowChange ? (
+              <div className="space-y-3">
+                <p>
+                  {humanize(pendingWindowChange.preview.currentStatus)} →{" "}
+                  <strong className="text-foreground">
+                    {humanize(pendingWindowChange.preview.targetStatus)}
+                  </strong>
+                  . {pendingWindowChange.preview.eligibleCountries} countries are currently eligible
+                  and {pendingWindowChange.preview.submittedCount} have submitted.
+                </p>
+                <label className="block">
+                  <span className="text-xs font-semibold text-foreground">
+                    Operator reason
+                  </span>
+                  <textarea
+                    value={changeReason}
+                    onChange={(event) => setChangeReason(event.target.value)}
+                    className="admin-input mt-2 min-h-24 resize-y"
+                    placeholder="Why is this window state changing?"
+                  />
+                </label>
+              </div>
+            ) : (
+              "Review the window impact before continuing."
+            )
+          }
+          confirmLabel="Apply window change"
+          confirmationText={
+            pendingWindowChange?.preview.riskClass === "R2"
+              ? pendingWindowChange.preview.targetStatus.toUpperCase()
+              : undefined
+          }
+          confirmationHint={
+            pendingWindowChange?.preview.riskClass === "R2"
+              ? `Type ${pendingWindowChange.preview.targetStatus.toUpperCase()} to confirm`
+              : undefined
+          }
+          busy={windowBusy}
+          confirmDisabled={changeReason.trim().length < 5}
+          danger={
+            pendingWindowChange?.preview.targetStatus === "cancelled" ||
+            pendingWindowChange?.preview.targetStatus === "closed"
+          }
+        />
       </div>
     </AdminPage>
   );
@@ -235,6 +556,28 @@ function Metric({ label, value }: { label: string; value: number }) {
       <p className="mt-2 text-2xl font-bold tabular-nums">{value}</p>
     </AdminCard>
   );
+}
+
+function humanize(value: string) {
+  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function errorText(error: unknown) {
+  return error instanceof Error ? error.message : "Next in Line operation failed.";
+}
+
+function toLocalDateTimeInput(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
+}
+
+function fromLocalDateTimeInput(value: string) {
+  if (!value.trim()) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 function formatDate(value: string) {
