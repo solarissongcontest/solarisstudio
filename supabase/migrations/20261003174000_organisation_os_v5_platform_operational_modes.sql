@@ -89,18 +89,23 @@ stable
 security definer
 set search_path = pg_catalog, public, private
 as $allowed$
-  select case state.mode
-    when 'normal' then true
-    when 'degraded' then true
-    when 'read_only' then coalesce(p_command, '') in (
-      'system.platform_mode.change',
-      'system.push.retry_failed'
-    )
-    when 'maintenance' then coalesce(p_command, '') = 'system.platform_mode.change'
-    else false
-  end
-  from public.studio2_platform_operational_state state
-  where state.singleton = true;
+  select coalesce(
+    (
+      select case state.mode
+        when 'normal' then true
+        when 'degraded' then true
+        when 'read_only' then coalesce(p_command, '') in (
+          'system.platform_mode.change',
+          'system.push.retry_failed'
+        )
+        when 'maintenance' then coalesce(p_command, '') = 'system.platform_mode.change'
+        else false
+      end
+      from public.studio2_platform_operational_state state
+      where state.singleton = true
+    ),
+    false
+  );
 $allowed$;
 
 revoke all on function private.studio2_platform_mutation_allowed(text)
@@ -246,7 +251,38 @@ begin
   if p_risk_class not in ('R0', 'R1', 'R2', 'R3') then
     raise exception 'Invalid operation risk class' using errcode = '22023';
   end if;
-  if not private.studio2_platform_mutation_allowed(v_command) then
+
+  select *
+  into v_receipt
+  from public.studio2_operation_receipts
+  where operation_id = p_operation_id
+     or (
+       actor_id = v_actor
+       and command = v_command
+       and idempotency_key = v_key
+     )
+  order by case when operation_id = p_operation_id then 0 else 1 end
+  limit 1
+  for update;
+
+  if v_receipt.operation_id is not null then
+    if v_receipt.actor_id <> v_actor
+       or v_receipt.command <> v_command
+       or v_receipt.idempotency_key <> v_key then
+      raise exception 'Operation id is already used by another command'
+        using errcode = '23505';
+    end if;
+
+    if v_receipt.status = 'succeeded' then
+      return jsonb_build_object(
+        'replayed', true,
+        'operationId', v_receipt.operation_id,
+        'result', v_receipt.result
+      );
+    end if;
+  end if;
+
+  if not coalesce(private.studio2_platform_mutation_allowed(v_command), false) then
     raise exception 'Solaris is currently %, so this operation is unavailable',
       (select mode from public.studio2_platform_operational_state where singleton = true)
       using errcode = '25006';
