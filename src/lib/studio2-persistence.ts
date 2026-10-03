@@ -249,11 +249,12 @@ export function mapStudio2EventRow(value: unknown): ContestEvent {
 export function mapStudio2IncidentRow(value: unknown): Studio2IncidentRecord {
   const row = expectObject(value, 'Studio 2 incident row');
   const severity = expectString(row.severity, 'incident severity');
-  const status = expectString(row.status, 'incident status');
+  const rawStatus = expectString(row.status, 'incident status');
+  const status = rawStatus === 'open' ? 'detected' : rawStatus;
   const category = row.category === undefined ? 'other' : expectString(row.category, 'incident category');
 
   if (!INCIDENT_SEVERITY_SET.has(severity)) throw new Error(`Unknown incident severity: ${severity}`);
-  if (!INCIDENT_STATUS_SET.has(status)) throw new Error(`Unknown incident status: ${status}`);
+  if (!INCIDENT_STATUS_SET.has(status)) throw new Error(`Unknown incident status: ${rawStatus}`);
   if (!INCIDENT_CATEGORY_SET.has(category)) throw new Error(`Unknown incident category: ${category}`);
 
   return {
