@@ -114,15 +114,9 @@ security definer
 set search_path = pg_catalog, public, private
 as $trigger$
 begin
-  perform private.studio2_reconcile_jury_ballot_review_tasks(
-    coalesce(new.edition_id, old.edition_id)
-  );
-  perform private.studio2_sync_task_notifications(
-    coalesce(new.edition_id, old.edition_id)
-  );
-  perform private.studio2_prune_stale_task_notifications(
-    coalesce(new.edition_id, old.edition_id)
-  );
+  perform private.studio2_reconcile_jury_ballot_review_tasks(new.edition_id);
+  perform private.studio2_sync_task_notifications(new.edition_id);
+  perform private.studio2_prune_stale_task_notifications(new.edition_id);
   return null;
 end
 $trigger$;
