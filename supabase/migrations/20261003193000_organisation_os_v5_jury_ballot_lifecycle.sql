@@ -148,6 +148,7 @@ declare
   v_ballot public.jury_ballot_submissions;
   v_target text := lower(btrim(coalesce(p_target_status, '')));
   v_reason text := nullif(btrim(coalesce(p_reason, '')), '');
+  v_before_status text;
   v_claim jsonb;
   v_operation_id uuid;
   v_result jsonb;
@@ -177,6 +178,8 @@ begin
     raise exception 'A reason is required for this jury ballot transition'
       using errcode = '22023';
   end if;
+
+  v_before_status := v_ballot.status;
 
   v_claim := private.studio2_claim_operation(
     p_operation_id,
@@ -223,7 +226,7 @@ begin
     'jury_ballot_submissions',
     p_ballot_id::text,
     jsonb_build_object(
-      'status', (v_claim -> 'scope' ->> 'fromStatus'),
+      'status', v_before_status,
       'version', p_expected_version
     ),
     jsonb_build_object(
@@ -499,7 +502,7 @@ begin
     if v_existing.id is not null then
       delete from public.jury_ballot_statuses
       where id = v_existing.id
-      returning v_existing.* into v_status;
+      returning * into v_status;
     end if;
   else
     raise exception 'Unknown DNV action' using errcode = '22023';
@@ -550,6 +553,23 @@ revoke all on function public.studio2_apply_jury_dnv(
 grant execute on function public.studio2_apply_jury_dnv(
   uuid, uuid, uuid, uuid, text, text, uuid, text, bigint
 ) to authenticated, service_role;
+
+-- DNV is a protected V5 transition. Authenticated organisers may inspect the
+-- canonical absence row but may not mutate it directly around the preview,
+-- reason, idempotency receipt or audit contract.
+revoke insert, update, delete on public.jury_ballot_statuses from authenticated;
+grant select on public.jury_ballot_statuses to authenticated;
+
+drop policy if exists "jury ballot statuses capability access"
+  on public.jury_ballot_statuses;
+create policy "jury ballot statuses capability read"
+on public.jury_ballot_statuses
+for select
+to authenticated
+using (
+  public.studio2_access_allowed('jury.ballots.read', edition_id, false)
+  or public.studio2_access_allowed('jury.ballots.manage', edition_id, false)
+);
 
 notify pgrst, 'reload schema';
 
