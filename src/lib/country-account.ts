@@ -559,7 +559,7 @@ type CountryMediaUploadDescriptor = ServerAuthorizedUploadDescriptor & {
 export async function uploadCountryAsset(
   countryId: string,
   file: File,
-  folder: "flags" | "gallery",
+  folder: "flags" | "gallery" | "backgrounds",
 ) {
   if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
     throw new Error("Use a JPG, PNG, WebP or GIF image.");
