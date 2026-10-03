@@ -330,8 +330,8 @@ export async function uploadEditionArtwork(editionId: string, file: File) {
     throw new Error("Use a JPG, PNG or WebP image.");
   }
   if (file.size <= 0) throw new Error("Choose a non-empty artwork image.");
-  if (file.size > 15 * 1024 * 1024) {
-    throw new Error("Edition artwork can be at most 15 MB.");
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error("Edition artwork can be at most 5 MB.");
   }
 
   const receipt = await uploadVerifiedFile({
