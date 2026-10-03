@@ -75,6 +75,26 @@ describe("CI egress safety contracts", () => {
     expect(accounts).toContain("refusing to skip authenticated account-state coverage in CI");
   });
 
+  it("pins manual certification workflows to loopback Supabase too", () => {
+    for (const path of [
+      ".github/workflows/mobile-v2-certification.yml",
+      ".github/workflows/organisation-os-v5-certification.yml",
+    ]) {
+      const workflow = source(path);
+      expect(workflow, path).toContain("VITE_SUPABASE_URL: http://127.0.0.1:54321");
+      expect(workflow, path).toContain("SUPABASE_URL: http://127.0.0.1:54321");
+      expect(workflow, path).toContain(
+        "VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321",
+      );
+      expect(workflow, path).toContain(
+        "CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321",
+      );
+      expect(workflow, path).not.toMatch(/https:\/\/[^\s"']+\.supabase\.co/i);
+      expect(workflow, path).not.toContain("secrets.SUPABASE");
+      expect(workflow, path).not.toContain("secrets.E2E_SUPABASE");
+    }
+  });
+
   it("keeps browser CI local even for legacy confirmations clients", () => {
     const workflow = source(".github/workflows/browser-audit.yml");
 
