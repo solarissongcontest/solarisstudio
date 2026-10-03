@@ -82,6 +82,11 @@ grant execute on function private.studio2_data_api_operational_gate()
 -- switched request role can execute the configured pre-request function.
 grant usage on schema private to anon, authenticated, service_role;
 
+-- Storage RLS evaluates the canonical platform-mode helper as the request role.
+-- Keep it private/unexposed, but permit policy execution.
+grant execute on function private.studio2_platform_mutation_allowed(text)
+  to anon, authenticated;
+
 alter role authenticator
   set pgrst.db_pre_request = 'private.studio2_data_api_operational_gate';
 
@@ -95,7 +100,7 @@ declare
   v_mode text;
 begin
   -- Database administrators/migrations remain an out-of-band recovery path.
-  if current_user in ('postgres', 'supabase_admin') then
+  if session_user in ('postgres', 'supabase_admin') then
     return null;
   end if;
 
@@ -134,7 +139,7 @@ declare
 begin
   for v_table in
     select distinct grant_row.table_name
-    from information_schema.role_table_grants grant_row
+    from information_schema.table_privileges grant_row
     join information_schema.tables table_row
       on table_row.table_schema = grant_row.table_schema
      and table_row.table_name = grant_row.table_name
