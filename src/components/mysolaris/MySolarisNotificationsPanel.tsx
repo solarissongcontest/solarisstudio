@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { BellRing, BellOff, Smartphone } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -13,9 +14,11 @@ import {
   useSaveNotificationPreferences,
 } from "@/lib/engagement-data";
 import {
+  describeAppPushDelivery,
   disableAppPush,
   enableAppPush,
   getAppPushState,
+  type AppPushDeliveryStatus,
   type AppPushState,
 } from "@/lib/app-notifications";
 import {
@@ -84,6 +87,7 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
   }, [preferences.data]);
 
   const pushState = push.data ?? EMPTY_PUSH;
+  const deliveryStatus = describeAppPushDelivery(pushState);
   const dirty = useMemo(() => {
     const saved = [...(preferences.data?.categories ?? DEFAULT_CATEGORIES)].sort().join("|");
     const current = [...selected].sort().join("|");
@@ -237,15 +241,7 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold">Push notifications</span>
                   <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-                    {!pushState.configured
-                      ? "Push service is temporarily unavailable."
-                      : pushState.supported
-                        ? pushState.subscribed
-                          ? "This device is subscribed to Solaris notifications."
-                          : pushState.permission === "denied"
-                            ? "Notifications are blocked in your system settings."
-                            : "Receive Solaris alerts on this device."
-                        : "Web Push is not available on this browser."}
+                    {deliveryStatus.description}
                   </span>
                 </span>
                 {pushState.configured && pushState.supported ? (
@@ -315,6 +311,7 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
               </div>
             ) : null}
           </div>
+          <RequiredWorkFallback status={deliveryStatus} />
         </section>
 
         <button
@@ -426,15 +423,7 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">Push notifications</p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                {!pushState.configured
-                  ? "Push notifications are temporarily unavailable."
-                  : pushState.supported
-                    ? pushState.subscribed
-                      ? "This device is subscribed to Solaris notifications."
-                      : pushState.permission === "denied"
-                        ? "Notifications are blocked for Solaris in your system settings."
-                        : "Enable notifications on this device. Installed Home Screen apps get the best experience."
-                    : "This browser does not expose Web Push for Solaris."}
+                {deliveryStatus.description}
               </p>
             </div>
             {pushState.configured && pushState.supported ? (
@@ -451,6 +440,8 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
           </div>
         </div>
 
+        <RequiredWorkFallback status={deliveryStatus} />
+
         <div className="flex justify-end">
           <button
             type="button"
@@ -463,5 +454,38 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
         </div>
       </div>
     </Panel>
+  );
+}
+
+
+function RequiredWorkFallback({
+  status,
+}: {
+  status: AppPushDeliveryStatus;
+}) {
+  return (
+    <div
+      data-solaris-required-work-fallback=""
+      className="mt-3 rounded-2xl border border-sky-300/20 bg-sky-300/[0.055] p-3"
+    >
+      <p className="text-sm font-semibold">{status.title}</p>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+        {status.description}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Link
+          to="/my-solaris/tasks"
+          className="inline-flex min-h-10 items-center rounded-xl border border-border bg-surface px-3 text-xs font-semibold"
+        >
+          Open Tasks
+        </Link>
+        <Link
+          to="/my-solaris/notices"
+          className="inline-flex min-h-10 items-center rounded-xl border border-border bg-surface px-3 text-xs font-semibold"
+        >
+          Open Notices
+        </Link>
+      </div>
+    </div>
   );
 }
