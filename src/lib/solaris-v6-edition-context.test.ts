@@ -10,8 +10,12 @@ function storage(initial: Record<string, string> = {}) {
   const values = new Map(Object.entries(initial));
   return {
     getItem: (key: string) => values.get(key) ?? null,
-    setItem: (key: string, value: string) => values.set(key, value),
-    removeItem: (key: string) => values.delete(key),
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
+    removeItem: (key: string) => {
+      values.delete(key);
+    },
   };
 }
 
@@ -40,9 +44,9 @@ describe("Solaris V6 edition isolation", () => {
 
   it("stores organizer edition preference in the provided tab-scoped storage only", () => {
     const tab = storage();
-    writeTabScopedEdition(tab as Storage, "edition-22");
-    expect(readTabScopedEdition(tab as Storage)).toBe("edition-22");
-    writeTabScopedEdition(tab as Storage, "");
-    expect(readTabScopedEdition(tab as Storage)).toBe("");
+    writeTabScopedEdition(tab, "edition-22");
+    expect(readTabScopedEdition(tab)).toBe("edition-22");
+    writeTabScopedEdition(tab, "");
+    expect(readTabScopedEdition(tab)).toBe("");
   });
 });
