@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
+import { uploadServerAuthorizedFile } from "@/lib/upload-safety";
 import type {
   IntegrityCaseKind,
   IntegrityCaseSnapshot,
@@ -262,14 +263,11 @@ export async function uploadAnonymousEvidence(
   if (prepareError) throw new Error(prepareError.message);
   const upload = descriptor as EvidenceUploadDescriptor;
 
-  const { error: uploadError } = await client.storage
-    .from(upload.bucket)
-    .upload(upload.object_path, file, {
-      upsert: false,
-      contentType: file.type || "text/plain",
-      cacheControl: "0",
-    });
-  if (uploadError) throw new Error(uploadError.message);
+  await uploadServerAuthorizedFile({
+    client,
+    descriptor: upload,
+    file,
+  });
 
   const { data: finalized, error: finalizeError } = await (client as any).rpc(
     "public_finalize_anonymous_evidence",
@@ -295,14 +293,11 @@ export async function uploadProtectedEvidence(caseId: string, sourceFile: File) 
     },
   );
 
-  const { error: uploadError } = await supabase.storage
-    .from(descriptor.bucket)
-    .upload(descriptor.object_path, file, {
-      upsert: false,
-      contentType: file.type || "text/plain",
-      cacheControl: "0",
-    });
-  if (uploadError) throw new Error(uploadError.message);
+  await uploadServerAuthorizedFile({
+    client: supabase,
+    descriptor,
+    file,
+  });
 
   const finalized = await rpc<{ snapshot: IntegrityCaseSnapshot }>(
     "finalize_protected_evidence",
