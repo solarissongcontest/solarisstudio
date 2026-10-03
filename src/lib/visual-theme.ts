@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
-import { uploadServerAuthorizedFile } from "@/lib/upload-safety";
+import { uploadVerifiedFile } from "@/lib/upload-safety";
 
 const supabase = typedSupabase as any;
 
@@ -334,20 +334,19 @@ export async function uploadEditionArtwork(editionId: string, file: File) {
     throw new Error("Edition artwork can be at most 15 MB.");
   }
 
-  const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const storagePath = `${editionId}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
-  await uploadServerAuthorizedFile({
+  const receipt = await uploadVerifiedFile({
     client: typedSupabase,
-    descriptor: {
-      bucket: "edition-artwork",
-      object_path: storagePath,
-    },
+    domain: "edition_artwork",
+    entityId: editionId,
     file,
-    cacheControl: "3600",
   });
 
-  const { data } = typedSupabase.storage.from("edition-artwork").getPublicUrl(storagePath);
-  return { storagePath, publicUrl: data.publicUrl };
+  if (receipt.bucket !== "edition-artwork") {
+    throw new Error("Solaris verified the edition artwork into an unexpected bucket.");
+  }
+
+  const { data } = typedSupabase.storage.from("edition-artwork").getPublicUrl(receipt.object_path);
+  return { storagePath: receipt.object_path, publicUrl: data.publicUrl };
 }
 
 export async function saveEditionVisualTheme(input: {
