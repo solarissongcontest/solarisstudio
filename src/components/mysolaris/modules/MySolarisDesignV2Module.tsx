@@ -333,10 +333,10 @@ function CountryDesignEditor({
               </div>
               <label className="mt-4 block rounded-xl border border-border bg-background/45 p-3">
                 <span className="flex items-center gap-2 text-xs font-semibold"><Upload className="size-4" /> Upload custom font</span>
-                <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">WOFF2, WOFF, TTF or OTF · max 4 MB. Uploaded fonts become public assets when used on a public country page.</span>
+                <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">WOFF2 only · max 4 MB. Solaris validates the font container before it can become a public country asset.</span>
                 <input
                   type="file"
-                  accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf"
+                  accept=".woff2,font/woff2"
                   disabled={busyFont}
                   onChange={(event) => {
                     const file = event.target.files?.[0];
@@ -482,7 +482,7 @@ function CountryDesignEditor({
                       <span className="flex items-center gap-2 text-xs font-semibold"><Image className="size-4" /> Background image</span>
                       <input
                         type="file"
-                        accept="image/png,image/jpeg,image/webp,image/avif"
+                        accept="image/png,image/jpeg,image/webp"
                         disabled={busyBackground}
                         onChange={(event) => {
                           const file = event.target.files?.[0];
