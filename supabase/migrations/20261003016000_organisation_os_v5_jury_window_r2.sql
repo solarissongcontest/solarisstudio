@@ -55,48 +55,6 @@ $bump$;
 revoke all on function private.studio2_bump_jury_window_version(uuid)
   from public, anon, authenticated;
 
-create or replace function private.studio2_jury_window_after_write()
-returns trigger
-language plpgsql
-security definer
-set search_path = pg_catalog, public, private
-as $window_version$
-declare
-  v_old_edition uuid;
-  v_new_edition uuid;
-begin
-  if tg_op = 'INSERT' then
-    perform private.studio2_bump_jury_window_version(new.edition_id);
-    return new;
-  end if;
-
-  if tg_op = 'DELETE' then
-    perform private.studio2_bump_jury_window_version(old.edition_id);
-    return old;
-  end if;
-
-  v_old_edition := old.edition_id;
-  v_new_edition := new.edition_id;
-
-  if
-    (to_jsonb(new) - array['operation_version', 'updated_at']::text[])
-    is distinct from
-    (to_jsonb(old) - array['operation_version', 'updated_at']::text[])
-  then
-    new.operation_version := old.operation_version + 1;
-  end if;
-
-  if new.operation_version is distinct from old.operation_version then
-    perform private.studio2_bump_jury_window_version(v_new_edition);
-    if v_old_edition is distinct from v_new_edition then
-      perform private.studio2_bump_jury_window_version(v_old_edition);
-    end if;
-  end if;
-
-  return new;
-end
-$window_version$;
-
 -- operation_version must be adjusted before the row is stored; the edition
 -- version bump is separate after-write work.
 create or replace function private.studio2_jury_window_before_update()
@@ -258,6 +216,102 @@ drop trigger if exists studio2_jury_ballot_window_guard
 create trigger studio2_jury_ballot_window_guard
 before insert on public.jury_ballot_submissions
 for each row execute function private.studio2_jury_ballot_window_guard();
+
+-- Manual Organizer jury score edits also change ballot-completeness impact.
+-- Country-account ballot score rows already share one version bump through the
+-- jury_ballot_submissions guard, so skip those materialized rows here.
+create or replace function private.studio2_jury_vote_impact_version()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $vote_impact$
+declare
+  v_old_edition uuid;
+  v_new_edition uuid;
+  v_old_managed boolean := false;
+  v_new_managed boolean := false;
+begin
+  if tg_op in ('UPDATE', 'DELETE') then
+    v_old_edition := old.edition_id;
+    v_old_managed := old.ballot_submission_id is null;
+  end if;
+
+  if tg_op in ('INSERT', 'UPDATE') then
+    v_new_edition := new.edition_id;
+    v_new_managed := new.ballot_submission_id is null;
+  end if;
+
+  if v_old_managed and v_old_edition is not null then
+    perform private.studio2_bump_jury_window_version(v_old_edition);
+  end if;
+
+  if v_new_managed
+     and v_new_edition is not null
+     and (
+       not v_old_managed
+       or v_new_edition is distinct from v_old_edition
+       or tg_op = 'INSERT'
+     ) then
+    perform private.studio2_bump_jury_window_version(v_new_edition);
+  end if;
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end
+$vote_impact$;
+
+revoke all on function private.studio2_jury_vote_impact_version()
+  from public, anon, authenticated;
+
+drop trigger if exists studio2_jury_vote_impact_version
+  on public.jury_votes;
+create trigger studio2_jury_vote_impact_version
+after insert or update or delete on public.jury_votes
+for each row execute function private.studio2_jury_vote_impact_version();
+
+create or replace function private.studio2_jury_dnv_impact_version()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $dnv_impact$
+declare
+  v_old_edition uuid;
+  v_new_edition uuid;
+begin
+  if tg_op in ('UPDATE', 'DELETE') then
+    v_old_edition := old.edition_id;
+  end if;
+  if tg_op in ('INSERT', 'UPDATE') then
+    v_new_edition := new.edition_id;
+  end if;
+
+  if v_old_edition is not null then
+    perform private.studio2_bump_jury_window_version(v_old_edition);
+  end if;
+  if v_new_edition is not null
+     and (tg_op = 'INSERT' or v_new_edition is distinct from v_old_edition) then
+    perform private.studio2_bump_jury_window_version(v_new_edition);
+  end if;
+
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end
+$dnv_impact$;
+
+revoke all on function private.studio2_jury_dnv_impact_version()
+  from public, anon, authenticated;
+
+drop trigger if exists studio2_jury_dnv_impact_version
+  on public.jury_ballot_statuses;
+create trigger studio2_jury_dnv_impact_version
+after insert or update or delete on public.jury_ballot_statuses
+for each row execute function private.studio2_jury_dnv_impact_version();
 
 create or replace function private.studio2_jury_window_snapshot(
   p_show_id uuid,
