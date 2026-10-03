@@ -38,6 +38,7 @@ import {
   type PermissionChangeInput,
   type PermissionChangePreview,
 } from "@/lib/permission-engine-admin";
+import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
 import type { SolarisCapability } from "@/lib/permissions-v2";
 
 export const Route = createFileRoute("/_authenticated/admin/access-permissions")({
@@ -162,12 +163,27 @@ function AccessPermissionsPage() {
     mutationFn: async (change: AccessChange): Promise<PendingAccessChange> => {
       const command = permissionCommand(change);
       const preview = await previewPermissionChange(command);
+      const operation = createOrganisationCommand({
+        command: "permissions.access_change",
+        riskClass: "R3",
+        expectedVersion: preview.expectedVersion,
+        scope: {
+          editionId: command.editionId ?? null,
+          entityId: command.userId,
+        },
+        payload: {
+          changeKind: command.kind,
+          key: command.key,
+          targetUserId: command.userId,
+        },
+      });
+
       return {
         change,
         command,
         preview,
-        operationId: crypto.randomUUID(),
-        idempotencyKey: crypto.randomUUID(),
+        operationId: operation.operationId,
+        idempotencyKey: operation.idempotencyKey,
       };
     },
     onSuccess: (pending) => {
