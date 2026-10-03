@@ -195,8 +195,8 @@ function WorkflowsPage() {
           title="Workflows"
           description="Operational workflow state derived from canonical contest data and evaluated by the shared Workflow Engine. Automations may recommend work; irreversible actions stay explicit."
           actions={
-            <a href="/admin/action-center" className="admin-action-secondary">
-              Open Action Center
+            <a href="/admin/tasks" className="admin-action-secondary">
+              Open Tasks
             </a>
           }
         />
