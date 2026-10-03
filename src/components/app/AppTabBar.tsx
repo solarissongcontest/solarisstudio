@@ -96,6 +96,7 @@ export function AppTabBar({
     const updateMetrics = () => {
       if (!bar || railMode || tabbarMode === "hidden") {
         root.style.setProperty("--solaris-app-bottom-obstruction", "0px");
+        root.style.setProperty("--solaris-bottom-obstruction", "0px");
         return;
       }
 
@@ -107,6 +108,7 @@ export function AppTabBar({
       const rawObstruction = Math.max(0, window.innerHeight - rect.top);
       const obstruction = Math.min(rawObstruction, 128);
       root.style.setProperty("--solaris-app-bottom-obstruction", `${Math.ceil(obstruction)}px`);
+      root.style.setProperty("--solaris-bottom-obstruction", `${Math.ceil(obstruction)}px`);
     };
 
     updateMetrics();
@@ -123,6 +125,7 @@ export function AppTabBar({
       window.removeEventListener("resize", updateMetrics);
       window.visualViewport?.removeEventListener("resize", updateMetrics);
       root.style.setProperty("--solaris-app-bottom-obstruction", "0px");
+      root.style.setProperty("--solaris-bottom-obstruction", "0px");
     };
   }, [collapsed, railMode, tabbarMode, pathname]);
 
