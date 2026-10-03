@@ -78,15 +78,20 @@ security definer
 set search_path = pg_catalog, public, private, televoting
 as $round_global$
 begin
-  if tg_op = 'INSERT'
-     or tg_op = 'DELETE'
-     or new.operation_version is distinct from old.operation_version then
+  if tg_op = 'INSERT' then
     perform televoting.studio2_bump_round_global_version();
+    return new;
   end if;
 
   if tg_op = 'DELETE' then
+    perform televoting.studio2_bump_round_global_version();
     return old;
   end if;
+
+  if new.operation_version is distinct from old.operation_version then
+    perform televoting.studio2_bump_round_global_version();
+  end if;
+
   return new;
 end
 $round_global$;
