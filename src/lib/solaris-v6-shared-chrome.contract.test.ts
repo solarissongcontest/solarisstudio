@@ -5,10 +5,12 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("Solaris V6 shared chrome infrastructure", () => {
-  it("owns keyboard and visual-viewport metrics once at AppRuntime level", () => {
+  it("owns keyboard and visual-viewport metrics once through AppOverlayManager", () => {
     const runtime = source("src/components/app/AppRuntime.tsx");
+    const overlays = source("src/components/app/AppOverlayManager.tsx");
     const metrics = source("src/components/app/AppChromeMetrics.tsx");
-    expect(runtime).toContain("<AppChromeMetrics />");
+    expect(runtime).not.toContain("AppChromeMetrics");
+    expect(overlays).toContain("<AppChromeMetrics />");
     expect(metrics).toContain("--solaris-keyboard-inset");
     expect(metrics).toContain("--solaris-visual-viewport-height");
     expect(metrics).toContain("data-solaris-keyboard-open");
