@@ -104,11 +104,14 @@ domains:
       - src/lib/organisation-televote-rounds-v5.test.ts
 
   - id: voting-declaration
-    status: partial
+    status: implemented
     source_sections: [102]
     evidence:
-      - src/lib/ssc-rules-online-base.ts
-    blocker: "Required/Signed/Missing/Wrong version/Invalidated is specified, but no canonical transition contract is mapped here yet."
+      - supabase/migrations/20261003200000_organisation_os_v5_voting_declaration_lifecycle.sql
+      - src/lib/organisation-v5-voting-declaration-lifecycle.test.ts
+      - src/integrations/televoting/preflight.server.ts
+      - src/routes/televoting/admin/integrity-declarations.tsx
+    note: "Required/Signed/Missing/Wrong version are derived from canonical evidence and statement policy; Invalidated is a versioned audited R2 Organizer transition."
 
   - id: result-lifecycle
     status: verified
