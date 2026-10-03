@@ -96,7 +96,7 @@ cases:
     status: automated
     evidence:
       - src/lib/organisation-televote-rounds-v5.test.ts
-      - src/lib/televoting-ballot-validation.test.ts
+      - supabase/migrations/20260819150000_televoting_pre_submit_integrity.sql
 
   - id: result-blocker
     status: automated
