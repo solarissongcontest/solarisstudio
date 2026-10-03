@@ -96,11 +96,20 @@ function AppLaunchPage() {
                 : "cold_launch_local_session",
         },
       });
+      const targetHref = appEntryHref(target);
       markAppNavigationRestore(target);
       void navigate({
-        to: appEntryHref(target) as any,
+        to: targetHref as any,
         replace: true,
       });
+
+      // TanStack navigation should complete immediately, but an installed
+      // browser can occasionally end up with a half-restored router during a
+      // cold PWA launch. Never allow /app-launch to become a permanent screen.
+      window.setTimeout(() => {
+        if (!alive || window.location.pathname !== "/app-launch") return;
+        window.location.replace(targetHref);
+      }, 1_000);
     });
 
     return () => {
