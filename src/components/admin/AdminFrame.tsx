@@ -94,6 +94,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
       icon: MoreHorizontal,
       active: (path) =>
         !path.startsWith("/admin/operations") &&
+        !path.startsWith("/admin/tasks") &&
         !(
           path.startsWith("/admin/action-center") ||
           path.startsWith("/admin/action-centre") ||
