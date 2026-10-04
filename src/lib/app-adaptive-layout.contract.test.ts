@@ -24,6 +24,6 @@ describe("installed app adaptive layout", () => {
 
   it("sends organizers straight to the operational queue from the app utility sheet", () => {
     const more = source("src/components/app/AppMoreNavigation.tsx");
-    expect(more).toContain('to="/admin/action-center"');
+    expect(more).toContain('to="/admin/tasks"');
   });
 });
