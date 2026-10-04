@@ -11,8 +11,8 @@ import { STATIC_PUBLIC_ROUTES } from "./audit-helpers";
 // This keeps the assertions on the real production CSS declarations rather
 // than maintaining a second test-only visual implementation.
 const INSTALLED_APP_CSS_EMULATION = readFileSync("src/styles/app-shell.css", "utf8")
-  .replace(/\\(display-mode:\\s*(?:standalone|window-controls-overlay)\\)\\s+and\\s+/g, "")
-  .replace(/\\(display-mode:\\s*(?:standalone|window-controls-overlay)\\)/g, "all");
+  .replace(/\(display-mode:\s*(?:standalone|window-controls-overlay)\)\s+and\s+/g, "")
+  .replace(/\(display-mode:\s*(?:standalone|window-controls-overlay)\)/g, "all");
 
 async function applyInstalledCssEmulation(page: Page) {
   await page.addStyleTag({ content: INSTALLED_APP_CSS_EMULATION });
