@@ -20,12 +20,12 @@ describe("App Experience v3 completion contract", () => {
   });
 
   it("gives Organizer mobile navigation five independently remembered stacks", () => {
-    const frame = source("src/components/admin/AdminFrame.tsx");
+    const chrome = source("src/components/admin/OrganizerV6MobileChrome.tsx");
     const navigation = source("src/lib/admin-app-navigation.ts");
 
-    expect(frame).toContain("getAdminAppTabDestination");
-    expect(frame).toContain("resetAdminAppTabToRoot");
-    expect(frame).toContain("consumeAdminNavigationRestore");
+    expect(chrome).toContain("getAdminAppTabDestination");
+    expect(chrome).toContain("resetAdminAppTabToRoot");
+    expect(chrome).toContain("consumeAdminNavigationRestore");
     expect(navigation).toContain('"home" | "edition" | "tasks" | "delegations" | "more"');
     expect(navigation).toContain("solaris:organizer-navigation:v1");
   });
