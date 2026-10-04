@@ -2833,17 +2833,18 @@ html[data-solaris-app]
   html[data-solaris-app] .solaris-app-filter-chip {
     display: inline-flex;
     min-width: 0;
-    min-height: 2.75rem;
+    min-height: 2.5rem;
     max-width: min(72vw, 18rem);
     align-items: center;
-    gap: .5rem;
-    border: 1px solid rgb(210 236 248 / .11);
-    border-radius: 999px;
-    padding-inline: .8rem;
-    background: rgb(255 255 255 / .028);
+    gap: .46rem;
+    border: 0;
+    border-radius: .75rem;
+    padding-inline: .72rem;
+    background: rgb(255 255 255 / .045);
+    box-shadow: inset 0 0 0 1px rgb(215 238 247 / .085);
     color: var(--foreground);
-    font-size: .75rem;
-    font-weight: 720;
+    font-size: .73rem;
+    font-weight: 700;
   }
 
   html[data-solaris-app] .solaris-app-filter-chip span {
@@ -2930,7 +2931,26 @@ html[data-solaris-app]
     color: var(--primary);
   }
 
-  /* Canonical factual flag geometry wins over page personality overrides. */
+  html[data-solaris-app] .solaris-app-directory-list-v6 {
+    min-width: 0;
+    border-top: 1px solid rgb(215 238 247 / .075);
+  }
+
+  html[data-solaris-app] .solaris-app-directory-list-v6 .solaris-app-country-row {
+    border: 0;
+    border-bottom: 1px solid rgb(215 238 247 / .075);
+    border-radius: 0;
+    background: transparent;
+  }
+
+  html[data-solaris-app]
+    .solaris-app-directory-list-v6
+    .solaris-app-country-row
+    + .solaris-app-country-row {
+    border-top: 0;
+  }
+
+    /* Canonical factual flag geometry wins over page personality overrides. */
   html[data-solaris-app] body main.app-main
     [data-flag-frame="standard"][data-flag-chip="true"] {
     aspect-ratio: 3 / 2 !important;
@@ -3246,13 +3266,13 @@ html[data-solaris-app]
   /* Archive content should stay calm. Keep distant atmosphere, remove the
      oversized near-star silhouettes that read like row decorations. */
   html[data-solaris-app]:has(.app-main[data-solaris-app-calm-directory="true"])
-    .solaris-star-layer-near {
+    :is(.solaris-star-layer-near, .solaris-star-layer-mid) {
     opacity: 0 !important;
   }
 
   html[data-solaris-app]:has(.app-main[data-solaris-app-calm-directory="true"])
-    .solaris-star-layer-mid {
-    opacity: .34 !important;
+    .solaris-star-layer-far {
+    opacity: .18 !important;
   }
 }
 
