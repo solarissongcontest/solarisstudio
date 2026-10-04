@@ -26,6 +26,7 @@ Command.displayName = CommandPrimitive.displayName;
 type CommandDialogProps = DialogProps & {
   contentClassName?: string;
   commandClassName?: string;
+  contentLayout?: "centered" | "fullscreen";
   shouldFilter?: boolean;
 };
 
@@ -33,12 +34,16 @@ const CommandDialog = ({
   children,
   contentClassName,
   commandClassName,
+  contentLayout = "centered",
   shouldFilter,
   ...props
 }: CommandDialogProps) => {
   return (
     <Dialog {...props}>
-      <DialogContent className={cn("overflow-hidden p-0", contentClassName)}>
+      <DialogContent
+        layout={contentLayout}
+        className={cn("overflow-hidden p-0", contentClassName)}
+      >
         <Command
           shouldFilter={shouldFilter}
           className={cn(
