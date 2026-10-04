@@ -18,6 +18,10 @@ import { toast } from 'sonner';
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminConfirmSheet, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
+import {
+  featureSurfaceLinks,
+  SolarisSurfaceSwitch,
+} from '@/components/surfaces/SolarisSurfaceSwitch';
 import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import {
   validateEditionCommandScope,
@@ -176,6 +180,15 @@ function ResultsOperationsPage() {
               <a href={`/admin/publication/${edition.slug}`} className="admin-action-secondary">Publication <Globe2 className="size-4" /></a>
             </div>
           ) : undefined}
+        />
+
+        <SolarisSurfaceSwitch
+          label="Results perspectives"
+          links={featureSurfaceLinks({
+            featureId: "results",
+            current: "organizer",
+            perspectives: ["public", "organizer", "diagnostic"],
+          })}
         />
 
         {!edition && !editionsQuery.isLoading ? (
