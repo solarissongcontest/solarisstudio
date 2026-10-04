@@ -15,6 +15,12 @@ import {
   executeStudio2ResultOperation,
   loadStudio2ResultsOperations,
 } from "@/lib/studio2-results-operations";
+import {
+  applyShowPublicationChange,
+  loadShowPublicationControls,
+  previewShowPublicationChange,
+  reauthenticateShowPublicationR3,
+} from "@/lib/show-publication-lifecycle";
 
 export type SolarisV6RuntimeAuthorityKind =
   | "canonical-read"
@@ -72,6 +78,20 @@ export const SOLARIS_V6_RUNTIME_AUTHORITIES = {
     ] as const,
     notes:
       "Consequential result operations preserve expected-version checks, stable execution identity and server receipts.",
+  },
+  publication: {
+    kind: "canonical-write" as const,
+    read: loadShowPublicationControls,
+    preview: previewShowPublicationChange,
+    execute: applyShowPublicationChange,
+    reauthenticate: reauthenticateShowPublicationR3,
+    transports: [
+      "studio2_show_publication_controls",
+      "studio2_preview_show_publication_change",
+      "studio2_apply_show_publication_change",
+    ] as const,
+    notes:
+      "Publication reuses the governed show-publication lifecycle. Preview, version checks, idempotency, R3 authentication and apply remain server-authoritative.",
   },
   permissions: {
     kind: "authorization-contract" as const,
