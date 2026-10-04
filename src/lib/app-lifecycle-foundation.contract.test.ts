@@ -36,6 +36,9 @@ describe("App Experience v3 lifecycle foundation", () => {
     const viewport = source("src/lib/app-viewport.ts");
     const styles = source("src/styles/app-shell.css");
     expect(viewport).toContain("window.visualViewport");
+    expect(viewport).toContain("--solaris-visual-viewport-width");
+    expect(viewport).toContain("--solaris-visual-viewport-offset-left");
+    expect(viewport).toContain("--solaris-visual-viewport-scale");
     expect(viewport).toContain("--solaris-keyboard-inset");
     expect(viewport).toContain("data-solaris-keyboard-open");
     expect(styles).toContain('html[data-solaris-keyboard-open] .solaris-app-tabbar');
