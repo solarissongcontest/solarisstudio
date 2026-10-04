@@ -225,6 +225,43 @@ Deno.serve(async (req) => {
       return json({ error: message }, 400);
     }
 
+    // Auth creation and country ownership live in different Supabase subsystems,
+    // so make this flow compensating-transaction safe. The country_accounts
+    // UNIQUE constraints are the authoritative race boundary: if two signups
+    // pass the optimistic availability checks, only one ownership insert wins.
+    const { error: ownershipError } = await service.from("country_accounts").insert({
+      user_id: created.user.id,
+      country_id: countryId,
+      instagram_username: instagramUsername,
+      display_name: displayName,
+    });
+
+    if (ownershipError) {
+      const { error: cleanupError } = await service.auth.admin.deleteUser(created.user.id);
+      if (cleanupError) {
+        console.error(
+          "[country-auth] Failed to roll back Auth user after country ownership failure",
+          cleanupError,
+        );
+      }
+
+      if (ownershipError.code === "23505") {
+        return json(
+          {
+            error:
+              "That country or Instagram username was claimed while your account was being created. Refresh and choose an available option.",
+          },
+          409,
+        );
+      }
+
+      console.error("[country-auth] Country ownership creation failed", ownershipError);
+      return json(
+        { error: "Country ownership could not be created. No account was kept. Please try again." },
+        500,
+      );
+    }
+
     const { data: signedIn, error: signInError } = await publicAuth.auth.signInWithPassword({
       email: authEmail,
       password,
