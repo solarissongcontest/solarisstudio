@@ -30,6 +30,27 @@ describe("Solaris V6 participant workflow inspection contract", () => {
     );
   });
 
+  it("keeps Voting perspective switching access-aware", () => {
+    const voting = source(
+      "src/routes/_authenticated/my-solaris/voting.tsx",
+    );
+    expect(voting).toContain("<SolarisSurfaceSwitch");
+    expect(voting).toContain('featureId: "participant-voting-overview"');
+    expect(voting).toContain("workspace.permissions.isOrganizer");
+    expect(voting).toContain('["participant", "organizer", "diagnostic"]');
+    expect(voting).toContain('["participant"]');
+  });
+
+  it("does not impersonate a delegation notice inbox for Organizer users", () => {
+    const notices = source(
+      "src/components/mysolaris/modules/MySolarisNoticesModule.tsx",
+    );
+    expect(notices).toContain("access?.isOrganizer !== true");
+    expect(notices).toContain("if (access?.isOrganizer)");
+    expect(notices).toContain('to="/admin/communications"');
+    expect(notices).toContain("loadStudio2NoticeInbox()");
+  });
+
   it("uses the same registry-driven perspective switch in the country workspace", () => {
     const country = source(
       "src/components/mysolaris/modules/MySolarisCountryModule.tsx",
