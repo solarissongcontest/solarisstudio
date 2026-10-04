@@ -92,9 +92,9 @@ function AppShowsPage() {
       <div className="space-y-5">
         {groups.map((group) => (
           <section key={group.edition.id} aria-labelledby={`app-shows-${group.edition.id}`}>
-            <div className="solaris-app-section-heading">
-              <p>{group.shows.length} show{group.shows.length === 1 ? "" : "s"}</p>
+            <div className="solaris-app-section-heading solaris-app-section-heading-title-first">
               <h2 id={`app-shows-${group.edition.id}`}>{editionLabel(group.edition)}</h2>
+              <p>{group.shows.length} show{group.shows.length === 1 ? "" : "s"}</p>
             </div>
             <div className="solaris-app-grouped-list">
               {group.shows.map((show) => (
@@ -105,9 +105,9 @@ function AppShowsPage() {
                   className="solaris-app-list-row"
                 >
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold">{show.name}</span>
-                    <span className="mt-0.5 block text-xs capitalize text-muted-foreground">
-                      {showKindLabel(show.kind)}
+                    <span className="block truncate text-[.95rem] font-semibold">{show.name}</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {appShowMeta(show)}
                     </span>
                   </span>
                   <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -415,6 +415,15 @@ function SectionHeading({ kicker, title, count }: { kicker: string; title: strin
       <p className="numeric shrink-0 text-xs text-muted-foreground">{count}</p>
     </div>
   );
+}
+
+function appShowMeta(show: { name?: string | null; kind?: string | null }) {
+  const kind = showKindLabel(show.kind);
+  const normalize = (value: string) =>
+    value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+  if (show.name && normalize(show.name) === normalize(kind)) return "Published show";
+  return `${kind} · Published`;
 }
 
 function showKindLabel(kind: string | null | undefined) {

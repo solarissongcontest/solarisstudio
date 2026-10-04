@@ -21,6 +21,19 @@ describe("installed app information hierarchy", () => {
     expect(styles).toContain('.app-main[data-solaris-app-root="true"] > .page-header');
   });
 
+  it("keeps directory titles below the safe area and collapses them into toolbar context", () => {
+    const toolbar = source("src/components/app/AppToolbar.tsx");
+    const styles = source("src/styles/app-shell.css");
+
+    expect(toolbar).toContain('const hasLargeTitle = chrome.archetype === "directory"');
+    expect(toolbar).toContain('data-collapsible-title={hasLargeTitle ? "true" : undefined}');
+    expect(toolbar).toContain('className="solaris-app-large-title"');
+    expect(toolbar).toContain("--solaris-toolbar-collapse-progress");
+    expect(styles).toContain("padding-top: env(safe-area-inset-top)");
+    expect(styles).toContain("html[data-solaris-app] .solaris-app-large-title");
+    expect(styles).toContain("--solaris-toolbar-compact-opacity");
+  });
+
   it("keeps website heroes while compacting secondary installed-app headers", () => {
     const styles = source("src/styles/app-shell.css");
     expect(styles).toContain('@media (display-mode: standalone)');

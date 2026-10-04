@@ -2656,3 +2656,302 @@ html[data-solaris-app]
     border-radius: .9rem;
   }
 }
+
+
+/* Mobile Directory Polish V4 ------------------------------------------------
+   Directory chrome owns safe-area geometry and title collapse. Content surfaces
+   stay flat while controls/navigation carry the stronger material treatment. */
+@media (display-mode: standalone), (display-mode: window-controls-overlay) {
+  html[data-solaris-app] .solaris-app-toolbar {
+    --solaris-toolbar-collapse-progress: 0;
+    --solaris-toolbar-large-height: 54px;
+    --solaris-toolbar-large-padding: 12px;
+    --solaris-toolbar-large-shift: 0px;
+    --solaris-toolbar-compact-opacity: 0;
+    position: sticky;
+    top: 0;
+    isolation: isolate;
+    padding-top: env(safe-area-inset-top);
+  }
+
+  html[data-solaris-app] .solaris-app-toolbar-inner {
+    position: relative;
+    z-index: 2;
+  }
+
+  html[data-solaris-app] .solaris-app-toolbar[data-collapsible-title="true"] {
+    border-bottom-color: rgb(215 238 247 / calc(.07 + (.08 * var(--solaris-toolbar-collapse-progress))));
+  }
+
+  html[data-solaris-app] .solaris-app-large-title {
+    box-sizing: border-box;
+    height: var(--solaris-toolbar-large-height);
+    overflow: hidden;
+    padding:
+      0 max(1rem, env(safe-area-inset-right))
+      var(--solaris-toolbar-large-padding)
+      max(1rem, env(safe-area-inset-left));
+    opacity: calc(1 - var(--solaris-toolbar-collapse-progress));
+    transform: translateY(var(--solaris-toolbar-large-shift));
+    transform-origin: top left;
+    pointer-events: none;
+  }
+
+  html[data-solaris-app] .solaris-app-large-title h1 {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: clamp(1.85rem, 8vw, 2.15rem);
+    font-weight: 820;
+    line-height: 1.08;
+    letter-spacing: -.042em;
+  }
+
+  html[data-solaris-app] .solaris-app-toolbar-context-title-collapsible {
+    opacity: var(--solaris-toolbar-compact-opacity);
+  }
+
+  /* Keep the 44px interaction target while visually reducing the circular
+     material so toolbar actions stop dominating the page. */
+  html[data-solaris-app] .solaris-app-toolbar-button {
+    position: relative;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  html[data-solaris-app] .solaris-app-toolbar-button::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 2.25rem;
+    height: 2.25rem;
+    transform: translate(-50%, -50%);
+    border: 1px solid rgb(220 240 248 / .14);
+    border-radius: 999px;
+    background:
+      linear-gradient(145deg, rgb(232 246 252 / .095), rgb(105 174 207 / .035));
+    box-shadow:
+      inset 0 1px 0 rgb(245 252 255 / .18),
+      0 7px 20px rgb(0 4 24 / .08);
+    transition: transform 120ms ease, background-color 120ms ease;
+    pointer-events: none;
+  }
+
+  html[data-solaris-app] .solaris-app-toolbar-button > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  html[data-solaris-app] .solaris-app-toolbar-button:active::before {
+    transform: translate(-50%, -50%) scale(.94);
+  }
+
+  html[data-solaris-app] .solaris-app-directory-tools {
+    display: grid;
+    gap: .65rem;
+  }
+
+  html[data-solaris-app] .solaris-app-search-field {
+    border-color: rgb(210 236 248 / .105);
+    background: rgb(255 255 255 / .028);
+    box-shadow: inset 0 1px 0 rgb(245 252 255 / .035);
+    transition:
+      border-color 140ms ease,
+      background-color 140ms ease,
+      box-shadow 140ms ease;
+  }
+
+  html[data-solaris-app] .solaris-app-search-field-prominent {
+    min-height: 3.6rem;
+    border-radius: 1.05rem;
+    padding-inline: 1rem;
+  }
+
+  html[data-solaris-app] .solaris-app-search-field-prominent input {
+    min-height: 3.4rem;
+    font-size: 1rem;
+  }
+
+  html[data-solaris-app] .solaris-app-search-field:focus-within {
+    border-color: rgb(var(--solaris-accent, 139 198 222) / .34);
+    background: rgb(255 255 255 / .045);
+    box-shadow:
+      inset 0 1px 0 rgb(245 252 255 / .055),
+      0 0 0 3px rgb(var(--solaris-accent, 139 198 222) / .055);
+  }
+
+  html[data-solaris-app] .solaris-app-search-clear {
+    display: grid;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: 0 0 auto;
+    place-items: center;
+    margin-right: -.55rem;
+    border-radius: 999px;
+    color: var(--muted-foreground);
+  }
+
+  html[data-solaris-app] .solaris-app-search-clear:active {
+    background: rgb(255 255 255 / .05);
+    color: var(--foreground);
+  }
+
+  html[data-solaris-app] .solaris-app-directory-filterbar {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    padding-inline: .1rem;
+  }
+
+  html[data-solaris-app] .solaris-app-filter-chip {
+    display: inline-flex;
+    min-width: 0;
+    min-height: 2.75rem;
+    max-width: min(72vw, 18rem);
+    align-items: center;
+    gap: .5rem;
+    border: 1px solid rgb(210 236 248 / .11);
+    border-radius: 999px;
+    padding-inline: .8rem;
+    background: rgb(255 255 255 / .028);
+    color: var(--foreground);
+    font-size: .75rem;
+    font-weight: 720;
+  }
+
+  html[data-solaris-app] .solaris-app-filter-chip span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  html[data-solaris-app] .solaris-app-directory-count {
+    flex: 0 0 auto;
+    color: var(--muted-foreground);
+    font-size: .72rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+
+  html[data-solaris-app] .solaris-app-filter-sheet {
+    inset-inline: .5rem !important;
+    bottom: 0 !important;
+    width: auto !important;
+    max-width: 34rem !important;
+    max-height: min(72dvh, 38rem) !important;
+    margin-inline: auto;
+    overflow-y: auto;
+    border: 1px solid rgb(215 238 247 / .15) !important;
+    border-bottom: 0 !important;
+    border-radius: 1.45rem 1.45rem 0 0 !important;
+    padding:
+      1rem
+      1rem
+      max(1rem, calc(env(safe-area-inset-bottom) + .6rem)) !important;
+    background:
+      radial-gradient(circle at 50% -15%, rgb(56 111 145 / .16), transparent 42%),
+      rgb(4 15 34 / .99) !important;
+    box-shadow:
+      0 -22px 58px rgb(0 3 20 / .34),
+      inset 0 1px 0 rgb(245 252 255 / .06) !important;
+  }
+
+  html[data-solaris-app] .solaris-app-filter-sheet-heading {
+    padding-right: 3rem;
+  }
+
+  html[data-solaris-app] .solaris-app-filter-sheet-heading > p {
+    margin: 0;
+    color: var(--primary);
+    font-size: .62rem;
+    font-weight: 850;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+
+  html[data-solaris-app] .solaris-app-filter-sheet-heading > h2 {
+    margin: .2rem 0 0;
+    font-size: 1.18rem;
+    font-weight: 780;
+    letter-spacing: -.025em;
+  }
+
+  html[data-solaris-app] .solaris-app-filter-option {
+    display: flex;
+    width: 100%;
+    min-height: 3.15rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    border-top: 1px solid rgb(210 236 248 / .075);
+    padding-inline: .15rem;
+    color: var(--muted-foreground);
+    font-size: .85rem;
+    font-weight: 650;
+    text-align: left;
+  }
+
+  html[data-solaris-app] .solaris-app-filter-option:first-child {
+    border-top: 0;
+  }
+
+  html[data-solaris-app] .solaris-app-filter-option.is-active {
+    color: var(--foreground);
+  }
+
+  html[data-solaris-app] .solaris-app-filter-option.is-active svg {
+    color: var(--primary);
+  }
+
+  html[data-solaris-app] .solaris-app-section-heading-title-first > h2 {
+    margin: 0;
+    font-size: 1.13rem;
+    font-weight: 780;
+    letter-spacing: -.025em;
+  }
+
+  html[data-solaris-app] .solaris-app-section-heading-title-first > p {
+    margin-top: .18rem;
+    color: var(--muted-foreground);
+    font-size: .71rem;
+    font-weight: 620;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  html[data-solaris-app] .solaris-app-edition-current {
+    padding: 1rem;
+    border-color: rgb(var(--solaris-accent, 139 198 222) / .16);
+    background:
+      radial-gradient(circle at 100% 0%, rgb(var(--solaris-accent, 139 198 222) / .085), transparent 48%),
+      rgb(255 255 255 / .022);
+    box-shadow: inset 0 1px 0 rgb(245 252 255 / .035);
+  }
+
+  html[data-solaris-app] .solaris-app-edition-row {
+    min-height: 4.65rem;
+    padding: .9rem 1rem;
+    background: transparent;
+  }
+
+  html[data-solaris-app] .solaris-app-grouped-list {
+    background: rgb(255 255 255 / .018);
+  }
+
+  html[data-solaris-app] .solaris-app-list-row {
+    min-height: 4rem;
+    padding-inline: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-solaris-app] .solaris-app-toolbar-button::before,
+  html[data-solaris-app] .solaris-app-search-field {
+    transition: none;
+  }
+}

@@ -7,6 +7,7 @@
     "dev": "vite dev",
     "build": "rm -f src/routeTree.gen.ts && vite build",
     "build:dev": "vite build --mode development",
+    "budget:client": "node scripts/check-client-bundle-budget.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "lint:ci": "eslint . --quiet",
