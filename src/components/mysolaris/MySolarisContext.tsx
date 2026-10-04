@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
 
+import { supabase } from "@/integrations/supabase/client";
 import { writeAppAttentionSummary } from "@/lib/app-attention";
 import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
 import { useMyCountryAccount } from "@/lib/country-account";
 import { loadCountryJuryVotingTask } from "@/lib/country-jury-task";
-import { useAllParticipants, useEditions, type Edition, type Participant } from "@/lib/data";
+import { useEditions, type Edition, type Participant } from "@/lib/data";
 import { useFanSession } from "@/lib/prediction-data";
 import { loadStudio2RecipientNoticeInbox } from "@/lib/studio2-recipient-inbox";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
@@ -74,7 +75,6 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
   const userQuery = useFanSession();
   const countryAccountQuery = useMyCountryAccount();
   const editionsQuery = useEditions();
-  const participantsQuery = useAllParticipants();
 
   const currentEdition = useMemo(
     () =>
@@ -84,15 +84,29 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     [editionsQuery.data],
   );
 
-  const currentEntry = useMemo(() => {
-    const countryId = countryAccountQuery.data?.country?.id;
-    if (!countryId) return null;
-    const owned = (participantsQuery.data ?? []).filter(
-      (entry) => entry.country_id === countryId && entry.show_id == null,
-    );
-    if (!currentEdition) return owned[0] ?? null;
-    return owned.find((entry) => entry.edition_id === currentEdition.id) ?? null;
-  }, [countryAccountQuery.data?.country?.id, currentEdition, participantsQuery.data]);
+  const countryId = countryAccountQuery.data?.country?.id ?? null;
+  const currentEntryQuery = useQuery({
+    enabled: Boolean(userQuery.data && countryId && currentEdition?.id),
+    queryKey: ["mysolaris-current-entry", currentEdition?.id ?? "none", countryId ?? "none"],
+    queryFn: async (): Promise<Participant | null> => {
+      const { data, error } = await supabase
+        .from("participants")
+        .select(
+          "id,edition_id,show_id,country_id,contest_entity_id,artist,song,running_order,semi_final,qualified,notes",
+        )
+        .eq("edition_id", currentEdition!.id)
+        .eq("country_id", countryId!)
+        .is("show_id", null)
+        .maybeSingle();
+      if (error) throw error;
+      return (data ?? null) as Participant | null;
+    },
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
+
+  const currentEntry = currentEntryQuery.data ?? null;
 
   const capabilitiesQuery = useQuery({
     enabled: Boolean(userQuery.data),
@@ -129,17 +143,19 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
             item.inboxState === "acknowledgement_required" ||
             (item.notice.acknowledgementRequired && item.inboxState === "unread"),
         ).length,
-
       };
     },
-    staleTime: 30_000,
+    staleTime: 20_000,
+    refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
+
   const roundsQuery = useQuery({
     enabled: Boolean(userQuery.data),
     queryKey: ["mysolaris-context-deadlines"],
     queryFn: () => getPublicRounds(),
-    staleTime: 30_000,
+    staleTime: 20_000,
+    refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
 
@@ -148,6 +164,7 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     queryKey: ["country-confirmation-access", "mysolaris-context"],
     queryFn: getCountryConfirmationAccess,
     staleTime: 10_000,
+    refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
 
@@ -277,7 +294,7 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
       userQuery.isLoading ||
       countryAccountQuery.isLoading ||
       editionsQuery.isLoading ||
-      participantsQuery.isLoading ||
+      currentEntryQuery.isLoading ||
       capabilitiesQuery.isLoading ||
       confirmationQuery.isLoading ||
       juryQuery.isLoading,
