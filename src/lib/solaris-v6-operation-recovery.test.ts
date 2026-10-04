@@ -1,6 +1,10 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import { resolveSolarisV6OperationRecovery } from "@/lib/solaris-v6-operation-recovery";
+
+const source = (path: string) => readFileSync(path, "utf8");
 
 describe("Solaris V6 consequential command recovery", () => {
   it("retries a lost response only with the same stable operation identity", () => {
@@ -63,6 +67,19 @@ describe("Solaris V6 consequential command recovery", () => {
     expect(recovery.action).toBe("wait-and-retry-same-operation");
     expect(recovery.allowSameIdentityRetry).toBe(true);
     expect(recovery.outcomeUnknown).toBe(true);
+  });
+
+  it("keeps R2 moderation on one stable operation identity across ambiguous retries", () => {
+    const moderation = source(
+      "src/routes/_authenticated/admin/community-moderation.tsx",
+    );
+    expect(moderation).toContain("operationId: command.operationId");
+    expect(moderation).toContain("idempotencyKey: command.idempotencyKey");
+    expect(moderation).toContain("operationId: pendingModeration.operationId");
+    expect(moderation).toContain("idempotencyKey: pendingModeration.idempotencyKey");
+    expect(moderation).toContain("resolveSolarisV6OperationRecovery");
+    expect(moderation).toContain("Retry same operation");
+    expect(moderation).toContain("shouldRefreshCanonical");
   });
 
   it("fails toward canonical refresh when no stable operation identity exists", () => {
