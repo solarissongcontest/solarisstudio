@@ -13,8 +13,8 @@ const countryDetail = source('src/routes/_authenticated/admin/countries.$country
 const hodWorkspace = source('src/lib/studio2-hod-workspace.ts');
 const hodModel = source('src/lib/hod-workspace-model.ts');
 const cockpit = source('src/lib/studio2-country-cockpit.ts');
-const actionCenter = source('src/lib/studio2-action-center.ts');
-const actionCenterRoute = source('src/routes/_authenticated/admin/action-center.tsx');
+const tasksRoute = source('src/routes/_authenticated/admin/tasks.tsx');
+const taskEngine = source('supabase/migrations/20261002211500_organisation_os_v5_task_engine.sql');
 const hodMigration = source('supabase/migrations/20260911201500_studio2_hod_operational_context.sql');
 const cockpitMigration = source('supabase/migrations/20260911202000_studio2_country_cockpit_rpc.sql');
 
@@ -30,21 +30,21 @@ describe('Studio 2 Phase 6 country operations integration', () => {
     );
   });
 
-  it('uses one country readiness calculator across HOD, organizer cockpit and Action Center', () => {
+  it('uses one country readiness calculator while Organizer work stays in canonical Tasks', () => {
     expect(hodWorkspace).toContain('getCountryOperationalReadiness({');
     expect(hodModel).toContain('operationalReadiness: CountryOperationalReadiness');
     expect(hodModel).toContain('readiness: input.operationalReadiness.score');
     expect(cockpit).toContain('buildStudio2HodWorkspaceSnapshot(mapStudio2HodContext(row))');
-    expect(actionCenterRoute).toContain('loadStudio2CountryCockpit(resolvedEditionId)');
-    expect(actionCenterRoute).toContain('readiness: row.operationalReadiness');
-    expect(actionCenter).toContain("source: 'country'");
-    expect(actionCenter).toContain('`/admin/countries/${country.countryId}`');
+    expect(tasksRoute).toContain('useOrganizerTasksV5');
+    expect(taskEngine).toContain('source_key text not null unique');
+    expect(taskEngine).toContain('revoke all on table public.studio2_organizer_tasks from public, anon, authenticated');
+    expect(taskEngine).toContain('private.studio2_reconcile_organizer_tasks');
   });
 
   it('keeps organizer HOD inspection explicitly read-only', () => {
-    expect(hodRoute).toContain('Viewing as organizer');
-    expect(hodRoute).toContain('This view is read-only. Acknowledgements can only be made by the delegation.');
-    expect(hodRoute).toContain('!organizerInspection &&');
+    expect(hodRoute).toContain('Participant View · read-only');
+    expect(hodRoute).toContain('Acknowledgements and participant actions remain disabled here; use Manage to change canonical Organizer state.');
+    expect(hodRoute).toContain('!organizerInspection ? (');
     expect(hodRoute).toContain('organizerInspection ?');
   });
 
