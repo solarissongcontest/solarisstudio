@@ -49,6 +49,7 @@ import {
 } from "@/lib/data";
 import { DEFAULT_ACCENT, entityDisplayMap } from "@/lib/entities";
 import { reportSupabaseError } from "@/lib/errors";
+import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
 import { resolveVoting } from "@/lib/voting";
 
 type JurySearch = { show?: string };
@@ -64,6 +65,55 @@ type JuryBallotStatus = {
   status: "did_not_vote";
   note: string | null;
 };
+
+type JurySubmissionState =
+  | "submitted"
+  | "valid"
+  | "needs_review"
+  | "invalidated"
+  | "superseded";
+
+type JuryBallotSubmission = {
+  id: string;
+  edition_id: string;
+  show_id: string;
+  voter_country_id: string;
+  risk_score: number;
+  status: JurySubmissionState;
+  review_version: number;
+  review_reason: string | null;
+  submitted_at: string;
+};
+
+type PendingBallotReview = {
+  ballot: JuryBallotSubmission;
+  targetStatus: Exclude<JurySubmissionState, "submitted">;
+  expectedVersion: number;
+  operationId: string;
+  idempotencyKey: string;
+};
+
+type PendingDnvChange = {
+  option: VoterOption;
+  action: "set" | "clear";
+  voterId: string | null;
+  voterCountryId: string | null;
+  voterEntityId: string | null;
+  expectedVersion: number;
+  savedVoteRows: number;
+  operationId: string;
+  idempotencyKey: string;
+};
+
+type LifecycleRpcResult = {
+  data: unknown;
+  error: { message?: string } | null;
+};
+
+const lifecycleRpc = supabase.rpc as unknown as (
+  functionName: string,
+  args: Record<string, unknown>,
+) => Promise<LifecycleRpcResult>;
 
 type VoterDraft = {
   kind: VoterKind;
@@ -151,6 +201,22 @@ function JuryWorkspace() {
       return (data ?? []) as JuryBallotStatus[];
     },
   });
+  const { data: submittedBallots = [], isLoading: loadingSubmittedBallots } = useQuery({
+    enabled: !!selectedShow?.id,
+    queryKey: ["jury_ballot_submissions", "show", selectedShow?.id ?? "pending"],
+    queryFn: async () => {
+      if (!selectedShow?.id) return [] as JuryBallotSubmission[];
+      const { data, error } = await (supabase as any)
+        .from("jury_ballot_submissions")
+        .select(
+          "id,edition_id,show_id,voter_country_id,risk_score,status,review_version,review_reason,submitted_at",
+        )
+        .eq("show_id", selectedShow.id)
+        .order("submitted_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as JuryBallotSubmission[];
+    },
+  });
 
   const displays = useMemo(() => entityDisplayMap(entities, countries), [entities, countries]);
   const order = useMemo(() => participants.map((participant) => participant.country_id).filter(Boolean), [participants]);
@@ -176,6 +242,10 @@ function JuryWorkspace() {
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Voter | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pendingBallotReview, setPendingBallotReview] =
+    useState<PendingBallotReview | null>(null);
+  const [pendingDnvChange, setPendingDnvChange] = useState<PendingDnvChange | null>(null);
+  const [lifecycleReason, setLifecycleReason] = useState("");
 
   const neededPerBallot = voting.juryPoints.length;
   const ballotCounts = useMemo(() => {
@@ -213,6 +283,7 @@ function JuryWorkspace() {
       qc.invalidateQueries({ queryKey: ["voters"] }),
       qc.invalidateQueries({ queryKey: ["jury_votes"] }),
       qc.invalidateQueries({ queryKey: ["jury_ballot_statuses"] }),
+      qc.invalidateQueries({ queryKey: ["jury_ballot_submissions"] }),
       qc.invalidateQueries({ queryKey: ["admin-readiness-data"] }),
     ]);
   }
@@ -277,56 +348,171 @@ function JuryWorkspace() {
   }
 
   async function setDidNotVote(voterKey: string, didNotVote: boolean) {
-    if (!edition || !selectedShow) return;
+    if (!edition || !selectedShow || busy) return;
     const option = voterOptions.find((item) => item.key === voterKey);
     if (!option) return;
 
-    const existing = ballotStatuses.find(
-      (status) => matchBallotStatusKey(status, voterOptions) === voterKey,
-    );
+    const voterIdentity = option.countryId
+      ? identityFor(option.countryId)
+      : { country_id: null, contest_entity_id: null };
+    const action = didNotVote ? "set" : "clear";
 
     setBusy(true);
     try {
-      if (!didNotVote) {
-        if (existing) {
-          const { error } = await (supabase as any)
-            .from("jury_ballot_statuses")
-            .delete()
-            .eq("id", existing.id);
-          if (error) throw error;
-        }
-        toast.success(`${option.name} restored to ballot entry`);
-      } else {
-        const savedRows = ballotCounts.get(voterKey) ?? 0;
-        if (savedRows > 0) {
-          toast.error(`Clear ${option.name}'s ${savedRows} saved jury score row${savedRows === 1 ? "" : "s"} before marking did not vote.`);
-          return;
-        }
-
-        const voterIdentity = option.countryId
-          ? identityFor(option.countryId)
-          : { country_id: null, contest_entity_id: null };
-        const row = {
-          edition_id: edition.id,
-          show_id: selectedShow.id,
-          voter_id: option.voterId,
-          voter_country_id: voterIdentity.country_id,
-          voter_entity_id: voterIdentity.contest_entity_id,
-          status: "did_not_vote",
-          note: null,
-        };
-
-        const response = existing
-          ? await (supabase as any).from("jury_ballot_statuses").update(row).eq("id", existing.id)
-          : await (supabase as any).from("jury_ballot_statuses").insert(row);
-        if (response.error) throw response.error;
-        toast.success(`${option.name} marked did not vote`);
+      const previewResult = await lifecycleRpc("studio2_jury_dnv_preview", {
+        p_show_id: selectedShow.id,
+        p_voter_id: option.voterId,
+        p_voter_country_id: voterIdentity.country_id,
+        p_voter_entity_id: voterIdentity.contest_entity_id,
+        p_action: action,
+      });
+      if (previewResult.error) {
+        throw new Error(previewResult.error.message || "DNV preview failed.");
       }
 
-      await qc.invalidateQueries({ queryKey: ["jury_ballot_statuses"] });
-      await qc.invalidateQueries({ queryKey: ["admin-readiness-data"] });
+      const preview = previewResult.data as {
+        expectedVersion: number;
+        savedVoteRows: number;
+        riskClass: "R2";
+      };
+      const operation = createOrganisationCommand({
+        command: `jury.dnv.${action}`,
+        payload: {
+          showId: selectedShow.id,
+          voterKey,
+          action,
+        },
+        riskClass: preview.riskClass,
+        scope: {
+          editionId: edition.id,
+          showId: selectedShow.id,
+          entityId: option.voterId ?? voterIdentity.contest_entity_id ?? voterIdentity.country_id,
+        },
+        expectedVersion: preview.expectedVersion,
+      });
+
+      setLifecycleReason("");
+      setPendingDnvChange({
+        option,
+        action,
+        voterId: option.voterId,
+        voterCountryId: voterIdentity.country_id,
+        voterEntityId: voterIdentity.contest_entity_id,
+        expectedVersion: preview.expectedVersion,
+        savedVoteRows: preview.savedVoteRows,
+        operationId: operation.operationId,
+        idempotencyKey: operation.idempotencyKey,
+      });
     } catch (caught) {
-      toast.error(reportSupabaseError(caught, "Jury ballot status could not be changed."));
+      toast.error(reportSupabaseError(caught, "DNV impact preview could not be loaded."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applyDnvChange() {
+    if (!pendingDnvChange || !selectedShow || !lifecycleReason.trim() || busy) return;
+    setBusy(true);
+    try {
+      const result = await lifecycleRpc("studio2_apply_jury_dnv", {
+        p_show_id: selectedShow.id,
+        p_voter_id: pendingDnvChange.voterId,
+        p_voter_country_id: pendingDnvChange.voterCountryId,
+        p_voter_entity_id: pendingDnvChange.voterEntityId,
+        p_action: pendingDnvChange.action,
+        p_reason: lifecycleReason.trim(),
+        p_operation_id: pendingDnvChange.operationId,
+        p_idempotency_key: pendingDnvChange.idempotencyKey,
+        p_expected_version: pendingDnvChange.expectedVersion,
+      });
+      if (result.error) throw new Error(result.error.message || "DNV change failed.");
+
+      toast.success(
+        pendingDnvChange.action === "set"
+          ? `${pendingDnvChange.option.name} marked did not vote`
+          : `${pendingDnvChange.option.name} restored to ballot entry`,
+      );
+      setPendingDnvChange(null);
+      setLifecycleReason("");
+      await refresh();
+    } catch (caught) {
+      toast.error(reportSupabaseError(caught, "DNV change could not be applied."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function prepareBallotReview(
+    ballot: JuryBallotSubmission,
+    targetStatus: Exclude<JurySubmissionState, "submitted">,
+  ) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const previewResult = await lifecycleRpc("studio2_jury_ballot_review_preview", {
+        p_ballot_id: ballot.id,
+        p_target_status: targetStatus,
+      });
+      if (previewResult.error) {
+        throw new Error(previewResult.error.message || "Jury ballot review preview failed.");
+      }
+
+      const preview = previewResult.data as {
+        expectedVersion: number;
+        riskClass: "R2";
+      };
+      const operation = createOrganisationCommand({
+        command: `jury.ballot.review.${targetStatus}`,
+        payload: { ballotId: ballot.id, targetStatus },
+        riskClass: preview.riskClass,
+        scope: {
+          editionId: ballot.edition_id,
+          showId: ballot.show_id,
+          entityId: ballot.id,
+        },
+        expectedVersion: preview.expectedVersion,
+      });
+
+      setLifecycleReason("");
+      setPendingBallotReview({
+        ballot,
+        targetStatus,
+        expectedVersion: preview.expectedVersion,
+        operationId: operation.operationId,
+        idempotencyKey: operation.idempotencyKey,
+      });
+    } catch (caught) {
+      toast.error(reportSupabaseError(caught, "Jury ballot impact preview could not be loaded."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applyBallotReview() {
+    if (!pendingBallotReview || busy) return;
+    const requiresReason = pendingBallotReview.targetStatus !== "valid";
+    if (requiresReason && !lifecycleReason.trim()) return;
+
+    setBusy(true);
+    try {
+      const result = await lifecycleRpc("studio2_apply_jury_ballot_review", {
+        p_ballot_id: pendingBallotReview.ballot.id,
+        p_target_status: pendingBallotReview.targetStatus,
+        p_reason: lifecycleReason.trim() || null,
+        p_operation_id: pendingBallotReview.operationId,
+        p_idempotency_key: pendingBallotReview.idempotencyKey,
+        p_expected_version: pendingBallotReview.expectedVersion,
+      });
+      if (result.error) {
+        throw new Error(result.error.message || "Jury ballot review transition failed.");
+      }
+
+      toast.success(`Jury ballot marked ${humanizeLifecycle(pendingBallotReview.targetStatus)}`);
+      setPendingBallotReview(null);
+      setLifecycleReason("");
+      await refresh();
+    } catch (caught) {
+      toast.error(reportSupabaseError(caught, "Jury ballot review could not be applied."));
     } finally {
       setBusy(false);
     }
@@ -522,6 +708,99 @@ function JuryWorkspace() {
         </AdminCard>
       ) : null}
 
+      <AdminCard className="mb-4">
+        <AdminCardHeader
+          eyebrow="Participant ballots"
+          title="Ballot validation"
+          description="Participant submissions remain immutable evidence. Organizer review changes only the lifecycle state around the submitted ballot."
+          action={
+            loadingSubmittedBallots ? (
+              <AdminStatus tone="neutral">Loading…</AdminStatus>
+            ) : (
+              <AdminStatus tone={submittedBallots.some((ballot) => ballot.status === "needs_review") ? "attention" : "ready"}>
+                {submittedBallots.length} submitted
+              </AdminStatus>
+            )
+          }
+        />
+        {loadingSubmittedBallots ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Loading submitted jury ballots…
+          </p>
+        ) : submittedBallots.length ? (
+          <div className="mt-4 divide-y divide-white/[0.07]">
+            {submittedBallots.map((ballot) => {
+              const country = countries.find((item) => item.id === ballot.voter_country_id);
+              return (
+                <div
+                  key={ballot.id}
+                  className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 lg:flex-row lg:items-center lg:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold">{country?.name ?? ballot.voter_country_id}</p>
+                      <AdminStatus tone={ballotReviewTone(ballot.status)}>
+                        {humanizeLifecycle(ballot.status)}
+                      </AdminStatus>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Risk {ballot.risk_score}/100 · submitted {formatLifecycleDate(ballot.submitted_at)}
+                      {ballot.review_reason ? ` · ${ballot.review_reason}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {ballot.status !== "valid" ? (
+                      <button
+                        type="button"
+                        className="admin-action-secondary !min-h-10"
+                        disabled={busy}
+                        onClick={() => void prepareBallotReview(ballot, "valid")}
+                      >
+                        Mark valid
+                      </button>
+                    ) : null}
+                    {ballot.status !== "needs_review" ? (
+                      <button
+                        type="button"
+                        className="admin-action-secondary !min-h-10"
+                        disabled={busy}
+                        onClick={() => void prepareBallotReview(ballot, "needs_review")}
+                      >
+                        Needs review
+                      </button>
+                    ) : null}
+                    {ballot.status !== "invalidated" ? (
+                      <button
+                        type="button"
+                        className="admin-action-danger !min-h-10"
+                        disabled={busy}
+                        onClick={() => void prepareBallotReview(ballot, "invalidated")}
+                      >
+                        Invalidate
+                      </button>
+                    ) : null}
+                    {ballot.status !== "superseded" ? (
+                      <button
+                        type="button"
+                        className="admin-action-secondary !min-h-10"
+                        disabled={busy}
+                        onClick={() => void prepareBallotReview(ballot, "superseded")}
+                      >
+                        Supersede
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground">
+            No participant-submitted jury ballot exists for this show yet.
+          </p>
+        )}
+      </AdminCard>
+
       <div className="mb-4 grid grid-cols-2 gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-1.5">
         <button type="button" onClick={() => setView("ballots")} className={view === "ballots" ? "admin-action-primary w-full" : "admin-action-quiet w-full"}><Vote className="size-4" /> Ballots</button>
         <button type="button" onClick={() => setView("roster")} className={view === "roster" ? "admin-action-primary w-full" : "admin-action-quiet w-full"}><Users className="size-4" /> Juries</button>
@@ -561,9 +840,143 @@ function JuryWorkspace() {
 
       <AdminSheet open={!!editDraft} onClose={() => !busy && setEditDraft(null)} title="Edit jury" description="Identity binding stays unchanged. Edit its display and jury call order here.">{editDraft ? <div className="space-y-4"><label className="block"><span className="admin-section-label">Name</span><input value={editDraft.name} onChange={(event) => setEditDraft((current) => current ? { ...current, name: event.target.value } : current)} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><label className="block"><span className="admin-section-label">Flag / logo URL</span><input value={editDraft.flag_image} onChange={(event) => setEditDraft((current) => current ? { ...current, flag_image: event.target.value } : current)} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><label className="block"><span className="admin-section-label">Accent colour</span><input value={editDraft.accent_color} onChange={(event) => setEditDraft((current) => current ? { ...current, accent_color: event.target.value } : current)} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><label className="block"><span className="admin-section-label">Call order</span><input type="number" min={1} value={editDraft.sort_order} onChange={(event) => setEditDraft((current) => current ? { ...current, sort_order: Number(event.target.value) || 1 } : current)} className="numeric mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><button type="button" disabled={busy || !editDraft.name.trim()} onClick={() => void saveEdit()} className="admin-action-primary w-full">{busy ? "Saving…" : "Save jury"}</button></div> : null}</AdminSheet>
 
+      <AdminConfirmSheet
+        open={Boolean(pendingBallotReview)}
+        onClose={() => {
+          if (!busy) {
+            setPendingBallotReview(null);
+            setLifecycleReason("");
+          }
+        }}
+        onConfirm={applyBallotReview}
+        title={
+          pendingBallotReview
+            ? `Mark ballot ${humanizeLifecycle(pendingBallotReview.targetStatus)}?`
+            : "Review jury ballot?"
+        }
+        description={
+          pendingBallotReview ? (
+            <div className="space-y-3">
+              <p>
+                {humanizeLifecycle(pendingBallotReview.ballot.status)} →{" "}
+                <strong className="text-foreground">
+                  {humanizeLifecycle(pendingBallotReview.targetStatus)}
+                </strong>
+                . The submitted ballot rows are not rewritten by this review decision.
+              </p>
+              <label className="block">
+                <span className="text-xs font-semibold text-foreground">
+                  Review reason
+                </span>
+                <textarea
+                  value={lifecycleReason}
+                  onChange={(event) => setLifecycleReason(event.target.value)}
+                  className="admin-input mt-2 min-h-24 resize-y"
+                  placeholder={
+                    pendingBallotReview.targetStatus === "valid"
+                      ? "Optional validation note"
+                      : "Why is this ballot changing state?"
+                  }
+                />
+              </label>
+            </div>
+          ) : (
+            "Review the jury ballot impact before continuing."
+          )
+        }
+        confirmLabel="Apply ballot state"
+        confirmationText={pendingBallotReview?.targetStatus.toUpperCase()}
+        confirmationHint={
+          pendingBallotReview
+            ? `Type ${pendingBallotReview.targetStatus.toUpperCase()} to confirm`
+            : undefined
+        }
+        busy={busy}
+        confirmDisabled={
+          Boolean(
+            pendingBallotReview &&
+              pendingBallotReview.targetStatus !== "valid" &&
+              lifecycleReason.trim().length < 3,
+          )
+        }
+        danger={pendingBallotReview?.targetStatus === "invalidated"}
+      />
+
+      <AdminConfirmSheet
+        open={Boolean(pendingDnvChange)}
+        onClose={() => {
+          if (!busy) {
+            setPendingDnvChange(null);
+            setLifecycleReason("");
+          }
+        }}
+        onConfirm={applyDnvChange}
+        title={pendingDnvChange?.action === "set" ? "Authorize did not vote?" : "Clear did not vote?"}
+        description={
+          pendingDnvChange ? (
+            <div className="space-y-3">
+              <p>
+                {pendingDnvChange.action === "set"
+                  ? `The ballot requirement for ${pendingDnvChange.option.name} will be replaced by an authorized DNV state.`
+                  : `${pendingDnvChange.option.name} will return to an expected jury-ballot state.`}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Saved jury score rows: {pendingDnvChange.savedVoteRows}. Readiness and Tasks update from canonical state after this receipt commits.
+              </p>
+              <label className="block">
+                <span className="text-xs font-semibold text-foreground">
+                  Operator reason
+                </span>
+                <textarea
+                  value={lifecycleReason}
+                  onChange={(event) => setLifecycleReason(event.target.value)}
+                  className="admin-input mt-2 min-h-24 resize-y"
+                  placeholder="Why is this DNV state changing?"
+                />
+              </label>
+            </div>
+          ) : (
+            "Review the DNV impact before continuing."
+          )
+        }
+        confirmLabel={pendingDnvChange?.action === "set" ? "Authorize DNV" : "Clear DNV"}
+        confirmationText={pendingDnvChange?.action === "set" ? "DNV" : "RESTORE"}
+        confirmationHint={
+          pendingDnvChange?.action === "set"
+            ? "Type DNV to confirm"
+            : pendingDnvChange
+              ? "Type RESTORE to confirm"
+              : undefined
+        }
+        busy={busy}
+        confirmDisabled={lifecycleReason.trim().length < 3}
+        danger={pendingDnvChange?.action === "set"}
+      />
+
       <AdminConfirmSheet open={!!deleteTarget} onClose={() => !busy && setDeleteTarget(null)} onConfirm={deleteVoter} title={`Remove ${deleteTarget?.name ?? "jury"}?`} description={deleteTarget ? <>{votesForVoter(deleteTarget) ? <><strong>This jury already has {votesForVoter(deleteTarget)} saved score row{votesForVoter(deleteTarget) === 1 ? "" : "s"}.</strong> Removing the voter permanently deletes those rows too because they belong to this jury entity. </> : null}{orderedVoters.length === 1 ? "Removing the final explicit jury returns this show to the automatic participating-country roster." : "The remaining explicit jury roster stays active."}</> : <>Remove this jury?</>} confirmLabel="Remove jury" confirmationText={deleteTarget?.name} confirmationHint={deleteTarget ? `Type ${deleteTarget.name} to confirm` : undefined} busy={busy} danger />
     </AdminPage>
   );
+}
+
+function humanizeLifecycle(value: string) {
+  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function ballotReviewTone(status: JurySubmissionState) {
+  if (status === "valid") return "ready" as const;
+  if (status === "needs_review" || status === "submitted") return "attention" as const;
+  if (status === "invalidated") return "blocked" as const;
+  return "neutral" as const;
+}
+
+function formatLifecycleDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(date);
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
