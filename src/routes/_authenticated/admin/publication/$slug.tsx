@@ -32,6 +32,10 @@ import {
 } from "@/lib/studio2-results-operations";
 import { validateEditionCommandScope } from "@/lib/solaris-v6-edition-context";
 import {
+  resolveSolarisV6OperationRecovery,
+  type SolarisV6OperationRecovery,
+} from "@/lib/solaris-v6-operation-recovery";
+import {
   applyShowPublicationChange,
   loadShowPublicationControls,
   previewShowPublicationChange,
@@ -84,6 +88,7 @@ function PublicationWorkspace() {
   const [discardDraftOpen, setDiscardDraftOpen] = useState(false);
   const [scheduleAt, setScheduleAt] = useState("");
   const [publicationPassword, setPublicationPassword] = useState("");
+  const [recovery, setRecovery] = useState<SolarisV6OperationRecovery | null>(null);
   const [busy, setBusy] = useState(false);
 
   const orderedShows = useMemo(() => [...shows].sort((a, b) => a.sort_order - b.sort_order), [shows]);
@@ -186,6 +191,7 @@ function PublicationWorkspace() {
 
       const operationId = crypto.randomUUID();
       setPublicationPassword("");
+      setRecovery(null);
       setPendingRelease({
         show,
         preview,
@@ -248,9 +254,22 @@ function PublicationWorkspace() {
       setScheduleAt("");
       await refresh();
     } catch (caught) {
-      toast.error(
-        caught instanceof Error ? caught.message : "Publication settings could not be saved",
-      );
+      const next = resolveSolarisV6OperationRecovery(caught, {
+        online: typeof navigator === "undefined" ? true : navigator.onLine,
+        stableOperationIdentity: Boolean(pendingRelease.operationId),
+      });
+      setRecovery(next);
+
+      if (next.shouldRefreshCanonical) {
+        await refresh();
+      }
+
+      if (!next.keepOperationOpen) {
+        setPendingRelease(null);
+        setPublicationPassword("");
+      }
+
+      toast.error(next.title);
     } finally {
       setBusy(false);
     }
@@ -520,6 +539,7 @@ function PublicationWorkspace() {
           if (!busy) {
             setPendingRelease(null);
             setPublicationPassword("");
+            setRecovery(null);
           }
         }}
         onConfirm={applyPendingRelease}
@@ -554,6 +574,20 @@ function PublicationWorkspace() {
                 </strong>
                 {pendingRelease.preview.hasOutcomes ? " · includes contest outcomes" : ""}
               </p>
+              {recovery ? (
+                <div
+                  role="status"
+                  className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-3 text-xs leading-5"
+                >
+                  <p className="font-semibold text-foreground">{recovery.title}</p>
+                  <p className="mt-1 text-muted-foreground">{recovery.description}</p>
+                  {recovery.outcomeUnknown ? (
+                    <p className="mt-2 font-semibold text-foreground">
+                      The previous response did not prove whether the server committed this publication operation.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               {pendingRelease.preview.riskClass === "R3" ? (
                 <label className="block">
                   <span className="text-xs font-semibold text-foreground">
@@ -574,7 +608,13 @@ function PublicationWorkspace() {
             "Review the publication impact before continuing."
           )
         }
-        confirmLabel={pendingRelease ? publicationActionLabel(pendingRelease.preview.targetState) : "Apply"}
+        confirmLabel={
+          recovery?.allowSameIdentityRetry
+            ? "Retry same publication operation"
+            : pendingRelease
+              ? publicationActionLabel(pendingRelease.preview.targetState)
+              : "Apply"
+        }
         confirmationText={pendingRelease?.show.name}
         confirmationHint={pendingRelease ? `Type ${pendingRelease.show.name} to confirm` : undefined}
         busy={busy}
