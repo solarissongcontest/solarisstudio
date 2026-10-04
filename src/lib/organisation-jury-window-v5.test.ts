@@ -37,6 +37,25 @@ describe("Organisation OS V5 jury-window operations", () => {
     expect(migration).toContain("using errcode = '40001'");
   });
 
+  it("runs the authoritative opening preflight before asking the organizer to confirm", () => {
+    expect(migration).toContain("v_jury_enabled");
+    expect(migration).toContain("v_participant_count < v_point_count");
+    expect(migration).toContain("v_participating_roster_count > 0");
+    expect(migration).toContain("Jury voting is disabled for this show");
+    expect(migration).toContain(
+      "This show does not have enough entries for the configured jury point scale",
+    );
+    expect(migration).toContain(
+      "The configured jury scale leaves participating juries too few eligible entries after self-voting is blocked",
+    );
+    expect(migration).toContain("'participantCount', v_participant_count");
+    expect(migration).toContain("'juryPointCount', v_point_count");
+    expect(control).toContain("Eligible entries");
+    expect(control).toContain("Jury scale");
+    expect(control).toContain("preview.participantCount");
+    expect(control).toContain("preview.juryPointCount");
+  });
+
   it("closes the authenticated legacy status-mutation bypass", () => {
     expect(migration).toContain(
       "revoke execute on function public.admin_set_jury_voting_status(uuid, text)",
