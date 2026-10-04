@@ -10,7 +10,8 @@ import { AdminSectionNav } from "./AdminSectionNav";
  * Organizer content/layout frame.
  *
  * Mobile chrome ownership belongs to OrganizerV6MobileChrome in AdminShell.
- * Keeping this component chrome-free prevents a second mobile shell contract.
+ * The public AppShell already owns the document's single <main> landmark, so
+ * this nested frame deliberately stays a plain layout container.
  */
 export function AdminFrame({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -43,7 +44,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="admin-page admin-main min-w-0">
+      <div className="admin-page admin-main min-w-0">
         <AdminFeatureBoundary
           name="section-navigation"
           fallback={
@@ -67,7 +68,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
             <DelegationColourOverview />
           </AdminFeatureBoundary>
         ) : null}
-      </main>
+      </div>
     </div>
   );
 }
