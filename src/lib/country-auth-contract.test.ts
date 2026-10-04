@@ -10,6 +10,9 @@ const authClient = source("src/lib/country-auth.ts");
 const authFunction = source("supabase/functions/country-auth/index.ts");
 const mySolarisAccount = source("src/components/MySolarisAccountPanel.tsx");
 const migration = source("supabase/migrations/20260820144500_country_account_username_auth.sql");
+const rateLimitMigration = source(
+  "supabase/migrations/20261004224000_country_auth_rate_limits.sql",
+);
 
 describe("country account username authentication", () => {
   it("requires the Instagram username, display name and password while keeping email optional", () => {
@@ -43,6 +46,17 @@ describe("country account username authentication", () => {
     expect(authFunction).toContain("display_name: displayName");
     expect(authFunction).toContain("service.auth.admin.deleteUser(created.user.id)");
     expect(authFunction).toContain('ownershipError.code === "23505"');
+  });
+
+  it("rate limits anonymous signup, signin and recovery without storing raw identifiers", () => {
+    expect(rateLimitMigration).toContain("private.country_auth_rate_limits");
+    expect(rateLimitMigration).toContain("country_auth_consume_rate_limit");
+    expect(rateLimitMigration).toContain("revoke all on private.country_auth_rate_limits");
+    expect(authFunction).toContain('consumeRateLimit(\n        service,\n        "signup"');
+    expect(authFunction).toContain('consumeRateLimit(\n        service,\n        "signin"');
+    expect(authFunction).toContain('consumeRateLimit(\n        service,\n        "recover"');
+    expect(authFunction).toContain("sha256Hex(`${scope}|${rawKey}`)");
+    expect(authFunction).not.toContain('console.log("[country-auth]');
   });
 
   it("supports recovery only when a real recovery email exists and protects the replacement password", () => {
