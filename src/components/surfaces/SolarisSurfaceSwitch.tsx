@@ -22,6 +22,14 @@ const ICONS = {
   diagnostic: Activity,
 } as const;
 
+const DEFAULT_PERSPECTIVE_LABELS: Record<SolarisV6Perspective, string> = {
+  public: "Public view",
+  participant: "Participant view",
+  organizer: "Manage",
+  moderation: "Moderation",
+  diagnostic: "Diagnostics",
+};
+
 export function SolarisSurfaceSwitch({
   links,
   className,
@@ -65,6 +73,43 @@ export function SolarisSurfaceSwitch({
       })}
     </nav>
   );
+}
+
+export function featureSurfaceLinks({
+  featureId,
+  current,
+  params = {},
+  perspectives = ["public", "participant", "organizer", "moderation", "diagnostic"],
+}: {
+  featureId: string;
+  current: SolarisV6Perspective;
+  params?: Readonly<Record<string, string>>;
+  perspectives?: readonly SolarisV6Perspective[];
+}): SolarisSurfaceSwitchLink[] {
+  const links: SolarisSurfaceSwitchLink[] = [];
+  const seen = new Map<string, SolarisSurfaceSwitchLink>();
+
+  for (const perspective of perspectives) {
+    const href = resolveSolarisV6SurfacePath(featureId, perspective, params);
+    if (!href) continue;
+
+    const existing = seen.get(href);
+    if (existing) {
+      if (perspective === current) existing.current = true;
+      continue;
+    }
+
+    const link: SolarisSurfaceSwitchLink = {
+      perspective,
+      label: DEFAULT_PERSPECTIVE_LABELS[perspective],
+      href,
+      current: perspective === current,
+    };
+    seen.set(href, link);
+    links.push(link);
+  }
+
+  return links;
 }
 
 export function countrySurfaceLinks({
