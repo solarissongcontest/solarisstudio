@@ -66,6 +66,9 @@ describe("Organizer frontend/database compatibility contract", () => {
     expect(tasks).toContain("Organizer Tasks backend update required");
     expect(systemOperations).toContain("systemOperationsSupported");
     expect(systemOperations).toContain("System Operations backend update required");
+    expect(systemOperations).toContain("if (systemOperationsSupported) void health.refetch()");
+    expect(systemOperations).toContain("!systemOperationsSupported ||");
+    expect(systemOperations).toContain("if (!systemOperationsSupported) return");
     expect(jury).toContain("juryOperationsSupported");
     expect(jury).toContain("will not fall back to the unsafe legacy mutation path");
   });
