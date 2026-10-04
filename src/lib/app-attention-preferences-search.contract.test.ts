@@ -39,7 +39,9 @@ describe("App Experience v3 attention preferences and search", () => {
     expect(palette).toContain("className=\"text-base\"");
     expect(palette).toContain("Recent searches");
     expect(appStyles).toContain('[role="dialog"].solaris-app-search-dialog[data-state="open"]');
-    expect(appStyles).toContain("width: 100vw !important");
+    expect(appStyles).toContain("width: var(--solaris-visual-viewport-width, 100vw) !important");
+    expect(appStyles).toContain("left: var(--solaris-visual-viewport-offset-left, 0px) !important");
+    expect(appStyles).toContain("font-size: 1rem !important");
     expect(appStyles).toContain("border-radius: 0 !important");
     expect(globalStyles).toContain('[role="dialog"][data-state="open"]:not(.solaris-app-search-dialog)');
     expect(appStyles).toContain(".solaris-app-search-list");
