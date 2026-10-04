@@ -337,7 +337,7 @@ function AppPublicPaletteDialog({
           onValueChange={setQuery}
           placeholder="Search Solaris Studio…"
           aria-label="Search Solaris Studio"
-          className="text-base"
+          className="solaris-app-search-input solaris-app-command-search-input"
         />
         <CommandList className="solaris-app-search-list">
           <CommandEmpty>
