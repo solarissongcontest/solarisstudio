@@ -89,38 +89,46 @@ function AppShowsPage() {
 
   return (
     <AppShell>
-      <div className="solaris-app-shows-v5">
-        {groups.map((group) => (
-          <section
-            key={group.edition.id}
-            className="solaris-app-directory-section"
-            aria-labelledby={`app-shows-${group.edition.id}`}
-          >
-            <div className="solaris-app-directory-section-header">
-              <div>
-                <h2 id={`app-shows-${group.edition.id}`}>{editionLabel(group.edition)}</h2>
-                <p>{group.shows.length} show{group.shows.length === 1 ? "" : "s"}</p>
+      <div className="solaris-app-shows-v6">
+        {groups.map((group, groupIndex) => {
+          const current = groupIndex === 0;
+          return (
+            <section
+              key={group.edition.id}
+              className="solaris-app-show-edition"
+              data-current-edition={current ? "true" : undefined}
+              aria-labelledby={`app-shows-${group.edition.id}`}
+            >
+              <div className="solaris-app-show-edition-heading">
+                <div className="min-w-0">
+                  {current ? <p className="solaris-app-show-edition-kicker">Latest edition</p> : null}
+                  <h2 id={`app-shows-${group.edition.id}`}>{editionLabel(group.edition)}</h2>
+                </div>
+                <span>{group.shows.length} show{group.shows.length === 1 ? "" : "s"}</span>
               </div>
-            </div>
 
-            <div className="solaris-app-flat-list" data-solaris-flat-list="shows">
-              {group.shows.map((show) => (
-                <Link
-                  key={show.id}
-                  to="/shows/$showId"
-                  params={{ showId: show.id }}
-                  className="solaris-app-flat-row solaris-app-show-row-v5"
-                >
-                  <span className="min-w-0">
-                    <span className="solaris-app-flat-row-title">{show.name}</span>
-                    <span className="solaris-app-flat-row-meta">{appShowMeta(show)}</span>
-                  </span>
-                  <ChevronRight className="solaris-app-row-chevron-icon size-4" aria-hidden="true" />
-                </Link>
-              ))}
-            </div>
-          </section>
-        ))}
+              <div className="solaris-app-show-list" data-solaris-show-list>
+                {group.shows.map((show) => (
+                  <Link
+                    key={show.id}
+                    to="/shows/$showId"
+                    params={{ showId: show.id }}
+                    className="solaris-app-show-list-row"
+                  >
+                    <span className="solaris-app-show-kind" aria-hidden="true">
+                      {appShowKindCode(show.kind)}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="solaris-app-show-name">{show.name}</span>
+                      <span className="solaris-app-show-status">{appShowMeta(show)}</span>
+                    </span>
+                    <ChevronRight className="size-4 shrink-0" aria-hidden="true" />
+                  </Link>
+                ))}
+              </div>
+            </section>
+          );
+        })}
 
         {!groups.length ? (
           <p className="py-8 text-center text-sm text-muted-foreground">No public shows are available yet.</p>
@@ -420,6 +428,13 @@ function SectionHeading({ kicker, title, count }: { kicker: string; title: strin
       <p className="numeric shrink-0 text-xs text-muted-foreground">{count}</p>
     </div>
   );
+}
+
+function appShowKindCode(kind: string | null | undefined) {
+  const normalized = (kind ?? "").trim().toLowerCase();
+  if (normalized === "grand-final" || normalized === "final") return "GF";
+  if (normalized.includes("semi")) return "SF";
+  return "SH";
 }
 
 function appShowMeta(show: {
