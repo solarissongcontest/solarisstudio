@@ -42,4 +42,20 @@ describe("CI egress safety contracts", () => {
     expect(workflow).toContain('echo "VITE_CONFIRMATIONS_SUPABASE_URL=$local_url"');
     expect(workflow).toContain('echo "CONFIRMATIONS_SUPABASE_URL=$local_url"');
   });
+
+  it("runs browser regression protection after main changes and keeps the recovery branch exhaustive", () => {
+    const workflow = source(".github/workflows/browser-audit.yml");
+
+    expect(workflow).toContain("push:");
+    expect(workflow).toContain("branches: [main]");
+    expect(workflow).toContain("github.ref == 'refs/heads/main'");
+    expect(workflow).toContain("github.head_ref == 'recovery/canonical-main-v6-20261004'");
+  });
+
+  it("keeps the client bundle budget as a blocking Quality gate", () => {
+    const workflow = source(".github/workflows/ci.yml");
+
+    expect(workflow).toContain("- name: Enforce client performance budget");
+    expect(workflow).toContain("run: bun run budget:client");
+  });
 });
