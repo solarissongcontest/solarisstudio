@@ -211,6 +211,7 @@ test("installed directory search has exactly one visible field surface", async (
         shellRadius: Number.parseFloat(shellStyle.borderTopLeftRadius || "0"),
         shellBorder: Number.parseFloat(shellStyle.borderTopWidth || "0"),
         inputBackground: inputStyle.backgroundColor,
+        inputBackgroundImage: inputStyle.backgroundImage,
         inputBorder: Number.parseFloat(inputStyle.borderTopWidth || "0"),
         inputRadius: Number.parseFloat(inputStyle.borderTopLeftRadius || "0"),
         inputShadow: inputStyle.boxShadow,
@@ -223,6 +224,7 @@ test("installed directory search has exactly one visible field surface", async (
     expect(visual!.inputBorder).toBe(0);
     expect(visual!.inputRadius).toBe(0);
     expect(visual!.inputShadow).toBe("none");
+    expect(visual!.inputBackgroundImage).toBe("none");
     expect(["rgba(0, 0, 0, 0)", "transparent"]).toContain(visual!.inputBackground);
   }
 });
