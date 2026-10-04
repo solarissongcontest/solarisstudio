@@ -15,6 +15,60 @@ export type ConfirmationRound = {
   created_at: string;
 };
 
+export type ConfirmationRoundChangeKind =
+  | "create"
+  | "update"
+  | "status"
+  | "editing"
+  | "delete";
+
+export type ConfirmationRoundChangePayload = {
+  editionId?: string;
+  name?: string;
+  status?: "open" | "closed";
+  opensAt?: string | null;
+  closesAt?: string | null;
+  responseLimit?: number | null;
+  editingEnabled?: boolean;
+  enabled?: boolean;
+};
+
+export type ConfirmationRoundChangePreview = {
+  riskClass: "R2" | "R3";
+  changeKind: ConfirmationRoundChangeKind;
+  roundId: string | null;
+  roundName: string | null;
+  editionId: string;
+  expectedVersion: number;
+  responseCount: number;
+  affectedResponses: number;
+  currentlyEditableResponses?: number;
+  unresolvedRequirementCount: number;
+  currentStatus?: ConfirmationRound["status"];
+  targetStatus?: ConfirmationRound["status"];
+  currentEditingEnabled?: boolean;
+  targetEditingEnabled?: boolean;
+  willMoveOpeningTimeToNow: boolean;
+  willClearExpiredClosingTime: boolean;
+  requirementsCreated: number;
+  alreadyApplied: boolean;
+  blockers: string[];
+};
+
+export type ConfirmationRoundChangeReceipt = {
+  ok: true;
+  riskClass: "R2" | "R3";
+  changeKind: ConfirmationRoundChangeKind;
+  roundId: string;
+  status: ConfirmationRound["status"] | null;
+  editingEnabled: boolean | null;
+  affectedResponses: number;
+  requirementsCreated: number;
+  previousVersion: number;
+  version: number;
+  operationId: string;
+};
+
 export type ConfirmationEdition = {
   id: string;
   name: string;
@@ -60,6 +114,22 @@ export type ConfirmationRecoveryCode = {
   edition_id: string;
   edition_name: string;
   edition_number: number;
+};
+
+export type ConfirmationRequirement = {
+  id: string;
+  editionId: string;
+  countryId: string;
+  countryName: string;
+  countryCode: string;
+  generation: number;
+  status: "required" | "satisfied" | "waived" | "invalidated";
+  reason: string;
+  validFrom: string;
+  resolvedBySubmissionId: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export async function requireConfirmationsAdmin() {
@@ -156,6 +226,46 @@ export async function setConfirmationRoundEditing(id: string, enabled: boolean) 
   return data === true;
 }
 
+export async function previewConfirmationRoundChange(input: {
+  roundId?: string | null;
+  kind: ConfirmationRoundChangeKind;
+  payload?: ConfirmationRoundChangePayload;
+}): Promise<ConfirmationRoundChangePreview> {
+  const { data, error } = await confirmationsSupabase.rpc(
+    "studio2_confirmation_round_change_preview",
+    {
+      p_round_id: input.roundId ?? null,
+      p_change_kind: input.kind,
+      p_payload: input.payload ?? {},
+    },
+  );
+  if (error) throw error;
+  return data as unknown as ConfirmationRoundChangePreview;
+}
+
+export async function applyConfirmationRoundChange(input: {
+  roundId?: string | null;
+  kind: ConfirmationRoundChangeKind;
+  payload?: ConfirmationRoundChangePayload;
+  operationId: string;
+  idempotencyKey: string;
+  expectedVersion: number;
+}): Promise<ConfirmationRoundChangeReceipt> {
+  const { data, error } = await confirmationsSupabase.rpc(
+    "studio2_apply_confirmation_round_change",
+    {
+      p_round_id: input.roundId ?? null,
+      p_change_kind: input.kind,
+      p_payload: input.payload ?? {},
+      p_operation_id: input.operationId,
+      p_idempotency_key: input.idempotencyKey,
+      p_expected_version: input.expectedVersion,
+    },
+  );
+  if (error) throw error;
+  return data as unknown as ConfirmationRoundChangeReceipt;
+}
+
 export async function loadConfirmationCalendar(
   editionId?: string,
   roundId?: string,
@@ -166,6 +276,80 @@ export async function loadConfirmationCalendar(
   });
   if (error) throw error;
   return Array.isArray(data) ? (data as unknown as ConfirmationCalendarRow[]) : [];
+}
+
+export async function loadConfirmationRequirements(
+  editionId: string,
+): Promise<ConfirmationRequirement[]> {
+  const { data, error } = await confirmationsSupabase.rpc("admin_confirmation_requirements", {
+    p_edition_id: editionId,
+  });
+  if (error) throw error;
+  return Array.isArray(data) ? (data as unknown as ConfirmationRequirement[]) : [];
+}
+
+export async function ensureConfirmationRequirements(
+  editionId: string,
+  countryIds?: string[],
+) {
+  const { data, error } = await confirmationsSupabase.rpc(
+    "admin_confirmation_ensure_requirements",
+    {
+      p_edition_id: editionId,
+      p_country_ids: countryIds?.length ? countryIds : null,
+    },
+  );
+  if (error) throw error;
+  return data as { ok: boolean; editionId: string; created: number };
+}
+
+export async function reconfirmConfirmationRequirement(input: {
+  requirementId: string;
+  reason: string;
+  operationId: string;
+  idempotencyKey: string;
+}) {
+  const { data, error } = await confirmationsSupabase.rpc(
+    "admin_confirmation_reconfirm",
+    {
+      p_requirement_id: input.requirementId,
+      p_reason: input.reason,
+      p_operation_id: input.operationId,
+      p_idempotency_key: input.idempotencyKey,
+    },
+  );
+  if (error) throw error;
+  return data as {
+    ok: boolean;
+    operationId: string;
+    previousRequirementId: string;
+    requirementId: string;
+    generation: number;
+  };
+}
+
+export async function waiveConfirmationRequirement(input: {
+  requirementId: string;
+  reason: string;
+  operationId: string;
+  idempotencyKey: string;
+}) {
+  const { data, error } = await confirmationsSupabase.rpc(
+    "admin_confirmation_waive_requirement",
+    {
+      p_requirement_id: input.requirementId,
+      p_reason: input.reason,
+      p_operation_id: input.operationId,
+      p_idempotency_key: input.idempotencyKey,
+    },
+  );
+  if (error) throw error;
+  return data as {
+    ok: boolean;
+    operationId: string;
+    requirementId: string;
+    status: "waived";
+  };
 }
 
 export async function loadConfirmationRecoveryCodes(): Promise<ConfirmationRecoveryCode[]> {
