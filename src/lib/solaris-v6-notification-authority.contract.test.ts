@@ -28,12 +28,12 @@ describe("Solaris V6 notification authority retirement", () => {
   });
 
   it("uses canonical task count for Organizer work badges instead of unread notifications", () => {
-    const frame = source("src/components/admin/AdminFrame.tsx");
+    const chrome = source("src/components/admin/OrganizerV6MobileChrome.tsx");
     const shell = source("src/components/admin/AdminShell.tsx");
 
-    expect(frame).toContain("useOrganizerTaskCountV5");
-    expect(frame).toContain("unresolvedTaskCount");
-    expect(frame).not.toContain("unreadInboxCount");
+    expect(chrome).toContain("useOrganizerTaskCountV5");
+    expect(chrome).toContain("unresolvedTaskCount");
+    expect(chrome).not.toContain("unreadInboxCount");
 
     expect(shell).toContain("unreadInboxCount");
     expect(shell).toContain("Organizer notifications");
