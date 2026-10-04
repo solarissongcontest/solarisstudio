@@ -76,6 +76,7 @@ const CommandInput = React.forwardRef<
           : "flex items-center border-b px-3",
       )}
       data-solaris-search-field={appSearch ? "" : undefined}
+      data-solaris-command-search-field={appSearch ? "" : undefined}
       cmdk-input-wrapper=""
     >
       <Search
