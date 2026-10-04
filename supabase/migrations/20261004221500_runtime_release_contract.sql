@@ -12,6 +12,10 @@ begin;
 -- be mistaken for a compatible release contract. Also verify the supporting
 -- tables/columns used by the current UI so a partially applied migration batch
 -- remains fail-closed instead of presenting half-working controls.
+--
+-- This migration deliberately publishes a CORE schema id. The later final
+-- task-reconciliation migration upgrades it to the COMPLETE schema id only
+-- after every Organizer task source is wired into the canonical read path.
 
 create or replace function public.studio2_runtime_contract()
 returns jsonb
@@ -57,11 +61,8 @@ as $$
       ) as jury_window_operations
   )
   select jsonb_build_object(
-    'schemaId', 'organisation-os-v5-20261004',
-    'ready',
-      capability.organizer_tasks
-      and capability.system_operations
-      and capability.jury_window_operations,
+    'schemaId', 'organisation-os-v5-20261004-core',
+    'ready', false,
     'capabilities', jsonb_build_object(
       'organizerTasks', capability.organizer_tasks,
       'systemOperations', capability.system_operations,
