@@ -63,8 +63,8 @@ describe("Organisation OS V5 review hardening", () => {
   });
 
   it("keeps exactly one active mobile destination on Tasks", () => {
-    const frame = source("src/components/admin/AdminFrame.tsx");
-    expect(frame).toContain('!path.startsWith("/admin/tasks")');
+    const chrome = source("src/components/admin/OrganizerV6MobileChrome.tsx");
+    expect(chrome).toContain('!path.startsWith("/admin/tasks")');
   });
 
   it("budgets the Nitro client directory that is actually deployed", () => {

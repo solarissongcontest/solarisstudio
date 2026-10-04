@@ -217,12 +217,12 @@ describe("Organisation OS V5 canonical Organizer Task Engine", () => {
   });
 
   it("uses canonical Tasks for the mobile badge and dedicated Tasks screen", () => {
-    const frame = source("src/components/admin/AdminFrame.tsx");
+    const chrome = source("src/components/admin/OrganizerV6MobileChrome.tsx");
     const route = source("src/routes/_authenticated/admin/tasks.tsx");
 
-    expect(frame).toContain("useOrganizerTaskCountV5");
-    expect(frame).toContain('item.id === "tasks"');
-    expect(frame).toContain("unresolvedTaskCount");
+    expect(chrome).toContain("useOrganizerTaskCountV5");
+    expect(chrome).toContain('item.id === "tasks"');
+    expect(chrome).toContain("unresolvedTaskCount");
     expect(route).toContain("useOrganizerTasksV5");
     expect(route).toContain("There is intentionally no generic “Mark resolved” button.");
     expect(route).toContain("confirmation requirements and reviews, entries, required media, voting, results, integrations");
