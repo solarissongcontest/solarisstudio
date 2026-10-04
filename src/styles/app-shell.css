@@ -2816,6 +2816,17 @@ html[data-solaris-app]
     display: none;
   }
 
+  html[data-solaris-app] .solaris-app-search-command [cmdk-input] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+  }
+
   html[data-solaris-app] .solaris-app-search-clear {
     display: grid;
     width: 2.75rem;
@@ -3134,6 +3145,18 @@ html[data-solaris-app]
 
   html[data-solaris-app] .solaris-app-show-row-v5 {
     min-height: 4.35rem;
+  }
+
+  /* Archive content should stay calm. Keep distant atmosphere, remove the
+     oversized near-star silhouettes that read like row decorations. */
+  html[data-solaris-app]:has(.app-main[data-solaris-app-calm-directory="true"])
+    .solaris-star-layer-near {
+    opacity: 0 !important;
+  }
+
+  html[data-solaris-app]:has(.app-main[data-solaris-app-calm-directory="true"])
+    .solaris-star-layer-mid {
+    opacity: .34 !important;
   }
 }
 
