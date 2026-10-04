@@ -53,6 +53,25 @@ function localMinutes(timeZone: string, now = new Date()) {
   }
 }
 
+function randomReceiptToken() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/g, "");
+}
+
+async function sha256Hex(value: string) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 function parseClock(value: string | null, fallback: number) {
   if (!value) return fallback;
   const match = value.match(/^(\d{1,2}):(\d{2})/);
@@ -373,10 +392,38 @@ Deno.serve(async (req) => {
       continue;
     }
 
+    const activeSubscriptions = (subscriptions ?? []) as SubscriptionRow[];
+    let receiptToken: string | null = null;
+
+    if (activeSubscriptions.length) {
+      const candidateToken = randomReceiptToken();
+      const receiptTokenHash = await sha256Hex(candidateToken);
+      const { error: receiptTokenError } = await service
+        .from("notification_deliveries")
+        .update({
+          receipt_token_hash: receiptTokenHash,
+          received_at: null,
+          displayed_at: null,
+          opened_at: null,
+        })
+        .eq("id", delivery.id)
+        .eq("status", "processing");
+
+      if (receiptTokenError) {
+        console.error(
+          "[solaris-push-dispatch] receipt token preparation failed",
+          delivery.id,
+          receiptTokenError,
+        );
+      } else {
+        receiptToken = candidateToken;
+      }
+    }
+
     let delivered = false;
     let lastError = "No active push subscriptions";
 
-    for (const subscription of (subscriptions ?? []) as SubscriptionRow[]) {
+    for (const subscription of activeSubscriptions) {
       try {
         await webpush.sendNotification(
           {
@@ -392,6 +439,10 @@ Deno.serve(async (req) => {
             route: delivery.route,
             tag: delivery.dedupe_key,
             deliveryId: delivery.id,
+            receiptToken,
+            receiptUrl: receiptToken
+              ? `${supabaseUrl}/functions/v1/notification-receipt`
+              : null,
           }),
           {
             TTL: 60 * 60 * 12,
@@ -422,6 +473,7 @@ Deno.serve(async (req) => {
         .update({
           status: "sent",
           sent_at: new Date().toISOString(),
+          provider_accepted_at: new Date().toISOString(),
           processing_started_at: null,
           error: null,
         })
