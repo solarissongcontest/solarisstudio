@@ -161,81 +161,36 @@ test("installed app keeps exactly one visible screen heading on app-owned screen
   }
 });
 
-test("directory title collapses without changing sticky toolbar geometry", async ({ page }) => {
-  await expectInstalledShell(page, "/wiki");
+test("directory titles stay geometrically centered in the toolbar", async ({ page }) => {
+  for (const route of ["/countries", "/wiki", "/editions", "/shows", "/site-directory"]) {
+    await expectInstalledShell(page, route);
 
-  const toolbar = page.locator(".solaris-app-toolbar");
-  const largeTitle = page.locator(".solaris-app-large-title-flow");
-  const compactTitle = page.locator(".solaris-app-toolbar-context-title-collapsible");
+    const toolbar = page.locator(".solaris-app-toolbar");
+    const title = page.locator(".solaris-app-toolbar-context-title");
+    await expect(title, `${route} should expose a toolbar title`).toHaveCount(1);
+    await expect(page.locator(".solaris-app-large-title-flow")).toHaveCount(0);
 
-  await expect(toolbar).toHaveAttribute("data-collapsible-title", "true");
-  await expect(toolbar).toHaveAttribute("data-title-collapsed", "false");
-  await expect(largeTitle).toBeVisible();
-  await expect(compactTitle).toHaveAttribute("aria-hidden", "true");
+    const geometry = await page.evaluate(() => {
+      const toolbar = document.querySelector<HTMLElement>(".solaris-app-toolbar");
+      const title = document.querySelector<HTMLElement>(".solaris-app-toolbar-context-title");
+      if (!toolbar || !title) return null;
+      const toolbarRect = toolbar.getBoundingClientRect();
+      const titleRect = title.getBoundingClientRect();
+      return {
+        toolbarCenter: toolbarRect.left + toolbarRect.width / 2,
+        titleCenter: titleRect.left + titleRect.width / 2,
+        titleTop: titleRect.top,
+        toolbarTop: toolbarRect.top,
+      };
+    });
 
-  const initial = await page.evaluate(() => {
-    const toolbar = document.querySelector<HTMLElement>(".solaris-app-toolbar");
-    const title = document.querySelector<HTMLElement>(".solaris-app-large-title-flow");
-    const compact = document.querySelector<HTMLElement>(
-      ".solaris-app-toolbar-context-title-collapsible",
-    );
-    if (!toolbar || !title || !compact) return null;
-
-    const toolbarRect = toolbar.getBoundingClientRect();
-    const titleRect = title.getBoundingClientRect();
-    return {
-      toolbarHeight: toolbarRect.height,
-      toolbarBottom: toolbarRect.bottom,
-      titleTop: titleRect.top,
-      titleHeight: titleRect.height,
-      compactOpacity: Number.parseFloat(getComputedStyle(compact).opacity),
-    };
-  });
-
-  expect(initial).not.toBeNull();
-  expect(initial!.titleTop).toBeGreaterThanOrEqual(initial!.toolbarBottom - 1);
-  expect(initial!.titleHeight).toBeGreaterThan(20);
-  expect(initial!.compactOpacity).toBeLessThan(0.1);
-
-  await page.evaluate(() => {
-    const main = document.querySelector<HTMLElement>(".app-main");
-    if (!main) return;
-    const spacer = document.createElement("div");
-    spacer.dataset.solarisCollapseTestSpacer = "true";
-    spacer.style.height = "1200px";
-    spacer.style.pointerEvents = "none";
-    main.appendChild(spacer);
-  });
-
-  const toolbarHeights: number[] = [];
-  for (const y of [0, 16, 32, 48, 72, 96]) {
-    await page.evaluate((nextY) => window.scrollTo(0, nextY), y);
-    await page.waitForTimeout(35);
-    toolbarHeights.push(
-      await toolbar.evaluate((node) => node.getBoundingClientRect().height),
-    );
+    expect(geometry).not.toBeNull();
+    expect(
+      Math.abs(geometry!.toolbarCenter - geometry!.titleCenter),
+      `${route} title should be centered to the viewport toolbar`,
+    ).toBeLessThanOrEqual(1.5);
+    expect(geometry!.titleTop).toBeGreaterThanOrEqual(geometry!.toolbarTop);
   }
-
-  expect(Math.max(...toolbarHeights) - Math.min(...toolbarHeights)).toBeLessThanOrEqual(1);
-  await expect(toolbar).toHaveAttribute("data-title-collapsed", "true");
-
-  const collapsed = await page.evaluate(() => {
-    const title = document.querySelector<HTMLElement>(".solaris-app-large-title-flow");
-    const compact = document.querySelector<HTMLElement>(
-      ".solaris-app-toolbar-context-title-collapsible",
-    );
-    if (!title || !compact) return null;
-    return {
-      titleHeight: title.getBoundingClientRect().height,
-      titleBottom: title.getBoundingClientRect().bottom,
-      compactOpacity: Number.parseFloat(getComputedStyle(compact).opacity),
-    };
-  });
-
-  expect(collapsed).not.toBeNull();
-  expect(Math.abs(collapsed!.titleHeight - initial!.titleHeight)).toBeLessThanOrEqual(1);
-  expect(collapsed!.titleBottom).toBeLessThanOrEqual(initial!.toolbarBottom + 2);
-  expect(collapsed!.compactOpacity).toBeGreaterThan(0.9);
 });
 
 test("installed directory search has exactly one visible field surface", async ({ page }) => {
@@ -244,11 +199,11 @@ test("installed directory search has exactly one visible field surface", async (
 
     const search = page.locator("[data-solaris-search-field]");
     await expect(search, `${route} should use the canonical search field`).toHaveCount(1);
-    const input = search.locator("input[type='search']");
+    const input = search.locator("input[role='searchbox']");
     await expect(input).toHaveCount(1);
 
     const visual = await search.evaluate((node) => {
-      const input = node.querySelector<HTMLInputElement>("input[type='search']");
+      const input = node.querySelector<HTMLInputElement>("input[role='searchbox']");
       if (!input) return null;
       const shellStyle = getComputedStyle(node);
       const inputStyle = getComputedStyle(input);
@@ -264,7 +219,7 @@ test("installed directory search has exactly one visible field surface", async (
 
     expect(visual).not.toBeNull();
     expect(visual!.shellRadius).toBeGreaterThan(0);
-    expect(visual!.shellBorder).toBeGreaterThan(0);
+    expect(visual!.shellBorder).toBe(0);
     expect(visual!.inputBorder).toBe(0);
     expect(visual!.inputRadius).toBe(0);
     expect(visual!.inputShadow).toBe("none");
@@ -272,7 +227,7 @@ test("installed directory search has exactly one visible field surface", async (
   }
 });
 
-test("Editions and Shows use the new flat mobile archive layouts", async ({ page }) => {
+test("Editions and Shows use their dedicated mobile archive layouts", async ({ page }) => {
   await expectInstalledShell(page, "/editions");
   await expect(page.locator(".solaris-app-editions-v5")).toHaveCount(1);
   await expect(page.locator(".solaris-app-grouped-list")).toHaveCount(0);
@@ -291,20 +246,20 @@ test("Editions and Shows use the new flat mobile archive layouts", async ({ page
   }
 
   await expectInstalledShell(page, "/shows");
-  await expect(page.locator(".solaris-app-shows-v5")).toHaveCount(1);
+  await expect(page.locator(".solaris-app-shows-v6")).toHaveCount(1);
   await expect(page.locator(".solaris-app-grouped-list")).toHaveCount(0);
 
-  const showLists = page.locator('[data-solaris-flat-list="shows"]');
+  const showLists = page.locator("[data-solaris-show-list]");
   if (await showLists.count()) {
     const firstStyle = await showLists.first().evaluate((node) => {
       const computed = getComputedStyle(node);
       return {
         radius: Number.parseFloat(computed.borderTopLeftRadius || "0"),
-        background: computed.backgroundColor,
+        border: Number.parseFloat(computed.borderTopWidth || "0"),
       };
     });
-    expect(firstStyle.radius).toBe(0);
-    expect(["rgba(0, 0, 0, 0)", "transparent"]).toContain(firstStyle.background);
+    expect(firstStyle.radius).toBeGreaterThanOrEqual(12);
+    expect(firstStyle.border).toBeGreaterThan(0);
   }
 });
 
