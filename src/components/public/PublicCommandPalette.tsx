@@ -327,16 +327,17 @@ function AppPublicPaletteDialog({
       open={open}
       onOpenChange={setOpen}
       contentClassName="solaris-app-search-dialog"
+      contentLayout="fullscreen"
       commandClassName="solaris-app-search-command"
       shouldFilter={false}
     >
         <CommandInput
+          appearance="appSearch"
           autoFocus
           value={query}
           onValueChange={setQuery}
           placeholder="Search Solaris Studio…"
           aria-label="Search Solaris Studio"
-          className="text-base"
         />
         <CommandList className="solaris-app-search-list">
           <CommandEmpty>

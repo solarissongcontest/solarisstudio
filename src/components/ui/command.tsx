@@ -26,6 +26,7 @@ Command.displayName = CommandPrimitive.displayName;
 type CommandDialogProps = DialogProps & {
   contentClassName?: string;
   commandClassName?: string;
+  contentLayout?: "centered" | "fullscreen";
   shouldFilter?: boolean;
 };
 
@@ -33,12 +34,16 @@ const CommandDialog = ({
   children,
   contentClassName,
   commandClassName,
+  contentLayout = "centered",
   shouldFilter,
   ...props
 }: CommandDialogProps) => {
   return (
     <Dialog {...props}>
-      <DialogContent className={cn("overflow-hidden p-0", contentClassName)}>
+      <DialogContent
+        layout={contentLayout}
+        className={cn("overflow-hidden p-0", contentClassName)}
+      >
         <Command
           shouldFilter={shouldFilter}
           className={cn(
@@ -53,22 +58,47 @@ const CommandDialog = ({
   );
 };
 
+type CommandInputProps = React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input> & {
+  appearance?: "default" | "appSearch";
+};
+
 const CommandInput = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive.Input>,
-  React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
->(({ className, ...props }, ref) => (
-  <div className="flex items-center border-b px-3" cmdk-input-wrapper="">
-    <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-    <CommandPrimitive.Input
-      ref={ref}
+  CommandInputProps
+>(({ className, appearance = "default", ...props }, ref) => {
+  const appSearch = appearance === "appSearch";
+
+  return (
+    <div
       className={cn(
-        "flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
-        className,
+        appSearch
+          ? "solaris-app-search-shell solaris-app-command-search-shell"
+          : "flex items-center border-b px-3",
       )}
-      {...props}
-    />
-  </div>
-));
+      data-solaris-search-field={appSearch ? "" : undefined}
+      cmdk-input-wrapper=""
+    >
+      <Search
+        className={cn(
+          appSearch
+            ? "solaris-app-search-icon size-[1.05rem]"
+            : "mr-2 h-4 w-4 shrink-0 opacity-50",
+        )}
+        aria-hidden="true"
+      />
+      <CommandPrimitive.Input
+        ref={ref}
+        className={cn(
+          appSearch
+            ? "solaris-app-search-input solaris-app-command-search-input"
+            : "flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
+          className,
+        )}
+        {...props}
+      />
+    </div>
+  );
+});
 
 CommandInput.displayName = CommandPrimitive.Input.displayName;
 

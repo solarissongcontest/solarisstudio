@@ -201,13 +201,85 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
   const dialog = page.locator(".solaris-app-search-dialog");
   const input = dialog.getByRole("textbox", { name: "Search Solaris Studio" });
   await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveAttribute("data-solaris-dialog-layout", "fullscreen");
   await expect(input).toBeVisible();
   await expect(dialog.locator("[cmdk-root]")).toHaveCount(1);
+
+  const forbiddenCenteredUtilities = await dialog.evaluate((node) =>
+    [...node.classList].filter((className) =>
+      [
+        "left-[50%]",
+        "top-[50%]",
+        "translate-x-[-50%]",
+        "translate-y-[-50%]",
+        "max-w-lg",
+      ].includes(className),
+    ),
+  );
+  expect(
+    forbiddenCenteredUtilities,
+    "fullscreen app search must not inherit centered-dialog positioning utilities",
+  ).toEqual([]);
+
+  const appSearchSurface = dialog.locator("[data-solaris-search-field]");
+  await expect(appSearchSurface).toHaveCount(1);
+
+  const searchVisual = await appSearchSurface.evaluate((node) => {
+    const input = node.querySelector<HTMLInputElement>("[cmdk-input]");
+    if (!input) return null;
+    const shellStyle = getComputedStyle(node);
+    const inputStyle = getComputedStyle(input);
+    return {
+      shellRadius: Number.parseFloat(shellStyle.borderTopLeftRadius || "0"),
+      shellBackground: shellStyle.backgroundColor,
+      inputBackground: inputStyle.backgroundColor,
+      inputBackgroundImage: inputStyle.backgroundImage,
+      inputBorder: Number.parseFloat(inputStyle.borderTopWidth || "0"),
+      inputRadius: Number.parseFloat(inputStyle.borderTopLeftRadius || "0"),
+      inputShadow: inputStyle.boxShadow,
+    };
+  });
+
+  expect(searchVisual).not.toBeNull();
+  expect(searchVisual!.shellRadius).toBeGreaterThan(0);
+  expect(searchVisual!.shellBackground).not.toBe("rgba(0, 0, 0, 0)");
+  expect(searchVisual!.inputBorder).toBe(0);
+  expect(searchVisual!.inputRadius).toBe(0);
+  expect(searchVisual!.inputShadow).toBe("none");
+  expect(searchVisual!.inputBackgroundImage).toBe("none");
+  expect(["rgba(0, 0, 0, 0)", "transparent"]).toContain(searchVisual!.inputBackground);
 
   const inputFont = await input.evaluate((node) =>
     Number.parseFloat(getComputedStyle(node).fontSize || "0"),
   );
   expect(inputFont).toBeGreaterThanOrEqual(16);
+
+  const searchSurface = await dialog.evaluate((node) => {
+    const wrapper = node.querySelector<HTMLElement>("[cmdk-input-wrapper]");
+    const input = node.querySelector<HTMLElement>("[cmdk-input]");
+    if (!wrapper || !input) return null;
+    const wrapperStyle = getComputedStyle(wrapper);
+    const inputStyle = getComputedStyle(input);
+    return {
+      wrapperRadius: Number.parseFloat(wrapperStyle.borderTopLeftRadius || "0"),
+      wrapperBackground: wrapperStyle.backgroundColor,
+      wrapperBorder: Number.parseFloat(wrapperStyle.borderTopWidth || "0"),
+      inputBackground: inputStyle.backgroundColor,
+      inputBackgroundImage: inputStyle.backgroundImage,
+      inputBorder: Number.parseFloat(inputStyle.borderTopWidth || "0"),
+      inputRadius: Number.parseFloat(inputStyle.borderTopLeftRadius || "0"),
+      inputShadow: inputStyle.boxShadow,
+    };
+  });
+
+  expect(searchSurface).not.toBeNull();
+  expect(searchSurface!.wrapperRadius).toBeGreaterThan(0);
+  expect(searchSurface!.wrapperBorder).toBe(0);
+  expect(searchSurface!.inputBorder).toBe(0);
+  expect(searchSurface!.inputRadius).toBe(0);
+  expect(searchSurface!.inputShadow).toBe("none");
+  expect(searchSurface!.inputBackgroundImage).toBe("none");
+  expect(["rgba(0, 0, 0, 0)", "transparent"]).toContain(searchSurface!.inputBackground);
 
   const measure = async () =>
     dialog.evaluate((node) => {
@@ -220,6 +292,7 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
         height: rect.height,
         radius: Number.parseFloat(style.borderTopLeftRadius || "0"),
         transform: style.transform,
+        translate: style.translate,
       };
     });
 
@@ -229,6 +302,7 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
   expect(Math.abs(initial.width - window.innerWidth)).toBeLessThanOrEqual(1);
   expect(initial.radius).toBe(0);
   expect(initial.transform).toBe("none");
+  expect(["none", "0px"]).toContain(initial.translate);
 
   await page.evaluate(() => {
     const root = document.documentElement;
@@ -248,6 +322,7 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
   expect(Math.abs(focusedViewport.height - 480)).toBeLessThanOrEqual(1);
   expect(focusedViewport.radius).toBe(0);
   expect(focusedViewport.transform).toBe("none");
+  expect(["none", "0px"]).toContain(focusedViewport.translate);
 
   await expect(page.locator(".solaris-app-tabbar")).toHaveCSS("pointer-events", "none");
 });

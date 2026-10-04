@@ -1388,19 +1388,23 @@ html[data-solaris-app-boot] body::before {
     background: transparent !important;
   }
 
-  html[data-solaris-app] .solaris-app-search-command [cmdk-input-wrapper] {
-    min-height: 3.5rem;
+  html[data-solaris-app] .solaris-app-command-search-shell {
     margin-right: 3.2rem;
-    border: 1px solid rgb(210 236 248 / .13);
-    border-radius: 1rem;
-    background: rgb(255 255 255 / .04);
-    padding-inline: .85rem;
   }
 
-  html[data-solaris-app] .solaris-app-search-command [cmdk-input] {
+  html[data-solaris-app]
+    .solaris-app-command-search-shell
+    > .solaris-app-search-icon {
+    width: 1.05rem !important;
+    height: 1.05rem !important;
+    margin-right: 0 !important;
+  }
+
+  html[data-solaris-app] .solaris-app-command-search-input {
     min-width: 0 !important;
+    min-height: 3rem !important;
     font-size: 1rem !important;
-    line-height: 1.35 !important;
+    line-height: 1.2 !important;
     -webkit-text-size-adjust: 100%;
   }
 
