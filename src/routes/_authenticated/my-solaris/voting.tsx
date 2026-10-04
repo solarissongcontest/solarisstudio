@@ -15,10 +15,6 @@ import {
   SolarisSurfaceSwitch,
 } from "@/components/surfaces/SolarisSurfaceSwitch";
 import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
-import {
-  featureSurfaceLinks,
-  SolarisSurfaceSwitch,
-} from "@/components/surfaces/SolarisSurfaceSwitch";
 import { televotingSupabase } from "@/integrations/televoting/client";
 import { useCountries } from "@/lib/data";
 import { loadStudio2HodWorkspace } from "@/lib/studio2-hod-workspace";
@@ -86,20 +82,20 @@ function MySolarisVotingContent() {
   const country = organizerCountry ?? workspace.countryAccount?.country;
   const edition = workspace.currentEdition;
 
-  const votingSurfaceLinks = organizerInspection && country
-    ? featureSurfaceLinks({
-        featureId: "participant-voting-overview",
-        current: "participant",
-        perspectives: ["participant", "organizer", "diagnostic"],
-      }).map((link) =>
-        link.perspective === "participant"
-          ? {
-              ...link,
-              href: `/my-solaris/voting?country=${encodeURIComponent(country.id)}`,
-            }
-          : link,
-      )
-    : [];
+  const votingSurfaceLinks = featureSurfaceLinks({
+    featureId: "participant-voting-overview",
+    current: "participant",
+    perspectives: workspace.permissions.isOrganizer
+      ? ["participant", "organizer", "diagnostic"]
+      : ["participant"],
+  }).map((link) =>
+    organizerInspection && country && link.perspective === "participant"
+      ? {
+          ...link,
+          href: `/my-solaris/voting?country=${encodeURIComponent(country.id)}`,
+        }
+      : link,
+  );
 
   const delegationQuery = useQuery({
     queryKey: [
@@ -167,23 +163,12 @@ function MySolarisVotingContent() {
 
       <SolarisSurfaceSwitch
         className="mb-4"
-        label="Voting perspectives"
-        links={featureSurfaceLinks({
-          featureId: "participant-voting-overview",
-          current: "participant",
-          perspectives: workspace.permissions.isOrganizer
-            ? ["participant", "organizer", "diagnostic"]
-            : ["participant"],
-        })}
+        label={`${country?.name ?? "Voting"} perspectives`}
+        links={votingSurfaceLinks}
       />
 
       {organizerInspection ? (
         <>
-          <SolarisSurfaceSwitch
-            className="mb-4"
-            label={`${country?.name ?? "Delegation"} voting perspectives`}
-            links={votingSurfaceLinks}
-          />
           <div className="mb-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3">
             <p className="text-sm font-semibold">Participant View · read-only</p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
