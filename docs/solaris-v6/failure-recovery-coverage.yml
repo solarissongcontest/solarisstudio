@@ -9,6 +9,7 @@ cases:
     evidence:
       - src/lib/solaris-v6-operation-recovery.test.ts
       - src/routes/_authenticated/admin/results.tsx
+      - src/routes/_authenticated/admin/community-moderation.tsx
       - src/lib/organisation-operation-contract.test.ts
     invariant: "A lost response reuses the same operation identity; it never creates a second logical command."
 
