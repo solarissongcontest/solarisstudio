@@ -8,6 +8,8 @@
     "build": "rm -f src/routeTree.gen.ts && vite build",
     "build:dev": "vite build --mode development",
     "budget:client": "node scripts/check-client-bundle-budget.mjs",
+    "certify:mobile-v2": "node scripts/check-mobile-v2-release-readiness.mjs",
+    "certify:organisation-v5": "node scripts/check-organisation-os-v5-release-readiness.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "lint:ci": "eslint . --quiet",
