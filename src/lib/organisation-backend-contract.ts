@@ -14,9 +14,26 @@ export type OrganisationBackendContract = {
   error: string | null;
 };
 
+const SUPPORTED_SCHEMA_IDS = new Set(["organisation-os-v5-20261004"]);
+
 const unavailable = (error: string | null): OrganisationBackendContract => ({
   available: false,
   schemaId: null,
+  ready: false,
+  capabilities: {
+    organizerTasks: false,
+    systemOperations: false,
+    juryWindowOperations: false,
+  },
+  error,
+});
+
+const incompatible = (
+  schemaId: string | null,
+  error: string,
+): OrganisationBackendContract => ({
+  available: true,
+  schemaId,
   ready: false,
   capabilities: {
     organizerTasks: false,
@@ -33,6 +50,16 @@ export async function loadOrganisationBackendContract(): Promise<OrganisationBac
   }
 
   const value = data && typeof data === "object" ? (data as any) : null;
+  const schemaId = typeof value?.schemaId === "string" ? value.schemaId : null;
+  if (!schemaId || !SUPPORTED_SCHEMA_IDS.has(schemaId)) {
+    return incompatible(
+      schemaId,
+      schemaId
+        ? `Unsupported Organizer runtime contract: ${schemaId}.`
+        : "Organizer runtime contract did not report a schema identifier.",
+    );
+  }
+
   const capabilities =
     value?.capabilities && typeof value.capabilities === "object"
       ? value.capabilities
@@ -40,7 +67,7 @@ export async function loadOrganisationBackendContract(): Promise<OrganisationBac
 
   return {
     available: true,
-    schemaId: typeof value?.schemaId === "string" ? value.schemaId : null,
+    schemaId,
     ready: value?.ready === true,
     capabilities: {
       organizerTasks: capabilities.organizerTasks === true,
