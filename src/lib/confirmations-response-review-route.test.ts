@@ -15,7 +15,11 @@ describe("confirmation response review routing", () => {
     expect(listRoute).toContain('to="/confirmations/admin/responses/$id"');
     expect(detailRoute).toContain('createFileRoute("/confirmations/admin/responses/$id")');
     expect(detailRoute).toContain("admin_confirmation_response");
-    expect(detailRoute).toContain("admin_review_confirmation_entry");
+    expect(detailRoute).toContain("studio2_confirmation_entry_review_preview");
+    expect(detailRoute).toContain("studio2_apply_confirmation_entry_review");
+    expect(detailRoute).toContain("studio2_confirmation_winner_change_preview");
+    expect(detailRoute).toContain("studio2_apply_confirmation_winner_change");
+    expect(detailRoute).not.toContain("admin_review_confirmation_entry");
   });
 
   it("restores the standalone response filters, edition scope and Next in Line admin view", () => {
