@@ -73,6 +73,7 @@ export function createAppConnectivityController(
   let disposed = false;
   let snapshot = initialAppConnectivitySnapshot();
   let probeController: AbortController | null = null;
+  let probeGeneration = 0;
 
   const emit = () => {
     if (!disposed) onChange({ ...snapshot });
@@ -90,6 +91,7 @@ export function createAppConnectivityController(
 
   const runProbe = async () => {
     probeController?.abort();
+    const generation = ++probeGeneration;
     const previousStatus = snapshot.status;
     if (!navigator.onLine) {
       snapshot = {
@@ -113,7 +115,11 @@ export function createAppConnectivityController(
 
     try {
       const reachable = await probeOrigin(controller.signal);
-      if (disposed || controller.signal.aborted) return;
+      if (
+        disposed ||
+        controller.signal.aborted ||
+        generation !== probeGeneration
+      ) return;
       snapshot = {
         ...snapshot,
         navigatorOnline: true,
@@ -121,7 +127,7 @@ export function createAppConnectivityController(
         checkedAt: new Date().toISOString(),
       };
     } catch {
-      if (disposed) return;
+      if (disposed || generation !== probeGeneration) return;
       if (controller.signal.aborted && !timedOut) return;
       snapshot = {
         ...snapshot,
@@ -134,6 +140,7 @@ export function createAppConnectivityController(
       if (probeController === controller) probeController = null;
     }
 
+    if (generation !== probeGeneration) return;
     snapshot.serviceRestricted = Boolean(readSupabaseServiceRestriction());
     applyStatus();
     emit();
@@ -170,6 +177,9 @@ export function createAppConnectivityController(
   };
 
   const onRestriction = () => {
+    probeGeneration += 1;
+    probeController?.abort();
+    probeController = null;
     snapshot = {
       ...snapshot,
       serviceRestricted: true,
@@ -179,6 +189,9 @@ export function createAppConnectivityController(
   };
 
   const onRecovered = () => {
+    probeGeneration += 1;
+    probeController?.abort();
+    probeController = null;
     snapshot = {
       ...snapshot,
       serviceRestricted: false,
