@@ -21,6 +21,7 @@ import {
 } from "@/components/admin/AdminUI";
 import { supabase } from "@/integrations/supabase/client";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
+import { useOrganisationBackendContract } from "@/lib/organisation-backend-contract";
 import {
   resolveSolarisV6OperationRecovery,
   type SolarisV6OperationRecovery,
@@ -96,10 +97,14 @@ export const Route = createFileRoute("/_authenticated/admin/system-operations")(
 
 function SystemOperationsPage() {
   const queryClient = useQueryClient();
+  const backend = useOrganisationBackendContract();
+  const systemOperationsSupported =
+    backend.data?.capabilities.systemOperations === true;
   const retryIdentities = useRef(new Map<string, RetryIdentity>());
   const [retryRecovery, setRetryRecovery] = useState<RetryRecoveryState | null>(null);
 
   const health = useQuery({
+    enabled: systemOperationsSupported,
     queryKey: ["admin-system-runtime-health"],
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("admin_system_runtime_health", {
@@ -225,7 +230,21 @@ function SystemOperationsPage() {
           }
         />
 
-        {health.isLoading ? (
+        {backend.isLoading ? (
+          <AdminCard>
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              Verifying Organizer backend compatibility…
+            </p>
+          </AdminCard>
+        ) : !systemOperationsSupported ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="System Operations backend update required"
+              description="Protected diagnostics are disabled until the production database exposes the matching runtime-health contract. Solaris will not pretend an unavailable diagnostic is healthy."
+            />
+          </AdminCard>
+        ) : health.isLoading ? (
           <AdminCard>
             <p className="py-12 text-center text-sm text-muted-foreground">
               Checking delivery and scheduler state…
