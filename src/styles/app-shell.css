@@ -877,6 +877,7 @@ html[data-solaris-app-boot] body::before {
       inset -1px -1px 0 rgb(190 231 246 / .03),
       0 10px 28px rgb(0 4 22 / .07);
   }
+}
 
 /* Installed iPad / large-screen rail --------------------------------------- */
 @media (display-mode: standalone) and (min-width: 900px), (display-mode: window-controls-overlay) and (min-width: 900px) {
