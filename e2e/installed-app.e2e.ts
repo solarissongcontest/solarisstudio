@@ -221,6 +221,34 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
     "fullscreen app search must not inherit centered-dialog positioning utilities",
   ).toEqual([]);
 
+  const appSearchSurface = dialog.locator("[data-solaris-search-field]");
+  await expect(appSearchSurface).toHaveCount(1);
+
+  const searchVisual = await appSearchSurface.evaluate((node) => {
+    const input = node.querySelector<HTMLInputElement>("[cmdk-input]");
+    if (!input) return null;
+    const shellStyle = getComputedStyle(node);
+    const inputStyle = getComputedStyle(input);
+    return {
+      shellRadius: Number.parseFloat(shellStyle.borderTopLeftRadius || "0"),
+      shellBackground: shellStyle.backgroundColor,
+      inputBackground: inputStyle.backgroundColor,
+      inputBackgroundImage: inputStyle.backgroundImage,
+      inputBorder: Number.parseFloat(inputStyle.borderTopWidth || "0"),
+      inputRadius: Number.parseFloat(inputStyle.borderTopLeftRadius || "0"),
+      inputShadow: inputStyle.boxShadow,
+    };
+  });
+
+  expect(searchVisual).not.toBeNull();
+  expect(searchVisual!.shellRadius).toBeGreaterThan(0);
+  expect(searchVisual!.shellBackground).not.toBe("rgba(0, 0, 0, 0)");
+  expect(searchVisual!.inputBorder).toBe(0);
+  expect(searchVisual!.inputRadius).toBe(0);
+  expect(searchVisual!.inputShadow).toBe("none");
+  expect(searchVisual!.inputBackgroundImage).toBe("none");
+  expect(["rgba(0, 0, 0, 0)", "transparent"]).toContain(searchVisual!.inputBackground);
+
   const inputFont = await input.evaluate((node) =>
     Number.parseFloat(getComputedStyle(node).fontSize || "0"),
   );
