@@ -202,6 +202,7 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
   const input = dialog.getByRole("textbox", { name: "Search Solaris Studio" });
   await expect(dialog).toBeVisible();
   await expect(input).toBeVisible();
+  await expect(dialog.locator("[cmdk-root]")).toHaveCount(1);
 
   const inputFont = await input.evaluate((node) =>
     Number.parseFloat(getComputedStyle(node).fontSize || "0"),
