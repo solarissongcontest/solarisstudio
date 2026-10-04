@@ -51,6 +51,19 @@ describe("Solaris V6 participant workflow inspection contract", () => {
     expect(notices).toContain("loadStudio2NoticeInbox()");
   });
 
+  it("keeps Organizer voting inspection read-only and registry-driven", () => {
+    const voting = source(
+      "src/routes/_authenticated/my-solaris/voting.tsx",
+    );
+    expect(voting).toContain("organizerInspection");
+    expect(voting).toContain("Participant View · read-only");
+    expect(voting).toContain("participant-voting-overview");
+    expect(voting).toContain("<SolarisSurfaceSwitch");
+    expect(voting).toContain("Open Organizer jury controls");
+    expect(voting).toContain("!organizerInspection ? (");
+    expect(voting).toContain("Jury submission and public voting actions are disabled here");
+  });
+
   it("uses the same registry-driven perspective switch in the country workspace", () => {
     const country = source(
       "src/components/mysolaris/modules/MySolarisCountryModule.tsx",
