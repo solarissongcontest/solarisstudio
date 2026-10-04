@@ -7,6 +7,11 @@ begin;
 -- notification. Keep the legacy field for compatibility, but add explicit
 -- stages so Organizer diagnostics stop confusing provider acceptance with
 -- human-visible delivery.
+--
+-- IMPORTANT: this migration runs after Organisation OS V5 system-job recovery.
+-- When redefining admin_system_runtime_health, preserve the richer scheduler
+-- diagnostics (consecutive failures, dead-letter state and recovery mode)
+-- instead of accidentally regressing the function to its earlier shape.
 
 alter table public.notification_deliveries
   add column if not exists provider_accepted_at timestamptz,
@@ -51,7 +56,19 @@ begin
             'lastStatus', last_run.status,
             'lastStartAt', last_run.start_time,
             'lastEndAt', last_run.end_time,
-            'lastMessage', left(coalesce(last_run.return_message, ''), 500)
+            'lastMessage', left(coalesce(last_run.return_message, ''), 500),
+            'consecutiveFailures', coalesce(last_run.consecutive_failures, 0),
+            'deadLettered', coalesce(last_run.consecutive_failures, 0) >= 3,
+            'recoveryMode',
+              case
+                when not job.active then 'operator_intervention'
+                when coalesce(last_run.consecutive_failures, 0) >= 3
+                  then 'scheduled_retry_dead_letter'
+                when last_run.status is not null
+                  and lower(last_run.status) not in ('success', 'succeeded')
+                  then 'scheduled_retry'
+                else 'healthy'
+              end
           )
           order by job.jobname
         ),
@@ -59,11 +76,31 @@ begin
       )
       from cron.job job
       left join lateral (
-        select run.status, run.start_time, run.end_time, run.return_message
-        from cron.job_run_details run
-        where run.jobid = job.jobid
-        order by run.start_time desc nulls last, run.runid desc
-        limit 1
+        select
+          latest.status,
+          latest.start_time,
+          latest.end_time,
+          latest.return_message,
+          (
+            select count(*)::integer
+            from (
+              select lower(coalesce(run.status, '')) as status
+              from cron.job_run_details run
+              where run.jobid = job.jobid
+                and lower(coalesce(run.status, '')) <> 'running'
+              order by run.start_time desc nulls last, run.runid desc
+              limit 3
+            ) recent_three
+            where recent_three.status not in ('success', 'succeeded')
+          ) as consecutive_failures
+        from lateral (
+          select run.status, run.start_time, run.end_time, run.return_message
+          from cron.job_run_details run
+          where run.jobid = job.jobid
+            and lower(coalesce(run.status, '')) <> 'running'
+          order by run.start_time desc nulls last, run.runid desc
+          limit 1
+        ) latest
       ) last_run on true
       where job.jobname like 'solaris-%'
     $jobs$ into v_jobs;
