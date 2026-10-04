@@ -308,8 +308,12 @@ test.describe("Solaris Organizer route reliability", () => {
 
       await pageB.getByRole("button", { name: "Approve as second operator" }).first().click();
       await expect(pageB.getByText("Fresh authentication required", { exact: true })).toBeVisible();
-      await pageB.locator('input[type="password"]').fill(organizerBPassword!);
-      await pageB.locator('input[autocomplete="off"]').fill("Browser HOD");
+      const passwordB = pageB.locator('input[type="password"]');
+      const identityB = pageB.locator('input[autocomplete="off"]');
+      await expect(passwordB).toBeVisible();
+      await expect(identityB).toBeVisible();
+      await passwordB.fill(organizerBPassword!);
+      await identityB.fill("Browser HOD");
       await pageB.getByRole("button", { name: "Approve as second operator" }).last().click();
       await expect(pageB.getByText(/R3 permission change approved/i)).toBeVisible();
     } finally {
@@ -323,8 +327,12 @@ test.describe("Solaris Organizer route reliability", () => {
       await expect(pageA.getByText("Approved for you", { exact: true })).toBeVisible();
 
       await pageA.getByRole("button", { name: "Apply approved change" }).first().click();
-      await pageA.locator('input[type="password"]').fill(organizerPassword!);
-      await pageA.locator('input[autocomplete="off"]').fill("Browser HOD");
+      const passwordA = pageA.locator('input[type="password"]');
+      const identityA = pageA.locator('input[autocomplete="off"]');
+      await expect(passwordA).toBeVisible();
+      await expect(identityA).toBeVisible();
+      await passwordA.fill(organizerPassword!);
+      await identityA.fill("Browser HOD");
       await pageA.getByRole("button", { name: "Apply approved change" }).last().click();
       await expect(pageA.getByText(/Access change applied with fresh authentication/i)).toBeVisible();
       await expect(pageA.getByText("Approved for you", { exact: true })).toHaveCount(0);
