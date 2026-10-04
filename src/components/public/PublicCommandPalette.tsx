@@ -327,6 +327,7 @@ function AppPublicPaletteDialog({
       open={open}
       onOpenChange={setOpen}
       contentClassName="solaris-app-search-dialog"
+      contentLayout="fullscreen"
       commandClassName="solaris-app-search-command"
       shouldFilter={false}
     >
