@@ -26,14 +26,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  deleteConfirmationRound,
+  applyConfirmationRoundChange,
   loadConfirmationEditions,
-  saveConfirmationRound,
-  setConfirmationRoundEditing,
-  setConfirmationRoundStatus,
+  previewConfirmationRoundChange,
   type ConfirmationEdition,
   type ConfirmationRound,
+  type ConfirmationRoundChangeKind,
+  type ConfirmationRoundChangePayload,
+  type ConfirmationRoundChangePreview,
 } from "@/integrations/confirmations/admin";
+import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
 
 export const Route = createFileRoute("/confirmations/admin/rounds")({
   head: () => ({
@@ -44,6 +46,16 @@ export const Route = createFileRoute("/confirmations/admin/rounds")({
   }),
   component: RoundsPage,
 });
+
+type PendingRoundChange = {
+  kind: ConfirmationRoundChangeKind;
+  roundId: string | null;
+  payload: ConfirmationRoundChangePayload;
+  preview: ConfirmationRoundChangePreview;
+  operationId: string;
+  idempotencyKey: string;
+  restoreFormOnCancel: boolean;
+};
 
 const emptyForm = {
   name: "",
@@ -73,7 +85,7 @@ function RoundsPage() {
   const [editionId, setEditionId] = useState("");
   const [form, setForm] = useState<typeof emptyForm & { id?: string }>(emptyForm);
   const [formOpen, setFormOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<ConfirmationRound | null>(null);
+  const [pendingChange, setPendingChange] = useState<PendingRoundChange | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [roundBusy, setRoundBusy] = useState<string | null>(null);
@@ -155,6 +167,66 @@ function RoundsPage() {
     setFormOpen(true);
   }
 
+  async function prepareChange(input: {
+    kind: ConfirmationRoundChangeKind;
+    roundId?: string | null;
+    payload?: ConfirmationRoundChangePayload;
+    restoreFormOnCancel?: boolean;
+  }) {
+    setError(null);
+    if (input.roundId) setRoundBusy(input.roundId);
+    else setBusy(true);
+
+    try {
+      const preview = await previewConfirmationRoundChange({
+        roundId: input.roundId ?? null,
+        kind: input.kind,
+        payload: input.payload ?? {},
+      });
+
+      if (preview.alreadyApplied && preview.blockers.length === 0) {
+        if (input.restoreFormOnCancel) setFormOpen(false);
+        toast.success("That round state is already current.");
+        return;
+      }
+
+      const operation = createOrganisationCommand({
+        command: `confirmation.round.${input.kind}`,
+        riskClass: preview.riskClass,
+        expectedVersion: preview.expectedVersion,
+        scope: {
+          editionId: preview.editionId,
+          entityId: preview.roundId ?? preview.editionId,
+        },
+        payload: {
+          roundId: preview.roundId,
+          changeKind: input.kind,
+          payload: input.payload ?? {},
+        },
+      });
+
+      if (input.restoreFormOnCancel) setFormOpen(false);
+
+      setPendingChange({
+        kind: input.kind,
+        roundId: input.roundId ?? null,
+        payload: input.payload ?? {},
+        preview,
+        operationId: operation.operationId,
+        idempotencyKey: operation.idempotencyKey,
+        restoreFormOnCancel: input.restoreFormOnCancel === true,
+      });
+    } catch (caught) {
+      const message =
+        caught instanceof Error ? caught.message : "Round impact preview could not be loaded.";
+      if (input.restoreFormOnCancel) setError(message);
+      else toast.error(message);
+    } finally {
+      if (input.roundId) setRoundBusy(null);
+      else setBusy(false);
+    }
+  }
+
   async function submit() {
     setError(null);
     if (!editionId) return setError("Create an edition first.");
@@ -169,80 +241,105 @@ function RoundsPage() {
       return setError("Closing time must be after opening time.");
     }
 
+    const payload: ConfirmationRoundChangePayload = {
+      editionId,
+      name: form.name.trim(),
+      opensAt: opens,
+      closesAt: closes,
+      responseLimit: form.response_limit ? Number(form.response_limit) : null,
+      editingEnabled: form.editing_enabled,
+    };
+
+    await prepareChange({
+      kind: form.id ? "update" : "create",
+      roundId: form.id ?? null,
+      payload,
+      restoreFormOnCancel: true,
+    });
+  }
+
+  async function requestStatusChange(
+    round: ConfirmationRound,
+    status: "open" | "closed",
+  ) {
+    await prepareChange({
+      kind: "status",
+      roundId: round.id,
+      payload: { status },
+    });
+  }
+
+  async function requestEditingChange(
+    round: ConfirmationRound,
+    enabled: boolean,
+  ) {
+    await prepareChange({
+      kind: "editing",
+      roundId: round.id,
+      payload: { enabled },
+    });
+  }
+
+  async function requestDelete(round: ConfirmationRound) {
+    await prepareChange({
+      kind: "delete",
+      roundId: round.id,
+      payload: {},
+    });
+  }
+
+  async function applyPendingChange() {
+    if (!pendingChange || pendingChange.preview.blockers.length > 0) return;
+
+    const pending = pendingChange;
     setBusy(true);
+    if (pending.roundId) setRoundBusy(pending.roundId);
+
     try {
-      await saveConfirmationRound({
-        ...(form.id ? { id: form.id } : {}),
-        edition_id: editionId,
-        name: form.name.trim(),
-        status: form.status,
-        opens_at: opens,
-        closes_at: closes,
-        response_limit: form.response_limit ? Number(form.response_limit) : null,
-        editing_enabled: form.editing_enabled,
+      const receipt = await applyConfirmationRoundChange({
+        roundId: pending.roundId,
+        kind: pending.kind,
+        payload: pending.payload,
+        operationId: pending.operationId,
+        idempotencyKey: pending.idempotencyKey,
+        expectedVersion: pending.preview.expectedVersion,
       });
-      toast.success(form.id ? "Round updated" : "Round created");
+
+      setPendingChange(null);
       setForm(emptyForm);
-      setFormOpen(false);
       await refresh(editionId);
+
+      if (pending.kind === "create") {
+        toast.success("Submission round created as a draft.");
+      } else if (pending.kind === "delete") {
+        toast.success("Submission round deleted.");
+      } else if (pending.kind === "editing") {
+        toast.success(
+          receipt.editingEnabled
+            ? `Corrections enabled for ${receipt.affectedResponses} response${receipt.affectedResponses === 1 ? "" : "s"}.`
+            : `Corrections paused for ${receipt.affectedResponses} response${receipt.affectedResponses === 1 ? "" : "s"}.`,
+        );
+      } else if (pending.kind === "status") {
+        toast.success(
+          receipt.status === "open"
+            ? "Submissions are open. No new confirmation requirements were created."
+            : "New submissions are closed. Existing correction access is unchanged.",
+        );
+      } else {
+        toast.success("Round configuration updated.");
+      }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Round could not be saved.");
+      toast.error(caught instanceof Error ? caught.message : "Round change could not be applied.");
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function changeStatus(round: ConfirmationRound, status: "open" | "closed") {
-    setRoundBusy(round.id);
-    try {
-      const hadExpiredClosingTime =
-        status === "open" &&
-        Boolean(round.closes_at) &&
-        new Date(round.closes_at as string).getTime() <= Date.now();
-
-      await setConfirmationRoundStatus(round.id, status);
-      await refresh(editionId);
-      toast.success(
-        status === "open"
-          ? hadExpiredClosingTime
-            ? `${round.name} is open. Its expired closing time was cleared.`
-            : `${round.name} is open`
-          : `${round.name} is closed`,
-      );
-    } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Round status could not be changed");
-    } finally {
       setRoundBusy(null);
     }
   }
 
-  async function changeEditing(round: ConfirmationRound, enabled: boolean) {
-    setRoundBusy(round.id);
-    try {
-      await setConfirmationRoundEditing(round.id, enabled);
-      await refresh(editionId);
-      toast.success(enabled ? "Corrections enabled for unlocked responses" : "Delegation corrections paused");
-    } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Editing access could not be changed");
-    } finally {
-      setRoundBusy(null);
-    }
-  }
-
-  async function removeRound() {
-    if (!deleteTarget) return;
-    const target = deleteTarget;
-    setRoundBusy(target.id);
-    try {
-      await deleteConfirmationRound(target.id);
-      await refresh(editionId);
-      toast.success("Round deleted");
-      setDeleteTarget(null);
-    } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Round could not be deleted");
-    } finally {
-      setRoundBusy(null);
-    }
+  function cancelPendingChange() {
+    const reopenForm = pendingChange?.restoreFormOnCancel === true;
+    setPendingChange(null);
+    if (reopenForm) setFormOpen(true);
   }
 
   return (
@@ -341,14 +438,14 @@ function RoundsPage() {
                             : "Existing responses in this round can be corrected even if submissions stay closed. Individually locked responses stay locked."
                         }
                         disabled={isBusy}
-                        onClick={() => void changeEditing(round, !round.editing_enabled)}
+                        onClick={() => void requestEditingChange(round, !round.editing_enabled)}
                       />
                       <AdminActionItem
                         icon={Trash2}
                         title="Delete round"
-                        description="Permanently remove this submission round if the database allows it."
+                        description="Remove an unused round. Any round with responses is protected from deletion."
                         tone="danger"
-                        onClick={() => setDeleteTarget(round)}
+                        onClick={() => void requestDelete(round)}
                       />
                     </div>
                   </AdminMoreMenu>
@@ -358,7 +455,7 @@ function RoundsPage() {
                   <button
                     type="button"
                     disabled={isBusy}
-                    onClick={() => void changeStatus(round, isOpen ? "closed" : "open")}
+                    onClick={() => void requestStatusChange(round, isOpen ? "closed" : "open")}
                     className={isOpen ? "admin-action-secondary w-full" : "admin-action-primary w-full"}
                   >
                     {isBusy
@@ -476,27 +573,193 @@ function RoundsPage() {
               onClick={() => void submit()}
               className="admin-action-primary"
             >
-              {busy ? "Saving…" : form.id ? "Save changes" : "Create round"}
+              {busy ? "Preparing…" : form.id ? "Review changes" : "Review new round"}
             </button>
           </div>
         </div>
       </AdminSheet>
 
       <AdminConfirmSheet
-        open={Boolean(deleteTarget)}
-        onClose={() => setDeleteTarget(null)}
-        onConfirm={removeRound}
-        title="Delete submission round?"
+        open={Boolean(pendingChange)}
+        onClose={cancelPendingChange}
+        onConfirm={applyPendingChange}
+        title={pendingChange ? roundChangeTitle(pendingChange) : "Confirm round change"}
         description={
-          <>
-            <strong className="text-foreground">{deleteTarget?.name}</strong> will be permanently removed.
-            Any dependent responses are still protected by the database rules, so deletion may be refused if the round is already in use.
-          </>
+          pendingChange ? (
+            <RoundImpactPreview pending={pendingChange} />
+          ) : (
+            "Review the server-computed impact before applying this round change."
+          )
         }
-        confirmLabel="Delete round"
-        danger
-        busy={Boolean(deleteTarget && roundBusy === deleteTarget.id)}
+        confirmLabel={pendingChange ? roundChangeConfirmLabel(pendingChange) : "Apply change"}
+        confirmationText={
+          pendingChange?.preview.riskClass === "R3"
+            ? pendingChange.preview.roundName ?? undefined
+            : undefined
+        }
+        confirmationHint={
+          pendingChange?.preview.riskClass === "R3" && pendingChange.preview.roundName
+            ? `Type ${pendingChange.preview.roundName} to confirm this R3 deletion`
+            : undefined
+        }
+        busy={busy || Boolean(pendingChange?.roundId && roundBusy === pendingChange.roundId)}
+        danger={pendingChange?.preview.riskClass === "R3"}
+        confirmDisabled={Boolean(pendingChange?.preview.blockers.length)}
       />
+    </div>
+  );
+}
+
+
+function roundChangeTitle(pending: PendingRoundChange) {
+  if (pending.kind === "create") return "Create submission round?";
+  if (pending.kind === "update") return "Apply round configuration?";
+  if (pending.kind === "editing") {
+    return pending.preview.targetEditingEnabled
+      ? "Allow delegation corrections?"
+      : "Pause delegation corrections?";
+  }
+  if (pending.kind === "delete") return "Delete unused submission round?";
+  return pending.preview.targetStatus === "open"
+    ? "Open submissions?"
+    : "Close new submissions?";
+}
+
+function roundChangeConfirmLabel(pending: PendingRoundChange) {
+  if (pending.preview.blockers.length) return "Blocked";
+  if (pending.kind === "create") return "Create draft round";
+  if (pending.kind === "update") return "Apply configuration";
+  if (pending.kind === "editing") {
+    return pending.preview.targetEditingEnabled ? "Allow corrections" : "Pause corrections";
+  }
+  if (pending.kind === "delete") return "Delete round";
+  return pending.preview.targetStatus === "open" ? "Open submissions" : "Close submissions";
+}
+
+function RoundImpactPreview({ pending }: { pending: PendingRoundChange }) {
+  const preview = pending.preview;
+  const statusOpening = pending.kind === "status" && preview.targetStatus === "open";
+  const statusClosing = pending.kind === "status" && preview.targetStatus === "closed";
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <AdminStatus tone={preview.riskClass === "R3" ? "blocked" : "attention"}>
+          {preview.riskClass}
+        </AdminStatus>
+        <span className="text-xs font-semibold text-foreground">
+          {preview.roundName ?? "New submission round"}
+        </span>
+        <span className="text-[11px] text-muted-foreground">
+          state version {preview.expectedVersion}
+        </span>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Responses
+          </span>
+          <strong className="mt-1 block text-sm text-foreground">
+            {preview.responseCount}
+          </strong>
+        </div>
+        <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Response access changed
+          </span>
+          <strong className="mt-1 block text-sm text-foreground">
+            {preview.affectedResponses}
+          </strong>
+        </div>
+        <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Confirmation requirements created
+          </span>
+          <strong className="mt-1 block text-sm text-emerald-100">
+            {preview.requirementsCreated}
+          </strong>
+        </div>
+      </div>
+
+      <div className="space-y-1.5 text-xs leading-5 text-muted-foreground">
+        {pending.kind === "create" ? (
+          <p>
+            This creates a <strong className="text-foreground">draft submission window</strong>.
+            It does not open submissions and does not create a delegation confirmation requirement.
+          </p>
+        ) : null}
+
+        {pending.kind === "update" ? (
+          <p>
+            Name, schedule, capacity and default correction access are updated. The round&apos;s
+            current <strong className="text-foreground">open/closed lifecycle state stays unchanged</strong>.
+          </p>
+        ) : null}
+
+        {statusOpening ? (
+          <>
+            <p>
+              New confirmations become available immediately. The edition currently has{" "}
+              <strong className="text-foreground">{preview.unresolvedRequirementCount}</strong>{" "}
+              unresolved confirmation requirement
+              {preview.unresolvedRequirementCount === 1 ? "" : "s"}; this action creates{" "}
+              <strong className="text-emerald-100">zero new requirements</strong>.
+            </p>
+            {preview.willMoveOpeningTimeToNow ? (
+              <p>The opening timestamp will move to the server&apos;s current time.</p>
+            ) : null}
+            {preview.willClearExpiredClosingTime ? (
+              <p>
+                The expired closing timestamp will be cleared so the reopened round does not
+                immediately appear closed again.
+              </p>
+            ) : null}
+          </>
+        ) : null}
+
+        {statusClosing ? (
+          <p>
+            New submissions stop. Existing confirmation responses remain recorded and the round&apos;s
+            correction-access setting is left unchanged.
+          </p>
+        ) : null}
+
+        {pending.kind === "editing" ? (
+          <p>
+            This changes correction access for{" "}
+            <strong className="text-foreground">{preview.affectedResponses}</strong> existing
+            response{preview.affectedResponses === 1 ? "" : "s"}. It does not open or close new
+            submissions.
+          </p>
+        ) : null}
+
+        {pending.kind === "delete" ? (
+          <p>
+            Deletion is allowed only while this round has{" "}
+            <strong className="text-foreground">zero responses</strong>. A used round is preserved
+            for history instead of cascading deletion into confirmation data.
+          </p>
+        ) : null}
+      </div>
+
+      {preview.blockers.length ? (
+        <div className="space-y-1.5">
+          {preview.blockers.map((blocker) => (
+            <p
+              key={blocker}
+              className="rounded-lg border border-rose-200/15 bg-rose-200/[0.05] px-3 py-2 text-xs leading-5 text-rose-50"
+            >
+              {blocker}
+            </p>
+          ))}
+        </div>
+      ) : null}
+
+      <p className="text-[11px] leading-5 text-muted-foreground">
+        Solaris will reject this operation if the round or any of its responses changes after this
+        preview. Retrying the same confirmation replays the canonical operation receipt.
+      </p>
     </div>
   );
 }
