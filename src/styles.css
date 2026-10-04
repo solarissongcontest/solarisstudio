@@ -241,7 +241,7 @@ input:not(.solaris-app-search-input):focus-visible, textarea:focus-visible, sele
   box-shadow: 0 0 0 3px rgba(110, 185, 215, 0.13) !important;
 }
 
-[data-radix-popper-content-wrapper] > *, [role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"] {
+[data-radix-popper-content-wrapper] > *, [role="dialog"][data-state="open"]:not(.solaris-app-search-dialog), [role="alertdialog"][data-state="open"] {
   background: linear-gradient(145deg, rgba(26, 55, 86, 0.96), rgba(5, 20, 44, 0.98)) !important;
   -webkit-backdrop-filter: blur(18px) saturate(150%);
   backdrop-filter: blur(18px) saturate(150%);
@@ -338,7 +338,7 @@ a.bg-primary:active,
   .recharts-responsive-container { max-width: 100% !important; }
   table { font-size: 0.8125rem; }
 
-  [role="dialog"][data-state="open"],
+  [role="dialog"][data-state="open"]:not(.solaris-app-search-dialog),
   [role="alertdialog"][data-state="open"] {
     width: calc(100vw - 1rem) !important;
     max-width: none !important;
