@@ -18,7 +18,18 @@ import { toast } from 'sonner';
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminConfirmSheet, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
+import {
+  featureSurfaceLinks,
+  SolarisSurfaceSwitch,
+} from '@/components/surfaces/SolarisSurfaceSwitch';
 import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
+import {
+  validateEditionCommandScope,
+} from '@/lib/solaris-v6-edition-context';
+import {
+  resolveSolarisV6OperationRecovery,
+  type SolarisV6OperationRecovery,
+} from '@/lib/solaris-v6-operation-recovery';
 import { useEditions } from '@/lib/data';
 import {
   availableStudio2ResultActions,
@@ -44,6 +55,7 @@ type PendingOperation = {
   row: Studio2ResultOperationRow;
   action: Studio2ResultAction;
   executionId: string;
+  editionId: string;
 };
 
 function ResultsOperationsPage() {
@@ -52,6 +64,7 @@ function ResultsOperationsPage() {
   const editionsQuery = useEditions();
   const [pending, setPending] = useState<PendingOperation | null>(null);
   const [reason, setReason] = useState('');
+  const [recovery, setRecovery] = useState<SolarisV6OperationRecovery | null>(null);
 
   const editions = editionsQuery.data ?? [];
   // Results is edition-scoped. Never silently substitute another edition just
@@ -69,25 +82,76 @@ function ResultsOperationsPage() {
   const summary = useMemo(() => summarizeStudio2ResultsOperations(rows), [rows]);
 
   const mutation = useMutation({
-    mutationFn: (operation: PendingOperation) => executeStudio2ResultOperation({
-      showId: operation.row.showId,
-      action: operation.action,
-      reason,
-      executionId: operation.executionId,
-      expectedVersion: operation.row.calculationVersion,
-    }),
+    mutationFn: (operation: PendingOperation) => {
+      const scope = validateEditionCommandScope({
+        routeEditionId: resolvedEditionId || null,
+        commandEditionId: operation.editionId,
+        entityEditionId: operation.editionId,
+        capabilityEditionId: null,
+      });
+
+      if (!resolvedEditionId || !scope.ok) {
+        const mismatch = !scope.ok && scope.mismatches.length
+          ? ` (${scope.mismatches.join(", ")})`
+          : "";
+        throw Object.assign(
+          new Error(
+            `Edition context changed before the result operation${mismatch}. Refresh canonical state before retrying.`,
+          ),
+          { status: 409 },
+        );
+      }
+
+      return executeStudio2ResultOperation({
+        showId: operation.row.showId,
+        action: operation.action,
+        reason,
+        executionId: operation.executionId,
+        expectedVersion: operation.row.calculationVersion,
+      });
+    },
     onSuccess: async (execution) => {
       await queryClient.invalidateQueries({ queryKey: ['studio2-results-operations', resolvedEditionId] });
       toast.success(`${resultActionLabel(execution.action, execution.previousVersion)} completed for version ${execution.calculationVersion}.`);
       setPending(null);
       setReason('');
+      setRecovery(null);
     },
-    onError: (error) => toast.error(errorText(error)),
+    onError: async (error) => {
+      const next = resolveSolarisV6OperationRecovery(error, {
+        online: typeof navigator === 'undefined' ? true : navigator.onLine,
+        stableOperationIdentity: Boolean(pending?.executionId),
+      });
+      setRecovery(next);
+
+      if (next.shouldRefreshCanonical) {
+        await queryClient.invalidateQueries({
+          queryKey: ['studio2-results-operations', resolvedEditionId],
+        });
+      }
+
+      if (!next.keepOperationOpen) {
+        setPending(null);
+        setReason('');
+      }
+
+      toast.error(next.title);
+    },
   });
 
   function requestOperation(row: Studio2ResultOperationRow, action: Studio2ResultAction) {
+    if (!resolvedEditionId) {
+      toast.error('Select an edition before opening a result operation.');
+      return;
+    }
     setReason('');
-    setPending({ row, action, executionId: crypto.randomUUID() });
+    setRecovery(null);
+    setPending({
+      row,
+      action,
+      executionId: crypto.randomUUID(),
+      editionId: resolvedEditionId,
+    });
   }
 
   async function confirmOperation() {
@@ -116,6 +180,15 @@ function ResultsOperationsPage() {
               <a href={`/admin/publication/${edition.slug}`} className="admin-action-secondary">Publication <Globe2 className="size-4" /></a>
             </div>
           ) : undefined}
+        />
+
+        <SolarisSurfaceSwitch
+          label="Results perspectives"
+          links={featureSurfaceLinks({
+            featureId: "results",
+            current: "organizer",
+            perspectives: ["public", "organizer", "diagnostic"],
+          })}
         />
 
         {!edition && !editionsQuery.isLoading ? (
@@ -161,14 +234,44 @@ function ResultsOperationsPage() {
           </>
         )}
 
+        {recovery && !pending ? (
+          <div
+            role="status"
+            className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-sm"
+          >
+            <p className="font-semibold text-foreground">{recovery.title}</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              {recovery.description}
+            </p>
+          </div>
+        ) : null}
+
         <AdminConfirmSheet
           open={Boolean(pending)}
-          onClose={() => !mutation.isPending && setPending(null)}
+          onClose={() => {
+            if (mutation.isPending) return;
+            setPending(null);
+            setRecovery(null);
+          }}
           onConfirm={confirmOperation}
           title={pending ? resultActionLabel(pending.action, pending.row.calculationVersion) : 'Result operation'}
           description={pending ? (
             <div className="space-y-4">
               <p>{operationDescription(pending)}</p>
+              {recovery ? (
+                <div
+                  role="status"
+                  className="rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-3 text-xs leading-5"
+                >
+                  <p className="font-semibold text-amber-100">{recovery.title}</p>
+                  <p className="mt-1 text-muted-foreground">{recovery.description}</p>
+                  {recovery.outcomeUnknown ? (
+                    <p className="mt-2 font-semibold text-foreground">
+                      The previous response did not prove whether the server committed the operation.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
               <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3 text-xs leading-5 text-muted-foreground">
                 <p><strong className="text-foreground">Current version:</strong> {pending.row.calculationVersion || 'unversioned'}</p>
                 <p><strong className="text-foreground">Participants / result rows:</strong> {pending.row.preconditions.participantCount} / {pending.row.preconditions.resultRowCount}</p>
@@ -198,7 +301,13 @@ function ResultsOperationsPage() {
               </label>
             </div>
           ) : null}
-          confirmLabel={pending ? resultActionLabel(pending.action, pending.row.calculationVersion) : 'Confirm'}
+          confirmLabel={
+            recovery?.allowSameIdentityRetry
+              ? 'Retry same operation'
+              : pending
+                ? resultActionLabel(pending.action, pending.row.calculationVersion)
+                : 'Confirm'
+          }
           confirmationText={pending?.row.showName}
           confirmationHint={pending ? `Type ${pending.row.showName} to confirm` : undefined}
           busy={mutation.isPending}
