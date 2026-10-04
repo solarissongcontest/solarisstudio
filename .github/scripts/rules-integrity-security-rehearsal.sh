@@ -96,6 +96,14 @@ expect_failure() {
   log "PASS: $label rejected with HTTP $HTTP_STATUS"
 }
 
+expect_client_failure() {
+  local label="$1"
+  if (( HTTP_STATUS < 400 || HTTP_STATUS >= 500 )); then
+    fail "$label expected an application-level 4xx rejection, got HTTP $HTTP_STATUS: $HTTP_BODY"
+  fi
+  log "PASS: $label rejected with application HTTP $HTTP_STATUS"
+}
+
 expect_json_value() {
   local label="$1"
   local path="$2"
@@ -341,20 +349,26 @@ assert_db_eq "invalid evidence uploads create no upload token" "select count(*) 
 supabase functions serve --no-verify-jwt >/tmp/rules-integrity-functions.log 2>&1 &
 FUNCTION_PID=$!
 FUNCTION_READY=0
-for _ in $(seq 1 60); do
+for _ in $(seq 1 120); do
   request POST "$API_URL/functions/v1/integrity-evidence-download" "$ANON_KEY" "$ANON_KEY" '{}'
-  if [[ "$HTTP_STATUS" != "000" ]]; then FUNCTION_READY=1; break; fi
+  # A 2xx/4xx proves the function runtime is actually serving application
+  # responses. 000 means no listener and 5xx means the local gateway/runtime
+  # is still starting, neither of which is valid readiness evidence.
+  if [[ "$HTTP_STATUS" != "000" && "$HTTP_STATUS" != 5* ]]; then
+    FUNCTION_READY=1
+    break
+  fi
   sleep 1
 done
 if [[ "$FUNCTION_READY" != "1" ]]; then
   tail -n 200 /tmp/rules-integrity-functions.log >&2 || true
-  fail "Local Evidence Edge Functions did not become reachable"
+  fail "Local Evidence Edge Functions did not become application-ready"
 fi
 
 function_request "$REPORTER_A_TOKEN" integrity-evidence-download "{\"mode\":\"reporter\",\"caseId\":\"$CASE_B\",\"evidenceId\":\"$VISIBLE_EVIDENCE\"}"
-expect_failure "signed evidence download rejects a mismatched reporter case"
+expect_client_failure "signed evidence download rejects a mismatched reporter case"
 function_request "$PARTICIPANT_TOKEN" integrity-evidence-download "{\"mode\":\"organizer\",\"evidenceId\":\"$VISIBLE_EVIDENCE\"}"
-expect_failure "ordinary participant cannot use organizer signed-download mode"
+expect_client_failure "ordinary participant cannot use organizer signed-download mode"
 function_request "$REPORTER_A_TOKEN" integrity-evidence-download "{\"mode\":\"reporter\",\"caseId\":\"$CASE_A\",\"evidenceId\":\"$VISIBLE_EVIDENCE\"}"
 expect_success "owner receives a server-authorized signed evidence URL"
 expect_json_value "signed evidence URL has the fixed one-minute TTL" expiresInSeconds 60
@@ -372,13 +386,13 @@ FUTURE_DELETE="$(python3 -c 'from datetime import datetime,timezone,timedelta; p
 rpc_request "$ORGANIZER_A_TOKEN" admin_schedule_integrity_evidence_deletion "{\"_evidence_id\":\"$DUE_EVIDENCE\",\"_delete_after\":\"$FUTURE_DELETE\",\"_reason\":\"Security rehearsal future deletion boundary.\"}"
 expect_success "organizer schedules future evidence deletion"
 function_request "$ORGANIZER_A_TOKEN" integrity-evidence-lifecycle "{\"mode\":\"delete_evidence\",\"evidenceId\":\"$DUE_EVIDENCE\"}"
-expect_failure "server lifecycle refuses deletion before retention expires"
+expect_client_failure "server lifecycle refuses deletion before retention expires"
 assert_db_eq "early lifecycle attempt leaves evidence scheduled" "select lifecycle_status from public.integrity_case_evidence where id='$DUE_EVIDENCE'::uuid;" "scheduled_for_deletion"
 assert_db_eq "early lifecycle attempt leaves object intact" "select count(*) from storage.objects where bucket_id='integrity-evidence' and name='$DUE_PATH';" "1"
 
 db_exec "update public.integrity_case_evidence set retention_until=now()-interval '1 minute' where id='$DUE_EVIDENCE'::uuid;"
 function_request "$PARTICIPANT_TOKEN" integrity-evidence-lifecycle "{\"mode\":\"delete_evidence\",\"evidenceId\":\"$DUE_EVIDENCE\"}"
-expect_failure "ordinary participant cannot run evidence lifecycle deletion"
+expect_client_failure "ordinary participant cannot run evidence lifecycle deletion"
 function_request "$ORGANIZER_A_TOKEN" integrity-evidence-lifecycle "{\"mode\":\"delete_evidence\",\"evidenceId\":\"$DUE_EVIDENCE\"}"
 expect_success "authorized server lifecycle deletes due evidence"
 expect_json_value "due lifecycle response succeeds" ok true
@@ -387,7 +401,7 @@ assert_db_eq "due evidence private object is removed" "select count(*) from stor
 
 ORPHAN_TOKEN="$(db_scalar "insert into public.integrity_evidence_upload_tokens(case_id,object_path,original_name,mime_type,expected_size,created_by,expires_at) values ('$CASE_A'::uuid,'$ORPHAN_PATH','security-orphan.txt','text/plain',22,'$REPORTER_A_ID'::uuid,now()+interval '10 minutes') returning id;")"
 function_request "$ORGANIZER_A_TOKEN" integrity-evidence-lifecycle "{\"mode\":\"clean_expired_upload\",\"tokenId\":\"$ORPHAN_TOKEN\"}"
-expect_failure "unfinished upload cannot be cleaned before token expiry"
+expect_client_failure "unfinished upload cannot be cleaned before token expiry"
 assert_db_eq "early orphan cleanup leaves upload token" "select count(*) from public.integrity_evidence_upload_tokens where id='$ORPHAN_TOKEN'::uuid;" "1"
 db_exec "update public.integrity_evidence_upload_tokens set expires_at=now()-interval '1 minute' where id='$ORPHAN_TOKEN'::uuid;"
 function_request "$ORGANIZER_A_TOKEN" integrity-evidence-lifecycle "{\"mode\":\"clean_expired_upload\",\"tokenId\":\"$ORPHAN_TOKEN\"}"
