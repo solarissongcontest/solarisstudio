@@ -138,9 +138,10 @@ describe("Mobile App V2 architectural invariants", () => {
 
     expect(search).toContain("solaris-app-search-shell");
     expect(search).toContain("solaris-app-search-input");
-    expect(styles).toContain("all: unset !important");
-    expect(styles).toContain("overflow: hidden");
-    expect(styles).toContain("background: rgb(255 255 255 / .055)")
+    expect(styles).toContain("The wrapper is geometry-only");
+    expect(styles).toContain("background: transparent !important");
+    expect(styles).toContain("background: rgb(255 255 255 / .055) !important");
+    expect(styles).toContain("border-radius: .82rem !important");
     expect(flags).toContain("--solaris-flag-radius");
     expect(styles).toContain("aspect-ratio: 3 / 2 !important");
     expect(styles).toContain("border-radius: var(--solaris-flag-radius, .55rem) !important");
