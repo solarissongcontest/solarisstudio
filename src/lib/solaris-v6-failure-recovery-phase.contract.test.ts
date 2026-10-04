@@ -72,7 +72,10 @@ describe("Solaris V6 failure recovery phase", () => {
     const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
 
     expect(offline).toContain("official mutations");
-    expect(update).toContain("critical");
+    expect(update).toContain('id: "focused-participation-task"');
+    expect(update).toContain('id: "organizer-workspace"');
+    expect(update).toContain("/confirmations|jury-voting|televoting|next-in-line");
+    expect(update).toContain('pathname.startsWith("/admin/")');
     expect(edition).toContain("validateEditionCommandScope");
     expect(publicTabs).toContain("onPointerCancel");
     expect(organizerTabs).toContain("onPointerCancel");
