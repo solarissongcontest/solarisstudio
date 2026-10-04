@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useRef, useState } from "react";
+
 import {
   AlertTriangle,
   BellRing,
@@ -19,6 +21,10 @@ import {
 } from "@/components/admin/AdminUI";
 import { supabase } from "@/integrations/supabase/client";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
+import {
+  resolveSolarisV6OperationRecovery,
+  type SolarisV6OperationRecovery,
+} from "@/lib/solaris-v6-operation-recovery";
 
 type DeliveryStatus = "pending" | "processing" | "sent" | "failed" | "suppressed";
 
@@ -53,6 +59,16 @@ type JobRow = {
     | "operator_intervention";
 };
 
+type RetryIdentity = {
+  operationId: string;
+  idempotencyKey: string;
+};
+
+type RetryRecoveryState = {
+  deliveryId: string;
+  recovery: SolarisV6OperationRecovery;
+};
+
 type RuntimeHealth = {
   generatedAt: string;
   push: {
@@ -80,6 +96,9 @@ export const Route = createFileRoute("/_authenticated/admin/system-operations")(
 
 function SystemOperationsPage() {
   const queryClient = useQueryClient();
+  const retryIdentities = useRef(new Map<string, RetryIdentity>());
+  const [retryRecovery, setRetryRecovery] = useState<RetryRecoveryState | null>(null);
+
   const health = useQuery({
     queryKey: ["admin-system-runtime-health"],
     queryFn: async () => {
@@ -93,27 +112,78 @@ function SystemOperationsPage() {
   });
 
   const retry = useMutation({
-    mutationFn: async (deliveryId: string) => {
+    mutationFn: async ({
+      deliveryId,
+      operationId,
+      idempotencyKey,
+    }: {
+      deliveryId: string;
+      operationId: string;
+      idempotencyKey: string;
+    }) => {
+      const { data, error } = await (supabase as any).rpc(
+        "admin_retry_failed_notification_delivery",
+        {
+          p_delivery_id: deliveryId,
+          p_operation_id: operationId,
+          p_idempotency_key: idempotencyKey,
+        },
+      );
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: async (_data, variables) => {
+      retryIdentities.current.delete(variables.deliveryId);
+      setRetryRecovery((current) =>
+        current?.deliveryId === variables.deliveryId ? null : current,
+      );
+      await queryClient.invalidateQueries({
+        queryKey: ["admin-system-runtime-health"],
+      });
+    },
+    onError: async (error, variables) => {
+      const recovery = resolveSolarisV6OperationRecovery(error, {
+        online: typeof navigator === "undefined" ? true : navigator.onLine,
+        stableOperationIdentity: true,
+      });
+      setRetryRecovery({ deliveryId: variables.deliveryId, recovery });
+
+      if (recovery.shouldRefreshCanonical) {
+        await queryClient.invalidateQueries({
+          queryKey: ["admin-system-runtime-health"],
+        });
+      }
+
+      if (!recovery.keepOperationOpen) {
+        retryIdentities.current.delete(variables.deliveryId);
+      }
+    },
+  });
+
+  const retryFailedDelivery = (deliveryId: string) => {
+    let identity = retryIdentities.current.get(deliveryId);
+    if (!identity) {
       const command = createOrganisationCommand({
         command: "system.push.retry_failed",
         riskClass: "R1",
         scope: { entityId: deliveryId },
         payload: { deliveryId },
       });
-      const { data, error } = await (supabase as any).rpc(
-        "admin_retry_failed_notification_delivery",
-        {
-          p_delivery_id: deliveryId,
-          p_operation_id: command.operationId,
-          p_idempotency_key: command.idempotencyKey,
-        },
-      );
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["admin-system-runtime-health"] }),
-  });
+      identity = {
+        operationId: command.operationId,
+        idempotencyKey: command.idempotencyKey,
+      };
+      retryIdentities.current.set(deliveryId, identity);
+    }
+
+    setRetryRecovery((current) =>
+      current?.deliveryId === deliveryId ? null : current,
+    );
+    retry.mutate({ deliveryId, ...identity });
+  };
+
+  const recoveryForDelivery = (deliveryId: string) =>
+    retryRecovery?.deliveryId === deliveryId ? retryRecovery.recovery : null;
 
   const data = health.data;
   const pushAttention = Boolean(
@@ -238,15 +308,37 @@ function SystemOperationsPage() {
                         ) : null}
                       </div>
                       {delivery.status === "failed" ? (
-                        <button
-                          type="button"
-                          className="admin-action-secondary shrink-0"
-                          disabled={retry.isPending}
-                          onClick={() => retry.mutate(delivery.id)}
-                        >
-                          <RefreshCw className="size-4" />
-                          Retry failed delivery
-                        </button>
+                        <div className="shrink-0 space-y-2 sm:max-w-xs">
+                          {recoveryForDelivery(delivery.id) ? (
+                            <div
+                              role="status"
+                              className="rounded-xl border border-amber-200/15 bg-amber-200/[0.05] p-3 text-xs leading-5"
+                            >
+                              <p className="font-semibold text-amber-50">
+                                {recoveryForDelivery(delivery.id)!.title}
+                              </p>
+                              <p className="mt-1 text-muted-foreground">
+                                {recoveryForDelivery(delivery.id)!.description}
+                              </p>
+                              {recoveryForDelivery(delivery.id)!.outcomeUnknown ? (
+                                <p className="mt-2 font-semibold text-foreground">
+                                  The server outcome is unknown. A retry reuses this exact operation identity.
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          <button
+                            type="button"
+                            className="admin-action-secondary w-full"
+                            disabled={retry.isPending}
+                            onClick={() => retryFailedDelivery(delivery.id)}
+                          >
+                            <RefreshCw className="size-4" />
+                            {recoveryForDelivery(delivery.id)?.allowSameIdentityRetry
+                              ? "Retry same operation"
+                              : "Retry failed delivery"}
+                          </button>
+                        </div>
                       ) : null}
                     </div>
                   ))}
@@ -256,7 +348,7 @@ function SystemOperationsPage() {
                   No delivery receipts are available yet.
                 </p>
               )}
-              {retry.error ? (
+              {retry.error && !retryRecovery ? (
                 <p className="mt-3 text-xs text-rose-200">
                   {retry.error instanceof Error
                     ? retry.error.message
