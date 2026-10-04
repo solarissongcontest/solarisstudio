@@ -4,6 +4,12 @@ import { useMemo } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import {
+  AppEmptyState,
+  AppGroupedList,
+  AppScreen,
+  AppSectionHeader,
+} from "@/components/app/AppPrimitives";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { BackgroundFlag } from "@/components/BackgroundFlag";
 import { FlagChip } from "@/components/FlagChip";
@@ -89,51 +95,47 @@ function AppShowsPage() {
 
   return (
     <AppShell>
-      <div className="solaris-app-shows-v6">
-        {groups.map((group, groupIndex) => {
-          const current = groupIndex === 0;
-          return (
-            <section
-              key={group.edition.id}
-              className="solaris-app-show-edition"
-              data-current-edition={current ? "true" : undefined}
-              aria-labelledby={`app-shows-${group.edition.id}`}
-            >
-              <div className="solaris-app-show-edition-heading">
-                <div className="min-w-0">
-                  {current ? <p className="solaris-app-show-edition-kicker">Latest edition</p> : null}
-                  <h2 id={`app-shows-${group.edition.id}`}>{editionLabel(group.edition)}</h2>
-                </div>
-                <span>{group.shows.length} show{group.shows.length === 1 ? "" : "s"}</span>
-              </div>
-
-              <div className="solaris-app-show-list" data-solaris-show-list>
-                {group.shows.map((show) => (
-                  <Link
-                    key={show.id}
-                    to="/shows/$showId"
-                    params={{ showId: show.id }}
-                    className="solaris-app-show-list-row"
-                  >
-                    <span className="solaris-app-show-kind" aria-hidden="true">
-                      {appShowKindCode(show.kind)}
+      <AppScreen>
+        {groups.map((group) => (
+          <section key={group.edition.id} aria-labelledby={`app-shows-${group.edition.id}`}>
+            <AppSectionHeader
+              eyebrow={`${group.shows.length} show${group.shows.length === 1 ? "" : "s"}`}
+              title={editionLabel(group.edition)}
+              id={`app-shows-${group.edition.id}`}
+            />
+            <AppGroupedList>
+              {group.shows.map((show) => (
+                <Link
+                  key={show.id}
+                  to="/shows/$showId"
+                  params={{ showId: show.id }}
+                  className="solaris-app-list-row"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold">{show.name}</span>
+                    <span className="mt-0.5 block text-xs capitalize text-muted-foreground">
+                      {showKindLabel(show.kind)}
                     </span>
-                    <span className="min-w-0">
-                      <span className="solaris-app-show-name">{show.name}</span>
-                      <span className="solaris-app-show-status">{appShowMeta(show)}</span>
-                    </span>
-                    <ChevronRight className="size-4 shrink-0" aria-hidden="true" />
-                  </Link>
-                ))}
-              </div>
-            </section>
-          );
-        })}
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                </Link>
+              ))}
+            </AppGroupedList>
+          </section>
+        ))}
 
         {!groups.length ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">No public shows are available yet.</p>
+          <AppEmptyState
+            title="No public shows yet"
+            description="Published shows will appear here when their public pages become available."
+            action={
+              <Link to="/editions" className="solaris-app-empty-action">
+                Browse editions
+              </Link>
+            }
+          />
         ) : null}
-      </div>
+      </AppScreen>
     </AppShell>
   );
 }
@@ -428,29 +430,6 @@ function SectionHeading({ kicker, title, count }: { kicker: string; title: strin
       <p className="numeric shrink-0 text-xs text-muted-foreground">{count}</p>
     </div>
   );
-}
-
-function appShowKindCode(kind: string | null | undefined) {
-  const normalized = (kind ?? "").trim().toLowerCase();
-  if (normalized === "grand-final" || normalized === "final") return "GF";
-  if (normalized.includes("semi")) return "SF";
-  return "SH";
-}
-
-function appShowMeta(show: {
-  name?: string | null;
-  kind?: string | null;
-  status?: string | null;
-}) {
-  if (showPublishesResults(show as any)) return "Results available";
-
-  const status = (show.status ?? "").trim().toLowerCase();
-  if (status === "live" || status === "in-progress" || status === "in progress") return "Live";
-  if (status === "completed" || status === "complete" || status === "finished") return "Completed";
-  if (status === "scheduled" || status === "upcoming") return "Upcoming";
-  if (status === "published" || status === "public") return "Published";
-
-  return "Show published";
 }
 
 function showKindLabel(kind: string | null | undefined) {
