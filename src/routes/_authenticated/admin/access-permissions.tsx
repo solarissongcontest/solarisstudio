@@ -18,25 +18,32 @@ import { PermissionCutoverReadinessPanel } from "@/components/admin/PermissionCu
 import {
   AdminCard,
   AdminCardHeader,
+  AdminConfirmSheet,
   AdminEmptyState,
   AdminPageHeader,
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { WorkspaceTabs } from "@/components/admin/AdminWorkspacePrimitives";
 import {
-  assignAccessRole,
-  grantDirectCapability,
+  applyPermissionChange,
+  approvePermissionChangeApproval,
   loadAccessUsers,
   loadPermissionCatalog,
+  loadPermissionChangeApprovals,
   loadPermissionEvents,
   loadPermissionSummary,
+  previewPermissionChange,
+  reauthenticatePermissionR3,
   recordPermissionEvaluation,
-  revokeAccessRole,
-  revokeDirectCapability,
+  requestPermissionChangeApproval,
   viewAccessAs,
   type AccessUser,
   type PermissionCapability,
+  type PermissionChangeApproval,
+  type PermissionChangeInput,
+  type PermissionChangePreview,
 } from "@/lib/permission-engine-admin";
+import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
 import type { SolarisCapability } from "@/lib/permissions-v2";
 
 export const Route = createFileRoute("/_authenticated/admin/access-permissions")({
@@ -76,6 +83,14 @@ type AccessChange =
       editionId: string | null;
     };
 
+type PendingAccessChange = {
+  change: AccessChange;
+  command: PermissionChangeInput;
+  preview: PermissionChangePreview;
+  operationId: string;
+  idempotencyKey: string;
+};
+
 const TABS: Array<{ id: AccessTab; label: string }> = [
   { id: "users", label: "Users" },
   { id: "roles", label: "Roles" },
@@ -95,6 +110,13 @@ function AccessPermissionsPage() {
   const [capabilityKey, setCapabilityKey] = useState<SolarisCapability | "">("");
   const [mismatchesOnly, setMismatchesOnly] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [pendingChange, setPendingChange] = useState<PendingAccessChange | null>(null);
+  const [reauthPassword, setReauthPassword] = useState("");
+  const [approvalAction, setApprovalAction] = useState<{
+    approval: PermissionChangeApproval;
+    mode: "approve" | "apply";
+  } | null>(null);
+  const [approvalPassword, setApprovalPassword] = useState("");
 
   const catalogQuery = useQuery({
     queryKey: ["permission-engine-catalog"],
@@ -111,6 +133,12 @@ function AccessPermissionsPage() {
   const eventsQuery = useQuery({
     queryKey: ["permission-engine-events", mismatchesOnly],
     queryFn: () => loadPermissionEvents(mismatchesOnly),
+  });
+  const approvalsQuery = useQuery({
+    queryKey: ["permission-engine-approvals"],
+    queryFn: loadPermissionChangeApprovals,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
   });
   useQuery({
     queryKey: ["permission-engine-evaluation", "permissions.read", editionId],
@@ -148,22 +176,132 @@ function AccessPermissionsPage() {
     return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
   }, [catalog?.capabilities]);
 
-  const change = useMutation({
-    mutationFn: async (input: AccessChange) => {
-      if (input.kind === "assign-role") await assignAccessRole(input);
-      if (input.kind === "revoke-role") await revokeAccessRole(input);
-      if (input.kind === "grant-capability") await grantDirectCapability(input);
-      if (input.kind === "revoke-capability") await revokeDirectCapability(input);
-      return input;
+  const previewChange = useMutation({
+    mutationFn: async (change: AccessChange): Promise<PendingAccessChange> => {
+      const command = permissionCommand(change);
+      const preview = await previewPermissionChange(command);
+      const operation = createOrganisationCommand({
+        command: "permissions.access_change",
+        riskClass: "R3",
+        expectedVersion: preview.expectedVersion,
+        scope: {
+          editionId: command.editionId ?? null,
+          entityId: command.userId,
+        },
+        payload: {
+          changeKind: command.kind,
+          key: command.key,
+          targetUserId: command.userId,
+        },
+      });
+
+      return {
+        change,
+        command,
+        preview,
+        operationId: operation.operationId,
+        idempotencyKey: operation.idempotencyKey,
+      };
     },
-    onSuccess: async (input) => {
-      setMessage(changeMessage(input));
+    onSuccess: (pending) => {
+      if (pending.preview.alreadyApplied) {
+        setPendingChange(null);
+        setMessage("That access state is already current.");
+        return;
+      }
+      setMessage(null);
+      setReauthPassword("");
+      setPendingChange(pending);
+    },
+  });
+
+  const requestApproval = useMutation({
+    mutationFn: async ({
+      pending,
+      password,
+    }: {
+      pending: PendingAccessChange;
+      password: string;
+    }) => {
+      await reauthenticatePermissionR3(password);
+      return requestPermissionChangeApproval({
+        ...pending.command,
+        operationId: pending.operationId,
+        idempotencyKey: pending.idempotencyKey,
+        expectedVersion: pending.preview.expectedVersion,
+      });
+    },
+    onSuccess: async () => {
+      setPendingChange(null);
+      setReauthPassword("");
+      setMessage("Second-operator approval requested. Another authorized organizer must approve it before the change can be applied.");
+      await queryClient.invalidateQueries({
+        queryKey: ["permission-engine-approvals"],
+      });
+    },
+  });
+
+  const approveR3 = useMutation({
+    mutationFn: async ({
+      approval,
+      password,
+    }: {
+      approval: PermissionChangeApproval;
+      password: string;
+    }) => {
+      await reauthenticatePermissionR3(password);
+      return approvePermissionChangeApproval(approval.id);
+    },
+    onSuccess: async () => {
+      setApprovalAction(null);
+      setApprovalPassword("");
+      setMessage("R3 permission change approved. The original requester can now apply it.");
+      await queryClient.invalidateQueries({
+        queryKey: ["permission-engine-approvals"],
+      });
+    },
+  });
+
+  const applyApproved = useMutation({
+    mutationFn: async ({
+      approval,
+      password,
+    }: {
+      approval: PermissionChangeApproval;
+      password: string;
+    }) => {
+      if (!approval.targetUserId || !approval.idempotencyKey) {
+        throw new Error("This approval is not actionable by the current organizer.");
+      }
+      await reauthenticatePermissionR3(password);
+      return applyPermissionChange({
+        userId: approval.targetUserId,
+        kind: approval.changeKind,
+        key: approval.key,
+        editionId: approval.editionId,
+        expiresAt: approval.expiresAt,
+        operationId: approval.operationId,
+        idempotencyKey: approval.idempotencyKey,
+        expectedVersion: approval.expectedVersion,
+        approvalRequestId: approval.id,
+      });
+    },
+    onSuccess: async () => {
+      setApprovalAction(null);
+      setApprovalPassword("");
+      setMessage("Access change applied with fresh authentication and second-operator approval.");
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["permission-engine-users"],
         }),
         queryClient.invalidateQueries({
           queryKey: ["permission-engine-summary"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["permission-engine-events"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["permission-engine-approvals"],
         }),
       ]);
     },
@@ -220,6 +358,20 @@ function AccessPermissionsPage() {
           />
         </section>
 
+        <PermissionApprovalQueue
+          approvals={approvalsQuery.data ?? []}
+          loading={approvalsQuery.isLoading}
+          error={approvalsQuery.error}
+          onApprove={(approval) => {
+            setApprovalPassword("");
+            setApprovalAction({ approval, mode: "approve" });
+          }}
+          onApply={(approval) => {
+            setApprovalPassword("");
+            setApprovalAction({ approval, mode: "apply" });
+          }}
+        />
+
         <AdminCard className="!p-2 sm:!p-2">
           <WorkspaceTabs label="Access and permissions sections">
             {TABS.map((item) => (
@@ -241,7 +393,10 @@ function AccessPermissionsPage() {
         </AdminCard>
 
         {message ? <Notice>{message}</Notice> : null}
-        {change.error ? <ErrorNotice error={change.error} /> : null}
+        {previewChange.error ? <ErrorNotice error={previewChange.error} /> : null}
+        {requestApproval.error ? <ErrorNotice error={requestApproval.error} /> : null}
+        {approveR3.error ? <ErrorNotice error={approveR3.error} /> : null}
+        {applyApproved.error ? <ErrorNotice error={applyApproved.error} /> : null}
 
         {loading ? (
           <AdminCard>
@@ -266,6 +421,7 @@ function AccessPermissionsPage() {
             onSelectUser={(userId) => {
               setSelectedUserId(userId);
               simulation.reset();
+              setPendingChange(null);
               setMessage(null);
             }}
             roles={catalog?.roles ?? []}
@@ -278,8 +434,8 @@ function AccessPermissionsPage() {
             capabilityKey={capabilityKey}
             onCapabilityKey={setCapabilityKey}
             effectiveScope={effectiveScope}
-            busy={change.isPending}
-            onChange={(input) => change.mutate(input)}
+            busy={previewChange.isPending || requestApproval.isPending || applyApproved.isPending}
+            onChange={(input) => previewChange.mutate(input)}
             onSimulate={(userId) => simulation.mutate({ userId })}
             simulation={simulation.data ?? null}
             simulationError={simulation.error}
@@ -300,8 +456,449 @@ function AccessPermissionsPage() {
         ) : (
           <PermissionCutoverReadinessPanel summary={summary} />
         )}
+
+        <AdminConfirmSheet
+          open={Boolean(pendingChange)}
+          onClose={() => {
+            if (!requestApproval.isPending) {
+              setPendingChange(null);
+              setReauthPassword("");
+            }
+          }}
+          onConfirm={async () => {
+            if (pendingChange) {
+              await requestApproval.mutateAsync({
+                pending: pendingChange,
+                password: reauthPassword,
+              });
+            }
+          }}
+          title={pendingChange ? permissionChangeTitle(pendingChange.change) : "Request access change approval"}
+          description={
+            pendingChange ? (
+              <PermissionImpactPreview
+                pending={pendingChange}
+                reauthPassword={reauthPassword}
+                onReauthPassword={setReauthPassword}
+              />
+            ) : (
+              "Review the access impact before applying this change."
+            )
+          }
+          confirmLabel="Request second-operator approval"
+          confirmationText={pendingChange?.preview.targetDisplayName}
+          confirmationHint={
+            pendingChange
+              ? `Type ${pendingChange.preview.targetDisplayName} to confirm this R3 access change`
+              : undefined
+          }
+          busy={requestApproval.isPending}
+          confirmDisabled={!reauthPassword}
+          danger
+        />
+
+        <AdminConfirmSheet
+          open={Boolean(approvalAction)}
+          onClose={() => {
+            if (!approveR3.isPending && !applyApproved.isPending) {
+              setApprovalAction(null);
+              setApprovalPassword("");
+            }
+          }}
+          onConfirm={async () => {
+            if (!approvalAction) return;
+            if (approvalAction.mode === "approve") {
+              await approveR3.mutateAsync({
+                approval: approvalAction.approval,
+                password: approvalPassword,
+              });
+            } else {
+              await applyApproved.mutateAsync({
+                approval: approvalAction.approval,
+                password: approvalPassword,
+              });
+            }
+          }}
+          title={
+            approvalAction?.mode === "approve"
+              ? "Approve R3 permission change?"
+              : "Apply approved permission change?"
+          }
+          description={
+            approvalAction ? (
+              <PermissionApprovalActionPreview
+                approval={approvalAction.approval}
+                mode={approvalAction.mode}
+                password={approvalPassword}
+                onPassword={setApprovalPassword}
+              />
+            ) : (
+              "Review the bound R3 operation before continuing."
+            )
+          }
+          confirmLabel={
+            approvalAction?.mode === "approve"
+              ? "Approve as second operator"
+              : "Apply approved change"
+          }
+          confirmationText={approvalAction?.approval.targetDisplayName}
+          confirmationHint={
+            approvalAction
+              ? `Type ${approvalAction.approval.targetDisplayName} to confirm this R3 operation`
+              : undefined
+          }
+          busy={approveR3.isPending || applyApproved.isPending}
+          confirmDisabled={!approvalPassword}
+          danger
+        />
       </div>
     </AdminPage>
+  );
+}
+
+function permissionCommand(change: AccessChange): PermissionChangeInput {
+  if (change.kind === "assign-role") {
+    return {
+      userId: change.userId,
+      kind: "assign_role",
+      key: change.roleKey,
+      editionId: change.editionId,
+    };
+  }
+  if (change.kind === "revoke-role") {
+    return {
+      userId: change.userId,
+      kind: "revoke_role",
+      key: change.roleKey,
+      editionId: change.editionId,
+    };
+  }
+  if (change.kind === "grant-capability") {
+    return {
+      userId: change.userId,
+      kind: "grant_capability",
+      key: change.capability,
+      editionId: change.editionId,
+    };
+  }
+  return {
+    userId: change.userId,
+    kind: "revoke_capability",
+    key: change.capability,
+    editionId: change.editionId,
+  };
+}
+
+function permissionChangeTitle(change: AccessChange) {
+  if (change.kind === "assign-role") return "Assign access role?";
+  if (change.kind === "revoke-role") return "Remove access role?";
+  if (change.kind === "grant-capability") return "Grant direct capability?";
+  return "Remove direct capability?";
+}
+
+function PermissionImpactPreview({
+  pending,
+  reauthPassword,
+  onReauthPassword,
+}: {
+  pending: PendingAccessChange;
+  reauthPassword: string;
+  onReauthPassword: (value: string) => void;
+}) {
+  const warnings = Object.values(pending.preview.warnings).filter(
+    (warning): warning is string => Boolean(warning),
+  );
+
+  return (
+    <div className="space-y-3">
+      <p>
+        This is a <strong className="text-foreground">Risk R3</strong> permission mutation for{" "}
+        <strong className="text-foreground">{pending.preview.targetDisplayName}</strong>.
+        Solaris will reject it if that user&apos;s access changed after this preview was loaded.
+      </p>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Scope
+          </span>
+          <strong className="mt-1 block text-sm text-foreground">
+            {pending.preview.globalScope ? "Every edition" : "Selected edition"}
+          </strong>
+        </div>
+        <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Expected access version
+          </span>
+          <strong className="mt-1 block text-sm text-foreground">
+            v{pending.preview.expectedVersion}
+          </strong>
+        </div>
+      </div>
+
+      <div>
+        <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          Capabilities affected
+        </span>
+        <div className="mt-2 flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
+          {pending.preview.affectedCapabilities.length ? (
+            pending.preview.affectedCapabilities.map((capability) => (
+              <code
+                key={capability}
+                className="rounded-lg border border-white/[0.08] bg-white/[0.035] px-2 py-1 text-[11px] text-sky-100"
+              >
+                {capability}
+              </code>
+            ))
+          ) : (
+            <span className="text-xs text-muted-foreground">No capabilities are attached.</span>
+          )}
+        </div>
+      </div>
+
+      {warnings.length ? (
+        <div className="space-y-1.5">
+          {warnings.map((warning) => (
+            <p
+              key={warning}
+              className="rounded-lg border border-rose-200/15 bg-rose-200/[0.045] px-3 py-2 text-xs leading-5 text-rose-50"
+            >
+              {warning}
+            </p>
+          ))}
+        </div>
+      ) : null}
+
+      <label className="block rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3">
+        <span className="block text-xs font-bold text-amber-50">
+          Fresh authentication required
+        </span>
+        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+          Re-enter your current Solaris password. The server accepts only recent signed authentication
+          evidence for this R3 mutation; a background token refresh does not count.
+        </span>
+        <input
+          type="password"
+          value={reauthPassword}
+          onChange={(event) => onReauthPassword(event.target.value)}
+          autoComplete="current-password"
+          placeholder="Current Solaris password"
+          className="admin-input mt-3"
+          required
+        />
+      </label>
+
+      <p className="text-xs leading-5 text-muted-foreground">
+        This request is bound to one operation ID, one idempotency key and the previewed access
+        version. A different authorized organizer must approve that exact operation before it can
+        be applied.
+      </p>
+    </div>
+  );
+}
+
+function PermissionApprovalQueue({
+  approvals,
+  loading,
+  error,
+  onApprove,
+  onApply,
+}: {
+  approvals: PermissionChangeApproval[];
+  loading: boolean;
+  error: Error | null;
+  onApprove: (approval: PermissionChangeApproval) => void;
+  onApply: (approval: PermissionChangeApproval) => void;
+}) {
+  const actionable = approvals.filter((approval) => approval.canApprove || approval.canApply).length;
+
+  return (
+    <AdminCard strong>
+      <AdminCardHeader
+        eyebrow="Risk R3"
+        title="Second-operator approvals"
+        description="Permission mutations are bound to one reviewed operation. The requester cannot approve their own request, and approved requests expire before they can become stale standing authority."
+        action={
+          <AdminStatus tone={actionable ? "attention" : "ready"}>
+            {actionable ? `${actionable} actionable` : "No action"}
+          </AdminStatus>
+        }
+      />
+
+      {loading ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">
+          Loading R3 approval queue…
+        </p>
+      ) : error ? (
+        <AdminEmptyState
+          icon={ShieldEllipsis}
+          title="R3 approval queue unavailable"
+          description={errorText(error)}
+        />
+      ) : approvals.length ? (
+        <div className="mt-4 divide-y divide-white/[0.07]">
+          {approvals.map((approval) => {
+            const status = approval.canApply
+              ? "Approved for you"
+              : approval.canApprove
+                ? "Needs your approval"
+                : approval.approvedBy
+                  ? "Approved"
+                  : "Waiting for another operator";
+
+            return (
+              <div
+                key={approval.id}
+                className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 lg:flex-row lg:items-center lg:justify-between"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold">{approval.targetDisplayName}</p>
+                    <AdminStatus
+                      tone={
+                        approval.canApply
+                          ? "ready"
+                          : approval.canApprove
+                            ? "attention"
+                            : "neutral"
+                      }
+                    >
+                      {status}
+                    </AdminStatus>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {humanize(approval.changeKind)} · {approval.key} ·{" "}
+                    {approval.editionId ? "Selected edition" : "Every edition"}
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Requested by {approval.requesterDisplayName} · expires{" "}
+                    {formatDateTime(approval.approvalExpiresAt)}
+                  </p>
+                  {approval.approverDisplayName ? (
+                    <p className="mt-1 text-[11px] text-emerald-100/75">
+                      Approved by {approval.approverDisplayName}
+                    </p>
+                  ) : null}
+                </div>
+
+                {approval.canApprove ? (
+                  <button
+                    type="button"
+                    className="admin-action-secondary shrink-0"
+                    onClick={() => onApprove(approval)}
+                  >
+                    Approve as second operator
+                  </button>
+                ) : approval.canApply ? (
+                  <button
+                    type="button"
+                    className="admin-action-primary shrink-0"
+                    onClick={() => onApply(approval)}
+                  >
+                    Apply approved change
+                  </button>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="mt-4 text-sm text-muted-foreground">
+          No active permission approvals. New R3 requests appear here for a different authorized
+          organizer to approve.
+        </p>
+      )}
+    </AdminCard>
+  );
+}
+
+function PermissionApprovalActionPreview({
+  approval,
+  mode,
+  password,
+  onPassword,
+}: {
+  approval: PermissionChangeApproval;
+  mode: "approve" | "apply";
+  password: string;
+  onPassword: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <p>
+        {mode === "approve" ? (
+          <>
+            You are acting as the independent second operator for a permission change requested by{" "}
+            <strong className="text-foreground">{approval.requesterDisplayName}</strong>.
+          </>
+        ) : (
+          <>
+            This permission change has independent approval
+            {approval.approverDisplayName ? (
+              <>
+                {" "}
+                from <strong className="text-foreground">{approval.approverDisplayName}</strong>
+              </>
+            ) : null}
+            . The server will consume that approval exactly once.
+          </>
+        )}
+      </p>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Target
+          </span>
+          <strong className="mt-1 block text-sm text-foreground">
+            {approval.targetDisplayName}
+          </strong>
+        </div>
+        <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Expected access version
+          </span>
+          <strong className="mt-1 block text-sm text-foreground">
+            v{approval.expectedVersion}
+          </strong>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3 text-xs leading-5">
+        <p>
+          <strong className="text-foreground">{humanize(approval.changeKind)}</strong> ·{" "}
+          <code className="text-sky-100">{approval.key}</code>
+        </p>
+        <p className="mt-1 text-muted-foreground">
+          Scope: {approval.editionId ? "selected edition" : "every edition"} · approval expires{" "}
+          {formatDateTime(approval.approvalExpiresAt)}
+        </p>
+      </div>
+
+      <label className="block rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3">
+        <span className="block text-xs font-bold text-amber-50">
+          Fresh authentication required
+        </span>
+        <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+          Re-enter your own current Solaris password. The server validates recent signed
+          authentication evidence for this account before accepting the R3 action.
+        </span>
+        <input
+          type="password"
+          value={password}
+          onChange={(event) => onPassword(event.target.value)}
+          autoComplete="current-password"
+          placeholder="Current Solaris password"
+          className="admin-input mt-3"
+          required
+        />
+      </label>
+
+      <p className="text-xs leading-5 text-muted-foreground">
+        Solaris rejects self-approval, expired approval, a changed access version, or any mismatch
+        between this approval and the exact operation being applied.
+      </p>
+    </div>
   );
 }
 
