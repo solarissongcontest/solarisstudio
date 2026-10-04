@@ -74,7 +74,9 @@ describe("Solaris V6 failure recovery phase", () => {
     expect(offline).toContain("official mutations");
     expect(update).toContain('id: "focused-participation-task"');
     expect(update).toContain('id: "organizer-workspace"');
-    expect(update).toContain("/confirmations|jury-voting|televoting|next-in-line");
+    for (const route of ["confirmations", "jury-voting", "televoting", "next-in-line"]) {
+      expect(update).toContain(route);
+    }
     expect(update).toContain('pathname.startsWith("/admin/")');
     expect(edition).toContain("validateEditionCommandScope");
     expect(publicTabs).toContain("onPointerCancel");
