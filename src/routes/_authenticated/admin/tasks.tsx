@@ -53,9 +53,16 @@ function OrganizerTasksPage() {
   const tasksQuery = useOrganizerTasksV5(editionId, filter);
   const tasks = tasksQuery.data ?? [];
 
-  const critical = tasks.filter((task) => task.priority === "critical").length;
-  const high = tasks.filter((task) => task.priority === "high").length;
-  const waiting = tasks.filter((task) => task.state === "waiting").length;
+  const metricsAvailable = !tasksQuery.isLoading && !tasksQuery.error;
+  const critical = metricsAvailable
+    ? tasks.filter((task) => task.priority === "critical").length
+    : null;
+  const high = metricsAvailable
+    ? tasks.filter((task) => task.priority === "high").length
+    : null;
+  const waiting = metricsAvailable
+    ? tasks.filter((task) => task.state === "waiting").length
+    : null;
 
   return (
     <AdminPage>
@@ -93,9 +100,21 @@ function OrganizerTasksPage() {
 
         {filter !== "resolved" ? (
           <section className="grid grid-cols-3 gap-2 sm:gap-3">
-            <Metric label="Critical" value={critical} tone={critical ? "blocked" : "ready"} />
-            <Metric label="High" value={high} tone={high ? "attention" : "ready"} />
-            <Metric label="Waiting" value={waiting} tone={waiting ? "info" : "neutral"} />
+            <Metric
+              label="Critical"
+              value={critical}
+              tone={critical == null ? "neutral" : critical ? "blocked" : "ready"}
+            />
+            <Metric
+              label="High"
+              value={high}
+              tone={high == null ? "neutral" : high ? "attention" : "ready"}
+            />
+            <Metric
+              label="Waiting"
+              value={waiting}
+              tone={waiting == null ? "neutral" : waiting ? "info" : "neutral"}
+            />
           </section>
         ) : null}
 
@@ -202,15 +221,17 @@ function Metric({
   tone,
 }: {
   label: string;
-  value: number;
+  value: number | null;
   tone: "ready" | "attention" | "blocked" | "info" | "neutral";
 }) {
   return (
     <AdminCard className="!p-3 sm:!p-4">
       <p className="admin-section-label">{label}</p>
       <div className="mt-2 flex items-center justify-between gap-2">
-        <p className="text-2xl font-bold tabular-nums">{value}</p>
-        <AdminStatus tone={tone}>{value ? "Active" : "Clear"}</AdminStatus>
+        <p className="text-2xl font-bold tabular-nums">{value == null ? "—" : value}</p>
+        <AdminStatus tone={tone}>
+          {value == null ? "Unavailable" : value ? "Active" : "Clear"}
+        </AdminStatus>
       </div>
     </AdminCard>
   );
