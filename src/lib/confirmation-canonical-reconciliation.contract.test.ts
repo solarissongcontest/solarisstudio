@@ -27,10 +27,24 @@ describe("confirmation canonical reconciliation", () => {
   it("rebuilds the sync snapshot from canonical database rows instead of trusting participant snapshot input", () => {
     expect(sync).toContain("loadConfirmationSnapshotForSolarisSync");
     expect(sync).toContain('.from("submissions")');
+    expect(sync).toContain("participating,updated_at,selection_method");
     expect(sync).toContain('.from("internal_entries")');
     expect(sync).toContain('.from("national_finals")');
     expect(sync).toContain('.from("national_final_entries")');
     expect(sync).toContain("syncConfirmationSubmissionToSolarisInternal");
+  });
+
+  it("does not let an older Confirmation reverse a newer final canonical lifecycle decision", () => {
+    expect(sync).toContain('status: "canonical_newer"');
+    expect(sync).toContain("canonicalUpdatedAt > snapshotUpdatedAt");
+    expect(sync).toContain("canonicalHasFinalLifecycle");
+    expect(sync).toContain("canonicalGuard.data.status !== intendedCanonicalStatus");
+  });
+
+  it("does not overwrite a canonical entry owned outside Confirmations", () => {
+    expect(sync).toContain('canonicalGuard.data.source !== "confirmations"');
+    expect(sync).toContain('status: "canonical_owned"');
+    expect(sync).toContain("Automatic reconciliation was stopped instead of overwriting it");
   });
 
   it("keeps manual snapshot sync organizer-protected", () => {
