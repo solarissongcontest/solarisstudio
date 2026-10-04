@@ -1389,6 +1389,7 @@ html[data-solaris-app-boot] body::before {
   }
 
   html[data-solaris-app] .solaris-app-command-search-shell {
+    width: calc(100% - 3.2rem);
     margin-right: 3.2rem;
   }
 
@@ -1401,11 +1402,26 @@ html[data-solaris-app-boot] body::before {
   }
 
   html[data-solaris-app] .solaris-app-command-search-input {
+    all: unset !important;
+    display: block !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
     min-width: 0 !important;
     min-height: 3rem !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    color: var(--foreground) !important;
+    font-family: inherit !important;
     font-size: 1rem !important;
+    font-weight: 520 !important;
     line-height: 1.2 !important;
+    -webkit-text-fill-color: currentColor !important;
     -webkit-text-size-adjust: 100%;
+    caret-color: var(--foreground) !important;
   }
 
   html[data-solaris-app] .solaris-app-search-list {

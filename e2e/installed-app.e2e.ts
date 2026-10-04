@@ -327,6 +327,79 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
   await expect(page.locator(".solaris-app-tabbar")).toHaveCSS("pointer-events", "none");
 });
 
+test("global search field matches the canonical Countries search surface", async ({ page }) => {
+  await expectInstalledShell(page, "/countries");
+
+  const canonical = await page.locator("[data-solaris-search-field]").evaluate((node) => {
+    const input = node.querySelector<HTMLElement>(".solaris-app-search-input");
+    const icon = node.querySelector<HTMLElement>(".solaris-app-search-icon");
+    if (!input || !icon) return null;
+    const shell = getComputedStyle(node);
+    const inputStyle = getComputedStyle(input);
+    const iconRect = icon.getBoundingClientRect();
+    return {
+      minHeight: shell.minHeight,
+      radius: shell.borderTopLeftRadius,
+      background: shell.backgroundColor,
+      boxShadow: shell.boxShadow,
+      paddingLeft: shell.paddingLeft,
+      paddingRight: shell.paddingRight,
+      gap: shell.columnGap,
+      inputBackground: inputStyle.backgroundColor,
+      inputRadius: inputStyle.borderTopLeftRadius,
+      inputShadow: inputStyle.boxShadow,
+      iconWidth: Math.round(iconRect.width),
+      iconHeight: Math.round(iconRect.height),
+    };
+  });
+
+  expect(canonical).not.toBeNull();
+
+  await expectInstalledShell(page, "/explore");
+  await page.getByRole("button", { name: "Search Solaris Studio" }).click();
+
+  const command = page.locator("[data-solaris-command-search-field]");
+  await expect(command).toHaveCount(1);
+
+  const globalSearch = await command.evaluate((node) => {
+    const input = node.querySelector<HTMLElement>(".solaris-app-search-input");
+    const icon = node.querySelector<HTMLElement>(".solaris-app-search-icon");
+    if (!input || !icon) return null;
+    const shell = getComputedStyle(node);
+    const inputStyle = getComputedStyle(input);
+    const iconRect = icon.getBoundingClientRect();
+    return {
+      minHeight: shell.minHeight,
+      radius: shell.borderTopLeftRadius,
+      background: shell.backgroundColor,
+      boxShadow: shell.boxShadow,
+      paddingLeft: shell.paddingLeft,
+      paddingRight: shell.paddingRight,
+      gap: shell.columnGap,
+      inputBackground: inputStyle.backgroundColor,
+      inputRadius: inputStyle.borderTopLeftRadius,
+      inputShadow: inputStyle.boxShadow,
+      iconWidth: Math.round(iconRect.width),
+      iconHeight: Math.round(iconRect.height),
+    };
+  });
+
+  expect(globalSearch).toEqual(canonical);
+
+  const shellRect = await command.evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    const dialog = node.closest<HTMLElement>(".solaris-app-search-dialog");
+    const close = dialog?.querySelector<HTMLElement>("button");
+    const closeRect = close?.getBoundingClientRect();
+    return {
+      right: rect.right,
+      closeLeft: closeRect?.left ?? Number.POSITIVE_INFINITY,
+    };
+  });
+
+  expect(shellRect.right).toBeLessThanOrEqual(shellRect.closeLeft - 4);
+});
+
 test("installed directory search has exactly one visible field surface", async ({ page }) => {
   for (const route of ["/wiki", "/countries", "/site-directory"]) {
     await expectInstalledShell(page, route);
