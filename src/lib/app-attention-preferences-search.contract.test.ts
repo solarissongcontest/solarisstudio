@@ -27,15 +27,19 @@ describe("App Experience v3 attention preferences and search", () => {
     expect(notifications).toContain("syncAppExperiencePreferencesFromServer");
   });
 
-  it("presents installed search full-screen and preserves recent queries", () => {
+  it("presents installed search as an isolated full-screen surface and preserves recent queries", () => {
     const palette = source("src/components/public/PublicCommandPalette.tsx");
-    const styles = source("src/styles/app-shell.css");
+    const appStyles = source("src/styles/app-shell.css");
+    const globalStyles = source("src/styles.css");
     expect(palette).toContain("readAppSearchState");
     expect(palette).toContain("rememberAppSearchQuery");
     expect(palette).toContain("solaris-app-search-dialog");
     expect(palette).toContain("Recent searches");
-    expect(styles).toContain(".solaris-app-search-dialog");
-    expect(styles).toContain(".solaris-app-search-list");
+    expect(appStyles).toContain('[role="dialog"].solaris-app-search-dialog[data-state="open"]');
+    expect(appStyles).toContain("width: 100vw !important");
+    expect(appStyles).toContain("border-radius: 0 !important");
+    expect(globalStyles).toContain('[role="dialog"][data-state="open"]:not(.solaris-app-search-dialog)');
+    expect(appStyles).toContain(".solaris-app-search-list");
   });
   it("persists user spoiler changes without reflecting server hydration back as a user action", () => {
     const experience = source("src/lib/app-experience.ts");
