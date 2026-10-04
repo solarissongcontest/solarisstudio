@@ -8,12 +8,14 @@ export function SolarisSearchField({
   placeholder,
   label,
   className,
+  autoFocus = false,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   label: string;
   className?: string;
+  autoFocus?: boolean;
 }) {
   return (
     <div className={cn("solaris-app-search-shell", className)} data-solaris-search-field>
@@ -26,6 +28,7 @@ export function SolarisSearchField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
+        autoFocus={autoFocus}
         autoComplete="off"
         enterKeyHint="search"
         className="solaris-app-search-input"

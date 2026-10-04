@@ -27,6 +27,7 @@ type CommandDialogProps = DialogProps & {
   contentClassName?: string;
   commandClassName?: string;
   contentLayout?: "centered" | "fullscreen";
+  showCloseButton?: boolean;
   shouldFilter?: boolean;
 };
 
@@ -35,6 +36,7 @@ const CommandDialog = ({
   contentClassName,
   commandClassName,
   contentLayout = "centered",
+  showCloseButton = true,
   shouldFilter,
   ...props
 }: CommandDialogProps) => {
@@ -42,6 +44,7 @@ const CommandDialog = ({
     <Dialog {...props}>
       <DialogContent
         layout={contentLayout}
+        showCloseButton={showCloseButton}
         className={cn("overflow-hidden p-0", contentClassName)}
       >
         <Command

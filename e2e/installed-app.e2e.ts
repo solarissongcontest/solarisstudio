@@ -199,7 +199,7 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
   await page.getByRole("button", { name: "Search Solaris Studio" }).click();
 
   const dialog = page.locator(".solaris-app-search-dialog");
-  const input = dialog.getByRole("textbox", { name: "Search Solaris Studio" });
+  const input = dialog.getByRole("searchbox", { name: "Search Solaris Studio" });
   await expect(dialog).toBeVisible();
   await expect(dialog).toHaveAttribute("data-solaris-dialog-layout", "fullscreen");
   await expect(input).toBeVisible();
@@ -225,7 +225,7 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
   await expect(appSearchSurface).toHaveCount(1);
 
   const searchVisual = await appSearchSurface.evaluate((node) => {
-    const input = node.querySelector<HTMLInputElement>("[cmdk-input]");
+    const input = node.querySelector<HTMLInputElement>("input[role='searchbox']");
     if (!input) return null;
     const shellStyle = getComputedStyle(node);
     const inputStyle = getComputedStyle(input);
@@ -253,33 +253,6 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
     Number.parseFloat(getComputedStyle(node).fontSize || "0"),
   );
   expect(inputFont).toBeGreaterThanOrEqual(16);
-
-  const searchSurface = await dialog.evaluate((node) => {
-    const wrapper = node.querySelector<HTMLElement>("[cmdk-input-wrapper]");
-    const input = node.querySelector<HTMLElement>("[cmdk-input]");
-    if (!wrapper || !input) return null;
-    const wrapperStyle = getComputedStyle(wrapper);
-    const inputStyle = getComputedStyle(input);
-    return {
-      wrapperRadius: Number.parseFloat(wrapperStyle.borderTopLeftRadius || "0"),
-      wrapperBackground: wrapperStyle.backgroundColor,
-      wrapperBorder: Number.parseFloat(wrapperStyle.borderTopWidth || "0"),
-      inputBackground: inputStyle.backgroundColor,
-      inputBackgroundImage: inputStyle.backgroundImage,
-      inputBorder: Number.parseFloat(inputStyle.borderTopWidth || "0"),
-      inputRadius: Number.parseFloat(inputStyle.borderTopLeftRadius || "0"),
-      inputShadow: inputStyle.boxShadow,
-    };
-  });
-
-  expect(searchSurface).not.toBeNull();
-  expect(searchSurface!.wrapperRadius).toBeGreaterThan(0);
-  expect(searchSurface!.wrapperBorder).toBe(0);
-  expect(searchSurface!.inputBorder).toBe(0);
-  expect(searchSurface!.inputRadius).toBe(0);
-  expect(searchSurface!.inputShadow).toBe("none");
-  expect(searchSurface!.inputBackgroundImage).toBe("none");
-  expect(["rgba(0, 0, 0, 0)", "transparent"]).toContain(searchSurface!.inputBackground);
 
   const measure = async () =>
     dialog.evaluate((node) => {
@@ -358,7 +331,7 @@ test("global search field matches the canonical Countries search surface", async
   await expectInstalledShell(page, "/explore");
   await page.getByRole("button", { name: "Search Solaris Studio" }).click();
 
-  const command = page.locator("[data-solaris-command-search-field]");
+  const command = page.locator(".solaris-app-search-dialog [data-solaris-search-field]");
   await expect(command).toHaveCount(1);
 
   const globalSearch = await command.evaluate((node) => {
