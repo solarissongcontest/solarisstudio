@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useOrganisationBackendContract } from "@/lib/organisation-backend-contract";
 import { SolarisMorphingSelection } from "@/components/interaction/SolarisMorphingSelection";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
@@ -50,10 +51,16 @@ function OrganizerTasksPage() {
   const { editionId } = useAdminContext();
   const { filter } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const tasksQuery = useOrganizerTasksV5(editionId, filter);
+  const backend = useOrganisationBackendContract();
+  const tasksSupported = backend.data?.capabilities.organizerTasks === true;
+  const tasksQuery = useOrganizerTasksV5(editionId, filter, tasksSupported);
   const tasks = tasksQuery.data ?? [];
 
-  const metricsAvailable = !tasksQuery.isLoading && !tasksQuery.error;
+  const metricsAvailable =
+    backend.isSuccess &&
+    tasksSupported &&
+    !tasksQuery.isLoading &&
+    !tasksQuery.error;
   const critical = metricsAvailable
     ? tasks.filter((task) => task.priority === "critical").length
     : null;
@@ -118,7 +125,21 @@ function OrganizerTasksPage() {
           </section>
         ) : null}
 
-        {tasksQuery.isLoading ? (
+        {backend.isLoading ? (
+          <AdminCard>
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              Verifying Organizer backend compatibility…
+            </p>
+          </AdminCard>
+        ) : !tasksSupported ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="Organizer Tasks backend update required"
+              description="This frontend will not evaluate Tasks until the production database exposes the matching Organizer Task contract. No zero counts are inferred while task truth is unavailable."
+            />
+          </AdminCard>
+        ) : tasksQuery.isLoading ? (
           <AdminCard>
             <p className="py-12 text-center text-sm text-muted-foreground">
               Evaluating authoritative task state…
