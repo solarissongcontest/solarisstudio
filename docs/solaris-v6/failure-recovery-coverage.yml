@@ -9,6 +9,8 @@ cases:
     evidence:
       - src/lib/solaris-v6-operation-recovery.test.ts
       - src/routes/_authenticated/admin/results.tsx
+      - src/routes/_authenticated/admin/publication/$slug.tsx
+      - src/lib/solaris-v6-publication-recovery.contract.test.ts
       - src/routes/_authenticated/admin/community-moderation.tsx
       - src/lib/organisation-operation-contract.test.ts
     invariant: "A lost response reuses the same operation identity; it never creates a second logical command."
@@ -18,6 +20,9 @@ cases:
     evidence:
       - src/lib/app-error-state.test.ts
       - src/lib/solaris-v6-operation-recovery.test.ts
+      - src/routes/_authenticated/admin/results.tsx
+      - src/routes/_authenticated/admin/publication/$slug.tsx
+      - src/lib/solaris-v6-publication-recovery.contract.test.ts
       - docs/organisation-os-v5/failure-injection-coverage.yml
     invariant: "409/stale-version failures refresh canonical state and are not blindly replayed."
 
@@ -26,6 +31,8 @@ cases:
     evidence:
       - src/lib/app-error-state.test.ts
       - src/lib/solaris-v6-operation-recovery.test.ts
+      - src/routes/_authenticated/admin/results.tsx
+      - src/routes/_authenticated/admin/publication/$slug.tsx
       - docs/organisation-os-v5/failure-injection-coverage.yml
     invariant: "Expired authority stops the command and requires re-authentication."
 
@@ -34,6 +41,8 @@ cases:
     evidence:
       - src/lib/app-error-state.test.ts
       - src/lib/solaris-v6-operation-recovery.test.ts
+      - src/routes/_authenticated/admin/results.tsx
+      - src/routes/_authenticated/admin/publication/$slug.tsx
       - docs/organisation-os-v5/failure-injection-coverage.yml
     invariant: "Permission changes stop replay and force access/canonical-state refresh."
 
@@ -66,6 +75,10 @@ cases:
     evidence:
       - src/lib/solaris-v6-edition-context.test.ts
       - src/lib/solaris-v6-edition-context.ts
+      - src/routes/_authenticated/admin/results.tsx
+      - src/routes/_authenticated/admin/publication/$slug.tsx
+      - src/lib/solaris-v6-results-authority.contract.test.ts
+      - src/lib/solaris-v6-publication-recovery.contract.test.ts
     invariant: "Route, command, entity and capability edition identities must agree before a command is considered valid."
 
   - id: interrupted-gesture
