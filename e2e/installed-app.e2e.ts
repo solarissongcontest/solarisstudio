@@ -193,6 +193,56 @@ test("directory titles stay geometrically centered in the toolbar", async ({ pag
   }
 });
 
+test("global app search fills the viewport and stays stable when keyboard height changes", async ({ page }) => {
+  await expectInstalledShell(page, "/explore");
+
+  await page.getByRole("button", { name: "Search Solaris Studio" }).click();
+
+  const dialog = page.locator(".solaris-app-search-dialog");
+  await expect(dialog).toBeVisible();
+
+  const measure = async () =>
+    dialog.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      const style = getComputedStyle(node);
+      return {
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        radius: Number.parseFloat(style.borderTopLeftRadius || "0"),
+        transform: style.transform,
+      };
+    });
+
+  const initial = await measure();
+  expect(Math.abs(initial.left)).toBeLessThanOrEqual(1);
+  expect(Math.abs(initial.top)).toBeLessThanOrEqual(1);
+  expect(Math.abs(initial.width - initial.viewportWidth)).toBeLessThanOrEqual(1);
+  expect(initial.radius).toBe(0);
+  expect(initial.transform).toBe("none");
+
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty("--solaris-visual-viewport-height", "480px");
+    document.documentElement.setAttribute("data-solaris-keyboard-open", "");
+  });
+  await page.waitForTimeout(40);
+
+  const keyboard = await measure();
+  expect(Math.abs(keyboard.left)).toBeLessThanOrEqual(1);
+  expect(Math.abs(keyboard.top)).toBeLessThanOrEqual(1);
+  expect(Math.abs(keyboard.width - keyboard.viewportWidth)).toBeLessThanOrEqual(1);
+  expect(Math.abs(keyboard.height - 480)).toBeLessThanOrEqual(1);
+  expect(keyboard.radius).toBe(0);
+  expect(keyboard.transform).toBe("none");
+
+  await expect(page.locator(".solaris-app-tabbar")).toHaveCSS("pointer-events", "none");
+});
+
 test("installed directory search has exactly one visible field surface", async ({ page }) => {
   for (const route of ["/wiki", "/countries", "/site-directory"]) {
     await expectInstalledShell(page, route);
