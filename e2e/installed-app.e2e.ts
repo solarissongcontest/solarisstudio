@@ -1,6 +1,22 @@
+import { readFileSync } from "node:fs";
+
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 import { STATIC_PUBLIC_ROUTES } from "./audit-helpers";
+
+// Playwright cannot emulate the CSS display-mode media feature for an installed
+// PWA. JS matchMedia can be shimmed, but @media (display-mode: standalone)
+// remains in browser mode. For installed-app E2E, inject an exact copy of the
+// production app stylesheet with only the display-mode predicates neutralized.
+// This keeps the assertions on the real production CSS declarations rather
+// than maintaining a second test-only visual implementation.
+const INSTALLED_APP_CSS_EMULATION = readFileSync("src/styles/app-shell.css", "utf8")
+  .replace(/\\(display-mode:\\s*(?:standalone|window-controls-overlay)\\)\\s+and\\s+/g, "")
+  .replace(/\\(display-mode:\\s*(?:standalone|window-controls-overlay)\\)/g, "all");
+
+async function applyInstalledCssEmulation(page: Page) {
+  await page.addStyleTag({ content: INSTALLED_APP_CSS_EMULATION });
+}
 
 async function enableInstalledIosMode(page: Page) {
   await page.addInitScript(() => {
@@ -45,6 +61,7 @@ async function expectInstalledShell(
 ) {
   await skipFirstRun(page);
   await page.goto(route, { waitUntil: "domcontentloaded" });
+  await applyInstalledCssEmulation(page);
   await expect(page.locator("html")).toHaveAttribute("data-solaris-runtime", "standalone");
   await expect(page.locator("html")).toHaveAttribute("data-solaris-app", "");
   await expect(page.locator(".solaris-app-toolbar")).toHaveCount(1);
@@ -418,40 +435,20 @@ test("installed directory search has exactly one visible field surface", async (
   }
 });
 
-test("Editions and Shows use their dedicated mobile archive layouts", async ({ page }) => {
+test("Editions and Shows use the canonical V6 mobile archive composition", async ({ page }) => {
   await expectInstalledShell(page, "/editions");
-  await expect(page.locator(".solaris-app-editions-v5")).toHaveCount(1);
-  await expect(page.locator(".solaris-app-grouped-list")).toHaveCount(0);
-
-  const editionArchive = page.locator('[data-solaris-flat-list="editions"]');
-  if (await editionArchive.count()) {
-    const style = await editionArchive.evaluate((node) => {
-      const computed = getComputedStyle(node);
-      return {
-        radius: Number.parseFloat(computed.borderTopLeftRadius || "0"),
-        background: computed.backgroundColor,
-      };
-    });
-    expect(style.radius).toBe(0);
-    expect(["rgba(0, 0, 0, 0)", "transparent"]).toContain(style.background);
-  }
+  await expect(page.locator(".solaris-app-card.solaris-app-edition-current")).toHaveCount(1);
+  await expect(page.locator(".solaris-app-editions-v5")).toHaveCount(0);
+  await expect(page.locator('[data-solaris-flat-list="editions"]')).toHaveCount(0);
 
   await expectInstalledShell(page, "/shows");
-  await expect(page.locator(".solaris-app-shows-v6")).toHaveCount(1);
-  await expect(page.locator(".solaris-app-grouped-list")).toHaveCount(0);
+  await expect(page.locator(".solaris-app-shows-v6")).toHaveCount(0);
+  await expect(page.locator("[data-solaris-show-list]")).toHaveCount(0);
 
-  const showLists = page.locator("[data-solaris-show-list]");
-  if (await showLists.count()) {
-    const firstStyle = await showLists.first().evaluate((node) => {
-      const computed = getComputedStyle(node);
-      return {
-        radius: Number.parseFloat(computed.borderTopLeftRadius || "0"),
-        border: Number.parseFloat(computed.borderTopWidth || "0"),
-      };
-    });
-    expect(firstStyle.radius).toBeGreaterThanOrEqual(12);
-    expect(firstStyle.border).toBeGreaterThan(0);
-  }
+  const canonicalShowStates =
+    (await page.locator(".solaris-app-grouped-list").count()) +
+    (await page.locator(".solaris-app-empty-state").count());
+  expect(canonicalShowStates).toBeGreaterThan(0);
 });
 
 test("directory screens do not leak website descriptions below the app title", async ({ page }) => {
@@ -524,6 +521,7 @@ test("first run is a contained bottom sheet and suppresses global tabs", async (
 async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo) {
   await skipFirstRun(page);
   const response = await page.goto(route, { waitUntil: "domcontentloaded" });
+  await applyInstalledCssEmulation(page);
   expect(response?.status(), `${route} document status`).toBeLessThan(400);
   await expect(page.locator("html")).toHaveAttribute("data-solaris-app", "");
   await expect(page.locator("main").first()).toBeVisible();
