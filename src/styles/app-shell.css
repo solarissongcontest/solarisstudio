@@ -2723,47 +2723,52 @@ html[data-solaris-app]
     transform: translate(-50%, -50%) scale(.94);
   }
 
-  /* One surface only. No nested iOS search skin, no second rounded rectangle. */
+  /* One painted surface only.
+     The wrapper is geometry-only; the input itself owns the sole visible field.
+     This makes a second "card inside a card" impossible even if global input
+     theming is present elsewhere in the cascade. */
   html[data-solaris-app] .solaris-app-search-shell {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    position: relative;
+    display: block;
     width: 100%;
-    min-height: 3.05rem;
-    align-items: center;
-    gap: .62rem;
-    overflow: hidden;
-    border: 0;
-    border-radius: .82rem;
-    padding: 0 .82rem;
-    background: rgb(255 255 255 / .055);
-    box-shadow:
-      inset 0 0 0 1px rgb(218 239 247 / .105),
-      inset 0 1px 0 rgb(255 255 255 / .035);
-    transition:
-      background-color 140ms ease,
-      box-shadow 140ms ease;
-  }
-
-  html[data-solaris-app] .solaris-app-search-shell:focus-within {
-    background: rgb(255 255 255 / .07);
-    box-shadow:
-      inset 0 0 0 1px rgb(var(--solaris-accent, 139 198 222) / .30),
-      0 0 0 3px rgb(var(--solaris-accent, 139 198 222) / .04);
+    min-height: 3.1rem;
+    overflow: visible;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
   }
 
   html[data-solaris-app] .solaris-app-search-icon {
-    flex: 0 0 auto;
+    position: absolute;
+    z-index: 2;
+    left: .9rem;
+    top: 50%;
+    transform: translateY(-50%);
     color: rgb(225 238 244 / .68);
     pointer-events: none;
   }
 
-  html[data-solaris-app] .solaris-app-search-input {
+  html[data-solaris-app] body[data-solaris-family] main.app-main
+    .solaris-app-search-shell > .solaris-app-search-input,
+  html[data-solaris-app] main.app-main
+    .solaris-app-search-shell > .solaris-app-search-input {
     all: unset !important;
     display: block !important;
     box-sizing: border-box !important;
     width: 100% !important;
     min-width: 0 !important;
-    min-height: 3rem !important;
+    min-height: 3.1rem !important;
+    border: 0 !important;
+    border-radius: .82rem !important;
+    padding: 0 3rem 0 2.75rem !important;
+    background: rgb(255 255 255 / .055) !important;
+    background-image: none !important;
+    box-shadow:
+      inset 0 0 0 1px rgb(218 239 247 / .105),
+      inset 0 1px 0 rgb(255 255 255 / .035) !important;
     color: var(--foreground) !important;
     font-family: inherit !important;
     font-size: .96rem !important;
@@ -2771,6 +2776,16 @@ html[data-solaris-app]
     line-height: 1.2 !important;
     -webkit-text-fill-color: currentColor !important;
     caret-color: var(--foreground) !important;
+    transition:
+      background-color 140ms ease,
+      box-shadow 140ms ease;
+  }
+
+  html[data-solaris-app] .solaris-app-search-shell:focus-within > .solaris-app-search-input {
+    background: rgb(255 255 255 / .07) !important;
+    box-shadow:
+      inset 0 0 0 1px rgb(var(--solaris-accent, 139 198 222) / .30),
+      0 0 0 3px rgb(var(--solaris-accent, 139 198 222) / .04) !important;
   }
 
   html[data-solaris-app] .solaris-app-search-input::placeholder {
@@ -2797,12 +2812,15 @@ html[data-solaris-app]
   }
 
   html[data-solaris-app] .solaris-app-search-clear {
+    position: absolute;
+    z-index: 2;
+    right: .18rem;
+    top: 50%;
     display: grid;
     width: 2.75rem;
     height: 2.75rem;
-    flex: 0 0 auto;
     place-items: center;
-    margin-right: -.55rem;
+    transform: translateY(-50%);
     border: 0 !important;
     border-radius: 999px;
     padding: 0 !important;
