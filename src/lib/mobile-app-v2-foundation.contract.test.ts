@@ -124,8 +124,8 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(explore).toContain("solaris-app-grouped-list");
     expect(results).toContain("solaris-app-result-hero");
     expect(directory).toContain("solaris-app-list-row");
-    expect(editions).toContain("solaris-app-editions-v5");
-    expect(editions).toContain("solaris-app-flat-row");
+    expect(editions).toContain("AppScreen");
+    expect(editions).toContain("solaris-app-edition-row");
     expect(countries).toContain("AppCountriesPage");
     expect(countries).toContain("solaris-app-country-row");
     expect(shows).toContain("AppShowsPage");
@@ -148,11 +148,15 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(search).toContain("data-solaris-search-field");
     expect(search).toContain('type="text"');
     expect(search).toContain('inputMode="search"');
-    expect(editions).toContain("solaris-app-featured-row");
-    expect(editions).toContain('data-solaris-flat-list="editions"');
-    expect(shows).toContain("solaris-app-shows-v6");
-    expect(shows).toContain("data-solaris-show-list");
-    expect(shows).toContain("appShowMeta(show)");
+    expect(editions).toContain("AppScreen");
+    expect(editions).toContain("AppSectionHeader");
+    expect(editions).toContain("AppGroupedList");
+    expect(editions).toContain("solaris-app-card solaris-app-edition-current");
+    expect(editions).toContain("solaris-app-edition-row");
+    expect(shows).toContain("AppScreen");
+    expect(shows).toContain("AppSectionHeader");
+    expect(shows).toContain("AppGroupedList");
+    expect(shows).toContain("solaris-app-list-row");
     expect(styles).toContain("Mobile Visual System V6");
   });
 
