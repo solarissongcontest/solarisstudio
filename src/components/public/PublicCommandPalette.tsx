@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useRouterState } from "@tanstack/react-router";
-import { Command as CommandIcon, Search } from "lucide-react";
+import { Command as CommandIcon, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { supabase } from "@/integrations/supabase/client";
 import {
   CommandDialog,
@@ -14,6 +15,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import { DialogClose } from "@/components/ui/dialog";
 import {
   clearAppSearchReturn,
   readAppSearchState,
@@ -329,16 +331,28 @@ function AppPublicPaletteDialog({
       contentClassName="solaris-app-search-dialog"
       contentLayout="fullscreen"
       commandClassName="solaris-app-search-command"
+      showCloseButton={false}
       shouldFilter={false}
     >
-        <CommandInput
-          appearance="appSearch"
-          autoFocus
-          value={query}
-          onValueChange={setQuery}
-          placeholder="Search Solaris Studio…"
-          aria-label="Search Solaris Studio"
-        />
+        <div className="solaris-app-global-search-header">
+          <SolarisSearchField
+            autoFocus
+            value={query}
+            onChange={setQuery}
+            placeholder="Search Solaris Studio…"
+            label="Search Solaris Studio"
+            className="solaris-app-command-search-shell"
+          />
+          <DialogClose asChild>
+            <button
+              type="button"
+              className="solaris-app-global-search-close"
+              aria-label="Close search"
+            >
+              <X className="size-5" aria-hidden="true" />
+            </button>
+          </DialogClose>
+        </div>
         <CommandList className="solaris-app-search-list">
           <CommandEmpty>
             {remote.isFetching
