@@ -116,8 +116,10 @@ export async function loadOrganizerTaskCountV5(
 export function useOrganizerTasksV5(
   editionId: string | null | undefined,
   filter: OrganizerTaskFilter,
+  enabled = true,
 ) {
   return useQuery({
+    enabled,
     queryKey: ["organizer-tasks-v5", editionId ?? "all", filter],
     queryFn: () => loadOrganizerTasksV5(editionId, filter),
     refetchInterval: 60_000,
@@ -127,8 +129,10 @@ export function useOrganizerTasksV5(
 
 export function useOrganizerTaskCountV5(
   editionId: string | null | undefined,
+  enabled = true,
 ) {
   return useQuery({
+    enabled,
     queryKey: ["organizer-task-count-v5", editionId ?? "all"],
     queryFn: () => loadOrganizerTaskCountV5(editionId),
     refetchInterval: 60_000,
