@@ -1,6 +1,11 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
-import { countrySurfaceLinks } from "@/components/surfaces/SolarisSurfaceSwitch";
+import {
+  countrySurfaceLinks,
+  featureSurfaceLinks,
+} from "@/components/surfaces/SolarisSurfaceSwitch";
 import {
   resolveSolarisV6SurfacePath,
   solarisV6Feature,
@@ -60,6 +65,41 @@ describe("Solaris V6 cross-surface navigation", () => {
     ]);
     expect(links.some((item) => item.perspective === "organizer")).toBe(false);
     expect(links.some((item) => item.perspective === "diagnostic")).toBe(false);
+  });
+
+  it("deduplicates perspectives that intentionally share the same route", () => {
+    const links = featureSurfaceLinks({
+      featureId: "live-show",
+      current: "organizer",
+      perspectives: ["public", "participant", "organizer", "diagnostic"],
+    });
+
+    expect(links.map((item) => item.href)).toEqual([
+      "/show-mode",
+      "/admin/broadcast-rundown",
+      "/admin/system-operations",
+    ]);
+    expect(links.map((item) => item.label)).toEqual([
+      "Public view",
+      "Manage",
+      "Diagnostics",
+    ]);
+  });
+
+  it("drives real Results and Live Show switches from the registry helper", () => {
+    const results = readFileSync(
+      "src/routes/_authenticated/admin/results.tsx",
+      "utf8",
+    );
+    const broadcast = readFileSync(
+      "src/routes/_authenticated/admin/broadcast-rundown.tsx",
+      "utf8",
+    );
+
+    expect(results).toContain('featureId: "results"');
+    expect(results).toContain("<SolarisSurfaceSwitch");
+    expect(broadcast).toContain('featureId: "live-show"');
+    expect(broadcast).toContain("<SolarisSurfaceSwitch");
   });
 
   it("keeps the switch tied to canonical domain definitions", () => {
