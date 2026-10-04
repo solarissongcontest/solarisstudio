@@ -7,6 +7,7 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 const helper = source("src/lib/country-jury-task.ts");
 const home = source("src/components/home/HomePersonalAttention.tsx");
 const context = source("src/components/mysolaris/MySolarisContext.tsx");
+const voting = source("src/routes/_authenticated/my-solaris/voting.tsx");
 
 describe("shared participant jury task truth", () => {
   it("uses one country jury resolver for Home and MySolaris", () => {
@@ -15,6 +16,13 @@ describe("shared participant jury task truth", () => {
     expect(helper).toContain('"country_jury_voting_context"');
     expect(helper).toContain('candidate.status === "open"');
     expect(helper).toContain("candidate.eligible");
+  });
+
+  it("shows the official jury window state on the Voting page", () => {
+    expect(voting).toContain("loadCountryJuryVotingState");
+    expect(voting).toContain('canonicalJuryState?.status === "open"');
+    expect(voting).toContain("Voting is closed");
+    expect(voting).toContain("Open · ready to submit");
   });
 
   it("feeds the open jury task into the canonical Participation OS", () => {
