@@ -75,7 +75,7 @@ describe("Solaris visual-system completion contract", () => {
     const jury = source("src/routes/jury-voting.tsx");
 
     expect(editions).not.toContain("BackgroundFlag");
-    expect(editions).toContain(">Current edition<");
+    expect(editions).toContain('"Latest published edition"');
     expect(editions).toContain("Past editions");
 
     expect(confirmationEdit).toContain("<ParticipationRouteChrome>");
