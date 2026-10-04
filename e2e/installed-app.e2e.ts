@@ -226,6 +226,33 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
   );
   expect(inputFont).toBeGreaterThanOrEqual(16);
 
+  const searchSurface = await dialog.evaluate((node) => {
+    const wrapper = node.querySelector<HTMLElement>("[cmdk-input-wrapper]");
+    const input = node.querySelector<HTMLElement>("[cmdk-input]");
+    if (!wrapper || !input) return null;
+    const wrapperStyle = getComputedStyle(wrapper);
+    const inputStyle = getComputedStyle(input);
+    return {
+      wrapperRadius: Number.parseFloat(wrapperStyle.borderTopLeftRadius || "0"),
+      wrapperBackground: wrapperStyle.backgroundColor,
+      wrapperBorder: Number.parseFloat(wrapperStyle.borderTopWidth || "0"),
+      inputBackground: inputStyle.backgroundColor,
+      inputBackgroundImage: inputStyle.backgroundImage,
+      inputBorder: Number.parseFloat(inputStyle.borderTopWidth || "0"),
+      inputRadius: Number.parseFloat(inputStyle.borderTopLeftRadius || "0"),
+      inputShadow: inputStyle.boxShadow,
+    };
+  });
+
+  expect(searchSurface).not.toBeNull();
+  expect(searchSurface!.wrapperRadius).toBeGreaterThan(0);
+  expect(searchSurface!.wrapperBorder).toBe(0);
+  expect(searchSurface!.inputBorder).toBe(0);
+  expect(searchSurface!.inputRadius).toBe(0);
+  expect(searchSurface!.inputShadow).toBe("none");
+  expect(searchSurface!.inputBackgroundImage).toBe("none");
+  expect(["rgba(0, 0, 0, 0)", "transparent"]).toContain(searchSurface!.inputBackground);
+
   const measure = async () =>
     dialog.evaluate((node) => {
       const rect = node.getBoundingClientRect();
