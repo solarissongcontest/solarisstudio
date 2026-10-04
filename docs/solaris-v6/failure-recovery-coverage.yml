@@ -12,6 +12,7 @@ cases:
       - src/routes/_authenticated/admin/publication/$slug.tsx
       - src/lib/solaris-v6-publication-recovery.contract.test.ts
       - src/routes/_authenticated/admin/community-moderation.tsx
+      - src/routes/_authenticated/admin/system-operations.tsx
       - src/lib/organisation-operation-contract.test.ts
     invariant: "A lost response reuses the same operation identity; it never creates a second logical command."
 
