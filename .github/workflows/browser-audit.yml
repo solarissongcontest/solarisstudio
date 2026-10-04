@@ -78,10 +78,14 @@ jobs:
           set +a
 
           local_url="${API_URL:-}"
-          local_key="${PUBLISHABLE_KEY:-${ANON_KEY:-}}"
+          # Browser CI deliberately uses the local legacy ANON JWT. The CLI also
+          # exposes an opaque sb_publishable_* key, but the local PostgREST/Kong
+          # path must receive a bearer-capable anon token or public reads can
+          # surface as anonymous 401s even though Auth itself is reachable.
+          local_key="${ANON_KEY:-}"
 
           if [ -z "$local_url" ] || [ -z "$local_key" ]; then
-            echo "Local Supabase did not expose API_URL plus a publishable/anon key."
+            echo "Local Supabase did not expose API_URL plus ANON_KEY."
             cat /tmp/solaris-browser-supabase.env
             exit 1
           fi
@@ -106,6 +110,18 @@ jobs:
             echo "CONFIRMATIONS_SUPABASE_URL=$local_url"
             echo "CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=$local_key"
           } >> "$GITHUB_ENV"
+
+          # Fail in seconds, not after a forty-minute browser matrix, if the
+          # local anonymous REST identity cannot read canonical public data.
+          probe_status="$(curl --silent --output /tmp/solaris-browser-rest-probe.json --write-out '%{http_code}' \
+            "$local_url/rest/v1/countries?select=id&limit=1" \
+            -H "apikey: $local_key" \
+            -H "Authorization: Bearer $local_key")"
+          if [ "$probe_status" != "200" ]; then
+            echo "Local anonymous PostgREST probe failed with HTTP $probe_status."
+            cat /tmp/solaris-browser-rest-probe.json || true
+            exit 1
+          fi
 
       - name: Ensure PostgreSQL client for local E2E seeding
         shell: bash
