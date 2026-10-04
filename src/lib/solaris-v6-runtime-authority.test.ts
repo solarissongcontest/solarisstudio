@@ -21,6 +21,12 @@ import {
   executeStudio2ResultOperation,
   loadStudio2ResultsOperations,
 } from "@/lib/studio2-results-operations";
+import {
+  applyShowPublicationChange,
+  loadShowPublicationControls,
+  previewShowPublicationChange,
+  reauthenticateShowPublicationR3,
+} from "@/lib/show-publication-lifecycle";
 
 describe("Solaris V6 runtime authority binding", () => {
   it("reuses canonical Results operations instead of creating a V6 result path", () => {
@@ -28,6 +34,17 @@ describe("Solaris V6 runtime authority binding", () => {
     expect(results.read).toBe(loadStudio2ResultsOperations);
     expect(results.execute).toBe(executeStudio2ResultOperation);
     expect(results.transports).toContain("studio2_execute_result_operation");
+  });
+
+  it("reuses the canonical publication lifecycle instead of inventing a V6 release path", () => {
+    const publication = solarisV6RuntimeAuthority("publication");
+    expect(publication.read).toBe(loadShowPublicationControls);
+    expect(publication.preview).toBe(previewShowPublicationChange);
+    expect(publication.execute).toBe(applyShowPublicationChange);
+    expect(publication.reauthenticate).toBe(reauthenticateShowPublicationR3);
+    expect(publication.transports).toContain(
+      "studio2_apply_show_publication_change",
+    );
   });
 
   it("reuses canonical participant, confirmation and task projections", () => {
