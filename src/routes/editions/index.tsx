@@ -153,15 +153,22 @@ function EditionsPage() {
 
       {archive.length > 0 && (
         <section className="mt-7 sm:mt-9">
-          <div className="mb-4 flex items-end justify-between gap-4 border-b border-border/60 pb-3">
-            <div className="min-w-0">
-              <p className="text-[9px] font-black uppercase tracking-[0.22em] text-primary">Archive desk</p>
-              <h2 className="display-headline mt-1 text-xl sm:text-2xl">Past editions</h2>
+          {isAppMode ? (
+            <div className="solaris-app-section-heading solaris-app-section-heading-title-first">
+              <h2>Past editions</h2>
+              <p>{archive.length} previous edition{archive.length === 1 ? "" : "s"}</p>
             </div>
-            <p className="numeric shrink-0 text-xs text-muted-foreground">{cards.length} editions</p>
-          </div>
+          ) : (
+            <div className="mb-4 flex items-end justify-between gap-4 border-b border-border/60 pb-3">
+              <div className="min-w-0">
+                <p className="text-[9px] font-black uppercase tracking-[0.22em] text-primary">Archive desk</p>
+                <h2 className="display-headline mt-1 text-xl sm:text-2xl">Past editions</h2>
+              </div>
+              <p className="numeric shrink-0 text-xs text-muted-foreground">{cards.length} editions</p>
+            </div>
+          )}
 
-          <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface/55 divide-y divide-border/60">
+          <div className={isAppMode ? "solaris-app-grouped-list" : "overflow-hidden rounded-2xl border border-border/70 bg-surface/55 divide-y divide-border/60"}>
             {archive.map((card) => (
               <ArchiveEdition key={card.edition.id} card={card} appMode={isAppMode} />
             ))}
@@ -222,7 +229,7 @@ function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?:
 
   return (
     <section aria-labelledby="current-edition-heading">
-      <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-primary">Current</p>
+      <p className="mb-2 text-[10px] font-black uppercase tracking-[0.16em] text-primary">Current edition</p>
       <Link
         to="/editions/$slug"
         params={{ slug: edition.slug }}
