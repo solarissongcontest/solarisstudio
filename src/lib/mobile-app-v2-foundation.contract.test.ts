@@ -135,6 +135,9 @@ describe("Mobile App V2 architectural invariants", () => {
     const flags = source("src/components/FlagChip.tsx");
     const styles = source("src/styles/app-shell.css");
     const surfaces = source("src/solaris-surfaces.css");
+    const globalStyles = source("src/styles.css");
+    const unified = source("src/unified-design.css");
+    const calmChrome = source("src/calm-public-chrome.css");
 
     expect(search).toContain("solaris-app-search-shell");
     expect(search).toContain("solaris-app-search-input");
@@ -145,6 +148,9 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(styles).toContain("aspect-ratio: 3 / 2 !important");
     expect(styles).toContain("border-radius: var(--solaris-flag-radius, .55rem) !important");
     expect(surfaces).toContain(":not(.solaris-app-search-input)");
+    expect(globalStyles).toContain("input:not(.solaris-app-search-input)");
+    expect(unified).toContain("input:not(.solaris-app-search-input)");
+    expect(calmChrome).toContain("input:not(.solaris-app-search-input)");
   });
 
   it("prevents website chrome from flashing before installed-app hydration", () => {

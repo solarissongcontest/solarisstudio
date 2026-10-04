@@ -106,7 +106,7 @@ body[data-solaris-family]:not([data-entity-theme]) .directory-page-filter {
 }
 
 body[data-solaris-family]:not([data-entity-theme]) :is(
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  input:not(.solaris-app-search-input):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
   textarea,
   select,
   [role="combobox"]

@@ -212,7 +212,7 @@ h6.font-display,
   min-width: 0;
 }
 
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+input:not(.solaris-app-search-input):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
 textarea,
 select,
 [role="combobox"] {
