@@ -72,7 +72,10 @@ function isNavigationCancellation(errorText: string | undefined) {
 }
 
 function isAnonymousResourceConsoleError(message: string) {
-  return /^Failed to load resource: the server responded with a status of \d{3} \(\)$/i.test(message.trim());
+  // Chromium/WebKit emit this generic console error without the failing URL.
+  // The response listener below records actionable status + resource type + URL
+  // for backend/critical resources, while brokenImages covers image failures.
+  return /^Failed to load resource: the server responded with a status of \d{3}(?: \([^)]*\))?$/i.test(message.trim());
 }
 
 export async function sitemapRoutes(baseURL: string) {
