@@ -24,8 +24,11 @@ describe("Solaris V6 publication recovery contract", () => {
       "src/routes/_authenticated/admin/publication/$slug.tsx",
     );
 
-    expect(publication).toContain("operationId: operationId");
+    expect(publication).toContain("const operationId = crypto.randomUUID()");
+    expect(publication).toContain("\n        operationId,");
     expect(publication).toContain("idempotencyKey: operationId");
+    expect(publication).toContain("operationId: pendingRelease.operationId");
+    expect(publication).toContain("idempotencyKey: pendingRelease.idempotencyKey");
     expect(publication).toContain('"Retry same publication operation"');
     expect(publication).toContain("recovery?.allowSameIdentityRetry");
     expect(publication).toContain("recovery.outcomeUnknown");
