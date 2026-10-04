@@ -210,6 +210,9 @@ test("installed directory search has exactly one visible field surface", async (
       return {
         shellRadius: Number.parseFloat(shellStyle.borderTopLeftRadius || "0"),
         shellBorder: Number.parseFloat(shellStyle.borderTopWidth || "0"),
+        shellBackground: shellStyle.backgroundColor,
+        shellBackgroundImage: shellStyle.backgroundImage,
+        shellShadow: shellStyle.boxShadow,
         inputBackground: inputStyle.backgroundColor,
         inputBackgroundImage: inputStyle.backgroundImage,
         inputBorder: Number.parseFloat(inputStyle.borderTopWidth || "0"),
@@ -219,13 +222,15 @@ test("installed directory search has exactly one visible field surface", async (
     });
 
     expect(visual).not.toBeNull();
-    expect(visual!.shellRadius).toBeGreaterThan(0);
+    expect(visual!.shellRadius).toBe(0);
     expect(visual!.shellBorder).toBe(0);
+    expect(visual!.shellShadow).toBe("none");
+    expect(visual!.shellBackgroundImage).toBe("none");
+    expect(["rgba(0, 0, 0, 0)", "transparent"]).toContain(visual!.shellBackground);
     expect(visual!.inputBorder).toBe(0);
-    expect(visual!.inputRadius).toBe(0);
-    expect(visual!.inputShadow).toBe("none");
+    expect(visual!.inputRadius).toBeGreaterThanOrEqual(10);
     expect(visual!.inputBackgroundImage).toBe("none");
-    expect(["rgba(0, 0, 0, 0)", "transparent"]).toContain(visual!.inputBackground);
+    expect(["rgba(0, 0, 0, 0)", "transparent"]).not.toContain(visual!.inputBackground);
   }
 });
 
