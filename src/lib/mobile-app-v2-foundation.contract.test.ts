@@ -107,6 +107,7 @@ describe("Mobile App V2 architectural invariants", () => {
 
   it("uses the redesigned installed browsing hierarchy for Wiki, Editions and Shows", () => {
     const wiki = source("src/routes/wiki/index.tsx");
+    const countries = source("src/routes/countries/index.tsx");
     const editions = source("src/routes/editions/index.tsx");
     const shows = source("src/routes/shows/index.tsx");
     const styles = source("src/styles/app-shell.css");
@@ -114,6 +115,8 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(wiki).toContain("solaris-app-search-field-prominent");
     expect(wiki).toContain("solaris-app-filter-sheet");
     expect(wiki).toContain("Search countries…");
+    expect(countries).toContain("solaris-app-search-field-prominent");
+    expect(countries).toContain("solaris-app-filter-sheet");
     expect(editions).toContain("solaris-app-section-heading-title-first");
     expect(editions).toContain("Current edition");
     expect(shows).toContain("solaris-app-section-heading-title-first");
