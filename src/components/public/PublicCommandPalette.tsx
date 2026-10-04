@@ -6,7 +6,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Command,
   CommandDialog,
   CommandEmpty,
   CommandGroup,
@@ -329,8 +328,8 @@ function AppPublicPaletteDialog({
       onOpenChange={setOpen}
       contentClassName="solaris-app-search-dialog"
       commandClassName="solaris-app-search-command"
+      shouldFilter={false}
     >
-      <Command shouldFilter={false}>
         <CommandInput
           autoFocus
           value={query}
@@ -390,7 +389,6 @@ function AppPublicPaletteDialog({
             </div>
           ))}
         </CommandList>
-      </Command>
     </CommandDialog>
   );
 }
@@ -818,8 +816,8 @@ function WebPublicPaletteDialog({
       onOpenChange={setOpen}
       contentClassName={appMode ? "solaris-app-search-dialog" : undefined}
       commandClassName={appMode ? "solaris-app-search-command" : undefined}
+      shouldFilter={false}
     >
-      <Command shouldFilter={false}>
         <CommandInput
           autoFocus
           value={query}
@@ -895,7 +893,6 @@ function WebPublicPaletteDialog({
             </CommandGroup>
           ) : null}
         </CommandList>
-      </Command>
     </CommandDialog>
   );
 }
