@@ -37,6 +37,9 @@ type DeliveryRow = {
   status: DeliveryStatus;
   scheduledFor: string;
   sentAt: string | null;
+  providerAcceptedAt: string | null;
+  receivedAt: string | null;
+  displayedAt: string | null;
   openedAt: string | null;
   createdAt: string;
   error: string | null;
@@ -76,6 +79,10 @@ type RuntimeHealth = {
     subscriptions: { active: number; disabled: number };
     deliveries: {
       pending: number;
+      providerAccepted24h: number;
+      received24h: number;
+      displayed24h: number;
+      opened24h: number;
       sent24h: number;
       failed24h: number;
       suppressed24h: number;
@@ -264,15 +271,20 @@ function SystemOperationsPage() {
           </AdminCard>
         ) : (
           <>
-            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <Metric
                 label="Active push devices"
                 value={data.push.subscriptions.active}
                 tone="neutral"
               />
               <Metric
-                label="Sent · 24h"
-                value={data.push.deliveries.sent24h}
+                label="Provider accepted · 24h"
+                value={data.push.deliveries.providerAccepted24h}
+                tone="neutral"
+              />
+              <Metric
+                label="Displayed · 24h"
+                value={data.push.deliveries.displayed24h}
                 tone="ready"
               />
               <Metric
@@ -291,7 +303,7 @@ function SystemOperationsPage() {
               <AdminCardHeader
                 eyebrow="Push delivery"
                 title="Recent delivery state"
-                description="The dispatcher leases pending rows before sending so concurrent schedulers cannot intentionally claim the same delivery."
+                description="Provider acceptance, device receipt, display and open are tracked separately. A provider-accepted push is not treated as proof that the user saw it."
                 action={
                   <AdminStatus tone={pushAttention ? "attention" : "ready"}>
                     {pushAttention ? "Review" : "Healthy"}
@@ -318,7 +330,13 @@ function SystemOperationsPage() {
                           {humanize(delivery.category)} · {delivery.route}
                         </p>
                         <p className="mt-1 text-[11px] text-muted-foreground">
-                          Created {formatDate(delivery.createdAt)}
+                          {delivery.displayedAt
+                            ? `Displayed ${formatDate(delivery.displayedAt)}`
+                            : delivery.receivedAt
+                              ? `Received by device ${formatDate(delivery.receivedAt)}`
+                              : delivery.providerAcceptedAt
+                                ? `Provider accepted ${formatDate(delivery.providerAcceptedAt)}`
+                                : `Created ${formatDate(delivery.createdAt)}`}
                         </p>
                         {delivery.error ? (
                           <p className="mt-2 max-w-3xl text-xs leading-5 text-amber-100/80">
