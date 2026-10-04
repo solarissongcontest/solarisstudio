@@ -2783,6 +2783,22 @@ html[data-solaris-app]
       0 0 0 3px rgb(var(--solaris-accent, 139 198 222) / .055);
   }
 
+  html[data-solaris-app] .solaris-app-search-clear {
+    display: grid;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: 0 0 auto;
+    place-items: center;
+    margin-right: -.55rem;
+    border-radius: 999px;
+    color: var(--muted-foreground);
+  }
+
+  html[data-solaris-app] .solaris-app-search-clear:active {
+    background: rgb(255 255 255 / .05);
+    color: var(--foreground);
+  }
+
   html[data-solaris-app] .solaris-app-directory-filterbar {
     display: flex;
     min-width: 0;
