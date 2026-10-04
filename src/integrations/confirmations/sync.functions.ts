@@ -17,6 +17,7 @@ type ConfirmationSnapshot = {
   id: string;
   country: string;
   participating: boolean;
+  updated_at?: string | null;
   selection_method?: string | null;
   reveal_date_type?: string | null;
   reveal_exact_date?: string | null;
@@ -46,7 +47,12 @@ type PublicationDecision = {
 
 export type ConfirmationSolarisSyncResult = {
   ok: boolean;
-  status: "synced" | "unmatched_country" | "unmatched_edition";
+  status:
+    | "synced"
+    | "unmatched_country"
+    | "unmatched_edition"
+    | "canonical_newer"
+    | "canonical_owned";
   editionId?: string;
   countryId?: string;
   participantId?: string;
@@ -213,7 +219,7 @@ async function loadConfirmationSnapshotForSolarisSync(
   const submissionResult = await db
     .from("submissions")
     .select(
-      "id,edition_id,country,participating,selection_method,reveal_date_type,reveal_exact_date,reveal_approximate_text,nf_result_date_type,nf_result_exact_date,nf_result_approximate_text",
+      "id,edition_id,country,participating,updated_at,selection_method,reveal_date_type,reveal_exact_date,reveal_approximate_text,nf_result_date_type,nf_result_exact_date,nf_result_approximate_text",
     )
     .eq("id", submissionId)
     .maybeSingle();
@@ -263,6 +269,7 @@ async function loadConfirmationSnapshotForSolarisSync(
     id: submission.id,
     country: submission.country,
     participating: submission.participating,
+    updated_at: submission.updated_at,
     selection_method: submission.selection_method,
     reveal_date_type: submission.reveal_date_type,
     reveal_exact_date: submission.reveal_exact_date,
@@ -327,6 +334,55 @@ async function syncConfirmationSnapshotToSolarisInternal(
       status: "unmatched_country",
       editionId: edition.id,
       message: `No Solaris country matches “${snapshot.country}”.`,
+    };
+    await recordSyncEvent(db, snapshot, result, result.message);
+    return result;
+  }
+
+  const intendedCanonicalStatus = snapshot.participating ? "confirmed" : "withdrawn";
+  const canonicalGuard = await db
+    .from("entries")
+    .select("id,source,status,updated_at")
+    .eq("edition_id", edition.id)
+    .eq("country_id", country.id)
+    .maybeSingle();
+  if (canonicalGuard.error) throw new Error(canonicalGuard.error.message);
+
+  if (canonicalGuard.data && canonicalGuard.data.source !== "confirmations") {
+    const result: ConfirmationSolarisSyncResult = {
+      ok: false,
+      status: "canonical_owned",
+      editionId: edition.id,
+      countryId: country.id,
+      entryId: canonicalGuard.data.id,
+      message:
+        "Solaris already owns this canonical entry outside Confirmations. Automatic reconciliation was stopped instead of overwriting it.",
+    };
+    await recordSyncEvent(db, snapshot, result, result.message);
+    return result;
+  }
+
+  const snapshotUpdatedAt = Date.parse(snapshot.updated_at ?? "");
+  const canonicalUpdatedAt = Date.parse(canonicalGuard.data?.updated_at ?? "");
+  const canonicalHasFinalLifecycle = ["confirmed", "withdrawn"].includes(
+    String(canonicalGuard.data?.status ?? ""),
+  );
+  if (
+    canonicalGuard.data &&
+    canonicalHasFinalLifecycle &&
+    canonicalGuard.data.status !== intendedCanonicalStatus &&
+    Number.isFinite(snapshotUpdatedAt) &&
+    Number.isFinite(canonicalUpdatedAt) &&
+    canonicalUpdatedAt > snapshotUpdatedAt
+  ) {
+    const result: ConfirmationSolarisSyncResult = {
+      ok: false,
+      status: "canonical_newer",
+      editionId: edition.id,
+      countryId: country.id,
+      entryId: canonicalGuard.data.id,
+      message:
+        "Solaris has a newer final participation state than this Confirmation response. Automatic reconciliation was stopped to avoid reversing a later organizer decision.",
     };
     await recordSyncEvent(db, snapshot, result, result.message);
     return result;
