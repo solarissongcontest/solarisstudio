@@ -38,6 +38,12 @@
   font-weight: 400 !important;
   text-transform: uppercase;
   letter-spacing: .025em;
+  transform-origin: left center;
+  transform:
+    translateY(var(--organizer-toolbar-title-y, 0px))
+    scale(var(--organizer-toolbar-title-scale, 1));
+  transition: transform 90ms linear;
+  will-change: transform;
 }
 
 .admin-control-room .admin-page-title {
