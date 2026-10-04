@@ -133,6 +133,11 @@ function SystemOperationsPage() {
       operationId: string;
       idempotencyKey: string;
     }) => {
+      if (!systemOperationsSupported) {
+        throw new Error(
+          "The production database does not yet support System Operations.",
+        );
+      }
       const { data, error } = await (supabase as any).rpc(
         "admin_retry_failed_notification_delivery",
         {
@@ -173,6 +178,8 @@ function SystemOperationsPage() {
   });
 
   const retryFailedDelivery = (deliveryId: string) => {
+    if (!systemOperationsSupported) return;
+
     let identity = retryIdentities.current.get(deliveryId);
     if (!identity) {
       const command = createOrganisationCommand({
@@ -227,8 +234,14 @@ function SystemOperationsPage() {
               <button
                 type="button"
                 className="admin-action-secondary"
-                onClick={() => void health.refetch()}
-                disabled={health.isFetching}
+                onClick={() => {
+                  if (systemOperationsSupported) void health.refetch();
+                }}
+                disabled={
+                  backend.isLoading ||
+                  !systemOperationsSupported ||
+                  health.isFetching
+                }
               >
                 <RefreshCw className={health.isFetching ? "size-4 animate-spin" : "size-4"} />
                 {health.isFetching ? "Checking…" : "Refresh"}
@@ -367,7 +380,7 @@ function SystemOperationsPage() {
                           <button
                             type="button"
                             className="admin-action-secondary w-full"
-                            disabled={retry.isPending}
+                            disabled={retry.isPending || !systemOperationsSupported}
                             onClick={() => retryFailedDelivery(delivery.id)}
                           >
                             <RefreshCw className="size-4" />
