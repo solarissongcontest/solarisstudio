@@ -201,8 +201,25 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
   const dialog = page.locator(".solaris-app-search-dialog");
   const input = dialog.getByRole("textbox", { name: "Search Solaris Studio" });
   await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveAttribute("data-solaris-dialog-layout", "fullscreen");
   await expect(input).toBeVisible();
   await expect(dialog.locator("[cmdk-root]")).toHaveCount(1);
+
+  const forbiddenCenteredUtilities = await dialog.evaluate((node) =>
+    [...node.classList].filter((className) =>
+      [
+        "left-[50%]",
+        "top-[50%]",
+        "translate-x-[-50%]",
+        "translate-y-[-50%]",
+        "max-w-lg",
+      ].includes(className),
+    ),
+  );
+  expect(
+    forbiddenCenteredUtilities,
+    "fullscreen app search must not inherit centered-dialog positioning utilities",
+  ).toEqual([]);
 
   const inputFont = await input.evaluate((node) =>
     Number.parseFloat(getComputedStyle(node).fontSize || "0"),
@@ -220,6 +237,7 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
         height: rect.height,
         radius: Number.parseFloat(style.borderTopLeftRadius || "0"),
         transform: style.transform,
+        translate: style.translate,
       };
     });
 
@@ -229,6 +247,7 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
   expect(Math.abs(initial.width - window.innerWidth)).toBeLessThanOrEqual(1);
   expect(initial.radius).toBe(0);
   expect(initial.transform).toBe("none");
+  expect(["none", "0px"]).toContain(initial.translate);
 
   await page.evaluate(() => {
     const root = document.documentElement;
@@ -248,6 +267,7 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
   expect(Math.abs(focusedViewport.height - 480)).toBeLessThanOrEqual(1);
   expect(focusedViewport.radius).toBe(0);
   expect(focusedViewport.transform).toBe("none");
+  expect(["none", "0px"]).toContain(focusedViewport.translate);
 
   await expect(page.locator(".solaris-app-tabbar")).toHaveCSS("pointer-events", "none");
 });
