@@ -105,6 +105,22 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(wiki).toContain("AppWikiIndexPage");
   });
 
+  it("uses the redesigned installed browsing hierarchy for Wiki, Editions and Shows", () => {
+    const wiki = source("src/routes/wiki/index.tsx");
+    const editions = source("src/routes/editions/index.tsx");
+    const shows = source("src/routes/shows/index.tsx");
+    const styles = source("src/styles/app-shell.css");
+
+    expect(wiki).toContain("solaris-app-search-field-prominent");
+    expect(wiki).toContain("solaris-app-filter-sheet");
+    expect(wiki).toContain("Search countries…");
+    expect(editions).toContain("solaris-app-section-heading-title-first");
+    expect(editions).toContain("Current edition");
+    expect(shows).toContain("solaris-app-section-heading-title-first");
+    expect(shows).toContain("appShowMeta(show)");
+    expect(styles).toContain("Mobile Directory Polish V4");
+  });
+
   it("prevents website chrome from flashing before installed-app hydration", () => {
     const root = source("src/routes/__root.tsx");
     const runtime = source("src/components/app/AppRuntime.tsx");
