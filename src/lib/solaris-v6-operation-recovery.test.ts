@@ -82,6 +82,19 @@ describe("Solaris V6 consequential command recovery", () => {
     expect(moderation).toContain("shouldRefreshCanonical");
   });
 
+  it("keeps failed push retry on one stable operation identity across ambiguous responses", () => {
+    const systemOperations = source(
+      "src/routes/_authenticated/admin/system-operations.tsx",
+    );
+    expect(systemOperations).toContain("retryIdentities.current.get(deliveryId)");
+    expect(systemOperations).toContain("retryIdentities.current.set(deliveryId, identity)");
+    expect(systemOperations).toContain("retry.mutate({ deliveryId, ...identity })");
+    expect(systemOperations).toContain("resolveSolarisV6OperationRecovery");
+    expect(systemOperations).toContain("Retry same operation");
+    expect(systemOperations).toContain("recovery.shouldRefreshCanonical");
+    expect(systemOperations).toContain("retryIdentities.current.delete(variables.deliveryId)");
+  });
+
   it("fails toward canonical refresh when no stable operation identity exists", () => {
     const recovery = resolveSolarisV6OperationRecovery(
       new Error("Failed to fetch"),
