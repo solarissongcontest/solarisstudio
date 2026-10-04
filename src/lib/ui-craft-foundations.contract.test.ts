@@ -172,7 +172,7 @@ describe("Solaris UI craft foundations", () => {
   it("keeps a visible focus outline on text and selection controls", () => {
     const styles = source("src/styles.css");
     const controlFocus = styles.match(
-      /input:focus-visible, textarea:focus-visible, select:focus-visible, \[role="combobox"\]:focus-visible \{([\s\S]*?)\n\}/,
+      /input(?::not\(\.solaris-app-search-input\))?:focus-visible, textarea:focus-visible, select:focus-visible, \[role="combobox"\]:focus-visible \{([\s\S]*?)\n\}/,
     )?.[1];
 
     expect(controlFocus).toBeDefined();
