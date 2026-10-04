@@ -429,14 +429,14 @@ html[data-solaris-app-boot] body::after {
     padding-bottom: max(
       calc(
         var(--solaris-app-tabbar-height) +
-        max(1.7rem, env(safe-area-inset-bottom))
+        max(2.7rem, env(safe-area-inset-bottom))
       ),
-      calc(var(--solaris-bottom-obstruction) + 1rem)
+      calc(var(--solaris-bottom-obstruction) + 2rem)
     ) !important;
     scroll-padding-bottom: calc(
       var(--solaris-bottom-obstruction) +
       var(--solaris-keyboard-inset) +
-      1rem
+      2rem
     );
   }
 

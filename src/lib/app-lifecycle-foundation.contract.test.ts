@@ -29,6 +29,9 @@ describe("App Experience v3 lifecycle foundation", () => {
     expect(connectivity).toContain('"degraded"');
     expect(connectivity).toContain('"service-restricted"');
     expect(connectivity).toContain("APP_RESUME_EVENT");
+    expect(connectivity).toContain("probeGeneration");
+    expect(connectivity).toContain("generation !== probeGeneration");
+    expect(connectivity).toContain("probeController?.abort()");
     expect(restriction).toContain("SUPABASE_SERVICE_RECOVERED_EVENT");
   });
 
@@ -51,6 +54,13 @@ describe("App Experience v3 lifecycle foundation", () => {
     expect(registry).toContain('offline: "online-required"');
     expect(registry).toContain('offline: "ready"');
     expect(registry).toContain('offline: "readable"');
+  });
+
+  it("reserves content below the measured floating tab bar", () => {
+    const styles = source("src/styles/app-shell.css");
+    expect(styles).toContain("max(2.7rem, env(safe-area-inset-bottom))");
+    expect(styles).toContain("var(--solaris-bottom-obstruction) + 2rem");
+    expect(styles).toContain("var(--solaris-keyboard-inset) +");
   });
 
   it("uses VisualViewport to make installed chrome keyboard-aware", () => {
