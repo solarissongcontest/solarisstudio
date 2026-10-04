@@ -89,28 +89,33 @@ function AppShowsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-5">
+      <div className="solaris-app-shows-v5">
         {groups.map((group) => (
-          <section key={group.edition.id} aria-labelledby={`app-shows-${group.edition.id}`}>
-            <div className="solaris-app-section-heading solaris-app-section-heading-title-first">
-              <h2 id={`app-shows-${group.edition.id}`}>{editionLabel(group.edition)}</h2>
-              <p>{group.shows.length} show{group.shows.length === 1 ? "" : "s"}</p>
+          <section
+            key={group.edition.id}
+            className="solaris-app-directory-section"
+            aria-labelledby={`app-shows-${group.edition.id}`}
+          >
+            <div className="solaris-app-directory-section-header">
+              <div>
+                <h2 id={`app-shows-${group.edition.id}`}>{editionLabel(group.edition)}</h2>
+                <p>{group.shows.length} show{group.shows.length === 1 ? "" : "s"}</p>
+              </div>
             </div>
-            <div className="solaris-app-grouped-list">
+
+            <div className="solaris-app-flat-list" data-solaris-flat-list="shows">
               {group.shows.map((show) => (
                 <Link
                   key={show.id}
                   to="/shows/$showId"
                   params={{ showId: show.id }}
-                  className="solaris-app-list-row"
+                  className="solaris-app-flat-row solaris-app-show-row-v5"
                 >
                   <span className="min-w-0">
-                    <span className="block truncate text-[.95rem] font-semibold">{show.name}</span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
-                      {appShowMeta(show)}
-                    </span>
+                    <span className="solaris-app-flat-row-title">{show.name}</span>
+                    <span className="solaris-app-flat-row-meta">{appShowMeta(show)}</span>
                   </span>
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <ChevronRight className="solaris-app-row-chevron-icon size-4" aria-hidden="true" />
                 </Link>
               ))}
             </div>
@@ -417,13 +422,20 @@ function SectionHeading({ kicker, title, count }: { kicker: string; title: strin
   );
 }
 
-function appShowMeta(show: { name?: string | null; kind?: string | null }) {
-  const kind = showKindLabel(show.kind);
-  const normalize = (value: string) =>
-    value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+function appShowMeta(show: {
+  name?: string | null;
+  kind?: string | null;
+  status?: string | null;
+}) {
+  if (showPublishesResults(show as any)) return "Results available";
 
-  if (show.name && normalize(show.name) === normalize(kind)) return "Published show";
-  return `${kind} · Published`;
+  const status = (show.status ?? "").trim().toLowerCase();
+  if (status === "live" || status === "in-progress" || status === "in progress") return "Live";
+  if (status === "completed" || status === "complete" || status === "finished") return "Completed";
+  if (status === "scheduled" || status === "upcoming") return "Upcoming";
+  if (status === "published" || status === "public") return "Published";
+
+  return "Show published";
 }
 
 function showKindLabel(kind: string | null | undefined) {
