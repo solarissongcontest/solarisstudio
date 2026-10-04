@@ -20,6 +20,9 @@ import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminConfirmSheet, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
 import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import {
+  validateEditionCommandScope,
+} from '@/lib/solaris-v6-edition-context';
+import {
   resolveSolarisV6OperationRecovery,
   type SolarisV6OperationRecovery,
 } from '@/lib/solaris-v6-operation-recovery';
@@ -48,6 +51,7 @@ type PendingOperation = {
   row: Studio2ResultOperationRow;
   action: Studio2ResultAction;
   executionId: string;
+  editionId: string;
 };
 
 function ResultsOperationsPage() {
@@ -74,13 +78,34 @@ function ResultsOperationsPage() {
   const summary = useMemo(() => summarizeStudio2ResultsOperations(rows), [rows]);
 
   const mutation = useMutation({
-    mutationFn: (operation: PendingOperation) => executeStudio2ResultOperation({
-      showId: operation.row.showId,
-      action: operation.action,
-      reason,
-      executionId: operation.executionId,
-      expectedVersion: operation.row.calculationVersion,
-    }),
+    mutationFn: (operation: PendingOperation) => {
+      const scope = validateEditionCommandScope({
+        routeEditionId: resolvedEditionId || null,
+        commandEditionId: operation.editionId,
+        entityEditionId: operation.editionId,
+        capabilityEditionId: null,
+      });
+
+      if (!resolvedEditionId || !scope.ok) {
+        const mismatch = !scope.ok && scope.mismatches.length
+          ? ` (${scope.mismatches.join(", ")})`
+          : "";
+        throw Object.assign(
+          new Error(
+            `Edition context changed before the result operation${mismatch}. Refresh canonical state before retrying.`,
+          ),
+          { status: 409 },
+        );
+      }
+
+      return executeStudio2ResultOperation({
+        showId: operation.row.showId,
+        action: operation.action,
+        reason,
+        executionId: operation.executionId,
+        expectedVersion: operation.row.calculationVersion,
+      });
+    },
     onSuccess: async (execution) => {
       await queryClient.invalidateQueries({ queryKey: ['studio2-results-operations', resolvedEditionId] });
       toast.success(`${resultActionLabel(execution.action, execution.previousVersion)} completed for version ${execution.calculationVersion}.`);
@@ -111,9 +136,18 @@ function ResultsOperationsPage() {
   });
 
   function requestOperation(row: Studio2ResultOperationRow, action: Studio2ResultAction) {
+    if (!resolvedEditionId) {
+      toast.error('Select an edition before opening a result operation.');
+      return;
+    }
     setReason('');
     setRecovery(null);
-    setPending({ row, action, executionId: crypto.randomUUID() });
+    setPending({
+      row,
+      action,
+      executionId: crypto.randomUUID(),
+      editionId: resolvedEditionId,
+    });
   }
 
   async function confirmOperation() {

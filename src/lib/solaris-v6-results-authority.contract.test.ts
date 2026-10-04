@@ -22,6 +22,11 @@ describe("Solaris V6 result lifecycle authority retirement", () => {
     expect(route).toContain("loadStudio2ResultsOperations");
     expect(route).toContain("executeStudio2ResultOperation");
     expect(route).toContain("availableStudio2ResultActions");
+    expect(route).toContain("validateEditionCommandScope");
+    expect(route).toContain("commandEditionId: operation.editionId");
+    expect(route).toContain("entityEditionId: operation.editionId");
+    expect(route).toContain("editionId: resolvedEditionId");
+    expect(route).toContain("{ status: 409 }");
     expect(route).not.toContain(".from('results')");
     expect(route).not.toContain('.from("results")');
     expect(route).not.toContain(".from('jury_votes')");
