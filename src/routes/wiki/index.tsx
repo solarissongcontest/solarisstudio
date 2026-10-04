@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
+import { Check, ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
@@ -60,10 +60,10 @@ function AppWikiIndexPage() {
     <AppShell>
       <div className="space-y-5">
         <div className="solaris-app-directory-tools">
-          <label className="solaris-app-search-field solaris-app-search-field-prominent">
+          <div className="solaris-app-search-field solaris-app-search-field-prominent">
             <Search className="size-[1.05rem] shrink-0 text-muted-foreground" aria-hidden="true" />
-            <span className="sr-only">Search the Wiki</span>
             <input
+              aria-label="Search the Wiki"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search countries…"
@@ -71,7 +71,17 @@ function AppWikiIndexPage() {
               enterKeyHint="search"
               className="min-w-0 flex-1 border-0 bg-transparent outline-none"
             />
-          </label>
+            {search ? (
+              <button
+                type="button"
+                className="solaris-app-search-clear"
+                aria-label="Clear search"
+                onClick={() => setSearch("")}
+              >
+                <X className="size-4" aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
 
           <div className="solaris-app-directory-filterbar">
             <Sheet>
