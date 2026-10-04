@@ -8,6 +8,7 @@ import { AdminCard, AdminConfirmSheet, AdminStatus } from "@/components/admin/Ad
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import { useEdition, useShows } from "@/lib/data";
 import { resolveVoting } from "@/lib/voting";
+import { useOrganisationBackendContract } from "@/lib/organisation-backend-contract";
 
 const supabase = typedSupabase as any;
 
@@ -50,6 +51,9 @@ export function JuryVotingWindowControl() {
   const { data: edition } = useEdition(slug ?? "");
   const { data: shows = [] } = useShows(edition?.id);
   const queryClient = useQueryClient();
+  const backend = useOrganisationBackendContract();
+  const juryOperationsSupported =
+    backend.data?.capabilities.juryWindowOperations === true;
   const [pendingChange, setPendingChange] = useState<PendingWindowChange | null>(null);
 
   const searchShow =
@@ -76,6 +80,11 @@ export function JuryVotingWindowControl() {
 
   const previewStatus = useMutation({
     mutationFn: async (status: "open" | "closed") => {
+      if (!juryOperationsSupported) {
+        throw new Error(
+          "The production database does not yet support the safe jury-window operation contract.",
+        );
+      }
       if (!selectedShow) throw new Error("Choose a show first");
       const { data, error } = await supabase.rpc("studio2_jury_window_change_preview", {
         p_show_id: selectedShow.id,
@@ -171,7 +180,11 @@ export function JuryVotingWindowControl() {
             <button
               type="button"
               className="admin-action-secondary !min-h-10"
-              disabled={previewStatus.isPending || setStatus.isPending}
+              disabled={
+                previewStatus.isPending ||
+                setStatus.isPending ||
+                !juryOperationsSupported
+              }
               onClick={() => previewStatus.mutate("closed")}
             >
               <LockKeyhole className="size-3.5" /> {previewStatus.isPending ? "Checking…" : setStatus.isPending ? "Closing…" : "Close jury voting"}
@@ -180,7 +193,12 @@ export function JuryVotingWindowControl() {
             <button
               type="button"
               className="admin-action-primary !min-h-10"
-              disabled={previewStatus.isPending || setStatus.isPending || !voting.juryEnabled}
+              disabled={
+                previewStatus.isPending ||
+                setStatus.isPending ||
+                !voting.juryEnabled ||
+                !juryOperationsSupported
+              }
               onClick={() => previewStatus.mutate("open")}
             >
               <RadioTower className="size-3.5" /> {previewStatus.isPending ? "Checking…" : setStatus.isPending ? "Opening…" : "Open jury voting"}
@@ -192,6 +210,12 @@ export function JuryVotingWindowControl() {
       {!voting.juryEnabled ? (
         <p className="mt-3 rounded-xl border border-amber-200/10 bg-amber-200/[0.045] p-3 text-xs text-amber-100">
           Jury voting is disabled in this show's Voting system. Enable the jury component there before opening the country-account booth.
+        </p>
+      ) : null}
+
+      {!backend.isLoading && !juryOperationsSupported ? (
+        <p className="mt-3 rounded-xl border border-rose-200/15 bg-rose-200/[0.05] p-3 text-xs text-rose-100">
+          Jury-window controls are read-only until the production database is upgraded to the matching V5 operation contract. Solaris will not fall back to the unsafe legacy mutation path.
         </p>
       ) : null}
 
