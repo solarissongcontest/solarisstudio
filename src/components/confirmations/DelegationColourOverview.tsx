@@ -124,7 +124,7 @@ export function DelegationColourOverview() {
     let cleanupSelect: (() => void) | null = null;
 
     const locate = () => {
-      const page = document.querySelector("main.admin-main > .admin-page");
+      const page = document.querySelector(".admin-main > .admin-page");
       if (!page) return;
 
       const editionSelect = page.querySelector("select");
@@ -190,7 +190,7 @@ export function DelegationColourOverview() {
 
   useEffect(() => {
     const decorate = () => {
-      const page = document.querySelector("main.admin-main > .admin-page");
+      const page = document.querySelector(".admin-main > .admin-page");
       if (!page) return;
 
       page.querySelectorAll<HTMLElement>(".admin-card[data-delegation-state]").forEach((card) => {
