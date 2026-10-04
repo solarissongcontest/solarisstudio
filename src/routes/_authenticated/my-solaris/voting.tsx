@@ -10,6 +10,10 @@ import {
 } from "lucide-react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import {
+  featureSurfaceLinks,
+  SolarisSurfaceSwitch,
+} from "@/components/surfaces/SolarisSurfaceSwitch";
 import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
 import { televotingSupabase } from "@/integrations/televoting/client";
 import { loadStudio2HodWorkspace } from "@/lib/studio2-hod-workspace";
@@ -99,6 +103,18 @@ function MySolarisVotingContent() {
         eyebrow="MySolaris · Voting"
         title="Voting"
         description="Your delegation ballot and the public televote share one status-led workspace."
+      />
+
+      <SolarisSurfaceSwitch
+        className="mb-4"
+        label="Voting perspectives"
+        links={featureSurfaceLinks({
+          featureId: "participant-voting-overview",
+          current: "participant",
+          perspectives: workspace.permissions.isOrganizer
+            ? ["participant", "organizer", "diagnostic"]
+            : ["participant"],
+        })}
       />
 
       <div className="space-y-4">
