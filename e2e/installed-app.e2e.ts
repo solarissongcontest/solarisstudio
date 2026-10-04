@@ -386,9 +386,13 @@ async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo
       if (style.overflow !== "hidden" && style.overflow !== "clip") {
         problems.push(`overflow ${style.overflow}`);
       }
-      if (!(radius > 0)) problems.push("square corners");
-      if (imageStyle && imageStyle.objectFit !== "cover") {
-        problems.push(`object-fit ${imageStyle.objectFit}`);
+      if (radius < 4) problems.push(`corner radius ${radius}px`);
+      if (imageStyle) {
+        const imageRadius = Number.parseFloat(imageStyle.borderTopLeftRadius || "0");
+        if (imageRadius < 4) problems.push(`image corner radius ${imageRadius}px`);
+        if (imageStyle.objectFit !== "cover") {
+          problems.push(`object-fit ${imageStyle.objectFit}`);
+        }
       }
       return problems.length ? [problems.join(", ")] : [];
     });
