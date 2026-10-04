@@ -5,6 +5,13 @@ import type {
   VoteIntegrityTechnicalSignal,
 } from "@/integrations/televoting/integrity";
 
+export type IntegrityDeclarationState =
+  | "required"
+  | "signed"
+  | "missing"
+  | "wrong_version"
+  | "invalidated";
+
 export type IntegrityDeclarationRow = {
   id: string;
   round_id: string;
@@ -26,6 +33,11 @@ export type IntegrityDeclarationRow = {
     ipChanged?: boolean;
   };
   statement_version: number;
+  required_statement_version: number;
+  declaration_version: number;
+  declaration_state: IntegrityDeclarationState;
+  declaration_invalidated_at: string | null;
+  declaration_invalidation_reason: string | null;
   attested_at: string | null;
   signed_name: string | null;
   attestation_text: string | null;
@@ -49,6 +61,9 @@ type PreflightDbRow = {
   technical_signals: unknown;
   history_summary: unknown;
   statement_version: number;
+  declaration_version: number;
+  declaration_invalidated_at: string | null;
+  declaration_invalidation_reason: string | null;
   attested_at: string | null;
   signed_name: string | null;
   attestation_text: string | null;
@@ -65,6 +80,20 @@ type RoundMeta = { name: string; editionId: string };
 
 function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function declarationState(
+  row: Pick<
+    PreflightDbRow,
+    "attested_at" | "expires_at" | "statement_version" | "declaration_invalidated_at"
+  >,
+  requiredVersion: number,
+): IntegrityDeclarationState {
+  if (row.declaration_invalidated_at) return "invalidated";
+  if (!row.attested_at && new Date(row.expires_at).getTime() <= Date.now()) return "missing";
+  if (!row.attested_at) return "required";
+  if (Number(row.statement_version) !== requiredVersion) return "wrong_version";
+  return "signed";
 }
 
 function asObject(value: unknown): Record<string, unknown> {
@@ -85,7 +114,7 @@ export async function listIntegrityDeclarationsServer(input?: {
   let query = tv
     .from("vote_preflight_checks")
     .select(
-      "id,round_id,username_normalized,country_code,hod_person_id,relationship_risk,risk_score,severity,findings,technical_signals,history_summary,statement_version,attested_at,signed_name,attestation_text,submission_id,submitted_at,expires_at,created_at",
+      "id,round_id,username_normalized,country_code,hod_person_id,relationship_risk,risk_score,severity,findings,technical_signals,history_summary,statement_version,declaration_version,declaration_invalidated_at,declaration_invalidation_reason,attested_at,signed_name,attestation_text,submission_id,submitted_at,expires_at,created_at",
     )
     .eq("requires_attestation", true)
     .order("created_at", { ascending: false })
@@ -97,6 +126,28 @@ export async function listIntegrityDeclarationsServer(input?: {
   if (error) throw new Error(error.message);
 
   const rows = (preflights ?? []) as PreflightDbRow[];
+  const policyDb = supabaseAdmin as unknown as {
+    from: (table: string) => {
+      select: (columns: string) => {
+        eq: (column: string, value: boolean) => {
+          maybeSingle: () => Promise<{
+            data: { current_statement_version?: number } | null;
+            error: { message?: string } | null;
+          }>;
+        };
+      };
+    };
+  };
+  const { data: policy, error: policyError } = await policyDb
+    .from("studio2_voting_declaration_policy")
+    .select("current_statement_version")
+    .eq("singleton", true)
+    .maybeSingle();
+  if (policyError) {
+    throw new Error(policyError.message || "Voting declaration policy could not be loaded");
+  }
+  const requiredStatementVersion = Number(policy?.current_statement_version ?? 2);
+
   const roundIds = [...new Set(rows.map((row) => row.round_id).filter(Boolean))];
   const submissionIds = [...new Set(rows.map((row) => row.submission_id).filter((value): value is string => Boolean(value)))];
 
@@ -163,6 +214,11 @@ export async function listIntegrityDeclarationsServer(input?: {
         ipChanged: Boolean(history.ipChanged),
       },
       statement_version: Number(row.statement_version ?? 1),
+      required_statement_version: requiredStatementVersion,
+      declaration_version: Number(row.declaration_version ?? 1),
+      declaration_state: declarationState(row, requiredStatementVersion),
+      declaration_invalidated_at: row.declaration_invalidated_at,
+      declaration_invalidation_reason: row.declaration_invalidation_reason,
       attested_at: row.attested_at,
       signed_name: row.signed_name,
       attestation_text: row.attestation_text,

@@ -11,6 +11,10 @@ import {
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import {
+  countrySurfaceLinks,
+  SolarisSurfaceSwitch,
+} from "@/components/surfaces/SolarisSurfaceSwitch";
+import {
   createCountryAccountConfirmationEditToken,
   getCountryConfirmationAccess,
   type CountryConfirmationResponse,
@@ -84,6 +88,7 @@ export function MySolarisEntryModule() {
         )
       : undefined;
   const country = organizerCountry ?? ownCountry;
+  const organizerInspection = Boolean(organizerCountry);
   const countrySearch = buildCountrySearch(targetCountryId);
   const [editionId, setEditionId] = useState("");
   const [activeSection, setActiveSection] = useState<EntrySection>("overview");
@@ -137,7 +142,7 @@ export function MySolarisEntryModule() {
 
   const confirmationAccessQuery = useQuery({
     queryKey: ["country-confirmation-access", "mysolaris-entry"],
-    enabled: Boolean(ownCountry && !organizerCountry),
+    enabled: Boolean(ownCountry && !organizerInspection),
     queryFn: getCountryConfirmationAccess,
     staleTime: 10_000,
     refetchOnWindowFocus: true,
@@ -261,7 +266,27 @@ export function MySolarisEntryModule() {
         }
       />
 
+      <SolarisSurfaceSwitch
+        className="mb-5"
+        label={`${country.name} perspectives`}
+        links={countrySurfaceLinks({
+          countryId: country.id,
+          countryCode: country.short_code,
+          current: "participant",
+          includeOrganizer: Boolean(access?.isOrganizer),
+          includeDiagnostics: Boolean(access?.isOrganizer),
+        })}
+      />
+
       <div className="space-y-5">
+        {organizerInspection ? (
+          <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3">
+            <p className="text-sm font-semibold">Participant View · read-only</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              You are inspecting exactly what this delegation sees. Participant submission actions are disabled here. Use Manage to change canonical Organizer state.
+            </p>
+          </div>
+        ) : null}
         <Panel
           title="Edition"
           description="Choose the edition you want to view."
@@ -374,7 +399,7 @@ export function MySolarisEntryModule() {
                     </div>
                   )}
                   <div className="mt-4 flex flex-wrap gap-2">
-                    {currentConfirmation?.can_edit && !organizerCountry ? (
+                    {currentConfirmation?.can_edit && !organizerInspection ? (
                       <button
                         type="button"
                         disabled={editConfirmation.isPending}
@@ -384,6 +409,14 @@ export function MySolarisEntryModule() {
                         {editConfirmation.isPending ? "Opening…" : "Edit submission"}
                         <ExternalLink className="size-3.5" aria-hidden="true" />
                       </button>
+                    ) : organizerInspection ? (
+                      <Link
+                        to="/confirmations/admin/countries"
+                        className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold"
+                      >
+                        Open Organizer confirmations
+                        <ExternalLink className="size-3.5" aria-hidden="true" />
+                      </Link>
                     ) : (
                       <Link
                         to="/confirmations"
@@ -409,10 +442,10 @@ export function MySolarisEntryModule() {
                 description="Artist and song details come from the accepted confirmation."
                 actions={
                   <Link
-                    to="/confirmations"
+                    to={organizerInspection ? "/confirmations/admin/countries" : "/confirmations"}
                     className="text-xs font-semibold text-primary"
                   >
-                    Edit in Confirmations →
+                    {organizerInspection ? "Open Organizer confirmations →" : "Edit in Confirmations →"}
                   </Link>
                 }
               >
@@ -463,10 +496,10 @@ export function MySolarisEntryModule() {
                     edition confirmation.
                   </p>
                   <Link
-                    to="/confirmations"
+                    to={organizerInspection ? "/confirmations/admin/countries" : "/confirmations"}
                     className="mt-3 inline-flex text-xs font-semibold text-primary"
                   >
-                    Edit performance media →
+                    {organizerInspection ? "Open Organizer confirmations →" : "Edit performance media →"}
                   </Link>
                 </Panel>
                 <Panel
@@ -510,6 +543,7 @@ export function MySolarisEntryModule() {
                         <EntryActionLink
                           id={`eligibility:${check.id}`}
                           search={countrySearch}
+                          organizerInspection={organizerInspection}
                         />
                       ) : null}
                     </div>
@@ -600,6 +634,7 @@ export function MySolarisEntryModule() {
                           <EntryActionLink
                             id={action.id}
                             search={countrySearch}
+                            organizerInspection={organizerInspection}
                           />
                         </div>
                       ))}
@@ -783,9 +818,11 @@ function BackToMySolaris({ search }: { search: { country?: string } }) {
 function EntryActionLink({
   id,
   search,
+  organizerInspection,
 }: {
   id: string;
   search: { country?: string };
+  organizerInspection: boolean;
 }) {
   const confirmationOwned =
     /(country-confirmed|artist|song|video|broadcaster-approval|entry\.(song-info|artist-info|media|eligibility|broadcaster-approval|tsbc-review|lock))/.test(
@@ -793,10 +830,10 @@ function EntryActionLink({
     );
   return confirmationOwned ? (
     <Link
-      to="/confirmations"
+      to={organizerInspection ? "/confirmations/admin/countries" : "/confirmations"}
       className="mt-3 inline-flex text-xs font-semibold text-primary"
     >
-      Open submission →
+      {organizerInspection ? "Open Organizer confirmations →" : "Open submission →"}
     </Link>
   ) : (
     <Link

@@ -24,6 +24,7 @@ const MAINTENANCE_ADMIN_LOGOUT_PATH = "/__maintenance-admin/logout";
 const MAINTENANCE_BYPASS_COOKIE = "solaris_maintenance_admin";
 const MAINTENANCE_BYPASS_VERSION = "v1";
 const MAINTENANCE_BYPASS_MAX_AGE_SECONDS = 12 * 60 * 60;
+const E2E_MAINTENANCE_BYPASS_COOKIE = "solaris_e2e_maintenance_bypass";
 const MAINTENANCE_ASSET_PATHS = new Set([
   "/tsbc-maintenance-mark.svg",
   "/solaris-studio-mark.png",
@@ -64,6 +65,16 @@ function errorResponse() {
 function maintenanceSecret(env: unknown) {
   const workerEnv = env && typeof env === "object" ? (env as ServerEnv) : undefined;
   return workerEnv?.MAINTENANCE_ADMIN_SECRET ?? process.env.MAINTENANCE_ADMIN_SECRET ?? "";
+}
+
+function hasLocalE2EMaintenanceBypass(request: Request) {
+  if (process.env.SOLARIS_E2E_BYPASS_MAINTENANCE !== "1") return false;
+
+  const url = new URL(request.url);
+  const localHost = url.hostname === "127.0.0.1" || url.hostname === "localhost";
+  if (!localHost) return false;
+
+  return readCookie(request, E2E_MAINTENANCE_BYPASS_COOKIE) === "1";
 }
 
 function bytesToHex(bytes: ArrayBuffer) {
@@ -366,10 +377,41 @@ export default {
 
       if (
         GLOBAL_MAINTENANCE_MODE &&
-        !MAINTENANCE_ASSET_PATHS.has(url.pathname) &&
-        !(await hasValidMaintenanceBypass(request, secret))
+        !MAINTENANCE_ASSET_PATHS.has(url.pathname)
       ) {
-        return maintenanceResponse(request);
+        const localE2EBypass = hasLocalE2EMaintenanceBypass(request);
+        const maintenanceAdminBypass =
+          !localE2EBypass && (await hasValidMaintenanceBypass(request, secret));
+
+        if (!localE2EBypass && !maintenanceAdminBypass) {
+          return maintenanceResponse(request);
+        }
+
+        // Production maintenance bypass is deliberately inspection-only.
+        // It lets authorized administrators verify the hidden application, but
+        // cannot turn an outage into an undocumented mutation channel. Local
+        // E2E may exercise writes because its Supabase stack is isolated.
+        if (
+          maintenanceAdminBypass &&
+          request.method !== "GET" &&
+          request.method !== "HEAD"
+        ) {
+          return new Response(
+            JSON.stringify({
+              error: "solaris_studio_maintenance_read_only",
+              message:
+                "Maintenance access is read-only. Mutating operations remain disabled until maintenance ends.",
+            }),
+            {
+              status: 503,
+              headers: {
+                "cache-control": "no-store, max-age=0",
+                "content-type": "application/json; charset=utf-8",
+                "retry-after": "Sat, 10 Oct 2026 00:00:00 GMT",
+              },
+            },
+          );
+        }
       }
 
       const handler = await getServerEntry();

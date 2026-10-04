@@ -96,6 +96,9 @@ test.describe("Rules and Integrity governance discovery", () => {
     await expect(expand).toBeVisible();
     await expect(localNavigation.locator('a[href="/scorecharts"]')).not.toBeVisible();
 
+    await page.waitForLoadState("networkidle", { timeout: 4_000 }).catch(() => undefined);
+    await expand.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(220);
     await expand.click();
     await expect(
       page.getByRole("button", { name: "Collapse Results navigation" }),

@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeEvidenceFile, type EvidenceUploadDescriptor } from "@/lib/integrity-portal";
+import { uploadPreparedQuarantineFile } from "@/lib/upload-safety";
 
 export type DueEvidenceDeletion = {
   id: string;
@@ -187,14 +188,11 @@ export async function uploadOrganizerEvidenceDerivative(
     },
   );
 
-  const { error: uploadError } = await supabase.storage
-    .from(descriptor.bucket)
-    .upload(descriptor.object_path, file, {
-      upsert: false,
-      contentType: file.type || "text/plain",
-      cacheControl: "0",
-    });
-  if (uploadError) throw new Error(uploadError.message);
+  await uploadPreparedQuarantineFile({
+    client: supabase,
+    descriptor,
+    file,
+  });
 
   return rpc<EvidenceDerivativeResult>("admin_finalize_integrity_evidence_derivative", {
     _token_id: descriptor.token_id,

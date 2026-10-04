@@ -279,10 +279,10 @@ export function BetaBugReports({
                 <Upload className="h-4 w-4" />
                 {bug.file ? bug.file.name : "Optional screenshot"}
               </span>
-              <span className="text-[10px] text-muted-foreground">PNG/JPG/WebP/GIF · max 8 MB</span>
+              <span className="text-[10px] text-muted-foreground">PNG/JPG/WebP · max 5 MB</span>
               <input
                 type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
+                accept="image/png,image/jpeg,image/webp"
                 className="sr-only"
                 onChange={(event) => patch(bug.id, { file: event.target.files?.[0] })}
               />

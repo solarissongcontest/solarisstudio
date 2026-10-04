@@ -10,6 +10,7 @@ import {
   type CountryThemeRow,
   type CountryVisualTheme,
 } from "@/lib/visual-theme";
+import { uploadVerifiedFile } from "@/lib/upload-safety";
 
 const supabase = typedSupabase as any;
 
@@ -709,20 +710,30 @@ export async function uploadCountryFont(countryId: string, file: File, label?: s
   const { data: auth, error: authError } = await typedSupabase.auth.getUser();
   if (authError) throw authError;
   if (!auth.user) throw new Error("Sign in to upload a font.");
+
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-  if (!["woff2", "woff", "ttf", "otf"].includes(extension)) {
-    throw new Error("Use WOFF2, WOFF, TTF or OTF font files.");
+  if (extension !== "woff2" || file.type !== "font/woff2") {
+    throw new Error("Custom font delivery accepts WOFF2 files only.");
   }
+  if (file.size <= 0) throw new Error("Choose a non-empty font file.");
   if (file.size > 4 * 1024 * 1024) throw new Error("Custom fonts must be 4 MB or smaller.");
 
-  const id = crypto.randomUUID();
-  const family = `Solaris Custom ${id.slice(0, 8)}`;
-  const storagePath = `${auth.user.id}/${countryId}/${id}.${extension}`;
-  const { error: uploadError } = await typedSupabase.storage
+  const receipt = await uploadVerifiedFile({
+    client: typedSupabase,
+    domain: "country_font",
+    entityId: countryId,
+    file,
+  });
+
+  if (receipt.bucket !== "country-fonts") {
+    throw new Error("Solaris verified the custom font into an unexpected bucket.");
+  }
+
+  const family = `Solaris Custom ${receipt.token_id.slice(0, 8)}`;
+  const { data: publicData } = typedSupabase.storage
     .from("country-fonts")
-    .upload(storagePath, file, { upsert: false, contentType: file.type || "application/octet-stream" });
-  if (uploadError) throw uploadError;
-  const { data: publicData } = typedSupabase.storage.from("country-fonts").getPublicUrl(storagePath);
+    .getPublicUrl(receipt.object_path);
+
   const { data, error } = await supabase
     .from("country_font_assets")
     .insert({
@@ -730,16 +741,18 @@ export async function uploadCountryFont(countryId: string, file: File, label?: s
       country_id: countryId,
       name: (label || file.name.replace(/\.[^.]+$/, "")).slice(0, 80),
       family_key: family,
-      storage_path: storagePath,
+      storage_path: receipt.object_path,
       public_url: publicData.publicUrl,
-      mime_type: file.type || "application/octet-stream",
+      mime_type: receipt.detected_mime,
     })
     .select("*")
     .single();
+
   if (error) {
-    await typedSupabase.storage.from("country-fonts").remove([storagePath]);
+    await typedSupabase.storage.from("country-fonts").remove([receipt.object_path]);
     throw error;
   }
+
   const asset = data as CountryFontAsset;
   return {
     id: `custom:${asset.id}`,

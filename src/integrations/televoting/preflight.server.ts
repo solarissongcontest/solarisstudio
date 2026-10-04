@@ -68,6 +68,36 @@ type Observation = {
   participantCount: number;
 };
 
+async function loadCurrentVoteIntegrityStatementVersion() {
+  const db = supabaseAdmin as unknown as {
+    from: (table: string) => {
+      select: (columns: string) => {
+        eq: (column: string, value: boolean) => {
+          maybeSingle: () => Promise<{
+            data: { current_statement_version?: number } | null;
+            error: { message?: string } | null;
+          }>;
+        };
+      };
+    };
+  };
+
+  const { data, error } = await db
+    .from("studio2_voting_declaration_policy")
+    .select("current_statement_version")
+    .eq("singleton", true)
+    .maybeSingle();
+  if (error) {
+    throw new Error(error.message || "Voting declaration policy could not be loaded");
+  }
+
+  const version = Number(data?.current_statement_version ?? VOTE_INTEGRITY_STATEMENT_VERSION);
+  if (!Number.isInteger(version) || version <= 0) {
+    throw new Error("Voting declaration policy returned an invalid statement version");
+  }
+  return version;
+}
+
 const ignoredDeletedCategories = new Set([
   "test_submission",
   "administrative_error",
@@ -516,6 +546,7 @@ export async function runVoteIntegrityPreflightServer(input: VotePreflightInput)
     ...(notableTargets.size >= 3 ? ["multiple_relationships"] : []),
   ];
 
+  const declarationStatementVersion = await loadCurrentVoteIntegrityStatementVersion();
   const token = randomUUID();
   const expiresAt = new Date(Date.now() + 20 * 60_000).toISOString();
   const history = {
@@ -567,7 +598,7 @@ export async function runVoteIntegrityPreflightServer(input: VotePreflightInput)
     model_version: FRIEND_VOTING_MODEL_VERSION,
     voter_reason_categories: reasonCategories,
     admin_evidence: adminEvidence,
-    statement_version: VOTE_INTEGRITY_STATEMENT_VERSION,
+    statement_version: declarationStatementVersion,
     expires_at: expiresAt,
   });
   if (insertError) throw new Error(insertError.message);
@@ -608,7 +639,9 @@ export async function signVoteIntegrityAttestationServer(input: {
   const tv = (supabaseAdmin as any).schema("televoting");
   const { data: row, error } = await tv
     .from("vote_preflight_checks")
-    .select("id,username_normalized,requires_attestation,expires_at,submitted_at,ip_hash")
+    .select(
+      "id,username_normalized,requires_attestation,expires_at,submitted_at,ip_hash,statement_version,attested_at,declaration_invalidated_at",
+    )
     .eq("id", token)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -616,6 +649,16 @@ export async function signVoteIntegrityAttestationServer(input: {
   if (row.submitted_at) throw new Error("This ballot has already been submitted");
   if (new Date(row.expires_at).getTime() <= Date.now()) throw new Error("Voting integrity check expired. Review the ballot again.");
   if (!row.requires_attestation) throw new Error("This ballot does not require an integrity declaration");
+  if (row.declaration_invalidated_at) {
+    throw new Error("This integrity declaration was invalidated. Return to the ballot and run the check again.");
+  }
+  const requiredStatementVersion = await loadCurrentVoteIntegrityStatementVersion();
+  if (Number(row.statement_version) !== requiredStatementVersion) {
+    throw new Error("This integrity declaration uses an outdated statement. Return to the ballot and run the check again.");
+  }
+  if (row.attested_at) {
+    return { ok: true, alreadySigned: true };
+  }
   if (signedName.toLowerCase() !== String(row.username_normalized).toLowerCase()) {
     throw new Error("Type the same username you registered with to sign the declaration");
   }
@@ -643,5 +686,5 @@ export async function signVoteIntegrityAttestationServer(input: {
     .is("submitted_at", null);
   if (updateError) throw new Error(updateError.message);
 
-  return { ok: true };
+  return { ok: true, alreadySigned: false };
 }

@@ -7,6 +7,7 @@ type Delivery = {
   user_id: string;
   category: string;
   event_type: string;
+  subject_id: string;
   route: string;
   title: string;
   body: string;
@@ -74,8 +75,11 @@ function inQuietHours(preference: Preference, now = new Date()) {
     : current >= start || current < end;
 }
 
-function isUrgentDeadline(delivery: Delivery) {
-  return /deadline_(?:3h|1h)$/.test(delivery.event_type);
+function isUrgentDelivery(delivery: Delivery) {
+  return (
+    /deadline_(?:3h|1h)$/.test(delivery.event_type) ||
+    delivery.event_type === "organizer_task.critical"
+  );
 }
 
 Deno.serve(async (req) => {
@@ -136,6 +140,14 @@ Deno.serve(async (req) => {
 
   webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
+  const { error: organizerTaskError } = await service.rpc(
+    "solaris_prepare_organizer_task_delivery",
+  );
+  if (organizerTaskError) {
+    console.error("[solaris-push-dispatch] Organizer Task reconciliation failed", organizerTaskError);
+    return json({ error: "Organizer task notifications could not be prepared." }, 500);
+  }
+
   const { data: enqueueCount, error: enqueueError } = await service.rpc(
     "solaris_enqueue_app_notifications",
     { p_now: new Date().toISOString() },
@@ -145,15 +157,15 @@ Deno.serve(async (req) => {
     return json({ error: "Notification candidates could not be prepared." }, 500);
   }
 
-  const { data: deliveries, error: deliveryError } = await service
-    .from("notification_deliveries")
-    .select("id,user_id,category,event_type,route,title,body,dedupe_key")
-    .eq("status", "pending")
-    .lte("scheduled_for", new Date().toISOString())
-    .order("scheduled_for", { ascending: true })
-    .limit(100);
+  const { data: deliveries, error: deliveryError } = await service.rpc(
+    "solaris_claim_pending_notification_deliveries",
+    {
+      p_now: new Date().toISOString(),
+      p_limit: 100,
+    },
+  );
 
-  if (deliveryError) return json({ error: "Pending notifications could not be loaded." }, 500);
+  if (deliveryError) return json({ error: "Pending notifications could not be claimed." }, 500);
 
   let sent = 0;
   let failed = 0;
@@ -161,6 +173,127 @@ Deno.serve(async (req) => {
   let deferred = 0;
 
   for (const delivery of (deliveries ?? []) as Delivery[]) {
+    if (delivery.category === "organizer_tasks") {
+      const { data: task, error: taskError } = await service
+        .from("studio2_organizer_tasks")
+        .select("state,resolved_at,source_key")
+        .eq("id", delivery.subject_id)
+        .maybeSingle();
+
+      if (taskError) {
+        console.error("[solaris-push-dispatch] Organizer Task lookup failed", delivery.id, taskError);
+        await service
+          .from("notification_deliveries")
+          .update({
+            status: "pending",
+            processing_started_at: null,
+            scheduled_for: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+            error: "Organizer Task lookup failed; retry scheduled.",
+          })
+          .eq("id", delivery.id)
+          .eq("status", "processing");
+        continue;
+      }
+
+      if (!task || task.state === "resolved" || task.resolved_at) {
+        await service
+          .from("notification_deliveries")
+          .update({
+            status: "suppressed",
+            processing_started_at: null,
+            error: "Organizer Task resolved before delivery.",
+          })
+          .eq("id", delivery.id)
+          .eq("status", "processing");
+        suppressed += 1;
+        continue;
+      }
+
+      const { data: recipientEligible, error: recipientEligibilityError } = await service.rpc(
+        "solaris_organizer_task_recipient_eligible",
+        {
+          p_task_id: delivery.subject_id,
+          p_user_id: delivery.user_id,
+        },
+      );
+
+      if (recipientEligibilityError) {
+        console.error(
+          "[solaris-push-dispatch] Organizer Task eligibility revalidation failed",
+          delivery.id,
+          recipientEligibilityError,
+        );
+        await service
+          .from("notification_deliveries")
+          .update({
+            status: "pending",
+            processing_started_at: null,
+            scheduled_for: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+            error: "Organizer Task eligibility revalidation failed; retry scheduled.",
+          })
+          .eq("id", delivery.id)
+          .eq("status", "processing");
+        continue;
+      }
+
+      if (!recipientEligible) {
+        await service
+          .from("notification_deliveries")
+          .update({
+            status: "suppressed",
+            processing_started_at: null,
+            error: "Organizer Task recipient is no longer eligible.",
+          })
+          .eq("id", delivery.id)
+          .eq("status", "processing");
+        suppressed += 1;
+        continue;
+      }
+
+      const { data: recipientNotification, error: recipientNotificationError } = await service
+        .from("admin_notifications")
+        .select("id")
+        .eq("recipient_id", delivery.user_id)
+        .eq("source_key", task.source_key)
+        .eq("resolution_mode", "domain")
+        .eq("requires_action", true)
+        .is("resolved_at", null)
+        .maybeSingle();
+
+      if (recipientNotificationError) {
+        console.error(
+          "[solaris-push-dispatch] Organizer Task recipient revalidation failed",
+          delivery.id,
+          recipientNotificationError,
+        );
+        await service
+          .from("notification_deliveries")
+          .update({
+            status: "pending",
+            processing_started_at: null,
+            scheduled_for: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+            error: "Organizer Task recipient revalidation failed; retry scheduled.",
+          })
+          .eq("id", delivery.id)
+          .eq("status", "processing");
+        continue;
+      }
+
+      if (!recipientNotification) {
+        await service
+          .from("notification_deliveries")
+          .update({
+            status: "suppressed",
+            processing_started_at: null,
+            error: "Organizer Task recipient is no longer eligible.",
+          })
+          .eq("id", delivery.id)
+          .eq("status", "processing");
+        suppressed += 1;
+        continue;
+      }
+    }
+
     const { data: preferenceData, error: preferenceError } = await service
       .from("notification_preferences")
       .select("external_enabled,categories,quiet_hours_start,quiet_hours_end,urgent_deadline_reminders,timezone")
@@ -169,27 +302,52 @@ Deno.serve(async (req) => {
 
     if (preferenceError) {
       console.error("[solaris-push-dispatch] preference load failed", delivery.id, preferenceError);
+      await service
+        .from("notification_deliveries")
+        .update({
+          status: "pending",
+          processing_started_at: null,
+          scheduled_for: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+          error: "Preference lookup failed; retry scheduled.",
+        })
+        .eq("id", delivery.id)
+        .eq("status", "processing");
       continue;
     }
 
     const preference = preferenceData as Preference | null;
-    if (
-      !preference?.external_enabled ||
-      !Array.isArray(preference.categories) ||
-      !preference.categories.includes(delivery.category)
-    ) {
+    const categoryEnabled =
+      delivery.category === "organizer_tasks" ||
+      (Array.isArray(preference?.categories) &&
+        preference.categories.includes(delivery.category));
+    if (!preference?.external_enabled || !categoryEnabled) {
       await service
         .from("notification_deliveries")
-        .update({ status: "suppressed", error: "Preference disabled" })
-        .eq("id", delivery.id);
+        .update({
+          status: "suppressed",
+          processing_started_at: null,
+          error: "Preference disabled",
+        })
+        .eq("id", delivery.id)
+        .eq("status", "processing");
       suppressed += 1;
       continue;
     }
 
     if (
       inQuietHours(preference) &&
-      !(preference.urgent_deadline_reminders && isUrgentDeadline(delivery))
+      !(preference.urgent_deadline_reminders && isUrgentDelivery(delivery))
     ) {
+      await service
+        .from("notification_deliveries")
+        .update({
+          status: "pending",
+          processing_started_at: null,
+          scheduled_for: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+          error: null,
+        })
+        .eq("id", delivery.id)
+        .eq("status", "processing");
       deferred += 1;
       continue;
     }
@@ -202,6 +360,16 @@ Deno.serve(async (req) => {
 
     if (subscriptionError) {
       console.error("[solaris-push-dispatch] subscription load failed", delivery.id, subscriptionError);
+      await service
+        .from("notification_deliveries")
+        .update({
+          status: "pending",
+          processing_started_at: null,
+          scheduled_for: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+          error: "Subscription lookup failed; retry scheduled.",
+        })
+        .eq("id", delivery.id)
+        .eq("status", "processing");
       continue;
     }
 
@@ -227,7 +395,7 @@ Deno.serve(async (req) => {
           }),
           {
             TTL: 60 * 60 * 12,
-            urgency: isUrgentDeadline(delivery) ? "high" : "normal",
+            urgency: isUrgentDelivery(delivery) ? "high" : "normal",
           },
         );
         delivered = true;
@@ -251,14 +419,25 @@ Deno.serve(async (req) => {
     if (delivered) {
       await service
         .from("notification_deliveries")
-        .update({ status: "sent", sent_at: new Date().toISOString(), error: null })
-        .eq("id", delivery.id);
+        .update({
+          status: "sent",
+          sent_at: new Date().toISOString(),
+          processing_started_at: null,
+          error: null,
+        })
+        .eq("id", delivery.id)
+        .eq("status", "processing");
       sent += 1;
     } else {
       await service
         .from("notification_deliveries")
-        .update({ status: "failed", error: lastError.slice(0, 500) })
-        .eq("id", delivery.id);
+        .update({
+          status: "failed",
+          processing_started_at: null,
+          error: lastError.slice(0, 500),
+        })
+        .eq("id", delivery.id)
+        .eq("status", "processing");
       failed += 1;
     }
   }

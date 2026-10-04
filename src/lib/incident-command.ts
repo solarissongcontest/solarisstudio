@@ -14,7 +14,7 @@ export const INCIDENT_CATEGORIES = [
 ] as const;
 export type IncidentCategory = (typeof INCIDENT_CATEGORIES)[number];
 
-export const INCIDENT_STATUSES = ['open', 'mitigating', 'monitoring', 'resolved'] as const;
+export const INCIDENT_STATUSES = ['detected', 'investigating', 'mitigating', 'monitoring', 'resolved'] as const;
 export type IncidentStatus = (typeof INCIDENT_STATUSES)[number];
 
 export type Incident = {
@@ -33,10 +33,11 @@ export type IncidentTransition = {
 };
 
 const NEXT_INCIDENT_STATES: Record<IncidentStatus, readonly IncidentStatus[]> = {
-  open: ['mitigating', 'monitoring', 'resolved'],
-  mitigating: ['monitoring', 'resolved'],
-  monitoring: ['mitigating', 'resolved'],
-  resolved: ['monitoring'],
+  detected: ['investigating', 'mitigating', 'monitoring', 'resolved'],
+  investigating: ['mitigating', 'monitoring', 'resolved'],
+  mitigating: ['investigating', 'monitoring', 'resolved'],
+  monitoring: ['investigating', 'mitigating', 'resolved'],
+  resolved: ['investigating', 'monitoring'],
 };
 
 export function canTransitionIncident(from: IncidentStatus, to: IncidentStatus): boolean {

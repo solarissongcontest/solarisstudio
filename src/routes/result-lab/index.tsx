@@ -395,7 +395,7 @@ function ResultLabPage() {
               step={5}
               value={juryWeight}
               onChange={(event) => setJuryWeight(Number(event.target.value))}
-              className="mt-4 block w-full min-w-0"
+              className="mt-4 block h-10 w-full min-w-0 cursor-pointer"
             />
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
               {[

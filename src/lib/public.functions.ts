@@ -145,6 +145,12 @@ export const submitConfirmation = createServerFn({ method: "POST" })
       const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
       if (message.includes("duplicate_song")) return { ok: false as const, error: "duplicate_song" };
       if (message.includes("duplicate_artist")) return { ok: false as const, error: "duplicate_artist" };
+      if (
+        message.includes("already completed confirmation requirement") ||
+        message.includes("requires explicit reconfirmation")
+      ) {
+        return { ok: false as const, error: "confirmation_already_complete" };
+      }
       return { ok: false as const, error: "server" };
     }
   });

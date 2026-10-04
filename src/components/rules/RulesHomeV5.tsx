@@ -133,7 +133,7 @@ export function RulesHomeV5({ version }: { version: string }) {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search rules or ask a question…"
-                className={isAppMode ? "min-w-0 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-muted-foreground/65" : "min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/65"}
+                className={isAppMode ? "min-h-10 min-w-0 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-muted-foreground/65" : "min-h-10 min-w-0 flex-1 border-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/65"}
                 enterKeyHint="search"
               />
               {!isAppMode ? (
@@ -156,7 +156,7 @@ export function RulesHomeV5({ version }: { version: string }) {
                   setQuery(example);
                   void navigate({ to: "/rules/search", search: { q: example } });
                 }}
-                className="font-semibold text-primary"
+                className="inline-flex min-h-8 items-center font-semibold text-primary"
               >
                 {example}
               </button>

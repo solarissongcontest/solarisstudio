@@ -22,7 +22,8 @@ import atlasSource from "@/styles/personalities/atlas-source.adapter.css?inline"
 import glassSource from "@/styles/personalities/glass-source.adapter.css?inline";
 import personalityCompositions from "@/styles/personality-compositions.css?inline";
 
-const countryPersonalityStyles = [
+const countryPersonalityStyles = `@layer personality {
+${[
   buttonStyles,
   sharedFoundation,
   wikiV8,
@@ -46,7 +47,8 @@ const countryPersonalityStyles = [
   atlasSource,
   glassSource,
   personalityCompositions,
-].join("\n");
+].join("\n")}
+}`;
 
 /**
  * One route-scoped style payload.

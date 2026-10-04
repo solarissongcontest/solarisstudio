@@ -263,7 +263,7 @@
 .solaris-confetti-4 { background: #c4b5fd; }
 .solaris-confetti-5 { background: #5eead4; }
 
-.solaris-click-glitter { position: fixed; z-index: 9999; width: 1px; height: 1px; pointer-events: none; }
+.solaris-click-glitter { position: fixed; z-index: var(--solaris-z-popover); width: 1px; height: 1px; pointer-events: none; }
 .solaris-click-glitter-spark { --spark-angle: 0deg; --spark-distance: 60px; --spark-delay: 0ms; position: absolute; left: -3px; top: -3px; width: 7px; height: 7px; border-radius: 2px; opacity: 0; transform: rotate(var(--spark-angle)) translateX(0) scale(.2); animation: solaris-click-spark .72s cubic-bezier(.16,.84,.32,1) var(--spark-delay) forwards; box-shadow: 0 0 10px currentColor; }
 .solaris-click-glitter-0 { color: #fff; background: #fff; }
 .solaris-click-glitter-1 { color: #67e8f9; background: #67e8f9; }

@@ -30,6 +30,27 @@ export type MergedAdminRoundsPage = {
   edition: MergedAdminRoundsPageEdition | null;
 };
 
+export type MergedRoundStatusPreview = {
+  riskClass: "R2";
+  roundId: string;
+  roundName: string;
+  remoteEditionId: string;
+  solarisEditionId: string;
+  requestedStatus: "draft" | "open" | "closed";
+  currentStatus: "draft" | "open" | "closed";
+  expectedGlobalVersion: number;
+  expectedRoundVersion: number;
+  entryCount: number;
+  ballotCount: number;
+  suspiciousBallotCount: number;
+  resultsStatus: "draft" | "calculated" | "locked" | "published";
+  calculationVersion: number;
+  resultsOutdated: boolean;
+  otherOpenRound: { roundId: string; roundName: string; editionId: string } | null;
+  blockers: string[];
+  alreadyApplied: boolean;
+};
+
 function asRecord(value: unknown) {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -150,10 +171,37 @@ export const renameMergedTelevotingRound = createServerFn({ method: "POST" })
     return renameMergedTelevotingRoundServer(data);
   });
 
-export const setMergedTelevotingRoundStatus = createServerFn({ method: "POST" })
+export const previewMergedTelevotingRoundStatus = createServerFn({ method: "POST" })
   .inputValidator((data: { id: string; status: "draft" | "open" | "closed" }) => {
     if (!data?.id) throw new Error("Missing round");
     if (!["draft", "open", "closed"].includes(data.status)) throw new Error("Invalid status");
+    return data;
+  })
+  .handler(async ({ data }) => {
+    const { previewMergedTelevotingRoundStatusServer } = await import(
+      "@/integrations/televoting/rounds.server"
+    );
+    return previewMergedTelevotingRoundStatusServer(data);
+  });
+
+export const setMergedTelevotingRoundStatus = createServerFn({ method: "POST" })
+  .inputValidator((data: {
+    id: string;
+    status: "draft" | "open" | "closed";
+    operationId: string;
+    idempotencyKey: string;
+    expectedGlobalVersion: number;
+    expectedRoundVersion: number;
+  }) => {
+    if (!data?.id) throw new Error("Missing round");
+    if (!["draft", "open", "closed"].includes(data.status)) throw new Error("Invalid status");
+    if (!data.operationId || !data.idempotencyKey) throw new Error("Missing operation identity");
+    if (!Number.isInteger(data.expectedGlobalVersion) || data.expectedGlobalVersion < 0) {
+      throw new Error("Invalid global round version");
+    }
+    if (!Number.isInteger(data.expectedRoundVersion) || data.expectedRoundVersion < 0) {
+      throw new Error("Invalid round version");
+    }
     return data;
   })
   .handler(async ({ data }) => {
