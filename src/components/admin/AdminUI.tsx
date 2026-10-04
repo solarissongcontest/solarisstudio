@@ -222,6 +222,7 @@ export function AdminConfirmSheet({
   confirmationHint,
   busy = false,
   danger = false,
+  confirmDisabled = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -233,6 +234,7 @@ export function AdminConfirmSheet({
   confirmationHint?: string;
   busy?: boolean;
   danger?: boolean;
+  confirmDisabled?: boolean;
 }) {
   const [typed, setTyped] = useState("");
 
@@ -276,7 +278,7 @@ export function AdminConfirmSheet({
         </button>
         <button
           type="button"
-          disabled={busy || !allowed}
+          disabled={busy || !allowed || confirmDisabled}
           onClick={() => void onConfirm()}
           className={cn("w-full", danger ? "admin-action-danger" : "admin-action-primary")}
         >
