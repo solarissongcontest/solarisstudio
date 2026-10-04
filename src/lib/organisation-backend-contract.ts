@@ -14,7 +14,9 @@ export type OrganisationBackendContract = {
   error: string | null;
 };
 
-const SUPPORTED_SCHEMA_IDS = new Set(["organisation-os-v5-20261004"]);
+const SUPPORTED_SCHEMA_IDS = new Set([
+  "organisation-os-v5-20261004-complete",
+]);
 
 const unavailable = (error: string | null): OrganisationBackendContract => ({
   available: false,
