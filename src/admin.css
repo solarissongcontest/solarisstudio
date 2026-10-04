@@ -352,4 +352,9 @@
   .admin-progress-fill {
     transition: none !important;
   }
+
+  [data-solaris-organizer-toolbar] .admin-brand-title {
+    transform: none !important;
+    transition: none !important;
+  }
 }
