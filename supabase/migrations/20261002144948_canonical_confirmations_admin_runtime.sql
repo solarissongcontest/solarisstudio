@@ -1,5 +1,11 @@
 -- Mobile App V2 / Supabase cutover: canonical Confirmations admin runtime
 
+-- Clean-replay compatibility: older main schemas do not yet have the edition-level
+-- editing flag, while the admin RPCs below already project and mutate it.
+alter table public.editions
+  add column if not exists editing_enabled boolean not null default true;
+
+
 
 -- Canonical Confirmations organizer runtime.
 -- Retires the dedicated Confirmations Supabase dependency and exposes the
