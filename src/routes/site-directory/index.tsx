@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import {
   PUBLIC_DESTINATIONS,
   publicSearchText,
@@ -59,18 +60,28 @@ function SiteDirectoryPage() {
         description="Search every public destination, including advanced tools and older Solaris names."
       />
 
-      <label className={isAppMode ? "solaris-app-search-field mb-5" : "mx-auto mb-7 flex min-h-12 max-w-2xl items-center gap-3 rounded-2xl border border-border/75 bg-surface/70 px-4"}>
-        <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-        <span className="sr-only">Search Solaris Studio pages</span>
-        <input
-          type="search"
+      {isAppMode ? (
+        <SolarisSearchField
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search pages, tools or old feature names…"
-          className="min-w-0 flex-1 border-0 bg-transparent py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground"
-          autoComplete="off"
+          onChange={setQuery}
+          label="Search Solaris Studio pages"
+          placeholder="Search pages or tools…"
+          className="mb-5"
         />
-      </label>
+      ) : (
+        <label className="mx-auto mb-7 flex min-h-12 max-w-2xl items-center gap-3 rounded-2xl border border-border/75 bg-surface/70 px-4">
+          <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className="sr-only">Search Solaris Studio pages</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search pages, tools or old feature names…"
+            className="min-w-0 flex-1 border-0 bg-transparent py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            autoComplete="off"
+          />
+        </label>
+      )}
 
       {matches.length ? (
         <div className="space-y-8">
