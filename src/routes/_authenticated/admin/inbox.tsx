@@ -10,6 +10,7 @@ import {
 import { useMemo, useState, type ReactNode } from "react";
 
 import { AdminPage } from "@/components/admin/AdminShell";
+import { SolarisSwipeActionRow } from "@/components/interaction/SolarisSwipeActionRow";
 import {
   AdminCard,
   AdminCardHeader,
@@ -187,8 +188,17 @@ function InboxRow({
   const attention = urgent || item.severity === "warning" || item.severity === "action";
   const Icon = urgent ? ShieldAlert : attention ? TriangleAlert : Inbox;
   const resolved = Boolean(item.resolved_at);
+  const domainResolved = item.resolution_mode === "domain";
+  const swipeActions = [
+    ...(!item.read_at
+      ? [{ id: "seen", label: "Seen", onSelect: onSeen }]
+      : []),
+    ...(!resolved && !domainResolved && !resolving
+      ? [{ id: "resolve", label: "Resolve", onSelect: onResolve }]
+      : []),
+  ];
 
-  return (
+  const row = (
     <div className="admin-list-row">
       <span
         className={cn(
@@ -227,14 +237,31 @@ function InboxRow({
               Mark seen
             </button>
           ) : null}
-          {!resolved ? (
+          {!resolved && !domainResolved ? (
             <button type="button" disabled={resolving} onClick={onResolve} className="admin-action-quiet">
               <CheckCircle2 className="size-4" /> Mark resolved
             </button>
           ) : null}
+          {!resolved && domainResolved ? (
+            <span className="inline-flex min-h-9 items-center text-[11px] font-semibold text-muted-foreground">
+              Resolves automatically from the source workflow
+            </span>
+          ) : null}
         </span>
       </span>
     </div>
+  );
+
+  if (!swipeActions.length) return row;
+
+  return (
+    <SolarisSwipeActionRow
+      actions={swipeActions}
+      showFallbackActions={false}
+      className="rounded-none"
+    >
+      {row}
+    </SolarisSwipeActionRow>
   );
 }
 
