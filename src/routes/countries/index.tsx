@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, Search, SlidersHorizontal, Trophy } from "lucide-react";
+import { Check, ChevronRight, Search, SlidersHorizontal, Trophy, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
 import {
   useAllJuryVotes,
@@ -82,35 +83,74 @@ function AppCountriesPage() {
 
   return (
     <AppShell>
-      <div className="space-y-4">
-        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_11rem]">
-          <label className="solaris-app-search-field">
-            <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <span className="sr-only">Search countries</span>
+      <div className="space-y-5">
+        <div className="solaris-app-directory-tools">
+          <div className="solaris-app-search-field solaris-app-search-field-prominent">
+            <Search className="size-[1.05rem] shrink-0 text-muted-foreground" aria-hidden="true" />
             <input
+              aria-label="Search countries"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search country or code…"
+              placeholder="Search countries…"
               autoComplete="off"
+              enterKeyHint="search"
               className="min-w-0 flex-1 border-0 bg-transparent outline-none"
             />
-          </label>
-          <label>
-            <span className="sr-only">Filter by region</span>
-            <select
-              value={region}
-              onChange={(event) => setRegion(event.target.value)}
-              className="min-h-11 w-full rounded-xl border border-border bg-background/45 px-3 text-sm outline-none"
-            >
-              <option value="all">All regions</option>
-              {regions.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
-          </label>
+            {search ? (
+              <button
+                type="button"
+                className="solaris-app-search-clear"
+                aria-label="Clear search"
+                onClick={() => setSearch("")}
+              >
+                <X className="size-4" aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+
+          <div className="solaris-app-directory-filterbar">
+            <Sheet>
+              <SheetTrigger asChild>
+                <button type="button" className="solaris-app-filter-chip">
+                  <SlidersHorizontal className="size-4" aria-hidden="true" />
+                  <span>{region === "all" ? "All regions" : region}</span>
+                </button>
+              </SheetTrigger>
+              <SheetContent
+                side="bottom"
+                aria-label="Filter countries by region"
+                className="solaris-app-filter-sheet"
+              >
+                <div className="solaris-app-filter-sheet-heading">
+                  <p>Countries</p>
+                  <h2>Filter by region</h2>
+                </div>
+                <div className="mt-3">
+                  {["all", ...regions].map((item) => {
+                    const active = region === item;
+                    return (
+                      <SheetClose key={item} asChild>
+                        <button
+                          type="button"
+                          onClick={() => setRegion(item)}
+                          className={`solaris-app-filter-option${active ? " is-active" : ""}`}
+                          aria-pressed={active}
+                        >
+                          <span>{item === "all" ? "All regions" : item}</span>
+                          {active ? <Check className="size-4" aria-hidden="true" /> : null}
+                        </button>
+                      </SheetClose>
+                    );
+                  })}
+                </div>
+              </SheetContent>
+            </Sheet>
+            <span className="solaris-app-directory-count">{filtered.length} delegations</span>
+          </div>
         </div>
 
         <section aria-labelledby="app-country-directory">
-          <div className="solaris-app-section-heading">
-            <p>{filtered.length} delegations</p>
+          <div className="solaris-app-section-heading solaris-app-section-heading-title-first">
             <h2 id="app-country-directory">Countries</h2>
           </div>
           <div className="solaris-app-grouped-list">
