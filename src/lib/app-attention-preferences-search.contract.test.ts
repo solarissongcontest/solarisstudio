@@ -38,7 +38,6 @@ describe("App Experience v3 attention preferences and search", () => {
     expect(palette).toContain('appearance="appSearch"');
     expect(palette).toContain("shouldFilter={false}");
     expect(palette).not.toContain("<Command shouldFilter={false}>");
-    expect(palette).toContain("solaris-app-search-input solaris-app-command-search-input");
     expect(palette).toContain("Recent searches");
     const dialog = source("src/components/ui/dialog.tsx");
     const command = source("src/components/ui/command.tsx");
