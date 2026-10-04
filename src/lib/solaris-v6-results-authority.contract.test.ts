@@ -47,6 +47,26 @@ describe("Solaris V6 result lifecycle authority retirement", () => {
     expect(publication).not.toContain("STUDIO2_RESULT_LIFECYCLE");
   });
 
+  it("fails publication closed when route, command and show edition scope drift apart", () => {
+    const publication = source(
+      "src/routes/_authenticated/admin/publication/$slug.tsx",
+    );
+
+    expect(publication).toContain("validateEditionCommandScope");
+    expect(publication).toContain("editionId: edition?.id ?? show.edition_id");
+    expect(publication).toContain("routeEditionId: edition?.id ?? null");
+    expect(publication).toContain("commandEditionId: pendingRelease.editionId");
+    expect(publication).toContain("entityEditionId: pendingRelease.show.edition_id");
+    expect(publication).toContain("setPendingRelease(null)");
+    expect(publication).toContain("Canonical state was refreshed and nothing was applied");
+    expect(publication.indexOf("validateEditionCommandScope")).toBeLessThan(
+      publication.indexOf("reauthenticateShowPublicationR3"),
+    );
+    expect(publication.indexOf("validateEditionCommandScope")).toBeLessThan(
+      publication.indexOf("applyShowPublicationChange"),
+    );
+  });
+
   it("keeps versioning, idempotency and stale-write rejection server-authoritative", () => {
     const migration = source(
       "supabase/migrations/20260912154500_studio2_results_operations.sql",
