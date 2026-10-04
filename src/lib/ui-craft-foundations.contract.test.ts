@@ -154,7 +154,7 @@ describe("Solaris UI craft foundations", () => {
   });
 
   it("uses direct mobile navigation labels rather than naming interface mechanisms", () => {
-    const organizer = source("src/components/admin/AdminFrame.tsx");
+    const organizer = source("src/components/admin/OrganizerV6MobileChrome.tsx");
     expect(organizer).toContain('label: "More"');
     expect(organizer).not.toContain('label: "Menu"');
   });
