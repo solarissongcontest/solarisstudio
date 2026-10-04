@@ -161,7 +161,19 @@ function AppCountriesPage() {
           </div>
 
           {!filtered.length ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No country matches those filters.</p>
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              <p>No country matches those filters.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setRegion("all");
+                }}
+                className="solaris-app-empty-action mt-3"
+              >
+                Clear filters
+              </button>
+            </div>
           ) : null}
 
           {visible.length < filtered.length ? (
