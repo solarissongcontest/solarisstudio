@@ -24,6 +24,10 @@ import {
   AdminPageHeader,
   AdminStatus,
 } from '@/components/admin/AdminUI';
+import {
+  featureSurfaceLinks,
+  SolarisSurfaceSwitch,
+} from '@/components/surfaces/SolarisSurfaceSwitch';
 import { buildBroadcastRundown, type RundownSegment, type RundownSegmentStatus } from '@/lib/broadcast-rundown';
 import { useShows } from '@/lib/data';
 import {
@@ -250,6 +254,15 @@ function BroadcastRundownPage() {
           eyebrow="Solaris Studio 2 · Broadcast operations"
           title="Broadcast Rundown"
           description="Plan, lock and execute the show against one canonical rundown. Production commands are revision-checked and audited; rehearsal transitions stay local and never write production state."
+        />
+
+        <SolarisSurfaceSwitch
+          label="Live show perspectives"
+          links={featureSurfaceLinks({
+            featureId: "live-show",
+            current: "organizer",
+            perspectives: ["public", "organizer", "diagnostic"],
+          })}
         />
 
         <AdminCard strong>
