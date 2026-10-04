@@ -134,6 +134,7 @@ describe("Mobile App V2 architectural invariants", () => {
     const search = source("src/components/app/SolarisSearchField.tsx");
     const flags = source("src/components/FlagChip.tsx");
     const styles = source("src/styles/app-shell.css");
+    const surfaces = source("src/solaris-surfaces.css");
 
     expect(search).toContain("solaris-app-search-shell");
     expect(search).toContain("solaris-app-search-input");
@@ -143,6 +144,7 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(flags).toContain("--solaris-flag-radius");
     expect(styles).toContain("aspect-ratio: 3 / 2 !important");
     expect(styles).toContain("border-radius: var(--solaris-flag-radius, .55rem) !important");
+    expect(surfaces).toContain(":not(.solaris-app-search-input)");
   });
 
   it("prevents website chrome from flashing before installed-app hydration", () => {

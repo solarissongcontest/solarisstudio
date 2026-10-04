@@ -42,7 +42,7 @@ body[data-solaris-family] .glass-strong {
     color-mix(in srgb, rgb(var(--solaris-bg-deep-2)) 72%, #07162f 28%) !important;
 }
 
-body[data-solaris-family] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+body[data-solaris-family] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not(.solaris-app-search-input),
 body[data-solaris-family] textarea,
 body[data-solaris-family] select,
 body[data-solaris-family] [role="combobox"] {
