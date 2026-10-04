@@ -26,6 +26,11 @@ describe("Organisation OS V5 production cutover contract", () => {
     expect(checklist).toContain(
       "20261004222500_push_delivery_receipts.sql",
     );
+    expect(checklist).toContain(
+      "20261004230000_organizer_task_runtime_reconciliation.sql",
+    );
+    expect(checklist).toContain("organisation-os-v5-20261004-core");
+    expect(checklist).toContain("organisation-os-v5-20261004-complete");
     expect(checklist).toContain("Do not reorder these migrations");
   });
 
