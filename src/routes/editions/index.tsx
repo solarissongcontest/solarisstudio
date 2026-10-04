@@ -213,7 +213,12 @@ function AppEditionsDirectory({
       ) : null}
 
       {!latest && !archive.length ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">No editions are public yet.</p>
+        <div className="py-8 text-center text-sm text-muted-foreground">
+          <p>No editions are public yet.</p>
+          <Link to="/shows" className="solaris-app-empty-action mt-3">
+            Browse shows
+          </Link>
+        </div>
       ) : null}
     </div>
   );
