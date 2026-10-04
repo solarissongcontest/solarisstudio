@@ -63,7 +63,7 @@ describe("Mobile App V2 architectural invariants", () => {
   it("keeps canonical flags clipped with an optical default radius", () => {
     const media = source("src/components/FlagMedia.tsx");
     const css = source("src/flag-media.css");
-    expect(media).toContain('rounded-[.6rem]');
+    expect(media).toContain('data-flag-frame="standard"');
     expect(css).toContain("overflow: hidden");
   });
 
@@ -98,7 +98,8 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(explore).toContain("solaris-app-grouped-list");
     expect(results).toContain("solaris-app-result-hero");
     expect(directory).toContain("solaris-app-list-row");
-    expect(editions).toContain("solaris-app-edition-row");
+    expect(editions).toContain("solaris-app-editions-v5");
+    expect(editions).toContain("solaris-app-flat-row");
     expect(countries).toContain("AppCountriesPage");
     expect(countries).toContain("solaris-app-country-row");
     expect(shows).toContain("AppShowsPage");
@@ -112,16 +113,33 @@ describe("Mobile App V2 architectural invariants", () => {
     const shows = source("src/routes/shows/index.tsx");
     const styles = source("src/styles/app-shell.css");
 
-    expect(wiki).toContain("solaris-app-search-field-prominent");
+    const search = source("src/components/app/SolarisSearchField.tsx");
+
+    expect(wiki).toContain("<SolarisSearchField");
     expect(wiki).toContain("solaris-app-filter-sheet");
-    expect(wiki).toContain("Search countries…");
-    expect(countries).toContain("solaris-app-search-field-prominent");
+    expect(countries).toContain("<SolarisSearchField");
     expect(countries).toContain("solaris-app-filter-sheet");
-    expect(editions).toContain("solaris-app-section-heading-title-first");
-    expect(editions).toContain("Current edition");
-    expect(shows).toContain("solaris-app-section-heading-title-first");
+    expect(search).toContain("data-solaris-search-field");
+    expect(search).toContain('type="search"');
+    expect(editions).toContain("solaris-app-featured-row");
+    expect(editions).toContain('data-solaris-flat-list="editions"');
+    expect(shows).toContain('data-solaris-flat-list="shows"');
     expect(shows).toContain("appShowMeta(show)");
-    expect(styles).toContain("Mobile Directory Polish V4");
+    expect(styles).toContain("Mobile Visual System V5");
+  });
+
+  it("forces installed search to one visual surface and flags to canonical rounded 3:2 frames", () => {
+    const search = source("src/components/app/SolarisSearchField.tsx");
+    const flags = source("src/components/FlagChip.tsx");
+    const styles = source("src/styles/app-shell.css");
+
+    expect(search).toContain("solaris-app-search-shell");
+    expect(search).toContain("solaris-app-search-input");
+    expect(styles).toContain("background: transparent !important");
+    expect(styles).toContain("border-radius: 0 !important");
+    expect(flags).toContain("--solaris-flag-radius");
+    expect(styles).toContain("aspect-ratio: 3 / 2 !important");
+    expect(styles).toContain("border-radius: var(--solaris-flag-radius, .55rem) !important");
   });
 
   it("prevents website chrome from flashing before installed-app hydration", () => {
