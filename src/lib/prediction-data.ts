@@ -156,10 +156,11 @@ export function useFanSession() {
   return useQuery({
     queryKey: ["fan-session"],
     queryFn: async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (error?.name === "AuthSessionMissingError") return null;
+      // UI session presence must not call /auth/v1/user for signed-out public
+      // visitors. Mutations and private data still rely on server/RLS authority.
+      const { data, error } = await supabase.auth.getSession();
       if (error) throw error;
-      return data.user ?? null;
+      return data.session?.user ?? null;
     },
     staleTime: 30_000,
   });
