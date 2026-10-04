@@ -83,7 +83,9 @@ describe("Solaris installed-app foundation", () => {
     expect(tabs).toContain("setPointerCapture");
     expect(tabs).toContain("--solaris-tab-drag-x");
     expect(tabs).toContain('source: "app_tabbar_drag"');
-    expect(tabs).toContain("nearestTabIndex");
+    expect(tabs).toContain("resolveTabDragTargetIndex");
+    expect(tabs).toContain("activationRatio: 0.72");
+    expect(tabs).toContain("dragging ? activeIndex");
     expect(tabs).toContain("--solaris-tab-drag-scale-x");
     expect(tabs).toContain("--solaris-tabbar-pull-width");
     expect(tabs).toContain("--solaris-tabbar-pull-height");

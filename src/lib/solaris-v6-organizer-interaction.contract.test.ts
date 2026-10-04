@@ -9,6 +9,9 @@ describe("Solaris V6 Organizer interaction parity", () => {
     const organizer = source("src/components/admin/OrganizerV6TabBar.tsx");
     expect(organizer).toContain("useScrollResponsiveBar");
     expect(organizer).toContain("resolveElasticDrag");
+    expect(organizer).toContain("resolveTabDragTargetIndex");
+    expect(organizer).toContain("activationRatio: 0.72");
+    expect(organizer).toContain("dragging ? activeIndex");
     expect(organizer).toContain("KubeLiquidGlassBackdrop");
     expect(organizer).toContain("onPointerCancel");
     expect(organizer).toContain("onLostPointerCapture");

@@ -15,6 +15,7 @@ import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
 import {
   prefersReducedMotion,
   resolveElasticDrag,
+  resolveTabDragTargetIndex,
 } from "@/lib/interaction-physics";
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
 import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
@@ -141,7 +142,7 @@ export function AppTabBar({
     0,
     PUBLIC_GLOBAL_AREAS.findIndex((area) => area.id === activeArea),
   );
-  const visualActiveIndex = dragPreviewIndex ?? activeIndex;
+  const visualActiveIndex = dragging ? activeIndex : dragPreviewIndex ?? activeIndex;
 
   const openTab = (index: number) => {
     const area = PUBLIC_GLOBAL_AREAS[index];
@@ -187,22 +188,6 @@ export function AppTabBar({
     return Array.from(material.querySelectorAll<HTMLElement>("[data-app-tab-index]")).map(
       (element) => element.getBoundingClientRect(),
     );
-  };
-
-  const nearestTabIndex = (clientX: number) => {
-    const rects = tabRects();
-    if (!rects.length) return activeIndex;
-    let nearest = 0;
-    let nearestDistance = Number.POSITIVE_INFINITY;
-    rects.forEach((rect, index) => {
-      const center = rect.left + rect.width / 2;
-      const distance = Math.abs(clientX - center);
-      if (distance < nearestDistance) {
-        nearest = index;
-        nearestDistance = distance;
-      }
-    });
-    return nearest;
   };
 
   const clearDrag = useCallback(() => {
@@ -289,7 +274,13 @@ export function AppTabBar({
     material?.style.setProperty("--solaris-tabbar-pull-radius", `${response.growRadius.toFixed(2)}px`);
     material?.setAttribute("data-drag-direction", response.direction);
 
-    const preview = nearestTabIndex(event.clientX);
+    const preview = resolveTabDragTargetIndex({
+      rawDelta: event.clientX - drag.startX,
+      originIndex: drag.originIndex,
+      slotWidth: origin.width,
+      itemCount: PUBLIC_GLOBAL_AREAS.length,
+      activationRatio: 0.62,
+    });
     setDragPreviewIndex((current) => (current === preview ? current : preview));
 
     if (drag.moved) event.preventDefault();
@@ -299,7 +290,15 @@ export function AppTabBar({
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
-    const targetIndex = nearestTabIndex(event.clientX);
+    const rects = tabRects();
+    const origin = rects[drag.originIndex];
+    const targetIndex = resolveTabDragTargetIndex({
+      rawDelta: event.clientX - drag.startX,
+      originIndex: drag.originIndex,
+      slotWidth: origin?.width ?? 1,
+      itemCount: PUBLIC_GLOBAL_AREAS.length,
+      activationRatio: 0.72,
+    });
     const moved = drag.moved;
     suppressClick.current = moved;
 

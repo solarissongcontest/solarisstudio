@@ -134,6 +134,76 @@ export function resolveElasticDrag({
   };
 }
 
+export function resolveTabDragTargetIndex({
+  rawDelta,
+  originIndex,
+  slotWidth,
+  itemCount,
+  activationRatio = 0.72,
+}: {
+  rawDelta: number;
+  originIndex: number;
+  slotWidth: number;
+  itemCount: number;
+  activationRatio?: number;
+}) {
+  const count = Math.max(1, Math.floor(itemCount));
+  const origin = Math.min(count - 1, Math.max(0, Math.floor(originIndex)));
+  const width = Math.max(1, slotWidth);
+  const distance = Math.abs(rawDelta);
+  const firstThreshold = width * Math.max(0.5, Math.min(0.95, activationRatio));
+
+  if (distance < firstThreshold || rawDelta === 0) return origin;
+
+  const steps =
+    1 + Math.floor(Math.max(0, distance - firstThreshold) / width);
+  const direction = rawDelta > 0 ? 1 : -1;
+  return Math.min(count - 1, Math.max(0, origin + direction * steps));
+}
+
+export type SheetReleaseIntent =
+  | "stay"
+  | "next-up"
+  | "next-down"
+  | "dismiss";
+
+export function resolveSheetDragOffset({
+  rawDelta,
+  viewportHeight,
+}: {
+  rawDelta: number;
+  viewportHeight: number;
+}) {
+  const height = Math.max(320, viewportHeight);
+  const maxDown = Math.max(280, height * 0.82);
+  const maxUp = Math.max(84, height * 0.12);
+  return Math.min(maxDown, Math.max(-maxUp, rawDelta));
+}
+
+export function resolveSheetReleaseIntent({
+  offset,
+  velocityY,
+  viewportHeight,
+}: {
+  offset: number;
+  velocityY: number;
+  viewportHeight: number;
+}): SheetReleaseIntent {
+  const height = Math.max(320, viewportHeight);
+  const dismissDistance = Math.max(220, Math.min(360, height * 0.36));
+  const stepDistance = Math.max(56, Math.min(84, height * 0.075));
+
+  if (
+    offset >= dismissDistance ||
+    (offset >= 84 && velocityY >= 1.05)
+  ) {
+    return "dismiss";
+  }
+  if (offset >= stepDistance) return "next-down";
+  if (offset <= -stepDistance) return "next-up";
+  return "stay";
+}
+
 export function resolveGestureOwner(
   deltaX: number,
   deltaY: number,

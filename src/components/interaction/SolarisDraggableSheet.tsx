@@ -14,6 +14,10 @@ import {
   SheetClose,
   SheetContent,
 } from "@/components/ui/sheet";
+import {
+  resolveSheetDragOffset,
+  resolveSheetReleaseIntent,
+} from "@/lib/interaction-physics";
 import { cn } from "@/lib/utils";
 
 export type SolarisSheetDetent = "collapsed" | "medium" | "expanded";
@@ -27,6 +31,8 @@ const DETENT_HEIGHT: Record<SolarisSheetDetent, string> = {
 type DragState = {
   pointerId: number;
   startY: number;
+  lastY: number;
+  lastAt: number;
 };
 
 export function SolarisDraggableSheetContent({
@@ -41,7 +47,9 @@ export function SolarisDraggableSheetContent({
 }) {
   const [internalDetent, setInternalDetent] = useState<SolarisSheetDetent>("medium");
   const [dragOffset, setDragOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const drag = useRef<DragState | null>(null);
+  const dismissRef = useRef<HTMLButtonElement | null>(null);
   const detent = controlledDetent ?? internalDetent;
 
   const setDetent = (next: SolarisSheetDetent) => {
@@ -51,15 +59,31 @@ export function SolarisDraggableSheetContent({
 
   const start = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
-    drag.current = { pointerId: event.pointerId, startY: event.clientY };
+    const now = performance.now();
+    drag.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      lastY: event.clientY,
+      lastAt: now,
+    };
+    setDragging(true);
     event.currentTarget.setPointerCapture?.(event.pointerId);
   };
 
   const move = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const active = drag.current;
     if (!active || active.pointerId !== event.pointerId) return;
+    const viewportHeight =
+      window.visualViewport?.height ?? window.innerHeight;
     const delta = event.clientY - active.startY;
-    setDragOffset(Math.max(-70, Math.min(140, delta)));
+    setDragOffset(
+      resolveSheetDragOffset({
+        rawDelta: delta,
+        viewportHeight,
+      }),
+    );
+    active.lastY = event.clientY;
+    active.lastAt = performance.now();
     event.preventDefault();
   };
 
@@ -67,12 +91,35 @@ export function SolarisDraggableSheetContent({
     const active = drag.current;
     if (!active || active.pointerId !== event.pointerId) return;
 
-    if (dragOffset < -42) {
+    const now = performance.now();
+    const viewportHeight =
+      window.visualViewport?.height ?? window.innerHeight;
+    const offset = resolveSheetDragOffset({
+      rawDelta: event.clientY - active.startY,
+      viewportHeight,
+    });
+    const elapsed = Math.max(8, now - active.lastAt);
+    const velocityY = (event.clientY - active.lastY) / elapsed;
+    const intent = resolveSheetReleaseIntent({
+      offset,
+      velocityY,
+      viewportHeight,
+    });
+
+    if (intent === "dismiss") {
+      dismissRef.current?.click();
+    } else if (intent === "next-up") {
       setDetent(detent === "collapsed" ? "medium" : "expanded");
-    } else if (dragOffset > 42) {
-      setDetent(detent === "expanded" ? "medium" : "collapsed");
+    } else if (intent === "next-down") {
+      if (detent === "collapsed") {
+        dismissRef.current?.click();
+      } else {
+        setDetent(detent === "expanded" ? "medium" : "collapsed");
+      }
     }
+
     drag.current = null;
+    setDragging(false);
     setDragOffset(0);
   };
 
@@ -86,12 +133,13 @@ export function SolarisDraggableSheetContent({
       className={cn(
         "!inset-x-0 !bottom-0 !h-auto !max-w-none !rounded-t-[1.5rem] !p-0",
         "transition-[height,transform] duration-200 ease-out motion-reduce:transition-none",
+        dragging && "transition-none",
         className,
       )}
       style={{
         ...props.style,
         height: DETENT_HEIGHT[detent],
-        transform: `translate3d(0,${Math.max(0, dragOffset)}px,0)`,
+        transform: `translate3d(0,${dragOffset}px,0)`,
       }}
     >
       <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/60 bg-background/92 px-2 py-1.5 backdrop-blur-xl">
@@ -103,10 +151,12 @@ export function SolarisDraggableSheetContent({
           onPointerUp={finish}
           onPointerCancel={() => {
             drag.current = null;
+            setDragging(false);
             setDragOffset(0);
           }}
           onLostPointerCapture={() => {
             drag.current = null;
+            setDragging(false);
             setDragOffset(0);
           }}
           className="mx-auto flex min-h-11 min-w-24 touch-none items-center justify-center"
@@ -140,6 +190,15 @@ export function SolarisDraggableSheetContent({
           >
             <X className="size-4" aria-hidden="true" />
           </button>
+        </SheetClose>
+        <SheetClose asChild>
+          <button
+            ref={dismissRef}
+            type="button"
+            tabIndex={-1}
+            aria-hidden="true"
+            className="hidden"
+          />
         </SheetClose>
       </div>
       <div className="h-[calc(100%_-_3.5rem)] overflow-y-auto overscroll-contain">

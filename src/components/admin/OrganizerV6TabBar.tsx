@@ -10,7 +10,10 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
-import { resolveElasticDrag } from "@/lib/interaction-physics";
+import {
+  resolveElasticDrag,
+  resolveTabDragTargetIndex,
+} from "@/lib/interaction-physics";
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
 import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import type { SolarisTabbarMode } from "@/lib/solaris-screen-contract";
@@ -61,7 +64,7 @@ export function OrganizerV6TabBar({
     resetKey: pathname,
   });
 
-  const visualActiveIndex = dragPreviewIndex ?? activeIndex;
+  const visualActiveIndex = dragging ? activeIndex : dragPreviewIndex ?? activeIndex;
   const compact = collapsed || mode === "compact";
 
   useEffect(() => {
@@ -107,22 +110,6 @@ export function OrganizerV6TabBar({
     return Array.from(
       material.querySelectorAll<HTMLElement>("[data-organizer-tab-index]"),
     ).map((element) => element.getBoundingClientRect());
-  };
-
-  const nearestTabIndex = (clientX: number) => {
-    const rects = tabRects();
-    if (!rects.length) return activeIndex;
-    let nearest = activeIndex;
-    let nearestDistance = Number.POSITIVE_INFINITY;
-    rects.forEach((rect, index) => {
-      const center = rect.left + rect.width / 2;
-      const distance = Math.abs(clientX - center);
-      if (distance < nearestDistance) {
-        nearest = index;
-        nearestDistance = distance;
-      }
-    });
-    return nearest;
   };
 
   const clearDrag = useCallback(() => {
@@ -204,14 +191,29 @@ export function OrganizerV6TabBar({
     material?.style.setProperty("--organizer-bar-grow", `${response.growHeight.toFixed(2)}px`);
     material?.setAttribute("data-drag-direction", response.direction);
 
-    setDragPreviewIndex(nearestTabIndex(event.clientX));
+    const previewIndex = resolveTabDragTargetIndex({
+      rawDelta: event.clientX - drag.startX,
+      originIndex: drag.originIndex,
+      slotWidth: origin.width,
+      itemCount: items.length,
+      activationRatio: 0.62,
+    });
+    setDragPreviewIndex(previewIndex);
     if (drag.moved) event.preventDefault();
   };
 
   const finishDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    const targetIndex = nearestTabIndex(event.clientX);
+    const rects = tabRects();
+    const origin = rects[drag.originIndex];
+    const targetIndex = resolveTabDragTargetIndex({
+      rawDelta: event.clientX - drag.startX,
+      originIndex: drag.originIndex,
+      slotWidth: origin?.width ?? 1,
+      itemCount: items.length,
+      activationRatio: 0.72,
+    });
     suppressClick.current = drag.moved;
 
     try {

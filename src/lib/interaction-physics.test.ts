@@ -5,6 +5,9 @@ import {
   resolveElasticDrag,
   resolveGestureOwner,
   resolveScrollResponsiveBar,
+  resolveSheetDragOffset,
+  resolveSheetReleaseIntent,
+  resolveTabDragTargetIndex,
   SOLARIS_INTERACTION_TOKENS,
 } from "@/lib/interaction-physics";
 
@@ -77,6 +80,53 @@ describe("Solaris Interaction Physics", () => {
     expect(response.growHeight).toBe(9);
     expect(response.growRadius).toBe(4);
     expect(response.direction).toBe("right");
+  });
+
+  it("requires intentional horizontal travel before a tab drag commits", () => {
+    expect(
+      resolveTabDragTargetIndex({
+        rawDelta: 48,
+        originIndex: 2,
+        slotWidth: 80,
+        itemCount: 5,
+      }),
+    ).toBe(2);
+    expect(
+      resolveTabDragTargetIndex({
+        rawDelta: 60,
+        originIndex: 2,
+        slotWidth: 80,
+        itemCount: 5,
+      }),
+    ).toBe(3);
+    expect(
+      resolveTabDragTargetIndex({
+        rawDelta: -150,
+        originIndex: 3,
+        slotWidth: 80,
+        itemCount: 5,
+      }),
+    ).toBe(1);
+  });
+
+  it("lets bottom sheets follow long pulls and distinguishes snap from dismiss", () => {
+    expect(
+      resolveSheetDragOffset({ rawDelta: 360, viewportHeight: 800 }),
+    ).toBe(360);
+    expect(
+      resolveSheetReleaseIntent({
+        offset: 70,
+        velocityY: 0.1,
+        viewportHeight: 800,
+      }),
+    ).toBe("next-down");
+    expect(
+      resolveSheetReleaseIntent({
+        offset: 300,
+        velocityY: 0.2,
+        viewportHeight: 800,
+      }),
+    ).toBe("dismiss");
   });
 
   it("arbitrates gestures only after directional intent is meaningful", () => {
