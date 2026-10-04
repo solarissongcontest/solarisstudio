@@ -135,12 +135,36 @@ export const submitConfirmation = createServerFn({ method: "POST" })
     };
 
     try {
-      return await rpc<{
+      const result = await rpc<{
         ok: boolean;
         error?: string;
         reason?: AvailabilityReason;
         submission_id?: string;
+        canonical_sync?: "synced" | "pending";
       }>("submit_confirmation", { payload });
+
+      if (result.ok && result.submission_id) {
+        try {
+          const { syncConfirmationSubmissionToSolarisInternal } = await import(
+            "@/integrations/confirmations/sync.functions"
+          );
+          const sync = await syncConfirmationSubmissionToSolarisInternal(
+            result.submission_id,
+          );
+          result.canonical_sync = sync.ok ? "synced" : "pending";
+        } catch (syncError) {
+          // The participant submission is already committed at this point.
+          // Never lie and report the whole submission as failed because a
+          // downstream projection needs recovery.
+          console.error(
+            "[Confirmations] Canonical Solaris reconciliation failed after save",
+            syncError,
+          );
+          result.canonical_sync = "pending";
+        }
+      }
+
+      return result;
     } catch (error) {
       const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
       if (message.includes("duplicate_song")) return { ok: false as const, error: "duplicate_song" };
