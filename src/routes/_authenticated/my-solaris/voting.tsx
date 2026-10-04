@@ -17,8 +17,8 @@ import {
 import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
 import { televotingSupabase } from "@/integrations/televoting/client";
 import { useCountries } from "@/lib/data";
-import { loadStudio2HodWorkspace } from "@/lib/studio2-hod-workspace";
 import { loadCountryJuryVotingState } from "@/lib/country-jury-task";
+import { loadStudio2HodWorkspace } from "@/lib/studio2-hod-workspace";
 
 export const Route = createFileRoute("/_authenticated/my-solaris/voting")({
   head: () => ({
@@ -108,15 +108,17 @@ function MySolarisVotingContent() {
       workspace.capabilities.hod_workspace_v2 && edition?.id && country?.id,
     ),
     queryFn: () => loadStudio2HodWorkspace(edition!.id, country!.id),
-    staleTime: 30_000,
-    refetchOnWindowFocus: false,
+    staleTime: 20_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
+
   const televoteQuery = useQuery({
     queryKey: ["mysolaris-open-televote"],
     queryFn: loadOpenTelevote,
     staleTime: 15_000,
-    refetchInterval: 60_000,
-    refetchOnWindowFocus: false,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 
   const juryWindowQuery = useQuery({
@@ -163,7 +165,11 @@ function MySolarisVotingContent() {
   const canonicalJuryState = organizerInspection ? null : juryWindowQuery.data ?? null;
   const ballotSubmitted =
     canonicalJuryState?.submitted ?? Boolean(context?.juryBallotSubmitted);
-  const juryWindowOpen = canonicalJuryState?.status === "open";
+  const juryWindowOpen: boolean | null = organizerInspection
+    ? null
+    : canonicalJuryState
+      ? canonicalJuryState.status === "open"
+      : null;
   const openTelevote = televoteQuery.data ?? null;
 
   return (
@@ -181,14 +187,12 @@ function MySolarisVotingContent() {
       />
 
       {organizerInspection ? (
-        <>
-          <div className="mb-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3">
-            <p className="text-sm font-semibold">Participant View · read-only</p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              You are inspecting this delegation’s voting status. Jury submission and public voting actions are disabled here; use Manage for Organizer controls.
-            </p>
-          </div>
-        </>
+        <div className="mb-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3">
+          <p className="text-sm font-semibold">Participant View · read-only</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            You are inspecting this delegation’s voting status. Jury submission and public voting actions are disabled here; use Manage for Organizer controls.
+          </p>
+        </div>
       ) : null}
 
       <div className="space-y-4">
@@ -208,9 +212,11 @@ function MySolarisVotingContent() {
             value={
               ballotSubmitted
                 ? "Submitted"
-                : juryWindowOpen
+                : juryWindowOpen === true
                   ? "Open · not submitted"
-                  : "Closed · not submitted"
+                  : juryWindowOpen === false
+                    ? "Closed · not submitted"
+                    : "Window state unavailable"
             }
           />
           <VotingMetric
@@ -228,11 +234,13 @@ function MySolarisVotingContent() {
                 value={
                   ballotSubmitted
                     ? "submitted"
-                    : juryWindowOpen
+                    : juryWindowOpen === true
                       ? juryReady
                         ? "open"
                         : "not ready"
-                      : "closed"
+                      : juryWindowOpen === false
+                        ? "closed"
+                        : "window state unavailable"
                 }
               />
             }
@@ -267,11 +275,13 @@ function MySolarisVotingContent() {
                   value={
                     ballotSubmitted
                       ? "Submitted"
-                      : !juryWindowOpen
-                        ? "Voting is closed"
-                        : juryReady
+                      : juryWindowOpen === true
+                        ? juryReady
                           ? "Open · ready to submit"
                           : "Waiting for HOD assignment"
+                        : juryWindowOpen === false
+                          ? "Voting is closed"
+                          : "Window state is available in Organizer controls"
                   }
                   complete={ballotSubmitted}
                 />
@@ -302,7 +312,7 @@ function MySolarisVotingContent() {
                   ? "Open Organizer jury controls"
                   : ballotSubmitted
                     ? "Review jury vote"
-                    : juryWindowOpen
+                    : juryWindowOpen === true
                       ? "Open jury vote"
                       : "View jury voting"}
               </span>
