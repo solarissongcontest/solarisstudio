@@ -5,9 +5,18 @@ rule: "Migration is complete only when the new authority works and the old autho
 domains:
   edition:
     state: canonical-write
-    legacy_authority: ["browser-global selected edition", "direct lifecycle table mutations"]
+    retired_authority: ["browser-global selected edition as authority", "direct lifecycle table mutations", "legacy studio2_transition_edition RPC"]
+    legacy_authority: []
+    retirement_evidence:
+      - "Organizer edition selection is stored in sessionStorage through the V6 tab-scoped edition helper; localStorage is not used."
+      - "Cross-tab edition communication is invalidation-only and cannot replace another tab's active edition."
+      - "Authenticated clients have SELECT-only access to studio2_edition_runtime; product transitions use studio2_transition_edition_v2."
+      - "studio2_transition_edition_v2 authorizes against p_edition_id, locks that runtime row, validates lifecycle legality, and preserves second-person approval for critical transitions."
+      - "The pre-v2 studio2_transition_edition RPC is revoked and dropped by the V6 retirement migration."
+      - "Results, Publication and Broadcast production commands fail closed when their edition identities drift."
+      - "src/lib/solaris-v6-edition-authority.contract.test.ts enforces the cutover."
     retirement_criteria:
-      - "Operational commands validate route, command, entity and capability edition identity."
+      - "Operational commands validate edition identity against canonical entity and server authorization scope."
       - "Tab selection remains session-scoped and never becomes authorization."
   confirmations:
     state: canonical-write
