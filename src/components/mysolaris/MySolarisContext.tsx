@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
 
-import { supabase } from "@/integrations/supabase/client";
 import { writeAppAttentionSummary } from "@/lib/app-attention";
 import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
 import { useMyCountryAccount } from "@/lib/country-account";
 import { loadCountryJuryVotingTask } from "@/lib/country-jury-task";
 import { useEditions, type Edition, type Participant } from "@/lib/data";
+import { loadMySolarisParticipant } from "@/lib/my-solaris-data";
 import { useFanSession } from "@/lib/prediction-data";
 import { loadStudio2RecipientNoticeInbox } from "@/lib/studio2-recipient-inbox";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
@@ -88,19 +88,7 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
   const currentEntryQuery = useQuery({
     enabled: Boolean(userQuery.data && countryId && currentEdition?.id),
     queryKey: ["mysolaris-current-entry", currentEdition?.id ?? "none", countryId ?? "none"],
-    queryFn: async (): Promise<Participant | null> => {
-      const { data, error } = await supabase
-        .from("participants")
-        .select(
-          "id,edition_id,show_id,country_id,contest_entity_id,artist,song,running_order,semi_final,qualified,notes",
-        )
-        .eq("edition_id", currentEdition!.id)
-        .eq("country_id", countryId!)
-        .is("show_id", null)
-        .maybeSingle();
-      if (error) throw error;
-      return (data ?? null) as Participant | null;
-    },
+    queryFn: () => loadMySolarisParticipant(countryId!, currentEdition!.id),
     staleTime: 15_000,
     refetchInterval: 30_000,
     refetchOnWindowFocus: true,
