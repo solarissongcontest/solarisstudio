@@ -69,6 +69,6 @@ describe("Organisation OS V5 review hardening", () => {
 
   it("budgets the Nitro client directory that is actually deployed", () => {
     const budget = source("scripts/check-client-bundle-budget.mjs");
-    expect(budget).toContain('".output/public/_build/assets"');
+    expect(budget).toContain('".output/public/assets"');
   });
 });
