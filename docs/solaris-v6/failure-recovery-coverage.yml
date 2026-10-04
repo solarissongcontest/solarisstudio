@@ -78,7 +78,9 @@ cases:
       - src/lib/solaris-v6-edition-context.ts
       - src/routes/_authenticated/admin/results.tsx
       - src/routes/_authenticated/admin/publication/$slug.tsx
+      - src/routes/_authenticated/admin/broadcast-rundown.tsx
       - src/lib/solaris-v6-results-authority.contract.test.ts
+      - src/lib/solaris-v6-broadcast-edition-scope.contract.test.ts
       - src/lib/solaris-v6-publication-recovery.contract.test.ts
     invariant: "Route, command, entity and capability edition identities must agree before a command is considered valid."
 
