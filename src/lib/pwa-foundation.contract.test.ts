@@ -73,7 +73,7 @@ describe("Solaris installed-app foundation", () => {
 
   it("bumps the installed-app static cache when liquid glass rendering changes", () => {
     const worker = source("public/sw.js");
-    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v13"');
+    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v14"');
   });
 
   it("lets the active tab indicator drag across destinations", () => {
