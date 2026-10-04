@@ -34,10 +34,14 @@ describe("App Experience v3 attention preferences and search", () => {
     expect(palette).toContain("readAppSearchState");
     expect(palette).toContain("rememberAppSearchQuery");
     expect(palette).toContain("solaris-app-search-dialog");
+    expect(palette).toContain('contentLayout="fullscreen"');
     expect(palette).toContain("shouldFilter={false}");
     expect(palette).not.toContain("<Command shouldFilter={false}>");
     expect(palette).toContain("className=\"text-base\"");
     expect(palette).toContain("Recent searches");
+    const dialog = source("src/components/ui/dialog.tsx");
+    expect(dialog).toContain('layout?: "centered" | "fullscreen"');
+    expect(dialog).toContain("data-solaris-dialog-layout={layout}");
     expect(appStyles).toContain('[role="dialog"].solaris-app-search-dialog[data-state="open"]');
     expect(appStyles).toContain("width: var(--solaris-visual-viewport-width, 100vw) !important");
     expect(appStyles).toContain("left: var(--solaris-visual-viewport-offset-left, 0px) !important");
