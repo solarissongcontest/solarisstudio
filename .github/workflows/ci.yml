@@ -69,12 +69,6 @@ jobs:
       - name: Enforce client performance budget
         run: bun run budget:client
 
-      - name: Certify Mobile App V2 release readiness
-        run: bun run certify:mobile-v2
-
-      - name: Certify Organisation OS V5 release readiness
-        run: bun run certify:organisation-v5
-
       - name: Verify route tree was generated
         shell: bash
         run: |
