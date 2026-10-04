@@ -1,0 +1,193 @@
+version: 1
+product: Solaris Studio Organisation OS V5
+source: "V5 mutable-state and explicit States/Lifecycle sections"
+status_values: [verified, implemented, partial, missing, derived]
+release_rule: "Every mutable domain must be verified or implemented with server-side transition validation before §240 transition completeness can be certified."
+
+domains:
+  - id: confirmation-round
+    status: verified
+    source_sections: [50, 51, 52]
+    evidence:
+      - supabase/migrations/20261003018000_organisation_os_v5_confirmation_round_operations.sql
+      - src/lib/organisation-confirmation-rounds-v5.test.ts
+    note: "Previewed/versioned R2/R3 operation path; direct authenticated mutation bypasses are revoked."
+
+  - id: participation-status
+    status: verified
+    source_sections: [62]
+    evidence:
+      - supabase/migrations/20261003015000_organisation_os_v5_participation_status_operations.sql
+      - src/lib/organisation-participation-status-v5.test.ts
+
+  - id: selection-review-internal
+    status: implemented
+    source_sections: [54, 55]
+    evidence:
+      - supabase/migrations/20261003180000_organisation_os_v5_selection_review_transitions.sql
+      - src/lib/organisation-v5-selection-review-transitions.test.ts
+      - src/routes/confirmations/admin/responses/$id.tsx
+    note: "Pending/accepted/declined transitions now use a versioned, idempotent R2 operation and direct browser updates are blocked."
+
+  - id: selection-review-national-final
+    status: implemented
+    source_sections: [54, 55]
+    evidence:
+      - supabase/migrations/20261003180000_organisation_os_v5_selection_review_transitions.sql
+      - src/lib/organisation-v5-selection-review-transitions.test.ts
+      - src/routes/confirmations/admin/responses/$id.tsx
+    note: "Pending/accepted/declined/removed transitions reject stale writes and cannot invalidate the selected winner implicitly."
+
+  - id: national-final-winner
+    status: implemented
+    source_sections: [54, 55]
+    evidence:
+      - supabase/migrations/20261003180000_organisation_os_v5_selection_review_transitions.sql
+      - src/lib/organisation-v5-selection-review-transitions.test.ts
+      - src/routes/confirmations/admin/responses/$id.tsx
+    note: "Winner select/clear is version-bound, idempotent, audited and accepts only active accepted NF candidates."
+
+  - id: next-in-line-control
+    status: implemented
+    source_sections: [59, 60, 61]
+    evidence:
+      - supabase/migrations/20261003183000_organisation_os_v5_next_in_line_runtime.sql
+      - src/lib/organisation-v5-next-in-line-runtime.test.ts
+      - src/routes/_authenticated/admin/next-in-line.tsx
+    note: "Draft/Scheduled/Open/Closed/Cancelled is server-authoritative, version-bound and operated from the Organizer surface."
+
+  - id: public-design-preset-moderation
+    status: implemented
+    source_sections: [70]
+    evidence:
+      - supabase/migrations/20261002200000_organisation_os_v5_community_moderation.sql
+      - src/lib/organisation-os-v5-counterparts.test.ts
+
+  - id: country-wiki-section-moderation
+    status: implemented
+    source_sections: [67]
+    evidence:
+      - supabase/migrations/20261002200000_organisation_os_v5_community_moderation.sql
+      - src/lib/organisation-os-v5-counterparts.test.ts
+
+  - id: media-asset-review
+    status: verified
+    source_sections: [76]
+    evidence:
+      - supabase/migrations/20260912143500_studio2_media_asset_operations.sql
+      - src/lib/studio2-media-assets-integration.test.ts
+    note: "Source-bound review decisions reject stale canonical media changes."
+
+  - id: jury-window
+    status: verified
+    source_sections: [87]
+    evidence:
+      - supabase/migrations/20261003014000_organisation_os_v5_jury_window_operations.sql
+      - src/lib/organisation-jury-window-v5.test.ts
+
+  - id: jury-ballot
+    status: implemented
+    source_sections: [88, 90]
+    evidence:
+      - supabase/migrations/20261003193000_organisation_os_v5_jury_ballot_lifecycle.sql
+      - supabase/migrations/20261003194500_organisation_os_v5_jury_ballot_tasks.sql
+      - supabase/migrations/20261003195500_organisation_os_v5_jury_result_truth.sql
+      - src/lib/organisation-v5-jury-ballot-lifecycle.test.ts
+      - src/routes/_authenticated/admin/jury/$slug.tsx
+    note: "Expected is derived from missing evidence; Submitted enters Organizer validation; Valid/Needs review/Invalidated/Superseded are versioned transitions; DNV is a separate previewed absence transition; only Valid participant ballots score."
+
+  - id: televote-round
+    status: verified
+    source_sections: [93, 94, 95, 96]
+    evidence:
+      - supabase/migrations/20261003017000_organisation_os_v5_televote_round_operations.sql
+      - src/lib/organisation-televote-rounds-v5.test.ts
+
+  - id: voting-declaration
+    status: implemented
+    source_sections: [102]
+    evidence:
+      - supabase/migrations/20261003200000_organisation_os_v5_voting_declaration_lifecycle.sql
+      - src/lib/organisation-v5-voting-declaration-lifecycle.test.ts
+      - src/integrations/televoting/preflight.server.ts
+      - src/routes/televoting/admin/integrity-declarations.tsx
+    note: "Required/Signed/Missing/Wrong version are derived from canonical evidence and statement policy; Invalidated is a versioned audited R2 Organizer transition."
+
+  - id: result-lifecycle
+    status: verified
+    source_sections: [108, 109, 110, 111, 112]
+    evidence:
+      - supabase/migrations/20260912154500_studio2_results_operations.sql
+      - src/lib/studio2-results-operations.test.ts
+      - src/lib/organisation-high-risk-operations-v5.test.ts
+
+  - id: publication-layer
+    status: verified
+    source_sections: [118, 119]
+    evidence:
+      - supabase/migrations/20261003203000_organisation_os_v5_show_publication_lifecycle.sql
+      - src/lib/organisation-v5-show-publication-lifecycle.test.ts
+      - src/lib/show-publication-lifecycle.ts
+      - src/routes/_authenticated/admin/publication/$slug.tsx
+      - src/routes/_authenticated/admin/editions.tsx
+    note: "Draft/Scheduled/Public/Hidden is server-authoritative, direct authenticated publication writes are blocked, scheduled intent is frozen and revalidated, failures create canonical Organizer Tasks, and R3 outcome release requires fresh authentication."
+  - id: incident
+    status: implemented
+    source_sections: [122]
+    evidence:
+      - supabase/migrations/20261003190000_organisation_os_v5_incident_lifecycle.sql
+      - src/lib/organisation-v5-incident-lifecycle.test.ts
+      - src/lib/studio2-incidents-integration.test.ts
+    note: "Detected/Investigating/Mitigating/Monitoring/Resolved is canonical; legacy open rows migrate to Detected and invalid transitions fail server-side."
+
+  - id: appeal
+    status: implemented
+    source_sections: [133]
+    evidence:
+      - src/lib/governance-os-v5.contract.test.ts
+      - src/lib/integrity-portal.ts
+
+  - id: rules-release
+    status: implemented
+    source_sections: [135]
+    evidence:
+      - src/lib/governance-os-v5.contract.test.ts
+      - src/routes/_authenticated/admin/rules-manager.tsx
+
+  - id: permission-change-approval
+    status: verified
+    source_sections: [145, 146]
+    evidence:
+      - supabase/migrations/20261003151000_organisation_os_v5_r3_permission_approvals.sql
+      - src/lib/organisation-high-risk-operations-v5.test.ts
+      - e2e/organizer-routes.e2e.ts
+
+  - id: background-job-recovery
+    status: implemented
+    source_sections: [153]
+    evidence:
+      - supabase/migrations/20261003161000_organisation_os_v5_system_job_recovery.sql
+      - src/lib/organisation-v5-system-job-recovery.test.ts
+    note: "Scheduler state is authoritative/derived; recovery transitions are reconciled into Tasks."
+
+  - id: platform-operational-mode
+    status: verified
+    source_sections: [147, 148, 149, 150, 151, 152]
+    evidence:
+      - supabase/migrations/20261003174000_organisation_os_v5_platform_operational_modes.sql
+      - supabase/migrations/20261003210000_organisation_os_v5_read_only_enforcement.sql
+      - supabase/migrations/20261003212000_organisation_os_v5_platform_permission_enforcement.sql
+      - supabase/migrations/20261003213000_organisation_os_v5_platform_exit_preflight.sql
+      - src/lib/organisation-v5-platform-modes.test.ts
+      - src/lib/organisation-v5-read-only-enforcement.test.ts
+      - src/lib/organisation-v5-platform-exit-preflight.test.ts
+      - src/lib/platform-exit-preflight.functions.ts
+      - src/routes/_authenticated/admin/system.tsx
+      - src/lib/maintenance-contract.test.ts
+    note: "Normal/Degraded/Read-only/Maintenance is canonical and versioned; operation-contract, Data API, direct table and Storage writes fail closed in restricted modes; the emergency Worker circuit breaker remains independent; leaving Maintenance/Read-only requires the exact §152 ten-check server preflight, cross-service/runtime attestation, fresh auth, a short-lived actor/version-bound receipt and an apply-time database recheck."
+  - id: system-health
+    status: derived
+    source_sections: [153]
+    evidence:
+      - src/routes/_authenticated/admin/system-operations.tsx
+    note: "Operational/Degraded/Failed/Unknown is diagnostic state derived from services, not an organiser-mutated lifecycle."

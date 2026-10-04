@@ -1,0 +1,118 @@
+version: 1
+product: Solaris Studio Organisation OS V5
+source: "Organisation OS V5 §240 Definition of Complete"
+source_completion_requirements: 39
+phone_exam_steps: 42
+mandatory_failure_cases: 17
+status_values: [verified, implemented, partial, manual_gate]
+release_rule: "No release-blocking partial may remain, every manual gate must have evidence, and the same source commit must pass all automated release workflows."
+
+requirements:
+  - { id: 1, key: capability-destination-parity, status: verified, release_blocking: true, evidence: ["src/lib/organisation-os-v5-counterparts.ts", "src/lib/organisation-os-v5-counterparts.test.ts", "src/lib/permission-route-map.test.ts"] }
+  - { id: 2, key: public-participant-counterpart-parity, status: verified, release_blocking: true, evidence: ["src/lib/organisation-os-v5-counterparts.ts", "src/lib/organisation-os-v5-counterparts.test.ts"] }
+  - { id: 3, key: next-in-line-organizer-administration, status: verified, release_blocking: true, evidence: ["src/routes/_authenticated/admin/next-in-line.tsx", "src/lib/jury-next-in-line-contract.test.ts"] }
+  - { id: 4, key: confirmation-specialist-selection-migration, status: verified, release_blocking: true, evidence: ["src/lib/organisation-confirmation-rounds-v5.test.ts", "e2e/organizer-routes.e2e.ts"] }
+  - { id: 5, key: national-final-winner-management, status: implemented, release_blocking: true, evidence: ["src/components/NationalFinalResultOrderAddon.tsx", "src/lib/admin-delegation-results-publication.test.ts"] }
+  - { id: 6, key: country-wiki-organizer-access, status: verified, release_blocking: true, evidence: ["src/lib/organisation-os-v5-counterparts.test.ts", "src/components/admin/admin-domains.ts"] }
+  - { id: 7, key: country-design-version-support-moderation, status: implemented, release_blocking: true, evidence: ["src/lib/organisation-os-v5-counterparts.test.ts", "supabase/migrations/20261002200000_organisation_os_v5_community_moderation.sql"] }
+  - { id: 8, key: public-preset-moderation, status: implemented, release_blocking: true, evidence: ["supabase/migrations/20261002200000_organisation_os_v5_community_moderation.sql", "src/lib/organisation-os-v5-counterparts.test.ts"] }
+  - { id: 9, key: fan-public-identity-moderation, status: implemented, release_blocking: true, evidence: ["supabase/migrations/20261002200000_organisation_os_v5_community_moderation.sql", "src/lib/organisation-os-v5-counterparts.test.ts"] }
+  - { id: 10, key: unified-upload-safety-pipeline, status: verified, release_blocking: true, evidence: ["src/lib/organisation-v5-upload-safety.contract.test.ts", "src/lib/upload-safety.ts", "supabase/migrations/20261003211000_organisation_os_v5_unified_upload_quarantine.sql", "supabase/migrations/20261003214000_organisation_os_v5_integrity_upload_quarantine.sql", "supabase/functions/solaris-upload-finalize/index.ts", "src/lib/integrity-security-audit.test.ts", "src/lib/integrity-evidence-lifecycle-contract.test.ts", "src/lib/studio2-media-assets-integration.test.ts"] }
+  - { id: 11, key: participant-view-state-explanation, status: implemented, release_blocking: true, evidence: ["src/lib/organisation-os-v5-counterparts.test.ts", "src/lib/studio2-hod-workspace.ts"] }
+  - { id: 12, key: version-bound-official-notice-acknowledgement, status: verified, release_blocking: true, evidence: ["src/lib/official-communications-record-lifecycle.integration.test.ts", "src/lib/organisation-acknowledgement-ownership.test.ts"] }
+  - { id: 13, key: push-diagnostics-non-authoritative, status: verified, release_blocking: true, evidence: ["src/lib/notification-engine.test.ts", "src/lib/organisation-task-engine.test.ts", "src/lib/organisation-v5-review-hardening.test.ts"] }
+  - { id: 14, key: automation-run-history-safe-retry, status: verified, release_blocking: true, evidence: ["src/lib/organisation-v5-system-job-recovery.test.ts", "supabase/migrations/20261003161000_organisation_os_v5_system_job_recovery.sql"] }
+  - { id: 15, key: explicit-operational-modes, status: implemented, release_blocking: true, evidence: ["src/lib/organisation-operation-contract.ts", "src/lib/maintenance-contract.test.ts"] }
+  - { id: 16, key: emergency-maintenance-path, status: verified, release_blocking: true, evidence: ["src/lib/maintenance-contract.test.ts", "e2e/maintenance.e2e.ts", "src/server.ts"] }
+  - { id: 17, key: rules-publication-derived-rule-checks, status: implemented, release_blocking: true, evidence: ["src/lib/rules-navigation-contract.test.ts", "src/components/rules/AdvancedRulesTools.tsx"] }
+  - { id: 18, key: bulk-operation-snapshots-receipts, status: implemented, release_blocking: true, evidence: ["src/lib/organisation-operation-contract.test.ts", "supabase/migrations/20261002203000_organisation_os_v5_operation_contract.sql"] }
+  - { id: 19, key: r3-fresh-authentication, status: verified, release_blocking: true, evidence: ["supabase/migrations/20261003143000_organisation_os_v5_r3_fresh_auth.sql", "src/lib/organisation-high-risk-operations-v5.test.ts", "e2e/organizer-routes.e2e.ts"] }
+  - { id: 20, key: dual-approval-bound-separated, status: verified, release_blocking: true, evidence: ["supabase/migrations/20261003151000_organisation_os_v5_r3_permission_approvals.sql", "src/lib/organisation-high-risk-operations-v5.test.ts", "e2e/organizer-routes.e2e.ts"] }
+  - { id: 21, key: exhaustive-validated-state-transitions, status: verified, release_blocking: true, evidence: ["docs/organisation-os-v5/state-transition-inventory.yml", "src/lib/organisation-confirmation-rounds-v5.test.ts", "src/lib/organisation-v5-selection-review-transitions.test.ts", "src/lib/organisation-v5-next-in-line-runtime.test.ts", "src/lib/organisation-jury-window-v5.test.ts", "src/lib/organisation-v5-jury-ballot-lifecycle.test.ts", "src/lib/organisation-televote-rounds-v5.test.ts", "src/lib/organisation-v5-show-publication-lifecycle.test.ts", "src/lib/organisation-v5-platform-modes.test.ts", "src/lib/organisation-v5-read-only-enforcement.test.ts", "src/lib/organisation-v5-platform-exit-preflight.test.ts"] }
+  - { id: 22, key: critical-state-server-authoritative, status: verified, release_blocking: true, evidence: ["src/lib/organisation-high-risk-operations-v5.test.ts", "src/lib/permission-engine-authoritative-cutover.integration.test.ts"] }
+  - { id: 23, key: actionable-condition-task-mapping, status: implemented, release_blocking: true, evidence: ["src/lib/organisation-task-engine.test.ts", "supabase/migrations/20261002211500_organisation_os_v5_task_engine.sql"] }
+  - { id: 24, key: task-resolution-canonical-state, status: verified, release_blocking: true, evidence: ["src/lib/organisation-task-engine.test.ts", "supabase/migrations/20261003001000_organisation_os_v5_task_truth_expansion.sql"] }
+  - { id: 25, key: closed-window-no-impossible-tasks, status: verified, release_blocking: true, evidence: ["src/lib/organisation-confirmation-requirements.test.ts", "src/lib/organisation-task-engine.test.ts"] }
+  - { id: 26, key: result-publication-exact-version-preflight, status: verified, release_blocking: true, evidence: ["src/lib/studio2-results-operations-integration.test.ts", "src/lib/production-organizer-audit-regressions.test.ts"] }
+  - { id: 27, key: server-side-permission-enforcement, status: verified, release_blocking: true, evidence: ["src/lib/permission-engine-authoritative-cutover.integration.test.ts", ".github/scripts/rules-integrity-security-rehearsal.sh"] }
+  - { id: 28, key: consequential-command-audit, status: verified, release_blocking: true, evidence: ["src/lib/organisation-high-risk-operations-v5.test.ts", "supabase/migrations/20260914173633_canonical_admin_audit_log.sql"] }
+  - { id: 29, key: protected-read-audit, status: implemented, release_blocking: true, evidence: ["src/lib/integrity-evidence-lifecycle-contract.test.ts", ".github/scripts/rules-integrity-security-rehearsal.sh"] }
+  - { id: 30, key: offline-critical-mutation-blocking, status: verified, release_blocking: true, evidence: ["src/lib/app-offline-degraded.test.ts", "src/lib/organisation-high-risk-operations-v5.test.ts"] }
+  - { id: 31, key: idempotent-critical-operations, status: verified, release_blocking: true, evidence: ["src/lib/organisation-operation-contract.test.ts", "src/lib/organisation-high-risk-operations-v5.test.ts"] }
+  - { id: 32, key: optimistic-concurrency-no-silent-overwrite, status: verified, release_blocking: true, evidence: ["src/lib/organisation-high-risk-operations-v5.test.ts", "src/lib/organisation-confirmation-rounds-v5.test.ts", "src/lib/organisation-televote-rounds-v5.test.ts"] }
+  - { id: 33, key: mobile-functional-parity, status: manual_gate, release_blocking: true, evidence: ["e2e/organizer-routes.e2e.ts", "docs/organisation-os-v5/release-certification.yml"] }
+  - { id: 34, key: wcag-2-2-aa, status: manual_gate, release_blocking: true, evidence: ["e2e/audit-helpers.ts", "docs/organisation-os-v5/release-certification.yml"] }
+  - { id: 35, key: performance-gates, status: verified, release_blocking: true, evidence: ["scripts/check-client-bundle-budget.mjs", ".github/workflows/ci.yml", ".github/workflows/browser-audit.yml"] }
+  - { id: 36, key: failure-injection-suite, status: manual_gate, release_blocking: true, evidence: [".github/scripts/rules-integrity-security-rehearsal.sh", "docs/organisation-os-v5/release-certification.yml"] }
+  - { id: 37, key: push-and-no-push-operation, status: manual_gate, release_blocking: true, evidence: ["src/lib/notification-engine.test.ts", "docs/organisation-os-v5/release-certification.yml"] }
+  - { id: 38, key: legacy-route-safe-migration, status: verified, release_blocking: true, evidence: ["docs/engineering/legacy-retirement-inventory-2026-09-20.md", "src/lib/jury-next-in-line-contract.test.ts", "src/lib/my-solaris-country-module-ownership.test.ts"] }
+  - { id: 39, key: full-phone-simulated-edition, status: manual_gate, release_blocking: true, evidence: ["e2e/organizer-routes.e2e.ts", "docs/organisation-os-v5/release-certification.yml"] }
+
+phone_exam:
+  status: manual_gate
+  release_blocking: true
+  steps:
+    - create-select-test-edition
+    - configure-host
+    - configure-shows
+    - configure-delegations
+    - participant-view
+    - open-confirmation-round
+    - receive-submissions
+    - review-internal-entry
+    - review-national-final-entries
+    - select-national-final-winner
+    - handle-corrections
+    - operate-next-in-line
+    - review-eligibility
+    - review-media
+    - review-country-public-content
+    - inspect-country-appearance
+    - configure-running-order
+    - configure-jury
+    - open-jury
+    - handle-invalid-missing-ballot
+    - dnv-where-appropriate
+    - close-jury
+    - configure-televote
+    - open-televote
+    - review-integrity-signal
+    - close-incomplete-televote
+    - calculate-results
+    - verify-results
+    - lock-results
+    - run-reveal-director
+    - publish
+    - send-required-notice
+    - acknowledge-from-participant-test-account
+    - handle-outstanding-acknowledgement
+    - simulate-failed-automation
+    - recover-failed-automation
+    - simulate-failed-push
+    - simulate-service-degradation
+    - enter-read-only
+    - recover-from-read-only
+    - handle-sev-1-incident
+    - inspect-audit
+
+mandatory_failures:
+  status: manual_gate
+  release_blocking: true
+  cases:
+    - network-loss-after-server-commit
+    - network-loss-before-commit
+    - duplicate-command
+    - stale-concurrent-edit
+    - permission-revocation
+    - expired-authentication
+    - required-second-approval
+    - failed-push
+    - failed-upload
+    - confirmation-sync-failure
+    - failed-automation
+    - duplicate-scheduler-trigger
+    - missing-jury-ballot
+    - late-televote-ballot
+    - result-blocker
+    - stale-publication-schedule
+    - maintenance-recovery-failure
