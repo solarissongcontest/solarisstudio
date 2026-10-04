@@ -30,6 +30,7 @@ import {
   isStudio2ResultReleaseReady,
   loadStudio2ResultsOperations,
 } from "@/lib/studio2-results-operations";
+import { validateEditionCommandScope } from "@/lib/solaris-v6-edition-context";
 import {
   applyShowPublicationChange,
   loadShowPublicationControls,
@@ -53,6 +54,7 @@ type PendingRelease = {
   preview: ShowPublicationPreview;
   operationId: string;
   idempotencyKey: string;
+  editionId: string;
 };
 
 export const Route = createFileRoute("/_authenticated/admin/publication/$slug")({
@@ -189,6 +191,7 @@ function PublicationWorkspace() {
         preview,
         operationId,
         idempotencyKey: operationId,
+        editionId: edition?.id ?? show.edition_id,
       });
     } catch (caught) {
       toast.error(
@@ -203,6 +206,25 @@ function PublicationWorkspace() {
     if (!pendingRelease) return;
     setBusy(true);
     try {
+      const scope = validateEditionCommandScope({
+        routeEditionId: edition?.id ?? null,
+        commandEditionId: pendingRelease.editionId,
+        entityEditionId: pendingRelease.show.edition_id,
+        capabilityEditionId: null,
+      });
+
+      if (!scope.ok) {
+        setPendingRelease(null);
+        setPublicationPassword("");
+        await refresh();
+        throw Object.assign(
+          new Error(
+            `Edition context changed before publication (${scope.mismatches.join(", ")}). Canonical state was refreshed and nothing was applied.`,
+          ),
+          { status: 409 },
+        );
+      }
+
       if (pendingRelease.preview.riskClass === "R3") {
         await reauthenticateShowPublicationR3(publicationPassword);
       }
