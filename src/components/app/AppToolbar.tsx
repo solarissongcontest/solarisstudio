@@ -65,6 +65,8 @@ export function AppToolbar({
       return;
     }
 
+    setTitleCollapsed(false);
+
     const toolbar = toolbarRef.current;
     const largeTitle = largeTitleRef.current;
     if (!toolbar || !largeTitle) return;
