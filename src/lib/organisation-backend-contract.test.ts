@@ -17,6 +17,7 @@ const jury = source("src/components/admin/JuryVotingWindowControl.tsx");
 describe("Organizer frontend/database compatibility contract", () => {
   it("publishes exact capability truth from the database", () => {
     expect(migration).toContain("function public.studio2_runtime_contract()");
+    expect(migration).toContain("organisation-os-v5-20261004");
 
     expect(migration).toContain(
       "to_regprocedure('public.admin_organizer_tasks(uuid,text)')",
@@ -53,8 +54,11 @@ describe("Organizer frontend/database compatibility contract", () => {
     expect(migration).not.toContain("p.proname = 'studio2_apply_jury_voting_status'");
   });
 
-  it("treats an absent contract as incompatible instead of optimistic", () => {
+  it("treats an absent or unknown contract as incompatible instead of optimistic", () => {
     expect(client).toContain("available: false");
+    expect(client).toContain("SUPPORTED_SCHEMA_IDS");
+    expect(client).toContain('"organisation-os-v5-20261004"');
+    expect(client).toContain("Unsupported Organizer runtime contract");
     expect(client).toContain("organizerTasks: false");
     expect(client).toContain("systemOperations: false");
     expect(client).toContain("juryWindowOperations: false");
