@@ -58,6 +58,15 @@ const ignorableRequest = (url: string) =>
 
 const criticalResourceTypes = new Set(["document", "script", "stylesheet", "font"]);
 
+function isBackendApiResponse(url: string) {
+  return (
+    /\/rest\/v1\//i.test(url) ||
+    /\/auth\/v1\//i.test(url) ||
+    /\/storage\/v1\//i.test(url) ||
+    /\.supabase\.co\//i.test(url)
+  );
+}
+
 function isNavigationCancellation(errorText: string | undefined) {
   return /ERR_ABORTED|NS_BINDING_ABORTED|cancelled|canceled/i.test(errorText ?? "");
 }
@@ -116,7 +125,12 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
   }) => {
     if (response.status() < 400 || ignorableRequest(response.url())) return;
     const resourceType = response.request().resourceType();
-    if (!criticalResourceTypes.has(resourceType)) return;
+    if (
+      !criticalResourceTypes.has(resourceType) &&
+      !isBackendApiResponse(response.url())
+    ) {
+      return;
+    }
     failedCriticalResponses.push(`${response.status()} ${resourceType} ${response.url()}`);
   };
 
