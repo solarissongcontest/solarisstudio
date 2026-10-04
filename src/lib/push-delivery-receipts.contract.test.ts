@@ -29,6 +29,16 @@ describe("push delivery receipts", () => {
     expect(diagnostics).toContain("Displayed · 24h");
   });
 
+  it("preserves the richer V5 scheduler recovery diagnostics when redefining runtime health", () => {
+    expect(migration).toContain("consecutiveFailures");
+    expect(migration).toContain("deadLettered");
+    expect(migration).toContain("recoveryMode");
+    expect(migration).toContain("scheduled_retry_dead_letter");
+    expect(migration).toContain("operator_intervention");
+    expect(diagnostics).toContain("job.deadLettered");
+    expect(diagnostics).toContain("job.recoveryMode");
+  });
+
   it("sends only a one-time receipt secret to the service worker", () => {
     expect(dispatcher).toContain("randomReceiptToken");
     expect(dispatcher).toContain("receipt_token_hash");
