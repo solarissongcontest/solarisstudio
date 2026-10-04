@@ -22,6 +22,18 @@ case "$DB_URL" in
   *) fail "refusing to seed browser E2E data against non-local DB_URL" ;;
 esac
 
+# Supabase can report its environment before Postgres has finished accepting
+# queries on a slow CI runner. Fail here with a precise message rather than
+# producing a misleading fixture/RLS error later in the Browser Audit.
+for attempt in {1..20}; do
+  if psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c "select 1" 2>/dev/null | grep -qx '1'; then
+    DB_READY=1
+    break
+  fi
+  sleep 1
+done
+[[ "${DB_READY:-0}" == "1" ]] || fail "Local database did not become ready for browser E2E seeding"
+
 PASSWORD='SolarisBrowserLocal2026!'
 ORGANIZER_EMAIL='organizer-browser-e2e@solaris.invalid'
 ORGANIZER_B_EMAIL='organizer-b-browser-e2e@solaris.invalid'
@@ -81,10 +93,19 @@ print(json.dumps({
 ' "$email" "$PASSWORD" "$display_name")"
 
   request POST "$API_URL/auth/v1/admin/users" "$SERVICE_ROLE_KEY" "$SERVICE_ROLE_KEY" "$body"
-  if (( HTTP_STATUS < 200 || HTTP_STATUS >= 300 )); then
-    fail "create local auth user $email returned HTTP $HTTP_STATUS: $HTTP_BODY"
+  if (( HTTP_STATUS >= 200 && HTTP_STATUS < 300 )); then
+    LAST_USER_ID="$(printf '%s' "$HTTP_BODY" | json_value id)"
+  else
+    # A rerun against the same isolated local stack must be safe. GoTrue returns
+    # a conflict/unprocessable response for an existing address, so reuse only
+    # the matching LOCAL auth row instead of failing or creating duplicates.
+    LAST_USER_ID="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -v email="$email" -c \
+      "select id from auth.users where lower(email)=lower(:'email') limit 1;")"
+    if [[ -z "$LAST_USER_ID" ]]; then
+      fail "create local auth user $email returned HTTP $HTTP_STATUS: $HTTP_BODY"
+    fi
+    log "Reusing existing local auth user $email"
   fi
-  LAST_USER_ID="$(printf '%s' "$HTTP_BODY" | json_value id)"
   [[ -n "$LAST_USER_ID" ]] || fail "local auth response for $email had no user id"
 }
 
