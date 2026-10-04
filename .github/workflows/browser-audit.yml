@@ -136,6 +136,27 @@ jobs:
         shell: bash
         run: bash .github/scripts/seed-browser-e2e-local.sh
 
+      - name: Verify local public Data API tables
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$E2E_SUPABASE_URL" in
+            http://127.0.0.1:*|http://localhost:*) ;;
+            *) echo "Refusing Data API probe against non-local Supabase"; exit 1 ;;
+          esac
+
+          failed=0
+          for table in countries editions shows participants results jury_votes televote_votes; do
+            body="/tmp/solaris-rest-${table}.json"
+            status="$(curl --silent --output "$body" --write-out '%{http_code}'               "$E2E_SUPABASE_URL/rest/v1/${table}?select=*&limit=1"               -H "apikey: $E2E_SUPABASE_PUBLISHABLE_KEY"               -H "Authorization: Bearer $E2E_SUPABASE_PUBLISHABLE_KEY")"
+            if [ "$status" != "200" ]; then
+              echo "Local anon Data API probe failed for ${table}: HTTP ${status}"
+              cat "$body" || true
+              failed=1
+            fi
+          done
+          [ "$failed" -eq 0 ]
+
       - name: Start stable audit server
         shell: bash
         env:
@@ -175,6 +196,53 @@ jobs:
             tail -n 200 /tmp/solaris-audit-server.log || true
             exit 1
           fi
+
+      - name: Verify browser receives the local Supabase identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { chromium } from "@playwright/test";
+
+          const expectedUrl = process.env.E2E_SUPABASE_URL;
+          const expectedKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
+          if (!expectedUrl || !expectedKey || !/^http:\/\/(127\.0\.0\.1|localhost):/.test(expectedUrl)) {
+            throw new Error("Browser credential probe requires isolated local Supabase");
+          }
+
+          const browser = await chromium.launch();
+          const page = await browser.newPage();
+          let sawRest = false;
+          const failures = [];
+
+          page.on("request", async (request) => {
+            if (!request.url().startsWith(`${expectedUrl}/rest/v1/`)) return;
+            sawRest = true;
+            const headers = await request.allHeaders();
+            if (headers.apikey !== expectedKey) failures.push(`apikey mismatch for ${new URL(request.url()).pathname}`);
+            const auth = headers.authorization ?? "";
+            if (auth && auth !== `Bearer ${expectedKey}`) {
+              failures.push(`unexpected Authorization identity for ${new URL(request.url()).pathname}`);
+            }
+          });
+
+          page.on("response", async (response) => {
+            if (!response.url().startsWith(`${expectedUrl}/rest/v1/`) || response.status() < 400) return;
+            let body = "";
+            try { body = (await response.text()).slice(0, 500); } catch {}
+            failures.push(`${response.status()} ${new URL(response.url()).pathname}: ${body}`);
+          });
+
+          await page.goto("http://127.0.0.1:4173/editions", { waitUntil: "domcontentloaded" });
+          await page.waitForTimeout(1500);
+          await browser.close();
+
+          if (!sawRest) failures.push("No local Supabase REST request was observed from the browser");
+          if (failures.length) {
+            console.error(failures.join("\n"));
+            process.exit(1);
+          }
+          NODE
 
       - name: Run responsive browser audit
         run: bunx playwright test
