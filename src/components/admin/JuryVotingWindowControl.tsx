@@ -31,6 +31,10 @@ type JuryWindowPreview = {
   expectedVersion: number;
   submittedBallots: number;
   otherOpenWindows: Array<{ showId: string; showName: string }>;
+  juryEnabled: boolean;
+  allowSelfVote: boolean;
+  participantCount: number;
+  juryPointCount: number;
   alreadyApplied: boolean;
 };
 
@@ -276,6 +280,20 @@ function JuryWindowImpactPreview({ pending }: { pending: PendingWindowChange }) 
           </span>
           <strong className="mt-1 block text-sm text-foreground">{preview.submittedBallots}</strong>
         </div>
+        <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Eligible entries
+          </span>
+          <strong className="mt-1 block text-sm text-foreground">{preview.participantCount}</strong>
+        </div>
+        <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+            Jury scale
+          </span>
+          <strong className="mt-1 block text-sm text-foreground">
+            {preview.juryPointCount} ranked places · {preview.allowSelfVote ? "self-vote allowed" : "self-vote blocked"}
+          </strong>
+        </div>
       </div>
       {pending.status === "open" && preview.otherOpenWindows.length ? (
         <div className="rounded-lg border border-amber-200/15 bg-amber-200/[0.05] p-3">
@@ -295,7 +313,11 @@ function JuryWindowImpactPreview({ pending }: { pending: PendingWindowChange }) 
           Existing submitted ballots remain recorded. Closing stops new country-account jury submissions
           until an organizer opens the window again.
         </p>
-      ) : null}
+      ) : (
+        <p className="text-xs leading-5 text-muted-foreground">
+          The preview already ran the same jury-enabled, entry-count and self-vote eligibility checks used by the authoritative mutation. The apply step revalidates them again under the edition-wide lock.
+        </p>
+      )}
       <p className="text-xs leading-5 text-muted-foreground">
         Expected edition jury-window version: v{preview.expectedVersion}. Solaris rejects this command if
         another administrator changes any jury window in the edition before confirmation.
