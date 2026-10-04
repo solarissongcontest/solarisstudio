@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, Search } from "lucide-react";
+import { Check, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { ArchiveDataError, ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
+import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useCountries } from "@/lib/data";
 
 export const Route = createFileRoute("/wiki/")({
@@ -57,35 +58,64 @@ function AppWikiIndexPage() {
 
   return (
     <AppShell>
-      <div className="space-y-4">
-        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_11rem]">
-          <label className="solaris-app-search-field">
-            <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <div className="space-y-5">
+        <div className="solaris-app-directory-tools">
+          <label className="solaris-app-search-field solaris-app-search-field-prominent">
+            <Search className="size-[1.05rem] shrink-0 text-muted-foreground" aria-hidden="true" />
             <span className="sr-only">Search the Wiki</span>
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search country or code…"
+              placeholder="Search countries…"
               autoComplete="off"
+              enterKeyHint="search"
               className="min-w-0 flex-1 border-0 bg-transparent outline-none"
             />
           </label>
-          <label>
-            <span className="sr-only">Filter Wiki by region</span>
-            <select
-              value={region}
-              onChange={(event) => setRegion(event.target.value)}
-              className="min-h-11 w-full rounded-xl border border-border bg-background/45 px-3 text-sm outline-none"
-            >
-              <option value="all">All regions</option>
-              {regions.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
-          </label>
+
+          <div className="solaris-app-directory-filterbar">
+            <Sheet>
+              <SheetTrigger asChild>
+                <button type="button" className="solaris-app-filter-chip">
+                  <SlidersHorizontal className="size-4" aria-hidden="true" />
+                  <span>{region === "all" ? "All regions" : region}</span>
+                </button>
+              </SheetTrigger>
+              <SheetContent
+                side="bottom"
+                aria-label="Filter Wiki by region"
+                className="solaris-app-filter-sheet"
+              >
+                <div className="solaris-app-filter-sheet-heading">
+                  <p>Wiki</p>
+                  <h2>Filter countries</h2>
+                </div>
+                <div className="mt-3">
+                  {["all", ...regions].map((item) => {
+                    const active = region === item;
+                    return (
+                      <SheetClose key={item} asChild>
+                        <button
+                          type="button"
+                          onClick={() => setRegion(item)}
+                          className={`solaris-app-filter-option${active ? " is-active" : ""}`}
+                          aria-pressed={active}
+                        >
+                          <span>{item === "all" ? "All regions" : item}</span>
+                          {active ? <Check className="size-4" aria-hidden="true" /> : null}
+                        </button>
+                      </SheetClose>
+                    );
+                  })}
+                </div>
+              </SheetContent>
+            </Sheet>
+            <span className="solaris-app-directory-count">{filtered.length} articles</span>
+          </div>
         </div>
 
         <section aria-labelledby="app-wiki-directory">
-          <div className="solaris-app-section-heading">
-            <p>{filtered.length} articles</p>
+          <div className="solaris-app-section-heading solaris-app-section-heading-title-first">
             <h2 id="app-wiki-directory">Terra Solaris Wiki</h2>
           </div>
           <div className="solaris-app-grouped-list">
