@@ -1,7 +1,7 @@
 import "@/confirmations.css";
 
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -45,7 +45,58 @@ export const Route = createFileRoute("/confirmations/")({
   }),
   loader: () => getPublicRounds(),
   component: ConfirmationsPage,
+  errorComponent: ConfirmationsRouteError,
 });
+
+function ConfirmationsRouteError({
+  error,
+  reset,
+}: {
+  error: unknown;
+  reset: () => void;
+}) {
+  const router = useRouter();
+  const offline = typeof navigator !== "undefined" && !navigator.onLine;
+
+  console.error("[confirmations] route load failed", error);
+
+  return (
+    <ParticipationRouteChrome>
+      <ParticipationServiceShell
+        service="confirmations"
+        title="Confirmations"
+        description="Participation confirmation for the current Solaris edition."
+        actions={[{ to: "/participate", label: "Back to Participate" }]}
+        maxWidth="max-w-xl"
+      >
+        <section className="solaris-app-recovery-state data-panel p-5 sm:p-6" role="alert">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">
+            {offline ? "Offline" : "Couldn’t load confirmations"}
+          </p>
+          <h2 className="mt-2 text-lg font-bold">
+            {offline ? "Reconnect to load confirmation rounds" : "Confirmation data is temporarily unavailable"}
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {offline
+              ? "Submitting or editing a confirmation requires a connection. Nothing has been submitted or changed."
+              : "Solaris could not load the official confirmation rounds. Your saved response has not been changed."}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              onClick={() => {
+                void router.invalidate();
+                reset();
+              }}
+            >
+              Try again
+            </Button>
+          </div>
+        </section>
+      </ParticipationServiceShell>
+    </ParticipationRouteChrome>
+  );
+}
 
 function roundReason(round: PublicRound): AvailabilityReason {
   return computeAvailability({
