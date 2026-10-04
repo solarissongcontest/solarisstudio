@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, CircleHelp, MoreHorizontal } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AppNativeShareButton } from "@/components/app/AppNativeShareButton";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
@@ -29,9 +29,6 @@ export function AppToolbar({
   const navigate = useNavigate();
   const chrome = resolveAppRouteChrome(pathname, searchStr);
   const [backTarget, setBackTarget] = useState<AppHistoryEntry | null>(null);
-  const [titleCollapsed, setTitleCollapsed] = useState(false);
-  const toolbarRef = useRef<HTMLElement | null>(null);
-  const largeTitleRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setBackTarget(peekAppBackTarget(pathname, searchStr));
@@ -52,59 +49,11 @@ export function AppToolbar({
     chrome.archetype === "settings" ||
     chrome.archetype === "workspace" ||
     chrome.archetype === "directory";
-  const hasLargeTitle = chrome.archetype === "directory";
   const backLabel = searchReturn
     ? "Search"
     : effectiveBackTarget
       ? historyChrome?.title
       : fallback?.label;
-
-  useEffect(() => {
-    if (!hasLargeTitle) {
-      setTitleCollapsed(false);
-      return;
-    }
-
-    setTitleCollapsed(false);
-
-    const toolbar = toolbarRef.current;
-    const largeTitle = largeTitleRef.current;
-    if (!toolbar || !largeTitle) return;
-
-    let observer: IntersectionObserver | null = null;
-    let resizeFrame: number | null = null;
-
-    const observe = () => {
-      observer?.disconnect();
-      const toolbarHeight = Math.ceil(toolbar.getBoundingClientRect().height);
-      observer = new IntersectionObserver(
-        ([entry]) => setTitleCollapsed(!entry.isIntersecting),
-        {
-          root: null,
-          rootMargin: `-${toolbarHeight}px 0px 0px 0px`,
-          threshold: 0.01,
-        },
-      );
-      observer.observe(largeTitle);
-    };
-
-    const onResize = () => {
-      if (resizeFrame != null) return;
-      resizeFrame = window.requestAnimationFrame(() => {
-        resizeFrame = null;
-        observe();
-      });
-    };
-
-    observe();
-    window.addEventListener("resize", onResize, { passive: true });
-
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener("resize", onResize);
-      if (resizeFrame != null) window.cancelAnimationFrame(resizeFrame);
-    };
-  }, [hasLargeTitle, pathname, searchStr]);
 
   const goBack = () => {
     if (searchReturn) {
@@ -132,14 +81,10 @@ export function AppToolbar({
   };
 
   return (
-    <>
-      <header
-        ref={toolbarRef}
-        className="solaris-app-toolbar"
-        data-app-screen={chrome.archetype}
-        data-collapsible-title={hasLargeTitle ? "true" : undefined}
-        data-title-collapsed={hasLargeTitle ? (titleCollapsed ? "true" : "false") : undefined}
-      >
+    <header
+      className="solaris-app-toolbar"
+      data-app-screen={chrome.archetype}
+    >
       <div className="solaris-app-toolbar-inner">
         <div className="min-w-0 flex-1">
           {showBack ? (
@@ -160,16 +105,7 @@ export function AppToolbar({
         </div>
 
         {showBack && toolbarOwnsHeading ? (
-          hasLargeTitle ? (
-            <span
-              className="solaris-app-toolbar-context-title solaris-app-toolbar-context-title-collapsible"
-              aria-hidden="true"
-            >
-              {chrome.title}
-            </span>
-          ) : (
-            <h1 className="solaris-app-toolbar-context-title">{chrome.title}</h1>
-          )
+          <h1 className="solaris-app-toolbar-context-title">{chrome.title}</h1>
         ) : null}
 
         <div className="flex items-center gap-1">
@@ -199,12 +135,6 @@ export function AppToolbar({
           )}
         </div>
       </div>
-      </header>
-      {hasLargeTitle ? (
-        <div ref={largeTitleRef} className="solaris-app-large-title-flow">
-          <h1>{chrome.title}</h1>
-        </div>
-      ) : null}
-    </>
+    </header>
   );
 }

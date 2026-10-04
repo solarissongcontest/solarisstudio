@@ -109,11 +109,8 @@ function AppWikiIndexPage() {
           </div>
         </div>
 
-        <section aria-labelledby="app-wiki-directory">
-          <div className="solaris-app-section-heading solaris-app-section-heading-title-first">
-            <h2 id="app-wiki-directory">Terra Solaris Wiki</h2>
-          </div>
-          <div className="solaris-app-grouped-list">
+        <section aria-label="Terra Solaris Wiki">
+          <div className="solaris-app-directory-list-v6">
             {filtered.map((country) => (
               <Link
                 key={country.id}

@@ -19,7 +19,9 @@ export function SolarisSearchField({
     <div className={cn("solaris-app-search-shell", className)} data-solaris-search-field>
       <Search className="solaris-app-search-icon size-[1.05rem]" aria-hidden="true" />
       <input
-        type="search"
+        type="text"
+        role="searchbox"
+        inputMode="search"
         aria-label={label}
         value={value}
         onChange={(event) => onChange(event.target.value)}

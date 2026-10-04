@@ -372,7 +372,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           data-solaris-app-screen={isAppMode ? appChrome.archetype : undefined}
           data-solaris-app-tabbar={isAppMode ? appChrome.tabBar : undefined}
           data-solaris-app-calm-directory={
-            isAppMode && (pathname === "/editions" || pathname === "/shows") ? "true" : undefined
+            isAppMode &&
+            ["/countries", "/wiki", "/editions", "/shows", "/site-directory"].includes(pathname)
+              ? "true"
+              : undefined
           }
           className={cn(
             "app-main relative z-10 mx-auto w-full min-w-0 px-3 pb-24 pt-4 sm:px-5 sm:pb-24 sm:pt-6 lg:px-8 lg:py-8 2xl:px-10",

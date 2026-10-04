@@ -21,19 +21,17 @@ describe("installed app information hierarchy", () => {
     expect(styles).toContain('.app-main[data-solaris-app-root="true"] > .page-header');
   });
 
-  it("keeps directory titles below the safe area without scroll-linked toolbar resizing", () => {
+  it("keeps directory titles permanently centered in the safe-area toolbar", () => {
     const toolbar = source("src/components/app/AppToolbar.tsx");
     const styles = source("src/styles/app-shell.css");
 
-    expect(toolbar).toContain('const hasLargeTitle = chrome.archetype === "directory"');
-    expect(toolbar).toContain('data-collapsible-title={hasLargeTitle ? "true" : undefined}');
-    expect(toolbar).toContain('data-title-collapsed={hasLargeTitle ? (titleCollapsed ? "true" : "false") : undefined}');
-    expect(toolbar).toContain('className="solaris-app-large-title-flow"');
-    expect(toolbar).toContain("IntersectionObserver");
-    expect(toolbar).not.toContain("--solaris-toolbar-collapse-progress");
+    expect(toolbar).toContain('<h1 className="solaris-app-toolbar-context-title">{chrome.title}</h1>');
+    expect(toolbar).not.toContain("IntersectionObserver");
+    expect(toolbar).not.toContain("solaris-app-large-title-flow");
+    expect(toolbar).not.toContain("data-title-collapsed");
     expect(styles).toContain("padding-top: env(safe-area-inset-top)");
-    expect(styles).toContain("html[data-solaris-app] .solaris-app-large-title-flow");
-    expect(styles).toContain('.solaris-app-toolbar[data-title-collapsed="true"]');
+    expect(styles).toContain('.solaris-app-toolbar[data-app-screen="directory"] .solaris-app-toolbar-context-title');
+    expect(styles).toContain("transform: translate(-50%, -50%)");
   });
 
   it("keeps website heroes while compacting secondary installed-app headers", () => {

@@ -134,11 +134,8 @@ function AppCountriesPage() {
           </div>
         </div>
 
-        <section aria-labelledby="app-country-directory">
-          <div className="solaris-app-section-heading solaris-app-section-heading-title-first">
-            <h2 id="app-country-directory">Countries</h2>
-          </div>
-          <div className="solaris-app-grouped-list">
+        <section aria-label="Countries">
+          <div className="solaris-app-directory-list-v6">
             {visible.map((country) => (
               <Link
                 key={country.id}

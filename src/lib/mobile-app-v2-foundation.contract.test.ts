@@ -120,12 +120,14 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(countries).toContain("<SolarisSearchField");
     expect(countries).toContain("solaris-app-filter-sheet");
     expect(search).toContain("data-solaris-search-field");
-    expect(search).toContain('type="search"');
+    expect(search).toContain('type="text"');
+    expect(search).toContain('inputMode="search"');
     expect(editions).toContain("solaris-app-featured-row");
     expect(editions).toContain('data-solaris-flat-list="editions"');
-    expect(shows).toContain('data-solaris-flat-list="shows"');
+    expect(shows).toContain("solaris-app-shows-v6");
+    expect(shows).toContain("data-solaris-show-list");
     expect(shows).toContain("appShowMeta(show)");
-    expect(styles).toContain("Mobile Visual System V5");
+    expect(styles).toContain("Mobile Visual System V6");
   });
 
   it("forces installed search to one visual surface and flags to canonical rounded 3:2 frames", () => {
@@ -135,8 +137,9 @@ describe("Mobile App V2 architectural invariants", () => {
 
     expect(search).toContain("solaris-app-search-shell");
     expect(search).toContain("solaris-app-search-input");
-    expect(styles).toContain("background: transparent !important");
-    expect(styles).toContain("border-radius: 0 !important");
+    expect(styles).toContain("all: unset !important");
+    expect(styles).toContain("overflow: hidden");
+    expect(styles).toContain("background: rgb(255 255 255 / .055)")
     expect(flags).toContain("--solaris-flag-radius");
     expect(styles).toContain("aspect-ratio: 3 / 2 !important");
     expect(styles).toContain("border-radius: var(--solaris-flag-radius, .55rem) !important");
