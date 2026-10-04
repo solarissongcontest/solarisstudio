@@ -23,7 +23,14 @@ domains:
       - "Old authority cannot recreate duplicate requirements."
   permissions:
     state: canonical-write
-    legacy_authority: ["client role checks", "legacy user_roles authorization"]
+    retired_authority: ["client role checks as authority", "legacy user_roles authorization"]
+    legacy_authority: []
+    retirement_evidence:
+      - "Permission Engine v2 authoritative cutover removes legacy-role fallback from studio2_user_has_capability and studio2_access_allowed."
+      - "Legacy user_roles policies and obsolete has_role helpers are removed from live authorization paths."
+      - "Sensitive result, publication, Integrity and operational writes use narrow server capabilities."
+      - "V6 client capability helpers are explicitly presentation-only and bind to the same capability vocabulary."
+      - "src/lib/solaris-v6-permission-authority.contract.test.ts enforces the retirement contract."
     retirement_criteria:
       - "Sensitive operations validate canonical server capabilities on every request."
   results:
