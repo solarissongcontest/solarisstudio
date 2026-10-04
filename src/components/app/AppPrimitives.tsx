@@ -1,0 +1,114 @@
+import type { HTMLAttributes, ReactNode } from "react";
+
+import { cn } from "@/lib/utils";
+
+export function AppScreen({
+  children,
+  className,
+  ...props
+}: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={cn("space-y-5", className)} {...props}>
+      {children}
+    </div>
+  );
+}
+
+export function AppSectionHeader({
+  eyebrow,
+  title,
+  id,
+  trailing,
+  className,
+  headingLevel = 2,
+}: {
+  eyebrow: ReactNode;
+  title: ReactNode;
+  id?: string;
+  trailing?: ReactNode;
+  className?: string;
+  headingLevel?: 1 | 2;
+}) {
+  const Heading = headingLevel === 1 ? "h1" : "h2";
+  return (
+    <div className={cn("solaris-app-section-heading", className)}>
+      <div className="min-w-0">
+        <p>{eyebrow}</p>
+        <Heading id={id}>{title}</Heading>
+      </div>
+      {trailing ? <div className="shrink-0">{trailing}</div> : null}
+    </div>
+  );
+}
+
+export function AppGroupedList({
+  children,
+  className,
+  ...props
+}: HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={cn("solaris-app-grouped-list", className)} {...props}>
+      {children}
+    </div>
+  );
+}
+
+export function AppCard({
+  children,
+  className,
+  tone = "neutral",
+  ...props
+}: HTMLAttributes<HTMLDivElement> & {
+  tone?: "neutral" | "accent" | "quiet";
+}) {
+  return (
+    <div
+      className={cn("solaris-app-card", className)}
+      data-tone={tone}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function AppEmptyState({
+  title,
+  description,
+  action,
+  className,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  action?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("solaris-app-empty-state", className)} role="status">
+      <p className="text-sm font-semibold">{title}</p>
+      {description ? (
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+      ) : null}
+      {action ? <div className="mt-3">{action}</div> : null}
+    </div>
+  );
+}
+
+export function AppStatusBadge({
+  children,
+  tone = "neutral",
+  className,
+}: {
+  children: ReactNode;
+  tone?: "neutral" | "success" | "warning" | "danger" | "info";
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn("solaris-app-status-badge", className)}
+      data-tone={tone}
+    >
+      {children}
+    </span>
+  );
+}
