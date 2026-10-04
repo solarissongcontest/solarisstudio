@@ -29,6 +29,7 @@ import {
   SolarisSurfaceSwitch,
 } from '@/components/surfaces/SolarisSurfaceSwitch';
 import { buildBroadcastRundown, type RundownSegment, type RundownSegmentStatus } from '@/lib/broadcast-rundown';
+import { validateEditionCommandScope } from '@/lib/solaris-v6-edition-context';
 import { useShows } from '@/lib/data';
 import {
   buildStudio2BroadcastReadiness,
@@ -88,10 +89,35 @@ function BroadcastRundownPage() {
     await queryClient.invalidateQueries({ queryKey: ['shows'] });
   };
 
+  function assertProductionEditionScope() {
+    if (mode === 'rehearsal') return;
+
+    const show = shows.find((candidate) => candidate.id === showId) ?? null;
+    const scope = validateEditionCommandScope({
+      routeEditionId: editionId ?? null,
+      commandEditionId: editionId ?? null,
+      entityEditionId: show?.edition_id ?? null,
+      capabilityEditionId: null,
+    });
+
+    if (!editionId || !show || !scope.ok) {
+      const mismatch = !scope.ok && scope.mismatches.length
+        ? ` (${scope.mismatches.join(', ')})`
+        : '';
+      throw Object.assign(
+        new Error(
+          `Edition context changed before the broadcast command${mismatch}. Reload the canonical rundown before retrying.`,
+        ),
+        { status: 409 },
+      );
+    }
+  }
+
   const saveMutation = useMutation({
     mutationFn: () => {
       if (!showId || !draft) throw new Error('Select a show and create a rundown first.');
       if (mode === 'rehearsal') return Promise.resolve(draft);
+      assertProductionEditionScope();
       return saveStudio2BroadcastRundown(showId, draft, 'Broadcast rundown edited in organizer planner');
     },
     onSuccess: async (config) => {
@@ -103,6 +129,7 @@ function BroadcastRundownPage() {
   const lockMutation = useMutation({
     mutationFn: ({ locked, reason }: { locked: boolean; reason: string }) => {
       if (!showId || !draft) throw new Error('Select a show and load its rundown first.');
+      assertProductionEditionScope();
       return setStudio2BroadcastRundownLock(showId, draft, locked, reason);
     },
     onSuccess: async (config) => {
@@ -114,6 +141,7 @@ function BroadcastRundownPage() {
   const transitionMutation = useMutation({
     mutationFn: ({ segmentId, status, reason }: { segmentId: string; status: RundownSegmentStatus; reason: string }) => {
       if (!showId || !draft) throw new Error('Select a show and load its rundown first.');
+      assertProductionEditionScope();
       return transitionStudio2BroadcastSegment(showId, draft, segmentId, status, reason, mode);
     },
     onSuccess: async (config) => {
