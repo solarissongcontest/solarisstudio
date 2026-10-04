@@ -14,6 +14,7 @@ import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
 import { AppAdaptiveWorkspace } from "@/components/app/AppAdaptiveWorkspace";
 import { AppMoreNavigation } from "@/components/app/AppMoreNavigation";
+import { SolarisDraggableSheetContent } from "@/components/interaction/SolarisDraggableSheet";
 import { AppTabBar } from "@/components/app/AppTabBar";
 import { AppToolbar } from "@/components/app/AppToolbar";
 import { useSolarisApp } from "@/components/app/AppRuntime";
@@ -36,6 +37,7 @@ import {
 } from "@/lib/app-navigation";
 import { useAppAttentionSummary } from "@/lib/app-attention";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
+import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { PUBLIC_GLOBAL_AREAS, publicAreaForPath } from "@/lib/public-navigation";
 import {
   publicCanvasForArchetype,
@@ -95,6 +97,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState<string | null>(null);
   const [access, setAccess] = useState<AccountAccess>(EMPTY_ACCESS);
   const [menuOpen, setMenuOpen] = useState(false);
+  const appScreen = resolveSolarisAppScreen(pathname, searchStr);
 
   useEffect(() => {
     let alive = true;
@@ -134,13 +137,21 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isAppMode) return;
 
-    const restoreY = consumeAppNavigationRestore(pathname, searchStr);
-    rememberAppLocation(pathname, searchStr, restoreY ?? undefined);
+    const preserveScroll = appScreen.behavior.preserveScroll;
+    const restoreY = preserveScroll
+      ? consumeAppNavigationRestore(pathname, searchStr)
+      : null;
+    rememberAppLocation(pathname, searchStr, preserveScroll ? restoreY ?? undefined : 0);
 
-    if (restoreY != null) {
+    if (preserveScroll && restoreY != null) {
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => window.scrollTo({ top: restoreY, behavior: "auto" }));
       });
+    }
+
+    if (!preserveScroll) {
+      window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+      return;
     }
 
     let frame: number | null = null;
@@ -162,7 +173,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (frame != null) window.cancelAnimationFrame(frame);
       updateAppScrollPosition(pathname, searchStr, window.scrollY);
     };
-  }, [isAppMode, pathname, searchStr]);
+  }, [appScreen.behavior.preserveScroll, isAppMode, pathname, searchStr]);
 
   useEffect(() => {
     const confirmationComplete = () =>
@@ -235,7 +246,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     pathname === "/my-solaris" ||
     pathname === "/my-solaris/" ||
     pathname.startsWith("/my-solaris/");
-  const focusedParticipationTask = appChrome.archetype === "task";
+  const focusedParticipationTask = appScreen.behavior.criticalTask;
   const showSectionNavigation =
     !isAppMode &&
     !isMySolarisWorkspace &&
@@ -260,7 +271,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="relative isolate min-h-screen overflow-x-clip">
         <div aria-hidden="true" className="app-background" />
 
-        {isAppMode && !pathname.startsWith("/integrity/report") ? (
+        {isAppMode && appScreen.chrome.toolbar !== "hidden" ? (
           <AppToolbar pathname={pathname} searchStr={searchStr} access={access} />
         ) : null}
 
@@ -295,82 +306,87 @@ export function AppShell({ children }: { children: ReactNode }) {
           </header>
         ) : null}
 
-        <SheetContent
-          side={isAppMode ? "bottom" : "right"}
-          showCloseButton={false}
-          aria-label={isAppMode ? "More Solaris Studio options" : "Navigation menu"}
-          className={cn(
-            isAppMode
-              ? "solaris-app-more-sheet !inset-x-2 !bottom-0 !max-h-[86dvh] !gap-0 !overflow-y-auto !rounded-t-[1.55rem] !border !border-b-0 !p-0"
-              : "public-drawer !inset-y-0 !left-auto !right-0 !h-dvh !w-[min(90vw,360px)] !max-w-none !gap-0 !overflow-hidden !rounded-none !border-l !border-t-0 !bg-background/96 !p-0",
-          )}
-        >
-          {isAppMode ? (
+        {isAppMode ? (
+          <SolarisDraggableSheetContent
+            aria-label="More Solaris Studio options"
+            className="solaris-app-more-sheet !inset-x-2 !bottom-0 !max-h-[92dvh] !gap-0 !overflow-hidden !rounded-t-[1.55rem] !border !border-b-0"
+          >
             <AppMoreNavigation
               signedIn={Boolean(access.userId)}
               access={access}
               onSignOut={() => void signOut()}
             />
-          ) : (
-            <>
-          <div
-            className="flex items-center justify-between border-b border-border p-4"
-            style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+          </SolarisDraggableSheetContent>
+        ) : (
+          <SheetContent
+            side="right"
+            showCloseButton={false}
+            aria-label="Navigation menu"
+            className="public-drawer !inset-y-0 !left-auto !right-0 !h-dvh !w-[min(90vw,360px)] !max-w-none !gap-0 !overflow-hidden !rounded-none !border-l !border-t-0 !bg-background/96 !p-0"
           >
-            <Brand compact />
-            <SheetClose asChild>
-              <button
-                type="button"
-                className="grid h-11 w-11 place-items-center rounded-xl border border-border bg-surface transition-[background-color,transform] duration-150 ease-out active:scale-[0.96] motion-reduce:active:scale-100"
-                aria-label="Close navigation"
-              >
-                <X className="h-4.5 w-4.5" />
-              </button>
-            </SheetClose>
-          </div>
-
-          <nav className="scroll-slim flex-1 overflow-y-auto overscroll-contain p-3" aria-label="Mobile navigation">
-            <PublicDrawerNavigation pathname={pathname} user={publicUser} />
-          </nav>
-
-          <div
-            className="border-t border-border p-4"
-            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
-          >
-            {email ? (
-              <div className="space-y-3">
-                <p className="truncate text-[11px] text-muted-foreground">
-                  {visibleAccountEmail ?? "Country account"}
-                </p>
+            <div
+              className="flex items-center justify-between border-b border-border p-4"
+              style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+            >
+              <Brand compact />
+              <SheetClose asChild>
                 <button
                   type="button"
-                  onClick={signOut}
-                  className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm font-semibold transition-[background-color,transform] duration-150 ease-out active:scale-[0.98] motion-reduce:active:scale-100"
+                  className="grid h-11 w-11 place-items-center rounded-xl border border-border bg-surface transition-[background-color,transform] duration-150 ease-out active:scale-[0.96] motion-reduce:active:scale-100"
+                  aria-label="Close navigation"
                 >
-                  Sign out
+                  <X className="h-4.5 w-4.5" />
                 </button>
-              </div>
-            ) : (
-              <SheetClose asChild>
-                <Link
-                  to="/auth"
-                  className="bg-aurora flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-semibold text-primary-foreground"
-                >
-                  Sign in to Solaris
-                </Link>
               </SheetClose>
-            )}
-          </div>
-            </>
-          )}
-        </SheetContent>
+            </div>
+
+            <nav className="scroll-slim flex-1 overflow-y-auto overscroll-contain p-3" aria-label="Mobile navigation">
+              <PublicDrawerNavigation pathname={pathname} user={publicUser} />
+            </nav>
+
+            <div
+              className="border-t border-border p-4"
+              style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+            >
+              {email ? (
+                <div className="space-y-3">
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {visibleAccountEmail ?? "Country account"}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={signOut}
+                    className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm font-semibold transition-[background-color,transform] duration-150 ease-out active:scale-[0.98] motion-reduce:active:scale-100"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              ) : (
+                <SheetClose asChild>
+                  <Link
+                    to="/auth"
+                    className="bg-aurora flex min-h-11 items-center justify-center rounded-xl px-3 text-sm font-semibold text-primary-foreground"
+                  >
+                    Sign in to Solaris
+                  </Link>
+                </SheetClose>
+              )}
+            </div>
+          </SheetContent>
+        )}
 
         <main
           data-public-layout={publicLayout}
           data-solaris-app-mode={isAppMode ? "true" : undefined}
           data-solaris-app-root={isAppMode && isAppRootDestination ? "true" : undefined}
+          data-solaris-screen-id={isAppMode ? appScreen.id : undefined}
           data-solaris-app-screen={isAppMode ? appChrome.archetype : undefined}
+          data-solaris-app-root-tab={isAppMode ? appScreen.hierarchy.rootTab ?? "none" : undefined}
+          data-solaris-app-toolbar={isAppMode ? appScreen.chrome.toolbar : undefined}
           data-solaris-app-tabbar={isAppMode ? appChrome.tabBar : undefined}
+          data-solaris-app-search={isAppMode ? appScreen.chrome.search : undefined}
+          data-solaris-app-offline={isAppMode ? appScreen.behavior.offline : undefined}
+          data-solaris-app-critical-task={isAppMode && appScreen.behavior.criticalTask ? "true" : undefined}
           data-solaris-app-calm-directory={
             isAppMode &&
             ["/countries", "/wiki", "/editions", "/shows", "/site-directory"].includes(pathname)
@@ -442,6 +458,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               )}
             </>
           )}
+
+          {isAppMode && appChrome.tabBar !== "hidden" ? (
+            <div
+              className="solaris-app-bottom-spacer"
+              aria-hidden="true"
+              data-solaris-app-bottom-spacer=""
+            />
+          ) : null}
         </main>
 
         {!isAppMode && !isMySolarisWorkspace && !focusedParticipationTask ? (
