@@ -23,6 +23,8 @@ html[data-solaris-app-boot] body::before {
 :root {
   --solaris-app-toolbar-height: 3.55rem;
   --solaris-app-tabbar-height: 4.7rem;
+  --solaris-app-tabbar-collapsed-height: 3.25rem;
+  --solaris-app-tabbar-max-height: 5.35rem;
 }
 
 .solaris-app-toolbar,
@@ -171,6 +173,7 @@ html[data-solaris-app-boot] body::before {
     right: max(.65rem, env(safe-area-inset-right));
     bottom: max(.45rem, env(safe-area-inset-bottom));
     display: block;
+    max-height: var(--solaris-app-tabbar-max-height);
     pointer-events: none;
   }
 
@@ -198,13 +201,21 @@ html[data-solaris-app-boot] body::before {
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: var(--solaris-tab-gap);
     width: min(40rem, 100%);
-    min-height: calc(var(--solaris-app-tabbar-height) + var(--solaris-tabbar-pull-height));
+    box-sizing: border-box;
+    height: min(
+      calc(var(--solaris-app-tabbar-height) + var(--solaris-tabbar-pull-height)),
+      var(--solaris-app-tabbar-max-height)
+    );
+    min-height: 0;
+    max-height: var(--solaris-app-tabbar-max-height);
     margin-inline: auto;
     padding: var(--solaris-tab-pad);
     border: 0;
     border-radius: calc(1.55rem + var(--solaris-tabbar-pull-radius));
     background: transparent;
     box-shadow: none;
+    contain: layout paint;
+    isolation: isolate;
   }
 
   .solaris-app-tabbar-backdrop {
@@ -212,7 +223,11 @@ html[data-solaris-app-boot] body::before {
     inset: 0;
     z-index: 0;
     overflow: hidden;
+    inline-size: 100%;
+    block-size: 100%;
+    max-block-size: 100%;
     pointer-events: none;
+    contain: paint;
     border: 1px solid rgb(255 255 255 / .18);
     border-radius: inherit;
     background:
@@ -670,7 +685,7 @@ html[data-solaris-app-boot] body::before {
   .solaris-app-tabbar-material {
     transition:
       width 240ms cubic-bezier(.18,.86,.22,1),
-      min-height 240ms cubic-bezier(.18,.86,.22,1),
+      height 240ms cubic-bezier(.18,.86,.22,1),
       left 240ms cubic-bezier(.18,.86,.22,1),
       padding 180ms cubic-bezier(.32,.72,0,1),
       border-radius 240ms cubic-bezier(.18,.86,.22,1);
@@ -695,7 +710,9 @@ html[data-solaris-app-boot] body::before {
     --solaris-tab-pad: .24rem;
     --solaris-tab-total-inset: .48rem;
     width: min(24rem, calc(100% - 2.4rem));
-    min-height: 3.2rem;
+    height: var(--solaris-app-tabbar-collapsed-height);
+    min-height: 0;
+    max-height: var(--solaris-app-tabbar-collapsed-height);
     padding: var(--solaris-tab-pad);
     border-radius: 1.3rem;
   }
@@ -847,7 +864,7 @@ html[data-solaris-app-boot] body::before {
       );
   }
 
-  .solaris-app-tabbar-backdrop[data-kube-liquid-glass="safari-mirrored-refraction"] {
+  .solaris-app-tabbar-backdrop[data-kube-liquid-glass="css-backdrop"] {
     background:
       linear-gradient(
         145deg,
@@ -860,32 +877,6 @@ html[data-solaris-app-boot] body::before {
       inset -1px -1px 0 rgb(190 231 246 / .03),
       0 10px 28px rgb(0 4 22 / .07);
   }
-
-  .solaris-kube-safari-mirror {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    border-radius: inherit;
-    pointer-events: none;
-    opacity: .56;
-    transform: translateZ(0);
-    transform-origin: center;
-  }
-
-  .solaris-kube-mirror-clone {
-    position: absolute !important;
-    pointer-events: none !important;
-    user-select: none !important;
-    -webkit-user-select: none !important;
-    transform: none !important;
-    contain: none !important;
-  }
-
-  .solaris-kube-mirror-clone * {
-    pointer-events: none !important;
-  }
-}
-
 
 /* Installed iPad / large-screen rail --------------------------------------- */
 @media (display-mode: standalone) and (min-width: 900px), (display-mode: window-controls-overlay) and (min-width: 900px) {
@@ -911,7 +902,9 @@ html[data-solaris-app-boot] body::before {
     display: grid;
     grid-template-columns: 1fr;
     width: 6.15rem;
+    height: auto;
     min-height: 0;
+    max-height: none;
     padding: var(--solaris-tab-pad);
     border-radius: 1.55rem;
   }
