@@ -17,6 +17,10 @@ import {
   createOrganisationCommand,
   requiresImpactPreview,
 } from "@/lib/organisation-operation-contract";
+import {
+  resolveSolarisV6OperationRecovery,
+  type SolarisV6OperationRecovery,
+} from "@/lib/solaris-v6-operation-recovery";
 
 type FanProfileModerationRow = {
   profileId: string;
@@ -32,6 +36,8 @@ type FanProfileModerationRow = {
 type PendingModeration = {
   profile: FanProfileModerationRow;
   hidden: boolean;
+  operationId: string;
+  idempotencyKey: string;
 };
 
 const MODERATION_RISK = "R2" as const;
@@ -50,6 +56,7 @@ function CommunityModerationPage() {
   const [query, setQuery] = useState("");
   const [pendingModeration, setPendingModeration] = useState<PendingModeration | null>(null);
   const [moderationReason, setModerationReason] = useState("");
+  const [recovery, setRecovery] = useState<SolarisV6OperationRecovery | null>(null);
   const queryClient = useQueryClient();
 
   const profilesQuery = useQuery({
@@ -94,7 +101,24 @@ function CommunityModerationPage() {
     onSuccess: async () => {
       setPendingModeration(null);
       setModerationReason("");
+      setRecovery(null);
       await queryClient.invalidateQueries({ queryKey: ["admin-fan-profile-moderation"] });
+    },
+    onError: async (error, variables) => {
+      const next = resolveSolarisV6OperationRecovery(error, {
+        online: typeof navigator === "undefined" ? true : navigator.onLine,
+        stableOperationIdentity: Boolean(variables.operationId),
+      });
+      setRecovery(next);
+      if (next.shouldRefreshCanonical) {
+        await queryClient.invalidateQueries({
+          queryKey: ["admin-fan-profile-moderation"],
+        });
+      }
+      if (!next.keepOperationOpen) {
+        setPendingModeration(null);
+        setModerationReason("");
+      }
     },
   });
 
@@ -116,9 +140,21 @@ function CommunityModerationPage() {
   ).length;
 
   function requestModeration(profile: FanProfileModerationRow, hidden: boolean) {
+    const command = createOrganisationCommand({
+      command: "community.fan_identity.moderate",
+      riskClass: MODERATION_RISK,
+      scope: { entityId: profile.profileId },
+      payload: { profileId: profile.profileId, hidden },
+    });
     setModerationReason("");
+    setRecovery(null);
     moderate.reset();
-    setPendingModeration({ profile, hidden });
+    setPendingModeration({
+      profile,
+      hidden,
+      operationId: command.operationId,
+      idempotencyKey: command.idempotencyKey,
+    });
   }
 
   function confirmModeration() {
@@ -128,22 +164,12 @@ function CommunityModerationPage() {
       : "Restored by Organizer";
     if (pendingModeration.hidden && !reason) return;
 
-    const command = createOrganisationCommand({
-      command: "community.fan_identity.moderate",
-      riskClass: MODERATION_RISK,
-      scope: { entityId: pendingModeration.profile.profileId },
-      payload: {
-        profileId: pendingModeration.profile.profileId,
-        hidden: pendingModeration.hidden,
-      },
-    });
-
     moderate.mutate({
       profileId: pendingModeration.profile.profileId,
       hidden: pendingModeration.hidden,
       reason,
-      operationId: command.operationId,
-      idempotencyKey: command.idempotencyKey,
+      operationId: pendingModeration.operationId,
+      idempotencyKey: pendingModeration.idempotencyKey,
     });
   }
 
@@ -278,6 +304,7 @@ function CommunityModerationPage() {
           if (moderate.isPending) return;
           setPendingModeration(null);
           setModerationReason("");
+          setRecovery(null);
           moderate.reset();
         }}
         title={
@@ -326,7 +353,17 @@ function CommunityModerationPage() {
               </label>
             ) : null}
 
-            {moderate.error ? (
+            {recovery ? (
+              <div role="status" className="rounded-xl border border-amber-200/15 bg-amber-200/[0.05] p-3 text-xs leading-5">
+                <p className="font-semibold text-amber-50">{recovery.title}</p>
+                <p className="mt-1 text-muted-foreground">{recovery.description}</p>
+                {recovery.outcomeUnknown ? (
+                  <p className="mt-2 font-semibold text-foreground">
+                    The server outcome is unknown. Retrying here reuses the same operation identity.
+                  </p>
+                ) : null}
+              </div>
+            ) : moderate.error ? (
               <p className="rounded-xl border border-rose-200/15 bg-rose-200/[0.05] p-3 text-xs text-rose-100">
                 {moderate.error instanceof Error
                   ? moderate.error.message
@@ -358,9 +395,11 @@ function CommunityModerationPage() {
               >
                 {moderate.isPending
                   ? "Applying…"
-                  : pendingModeration.hidden
-                    ? "Hide identity"
-                    : "Restore identity"}
+                  : recovery?.allowSameIdentityRetry
+                    ? "Retry same operation"
+                    : pendingModeration.hidden
+                      ? "Hide identity"
+                      : "Restore identity"}
               </button>
             </div>
           </div>
