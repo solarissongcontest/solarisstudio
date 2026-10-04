@@ -34,6 +34,9 @@ describe("App Experience v3 attention preferences and search", () => {
     expect(palette).toContain("readAppSearchState");
     expect(palette).toContain("rememberAppSearchQuery");
     expect(palette).toContain("solaris-app-search-dialog");
+    expect(palette).toContain("shouldFilter={false}");
+    expect(palette).not.toContain("<Command shouldFilter={false}>");
+    expect(palette).toContain("className=\"text-base\"");
     expect(palette).toContain("Recent searches");
     expect(appStyles).toContain('[role="dialog"].solaris-app-search-dialog[data-state="open"]');
     expect(appStyles).toContain("width: 100vw !important");
