@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check, ChevronRight, Search, SlidersHorizontal, Trophy, X } from "lucide-react";
+import { Check, ChevronRight, Search, SlidersHorizontal, Trophy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -85,28 +86,12 @@ function AppCountriesPage() {
     <AppShell>
       <div className="space-y-5">
         <div className="solaris-app-directory-tools">
-          <div className="solaris-app-search-field solaris-app-search-field-prominent">
-            <Search className="size-[1.05rem] shrink-0 text-muted-foreground" aria-hidden="true" />
-            <input
-              aria-label="Search countries"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search countries…"
-              autoComplete="off"
-              enterKeyHint="search"
-              className="min-w-0 flex-1 border-0 bg-transparent outline-none"
-            />
-            {search ? (
-              <button
-                type="button"
-                className="solaris-app-search-clear"
-                aria-label="Clear search"
-                onClick={() => setSearch("")}
-              >
-                <X className="size-4" aria-hidden="true" />
-              </button>
-            ) : null}
-          </div>
+          <SolarisSearchField
+            value={search}
+            onChange={setSearch}
+            label="Search countries"
+            placeholder="Search countries…"
+          />
 
           <div className="solaris-app-directory-filterbar">
             <Sheet>

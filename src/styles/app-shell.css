@@ -2658,16 +2658,11 @@ html[data-solaris-app]
 }
 
 
-/* Mobile Directory Polish V4 ------------------------------------------------
-   Directory chrome owns safe-area geometry and title collapse. Content surfaces
-   stay flat while controls/navigation carry the stronger material treatment. */
+/* Mobile Visual System V5 --------------------------------------------------
+   Stable mobile chrome, one-surface search, canonical flags and flat
+   information-first directory layouts. */
 @media (display-mode: standalone), (display-mode: window-controls-overlay) {
   html[data-solaris-app] .solaris-app-toolbar {
-    --solaris-toolbar-collapse-progress: 0;
-    --solaris-toolbar-large-height: 54px;
-    --solaris-toolbar-large-padding: 12px;
-    --solaris-toolbar-large-shift: 0px;
-    --solaris-toolbar-compact-opacity: 0;
     position: sticky;
     top: 0;
     isolation: isolate;
@@ -2680,40 +2675,48 @@ html[data-solaris-app]
   }
 
   html[data-solaris-app] .solaris-app-toolbar[data-collapsible-title="true"] {
-    border-bottom-color: rgb(215 238 247 / calc(.07 + (.08 * var(--solaris-toolbar-collapse-progress))));
+    min-height: calc(var(--solaris-app-toolbar-height) + env(safe-area-inset-top));
   }
 
-  html[data-solaris-app] .solaris-app-large-title {
+  html[data-solaris-app] .solaris-app-toolbar-context-title-collapsible {
+    opacity: 0;
+    transform: translateY(2px);
+    transition:
+      opacity 150ms ease,
+      transform 180ms cubic-bezier(.2,.75,.2,1);
+  }
+
+  html[data-solaris-app]
+    .solaris-app-toolbar[data-title-collapsed="true"]
+    .solaris-app-toolbar-context-title-collapsible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  html[data-solaris-app] .solaris-app-large-title-flow {
+    position: relative;
+    z-index: 10;
     box-sizing: border-box;
-    height: var(--solaris-toolbar-large-height);
-    overflow: hidden;
+    width: 100%;
     padding:
-      0 max(1rem, env(safe-area-inset-right))
-      var(--solaris-toolbar-large-padding)
+      .42rem
+      max(1rem, env(safe-area-inset-right))
+      .78rem
       max(1rem, env(safe-area-inset-left));
-    opacity: calc(1 - var(--solaris-toolbar-collapse-progress));
-    transform: translateY(var(--solaris-toolbar-large-shift));
-    transform-origin: top left;
-    pointer-events: none;
   }
 
-  html[data-solaris-app] .solaris-app-large-title h1 {
+  html[data-solaris-app] .solaris-app-large-title-flow h1 {
     margin: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: clamp(1.85rem, 8vw, 2.15rem);
+    font-size: clamp(1.8rem, 8vw, 2.1rem);
     font-weight: 820;
     line-height: 1.08;
     letter-spacing: -.042em;
   }
 
-  html[data-solaris-app] .solaris-app-toolbar-context-title-collapsible {
-    opacity: var(--solaris-toolbar-compact-opacity);
-  }
-
-  /* Keep the 44px interaction target while visually reducing the circular
-     material so toolbar actions stop dominating the page. */
+  /* Visual material is smaller than the 44px interaction target. */
   html[data-solaris-app] .solaris-app-toolbar-button {
     position: relative;
     border: 0;
@@ -2749,14 +2752,18 @@ html[data-solaris-app]
     transform: translate(-50%, -50%) scale(.94);
   }
 
-  html[data-solaris-app] .solaris-app-directory-tools {
+  /* One visual surface. The native input itself is intentionally invisible. */
+  html[data-solaris-app] .solaris-app-search-shell {
     display: grid;
-    gap: .65rem;
-  }
-
-  html[data-solaris-app] .solaris-app-search-field {
-    border-color: rgb(210 236 248 / .105);
-    background: rgb(255 255 255 / .028);
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    width: 100%;
+    min-height: 3.35rem;
+    align-items: center;
+    gap: .7rem;
+    border: 1px solid rgb(210 236 248 / .14);
+    border-radius: 1rem;
+    padding: 0 .85rem;
+    background: rgb(255 255 255 / .032);
     box-shadow: inset 0 1px 0 rgb(245 252 255 / .035);
     transition:
       border-color 140ms ease,
@@ -2764,23 +2771,60 @@ html[data-solaris-app]
       box-shadow 140ms ease;
   }
 
-  html[data-solaris-app] .solaris-app-search-field-prominent {
-    min-height: 3.6rem;
-    border-radius: 1.05rem;
-    padding-inline: 1rem;
-  }
-
-  html[data-solaris-app] .solaris-app-search-field-prominent input {
-    min-height: 3.4rem;
-    font-size: 1rem;
-  }
-
-  html[data-solaris-app] .solaris-app-search-field:focus-within {
+  html[data-solaris-app] .solaris-app-search-shell:focus-within {
     border-color: rgb(var(--solaris-accent, 139 198 222) / .34);
-    background: rgb(255 255 255 / .045);
+    background: rgb(255 255 255 / .042);
     box-shadow:
-      inset 0 1px 0 rgb(245 252 255 / .055),
-      0 0 0 3px rgb(var(--solaris-accent, 139 198 222) / .055);
+      inset 0 1px 0 rgb(245 252 255 / .05),
+      0 0 0 3px rgb(var(--solaris-accent, 139 198 222) / .045);
+  }
+
+  html[data-solaris-app] .solaris-app-search-icon {
+    flex: 0 0 auto;
+    color: var(--muted-foreground);
+    pointer-events: none;
+  }
+
+  html[data-solaris-app] .solaris-app-search-input {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 3.15rem !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    outline: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    color: var(--foreground) !important;
+    font: inherit;
+    font-size: 1rem !important;
+  }
+
+  html[data-solaris-app] .solaris-app-search-input::placeholder {
+    color: var(--muted-foreground);
+    opacity: .82;
+  }
+
+  html[data-solaris-app] .solaris-app-search-input::-webkit-search-decoration,
+  html[data-solaris-app] .solaris-app-search-input::-webkit-search-cancel-button,
+  html[data-solaris-app] .solaris-app-search-input::-webkit-search-results-button,
+  html[data-solaris-app] .solaris-app-search-input::-webkit-search-results-decoration {
+    display: none;
+  }
+
+  html[data-solaris-app] .solaris-app-search-command [cmdk-input] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    outline: 0 !important;
   }
 
   html[data-solaris-app] .solaris-app-search-clear {
@@ -2790,13 +2834,22 @@ html[data-solaris-app]
     flex: 0 0 auto;
     place-items: center;
     margin-right: -.55rem;
+    border: 0 !important;
     border-radius: 999px;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
     color: var(--muted-foreground);
   }
 
   html[data-solaris-app] .solaris-app-search-clear:active {
-    background: rgb(255 255 255 / .05);
+    background: rgb(255 255 255 / .05) !important;
     color: var(--foreground);
+  }
+
+  html[data-solaris-app] .solaris-app-directory-tools {
+    display: grid;
+    gap: .65rem;
   }
 
   html[data-solaris-app] .solaris-app-directory-filterbar {
@@ -2908,50 +2961,211 @@ html[data-solaris-app]
     color: var(--primary);
   }
 
-  html[data-solaris-app] .solaris-app-section-heading-title-first > h2 {
+  /* Canonical factual flag geometry wins over page personality overrides. */
+  html[data-solaris-app] body main.app-main
+    [data-flag-frame="standard"][data-flag-chip="true"] {
+    aspect-ratio: 3 / 2 !important;
+    overflow: hidden !important;
+    border-radius: var(--solaris-flag-radius, .55rem) !important;
+  }
+
+  html[data-solaris-app] body main.app-main
+    [data-flag-frame="standard"][data-flag-chip="true"]
+    > :is(.flag-media-image, .flag-media-fallback) {
+    border-radius: inherit !important;
+  }
+
+  /* Editions + Shows: flat information hierarchy, not card soup. */
+  html[data-solaris-app] :is(.solaris-app-editions-v5, .solaris-app-shows-v5) {
+    display: grid;
+    gap: 1.75rem;
+  }
+
+  html[data-solaris-app] .solaris-app-directory-section {
+    min-width: 0;
+  }
+
+  html[data-solaris-app] .solaris-app-directory-section-header {
+    display: flex;
+    min-width: 0;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: .35rem;
+    padding-inline: .12rem;
+  }
+
+  html[data-solaris-app] .solaris-app-directory-section-header h2 {
     margin: 0;
-    font-size: 1.13rem;
-    font-weight: 780;
+    font-size: 1.08rem;
+    font-weight: 790;
     letter-spacing: -.025em;
   }
 
-  html[data-solaris-app] .solaris-app-section-heading-title-first > p {
-    margin-top: .18rem;
+  html[data-solaris-app] .solaris-app-directory-section-header p {
+    margin: .16rem 0 0;
     color: var(--muted-foreground);
-    font-size: .71rem;
+    font-size: .7rem;
     font-weight: 620;
-    letter-spacing: 0;
-    text-transform: none;
   }
 
-  html[data-solaris-app] .solaris-app-edition-current {
-    padding: 1rem;
-    border-color: rgb(var(--solaris-accent, 139 198 222) / .16);
+  html[data-solaris-app] .solaris-app-directory-kicker {
+    margin: 0 0 .48rem;
+    padding-inline: .12rem;
+    color: var(--primary);
+    font-size: .63rem;
+    font-weight: 850;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+  }
+
+  html[data-solaris-app] .solaris-app-current-edition-v5 {
+    min-width: 0;
+  }
+
+  html[data-solaris-app] .solaris-app-featured-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-width: 0;
+    min-height: 7.4rem;
+    align-items: center;
+    gap: .85rem;
+    border-left: 2px solid rgb(var(--solaris-accent, 139 198 222) / .52);
+    border-radius: .2rem;
+    padding: .9rem .2rem .9rem .9rem;
     background:
-      radial-gradient(circle at 100% 0%, rgb(var(--solaris-accent, 139 198 222) / .085), transparent 48%),
-      rgb(255 255 255 / .022);
-    box-shadow: inset 0 1px 0 rgb(245 252 255 / .035);
+      linear-gradient(90deg, rgb(var(--solaris-accent, 139 198 222) / .065), transparent 78%);
+    color: var(--foreground);
   }
 
-  html[data-solaris-app] .solaris-app-edition-row {
-    min-height: 4.65rem;
-    padding: .9rem 1rem;
-    background: transparent;
+  html[data-solaris-app] .solaris-app-featured-title,
+  html[data-solaris-app] .solaris-app-featured-status,
+  html[data-solaris-app] .solaris-app-featured-identity,
+  html[data-solaris-app] .solaris-app-featured-meta {
+    display: block;
   }
 
-  html[data-solaris-app] .solaris-app-grouped-list {
-    background: rgb(255 255 255 / .018);
+  html[data-solaris-app] .solaris-app-featured-title {
+    font-size: 1.45rem;
+    font-weight: 820;
+    line-height: 1.05;
+    letter-spacing: -.035em;
   }
 
-  html[data-solaris-app] .solaris-app-list-row {
-    min-height: 4rem;
-    padding-inline: 1rem;
+  html[data-solaris-app] .solaris-app-featured-status {
+    margin-top: .2rem;
+    color: var(--muted-foreground);
+    font-size: .73rem;
+    font-weight: 680;
+  }
+
+  html[data-solaris-app] .solaris-app-featured-identity {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: .55rem;
+    margin-top: .78rem;
+    font-size: .86rem;
+    font-weight: 650;
+  }
+
+  html[data-solaris-app] .solaris-app-featured-meta {
+    margin-top: .38rem;
+    color: var(--muted-foreground);
+    font-size: .72rem;
+  }
+
+  html[data-solaris-app] .solaris-app-flat-list {
+    min-width: 0;
+    border-top: 1px solid rgb(210 236 248 / .09);
+  }
+
+  html[data-solaris-app] .solaris-app-flat-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-width: 0;
+    min-height: 4.55rem;
+    align-items: center;
+    gap: .8rem;
+    border-bottom: 1px solid rgb(210 236 248 / .085);
+    padding: .78rem .15rem;
+    color: var(--foreground);
+    text-align: left;
+    transition:
+      background-color 120ms ease,
+      transform 120ms ease;
+  }
+
+  html[data-solaris-app] .solaris-app-flat-row:active {
+    transform: scale(.992);
+    background: rgb(255 255 255 / .025);
+  }
+
+  html[data-solaris-app] .solaris-app-flat-row-title {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: .95rem;
+    font-weight: 740;
+    letter-spacing: -.015em;
+  }
+
+  html[data-solaris-app] .solaris-app-flat-row-meta {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .22rem;
+    margin-top: .24rem;
+    color: var(--muted-foreground);
+    font-size: .72rem;
+    line-height: 1.35;
+  }
+
+  html[data-solaris-app] .solaris-app-inline-identity {
+    display: inline-flex;
+    min-width: 0;
+    max-width: 100%;
+    align-items: center;
+    gap: .35rem;
+  }
+
+  html[data-solaris-app] .solaris-app-row-chevron,
+  html[data-solaris-app] .solaris-app-row-chevron-icon {
+    flex: 0 0 auto;
+    color: rgb(var(--solaris-accent, 139 198 222) / .72);
+  }
+
+  html[data-solaris-app] .solaris-app-row-chevron {
+    font-size: 1.35rem;
+    font-weight: 520;
+    line-height: 1;
+  }
+
+  html[data-solaris-app] .solaris-app-show-row-v5 {
+    min-height: 4.35rem;
+  }
+
+  /* Archive content should stay calm. Keep distant atmosphere, remove the
+     oversized near-star silhouettes that read like row decorations. */
+  html[data-solaris-app]:has(.app-main[data-solaris-app-calm-directory="true"])
+    .solaris-star-layer-near {
+    opacity: 0 !important;
+  }
+
+  html[data-solaris-app]:has(.app-main[data-solaris-app-calm-directory="true"])
+    .solaris-star-layer-mid {
+    opacity: .34 !important;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html[data-solaris-app] .solaris-app-toolbar-context-title-collapsible,
   html[data-solaris-app] .solaris-app-toolbar-button::before,
-  html[data-solaris-app] .solaris-app-search-field {
-    transition: none;
+  html[data-solaris-app] .solaris-app-search-shell,
+  html[data-solaris-app] .solaris-app-flat-row {
+    transition: none !important;
   }
 }
+

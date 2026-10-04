@@ -371,6 +371,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           data-solaris-app-root={isAppMode && isAppRootDestination ? "true" : undefined}
           data-solaris-app-screen={isAppMode ? appChrome.archetype : undefined}
           data-solaris-app-tabbar={isAppMode ? appChrome.tabBar : undefined}
+          data-solaris-app-calm-directory={
+            isAppMode && (pathname === "/editions" || pathname === "/shows") ? "true" : undefined
+          }
           className={cn(
             "app-main relative z-10 mx-auto w-full min-w-0 px-3 pb-24 pt-4 sm:px-5 sm:pb-24 sm:pt-6 lg:px-8 lg:py-8 2xl:px-10",
             publicCanvasForArchetype(publicArchetype),
@@ -649,14 +652,16 @@ export function PageHeader({
     ["root", "directory", "workspace", "settings", "task"].includes(chrome.archetype);
 
   if (toolbarOwnsIdentity) {
-    if (!description && !actions) return null;
+    const showContextDescription =
+      chrome.archetype !== "directory" && chrome.archetype !== "root";
+    if ((!description || !showContextDescription) && !actions) return null;
     return (
       <header className={cn("solaris-app-page-context mb-4 min-w-0", className)}>
-        {description ? (
+        {description && showContextDescription ? (
           <p className="text-sm leading-6 text-muted-foreground">{description}</p>
         ) : null}
         {actions ? (
-          <div className="mt-3 flex min-w-0 flex-wrap gap-2">{actions}</div>
+          <div className={cn(showContextDescription && description ? "mt-3" : "", "flex min-w-0 flex-wrap gap-2")}>{actions}</div>
         ) : null}
       </header>
     );

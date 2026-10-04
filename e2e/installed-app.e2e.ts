@@ -161,46 +161,41 @@ test("installed app keeps exactly one visible screen heading on app-owned screen
   }
 });
 
-test("directory large title clears toolbar controls and collapses into compact context", async ({ page }) => {
+test("directory title collapses without changing sticky toolbar geometry", async ({ page }) => {
   await expectInstalledShell(page, "/wiki");
 
   const toolbar = page.locator(".solaris-app-toolbar");
-  const inner = page.locator(".solaris-app-toolbar-inner");
-  const largeTitle = page.locator(".solaris-app-large-title");
+  const largeTitle = page.locator(".solaris-app-large-title-flow");
   const compactTitle = page.locator(".solaris-app-toolbar-context-title-collapsible");
 
   await expect(toolbar).toHaveAttribute("data-collapsible-title", "true");
+  await expect(toolbar).toHaveAttribute("data-title-collapsed", "false");
   await expect(largeTitle).toBeVisible();
   await expect(compactTitle).toHaveAttribute("aria-hidden", "true");
 
-  const initialGeometry = await page.evaluate(() => {
+  const initial = await page.evaluate(() => {
     const toolbar = document.querySelector<HTMLElement>(".solaris-app-toolbar");
-    const inner = document.querySelector<HTMLElement>(".solaris-app-toolbar-inner");
-    const title = document.querySelector<HTMLElement>(".solaris-app-large-title");
+    const title = document.querySelector<HTMLElement>(".solaris-app-large-title-flow");
     const compact = document.querySelector<HTMLElement>(
       ".solaris-app-toolbar-context-title-collapsible",
     );
-    if (!toolbar || !inner || !title || !compact) return null;
+    if (!toolbar || !title || !compact) return null;
 
     const toolbarRect = toolbar.getBoundingClientRect();
-    const innerRect = inner.getBoundingClientRect();
     const titleRect = title.getBoundingClientRect();
-
     return {
+      toolbarHeight: toolbarRect.height,
       toolbarBottom: toolbarRect.bottom,
-      innerBottom: innerRect.bottom,
       titleTop: titleRect.top,
-      titleBottom: titleRect.bottom,
-      titleOpacity: Number.parseFloat(getComputedStyle(title).opacity),
+      titleHeight: titleRect.height,
       compactOpacity: Number.parseFloat(getComputedStyle(compact).opacity),
     };
   });
 
-  expect(initialGeometry).not.toBeNull();
-  expect(initialGeometry!.titleTop).toBeGreaterThanOrEqual(initialGeometry!.innerBottom - 1);
-  expect(initialGeometry!.titleBottom).toBeLessThanOrEqual(initialGeometry!.toolbarBottom + 1);
-  expect(initialGeometry!.titleOpacity).toBeGreaterThan(0.9);
-  expect(initialGeometry!.compactOpacity).toBeLessThan(0.1);
+  expect(initial).not.toBeNull();
+  expect(initial!.titleTop).toBeGreaterThanOrEqual(initial!.toolbarBottom - 1);
+  expect(initial!.titleHeight).toBeGreaterThan(20);
+  expect(initial!.compactOpacity).toBeLessThan(0.1);
 
   await page.evaluate(() => {
     const main = document.querySelector<HTMLElement>(".app-main");
@@ -210,34 +205,114 @@ test("directory large title clears toolbar controls and collapses into compact c
     spacer.style.height = "1200px";
     spacer.style.pointerEvents = "none";
     main.appendChild(spacer);
-    window.scrollTo(0, 96);
   });
 
+  const toolbarHeights: number[] = [];
+  for (const y of [0, 16, 32, 48, 72, 96]) {
+    await page.evaluate((nextY) => window.scrollTo(0, nextY), y);
+    await page.waitForTimeout(35);
+    toolbarHeights.push(
+      await toolbar.evaluate((node) => node.getBoundingClientRect().height),
+    );
+  }
+
+  expect(Math.max(...toolbarHeights) - Math.min(...toolbarHeights)).toBeLessThanOrEqual(1);
   await expect(toolbar).toHaveAttribute("data-title-collapsed", "true");
 
   const collapsed = await page.evaluate(() => {
-    const title = document.querySelector<HTMLElement>(".solaris-app-large-title");
+    const title = document.querySelector<HTMLElement>(".solaris-app-large-title-flow");
     const compact = document.querySelector<HTMLElement>(
       ".solaris-app-toolbar-context-title-collapsible",
     );
     if (!title || !compact) return null;
-
     return {
       titleHeight: title.getBoundingClientRect().height,
-      titleOpacity: Number.parseFloat(getComputedStyle(title).opacity),
+      titleBottom: title.getBoundingClientRect().bottom,
       compactOpacity: Number.parseFloat(getComputedStyle(compact).opacity),
-      progress: Number.parseFloat(
-        getComputedStyle(document.querySelector<HTMLElement>(".solaris-app-toolbar")!)
-          .getPropertyValue("--solaris-toolbar-collapse-progress"),
-      ),
     };
   });
 
   expect(collapsed).not.toBeNull();
-  expect(collapsed!.progress).toBeGreaterThan(0.9);
-  expect(collapsed!.titleHeight).toBeLessThan(6);
-  expect(collapsed!.titleOpacity).toBeLessThan(0.1);
+  expect(Math.abs(collapsed!.titleHeight - initial!.titleHeight)).toBeLessThanOrEqual(1);
+  expect(collapsed!.titleBottom).toBeLessThanOrEqual(initial!.toolbarBottom + 2);
   expect(collapsed!.compactOpacity).toBeGreaterThan(0.9);
+});
+
+test("installed directory search has exactly one visible field surface", async ({ page }) => {
+  for (const route of ["/wiki", "/countries", "/site-directory"]) {
+    await expectInstalledShell(page, route);
+
+    const search = page.locator("[data-solaris-search-field]");
+    await expect(search, `${route} should use the canonical search field`).toHaveCount(1);
+    const input = search.locator("input[type='search']");
+    await expect(input).toHaveCount(1);
+
+    const visual = await search.evaluate((node) => {
+      const input = node.querySelector<HTMLInputElement>("input[type='search']");
+      if (!input) return null;
+      const shellStyle = getComputedStyle(node);
+      const inputStyle = getComputedStyle(input);
+      return {
+        shellRadius: Number.parseFloat(shellStyle.borderTopLeftRadius || "0"),
+        shellBorder: Number.parseFloat(shellStyle.borderTopWidth || "0"),
+        inputBackground: inputStyle.backgroundColor,
+        inputBorder: Number.parseFloat(inputStyle.borderTopWidth || "0"),
+        inputRadius: Number.parseFloat(inputStyle.borderTopLeftRadius || "0"),
+        inputShadow: inputStyle.boxShadow,
+      };
+    });
+
+    expect(visual).not.toBeNull();
+    expect(visual!.shellRadius).toBeGreaterThan(0);
+    expect(visual!.shellBorder).toBeGreaterThan(0);
+    expect(visual!.inputBorder).toBe(0);
+    expect(visual!.inputRadius).toBe(0);
+    expect(visual!.inputShadow).toBe("none");
+    expect(["rgba(0, 0, 0, 0)", "transparent"]).toContain(visual!.inputBackground);
+  }
+});
+
+test("Editions and Shows use the new flat mobile archive layouts", async ({ page }) => {
+  await expectInstalledShell(page, "/editions");
+  await expect(page.locator(".solaris-app-editions-v5")).toHaveCount(1);
+  await expect(page.locator(".solaris-app-grouped-list")).toHaveCount(0);
+
+  const editionArchive = page.locator('[data-solaris-flat-list="editions"]');
+  if (await editionArchive.count()) {
+    const style = await editionArchive.evaluate((node) => {
+      const computed = getComputedStyle(node);
+      return {
+        radius: Number.parseFloat(computed.borderTopLeftRadius || "0"),
+        background: computed.backgroundColor,
+      };
+    });
+    expect(style.radius).toBe(0);
+    expect(["rgba(0, 0, 0, 0)", "transparent"]).toContain(style.background);
+  }
+
+  await expectInstalledShell(page, "/shows");
+  await expect(page.locator(".solaris-app-shows-v5")).toHaveCount(1);
+  await expect(page.locator(".solaris-app-grouped-list")).toHaveCount(0);
+
+  const showLists = page.locator('[data-solaris-flat-list="shows"]');
+  if (await showLists.count()) {
+    const firstStyle = await showLists.first().evaluate((node) => {
+      const computed = getComputedStyle(node);
+      return {
+        radius: Number.parseFloat(computed.borderTopLeftRadius || "0"),
+        background: computed.backgroundColor,
+      };
+    });
+    expect(firstStyle.radius).toBe(0);
+    expect(["rgba(0, 0, 0, 0)", "transparent"]).toContain(firstStyle.background);
+  }
+});
+
+test("directory screens do not leak website descriptions below the app title", async ({ page }) => {
+  for (const route of ["/editions", "/wiki", "/shows", "/countries", "/site-directory"]) {
+    await expectInstalledShell(page, route);
+    await expect(page.locator(".solaris-app-page-context > p")).toHaveCount(0);
+  }
 });
 
 test("content-owned screens do not repeat their title inside the toolbar", async ({ page }) => {
@@ -349,9 +424,13 @@ async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo
       if (style.overflow !== "hidden" && style.overflow !== "clip") {
         problems.push(`overflow ${style.overflow}`);
       }
-      if (!(radius > 0)) problems.push("square corners");
-      if (imageStyle && imageStyle.objectFit !== "cover") {
-        problems.push(`object-fit ${imageStyle.objectFit}`);
+      if (radius < 4) problems.push(`corner radius ${radius}px`);
+      if (imageStyle) {
+        const imageRadius = Number.parseFloat(imageStyle.borderTopLeftRadius || "0");
+        if (imageRadius < 4) problems.push(`image corner radius ${imageRadius}px`);
+        if (imageStyle.objectFit !== "cover") {
+          problems.push(`object-fit ${imageStyle.objectFit}`);
+        }
       }
       return problems.length ? [problems.join(", ")] : [];
     });

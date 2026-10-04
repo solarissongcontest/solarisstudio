@@ -29,7 +29,9 @@ export function AppToolbar({
   const navigate = useNavigate();
   const chrome = resolveAppRouteChrome(pathname, searchStr);
   const [backTarget, setBackTarget] = useState<AppHistoryEntry | null>(null);
+  const [titleCollapsed, setTitleCollapsed] = useState(false);
   const toolbarRef = useRef<HTMLElement | null>(null);
+  const largeTitleRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setBackTarget(peekAppBackTarget(pathname, searchStr));
@@ -58,57 +60,49 @@ export function AppToolbar({
       : fallback?.label;
 
   useEffect(() => {
+    if (!hasLargeTitle) {
+      setTitleCollapsed(false);
+      return;
+    }
+
+    setTitleCollapsed(false);
+
     const toolbar = toolbarRef.current;
-    if (!toolbar || !hasLargeTitle) return;
+    const largeTitle = largeTitleRef.current;
+    if (!toolbar || !largeTitle) return;
 
-    let frame: number | null = null;
-    const reducedMotion =
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    let observer: IntersectionObserver | null = null;
+    let resizeFrame: number | null = null;
 
-    const update = () => {
-      frame = null;
-      const rawProgress = Math.min(1, Math.max(0, window.scrollY / 64));
-      const progress = reducedMotion ? (window.scrollY > 32 ? 1 : 0) : rawProgress;
-
-      toolbar.style.setProperty(
-        "--solaris-toolbar-collapse-progress",
-        progress.toFixed(3),
+    const observe = () => {
+      observer?.disconnect();
+      const toolbarHeight = Math.ceil(toolbar.getBoundingClientRect().height);
+      observer = new IntersectionObserver(
+        ([entry]) => setTitleCollapsed(!entry.isIntersecting),
+        {
+          root: null,
+          rootMargin: `-${toolbarHeight}px 0px 0px 0px`,
+          threshold: 0.01,
+        },
       );
-      toolbar.style.setProperty(
-        "--solaris-toolbar-large-height",
-        `${(54 * (1 - progress)).toFixed(2)}px`,
-      );
-      toolbar.style.setProperty(
-        "--solaris-toolbar-large-padding",
-        `${(12 * (1 - progress)).toFixed(2)}px`,
-      );
-      toolbar.style.setProperty(
-        "--solaris-toolbar-large-shift",
-        `${(-5 * progress).toFixed(2)}px`,
-      );
-      toolbar.style.setProperty(
-        "--solaris-toolbar-compact-opacity",
-        progress.toFixed(3),
-      );
-      toolbar.dataset.titleCollapsed = progress > 0.92 ? "true" : "false";
+      observer.observe(largeTitle);
     };
 
-    const onScroll = () => {
-      if (frame != null) return;
-      frame = window.requestAnimationFrame(update);
+    const onResize = () => {
+      if (resizeFrame != null) return;
+      resizeFrame = window.requestAnimationFrame(() => {
+        resizeFrame = null;
+        observe();
+      });
     };
 
-    update();
-    window.addEventListener("scroll", onScroll, { passive: true });
+    observe();
+    window.addEventListener("resize", onResize, { passive: true });
+
     return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (frame != null) window.cancelAnimationFrame(frame);
-      toolbar.style.removeProperty("--solaris-toolbar-collapse-progress");
-      toolbar.style.removeProperty("--solaris-toolbar-large-height");
-      toolbar.style.removeProperty("--solaris-toolbar-large-padding");
-      toolbar.style.removeProperty("--solaris-toolbar-large-shift");
-      toolbar.style.removeProperty("--solaris-toolbar-compact-opacity");
-      delete toolbar.dataset.titleCollapsed;
+      observer?.disconnect();
+      window.removeEventListener("resize", onResize);
+      if (resizeFrame != null) window.cancelAnimationFrame(resizeFrame);
     };
   }, [hasLargeTitle, pathname, searchStr]);
 
@@ -138,12 +132,14 @@ export function AppToolbar({
   };
 
   return (
-    <header
-      ref={toolbarRef}
-      className="solaris-app-toolbar"
-      data-app-screen={chrome.archetype}
-      data-collapsible-title={hasLargeTitle ? "true" : undefined}
-    >
+    <>
+      <header
+        ref={toolbarRef}
+        className="solaris-app-toolbar"
+        data-app-screen={chrome.archetype}
+        data-collapsible-title={hasLargeTitle ? "true" : undefined}
+        data-title-collapsed={hasLargeTitle ? (titleCollapsed ? "true" : "false") : undefined}
+      >
       <div className="solaris-app-toolbar-inner">
         <div className="min-w-0 flex-1">
           {showBack ? (
@@ -203,11 +199,12 @@ export function AppToolbar({
           )}
         </div>
       </div>
+      </header>
       {hasLargeTitle ? (
-        <div className="solaris-app-large-title">
+        <div ref={largeTitleRef} className="solaris-app-large-title-flow">
           <h1>{chrome.title}</h1>
         </div>
       ) : null}
-    </header>
+    </>
   );
 }

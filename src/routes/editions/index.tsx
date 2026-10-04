@@ -141,6 +141,14 @@ function EditionsPage() {
   if (archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Contest archive" title="Editions" description="Every published Solaris chapter, from the latest contest back through the archive." /><ArchiveDataLoading label="Loading editions and results…" /></AppShell>;
   if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Contest archive" title="Editions" description="Every published Solaris chapter, from the latest contest back through the archive." /><ArchiveDataError /></AppShell>;
 
+  if (isAppMode) {
+    return (
+      <AppShell>
+        <AppEditionsDirectory latest={latest} archive={archive} />
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
       <PageHeader
@@ -149,28 +157,21 @@ function EditionsPage() {
         description="Every published Solaris chapter, from the latest contest back through the archive."
       />
 
-      {latest && <LatestEdition card={latest} appMode={isAppMode} />}
+      {latest && <LatestEdition card={latest} />}
 
       {archive.length > 0 && (
         <section className="mt-7 sm:mt-9">
-          {isAppMode ? (
-            <div className="solaris-app-section-heading solaris-app-section-heading-title-first">
-              <h2>Past editions</h2>
-              <p>{archive.length} previous edition{archive.length === 1 ? "" : "s"}</p>
+          <div className="mb-4 flex items-end justify-between gap-4 border-b border-border/60 pb-3">
+            <div className="min-w-0">
+              <p className="text-[9px] font-black uppercase tracking-[0.22em] text-primary">Archive desk</p>
+              <h2 className="display-headline mt-1 text-xl sm:text-2xl">Past editions</h2>
             </div>
-          ) : (
-            <div className="mb-4 flex items-end justify-between gap-4 border-b border-border/60 pb-3">
-              <div className="min-w-0">
-                <p className="text-[9px] font-black uppercase tracking-[0.22em] text-primary">Archive desk</p>
-                <h2 className="display-headline mt-1 text-xl sm:text-2xl">Past editions</h2>
-              </div>
-              <p className="numeric shrink-0 text-xs text-muted-foreground">{cards.length} editions</p>
-            </div>
-          )}
+            <p className="numeric shrink-0 text-xs text-muted-foreground">{cards.length} editions</p>
+          </div>
 
-          <div className={isAppMode ? "solaris-app-grouped-list" : "overflow-hidden rounded-2xl border border-border/70 bg-surface/55 divide-y divide-border/60"}>
+          <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface/55 divide-y divide-border/60">
             {archive.map((card) => (
-              <ArchiveEdition key={card.edition.id} card={card} appMode={isAppMode} />
+              <ArchiveEdition key={card.edition.id} card={card} />
             ))}
           </div>
         </section>
@@ -180,6 +181,129 @@ function EditionsPage() {
         <div className="glass p-5 text-sm text-muted-foreground">No editions are public yet.</div>
       )}
     </AppShell>
+  );
+}
+
+function AppEditionsDirectory({
+  latest,
+  archive,
+}: {
+  latest: EditionCard | null;
+  archive: EditionCard[];
+}) {
+  return (
+    <div className="solaris-app-editions-v5">
+      {latest ? <AppCurrentEdition card={latest} /> : null}
+
+      {archive.length ? (
+        <section className="solaris-app-directory-section" aria-labelledby="app-past-editions">
+          <div className="solaris-app-directory-section-header">
+            <div>
+              <h2 id="app-past-editions">Past editions</h2>
+              <p>{archive.length} previous edition{archive.length === 1 ? "" : "s"}</p>
+            </div>
+          </div>
+
+          <div className="solaris-app-flat-list" data-solaris-flat-list="editions">
+            {archive.map((card) => (
+              <AppEditionRow key={card.edition.id} card={card} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {!latest && !archive.length ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">No editions are public yet.</p>
+      ) : null}
+    </div>
+  );
+}
+
+function AppCurrentEdition({ card }: { card: EditionCard }) {
+  const { edition, editionShows, hosts, winner } = card;
+  const primaryHost = hosts[0]?.country ?? null;
+  const statusLabel = edition.status === "completed" ? "Completed" : "In progress";
+
+  return (
+    <section className="solaris-app-current-edition-v5" aria-labelledby="app-current-edition">
+      <p className="solaris-app-directory-kicker">Current edition</p>
+      <Link
+        to="/editions/$slug"
+        params={{ slug: edition.slug }}
+        className="solaris-app-featured-row"
+      >
+        <span className="min-w-0">
+          <span id="app-current-edition" className="solaris-app-featured-title">
+            {editionLabel(edition)}
+          </span>
+          <span className="solaris-app-featured-status">{statusLabel}</span>
+
+          <span className="solaris-app-featured-identity">
+            {primaryHost ? (
+              <FlagChip
+                code={primaryHost.short_code}
+                color={primaryHost.accent_color}
+                image={primaryHost.flag_image}
+                size="sm"
+              />
+            ) : null}
+            <span className="truncate">
+              {hosts.length
+                ? hosts
+                    .slice(0, 2)
+                    .map((host) => [host.city, host.country?.name].filter(Boolean).join(", "))
+                    .filter(Boolean)
+                    .join(" · ")
+                : "Host TBC"}
+            </span>
+          </span>
+
+          <span className="solaris-app-featured-meta">
+            {editionShows.length} show{editionShows.length === 1 ? "" : "s"}
+            <span aria-hidden="true"> · </span>
+            {winner ? "Results published" : "Results pending"}
+          </span>
+        </span>
+        <span className="solaris-app-row-chevron" aria-hidden="true">›</span>
+      </Link>
+    </section>
+  );
+}
+
+function AppEditionRow({ card }: { card: EditionCard }) {
+  const { edition, editionShows, winner, winnerResult } = card;
+
+  return (
+    <Link
+      to="/editions/$slug"
+      params={{ slug: edition.slug }}
+      className="solaris-app-flat-row"
+    >
+      <span className="min-w-0">
+        <span className="solaris-app-flat-row-title">{editionLabel(edition)}</span>
+        <span className="solaris-app-flat-row-meta">
+          <span>{editionShows.length} show{editionShows.length === 1 ? "" : "s"}</span>
+          <span aria-hidden="true"> · </span>
+          {winner ? (
+            <span className="solaris-app-inline-identity">
+              <FlagChip
+                code={winner.short_code}
+                color={winner.accent_color}
+                image={winner.flag_image}
+                size="xs"
+              />
+              <span className="truncate">{winner.name}</span>
+              {winnerResult?.total_points != null ? (
+                <span className="numeric text-muted-foreground">· {winnerResult.total_points} pts</span>
+              ) : null}
+            </span>
+          ) : (
+            <span>Results pending</span>
+          )}
+        </span>
+      </span>
+      <span className="solaris-app-row-chevron" aria-hidden="true">›</span>
+    </Link>
   );
 }
 
@@ -224,7 +348,7 @@ function WinnerLine({ winner, points }: { winner: any; points?: number | null })
   );
 }
 
-function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?: boolean }) {
+function LatestEdition({ card }: { card: EditionCard }) {
   const { edition, editionShows, winner, winnerResult, hosts } = card;
 
   return (
@@ -233,14 +357,14 @@ function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?:
       <Link
         to="/editions/$slug"
         params={{ slug: edition.slug }}
-        className={appMode ? "solaris-app-edition-current group block" : "group block rounded-2xl border border-primary/20 bg-surface p-4 transition-colors hover:bg-surface-strong sm:p-5"}
+        className="group block rounded-2xl border border-primary/20 bg-surface p-4 transition-colors hover:bg-surface-strong sm:p-5"
       >
         <div className="flex min-w-0 items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-muted-foreground">
               {edition.status === "completed" ? "Completed" : "In progress"}
             </p>
-            <h2 id="current-edition-heading" className={appMode ? "mt-1 break-words text-xl font-bold tracking-[-.025em]" : "mt-1 break-words text-2xl font-bold tracking-[-.035em] sm:text-3xl"}>
+            <h2 id="current-edition-heading" className="mt-1 break-words text-2xl font-bold tracking-[-.035em] sm:text-3xl">
               {editionLabel(edition)}
             </h2>
           </div>
@@ -257,46 +381,33 @@ function LatestEdition({ card, appMode = false }: { card: EditionCard; appMode?:
   );
 }
 
-function ArchiveEdition({ card, appMode = false }: { card: EditionCard; appMode?: boolean }) {
+function ArchiveEdition({ card }: { card: EditionCard }) {
   const { edition, editionShows, winner, winnerResult, hosts } = card;
 
   return (
     <Link
       to="/editions/$slug"
       params={{ slug: edition.slug }}
-      className={appMode ? "solaris-app-edition-row group" : "group grid min-w-0 gap-2 px-4 py-4 transition-colors hover:bg-surface sm:grid-cols-[5rem_minmax(0,1fr)_minmax(12rem,.8fr)_auto] sm:items-center sm:gap-4 sm:px-5"}
+      className="group grid min-w-0 gap-2 px-4 py-4 transition-colors hover:bg-surface sm:grid-cols-[5rem_minmax(0,1fr)_minmax(12rem,.8fr)_auto] sm:items-center sm:gap-4 sm:px-5"
     >
-      {appMode ? (
-        <>
-          <div className="min-w-0">
-            <p className="truncate text-base font-semibold">{editionLabel(edition)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {editionShows.length} public show{editionShows.length === 1 ? "" : "s"}
-            </p>
-            <p className="mt-1 min-w-0 text-xs"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p>
-          </div>
-          <span className="shrink-0 text-primary" aria-hidden="true">›</span>
-        </>
-      ) : (
-        <>
-          <div className="flex items-baseline gap-2 sm:block">
-            <p className="numeric text-lg font-bold text-foreground">{edition.edition_number ?? "—"}</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground sm:mt-0.5">SSC</p>
-          </div>
+      <>
+        <div className="flex items-baseline gap-2 sm:block">
+          <p className="numeric text-lg font-bold text-foreground">{edition.edition_number ?? "—"}</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground sm:mt-0.5">SSC</p>
+        </div>
 
-          <div className="min-w-0">
-            <p className="truncate text-base font-semibold">{editionLabel(edition)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{editionShows.length} public show{editionShows.length === 1 ? "" : "s"}</p>
-          </div>
+        <div className="min-w-0">
+          <p className="truncate text-base font-semibold">{editionLabel(edition)}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{editionShows.length} public show{editionShows.length === 1 ? "" : "s"}</p>
+        </div>
 
-          <div className="min-w-0 space-y-1 text-xs">
-            <p className="min-w-0"><span className="text-muted-foreground">Host:</span> <HostLine hosts={hosts} /></p>
-            <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p>
-          </div>
+        <div className="min-w-0 space-y-1 text-xs">
+          <p className="min-w-0"><span className="text-muted-foreground">Host:</span> <HostLine hosts={hosts} /></p>
+          <p className="min-w-0"><span className="text-muted-foreground">Winner:</span> <WinnerLine winner={winner} points={winnerResult?.total_points} /></p>
+        </div>
 
-          <span className="hidden shrink-0 text-base font-semibold text-primary transition-transform group-hover:translate-x-0.5 sm:block">→</span>
-        </>
-      )}
+        <span className="hidden shrink-0 text-base font-semibold text-primary transition-transform group-hover:translate-x-0.5 sm:block">→</span>
+      </>
     </Link>
   );
 }
