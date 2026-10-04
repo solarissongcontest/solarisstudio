@@ -239,35 +239,73 @@ test("directory title collapses without changing sticky toolbar geometry", async
 });
 
 test("installed directory search has exactly one visible field surface", async ({ page }) => {
-  await expectInstalledShell(page, "/wiki");
+  for (const route of ["/wiki", "/countries", "/site-directory"]) {
+    await expectInstalledShell(page, route);
 
-  const search = page.locator("[data-solaris-search-field]");
-  await expect(search).toHaveCount(1);
-  const input = search.locator("input[type='search']");
-  await expect(input).toHaveCount(1);
+    const search = page.locator("[data-solaris-search-field]");
+    await expect(search, `${route} should use the canonical search field`).toHaveCount(1);
+    const input = search.locator("input[type='search']");
+    await expect(input).toHaveCount(1);
 
-  const visual = await search.evaluate((node) => {
-    const input = node.querySelector<HTMLInputElement>("input[type='search']");
-    if (!input) return null;
-    const shellStyle = getComputedStyle(node);
-    const inputStyle = getComputedStyle(input);
-    return {
-      shellRadius: Number.parseFloat(shellStyle.borderTopLeftRadius || "0"),
-      shellBorder: Number.parseFloat(shellStyle.borderTopWidth || "0"),
-      inputBackground: inputStyle.backgroundColor,
-      inputBorder: Number.parseFloat(inputStyle.borderTopWidth || "0"),
-      inputRadius: Number.parseFloat(inputStyle.borderTopLeftRadius || "0"),
-      inputShadow: inputStyle.boxShadow,
-    };
-  });
+    const visual = await search.evaluate((node) => {
+      const input = node.querySelector<HTMLInputElement>("input[type='search']");
+      if (!input) return null;
+      const shellStyle = getComputedStyle(node);
+      const inputStyle = getComputedStyle(input);
+      return {
+        shellRadius: Number.parseFloat(shellStyle.borderTopLeftRadius || "0"),
+        shellBorder: Number.parseFloat(shellStyle.borderTopWidth || "0"),
+        inputBackground: inputStyle.backgroundColor,
+        inputBorder: Number.parseFloat(inputStyle.borderTopWidth || "0"),
+        inputRadius: Number.parseFloat(inputStyle.borderTopLeftRadius || "0"),
+        inputShadow: inputStyle.boxShadow,
+      };
+    });
 
-  expect(visual).not.toBeNull();
-  expect(visual!.shellRadius).toBeGreaterThan(0);
-  expect(visual!.shellBorder).toBeGreaterThan(0);
-  expect(visual!.inputBorder).toBe(0);
-  expect(visual!.inputRadius).toBe(0);
-  expect(visual!.inputShadow).toBe("none");
-  expect(["rgba(0, 0, 0, 0)", "transparent"]).toContain(visual!.inputBackground);
+    expect(visual).not.toBeNull();
+    expect(visual!.shellRadius).toBeGreaterThan(0);
+    expect(visual!.shellBorder).toBeGreaterThan(0);
+    expect(visual!.inputBorder).toBe(0);
+    expect(visual!.inputRadius).toBe(0);
+    expect(visual!.inputShadow).toBe("none");
+    expect(["rgba(0, 0, 0, 0)", "transparent"]).toContain(visual!.inputBackground);
+  }
+});
+
+test("Editions and Shows use the new flat mobile archive layouts", async ({ page }) => {
+  await expectInstalledShell(page, "/editions");
+  await expect(page.locator(".solaris-app-editions-v5")).toHaveCount(1);
+  await expect(page.locator(".solaris-app-grouped-list")).toHaveCount(0);
+
+  const editionArchive = page.locator('[data-solaris-flat-list="editions"]');
+  if (await editionArchive.count()) {
+    const style = await editionArchive.evaluate((node) => {
+      const computed = getComputedStyle(node);
+      return {
+        radius: Number.parseFloat(computed.borderTopLeftRadius || "0"),
+        background: computed.backgroundColor,
+      };
+    });
+    expect(style.radius).toBe(0);
+    expect(["rgba(0, 0, 0, 0)", "transparent"]).toContain(style.background);
+  }
+
+  await expectInstalledShell(page, "/shows");
+  await expect(page.locator(".solaris-app-shows-v5")).toHaveCount(1);
+  await expect(page.locator(".solaris-app-grouped-list")).toHaveCount(0);
+
+  const showLists = page.locator('[data-solaris-flat-list="shows"]');
+  if (await showLists.count()) {
+    const firstStyle = await showLists.first().evaluate((node) => {
+      const computed = getComputedStyle(node);
+      return {
+        radius: Number.parseFloat(computed.borderTopLeftRadius || "0"),
+        background: computed.backgroundColor,
+      };
+    });
+    expect(firstStyle.radius).toBe(0);
+    expect(["rgba(0, 0, 0, 0)", "transparent"]).toContain(firstStyle.background);
+  }
 });
 
 test("directory screens do not leak website descriptions below the app title", async ({ page }) => {
