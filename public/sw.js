@@ -1,4 +1,4 @@
-const CACHE_VERSION = "solaris-app-v14";
+const CACHE_VERSION = "solaris-app-v15";
 const STATIC_CACHE = `${CACHE_VERSION}:static`;
 const OFFLINE_URL = "/offline.html";
 
