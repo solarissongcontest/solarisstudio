@@ -5,6 +5,7 @@ import { writeAppAttentionSummary } from "@/lib/app-attention";
 import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
 import { useMyCountryAccount } from "@/lib/country-account";
+import { loadCountryJuryVotingTask } from "@/lib/country-jury-task";
 import { useAllParticipants, useEditions, type Edition, type Participant } from "@/lib/data";
 import { useFanSession } from "@/lib/prediction-data";
 import { loadStudio2RecipientNoticeInbox } from "@/lib/studio2-recipient-inbox";
@@ -150,6 +151,19 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     refetchOnWindowFocus: true,
   });
 
+  const juryQuery = useQuery({
+    enabled: Boolean(
+      userQuery.data &&
+        countryAccountQuery.data?.country &&
+        currentEdition?.id,
+    ),
+    queryKey: ["mysolaris-jury-task", currentEdition?.id ?? "none"],
+    queryFn: () => loadCountryJuryVotingTask(currentEdition!.id),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
+
   const noticeSummary = noticesQuery.data ?? {
     unreadNoticeCount: 0,
     acknowledgementTasks: 0,
@@ -174,12 +188,14 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
         requirements: confirmationQuery.data?.requirements ?? [],
         rounds: roundsQuery.data ?? [],
         acknowledgementTasks,
+        jury: juryQuery.data ?? null,
       }),
     [
       acknowledgementTasks,
       confirmationQuery.data?.responses,
       confirmationQuery.data?.requirements,
       currentEdition?.id,
+      juryQuery.data,
       roundsQuery.data,
     ],
   );
@@ -216,7 +232,12 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (noticesQuery.isLoading || roundsQuery.isLoading || confirmationQuery.isLoading) return;
+    if (
+      noticesQuery.isLoading ||
+      roundsQuery.isLoading ||
+      confirmationQuery.isLoading ||
+      juryQuery.isLoading
+    ) return;
 
     writeAppAttentionSummary({
       participate: taskCounts.needsAction,
@@ -225,6 +246,7 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     });
   }, [
     confirmationQuery.isLoading,
+    juryQuery.isLoading,
     noticesQuery.isLoading,
     roundsQuery.isLoading,
     taskCounts.needsAction,
@@ -257,7 +279,8 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
       editionsQuery.isLoading ||
       participantsQuery.isLoading ||
       capabilitiesQuery.isLoading ||
-      confirmationQuery.isLoading,
+      confirmationQuery.isLoading ||
+      juryQuery.isLoading,
   };
 
   return <MySolarisContext.Provider value={value}>{children}</MySolarisContext.Provider>;
