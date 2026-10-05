@@ -26,7 +26,10 @@ grant execute on function public.admin_confirmation_delete_edition(uuid) to auth
 
 -- Production had this legacy table out of band; clean replay must expose the
 -- same Organizer reminder contract. Grants only open the API door; RLS remains
--- the row-level authorization boundary.
+-- the row-level authorization boundary. Preserve the canonical scope selection:
+-- edition-scoped reminders authorize through edition_id, show-only reminders
+-- authorize through the show's edition, and truly unscoped reminders require
+-- global edition.manage.
 create table if not exists public.admin_deadlines (
   id uuid primary key default gen_random_uuid(),
   edition_id uuid references public.editions(id) on delete cascade,
@@ -42,10 +45,20 @@ alter table public.admin_deadlines enable row level security;
 drop policy if exists "Organizers manage deadlines" on public.admin_deadlines;
 create policy "Organizers manage deadlines" on public.admin_deadlines
 for all to authenticated
-using (public.studio2_access_allowed('edition.manage', edition_id, true)
-  and (show_id is null or private.studio2_show_access_allowed('edition.manage', show_id, true)))
-with check (public.studio2_access_allowed('edition.manage', edition_id, true)
-  and (show_id is null or private.studio2_show_access_allowed('edition.manage', show_id, true)));
+using (
+  case
+    when edition_id is not null then public.studio2_access_allowed('edition.manage', edition_id, true)
+    when show_id is not null then private.studio2_show_access_allowed('edition.manage', show_id, true)
+    else public.studio2_access_allowed('edition.manage', null, true)
+  end
+)
+with check (
+  case
+    when edition_id is not null then public.studio2_access_allowed('edition.manage', edition_id, true)
+    when show_id is not null then private.studio2_show_access_allowed('edition.manage', show_id, true)
+    else public.studio2_access_allowed('edition.manage', null, true)
+  end
+);
 grant select, insert, update, delete on public.admin_deadlines to authenticated;
 -- These canonical tables already have RLS policies but lacked explicit Data
 -- API grants on clean installs. Avoid privileged writes through these grants.
