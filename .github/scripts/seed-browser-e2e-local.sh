@@ -197,10 +197,32 @@ set country_id = excluded.country_id,
     updated_at = now();
 "
 
+log "Enabling completion-programme flags only for local Organizer identities"
+db_exec "
+insert into public.studio2_feature_flags (
+  key, enabled, admins_only, user_ids, edition_ids, updated_by
+)
+values
+  ('public_encyclopedia', true, false, array['$ORGANIZER_ID'::uuid, '$ORGANIZER_B_ID'::uuid], '{}'::uuid[], null),
+  ('country_voting_dna', true, false, array['$ORGANIZER_ID'::uuid, '$ORGANIZER_B_ID'::uuid], '{}'::uuid[], null),
+  ('prediction_league', true, false, array['$ORGANIZER_ID'::uuid, '$ORGANIZER_B_ID'::uuid], '{}'::uuid[], null),
+  ('fantasy_ssc', true, false, array['$ORGANIZER_ID'::uuid, '$ORGANIZER_B_ID'::uuid], '{}'::uuid[], null),
+  ('time_machine', true, false, array['$ORGANIZER_ID'::uuid, '$ORGANIZER_B_ID'::uuid], '{}'::uuid[], null),
+  ('solaris_command_assistant', true, false, array['$ORGANIZER_ID'::uuid, '$ORGANIZER_B_ID'::uuid], '{}'::uuid[], null)
+on conflict (key) do update
+set enabled = excluded.enabled,
+    admins_only = excluded.admins_only,
+    user_ids = excluded.user_ids,
+    edition_ids = excluded.edition_ids,
+    updated_by = excluded.updated_by,
+    updated_at = now();
+"
+
 [[ "$(db_scalar "select count(*) from public.studio2_role_assignments where user_id in ('$ORGANIZER_ID'::uuid,'$ORGANIZER_B_ID'::uuid) and role_key='organizer';")" == "2" ]]   || fail "Both Organizer authoritative roles were not created"
 [[ "$(db_scalar "select count(*) from public.studio2_role_assignments where user_id='$ORGANIZER_B_ID'::uuid and role_key='organizer';")" == "1" ]]   || fail "Second Organizer authoritative role was not created"
 [[ "$(db_scalar "select status from public.country_accounts where user_id='$COUNTRY_ID'::uuid;")" == "active" ]]   || fail "Country browser account was not active"
 [[ "$(db_scalar "select status from public.country_accounts where user_id='$SUSPENDED_ID'::uuid;")" == "suspended" ]]   || fail "Suspended browser account was not suspended"
+[[ "$(db_scalar "select count(*) from public.studio2_feature_flags where key in ('public_encyclopedia','country_voting_dna','prediction_league','fantasy_ssc','time_machine','solaris_command_assistant') and enabled and user_ids @> array['$ORGANIZER_ID'::uuid] and cardinality(user_ids)=2;")" == "6" ]]   || fail "Organizer-only completion-programme feature flags were not seeded"
 
 # Export only throwaway local browser credentials. The local service-role key is
 # intentionally NOT written to GITHUB_ENV.

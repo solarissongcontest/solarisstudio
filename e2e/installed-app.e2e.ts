@@ -360,7 +360,12 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
 test("global search field matches the canonical Countries search surface", async ({ page }) => {
   await expectInstalledShell(page, "/countries");
 
-  const canonical = await page.locator("[data-solaris-search-field]").evaluate((node) => {
+  const canonicalSurface = page.locator("[data-solaris-search-field]");
+  const canonicalInput = canonicalSurface.locator(".solaris-app-search-input");
+  await canonicalInput.focus();
+  await expect(canonicalInput).toBeFocused();
+
+  const canonical = await canonicalSurface.evaluate((node) => {
     const input = node.querySelector<HTMLElement>(".solaris-app-search-input");
     const icon = node.querySelector<HTMLElement>(".solaris-app-search-icon");
     if (!input || !icon) return null;
@@ -390,6 +395,8 @@ test("global search field matches the canonical Countries search surface", async
 
   const command = page.locator(".solaris-app-search-dialog [data-solaris-search-field]");
   await expect(command).toHaveCount(1);
+  const commandInput = command.locator(".solaris-app-search-input");
+  await expect(commandInput).toBeFocused();
 
   const globalSearch = await command.evaluate((node) => {
     const input = node.querySelector<HTMLElement>(".solaris-app-search-input");

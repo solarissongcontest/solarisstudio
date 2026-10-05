@@ -35,7 +35,20 @@ export function AdminShell({ children }: { children: ReactNode }) {
   ).length;
 
   useEffect(() => {
-    void supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
+    let active = true;
+
+    void supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (active) setEmail(data.user?.email ?? null);
+      })
+      .catch(() => {
+        if (active) setEmail(null);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const pageAlreadyShowsHealth = pathname === "/admin/operations";

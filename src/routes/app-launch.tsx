@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
@@ -12,6 +12,7 @@ import {
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 
 const APP_LAUNCH_SESSION_TIMEOUT_MS = 1_500;
+const APP_LAUNCH_HARD_EXIT_MS = 2_500;
 
 type AppLaunchSessionResolution = {
   signedIn: boolean;
@@ -54,23 +55,32 @@ export const Route = createFileRoute("/app-launch")({
   component: AppLaunchPage,
 });
 
+function leaveLaunchRoute(targetHref: string) {
+  if (window.location.pathname !== "/app-launch") return;
+  window.location.replace(targetHref);
+}
+
 function AppLaunchPage() {
-  const navigate = useNavigate();
   const { isAppMode } = useSolarisApp();
 
   useEffect(() => {
     let alive = true;
 
+    // /app-launch is an intermediary, never a stable screen. Keep this browser-
+    // level watchdog independent from auth, router state and telemetry so a
+    // stalled dependency cannot strand an installed PWA on the launch page.
+    const hardExitId = window.setTimeout(() => {
+      if (alive) leaveLaunchRoute("/");
+    }, APP_LAUNCH_HARD_EXIT_MS);
+
     if (!isAppMode) {
-      void navigate({ to: "/", replace: true });
+      leaveLaunchRoute("/");
       return () => {
         alive = false;
+        window.clearTimeout(hardExitId);
       };
     }
 
-    // Local Supabase session recovery normally resolves immediately, but an
-    // installed browser can occasionally stall on storage/session locking.
-    // Cold launch therefore has a hard circuit breaker.
     void resolveAppLaunchSession().then(({ signedIn, source }) => {
       if (!alive) return;
 
@@ -83,39 +93,36 @@ function AppLaunchPage() {
               visitedAt: new Date().toISOString(),
             }
           : getAppLaunchDestination(signedIn);
-
-      trackPublicUxEvent("app_cold_launch_restored", {
-        target: appEntryHref(target),
-        metadata: {
-          area: appTabForPath(target.pathname) ?? "app",
-          source:
-            source === "timeout"
-              ? "cold_launch_session_timeout"
-              : source === "error"
-                ? "cold_launch_session_error"
-                : "cold_launch_local_session",
-        },
-      });
       const targetHref = appEntryHref(target);
-      markAppNavigationRestore(target);
-      void navigate({
-        to: targetHref as any,
-        replace: true,
-      });
 
-      // TanStack navigation should complete immediately, but an installed
-      // browser can occasionally end up with a half-restored router during a
-      // cold PWA launch. Never allow /app-launch to become a permanent screen.
-      window.setTimeout(() => {
-        if (!alive || window.location.pathname !== "/app-launch") return;
-        window.location.replace(targetHref);
-      }, 1_000);
+      // Analytics must never gate the user-visible launch transition.
+      try {
+        trackPublicUxEvent("app_cold_launch_restored", {
+          target: targetHref,
+          metadata: {
+            area: appTabForPath(target.pathname) ?? "app",
+            source:
+              source === "timeout"
+                ? "cold_launch_session_timeout"
+                : source === "error"
+                  ? "cold_launch_session_error"
+                  : "cold_launch_local_session",
+          },
+        });
+      } catch {
+        // Best-effort telemetry only.
+      }
+
+      markAppNavigationRestore(target);
+      window.clearTimeout(hardExitId);
+      leaveLaunchRoute(targetHref);
     });
 
     return () => {
       alive = false;
+      window.clearTimeout(hardExitId);
     };
-  }, [isAppMode, navigate]);
+  }, [isAppMode]);
 
   return (
     <main
