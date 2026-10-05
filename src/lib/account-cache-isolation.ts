@@ -2,7 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 
 export function isPrivateAccountQuery(key: readonly unknown[]) {
   const root = String(key[0] ?? "");
-  return /^(mysolaris-|my-solaris-|my-country-|country-confirmation-|country-jury-|home-personal-attention|participate-jury-|participate-confirmation-access|admin-|studio2-|organisation-backend-contract)/.test(root);
+  return /^(mysolaris-|my-solaris-|my-country-|owned-|country-confirmation-|country-jury-|home-personal-attention|participate-jury-|participate-confirmation-access|admin-|studio2-|organisation-backend-contract)/.test(root);
 }
 
 export function clearPrivateAccountQueries(client: QueryClient) {
