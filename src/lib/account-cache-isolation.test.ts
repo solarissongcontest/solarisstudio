@@ -29,6 +29,8 @@ describe("shared-browser private state", () => {
     expect(jury).toContain('["country-jury-voting-context", userId]');
     expect(jury).toContain('key={`${userId}:${context.country.id}:${openRound.show_id}`}');
     expect(jury).toContain('`solaris:jury-ballot-draft:${userId}:${country.id}:${round.show_id}`');
+    const voting = readFileSync("src/routes/_authenticated/my-solaris/voting.tsx", "utf8");
+    expect(voting).toContain('["mysolaris-jury-window-state", workspace.user?.id ?? "none", country?.id ?? "none"');
     expect(jury).not.toContain('`solaris:jury-ballot-draft:${round.show_id}`');
   });
 });
