@@ -53,7 +53,7 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(css).toContain("--solaris-app-tabbar-max-height: 5.35rem");
     expect(css).toContain("max-height: var(--solaris-app-tabbar-max-height)");
     expect(css).not.toContain("solaris-kube-safari-mirror");
-    expect(sw).toContain('const CACHE_VERSION = "solaris-app-v14"');
+    expect(sw).toContain('const CACHE_VERSION = "solaris-app-v15"');
     expect(flags).toContain('size === "lg" || size === "xl"');
     expect(flagCss).not.toContain(
       "flex-shrink: 0;\n  border-radius: inherit;\n  isolation: isolate;",
