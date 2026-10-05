@@ -5,15 +5,17 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 const context = source("src/components/mysolaris/MySolarisContext.tsx");
+const participantData = source("src/lib/my-solaris-data.ts");
 
 describe("MySolaris scoped data and cross-device refresh", () => {
   it("does not download the global participants table for one delegation", () => {
     expect(context).not.toContain("useAllParticipants");
-    expect(context).toContain('.from("participants")');
-    expect(context).toContain('.eq("edition_id", currentEdition!.id)');
-    expect(context).toContain('.eq("country_id", countryId!)');
-    expect(context).toContain('.is("show_id", null)');
-    expect(context).toContain(".maybeSingle()");
+    expect(context).toContain("loadMySolarisParticipant");
+    expect(participantData).toContain('.from("participants")');
+    expect(participantData).toContain('.eq("edition_id", editionId)');
+    expect(participantData).toContain('.eq("country_id", countryId)');
+    expect(participantData).toContain('.is("show_id", null)');
+    expect(participantData).toContain(".maybeSingle()");
   });
 
   it("refreshes participant action truth across devices without waiting for a navigation", () => {
