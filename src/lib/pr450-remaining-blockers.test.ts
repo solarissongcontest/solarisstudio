@@ -77,3 +77,14 @@ describe("signup address budget", () => {
     expect(lookup).toHaveBeenCalledTimes(10);
   });
 });
+
+
+describe("navigation hydration boundary", () => {
+  it("keeps the server-rendered drawer trigger disabled until its handler is attached", () => {
+    const shell = source("src/components/AppShell.tsx");
+    expect(shell).toContain("const [navigationReady, setNavigationReady] = useState(false)");
+    expect(shell).toContain("useEffect(() => setNavigationReady(true), [])");
+    expect(shell).toContain("disabled={!navigationReady}");
+    expect(shell).toContain("aria-busy={!navigationReady}");
+  });
+});
