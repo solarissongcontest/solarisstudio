@@ -1,4 +1,4 @@
-const CACHE_VERSION = "solaris-app-v14";
+const CACHE_VERSION = "solaris-app-v15";
 const STATIC_CACHE = `${CACHE_VERSION}:static`;
 const OFFLINE_URL = "/offline.html";
 
@@ -90,6 +90,34 @@ self.addEventListener("fetch", (event) => {
 });
 
 
+async function reportPushReceipt(data, stage) {
+  const deliveryId =
+    typeof data?.deliveryId === "string" ? data.deliveryId : null;
+  const receiptToken =
+    typeof data?.receiptToken === "string" ? data.receiptToken : null;
+  const receiptUrl =
+    typeof data?.receiptUrl === "string" && data.receiptUrl.startsWith("https://")
+      ? data.receiptUrl
+      : null;
+
+  if (!deliveryId || !receiptToken || !receiptUrl) return;
+
+  try {
+    await fetch(receiptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        deliveryId,
+        token: receiptToken,
+        stage,
+      }),
+    });
+  } catch {
+    // Delivery receipts are diagnostics. A telemetry outage must never stop the
+    // notification itself from being shown or opened.
+  }
+}
+
 self.addEventListener("push", (event) => {
   let payload = {};
   try {
@@ -113,10 +141,20 @@ self.addEventListener("push", (event) => {
       route,
       deliveryId:
         typeof payload.deliveryId === "string" ? payload.deliveryId : null,
+      receiptToken:
+        typeof payload.receiptToken === "string" ? payload.receiptToken : null,
+      receiptUrl:
+        typeof payload.receiptUrl === "string" ? payload.receiptUrl : null,
     },
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    (async () => {
+      await reportPushReceipt(options.data, "received");
+      await self.registration.showNotification(title, options);
+      await reportPushReceipt(options.data, "displayed");
+    })(),
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
@@ -130,14 +168,21 @@ self.addEventListener("notificationclick", (event) => {
   const target = targetUrl.href;
 
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      for (const client of clients) {
-        if ("focus" in client) {
-          client.navigate?.(target);
-          return client.focus();
-        }
-      }
-      return self.clients.openWindow ? self.clients.openWindow(target) : undefined;
-    }),
+    Promise.all([
+      reportPushReceipt(event.notification.data, "opened"),
+      self.clients
+        .matchAll({ type: "window", includeUncontrolled: true })
+        .then((clients) => {
+          for (const client of clients) {
+            if ("focus" in client) {
+              client.navigate?.(target);
+              return client.focus();
+            }
+          }
+          return self.clients.openWindow
+            ? self.clients.openWindow(target)
+            : undefined;
+        }),
+    ]),
   );
 });

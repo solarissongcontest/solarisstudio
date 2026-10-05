@@ -20,6 +20,7 @@ import { useOrganizerTaskCountV5 } from "@/lib/admin-tasks-v5";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { useEditions } from "@/lib/data";
 import { prefersReducedMotion } from "@/lib/interaction-physics";
+import { useOrganisationBackendContract } from "@/lib/organisation-backend-contract";
 import { resolveOrganizerV6Screen } from "@/lib/organizer-v6-screen-registry";
 import { useAdminContext } from "./AdminContext";
 
@@ -39,13 +40,22 @@ export function OrganizerV6MobileChrome() {
   const screen = resolveOrganizerV6Screen(pathname);
   const { editionId } = useAdminContext();
   const { data: editions = [] } = useEditions();
+  const backend = useOrganisationBackendContract();
+  const tasksSupported = backend.data?.capabilities.organizerTasks === true;
   const activeEdition =
     editions.find((edition) => edition.id === editionId) ??
     [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
     null;
   const slug = activeEdition?.slug;
   const editionHref = slug ? `/admin/${slug}` : "/admin";
-  const { data: unresolvedTaskCount = 0 } = useOrganizerTaskCountV5(activeEdition?.id ?? null);
+  const taskCount = useOrganizerTaskCountV5(
+    activeEdition?.id ?? null,
+    tasksSupported,
+  );
+  const unresolvedTaskCount =
+    tasksSupported && !taskCount.isError && typeof taskCount.data === "number"
+      ? taskCount.data
+      : undefined;
 
   const mobileItems: MobileItem[] = [
     { id: "home", label: "Home", href: "/admin/operations", icon: LayoutDashboard, active: (path) => path.startsWith("/admin/operations") },
@@ -140,7 +150,7 @@ export function OrganizerV6MobileChrome() {
           href: item.href,
           icon: item.icon,
           active: item.active(pathname),
-          badge: item.id === "tasks" ? unresolvedTaskCount : 0,
+          badge: item.id === "tasks" ? unresolvedTaskCount : undefined,
         }),
       )}
       onSelect={(item) => {

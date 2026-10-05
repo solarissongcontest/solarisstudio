@@ -5,9 +5,8 @@ import { useMemo } from "react";
 
 import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
 import { getPublicRounds } from "@/lib/confirmation-rounds.functions";
-import { supabase } from "@/integrations/supabase/client";
-import type { VotingTaskInput } from "@/lib/participation-os";
 import { useMyCountryAccount } from "@/lib/country-account";
+import { loadCountryJuryVotingTask } from "@/lib/country-jury-task";
 import {
   buildPersonalAttentionItems,
   homepagePersonalAttention,
@@ -42,26 +41,7 @@ export function HomePersonalAttention({
   const juryQuery = useQuery({
     enabled: Boolean(userQuery.data && hasCountry && editionId),
     queryKey: ["home-personal-attention", "jury", editionId],
-    queryFn: async (): Promise<VotingTaskInput | null> => {
-      const { data, error } = await (supabase as any).rpc("country_jury_voting_context");
-      if (error || !data?.ok) return null;
-      const rounds = Array.isArray(data.rounds) ? data.rounds : [];
-      const round = rounds.find(
-        (candidate: any) =>
-          candidate.edition_id === editionId &&
-          candidate.status === "open" &&
-          candidate.eligible,
-      );
-      if (!round) return null;
-      return {
-        id: String(round.show_id ?? round.show_name ?? "jury"),
-        title: `${String(round.show_name ?? "Jury voting")} jury ballot`,
-        route: "/jury-voting",
-        eligible: true,
-        submitted: round.already_submitted === true,
-        status: "open",
-      };
-    },
+    queryFn: () => loadCountryJuryVotingTask(editionId!),
     staleTime: 15_000,
     refetchOnWindowFocus: true,
   });

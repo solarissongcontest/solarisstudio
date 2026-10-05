@@ -5,7 +5,9 @@ import { writeAppAttentionSummary } from "@/lib/app-attention";
 import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account";
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
 import { useMyCountryAccount } from "@/lib/country-account";
-import { useAllParticipants, useEditions, type Edition, type Participant } from "@/lib/data";
+import { loadCountryJuryVotingTask } from "@/lib/country-jury-task";
+import { useEditions, type Edition, type Participant } from "@/lib/data";
+import { loadMySolarisParticipant } from "@/lib/my-solaris-data";
 import { useFanSession } from "@/lib/prediction-data";
 import { loadStudio2RecipientNoticeInbox } from "@/lib/studio2-recipient-inbox";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
@@ -73,7 +75,6 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
   const userQuery = useFanSession();
   const countryAccountQuery = useMyCountryAccount();
   const editionsQuery = useEditions();
-  const participantsQuery = useAllParticipants();
 
   const currentEdition = useMemo(
     () =>
@@ -83,15 +84,17 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     [editionsQuery.data],
   );
 
-  const currentEntry = useMemo(() => {
-    const countryId = countryAccountQuery.data?.country?.id;
-    if (!countryId) return null;
-    const owned = (participantsQuery.data ?? []).filter(
-      (entry) => entry.country_id === countryId && entry.show_id == null,
-    );
-    if (!currentEdition) return owned[0] ?? null;
-    return owned.find((entry) => entry.edition_id === currentEdition.id) ?? null;
-  }, [countryAccountQuery.data?.country?.id, currentEdition, participantsQuery.data]);
+  const countryId = countryAccountQuery.data?.country?.id ?? null;
+  const currentEntryQuery = useQuery({
+    enabled: Boolean(userQuery.data && countryId && currentEdition?.id),
+    queryKey: ["mysolaris-current-entry", currentEdition?.id ?? "none", countryId ?? "none"],
+    queryFn: () => loadMySolarisParticipant(countryId!, currentEdition!.id),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
+
+  const currentEntry = currentEntryQuery.data ?? null;
 
   const capabilitiesQuery = useQuery({
     enabled: Boolean(userQuery.data),
@@ -128,17 +131,19 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
             item.inboxState === "acknowledgement_required" ||
             (item.notice.acknowledgementRequired && item.inboxState === "unread"),
         ).length,
-
       };
     },
-    staleTime: 30_000,
+    staleTime: 20_000,
+    refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
+
   const roundsQuery = useQuery({
     enabled: Boolean(userQuery.data),
     queryKey: ["mysolaris-context-deadlines"],
     queryFn: () => getPublicRounds(),
-    staleTime: 30_000,
+    staleTime: 20_000,
+    refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
 
@@ -147,6 +152,20 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     queryKey: ["country-confirmation-access", "mysolaris-context"],
     queryFn: getCountryConfirmationAccess,
     staleTime: 10_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
+
+  const juryQuery = useQuery({
+    enabled: Boolean(
+      userQuery.data &&
+        countryAccountQuery.data?.country &&
+        currentEdition?.id,
+    ),
+    queryKey: ["mysolaris-jury-task", currentEdition?.id ?? "none"],
+    queryFn: () => loadCountryJuryVotingTask(currentEdition!.id),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
 
@@ -174,12 +193,14 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
         requirements: confirmationQuery.data?.requirements ?? [],
         rounds: roundsQuery.data ?? [],
         acknowledgementTasks,
+        jury: juryQuery.data ?? null,
       }),
     [
       acknowledgementTasks,
       confirmationQuery.data?.responses,
       confirmationQuery.data?.requirements,
       currentEdition?.id,
+      juryQuery.data,
       roundsQuery.data,
     ],
   );
@@ -216,7 +237,12 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (noticesQuery.isLoading || roundsQuery.isLoading || confirmationQuery.isLoading) return;
+    if (
+      noticesQuery.isLoading ||
+      roundsQuery.isLoading ||
+      confirmationQuery.isLoading ||
+      juryQuery.isLoading
+    ) return;
 
     writeAppAttentionSummary({
       participate: taskCounts.needsAction,
@@ -225,6 +251,7 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     });
   }, [
     confirmationQuery.isLoading,
+    juryQuery.isLoading,
     noticesQuery.isLoading,
     roundsQuery.isLoading,
     taskCounts.needsAction,
@@ -255,9 +282,10 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
       userQuery.isLoading ||
       countryAccountQuery.isLoading ||
       editionsQuery.isLoading ||
-      participantsQuery.isLoading ||
+      currentEntryQuery.isLoading ||
       capabilitiesQuery.isLoading ||
-      confirmationQuery.isLoading,
+      confirmationQuery.isLoading ||
+      juryQuery.isLoading,
   };
 
   return <MySolarisContext.Provider value={value}>{children}</MySolarisContext.Provider>;

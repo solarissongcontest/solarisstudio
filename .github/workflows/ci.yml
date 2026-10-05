@@ -8,6 +8,7 @@ on:
   pull_request:
     branches:
       - main
+      - audit/pr450-base-snapshot
   workflow_dispatch:
 
 permissions:
@@ -113,12 +114,6 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-      - name: Prepare exact lint fix candidate
-        shell: bash
-        run: |
-          set -euo pipefail
-          sed -i 's/useCountryFallback/shouldUseCountryFallback/g' src/integrations/televoting/intelligence.server.ts
-
       - name: Lint
         shell: bash
         run: |
@@ -127,6 +122,15 @@ jobs:
           status=${PIPESTATUS[0]}
           exit "$status"
 
+      - name: Verify CI did not mutate tracked source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git diff --exit-code -- .; then
+            echo "::error::Quality checks modified tracked repository files. Fix the source in Git instead of patching it inside CI."
+            exit 1
+          fi
+
       - name: Upload lint report
         if: always()
         uses: actions/upload-artifact@v4
@@ -134,15 +138,6 @@ jobs:
           name: lint-report
           path: lint-output.txt
           if-no-files-found: ignore
-          retention-days: 1
-
-      - name: Upload corrected intelligence source
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: corrected-intelligence-source
-          path: src/integrations/televoting/intelligence.server.ts
-          if-no-files-found: error
           retention-days: 1
 
       - name: Quality summary
