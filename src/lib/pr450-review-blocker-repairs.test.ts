@@ -6,6 +6,9 @@ const source = (path: string) => readFileSync(path, "utf8");
 const migration = source(
   "supabase/migrations/20261005043000_pr450_review_blocker_repairs.sql",
 );
+const taskWrapper = source(
+  "supabase/migrations/20261005043500_pr450_complete_task_wrapper.sql",
+);
 const server = source("src/server.ts");
 
 describe("PR #450 review-blocker repairs", () => {
@@ -17,12 +20,18 @@ describe("PR #450 review-blocker repairs", () => {
     expect(migration).toContain("for update;");
   });
 
-  it("retains system-job truth and counts reviewed jury ballots as present", () => {
-    expect(migration).toContain(
+  it("retains every Organizer task source and counts reviewed jury ballots as present", () => {
+    expect(taskWrapper).toContain(
       "perform private.studio2_reconcile_system_job_tasks();",
     );
-    expect(migration).toContain(
+    expect(taskWrapper).toContain(
       "perform private.studio2_reconcile_jury_ballot_review_tasks(p_edition_id);",
+    );
+    expect(taskWrapper).toContain(
+      "perform private.studio2_reconcile_confirmation_sync_tasks();",
+    );
+    expect(taskWrapper).toContain(
+      "perform private.studio2_repair_jury_missing_ballot_tasks(p_edition_id);",
     );
     expect(migration).toContain(
       "ballot.status in ('submitted', 'needs_review', 'valid')",
@@ -87,6 +96,7 @@ describe("PR #450 review-blocker repairs", () => {
     ];
     for (const path of protectedPaths) {
       expect(migration).not.toContain(path);
+      expect(taskWrapper).not.toContain(path);
       expect(server).not.toContain(path);
     }
   });
