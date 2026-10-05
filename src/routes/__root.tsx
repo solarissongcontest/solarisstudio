@@ -1,3 +1,4 @@
+import { AccountCacheIsolation } from "@/components/app/AccountCacheIsolation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -338,6 +339,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <AccountCacheIsolation />
       <AppDataFreshnessCoordinator />
       <AppReconnectReconciler />
       <AppExperiencePreferenceSync />

@@ -178,6 +178,7 @@ function RelationshipsPage() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            aria-label="Search a country"
             placeholder="Search a country…"
             className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none"
           />

@@ -11,6 +11,12 @@ function RoutePending() {
   const alreadyInsideParticipationChrome =
     pathname.startsWith("/confirmations") || pathname.startsWith("/televoting");
 
+  // Nested Organizer loading belongs inside AdminFrame's existing landmark.
+  // A second main during child-route transitions breaks keyboard/screen readers.
+  if (pathname.startsWith("/admin") || pathname.startsWith("/confirmations/admin") || pathname.startsWith("/televoting/admin")) {
+    return <section aria-busy="true" aria-label="Loading Organizer page"><AppRouteSkeleton /></section>;
+  }
+
   if (isAppMode && alreadyInsideParticipationChrome) {
     return (
       <section className="solaris-app-route-pending" aria-busy="true" aria-label="Loading">

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
+import { confirmationEditionsById } from "@/lib/confirmation-edition-identity";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminActionItem,
@@ -70,12 +71,12 @@ function EditionsPage() {
     setError(null);
     try {
       const { canonical, remote } = await refresh();
-      const remoteByNumber = new Map(remote.map((edition) => [edition.edition_number, edition]));
+      const remoteById = confirmationEditionsById(remote);
       const solaris = solarisSupabase as any;
       let changed = 0;
 
       for (const edition of canonical) {
-        const current = remoteByNumber.get(edition.edition_number);
+        const current = remoteById.get(edition.id);
         const desiredStatus = confirmationStatus(edition.status);
         const desiredDescription = edition.description ?? "";
         const editingEnabled = current?.editing_enabled ?? desiredStatus !== "finished";
@@ -84,7 +85,7 @@ function EditionsPage() {
 
         if (needsMetadataSync) {
           remoteId = await saveConfirmationEdition({
-            ...(current ? { id: current.id } : {}),
+            id: edition.id,
             name: edition.name,
             edition_number: edition.edition_number,
             description: desiredDescription,
@@ -95,8 +96,10 @@ function EditionsPage() {
         }
 
         if (!remoteId) continue;
-        await solaris.from("integration_links").delete().eq("service", "confirmations").eq("entity_type", "edition").eq("solaris_id", edition.id).neq("remote_id", remoteId);
-        await solaris.from("integration_links").delete().eq("service", "confirmations").eq("entity_type", "edition").eq("remote_id", remoteId).neq("solaris_id", edition.id);
+        const { error: deleteError } = await solaris.from("integration_links").delete().eq("service", "confirmations").eq("entity_type", "edition").eq("solaris_id", edition.id).neq("remote_id", remoteId);
+        if (deleteError) throw deleteError;
+        const { error: reverseDeleteError } = await solaris.from("integration_links").delete().eq("service", "confirmations").eq("entity_type", "edition").eq("remote_id", remoteId).neq("solaris_id", edition.id);
+        if (reverseDeleteError) throw reverseDeleteError;
         const { error: linkError } = await solaris.from("integration_links").upsert({
           service: "confirmations",
           entity_type: "edition",
@@ -142,14 +145,14 @@ function EditionsPage() {
     return () => { alive = false; };
   }, [navigate, synchronize]);
 
-  const remoteByNumber = useMemo(() => new Map(remoteEditions.map((edition) => [edition.edition_number, edition])), [remoteEditions]);
+  const remoteById = useMemo(() => confirmationEditionsById(remoteEditions), [remoteEditions]);
   const orphanCount = useMemo(() => {
-    const canonicalNumbers = new Set(canonicalEditions.map((edition) => edition.edition_number));
-    return remoteEditions.filter((edition) => !canonicalNumbers.has(edition.edition_number)).length;
+    const canonicalIds = new Set(canonicalEditions.map((edition) => edition.id));
+    return remoteEditions.filter((edition) => !canonicalIds.has(edition.id)).length;
   }, [canonicalEditions, remoteEditions]);
 
   async function setEditing(edition: CanonicalEdition, enabled: boolean) {
-    const remote = remoteByNumber.get(edition.edition_number);
+    const remote = remoteById.get(edition.id);
     if (!remote) return;
     try {
       await setConfirmationEditionEditing(remote.id, enabled);
@@ -181,7 +184,7 @@ function EditionsPage() {
       ) : (
         <div className="space-y-3">
           {canonicalEditions.map((edition) => {
-            const remote = remoteByNumber.get(edition.edition_number);
+            const remote = remoteById.get(edition.id);
             const projectedStatus = confirmationStatus(edition.status);
             return (
               <AdminCard key={edition.id} className="!p-4">
