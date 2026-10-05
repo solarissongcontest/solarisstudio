@@ -27,6 +27,89 @@ async function rpc<T>(
   return data as T;
 }
 
+async function recordConfirmationCanonicalSyncFailure(
+  submissionId: string,
+  caught: unknown,
+) {
+  try {
+    const [{ createHash }, { supabaseAdmin }] = await Promise.all([
+      import("node:crypto"),
+      import("@/integrations/supabase/client.server"),
+    ]);
+    const db = supabaseAdmin as any;
+    const failureAt = new Date().toISOString();
+    const errorMessage =
+      caught instanceof Error ? caught.message : String(caught);
+
+    const submissionResult = await db
+      .from("submissions")
+      .select("id,edition_id,country")
+      .eq("id", submissionId)
+      .maybeSingle();
+
+    let edition: {
+      id?: string | null;
+      name?: string | null;
+      edition_number?: number | null;
+    } | null = null;
+
+    if (!submissionResult.error && submissionResult.data?.edition_id) {
+      const editionResult = await db
+        .from("editions")
+        .select("id,name,edition_number")
+        .eq("id", submissionResult.data.edition_id)
+        .maybeSingle();
+      if (!editionResult.error) edition = editionResult.data;
+    }
+
+    const payload = {
+      id: submissionId,
+      country:
+        !submissionResult.error && typeof submissionResult.data?.country === "string"
+          ? submissionResult.data.country
+          : null,
+      edition,
+      recovery_source: "participant_save_post_commit",
+    };
+    const payloadHash = createHash("sha256")
+      .update(JSON.stringify({ payload, failureAt }))
+      .digest("hex");
+
+    const { error } = await db.from("integration_events").upsert(
+      {
+        service: "confirmations",
+        event_type: "confirmation.snapshot.synced",
+        entity_type: "participant",
+        entity_id: null,
+        remote_id: submissionId,
+        payload,
+        payload_hash: payloadHash,
+        status: "failed",
+        attempts: 1,
+        last_error: errorMessage.slice(0, 1000),
+        updated_at: failureAt,
+        completed_at: null,
+      },
+      { onConflict: "service,event_type,payload_hash" },
+    );
+
+    if (error) {
+      console.error(
+        "[Confirmations] Could not record canonical reconciliation failure",
+        error,
+      );
+    }
+  } catch (recordError) {
+    // The original Confirmation save already committed. Recording recovery
+    // evidence is best effort and must never turn a successful participant
+    // submission into a false failure response.
+    console.error(
+      "[Confirmations] Could not persist reconciliation recovery evidence",
+      recordError,
+    );
+  }
+}
+
 const payloadSchema = z.object({
   round_id: z.string().uuid(),
   instagram_username: z.string().trim().min(1).max(80),
@@ -135,12 +218,40 @@ export const submitConfirmation = createServerFn({ method: "POST" })
     };
 
     try {
-      return await rpc<{
+      const result = await rpc<{
         ok: boolean;
         error?: string;
         reason?: AvailabilityReason;
         submission_id?: string;
+        canonical_sync?: "synced" | "pending";
       }>("submit_confirmation", { payload });
+
+      if (result.ok && result.submission_id) {
+        try {
+          const { syncConfirmationSubmissionToSolarisInternal } = await import(
+            "@/integrations/confirmations/sync.functions"
+          );
+          const sync = await syncConfirmationSubmissionToSolarisInternal(
+            result.submission_id,
+          );
+          result.canonical_sync = sync.ok ? "synced" : "pending";
+        } catch (syncError) {
+          // The participant submission is already committed at this point.
+          // Never lie and report the whole submission as failed because a
+          // downstream projection needs recovery.
+          console.error(
+            "[Confirmations] Canonical Solaris reconciliation failed after save",
+            syncError,
+          );
+          await recordConfirmationCanonicalSyncFailure(
+            result.submission_id,
+            syncError,
+          );
+          result.canonical_sync = "pending";
+        }
+      }
+
+      return result;
     } catch (error) {
       const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
       if (message.includes("duplicate_song")) return { ok: false as const, error: "duplicate_song" };

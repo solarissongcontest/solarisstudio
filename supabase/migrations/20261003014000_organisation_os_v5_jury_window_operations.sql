@@ -72,6 +72,11 @@ declare
   v_current_status text := 'closed';
   v_submitted integer := 0;
   v_other_open jsonb := '[]'::jsonb;
+  v_jury_enabled boolean := true;
+  v_allow_self boolean := false;
+  v_point_count integer := 0;
+  v_participant_count integer := 0;
+  v_participating_roster_count integer := 0;
 begin
   if p_status not in ('open', 'closed') then
     raise exception 'Invalid jury voting status' using errcode = '22023';
@@ -87,6 +92,79 @@ begin
 
   if not public.studio2_access_allowed('voting.manage', v_show.edition_id, false) then
     raise exception 'Missing Solaris capability: voting.manage' using errcode = '42501';
+  end if;
+
+  v_jury_enabled := coalesce((v_show.voting_config ->> 'juryEnabled')::boolean, true);
+  v_allow_self := coalesce((v_show.voting_config ->> 'allowSelfVote')::boolean, false);
+  v_point_count := jsonb_array_length(
+    coalesce(
+      v_show.voting_config -> 'juryPoints',
+      '[12,10,8,7,6,5,4,3,2,1]'::jsonb
+    )
+  );
+
+  -- Match the authoritative legacy mutation preflight before the organizer is
+  -- asked to confirm the R2 operation. The apply path still re-runs these
+  -- invariants through admin_set_jury_voting_status under the edition lock.
+  if p_status = 'open' then
+    if not v_jury_enabled then
+      raise exception 'Jury voting is disabled for this show'
+        using errcode = '23514';
+    end if;
+
+    select count(*)::integer
+    into v_participant_count
+    from public.participants participant
+    where participant.show_id = p_show_id
+      and (
+        participant.participation_status is null
+        or participant.participation_status = 'confirmed'
+      );
+
+    if v_participant_count < v_point_count then
+      raise exception 'This show does not have enough entries for the configured jury point scale'
+        using errcode = '23514';
+    end if;
+
+    if not v_allow_self and v_participant_count = v_point_count then
+      if not exists (
+        select 1
+        from public.voters voter
+        where voter.show_id = p_show_id
+      ) then
+        raise exception 'Add one more entry or shorten the jury point scale because participating juries cannot vote for themselves'
+          using errcode = '23514';
+      end if;
+
+      select count(*)::integer
+      into v_participating_roster_count
+      from public.voters voter
+      where voter.show_id = p_show_id
+        and exists (
+          select 1
+          from public.participants participant
+          where participant.show_id = p_show_id
+            and participant.country_id = voter.country_id
+            and (
+              participant.participation_status is null
+              or participant.participation_status = 'confirmed'
+            )
+        );
+
+      if v_participating_roster_count > 0 then
+        raise exception 'The configured jury scale leaves participating juries too few eligible entries after self-voting is blocked'
+          using errcode = '23514';
+      end if;
+    end if;
+  else
+    select count(*)::integer
+    into v_participant_count
+    from public.participants participant
+    where participant.show_id = p_show_id
+      and (
+        participant.participation_status is null
+        or participant.participation_status = 'confirmed'
+      );
   end if;
 
   select coalesce((
@@ -135,6 +213,10 @@ begin
     'expectedVersion', v_version,
     'submittedBallots', v_submitted,
     'otherOpenWindows', v_other_open,
+    'juryEnabled', v_jury_enabled,
+    'allowSelfVote', v_allow_self,
+    'participantCount', v_participant_count,
+    'juryPointCount', v_point_count,
     'alreadyApplied', v_current_status = p_status
   );
 end

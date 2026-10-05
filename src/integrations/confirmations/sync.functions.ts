@@ -17,6 +17,7 @@ type ConfirmationSnapshot = {
   id: string;
   country: string;
   participating: boolean;
+  updated_at?: string | null;
   selection_method?: string | null;
   reveal_date_type?: string | null;
   reveal_exact_date?: string | null;
@@ -46,7 +47,12 @@ type PublicationDecision = {
 
 export type ConfirmationSolarisSyncResult = {
   ok: boolean;
-  status: "synced" | "unmatched_country" | "unmatched_edition";
+  status:
+    | "synced"
+    | "unmatched_country"
+    | "unmatched_edition"
+    | "canonical_newer"
+    | "canonical_owned";
   editionId?: string;
   countryId?: string;
   participantId?: string;
@@ -206,334 +212,470 @@ async function upsertLink(
   if (error) throw new Error(error.message);
 }
 
-export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST" })
-  .inputValidator((data: { snapshot: unknown }) => ({ snapshot: assertSnapshot(data?.snapshot) }))
-  .handler(async ({ data }) => {
-    await requireSolarisOrganizerServer();
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const db = supabaseAdmin as any;
-    const snapshot = data.snapshot;
-    const confirmationPublication = deriveConfirmationEntryPublication(snapshot);
+async function loadConfirmationSnapshotForSolarisSync(
+  db: any,
+  submissionId: string,
+): Promise<ConfirmationSnapshot> {
+  const submissionResult = await db
+    .from("submissions")
+    .select(
+      "id,edition_id,country,participating,updated_at,selection_method,reveal_date_type,reveal_exact_date,reveal_approximate_text,nf_result_date_type,nf_result_exact_date,nf_result_approximate_text",
+    )
+    .eq("id", submissionId)
+    .maybeSingle();
+  if (submissionResult.error) throw new Error(submissionResult.error.message);
+  if (!submissionResult.data) throw new Error("Confirmation submission not found.");
 
-    const editionNumber = Number(snapshot.edition?.edition_number);
-    if (!Number.isInteger(editionNumber)) {
-      const result: ConfirmationSolarisSyncResult = {
-        ok: false,
-        status: "unmatched_edition",
-        message: "The confirmation is not attached to a numbered Solaris edition.",
-      };
-      await recordSyncEvent(db, snapshot, result, result.message);
-      return result;
-    }
-
-    const { data: edition, error: editionError } = await db
+  const submission = submissionResult.data;
+  const [editionResult, internalResult, nationalFinalResult] = await Promise.all([
+    db
       .from("editions")
       .select("id,name,edition_number")
-      .eq("edition_number", editionNumber)
-      .maybeSingle();
-    if (editionError) throw new Error(editionError.message);
-    if (!edition) {
-      const result: ConfirmationSolarisSyncResult = {
-        ok: false,
-        status: "unmatched_edition",
-        message: `SSC${editionNumber} does not exist in Solaris Studio.`,
-      };
-      await recordSyncEvent(db, snapshot, result, result.message);
-      return result;
-    }
+      .eq("id", submission.edition_id)
+      .maybeSingle(),
+    db
+      .from("internal_entries")
+      .select("id,artist,song_title,song_url,review_status")
+      .eq("submission_id", submissionId)
+      .maybeSingle(),
+    db
+      .from("national_finals")
+      .select("id,nf_name,winning_entry_id")
+      .eq("submission_id", submissionId)
+      .maybeSingle(),
+  ]);
 
-    const { data: countries, error: countriesError } = await db
-      .from("countries")
-      .select("id,name,short_code,flag_image,region")
-      .order("name");
-    if (countriesError) throw new Error(countriesError.message);
+  if (editionResult.error) throw new Error(editionResult.error.message);
+  if (internalResult.error) throw new Error(internalResult.error.message);
+  if (nationalFinalResult.error) throw new Error(nationalFinalResult.error.message);
 
-    const wantedCountry = normalizeName(snapshot.country);
-    const country = (countries ?? []).find(
-      (candidate: any) => normalizeName(String(candidate.name ?? "")) === wantedCountry,
-    );
-
-    if (!country) {
-      const result: ConfirmationSolarisSyncResult = {
-        ok: false,
-        status: "unmatched_country",
-        editionId: edition.id,
-        message: `No Solaris country matches “${snapshot.country}”.`,
-      };
-      await recordSyncEvent(db, snapshot, result, result.message);
-      return result;
-    }
-
-    const entityLookup = await db
-      .from("contest_entities")
-      .select("id")
-      .eq("edition_id", edition.id)
-      .eq("country_id", country.id)
-      .maybeSingle();
-    if (entityLookup.error) throw new Error(entityLookup.error.message);
-    let entity = entityLookup.data;
-
-    if (!entity) {
-      const inserted = await db
-        .from("contest_entities")
-        .insert({
-          edition_id: edition.id,
-          entity_type: "global",
-          country_id: country.id,
-          display_name: country.name,
-          abbreviation: country.short_code,
-          flag_image: country.flag_image,
-          region: country.region,
-        })
-        .select("id")
-        .single();
-      if (inserted.error) throw new Error(inserted.error.message);
-      entity = inserted.data;
-    }
-
-    const participationStatus = snapshot.participating ? "confirmed" : "withdrawn";
-
-    const participantLookup = await db
-      .from("participants")
-      .select("id,publication_status,scheduled_publish_at,published_at,publication_source,publication_overridden")
-      .eq("edition_id", edition.id)
-      .eq("country_id", country.id)
-      .is("show_id", null)
-      .maybeSingle();
-    if (participantLookup.error) throw new Error(participantLookup.error.message);
-    let participant = participantLookup.data;
-    const publicationWasPublic = participant?.publication_status === "published";
-
-    const confirmationPublicationFields = {
-      publication_status: confirmationPublication.status,
-      scheduled_publish_at: confirmationPublication.scheduledAt,
-      published_at:
-        confirmationPublication.status === "published"
-          ? participant?.published_at ?? confirmationPublication.publishedAt
-          : null,
-      publication_source: "confirmation",
-      publication_overridden: false,
+  let nationalFinal: ConfirmationSnapshot["national_final"] = null;
+  if (nationalFinalResult.data) {
+    const entriesResult = await db
+      .from("national_final_entries")
+      .select("id,artist,song_title,song_url,review_status,removed")
+      .eq("national_final_id", nationalFinalResult.data.id)
+      .order("position", { ascending: true });
+    if (entriesResult.error) throw new Error(entriesResult.error.message);
+    nationalFinal = {
+      id: nationalFinalResult.data.id,
+      nf_name: nationalFinalResult.data.nf_name,
+      winning_entry_id: nationalFinalResult.data.winning_entry_id,
+      entries: entriesResult.data ?? [],
     };
+  }
 
-    if (!participant) {
-      const inserted = await db
-        .from("participants")
-        .insert({
-          edition_id: edition.id,
-          country_id: country.id,
-          contest_entity_id: entity.id,
-          show_id: null,
-          semi_final: "final",
-          participation_status: participationStatus,
-          notes: "Synced from Confirmations",
-          ...confirmationPublicationFields,
-        })
-        .select("id,publication_status,scheduled_publish_at,published_at,publication_source,publication_overridden")
-        .single();
-      if (inserted.error) throw new Error(inserted.error.message);
-      participant = inserted.data;
-    } else {
-      const payload: Record<string, unknown> = {
-        contest_entity_id: entity.id,
-        participation_status: participationStatus,
-      };
-      if (!participant.publication_overridden) Object.assign(payload, confirmationPublicationFields);
+  return assertSnapshot({
+    id: submission.id,
+    country: submission.country,
+    participating: submission.participating,
+    updated_at: submission.updated_at,
+    selection_method: submission.selection_method,
+    reveal_date_type: submission.reveal_date_type,
+    reveal_exact_date: submission.reveal_exact_date,
+    reveal_approximate_text: submission.reveal_approximate_text,
+    nf_result_date_type: submission.nf_result_date_type,
+    nf_result_exact_date: submission.nf_result_exact_date,
+    nf_result_approximate_text: submission.nf_result_approximate_text,
+    edition: editionResult.data,
+    internal_entry: internalResult.data,
+    national_final: nationalFinal,
+  });
+}
 
-      const { error } = await db
-        .from("participants")
-        .update(payload)
-        .eq("id", participant.id);
-      if (error) throw new Error(error.message);
-    }
+async function syncConfirmationSnapshotToSolarisInternal(
+  snapshot: ConfirmationSnapshot,
+): Promise<ConfirmationSolarisSyncResult> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const db = supabaseAdmin as any;
+  const confirmationPublication = deriveConfirmationEntryPublication(snapshot);
 
-    const statusPayload: Record<string, unknown> = { participation_status: participationStatus };
-    if (!participant.publication_overridden) Object.assign(statusPayload, confirmationPublicationFields);
+  const editionNumber = Number(snapshot.edition?.edition_number);
+  if (!Number.isInteger(editionNumber)) {
+    const result: ConfirmationSolarisSyncResult = {
+      ok: false,
+      status: "unmatched_edition",
+      message: "The confirmation is not attached to a numbered Solaris edition.",
+    };
+    await recordSyncEvent(db, snapshot, result, result.message);
+    return result;
+  }
 
-    let statusQuery = db
+  const { data: edition, error: editionError } = await db
+    .from("editions")
+    .select("id,name,edition_number")
+    .eq("edition_number", editionNumber)
+    .maybeSingle();
+  if (editionError) throw new Error(editionError.message);
+  if (!edition) {
+    const result: ConfirmationSolarisSyncResult = {
+      ok: false,
+      status: "unmatched_edition",
+      message: `SSC${editionNumber} does not exist in Solaris Studio.`,
+    };
+    await recordSyncEvent(db, snapshot, result, result.message);
+    return result;
+  }
+
+  const { data: countries, error: countriesError } = await db
+    .from("countries")
+    .select("id,name,short_code,flag_image,region")
+    .order("name");
+  if (countriesError) throw new Error(countriesError.message);
+
+  const wantedCountry = normalizeName(snapshot.country);
+  const country = (countries ?? []).find(
+    (candidate: any) => normalizeName(String(candidate.name ?? "")) === wantedCountry,
+  );
+
+  if (!country) {
+    const result: ConfirmationSolarisSyncResult = {
+      ok: false,
+      status: "unmatched_country",
+      editionId: edition.id,
+      message: `No Solaris country matches “${snapshot.country}”.`,
+    };
+    await recordSyncEvent(db, snapshot, result, result.message);
+    return result;
+  }
+
+  const intendedCanonicalStatus = snapshot.participating ? "confirmed" : "withdrawn";
+  const canonicalGuard = await db
+    .from("entries")
+    .select("id,source,status,updated_at")
+    .eq("edition_id", edition.id)
+    .eq("country_id", country.id)
+    .maybeSingle();
+  if (canonicalGuard.error) throw new Error(canonicalGuard.error.message);
+
+  if (canonicalGuard.data && canonicalGuard.data.source !== "confirmations") {
+    const result: ConfirmationSolarisSyncResult = {
+      ok: false,
+      status: "canonical_owned",
+      editionId: edition.id,
+      countryId: country.id,
+      entryId: canonicalGuard.data.id,
+      message:
+        "Solaris already owns this canonical entry outside Confirmations. Automatic reconciliation was stopped instead of overwriting it.",
+    };
+    await recordSyncEvent(db, snapshot, result, result.message);
+    return result;
+  }
+
+  const snapshotUpdatedAt = Date.parse(snapshot.updated_at ?? "");
+  const canonicalUpdatedAt = Date.parse(canonicalGuard.data?.updated_at ?? "");
+  const canonicalHasFinalLifecycle = ["confirmed", "withdrawn"].includes(
+    String(canonicalGuard.data?.status ?? ""),
+  );
+  if (
+    canonicalGuard.data &&
+    canonicalHasFinalLifecycle &&
+    canonicalGuard.data.status !== intendedCanonicalStatus &&
+    Number.isFinite(snapshotUpdatedAt) &&
+    Number.isFinite(canonicalUpdatedAt) &&
+    canonicalUpdatedAt > snapshotUpdatedAt
+  ) {
+    const result: ConfirmationSolarisSyncResult = {
+      ok: false,
+      status: "canonical_newer",
+      editionId: edition.id,
+      countryId: country.id,
+      entryId: canonicalGuard.data.id,
+      message:
+        "Solaris has a newer final participation state than this Confirmation response. Automatic reconciliation was stopped to avoid reversing a later organizer decision.",
+    };
+    await recordSyncEvent(db, snapshot, result, result.message);
+    return result;
+  }
+
+  const entityLookup = await db
+    .from("contest_entities")
+    .select("id")
+    .eq("edition_id", edition.id)
+    .eq("country_id", country.id)
+    .maybeSingle();
+  if (entityLookup.error) throw new Error(entityLookup.error.message);
+  let entity = entityLookup.data;
+
+  if (!entity) {
+    const inserted = await db
+      .from("contest_entities")
+      .insert({
+        edition_id: edition.id,
+        entity_type: "global",
+        country_id: country.id,
+        display_name: country.name,
+        abbreviation: country.short_code,
+        flag_image: country.flag_image,
+        region: country.region,
+      })
+      .select("id")
+      .single();
+    if (inserted.error) throw new Error(inserted.error.message);
+    entity = inserted.data;
+  }
+
+  const participationStatus = snapshot.participating ? "confirmed" : "withdrawn";
+
+  const participantLookup = await db
+    .from("participants")
+    .select("id,publication_status,scheduled_publish_at,published_at,publication_source,publication_overridden")
+    .eq("edition_id", edition.id)
+    .eq("country_id", country.id)
+    .is("show_id", null)
+    .maybeSingle();
+  if (participantLookup.error) throw new Error(participantLookup.error.message);
+  let participant = participantLookup.data;
+  const publicationWasPublic = participant?.publication_status === "published";
+
+  const confirmationPublicationFields = {
+    publication_status: confirmationPublication.status,
+    scheduled_publish_at: confirmationPublication.scheduledAt,
+    published_at:
+      confirmationPublication.status === "published"
+        ? participant?.published_at ?? confirmationPublication.publishedAt
+        : null,
+    publication_source: "confirmation",
+    publication_overridden: false,
+  };
+
+  if (!participant) {
+    const inserted = await db
       .from("participants")
-      .update(statusPayload)
-      .eq("edition_id", edition.id)
-      .eq("country_id", country.id);
-    if (!participant.publication_overridden) statusQuery = statusQuery.eq("publication_overridden", false);
-    const { error: statusError } = await statusQuery;
-    if (statusError) throw new Error(statusError.message);
-
-    let officialEntry: ConfirmationReviewEntry | null = null;
-    if (
-      snapshot.selection_method === "internal" &&
-      snapshot.internal_entry?.review_status === "accepted" &&
-      cleanText(snapshot.internal_entry.artist) &&
-      cleanText(snapshot.internal_entry.song_title)
-    ) {
-      officialEntry = snapshot.internal_entry;
-    }
-
-    if (snapshot.selection_method === "national_final" && snapshot.national_final?.winning_entry_id) {
-      const winner = (snapshot.national_final.entries ?? []).find(
-        (entry) => entry.id === snapshot.national_final?.winning_entry_id,
-      );
-      if (
-        winner &&
-        winner.review_status === "accepted" &&
-        !winner.removed &&
-        cleanText(winner.artist) &&
-        cleanText(winner.song_title)
-      ) {
-        officialEntry = winner;
-      }
-    }
-
-    const { data: existingEntry, error: existingEntryError } = await db
-      .from("entries")
-      .select("id,source,source_ref,artist,song_title,status")
-      .eq("edition_id", edition.id)
-      .eq("country_id", country.id)
-      .maybeSingle();
-    if (existingEntryError) throw new Error(existingEntryError.message);
-
-    let canonicalEntry = existingEntry;
-    if (officialEntry) {
-      const entryPayload = {
+      .insert({
         edition_id: edition.id,
         country_id: country.id,
         contest_entity_id: entity.id,
-        artist: cleanText(officialEntry.artist),
-        song_title: cleanText(officialEntry.song_title),
-        song_url: cleanText(officialEntry.song_url),
-        status: snapshot.participating ? "confirmed" : "withdrawn",
-        selection_method: cleanText(snapshot.selection_method),
-        source: "confirmations",
-        source_ref: officialEntry.id ?? snapshot.id,
-        metadata: {
-          confirmation_submission_id: snapshot.id,
-          confirmation_edition_id: snapshot.edition?.id ?? null,
-          national_final_id: snapshot.national_final?.id ?? null,
-          national_final_name: snapshot.national_final?.nf_name ?? null,
-          reveal_date_type: snapshot.reveal_date_type ?? null,
-          reveal_exact_date: snapshot.reveal_exact_date ?? null,
-          nf_result_date_type: snapshot.nf_result_date_type ?? null,
-          nf_result_exact_date: snapshot.nf_result_exact_date ?? null,
-        },
-        updated_at: new Date().toISOString(),
-      };
+        show_id: null,
+        semi_final: "final",
+        participation_status: participationStatus,
+        notes: "Synced from Confirmations",
+        ...confirmationPublicationFields,
+      })
+      .select("id,publication_status,scheduled_publish_at,published_at,publication_source,publication_overridden")
+      .single();
+    if (inserted.error) throw new Error(inserted.error.message);
+    participant = inserted.data;
+  } else {
+    const payload: Record<string, unknown> = {
+      contest_entity_id: entity.id,
+      participation_status: participationStatus,
+    };
+    if (!participant.publication_overridden) Object.assign(payload, confirmationPublicationFields);
 
-      const upserted = await db
-        .from("entries")
-        .upsert(entryPayload, { onConflict: "edition_id,country_id" })
-        .select("id")
-        .single();
-      if (upserted.error) throw new Error(upserted.error.message);
-      canonicalEntry = upserted.data;
+    const { error } = await db
+      .from("participants")
+      .update(payload)
+      .eq("id", participant.id);
+    if (error) throw new Error(error.message);
+  }
 
+  const statusPayload: Record<string, unknown> = { participation_status: participationStatus };
+  if (!participant.publication_overridden) Object.assign(statusPayload, confirmationPublicationFields);
+
+  let statusQuery = db
+    .from("participants")
+    .update(statusPayload)
+    .eq("edition_id", edition.id)
+    .eq("country_id", country.id);
+  if (!participant.publication_overridden) statusQuery = statusQuery.eq("publication_overridden", false);
+  const { error: statusError } = await statusQuery;
+  if (statusError) throw new Error(statusError.message);
+
+  let officialEntry: ConfirmationReviewEntry | null = null;
+  if (
+    snapshot.selection_method === "internal" &&
+    snapshot.internal_entry?.review_status === "accepted" &&
+    cleanText(snapshot.internal_entry.artist) &&
+    cleanText(snapshot.internal_entry.song_title)
+  ) {
+    officialEntry = snapshot.internal_entry;
+  }
+
+  if (snapshot.selection_method === "national_final" && snapshot.national_final?.winning_entry_id) {
+    const winner = (snapshot.national_final.entries ?? []).find(
+      (entry) => entry.id === snapshot.national_final?.winning_entry_id,
+    );
+    if (
+      winner &&
+      winner.review_status === "accepted" &&
+      !winner.removed &&
+      cleanText(winner.artist) &&
+      cleanText(winner.song_title)
+    ) {
+      officialEntry = winner;
+    }
+  }
+
+  const { data: existingEntry, error: existingEntryError } = await db
+    .from("entries")
+    .select("id,source,source_ref,artist,song_title,status")
+    .eq("edition_id", edition.id)
+    .eq("country_id", country.id)
+    .maybeSingle();
+  if (existingEntryError) throw new Error(existingEntryError.message);
+
+  let canonicalEntry = existingEntry;
+  if (officialEntry) {
+    const entryPayload = {
+      edition_id: edition.id,
+      country_id: country.id,
+      contest_entity_id: entity.id,
+      artist: cleanText(officialEntry.artist),
+      song_title: cleanText(officialEntry.song_title),
+      song_url: cleanText(officialEntry.song_url),
+      status: snapshot.participating ? "confirmed" : "withdrawn",
+      selection_method: cleanText(snapshot.selection_method),
+      source: "confirmations",
+      source_ref: officialEntry.id ?? snapshot.id,
+      metadata: {
+        confirmation_submission_id: snapshot.id,
+        confirmation_edition_id: snapshot.edition?.id ?? null,
+        national_final_id: snapshot.national_final?.id ?? null,
+        national_final_name: snapshot.national_final?.nf_name ?? null,
+        reveal_date_type: snapshot.reveal_date_type ?? null,
+        reveal_exact_date: snapshot.reveal_exact_date ?? null,
+        nf_result_date_type: snapshot.nf_result_date_type ?? null,
+        nf_result_exact_date: snapshot.nf_result_exact_date ?? null,
+      },
+      updated_at: new Date().toISOString(),
+    };
+
+    const upserted = await db
+      .from("entries")
+      .upsert(entryPayload, { onConflict: "edition_id,country_id" })
+      .select("id")
+      .single();
+    if (upserted.error) throw new Error(upserted.error.message);
+    canonicalEntry = upserted.data;
+
+    const { error: compatibilityError } = await db
+      .from("participants")
+      .update({
+        artist: entryPayload.artist,
+        song: entryPayload.song_title,
+      })
+      .eq("edition_id", edition.id)
+      .eq("country_id", country.id);
+    if (compatibilityError) throw new Error(compatibilityError.message);
+
+    if (
+      !participant.publication_overridden &&
+      confirmationPublication.status === "published" &&
+      !publicationWasPublic
+    ) {
+      await db.rpc("emit_entry_published_event", {
+        _edition_id: edition.id,
+        _country_id: country.id,
+      });
+    }
+  } else if (!existingEntry || existingEntry.source === "confirmations") {
+    const pendingPayload = {
+      edition_id: edition.id,
+      country_id: country.id,
+      contest_entity_id: entity.id,
+      artist: null,
+      song_title: null,
+      song_url: null,
+      status: snapshot.participating ? "pending" : "withdrawn",
+      selection_method: cleanText(snapshot.selection_method),
+      source: "confirmations",
+      source_ref: snapshot.id,
+      metadata: {
+        confirmation_submission_id: snapshot.id,
+        confirmation_edition_id: snapshot.edition?.id ?? null,
+        awaiting_official_entry: true,
+        reveal_date_type: snapshot.reveal_date_type ?? null,
+        reveal_exact_date: snapshot.reveal_exact_date ?? null,
+        nf_result_date_type: snapshot.nf_result_date_type ?? null,
+        nf_result_exact_date: snapshot.nf_result_exact_date ?? null,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    const upserted = await db
+      .from("entries")
+      .upsert(pendingPayload, { onConflict: "edition_id,country_id" })
+      .select("id")
+      .single();
+    if (upserted.error) throw new Error(upserted.error.message);
+    canonicalEntry = upserted.data;
+
+    if (existingEntry?.source === "confirmations") {
       const { error: compatibilityError } = await db
         .from("participants")
-        .update({
-          artist: entryPayload.artist,
-          song: entryPayload.song_title,
-        })
+        .update({ artist: null, song: null })
         .eq("edition_id", edition.id)
         .eq("country_id", country.id);
       if (compatibilityError) throw new Error(compatibilityError.message);
-
-      if (
-        !participant.publication_overridden &&
-        confirmationPublication.status === "published" &&
-        !publicationWasPublic
-      ) {
-        await db.rpc("emit_entry_published_event", {
-          _edition_id: edition.id,
-          _country_id: country.id,
-        });
-      }
-    } else if (!existingEntry || existingEntry.source === "confirmations") {
-      const pendingPayload = {
-        edition_id: edition.id,
-        country_id: country.id,
-        contest_entity_id: entity.id,
-        artist: null,
-        song_title: null,
-        song_url: null,
-        status: snapshot.participating ? "pending" : "withdrawn",
-        selection_method: cleanText(snapshot.selection_method),
-        source: "confirmations",
-        source_ref: snapshot.id,
-        metadata: {
-          confirmation_submission_id: snapshot.id,
-          confirmation_edition_id: snapshot.edition?.id ?? null,
-          awaiting_official_entry: true,
-          reveal_date_type: snapshot.reveal_date_type ?? null,
-          reveal_exact_date: snapshot.reveal_exact_date ?? null,
-          nf_result_date_type: snapshot.nf_result_date_type ?? null,
-          nf_result_exact_date: snapshot.nf_result_exact_date ?? null,
-        },
-        updated_at: new Date().toISOString(),
-      };
-      const upserted = await db
-        .from("entries")
-        .upsert(pendingPayload, { onConflict: "edition_id,country_id" })
-        .select("id")
-        .single();
-      if (upserted.error) throw new Error(upserted.error.message);
-      canonicalEntry = upserted.data;
-
-      if (existingEntry?.source === "confirmations") {
-        const { error: compatibilityError } = await db
-          .from("participants")
-          .update({ artist: null, song: null })
-          .eq("edition_id", edition.id)
-          .eq("country_id", country.id);
-        if (compatibilityError) throw new Error(compatibilityError.message);
-      }
     }
+  }
 
-    if (!canonicalEntry) throw new Error("Could not resolve canonical entry");
+  if (!canonicalEntry) throw new Error("Could not resolve canonical entry");
 
+  await upsertLink(db, {
+    entityType: "edition",
+    solarisId: edition.id,
+    remoteId: String(snapshot.edition?.id ?? `ssc-${editionNumber}`),
+    editionId: edition.id,
+    metadata: { edition_number: editionNumber },
+  });
+  await upsertLink(db, {
+    entityType: "submission",
+    solarisId: participant.id,
+    remoteId: snapshot.id,
+    editionId: edition.id,
+    metadata: { country_id: country.id, country: country.name },
+  });
+  if (officialEntry?.id) {
     await upsertLink(db, {
-      entityType: "edition",
-      solarisId: edition.id,
-      remoteId: String(snapshot.edition?.id ?? `ssc-${editionNumber}`),
-      editionId: edition.id,
-      metadata: { edition_number: editionNumber },
-    });
-    await upsertLink(db, {
-      entityType: "submission",
-      solarisId: participant.id,
-      remoteId: snapshot.id,
+      entityType: "entry",
+      solarisId: canonicalEntry.id,
+      remoteId: officialEntry.id,
       editionId: edition.id,
       metadata: { country_id: country.id, country: country.name },
     });
-    if (officialEntry?.id) {
-      await upsertLink(db, {
-        entityType: "entry",
-        solarisId: canonicalEntry.id,
-        remoteId: officialEntry.id,
-        editionId: edition.id,
-        metadata: { country_id: country.id, country: country.name },
-      });
+  }
+
+  const result: ConfirmationSolarisSyncResult = {
+    ok: true,
+    status: "synced",
+    editionId: edition.id,
+    countryId: country.id,
+    participantId: participant.id,
+    entryId: canonicalEntry.id,
+    officialEntryKnown: Boolean(officialEntry),
+  };
+  await recordSyncEvent(db, snapshot, result);
+
+  try {
+    const { autoSyncDraftTelevotingRoundsForEditionServer } = await import(
+      "@/integrations/televoting/auto-sync.server"
+    );
+    const autoSync = await autoSyncDraftTelevotingRoundsForEditionServer(edition.id);
+    if (autoSync.failed.length) {
+      console.error("[Confirmations sync] Some Televoting draft rounds could not refresh", autoSync.failed);
     }
+  } catch (caught) {
+    console.error("[Confirmations sync] Televoting auto-sync unavailable", caught);
+  }
 
-    const result: ConfirmationSolarisSyncResult = {
-      ok: true,
-      status: "synced",
-      editionId: edition.id,
-      countryId: country.id,
-      participantId: participant.id,
-      entryId: canonicalEntry.id,
-      officialEntryKnown: Boolean(officialEntry),
-    };
-    await recordSyncEvent(db, snapshot, result);
+  return result;
+}
 
-    try {
-      const { autoSyncDraftTelevotingRoundsForEditionServer } = await import(
-        "@/integrations/televoting/auto-sync.server"
-      );
-      const autoSync = await autoSyncDraftTelevotingRoundsForEditionServer(edition.id);
-      if (autoSync.failed.length) {
-        console.error("[Confirmations sync] Some Televoting draft rounds could not refresh", autoSync.failed);
-      }
-    } catch (caught) {
-      console.error("[Confirmations sync] Televoting auto-sync unavailable", caught);
-    }
+export async function syncConfirmationSubmissionToSolarisInternal(
+  submissionId: string,
+): Promise<ConfirmationSolarisSyncResult> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const db = supabaseAdmin as any;
+  const snapshot = await loadConfirmationSnapshotForSolarisSync(db, submissionId);
+  return syncConfirmationSnapshotToSolarisInternal(snapshot);
+}
 
-    return result;
+export const syncConfirmationSnapshotToSolaris = createServerFn({ method: "POST" })
+  .inputValidator((data: { snapshot: unknown }) => ({
+    snapshot: assertSnapshot(data?.snapshot),
+  }))
+  .handler(async ({ data }) => {
+    await requireSolarisOrganizerServer();
+    return syncConfirmationSnapshotToSolarisInternal(data.snapshot);
   });
