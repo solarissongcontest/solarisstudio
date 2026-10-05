@@ -78,6 +78,15 @@ describe("signup address budget", () => {
   });
 });
 
+describe("show-scoped Organizer reminders", () => {
+  it("authorizes show-only rows through the show's edition instead of requiring global edition.manage", () => {
+    const migration = source("supabase/migrations/20261005153104_pr450_remaining_review_boundaries.sql");
+    expect(migration).toContain("when edition_id is not null then public.studio2_access_allowed('edition.manage', edition_id, true)");
+    expect(migration).toContain("when show_id is not null then private.studio2_show_access_allowed('edition.manage', show_id, true)");
+    expect(migration).toContain("else public.studio2_access_allowed('edition.manage', null, true)");
+    expect(migration).not.toContain("public.studio2_access_allowed('edition.manage', edition_id, true)\n  and (show_id is null");
+  });
+});
 
 describe("navigation hydration boundary", () => {
   it("keeps the server-rendered drawer trigger disabled until its handler is attached", () => {
