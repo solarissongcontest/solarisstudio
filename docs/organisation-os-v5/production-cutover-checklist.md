@@ -38,7 +38,7 @@ Required chain starts with:
 16. Apply `20261004222500_push_delivery_receipts.sql` before treating System Operations receipt diagnostics as supported.
 17. Apply `20261004230000_organizer_task_runtime_reconciliation.sql`. This is the first migration that publishes the frontend-supported `organisation-os-v5-20261004-complete` contract.
 18. Continue through `20261005043000_pr450_review_blocker_repairs.sql`; it hardens confirmation destination moves, jury/result serialization, upload authorization, maintenance read-only enforcement and other review-blocking invariants.
-19. Apply `20261005050000_restore_confirmation_sync_task_reconciliation.sql` last. This is the final Organizer Task wrapper and must retain system-job, jury-ballot-review, repaired jury-missing-ballot and Confirmation-sync recovery sources together.
+19. Apply `20261005043500_pr450_complete_task_wrapper.sql` last. This is the final Organizer Task wrapper and must retain system-job, jury-ballot-review, repaired jury-missing-ballot and Confirmation-sync recovery sources together.
 
 Do not reorder these migrations just to make a single page green. A production cutover is complete only after the latest repository migration has applied successfully.
 
