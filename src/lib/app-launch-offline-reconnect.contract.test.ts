@@ -13,15 +13,17 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     expect(launch).toContain("getAppLaunchDestination");
     expect(launch).toContain("supabase.auth");
     expect(launch).toContain(".getSession()");
-    expect(launch).toContain("APP_LAUNCH_SESSION_TIMEOUT_MS");
+    expect(launch).toContain("const APP_LAUNCH_SESSION_TIMEOUT_MS = 1_500;");
+    expect(launch).toContain("const APP_LAUNCH_HARD_EXIT_MS = 2_500;");
     expect(launch).toContain("Promise.race");
     expect(launch).toContain('"cold_launch_session_timeout"');
     expect(launch).toContain('pathname: "/"');
     expect(launch).toContain('window.location.pathname !== "/app-launch"');
     expect(launch).toContain("window.location.replace(targetHref)");
-    expect(launch).toContain("}, 1_000);");
+    expect(launch).toContain('if (!isAppMode)');
+    expect(launch).toContain('leaveLaunchRoute("/")');
     expect(launch).toContain("markAppNavigationRestore");
-    expect(launch).toContain("replace: true");
+    expect(launch).toContain("leaveLaunchRoute(targetHref)");
   });
 
   it("hydrates app connectivity from deterministic HTML before browser state is read", () => {
