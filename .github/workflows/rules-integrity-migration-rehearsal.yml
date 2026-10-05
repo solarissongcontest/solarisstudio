@@ -11,6 +11,7 @@ on:
       - "supabase/functions/integrity-evidence-lifecycle/**"
       - ".github/scripts/rules-integrity-security-rehearsal.sh"
       - ".github/scripts/run-rules-integrity-security-rehearsal.sh"
+      - ".github/scripts/pr450-deadline-scope-rehearsal.sh"
       - ".github/workflows/rules-integrity-migration-rehearsal.yml"
   workflow_dispatch:
 
@@ -58,6 +59,10 @@ jobs:
       - name: Run live Rules and Integrity adversarial rehearsal
         shell: bash
         run: bash .github/scripts/run-rules-integrity-security-rehearsal.sh
+
+      - name: Verify show-scoped Organizer reminder authorization
+        shell: bash
+        run: bash .github/scripts/pr450-deadline-scope-rehearsal.sh
 
       - name: Print local Evidence Edge Function log on failure
         if: failure()
@@ -114,6 +119,12 @@ jobs:
           cd /tmp/solaris-main
           supabase migration up --local --include-all
           supabase migration list --local
+
+      - name: Verify show-scoped reminder authorization after upgrade
+        shell: bash
+        run: |
+          cd /tmp/solaris-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/pr450-deadline-scope-rehearsal.sh"
 
       - name: Stop local Supabase stack
         if: always()
