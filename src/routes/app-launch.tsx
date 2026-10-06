@@ -53,21 +53,14 @@ export const Route = createFileRoute("/app-launch")({
   component: AppLaunchPage,
 });
 
-function clearPreHydrationEscape() {
-  const launchWindow = window as Window & {
-    __solarisAppLaunchEscapeTimer?: number;
-    __solarisAppLaunchStartedAt?: number;
-  };
-  if (typeof launchWindow.__solarisAppLaunchEscapeTimer === "number") {
-    window.clearTimeout(launchWindow.__solarisAppLaunchEscapeTimer);
-  }
-  delete launchWindow.__solarisAppLaunchEscapeTimer;
-  delete launchWindow.__solarisAppLaunchStartedAt;
-}
-
 function leaveLaunchRoute(targetHref: string) {
   if (window.location.pathname !== "/app-launch") return;
-  clearPreHydrationEscape();
+
+  // Keep the pre-hydration absolute escape armed until this document actually
+  // leaves /app-launch. Calling location.replace only requests navigation; it
+  // can still be delayed by a busy browser/event loop. The watchdog re-checks
+  // pathname before using the safe "/" fallback, so it is harmless once the
+  // preferred navigation has committed and is essential if it has not.
   window.location.replace(targetHref);
 }
 
