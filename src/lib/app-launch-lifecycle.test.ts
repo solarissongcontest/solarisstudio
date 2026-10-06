@@ -18,7 +18,7 @@ describe("app launch lifecycle", () => {
 
   it("bounds a hanging auth lookup without waiting for it to settle", async () => {
     const pending = new Promise<boolean>(() => undefined);
-    let timeoutCallback: (() => void) | null = null;
+    const timeoutCallbacks: Array<() => void> = [];
     let cleared = false;
     const timerHandle = 1 as unknown as ReturnType<typeof globalThis.setTimeout>;
 
@@ -27,7 +27,7 @@ describe("app launch lifecycle", () => {
       {
         setTimeout: (callback, delay) => {
           expect(delay).toBe(APP_LAUNCH_SESSION_TIMEOUT_MS);
-          timeoutCallback = callback;
+          timeoutCallbacks.push(callback);
           return timerHandle;
         },
         clearTimeout: (handle) => {
@@ -37,8 +37,8 @@ describe("app launch lifecycle", () => {
       },
     );
 
-    expect(timeoutCallback).not.toBeNull();
-    timeoutCallback?.();
+    expect(timeoutCallbacks).toHaveLength(1);
+    timeoutCallbacks[0]!();
 
     await expect(resultPromise).resolves.toEqual({ signedIn: false, source: "timeout" });
     expect(cleared).toBe(true);
