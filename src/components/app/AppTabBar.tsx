@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Compass, Home, Trophy, UserRound, Vote, type LucideIcon } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
 import {
@@ -97,7 +97,11 @@ export function AppTabBar({
     return () => media.removeEventListener?.("change", refresh);
   }, [expandTabBar]);
 
-  useEffect(() => {
+  // Publish the obstruction before paint. A normal effect used to reset the
+  // shared CSS variable to 0 during every collapsed/path dependency cleanup,
+  // creating a one-frame loss of reserved scroll space. On narrow screens that
+  // was enough to leave the final content underneath the floating bar.
+  useLayoutEffect(() => {
     const root = document.documentElement;
     const bar = barRef.current;
 
@@ -132,10 +136,20 @@ export function AppTabBar({
       observer?.disconnect();
       window.removeEventListener("resize", updateMetrics);
       window.visualViewport?.removeEventListener("resize", updateMetrics);
-      root.style.setProperty("--solaris-app-bottom-obstruction", "0px");
-      root.style.setProperty("--solaris-bottom-obstruction", "0px");
+      // Do not zero the obstruction here. Dependency changes immediately
+      // install the next measurement and clearing in between causes geometry
+      // flicker. True unmount cleanup below owns the reset.
     };
   }, [collapsed, railMode, tabbarMode, pathname]);
+
+  useEffect(
+    () => () => {
+      const root = document.documentElement;
+      root.style.setProperty("--solaris-app-bottom-obstruction", "0px");
+      root.style.setProperty("--solaris-bottom-obstruction", "0px");
+    },
+    [],
+  );
 
   const activeArea: PrimaryArea = routeArea;
   const activeIndex = Math.max(
@@ -190,8 +204,7 @@ export function AppTabBar({
     );
   };
 
-  const clearDrag = useCallback(() => {
-    endHold();
+  const resetDragDom = useCallback(() => {
     const material = materialRef.current;
     material?.style.setProperty("--solaris-tab-drag-x", "0px");
     material?.style.setProperty("--solaris-tab-drag-scale-x", "1");
@@ -200,9 +213,14 @@ export function AppTabBar({
     material?.style.setProperty("--solaris-tabbar-pull-radius", "0px");
     material?.removeAttribute("data-drag-direction");
     dragState.current = null;
+  }, []);
+
+  const clearDrag = useCallback(() => {
+    endHold();
+    resetDragDom();
     setDragging(false);
     setDragPreviewIndex(null);
-  }, [endHold]);
+  }, [endHold, resetDragDom]);
 
   useEffect(() => {
     const resetInterruptedGesture = () => clearDrag();
@@ -218,9 +236,11 @@ export function AppTabBar({
       window.removeEventListener("blur", resetInterruptedGesture);
       window.removeEventListener("orientationchange", resetInterruptedGesture);
       document.removeEventListener("visibilitychange", resetWhenHidden);
-      clearDrag();
+      // Unmount/StrictMode teardown must not set React state. The press-hold
+      // hook cancels its own timer; only imperative DOM/ref cleanup is needed.
+      resetDragDom();
     };
-  }, [clearDrag, pathname, searchStr]);
+  }, [clearDrag, pathname, resetDragDom, searchStr]);
 
   const startDrag = (
     event: ReactPointerEvent<HTMLAnchorElement>,
