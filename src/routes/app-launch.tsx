@@ -4,6 +4,10 @@ import { useEffect } from "react";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  APP_LAUNCH_ABSOLUTE_ESCAPE_MS,
+  resolveAppLaunchSession,
+} from "@/lib/app-launch-lifecycle";
+import {
   appEntryHref,
   appTabForPath,
   getAppLaunchDestination,
@@ -11,39 +15,33 @@ import {
 } from "@/lib/app-navigation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 
-const APP_LAUNCH_SESSION_TIMEOUT_MS = 1_500;
-const APP_LAUNCH_HARD_EXIT_MS = 2_500;
+const APP_LAUNCH_BOOTSTRAP_SCRIPT = `(() => {
+  try {
+    if (window.location.pathname !== "/app-launch") return;
+    const startedKey = "__solarisAppLaunchStartedAt";
+    const timerKey = "__solarisAppLaunchEscapeTimer";
+    const existingStarted = Number(window[startedKey]);
+    const startedAt = Number.isFinite(existingStarted) && existingStarted > 0
+      ? existingStarted
+      : Date.now();
+    window[startedKey] = startedAt;
 
-type AppLaunchSessionResolution = {
-  signedIn: boolean;
-  source: "local_session" | "timeout" | "error";
-};
+    const existingTimer = Number(window[timerKey]);
+    if (Number.isFinite(existingTimer) && existingTimer > 0) {
+      window.clearTimeout(existingTimer);
+    }
 
-async function resolveAppLaunchSession(): Promise<AppLaunchSessionResolution> {
-  let timeoutId: number | null = null;
-
-  const timeout = new Promise<AppLaunchSessionResolution>((resolve) => {
-    timeoutId = window.setTimeout(
-      () => resolve({ signedIn: false, source: "timeout" }),
-      APP_LAUNCH_SESSION_TIMEOUT_MS,
-    );
-  });
-
-  const session = supabase.auth
-    .getSession()
-    .then(({ data }) => ({
-      signedIn: Boolean(data.session?.user),
-      source: "local_session" as const,
-    }))
-    .catch(() => ({
-      signedIn: false,
-      source: "error" as const,
-    }));
-
-  const result = await Promise.race([session, timeout]);
-  if (timeoutId !== null) window.clearTimeout(timeoutId);
-  return result;
-}
+    const leave = () => {
+      if (window.location.pathname === "/app-launch") {
+        window.location.replace("/");
+      }
+    };
+    const remaining = Math.max(0, ${APP_LAUNCH_ABSOLUTE_ESCAPE_MS} - (Date.now() - startedAt));
+    window[timerKey] = window.setTimeout(leave, remaining);
+  } catch {
+    if (window.location.pathname === "/app-launch") window.location.replace("/");
+  }
+})();`;
 
 export const Route = createFileRoute("/app-launch")({
   head: () => ({
@@ -51,12 +49,30 @@ export const Route = createFileRoute("/app-launch")({
       { title: "Opening Solaris Studio…" },
       { name: "robots", content: "noindex, nofollow" },
     ],
+    // This route is a bootstrap trampoline, not application content. The
+    // absolute browser deadline executes from server-rendered head markup before
+    // React hydration, so a slow bundle, remount, auth hang or telemetry failure
+    // cannot make /app-launch a terminal URL.
+    scripts: [{ children: APP_LAUNCH_BOOTSTRAP_SCRIPT }],
   }),
   component: AppLaunchPage,
 });
 
+function clearPreHydrationEscape() {
+  const launchWindow = window as Window & {
+    __solarisAppLaunchEscapeTimer?: number;
+    __solarisAppLaunchStartedAt?: number;
+  };
+  if (typeof launchWindow.__solarisAppLaunchEscapeTimer === "number") {
+    window.clearTimeout(launchWindow.__solarisAppLaunchEscapeTimer);
+  }
+  delete launchWindow.__solarisAppLaunchEscapeTimer;
+  delete launchWindow.__solarisAppLaunchStartedAt;
+}
+
 function leaveLaunchRoute(targetHref: string) {
   if (window.location.pathname !== "/app-launch") return;
+  clearPreHydrationEscape();
   window.location.replace(targetHref);
 }
 
@@ -66,22 +82,17 @@ function AppLaunchPage() {
   useEffect(() => {
     let alive = true;
 
-    // /app-launch is an intermediary, never a stable screen. Keep this browser-
-    // level watchdog independent from auth, router state and telemetry so a
-    // stalled dependency cannot strand an installed PWA on the launch page.
-    const hardExitId = window.setTimeout(() => {
-      if (alive) leaveLaunchRoute("/");
-    }, APP_LAUNCH_HARD_EXIT_MS);
-
     if (!isAppMode) {
       leaveLaunchRoute("/");
       return () => {
         alive = false;
-        window.clearTimeout(hardExitId);
       };
     }
 
-    void resolveAppLaunchSession().then(({ signedIn, source }) => {
+    void resolveAppLaunchSession(async () => {
+      const { data } = await supabase.auth.getSession();
+      return Boolean(data.session?.user);
+    }).then(({ signedIn, source }) => {
       if (!alive) return;
 
       const target =
@@ -95,9 +106,11 @@ function AppLaunchPage() {
           : getAppLaunchDestination(signedIn);
       const targetHref = appEntryHref(target);
 
-      // Analytics must never gate the user-visible launch transition.
+      // Analytics is best-effort and deliberately synchronous from the launch
+      // controller's perspective. A telemetry promise/network stall is never
+      // awaited and therefore cannot gate navigation.
       try {
-        trackPublicUxEvent("app_cold_launch_restored", {
+        void trackPublicUxEvent("app_cold_launch_restored", {
           target: targetHref,
           metadata: {
             area: appTabForPath(target.pathname) ?? "app",
@@ -114,13 +127,14 @@ function AppLaunchPage() {
       }
 
       markAppNavigationRestore(target);
-      window.clearTimeout(hardExitId);
       leaveLaunchRoute(targetHref);
     });
 
     return () => {
       alive = false;
-      window.clearTimeout(hardExitId);
+      // Do not cancel the pre-hydration escape here. React can intentionally
+      // remount routes in development and during recovery; the absolute browser
+      // deadline is specifically what survives those lifecycle transitions.
     };
   }, [isAppMode]);
 
