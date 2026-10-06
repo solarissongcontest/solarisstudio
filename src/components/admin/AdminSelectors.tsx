@@ -157,6 +157,7 @@ export function AdminSelectors() {
           <label className="flex min-h-11 items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.035] px-3">
             <Search className="size-4 shrink-0 text-muted-foreground" />
             <input
+              aria-label="Search editions"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search edition, number or host city…"
