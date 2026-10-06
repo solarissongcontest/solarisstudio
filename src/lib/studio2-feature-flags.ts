@@ -11,9 +11,10 @@ export async function isStudio2FeatureEnabled(
   editionId?: string | null,
   client: FeatureFlagClient = supabase as unknown as FeatureFlagClient,
 ): Promise<boolean> {
+  const normalizedEditionId = editionId?.trim() || null;
   const { data, error } = await client.rpc('studio2_feature_enabled', {
     p_key: key,
-    p_edition_id: editionId ?? null,
+    p_edition_id: normalizedEditionId,
   });
   if (error) throw error;
   return data === true;
