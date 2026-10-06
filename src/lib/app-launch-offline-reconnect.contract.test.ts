@@ -8,22 +8,28 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
   it("routes only true installed-app launches through the restoration entry point", () => {
     const manifest = JSON.parse(source("public/site.webmanifest")) as { start_url?: string };
     const launch = source("src/routes/app-launch.tsx");
+    const lifecycle = source("src/lib/app-launch-lifecycle.ts");
     expect(manifest.start_url).toBe("/app-launch");
     expect(launch).toContain('createFileRoute("/app-launch")');
     expect(launch).toContain("getAppLaunchDestination");
     expect(launch).toContain("supabase.auth");
     expect(launch).toContain(".getSession()");
-    expect(launch).toContain("const APP_LAUNCH_SESSION_TIMEOUT_MS = 1_500;");
-    expect(launch).toContain("const APP_LAUNCH_HARD_EXIT_MS = 2_500;");
-    expect(launch).toContain("Promise.race");
+    expect(lifecycle).toContain("APP_LAUNCH_SESSION_TIMEOUT_MS = 1_500");
+    expect(lifecycle).toContain("APP_LAUNCH_ABSOLUTE_ESCAPE_MS = 3_000");
+    expect(lifecycle).toContain("Promise.race");
+    expect(launch).toContain("APP_LAUNCH_BOOTSTRAP_SCRIPT");
+    expect(launch).toContain('window.location.pathname !== "/app-launch"');
+    expect(launch).toContain('window.location.replace("/")');
+    expect(launch).toContain("__solarisAppLaunchStartedAt");
+    expect(launch).toContain("Math.max(0");
     expect(launch).toContain('"cold_launch_session_timeout"');
     expect(launch).toContain('pathname: "/"');
-    expect(launch).toContain('window.location.pathname !== "/app-launch"');
     expect(launch).toContain("window.location.replace(targetHref)");
     expect(launch).toContain('if (!isAppMode)');
     expect(launch).toContain('leaveLaunchRoute("/")');
     expect(launch).toContain("markAppNavigationRestore");
     expect(launch).toContain("leaveLaunchRoute(targetHref)");
+    expect(launch).not.toContain("APP_LAUNCH_HARD_EXIT_MS");
   });
 
   it("hydrates app connectivity from deterministic HTML before browser state is read", () => {
