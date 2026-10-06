@@ -45,6 +45,7 @@ function routeFile(route: string) {
 
 const adminNav = source("src/components/admin/admin-navigation.ts");
 const operationsPanel = source("src/components/MySolarisOperationsPanel.tsx");
+const authenticatedRoute = source("src/routes/_authenticated/route.tsx");
 const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
 
 describe("Studio 2 stabilization contract", () => {
@@ -199,10 +200,14 @@ describe("Studio 2 stabilization contract", () => {
   });
 
   it("keeps every authenticated Organizer route behind authoritative V2 access", () => {
-    expect(adminRoute).toContain("hasSolarisOrganizerAccess");
-    expect(adminRoute).not.toContain('.from("user_roles")');
-    expect(adminRoute).toContain('to: "/my-solaris"');
-    expect(adminRoute).toContain('notice: "organizer-access-required"');
-    expect(adminRoute).toContain("replace: true");
+    expect(authenticatedRoute).toContain("hasSolarisOrganizerAccess");
+    expect(authenticatedRoute).toContain('location.pathname === "/admin"');
+    expect(authenticatedRoute).toContain('location.pathname.startsWith("/admin/")');
+    expect(authenticatedRoute).not.toContain('.from("user_roles")');
+    expect(authenticatedRoute).toContain('to: "/my-solaris"');
+    expect(authenticatedRoute).toContain('notice: "organizer-access-required"');
+    expect(authenticatedRoute).toContain("replace: true");
+    expect(adminRoute).not.toContain("hasSolarisOrganizerAccess");
+    expect(adminRoute).not.toContain("beforeLoad:");
   });
 });
