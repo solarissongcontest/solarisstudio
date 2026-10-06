@@ -1,9 +1,7 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { AdminShell } from "@/components/admin/AdminShell";
-import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
-import { supabase } from "@/integrations/supabase/client";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
 
 const ADMIN_RELOAD_KEY = "solaris:admin:last-stale-bundle-reload";
@@ -84,29 +82,6 @@ function AdminRouteError({ error }: { error: unknown; reset: () => void }) {
 export const Route = createFileRoute("/_authenticated/admin")({
   ssr: false,
   head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow, noarchive" }] }),
-  beforeLoad: async ({ location }) => {
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData.user) {
-      throw redirect({
-        to: "/auth",
-        search: { redirect: `${location.pathname}${location.searchStr}` },
-      });
-    }
-    let isOrganizer = false;
-    try {
-      isOrganizer = await hasSolarisOrganizerAccess(userData.user.id);
-    } catch {
-      isOrganizer = false;
-    }
-    if (!isOrganizer) {
-      throw redirect({
-        to: "/my-solaris",
-        search: { notice: "organizer-access-required" },
-        replace: true,
-      });
-    }
-    return { organizer: true };
-  },
   component: () => (
     <AdminShell>
       <Outlet />
