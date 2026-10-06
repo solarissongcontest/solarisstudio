@@ -6,9 +6,15 @@ export type AppLaunchSessionResolution = {
   source: "local_session" | "timeout" | "error";
 };
 
+type TimerHandle = ReturnType<typeof globalThis.setTimeout>;
 type TimerApi = {
-  setTimeout: (callback: () => void, delay: number) => number;
-  clearTimeout: (id: number) => void;
+  setTimeout: (callback: () => void, delay: number) => TimerHandle;
+  clearTimeout: (id: TimerHandle) => void;
+};
+
+const defaultTimers: TimerApi = {
+  setTimeout: (callback, delay) => globalThis.setTimeout(callback, delay),
+  clearTimeout: (id) => globalThis.clearTimeout(id),
 };
 
 /**
@@ -18,12 +24,9 @@ type TimerApi = {
  */
 export async function resolveAppLaunchSession(
   getSignedIn: () => Promise<boolean>,
-  timers: TimerApi = {
-    setTimeout: (callback, delay) => window.setTimeout(callback, delay),
-    clearTimeout: (id) => window.clearTimeout(id),
-  },
+  timers: TimerApi = defaultTimers,
 ): Promise<AppLaunchSessionResolution> {
-  let timeoutId: number | null = null;
+  let timeoutId: TimerHandle | null = null;
 
   const timeout = new Promise<AppLaunchSessionResolution>((resolve) => {
     timeoutId = timers.setTimeout(
