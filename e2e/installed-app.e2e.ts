@@ -165,6 +165,30 @@ test("installed app cold launch always leaves the intermediary launch route", as
   await expect(page.getByRole("heading", { name: "Opening your app…" })).toHaveCount(0);
 });
 
+test("pre-hydration launch escape survives a client bundle that never starts", async ({ page }, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "ios-pwa-portrait",
+    "The hydration-independent launch watchdog is viewport-independent; exercise it once on canonical iOS portrait.",
+  );
+
+  await page.route("**/*", async (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    if (
+      pathname.startsWith("/src/") ||
+      pathname.startsWith("/@id/") ||
+      pathname.startsWith("/@vite/") ||
+      pathname.startsWith("/@react-refresh")
+    ) {
+      await route.abort("failed");
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto("/app-launch", { waitUntil: "domcontentloaded" });
+  await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/, { timeout: 4_000 });
+});
+
 test("installed app shell survives representative navigation without duplicate chrome", async ({ page }) => {
   for (const route of [
     "/",
@@ -357,7 +381,7 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
   await expect(page.locator(".solaris-app-tabbar")).toHaveCSS("pointer-events", "none");
 });
 
-test("global search field matches the canonical Countries search surface", async ({ page }) => {
+test("global search preserves canonical structure while contextual focus color follows its route", async ({ page }) => {
   await expectInstalledShell(page, "/countries");
 
   const canonicalSurface = page.locator("[data-solaris-search-field]");
@@ -377,6 +401,7 @@ test("global search field matches the canonical Countries search surface", async
       radius: shell.borderTopLeftRadius,
       background: shell.backgroundColor,
       boxShadow: shell.boxShadow,
+      accent: shell.getPropertyValue("--solaris-accent").trim(),
       paddingLeft: shell.paddingLeft,
       paddingRight: shell.paddingRight,
       gap: shell.columnGap,
@@ -410,6 +435,7 @@ test("global search field matches the canonical Countries search surface", async
       radius: shell.borderTopLeftRadius,
       background: shell.backgroundColor,
       boxShadow: shell.boxShadow,
+      accent: shell.getPropertyValue("--solaris-accent").trim(),
       paddingLeft: shell.paddingLeft,
       paddingRight: shell.paddingRight,
       gap: shell.columnGap,
@@ -421,7 +447,33 @@ test("global search field matches the canonical Countries search surface", async
     };
   });
 
-  expect(globalSearch).toEqual(canonical);
+  expect(globalSearch).not.toBeNull();
+
+  // #449 intentionally makes the shared Search shell consume route/theme accent
+  // context. Literal focus colors therefore are not the cross-route invariant;
+  // geometry, input chrome and the presence of the focus treatment are.
+  const structural = (visual: NonNullable<typeof canonical>) => ({
+    minHeight: visual.minHeight,
+    radius: visual.radius,
+    paddingLeft: visual.paddingLeft,
+    paddingRight: visual.paddingRight,
+    gap: visual.gap,
+    inputBackground: visual.inputBackground,
+    inputRadius: visual.inputRadius,
+    inputShadow: visual.inputShadow,
+    iconWidth: visual.iconWidth,
+    iconHeight: visual.iconHeight,
+  });
+
+  expect(structural(globalSearch!)).toEqual(structural(canonical!));
+  for (const [label, visual] of [
+    ["Countries", canonical!],
+    ["Global", globalSearch!],
+  ] as const) {
+    expect(visual.background, `${label} Search focused background`).not.toBe("rgba(0, 0, 0, 0)");
+    expect(visual.boxShadow, `${label} Search focused inset/ring treatment`).not.toBe("none");
+    expect(visual.accent, `${label} Search must inherit a route/theme accent`).not.toBe("");
+  }
 
   const shellRect = await command.evaluate((node) => {
     const rect = node.getBoundingClientRect();
