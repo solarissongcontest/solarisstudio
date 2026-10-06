@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
   APP_LAUNCH_SESSION_TIMEOUT_MS,
@@ -6,8 +6,6 @@ import {
 } from "./app-launch-lifecycle";
 
 describe("app launch lifecycle", () => {
-  afterEach(() => vi.useRealTimers());
-
   it("uses the local session when auth resolves normally", async () => {
     const result = await resolveAppLaunchSession(() => Promise.resolve(true));
     expect(result).toEqual({ signedIn: true, source: "local_session" });
@@ -19,11 +17,30 @@ describe("app launch lifecycle", () => {
   });
 
   it("bounds a hanging auth lookup without waiting for it to settle", async () => {
-    vi.useFakeTimers();
     const pending = new Promise<boolean>(() => undefined);
-    const resultPromise = resolveAppLaunchSession(() => pending);
+    let timeoutCallback: (() => void) | null = null;
+    let cleared = false;
+    const timerHandle = 1 as unknown as ReturnType<typeof globalThis.setTimeout>;
 
-    await vi.advanceTimersByTimeAsync(APP_LAUNCH_SESSION_TIMEOUT_MS);
+    const resultPromise = resolveAppLaunchSession(
+      () => pending,
+      {
+        setTimeout: (callback, delay) => {
+          expect(delay).toBe(APP_LAUNCH_SESSION_TIMEOUT_MS);
+          timeoutCallback = callback;
+          return timerHandle;
+        },
+        clearTimeout: (handle) => {
+          expect(handle).toBe(timerHandle);
+          cleared = true;
+        },
+      },
+    );
+
+    expect(timeoutCallback).not.toBeNull();
+    timeoutCallback?.();
+
     await expect(resultPromise).resolves.toEqual({ signedIn: false, source: "timeout" });
+    expect(cleared).toBe(true);
   });
 });
