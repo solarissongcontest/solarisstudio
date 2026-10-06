@@ -105,6 +105,7 @@ export function CountryPicker({
         )}
         <input
           ref={inputRef}
+          aria-label="Search country"
           autoFocus={autoFocus}
           value={open ? query : (selected?.name ?? "")}
           placeholder={selected ? selected.name : placeholder}
