@@ -249,6 +249,7 @@ function CountriesCockpitPage() {
                 <label className="relative block">
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <input
+                    aria-label="Search countries"
                     value={queryValue}
                     onChange={(event) => navigate({ search: (previous) => ({ ...previous, q: event.target.value }), replace: true })}
                     placeholder="Search country…"
@@ -256,6 +257,7 @@ function CountriesCockpitPage() {
                   />
                 </label>
                 <select
+                  aria-label="Filter countries by readiness"
                   value={stateFilter}
                   onChange={(event) => navigate({
                     search: (previous) => ({
