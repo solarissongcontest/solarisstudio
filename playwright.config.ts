@@ -69,7 +69,6 @@ const maintenanceProjects = [
   },
 ];
 
-
 export default defineConfig({
   testDir: "./e2e",
   testMatch: /.*\.e2e\.ts/,
@@ -99,9 +98,12 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "off",
+    // Apply the device descriptor first. Some Playwright descriptors carry
+    // optional media fields as undefined; placing it after reducedMotion can
+    // silently erase the visual-test accessibility contract.
+    ...devices["Desktop Chrome"],
     reducedMotion: "reduce",
     colorScheme: "dark",
-    ...devices["Desktop Chrome"],
     storageState: appAuditStorageState,
   },
   // CI starts and health-checks its server explicitly and passes E2E_BASE_URL.
@@ -151,6 +153,11 @@ export default defineConfig({
       name: "account-states",
       testMatch: /account-states\.e2e\.ts/,
       use: { viewport: { width: 1440, height: 1000 } },
+    },
+    {
+      name: "admin-notifications-postgrest",
+      testMatch: /admin-notifications-postgrest\.e2e\.ts/,
+      use: { viewport: { width: 390, height: 844 } },
     },
     {
       name: "organizer-admin-desktop",
