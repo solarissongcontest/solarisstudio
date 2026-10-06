@@ -32,6 +32,14 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     expect(launch).not.toContain("APP_LAUNCH_HARD_EXIT_MS");
   });
 
+  it("executes the absolute launch escape before React hydration", () => {
+    const launch = source("src/routes/app-launch.tsx");
+    expect(launch).toContain('import { createFileRoute, ScriptOnce } from "@tanstack/react-router"');
+    expect(launch).toContain("<ScriptOnce>{APP_LAUNCH_BOOTSTRAP_SCRIPT}</ScriptOnce>");
+    expect(launch).not.toContain("scripts: [{ children: APP_LAUNCH_BOOTSTRAP_SCRIPT }]");
+    expect(launch).toContain("Do not cancel the pre-hydration escape here");
+  });
+
   it("hydrates app connectivity from deterministic HTML before browser state is read", () => {
     const connectivity = source("src/lib/app-connectivity.ts");
     const runtime = source("src/components/app/AppRuntime.tsx");
