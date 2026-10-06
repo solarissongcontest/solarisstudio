@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, ScriptOnce } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
@@ -49,11 +49,6 @@ export const Route = createFileRoute("/app-launch")({
       { title: "Opening Solaris Studio…" },
       { name: "robots", content: "noindex, nofollow" },
     ],
-    // This route is a bootstrap trampoline, not application content. The
-    // absolute browser deadline executes from server-rendered head markup before
-    // React hydration, so a slow bundle, remount, auth hang or telemetry failure
-    // cannot make /app-launch a terminal URL.
-    scripts: [{ children: APP_LAUNCH_BOOTSTRAP_SCRIPT }],
   }),
   component: AppLaunchPage,
 });
@@ -139,29 +134,35 @@ function AppLaunchPage() {
   }, [isAppMode]);
 
   return (
-    <main
-      id="main-content"
-      className="grid min-h-[100svh] place-items-center bg-background px-6 text-center"
-      aria-busy="true"
-      aria-live="polite"
-    >
-      <div>
-        <img
-          src="/icon-192.png?v=img2340-20260929"
-          alt=""
-          className="mx-auto size-20 rounded-[1.35rem]"
-        />
-        <p className="mt-5 text-[10px] font-black uppercase tracking-[.16em] text-primary">
-          Solaris Studio
-        </p>
-        <h1 className="mt-2 text-2xl font-bold tracking-[-.03em]">Opening your app…</h1>
-        <div
-          className="mx-auto mt-5 h-1 w-28 overflow-hidden rounded-full bg-white/10"
-          aria-hidden="true"
-        >
-          <span className="block h-full w-1/2 animate-pulse rounded-full bg-primary" />
+    <>
+      {/* ScriptOnce is server-rendered and executes while the browser parses the
+          document, before React hydration. The launch escape therefore remains
+          available even when the application bundle or hydration stalls. */}
+      <ScriptOnce>{APP_LAUNCH_BOOTSTRAP_SCRIPT}</ScriptOnce>
+      <main
+        id="main-content"
+        className="grid min-h-[100svh] place-items-center bg-background px-6 text-center"
+        aria-busy="true"
+        aria-live="polite"
+      >
+        <div>
+          <img
+            src="/icon-192.png?v=img2340-20260929"
+            alt=""
+            className="mx-auto size-20 rounded-[1.35rem]"
+          />
+          <p className="mt-5 text-[10px] font-black uppercase tracking-[.16em] text-primary">
+            Solaris Studio
+          </p>
+          <h1 className="mt-2 text-2xl font-bold tracking-[-.03em]">Opening your app…</h1>
+          <div
+            className="mx-auto mt-5 h-1 w-28 overflow-hidden rounded-full bg-white/10"
+            aria-hidden="true"
+          >
+            <span className="block h-full w-1/2 animate-pulse rounded-full bg-primary" />
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </>
   );
 }
