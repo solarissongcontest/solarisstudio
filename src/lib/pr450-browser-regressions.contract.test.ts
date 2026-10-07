@@ -49,18 +49,17 @@ describe("PR 450 browser blocker regressions", () => {
     expect(adminRoute).not.toContain("beforeLoad:");
   });
 
-  it("keeps the absolute app-launch escape armed until the document has actually left", () => {
+  it("leaves app-launch immediately and restores only from root", () => {
     const launch = source("src/routes/app-launch.tsx");
-    const lifecycle = source("src/lib/app-launch-lifecycle.ts");
+    const coordinator = source("src/components/app/AppLaunchRestoreCoordinator.tsx");
 
     expect(launch).toContain("<ScriptOnce>{APP_LAUNCH_BOOTSTRAP_SCRIPT}</ScriptOnce>");
-    expect(launch).toContain("window[timerKey] = window.setTimeout(leave, remaining);");
     expect(launch).toContain('if (window.location.pathname !== "/app-launch") return;');
-    expect(launch).toContain("window.stop();");
-    expect(launch).not.toContain("clearPreHydrationEscape");
-    expect(launch).not.toMatch(
-      /function leaveLaunchRoute[\s\S]*?window\.clearTimeout[\s\S]*?window\.location\.replace/,
-    );
-    expect(lifecycle).toContain("APP_LAUNCH_ABSOLUTE_ESCAPE_MS = 3_000");
+    expect(launch).toContain('window.location.replace("/")');
+    expect(launch).not.toContain("window.stop");
+    expect(launch).not.toContain("setTimeout");
+    expect(coordinator).toContain("readAppLaunchTransaction()");
+    expect(coordinator).toContain("getAppLaunchDestinationFromSnapshot");
+    expect(coordinator).toContain("clearAppLaunchTransaction()");
   });
 });

@@ -4,11 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type AdminScheduleItem = {
   id: string;
-  source: "submission" | "jury" | "televote" | "publication" | "communication" | "edition" | "reminder";
+  source:
+    "submission" | "jury" | "televote" | "publication" | "communication" | "edition" | "reminder";
   kind: "opens" | "closes" | "reveal" | "send" | "event" | "reminder";
   label: string;
   at: string;
-  href: string;
+  href: string | null;
   detail: string;
 };
 
@@ -107,10 +108,12 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
 
       const items: AdminScheduleItem[] = [];
       const confirmationHref = "/confirmations/admin/rounds";
-      const entriesHref = slug ? `/admin/entries/${slug}` : "/admin";
-      const editionHref = slug ? `/admin/shows/${slug}` : "/admin";
+      const entriesHref = slug ? `/admin/entries/${slug}` : null;
+      const editionHref = slug ? `/admin/shows/${slug}` : null;
       const showNameById = new Map(
-        (showsResult.data ?? []).map((show: { id: string; name: string }) => [show.id, show.name] as const),
+        (showsResult.data ?? []).map(
+          (show: { id: string; name: string }) => [show.id, show.name] as const,
+        ),
       );
       const televoteBindingByRemoteId = new Map<
         string,
@@ -160,7 +163,7 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
             kind: "opens",
             label: `${label} opens`,
             at: window.opened_at,
-            href: slug ? `/admin/jury/${slug}` : "/admin",
+            href: slug ? `/admin/jury/${slug}` : null,
             detail: "Jury voting window",
           });
         }
@@ -171,7 +174,7 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
             kind: "closes",
             label: `${label} closes`,
             at: window.closed_at,
-            href: slug ? `/admin/jury/${slug}` : "/admin",
+            href: slug ? `/admin/jury/${slug}` : null,
             detail: "Jury voting window",
           });
         }

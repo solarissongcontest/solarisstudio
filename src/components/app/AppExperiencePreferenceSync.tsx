@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -12,26 +12,28 @@ import {
   useNotificationPreferences,
   useSaveNotificationPreferences,
 } from "@/lib/engagement-data";
+import { beginLifecycleGeneration } from "@/lib/lifecycle-generation";
 
 export function AppExperiencePreferenceSync() {
   const [userId, setUserId] = useState<string | undefined>();
+  const authGenerationRef = useRef(0);
   const preferences = useNotificationPreferences(userId);
   const save = useSaveNotificationPreferences(userId);
   const savePreference = save.mutateAsync;
 
   useEffect(() => {
-    let alive = true;
+    const lifecycle = beginLifecycleGeneration(authGenerationRef);
 
     void supabase.auth.getUser().then(({ data }) => {
-      if (alive) setUserId(data.user?.id);
+      if (lifecycle.isCurrent()) setUserId(data.user?.id);
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user?.id);
+      if (lifecycle.isCurrent()) setUserId(session?.user?.id);
     });
 
     return () => {
-      alive = false;
+      lifecycle.deactivate();
       subscription.subscription.unsubscribe();
     };
   }, []);
@@ -53,10 +55,7 @@ export function AppExperiencePreferenceSync() {
       if (!next) return;
 
       const currentServer = preferences.data;
-      if (
-        currentServer &&
-        (currentServer.spoiler_free ?? false) === next.spoilerFree
-      ) {
+      if (currentServer && (currentServer.spoiler_free ?? false) === next.spoilerFree) {
         return;
       }
 
@@ -68,13 +67,10 @@ export function AppExperiencePreferenceSync() {
         external_enabled: currentServer?.external_enabled ?? false,
         quiet_hours_start: currentServer?.quiet_hours_start ?? "23:00",
         quiet_hours_end: currentServer?.quiet_hours_end ?? "08:00",
-        urgent_deadline_reminders:
-          currentServer?.urgent_deadline_reminders ?? true,
+        urgent_deadline_reminders: currentServer?.urgent_deadline_reminders ?? true,
         spoiler_free: next.spoilerFree,
         timezone:
-          currentServer?.timezone ||
-          Intl.DateTimeFormat().resolvedOptions().timeZone ||
-          "UTC",
+          currentServer?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
       }).catch(() => {
         const local = readAppExperiencePreferences();
         if (local.spoilerFree !== next.spoilerFree) {

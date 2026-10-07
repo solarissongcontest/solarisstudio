@@ -7,14 +7,24 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type AdminDomainNavigationItem = {
+type AdminDomainNavigationItemBase = {
   id: "home" | "edition" | "tasks" | "delegations" | "more";
   label: string;
   description: string;
-  to: string;
   icon: LucideIcon;
   active: (pathname: string) => boolean;
 };
+
+export type AdminDomainNavigationItem =
+  | (AdminDomainNavigationItemBase & {
+      availability: "ready";
+      to: string;
+    })
+  | (AdminDomainNavigationItemBase & {
+      availability: "requires-edition";
+      to: null;
+      unavailableReason: "Select an edition first";
+    });
 
 /**
  * Organisation OS V5 keeps five permanent Organizer destinations.
@@ -27,7 +37,7 @@ export function buildAdminDomainNavigation(
   slug?: string,
   editionLabel = "Current edition",
 ): AdminDomainNavigationItem[] {
-  const editionHref = slug ? `/admin/${slug}` : "/admin";
+  const editionHref = slug ? `/admin/${slug}` : null;
 
   const tasksRoute = (path: string) =>
     path.startsWith("/admin/tasks") ||
@@ -77,6 +87,7 @@ export function buildAdminDomainNavigation(
       id: "home",
       label: "Home",
       description: "Current edition state, urgent attention and the next operation.",
+      availability: "ready",
       to: "/admin/operations",
       icon: LayoutDashboard,
       active: homeRoute,
@@ -85,7 +96,13 @@ export function buildAdminDomainNavigation(
       id: "edition",
       label: editionLabel,
       description: "Contest structure, voting, results, publication and live show operation.",
-      to: editionHref,
+      ...(editionHref
+        ? { availability: "ready" as const, to: editionHref }
+        : {
+            availability: "requires-edition" as const,
+            to: null,
+            unavailableReason: "Select an edition first" as const,
+          }),
       icon: Layers3,
       active: editionRoute,
     },
@@ -93,6 +110,7 @@ export function buildAdminDomainNavigation(
       id: "tasks",
       label: "Tasks",
       description: "Every unresolved organizer action, blocker and due item.",
+      availability: "ready",
       to: "/admin/tasks",
       icon: BellRing,
       active: tasksRoute,
@@ -101,6 +119,7 @@ export function buildAdminDomainNavigation(
       id: "delegations",
       label: "Delegations",
       description: "Countries, confirmations, participation, readiness and delegation support.",
+      availability: "ready",
       to: "/admin/countries",
       icon: Flag,
       active: delegationsRoute,
@@ -108,14 +127,13 @@ export function buildAdminDomainNavigation(
     {
       id: "more",
       label: "More",
-      description: "Governance, people, system, archive, engagement, research and specialist tools.",
+      description:
+        "Governance, people, system, archive, engagement, research and specialist tools.",
+      availability: "ready",
       to: "/admin/more",
       icon: MoreHorizontal,
       active: (path) =>
-        !homeRoute(path) &&
-        !tasksRoute(path) &&
-        !delegationsRoute(path) &&
-        !editionRoute(path),
+        !homeRoute(path) && !tasksRoute(path) && !delegationsRoute(path) && !editionRoute(path),
     },
   ];
 }

@@ -129,8 +129,9 @@ function AdminSystemPage() {
     message: "",
     incidentReference: "",
   });
-  const [pendingModeChange, setPendingModeChange] =
-    useState<PendingPlatformModeChange | null>(null);
+  const [pendingModeChange, setPendingModeChange] = useState<PendingPlatformModeChange | null>(
+    null,
+  );
   const [platformPassword, setPlatformPassword] = useState("");
 
   const applyPlatformMode = useMutation({
@@ -179,9 +180,7 @@ function AdminSystemPage() {
     (item) => new Date(item.at).getTime() >= Date.now() - 24 * 60 * 60 * 1000,
   );
 
-  const allowedPlatformModes = platformQuery.data
-    ? nextPlatformModes(platformQuery.data.mode)
-    : [];
+  const allowedPlatformModes = platformQuery.data ? nextPlatformModes(platformQuery.data.mode) : [];
 
   const reviewPlatformChange = async () => {
     if (!modeForm.targetMode || modeForm.reason.trim().length < 5) return;
@@ -242,7 +241,11 @@ function AdminSystemPage() {
       <MetricStrip className="grid-cols-3 sm:grid-cols-3 xl:grid-cols-3">
         <Metric label="Workflow dates" value={relevantSchedule.length} />
         <Metric label="Custom reminders" value={openReminders.length} />
-        <Metric label="Overdue reminders" value={overdueReminders.length} attention={overdueReminders.length > 0} />
+        <Metric
+          label="Overdue reminders"
+          value={overdueReminders.length}
+          attention={overdueReminders.length > 0}
+        />
       </MetricStrip>
 
       <AdminCard strong>
@@ -437,14 +440,20 @@ function AdminSystemPage() {
         />
 
         {scheduleLoading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Verifying workflow dates…</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Verifying workflow dates…
+          </p>
         ) : scheduleError ? (
           <AdminEmptyState
             icon={CalendarClock}
             title="Schedule could not be verified"
             description="Solaris will not substitute custom reminders or guessed dates when a workflow source cannot be read."
             action={
-              <button type="button" onClick={() => void refetchSchedule()} className="admin-action-primary">
+              <button
+                type="button"
+                onClick={() => void refetchSchedule()}
+                className="admin-action-primary"
+              >
                 Retry
               </button>
             }
@@ -453,20 +462,40 @@ function AdminSystemPage() {
           <div className="divide-y divide-white/[0.07]">
             {relevantSchedule.map((item) => {
               const past = new Date(item.at).getTime() < Date.now();
-              return (
-                <Link key={item.id} to={item.href as any} className="admin-list-row group">
+              const content = (
+                <>
                   <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-sky-200/12 bg-sky-200/[0.045] text-sky-100">
                     <Clock3 className="size-4" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-foreground">{item.label}</span>
+                    <span className="block text-sm font-semibold text-foreground">
+                      {item.label}
+                    </span>
                     <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
                       {new Date(item.at).toLocaleString()} · {item.detail}
+                      {!item.href ? " · Select an edition first" : ""}
                     </span>
                   </span>
-                  <AdminStatus tone={past ? "neutral" : "info"}>{past ? "Passed" : "Scheduled"}</AdminStatus>
+                  <AdminStatus tone={past ? "neutral" : "info"}>
+                    {past ? "Passed" : "Scheduled"}
+                  </AdminStatus>
                   <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
+                </>
+              );
+
+              return item.href ? (
+                <Link key={item.id} to={item.href as any} className="admin-list-row group">
+                  {content}
                 </Link>
+              ) : (
+                <div
+                  key={item.id}
+                  aria-disabled="true"
+                  title="Select an edition first"
+                  className="admin-list-row group cursor-not-allowed opacity-55"
+                >
+                  {content}
+                </div>
               );
             })}
           </div>
@@ -506,7 +535,8 @@ function AdminSystemPage() {
           <WorkQueue>
             {[...deadlines]
               .sort((a, b) => {
-                if (Boolean(a.completed_at) !== Boolean(b.completed_at)) return a.completed_at ? 1 : -1;
+                if (Boolean(a.completed_at) !== Boolean(b.completed_at))
+                  return a.completed_at ? 1 : -1;
                 return new Date(a.due_at).getTime() - new Date(b.due_at).getTime();
               })
               .map((item) => {
@@ -529,10 +559,16 @@ function AdminSystemPage() {
                             : "border-amber-200/15 bg-amber-200/[0.05] text-amber-100"
                       }`}
                     >
-                      {complete ? <CheckCircle2 className="size-4" /> : <Clock3 className="size-4" />}
+                      {complete ? (
+                        <CheckCircle2 className="size-4" />
+                      ) : (
+                        <Clock3 className="size-4" />
+                      )}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold text-foreground">{item.label}</span>
+                      <span className="block text-sm font-semibold text-foreground">
+                        {item.label}
+                      </span>
                       <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
                         {new Date(item.due_at).toLocaleString()}
                       </span>
@@ -569,14 +605,19 @@ function AdminSystemPage() {
           <AuditTimeline>
             {audit.map((row) => (
               <li key={row.id} className="relative list-none py-3 first:pt-0 last:pb-0">
-                <span className="absolute -left-[1.18rem] top-5 size-2 rounded-full bg-sky-200/65" aria-hidden="true" />
+                <span
+                  className="absolute -left-[1.18rem] top-5 size-2 rounded-full bg-sky-200/65"
+                  aria-hidden="true"
+                />
                 <div className="flex min-w-0 items-start gap-3">
                   <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-muted-foreground">
                     <History className="size-3.5" />
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                      <p className="text-sm font-semibold text-foreground">{humanize(row.action)}</p>
+                      <p className="text-sm font-semibold text-foreground">
+                        {humanize(row.action)}
+                      </p>
                       <AdminStatus tone="neutral">{humanize(row.table_name)}</AdminStatus>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -652,31 +693,28 @@ function AdminSystemPage() {
                     </AdminStatus>
                   </div>
                   <div className="mt-3 space-y-2">
-                    {Object.entries(pendingModeChange.exitPreflight.checks).map(
-                      ([key, check]) => (
-                        <div
-                          key={key}
-                          className="flex min-w-0 items-start justify-between gap-3 text-xs"
-                        >
-                          <div className="min-w-0">
-                            <p className="font-semibold text-foreground">
-                              {preflightCheckLabel(key)}
-                            </p>
-                            <p className="mt-0.5 leading-5 text-muted-foreground">
-                              {check.detail}
-                            </p>
-                          </div>
-                          <AdminStatus
-                            tone={check.pass ? "ready" : check.critical ? "blocked" : "attention"}
-                          >
-                            {check.pass ? "Pass" : check.critical ? "Block" : "Review"}
-                          </AdminStatus>
+                    {Object.entries(pendingModeChange.exitPreflight.checks).map(([key, check]) => (
+                      <div
+                        key={key}
+                        className="flex min-w-0 items-start justify-between gap-3 text-xs"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-semibold text-foreground">
+                            {preflightCheckLabel(key)}
+                          </p>
+                          <p className="mt-0.5 leading-5 text-muted-foreground">{check.detail}</p>
                         </div>
-                      ),
-                    )}
+                        <AdminStatus
+                          tone={check.pass ? "ready" : check.critical ? "blocked" : "attention"}
+                        >
+                          {check.pass ? "Pass" : check.critical ? "Block" : "Review"}
+                        </AdminStatus>
+                      </div>
+                    ))}
                   </div>
                   <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
-                    Receipt expires {new Date(pendingModeChange.exitPreflight.expiresAt).toLocaleString()}.
+                    Receipt expires{" "}
+                    {new Date(pendingModeChange.exitPreflight.expiresAt).toLocaleString()}.
                     Database-critical checks run again when you apply the transition.
                   </p>
                 </div>
@@ -770,7 +808,9 @@ function AdminSystemPage() {
             </button>
             <button
               type="submit"
-              disabled={createDeadline.isPending || !selectedEdition || !form.label.trim() || !form.due_at}
+              disabled={
+                createDeadline.isPending || !selectedEdition || !form.label.trim() || !form.due_at
+              }
               className="admin-action-primary w-full"
             >
               {createDeadline.isPending ? "Saving…" : "Add reminder"}
@@ -782,20 +822,14 @@ function AdminSystemPage() {
   );
 }
 
-function requiresExitPreflight(
-  from: PlatformOperationalMode,
-  to: PlatformOperationalMode,
-) {
+function requiresExitPreflight(from: PlatformOperationalMode, to: PlatformOperationalMode) {
   return (
-    (from === "maintenance" && to === "read_only") ||
-    (from === "read_only" && to === "degraded")
+    (from === "maintenance" && to === "read_only") || (from === "read_only" && to === "degraded")
   );
 }
 
 function preflightCheckLabel(key: string) {
-  return key
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return key.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function nextPlatformModes(mode: PlatformOperationalMode): PlatformOperationalMode[] {
@@ -838,7 +872,14 @@ function platformTone(mode: PlatformOperationalMode): "ready" | "info" | "attent
 }
 
 function splitServices(value: string) {
-  return [...new Set(value.split(",").map((item) => item.trim()).filter(Boolean))].slice(0, 20);
+  return [
+    ...new Set(
+      value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ].slice(0, 20);
 }
 
 function errorText(error: unknown) {

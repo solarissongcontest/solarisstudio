@@ -1,4 +1,5 @@
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
+import { hasPendingAppLaunchTransaction } from "@/lib/app-launch-lifecycle";
 
 export type AppTabId = "home" | "explore" | "participate" | "results" | "me";
 
@@ -20,7 +21,7 @@ export type AppNavigationState = {
   tabs: Partial<Record<AppTabId, AppTabState>>;
 };
 
-const STORAGE_KEY = "solaris:app-navigation:v1";
+export const APP_NAVIGATION_STORAGE_KEY = "solaris:app-navigation:v1";
 const RESTORE_INTENT_KEY = "solaris:app-navigation-restore:v1";
 const MAX_HISTORY_PER_TAB = 20;
 export const APP_LAUNCH_RESTORE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -93,9 +94,7 @@ function sanitizeEntry(value: unknown): AppHistoryEntry | null {
         ? Math.max(0, candidate.scrollY)
         : 0,
     visitedAt:
-      typeof candidate.visitedAt === "string"
-        ? candidate.visitedAt
-        : new Date(0).toISOString(),
+      typeof candidate.visitedAt === "string" ? candidate.visitedAt : new Date(0).toISOString(),
   };
 }
 
@@ -125,7 +124,7 @@ export function readAppNavigationState(
 ): AppNavigationState {
   if (!storage) return emptyState();
   try {
-    const raw = storage.getItem(STORAGE_KEY);
+    const raw = storage.getItem(APP_NAVIGATION_STORAGE_KEY);
     if (!raw) return emptyState();
     const parsed = JSON.parse(raw) as Partial<AppNavigationState>;
     const activeTab: AppTabId =
@@ -165,7 +164,7 @@ export function writeAppNavigationState(
 ) {
   if (!storage) return;
   try {
-    storage.setItem(STORAGE_KEY, JSON.stringify(state));
+    storage.setItem(APP_NAVIGATION_STORAGE_KEY, JSON.stringify(state));
   } catch {
     // Navigation memory is an enhancement. Routing must still work without storage.
   }
@@ -176,8 +175,9 @@ export function rememberAppLocation(
   searchStr = "",
   scrollY?: number,
   storage: Storage | null = browserStorage(),
+  launchStorage: Storage | null = browserSessionStorage(),
 ) {
-  if (!storage || !safePath(pathname)) return;
+  if (!storage || !safePath(pathname) || hasPendingAppLaunchTransaction(launchStorage)) return;
   const tab = appTabForLocation(pathname, searchStr);
   if (!tab) return;
 
@@ -189,7 +189,7 @@ export function rememberAppLocation(
     scrollY:
       typeof scrollY === "number" && Number.isFinite(scrollY)
         ? Math.max(0, scrollY)
-        : previous?.current.scrollY ?? 0,
+        : (previous?.current.scrollY ?? 0),
     visitedAt: new Date().toISOString(),
   };
   const last = previous?.history.at(-1);
@@ -217,9 +217,7 @@ export function updateAppScrollPosition(
   const tabState = state.tabs[tab];
   if (!tabState) return;
   const href = `${pathname}${normalizeSearch(searchStr)}`;
-  const index = [...tabState.history]
-    .map(appEntryHref)
-    .lastIndexOf(href);
+  const index = [...tabState.history].map(appEntryHref).lastIndexOf(href);
   if (index < 0) return;
 
   const nextEntry: AppHistoryEntry = {
@@ -252,7 +250,6 @@ export function getAppTabDestination(
   if (current && destinationAllowedForSession(current, tab, signedIn)) return current;
   return defaultEntry(tab, signedIn);
 }
-
 
 function coldLaunchDestinationAllowed(entry: AppHistoryEntry) {
   if (
@@ -288,6 +285,15 @@ export function getAppLaunchDestination(
   }
 
   return target;
+}
+
+export function getAppLaunchDestinationFromSnapshot(
+  signedIn: boolean,
+  navigationSnapshot: string | null,
+): AppHistoryEntry {
+  return getAppLaunchDestination(signedIn, {
+    getItem: () => navigationSnapshot,
+  });
 }
 
 export function resetAppTabToRoot(
@@ -328,9 +334,7 @@ export function peekAppBackTarget(
   if (index > 0) return tabState.history[index - 1]!;
   if (index < 0) {
     const last = tabState.history.at(-1);
-    return last && appEntryHref(last) !== `${pathname}${normalizeSearch(searchStr)}`
-      ? last
-      : null;
+    return last && appEntryHref(last) !== `${pathname}${normalizeSearch(searchStr)}` ? last : null;
   }
   return null;
 }

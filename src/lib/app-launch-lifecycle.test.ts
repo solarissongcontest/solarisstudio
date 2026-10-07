@@ -1,9 +1,34 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  APP_LAUNCH_TRANSACTION_KEY,
   APP_LAUNCH_SESSION_TIMEOUT_MS,
+  clearAppLaunchTransaction,
+  readAppLaunchTransaction,
   resolveAppLaunchSession,
 } from "./app-launch-lifecycle";
+
+class MemoryStorage implements Storage {
+  #values = new Map<string, string>();
+  get length() {
+    return this.#values.size;
+  }
+  clear() {
+    this.#values.clear();
+  }
+  getItem(key: string) {
+    return this.#values.get(key) ?? null;
+  }
+  key(index: number) {
+    return [...this.#values.keys()][index] ?? null;
+  }
+  removeItem(key: string) {
+    this.#values.delete(key);
+  }
+  setItem(key: string, value: string) {
+    this.#values.set(key, value);
+  }
+}
 
 describe("app launch lifecycle", () => {
   it("uses the local session when auth resolves normally", async () => {
@@ -12,7 +37,9 @@ describe("app launch lifecycle", () => {
   });
 
   it("fails safe when auth rejects", async () => {
-    const result = await resolveAppLaunchSession(() => Promise.reject(new Error("auth unavailable")));
+    const result = await resolveAppLaunchSession(() =>
+      Promise.reject(new Error("auth unavailable")),
+    );
     expect(result).toEqual({ signedIn: false, source: "error" });
   });
 
@@ -22,25 +49,49 @@ describe("app launch lifecycle", () => {
     let cleared = false;
     const timerHandle = 1 as unknown as ReturnType<typeof globalThis.setTimeout>;
 
-    const resultPromise = resolveAppLaunchSession(
-      () => pending,
-      {
-        setTimeout: (callback, delay) => {
-          expect(delay).toBe(APP_LAUNCH_SESSION_TIMEOUT_MS);
-          timeoutCallbacks.push(callback);
-          return timerHandle;
-        },
-        clearTimeout: (handle) => {
-          expect(handle).toBe(timerHandle);
-          cleared = true;
-        },
+    const resultPromise = resolveAppLaunchSession(() => pending, {
+      setTimeout: (callback, delay) => {
+        expect(delay).toBe(APP_LAUNCH_SESSION_TIMEOUT_MS);
+        timeoutCallbacks.push(callback);
+        return timerHandle;
       },
-    );
+      clearTimeout: (handle) => {
+        expect(handle).toBe(timerHandle);
+        cleared = true;
+      },
+    });
 
     expect(timeoutCallbacks).toHaveLength(1);
     timeoutCallbacks[0]!();
 
     await expect(resultPromise).resolves.toEqual({ signedIn: false, source: "timeout" });
     expect(cleared).toBe(true);
+  });
+
+  it("reads and clears a one-use launch transaction", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      APP_LAUNCH_TRANSACTION_KEY,
+      JSON.stringify({
+        version: 1,
+        startedAt: new Date().toISOString(),
+        navigationSnapshot: '{"version":1}',
+      }),
+    );
+
+    expect(readAppLaunchTransaction(storage)).toMatchObject({
+      version: 1,
+      navigationSnapshot: '{"version":1}',
+    });
+    clearAppLaunchTransaction(storage);
+    expect(readAppLaunchTransaction(storage)).toBeNull();
+  });
+
+  it("fails open to the safe root when transaction storage is corrupt", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(APP_LAUNCH_TRANSACTION_KEY, "not-json");
+
+    expect(readAppLaunchTransaction(storage)).toBeNull();
+    expect(storage.getItem(APP_LAUNCH_TRANSACTION_KEY)).toBeNull();
   });
 });

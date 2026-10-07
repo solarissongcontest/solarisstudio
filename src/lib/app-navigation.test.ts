@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   appEntryHref,
+  APP_NAVIGATION_STORAGE_KEY,
   appTabForLocation,
   getAppLaunchDestination,
+  getAppLaunchDestinationFromSnapshot,
   getAppTabDestination,
   peekAppBackTarget,
   popAppBackTarget,
@@ -12,6 +14,7 @@ import {
   resetAppTabToRoot,
   updateAppScrollPosition,
 } from "@/lib/app-navigation";
+import { APP_LAUNCH_TRANSACTION_KEY } from "@/lib/app-launch-lifecycle";
 
 class MemoryStorage implements Storage {
   #values = new Map<string, string>();
@@ -125,6 +128,31 @@ describe("installed app navigation state", () => {
     });
   });
 
+  it("does not let the trampoline root clobber a snapshotted Results destination", () => {
+    const navigationStorage = new MemoryStorage();
+    const launchStorage = new MemoryStorage();
+    rememberAppLocation("/results", "", 0, navigationStorage, launchStorage);
+    rememberAppLocation("/results/example", "?view=jury", 720, navigationStorage, launchStorage);
+    const snapshot = navigationStorage.getItem(APP_NAVIGATION_STORAGE_KEY);
+    launchStorage.setItem(
+      APP_LAUNCH_TRANSACTION_KEY,
+      JSON.stringify({
+        version: 1,
+        startedAt: new Date().toISOString(),
+        navigationSnapshot: snapshot,
+      }),
+    );
+
+    rememberAppLocation("/", "", 0, navigationStorage, launchStorage);
+
+    expect(navigationStorage.getItem(APP_NAVIGATION_STORAGE_KEY)).toBe(snapshot);
+    expect(getAppLaunchDestinationFromSnapshot(true, snapshot)).toMatchObject({
+      pathname: "/results/example",
+      searchStr: "?view=jury",
+      scrollY: 720,
+    });
+  });
+
   it("falls back to the tab root instead of cold-launching a critical submission flow", () => {
     const storage = new MemoryStorage();
     rememberAppLocation("/participate", "", 0, storage);
@@ -195,5 +223,4 @@ describe("installed app navigation state", () => {
     expect(appTabForLocation("/shows/show-22", "")).toBe("explore");
     expect(appTabForLocation("/shows/show-22", "?tab=stories")).toBe("explore");
   });
-
 });

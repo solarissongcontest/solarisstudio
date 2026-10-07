@@ -90,13 +90,15 @@ async function expectInstalledShell(
 
   const geometry = await page.evaluate(() => ({
     overflow:
-      Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) -
-      window.innerWidth,
+      Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
     viewportWidth: window.innerWidth,
     viewportHeight: window.innerHeight,
   }));
 
-  expect(geometry.overflow, `${route} should not overflow in installed iOS mode`).toBeLessThanOrEqual(2);
+  expect(
+    geometry.overflow,
+    `${route} should not overflow in installed iOS mode`,
+  ).toBeLessThanOrEqual(2);
   expect(geometry.viewportWidth).toBeGreaterThan(0);
   expect(geometry.viewportHeight).toBeGreaterThan(0);
 }
@@ -114,9 +116,7 @@ async function expectNoBottomChromeCollision(page: Page, route: string) {
     if (!bar || !main) return null;
 
     const rootStyle = getComputedStyle(document.documentElement);
-    const obstructionValue = rootStyle
-      .getPropertyValue("--solaris-app-bottom-obstruction")
-      .trim();
+    const obstructionValue = rootStyle.getPropertyValue("--solaris-app-bottom-obstruction").trim();
     const obstruction = Number.parseFloat(obstructionValue || "0");
     const spacer = main.querySelector<HTMLElement>("[data-solaris-app-bottom-spacer]");
     const spacerHeight = spacer ? spacer.getBoundingClientRect().height : 0;
@@ -156,16 +156,135 @@ test.beforeEach(async ({ page }) => {
   await enableInstalledIosMode(page);
 });
 
+test.describe.configure({ retries: 0 });
+
 test("installed app cold launch always leaves the intermediary launch route", async ({ page }) => {
+  const startedAt = Date.now();
   await page.goto("/app-launch", { waitUntil: "domcontentloaded" });
 
   await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/, {
     timeout: 4_000,
   });
+  expect(
+    Date.now() - startedAt,
+    "normal launch trampoline should leave well before the hard deadline",
+  ).toBeLessThan(2_000);
   await expect(page.getByRole("heading", { name: "Opening your app…" })).toHaveCount(0);
 });
 
-test("pre-hydration launch escape survives a client bundle that never starts", async ({ page }, testInfo) => {
+test("cold launch preserves Results query, history semantics and post-restore persistence", async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    !["ios-pwa-portrait", "ios-pwa-landscape"].includes(testInfo.project.name),
+    "Exercise the complete transaction contract on canonical iOS portrait and landscape.",
+  );
+
+  await page.addInitScript(() => {
+    const entry = {
+      pathname: "/results/example",
+      searchStr: "?view=jury",
+      scrollY: 640,
+      visitedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(
+      "solaris:app-navigation:v1",
+      JSON.stringify({
+        version: 1,
+        activeTab: "results",
+        tabs: { results: { current: entry, history: [entry] } },
+      }),
+    );
+  });
+
+  await page.goto("/explore", { waitUntil: "domcontentloaded" });
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.goto("/app-launch", { waitUntil: "domcontentloaded" });
+    await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/, { timeout: 4_000 });
+    await expect(page).toHaveURL(/\/results\/example\?view=jury$/);
+    await expect
+      .poll(() => page.evaluate(() => sessionStorage.getItem("solaris:app-launch-transaction:v1")))
+      .toBeNull();
+  }
+
+  await page.goBack({ waitUntil: "domcontentloaded" }).catch(() => null);
+  await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/);
+
+  await page.goto("/explore", { waitUntil: "domcontentloaded" });
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const raw = localStorage.getItem("solaris:app-navigation:v1");
+        return raw ? JSON.parse(raw).activeTab : null;
+      }),
+    )
+    .toBe("explore");
+});
+
+test("signed-out and critical-route cold launches use canonical safe roots", async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    !["ios-pwa-portrait", "ios-pwa-landscape"].includes(testInfo.project.name),
+    "Exercise route safety on canonical iOS portrait and landscape.",
+  );
+
+  const setNavigation = async (activeTab: string, pathname: string) => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.evaluate(
+      ({ activeTab, pathname }) => {
+        const entry = {
+          pathname,
+          searchStr: "",
+          scrollY: 0,
+          visitedAt: new Date().toISOString(),
+        };
+        localStorage.setItem(
+          "solaris:app-navigation:v1",
+          JSON.stringify({
+            version: 1,
+            activeTab,
+            tabs: { [activeTab]: { current: entry, history: [entry] } },
+          }),
+        );
+      },
+      { activeTab, pathname },
+    );
+  };
+
+  await setNavigation("me", "/my-solaris/account");
+  await page.goto("/app-launch", { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/auth(?:\?|$)/, { timeout: 4_000 });
+
+  await setNavigation("participate", "/televoting");
+  await page.goto("/app-launch", { waitUntil: "domcontentloaded" });
+  await expect(page).toHaveURL(/\/participate(?:\?|$)/, { timeout: 4_000 });
+});
+
+test("launch still exits when session storage cannot create a transaction", async ({
+  page,
+}, testInfo) => {
+  test.skip(
+    testInfo.project.name !== "ios-pwa-portrait",
+    "Storage-failure behavior is viewport-independent.",
+  );
+  await page.addInitScript(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key === "solaris:app-launch-transaction:v1") {
+        throw new DOMException("Storage unavailable", "QuotaExceededError");
+      }
+      return original.call(this, key, value);
+    };
+  });
+
+  await page.goto("/app-launch", { waitUntil: "domcontentloaded" });
+  await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/, { timeout: 4_000 });
+});
+
+test("pre-hydration launch escape survives a client bundle that never starts", async ({
+  page,
+}, testInfo) => {
   test.skip(
     testInfo.project.name !== "ios-pwa-portrait",
     "The hydration-independent launch watchdog is viewport-independent; exercise it once on canonical iOS portrait.",
@@ -189,7 +308,9 @@ test("pre-hydration launch escape survives a client bundle that never starts", a
   await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/, { timeout: 4_000 });
 });
 
-test("installed app shell survives representative navigation without duplicate chrome", async ({ page }) => {
+test("installed app shell survives representative navigation without duplicate chrome", async ({
+  page,
+}) => {
   for (const route of [
     "/",
     "/explore",
@@ -207,7 +328,9 @@ test("installed app shell survives representative navigation without duplicate c
   }
 });
 
-test("route contract owns the active global tab on help and directory screens", async ({ page }) => {
+test("route contract owns the active global tab on help and directory screens", async ({
+  page,
+}) => {
   for (const route of ["/rules", "/site-directory"]) {
     await expectInstalledShell(page, route);
     const selected = page.locator(".solaris-app-tab[aria-current='page']");
@@ -222,7 +345,9 @@ test("Show Mode renders the real minimal tab bar mode", async ({ page }) => {
   await expect(page.locator(".solaris-app-tabbar")).toHaveClass(/is-minimal/);
 });
 
-test("installed app keeps exactly one visible screen heading on app-owned screens", async ({ page }) => {
+test("installed app keeps exactly one visible screen heading on app-owned screens", async ({
+  page,
+}) => {
   for (const route of [
     "/",
     "/explore",
@@ -235,7 +360,9 @@ test("installed app keeps exactly one visible screen heading on app-owned screen
     "/settings",
   ]) {
     await expectInstalledShell(page, route);
-    await expect(page.locator("h1:visible"), `${route} should expose one visible h1`).toHaveCount(1);
+    await expect(page.locator("h1:visible"), `${route} should expose one visible h1`).toHaveCount(
+      1,
+    );
   }
 });
 
@@ -271,7 +398,9 @@ test("directory titles stay geometrically centered in the toolbar", async ({ pag
   }
 });
 
-test("global app search follows the full iOS VisualViewport during focus zoom and keyboard resize", async ({ page }) => {
+test("global app search follows the full iOS VisualViewport during focus zoom and keyboard resize", async ({
+  page,
+}) => {
   await expectInstalledShell(page, "/explore");
 
   await openGlobalSearch(page);
@@ -285,13 +414,9 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
 
   const forbiddenCenteredUtilities = await dialog.evaluate((node) =>
     [...node.classList].filter((className) =>
-      [
-        "left-[50%]",
-        "top-[50%]",
-        "translate-x-[-50%]",
-        "translate-y-[-50%]",
-        "max-w-lg",
-      ].includes(className),
+      ["left-[50%]", "top-[50%]", "translate-x-[-50%]", "translate-y-[-50%]", "max-w-lg"].includes(
+        className,
+      ),
     ),
   );
   expect(
@@ -381,7 +506,9 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
   await expect(page.locator(".solaris-app-tabbar")).toHaveCSS("pointer-events", "none");
 });
 
-test("global search preserves canonical structure while contextual focus color follows its route", async ({ page }) => {
+test("global search preserves canonical structure while contextual focus color follows its route", async ({
+  page,
+}) => {
   await expectInstalledShell(page, "/countries");
 
   const canonicalSurface = page.locator("[data-solaris-search-field]");
@@ -563,9 +690,11 @@ test("installed app chrome keeps Apple-sized effective touch targets", async ({ 
   await expectInstalledShell(page, "/explore");
 
   const undersized = await page.evaluate(() =>
-    [...document.querySelectorAll<HTMLElement>(
-      ".solaris-app-toolbar button, .solaris-app-toolbar a, .solaris-app-tabbar button, .solaris-app-tabbar a",
-    )].flatMap((node) => {
+    [
+      ...document.querySelectorAll<HTMLElement>(
+        ".solaris-app-toolbar button, .solaris-app-toolbar a, .solaris-app-tabbar button, .solaris-app-tabbar a",
+      ),
+    ].flatMap((node) => {
       if (node.getClientRects().length === 0) return [];
       const rect = node.getBoundingClientRect();
       return rect.width >= 44 && rect.height >= 44
@@ -633,9 +762,7 @@ async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo
     };
 
     const visibleH1 = [...document.querySelectorAll("h1")].filter(visible);
-    const main = document.querySelector<HTMLElement>(
-      ".app-main[data-solaris-app-mode='true']",
-    );
+    const main = document.querySelector<HTMLElement>(".app-main[data-solaris-app-mode='true']");
     const requestedToolbar = main?.dataset.solarisAppToolbar ?? "visible";
     const requestedTabbar = main?.dataset.solarisAppTabbar ?? "visible";
     const tabbars = [...document.querySelectorAll(".solaris-app-tabbar")].filter(visible);
@@ -708,7 +835,10 @@ async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo
   expect(result.websiteChrome, `${route} leaked website chrome`).toEqual([]);
   expect(result.flagProblems, `${route} has non-canonical flag frames`).toEqual([]);
   expect(result.chromeControls, `${route} has undersized app chrome controls`).toEqual([]);
-  expect(result.bootGuardStillPresent, `${route} first-paint guard must clear after hydration`).toBe(false);
+  expect(
+    result.bootGuardStillPresent,
+    `${route} first-paint guard must clear after hydration`,
+  ).toBe(false);
 
   if (result.requestedTabbar === "hidden") {
     expect(result.tabbarCount, `${route} should hide the global tab bar`).toBe(0);
@@ -730,9 +860,7 @@ for (let shard = 0; shard < 4; shard += 1) {
     );
 
     const failures: string[] = [];
-    const routes = [...STATIC_PUBLIC_ROUTES]
-      .sort()
-      .filter((_, index) => index % 4 === shard);
+    const routes = [...STATIC_PUBLIC_ROUTES].sort().filter((_, index) => index % 4 === shard);
 
     for (const route of routes) {
       try {
@@ -742,7 +870,9 @@ for (let shard = 0; shard < 4; shard += 1) {
       }
     }
 
-    expect(failures, "Every static public route should preserve installed-app invariants").toEqual([]);
+    expect(failures, "Every static public route should preserve installed-app invariants").toEqual(
+      [],
+    );
   });
 }
 

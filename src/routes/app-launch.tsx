@@ -1,148 +1,43 @@
 import { createFileRoute, ScriptOnce } from "@tanstack/react-router";
-import { useEffect } from "react";
 
-import { useSolarisApp } from "@/components/app/AppRuntime";
-import { supabase } from "@/integrations/supabase/client";
-import {
-  APP_LAUNCH_ABSOLUTE_ESCAPE_MS,
-  resolveAppLaunchSession,
-} from "@/lib/app-launch-lifecycle";
-import {
-  appEntryHref,
-  appTabForPath,
-  getAppLaunchDestination,
-  markAppNavigationRestore,
-} from "@/lib/app-navigation";
-import { trackPublicUxEvent } from "@/lib/public-ux-events";
+import { APP_LAUNCH_TRANSACTION_KEY } from "@/lib/app-launch-lifecycle";
+import { APP_NAVIGATION_STORAGE_KEY } from "@/lib/app-navigation";
 
 const APP_LAUNCH_BOOTSTRAP_SCRIPT = `(() => {
   try {
     if (window.location.pathname !== "/app-launch") return;
-    const startedKey = "__solarisAppLaunchStartedAt";
-    const timerKey = "__solarisAppLaunchEscapeTimer";
-    const existingStarted = Number(window[startedKey]);
-    const startedAt = Number.isFinite(existingStarted) && existingStarted > 0
-      ? existingStarted
-      : Date.now();
-    window[startedKey] = startedAt;
-
-    const existingTimer = Number(window[timerKey]);
-    if (Number.isFinite(existingTimer) && existingTimer > 0) {
-      window.clearTimeout(existingTimer);
-    }
-
-    const leave = () => {
-      if (window.location.pathname === "/app-launch") {
-        try { window.stop(); } catch {}
-        window.location.replace("/");
-      }
-    };
-    const remaining = Math.max(0, ${APP_LAUNCH_ABSOLUTE_ESCAPE_MS} - (Date.now() - startedAt));
-    window[timerKey] = window.setTimeout(leave, remaining);
+    let navigationSnapshot = null;
+    try {
+      navigationSnapshot = window.localStorage.getItem(${JSON.stringify(APP_NAVIGATION_STORAGE_KEY)});
+    } catch {}
+    try {
+      window.sessionStorage.setItem(
+        ${JSON.stringify(APP_LAUNCH_TRANSACTION_KEY)},
+        JSON.stringify({
+          version: 1,
+          startedAt: new Date().toISOString(),
+          navigationSnapshot:
+            typeof navigationSnapshot === "string" ? navigationSnapshot : null,
+        }),
+      );
+    } catch {}
+    window.location.replace("/");
   } catch {
-    if (window.location.pathname === "/app-launch") {
-      try { window.stop(); } catch {}
-      window.location.replace("/");
-    }
+    if (window.location.pathname === "/app-launch") window.location.replace("/");
   }
 })();`;
 
 export const Route = createFileRoute("/app-launch")({
   head: () => ({
-    meta: [
-      { title: "Opening Solaris Studio…" },
-      { name: "robots", content: "noindex, nofollow" },
-    ],
+    meta: [{ title: "Opening Solaris Studio…" }, { name: "robots", content: "noindex, nofollow" }],
   }),
   component: AppLaunchPage,
 });
 
-function leaveLaunchRoute(targetHref: string) {
-  if (window.location.pathname !== "/app-launch") return;
-
-  // WebKit can keep the outgoing launch document visible while its module graph
-  // is still loading, even after location.replace() has requested the next
-  // document. Abort that obsolete work first so the replacement navigation can
-  // commit instead of waiting behind the launch document's resource queue.
-  try {
-    window.stop();
-  } catch {
-    // A browser that does not expose stop() can still attempt the replacement.
-  }
-
-  // Keep the pre-hydration absolute escape armed until this document actually
-  // leaves /app-launch. The watchdog re-checks pathname before using the safe
-  // "/" fallback, so it remains harmless once the preferred navigation commits.
-  window.location.replace(targetHref);
-}
-
 function AppLaunchPage() {
-  const { isAppMode } = useSolarisApp();
-
-  useEffect(() => {
-    let alive = true;
-
-    if (!isAppMode) {
-      leaveLaunchRoute("/");
-      return () => {
-        alive = false;
-      };
-    }
-
-    void resolveAppLaunchSession(async () => {
-      const { data } = await supabase.auth.getSession();
-      return Boolean(data.session?.user);
-    }).then(({ signedIn, source }) => {
-      if (!alive) return;
-
-      const target =
-        source === "timeout"
-          ? {
-              pathname: "/",
-              searchStr: "",
-              scrollY: 0,
-              visitedAt: new Date().toISOString(),
-            }
-          : getAppLaunchDestination(signedIn);
-      const targetHref = appEntryHref(target);
-
-      // Analytics is best-effort and deliberately synchronous from the launch
-      // controller's perspective. A telemetry promise/network stall is never
-      // awaited and therefore cannot gate navigation.
-      try {
-        void trackPublicUxEvent("app_cold_launch_restored", {
-          target: targetHref,
-          metadata: {
-            area: appTabForPath(target.pathname) ?? "app",
-            source:
-              source === "timeout"
-                ? "cold_launch_session_timeout"
-                : source === "error"
-                  ? "cold_launch_session_error"
-                  : "cold_launch_local_session",
-          },
-        });
-      } catch {
-        // Best-effort telemetry only.
-      }
-
-      markAppNavigationRestore(target);
-      leaveLaunchRoute(targetHref);
-    });
-
-    return () => {
-      alive = false;
-      // Do not cancel the pre-hydration escape here. React can intentionally
-      // remount routes in development and during recovery; the absolute browser
-      // deadline is specifically what survives those lifecycle transitions.
-    };
-  }, [isAppMode]);
-
   return (
     <>
-      {/* ScriptOnce is server-rendered and executes while the browser parses the
-          document, before React hydration. The launch escape therefore remains
-          available even when the application bundle or hydration stalls. */}
+      {/* Parsing-time trampoline: no auth, telemetry, timer or hydration owner. */}
       <ScriptOnce>{APP_LAUNCH_BOOTSTRAP_SCRIPT}</ScriptOnce>
       <main
         id="main-content"

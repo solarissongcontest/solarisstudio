@@ -1,10 +1,18 @@
 import { buildAdminDomainNavigation, type AdminDomainNavigationItem } from "./admin-domains";
 
-export type AdminContextualTab = {
+type AdminContextualTabBase = {
+  id: string;
   label: string;
-  to: string;
   active: (pathname: string) => boolean;
 };
+
+export type AdminContextualTab =
+  | (AdminContextualTabBase & { availability: "ready"; to: string })
+  | (AdminContextualTabBase & {
+      availability: "requires-edition";
+      to: null;
+      unavailableReason: "Select an edition first";
+    });
 
 export type AdminContextualWorkflow = {
   label: string;
@@ -22,7 +30,9 @@ export function buildAdminContextualSection(
   slug?: string,
   editionLabel = "Current edition",
 ): AdminContextualSection | null {
-  const domain = buildAdminDomainNavigation(slug, editionLabel).find((item) => item.active(pathname));
+  const domain = buildAdminDomainNavigation(slug, editionLabel).find((item) =>
+    item.active(pathname),
+  );
   if (!domain) return null;
 
   return {
@@ -89,8 +99,8 @@ function domainTabs(
       return [];
     case "edition":
       return [
-        tab("Overview", slug ? `/admin/${slug}` : "/admin", overviewActive),
-        tab("Contest", slug ? `/admin/shows/${slug}` : "/admin", contestActive),
+        tab("Overview", slug ? `/admin/${slug}` : null, overviewActive),
+        tab("Contest", slug ? `/admin/shows/${slug}` : null, contestActive),
         tab("Voting & results", "/televoting/admin", votingActive),
         tab("Live", "/admin/control-room", liveActive),
         tab("Publish", publishHref, publishActive),
@@ -145,10 +155,8 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
           "/confirmations/admin",
           (path) => path === "/confirmations/admin" || path === "/confirmations/admin/",
         ),
-        tab(
-          "Requirements",
-          "/confirmations/admin/requirements",
-          (path) => path.startsWith("/confirmations/admin/requirements"),
+        tab("Requirements", "/confirmations/admin/requirements", (path) =>
+          path.startsWith("/confirmations/admin/requirements"),
         ),
         tab(
           "Responses",
@@ -157,9 +165,15 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
             path.startsWith("/confirmations/admin/responses") ||
             path.startsWith("/confirmations/admin/countries"),
         ),
-        tab("Next in Line", "/admin/next-in-line", (path) => path.startsWith("/admin/next-in-line")),
-        tab("Rounds", "/confirmations/admin/rounds", (path) => path.startsWith("/confirmations/admin/rounds")),
-        tab("Schedule", "/confirmations/admin/calendar", (path) => path.startsWith("/confirmations/admin/calendar")),
+        tab("Next in Line", "/admin/next-in-line", (path) =>
+          path.startsWith("/admin/next-in-line"),
+        ),
+        tab("Rounds", "/confirmations/admin/rounds", (path) =>
+          path.startsWith("/confirmations/admin/rounds"),
+        ),
+        tab("Schedule", "/confirmations/admin/calendar", (path) =>
+          path.startsWith("/confirmations/admin/calendar"),
+        ),
         tab(
           "More",
           "/confirmations/admin/recovery-codes",
@@ -194,18 +208,28 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
             path.startsWith("/admin/integrity-case/") ||
             path.startsWith("/admin/integrity-resolution/"),
         ),
-        tab("Rulings", "/admin/integrity-preclearance", (path) => path.startsWith("/admin/integrity-preclearance")),
-        tab("Appeals", "/admin/integrity-appeals", (path) => path.startsWith("/admin/integrity-appeals")),
-        tab("Evidence", "/admin/integrity-evidence", (path) => path.startsWith("/admin/integrity-evidence")),
+        tab("Rulings", "/admin/integrity-preclearance", (path) =>
+          path.startsWith("/admin/integrity-preclearance"),
+        ),
+        tab("Appeals", "/admin/integrity-appeals", (path) =>
+          path.startsWith("/admin/integrity-appeals"),
+        ),
+        tab("Evidence", "/admin/integrity-evidence", (path) =>
+          path.startsWith("/admin/integrity-evidence"),
+        ),
         tab(
           "Rules",
           "/admin/rules-manager",
-          (path) => path.startsWith("/admin/rules-manager") || path.startsWith("/admin/rule-interpretations"),
+          (path) =>
+            path.startsWith("/admin/rules-manager") ||
+            path.startsWith("/admin/rule-interpretations"),
         ),
         tab(
           "Privacy",
           "/admin/integrity-disclosure",
-          (path) => path.startsWith("/admin/integrity-disclosure") || path.startsWith("/admin/integrity-identity"),
+          (path) =>
+            path.startsWith("/admin/integrity-disclosure") ||
+            path.startsWith("/admin/integrity-identity"),
         ),
       ],
     };
@@ -224,18 +248,31 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
     return {
       label: "Voting workflow",
       tabs: [
-        tab("Overview", "/televoting/admin", (path) => path === "/televoting/admin" || path === "/televoting/admin/"),
-        tab("Rules", slug ? `/admin/voting-system/${slug}` : "/admin", (path) => path.startsWith("/admin/voting-system/")),
-        tab("Jury", slug ? `/admin/jury/${slug}` : "/admin", (path) => path.startsWith("/admin/jury/") || path.startsWith("/admin/jury-integrity")),
+        tab(
+          "Overview",
+          "/televoting/admin",
+          (path) => path === "/televoting/admin" || path === "/televoting/admin/",
+        ),
+        tab("Rules", slug ? `/admin/voting-system/${slug}` : null, (path) =>
+          path.startsWith("/admin/voting-system/"),
+        ),
+        tab(
+          "Jury",
+          slug ? `/admin/jury/${slug}` : null,
+          (path) => path.startsWith("/admin/jury/") || path.startsWith("/admin/jury-integrity"),
+        ),
         tab(
           "Public vote",
           "/televoting/admin/rounds",
-          (path) => path.startsWith("/televoting/admin/rounds") || path.startsWith("/admin/televote/"),
+          (path) =>
+            path.startsWith("/televoting/admin/rounds") || path.startsWith("/admin/televote/"),
         ),
         tab(
           "Friend voting",
           "/admin/friend-voting",
-          (path) => path.startsWith("/admin/friend-voting") || path.startsWith("/televoting/admin/intelligence"),
+          (path) =>
+            path.startsWith("/admin/friend-voting") ||
+            path.startsWith("/televoting/admin/intelligence"),
         ),
         tab(
           "Integrity",
@@ -268,14 +305,20 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
     return {
       label: "Contest workflow",
       tabs: [
-        tab("Overview", slug ? `/admin/${slug}` : "/admin", (path) => Boolean(slug && path === `/admin/${slug}`)),
-        tab("Shows", slug ? `/admin/shows/${slug}` : "/admin", (path) => path.startsWith("/admin/shows/")),
-        tab("Entries", slug ? `/admin/entries/${slug}` : "/admin", (path) => path.startsWith("/admin/entries/")),
-        tab("Sync", slug ? `/admin/lineup-sync/${slug}` : "/admin", (path) => path.startsWith("/admin/lineup-sync/")),
-        tab(
-          "Participation",
-          slug ? `/admin/participant-status/${slug}` : "/admin",
-          (path) => path.startsWith("/admin/participant-status/"),
+        tab("Overview", slug ? `/admin/${slug}` : null, (path) =>
+          Boolean(slug && path === `/admin/${slug}`),
+        ),
+        tab("Shows", slug ? `/admin/shows/${slug}` : null, (path) =>
+          path.startsWith("/admin/shows/"),
+        ),
+        tab("Entries", slug ? `/admin/entries/${slug}` : null, (path) =>
+          path.startsWith("/admin/entries/"),
+        ),
+        tab("Sync", slug ? `/admin/lineup-sync/${slug}` : null, (path) =>
+          path.startsWith("/admin/lineup-sync/"),
+        ),
+        tab("Participation", slug ? `/admin/participant-status/${slug}` : null, (path) =>
+          path.startsWith("/admin/participant-status/"),
         ),
       ],
     };
@@ -292,12 +335,18 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
     return {
       label: "Live workflow",
       tabs: [
-        tab("Control room", "/admin/control-room", (path) => path.startsWith("/admin/control-room")),
+        tab("Control room", "/admin/control-room", (path) =>
+          path.startsWith("/admin/control-room"),
+        ),
         tab("Workflows", "/admin/workflows", (path) => path.startsWith("/admin/workflows")),
         tab("Incidents", "/admin/incidents", (path) => path.startsWith("/admin/incidents")),
-        tab("Rundown", "/admin/broadcast-rundown", (path) => path.startsWith("/admin/broadcast-rundown")),
+        tab("Rundown", "/admin/broadcast-rundown", (path) =>
+          path.startsWith("/admin/broadcast-rundown"),
+        ),
         tab("Reveal", "/admin/results-reveal", (path) => path.startsWith("/admin/results-reveal")),
-        tab("Rehearsal", "/admin/edition-simulator", (path) => path.startsWith("/admin/edition-simulator")),
+        tab("Rehearsal", "/admin/edition-simulator", (path) =>
+          path.startsWith("/admin/edition-simulator"),
+        ),
       ],
     };
   }
@@ -313,11 +362,19 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
     return {
       label: "Publish workflow",
       tabs: [
-        tab("Release", slug ? `/admin/publication/${slug}` : "/admin", (path) => path.startsWith("/admin/publication/")),
-        tab("Communications", "/admin/communications", (path) => path.startsWith("/admin/communications")),
+        tab("Release", slug ? `/admin/publication/${slug}` : null, (path) =>
+          path.startsWith("/admin/publication/"),
+        ),
+        tab("Communications", "/admin/communications", (path) =>
+          path.startsWith("/admin/communications"),
+        ),
         tab("Media", "/admin/media-assets", (path) => path.startsWith("/admin/media-assets")),
         tab("Stories", "/admin/storytelling", (path) => path.startsWith("/admin/storytelling")),
-        tab("Design", slug ? `/admin/design/${slug}` : "/admin", (path) => path.startsWith("/admin/design/") || path.startsWith("/admin/edition-theme/")),
+        tab(
+          "Design",
+          slug ? `/admin/design/${slug}` : null,
+          (path) => path.startsWith("/admin/design/") || path.startsWith("/admin/edition-theme/"),
+        ),
       ],
     };
   }
@@ -327,8 +384,21 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
 
 function tab(
   label: string,
-  to: string,
+  to: string | null,
   active: (pathname: string) => boolean,
 ): AdminContextualTab {
-  return { label, to, active };
+  const id = label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return to === null
+    ? {
+        id,
+        label,
+        availability: "requires-edition",
+        to: null,
+        unavailableReason: "Select an edition first",
+        active,
+      }
+    : { id, label, availability: "ready", to, active };
 }

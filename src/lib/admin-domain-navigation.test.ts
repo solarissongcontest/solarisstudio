@@ -123,7 +123,9 @@ describe("Organizer domain navigation", () => {
       "Results",
     ]);
 
-    expect(buildAdminContextualSection("/admin/communications", "ssc-21")?.workflow?.label).toBe("Publish workflow");
+    expect(buildAdminContextualSection("/admin/communications", "ssc-21")?.workflow?.label).toBe(
+      "Publish workflow",
+    );
   });
 
   it("keeps every specialist route searchable even when it is not a contextual tab", () => {
@@ -160,6 +162,7 @@ describe("Organizer domain navigation", () => {
     const domains = buildAdminDomainNavigation("ssc-21", "SSC21");
     const destinations = buildAdminNavigation("ssc-21")
       .flatMap((group) => group.items)
+      .filter((item) => item.availability === "ready")
       .filter(
         (item) =>
           item.to.startsWith("/admin") ||

@@ -8,6 +8,16 @@ import { searchGovernanceLibrary } from "@/lib/public-library-governance";
 import { useAdminContext } from "./AdminContext";
 import { buildAdminNavigation } from "./admin-navigation";
 
+type AdminCommand = {
+  id: string;
+  label: string;
+  href: string | null;
+  group: string;
+  keywords: string;
+  available: boolean;
+  unavailableReason: string | null;
+};
+
 export function AdminCommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -38,15 +48,18 @@ export function AdminCommandPalette() {
   }, [open]);
 
   const commands = useMemo(() => {
-    const navigation = buildAdminNavigation(activeEdition?.slug).flatMap((group) =>
-      group.items.map((item) => ({
+    const navigation: AdminCommand[] = buildAdminNavigation(activeEdition?.slug).flatMap((group) =>
+      group.items.map((item): AdminCommand => ({
+        id: item.id,
         label: item.label,
         href: item.to,
         group: group.label,
         keywords: `${item.description} ${item.keywords}`,
+        available: item.availability === "ready",
+        unavailableReason: item.availability === "requires-edition" ? item.unavailableReason : null,
       })),
     );
-    const currentEdition = activeEdition
+    const currentEdition: AdminCommand[] = activeEdition
       ? [
           {
             label: `${editionLabel(activeEdition)} contest overview`,
@@ -96,23 +109,34 @@ export function AdminCommandPalette() {
             group: "Broadcast",
             keywords: `${activeEdition.name} artwork theme broadcast scoreboard hosts scenes`,
           },
-        ]
+        ].map((item) => ({
+          ...item,
+          id: `edition:${item.href}`,
+          available: true,
+          unavailableReason: null,
+        }))
       : [];
 
-    const inboxItems = notifications
+    const inboxItems: AdminCommand[] = notifications
       .filter((item) => !item.read_at)
       .map((item) => ({
+        id: `inbox:${item.id}`,
         label: item.title,
         href: item.href ?? "/admin/inbox",
         group: "Inbox",
         keywords: `${item.body ?? ""} ${item.severity} attention work`,
+        available: true,
+        unavailableReason: null,
       }));
 
     const countryItems = countries.map((country) => ({
+      id: `country:${country.id}`,
       label: country.name,
       href: `/admin/countries/${country.id}`,
       group: "Countries",
       keywords: `${country.short_code ?? ""} delegation country participant HOD`,
+      available: true,
+      unavailableReason: null,
     }));
 
     return [
@@ -121,22 +145,31 @@ export function AdminCommandPalette() {
       ...currentEdition,
       ...navigation,
       {
+        id: "workspace:all-organizer-pages",
         label: "All organizer pages",
         href: "/admin/menu",
         group: "Workspace",
         keywords: "menu navigation every feature workspace",
+        available: true,
+        unavailableReason: null,
       },
       {
+        id: "workspace:public-site",
         label: "Public Solaris Studio",
         href: "/",
         group: "Public site",
         keywords: "homepage public",
+        available: true,
+        unavailableReason: null,
       },
       ...editions.map((edition) => ({
+        id: `edition-picker:${edition.id}`,
         label: `${editionLabel(edition)} · ${edition.name}`,
         href: `/admin/${edition.slug}`,
         group: "Editions",
         keywords: `${edition.host_city ?? ""} ${edition.edition_number ?? ""}`,
+        available: true,
+        unavailableReason: null,
       })),
     ];
   }, [activeEdition, countries, editions, notifications]);
@@ -154,23 +187,29 @@ export function AdminCommandPalette() {
 
   const mergedResults = useMemo(() => {
     const organizerResults = filtered.map((item) => ({
+      id: item.id,
       label: item.label,
       href: item.href,
       group: item.group,
       description: "",
       source: "organizer" as const,
+      available: item.available,
+      unavailableReason: item.unavailableReason,
     }));
     const publicResults = publicGovernanceResults.map((item) => ({
+      id: `public:${item.to}`,
       label: item.title,
       href: item.to,
       group: item.group,
       description: item.description,
       source: "public-reference" as const,
+      available: true,
+      unavailableReason: null,
     }));
 
     const seen = new Set<string>();
     return [...organizerResults, ...publicResults].filter((item) => {
-      const key = `${item.href}|${item.label}`;
+      const key = item.id;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -220,13 +259,8 @@ export function AdminCommandPalette() {
             </div>
 
             <div className="max-h-[68dvh] overflow-y-auto p-2 scroll-slim">
-              {mergedResults.slice(0, 30).map((item) => (
-                <Link
-                  key={`${item.group}-${item.href}-${item.label}`}
-                  to={item.href as any}
-                  onClick={() => setOpen(false)}
-                  className="flex min-h-13 items-center rounded-xl px-3 transition hover:bg-white/[0.045]"
-                >
+              {mergedResults.slice(0, 30).map((item) => {
+                const content = (
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">{item.label}</span>
                     {item.description ? (
@@ -237,10 +271,31 @@ export function AdminCommandPalette() {
                     <span className="mt-0.5 block text-[10px] font-semibold text-muted-foreground">
                       {item.group}
                       {item.source === "public-reference" ? " · Public reference" : ""}
+                      {item.unavailableReason ? ` · ${item.unavailableReason}` : ""}
                     </span>
                   </span>
-                </Link>
-              ))}
+                );
+
+                return item.available && item.href ? (
+                  <Link
+                    key={item.id}
+                    to={item.href as any}
+                    onClick={() => setOpen(false)}
+                    className="flex min-h-13 items-center rounded-xl px-3 transition hover:bg-white/[0.045]"
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  <div
+                    key={item.id}
+                    aria-disabled="true"
+                    title={item.unavailableReason ?? undefined}
+                    className="flex min-h-13 cursor-not-allowed items-center rounded-xl px-3 opacity-55"
+                  >
+                    {content}
+                  </div>
+                );
+              })}
               {!mergedResults.length ? (
                 <p className="p-7 text-center text-sm text-muted-foreground">
                   Nothing in Solaris matches that search.
