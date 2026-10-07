@@ -46,6 +46,7 @@ function routeFile(route: string) {
 const adminNav = source("src/components/admin/admin-navigation.ts");
 const operationsPanel = source("src/components/MySolarisOperationsPanel.tsx");
 const authenticatedRoute = source("src/routes/_authenticated/route.tsx");
+const organizerGate = source("src/components/admin/OrganizerAccessGate.tsx");
 const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
 
 describe("Studio 2 stabilization contract", () => {
@@ -199,14 +200,18 @@ describe("Studio 2 stabilization contract", () => {
     expect(studio2SurfaceRolloutEligible(rules)).toBe(false);
   });
 
-  it("keeps every authenticated Organizer route behind authoritative V2 access", () => {
-    expect(authenticatedRoute).toContain("hasSolarisOrganizerAccess");
-    expect(authenticatedRoute).toContain('location.pathname === "/admin"');
-    expect(authenticatedRoute).toContain('location.pathname.startsWith("/admin/")');
-    expect(authenticatedRoute).not.toContain('.from("user_roles")');
-    expect(authenticatedRoute).toContain('to: "/my-solaris"');
-    expect(authenticatedRoute).toContain('notice: "organizer-access-required"');
-    expect(authenticatedRoute).toContain("replace: true");
+  it("keeps every authenticated Organizer route behind mounted authoritative V2 access", () => {
+    expect(authenticatedRoute).toContain("<OrganizerAccessGate");
+    expect(authenticatedRoute).toContain('pathname === "/admin"');
+    expect(authenticatedRoute).toContain('pathname.startsWith("/admin/")');
+    expect(authenticatedRoute).not.toContain("hasSolarisOrganizerAccess");
+    expect(organizerGate).toContain("hasSolarisOrganizerAccess(userId)");
+    expect(organizerGate).toContain("useEffect");
+    expect(organizerGate).not.toContain('.from("user_roles")');
+    expect(organizerGate).toContain('to: "/my-solaris"');
+    expect(organizerGate).toContain('notice: "organizer-access-required"');
+    expect(organizerGate).toContain("replace: true");
+    expect(organizerGate).toContain('state === "allowed"');
     expect(adminRoute).not.toContain("hasSolarisOrganizerAccess");
     expect(adminRoute).not.toContain("beforeLoad:");
   });
