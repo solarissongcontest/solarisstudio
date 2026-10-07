@@ -33,13 +33,17 @@ const APP_LAUNCH_BOOTSTRAP_SCRIPT = `(() => {
 
     const leave = () => {
       if (window.location.pathname === "/app-launch") {
+        try { window.stop(); } catch {}
         window.location.replace("/");
       }
     };
     const remaining = Math.max(0, ${APP_LAUNCH_ABSOLUTE_ESCAPE_MS} - (Date.now() - startedAt));
     window[timerKey] = window.setTimeout(leave, remaining);
   } catch {
-    if (window.location.pathname === "/app-launch") window.location.replace("/");
+    if (window.location.pathname === "/app-launch") {
+      try { window.stop(); } catch {}
+      window.location.replace("/");
+    }
   }
 })();`;
 
@@ -56,11 +60,19 @@ export const Route = createFileRoute("/app-launch")({
 function leaveLaunchRoute(targetHref: string) {
   if (window.location.pathname !== "/app-launch") return;
 
+  // WebKit can keep the outgoing launch document visible while its module graph
+  // is still loading, even after location.replace() has requested the next
+  // document. Abort that obsolete work first so the replacement navigation can
+  // commit instead of waiting behind the launch document's resource queue.
+  try {
+    window.stop();
+  } catch {
+    // A browser that does not expose stop() can still attempt the replacement.
+  }
+
   // Keep the pre-hydration absolute escape armed until this document actually
-  // leaves /app-launch. Calling location.replace only requests navigation; it
-  // can still be delayed by a busy browser/event loop. The watchdog re-checks
-  // pathname before using the safe "/" fallback, so it is harmless once the
-  // preferred navigation has committed and is essential if it has not.
+  // leaves /app-launch. The watchdog re-checks pathname before using the safe
+  // "/" fallback, so it remains harmless once the preferred navigation commits.
   window.location.replace(targetHref);
 }
 
