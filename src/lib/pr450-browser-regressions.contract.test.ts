@@ -26,15 +26,23 @@ describe("PR 450 browser blocker regressions", () => {
     expect(countryPicker).toContain('aria-label="Search country"');
   });
 
-  it("authorizes Organizer routes in the existing authenticated boundary without a nested async guard", () => {
+  it("authorizes Organizer routes in a mounted fail-closed gate without a nested async route guard", () => {
     const authenticated = source("src/routes/_authenticated/route.tsx");
+    const organizerGate = source("src/components/admin/OrganizerAccessGate.tsx");
     const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
 
-    expect(authenticated).toContain('location.pathname === "/admin"');
-    expect(authenticated).toContain('location.pathname.startsWith("/admin/")');
-    expect(authenticated).toContain("await hasSolarisOrganizerAccess(data.user.id)");
-    expect(authenticated).toContain('notice: "organizer-access-required"');
-    expect(authenticated).toContain("replace: true");
+    expect(authenticated).toContain('pathname === "/admin"');
+    expect(authenticated).toContain('pathname.startsWith("/admin/")');
+    expect(authenticated).toContain("<OrganizerAccessGate");
+    expect(authenticated).not.toContain("hasSolarisOrganizerAccess");
+
+    expect(organizerGate).toContain("useEffect");
+    expect(organizerGate).toContain("hasSolarisOrganizerAccess(userId)");
+    expect(organizerGate).not.toContain('.from("user_roles")');
+    expect(organizerGate).toContain('to: "/my-solaris"');
+    expect(organizerGate).toContain('notice: "organizer-access-required"');
+    expect(organizerGate).toContain("replace: true");
+    expect(organizerGate).toContain('state === "allowed"');
 
     expect(adminRoute).not.toContain("hasSolarisOrganizerAccess");
     expect(adminRoute).not.toContain("supabase.auth.getUser");
@@ -48,6 +56,7 @@ describe("PR 450 browser blocker regressions", () => {
     expect(launch).toContain("<ScriptOnce>{APP_LAUNCH_BOOTSTRAP_SCRIPT}</ScriptOnce>");
     expect(launch).toContain("window[timerKey] = window.setTimeout(leave, remaining);");
     expect(launch).toContain('if (window.location.pathname !== "/app-launch") return;');
+    expect(launch).toContain("window.stop();");
     expect(launch).not.toContain("clearPreHydrationEscape");
     expect(launch).not.toMatch(
       /function leaveLaunchRoute[\s\S]*?window\.clearTimeout[\s\S]*?window\.location\.replace/,
