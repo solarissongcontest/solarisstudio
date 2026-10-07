@@ -32,6 +32,22 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     expect(launch).not.toContain("APP_LAUNCH_HARD_EXIT_MS");
   });
 
+  it("aborts obsolete launch-document work before every hard browser replacement", () => {
+    const launch = source("src/routes/app-launch.tsx");
+    const stopCalls = launch.match(/window\.stop\(\)/g) ?? [];
+
+    // One stop belongs to the preferred hydrated exit. The bootstrap watchdog
+    // has independent stop calls for both its normal and exception escape paths.
+    expect(stopCalls).toHaveLength(3);
+    expect(launch).toContain("Abort that obsolete work first");
+    expect(launch.indexOf("window.stop();")).toBeLessThan(
+      launch.indexOf('window.location.replace("/")'),
+    );
+    const preferredStop = launch.indexOf("window.stop();", launch.indexOf("function leaveLaunchRoute"));
+    expect(preferredStop).toBeGreaterThan(-1);
+    expect(preferredStop).toBeLessThan(launch.indexOf("window.location.replace(targetHref)"));
+  });
+
   it("executes the absolute launch escape before React hydration", () => {
     const launch = source("src/routes/app-launch.tsx");
     expect(launch).toContain('import { createFileRoute, ScriptOnce } from "@tanstack/react-router"');
