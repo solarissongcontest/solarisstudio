@@ -134,7 +134,7 @@ export function CountryIdentityHero({
     </>
   );
 
-  const composition = (
+  const baseComposition = (
     <PersonalityHeroRenderer
       personality={definition.id}
       code={code}
@@ -148,6 +148,18 @@ export function CountryIdentityHero({
       geography={geography}
     />
   );
+
+  // The lazy glass material and its Suspense fallback must own the same layout
+  // box. Without this wrapper the first gallery card inserts a new block when
+  // the material chunk resolves, shifting every card below it by an entire hero.
+  const composition = isLiquidGlass ? (
+    <div
+      className="country-hero-glass-material"
+      style={{ display: "block", width: "100%", maxWidth: "100%" }}
+    >
+      {baseComposition}
+    </div>
+  ) : baseComposition;
 
   return (
     <Root
@@ -197,7 +209,7 @@ export function CountryIdentityHero({
               specular: 1.05,
             }}
           >
-            {composition}
+            {baseComposition}
           </LazyGlassMaterial>
         </Suspense>
       ) : composition}
