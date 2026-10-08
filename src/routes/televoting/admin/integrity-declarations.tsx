@@ -174,6 +174,7 @@ function IntegrityDeclarationsPage() {
           <label className="relative block">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <input
+              aria-label="Search integrity declarations"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search voter, country, round or finding…"
