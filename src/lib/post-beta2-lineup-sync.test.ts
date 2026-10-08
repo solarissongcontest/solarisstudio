@@ -7,8 +7,11 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 describe("post-Beta2 lineup sync", () => {
   it("provides one-click confirmation round to show sync", () => {
     const route = source("src/routes/confirmations/admin/sync.tsx");
+    const wrapper = source("src/integrations/confirmations/sync-submission.functions.ts");
     expect(route).toContain("Sync line-ups");
-    expect(route).toContain("syncConfirmationSnapshotToSolaris");
+    expect(route).toContain("syncConfirmationSubmissionToSolaris");
+    expect(route).toContain("submissionId: row.id");
+    expect(wrapper).toContain("syncConfirmationSubmissionToSolarisInternal");
     expect(route).toContain("addCountriesToShow");
     expect(route).toContain("Confirmation round");
     expect(route).toContain("Add to show");
