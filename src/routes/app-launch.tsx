@@ -7,8 +7,16 @@ const APP_LAUNCH_BOOTSTRAP_SCRIPT = `(() => {
   try {
     if (window.location.pathname !== "/app-launch") return;
     let navigationSnapshot = null;
+    let safeRoot = "/";
     try {
       navigationSnapshot = window.localStorage.getItem(${JSON.stringify(APP_NAVIGATION_STORAGE_KEY)});
+      if (typeof navigationSnapshot === "string") {
+        const parsed = JSON.parse(navigationSnapshot);
+        if (parsed?.activeTab === "explore") safeRoot = "/explore";
+        else if (parsed?.activeTab === "participate") safeRoot = "/participate";
+        else if (parsed?.activeTab === "results") safeRoot = "/results";
+        else if (parsed?.activeTab === "me") safeRoot = "/auth";
+      }
     } catch {}
     try {
       window.sessionStorage.setItem(
@@ -21,7 +29,7 @@ const APP_LAUNCH_BOOTSTRAP_SCRIPT = `(() => {
         }),
       );
     } catch {}
-    window.location.replace("/");
+    window.location.replace(safeRoot);
   } catch {
     if (window.location.pathname === "/app-launch") window.location.replace("/");
   }
