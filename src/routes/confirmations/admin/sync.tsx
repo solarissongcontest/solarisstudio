@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
-import { syncConfirmationSnapshotToSolaris } from "@/integrations/confirmations/sync.functions";
+import { syncConfirmationSubmissionToSolaris } from "@/integrations/confirmations/sync-submission.functions";
 import {
   addCountriesToShow,
   getSolarisEditionSyncTargets,
@@ -57,33 +57,8 @@ export const Route = createFileRoute("/confirmations/admin/sync")({
   component: ConfirmationSyncPage,
 });
 
-function snapshotFromRow(row: ResponseRow) {
-  return {
-    id: row.id,
-    country: row.country,
-    participating: row.participating,
-    selection_method: row.selection_method,
-    reveal_date_type: row.reveal_date_type,
-    reveal_exact_date: row.reveal_exact_date,
-    reveal_approximate_text: row.reveal_approximate_text,
-    nf_result_date_type: row.nf_result_date_type,
-    nf_result_exact_date: row.nf_result_exact_date,
-    nf_result_approximate_text: row.nf_result_approximate_text,
-    edition: row.editions,
-    internal_entry: row.internal_entries,
-    national_final: row.national_finals
-      ? {
-          id: row.national_finals.id,
-          nf_name: row.national_finals.nf_name,
-          winning_entry_id: row.national_finals.winning_entry_id,
-          entries: row.national_finals.national_final_entries,
-        }
-      : null,
-  };
-}
-
 function ConfirmationSyncPage() {
-  const syncSnapshot = useServerFn(syncConfirmationSnapshotToSolaris);
+  const syncSubmission = useServerFn(syncConfirmationSubmissionToSolaris);
   const getTargets = useServerFn(getSolarisEditionSyncTargets);
   const addToShow = useServerFn(addCountriesToShow);
   const [rows, setRows] = useState<ResponseRow[]>([]);
@@ -169,7 +144,7 @@ function ConfirmationSyncPage() {
 
       for (const row of selectedRows) {
         try {
-          const result = await syncSnapshot({ data: { snapshot: snapshotFromRow(row) } });
+          const result = await syncSubmission({ data: { submissionId: row.id } });
           if (result.ok && result.countryId) countryIds.push(result.countryId);
           else failures.push(`${row.country}: ${result.message ?? "sync needs attention"}`);
         } catch (caught) {
