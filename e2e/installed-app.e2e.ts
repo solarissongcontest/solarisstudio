@@ -54,6 +54,24 @@ async function skipFirstRun(page: Page) {
   });
 }
 
+async function launchInstalledApp(page: Page) {
+  const launchRequest = page.waitForRequest(
+    (request) => new URL(request.url()).pathname === "/app-launch",
+  );
+  const startedAt = Date.now();
+
+  // A parsing-time location.replace() deliberately supersedes the launch
+  // document before its lifecycle completes. Trigger that full-document
+  // navigation from a settled page instead of awaiting page.goto(), whose
+  // navigation promise WebKit can keep attached to the superseded document.
+  await page.evaluate(() => {
+    window.setTimeout(() => window.location.assign("/app-launch"), 0);
+  });
+  await launchRequest;
+
+  return startedAt;
+}
+
 async function openGlobalSearch(page: Page) {
   const allSearchTriggers = page.getByRole("button", { name: "Search Solaris Studio" });
   await expect(
@@ -159,8 +177,8 @@ test.beforeEach(async ({ page }) => {
 test.describe.configure({ retries: 0 });
 
 test("installed app cold launch always leaves the intermediary launch route", async ({ page }) => {
-  const startedAt = Date.now();
-  await page.goto("/app-launch", { waitUntil: "commit" });
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  const startedAt = await launchInstalledApp(page);
 
   await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/, {
     timeout: 4_000,
@@ -203,7 +221,7 @@ test("cold launch preserves Results query, history semantics and post-restore pe
     await page.goto("/explore", { waitUntil: "domcontentloaded" });
     await seedResultsNavigation();
 
-    await page.goto("/app-launch", { waitUntil: "commit" });
+    await launchInstalledApp(page);
     await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/, { timeout: 4_000 });
     await expect(page).toHaveURL(/\/results\/example\?view=jury$/);
     await expect
@@ -257,11 +275,11 @@ test("signed-out and critical-route cold launches use canonical safe roots", asy
   };
 
   await setNavigation("me", "/my-solaris/account");
-  await page.goto("/app-launch", { waitUntil: "commit" });
+  await launchInstalledApp(page);
   await expect(page).toHaveURL(/\/auth(?:\?|$)/, { timeout: 4_000 });
 
   await setNavigation("participate", "/televoting");
-  await page.goto("/app-launch", { waitUntil: "commit" });
+  await launchInstalledApp(page);
   await expect(page).toHaveURL(/\/participate(?:\?|$)/, { timeout: 4_000 });
 });
 
@@ -282,7 +300,8 @@ test("launch still exits when session storage cannot create a transaction", asyn
     };
   });
 
-  await page.goto("/app-launch", { waitUntil: "commit" });
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await launchInstalledApp(page);
   await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/, { timeout: 4_000 });
 });
 
@@ -293,6 +312,8 @@ test("pre-hydration launch escape survives a client bundle that never starts", a
     testInfo.project.name !== "ios-pwa-portrait",
     "The hydration-independent launch watchdog is viewport-independent; exercise it once on canonical iOS portrait.",
   );
+
+  await page.goto("/", { waitUntil: "domcontentloaded" });
 
   await page.route("**/*", async (route) => {
     const pathname = new URL(route.request().url()).pathname;
@@ -308,7 +329,7 @@ test("pre-hydration launch escape survives a client bundle that never starts", a
     await route.continue();
   });
 
-  await page.goto("/app-launch", { waitUntil: "commit" });
+  await launchInstalledApp(page);
   await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/, { timeout: 4_000 });
 });
 

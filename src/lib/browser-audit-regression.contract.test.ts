@@ -48,12 +48,16 @@ describe("Browser Audit regression boundaries", () => {
     const integrity = source("src/routes/_authenticated/admin/integrity-investigations.tsx");
     const installedApp = source("e2e/installed-app.e2e.ts");
     const auditHelpers = source("e2e/audit-helpers.ts");
+    const vite = source("vite.config.ts");
 
     expect(mediaAssets).toContain('aria-label="Review reason"');
     expect(integrity).toContain('aria-label="Search integrity cases"');
-    expect(installedApp.match(/page\.goto\("\/app-launch", \{ waitUntil: "commit" \}\)/g)).toHaveLength(6);
-    expect(installedApp).not.toContain('page.goto("/app-launch", { waitUntil: "domcontentloaded" })');
+    expect(installedApp.match(/await launchInstalledApp\(page\);/g)).toHaveLength(6);
+    expect(installedApp).not.toContain('page.goto("/app-launch"');
+    expect(installedApp).toContain('window.location.assign("/app-launch")');
+    expect(installedApp).toContain('new URL(request.url()).pathname === "/app-launch"');
     expect(auditHelpers).toContain("await page.bringToFront();");
     expect(auditHelpers).toContain("window.focus();");
+    expect(vite).toContain('entries: ["src/router.tsx"]');
   });
 });
