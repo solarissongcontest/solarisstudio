@@ -180,39 +180,41 @@ test("cold launch preserves Results query, history semantics and post-restore pe
     "Exercise the complete transaction contract on canonical iOS portrait and landscape.",
   );
 
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await page.evaluate(() => {
-    const entry = {
-      pathname: "/results/example",
-      searchStr: "?view=jury",
-      scrollY: 640,
-      visitedAt: new Date().toISOString(),
-    };
-    localStorage.setItem(
-      "solaris:app-navigation:v1",
-      JSON.stringify({
-        version: 1,
-        activeTab: "results",
-        tabs: { results: { current: entry, history: [entry] } },
-      }),
-    );
-  });
+  const seedResultsNavigation = async () => {
+    await page.evaluate(() => {
+      const entry = {
+        pathname: "/results/example",
+        searchStr: "?view=jury",
+        scrollY: 640,
+        visitedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(
+        "solaris:app-navigation:v1",
+        JSON.stringify({
+          version: 1,
+          activeTab: "results",
+          tabs: { results: { current: entry, history: [entry] } },
+        }),
+      );
+    });
+  };
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.goto("/explore", { waitUntil: "domcontentloaded" });
+    await seedResultsNavigation();
+
     await page.goto("/app-launch", { waitUntil: "domcontentloaded" });
     await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/, { timeout: 4_000 });
     await expect(page).toHaveURL(/\/results\/example\?view=jury$/);
     await expect
       .poll(() => page.evaluate(() => sessionStorage.getItem("solaris:app-launch-transaction:v1")))
       .toBeNull();
+
+    await page.evaluate(() => window.history.back());
+    await expect(page).toHaveURL(/\/explore(?:[?#]|$)/, { timeout: 5_000 });
+    await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/);
   }
 
-  const beforeBack = page.url();
-  await page.evaluate(() => window.history.back());
-  await expect.poll(() => page.url(), { timeout: 5_000 }).not.toBe(beforeBack);
-  await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/);
-
-  await page.goto("/explore", { waitUntil: "domcontentloaded" });
   await expect
     .poll(() =>
       page.evaluate(() => {
