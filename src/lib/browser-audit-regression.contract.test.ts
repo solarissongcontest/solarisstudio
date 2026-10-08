@@ -19,7 +19,7 @@ describe("Browser Audit regression boundaries", () => {
     for (const [path, target] of organizerAliases) {
       const route = source(path);
       expect(route).toContain("Navigate");
-      expect(route).toContain(`to=\"${target}\"`);
+      expect(route).toContain(`to="${target}"`);
       expect(route).not.toContain("beforeLoad:");
       expect(route).not.toContain("throw redirect");
     }
