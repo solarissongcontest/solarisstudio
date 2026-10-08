@@ -377,6 +377,7 @@ function stateTone(state: Studio2MediaAssetState): 'neutral' | 'ready' | 'attent
   if (state === 'uploaded') return 'info';
   return 'neutral';
 }
+
 function stateLabel(state: Studio2MediaAssetState) {
   return state.charAt(0).toUpperCase() + state.slice(1);
 }
