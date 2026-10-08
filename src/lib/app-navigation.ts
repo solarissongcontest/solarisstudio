@@ -296,6 +296,22 @@ export function getAppLaunchDestinationFromSnapshot(
   });
 }
 
+/**
+ * Auth has not resolved, so only preserve the captured tab-level intent. The
+ * canonical parser still owns validation and Me stays signed-out safe.
+ */
+export function getAppLaunchSafeRootFromSnapshot(
+  navigationSnapshot: string | null,
+): AppHistoryEntry {
+  const state = readAppNavigationState({
+    getItem: () => navigationSnapshot,
+  });
+  return {
+    ...defaultEntry(state.activeTab, false),
+    visitedAt: new Date().toISOString(),
+  };
+}
+
 export function resetAppTabToRoot(
   tab: AppTabId,
   signedIn: boolean,

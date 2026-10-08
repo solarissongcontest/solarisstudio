@@ -32,6 +32,7 @@ import {
 } from "@/lib/app-viewport";
 import {
   detectSolarisPlatform,
+  hydrationSafeSolarisPlatformSnapshot,
   type SolarisPlatformSnapshot,
 } from "@/lib/platform";
 import { refreshAppPushSubscription } from "@/lib/app-notifications";
@@ -47,7 +48,7 @@ type AppRuntimeValue = SolarisPlatformSnapshot & {
   applyUpdate: () => void;
 };
 
-const SERVER_SNAPSHOT = detectSolarisPlatform();
+const SERVER_SNAPSHOT = hydrationSafeSolarisPlatformSnapshot();
 const SERVER_CONNECTIVITY = hydrationSafeAppConnectivitySnapshot();
 const SERVER_LIFECYCLE = initialAppLifecycleSnapshot();
 const SERVER_VIEWPORT = initialAppViewportSnapshot();
@@ -66,7 +67,7 @@ const AppRuntimeContext = createContext<AppRuntimeValue>({
 export function AppRuntime({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [platform, setPlatform] = useState<SolarisPlatformSnapshot>(() =>
-    detectSolarisPlatform(),
+    hydrationSafeSolarisPlatformSnapshot(),
   );
   const [connectivity, setConnectivity] = useState<AppConnectivitySnapshot>(() =>
     hydrationSafeAppConnectivitySnapshot(),

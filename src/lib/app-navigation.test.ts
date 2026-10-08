@@ -6,6 +6,7 @@ import {
   appTabForLocation,
   getAppLaunchDestination,
   getAppLaunchDestinationFromSnapshot,
+  getAppLaunchSafeRootFromSnapshot,
   getAppTabDestination,
   peekAppBackTarget,
   popAppBackTarget,
@@ -169,6 +170,28 @@ describe("installed app navigation state", () => {
     rememberAppLocation("/my-solaris/account", "", 0, storage);
 
     expect(getAppLaunchDestination(false, storage).pathname).toBe("/auth");
+  });
+
+  it.each([
+    ["home", "/"],
+    ["explore", "/explore"],
+    ["participate", "/participate"],
+    ["results", "/results"],
+    ["me", "/auth"],
+  ] as const)(
+    "keeps only the captured %s tab root when launch auth times out",
+    (activeTab, expectedPath) => {
+      const snapshot = JSON.stringify({ version: 1, activeTab, tabs: {} });
+      expect(getAppLaunchSafeRootFromSnapshot(snapshot)).toMatchObject({
+        pathname: expectedPath,
+        searchStr: "",
+        scrollY: 0,
+      });
+    },
+  );
+
+  it("falls back to Home when a timed-out launch snapshot is corrupt", () => {
+    expect(getAppLaunchSafeRootFromSnapshot("not-json").pathname).toBe("/");
   });
 
   it("does not revive stale screens after the launch freshness window", () => {

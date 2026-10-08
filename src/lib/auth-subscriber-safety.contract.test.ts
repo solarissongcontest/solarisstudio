@@ -11,6 +11,7 @@ describe("auth subscriber lifecycle audit", () => {
     const appShell = source("src/components/AppShell.tsx");
     const settings = source("src/routes/settings.tsx");
     const passwordReset = source("src/routes/auth/reset.tsx");
+    const authenticatedRoute = source("src/routes/_authenticated/route.tsx");
 
     expect(preferenceSync).toContain("beginLifecycleGeneration(authGenerationRef)");
     expect(preferenceSync).toContain("lifecycle.isCurrent()");
@@ -20,5 +21,9 @@ describe("auth subscriber lifecycle audit", () => {
     expect(appShell).toContain("if (alive) setAccess(next);");
     expect(settings).toContain("if (alive) setUserId");
     expect(passwordReset).toContain("if (!mounted) return;");
+    expect(authenticatedRoute).not.toContain("beforeLoad:");
+    expect(authenticatedRoute).toContain("beginLifecycleGeneration(generationRef)");
+    expect(authenticatedRoute).toContain("lifecycle.isCurrent()");
+    expect(authenticatedRoute).toContain("lifecycle.deactivate()");
   });
 });

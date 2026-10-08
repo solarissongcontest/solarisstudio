@@ -11,6 +11,7 @@ import {
   appEntryHref,
   appTabForPath,
   getAppLaunchDestinationFromSnapshot,
+  getAppLaunchSafeRootFromSnapshot,
   markAppNavigationRestore,
 } from "@/lib/app-navigation";
 import { beginLifecycleGeneration } from "@/lib/lifecycle-generation";
@@ -42,12 +43,7 @@ export function AppLaunchRestoreCoordinator() {
 
       const target =
         source === "timeout"
-          ? {
-              pathname: "/",
-              searchStr: "",
-              scrollY: 0,
-              visitedAt: new Date().toISOString(),
-            }
+          ? getAppLaunchSafeRootFromSnapshot(transaction.navigationSnapshot)
           : getAppLaunchDestinationFromSnapshot(signedIn, transaction.navigationSnapshot);
       const targetHref = appEntryHref(target);
 

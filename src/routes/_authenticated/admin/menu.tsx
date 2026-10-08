@@ -80,6 +80,7 @@ function OrganizerMenu() {
               <Link
                 key={domain.id}
                 to={domain.to as any}
+                data-admin-navigation-id={domain.id}
                 className="admin-list-row group !rounded-xl !border-0 !px-2.5"
               >
                 {content}
@@ -88,6 +89,7 @@ function OrganizerMenu() {
               <div
                 key={domain.id}
                 aria-disabled="true"
+                data-admin-navigation-id={domain.id}
                 title={domain.unavailableReason}
                 className="admin-list-row group !cursor-not-allowed !rounded-xl !border-0 !px-2.5 opacity-55"
               >
@@ -220,12 +222,17 @@ function DirectoryItem({
   );
 
   return item.availability === "ready" ? (
-    <Link to={item.to as any} className="admin-list-row group !rounded-xl !border-0 !px-2.5">
+    <Link
+      to={item.to as any}
+      data-admin-navigation-id={item.id}
+      className="admin-list-row group !rounded-xl !border-0 !px-2.5"
+    >
       {content}
     </Link>
   ) : (
     <div
       aria-disabled="true"
+      data-admin-navigation-id={item.id}
       title={item.unavailableReason}
       className="admin-list-row group !cursor-not-allowed !rounded-xl !border-0 !px-2.5 opacity-55"
     >

@@ -53,6 +53,7 @@ function DomainLink({ item, pathname }: { item: AdminDomainNavigationItem; pathn
     return (
       <div
         aria-disabled="true"
+        data-admin-navigation-id={item.id}
         title={item.unavailableReason}
         className="group flex min-h-11 cursor-not-allowed items-center gap-3 rounded-xl border border-transparent px-2.5 text-sm font-semibold text-muted-foreground opacity-55"
       >
@@ -70,6 +71,7 @@ function DomainLink({ item, pathname }: { item: AdminDomainNavigationItem; pathn
   return (
     <Link
       to={item.to as any}
+      data-admin-navigation-id={item.id}
       aria-current={active ? "page" : undefined}
       title={item.description}
       className={cn(

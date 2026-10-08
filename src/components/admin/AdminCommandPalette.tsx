@@ -280,6 +280,7 @@ export function AdminCommandPalette() {
                   <Link
                     key={item.id}
                     to={item.href as any}
+                    data-admin-navigation-id={item.id}
                     onClick={() => setOpen(false)}
                     className="flex min-h-13 items-center rounded-xl px-3 transition hover:bg-white/[0.045]"
                   >
@@ -289,6 +290,7 @@ export function AdminCommandPalette() {
                   <div
                     key={item.id}
                     aria-disabled="true"
+                    data-admin-navigation-id={item.id}
                     title={item.unavailableReason ?? undefined}
                     className="flex min-h-13 cursor-not-allowed items-center rounded-xl px-3 opacity-55"
                   >

@@ -204,6 +204,21 @@ test.describe("Solaris Organizer route reliability", () => {
   test.describe("focused Organizer lifecycle regressions", () => {
     test.describe.configure({ retries: 0 });
 
+    test.beforeEach(async ({ page }) => {
+      await page.addInitScript(() => {
+        const originalError = console.error.bind(console);
+        console.error = (...args: unknown[]) => {
+          const message = args.map((value) => String(value)).join(" ");
+          if (/component that hasn't mounted yet/i.test(message)) {
+            originalError(
+              `[organizer-lifecycle-stack]\n${new Error("React pre-mount update").stack ?? "No stack available"}`,
+            );
+          }
+          originalError(...args);
+        };
+      });
+    });
+
     test("cold Organizer menu keeps edition items stable while edition data is delayed", async ({
       page,
     }) => {
@@ -216,7 +231,9 @@ test.describe("Solaris Organizer route reliability", () => {
       page.on("console", (message) => {
         if (
           ["warning", "error"].includes(message.type()) &&
-          /duplicate key|state update.*unmounted|cannot update.*component/i.test(message.text())
+          /duplicate key|state update.*unmounted|cannot update.*component|has(?:n't| not) mounted yet/i.test(
+            message.text(),
+          )
         ) {
           lifecycleWarnings.push(message.text());
         }
@@ -232,21 +249,19 @@ test.describe("Solaris Organizer route reliability", () => {
         await page.goto("/admin/menu", { waitUntil: "domcontentloaded" });
         await expect(page.locator("h1").first()).toBeVisible();
 
-        const unavailableContest = page
-          .locator('[aria-disabled="true"]')
-          .filter({ hasText: /^Contest/ });
+        const contestItem = page.locator('[data-admin-navigation-id="current-edition-contest"]');
+        const unavailableContest = page.locator(
+          '[data-admin-navigation-id="current-edition-contest"][aria-disabled="true"]',
+        );
         await expect(unavailableContest).toHaveCount(1);
         await expect(unavailableContest).toContainText("Select an edition first");
-        await expect(page.getByRole("link", { name: /^Contest$/ })).toHaveCount(0);
+        await expect(
+          page.locator('a[data-admin-navigation-id="current-edition-contest"]'),
+        ).toHaveCount(0);
 
         releaseEditionRequest();
-        await expect(page.getByRole("link", { name: /^Contest$/ })).toHaveAttribute(
-          "href",
-          /\/admin\/ssc22$/,
-        );
-        await expect(
-          page.locator('[aria-disabled="true"]').filter({ hasText: /^Contest/ }),
-        ).toHaveCount(0);
+        await expect(contestItem).toHaveAttribute("href", /\/admin\/ssc22$/);
+        await expect(contestItem).not.toHaveAttribute("aria-disabled", "true");
         expect(lifecycleWarnings).toEqual([]);
       } finally {
         releaseEditionRequest();
@@ -260,7 +275,9 @@ test.describe("Solaris Organizer route reliability", () => {
       page.on("console", (message) => {
         if (
           ["warning", "error"].includes(message.type()) &&
-          /duplicate key|state update.*unmounted|cannot update.*component/i.test(message.text())
+          /duplicate key|state update.*unmounted|cannot update.*component|has(?:n't| not) mounted yet/i.test(
+            message.text(),
+          )
         ) {
           lifecycleWarnings.push(message.text());
         }

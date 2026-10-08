@@ -23,7 +23,7 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     expect(launch).toContain("APP_LAUNCH_TRANSACTION_KEY");
     expect(launch).toContain("navigationSnapshot");
     expect(coordinator).toContain('"cold_launch_session_timeout"');
-    expect(coordinator).toContain('pathname: "/"');
+    expect(coordinator).toContain("getAppLaunchSafeRootFromSnapshot");
     expect(coordinator).toContain("window.location.replace(targetHref)");
     expect(coordinator).toContain("markAppNavigationRestore");
   });
@@ -55,6 +55,17 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     expect(connectivity).toContain("serviceRestricted: false");
     expect(runtime).toContain("hydrationSafeAppConnectivitySnapshot()");
     expect(runtime).toContain("createAppConnectivityController(setConnectivity)");
+  });
+
+  it("hydrates the platform from a deterministic web snapshot before detecting installed mode", () => {
+    const platform = source("src/lib/platform.ts");
+    const runtime = source("src/components/app/AppRuntime.tsx");
+    expect(platform).toContain("hydrationSafeSolarisPlatformSnapshot");
+    expect(runtime).toContain("SERVER_SNAPSHOT = hydrationSafeSolarisPlatformSnapshot()");
+    expect(runtime).toContain(
+      "useState<SolarisPlatformSnapshot>(() =>\n    hydrationSafeSolarisPlatformSnapshot()",
+    );
+    expect(runtime).toContain("const refresh = () => setPlatform(detectSolarisPlatform())");
   });
 
   it("never cold-launches directly into critical official submission routes", () => {

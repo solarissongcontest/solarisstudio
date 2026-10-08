@@ -180,7 +180,8 @@ test("cold launch preserves Results query, history semantics and post-restore pe
     "Exercise the complete transaction contract on canonical iOS portrait and landscape.",
   );
 
-  await page.addInitScript(() => {
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.evaluate(() => {
     const entry = {
       pathname: "/results/example",
       searchStr: "?view=jury",
@@ -197,7 +198,6 @@ test("cold launch preserves Results query, history semantics and post-restore pe
     );
   });
 
-  await page.goto("/explore", { waitUntil: "domcontentloaded" });
   for (let attempt = 0; attempt < 3; attempt += 1) {
     await page.goto("/app-launch", { waitUntil: "domcontentloaded" });
     await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/, { timeout: 4_000 });
@@ -207,7 +207,9 @@ test("cold launch preserves Results query, history semantics and post-restore pe
       .toBeNull();
   }
 
-  await page.goBack({ waitUntil: "domcontentloaded" }).catch(() => null);
+  const beforeBack = page.url();
+  await page.evaluate(() => window.history.back());
+  await expect.poll(() => page.url(), { timeout: 5_000 }).not.toBe(beforeBack);
   await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/);
 
   await page.goto("/explore", { waitUntil: "domcontentloaded" });

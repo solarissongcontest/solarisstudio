@@ -35,6 +35,9 @@ describe("PR 450 browser blocker regressions", () => {
     expect(authenticated).toContain('pathname.startsWith("/admin/")');
     expect(authenticated).toContain("<OrganizerAccessGate");
     expect(authenticated).not.toContain("hasSolarisOrganizerAccess");
+    expect(authenticated).not.toContain("beforeLoad:");
+    expect(authenticated).toContain("AuthenticatedSessionGate");
+    expect(authenticated).toContain("beginLifecycleGeneration(generationRef)");
 
     expect(organizerGate).toContain("useEffect");
     expect(organizerGate).toContain("hasSolarisOrganizerAccess(userId)");
@@ -47,6 +50,13 @@ describe("PR 450 browser blocker regressions", () => {
     expect(adminRoute).not.toContain("hasSolarisOrganizerAccess");
     expect(adminRoute).not.toContain("supabase.auth.getUser");
     expect(adminRoute).not.toContain("beforeLoad:");
+  });
+
+  it("keeps closed swipe actions semantically non-interactive", () => {
+    const swipeRow = source("src/components/interaction/SolarisSwipeActionRow.tsx");
+    expect(swipeRow).toContain("aria-hidden={!open}");
+    expect(swipeRow).toContain("disabled={!open}");
+    expect(swipeRow).toContain("tabIndex={open ? 0 : -1}");
   });
 
   it("leaves app-launch immediately and restores only from root", () => {
