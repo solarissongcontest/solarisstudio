@@ -44,7 +44,12 @@ jobs:
       - name: Install app dependencies
         run: bun install --frozen-lockfile
 
+      # Quality already performs a fresh production build and enforces the
+      # client bundle budget on every pull-request SHA. Repeating those gates
+      # here only delays browser feedback. Keep them for main/manual release
+      # certification, where Browser Audit is intentionally self-contained.
       - name: Production build
+        if: github.event_name != 'pull_request'
         env:
           VITE_SUPABASE_URL: http://127.0.0.1:54321
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_browser_audit_local_only
@@ -57,6 +62,7 @@ jobs:
         run: bun run build
 
       - name: Enforce client performance budget
+        if: github.event_name != 'pull_request'
         run: bun run budget:client
 
       - name: Install browser-audit runner
