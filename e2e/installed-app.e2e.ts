@@ -160,7 +160,7 @@ test.describe.configure({ retries: 0 });
 
 test("installed app cold launch always leaves the intermediary launch route", async ({ page }) => {
   const startedAt = Date.now();
-  await page.goto("/app-launch", { waitUntil: "domcontentloaded" });
+  await page.goto("/app-launch", { waitUntil: "commit" });
 
   await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/, {
     timeout: 4_000,
@@ -203,7 +203,7 @@ test("cold launch preserves Results query, history semantics and post-restore pe
     await page.goto("/explore", { waitUntil: "domcontentloaded" });
     await seedResultsNavigation();
 
-    await page.goto("/app-launch", { waitUntil: "domcontentloaded" });
+    await page.goto("/app-launch", { waitUntil: "commit" });
     await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/, { timeout: 4_000 });
     await expect(page).toHaveURL(/\/results\/example\?view=jury$/);
     await expect
@@ -257,11 +257,11 @@ test("signed-out and critical-route cold launches use canonical safe roots", asy
   };
 
   await setNavigation("me", "/my-solaris/account");
-  await page.goto("/app-launch", { waitUntil: "domcontentloaded" });
+  await page.goto("/app-launch", { waitUntil: "commit" });
   await expect(page).toHaveURL(/\/auth(?:\?|$)/, { timeout: 4_000 });
 
   await setNavigation("participate", "/televoting");
-  await page.goto("/app-launch", { waitUntil: "domcontentloaded" });
+  await page.goto("/app-launch", { waitUntil: "commit" });
   await expect(page).toHaveURL(/\/participate(?:\?|$)/, { timeout: 4_000 });
 });
 
@@ -282,7 +282,7 @@ test("launch still exits when session storage cannot create a transaction", asyn
     };
   });
 
-  await page.goto("/app-launch", { waitUntil: "domcontentloaded" });
+  await page.goto("/app-launch", { waitUntil: "commit" });
   await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/, { timeout: 4_000 });
 });
 
@@ -308,7 +308,7 @@ test("pre-hydration launch escape survives a client bundle that never starts", a
     await route.continue();
   });
 
-  await page.goto("/app-launch", { waitUntil: "domcontentloaded" });
+  await page.goto("/app-launch", { waitUntil: "commit" });
   await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/, { timeout: 4_000 });
 });
 
