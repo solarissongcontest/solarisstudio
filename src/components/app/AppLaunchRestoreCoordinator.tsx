@@ -29,7 +29,9 @@ export function AppLaunchRestoreCoordinator() {
 
     const transaction = readAppLaunchTransaction();
     if (!transaction) return;
-    if (pathname !== "/") {
+
+    const safeRoot = getAppLaunchSafeRootFromSnapshot(transaction.navigationSnapshot);
+    if (pathname !== "/" && pathname !== safeRoot.pathname) {
       clearAppLaunchTransaction();
       return;
     }
@@ -43,7 +45,7 @@ export function AppLaunchRestoreCoordinator() {
 
       const target =
         source === "timeout"
-          ? getAppLaunchSafeRootFromSnapshot(transaction.navigationSnapshot)
+          ? safeRoot
           : getAppLaunchDestinationFromSnapshot(signedIn, transaction.navigationSnapshot);
       const targetHref = appEntryHref(target);
 
@@ -64,10 +66,15 @@ export function AppLaunchRestoreCoordinator() {
         // Telemetry is best effort and never owns navigation.
       }
 
+      const currentHref = `${window.location.pathname}${window.location.search}`;
+      if (currentHref === targetHref) {
+        clearAppLaunchTransaction();
+        return;
+      }
+
       markAppNavigationRestore(target);
-      // Root persistence already observed the pending marker and skipped "/".
-      // Clear immediately before the replacement so the destination can resume
-      // normal persistence without exposing a render window for root clobber.
+      // Safe-root persistence already observed the pending marker and skipped
+      // writing the temporary tab root over the captured destination.
       clearAppLaunchTransaction();
       window.location.replace(targetHref);
     });
