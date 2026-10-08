@@ -34,7 +34,11 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     expect(launch).not.toContain("setTimeout");
     expect(launch).not.toContain("supabase.auth");
     expect(launch).not.toContain("trackPublicUxEvent");
-    expect(launch.match(/window\.location\.replace\("\/"\)/g)).toHaveLength(2);
+    expect(launch).toContain("window.location.replace(safeRoot)");
+    expect(launch.match(/window\.location\.replace\("\/"\)/g)).toHaveLength(1);
+    for (const root of ["/explore", "/participate", "/results", "/auth"]) {
+      expect(launch).toContain(`safeRoot = "${root}"`);
+    }
   });
 
   it("executes the absolute launch escape before React hydration", () => {
