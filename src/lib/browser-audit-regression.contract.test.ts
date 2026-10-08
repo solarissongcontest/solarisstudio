@@ -42,4 +42,18 @@ describe("Browser Audit regression boundaries", () => {
     expect(resultsReveal).toContain("function ResultsRevealHeader()");
     expect(resultsReveal.match(/<ResultsRevealHeader \/>/g)).toHaveLength(3);
   });
+
+  it("keeps Browser Audit controls and launch probes aligned with runtime contracts", () => {
+    const mediaAssets = source("src/routes/_authenticated/admin/media-assets.tsx");
+    const integrity = source("src/routes/_authenticated/admin/integrity-investigations.tsx");
+    const installedApp = source("e2e/installed-app.e2e.ts");
+    const auditHelpers = source("e2e/audit-helpers.ts");
+
+    expect(mediaAssets).toContain('aria-label="Review reason"');
+    expect(integrity).toContain('aria-label="Search integrity cases"');
+    expect(installedApp.match(/page\.goto\("\/app-launch", \{ waitUntil: "commit" \}\)/g)).toHaveLength(6);
+    expect(installedApp).not.toContain('page.goto("/app-launch", { waitUntil: "domcontentloaded" })');
+    expect(auditHelpers).toContain("await page.bringToFront();");
+    expect(auditHelpers).toContain("window.focus();");
+  });
 });
