@@ -356,7 +356,12 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
       `${path} exposes tabbable controls inside a visible aria-hidden region`,
     ).toEqual([]);
 
+    // Headless WebKit can leave the page itself unfocused after direct navigation.
+    // Establish the browser focus precondition before auditing real Tab traversal;
+    // the assertions below still require Tab to land on a visible, non-hidden control.
+    await page.bringToFront();
     await page.evaluate(() => {
+      window.focus();
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     });
     await page.keyboard.press("Tab");
