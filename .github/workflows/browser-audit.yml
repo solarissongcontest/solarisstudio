@@ -111,8 +111,8 @@ jobs:
             echo "CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=$local_key"
           } >> "$GITHUB_ENV"
 
-          # Fail in seconds, not after a forty-minute browser matrix, if the
-          # local anonymous REST identity cannot read canonical public data.
+          # Fail in seconds, not after a browser matrix, if the local anonymous
+          # REST identity cannot read canonical public data.
           probe_status="$(curl --silent --output /tmp/solaris-browser-rest-probe.json --write-out '%{http_code}' \
             "$local_url/rest/v1/countries?select=id&limit=1" \
             -H "apikey: $local_key" \
@@ -148,7 +148,10 @@ jobs:
           failed=0
           for table in countries editions shows participants results jury_votes televote_votes; do
             body="/tmp/solaris-rest-${table}.json"
-            status="$(curl --silent --output "$body" --write-out '%{http_code}'               "$E2E_SUPABASE_URL/rest/v1/${table}?select=*&limit=1"               -H "apikey: $E2E_SUPABASE_PUBLISHABLE_KEY"               -H "Authorization: Bearer $E2E_SUPABASE_PUBLISHABLE_KEY")"
+            status="$(curl --silent --output "$body" --write-out '%{http_code}' \
+              "$E2E_SUPABASE_URL/rest/v1/${table}?select=*&limit=1" \
+              -H "apikey: $E2E_SUPABASE_PUBLISHABLE_KEY" \
+              -H "Authorization: Bearer $E2E_SUPABASE_PUBLISHABLE_KEY")"
             if [ "$status" != "200" ]; then
               echo "Local anon Data API probe failed for ${table}: HTTP ${status}"
               cat "$body" || true
@@ -264,21 +267,52 @@ jobs:
           }
           NODE
 
-      - name: Run responsive browser audit
+      # Pull requests get a cheap blocker gate first. It reproduces the current
+      # failure classes in parallel, disables retries, and caps any wedged test
+      # at two minutes instead of letting one WebKit navigation consume eight.
+      - name: Run fast PR blocker gate
+        if: github.event_name == 'pull_request'
+        run: bunx playwright test --config=playwright.fast.config.ts --max-failures=3
+        env:
+          E2E_BASE_URL: http://127.0.0.1:4173
+          SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
+          E2E_FULL_AUDIT: "0"
+          E2E_VISUAL_CAPTURE: "0"
+
+      # Once the known blocker classes are clean, run a compact cross-section of
+      # public, personality, governance, account and admin API behavior. This is
+      # still intentionally much smaller than release certification.
+      - name: Run representative PR browser smoke
+        if: github.event_name == 'pull_request'
+        run: >-
+          bunx playwright test
+          --project=public-390
+          --project=public-1440
+          --project=personality-390
+          --project=governance-mobile-390
+          --project=account-states
+          --project=admin-notifications-postgrest
+          --retries=0
+          --timeout=180000
+          --max-failures=3
+        env:
+          E2E_BASE_URL: http://127.0.0.1:4173
+          SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
+          E2E_FULL_AUDIT: "0"
+          E2E_VISUAL_CAPTURE: "0"
+
+      # Full certification is deliberately expensive and therefore runs only
+      # after merge on main or when manually dispatched on the exact candidate
+      # branch/SHA before merge. It remains the release-ready evidence gate.
+      - name: Run exhaustive browser audit
+        if: github.event_name != 'pull_request'
         run: bunx playwright test
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
           SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
-          # Pull requests run a representative smoke set. Manual dispatch keeps
-          # the exhaustive ten-viewport + sitemap inventory available without
-          # turning every PR into a 40-minute crawl of the same archive data.
-          # The final public-quality release branch also runs the exhaustive set
-          # once before merge.
-          E2E_FULL_AUDIT: ${{ (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.head_ref == 'recovery/canonical-main-v6-20261004' || github.head_ref == 'feature/public-final-quality' || github.head_ref == 'chatgpt/completion-programme-20260920' || github.head_ref == 'feature/final-ui-completion-20261001' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}
+          E2E_FULL_AUDIT: "1"
           PERSONALITY_REFERENCE_CAPTURE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
-          E2E_VISUAL_CAPTURE: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'recovery/canonical-main-v6-20261004' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}
-          # E2E Supabase URL/key are inherited from the isolated local stack.
-          # Hosted account credentials are intentionally unavailable in browser CI.
+          E2E_VISUAL_CAPTURE: "1"
 
       - name: Print audit server log on failure
         if: failure()
@@ -305,7 +339,7 @@ jobs:
           retention-days: 14
 
       - name: Upload browser report
-        if: always()
+        if: failure() || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: browser-audit
