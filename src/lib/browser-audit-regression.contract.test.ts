@@ -6,6 +6,7 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 
 const organizerAliases = [
   ["src/routes/_authenticated/admin/index.tsx", "/admin/operations"],
+  ["src/routes/_authenticated/admin/action-center.tsx", "/admin/tasks"],
   ["src/routes/_authenticated/admin/action-centre.tsx", "/admin/tasks"],
   ["src/routes/_authenticated/admin/status.tsx", "/admin/sync-health"],
   ["src/routes/_authenticated/admin/integrity.tsx", "/admin/integrity-investigations"],
@@ -23,8 +24,12 @@ describe("Browser Audit regression boundaries", () => {
       expect(route).not.toContain("throw redirect");
     }
 
-    const actionCentre = source("src/routes/_authenticated/admin/action-centre.tsx");
-    expect(actionCentre).toContain('search={{ filter: "all" }}');
+    for (const path of [
+      "src/routes/_authenticated/admin/action-center.tsx",
+      "src/routes/_authenticated/admin/action-centre.tsx",
+    ]) {
+      expect(source(path)).toContain('search={{ filter: "all" }}');
+    }
   });
 
   it("keeps the Storytelling audit reason explicitly named", () => {

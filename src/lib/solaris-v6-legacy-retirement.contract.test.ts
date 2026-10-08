@@ -5,14 +5,17 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("Solaris V6 legacy authority retirement", () => {
-  it("keeps old Action Center URLs only as redirects to canonical Organizer Tasks", () => {
+  it("keeps old Action Center URLs only as mounted aliases to canonical Organizer Tasks", () => {
     for (const path of [
       "src/routes/_authenticated/admin/action-center.tsx",
       "src/routes/_authenticated/admin/action-centre.tsx",
     ]) {
       const route = source(path);
-      expect(route, path).toContain("redirect");
-      expect(route, path).toContain('to: "/admin/tasks"');
+      expect(route, path).toContain("Navigate");
+      expect(route, path).toContain('to="/admin/tasks"');
+      expect(route, path).toContain('search={{ filter: "all" }}');
+      expect(route, path).not.toContain("beforeLoad:");
+      expect(route, path).not.toContain("throw redirect");
       expect(route, path).not.toContain("buildStudio2ActionCenter");
       expect(route, path).not.toContain("useQuery");
     }

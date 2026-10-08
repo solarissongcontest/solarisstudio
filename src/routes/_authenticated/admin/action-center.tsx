@@ -1,8 +1,9 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/admin/action-center")({
-  beforeLoad: () => {
-    throw redirect({ to: "/admin/tasks", search: { filter: "all" }, replace: true });
-  },
-  component: () => null,
+  component: ActionCenterRedirect,
 });
+
+function ActionCenterRedirect() {
+  return <Navigate to="/admin/tasks" search={{ filter: "all" }} replace />;
+}
