@@ -116,7 +116,9 @@ function OrganizerMenu() {
                   </span>
                 </summary>
                 <div className="grid gap-1 border-t border-white/[0.07] p-3 sm:grid-cols-2">
-                  {group.items.map((item) => <DirectoryItem key={item.to} item={item} />)}
+                  {group.items.map((item) => (
+                    <DirectoryItem key={`${item.to}:${item.label}`} item={item} />
+                  ))}
                 </div>
               </details>
             ) : (
@@ -131,7 +133,9 @@ function OrganizerMenu() {
                   </span>
                 </div>
                 <div className="grid gap-1 sm:grid-cols-2">
-                  {group.items.map((item) => <DirectoryItem key={item.to} item={item} />)}
+                  {group.items.map((item) => (
+                    <DirectoryItem key={`${item.to}:${item.label}`} item={item} />
+                  ))}
                 </div>
               </AdminCard>
             ),
@@ -162,7 +166,6 @@ function filterGroups(groups: AdminNavigationGroup[], query: string) {
     }))
     .filter((group) => group.items.length > 0);
 }
-
 
 function DirectoryItem({ item }: { item: ReturnType<typeof buildAdminNavigation>[number]["items"][number] }) {
   const Icon = item.icon;
