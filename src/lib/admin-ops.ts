@@ -99,13 +99,18 @@ export function useAdminNotifications() {
   return useQuery({
     queryKey: ["admin-notifications"],
     queryFn: async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      if (!auth.user) return [] as AdminNotification[];
+      // The authenticated route has already verified the user against Auth.
+      // This observer only needs the local session identity for its RLS-scoped
+      // recipient filter; calling getUser() here would start another Auth HTTP
+      // request while React is still mounting Organizer observers.
+      const { data: auth, error: authError } = await supabase.auth.getSession();
+      if (authError) throw authError;
+      if (!auth.session?.user) return [] as AdminNotification[];
 
       const { data, error } = await adminDb
         .from("admin_notifications")
         .select("*")
-        .eq("recipient_id", auth.user.id)
+        .eq("recipient_id", auth.session.user.id)
         .order("created_at", { ascending: false })
         .limit(50);
 

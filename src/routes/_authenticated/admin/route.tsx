@@ -3,7 +3,6 @@ import { useEffect } from "react";
 
 import { AdminShell } from "@/components/admin/AdminShell";
 import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
-import { supabase } from "@/integrations/supabase/client";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
 
 const ADMIN_RELOAD_KEY = "solaris:admin:last-stale-bundle-reload";
@@ -84,17 +83,22 @@ function AdminRouteError({ error }: { error: unknown; reset: () => void }) {
 export const Route = createFileRoute("/_authenticated/admin")({
   ssr: false,
   head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow, noarchive" }] }),
-  beforeLoad: async ({ location }) => {
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData.user) {
+  beforeLoad: async ({ location, context }) => {
+    // /_authenticated is the single Auth authority for this route tree. Its
+    // beforeLoad has already verified this exact user with getUser(); repeating
+    // that network verification while the lazy Organizer route is mounting can
+    // race React's commit lifecycle and provides no additional access boundary.
+    const user = context.user;
+    if (!user) {
       throw redirect({
         to: "/auth",
         search: { redirect: `${location.pathname}${location.searchStr}` },
       });
     }
+
     let isOrganizer = false;
     try {
-      isOrganizer = await hasSolarisOrganizerAccess(userData.user.id);
+      isOrganizer = await hasSolarisOrganizerAccess(user.id);
     } catch {
       isOrganizer = false;
     }
@@ -105,12 +109,17 @@ export const Route = createFileRoute("/_authenticated/admin")({
         replace: true,
       });
     }
-    return { organizer: true };
+    return { organizer: true, user };
   },
-  component: () => (
-    <AdminShell>
-      <Outlet />
-    </AdminShell>
-  ),
+  component: AdminRouteLayout,
   errorComponent: AdminRouteError,
 });
+
+function AdminRouteLayout() {
+  const { user } = Route.useRouteContext();
+  return (
+    <AdminShell userEmail={user.email ?? null}>
+      <Outlet />
+    </AdminShell>
+  );
+}

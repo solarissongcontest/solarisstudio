@@ -93,6 +93,10 @@ export default defineConfig({
         ]
     : "list",
   use: {
+    // Device descriptors contain undefined optional emulation fields. Put the
+    // descriptor first so Solaris' deterministic audit settings cannot be
+    // silently erased by those undefined values.
+    ...devices["Desktop Chrome"],
     baseURL,
     navigationTimeout: 60_000,
     actionTimeout: 20_000,
@@ -101,7 +105,6 @@ export default defineConfig({
     video: "off",
     reducedMotion: "reduce",
     colorScheme: "dark",
-    ...devices["Desktop Chrome"],
     storageState: appAuditStorageState,
   },
   // CI starts and health-checks its server explicitly and passes E2E_BASE_URL.
@@ -174,6 +177,7 @@ export default defineConfig({
         ...devices["iPhone 13"],
         browserName: "webkit",
         viewport: { width: 320, height: 568 },
+        reducedMotion: "reduce",
       },
     },
     {
@@ -183,6 +187,7 @@ export default defineConfig({
         ...devices["iPhone 13"],
         browserName: "webkit",
         viewport: { width: 390, height: 844 },
+        reducedMotion: "reduce",
       },
     },
     {
@@ -192,6 +197,7 @@ export default defineConfig({
         ...devices["iPhone 13"],
         browserName: "webkit",
         viewport: { width: 320, height: 568 },
+        reducedMotion: "reduce",
       },
     },
     {
@@ -201,6 +207,7 @@ export default defineConfig({
         ...devices["iPhone 13"],
         browserName: "webkit",
         viewport: { width: 390, height: 844 },
+        reducedMotion: "reduce",
       },
     },
     {
@@ -210,6 +217,7 @@ export default defineConfig({
         ...devices["iPhone 13"],
         browserName: "webkit",
         viewport: { width: 430, height: 932 },
+        reducedMotion: "reduce",
       },
     },
     {
@@ -219,6 +227,7 @@ export default defineConfig({
         ...devices["iPhone 13"],
         browserName: "webkit",
         viewport: { width: 844, height: 390 },
+        reducedMotion: "reduce",
       },
     },
   ],
