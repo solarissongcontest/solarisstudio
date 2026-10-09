@@ -34,6 +34,32 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(css).toContain('data-solaris-app-tabbar="hidden"');
   });
 
+  it("keeps installed tabbar geometry bounded without Safari DOM mirroring", () => {
+    const tabs = source("src/components/app/AppTabBar.tsx");
+    const glass = source("src/components/app/KubeLiquidGlassBackdrop.tsx");
+    const css = source("src/styles/app-shell.css");
+    const sw = source("public/sw.js");
+    const flags = source("src/components/FlagChip.tsx");
+    const flagCss = source("src/flag-media.css");
+
+    expect(tabs).toContain("Math.min(rawObstruction, 128)");
+    expect(tabs).not.toContain('setProperty("--solaris-app-tabbar-height"');
+    expect(tabs).toContain('window.addEventListener("orientationchange"');
+    expect(tabs).toContain('document.addEventListener("visibilitychange"');
+    expect(tabs).toContain("onLostPointerCapture={cancelDrag}");
+    expect(glass).not.toContain("cloneNode(true)");
+    expect(glass).not.toContain("MutationObserver");
+    expect(glass).toContain('"css-backdrop"');
+    expect(css).toContain("--solaris-app-tabbar-max-height: 5.35rem");
+    expect(css).toContain("max-height: var(--solaris-app-tabbar-max-height)");
+    expect(css).not.toContain("solaris-kube-safari-mirror");
+    expect(sw).toContain('const CACHE_VERSION = "solaris-app-v14"');
+    expect(flags).toContain('size === "lg" || size === "xl"');
+    expect(flagCss).not.toContain(
+      "flex-shrink: 0;\n  border-radius: inherit;\n  isolation: isolate;",
+    );
+  });
+
   it("implements visible, minimal and hidden tab bar modes", () => {
     const tabs = source("src/components/app/AppTabBar.tsx");
     expect(tabs).toContain('tabbarMode === "hidden"');
@@ -56,7 +82,7 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(firstRun).toContain("<Sheet");
     expect(firstRun).not.toContain("<Dialog");
     expect(wiki).toContain("<SheetContent");
-    expect(sheet).toContain("z-[90]");
+    expect(sheet).toContain("z-[var(--solaris-z-sheet)]");
     expect(sheet).toContain("size-11");
   });
 

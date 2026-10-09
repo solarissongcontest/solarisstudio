@@ -1,6 +1,8 @@
 name: Browser audit
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -155,9 +157,9 @@ jobs:
           # turning every PR into a 40-minute crawl of the same archive data.
           # The final public-quality release branch also runs the exhaustive set
           # once before merge.
-          E2E_FULL_AUDIT: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'feature/public-final-quality' || github.head_ref == 'chatgpt/completion-programme-20260920' || github.head_ref == 'feature/final-ui-completion-20261001' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}
+          E2E_FULL_AUDIT: ${{ (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.head_ref == 'recovery/canonical-main-v6-20261004' || github.head_ref == 'feature/public-final-quality' || github.head_ref == 'chatgpt/completion-programme-20260920' || github.head_ref == 'feature/final-ui-completion-20261001' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}
           PERSONALITY_REFERENCE_CAPTURE: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
-          E2E_VISUAL_CAPTURE: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}
+          E2E_VISUAL_CAPTURE: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'recovery/canonical-main-v6-20261004' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}
           # E2E Supabase URL/key are inherited from the isolated local stack.
           # Hosted account credentials are intentionally unavailable in browser CI.
 
