@@ -79,7 +79,11 @@ describe("Organizer authentication authority", () => {
     const notificationsHook = adminOps.slice(notificationsStart, notificationsEnd);
 
     expect(shell).not.toContain("supabase.auth.getUser()");
-    expect(notificationsHook).toContain("supabase.auth.getSession()");
+    expect(shell).not.toContain("supabase.auth.getSession()");
+    expect(notificationsHook).toContain("const user = useAuthenticatedUser();");
+    expect(notificationsHook).toContain('["admin-notifications", user.id]');
+    expect(notificationsHook).toContain('.eq("recipient_id", user.id)');
+    expect(notificationsHook).not.toContain("supabase.auth.getSession()");
     expect(notificationsHook).not.toContain("supabase.auth.getUser()");
   });
 });
