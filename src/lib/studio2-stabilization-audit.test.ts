@@ -200,16 +200,29 @@ describe("Studio 2 stabilization contract", () => {
   });
 
   it("keeps every authenticated Organizer route behind authoritative V2 access", () => {
+    const beforeLoadStart = adminRoute.indexOf("beforeLoad:");
+    const componentStart = adminRoute.indexOf("component:");
+    const adminBeforeLoad = adminRoute.slice(beforeLoadStart, componentStart);
+    const gateStart = adminRoute.indexOf("function OrganizerAccessGate");
+    const gateEnd = adminRoute.indexOf("export const Route", gateStart);
+    const gate = adminRoute.slice(gateStart, gateEnd);
+
     expect(authenticatedRoute).toContain("supabase.auth.getUser()");
     expect(authenticatedRoute).not.toContain("hasSolarisOrganizerAccess");
     expect(authenticatedRoute).not.toContain('.from("user_roles")');
-    expect(adminRoute).toContain("beforeLoad: async ({ location, context })");
-    expect(adminRoute).toContain("hasSolarisOrganizerAccess(user.id)");
+    expect(adminRoute).toContain("beforeLoad: ({ location, context })");
+    expect(adminBeforeLoad).not.toContain("await ");
+    expect(adminBeforeLoad).not.toContain("hasSolarisOrganizerAccess");
+    expect(adminBeforeLoad).toContain("return { user }");
     expect(adminRoute).not.toContain("loader:");
     expect(adminRoute).not.toContain('.from("user_roles")');
-    expect(adminRoute).toContain("if (!isOrganizer)");
-    expect(adminRoute).toContain('to: "/my-solaris"');
-    expect(adminRoute).toContain('notice: "organizer-access-required"');
-    expect(adminRoute).toContain("replace: true");
+    expect(adminRoute).not.toContain("supabase.auth.getUser()");
+    expect(gate).toContain("useEffect(() =>");
+    expect(gate).toContain("isOrganizer = await hasSolarisOrganizerAccess(user.id)");
+    expect(gate).toContain("if (!active) return");
+    expect(gate).toContain('to: "/my-solaris"');
+    expect(gate).toContain('notice: "organizer-access-required"');
+    expect(gate).toContain("replace: true");
+    expect(adminRoute).toContain("<OrganizerAccessGate user={user}>");
   });
 });

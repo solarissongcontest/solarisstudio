@@ -1,11 +1,14 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router";
+import type { User } from "@supabase/supabase-js";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { AdminShell } from "@/components/admin/AdminShell";
 import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
 
 const ADMIN_RELOAD_KEY = "solaris:admin:last-stale-bundle-reload";
+
+type OrganizerAccessState = "checking" | "allowed" | "redirecting";
 
 function isStaleClientBundleError(error: unknown) {
   const text =
@@ -76,10 +79,65 @@ function AdminRouteError({ error }: { error: unknown; reset: () => void }) {
   );
 }
 
+function OrganizerAccessGate({ user, children }: { user: User; children: ReactNode }) {
+  const navigate = useNavigate();
+  const [state, setState] = useState<OrganizerAccessState>("checking");
+
+  useEffect(() => {
+    let active = true;
+    setState("checking");
+
+    void (async () => {
+      let isOrganizer = false;
+      try {
+        isOrganizer = await hasSolarisOrganizerAccess(user.id);
+      } catch {
+        isOrganizer = false;
+      }
+
+      if (!active) return;
+
+      if (!isOrganizer) {
+        setState("redirecting");
+        await navigate({
+          to: "/my-solaris",
+          search: { notice: "organizer-access-required" },
+          replace: true,
+        });
+        return;
+      }
+
+      setState("allowed");
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [navigate, user.id]);
+
+  if (state !== "allowed") {
+    return (
+      <main
+        className="grid min-h-screen place-items-center bg-[#020817] px-5 text-white"
+        aria-busy="true"
+      >
+        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.035] p-5 text-center shadow-2xl">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-sky-100/80">Solaris Organizer</p>
+          <p className="mt-2 text-sm font-semibold text-white/85">
+            {state === "checking" ? "Checking organizer access…" : "Opening MySolaris…"}
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  return <>{children}</>;
+}
+
 export const Route = createFileRoute("/_authenticated/admin")({
   ssr: false,
   head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow, noarchive" }] }),
-  beforeLoad: async ({ location, context }) => {
+  beforeLoad: ({ location, context }) => {
     const user = context.user;
     if (!user) {
       throw redirect({
@@ -88,22 +146,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
       });
     }
 
-    let isOrganizer = false;
-    try {
-      isOrganizer = await hasSolarisOrganizerAccess(user.id);
-    } catch {
-      isOrganizer = false;
-    }
-
-    if (!isOrganizer) {
-      throw redirect({
-        to: "/my-solaris",
-        search: { notice: "organizer-access-required" },
-        replace: true,
-      });
-    }
-
-    return { user, organizer: true };
+    return { user };
   },
   component: AdminRouteLayout,
   errorComponent: AdminRouteError,
@@ -112,8 +155,10 @@ export const Route = createFileRoute("/_authenticated/admin")({
 function AdminRouteLayout() {
   const { user } = Route.useRouteContext();
   return (
-    <AdminShell userEmail={user.email ?? null}>
-      <Outlet />
-    </AdminShell>
+    <OrganizerAccessGate user={user}>
+      <AdminShell userEmail={user.email ?? null}>
+        <Outlet />
+      </AdminShell>
+    </OrganizerAccessGate>
   );
 }
