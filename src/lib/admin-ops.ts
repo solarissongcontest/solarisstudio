@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { supabase } from "@/integrations/supabase/client";
 
 export type AdminDeadline = {
@@ -96,21 +97,18 @@ export function useAdminAudit(limit = 30) {
 }
 
 export function useAdminNotifications() {
-  return useQuery({
-    queryKey: ["admin-notifications"],
-    queryFn: async () => {
-      // The authenticated route has already verified the user against Auth.
-      // This observer only needs the local session identity for its RLS-scoped
-      // recipient filter; calling getUser() here would start another Auth HTTP
-      // request while React is still mounting Organizer observers.
-      const { data: auth, error: authError } = await supabase.auth.getSession();
-      if (authError) throw authError;
-      if (!auth.session?.user) return [] as AdminNotification[];
+  const user = useAuthenticatedUser();
 
+  return useQuery({
+    // Keep notification cache identity-scoped. This also avoids asking Supabase
+    // Auth to resolve session state from inside a query observer while the
+    // Organizer tree is still mounting.
+    queryKey: ["admin-notifications", user.id],
+    queryFn: async () => {
       const { data, error } = await adminDb
         .from("admin_notifications")
         .select("*")
-        .eq("recipient_id", auth.session.user.id)
+        .eq("recipient_id", user.id)
         .order("created_at", { ascending: false })
         .limit(50);
 
@@ -172,7 +170,6 @@ export function useMarkNotificationRead() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-notifications"] }),
   });
 }
-
 
 export function useResolveAdminNotification() {
   const qc = useQueryClient();
