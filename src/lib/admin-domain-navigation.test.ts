@@ -58,7 +58,7 @@ describe("Organizer domain navigation", () => {
     expect(governance?.workflow?.tabs.map((tab) => tab.label)).toContain("Appeals");
   });
 
-  it("exposes the six current-edition workspaces without relying on search", () => {
+  it("exposes the current-edition workspaces without relying on search", () => {
     const edition = buildAdminContextualSection("/admin/ssc-21", "ssc-21", "SSC21");
     expect(edition?.tabs.map((tab) => tab.label)).toEqual([
       "Overview",
@@ -123,7 +123,9 @@ describe("Organizer domain navigation", () => {
       "Results",
     ]);
 
-    expect(buildAdminContextualSection("/admin/communications", "ssc-21")?.workflow?.label).toBe("Publish workflow");
+    expect(buildAdminContextualSection("/admin/communications", "ssc-21")?.workflow?.label).toBe(
+      "Publish workflow",
+    );
   });
 
   it("keeps every specialist route searchable even when it is not a contextual tab", () => {
