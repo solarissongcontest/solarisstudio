@@ -80,6 +80,19 @@ describe("App Experience v3 attention preferences and search", () => {
     expect(root).toContain("<AppExperiencePreferenceSync />");
   });
 
+  it("guards delayed auth callbacks before updating root preference sync state", () => {
+    const sync = source("src/components/app/AppExperiencePreferenceSync.tsx");
+    const authChangeStart = sync.indexOf("supabase.auth.onAuthStateChange");
+    const cleanupStart = sync.indexOf("return () =>", authChangeStart);
+
+    expect(authChangeStart).toBeGreaterThanOrEqual(0);
+    expect(cleanupStart).toBeGreaterThan(authChangeStart);
+
+    const authChangeBlock = sync.slice(authChangeStart, cleanupStart);
+    expect(authChangeBlock).toContain("if (!alive) return;");
+    expect(authChangeBlock).toContain("setUserId(session?.user?.id);");
+  });
+
   it("restores Search as the contextual back destination even across primary tabs", () => {
     const palette = source("src/components/public/PublicCommandPalette.tsx");
     const toolbar = source("src/components/app/AppToolbar.tsx");
