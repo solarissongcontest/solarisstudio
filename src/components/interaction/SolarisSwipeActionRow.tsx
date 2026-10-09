@@ -94,6 +94,7 @@ export function SolarisSwipeActionRow({
           <button
             key={action.id}
             type="button"
+            disabled={!open}
             tabIndex={open ? 0 : -1}
             onClick={() => {
               action.onSelect();
