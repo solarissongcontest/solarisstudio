@@ -234,10 +234,30 @@ jobs:
           });
 
           await page.goto("http://127.0.0.1:4173/editions", { waitUntil: "domcontentloaded" });
-          await page.waitForTimeout(1500);
+
+          // The editions route may satisfy its initial data read during SSR, so a
+          // browser-side REST request is not guaranteed merely by navigation.
+          // Force one harmless browser-originated read with the exact local
+          // identity that the audit server received from GITHUB_ENV. The request
+          // listeners above still verify the actual wire headers and response.
+          await page.evaluate(
+            async ({ url, key }) => {
+              const response = await fetch(`${url}/rest/v1/countries?select=id&limit=1`, {
+                headers: {
+                  apikey: key,
+                  Authorization: `Bearer ${key}`,
+                },
+              });
+              if (!response.ok) {
+                throw new Error(`Browser local Supabase probe failed: HTTP ${response.status} ${await response.text()}`);
+              }
+            },
+            { url: expectedUrl, key: expectedKey },
+          );
+          await page.waitForTimeout(250);
           await browser.close();
 
-          if (!sawRest) failures.push("No local Supabase REST request was observed from the browser");
+          if (!sawRest) failures.push("Browser local Supabase REST probe was not observed");
           if (failures.length) {
             console.error(failures.join("\n"));
             process.exit(1);
