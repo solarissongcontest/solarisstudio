@@ -54,6 +54,20 @@ async function skipFirstRun(page: Page) {
   });
 }
 
+async function openGlobalSearch(page: Page) {
+  const allSearchTriggers = page.getByRole("button", { name: "Search Solaris Studio" });
+  await expect(
+    allSearchTriggers,
+    "installed app should expose exactly one global Search trigger",
+  ).toHaveCount(1);
+
+  const toolbarSearch = page
+    .locator(".solaris-app-toolbar")
+    .getByRole("button", { name: "Search Solaris Studio" });
+  await expect(toolbarSearch).toBeVisible();
+  await toolbarSearch.click();
+}
+
 async function expectInstalledShell(
   page: Page,
   route: string,
@@ -99,9 +113,19 @@ async function expectNoBottomChromeCollision(page: Page, route: string) {
     const main = document.querySelector<HTMLElement>(".app-main[data-solaris-app-mode='true']");
     if (!bar || !main) return null;
 
+    const rootStyle = getComputedStyle(document.documentElement);
+    const obstructionValue = rootStyle
+      .getPropertyValue("--solaris-app-bottom-obstruction")
+      .trim();
+    const obstruction = Number.parseFloat(obstructionValue || "0");
+    const spacer = main.querySelector<HTMLElement>("[data-solaris-app-bottom-spacer]");
+    const spacerHeight = spacer ? spacer.getBoundingClientRect().height : 0;
     const barRect = bar.getBoundingClientRect();
     const children = [...main.children].filter(
-      (node): node is HTMLElement => node instanceof HTMLElement && node.getClientRects().length > 0,
+      (node): node is HTMLElement =>
+        node instanceof HTMLElement &&
+        !node.hasAttribute("data-solaris-app-bottom-spacer") &&
+        node.getClientRects().length > 0,
     );
     const last = children.at(-1);
     if (!last) return null;
@@ -110,13 +134,17 @@ async function expectNoBottomChromeCollision(page: Page, route: string) {
     return {
       lastBottom: Math.round(rect.bottom),
       barTop: Math.round(barRect.top),
-      obstruction: getComputedStyle(document.documentElement)
-        .getPropertyValue("--solaris-app-bottom-obstruction")
-        .trim(),
+      obstruction: obstructionValue,
+      obstructionPixels: Number.isFinite(obstruction) ? obstruction : 0,
+      spacerHeight,
     };
   });
 
   if (collision) {
+    expect(
+      collision.spacerHeight,
+      `${route} bottom spacer must reserve the measured tab-bar obstruction (${collision.obstruction})`,
+    ).toBeGreaterThanOrEqual(collision.obstructionPixels);
     expect(
       collision.lastBottom,
       `${route} final content must clear the tab bar (obstruction ${collision.obstruction})`,
@@ -222,7 +250,7 @@ test("directory titles stay geometrically centered in the toolbar", async ({ pag
 test("global app search follows the full iOS VisualViewport during focus zoom and keyboard resize", async ({ page }) => {
   await expectInstalledShell(page, "/explore");
 
-  await page.getByRole("button", { name: "Search Solaris Studio" }).click();
+  await openGlobalSearch(page);
 
   const dialog = page.locator(".solaris-app-search-dialog");
   const input = dialog.getByRole("searchbox", { name: "Search Solaris Studio" });
@@ -289,6 +317,8 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
         top: rect.top,
         width: rect.width,
         height: rect.height,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
         radius: Number.parseFloat(style.borderTopLeftRadius || "0"),
         transform: style.transform,
         translate: style.translate,
@@ -298,7 +328,8 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
   const initial = await measure();
   expect(Math.abs(initial.left)).toBeLessThanOrEqual(1);
   expect(Math.abs(initial.top)).toBeLessThanOrEqual(1);
-  expect(Math.abs(initial.width - window.innerWidth)).toBeLessThanOrEqual(1);
+  expect(Math.abs(initial.width - initial.viewportWidth)).toBeLessThanOrEqual(1);
+  expect(Math.abs(initial.height - initial.viewportHeight)).toBeLessThanOrEqual(1);
   expect(initial.radius).toBe(0);
   expect(initial.transform).toBe("none");
   expect(["none", "0px"]).toContain(initial.translate);
@@ -329,7 +360,12 @@ test("global app search follows the full iOS VisualViewport during focus zoom an
 test("global search field matches the canonical Countries search surface", async ({ page }) => {
   await expectInstalledShell(page, "/countries");
 
-  const canonical = await page.locator("[data-solaris-search-field]").evaluate((node) => {
+  const canonicalSurface = page.locator("[data-solaris-search-field]");
+  const canonicalInput = canonicalSurface.locator(".solaris-app-search-input");
+  await canonicalInput.focus();
+  await expect(canonicalInput).toBeFocused();
+
+  const canonical = await canonicalSurface.evaluate((node) => {
     const input = node.querySelector<HTMLElement>(".solaris-app-search-input");
     const icon = node.querySelector<HTMLElement>(".solaris-app-search-icon");
     if (!input || !icon) return null;
@@ -355,10 +391,12 @@ test("global search field matches the canonical Countries search surface", async
   expect(canonical).not.toBeNull();
 
   await expectInstalledShell(page, "/explore");
-  await page.getByRole("button", { name: "Search Solaris Studio" }).click();
+  await openGlobalSearch(page);
 
   const command = page.locator(".solaris-app-search-dialog [data-solaris-search-field]");
   await expect(command).toHaveCount(1);
+  const commandInput = command.locator(".solaris-app-search-input");
+  await expect(commandInput).toBeFocused();
 
   const globalSearch = await command.evaluate((node) => {
     const input = node.querySelector<HTMLElement>(".solaris-app-search-input");
@@ -489,6 +527,7 @@ test("installed app chrome keeps Apple-sized effective touch targets", async ({ 
 
 test("first run is a contained bottom sheet and suppresses global tabs", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded" });
+  await applyInstalledCssEmulation(page);
 
   const sheet = page.locator(".solaris-app-first-run");
   await expect(sheet).toBeVisible();
@@ -516,7 +555,6 @@ test("first run is a contained bottom sheet and suppresses global tabs", async (
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(sheet).toHaveCount(0);
 });
-
 
 async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo) {
   await skipFirstRun(page);
@@ -546,6 +584,7 @@ async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo
     const main = document.querySelector<HTMLElement>(
       ".app-main[data-solaris-app-mode='true']",
     );
+    const requestedToolbar = main?.dataset.solarisAppToolbar ?? "visible";
     const requestedTabbar = main?.dataset.solarisAppTabbar ?? "visible";
     const tabbars = [...document.querySelectorAll(".solaris-app-tabbar")].filter(visible);
     const websiteChrome = [
@@ -597,6 +636,7 @@ async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo
         window.innerWidth,
       visibleH1: visibleH1.length,
       toolbarCount: [...document.querySelectorAll(".solaris-app-toolbar")].filter(visible).length,
+      requestedToolbar,
       requestedTabbar,
       tabbarCount: tabbars.length,
       websiteChrome: websiteChrome.map((node) => (node as HTMLElement).className),
@@ -608,7 +648,11 @@ async function auditInstalledRoute(page: Page, route: string, testInfo: TestInfo
 
   expect(result.overflow, `${route} horizontal overflow in installed mode`).toBeLessThanOrEqual(2);
   expect(result.visibleH1, `${route} should expose exactly one visible h1`).toBe(1);
-  expect(result.toolbarCount, `${route} should expose one app toolbar`).toBe(1);
+  if (result.requestedToolbar === "hidden") {
+    expect(result.toolbarCount, `${route} should hide the app toolbar`).toBe(0);
+  } else {
+    expect(result.toolbarCount, `${route} should expose one app toolbar`).toBe(1);
+  }
   expect(result.websiteChrome, `${route} leaked website chrome`).toEqual([]);
   expect(result.flagProblems, `${route} has non-canonical flag frames`).toEqual([]);
   expect(result.chromeControls, `${route} has undersized app chrome controls`).toEqual([]);
