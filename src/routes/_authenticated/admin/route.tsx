@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { AdminShell } from "@/components/admin/AdminShell";
+import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
 
 const ADMIN_RELOAD_KEY = "solaris:admin:last-stale-bundle-reload";
@@ -87,7 +88,18 @@ export const Route = createFileRoute("/_authenticated/admin")({
       });
     }
 
-    if (context.organizerAccess !== true) {
+    return { user };
+  },
+  loader: async ({ context }) => {
+    const user = context.user;
+    let isOrganizer = false;
+    try {
+      isOrganizer = await hasSolarisOrganizerAccess(user.id);
+    } catch {
+      isOrganizer = false;
+    }
+
+    if (!isOrganizer) {
       throw redirect({
         to: "/my-solaris",
         search: { notice: "organizer-access-required" },
@@ -95,7 +107,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
       });
     }
 
-    return { organizer: true, user };
+    return { organizer: true };
   },
   component: AdminRouteLayout,
   errorComponent: AdminRouteError,

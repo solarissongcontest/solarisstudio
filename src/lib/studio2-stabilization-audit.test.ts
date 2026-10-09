@@ -200,11 +200,13 @@ describe("Studio 2 stabilization contract", () => {
   });
 
   it("keeps every authenticated Organizer route behind authoritative V2 access", () => {
-    expect(authenticatedRoute).toContain("hasSolarisOrganizerAccess");
-    expect(authenticatedRoute).toContain('location.pathname === "/admin"');
-    expect(authenticatedRoute).toContain('location.pathname.startsWith("/admin/")');
+    expect(authenticatedRoute).toContain("supabase.auth.getUser()");
+    expect(authenticatedRoute).not.toContain("hasSolarisOrganizerAccess");
     expect(authenticatedRoute).not.toContain('.from("user_roles")');
-    expect(adminRoute).toContain("context.organizerAccess !== true");
+    expect(adminRoute).toContain("loader: async ({ context })");
+    expect(adminRoute).toContain("hasSolarisOrganizerAccess(user.id)");
+    expect(adminRoute).not.toContain('.from("user_roles")');
+    expect(adminRoute).toContain("if (!isOrganizer)");
     expect(adminRoute).toContain('to: "/my-solaris"');
     expect(adminRoute).toContain('notice: "organizer-access-required"');
     expect(adminRoute).toContain("replace: true");

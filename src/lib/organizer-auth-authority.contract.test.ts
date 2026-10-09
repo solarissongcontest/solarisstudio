@@ -4,20 +4,27 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("Organizer authentication authority", () => {
-  it("resolves Organizer access in the authenticated parent and consumes it synchronously in the lazy Organizer route", () => {
+  it("keeps identity in the authenticated parent and awaits Organizer role access in the admin loader", () => {
     const authenticatedRoute = source("src/routes/_authenticated/route.tsx");
     const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
+    const beforeLoadStart = adminRoute.indexOf("beforeLoad:");
+    const loaderStart = adminRoute.indexOf("loader:");
+    const adminBeforeLoad = adminRoute.slice(beforeLoadStart, loaderStart);
 
-    expect(authenticatedRoute).toContain("hasSolarisOrganizerAccess(data.user.id)");
-    expect(authenticatedRoute).toContain('location.pathname === "/admin"');
-    expect(authenticatedRoute).toContain('location.pathname.startsWith("/admin/")');
-    expect(authenticatedRoute).toContain("organizerAccess = false");
+    expect(authenticatedRoute).toContain("supabase.auth.getUser()");
+    expect(authenticatedRoute).toContain("return { user: data.user }");
+    expect(authenticatedRoute).not.toContain("hasSolarisOrganizerAccess");
 
     expect(adminRoute).toContain("beforeLoad: ({ location, context })");
-    expect(adminRoute).toContain("const user = context.user");
-    expect(adminRoute).toContain("context.organizerAccess !== true");
+    expect(adminBeforeLoad).not.toContain("await ");
+    expect(adminBeforeLoad).not.toContain("hasSolarisOrganizerAccess");
+    expect(adminRoute).toContain("loader: async ({ context })");
+    expect(adminRoute).toContain("isOrganizer = await hasSolarisOrganizerAccess(user.id)");
+    expect(adminRoute).toContain("if (!isOrganizer)");
+    expect(adminRoute).toContain('to: "/my-solaris"');
+    expect(adminRoute).toContain('notice: "organizer-access-required"');
+    expect(adminRoute).toContain("replace: true");
     expect(adminRoute).not.toContain("supabase.auth.getUser()");
-    expect(adminRoute).not.toContain("hasSolarisOrganizerAccess(user.id)");
   });
 
   it("does not start Auth verification requests from Organizer shell render observers", () => {

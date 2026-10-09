@@ -6,7 +6,6 @@ import { CountryFlagLayerEditorAddon } from "@/components/CountryFlagLayerEditor
 import { CountrySystemFunFactsEditorAddon } from "@/components/CountrySystemFunFactsEditorAddon";
 import { HistoricalNationalFinalManager } from "@/components/HistoricalNationalFinalManager";
 import { NationalFinalResultOrderAddon } from "@/components/NationalFinalResultOrderAddon";
-import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { supabase } from "@/integrations/supabase/client";
 import { useMyCountryAccount } from "@/lib/country-account";
 
@@ -21,20 +20,10 @@ export const Route = createFileRoute("/_authenticated")({
       });
     }
 
-    // Resolve Organizer authorization in the already-established authenticated
-    // boundary. Keeping this lookup out of the lazy /admin child boundary avoids
-    // starting async route work while Organizer chrome is being committed, while
-    // still failing closed before any Organizer screen can render.
-    let organizerAccess: boolean | null = null;
-    if (location.pathname === "/admin" || location.pathname.startsWith("/admin/")) {
-      try {
-        organizerAccess = await hasSolarisOrganizerAccess(data.user.id);
-      } catch {
-        organizerAccess = false;
-      }
-    }
-
-    return { user: data.user, organizerAccess };
+    // Keep the authenticated parent responsible for identity only. Organizer
+    // authorization is awaited by the /admin loader so route data can resolve
+    // without mutating context while the lazy Organizer boundary is mounting.
+    return { user: data.user };
   },
   component: AuthenticatedLayout,
 });

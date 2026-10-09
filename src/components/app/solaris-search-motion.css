@@ -1,3 +1,14 @@
+:root {
+  --solaris-search-focus-rgb: 65 142 127;
+}
+
+html[data-solaris-app] body[data-solaris-family]
+  [data-solaris-search-field].solaris-app-search-shell:focus-within {
+  background: rgb(255 255 255 / .055) !important;
+  border-color: rgb(var(--solaris-search-focus-rgb) / .28) !important;
+  box-shadow: 0 0 0 3px rgb(var(--solaris-search-focus-rgb) / .16) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html[data-solaris-app] .solaris-app-search-shell {
     transition: none !important;
