@@ -1,3 +1,4 @@
+import { AccountCacheIsolation } from "@/components/app/AccountCacheIsolation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -23,6 +24,7 @@ import solarisDepthCss from "../solaris-depth.css?url";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
 import { AppRuntime, useSolarisApp } from "../components/app/AppRuntime";
 import { AppExperiencePreferenceSync } from "../components/app/AppExperiencePreferenceSync";
+import { AppLaunchRestoreCoordinator } from "../components/app/AppLaunchRestoreCoordinator";
 import { AppTelemetryBridge } from "../components/app/AppTelemetryBridge";
 import { AppDataFreshnessCoordinator } from "../components/app/AppDataFreshnessCoordinator";
 import { AppReconnectReconciler } from "../components/app/AppReconnectReconciler";
@@ -72,7 +74,8 @@ function backgroundFamilyFor(pathname: string): BackgroundFamily {
   if (pathname.startsWith("/integrity")) return "integrity";
   if (pathname.startsWith("/confirmations")) return "confirmations";
   if (pathname.startsWith("/televoting")) return "televoting";
-  if (pathname.startsWith("/jury-voting") || pathname.startsWith("/next-in-line")) return "participate";
+  if (pathname.startsWith("/jury-voting") || pathname.startsWith("/next-in-line"))
+    return "participate";
   if (pathname.startsWith("/participate")) return "participate";
   if (pathname.startsWith("/pulse")) return "pulse";
   if (pathname.startsWith("/predictions")) return "predictions";
@@ -99,10 +102,18 @@ function NotFoundComponent() {
 
   const body = (
     <div className={isAppMode ? "solaris-app-route-state-card" : "max-w-md text-center"}>
-      <p className={isAppMode ? "solaris-app-route-state-kicker" : "text-7xl font-bold text-foreground"}>
+      <p
+        className={
+          isAppMode ? "solaris-app-route-state-kicker" : "text-7xl font-bold text-foreground"
+        }
+      >
         {isAppMode ? "404" : "404"}
       </p>
-      <h2 className={isAppMode ? "mt-2 text-xl font-semibold" : "mt-4 text-xl font-semibold text-foreground"}>
+      <h2
+        className={
+          isAppMode ? "mt-2 text-xl font-semibold" : "mt-4 text-xl font-semibold text-foreground"
+        }
+      >
         Page not found
       </h2>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -130,9 +141,7 @@ function NotFoundComponent() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      {body}
-    </div>
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">{body}</div>
   );
 }
 
@@ -140,10 +149,7 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
   console.error(error);
   const router = useRouter();
   const { isAppMode } = useSolarisApp();
-  const kind = classifyAppError(
-    error,
-    typeof navigator === "undefined" ? true : navigator.onLine,
-  );
+  const kind = classifyAppError(error, typeof navigator === "undefined" ? true : navigator.onLine);
   const presentation = appErrorPresentation(kind);
 
   useEffect(() => {
@@ -162,9 +168,7 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
       <h1 className="mt-2 text-xl font-semibold tracking-tight text-foreground">
         {presentation.title}
       </h1>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        {presentation.description}
-      </p>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{presentation.description}</p>
       <div className="mt-5 flex flex-wrap gap-2">
         {presentation.retry ? (
           <button
@@ -200,9 +204,7 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      {body}
-    </div>
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">{body}</div>
   );
 }
 
@@ -267,8 +269,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "icon", href: "/favicon.ico?v=img2340-20260929", sizes: "any" },
-      { rel: "icon", type: "image/png", href: "/icon-192.png?v=img2340-20260929", sizes: "192x192" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=img2340-20260929", sizes: "180x180" },
+      {
+        rel: "icon",
+        type: "image/png",
+        href: "/icon-192.png?v=img2340-20260929",
+        sizes: "192x192",
+      },
+      {
+        rel: "apple-touch-icon",
+        href: "/apple-touch-icon.png?v=img2340-20260929",
+        sizes: "180x180",
+      },
       { rel: "manifest", href: "/site.webmanifest?v=img2340-20260929" },
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: unifiedCss },
@@ -309,8 +320,7 @@ function RootComponent() {
     pathname.startsWith("/confirmations/admin") || pathname.startsWith("/televoting/admin");
   const fullAdmin = pathname.startsWith("/admin") || serviceAdmin;
   const publicParticipation =
-    !serviceAdmin &&
-    (pathname.startsWith("/confirmations") || pathname.startsWith("/televoting"));
+    !serviceAdmin && (pathname.startsWith("/confirmations") || pathname.startsWith("/televoting"));
 
   useEffect(() => startPublicWebVitals(), []);
 
@@ -338,6 +348,8 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <AccountCacheIsolation />
+      <AppLaunchRestoreCoordinator />
       <AppDataFreshnessCoordinator />
       <AppReconnectReconciler />
       <AppExperiencePreferenceSync />
@@ -369,7 +381,8 @@ function ToolQuickGuide({ pathname }: { pathname: string }) {
     : pathname.startsWith("/taste-dna")
       ? {
           title: "What Taste DNA means",
-          intro: "It measures how similar your personal ranking is to different groups, not whether your taste is ‘good’ or ‘bad’.",
+          intro:
+            "It measures how similar your personal ranking is to different groups, not whether your taste is ‘good’ or ‘bad’.",
           steps: [
             "Choose a published show and reorder the entries into your own ranking.",
             "A high Jury match means your order resembles the jury ranking; a high Televote match means it resembles the public ranking.",
@@ -377,10 +390,12 @@ function ToolQuickGuide({ pathname }: { pathname: string }) {
             "Official/Jury/Televote are starting presets only. Saving your ballot is optional.",
           ],
         }
-      : pathname.startsWith("/broadcast-intelligence") && !pathname.startsWith("/broadcast-intelligence/jury")
+      : pathname.startsWith("/broadcast-intelligence") &&
+          !pathname.startsWith("/broadcast-intelligence/jury")
         ? {
             title: "What Broadcast Intelligence means",
-            intro: "It explains how the official result changed when jury and televote scores came together. It is not another result table.",
+            intro:
+              "It explains how the official result changed when jury and televote scores came together. It is not another result table.",
             steps: [
               "The replay starts with every country's jury total already on the scoreboard.",
               "Televote scores are then revealed from the lowest jury-ranked entry upward so you can watch countries rise, fall or take the lead.",
@@ -397,9 +412,7 @@ function ToolQuickGuide({ pathname }: { pathname: string }) {
   if (!guide || isAppMode) return null;
 
   return (
-    <details
-      className="fixed bottom-[5.6rem] right-3 z-[80] max-h-[52vh] w-[min(23rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-primary/25 bg-popover/95 shadow-2xl backdrop-blur-xl lg:bottom-5 lg:right-5"
-    >
+    <details className="fixed bottom-[5.6rem] right-3 z-[80] max-h-[52vh] w-[min(23rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-primary/25 bg-popover/95 shadow-2xl backdrop-blur-xl lg:bottom-5 lg:right-5">
       <summary className="cursor-pointer list-none px-4 py-3 text-xs font-bold text-foreground [&::-webkit-details-marker]:hidden">
         {guide.title} <span className="float-right text-muted-foreground">▾</span>
       </summary>

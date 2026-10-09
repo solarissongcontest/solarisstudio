@@ -1,8 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, Clock3, Search, Star } from "lucide-react";
+import { ChevronRight, Clock3, Star } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAllShows, useCountries, useEditions } from "@/lib/data";
 import { useMyFollows } from "@/lib/engagement-data";
 import { writeOfflinePublicIndex } from "@/lib/app-offline-snapshot";
@@ -88,24 +87,6 @@ export function AppExplorePersonalized() {
 
   return (
     <div className="space-y-5" data-solaris-app-explore-personalized>
-      <section aria-labelledby="app-explore-search">
-        <div className="solaris-app-section-heading">
-          <p>Find anything</p>
-          <h2 id="app-explore-search">Search Solaris</h2>
-        </div>
-        <div className="solaris-app-grouped-list">
-          <div className="solaris-app-search-action">
-            <span className="solaris-app-list-icon">
-              <Search className="size-4" aria-hidden="true" />
-            </span>
-            <span className="min-w-0 flex-1 text-xs leading-5 text-muted-foreground">
-              Countries, editions, shows, entries, results and rules.
-            </span>
-            <PublicCommandPalette compact />
-          </div>
-        </div>
-      </section>
-
       {recents.length ? (
         <section aria-labelledby="app-explore-recent">
           <div className="solaris-app-section-heading">
