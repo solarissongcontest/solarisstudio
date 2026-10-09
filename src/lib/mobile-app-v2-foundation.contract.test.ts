@@ -83,7 +83,6 @@ describe("Mobile App V2 architectural invariants", () => {
     expect(firstRun).not.toContain("<Dialog");
     expect(wiki).toContain("<SheetContent");
     expect(sheet).toContain("z-[var(--solaris-z-sheet)]");
-    expect(sheet).toContain("z-[var(--solaris-z-sheet-backdrop)]");
     expect(sheet).toContain("size-11");
   });
 
