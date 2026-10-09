@@ -5,13 +5,16 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("PR455 Browser Audit regression contracts", () => {
-  it("keeps transient route pending UI out of page landmark ownership", () => {
+  it("keeps transient route pending UI out of page landmark ownership and router subscriptions", () => {
     const router = source("src/router.tsx");
 
     expect(router).toContain('role="status"');
     expect(router).toContain('aria-label="Loading page"');
     expect(router).not.toContain('<main\n      id="main-content"');
     expect(router).not.toContain('<h1 className="mt-1 font-display text-2xl font-bold">Loading page…</h1>');
+    expect(router).not.toContain("createRouter, useRouterState");
+    expect(router).not.toContain("const pathname = useRouterState");
+    expect(router).toContain("window.location.pathname");
   });
 
   it("keeps Organizer directory keys unique before an edition has resolved", () => {
@@ -57,5 +60,22 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(root).toContain('root.dataset.solarisRuntime = "standalone"');
     expect(root).toContain('root.setAttribute("data-solaris-app", "")');
     expect(root).toContain('navigator.standalone === true');
+  });
+
+  it("audits only visible page landmarks and genuinely tabbable hidden controls", () => {
+    const audit = source("e2e/audit-helpers.ts");
+
+    expect(audit).toContain("const visibleMainLandmarks =");
+    expect(audit).toContain("mainCount: visibleMainLandmarks.length");
+    expect(audit).toContain("if (node.tabIndex < 0) return false;");
+  });
+
+  it("starts keyboard reachability checks from a deterministic focus sentinel", () => {
+    const audit = source("e2e/audit-helpers.ts");
+
+    expect(audit).toContain("data-solaris-audit-focus-start");
+    expect(audit).toContain("sentinel.focus({ preventScroll: true })");
+    expect(audit).toContain("const stayedOnSentinel = active === sentinel");
+    expect(audit).not.toContain("document.activeElement.blur()");
   });
 });

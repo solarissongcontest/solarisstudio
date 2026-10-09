@@ -1,5 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
-import { createRouter, useRouterState } from "@tanstack/react-router";
+import { createRouter } from "@tanstack/react-router";
 import { AppRouteSkeleton, AppRouteStateFrame } from "@/components/app/AppRouteStateFrame";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { solarisQueryPolicy } from "@/lib/app-query-policy";
@@ -7,7 +7,13 @@ import { routeTree } from "./routeTree.gen";
 
 function RoutePending() {
   const { isAppMode } = useSolarisApp();
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  // Pending UI sits inside TanStack Router's transition machinery. Subscribing
+  // to router state from this transient boundary can receive a store update
+  // before React has committed the pending component, which React 19 correctly
+  // reports as a pre-mount state update. The browser location is already the
+  // authoritative destination for this purely presentational branch and does
+  // not need a live subscription during the short pending lifetime.
+  const pathname = typeof window === "undefined" ? "" : window.location.pathname;
   const alreadyInsideParticipationChrome =
     pathname.startsWith("/confirmations") || pathname.startsWith("/televoting");
 

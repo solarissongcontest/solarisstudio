@@ -185,12 +185,20 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
         return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
       });
 
+      const visibleMainLandmarks = [...document.querySelectorAll<HTMLElement>("main")].filter((node) => {
+        if (node.closest('[aria-hidden="true"], [inert]')) return false;
+        const style = getComputedStyle(node);
+        const rect = node.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      });
+
       const ariaHiddenFocusable = [
         ...document.querySelectorAll<HTMLElement>(
           '[aria-hidden="true"] a[href], [aria-hidden="true"] button:not([disabled]), [aria-hidden="true"] input:not([disabled]):not([type="hidden"]), [aria-hidden="true"] select:not([disabled]), [aria-hidden="true"] textarea:not([disabled]), [aria-hidden="true"] [tabindex]:not([tabindex="-1"])',
         ),
       ]
         .filter((node) => {
+          if (node.tabIndex < 0) return false;
           const style = getComputedStyle(node);
           const rect = node.getBoundingClientRect();
           return (
@@ -328,7 +336,7 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
 
       return {
         overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
-        mainCount: document.querySelectorAll("main").length,
+        mainCount: visibleMainLandmarks.length,
         duplicateIds: [...new Set(duplicateIds)],
         brokenImages,
         unnamedControls,
@@ -356,13 +364,24 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
       `${path} exposes tabbable controls inside a visible aria-hidden region`,
     ).toEqual([]);
 
-    await page.evaluate(() => {
-      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-    });
+    const focusSentinelSelector = "[data-solaris-audit-focus-start]";
+    await page.evaluate((selector) => {
+      document.querySelector(selector)?.remove();
+      const sentinel = document.createElement("span");
+      sentinel.tabIndex = 0;
+      sentinel.setAttribute("data-solaris-audit-focus-start", "");
+      sentinel.style.cssText =
+        "position:fixed;left:-10000px;top:0;width:1px;height:1px;overflow:hidden;";
+      document.body.prepend(sentinel);
+      sentinel.focus({ preventScroll: true });
+    }, focusSentinelSelector);
     await page.keyboard.press("Tab");
-    const keyboardFocus = await page.evaluate(() => {
+    const keyboardFocus = await page.evaluate((selector) => {
+      const sentinel = document.querySelector<HTMLElement>(selector);
       const active = document.activeElement;
-      if (!(active instanceof HTMLElement) || active === document.body) {
+      const stayedOnSentinel = active === sentinel;
+      sentinel?.remove();
+      if (stayedOnSentinel || !(active instanceof HTMLElement) || active === document.body) {
         return { focused: false, visible: false, hiddenAncestor: false, tag: "body" };
       }
       const style = getComputedStyle(active);
@@ -377,7 +396,7 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
         hiddenAncestor: Boolean(active.closest('[aria-hidden="true"], [inert]')),
         tag: active.outerHTML.slice(0, 180),
       };
-    });
+    }, focusSentinelSelector);
     expect(keyboardFocus.focused, `${path} must accept keyboard focus with Tab`).toBe(true);
     expect(keyboardFocus.visible, `${path} Tab focus landed on a hidden control: ${keyboardFocus.tag}`).toBe(true);
     expect(
