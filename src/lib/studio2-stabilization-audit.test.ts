@@ -200,29 +200,36 @@ describe("Studio 2 stabilization contract", () => {
   });
 
   it("keeps every authenticated Organizer route behind authoritative V2 access", () => {
-    const beforeLoadStart = adminRoute.indexOf("beforeLoad:");
-    const componentStart = adminRoute.indexOf("component:");
-    const adminBeforeLoad = adminRoute.slice(beforeLoadStart, componentStart);
-    const gateStart = adminRoute.indexOf("function OrganizerAccessGate");
-    const gateEnd = adminRoute.indexOf("export const Route", gateStart);
-    const gate = adminRoute.slice(gateStart, gateEnd);
+    const identityGateStart = authenticatedRoute.indexOf("function AuthenticatedIdentityGate");
+    const identityGateEnd = authenticatedRoute.indexOf(
+      "function MySolarisAccessGate",
+      identityGateStart,
+    );
+    const identityGate = authenticatedRoute.slice(identityGateStart, identityGateEnd);
+    const organizerGateStart = adminRoute.indexOf("function OrganizerAccessGate");
+    const organizerGateEnd = adminRoute.indexOf("export const Route", organizerGateStart);
+    const organizerGate = adminRoute.slice(organizerGateStart, organizerGateEnd);
 
-    expect(authenticatedRoute).toContain("supabase.auth.getUser()");
-    expect(authenticatedRoute).not.toContain("hasSolarisOrganizerAccess");
+    expect(authenticatedRoute).toContain("ssr: false");
+    expect(authenticatedRoute).not.toContain("beforeLoad:");
     expect(authenticatedRoute).not.toContain('.from("user_roles")');
-    expect(adminRoute).toContain("beforeLoad: ({ location, context })");
-    expect(adminBeforeLoad).not.toContain("await ");
-    expect(adminBeforeLoad).not.toContain("hasSolarisOrganizerAccess");
-    expect(adminBeforeLoad).toContain("return { user }");
+    expect(identityGate).toContain("useEffect(() =>");
+    expect(identityGate).toContain("await supabase.auth.getUser()");
+    expect(identityGate).toContain("if (!active) return");
+    expect(authenticatedRoute).toContain("<AuthenticatedUserProvider user={state.user}>");
+    expect(authenticatedRoute).not.toContain("hasSolarisOrganizerAccess");
+
+    expect(adminRoute).not.toContain("beforeLoad:");
     expect(adminRoute).not.toContain("loader:");
     expect(adminRoute).not.toContain('.from("user_roles")');
     expect(adminRoute).not.toContain("supabase.auth.getUser()");
-    expect(gate).toContain("useEffect(() =>");
-    expect(gate).toContain("isOrganizer = await hasSolarisOrganizerAccess(user.id)");
-    expect(gate).toContain("if (!active) return");
-    expect(gate).toContain('to: "/my-solaris"');
-    expect(gate).toContain('notice: "organizer-access-required"');
-    expect(gate).toContain("replace: true");
+    expect(adminRoute).toContain("const user = useAuthenticatedUser()");
+    expect(organizerGate).toContain("useEffect(() =>");
+    expect(organizerGate).toContain("isOrganizer = await hasSolarisOrganizerAccess(user.id)");
+    expect(organizerGate).toContain("if (!active) return");
+    expect(organizerGate).toContain('to: "/my-solaris"');
+    expect(organizerGate).toContain('notice: "organizer-access-required"');
+    expect(organizerGate).toContain("replace: true");
     expect(adminRoute).toContain("<OrganizerAccessGate user={user}>");
   });
 });
