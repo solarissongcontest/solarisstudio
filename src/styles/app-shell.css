@@ -25,6 +25,7 @@ html[data-solaris-app-boot] body::before {
   --solaris-app-tabbar-height: 4.7rem;
   --solaris-app-tabbar-collapsed-height: 3.25rem;
   --solaris-app-tabbar-max-height: 5.35rem;
+  --solaris-bottom-obstruction: 0px;
   --solaris-app-safe-top: env(safe-area-inset-top);
   --solaris-app-safe-right: env(safe-area-inset-right);
   --solaris-app-safe-bottom: env(safe-area-inset-bottom);

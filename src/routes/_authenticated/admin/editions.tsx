@@ -45,6 +45,11 @@ import {
   resolveAutomaticEditionStatus,
   resolveShowPublication,
 } from "@/lib/publication";
+import {
+  applyShowPublicationChange,
+  loadShowPublicationControls,
+  previewShowPublicationChange,
+} from "@/lib/show-publication-lifecycle";
 
 export const Route = createFileRoute("/_authenticated/admin/editions")({
   head: () => ({
@@ -199,14 +204,32 @@ function AdminHome() {
     setMsg(null);
 
     try {
-      const { error: showError } = await supabase
-        .from("shows")
-        .update({ published: false })
-        .eq("edition_id", edition.id);
+      const controls = await loadShowPublicationControls(edition.id);
+      const showById = new Map(
+        shows
+          .filter((show) => show.edition_id === edition.id)
+          .map((show) => [show.id, show] as const),
+      );
 
-      if (showError) {
-        setError(reportSupabaseError(showError, "Could not make the edition private."));
-        return false;
+      for (const control of controls) {
+        if (control.state !== "public" && control.state !== "scheduled") continue;
+        const show = showById.get(control.showId);
+        if (!show) continue;
+
+        const preview = await previewShowPublicationChange({
+          showId: show.id,
+          targetState: "hidden",
+          config: resolveShowPublication(show),
+          scheduledFor: null,
+        });
+        if (preview.alreadyApplied) continue;
+
+        const operationId = crypto.randomUUID();
+        await applyShowPublicationChange({
+          preview,
+          operationId,
+          idempotencyKey: operationId,
+        });
       }
 
       const { error: editionError } = await supabase
@@ -218,7 +241,7 @@ function AdminHome() {
         setError(
           reportSupabaseError(
             editionError,
-            "The shows were made private, but the edition status could not be updated.",
+            "The show publication lifecycle was hidden, but the edition status could not be updated.",
           ),
         );
         return false;

@@ -22,10 +22,10 @@ describe("Organizer domain navigation", () => {
     expect(domains).toHaveLength(5);
     expect(domains.map((domain) => domain.label)).toEqual([
       "Home",
-      "Inbox",
       "SSC21",
-      "Rules & Cases",
-      "Administration",
+      "Tasks",
+      "Delegations",
+      "More",
     ]);
   });
 
@@ -53,15 +53,15 @@ describe("Organizer domain navigation", () => {
     expect(publish?.tabs.map((tab) => tab.label)).toContain("Publish");
 
     const governance = buildAdminContextualSection("/admin/integrity-appeals", "ssc-21");
-    expect(governance?.domain.label).toBe("Rules & Cases");
-    expect(governance?.tabs.map((tab) => tab.label)).toContain("Appeals");
+    expect(governance?.domain.label).toBe("More");
+    expect(governance?.workflow?.label).toBe("Trust & Governance");
+    expect(governance?.workflow?.tabs.map((tab) => tab.label)).toContain("Appeals");
   });
 
-  it("exposes the six current-edition workspaces without relying on search", () => {
+  it("exposes the current-edition workspaces without relying on search", () => {
     const edition = buildAdminContextualSection("/admin/ssc-21", "ssc-21", "SSC21");
     expect(edition?.tabs.map((tab) => tab.label)).toEqual([
       "Overview",
-      "Delegations",
       "Contest",
       "Voting & results",
       "Live",
@@ -69,18 +69,21 @@ describe("Organizer domain navigation", () => {
     ]);
 
     const countries = buildAdminContextualSection("/admin/countries", "ssc-21", "SSC21");
-    expect(countries?.tabs.map((tab) => tab.label)).toContain("Delegations");
+    expect(countries?.domain.id).toBe("delegations");
     expect(countries?.workflow?.tabs.map((tab) => tab.label)).toContain("Confirmations");
+    expect(countries?.workflow?.tabs.map((tab) => tab.label)).toContain("Next in Line");
   });
 
   it("keeps deep workflow navigation only where the workflow needs it", () => {
     const delegations = buildAdminContextualSection("/confirmations/admin/rounds", "ssc-21");
-    expect(delegations?.domain.id).toBe("edition");
+    expect(delegations?.domain.id).toBe("delegations");
     expect(delegations?.workflow?.label).toBe("Delegations workflow");
     expect(delegations?.workflow?.tabs.map((tab) => tab.label)).toEqual([
       "Countries",
       "Confirmations",
+      "Requirements",
       "Responses",
+      "Next in Line",
       "Rounds",
       "Schedule",
       "More",
@@ -120,7 +123,9 @@ describe("Organizer domain navigation", () => {
       "Results",
     ]);
 
-    expect(buildAdminContextualSection("/admin/communications", "ssc-21")?.workflow?.label).toBe("Publish workflow");
+    expect(buildAdminContextualSection("/admin/communications", "ssc-21")?.workflow?.label).toBe(
+      "Publish workflow",
+    );
   });
 
   it("keeps every specialist route searchable even when it is not a contextual tab", () => {
@@ -142,12 +147,15 @@ describe("Organizer domain navigation", () => {
     const domainFor = (path: string) => domains.find((domain) => domain.active(path))?.id;
 
     expect(domainFor("/admin/operations")).toBe("home");
-    expect(domainFor("/admin/inbox")).toBe("inbox");
+    expect(domainFor("/admin/inbox")).toBe("tasks");
+    expect(domainFor("/admin/tasks")).toBe("tasks");
     expect(domainFor("/admin/ssc-21")).toBe("edition");
     expect(domainFor("/admin/incidents")).toBe("edition");
     expect(domainFor("/admin/results-reveal")).toBe("edition");
-    expect(domainFor("/admin/integrity-appeals")).toBe("rules-cases");
-    expect(domainFor("/admin/feature-rollout")).toBe("administration");
+    expect(domainFor("/admin/countries")).toBe("delegations");
+    expect(domainFor("/admin/next-in-line")).toBe("delegations");
+    expect(domainFor("/admin/integrity-appeals")).toBe("more");
+    expect(domainFor("/admin/feature-rollout")).toBe("more");
   });
 
   it("gives every internal destination in the detailed registry exactly one primary owner", () => {

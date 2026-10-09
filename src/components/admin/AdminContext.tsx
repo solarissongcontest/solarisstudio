@@ -1,17 +1,22 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 
+import {
+  readTabScopedEdition,
+  SOLARIS_TAB_EDITION_KEY,
+  writeTabScopedEdition,
+} from "@/lib/solaris-v6-edition-context";
+
 type AdminContextValue = {
   editionId: string;
   setEditionId: (id: string) => void;
 };
 
-const EDITION_KEY = "solaris:admin:edition-id";
 const AdminContext = createContext<AdminContextValue | null>(null);
 
 function readStoredEditionId() {
   if (typeof window === "undefined") return "";
   try {
-    return window.sessionStorage.getItem(EDITION_KEY) ?? "";
+    return readTabScopedEdition(window.sessionStorage, SOLARIS_TAB_EDITION_KEY);
   } catch (error) {
     console.warn("[admin] Could not read saved edition preference", error);
     return "";
@@ -21,8 +26,7 @@ function readStoredEditionId() {
 function persistEditionId(id: string) {
   if (typeof window === "undefined") return;
   try {
-    if (id) window.sessionStorage.setItem(EDITION_KEY, id);
-    else window.sessionStorage.removeItem(EDITION_KEY);
+    writeTabScopedEdition(window.sessionStorage, id, SOLARIS_TAB_EDITION_KEY);
   } catch (error) {
     // Browser privacy/storage restrictions must never prevent Organizer access.
     console.warn("[admin] Could not save edition preference", error);

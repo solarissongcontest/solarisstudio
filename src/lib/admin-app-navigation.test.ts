@@ -39,27 +39,27 @@ class MemoryStorage implements Storage {
 }
 
 describe("Organizer app navigation memory", () => {
-  it("preserves independent Home, Inbox, Edition, Cases and More destinations", () => {
+  it("preserves independent Home, Edition, Tasks, Delegations and More destinations", () => {
     const storage = new MemoryStorage();
     const slug = "ssc-22";
 
     rememberAdminLocation("/admin/entries/oland", "?panel=media", 420, slug, storage);
     rememberAdminLocation("/admin/inbox/case-17", "", 95, slug, storage);
+    rememberAdminLocation("/admin/countries/oland", "?tab=overview", 130, slug, storage);
     rememberAdminLocation("/admin/integrity-case/abc", "", 210, slug, storage);
-    rememberAdminLocation("/admin/audit", "", 50, slug, storage);
 
     expect(adminEntryHref(getAdminAppTabDestination("edition", slug, storage))).toBe(
       "/admin/entries/oland?panel=media",
     );
     expect(getAdminAppTabDestination("edition", slug, storage).scrollY).toBe(420);
-    expect(getAdminAppTabDestination("inbox", slug, storage).pathname).toBe(
+    expect(getAdminAppTabDestination("tasks", slug, storage).pathname).toBe(
       "/admin/inbox/case-17",
     );
-    expect(getAdminAppTabDestination("cases", slug, storage).pathname).toBe(
-      "/admin/integrity-case/abc",
+    expect(getAdminAppTabDestination("delegations", slug, storage).pathname).toBe(
+      "/admin/countries/oland",
     );
     expect(getAdminAppTabDestination("more", slug, storage).pathname).toBe(
-      "/admin/audit",
+      "/admin/integrity-case/abc",
     );
   });
 
@@ -72,7 +72,7 @@ describe("Organizer app navigation memory", () => {
 
     const root = resetAdminAppTabToRoot("edition", slug, storage);
     expect(root.pathname).toBe("/admin/ssc-22");
-    expect(getAdminAppTabDestination("inbox", slug, storage).pathname).toBe(
+    expect(getAdminAppTabDestination("tasks", slug, storage).pathname).toBe(
       "/admin/inbox/thread-4",
     );
   });

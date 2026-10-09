@@ -23,6 +23,7 @@ import {
   buildAdminBetaSections,
 } from "@/features/admin-beta-test/sections";
 import { supabase } from "@/integrations/supabase/client";
+import { uploadBetaFeedbackScreenshot } from "@/lib/beta-feedback-upload";
 import { useEditions } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
@@ -158,21 +159,12 @@ function AdminBetaTestPage() {
       for (const bug of bugs) {
         let screenshotPath = bug.screenshotPath;
         if (bug.file) {
-          if (bug.file.size > 8 * 1024 * 1024) throw new Error(`Screenshot “${bug.file.name}” is larger than 8 MB.`);
-          if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(bug.file.type)) {
-            throw new Error(`Screenshot “${bug.file.name}” is not a supported image type.`);
-          }
-
-          const safeName = bug.file.name.replace(/[^a-zA-Z0-9._-]+/g, "-");
-          screenshotPath = `admin/${submissionId}/${bug.id}-${safeName}`;
-          const { error: uploadError } = await supabase.storage
-            .from("beta-feedback")
-            .upload(screenshotPath, bug.file, {
-              cacheControl: "3600",
-              contentType: bug.file.type,
-              upsert: false,
-            });
-          if (uploadError) throw uploadError;
+          screenshotPath = await uploadBetaFeedbackScreenshot({
+            submissionId,
+            bugId: bug.id,
+            file: bug.file,
+            admin: true,
+          });
           uploadedPaths.push(screenshotPath);
         }
 

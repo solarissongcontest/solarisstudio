@@ -36,16 +36,9 @@ function domainTabs(
   domainId: AdminDomainNavigationItem["id"],
   slug?: string,
 ): AdminContextualTab[] {
-  const contestHref = slug ? `/admin/${slug}` : "/admin/countries";
   const publishHref = slug ? `/admin/publication/${slug}` : "/admin/storytelling";
-  const designHref = slug ? `/admin/design/${slug}` : "/admin/storytelling";
 
   const overviewActive = (path: string) => Boolean(slug && path === `/admin/${slug}`);
-
-  const delegationsActive = (path: string) =>
-    path.startsWith("/admin/countries") ||
-    path.startsWith("/confirmations/admin") ||
-    path.startsWith("/admin/submission-versions");
 
   const contestActive = (path: string) =>
     path.startsWith("/admin/shows/") ||
@@ -65,7 +58,7 @@ function domainTabs(
     (path.startsWith("/admin/results") && !path.startsWith("/admin/results-reveal")) ||
     path.startsWith("/admin/voting-lab");
 
-  const showActive = (path: string) =>
+  const liveActive = (path: string) =>
     path.startsWith("/admin/control-room") ||
     path.startsWith("/admin/workflows") ||
     path.startsWith("/admin/incidents") ||
@@ -81,51 +74,31 @@ function domainTabs(
     path.startsWith("/admin/design/") ||
     path.startsWith("/admin/edition-theme/");
 
+  const governanceActive = (path: string) =>
+    path === "/admin/integrity" ||
+    path.startsWith("/admin/integrity-") ||
+    path.startsWith("/admin/integrity-case/") ||
+    path.startsWith("/admin/integrity-resolution/") ||
+    path.startsWith("/admin/rules-manager") ||
+    path.startsWith("/admin/rule-interpretations");
+
   switch (domainId) {
     case "home":
-    case "inbox":
+    case "tasks":
+    case "delegations":
       return [];
     case "edition":
       return [
         tab("Overview", slug ? `/admin/${slug}` : "/admin", overviewActive),
-        tab("Delegations", "/admin/countries", delegationsActive),
-        tab("Contest", slug ? `/admin/shows/${slug}` : contestHref, contestActive),
+        tab("Contest", slug ? `/admin/shows/${slug}` : "/admin", contestActive),
         tab("Voting & results", "/televoting/admin", votingActive),
-        tab("Live", "/admin/control-room", showActive),
+        tab("Live", "/admin/control-room", liveActive),
         tab("Publish", publishHref, publishActive),
       ];
-    case "rules-cases":
-      return [
-        tab(
-          "Incoming",
-          "/admin/integrity-investigations",
-          (path) =>
-            path === "/admin/integrity" ||
-            path.startsWith("/admin/integrity-investigations") ||
-            path.startsWith("/admin/integrity-case/") ||
-            path.startsWith("/admin/integrity-resolution/"),
-        ),
-        tab(
-          "Rulings",
-          "/admin/integrity-preclearance",
-          (path) => path.startsWith("/admin/integrity-preclearance"),
-        ),
-        tab("Appeals", "/admin/integrity-appeals", (path) => path.startsWith("/admin/integrity-appeals")),
-        tab("Evidence", "/admin/integrity-evidence", (path) => path.startsWith("/admin/integrity-evidence")),
-        tab(
-          "Rules",
-          "/admin/rules-manager",
-          (path) => path.startsWith("/admin/rules-manager") || path.startsWith("/admin/rule-interpretations"),
-        ),
-        tab(
-          "Privacy",
-          "/admin/integrity-disclosure",
-          (path) => path.startsWith("/admin/integrity-disclosure") || path.startsWith("/admin/integrity-identity"),
-        ),
-      ];
-    case "administration":
+    case "more":
       return [
         tab("Overview", "/admin/more", (path) => path.startsWith("/admin/more")),
+        tab("Trust & Governance", "/admin/integrity-investigations", governanceActive),
         tab(
           "People & access",
           "/admin/access-permissions",
@@ -134,12 +107,12 @@ function domainTabs(
             path.startsWith("/admin/country-accounts") ||
             path.startsWith("/admin/hod-history"),
         ),
-        tab("Editions", "/admin", (path) => path === "/admin" || path === "/admin/"),
         tab(
           "System",
           "/admin/system",
           (path) =>
             path.startsWith("/admin/system") ||
+            path.startsWith("/admin/system-operations") ||
             path.startsWith("/admin/sync-health") ||
             path.startsWith("/admin/feature-rollout") ||
             path.startsWith("/admin/anniversary"),
@@ -159,35 +132,33 @@ function domainTabs(
 function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow | null {
   if (
     pathname.startsWith("/admin/countries") ||
+    pathname.startsWith("/admin/next-in-line") ||
     pathname.startsWith("/confirmations/admin") ||
     pathname.startsWith("/admin/submission-versions")
   ) {
     return {
       label: "Delegations workflow",
       tabs: [
-        tab(
-          "Countries",
-          "/admin/countries",
-          (path) => path.startsWith("/admin/countries"),
-        ),
+        tab("Countries", "/admin/countries", (path) => path.startsWith("/admin/countries")),
         tab(
           "Confirmations",
           "/confirmations/admin",
           (path) => path === "/confirmations/admin" || path === "/confirmations/admin/",
         ),
         tab(
-          "Responses",
-          "/confirmations/admin/responses",
-          (path) => path.startsWith("/confirmations/admin/responses") || path.startsWith("/confirmations/admin/countries"),
+          "Requirements",
+          "/confirmations/admin/requirements",
+          (path) => path.startsWith("/confirmations/admin/requirements"),
         ),
         tab(
-          "Rounds",
-          "/confirmations/admin/rounds",
+          "Responses",
+          "/confirmations/admin/responses",
           (path) =>
-            path.startsWith("/confirmations/admin/rounds") ||
-            path.startsWith("/confirmations/admin/editions") ||
-            path.startsWith("/confirmations/admin/sync"),
+            path.startsWith("/confirmations/admin/responses") ||
+            path.startsWith("/confirmations/admin/countries"),
         ),
+        tab("Next in Line", "/admin/next-in-line", (path) => path.startsWith("/admin/next-in-line")),
+        tab("Rounds", "/confirmations/admin/rounds", (path) => path.startsWith("/confirmations/admin/rounds")),
         tab("Schedule", "/confirmations/admin/calendar", (path) => path.startsWith("/confirmations/admin/calendar")),
         tab(
           "More",
@@ -198,6 +169,43 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
             path.startsWith("/confirmations/admin/editions") ||
             path.startsWith("/confirmations/admin/sync") ||
             path.startsWith("/admin/submission-versions"),
+        ),
+      ],
+    };
+  }
+
+  if (
+    pathname === "/admin/integrity" ||
+    pathname.startsWith("/admin/integrity-") ||
+    pathname.startsWith("/admin/integrity-case/") ||
+    pathname.startsWith("/admin/integrity-resolution/") ||
+    pathname.startsWith("/admin/rules-manager") ||
+    pathname.startsWith("/admin/rule-interpretations")
+  ) {
+    return {
+      label: "Trust & Governance",
+      tabs: [
+        tab(
+          "Incoming",
+          "/admin/integrity-investigations",
+          (path) =>
+            path === "/admin/integrity" ||
+            path.startsWith("/admin/integrity-investigations") ||
+            path.startsWith("/admin/integrity-case/") ||
+            path.startsWith("/admin/integrity-resolution/"),
+        ),
+        tab("Rulings", "/admin/integrity-preclearance", (path) => path.startsWith("/admin/integrity-preclearance")),
+        tab("Appeals", "/admin/integrity-appeals", (path) => path.startsWith("/admin/integrity-appeals")),
+        tab("Evidence", "/admin/integrity-evidence", (path) => path.startsWith("/admin/integrity-evidence")),
+        tab(
+          "Rules",
+          "/admin/rules-manager",
+          (path) => path.startsWith("/admin/rules-manager") || path.startsWith("/admin/rule-interpretations"),
+        ),
+        tab(
+          "Privacy",
+          "/admin/integrity-disclosure",
+          (path) => path.startsWith("/admin/integrity-disclosure") || path.startsWith("/admin/integrity-identity"),
         ),
       ],
     };
@@ -222,9 +230,7 @@ function workflowTabs(pathname: string, slug?: string): AdminContextualWorkflow 
         tab(
           "Public vote",
           "/televoting/admin/rounds",
-          (path) =>
-            path.startsWith("/televoting/admin/rounds") ||
-            path.startsWith("/admin/televote/"),
+          (path) => path.startsWith("/televoting/admin/rounds") || path.startsWith("/admin/televote/"),
         ),
         tab(
           "Friend voting",

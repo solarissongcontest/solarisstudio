@@ -38,6 +38,7 @@ export type AdminNotification = {
   read_at: string | null;
   resolved_at: string | null;
   requires_action: boolean;
+  resolution_mode: "manual" | "domain";
   created_at: string;
 };
 

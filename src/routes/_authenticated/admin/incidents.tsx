@@ -123,7 +123,6 @@ function IncidentCommandPage() {
       qc.invalidateQueries({ queryKey: ['studio2-incidents-full', resolvedEditionId] }),
       qc.invalidateQueries({ queryKey: ['studio2-incident-events', resolvedEditionId] }),
       qc.invalidateQueries({ queryKey: ['studio2-control-room', resolvedEditionId] }),
-      qc.invalidateQueries({ queryKey: ['studio2-action-center', resolvedEditionId] }),
     ]);
   };
 
