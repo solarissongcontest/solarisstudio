@@ -2,7 +2,6 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { AdminShell } from "@/components/admin/AdminShell";
-import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
 
 const ADMIN_RELOAD_KEY = "solaris:admin:last-stale-bundle-reload";
@@ -47,9 +46,7 @@ function AdminRouteError({ error }: { error: unknown; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#020817] px-5 text-white">
       <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.035] p-5 text-center shadow-2xl">
-        <p className="text-xs font-bold uppercase tracking-[0.14em] text-sky-100/80">
-          Solaris Organizer
-        </p>
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-sky-100/80">Solaris Organizer</p>
         <h1 className="mt-2 text-xl font-bold">Organizer could not open</h1>
         <p className="mt-2 text-sm leading-relaxed text-white/65">
           Reload the current production build. Your contest data has not been changed.
@@ -70,9 +67,7 @@ function AdminRouteError({ error }: { error: unknown; reset: () => void }) {
           </a>
         </div>
         <details className="mt-4 text-left text-xs text-white/50">
-          <summary className="cursor-pointer text-center font-semibold text-white/60">
-            Technical details
-          </summary>
+          <summary className="cursor-pointer text-center font-semibold text-white/60">Technical details</summary>
           <p className="mt-2 break-words rounded-xl bg-black/20 p-3 leading-relaxed">{message}</p>
         </details>
       </div>
@@ -83,11 +78,7 @@ function AdminRouteError({ error }: { error: unknown; reset: () => void }) {
 export const Route = createFileRoute("/_authenticated/admin")({
   ssr: false,
   head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow, noarchive" }] }),
-  beforeLoad: async ({ location, context }) => {
-    // /_authenticated is the single Auth authority for this route tree. Its
-    // beforeLoad has already verified this exact user with getUser(); repeating
-    // that network verification while the lazy Organizer route is mounting can
-    // race React's commit lifecycle and provides no additional access boundary.
+  beforeLoad: ({ location, context }) => {
     const user = context.user;
     if (!user) {
       throw redirect({
@@ -96,19 +87,14 @@ export const Route = createFileRoute("/_authenticated/admin")({
       });
     }
 
-    let isOrganizer = false;
-    try {
-      isOrganizer = await hasSolarisOrganizerAccess(user.id);
-    } catch {
-      isOrganizer = false;
-    }
-    if (!isOrganizer) {
+    if (context.organizerAccess !== true) {
       throw redirect({
         to: "/my-solaris",
         search: { notice: "organizer-access-required" },
         replace: true,
       });
     }
+
     return { organizer: true, user };
   },
   component: AdminRouteLayout,

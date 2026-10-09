@@ -1,13 +1,8 @@
+import "./solaris-search-motion.css";
+
 import { Search, X } from "lucide-react";
-import { useState, type CSSProperties } from "react";
 
 import { cn } from "@/lib/utils";
-
-const APP_SEARCH_FOCUS_STYLE: CSSProperties = {
-  background: "rgb(255 255 255 / .07)",
-  boxShadow:
-    "inset 0 0 0 1px rgb(139 198 222 / .30), 0 0 0 3px rgb(139 198 222 / .04)",
-};
 
 export function SolarisSearchField({
   value,
@@ -24,20 +19,8 @@ export function SolarisSearchField({
   className?: string;
   autoFocus?: boolean;
 }) {
-  const [focused, setFocused] = useState(false);
-
   return (
-    <div
-      className={cn("solaris-app-search-shell", className)}
-      data-solaris-search-field
-      style={focused ? APP_SEARCH_FOCUS_STYLE : undefined}
-      onFocus={() => setFocused(true)}
-      onBlur={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-          setFocused(false);
-        }
-      }}
-    >
+    <div className={cn("solaris-app-search-shell", className)} data-solaris-search-field>
       <Search className="solaris-app-search-icon size-[1.05rem]" aria-hidden="true" />
       <input
         type="text"
