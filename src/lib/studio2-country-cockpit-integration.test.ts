@@ -42,9 +42,9 @@ describe('Studio 2 Phase 6 country operations integration', () => {
   });
 
   it('keeps organizer HOD inspection explicitly read-only', () => {
-    expect(hodRoute).toContain('Viewing as organizer');
-    expect(hodRoute).toContain('This view is read-only. Acknowledgements can only be made by the delegation.');
-    expect(hodRoute).toContain('!organizerInspection &&');
+    expect(hodRoute).toContain('Participant View · read-only');
+    expect(hodRoute).toContain('Acknowledgements and participant actions remain disabled here; use Manage to change canonical Organizer state.');
+    expect(hodRoute).toContain('!organizerInspection ? (');
     expect(hodRoute).toContain('organizerInspection ?');
   });
 

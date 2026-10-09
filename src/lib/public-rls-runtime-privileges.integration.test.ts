@@ -25,19 +25,38 @@ describe("Public RLS runtime privilege repair", () => {
     expect(migration).not.toContain("grant select on public.country_accounts to anon");
   });
 
-  it("removes direct country_accounts access from participant public RLS", () => {
+  it("rebuilds the consolidated participant SELECT policies without direct account-table reads", () => {
     const sql = normalized(migration);
     expect(sql).toContain(
-      'create policy "participants unreleased owner or capability read" on public.participants for select',
+      'drop policy if exists "solaris consolidated anon read" on public.participants;',
     );
-    expect(sql).toContain("or public.owns_country(country_id)");
+    expect(sql).toContain(
+      'drop policy if exists "solaris consolidated authenticated read" on public.participants;',
+    );
+    expect(sql).toContain(
+      'create policy "solaris consolidated anon read" on public.participants for select to anon',
+    );
+    expect(sql).toContain(
+      'create policy "solaris consolidated authenticated read" on public.participants for select to authenticated',
+    );
+    expect(sql).toContain("public.owns_country(country_id)");
     expect(sql).not.toContain("from public.country_accounts");
   });
 
-  it("contains executable migration guards for both privileges and policy privacy", () => {
+  it("preserves authenticated private-entry visibility inherited from pre-consolidation write policy", () => {
+    const sql = normalized(migration);
+    expect(sql).toContain(
+      "public.studio2_access_allowed('entry.edit', edition_id, true)",
+    );
+    expect(sql).toContain(
+      "public.studio2_access_allowed('entry.read_private', edition_id, false)",
+    );
+  });
+
+  it("guards every browser-applicable participant policy against private account-table access", () => {
+    expect(migration).toContain("participants browser RLS still reads country_accounts directly");
+    expect(migration).toContain("participants must expose exactly one anon SELECT policy");
+    expect(migration).toContain("participants must expose exactly one authenticated SELECT policy");
     expect(migration).toContain("has_function_privilege(");
-    expect(migration).toContain("'public.studio2_access_allowed(text,uuid,boolean)'");
-    expect(migration).toContain("'public.owns_country(uuid)'");
-    expect(migration).toContain("participants public RLS must not read country_accounts directly");
   });
 });
