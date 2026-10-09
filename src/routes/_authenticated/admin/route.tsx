@@ -1,8 +1,9 @@
-import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import type { User } from "@supabase/supabase-js";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { AdminShell } from "@/components/admin/AdminShell";
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
 
@@ -85,7 +86,6 @@ function OrganizerAccessGate({ user, children }: { user: User; children: ReactNo
 
   useEffect(() => {
     let active = true;
-    setState("checking");
 
     void (async () => {
       let isOrganizer = false;
@@ -137,23 +137,12 @@ function OrganizerAccessGate({ user, children }: { user: User; children: ReactNo
 export const Route = createFileRoute("/_authenticated/admin")({
   ssr: false,
   head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow, noarchive" }] }),
-  beforeLoad: ({ location, context }) => {
-    const user = context.user;
-    if (!user) {
-      throw redirect({
-        to: "/auth",
-        search: { redirect: `${location.pathname}${location.searchStr}` },
-      });
-    }
-
-    return { user };
-  },
   component: AdminRouteLayout,
   errorComponent: AdminRouteError,
 });
 
 function AdminRouteLayout() {
-  const { user } = Route.useRouteContext();
+  const user = useAuthenticatedUser();
   return (
     <OrganizerAccessGate user={user}>
       <AdminShell userEmail={user.email ?? null}>
