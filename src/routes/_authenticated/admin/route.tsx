@@ -79,7 +79,7 @@ function AdminRouteError({ error }: { error: unknown; reset: () => void }) {
 export const Route = createFileRoute("/_authenticated/admin")({
   ssr: false,
   head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow, noarchive" }] }),
-  beforeLoad: ({ location, context }) => {
+  beforeLoad: async ({ location, context }) => {
     const user = context.user;
     if (!user) {
       throw redirect({
@@ -88,10 +88,6 @@ export const Route = createFileRoute("/_authenticated/admin")({
       });
     }
 
-    return { user };
-  },
-  loader: async ({ context }) => {
-    const user = context.user;
     let isOrganizer = false;
     try {
       isOrganizer = await hasSolarisOrganizerAccess(user.id);
@@ -107,7 +103,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
       });
     }
 
-    return { organizer: true };
+    return { user, organizer: true };
   },
   component: AdminRouteLayout,
   errorComponent: AdminRouteError,

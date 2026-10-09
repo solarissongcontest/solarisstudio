@@ -203,8 +203,9 @@ describe("Studio 2 stabilization contract", () => {
     expect(authenticatedRoute).toContain("supabase.auth.getUser()");
     expect(authenticatedRoute).not.toContain("hasSolarisOrganizerAccess");
     expect(authenticatedRoute).not.toContain('.from("user_roles")');
-    expect(adminRoute).toContain("loader: async ({ context })");
+    expect(adminRoute).toContain("beforeLoad: async ({ location, context })");
     expect(adminRoute).toContain("hasSolarisOrganizerAccess(user.id)");
+    expect(adminRoute).not.toContain("loader:");
     expect(adminRoute).not.toContain('.from("user_roles")');
     expect(adminRoute).toContain("if (!isOrganizer)");
     expect(adminRoute).toContain('to: "/my-solaris"');

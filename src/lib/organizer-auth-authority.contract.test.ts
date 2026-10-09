@@ -4,26 +4,25 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("Organizer authentication authority", () => {
-  it("keeps identity in the authenticated parent and awaits Organizer role access in the admin loader", () => {
+  it("keeps identity in the authenticated parent and gates Organizer role access before route loading", () => {
     const authenticatedRoute = source("src/routes/_authenticated/route.tsx");
     const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
     const beforeLoadStart = adminRoute.indexOf("beforeLoad:");
-    const loaderStart = adminRoute.indexOf("loader:");
-    const adminBeforeLoad = adminRoute.slice(beforeLoadStart, loaderStart);
+    const componentStart = adminRoute.indexOf("component:");
+    const adminBeforeLoad = adminRoute.slice(beforeLoadStart, componentStart);
 
     expect(authenticatedRoute).toContain("supabase.auth.getUser()");
     expect(authenticatedRoute).toContain("return { user: data.user }");
     expect(authenticatedRoute).not.toContain("hasSolarisOrganizerAccess");
 
-    expect(adminRoute).toContain("beforeLoad: ({ location, context })");
-    expect(adminBeforeLoad).not.toContain("await ");
-    expect(adminBeforeLoad).not.toContain("hasSolarisOrganizerAccess");
-    expect(adminRoute).toContain("loader: async ({ context })");
-    expect(adminRoute).toContain("isOrganizer = await hasSolarisOrganizerAccess(user.id)");
-    expect(adminRoute).toContain("if (!isOrganizer)");
-    expect(adminRoute).toContain('to: "/my-solaris"');
-    expect(adminRoute).toContain('notice: "organizer-access-required"');
-    expect(adminRoute).toContain("replace: true");
+    expect(adminRoute).toContain("beforeLoad: async ({ location, context })");
+    expect(adminBeforeLoad).toContain("isOrganizer = await hasSolarisOrganizerAccess(user.id)");
+    expect(adminBeforeLoad).toContain("if (!isOrganizer)");
+    expect(adminBeforeLoad).toContain('to: "/my-solaris"');
+    expect(adminBeforeLoad).toContain('notice: "organizer-access-required"');
+    expect(adminBeforeLoad).toContain("replace: true");
+    expect(adminBeforeLoad).toContain("return { user, organizer: true }");
+    expect(adminRoute).not.toContain("loader:");
     expect(adminRoute).not.toContain("supabase.auth.getUser()");
   });
 
