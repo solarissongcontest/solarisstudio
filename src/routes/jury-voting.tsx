@@ -33,6 +33,7 @@ import {
   type VoteIntegritySeverity,
 } from "@/integrations/televoting/integrity";
 import { captureGovernanceSnapshot, type GovernanceReceiptSnapshot } from "@/lib/governance-v5";
+import { useFanSession } from "@/lib/prediction-data";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
@@ -115,8 +116,11 @@ function severityClass(severity: VoteIntegritySeverity) {
 
 function JuryVotingPage() {
   const queryClient = useQueryClient();
-  const { data: context, isLoading, error } = useQuery<JuryContext>({
-    queryKey: ["country-jury-voting-context"],
+  const session = useFanSession();
+  const userId = session.data?.id ?? "anonymous";
+  const { data: context, isLoading: contextLoading, error } = useQuery<JuryContext>({
+    queryKey: ["country-jury-voting-context", userId],
+    enabled: !session.isLoading,
     queryFn: async () => {
       const { data: sessionData } = await typedSupabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
@@ -128,6 +132,7 @@ function JuryVotingPage() {
     staleTime: 10_000,
     refetchOnWindowFocus: true,
   });
+  const isLoading = session.isLoading || contextLoading;
 
   const rounds = context?.rounds ?? [];
   const openRound = rounds.find((round) => round.status === "open" && round.eligible && !round.already_submitted);
@@ -165,7 +170,14 @@ function JuryVotingPage() {
         />
 
         {openRound && context.country && context.accessToken ? (
-          <JuryBallotBooth round={openRound} country={context.country} accessToken={context.accessToken} onSubmitted={() => void queryClient.invalidateQueries({ queryKey: ["country-jury-voting-context"] })} />
+          <JuryBallotBooth
+            key={`${userId}:${context.country.id}:${openRound.show_id}`}
+            userId={userId}
+            round={openRound}
+            country={context.country}
+            accessToken={context.accessToken}
+            onSubmitted={() => void queryClient.invalidateQueries({ queryKey: ["country-jury-voting-context", userId] })}
+          />
         ) : (
           <Panel title="Current status" description="Show-by-show organizer control">
             {rounds.length ? (
@@ -191,10 +203,10 @@ function JuryVotingFrame({ children, description }: { children: ReactNode; descr
   return <ParticipationRouteChrome><ParticipationServiceShell service="jury" title="Jury voting" description={description} maxWidth="max-w-6xl">{children}</ParticipationServiceShell></ParticipationRouteChrome>;
 }
 
-function JuryBallotBooth({ round, country, accessToken, onSubmitted }: { round: JuryRound; country: JuryCountry; accessToken: string; onSubmitted: () => void }) {
+function JuryBallotBooth({ userId, round, country, accessToken, onSubmitted }: { userId: string; round: JuryRound; country: JuryCountry; accessToken: string; onSubmitted: () => void }) {
   const preflight = useServerFn(preflightCountryJuryVote);
   const attest = useServerFn(attestCountryJuryVote);
-  const draftKey = `solaris:jury-ballot-draft:${round.show_id}`;
+  const draftKey = `solaris:jury-ballot-draft:${userId}:${country.id}:${round.show_id}`;
   const [stage, setStage] = useState<Stage>("vote");
   const [selections, setSelections] = useState<Array<string | null>>(() => {
     if (typeof window === "undefined") return round.point_scale.map(() => null);

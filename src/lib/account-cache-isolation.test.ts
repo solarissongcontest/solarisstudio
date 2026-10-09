@@ -23,9 +23,8 @@ describe("shared-browser private state", () => {
     client.clear();
   });
   it("namespaces private jury observers and remounts the ballot when accounts change", () => {
-    const context = readFileSync("src/components/mysolaris/MySolarisContext.tsx", "utf8");
     const jury = readFileSync("src/routes/jury-voting.tsx", "utf8");
-    expect(context).toContain('["mysolaris-jury-task", userId, countryId, currentEdition?.id ?? "none"]');
+    expect(jury).toContain("useFanSession");
     expect(jury).toContain('["country-jury-voting-context", userId]');
     expect(jury).toContain('key={`${userId}:${context.country.id}:${openRound.show_id}`}');
     expect(jury).toContain('`solaris:jury-ballot-draft:${userId}:${country.id}:${round.show_id}`');

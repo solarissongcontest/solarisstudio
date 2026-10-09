@@ -76,7 +76,14 @@ export function useSolarisPressHold({
     [end, movementTolerance],
   );
 
-  useEffect(() => () => end(), [end]);
+  useEffect(
+    () => () => {
+      const active = session.current;
+      if (active && typeof window !== "undefined") window.clearTimeout(active.timer);
+      session.current = null;
+    },
+    [],
+  );
 
   return { held, begin, move, end };
 }

@@ -13,17 +13,20 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     expect(manifest.start_url).toBe("/app-launch");
     expect(launch).toContain('createFileRoute("/app-launch")');
     expect(coordinator).toContain("getAppLaunchDestinationFromSnapshot");
+    expect(coordinator).toContain("getAppLaunchSafeRootFromSnapshot");
     expect(coordinator).toContain("supabase.auth");
     expect(coordinator).toContain(".getSession()");
     expect(lifecycle).toContain("APP_LAUNCH_SESSION_TIMEOUT_MS = 1_500");
     expect(lifecycle).toContain("Promise.race");
     expect(launch).toContain("APP_LAUNCH_BOOTSTRAP_SCRIPT");
     expect(launch).toContain('window.location.pathname !== "/app-launch"');
-    expect(launch).toContain('window.location.replace("/")');
+    expect(launch).toContain("window.location.replace(safeRoot)");
     expect(launch).toContain("APP_LAUNCH_TRANSACTION_KEY");
     expect(launch).toContain("navigationSnapshot");
     expect(coordinator).toContain('"cold_launch_session_timeout"');
-    expect(coordinator).toContain('pathname: "/"');
+    expect(coordinator).toContain("const safeRoot = getAppLaunchSafeRootFromSnapshot");
+    expect(coordinator).toContain('source === "timeout"');
+    expect(coordinator).toContain("? safeRoot");
     expect(coordinator).toContain("window.location.replace(targetHref)");
     expect(coordinator).toContain("markAppNavigationRestore");
   });
@@ -34,7 +37,8 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     expect(launch).not.toContain("setTimeout");
     expect(launch).not.toContain("supabase.auth");
     expect(launch).not.toContain("trackPublicUxEvent");
-    expect(launch.match(/window\.location\.replace\("\/"\)/g)).toHaveLength(2);
+    expect(launch).toContain("window.location.replace(safeRoot)");
+    expect(launch.match(/window\.location\.replace\("\/"\)/g)).toHaveLength(1);
   });
 
   it("executes the absolute launch escape before React hydration", () => {
