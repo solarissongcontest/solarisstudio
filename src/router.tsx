@@ -27,20 +27,28 @@ function RoutePending() {
     );
   }
 
+  // A pending route is transient transition UI, not the destination page.
+  // TanStack can briefly keep more than one pending boundary mounted while a
+  // route tree settles. Giving those boundaries <main> / <h1> semantics would
+  // create duplicate page landmarks and let audits mistake loading UI for the
+  // actual destination. Keep the status accessible without claiming ownership
+  // of the document's page landmark or primary heading.
   return (
-    <main
-      id="main-content"
+    <section
       className="mx-auto w-full max-w-[1440px] px-4 py-10 sm:px-6"
       aria-busy="true"
+      aria-live="polite"
+      aria-label="Loading page"
+      role="status"
     >
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
         Solaris Studio
       </p>
-      <h1 className="mt-1 font-display text-2xl font-bold">Loading page…</h1>
+      <p className="mt-1 font-display text-2xl font-bold">Loading page…</p>
       <p className="mt-2 text-sm text-muted-foreground">
         Preparing the published Solaris view.
       </p>
-    </main>
+    </section>
   );
 }
 
