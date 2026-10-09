@@ -22,7 +22,7 @@ describe("Solaris Studio guides and country confirmation access", () => {
     expect(publicNavigation).toContain('"/guide"');
     expect(publicNavigation).toContain('"Help"');
     expect(adminNav).toContain("buildAdminDomainNavigation");
-    expect(adminDomains).toContain('label: "Administration"');
+    expect(adminDomains).toContain('label: "More"');
     expect(adminDomains).toContain('to: "/admin/more"');
     expect(commandPalette).toContain("buildAdminNavigation");
   });

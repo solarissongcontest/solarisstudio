@@ -6,37 +6,27 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
-const nav = source('src/components/admin/admin-navigation.ts');
+const domains = source('src/components/admin/admin-domains.ts');
 const route = source('src/routes/_authenticated/admin/action-center.tsx');
-const model = source('src/lib/studio2-action-center.ts');
 
-describe('Studio 2 Action Center integration', () => {
-  it('is discoverable from Organizer navigation', () => {
-    expect(nav).toContain('"Action Center",');
-    expect(nav).toContain('"/admin/action-center"');
-    expect(nav).toContain('label: "Operations"');
+describe('Studio 2 Action Center compatibility', () => {
+  it('keeps canonical Tasks discoverable while preserving the legacy Action Center URL', () => {
+    expect(domains).toContain('label: "Tasks"');
+    expect(domains).toContain('to: "/admin/tasks"');
+    expect(route).toContain('createFileRoute("/_authenticated/admin/action-center")');
+    expect(route).toContain('to: "/admin/tasks"');
+    expect(route).toContain('filter: "all"');
+    expect(route).toContain('replace: true');
   });
 
-  it('aggregates the existing Control Room rather than duplicating operational persistence', () => {
-    expect(route).toContain('studio2ControlRoom.loadSnapshot');
-    expect(route).toContain('studio2ControlRoom.listTransitionApprovals');
-    expect(route).toContain('buildStudio2ActionCenter');
+  it('keeps the retired Action Center route as a redirect instead of a second operational owner', () => {
+    expect(route).toContain('throw redirect');
+    expect(route).toContain('component: () => null');
+    expect(route).not.toContain('studio2ControlRoom');
+    expect(route).not.toContain('buildStudio2ActionCenter');
     expect(route).not.toContain('.insert(');
     expect(route).not.toContain('.update(');
     expect(route).not.toContain('.delete(');
     expect(route).not.toContain('.rpc(');
-  });
-
-  it('keeps Action Center read-only and routes work to authoritative surfaces', () => {
-    expect(model).toContain("href: '/admin/control-room'");
-    expect(model).toContain("href: '/admin/broadcast-rundown'");
-    expect(model).toContain('/admin/participant-status/');
-  });
-
-  it('does not absorb Rules or Friend Voting into the operational queue', () => {
-    expect(route).not.toContain('/rules');
-    expect(route).not.toContain('friend-voting');
-    expect(model).not.toContain('rules_engine');
-    expect(model).not.toContain('friend-voting');
   });
 });

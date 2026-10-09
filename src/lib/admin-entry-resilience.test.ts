@@ -8,10 +8,15 @@ function source(path: string) {
 describe("Organizer entry resilience", () => {
   it("keeps browser storage failures from blocking admin context", () => {
     const context = source("components/admin/AdminContext.tsx");
+    const editionContext = source("lib/solaris-v6-edition-context.ts");
 
     expect(context).toContain("try {");
-    expect(context).toContain("window.sessionStorage.getItem");
-    expect(context).toContain("window.sessionStorage.setItem");
+    expect(context).toContain("window.sessionStorage");
+    expect(context).toContain("readTabScopedEdition");
+    expect(context).toContain("writeTabScopedEdition");
+    expect(editionContext).toContain("storage.getItem");
+    expect(editionContext).toContain("storage.setItem");
+    expect(editionContext).toContain("storage.removeItem");
     expect(context).toContain("Browser privacy/storage restrictions must never prevent Organizer access");
     expect(context).toContain("useCallback");
   });

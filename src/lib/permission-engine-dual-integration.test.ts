@@ -8,7 +8,7 @@ function source(path: string) {
 
 const shell = source("src/components/admin/AdminShell.tsx");
 const probe = source("src/components/admin/AdminPermissionShadowProbe.tsx");
-const frame = source("src/components/admin/AdminFrame.tsx");
+const mobileChrome = source("src/components/admin/OrganizerV6MobileChrome.tsx");
 const migrations = readdirSync(resolve(process.cwd(), "supabase/migrations"));
 const migrationName = migrations.find((name) =>
   name.endsWith("_permission_engine_v2_dual_enforcement.sql"),
@@ -22,11 +22,11 @@ describe("Permission Engine v2 dual enforcement batch", () => {
     expect(probe).toContain("retry: false");
   });
 
-  it("keeps Access & Permissions inside the mobile Administration family", () => {
-    expect(frame).toContain('label: "More"');
-    expect(frame).toContain('href: "/admin/more"');
-    expect(frame).toContain('!adminEditionRoute(path, slug)');
-    expect(frame).toContain('!adminCasesRoute(path)');
+  it("keeps Access & Permissions inside the mobile More family", () => {
+    expect(mobileChrome).toContain('label: "More"');
+    expect(mobileChrome).toContain('href: "/admin/more"');
+    expect(mobileChrome).toContain('!adminEditionRoute(path, slug)');
+    expect(mobileChrome).toContain('!adminDelegationRoute(path)');
   });
 
   it("adds capability checks to the remaining legacy-only Studio 2 writes", () => {
