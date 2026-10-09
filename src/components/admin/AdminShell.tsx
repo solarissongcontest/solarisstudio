@@ -20,6 +20,34 @@ import { OrganizerV6MobileChrome } from "./OrganizerV6MobileChrome";
 import { JuryVotingWindowControl } from "./JuryVotingWindowControl";
 import { AdminSelectors } from "./AdminSelectors";
 
+type DiagnosticWindow = Window & {
+  __solarisReactPremountStackProbe?: boolean;
+};
+
+const REACT_PREMOUNT_WARNING =
+  "Can't perform a React state update on a component that hasn't mounted yet";
+
+// Temporary local/DEV diagnostic for PR #455. Browser Audit runs the Vite DEV
+// server against isolated local Supabase, so this never enters the production
+// build. Keep the original React warning fatal, but enrich it with the actual
+// JavaScript caller stack so the source can be fixed instead of suppressed.
+if (import.meta.env.DEV && typeof window !== "undefined") {
+  const diagnosticWindow = window as DiagnosticWindow;
+  if (!diagnosticWindow.__solarisReactPremountStackProbe) {
+    diagnosticWindow.__solarisReactPremountStackProbe = true;
+    const originalConsoleError = console.error.bind(console);
+    console.error = (...args: unknown[]) => {
+      const message = args.map((value) => String(value)).join(" ");
+      if (message.includes(REACT_PREMOUNT_WARNING)) {
+        const stack = new Error("Solaris React pre-mount update probe").stack ?? "stack unavailable";
+        originalConsoleError(...args, `\n[solaris-react-pre-mount-stack]\n${stack}`);
+        return;
+      }
+      originalConsoleError(...args);
+    };
+  }
+}
+
 export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const screen = resolveOrganizerV6Screen(pathname);
