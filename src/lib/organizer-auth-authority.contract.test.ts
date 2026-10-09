@@ -4,12 +4,20 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("Organizer authentication authority", () => {
-  it("reuses the authenticated parent route user instead of revalidating during lazy Organizer mount", () => {
-    const route = source("src/routes/_authenticated/admin/route.tsx");
-    expect(route).toContain("beforeLoad: async ({ location, context })");
-    expect(route).toContain("const user = context.user");
-    expect(route).not.toContain("supabase.auth.getUser()");
-    expect(route).toContain("hasSolarisOrganizerAccess(user.id)");
+  it("resolves Organizer access in the authenticated parent and consumes it synchronously in the lazy Organizer route", () => {
+    const authenticatedRoute = source("src/routes/_authenticated/route.tsx");
+    const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
+
+    expect(authenticatedRoute).toContain("hasSolarisOrganizerAccess(data.user.id)");
+    expect(authenticatedRoute).toContain('location.pathname === "/admin"');
+    expect(authenticatedRoute).toContain('location.pathname.startsWith("/admin/")');
+    expect(authenticatedRoute).toContain("organizerAccess = false");
+
+    expect(adminRoute).toContain("beforeLoad: ({ location, context })");
+    expect(adminRoute).toContain("const user = context.user");
+    expect(adminRoute).toContain("context.organizerAccess !== true");
+    expect(adminRoute).not.toContain("supabase.auth.getUser()");
+    expect(adminRoute).not.toContain("hasSolarisOrganizerAccess(user.id)");
   });
 
   it("does not start Auth verification requests from Organizer shell render observers", () => {
