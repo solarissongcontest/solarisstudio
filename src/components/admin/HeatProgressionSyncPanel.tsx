@@ -24,6 +24,9 @@ type ProgressionParticipant = Participant & {
 
 type SyncBusy = "second-chance" | "semi" | null;
 
+const EMPTY_SHOWS: Show[] = [];
+const EMPTY_PARTICIPANTS: Participant[] = [];
+
 function resultIdentityKey(row: Pick<RawProgressionResult, "country_id" | "contest_entity_id">) {
   if (row.country_id) return `c:${row.country_id}`;
   if (row.contest_entity_id) return `e:${row.contest_entity_id}`;
@@ -52,8 +55,10 @@ function participantCountryIdForInsert(participant: ProgressionParticipant) {
 export function HeatProgressionSyncPanel({ slug }: { slug: string }) {
   const qc = useQueryClient();
   const { data: edition } = useEdition(slug);
-  const { data: shows = [] } = useShows(edition?.id);
-  const { data: participants = [] } = useParticipants(edition?.id);
+  const { data: showsData } = useShows(edition?.id);
+  const { data: participantsData } = useParticipants(edition?.id);
+  const shows = showsData ?? EMPTY_SHOWS;
+  const participants = participantsData ?? EMPTY_PARTICIPANTS;
 
   const orderedShows = useMemo(() => [...shows].sort((a, b) => a.sort_order - b.sort_order), [shows]);
   const heatShows = useMemo(() => orderedShows.filter((show) => isHeatShow(show)), [orderedShows]);
@@ -67,19 +72,26 @@ export function HeatProgressionSyncPanel({ slug }: { slug: string }) {
 
   useEffect(() => {
     if (!secondChanceShows.some((show) => show.id === secondChanceId)) {
-      setSecondChanceId(secondChanceShows[0]?.id ?? "");
+      const next = secondChanceShows[0]?.id ?? "";
+      if (next !== secondChanceId) setSecondChanceId(next);
     }
   }, [secondChanceId, secondChanceShows]);
 
   useEffect(() => {
     if (!semiShows.some((show) => show.id === semiId)) {
-      setSemiId(semiShows[0]?.id ?? "");
+      const next = semiShows[0]?.id ?? "";
+      if (next !== semiId) setSemiId(next);
     }
   }, [semiId, semiShows]);
 
   useEffect(() => {
     const valid = new Set(heatShows.map((show) => show.id));
-    setSemiHeatIds((current) => current.filter((id) => valid.has(id)));
+    setSemiHeatIds((current) => {
+      const next = current.filter((id) => valid.has(id));
+      const unchanged =
+        next.length === current.length && next.every((id, index) => id === current[index]);
+      return unchanged ? current : next;
+    });
   }, [heatShows]);
 
   if (!edition || !heatShows.length) return null;
