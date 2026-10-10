@@ -43,13 +43,14 @@ for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies rea
 
     await addSession(context, url!, publishableKey!, email!, password!);
     await page.goto("/me", { waitUntil: "domcontentloaded" });
-    await expect(page.locator("main")).toBeVisible();
-    await expect(page.locator("body")).not.toContainText(/missing supabase|database access is unavailable/i);
+    const contentMain = page.locator("main:not([aria-busy='true'])").last();
+    await expect(contentMain).toBeVisible();
+    await expect(contentMain).not.toContainText(/missing supabase|database access is unavailable/i);
 
     if (state === "SUSPENDED") {
-      await expect(page.locator("main")).toContainText(/suspend|contact|unavailable/i);
+      await expect(contentMain).toContainText(/suspend|contact|unavailable/i);
     } else {
-      await expect(page.locator("main")).not.toContainText(/signed in as another country/i);
+      await expect(contentMain).not.toContainText(/signed in as another country/i);
     }
 
     if (state === "ORGANIZER") {

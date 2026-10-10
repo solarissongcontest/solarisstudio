@@ -1,26 +1,28 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
-import { clearPrivateAccountQueries } from "@/lib/account-cache-isolation";
+import { createAccountCacheIsolationHandler } from "@/lib/account-cache-isolation";
 import { writeAppAttentionSummary } from "@/lib/app-attention";
+import { beginLifecycleGeneration } from "@/lib/lifecycle-generation";
 
 export function AccountCacheIsolation() {
   const client = useQueryClient();
+  const authGenerationRef = useRef(0);
   useEffect(() => {
-    let previousUserId: string | null | undefined;
+    const lifecycle = beginLifecycleGeneration(authGenerationRef);
+    const applySession = createAccountCacheIsolationHandler(
+      client,
+      () => writeAppAttentionSummary({ participate: 0, me: 0, osBadge: 0 }),
+      lifecycle.isCurrent,
+    );
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      const nextUserId = session?.user.id ?? null;
-      if (previousUserId !== nextUserId) {
-        previousUserId = nextUserId;
-        clearPrivateAccountQueries(client);
-        writeAppAttentionSummary({ participate: 0, me: 0, osBadge: 0 });
-      }
-      // Set synchronously: every account-scoped observer switches namespaces
-      // before it can render or request private state for the new session.
-      client.setQueryData(["fan-session"], session?.user ?? null);
+      applySession(session?.user);
     });
-    return () => data.subscription.unsubscribe();
+    return () => {
+      lifecycle.deactivate();
+      data.subscription.unsubscribe();
+    };
   }, [client]);
   return null;
 }

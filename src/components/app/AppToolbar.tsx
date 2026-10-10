@@ -33,6 +33,7 @@ export function AppToolbar({
     resetKey: `${pathname}|${searchStr}`,
   });
   const toolbarStyle = {
+    display: "block",
     "--solaris-toolbar-title-scale": (1.04 - morphProgress * 0.04).toFixed(4),
     "--solaris-toolbar-title-y": `${(1 - morphProgress) * 1.5}px`,
     "--solaris-toolbar-bg-top-alpha": (0.60 + morphProgress * 0.10).toFixed(3),

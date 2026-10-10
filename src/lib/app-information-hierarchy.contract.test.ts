@@ -15,6 +15,7 @@ describe("installed app information hierarchy", () => {
   it("uses the toolbar as the single root-page identity", () => {
     const toolbar = source("src/components/app/AppToolbar.tsx");
     const styles = source("src/styles/app-shell.css");
+    expect(toolbar).toContain("const showCenteredContextTitle =");
     expect(toolbar).toContain('chrome.root && !showCenteredContextTitle ? (');
     expect(toolbar).toContain('<h1 className="solaris-app-toolbar-title">{chrome.title}</h1>');
     expect(styles).toContain('.app-main[data-solaris-app-root="true"] > .public-hub-hero');
@@ -25,9 +26,7 @@ describe("installed app information hierarchy", () => {
     const toolbar = source("src/components/app/AppToolbar.tsx");
     const styles = source("src/styles/app-shell.css");
 
-    expect(toolbar).toContain(
-      'toolbarOwnsHeading && (showBack || chrome.archetype === "directory")',
-    );
+    expect(toolbar).toContain('toolbarOwnsHeading && (showBack || chrome.archetype === "directory")');
     expect(toolbar).toContain('<h1 className="solaris-app-toolbar-context-title">{chrome.title}</h1>');
     expect(toolbar).toContain('!chrome.root && !showCenteredContextTitle');
     expect(toolbar).not.toContain("IntersectionObserver");

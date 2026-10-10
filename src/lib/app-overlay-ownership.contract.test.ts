@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(path, "utf8");
 
 describe("installed app overlay ownership", () => {
-  it("uses one canonical overlay stack and active-state ownership", () => {
+  it("keeps app overlays ordered without mutating the protected Search dialog primitive", () => {
     const manager = source("src/components/app/AppOverlayManager.tsx");
     const styles = source("src/styles.css");
     const appStyles = source("src/styles/app-shell.css");
@@ -20,20 +20,16 @@ describe("installed app overlay ownership", () => {
 
     expect(styles).toContain("--solaris-z-popover: 80");
     expect(styles).toContain("--solaris-z-sheet: 90");
-    expect(styles).toContain("--solaris-z-dialog-backdrop: 99");
-    expect(styles).toContain("--solaris-z-dialog: 100");
     expect(sheet).toContain("z-[var(--solaris-z-sheet)]");
     expect(dropdown).toContain("z-[var(--solaris-z-popover)]");
     expect(popover).toContain("z-[var(--solaris-z-popover)]");
 
-    // The shared Dialog primitive is deliberately frozen to the production
-    // Search implementation from #449. Its literal 99/100 layers match the
-    // canonical dialog tokens above, while the data hooks let the central
-    // overlay manager retain active-state ownership without forking Search.
-    expect(dialog).toContain('data-solaris-dialog-overlay=""');
-    expect(dialog).toContain('data-solaris-dialog=""');
+    // Search #438-#449 owns the shared dialog primitive. Slice 1 may coordinate
+    // around open dialogs, but it must not rewrite that primitive's geometry or
+    // stacking contract just to make the app-specific overlay stack uniform.
     expect(dialog).toContain("z-[99]");
     expect(dialog).toContain("z-[100]");
+    expect(dialog).not.toContain("--solaris-z-dialog");
 
     expect(styles).toContain("html:not([data-solaris-app]) .app-main");
     expect(appStyles).toContain("[data-solaris-feature-overlay-open] .solaris-app-tabbar");

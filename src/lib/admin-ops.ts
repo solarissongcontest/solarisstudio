@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { supabase } from "@/integrations/supabase/client";
 
 export type AdminDeadline = {
@@ -96,16 +97,18 @@ export function useAdminAudit(limit = 30) {
 }
 
 export function useAdminNotifications() {
-  return useQuery({
-    queryKey: ["admin-notifications"],
-    queryFn: async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      if (!auth.user) return [] as AdminNotification[];
+  const user = useAuthenticatedUser();
 
+  return useQuery({
+    // Keep notification cache identity-scoped. This also avoids asking Supabase
+    // Auth to resolve session state from inside a query observer while the
+    // Organizer tree is still mounting.
+    queryKey: ["admin-notifications", user.id],
+    queryFn: async () => {
       const { data, error } = await adminDb
         .from("admin_notifications")
         .select("*")
-        .eq("recipient_id", auth.user.id)
+        .eq("recipient_id", user.id)
         .order("created_at", { ascending: false })
         .limit(50);
 
@@ -167,7 +170,6 @@ export function useMarkNotificationRead() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-notifications"] }),
   });
 }
-
 
 export function useResolveAdminNotification() {
   const qc = useQueryClient();

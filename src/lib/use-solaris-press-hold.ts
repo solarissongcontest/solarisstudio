@@ -30,18 +30,13 @@ export function useSolarisPressHold({
   const [held, setHeld] = useState(false);
   const session = useRef<HoldSession | null>(null);
 
-  const disposeSession = useCallback(() => {
-    const active = session.current;
-    if (active && typeof window !== "undefined") window.clearTimeout(active.timer);
-    session.current = null;
-  }, []);
-
   const end = useCallback((pointerId?: number) => {
     const active = session.current;
     if (pointerId !== undefined && active?.pointerId !== pointerId) return;
-    disposeSession();
+    if (active && typeof window !== "undefined") window.clearTimeout(active.timer);
+    session.current = null;
     setHeld(false);
-  }, [disposeSession]);
+  }, []);
 
   const begin = useCallback(
     (pointerId: number, clientX: number, clientY: number) => {
@@ -81,11 +76,14 @@ export function useSolarisPressHold({
     [end, movementTolerance],
   );
 
-  // Unmount teardown is imperative only. Calling a React state setter from an
-  // effect cleanup can race React's development mount/unmount probe and produce
-  // a pre-mount update warning. The component is disappearing anyway, so only
-  // the browser timer/session resource needs cleanup here.
-  useEffect(() => () => disposeSession(), [disposeSession]);
+  useEffect(
+    () => () => {
+      const active = session.current;
+      if (active && typeof window !== "undefined") window.clearTimeout(active.timer);
+      session.current = null;
+    },
+    [],
+  );
 
   return { held, begin, move, end };
 }

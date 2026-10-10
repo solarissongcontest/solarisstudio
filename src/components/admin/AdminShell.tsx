@@ -4,9 +4,8 @@ import "@/admin-storytelling.css";
 
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ExternalLink, Inbox } from "lucide-react";
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { type CSSProperties, type ReactNode } from "react";
 
-import { supabase } from "@/integrations/supabase/client";
 import { useAdminNotifications } from "@/lib/admin-ops";
 import { resolveOrganizerV6Screen } from "@/lib/organizer-v6-screen-registry";
 import { useScrollMorphProgress } from "@/lib/use-scroll-morph-progress";
@@ -20,7 +19,13 @@ import { OrganizerV6MobileChrome } from "./OrganizerV6MobileChrome";
 import { JuryVotingWindowControl } from "./JuryVotingWindowControl";
 import { AdminSelectors } from "./AdminSelectors";
 
-export function AdminShell({ children }: { children: ReactNode }) {
+export function AdminShell({
+  children,
+  userEmail,
+}: {
+  children: ReactNode;
+  userEmail?: string | null;
+}) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const screen = resolveOrganizerV6Screen(pathname);
   const morphProgress = useScrollMorphProgress({ resetKey: pathname });
@@ -28,28 +33,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
     "--organizer-toolbar-title-scale": (1.035 - morphProgress * 0.035).toFixed(4),
     "--organizer-toolbar-title-y": `${(1 - morphProgress) * 1.25}px`,
   } as CSSProperties;
-  const [email, setEmail] = useState<string | null>(null);
   const { data: organizerNotifications = [] } = useAdminNotifications();
   const unreadInboxCount = organizerNotifications.filter(
     (item) => !item.read_at && item.requires_action && !item.resolved_at,
   ).length;
-
-  useEffect(() => {
-    let active = true;
-
-    void supabase.auth
-      .getUser()
-      .then(({ data }) => {
-        if (active) setEmail(data.user?.email ?? null);
-      })
-      .catch(() => {
-        if (active) setEmail(null);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const pageAlreadyShowsHealth = pathname === "/admin/operations";
   const showJuryWindowControl = pathname.startsWith("/admin/jury/");
@@ -108,9 +95,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
               <ExternalLink className="size-3.5" /> Public site
             </Link>
 
-            {email ? (
+            {userEmail ? (
               <p className="hidden max-w-40 truncate text-xs text-muted-foreground xl:block">
-                {email}
+                {userEmail}
               </p>
             ) : null}
           </div>

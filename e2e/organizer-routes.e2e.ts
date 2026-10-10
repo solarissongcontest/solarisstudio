@@ -187,7 +187,7 @@ test.describe("Solaris Organizer route reliability", () => {
     await expect(page.locator("h1").first()).toBeVisible();
   });
 
-  test("every registered Organizer destination loads on desktop", async ({ page }, testInfo) => {
+  test("every registered Organizer destination loads on desktop", async ({ context }, testInfo) => {
     test.skip(
       testInfo.project.name !== "organizer-admin-desktop",
       "The complete Organizer crawl runs once at the desktop baseline",
@@ -195,14 +195,19 @@ test.describe("Solaris Organizer route reliability", () => {
 
     for (const path of organizerDestinations) {
       await test.step(path, async () => {
-        await auditPage(page, path, testInfo);
-        await expect(page).not.toHaveURL(/\/auth(?:\?|$)/);
-        await expect(page.locator("body")).not.toContainText(/This page didn't load|Organizer could not open/i);
+        const routePage = await context.newPage();
+        try {
+          await auditPage(routePage, path, testInfo);
+          await expect(routePage).not.toHaveURL(/\/auth(?:\?|$)/);
+          await expect(routePage.locator("body")).not.toContainText(/This page didn't load|Organizer could not open/i);
+        } finally {
+          await routePage.close();
+        }
       });
     }
   });
 
-  test("completion programme surfaces load during Organizer-only rollout", async ({ page }, testInfo) => {
+  test("completion programme surfaces load during Organizer-only rollout", async ({ context }, testInfo) => {
     test.skip(
       testInfo.project.name !== "organizer-admin-desktop",
       "Completion-product internal rollout runs once at the desktop baseline",
@@ -210,10 +215,15 @@ test.describe("Solaris Organizer route reliability", () => {
 
     for (const path of completionProductDestinations) {
       await test.step(path, async () => {
-        await auditPage(page, path, testInfo);
-        await expect(page.locator("body")).not.toContainText(
-          /not enabled yet|Command Assistant is disabled|Time Machine is disabled/i,
-        );
+        const routePage = await context.newPage();
+        try {
+          await auditPage(routePage, path, testInfo);
+          await expect(routePage.locator("body")).not.toContainText(
+            /not enabled yet|Command Assistant is disabled|Time Machine is disabled/i,
+          );
+        } finally {
+          await routePage.close();
+        }
       });
     }
   });
@@ -366,7 +376,7 @@ test.describe("Solaris Organizer route reliability", () => {
     expect(remaining.some((item) => item.id === approval.id)).toBe(false);
   });
 
-  test("critical Organizer work remains usable on mobile", async ({ page }, testInfo) => {
+  test("critical Organizer work remains usable on mobile", async ({ context }, testInfo) => {
     test.skip(
       !["organizer-admin-mobile", "organizer-admin-landscape"].includes(testInfo.project.name),
       "Critical mobile Organizer surfaces run at the portrait and landscape phone baselines",
@@ -374,8 +384,13 @@ test.describe("Solaris Organizer route reliability", () => {
 
     for (const path of criticalMobileDestinations) {
       await test.step(path, async () => {
-        await auditPage(page, path, testInfo);
-        await expect(page.locator("body")).not.toContainText(/This page didn't load|Organizer could not open/i);
+        const routePage = await context.newPage();
+        try {
+          await auditPage(routePage, path, testInfo);
+          await expect(routePage.locator("body")).not.toContainText(/This page didn't load|Organizer could not open/i);
+        } finally {
+          await routePage.close();
+        }
       });
     }
   });

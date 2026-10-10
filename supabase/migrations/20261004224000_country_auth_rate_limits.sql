@@ -38,6 +38,18 @@ begin
     raise exception 'Invalid rate-limit request' using errcode = '22023';
   end if;
 
+  -- Keep the hashed limiter state genuinely short-lived. Each auth attempt
+  -- removes a bounded batch of counters that are older than every supported
+  -- rate-limit window, so identifier churn cannot grow this table forever.
+  delete from private.country_auth_rate_limits stale
+  where stale.ctid in (
+    select candidate.ctid
+    from private.country_auth_rate_limits candidate
+    where candidate.updated_at < v_now - interval '2 days'
+    order by candidate.updated_at
+    limit 200
+  );
+
   insert into private.country_auth_rate_limits (
     scope,
     key_hash,

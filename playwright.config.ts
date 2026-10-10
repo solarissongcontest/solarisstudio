@@ -47,6 +47,7 @@ function assertPlaywrightSupabaseIsolation() {
 assertPlaywrightSupabaseIsolation();
 
 const fullAudit = process.env.E2E_FULL_AUDIT === "1";
+const prSmoke = Boolean(process.env.CI) && process.env.GITHUB_EVENT_NAME === "pull_request" && !fullAudit;
 const publicViewportMatrix = fullAudit
   ? ([
       { width: 320, height: 568 },
@@ -68,18 +69,23 @@ const publicViewportMatrix = fullAudit
       { width: 768, height: 1024 },
       { width: 1440, height: 900 },
     ] as const);
-const personalityViewportMatrix = [
-  { width: 320, height: 568 },
-  { width: 360, height: 800 },
-  { width: 375, height: 812 },
-  { width: 390, height: 844 },
-  { width: 430, height: 932 },
-  { width: 768, height: 1024 },
-  { width: 1024, height: 768 },
-  { width: 1280, height: 800 },
-  { width: 1440, height: 900 },
-  { width: 1920, height: 1080 },
-] as const;
+const personalityViewportMatrix = fullAudit
+  ? ([
+      { width: 320, height: 568 },
+      { width: 360, height: 800 },
+      { width: 375, height: 812 },
+      { width: 390, height: 844 },
+      { width: 430, height: 932 },
+      { width: 768, height: 1024 },
+      { width: 1024, height: 768 },
+      { width: 1280, height: 800 },
+      { width: 1440, height: 900 },
+      { width: 1920, height: 1080 },
+    ] as const)
+  : ([
+      { width: 390, height: 844 },
+      { width: 1440, height: 900 },
+    ] as const);
 const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4173";
 const maintenanceAuditBypass = process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1";
 const appAuditStorageState = maintenanceAuditBypass
@@ -116,12 +122,18 @@ const maintenanceProjects = [
 export default defineConfig({
   testDir: "./e2e",
   testMatch: /.*\.e2e\.ts/,
+  globalSetup: process.env.CI ? "./e2e/pr455-browser-preflight.global.ts" : undefined,
+  grepInvert: fullAudit ? undefined : /installed-app route invariant crawl/,
   outputDir: "test-results/playwright",
-  timeout: process.env.CI ? 8 * 60_000 : 5 * 60_000,
+  // PR smoke must surface a real failure quickly. Exhaustive/manual certification
+  // keeps the wider timeout and retry budget because it intentionally covers the
+  // full inventory rather than acting as a fast pull-request gate.
+  timeout: prSmoke ? 90_000 : process.env.CI ? 8 * 60_000 : 5 * 60_000,
   expect: { timeout: 20_000 },
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 1 : 0,
+  retries: prSmoke ? 0 : process.env.CI ? 1 : 0,
+  maxFailures: prSmoke ? 1 : 0,
   workers: process.env.CI ? 4 : undefined,
   reporter: process.env.CI
     ? fullAudit
@@ -136,16 +148,16 @@ export default defineConfig({
         ]
     : "list",
   use: {
+    // Device descriptors contain undefined optional emulation fields. Put the
+    // descriptor first so Solaris' deterministic audit settings cannot be
+    // silently erased by those undefined values.
+    ...devices["Desktop Chrome"],
     baseURL,
     navigationTimeout: 60_000,
     actionTimeout: 20_000,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "off",
-    // Apply the device descriptor first. Some Playwright descriptors carry
-    // optional media fields as undefined; placing it after reducedMotion can
-    // silently erase the visual-test accessibility contract.
-    ...devices["Desktop Chrome"],
     reducedMotion: "reduce",
     colorScheme: "dark",
     storageState: appAuditStorageState,
@@ -225,6 +237,7 @@ export default defineConfig({
         ...devices["iPhone 13"],
         browserName: "webkit",
         viewport: { width: 320, height: 568 },
+        reducedMotion: "reduce",
       },
     },
     {
@@ -234,6 +247,7 @@ export default defineConfig({
         ...devices["iPhone 13"],
         browserName: "webkit",
         viewport: { width: 390, height: 844 },
+        reducedMotion: "reduce",
       },
     },
     {
@@ -243,6 +257,7 @@ export default defineConfig({
         ...devices["iPhone 13"],
         browserName: "webkit",
         viewport: { width: 320, height: 568 },
+        reducedMotion: "reduce",
       },
     },
     {
@@ -252,6 +267,7 @@ export default defineConfig({
         ...devices["iPhone 13"],
         browserName: "webkit",
         viewport: { width: 390, height: 844 },
+        reducedMotion: "reduce",
       },
     },
     {
@@ -261,6 +277,7 @@ export default defineConfig({
         ...devices["iPhone 13"],
         browserName: "webkit",
         viewport: { width: 430, height: 932 },
+        reducedMotion: "reduce",
       },
     },
     {
@@ -270,6 +287,7 @@ export default defineConfig({
         ...devices["iPhone 13"],
         browserName: "webkit",
         viewport: { width: 844, height: 390 },
+        reducedMotion: "reduce",
       },
     },
   ],
