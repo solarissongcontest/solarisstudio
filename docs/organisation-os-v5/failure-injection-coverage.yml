@@ -1,0 +1,120 @@
+version: 1
+product: Solaris Studio Organisation OS V5
+source: "V5 §239 Mandatory injected failures"
+required_cases: 17
+status_values: [automated, partial, manual]
+
+cases:
+  - id: network-loss-after-server-commit
+    status: automated
+    evidence:
+      - src/lib/organisation-operation-contract.test.ts
+      - src/lib/organisation-high-risk-operations-v5.test.ts
+    note: "Stable operation/idempotency identity replays the canonical receipt after a lost response."
+
+  - id: network-loss-before-commit
+    status: automated
+    evidence:
+      - src/lib/organisation-operation-contract.test.ts
+      - src/lib/organisation-high-risk-operations-v5.test.ts
+    note: "A non-succeeded claimed operation remains retryable without creating a second logical command."
+
+  - id: duplicate-command
+    status: automated
+    evidence:
+      - src/lib/organisation-operation-contract.test.ts
+      - src/lib/organisation-high-risk-operations-v5.test.ts
+
+  - id: stale-concurrent-edit
+    status: automated
+    evidence:
+      - src/lib/organisation-confirmation-rounds-v5.test.ts
+      - src/lib/organisation-televote-rounds-v5.test.ts
+      - src/lib/organisation-permission-commands.test.ts
+      - src/lib/organisation-v5-show-publication-lifecycle.test.ts
+
+  - id: permission-revocation
+    status: automated
+    evidence:
+      - src/lib/organisation-high-risk-operations-v5.test.ts
+      - src/lib/permission-engine-authoritative-cutover.integration.test.ts
+      - src/lib/organisation-v5-show-publication-lifecycle.test.ts
+
+  - id: expired-authentication
+    status: automated
+    evidence:
+      - src/lib/organisation-high-risk-operations-v5.test.ts
+      - src/lib/organisation-v5-platform-modes.test.ts
+
+  - id: required-second-approval
+    status: automated
+    evidence:
+      - src/lib/organisation-high-risk-operations-v5.test.ts
+      - e2e/organizer-routes.e2e.ts
+
+  - id: failed-push
+    status: automated
+    evidence:
+      - src/lib/notification-engine.test.ts
+      - src/lib/organisation-v5-review-hardening.test.ts
+      - src/lib/organisation-task-engine.test.ts
+
+  - id: failed-upload
+    status: automated
+    evidence:
+      - src/lib/organisation-v5-upload-safety.contract.test.ts
+      - supabase/functions/solaris-upload-finalize/index.ts
+    note: "Invalid bytes, signature mismatch, malformed images/fonts, quarantine/finalization failure and non-public delivery before verification are fail-closed."
+
+  - id: confirmation-sync-failure
+    status: automated
+    evidence:
+      - supabase/migrations/20261003215000_organisation_os_v5_confirmation_sync_recovery.sql
+      - src/lib/organisation-v5-confirmation-sync-recovery.test.ts
+      - src/integrations/confirmations/sync.functions.ts
+    note: "The latest failed Confirmations projection creates one canonical recovery Task; a later successful sync for the same remote submission resolves it automatically. The final phone exam still injects this failure as an end-to-end recovery drill."
+
+  - id: failed-automation
+    status: automated
+    evidence:
+      - src/lib/organisation-v5-system-job-recovery.test.ts
+      - supabase/migrations/20261003161000_organisation_os_v5_system_job_recovery.sql
+
+  - id: duplicate-scheduler-trigger
+    status: automated
+    evidence:
+      - src/lib/organisation-v5-system-job-recovery.test.ts
+      - src/lib/organisation-v5-show-publication-lifecycle.test.ts
+    note: "Job idempotency and scheduled-publication locking/skip-locked behavior prevent double execution."
+
+  - id: missing-jury-ballot
+    status: automated
+    evidence:
+      - src/lib/organisation-v5-jury-ballot-lifecycle.test.ts
+      - src/lib/organisation-jury-window-v5.test.ts
+
+  - id: late-televote-ballot
+    status: automated
+    evidence:
+      - src/lib/organisation-televote-rounds-v5.test.ts
+      - supabase/migrations/20260819150000_televoting_pre_submit_integrity.sql
+
+  - id: result-blocker
+    status: automated
+    evidence:
+      - src/lib/studio2-results-operations.test.ts
+      - src/lib/organisation-high-risk-operations-v5.test.ts
+
+  - id: stale-publication-schedule
+    status: automated
+    evidence:
+      - src/lib/organisation-v5-show-publication-lifecycle.test.ts
+      - supabase/migrations/20261003203000_organisation_os_v5_show_publication_lifecycle.sql
+
+  - id: maintenance-recovery-failure
+    status: automated
+    evidence:
+      - src/lib/organisation-v5-platform-exit-preflight.test.ts
+      - src/lib/organisation-v5-platform-modes.test.ts
+      - src/lib/maintenance-contract.test.ts
+    note: "Maintenance cannot jump to Normal; exit preflight blocks unsafe recovery and the emergency circuit breaker remains independent."

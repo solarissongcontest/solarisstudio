@@ -78,10 +78,14 @@ jobs:
           set +a
 
           local_url="${API_URL:-}"
-          local_key="${PUBLISHABLE_KEY:-${ANON_KEY:-}}"
+          # Browser CI deliberately uses the local legacy ANON JWT. The CLI also
+          # exposes an opaque sb_publishable_* key, but the local PostgREST/Kong
+          # path must receive a bearer-capable anon token or public reads can
+          # surface as anonymous 401s even though Auth itself is reachable.
+          local_key="${ANON_KEY:-}"
 
           if [ -z "$local_url" ] || [ -z "$local_key" ]; then
-            echo "Local Supabase did not expose API_URL plus a publishable/anon key."
+            echo "Local Supabase did not expose API_URL plus ANON_KEY."
             cat /tmp/solaris-browser-supabase.env
             exit 1
           fi
@@ -106,6 +110,55 @@ jobs:
             echo "CONFIRMATIONS_SUPABASE_URL=$local_url"
             echo "CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=$local_key"
           } >> "$GITHUB_ENV"
+
+          # Fail in seconds, not after a forty-minute browser matrix, if the
+          # local anonymous REST identity cannot read canonical public data.
+          probe_status="$(curl --silent --output /tmp/solaris-browser-rest-probe.json --write-out '%{http_code}' \
+            "$local_url/rest/v1/countries?select=id&limit=1" \
+            -H "apikey: $local_key" \
+            -H "Authorization: Bearer $local_key")"
+          if [ "$probe_status" != "200" ]; then
+            echo "Local anonymous PostgREST probe failed with HTTP $probe_status."
+            cat /tmp/solaris-browser-rest-probe.json || true
+            exit 1
+          fi
+
+      - name: Ensure PostgreSQL client for local E2E seeding
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Seed authenticated local browser accounts
+        shell: bash
+        run: bash .github/scripts/seed-browser-e2e-local.sh
+
+      - name: Verify local public Data API tables
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$E2E_SUPABASE_URL" in
+            http://127.0.0.1:*|http://localhost:*) ;;
+            *) echo "Refusing Data API probe against non-local Supabase"; exit 1 ;;
+          esac
+
+          failed=0
+          for table in countries editions shows participants results jury_votes televote_votes; do
+            body="/tmp/solaris-rest-${table}.json"
+            status="$(curl --silent --output "$body" --write-out '%{http_code}' \
+              "$E2E_SUPABASE_URL/rest/v1/${table}?select=*&limit=1" \
+              -H "apikey: $E2E_SUPABASE_PUBLISHABLE_KEY" \
+              -H "Authorization: Bearer $E2E_SUPABASE_PUBLISHABLE_KEY")"
+            if [ "$status" != "200" ]; then
+              echo "Local anon Data API probe failed for ${table}: HTTP ${status}"
+              cat "$body" || true
+              failed=1
+            fi
+          done
+          [ "$failed" -eq 0 ]
 
       - name: Start stable audit server
         shell: bash
@@ -147,11 +200,126 @@ jobs:
             exit 1
           fi
 
+      - name: Verify browser receives the local Supabase identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { chromium } from "@playwright/test";
+
+          const expectedUrl = process.env.E2E_SUPABASE_URL;
+          const expectedKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
+          if (!expectedUrl || !expectedKey || !/^http:\/\/(127\.0\.0\.1|localhost):/.test(expectedUrl)) {
+            throw new Error("Browser credential probe requires isolated local Supabase");
+          }
+
+          const browser = await chromium.launch();
+          const page = await browser.newPage();
+          let sawRest = false;
+          const failures = [];
+
+          page.on("request", async (request) => {
+            if (!request.url().startsWith(`${expectedUrl}/rest/v1/`)) return;
+            sawRest = true;
+            const headers = await request.allHeaders();
+            if (headers.apikey !== expectedKey) failures.push(`apikey mismatch for ${new URL(request.url()).pathname}`);
+            const auth = headers.authorization ?? "";
+            if (auth && auth !== `Bearer ${expectedKey}`) {
+              failures.push(`unexpected Authorization identity for ${new URL(request.url()).pathname}`);
+            }
+          });
+
+          page.on("response", async (response) => {
+            if (!response.url().startsWith(`${expectedUrl}/rest/v1/`) || response.status() < 400) return;
+            let body = "";
+            try { body = (await response.text()).slice(0, 500); } catch {}
+            failures.push(`${response.status()} ${new URL(response.url()).pathname}: ${body}`);
+          });
+
+          await page.goto("http://127.0.0.1:4173/editions", { waitUntil: "domcontentloaded" });
+
+          // The editions route may satisfy its initial data read during SSR, so a
+          // browser-side REST request is not guaranteed merely by navigation.
+          // Force one harmless browser-originated read with the exact local
+          // identity that the audit server received from GITHUB_ENV. The request
+          // listeners above still verify the actual wire headers and response.
+          await page.evaluate(
+            async ({ url, key }) => {
+              const response = await fetch(`${url}/rest/v1/countries?select=id&limit=1`, {
+                headers: {
+                  apikey: key,
+                  Authorization: `Bearer ${key}`,
+                },
+              });
+              if (!response.ok) {
+                throw new Error(`Browser local Supabase probe failed: HTTP ${response.status} ${await response.text()}`);
+              }
+            },
+            { url: expectedUrl, key: expectedKey },
+          );
+          await page.waitForTimeout(250);
+          await browser.close();
+
+          if (!sawRest) failures.push("Browser local Supabase REST probe was not observed");
+          if (failures.length) {
+            console.error(failures.join("\n"));
+            process.exit(1);
+          }
+          NODE
+
+      - name: Organizer fail-fast preflight
+        id: organizer_preflight
+        timeout-minutes: 3
+        continue-on-error: true
+        env:
+          E2E_BASE_URL: http://127.0.0.1:4173
+          SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
+        run: bun run test:e2e:organizer-preflight
+
+      - name: Summarize organizer preflight
+        if: always()
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+
+          const dir = path.resolve("artifacts/browser-audit/preflight");
+          const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+          let markdown = "## Organizer fail-fast preflight\n\n";
+
+          if (!fs.existsSync(dir)) {
+            markdown += "No route audit JSON was produced. Inspect the Playwright summary and server log.\n";
+          } else {
+            const rows = fs.readdirSync(dir)
+              .filter((name) => name.endsWith(".json"))
+              .sort()
+              .map((name) => JSON.parse(fs.readFileSync(path.join(dir, name), "utf8")));
+            markdown += "| Route | Viewport | Result | Classification | Remote Supabase | API failures | Console/Page errors |\n";
+            markdown += "|---|---:|---|---|---:|---:|---:|\n";
+            for (const audit of rows) {
+              const ok = audit.classification === "OK";
+              const apiFailures = audit.supabase.dataApiFailures.length + audit.supabase.protectedApiFailures.length;
+              const runtimeErrors = audit.runtime.consoleErrors.length + audit.runtime.pageErrors.length;
+              markdown += `| ${audit.route} | ${audit.viewport.width}×${audit.viewport.height} | ${ok ? "✅" : "❌"} | ${audit.classification} | ${audit.supabase.remoteRequests.length} | ${apiFailures} | ${runtimeErrors} |\n`;
+            }
+          }
+
+          fs.appendFileSync(summaryPath, markdown);
+          NODE
+
+      - name: Stop on organizer preflight failure
+        if: steps.organizer_preflight.outcome != 'success'
+        run: |
+          echo "Organizer fail-fast preflight failed. Full responsive Browser Audit intentionally not started."
+          exit 1
+
       - name: Run responsive browser audit
         run: bunx playwright test
         env:
           E2E_BASE_URL: http://127.0.0.1:4173
           SOLARIS_E2E_BYPASS_MAINTENANCE: "1"
+          SOLARIS_PR455_PREFLIGHT_ALREADY_PASSED: "1"
           # Pull requests run a representative smoke set. Manual dispatch keeps
           # the exhaustive ten-viewport + sitemap inventory available without
           # turning every PR into a 40-minute crawl of the same archive data.
@@ -177,6 +345,18 @@ jobs:
       - name: Stop isolated local Supabase
         if: always()
         run: supabase stop --no-backup || true
+
+      - name: Upload organizer preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: organizer-preflight
+          path: |
+            artifacts/browser-audit/preflight
+            playwright-pr455-preflight-summary.json
+            test-results/pr455-preflight
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Upload browser summary
         if: always()

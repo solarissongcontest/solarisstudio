@@ -8,20 +8,47 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
   it("routes only true installed-app launches through the restoration entry point", () => {
     const manifest = JSON.parse(source("public/site.webmanifest")) as { start_url?: string };
     const launch = source("src/routes/app-launch.tsx");
+    const lifecycle = source("src/lib/app-launch-lifecycle.ts");
+    const coordinator = source("src/components/app/AppLaunchRestoreCoordinator.tsx");
     expect(manifest.start_url).toBe("/app-launch");
     expect(launch).toContain('createFileRoute("/app-launch")');
-    expect(launch).toContain("getAppLaunchDestination");
-    expect(launch).toContain("supabase.auth");
-    expect(launch).toContain(".getSession()");
-    expect(launch).toContain("APP_LAUNCH_SESSION_TIMEOUT_MS");
-    expect(launch).toContain("Promise.race");
-    expect(launch).toContain('"cold_launch_session_timeout"');
-    expect(launch).toContain('pathname: "/"');
+    expect(coordinator).toContain("getAppLaunchDestinationFromSnapshot");
+    expect(coordinator).toContain("getAppLaunchSafeRootFromSnapshot");
+    expect(coordinator).toContain("supabase.auth");
+    expect(coordinator).toContain(".getSession()");
+    expect(lifecycle).toContain("APP_LAUNCH_SESSION_TIMEOUT_MS = 1_500");
+    expect(lifecycle).toContain("Promise.race");
+    expect(launch).toContain("APP_LAUNCH_BOOTSTRAP_SCRIPT");
     expect(launch).toContain('window.location.pathname !== "/app-launch"');
-    expect(launch).toContain("window.location.replace(targetHref)");
-    expect(launch).toContain("}, 1_000);");
-    expect(launch).toContain("markAppNavigationRestore");
-    expect(launch).toContain("replace: true");
+    expect(launch).toContain("window.location.replace(safeRoot)");
+    expect(launch).toContain("APP_LAUNCH_TRANSACTION_KEY");
+    expect(launch).toContain("navigationSnapshot");
+    expect(coordinator).toContain('"cold_launch_session_timeout"');
+    expect(coordinator).toContain("const safeRoot = getAppLaunchSafeRootFromSnapshot");
+    expect(coordinator).toContain('source === "timeout"');
+    expect(coordinator).toContain("? safeRoot");
+    expect(coordinator).toContain("window.location.replace(targetHref)");
+    expect(coordinator).toContain("markAppNavigationRestore");
+  });
+
+  it("keeps the launch document as a single immediate trampoline", () => {
+    const launch = source("src/routes/app-launch.tsx");
+    expect(launch).not.toContain("window.stop");
+    expect(launch).not.toContain("setTimeout");
+    expect(launch).not.toContain("supabase.auth");
+    expect(launch).not.toContain("trackPublicUxEvent");
+    expect(launch).toContain("window.location.replace(safeRoot)");
+    expect(launch.match(/window\.location\.replace\("\/"\)/g)).toHaveLength(1);
+  });
+
+  it("executes the absolute launch escape before React hydration", () => {
+    const launch = source("src/routes/app-launch.tsx");
+    expect(launch).toContain(
+      'import { createFileRoute, ScriptOnce } from "@tanstack/react-router"',
+    );
+    expect(launch).toContain("<ScriptOnce>{APP_LAUNCH_BOOTSTRAP_SCRIPT}</ScriptOnce>");
+    expect(launch).not.toContain("scripts: [{ children: APP_LAUNCH_BOOTSTRAP_SCRIPT }]");
+    expect(launch).toContain("Parsing-time trampoline");
   });
 
   it("hydrates app connectivity from deterministic HTML before browser state is read", () => {
@@ -48,7 +75,9 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     const worker = source("public/sw.js");
     const offline = source("public/offline.html");
     expect(worker).toContain("return await fetch(request)");
-    expect(worker).not.toContain("cache.put(request, response.clone())\n    return response;\n  } catch");
+    expect(worker).not.toContain(
+      "cache.put(request, response.clone())\n    return response;\n  } catch",
+    );
     expect(offline).toContain('class="tabbar"');
     expect(offline).toContain('data-tab="participate"');
     expect(offline).toContain('href="/participate"');

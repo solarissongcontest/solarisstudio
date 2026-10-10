@@ -1,0 +1,88 @@
+version: 1
+product: Solaris Studio V6
+rule: "Migration is complete only when the new authority works and the old authority can no longer contradict it."
+
+domains:
+  edition:
+    state: canonical-write
+    retired_authority: ["browser-global selected edition as authority", "direct lifecycle table mutations", "legacy studio2_transition_edition RPC"]
+    legacy_authority: []
+    retirement_evidence:
+      - "Organizer edition selection is stored in sessionStorage through the V6 tab-scoped edition helper; localStorage is not used."
+      - "Cross-tab edition communication is invalidation-only and cannot replace another tab's active edition."
+      - "Authenticated clients have SELECT-only access to studio2_edition_runtime; product transitions use studio2_transition_edition_v2."
+      - "studio2_transition_edition_v2 authorizes against p_edition_id, locks that runtime row, validates lifecycle legality, and preserves second-person approval for critical transitions."
+      - "The pre-v2 studio2_transition_edition RPC is revoked and dropped by the V6 retirement migration."
+      - "Results, Publication and Broadcast production commands fail closed when their edition identities drift."
+      - "src/lib/solaris-v6-edition-authority.contract.test.ts enforces the cutover."
+    retirement_criteria:
+      - "Operational commands validate edition identity against canonical entity and server authorization scope."
+      - "Tab selection remains session-scoped and never becomes authorization."
+  confirmations:
+    state: canonical-write
+    retired_authority: ["legacy confirmations authority", "round-as-participation identity"]
+    legacy_authority: []
+    retirement_evidence:
+      - "The former confirmationsSupabase export aliases Solaris Studio's canonical Supabase client."
+      - "One current edition+country requirement exists independently of submission rounds."
+      - "Rounds are submission windows only and cannot create a new requirement generation."
+      - "Reconfirmation is an explicit audited R2 command."
+    retirement_criteria:
+      - "One edition+delegation participation can be satisfied by one valid confirmation version."
+      - "Old authority cannot recreate duplicate requirements."
+  permissions:
+    state: canonical-write
+    retired_authority: ["client role checks as authority", "legacy user_roles authorization"]
+    legacy_authority: []
+    retirement_evidence:
+      - "Permission Engine v2 authoritative cutover removes legacy-role fallback from studio2_user_has_capability and studio2_access_allowed."
+      - "Legacy user_roles policies and obsolete has_role helpers are removed from live authorization paths."
+      - "Sensitive result, publication, Integrity and operational writes use narrow server capabilities."
+      - "V6 client capability helpers are explicitly presentation-only and bind to the same capability vocabulary."
+      - "src/lib/solaris-v6-permission-authority.contract.test.ts enforces the retirement contract."
+    retirement_criteria:
+      - "Sensitive operations validate canonical server capabilities on every request."
+  results:
+    state: canonical-write
+    retired_authority: ["screen-local result lifecycle interpretation"]
+    legacy_authority: []
+    retirement_evidence:
+      - "Results Operations and Publication load the same studio2-results-operations snapshot."
+      - "Release readiness is decided by the shared isStudio2ResultReleaseReady helper."
+      - "Expected-version checks, operation identity and lifecycle receipts are server-authoritative."
+    retirement_criteria:
+      - "Every consumer uses the canonical governed result version/lifecycle."
+  tasks:
+    state: canonical-write
+    retired_authority: ["Action Center state", "Inbox read state as work state"]
+    compatibility_routes: ["/admin/action-center", "/admin/action-centre"]
+    legacy_authority: []
+    retirement_evidence:
+      - "Both Action Center routes redirect to /admin/tasks."
+      - "The independent studio2-action-center model and dedicated tests are deleted."
+      - "Operational workflows link directly to canonical Tasks."
+    retirement_criteria:
+      - "Domain-backed tasks resolve only from canonical domain truth."
+      - "Inbox read state remains delivery state and cannot resolve a domain-owned task."
+  notifications:
+    state: canonical-read
+    retired_authority: ["push payload as truth", "unread count as task count"]
+    legacy_authority: []
+    retirement_evidence:
+      - "Push dispatch rechecks canonical Organizer Task state before task delivery."
+      - "Organizer task badges use the canonical Task Engine count, while unread badges are explicitly notification-only."
+      - "Task-backed Inbox resolution follows domain truth; read state cannot resolve the Task."
+    retirement_criteria:
+      - "Push and Inbox are delivery projections; required work survives delivery failure."
+  organizer-shell:
+    state: v6-owned
+    retired_authority: ["independent admin chrome ownership"]
+    legacy_authority: []
+    retirement_evidence:
+      - "AdminShell owns OrganizerV6MobileChrome and the shared V6 screen contract."
+      - "OrganizerV6MobileChrome owns tab memory, scroll restoration, task badges and transition choreography."
+      - "AdminFrame is layout/content only and no longer imports OrganizerV6TabBar or admin tab-history authority."
+      - "Shared AppChromeMetrics, overlay ownership and bottom-obstruction variables remain global across perspectives."
+    retirement_criteria:
+      - "Organizer consumes the shared V6 screen/chrome/overlay/safe-area contracts."
+      - "AdminFrame no longer owns a competing mobile shell."

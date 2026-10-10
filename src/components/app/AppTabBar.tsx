@@ -1,11 +1,10 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Compass, Home, Trophy, UserRound, Vote, type LucideIcon } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
 import {
   appEntryHref,
-  appTabForLocation,
   appTabRoot,
   getAppTabDestination,
   markAppNavigationRestore,
@@ -13,6 +12,13 @@ import {
 } from "@/lib/app-navigation";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
+import {
+  prefersReducedMotion,
+  resolveElasticDrag,
+  resolveTabDragTargetIndex,
+} from "@/lib/interaction-physics";
+import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
+import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import { PUBLIC_GLOBAL_AREAS } from "@/lib/public-navigation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
@@ -33,8 +39,6 @@ type DragState = {
   originIndex: number;
   moved: boolean;
 };
-
-const LAST_PRIMARY_AREA_KEY = "solaris:app-last-primary-area";
 
 function isPrimaryArea(value: string): value is PrimaryArea {
   return PUBLIC_GLOBAL_AREAS.some((area) => area.id === value);
@@ -61,113 +65,62 @@ export function AppTabBar({
 }) {
   const navigate = useNavigate();
   const chrome = resolveAppRouteChrome(pathname, searchStr);
-  const contextualArea = appTabForLocation(pathname, searchStr);
-  const routeArea = chrome.tab ?? contextualArea;
+  const routeArea: PrimaryArea =
+    chrome.tab && isPrimaryArea(chrome.tab) ? chrome.tab : "home";
   const tabbarMode = chrome.tabBar;
-  const [collapsed, setCollapsed] = useState(false);
   const [railMode, setRailMode] = useState(false);
-  const [fallbackArea, setFallbackArea] = useState<PrimaryArea>("home");
   const [dragPreviewIndex, setDragPreviewIndex] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
-  const lastScrollY = useRef(0);
-  const downTravel = useRef(0);
-  const upTravel = useRef(0);
-  const frame = useRef<number | null>(null);
+  const { collapsed, expand: expandTabBar } = useScrollResponsiveBar({
+    enabled: !railMode,
+    resetKey: `${pathname}|${routeArea}|${searchStr}`,
+  });
   const barRef = useRef<HTMLElement | null>(null);
   const materialRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<DragState | null>(null);
   const suppressClick = useRef(false);
+  const {
+    held,
+    begin: beginHold,
+    move: moveHold,
+    end: endHold,
+  } = useSolarisPressHold();
 
   useEffect(() => {
     const media = window.matchMedia("(min-width: 900px)");
     const refresh = () => {
       setRailMode(media.matches);
-      if (media.matches) setCollapsed(false);
+      if (media.matches) expandTabBar();
     };
     refresh();
     media.addEventListener?.("change", refresh);
     return () => media.removeEventListener?.("change", refresh);
-  }, []);
+  }, [expandTabBar]);
 
-  useEffect(() => {
-    const stored = window.localStorage.getItem(LAST_PRIMARY_AREA_KEY);
-    if (stored && isPrimaryArea(stored)) setFallbackArea(stored);
-  }, []);
-
-  useEffect(() => {
-    if (routeArea && isPrimaryArea(routeArea)) {
-      setFallbackArea(routeArea);
-      window.localStorage.setItem(LAST_PRIMARY_AREA_KEY, routeArea);
-    }
-    setCollapsed(false);
-    lastScrollY.current = window.scrollY;
-    downTravel.current = 0;
-    upTravel.current = 0;
-  }, [pathname, routeArea, searchStr]);
-
-  useEffect(() => {
-    lastScrollY.current = window.scrollY;
-    if (railMode) {
-      setCollapsed(false);
-      return;
-    }
-
-    const evaluate = () => {
-      frame.current = null;
-      const current = Math.max(0, window.scrollY);
-      const delta = current - lastScrollY.current;
-
-      if (current < 80) {
-        setCollapsed(false);
-        downTravel.current = 0;
-        upTravel.current = 0;
-      } else if (delta > 0) {
-        downTravel.current += delta;
-        upTravel.current = 0;
-        if (current > 140 && downTravel.current >= 56) {
-          setCollapsed(true);
-          downTravel.current = 0;
-        }
-      } else if (delta < 0) {
-        upTravel.current += -delta;
-        downTravel.current = 0;
-        if (upTravel.current >= 18) {
-          setCollapsed(false);
-          upTravel.current = 0;
-        }
-      }
-
-      lastScrollY.current = current;
-    };
-
-    const onScroll = () => {
-      if (frame.current != null) return;
-      frame.current = window.requestAnimationFrame(evaluate);
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (frame.current != null) window.cancelAnimationFrame(frame.current);
-    };
-  }, [railMode]);
-
-  useEffect(() => {
+  // Publish the obstruction before paint. A normal effect used to reset the
+  // shared CSS variable to 0 during every collapsed/path dependency cleanup,
+  // creating a one-frame loss of reserved scroll space. On narrow screens that
+  // was enough to leave the final content underneath the floating bar.
+  useLayoutEffect(() => {
     const root = document.documentElement;
     const bar = barRef.current;
 
     const updateMetrics = () => {
       if (!bar || railMode || tabbarMode === "hidden") {
         root.style.setProperty("--solaris-app-bottom-obstruction", "0px");
+        root.style.setProperty("--solaris-bottom-obstruction", "0px");
         return;
       }
+
       const rect = bar.getBoundingClientRect();
-      // Output-only runtime measurement. Never feed measured height back into
-      // the design token that sizes this same bar, or ResizeObserver can loop
-      // while drag elasticity changes the material height.
+      // This value is deliberately output-only. Never feed a measured tab-bar
+      // height back into the CSS variable that sizes the tab bar itself:
+      // doing so creates a ResizeObserver feedback loop when drag elasticity
+      // temporarily changes the material height.
       const rawObstruction = Math.max(0, window.innerHeight - rect.top);
       const obstruction = Math.min(rawObstruction, 128);
       root.style.setProperty("--solaris-app-bottom-obstruction", `${Math.ceil(obstruction)}px`);
+      root.style.setProperty("--solaris-bottom-obstruction", `${Math.ceil(obstruction)}px`);
     };
 
     updateMetrics();
@@ -183,17 +136,27 @@ export function AppTabBar({
       observer?.disconnect();
       window.removeEventListener("resize", updateMetrics);
       window.visualViewport?.removeEventListener("resize", updateMetrics);
-      root.style.setProperty("--solaris-app-bottom-obstruction", "0px");
+      // Do not zero the obstruction here. Dependency changes immediately
+      // install the next measurement and clearing in between causes geometry
+      // flicker. True unmount cleanup below owns the reset.
     };
   }, [collapsed, railMode, tabbarMode, pathname]);
 
-  const activeArea: PrimaryArea =
-    routeArea && isPrimaryArea(routeArea) ? routeArea : fallbackArea;
+  useEffect(
+    () => () => {
+      const root = document.documentElement;
+      root.style.setProperty("--solaris-app-bottom-obstruction", "0px");
+      root.style.setProperty("--solaris-bottom-obstruction", "0px");
+    },
+    [],
+  );
+
+  const activeArea: PrimaryArea = routeArea;
   const activeIndex = Math.max(
     0,
     PUBLIC_GLOBAL_AREAS.findIndex((area) => area.id === activeArea),
   );
-  const visualActiveIndex = dragPreviewIndex ?? activeIndex;
+  const visualActiveIndex = dragging ? activeIndex : dragPreviewIndex ?? activeIndex;
 
   const openTab = (index: number) => {
     const area = PUBLIC_GLOBAL_AREAS[index];
@@ -230,8 +193,7 @@ export function AppTabBar({
       return;
     }
 
-    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-    window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
+    window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
   };
 
   const tabRects = () => {
@@ -242,23 +204,7 @@ export function AppTabBar({
     );
   };
 
-  const nearestTabIndex = (clientX: number) => {
-    const rects = tabRects();
-    if (!rects.length) return activeIndex;
-    let nearest = 0;
-    let nearestDistance = Number.POSITIVE_INFINITY;
-    rects.forEach((rect, index) => {
-      const center = rect.left + rect.width / 2;
-      const distance = Math.abs(clientX - center);
-      if (distance < nearestDistance) {
-        nearest = index;
-        nearestDistance = distance;
-      }
-    });
-    return nearest;
-  };
-
-  const clearDrag = useCallback(() => {
+  const resetDragDom = useCallback(() => {
     const material = materialRef.current;
     material?.style.setProperty("--solaris-tab-drag-x", "0px");
     material?.style.setProperty("--solaris-tab-drag-scale-x", "1");
@@ -267,9 +213,14 @@ export function AppTabBar({
     material?.style.setProperty("--solaris-tabbar-pull-radius", "0px");
     material?.removeAttribute("data-drag-direction");
     dragState.current = null;
+  }, []);
+
+  const clearDrag = useCallback(() => {
+    endHold();
+    resetDragDom();
     setDragging(false);
     setDragPreviewIndex(null);
-  }, []);
+  }, [endHold, resetDragDom]);
 
   useEffect(() => {
     const resetInterruptedGesture = () => clearDrag();
@@ -285,9 +236,11 @@ export function AppTabBar({
       window.removeEventListener("blur", resetInterruptedGesture);
       window.removeEventListener("orientationchange", resetInterruptedGesture);
       document.removeEventListener("visibilitychange", resetWhenHidden);
-      clearDrag();
+      // Unmount/StrictMode teardown must not set React state. The press-hold
+      // hook cancels its own timer; only imperative DOM/ref cleanup is needed.
+      resetDragDom();
     };
-  }, [clearDrag, pathname, searchStr]);
+  }, [clearDrag, pathname, resetDragDom, searchStr]);
 
   const startDrag = (
     event: ReactPointerEvent<HTMLAnchorElement>,
@@ -308,12 +261,14 @@ export function AppTabBar({
       moved: false,
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    beginHold(event.pointerId, event.clientX, event.clientY);
     setDragging(true);
   };
 
   const moveDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
+    moveHold(event.pointerId, event.clientX, event.clientY);
 
     const rects = tabRects();
     const origin = rects[drag.originIndex];
@@ -323,29 +278,29 @@ export function AppTabBar({
     const minCenter = rects[0] ? rects[0].left + rects[0].width / 2 : originCenter;
     const lastRect = rects[rects.length - 1];
     const maxCenter = lastRect ? lastRect.left + lastRect.width / 2 : originCenter;
-    const rawDelta = event.clientX - drag.startX;
-    const delta = Math.min(maxCenter - originCenter, Math.max(minCenter - originCenter, rawDelta));
-    const distance = Math.abs(delta);
-    const slotWidth = Math.max(1, origin.width);
-    const pullProgress = Math.min(1, distance / Math.max(1, slotWidth * 1.15));
-    const indicatorStretch = 1 + pullProgress * 0.055;
-    const barGrowWidth = pullProgress * 10;
-    const barGrowHeight = pullProgress * 9;
-    const barGrowRadius = pullProgress * 4;
+    const response = resolveElasticDrag({
+      rawDelta: event.clientX - drag.startX,
+      minDelta: minCenter - originCenter,
+      maxDelta: maxCenter - originCenter,
+      slotWidth: origin.width,
+    });
 
-    if (distance >= 7) drag.moved = true;
+    if (response.moved) drag.moved = true;
     const material = materialRef.current;
-    material?.style.setProperty("--solaris-tab-drag-x", `${delta}px`);
-    material?.style.setProperty("--solaris-tab-drag-scale-x", indicatorStretch.toFixed(4));
-    material?.style.setProperty("--solaris-tabbar-pull-width", `${barGrowWidth.toFixed(2)}px`);
-    material?.style.setProperty("--solaris-tabbar-pull-height", `${barGrowHeight.toFixed(2)}px`);
-    material?.style.setProperty("--solaris-tabbar-pull-radius", `${barGrowRadius.toFixed(2)}px`);
-    material?.setAttribute(
-      "data-drag-direction",
-      delta > 2 ? "right" : delta < -2 ? "left" : "center",
-    );
+    material?.style.setProperty("--solaris-tab-drag-x", `${response.delta}px`);
+    material?.style.setProperty("--solaris-tab-drag-scale-x", response.scaleX.toFixed(4));
+    material?.style.setProperty("--solaris-tabbar-pull-width", `${response.growWidth.toFixed(2)}px`);
+    material?.style.setProperty("--solaris-tabbar-pull-height", `${response.growHeight.toFixed(2)}px`);
+    material?.style.setProperty("--solaris-tabbar-pull-radius", `${response.growRadius.toFixed(2)}px`);
+    material?.setAttribute("data-drag-direction", response.direction);
 
-    const preview = nearestTabIndex(event.clientX);
+    const preview = resolveTabDragTargetIndex({
+      rawDelta: event.clientX - drag.startX,
+      originIndex: drag.originIndex,
+      slotWidth: origin.width,
+      itemCount: PUBLIC_GLOBAL_AREAS.length,
+      activationRatio: 0.62,
+    });
     setDragPreviewIndex((current) => (current === preview ? current : preview));
 
     if (drag.moved) event.preventDefault();
@@ -355,7 +310,15 @@ export function AppTabBar({
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
-    const targetIndex = nearestTabIndex(event.clientX);
+    const rects = tabRects();
+    const origin = rects[drag.originIndex];
+    const targetIndex = resolveTabDragTargetIndex({
+      rawDelta: event.clientX - drag.startX,
+      originIndex: drag.originIndex,
+      slotWidth: origin?.width ?? 1,
+      itemCount: PUBLIC_GLOBAL_AREAS.length,
+      activationRatio: 0.72,
+    });
     const moved = drag.moved;
     suppressClick.current = moved;
 
@@ -401,7 +364,7 @@ export function AppTabBar({
       data-layout={railMode ? "rail" : "bar"}
       data-mode={tabbarMode}
       onPointerDown={() => {
-        if (collapsed) setCollapsed(false);
+        if (collapsed) expandTabBar();
       }}
     >
       <div
@@ -409,6 +372,7 @@ export function AppTabBar({
         className="solaris-app-tabbar-material"
         data-active-index={activeIndex}
         data-dragging={dragging ? "true" : "false"}
+        data-held={held ? "true" : "false"}
       >
         <KubeLiquidGlassBackdrop className="solaris-app-tabbar-backdrop" sourceKey={pathname} />
         <span className="solaris-app-tab-indicator" aria-hidden="true" />
@@ -445,7 +409,7 @@ export function AppTabBar({
                 }
 
                 const wasCollapsed = collapsed;
-                setCollapsed(false);
+                expandTabBar();
                 if (wasCollapsed && active) {
                   event.preventDefault();
                   return;

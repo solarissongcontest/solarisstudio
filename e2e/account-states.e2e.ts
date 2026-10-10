@@ -30,26 +30,33 @@ for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies rea
     const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
     const email = process.env[`E2E_${state}_EMAIL`];
     const password = process.env[`E2E_${state}_PASSWORD`];
+    const missingConfig = !url || !publishableKey || !email || !password;
+    if (missingConfig && process.env.CI) {
+      throw new Error(
+        `Browser Audit must seed local ${state} credentials; refusing to skip authenticated account-state coverage in CI.`,
+      );
+    }
     test.skip(
-      !url || !publishableKey || !email || !password,
+      missingConfig,
       `${state} browser credentials or E2E Supabase public config are not configured`,
     );
 
     await addSession(context, url!, publishableKey!, email!, password!);
     await page.goto("/me", { waitUntil: "domcontentloaded" });
-    await expect(page.locator("main")).toBeVisible();
-    await expect(page.locator("body")).not.toContainText(/missing supabase|database access is unavailable/i);
+    const contentMain = page.locator("main:not([aria-busy='true'])").last();
+    await expect(contentMain).toBeVisible();
+    await expect(contentMain).not.toContainText(/missing supabase|database access is unavailable/i);
 
     if (state === "SUSPENDED") {
-      await expect(page.locator("main")).toContainText(/suspend|contact|unavailable/i);
+      await expect(contentMain).toContainText(/suspend|contact|unavailable/i);
     } else {
-      await expect(page.locator("main")).not.toContainText(/signed in as another country/i);
+      await expect(contentMain).not.toContainText(/signed in as another country/i);
     }
 
     if (state === "ORGANIZER") {
       await page.goto("/admin/operations", { waitUntil: "domcontentloaded" });
       await expect(page).toHaveURL(/\/admin\/operations/);
-      await expect(page.getByText("Solaris Organizer", { exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Solaris Organizer", exact: true })).toBeVisible();
       await expect(page.locator("body")).not.toContainText("This page didn't load");
       await expect(page.locator("body")).not.toContainText("Organizer could not open");
 

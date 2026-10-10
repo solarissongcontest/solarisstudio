@@ -247,6 +247,7 @@ function CountriesCockpitPage() {
             <AdminCard>
               <div className="grid gap-3 md:grid-cols-[1fr_220px]">
                 <label className="relative block">
+                  <span className="sr-only">Search countries</span>
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <input
                     value={queryValue}
@@ -256,6 +257,7 @@ function CountriesCockpitPage() {
                   />
                 </label>
                 <select
+                  aria-label="Filter countries by readiness"
                   value={stateFilter}
                   onChange={(event) => navigate({
                     search: (previous) => ({

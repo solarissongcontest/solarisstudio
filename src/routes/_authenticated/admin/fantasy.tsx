@@ -180,7 +180,8 @@ function FantasyAdminPage() {
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <Field label="Name"><input value={name} onChange={(event) => setName(event.target.value)} className="admin-input" /></Field>
             <Field label="Show">
-              <select value={selectedShowId} onChange={(event) => setShowId(event.target.value)} className="admin-input">
+              <select value={selectedShowId} onChange={(event) => setShowId(event.target.value)} className="admin-input min-w-11 w-full">
+                {!shows.length ? <option value="">No shows available</option> : null}
                 {shows.map((show) => <option key={show.id} value={show.id}>{show.name}</option>)}
               </select>
             </Field>

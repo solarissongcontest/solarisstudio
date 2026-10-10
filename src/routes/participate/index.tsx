@@ -114,7 +114,7 @@ async function loadJurySummary(): Promise<JurySummary> {
 async function loadTelevoteSummary(): Promise<TelevoteSummary> {
   const { data, error } = await televotingSupabase
     .from("rounds")
-    .select("id,name,closes_at,editions(name)")
+    .select("id,name,closed_at,editions(name)")
     .eq("status", "open")
     .limit(1)
     .maybeSingle();
@@ -129,7 +129,7 @@ async function loadTelevoteSummary(): Promise<TelevoteSummary> {
       id: String((data as any).id),
       name: String((data as any).name ?? "Televoting"),
       editionName: edition?.name ? String(edition.name) : null,
-      closesAt: (data as any).closes_at ? String((data as any).closes_at) : null,
+      closesAt: (data as any).closed_at ? String((data as any).closed_at) : null,
     },
   };
 }
@@ -319,6 +319,7 @@ function ParticipatePage() {
       tasks: buildParticipationTasks({
         editionId: currentRound?.edition_id ?? null,
         responses: access?.responses ?? [],
+        requirements: access?.requirements ?? [],
         rounds: participantRounds,
         jury: juryTask,
         televote: televoteTask,

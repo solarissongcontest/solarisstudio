@@ -8,7 +8,6 @@ import {
   ShieldCheck,
   Tv2,
   UserRound,
-  X,
 } from "lucide-react";
 
 import { SheetClose } from "@/components/ui/sheet";
@@ -39,11 +38,6 @@ export function AppMoreNavigation({
           <p className="solaris-app-more-eyebrow">Solaris Studio</p>
           <h2 className="text-xl font-semibold">More</h2>
         </div>
-        <SheetClose asChild>
-          <button type="button" className="solaris-app-sheet-close" aria-label="Close">
-            <X className="size-4" aria-hidden="true" />
-          </button>
-        </SheetClose>
       </div>
 
       <nav
@@ -70,7 +64,7 @@ export function AppMoreNavigation({
 
         {access.isOrganizer ? (
           <SheetClose asChild>
-            <Link to="/admin/action-center" className="solaris-app-more-link">
+            <Link to="/admin/tasks" search={{ filter: "all" }} className="solaris-app-more-link">
               <UserRound className="size-4" aria-hidden="true" />
               <span>Organizer</span>
             </Link>

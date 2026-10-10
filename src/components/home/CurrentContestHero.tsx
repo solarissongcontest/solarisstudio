@@ -12,7 +12,7 @@ export function CurrentContestHero({
   compact?: boolean;
 }) {
   return (
-    <section className={compact ? "solaris-app-current-contest relative min-w-0 overflow-hidden" : "relative min-w-0 overflow-hidden rounded-[1.5rem] border border-border/70 bg-surface/70 p-5 sm:p-7"}>
+    <section className={compact ? "solaris-app-card solaris-app-current-contest relative min-w-0 overflow-hidden" : "relative min-w-0 overflow-hidden rounded-[1.5rem] border border-border/70 bg-surface/70 p-5 sm:p-7"}>
       <div
         aria-hidden="true"
         className="pointer-events-none absolute -right-16 -top-20 size-64 rounded-full bg-primary/10 blur-3xl"

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import {
   CalendarClock,
   CheckCircle2,
@@ -10,8 +10,13 @@ import {
 } from "lucide-react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import {
+  featureSurfaceLinks,
+  SolarisSurfaceSwitch,
+} from "@/components/surfaces/SolarisSurfaceSwitch";
 import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
 import { televotingSupabase } from "@/integrations/televoting/client";
+import { useCountries } from "@/lib/data";
 import { loadStudio2HodWorkspace } from "@/lib/studio2-hod-workspace";
 
 export const Route = createFileRoute("/_authenticated/my-solaris/voting")({
@@ -60,8 +65,37 @@ function MySolarisVotingPage() {
 
 function MySolarisVotingContent() {
   const workspace = useMySolaris();
-  const country = workspace.countryAccount?.country;
+  const search = useRouterState({ select: (state) => state.location.search });
+  const targetCountryId =
+    search &&
+    typeof search === "object" &&
+    "country" in search &&
+    typeof search.country === "string"
+      ? search.country
+      : undefined;
+  const countries = useCountries();
+  const access = workspace.countryAccount?.access;
+  const organizerInspection = Boolean(access?.isOrganizer && targetCountryId);
+  const organizerCountry = organizerInspection
+    ? (countries.data ?? []).find((candidate) => candidate.id === targetCountryId)
+    : undefined;
+  const country = organizerCountry ?? workspace.countryAccount?.country;
   const edition = workspace.currentEdition;
+
+  const votingSurfaceLinks = featureSurfaceLinks({
+    featureId: "participant-voting-overview",
+    current: "participant",
+    perspectives: workspace.permissions.isOrganizer
+      ? ["participant", "organizer", "diagnostic"]
+      : ["participant"],
+  }).map((link) =>
+    organizerInspection && country && link.perspective === "participant"
+      ? {
+          ...link,
+          href: `/my-solaris/voting?country=${encodeURIComponent(country.id)}`,
+        }
+      : link,
+  );
 
   const delegationQuery = useQuery({
     queryKey: [
@@ -84,6 +118,32 @@ function MySolarisVotingContent() {
     refetchOnWindowFocus: false,
   });
 
+  if (organizerInspection && countries.isLoading) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Loading delegation voting view…
+      </p>
+    );
+  }
+
+  if (organizerInspection && !organizerCountry) {
+    return (
+      <>
+        <PageHeader
+          eyebrow="MySolaris · Voting"
+          title="Delegation not found"
+          description="That country could not be loaded for Organizer Participant View."
+        />
+        <Link
+          to="/admin/countries"
+          className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-sm font-semibold"
+        >
+          Back to delegations
+        </Link>
+      </>
+    );
+  }
+
   const context = delegationQuery.data?.context;
   const hod = context?.juryMembers[0] ?? null;
   const juryDeadline = context?.deadlines.find((deadline) =>
@@ -100,6 +160,23 @@ function MySolarisVotingContent() {
         title="Voting"
         description="Your delegation ballot and the public televote share one status-led workspace."
       />
+
+      <SolarisSurfaceSwitch
+        className="mb-4"
+        label={`${country?.name ?? "Voting"} perspectives`}
+        links={votingSurfaceLinks}
+      />
+
+      {organizerInspection ? (
+        <>
+          <div className="mb-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3">
+            <p className="text-sm font-semibold">Participant View · read-only</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              You are inspecting this delegation’s voting status. Jury submission and public voting actions are disabled here; use Manage for Organizer controls.
+            </p>
+          </div>
+        </>
+      ) : null}
 
       <div className="space-y-4">
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -188,11 +265,21 @@ function MySolarisVotingContent() {
               </div>
             )}
             <Link
-              to="/jury-voting"
+              to={
+                organizerInspection
+                  ? edition?.slug
+                    ? (`/admin/jury/${edition.slug}` as any)
+                    : "/admin"
+                  : "/jury-voting"
+              }
               className="mt-4 flex min-h-12 items-center justify-between gap-3 rounded-xl border border-border/70 bg-surface/55 px-4 text-sm font-semibold transition-colors hover:border-primary/25 hover:bg-surface-strong"
             >
               <span>
-                {ballotSubmitted ? "Review jury vote" : "Open jury vote"}
+                {organizerInspection
+                  ? "Open Organizer jury controls"
+                  : ballotSubmitted
+                    ? "Review jury vote"
+                    : "Open jury vote"}
               </span>
               <ChevronRight
                 className="size-4 text-muted-foreground"
@@ -242,15 +329,17 @@ function MySolarisVotingContent() {
               </div>
             )}
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              <Link
-                to="/televoting"
-                className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground"
-              >
-                <Vote className="size-4" aria-hidden="true" /> Open televoting
-              </Link>
+              {!organizerInspection ? (
+                <Link
+                  to="/televoting"
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground"
+                >
+                  <Vote className="size-4" aria-hidden="true" /> Open televoting
+                </Link>
+              ) : null}
               <Link
                 to="/televoting/how-to-vote"
-                className="flex min-h-11 items-center justify-center rounded-xl border border-border bg-surface px-3 text-sm font-semibold"
+                className={`flex min-h-11 items-center justify-center rounded-xl border border-border bg-surface px-3 text-sm font-semibold ${organizerInspection ? "sm:col-span-1" : ""}`}
               >
                 How voting works
               </Link>

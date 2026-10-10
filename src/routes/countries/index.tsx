@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import {
+  AppEmptyState,
+  AppGroupedList,
+  AppScreen,
+  AppSectionHeader,
+} from "@/components/app/AppPrimitives";
 import { SolarisSearchField } from "@/components/app/SolarisSearchField";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
@@ -84,7 +90,7 @@ function AppCountriesPage() {
 
   return (
     <AppShell>
-      <div className="space-y-5">
+      <AppScreen className="space-y-4">
         <div className="solaris-app-directory-tools">
           <SolarisSearchField
             value={search}
@@ -134,8 +140,13 @@ function AppCountriesPage() {
           </div>
         </div>
 
-        <section aria-label="Countries">
-          <div className="solaris-app-directory-list-v6">
+        <section aria-labelledby="app-country-directory">
+          <AppSectionHeader
+            eyebrow={`${filtered.length} delegations`}
+            title="Countries"
+            id="app-country-directory"
+          />
+          <AppGroupedList>
             {visible.map((country) => (
               <Link
                 key={country.id}
@@ -158,10 +169,26 @@ function AppCountriesPage() {
                 <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               </Link>
             ))}
-          </div>
+          </AppGroupedList>
 
           {!filtered.length ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No country matches those filters.</p>
+            <AppEmptyState
+              className="my-3"
+              title="No countries found"
+              description="No country matches the current search and region filters."
+              action={
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    setRegion("all");
+                  }}
+                  className="solaris-app-empty-action"
+                >
+                  Clear filters
+                </button>
+              }
+            />
           ) : null}
 
           {visible.length < filtered.length ? (
@@ -174,7 +201,7 @@ function AppCountriesPage() {
             </button>
           ) : null}
         </section>
-      </div>
+      </AppScreen>
     </AppShell>
   );
 }

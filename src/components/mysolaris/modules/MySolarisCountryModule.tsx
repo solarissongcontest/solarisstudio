@@ -6,6 +6,10 @@ import { CountryHodHistoryPanel } from "@/components/CountryHodHistoryPanel";
 import { FlagChip } from "@/components/FlagChip";
 import { ProfileActivityPanel } from "@/components/country/ProfileActivityPanel";
 import {
+  countrySurfaceLinks,
+  SolarisSurfaceSwitch,
+} from "@/components/surfaces/SolarisSurfaceSwitch";
+import {
   uploadCountryAsset,
   useAddCountryMedia,
   useAvailableCountryClaims,
@@ -529,6 +533,18 @@ function OwnedCountryHub({
         }
       />
 
+      <SolarisSurfaceSwitch
+        className="mb-5"
+        label={`${country.name} perspectives`}
+        links={countrySurfaceLinks({
+          countryId: country.id,
+          countryCode: country.short_code,
+          current: "participant",
+          includeOrganizer: isOrganizer,
+          includeDiagnostics: isOrganizer,
+        })}
+      />
+
       {message && (
         <p className="mb-5 rounded-xl border border-border bg-surface px-4 py-3 text-sm">
           {message}
@@ -697,7 +713,7 @@ function OwnedCountryHub({
                 </div>
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  accept="image/jpeg,image/png,image/webp"
                   disabled={flagBusy}
                   onChange={(event) =>
                     event.target.files?.[0] && void uploadFlag(event.target.files[0])
@@ -1005,11 +1021,11 @@ function OwnedCountryHub({
 
             <Panel
               title="Country media"
-              description="Upload reusable images for your article and gallery. JPG, PNG, WebP or GIF, maximum 8 MB."
+              description="Upload reusable images for your article and gallery. JPG, PNG or WebP, maximum 5 MB. Solaris verifies and re-processes public images before delivery."
             >
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
+                accept="image/jpeg,image/png,image/webp"
                 onChange={(event) => setGalleryFile(event.target.files?.[0] ?? null)}
                 className="block w-full text-xs"
               />

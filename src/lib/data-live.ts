@@ -24,12 +24,17 @@ type ArchiveTable =
   | "results"
   | "participants";
 
-type CompleteArchiveOptions = {
+export type CompleteArchiveOptions = {
   /**
    * Kept for API compatibility. Archive Realtime is intentionally disabled.
    * Live show/result surfaces have their own narrowly scoped refresh logic.
    */
   realtime?: boolean;
+  /**
+   * Lets mobile reading surfaces defer the expensive full archive until after
+   * first meaningful paint. Critical/live routes should normally leave this on.
+   */
+  enabled?: boolean;
 };
 
 function canonicaliseArchiveRow(table: ArchiveTable, row: any) {
@@ -72,12 +77,13 @@ async function fetchCompleteArchive<T>(table: ArchiveTable): Promise<T[]> {
 function useCompleteArchive<T>(
   table: ArchiveTable,
   queryKey: string,
-  _options?: CompleteArchiveOptions,
+  options?: CompleteArchiveOptions,
 ) {
   return useQuery({
     ...solarisQueryPolicy("cold"),
     queryKey: [queryKey, "all"],
     queryFn: () => fetchCompleteArchive<T>(table),
+    enabled: options?.enabled ?? true,
     // Historical archives are larger than normal cold data. Keep them fresh
     // for an hour while still inheriting cold focus/reconnect semantics.
     staleTime: ARCHIVE_STALE_TIME,

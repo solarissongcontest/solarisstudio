@@ -7,12 +7,14 @@ const source = (path: string) => readFileSync(path, "utf8");
 describe("App Experience v3 native-feel polish", () => {
   it("uses progressive view transitions for app navigation without making them mandatory", () => {
     const transitions = source("src/lib/app-view-transitions.ts");
+    const physics = source("src/lib/interaction-physics.ts");
     const tabs = source("src/components/app/AppTabBar.tsx");
     const toolbar = source("src/components/app/AppToolbar.tsx");
     const search = source("src/components/public/PublicCommandPalette.tsx");
 
     expect(transitions).toContain("startViewTransition");
-    expect(transitions).toContain("prefers-reduced-motion: reduce");
+    expect(transitions).toContain("prefersReducedMotion");
+    expect(physics).toContain("prefers-reduced-motion: reduce");
     expect(transitions).toContain("if (!updateRan) await update()");
     expect(tabs).toContain('runAppViewTransition("tab"');
     expect(tabs).toContain('runAppViewTransition("pop"');
@@ -28,6 +30,15 @@ describe("App Experience v3 native-feel polish", () => {
     expect(styles).toContain('data-solaris-view-transition="pop"');
     expect(styles).toContain('data-solaris-view-transition="tab"');
     expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
+  });
+
+  it("keeps the installed toolbar visible once app mode owns the chrome", () => {
+    const shell = source("src/components/AppShell.tsx");
+    const toolbar = source("src/components/app/AppToolbar.tsx");
+
+    expect(shell).toContain('isAppMode && appScreen.chrome.toolbar !== "hidden"');
+    expect(toolbar).toContain('display: "block"');
+    expect(toolbar).toContain('className="solaris-app-toolbar"');
   });
 
   it("shows minimal first-run guidance through the single app overlay manager", () => {

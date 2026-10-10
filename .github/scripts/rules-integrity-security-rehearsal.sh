@@ -96,6 +96,14 @@ expect_failure() {
   log "PASS: $label rejected with HTTP $HTTP_STATUS"
 }
 
+expect_client_failure() {
+  local label="$1"
+  if (( HTTP_STATUS < 400 || HTTP_STATUS >= 500 )); then
+    fail "$label expected an application-level 4xx rejection, got HTTP $HTTP_STATUS: $HTTP_BODY"
+  fi
+  log "PASS: $label rejected with application HTTP $HTTP_STATUS"
+}
+
 expect_json_value() {
   local label="$1"
   local path="$2"
@@ -233,6 +241,51 @@ sign_in participant-security@solaris.invalid; PARTICIPANT_TOKEN="$LAST_TOKEN"
 # only user-scoped JWTs for the hostile calls below.
 db_exec "insert into public.studio2_role_assignments(user_id, role_key, edition_id, expires_at, assigned_by) values ('$ORGANIZER_A_ID'::uuid, 'organizer', null, null, null), ('$ORGANIZER_B_ID'::uuid, 'organizer', null, null, null) on conflict do nothing;"
 
+log "Organisation OS V5 R3 permission separation-of-duties tests"
+R3_OPERATION_ID='00000000-0000-4000-8000-00000000f301'
+R3_IDEMPOTENCY_KEY='security-rehearsal-r3-permission'
+
+rpc_request "$ORGANIZER_A_TOKEN" studio2_permission_change_preview "{\"p_user_id\":\"$PARTICIPANT_ID\",\"p_change_kind\":\"grant_capability\",\"p_key\":\"broadcast.control\",\"p_edition_id\":null,\"p_expires_at\":null}"
+expect_success "preview R3 permission grant"
+R3_EXPECTED_VERSION="$(printf '%s' "$HTTP_BODY" | json_value expectedVersion)"
+[[ -n "$R3_EXPECTED_VERSION" ]] || fail "R3 preview returned no expectedVersion"
+
+rpc_request "$ORGANIZER_A_TOKEN" studio2_request_permission_change_approval "{\"p_user_id\":\"$PARTICIPANT_ID\",\"p_change_kind\":\"grant_capability\",\"p_key\":\"broadcast.control\",\"p_edition_id\":null,\"p_expires_at\":null,\"p_operation_id\":\"$R3_OPERATION_ID\",\"p_idempotency_key\":\"$R3_IDEMPOTENCY_KEY\",\"p_expected_version\":$R3_EXPECTED_VERSION}"
+expect_success "request R3 second-operator approval"
+R3_APPROVAL_ID="$(printf '%s' "$HTTP_BODY" | json_value id)"
+[[ -n "$R3_APPROVAL_ID" ]] || fail "R3 approval request returned no id"
+
+rpc_request "$ORGANIZER_A_TOKEN" studio2_approve_permission_change "{\"p_request_id\":\"$R3_APPROVAL_ID\"}"
+expect_failure "R3 requester cannot self-approve"
+assert_db_eq "R3 self-approval leaves request pending" "select approved_at is null from public.studio2_permission_change_approval_requests where id='$R3_APPROVAL_ID'::uuid;" "t"
+
+rpc_request "$ORGANIZER_B_TOKEN" studio2_approve_permission_change "{\"p_request_id\":\"$R3_APPROVAL_ID\"}"
+expect_success "different Organizer approves R3 permission change"
+assert_db_eq "R3 approval records independent approver" "select approved_by::text from public.studio2_permission_change_approval_requests where id='$R3_APPROVAL_ID'::uuid;" "$ORGANIZER_B_ID"
+
+rpc_request "$ORGANIZER_A_TOKEN" studio2_apply_permission_change_r3 "{\"p_user_id\":\"$PARTICIPANT_ID\",\"p_change_kind\":\"grant_capability\",\"p_key\":\"broadcast.control\",\"p_edition_id\":null,\"p_expires_at\":null,\"p_operation_id\":\"$R3_OPERATION_ID\",\"p_idempotency_key\":\"$R3_IDEMPOTENCY_KEY\",\"p_expected_version\":$R3_EXPECTED_VERSION,\"p_approval_request_id\":\"$R3_APPROVAL_ID\"}"
+expect_success "requester applies independently approved R3 permission change"
+assert_db_eq "R3 permission grant exists exactly once" "select count(*) from public.studio2_capability_grants where user_id='$PARTICIPANT_ID'::uuid and capability='broadcast.control' and edition_id is null;" "1"
+assert_db_eq "R3 approval is consumed after apply" "select consumed_at is not null from public.studio2_permission_change_approval_requests where id='$R3_APPROVAL_ID'::uuid;" "t"
+
+rpc_request "$ORGANIZER_A_TOKEN" studio2_apply_permission_change_r3 "{\"p_user_id\":\"$PARTICIPANT_ID\",\"p_change_kind\":\"grant_capability\",\"p_key\":\"broadcast.control\",\"p_edition_id\":null,\"p_expires_at\":null,\"p_operation_id\":\"$R3_OPERATION_ID\",\"p_idempotency_key\":\"$R3_IDEMPOTENCY_KEY\",\"p_expected_version\":$R3_EXPECTED_VERSION,\"p_approval_request_id\":\"$R3_APPROVAL_ID\"}"
+expect_success "R3 retry replays the canonical receipt"
+assert_db_eq "R3 replay does not duplicate permission grant" "select count(*) from public.studio2_capability_grants where user_id='$PARTICIPANT_ID'::uuid and capability='broadcast.control' and edition_id is null;" "1"
+
+R3_STALE_OPERATION_ID='00000000-0000-4000-8000-00000000f302'
+R3_STALE_IDEMPOTENCY_KEY='security-rehearsal-r3-stale'
+rpc_request "$ORGANIZER_A_TOKEN" studio2_permission_change_preview "{\"p_user_id\":\"$PARTICIPANT_ID\",\"p_change_kind\":\"grant_capability\",\"p_key\":\"host.manage\",\"p_edition_id\":null,\"p_expires_at\":null}"
+expect_success "preview R3 permission grant for stale-version test"
+R3_STALE_VERSION="$(printf '%s' "$HTTP_BODY" | json_value expectedVersion)"
+rpc_request "$ORGANIZER_A_TOKEN" studio2_request_permission_change_approval "{\"p_user_id\":\"$PARTICIPANT_ID\",\"p_change_kind\":\"grant_capability\",\"p_key\":\"host.manage\",\"p_edition_id\":null,\"p_expires_at\":null,\"p_operation_id\":\"$R3_STALE_OPERATION_ID\",\"p_idempotency_key\":\"$R3_STALE_IDEMPOTENCY_KEY\",\"p_expected_version\":$R3_STALE_VERSION}"
+expect_success "request R3 approval before concurrent permission change"
+R3_STALE_APPROVAL_ID="$(printf '%s' "$HTTP_BODY" | json_value id)"
+
+db_exec "update public.studio2_permission_subject_versions set version=version+1, updated_at=now() where user_id='$PARTICIPANT_ID'::uuid;"
+rpc_request "$ORGANIZER_B_TOKEN" studio2_approve_permission_change "{\"p_request_id\":\"$R3_STALE_APPROVAL_ID\"}"
+expect_failure "R3 approval rejects stale access version"
+assert_db_eq "stale R3 approval remains unapproved" "select approved_at is null from public.studio2_permission_change_approval_requests where id='$R3_STALE_APPROVAL_ID'::uuid;" "t"
+
 log "Case privacy and anonymous-mode abuse tests"
 create_protected_case "$REPORTER_A_TOKEN" confidential report "Reporter A private case"; CASE_A="$LAST_CASE_ID"
 create_protected_case "$REPORTER_B_TOKEN" confidential report "Reporter B private case"; CASE_B="$LAST_CASE_ID"
@@ -341,20 +394,23 @@ assert_db_eq "invalid evidence uploads create no upload token" "select count(*) 
 supabase functions serve --no-verify-jwt >/tmp/rules-integrity-functions.log 2>&1 &
 FUNCTION_PID=$!
 FUNCTION_READY=0
-for _ in $(seq 1 60); do
+for _ in $(seq 1 120); do
   request POST "$API_URL/functions/v1/integrity-evidence-download" "$ANON_KEY" "$ANON_KEY" '{}'
-  if [[ "$HTTP_STATUS" != "000" ]]; then FUNCTION_READY=1; break; fi
+  if [[ "$HTTP_STATUS" != "000" && "$HTTP_STATUS" != 5* ]]; then
+    FUNCTION_READY=1
+    break
+  fi
   sleep 1
 done
 if [[ "$FUNCTION_READY" != "1" ]]; then
   tail -n 200 /tmp/rules-integrity-functions.log >&2 || true
-  fail "Local Evidence Edge Functions did not become reachable"
+  fail "Local Evidence Edge Functions did not become application-ready"
 fi
 
 function_request "$REPORTER_A_TOKEN" integrity-evidence-download "{\"mode\":\"reporter\",\"caseId\":\"$CASE_B\",\"evidenceId\":\"$VISIBLE_EVIDENCE\"}"
-expect_failure "signed evidence download rejects a mismatched reporter case"
+expect_client_failure "signed evidence download rejects a mismatched reporter case"
 function_request "$PARTICIPANT_TOKEN" integrity-evidence-download "{\"mode\":\"organizer\",\"evidenceId\":\"$VISIBLE_EVIDENCE\"}"
-expect_failure "ordinary participant cannot use organizer signed-download mode"
+expect_client_failure "ordinary participant cannot use organizer signed-download mode"
 function_request "$REPORTER_A_TOKEN" integrity-evidence-download "{\"mode\":\"reporter\",\"caseId\":\"$CASE_A\",\"evidenceId\":\"$VISIBLE_EVIDENCE\"}"
 expect_success "owner receives a server-authorized signed evidence URL"
 expect_json_value "signed evidence URL has the fixed one-minute TTL" expiresInSeconds 60
@@ -372,13 +428,13 @@ FUTURE_DELETE="$(python3 -c 'from datetime import datetime,timezone,timedelta; p
 rpc_request "$ORGANIZER_A_TOKEN" admin_schedule_integrity_evidence_deletion "{\"_evidence_id\":\"$DUE_EVIDENCE\",\"_delete_after\":\"$FUTURE_DELETE\",\"_reason\":\"Security rehearsal future deletion boundary.\"}"
 expect_success "organizer schedules future evidence deletion"
 function_request "$ORGANIZER_A_TOKEN" integrity-evidence-lifecycle "{\"mode\":\"delete_evidence\",\"evidenceId\":\"$DUE_EVIDENCE\"}"
-expect_failure "server lifecycle refuses deletion before retention expires"
+expect_client_failure "server lifecycle refuses deletion before retention expires"
 assert_db_eq "early lifecycle attempt leaves evidence scheduled" "select lifecycle_status from public.integrity_case_evidence where id='$DUE_EVIDENCE'::uuid;" "scheduled_for_deletion"
 assert_db_eq "early lifecycle attempt leaves object intact" "select count(*) from storage.objects where bucket_id='integrity-evidence' and name='$DUE_PATH';" "1"
 
 db_exec "update public.integrity_case_evidence set retention_until=now()-interval '1 minute' where id='$DUE_EVIDENCE'::uuid;"
 function_request "$PARTICIPANT_TOKEN" integrity-evidence-lifecycle "{\"mode\":\"delete_evidence\",\"evidenceId\":\"$DUE_EVIDENCE\"}"
-expect_failure "ordinary participant cannot run evidence lifecycle deletion"
+expect_client_failure "ordinary participant cannot run evidence lifecycle deletion"
 function_request "$ORGANIZER_A_TOKEN" integrity-evidence-lifecycle "{\"mode\":\"delete_evidence\",\"evidenceId\":\"$DUE_EVIDENCE\"}"
 expect_success "authorized server lifecycle deletes due evidence"
 expect_json_value "due lifecycle response succeeds" ok true
@@ -387,7 +443,7 @@ assert_db_eq "due evidence private object is removed" "select count(*) from stor
 
 ORPHAN_TOKEN="$(db_scalar "insert into public.integrity_evidence_upload_tokens(case_id,object_path,original_name,mime_type,expected_size,created_by,expires_at) values ('$CASE_A'::uuid,'$ORPHAN_PATH','security-orphan.txt','text/plain',22,'$REPORTER_A_ID'::uuid,now()+interval '10 minutes') returning id;")"
 function_request "$ORGANIZER_A_TOKEN" integrity-evidence-lifecycle "{\"mode\":\"clean_expired_upload\",\"tokenId\":\"$ORPHAN_TOKEN\"}"
-expect_failure "unfinished upload cannot be cleaned before token expiry"
+expect_client_failure "unfinished upload cannot be cleaned before token expiry"
 assert_db_eq "early orphan cleanup leaves upload token" "select count(*) from public.integrity_evidence_upload_tokens where id='$ORPHAN_TOKEN'::uuid;" "1"
 db_exec "update public.integrity_evidence_upload_tokens set expires_at=now()-interval '1 minute' where id='$ORPHAN_TOKEN'::uuid;"
 function_request "$ORGANIZER_A_TOKEN" integrity-evidence-lifecycle "{\"mode\":\"clean_expired_upload\",\"tokenId\":\"$ORPHAN_TOKEN\"}"

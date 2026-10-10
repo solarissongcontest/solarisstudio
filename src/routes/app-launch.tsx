@@ -1,146 +1,76 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, ScriptOnce } from "@tanstack/react-router";
 
-import { useSolarisApp } from "@/components/app/AppRuntime";
-import { supabase } from "@/integrations/supabase/client";
-import {
-  appEntryHref,
-  appTabForPath,
-  getAppLaunchDestination,
-  markAppNavigationRestore,
-} from "@/lib/app-navigation";
-import { trackPublicUxEvent } from "@/lib/public-ux-events";
+import { APP_LAUNCH_TRANSACTION_KEY } from "@/lib/app-launch-lifecycle";
+import { APP_NAVIGATION_STORAGE_KEY } from "@/lib/app-navigation";
 
-const APP_LAUNCH_SESSION_TIMEOUT_MS = 1_500;
-
-type AppLaunchSessionResolution = {
-  signedIn: boolean;
-  source: "local_session" | "timeout" | "error";
-};
-
-async function resolveAppLaunchSession(): Promise<AppLaunchSessionResolution> {
-  let timeoutId: number | null = null;
-
-  const timeout = new Promise<AppLaunchSessionResolution>((resolve) => {
-    timeoutId = window.setTimeout(
-      () => resolve({ signedIn: false, source: "timeout" }),
-      APP_LAUNCH_SESSION_TIMEOUT_MS,
-    );
-  });
-
-  const session = supabase.auth
-    .getSession()
-    .then(({ data }) => ({
-      signedIn: Boolean(data.session?.user),
-      source: "local_session" as const,
-    }))
-    .catch(() => ({
-      signedIn: false,
-      source: "error" as const,
-    }));
-
-  const result = await Promise.race([session, timeout]);
-  if (timeoutId !== null) window.clearTimeout(timeoutId);
-  return result;
-}
+const APP_LAUNCH_BOOTSTRAP_SCRIPT = `(() => {
+  try {
+    if (window.location.pathname !== "/app-launch") return;
+    let navigationSnapshot = null;
+    let safeRoot = "/";
+    try {
+      navigationSnapshot = window.localStorage.getItem(${JSON.stringify(APP_NAVIGATION_STORAGE_KEY)});
+      if (typeof navigationSnapshot === "string") {
+        const parsed = JSON.parse(navigationSnapshot);
+        if (parsed?.activeTab === "explore") safeRoot = "/explore";
+        else if (parsed?.activeTab === "participate") safeRoot = "/participate";
+        else if (parsed?.activeTab === "results") safeRoot = "/results";
+        else if (parsed?.activeTab === "me") safeRoot = "/auth";
+      }
+    } catch {}
+    try {
+      window.sessionStorage.setItem(
+        ${JSON.stringify(APP_LAUNCH_TRANSACTION_KEY)},
+        JSON.stringify({
+          version: 1,
+          startedAt: new Date().toISOString(),
+          navigationSnapshot:
+            typeof navigationSnapshot === "string" ? navigationSnapshot : null,
+        }),
+      );
+    } catch {}
+    window.location.replace(safeRoot);
+  } catch {
+    if (window.location.pathname === "/app-launch") window.location.replace("/");
+  }
+})();`;
 
 export const Route = createFileRoute("/app-launch")({
   head: () => ({
-    meta: [
-      { title: "Opening Solaris Studio…" },
-      { name: "robots", content: "noindex, nofollow" },
-    ],
+    meta: [{ title: "Opening Solaris Studio…" }, { name: "robots", content: "noindex, nofollow" }],
   }),
   component: AppLaunchPage,
 });
 
 function AppLaunchPage() {
-  const navigate = useNavigate();
-  const { isAppMode } = useSolarisApp();
-
-  useEffect(() => {
-    let alive = true;
-
-    if (!isAppMode) {
-      void navigate({ to: "/", replace: true });
-      return () => {
-        alive = false;
-      };
-    }
-
-    // getSession normally reads the locally persisted Supabase session without
-    // a network round-trip. On some PWA/iOS storage-lock failures it can still
-    // stall, so cold launch has a hard circuit breaker instead of leaving the
-    // user on "Opening your app…" forever.
-    void resolveAppLaunchSession().then(({ signedIn, source }) => {
-      if (!alive) return;
-
-      const target =
-        source === "timeout"
-          ? {
-              pathname: "/",
-              searchStr: "",
-              scrollY: 0,
-              visitedAt: new Date().toISOString(),
-            }
-          : getAppLaunchDestination(signedIn);
-
-      trackPublicUxEvent("app_cold_launch_restored", {
-        target: appEntryHref(target),
-        metadata: {
-          area: appTabForPath(target.pathname) ?? "app",
-          source:
-            source === "timeout"
-              ? "cold_launch_session_timeout"
-              : source === "error"
-                ? "cold_launch_session_error"
-                : "cold_launch_local_session",
-        },
-      });
-      const targetHref = appEntryHref(target);
-      markAppNavigationRestore(target);
-      void navigate({
-        to: targetHref as any,
-        replace: true,
-      });
-
-      // Router restoration should complete immediately, but a cold installed
-      // launch must never be able to remain on the intermediary launch screen.
-      window.setTimeout(() => {
-        if (!alive || window.location.pathname !== "/app-launch") return;
-        window.location.replace(targetHref);
-      }, 1_000);
-    });
-
-    return () => {
-      alive = false;
-    };
-  }, [isAppMode, navigate]);
-
   return (
-    <main
-      id="main-content"
-      className="grid min-h-[100svh] place-items-center bg-background px-6 text-center"
-      aria-busy="true"
-      aria-live="polite"
-    >
-      <div>
-        <img
-          src="/icon-192.png?v=img2340-20260929"
-          alt=""
-          className="mx-auto size-20 rounded-[1.35rem]"
-        />
-        <p className="mt-5 text-[10px] font-black uppercase tracking-[.16em] text-primary">
-          Solaris Studio
-        </p>
-        <h1 className="mt-2 text-2xl font-bold tracking-[-.03em]">Opening your app…</h1>
-        <div
-          className="mx-auto mt-5 h-1 w-28 overflow-hidden rounded-full bg-white/10"
-          aria-hidden="true"
-        >
-          <span className="block h-full w-1/2 animate-pulse rounded-full bg-primary" />
+    <>
+      {/* Parsing-time trampoline: no auth, telemetry, timer or hydration owner. */}
+      <ScriptOnce>{APP_LAUNCH_BOOTSTRAP_SCRIPT}</ScriptOnce>
+      <main
+        id="main-content"
+        className="grid min-h-[100svh] place-items-center bg-background px-6 text-center"
+        aria-busy="true"
+        aria-live="polite"
+      >
+        <div>
+          <img
+            src="/icon-192.png?v=img2340-20260929"
+            alt=""
+            className="mx-auto size-20 rounded-[1.35rem]"
+          />
+          <p className="mt-5 text-[10px] font-black uppercase tracking-[.16em] text-primary">
+            Solaris Studio
+          </p>
+          <h1 className="mt-2 text-2xl font-bold tracking-[-.03em]">Opening your app…</h1>
+          <div
+            className="mx-auto mt-5 h-1 w-28 overflow-hidden rounded-full bg-white/10"
+            aria-hidden="true"
+          >
+            <span className="block h-full w-1/2 animate-pulse rounded-full bg-primary" />
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </>
   );
 }

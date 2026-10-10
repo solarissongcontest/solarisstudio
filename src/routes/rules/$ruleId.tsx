@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, BookOpen } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
-import { RuleInterpretationsPanel } from "@/components/rules/RuleInterpretationsPanel";
 import { RuleDetailV5 } from "@/components/rules/RuleDetailV5";
 import { usePublishedRulebook } from "@/lib/rules-governance";
 import { getRuleById } from "@/lib/ssc-rules-v4";
@@ -67,7 +66,6 @@ function RulePage() {
     <AppShell>
       <div key={published.version}>
         <RuleDetailV5 rule={rule} />
-        <RuleInterpretationsPanel ruleId={rule.id} />
       </div>
     </AppShell>
   );

@@ -323,7 +323,7 @@ a[class*="rounded-lg"] {
 }
 
 @media (max-width: 1023px) {
-  .app-main {
+  html:not([data-solaris-app]) .app-main {
     padding-bottom: calc(5.75rem + env(safe-area-inset-bottom)) !important;
   }
 }

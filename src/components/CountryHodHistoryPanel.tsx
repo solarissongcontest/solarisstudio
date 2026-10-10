@@ -299,7 +299,7 @@ export function CountryHodHistoryPanel({ inline = false }: { inline?: boolean } 
                 <span className="text-xs font-semibold">Old flag · optional</span>
                 <input
                   type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  accept="image/png,image/jpeg,image/webp"
                   onChange={(event) => setOldFlagFile(event.target.files?.[0] ?? null)}
                   className="mt-2 block min-h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-xs"
                 />

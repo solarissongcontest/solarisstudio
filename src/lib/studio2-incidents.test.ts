@@ -15,7 +15,7 @@ const base: Studio2IncidentRecord = {
   title: 'Televote unavailable',
   severity: 'sev1',
   category: 'voting',
-  status: 'open',
+  status: 'detected',
   affectedSystems: ['televote'],
   description: 'Primary voting endpoint is unavailable.',
   commanderId: null,
@@ -63,9 +63,14 @@ describe('Studio 2 Incident Command model', () => {
     expect(filterStudio2Incidents(incidents, { q: 'primary voting' })).toHaveLength(2);
   });
 
-  it('exposes legal transitions including controlled reopen', () => {
-    expect(availableIncidentTransitions('open')).toEqual(['mitigating', 'monitoring', 'resolved']);
-    expect(availableIncidentTransitions('resolved')).toEqual(['monitoring']);
+  it('exposes the V5 legal transition graph including controlled reopen', () => {
+    expect(availableIncidentTransitions('detected')).toEqual([
+      'investigating',
+      'mitigating',
+      'monitoring',
+      'resolved',
+    ]);
+    expect(availableIncidentTransitions('resolved')).toEqual(['investigating', 'monitoring']);
   });
 
   it('builds an incident-only timeline and preserves operator notes', () => {

@@ -36,8 +36,9 @@ function RuleSearchPage() {
             <input
               name="q"
               defaultValue={q}
+              aria-label="Search rules"
               placeholder="Ask about a rule…"
-              className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+              className="min-h-10 min-w-0 flex-1 bg-transparent text-sm outline-none"
             />
             <button type="submit" className="min-h-9 rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground">
               Search

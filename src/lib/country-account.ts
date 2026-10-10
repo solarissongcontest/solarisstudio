@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import type { Country } from "@/lib/data";
+import { useFanSession } from "@/lib/prediction-data";
+import { uploadVerifiedFile } from "@/lib/upload-safety";
 
 const supabase = typedSupabase as any;
 
@@ -166,10 +168,16 @@ export function useAvailableCountryClaims() {
 }
 
 export function useMyCountryAccount() {
+  const session = useFanSession();
+  const userId = session.data?.id ?? null;
   return useQuery({
-    queryKey: ["my-country-account"],
+    enabled: !session.isLoading,
+    queryKey: ["my-country-account", userId],
     queryFn: async () => {
-      const access = await getCurrentAccountAccess();
+      const access = userId ? await getCurrentAccountAccess(userId) : {
+        userId: null, isOrganizer: false, countryId: null, countryStatus: null,
+        suspensionReason: null, schemaReady: true,
+      };
       if (!access.userId || !access.countryId) {
         return { access, country: null as Country | null };
       }
@@ -544,40 +552,38 @@ export function useDeleteCountryMedia(countryId?: string) {
   });
 }
 
-const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-
-function safeFileName(name: string) {
-  const cleaned = name
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-  return cleaned || "image";
-}
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export async function uploadCountryAsset(
   countryId: string,
   file: File,
-  folder: "flags" | "gallery",
+  folder: "flags" | "gallery" | "backgrounds",
 ) {
   if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-    throw new Error("Use a JPG, PNG, WebP or GIF image.");
+    throw new Error("Use a JPG, PNG or WebP image.");
+  }
+  if (file.size <= 0) {
+    throw new Error("Choose a non-empty image.");
   }
   if (file.size > MAX_IMAGE_BYTES) {
-    throw new Error("Images can be at most 8 MB.");
+    throw new Error("Images can be at most 5 MB.");
   }
 
-  const storagePath = `${countryId}/${folder}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
-  const { error } = await typedSupabase.storage.from("country-media").upload(storagePath, file, {
-    cacheControl: "3600",
-    upsert: false,
-    contentType: file.type,
+  const receipt = await uploadVerifiedFile({
+    client: typedSupabase,
+    domain: "country_media",
+    entityId: countryId,
+    scope: folder,
+    file,
   });
-  if (error) throw error;
 
-  const { data } = typedSupabase.storage.from("country-media").getPublicUrl(storagePath);
-  return { storagePath, publicUrl: data.publicUrl };
+  if (receipt.bucket !== "country-media") {
+    throw new Error("Solaris verified the country image into an unexpected bucket.");
+  }
+
+  const { data } = typedSupabase.storage.from("country-media").getPublicUrl(receipt.object_path);
+  return { storagePath: receipt.object_path, publicUrl: data.publicUrl };
 }
 
 type EntryInput = {

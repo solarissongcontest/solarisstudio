@@ -58,16 +58,34 @@ const ignorableRequest = (url: string) =>
 
 const criticalResourceTypes = new Set(["document", "script", "stylesheet", "font"]);
 
+function isBackendApiResponse(url: string) {
+  return (
+    /\/rest\/v1\//i.test(url) ||
+    /\/auth\/v1\//i.test(url) ||
+    /\/storage\/v1\//i.test(url) ||
+    /\.supabase\.co\//i.test(url)
+  );
+}
+
 function isNavigationCancellation(errorText: string | undefined) {
   return /ERR_ABORTED|NS_BINDING_ABORTED|cancelled|canceled/i.test(errorText ?? "");
 }
 
 function isAnonymousResourceConsoleError(message: string) {
-  return /^Failed to load resource: the server responded with a status of \d{3} \(\)$/i.test(message.trim());
+  // Chromium/WebKit emit this generic console error without the failing URL.
+  // The response listener below records actionable status + resource type + URL
+  // for backend/critical resources, while brokenImages covers image failures.
+  return /^Failed to load resource: the server responded with a status of \d{3}(?: \([^)]*\))?$/i.test(message.trim());
 }
 
 export async function sitemapRoutes(baseURL: string) {
-  const response = await fetch(new URL("/sitemap.xml", baseURL));
+  const maintenanceBypass =
+    process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1"
+      ? { cookie: "solaris_e2e_maintenance_bypass=1" }
+      : undefined;
+  const response = await fetch(new URL("/sitemap.xml", baseURL), {
+    headers: maintenanceBypass,
+  });
   if (!response.ok) return [];
   const xml = await response.text();
   return [...xml.matchAll(/<loc>(.*?)<\/loc>/g)]
@@ -110,7 +128,12 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
   }) => {
     if (response.status() < 400 || ignorableRequest(response.url())) return;
     const resourceType = response.request().resourceType();
-    if (!criticalResourceTypes.has(resourceType)) return;
+    if (
+      !criticalResourceTypes.has(resourceType) &&
+      !isBackendApiResponse(response.url())
+    ) {
+      return;
+    }
     failedCriticalResponses.push(`${response.status()} ${resourceType} ${response.url()}`);
   };
 
@@ -122,10 +145,12 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
   try {
     const response = await page.goto(path, { waitUntil: "domcontentloaded" });
     expect(response?.status(), `${path} should return a successful document`).toBeLessThan(400);
-    await expect(page.locator("main").first()).toBeVisible();
-    await expect(page.locator("h1").first(), `${path} needs one visible page heading`).toBeVisible({ timeout: 15_000 });
-    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => undefined);
-    await page.waitForTimeout(250);
+    await expect(page.locator("main:visible"), `${path} needs one visible main landmark`).toHaveCount(1, {
+      timeout: 15_000,
+    });
+    await expect(page.locator("h1:visible"), `${path} needs one visible page heading`).toHaveCount(1, {
+      timeout: 15_000,
+    });
 
     const result = await page.evaluate(() => {
       const duplicateIds = [...document.querySelectorAll<HTMLElement>("[id]")]
@@ -161,6 +186,31 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
         const rect = node.getBoundingClientRect();
         return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
       });
+
+      const visibleMainLandmarks = [...document.querySelectorAll<HTMLElement>("main")].filter((node) => {
+        if (node.closest('[aria-hidden="true"], [inert]')) return false;
+        const style = getComputedStyle(node);
+        const rect = node.getBoundingClientRect();
+        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      });
+
+      const ariaHiddenFocusable = [
+        ...document.querySelectorAll<HTMLElement>(
+          '[aria-hidden="true"] a[href], [aria-hidden="true"] button:not([disabled]), [aria-hidden="true"] input:not([disabled]):not([type="hidden"]), [aria-hidden="true"] select:not([disabled]), [aria-hidden="true"] textarea:not([disabled]), [aria-hidden="true"] [tabindex]:not([tabindex="-1"])',
+        ),
+      ]
+        .filter((node) => {
+          if (node.tabIndex < 0) return false;
+          const style = getComputedStyle(node);
+          const rect = node.getBoundingClientRect();
+          return (
+            style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            rect.width > 0 &&
+            rect.height > 0
+          );
+        })
+        .map((node) => node.outerHTML.slice(0, 180));
 
       const undersizedControls = [
         ...document.querySelectorAll<HTMLElement>(
@@ -288,11 +338,12 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
 
       return {
         overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
-        mainCount: document.querySelectorAll("main").length,
+        mainCount: visibleMainLandmarks.length,
         duplicateIds: [...new Set(duplicateIds)],
         brokenImages,
         unnamedControls,
         visibleH1Count: visibleHeadingOnes.length,
+        ariaHiddenFocusable,
         undersizedControls,
         countryHeroCollisions,
         officialFlagProblems,
@@ -310,6 +361,51 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
     expect(result.brokenImages, `${path} has broken images`).toEqual([]);
     expect(result.unnamedControls, `${path} has controls without accessible names`).toEqual([]);
     expect(result.visibleH1Count, `${path} should expose exactly one visible h1`).toBe(1);
+    expect(
+      result.ariaHiddenFocusable,
+      `${path} exposes tabbable controls inside a visible aria-hidden region`,
+    ).toEqual([]);
+
+    const focusSentinelSelector = "[data-solaris-audit-focus-start]";
+    await page.evaluate((selector) => {
+      document.querySelector(selector)?.remove();
+      const sentinel = document.createElement("span");
+      sentinel.tabIndex = 0;
+      sentinel.setAttribute("data-solaris-audit-focus-start", "");
+      sentinel.style.cssText =
+        "position:fixed;left:-10000px;top:0;width:1px;height:1px;overflow:hidden;";
+      document.body.prepend(sentinel);
+      sentinel.focus({ preventScroll: true });
+    }, focusSentinelSelector);
+    await page.keyboard.press("Tab");
+    const keyboardFocus = await page.evaluate((selector) => {
+      const sentinel = document.querySelector<HTMLElement>(selector);
+      const active = document.activeElement;
+      const stayedOnSentinel = active === sentinel;
+      sentinel?.remove();
+      if (stayedOnSentinel || !(active instanceof HTMLElement) || active === document.body) {
+        return { focused: false, visible: false, hiddenAncestor: false, tag: "body" };
+      }
+      const style = getComputedStyle(active);
+      const rect = active.getBoundingClientRect();
+      return {
+        focused: true,
+        visible:
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          rect.width > 0 &&
+          rect.height > 0,
+        hiddenAncestor: Boolean(active.closest('[aria-hidden="true"], [inert]')),
+        tag: active.outerHTML.slice(0, 180),
+      };
+    }, focusSentinelSelector);
+    expect(keyboardFocus.focused, `${path} must accept keyboard focus with Tab`).toBe(true);
+    expect(keyboardFocus.visible, `${path} Tab focus landed on a hidden control: ${keyboardFocus.tag}`).toBe(true);
+    expect(
+      keyboardFocus.hiddenAncestor,
+      `${path} Tab focus entered an aria-hidden/inert region: ${keyboardFocus.tag}`,
+    ).toBe(false);
+
     expect(result.undersizedControls, `${path} has controls below the WCAG 2.2 24px target minimum`).toEqual([]);
     expect(result.countryHeroCollisions, `${path} has overlapping country hero semantic regions`).toEqual([]);
     expect(result.officialFlagProblems, `${path} distorts or hides official flag media`).toEqual([]);
