@@ -32,6 +32,15 @@ describe("App Experience v3 native-feel polish", () => {
     expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
   });
 
+  it("keeps the installed toolbar visible once app mode owns the chrome", () => {
+    const shell = source("src/components/AppShell.tsx");
+    const toolbar = source("src/components/app/AppToolbar.tsx");
+
+    expect(shell).toContain('isAppMode && !pathname.startsWith("/integrity/report")');
+    expect(toolbar).toContain('display: "block"');
+    expect(toolbar).toContain('className="solaris-app-toolbar"');
+  });
+
   it("shows minimal first-run guidance through the single app overlay manager", () => {
     const runtime = source("src/components/app/AppRuntime.tsx");
     const manager = source("src/components/app/AppOverlayManager.tsx");

@@ -42,8 +42,22 @@ describe("archive readiness", () => {
 
   it("does not mount the organizer shell while access is still being checked", () => {
     const gate = source("components/admin/UnifiedServiceAdminGate.tsx");
-    const checkingBranch = gate.slice(gate.indexOf('if (state !== "allowed")'), gate.indexOf("return <AdminShell>{children}"));
+    const checkingBranch = gate.slice(
+      gate.indexOf('if (state.status !== "allowed")'),
+      gate.indexOf("return <ServiceAdminShell user={state.user}>{children}</ServiceAdminShell>;"),
+    );
     expect(checkingBranch).not.toContain("<AdminShell>");
+    expect(checkingBranch).not.toContain("<ServiceAdminShell");
+  });
+
+  it("provides authenticated identity to every service-admin shell", () => {
+    const gate = source("components/admin/UnifiedServiceAdminGate.tsx");
+    expect(gate).toContain('import { AuthenticatedUserProvider } from "@/components/auth/AuthenticatedUserContext"');
+    expect(gate).toContain('{ status: "backend-missing"; user: User }');
+    expect(gate).toContain('<AuthenticatedUserProvider user={user}>');
+    expect(gate).toContain('<AdminShell>{children}</AdminShell>');
+    expect(gate.match(/<ServiceAdminShell user=\{state\.user\}>/g)).toHaveLength(2);
+    expect(gate).not.toContain("return <AdminShell>{children}</AdminShell>;");
   });
 
   it("keeps focused participation tasks anchored to one responsive Participate hub", () => {
