@@ -14,9 +14,9 @@ describe("country-auth anonymous rate-limit hardening", () => {
     expect(authFunction).toContain("async function consumeAnonymousRateLimit");
     expect(authFunction).toContain("`${scope}:address`");
     expect(authFunction).toContain("`${scope}:target`");
-    expect(authFunction).toContain(
-      '"signup",\n        clientAddress,\n        `${countryId}|${instagramUsername}`,\n        5,\n        20,',
-    );
+    expect(authFunction).toContain('"signup-address"');
+    expect(authFunction).toContain('`${clientAddress}|${countryId}|${instagramUsername}`');
+    expect(authFunction).toContain('{ "Retry-After": "900" }');
     expect(authFunction).toContain(
       '"signin",\n        clientAddress,\n        identifier,\n        20,\n        60,',
     );
