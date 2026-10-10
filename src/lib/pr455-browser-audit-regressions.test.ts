@@ -79,7 +79,7 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(audit).not.toContain("document.activeElement.blur()");
   });
 
-  it("keeps organizer child content out of primary-main ownership and normalizes action-centre aliases", () => {
+  it("keeps organizer child content out of primary-main ownership and legacy Action Center aliases on canonical Tasks", () => {
     const gate = source("src/components/admin/UnifiedServiceAdminGate.tsx");
     const combined = source("src/routes/televoting/admin/combined.tsx");
     const britishAlias = source("src/routes/_authenticated/admin/action-centre.tsx");
@@ -89,10 +89,10 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(gate).toContain('aria-label="Checking organizer access"');
     expect(gate).not.toContain("<main");
     expect(combined).not.toContain("<main");
-    expect(britishAlias).toContain('redirect({ to: "/admin/operations", replace: true })');
-    expect(americanAlias).toContain('redirect({ to: "/admin/operations", replace: true })');
-    expect(britishAlias).not.toContain('to: "/admin/tasks"');
-    expect(americanAlias).not.toContain('to: "/admin/tasks"');
+    expect(britishAlias).toContain('to: "/admin/tasks"');
+    expect(americanAlias).toContain('to: "/admin/tasks"');
+    expect(britishAlias).not.toContain('to: "/admin/operations"');
+    expect(americanAlias).not.toContain('to: "/admin/operations"');
   });
 
   it("keeps organizer auth resolution inside an effect instead of render", () => {
