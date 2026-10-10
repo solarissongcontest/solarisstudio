@@ -78,4 +78,31 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(audit).toContain("const stayedOnSentinel = active === sentinel");
     expect(audit).not.toContain("document.activeElement.blur()");
   });
+
+  it("keeps organizer child content out of primary-main ownership and normalizes action-centre aliases", () => {
+    const gate = source("src/components/admin/UnifiedServiceAdminGate.tsx");
+    const combined = source("src/routes/televoting/admin/combined.tsx");
+    const britishAlias = source("src/routes/_authenticated/admin/action-centre.tsx");
+    const americanAlias = source("src/routes/_authenticated/admin/action-center.tsx");
+
+    expect(gate).toContain('role="status"');
+    expect(gate).toContain('aria-label="Checking organizer access"');
+    expect(gate).not.toContain("<main");
+    expect(combined).not.toContain("<main");
+    expect(britishAlias).toContain('redirect({ to: "/admin/operations", replace: true })');
+    expect(americanAlias).toContain('redirect({ to: "/admin/operations", replace: true })');
+    expect(britishAlias).not.toContain('to: "/admin/tasks"');
+    expect(americanAlias).not.toContain('to: "/admin/tasks"');
+  });
+
+  it("keeps organizer auth resolution inside an effect instead of render", () => {
+    const gate = source("src/components/admin/UnifiedServiceAdminGate.tsx");
+    const functionStart = gate.indexOf("export function UnifiedServiceAdminGate");
+    const effectStart = gate.indexOf("useEffect(() =>", functionStart);
+    const beforeEffect = gate.slice(functionStart, effectStart);
+
+    expect(effectStart).toBeGreaterThan(functionStart);
+    expect(beforeEffect).not.toContain("supabase.auth.getUser()");
+    expect(gate.slice(effectStart)).toContain("supabase.auth.getUser()");
+  });
 });

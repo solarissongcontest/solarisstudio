@@ -124,7 +124,13 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
 
   if (state !== "allowed") {
     return (
-      <main className="grid min-h-[60vh] place-items-center px-4" aria-busy="true">
+      <section
+        role="status"
+        aria-busy="true"
+        aria-live="polite"
+        aria-label="Checking organizer access"
+        className="grid min-h-[60vh] place-items-center px-4"
+      >
         <div className="glass w-full max-w-xl p-4 sm:p-5">
           <div className="flex items-center gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-sky-200/10 bg-sky-200/[0.06] text-sky-100">
@@ -140,7 +146,7 @@ export function UnifiedServiceAdminGate({ children }: { children: ReactNode }) {
             </div>
           </div>
         </div>
-      </main>
+      </section>
     );
   }
 
