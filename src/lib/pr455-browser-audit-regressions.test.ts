@@ -74,10 +74,15 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(audit).not.toContain('page.locator("h1").first()');
     expect(audit).not.toContain('waitForLoadState("networkidle"');
     expect(audit).not.toContain("waitForTimeout(250)");
-    expect(preflight).toContain('.locator("main:visible")');
-    expect(preflight).toContain('.locator("h1:visible")');
+
+    expect(preflight).toContain('.getByRole("status", { name: "Loading page" })');
+    expect(preflight).toContain('.waitFor({ state: "hidden", timeout: 30_000 })');
+    expect(preflight).toContain("mainVisible: pageState.mainCount === 1");
+    expect(preflight).toContain("headingVisible: pageState.h1Count === 1");
     expect(preflight).not.toContain('.locator("main")\n    .first()');
     expect(preflight).not.toContain('.locator("h1")\n    .first()');
+    expect(preflight).not.toContain('waitForLoadState("networkidle"');
+    expect(preflight).not.toContain("waitForTimeout(");
     expect(audit).toContain("if (node.tabIndex < 0) return false;");
   });
 
