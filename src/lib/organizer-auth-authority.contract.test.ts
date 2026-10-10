@@ -16,7 +16,7 @@ function routeFiles(root: string): string[] {
 }
 
 describe("Organizer authentication authority", () => {
-  it("verifies identity only after the authenticated boundary mounts, then reuses it for Organizer access", () => {
+  it("verifies identity declaratively after the authenticated boundary mounts, then reuses it for Organizer access", () => {
     const authenticatedRoute = source("src/routes/_authenticated/route.tsx");
     const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
     const identityGateStart = authenticatedRoute.indexOf("function AuthenticatedIdentityGate");
@@ -33,15 +33,17 @@ describe("Organizer authentication authority", () => {
     expect(authenticatedRoute).not.toContain("beforeLoad:");
     expect(authenticatedRoute).not.toContain("throw redirect");
     expect(identityGateStart).toBeGreaterThanOrEqual(0);
-    expect(identityGate).toContain("useEffect(() =>");
+    expect(identityGate).toContain("useQuery<User | null>({");
+    expect(identityGate).toContain('queryKey: ["authenticated-identity-gate"]');
     expect(identityGate).toContain("await supabase.auth.getUser()");
-    expect(identityGate).toContain("if (!active) return");
+    expect(identityGate).toContain("retry: false");
+    expect(identityGate).toContain("useEffect(() =>");
+    expect(identityGate).toContain("if (identity.isPending || identity.data) return");
     expect(identityGate).toContain('to: "/auth"');
-    expect(identityGate.indexOf("await supabase.auth.getUser()")).toBeGreaterThan(
-      identityGate.indexOf("useEffect(() =>"),
-    );
+    expect(identityGate).not.toContain("useState(");
+    expect(identityGate).not.toContain("setState(");
     expect(authenticatedRoute).toContain("<AuthenticatedIdentityGate>");
-    expect(authenticatedRoute).toContain("<AuthenticatedUserProvider user={state.user}>");
+    expect(authenticatedRoute).toContain("<AuthenticatedUserProvider user={identity.data}>");
     expect(authenticatedRoute).not.toContain("hasSolarisOrganizerAccess");
 
     expect(adminRoute).not.toContain("beforeLoad:");
@@ -49,9 +51,14 @@ describe("Organizer authentication authority", () => {
     expect(adminRoute).not.toContain("supabase.auth.getUser()");
     expect(adminRoute).toContain("const user = useAuthenticatedUser()");
     expect(organizerGateStart).toBeGreaterThanOrEqual(0);
+    expect(organizerGate).toContain("useQuery<boolean>({");
+    expect(organizerGate).toContain('queryKey: ["organizer-access-gate", user.id]');
+    expect(organizerGate).toContain("return await hasSolarisOrganizerAccess(user.id)");
+    expect(organizerGate).toContain("retry: false");
     expect(organizerGate).toContain("useEffect(() =>");
-    expect(organizerGate).toContain("isOrganizer = await hasSolarisOrganizerAccess(user.id)");
-    expect(organizerGate).toContain("if (!active) return");
+    expect(organizerGate).toContain("if (organizerAccess.isPending || organizerAccess.data) return");
+    expect(organizerGate).not.toContain("useState(");
+    expect(organizerGate).not.toContain("setState(");
     expect(organizerGate).toContain('to: "/my-solaris"');
     expect(organizerGate).toContain('notice: "organizer-access-required"');
     expect(organizerGate).toContain("replace: true");

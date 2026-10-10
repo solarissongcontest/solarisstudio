@@ -213,10 +213,15 @@ describe("Studio 2 stabilization contract", () => {
     expect(authenticatedRoute).toContain("ssr: false");
     expect(authenticatedRoute).not.toContain("beforeLoad:");
     expect(authenticatedRoute).not.toContain('.from("user_roles")');
-    expect(identityGate).toContain("useEffect(() =>");
+    expect(identityGate).toContain("useQuery<User | null>({");
+    expect(identityGate).toContain('queryKey: ["authenticated-identity-gate"]');
     expect(identityGate).toContain("await supabase.auth.getUser()");
-    expect(identityGate).toContain("if (!active) return");
-    expect(authenticatedRoute).toContain("<AuthenticatedUserProvider user={state.user}>");
+    expect(identityGate).toContain("retry: false");
+    expect(identityGate).toContain("useEffect(() =>");
+    expect(identityGate).toContain("if (identity.isPending || identity.data) return");
+    expect(identityGate).not.toContain("useState(");
+    expect(identityGate).not.toContain("setState(");
+    expect(authenticatedRoute).toContain("<AuthenticatedUserProvider user={identity.data}>");
     expect(authenticatedRoute).not.toContain("hasSolarisOrganizerAccess");
 
     expect(adminRoute).not.toContain("beforeLoad:");
@@ -224,9 +229,14 @@ describe("Studio 2 stabilization contract", () => {
     expect(adminRoute).not.toContain('.from("user_roles")');
     expect(adminRoute).not.toContain("supabase.auth.getUser()");
     expect(adminRoute).toContain("const user = useAuthenticatedUser()");
+    expect(organizerGate).toContain("useQuery<boolean>({");
+    expect(organizerGate).toContain('queryKey: ["organizer-access-gate", user.id]');
+    expect(organizerGate).toContain("return await hasSolarisOrganizerAccess(user.id)");
+    expect(organizerGate).toContain("retry: false");
     expect(organizerGate).toContain("useEffect(() =>");
-    expect(organizerGate).toContain("isOrganizer = await hasSolarisOrganizerAccess(user.id)");
-    expect(organizerGate).toContain("if (!active) return");
+    expect(organizerGate).toContain("if (organizerAccess.isPending || organizerAccess.data) return");
+    expect(organizerGate).not.toContain("useState(");
+    expect(organizerGate).not.toContain("setState(");
     expect(organizerGate).toContain('to: "/my-solaris"');
     expect(organizerGate).toContain('notice: "organizer-access-required"');
     expect(organizerGate).toContain("replace: true");
