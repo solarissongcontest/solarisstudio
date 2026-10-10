@@ -22,9 +22,11 @@ async function auditRoutes(page: Page, routes: string[], testInfo: TestInfo) {
   expect(failures, "Every public route should pass the viewport audit").toEqual([]);
 }
 
-test("public route families pass at this viewport", async ({ page }, testInfo) => {
-  await auditRoutes(page, [...STATIC_PUBLIC_ROUTES].sort(), testInfo);
-});
+for (const route of [...STATIC_PUBLIC_ROUTES].sort()) {
+  test(`public route ${route} passes at this viewport`, async ({ page }, testInfo) => {
+    await test.step(route, () => auditPage(page, route, testInfo));
+  });
+}
 
 test("real Country and Wiki pages pass collision and flag audits at this viewport", async ({ page, baseURL }, testInfo) => {
   const discovered = await sitemapRoutes(baseURL!);
