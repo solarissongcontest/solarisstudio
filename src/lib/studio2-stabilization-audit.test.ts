@@ -45,6 +45,7 @@ function routeFile(route: string) {
 
 const adminNav = source("src/components/admin/admin-navigation.ts");
 const operationsPanel = source("src/components/MySolarisOperationsPanel.tsx");
+const authenticatedRoute = source("src/routes/_authenticated/route.tsx");
 const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
 
 describe("Studio 2 stabilization contract", () => {
@@ -199,10 +200,36 @@ describe("Studio 2 stabilization contract", () => {
   });
 
   it("keeps every authenticated Organizer route behind authoritative V2 access", () => {
-    expect(adminRoute).toContain("hasSolarisOrganizerAccess");
+    const identityGateStart = authenticatedRoute.indexOf("function AuthenticatedIdentityGate");
+    const identityGateEnd = authenticatedRoute.indexOf(
+      "function MySolarisAccessGate",
+      identityGateStart,
+    );
+    const identityGate = authenticatedRoute.slice(identityGateStart, identityGateEnd);
+    const organizerGateStart = adminRoute.indexOf("function OrganizerAccessGate");
+    const organizerGateEnd = adminRoute.indexOf("export const Route", organizerGateStart);
+    const organizerGate = adminRoute.slice(organizerGateStart, organizerGateEnd);
+
+    expect(authenticatedRoute).toContain("ssr: false");
+    expect(authenticatedRoute).not.toContain("beforeLoad:");
+    expect(authenticatedRoute).not.toContain('.from("user_roles")');
+    expect(identityGate).toContain("useEffect(() =>");
+    expect(identityGate).toContain("await supabase.auth.getUser()");
+    expect(identityGate).toContain("if (!active) return");
+    expect(authenticatedRoute).toContain("<AuthenticatedUserProvider user={state.user}>");
+    expect(authenticatedRoute).not.toContain("hasSolarisOrganizerAccess");
+
+    expect(adminRoute).not.toContain("beforeLoad:");
+    expect(adminRoute).not.toContain("loader:");
     expect(adminRoute).not.toContain('.from("user_roles")');
-    expect(adminRoute).toContain('to: "/my-solaris"');
-    expect(adminRoute).toContain('notice: "organizer-access-required"');
-    expect(adminRoute).toContain("replace: true");
+    expect(adminRoute).not.toContain("supabase.auth.getUser()");
+    expect(adminRoute).toContain("const user = useAuthenticatedUser()");
+    expect(organizerGate).toContain("useEffect(() =>");
+    expect(organizerGate).toContain("isOrganizer = await hasSolarisOrganizerAccess(user.id)");
+    expect(organizerGate).toContain("if (!active) return");
+    expect(organizerGate).toContain('to: "/my-solaris"');
+    expect(organizerGate).toContain('notice: "organizer-access-required"');
+    expect(organizerGate).toContain("replace: true");
+    expect(adminRoute).toContain("<OrganizerAccessGate user={user}>");
   });
 });

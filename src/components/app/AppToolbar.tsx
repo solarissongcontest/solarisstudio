@@ -33,6 +33,7 @@ export function AppToolbar({
     resetKey: `${pathname}|${searchStr}`,
   });
   const toolbarStyle = {
+    display: "block",
     "--solaris-toolbar-title-scale": (1.04 - morphProgress * 0.04).toFixed(4),
     "--solaris-toolbar-title-y": `${(1 - morphProgress) * 1.5}px`,
     "--solaris-toolbar-bg-top-alpha": (0.60 + morphProgress * 0.10).toFixed(3),
@@ -59,6 +60,8 @@ export function AppToolbar({
     chrome.archetype === "settings" ||
     chrome.archetype === "workspace" ||
     chrome.archetype === "directory";
+  const showCenteredContextTitle =
+    toolbarOwnsHeading && (showBack || chrome.archetype === "directory");
   const backLabel = searchReturn
     ? "Search"
     : effectiveBackTarget
@@ -110,14 +113,14 @@ export function AppToolbar({
               <ChevronLeft className="size-5" aria-hidden="true" />
               <span>{backLabel ?? "Back"}</span>
             </button>
-          ) : chrome.root ? (
+          ) : chrome.root && !showCenteredContextTitle ? (
             <h1 className="solaris-app-toolbar-title">{chrome.title}</h1>
-          ) : (
+          ) : !chrome.root && !showCenteredContextTitle ? (
             <span className="solaris-app-toolbar-title">{chrome.title}</span>
-          )}
+          ) : null}
         </div>
 
-        {showBack && toolbarOwnsHeading ? (
+        {showCenteredContextTitle ? (
           <h1 className="solaris-app-toolbar-context-title">{chrome.title}</h1>
         ) : null}
 

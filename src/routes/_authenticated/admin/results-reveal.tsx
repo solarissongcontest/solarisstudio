@@ -29,6 +29,16 @@ const STRATEGY_LABELS: Record<RevealStrategy, string> = {
   televote_ascending: 'Televote ascending',
 };
 
+function ResultsRevealHeader() {
+  return (
+    <AdminPageHeader
+      eyebrow="Solaris Studio 2"
+      title="Results Reveal Director"
+      description="Compare reveal orders against the actual jury and televote result rows and see exactly when the winner becomes mathematically certain. Dramatic television, but with arithmetic supervising it."
+    />
+  );
+}
+
 function ResultsRevealPage() {
   const { editionId } = useAdminContext();
   const showsQuery = useShows(editionId ?? undefined);
@@ -118,17 +128,27 @@ function ResultsRevealPage() {
   ] satisfies readonly AdminDataColumn<(typeof simulation.steps)[number]>[];
 
   if (featureQuery.isLoading) {
-    return <AdminPage><p className="text-sm text-muted-foreground">Loading Results Reveal Director…</p></AdminPage>;
+    return (
+      <AdminPage>
+        <ResultsRevealHeader />
+        <AdminCard>
+          <p className="py-10 text-center text-sm text-muted-foreground">Loading Results Reveal Director…</p>
+        </AdminCard>
+      </AdminPage>
+    );
   }
 
   if (featureQuery.data !== true) {
     return (
       <AdminPage>
-        <AdminEmptyState
-          icon={Sparkles}
-          title="Results Reveal Director is disabled"
-          description="Enable the Results Replay rollout flag before using reveal simulations."
-        />
+        <ResultsRevealHeader />
+        <AdminCard>
+          <AdminEmptyState
+            icon={Sparkles}
+            title="Results Reveal Director is disabled"
+            description="Enable the Results Replay rollout flag before using reveal simulations."
+          />
+        </AdminCard>
       </AdminPage>
     );
   }
@@ -136,11 +156,7 @@ function ResultsRevealPage() {
   return (
     <AdminPage>
       <ObjectPage className="max-w-7xl">
-        <AdminPageHeader
-          eyebrow="Solaris Studio 2"
-          title="Results Reveal Director"
-          description="Compare reveal orders against the actual jury and televote result rows and see exactly when the winner becomes mathematically certain. Dramatic television, but with arithmetic supervising it."
-        />
+        <ResultsRevealHeader />
 
         <AdminCard strong>
           <div className="grid gap-4 lg:grid-cols-2">

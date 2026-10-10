@@ -20,7 +20,7 @@ describe("installed app CSS ownership", () => {
     expect(app).toContain("var(--solaris-app-bottom-obstruction");
   });
 
-  it("defines one named overlay stack instead of component-specific magic numbers", () => {
+  it("defines one named overlay stack while preserving the frozen Search dialog primitive", () => {
     const base = source("src/styles.css");
     const sheet = source("src/components/ui/sheet.tsx");
     const dialog = source("src/components/ui/dialog.tsx");
@@ -42,9 +42,19 @@ describe("installed app CSS ownership", () => {
     }
 
     expect(sheet).toContain("var(--solaris-z-sheet)");
-    expect(dialog).toContain("var(--solaris-z-dialog)");
     expect(popover).toContain("var(--solaris-z-popover)");
     expect(menu).toContain("var(--solaris-z-popover)");
+
+    // #449 made the shared Dialog primitive part of the protected Search
+    // implementation. Keep that file byte-compatible with production while
+    // asserting that its frozen 99/100 layers still equal the canonical named
+    // dialog stack declared in styles.css.
+    expect(base).toContain("--solaris-z-dialog-backdrop: 99");
+    expect(base).toContain("--solaris-z-dialog: 100");
+    expect(dialog).toContain('data-solaris-dialog-overlay=""');
+    expect(dialog).toContain('data-solaris-dialog=""');
+    expect(dialog).toContain("z-[99]");
+    expect(dialog).toContain("z-[100]");
   });
 
   it("keeps protected installed-app geometry out of legacy CSS files", () => {

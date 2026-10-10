@@ -22,7 +22,7 @@ const DialogOverlay = React.forwardRef<
     data-solaris-dialog-overlay=""
     ref={ref}
     className={cn(
-      "fixed inset-0 z-[var(--solaris-z-dialog-backdrop)] bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-[99] bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
     )}
     {...props}
@@ -47,8 +47,8 @@ const DialogContent = React.forwardRef<
       ref={ref}
       className={cn(
         layout === "fullscreen"
-          ? "fixed inset-0 z-[var(--solaris-z-dialog)] grid w-full gap-0 border-0 bg-background p-0 shadow-none"
-          : "fixed left-[50%] top-[50%] z-[var(--solaris-z-dialog)] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
+          ? "fixed inset-0 z-[100] grid w-full gap-0 border-0 bg-background p-0 shadow-none"
+          : "fixed left-[50%] top-[50%] z-[100] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
         className,
       )}
       {...props}

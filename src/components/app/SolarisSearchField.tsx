@@ -1,3 +1,5 @@
+import "./solaris-search-motion.css";
+
 import { Search, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";

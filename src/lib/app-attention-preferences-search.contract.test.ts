@@ -43,12 +43,23 @@ describe("App Experience v3 attention preferences and search", () => {
     const dialog = source("src/components/ui/dialog.tsx");
     const command = source("src/components/ui/command.tsx");
     const searchField = source("src/components/app/SolarisSearchField.tsx");
+    const searchMotion = source("src/components/app/solaris-search-motion.css");
     expect(dialog).toContain('layout?: "centered" | "fullscreen"');
     expect(dialog).toContain("data-solaris-dialog-layout={layout}");
     expect(command).toContain("showCloseButton?: boolean");
+    expect(command).toContain('import "@/components/app/solaris-search-motion.css"');
+    expect(searchField).toContain('import "./solaris-search-motion.css"');
     expect(searchField).toContain("solaris-app-search-shell");
     expect(searchField).toContain("solaris-app-search-input");
     expect(searchField).toContain("autoFocus={autoFocus}");
+    expect(searchMotion).toContain("--solaris-search-focus-rgb: 65 142 127");
+    expect(searchMotion).toContain("background: rgb(255 255 255 / .055) !important");
+    expect(searchMotion).toContain(
+      "border-color: rgb(var(--solaris-search-focus-rgb) / .28) !important",
+    );
+    expect(searchMotion).toContain(
+      "box-shadow: 0 0 0 3px rgb(var(--solaris-search-focus-rgb) / .16) !important",
+    );
     expect(appStyles).toContain('[role="dialog"].solaris-app-search-dialog[data-state="open"]');
     expect(appStyles).toContain("width: var(--solaris-visual-viewport-width, 100vw) !important");
     expect(appStyles).toContain("left: var(--solaris-visual-viewport-offset-left, 0px) !important");
@@ -57,6 +68,7 @@ describe("App Experience v3 attention preferences and search", () => {
     expect(globalStyles).toContain('[role="dialog"][data-state="open"]:not(.solaris-app-search-dialog)');
     expect(appStyles).toContain(".solaris-app-search-list");
   });
+
   it("persists user spoiler changes without reflecting server hydration back as a user action", () => {
     const experience = source("src/lib/app-experience.ts");
     const sync = source("src/components/app/AppExperiencePreferenceSync.tsx");
@@ -66,6 +78,19 @@ describe("App Experience v3 attention preferences and search", () => {
     expect(sync).toContain("useSaveNotificationPreferences");
     expect(sync).toContain("APP_EXPERIENCE_USER_CHANGE_EVENT");
     expect(root).toContain("<AppExperiencePreferenceSync />");
+  });
+
+  it("guards delayed auth callbacks before updating root preference sync state", () => {
+    const sync = source("src/components/app/AppExperiencePreferenceSync.tsx");
+    const authChangeStart = sync.indexOf("supabase.auth.onAuthStateChange");
+    const cleanupStart = sync.indexOf("return () =>", authChangeStart);
+
+    expect(authChangeStart).toBeGreaterThanOrEqual(0);
+    expect(cleanupStart).toBeGreaterThan(authChangeStart);
+
+    const authChangeBlock = sync.slice(authChangeStart, cleanupStart);
+    expect(authChangeBlock).toContain("if (!alive) return;");
+    expect(authChangeBlock).toContain("setUserId(session?.user?.id);");
   });
 
   it("restores Search as the contextual back destination even across primary tabs", () => {
@@ -79,5 +104,4 @@ describe("App Experience v3 attention preferences and search", () => {
     expect(toolbar).toContain('? "Search"');
     expect(searchState).toContain("solaris:app-search-return:v1");
   });
-
 });

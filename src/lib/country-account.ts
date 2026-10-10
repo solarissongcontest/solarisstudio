@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import type { Country } from "@/lib/data";
+import { useFanSession } from "@/lib/prediction-data";
 import { uploadVerifiedFile } from "@/lib/upload-safety";
 
 const supabase = typedSupabase as any;
@@ -167,10 +168,16 @@ export function useAvailableCountryClaims() {
 }
 
 export function useMyCountryAccount() {
+  const session = useFanSession();
+  const userId = session.data?.id ?? null;
   return useQuery({
-    queryKey: ["my-country-account"],
+    enabled: !session.isLoading,
+    queryKey: ["my-country-account", userId],
     queryFn: async () => {
-      const access = await getCurrentAccountAccess();
+      const access = userId ? await getCurrentAccountAccess(userId) : {
+        userId: null, isOrganizer: false, countryId: null, countryStatus: null,
+        suspensionReason: null, schemaReady: true,
+      };
       if (!access.userId || !access.countryId) {
         return { access, country: null as Country | null };
       }

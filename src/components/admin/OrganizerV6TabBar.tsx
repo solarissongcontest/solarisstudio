@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -67,7 +68,7 @@ export function OrganizerV6TabBar({
   const visualActiveIndex = dragging ? activeIndex : dragPreviewIndex ?? activeIndex;
   const compact = collapsed || mode === "compact";
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = document.documentElement;
     const bar = barRef.current;
 
@@ -100,9 +101,18 @@ export function OrganizerV6TabBar({
       observer?.disconnect();
       window.removeEventListener("resize", sync);
       window.visualViewport?.removeEventListener("resize", sync);
-      root.style.setProperty("--solaris-bottom-obstruction", "0px");
+      // Preserve the last valid measurement across dependency replacement.
+      // The next layout effect publishes its value before paint; unmount reset
+      // is deliberately owned by the separate cleanup below.
     };
   }, [collapsed, mode, pathname]);
+
+  useEffect(
+    () => () => {
+      document.documentElement.style.setProperty("--solaris-bottom-obstruction", "0px");
+    },
+    [],
+  );
 
   const tabRects = () => {
     const material = materialRef.current;
@@ -112,17 +122,21 @@ export function OrganizerV6TabBar({
     ).map((element) => element.getBoundingClientRect());
   };
 
-  const clearDrag = useCallback(() => {
-    endHold();
+  const resetDragDom = useCallback(() => {
     const material = materialRef.current;
     material?.style.setProperty("--organizer-tab-drag-x", "0px");
     material?.style.setProperty("--organizer-tab-scale-x", "1");
     material?.style.setProperty("--organizer-bar-grow", "0px");
     material?.removeAttribute("data-drag-direction");
     dragState.current = null;
+  }, []);
+
+  const clearDrag = useCallback(() => {
+    endHold();
+    resetDragDom();
     setDragging(false);
     setDragPreviewIndex(null);
-  }, [endHold]);
+  }, [endHold, resetDragDom]);
 
   useEffect(() => {
     const resetInterruptedGesture = () => clearDrag();
@@ -138,9 +152,11 @@ export function OrganizerV6TabBar({
       window.removeEventListener("blur", resetInterruptedGesture);
       window.removeEventListener("orientationchange", resetInterruptedGesture);
       document.removeEventListener("visibilitychange", resetWhenHidden);
-      clearDrag();
+      // Effect cleanup is resource teardown, not a UI transition. React state
+      // disappears with the component, so never enqueue state updates here.
+      resetDragDom();
     };
-  }, [clearDrag, pathname]);
+  }, [clearDrag, pathname, resetDragDom]);
 
   const startDrag = (
     event: ReactPointerEvent<HTMLAnchorElement>,

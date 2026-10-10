@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -19,5 +20,12 @@ describe("Solaris V6 press-hold physics", () => {
         0,
       ),
     ).toBe(true);
+  });
+
+  it("tears down a pending hold without enqueueing React state", () => {
+    const source = readFileSync("src/lib/use-solaris-press-hold.ts", "utf8");
+    expect(source).toContain("window.clearTimeout(active.timer)");
+    expect(source).toContain("session.current = null");
+    expect(source).not.toContain("useEffect(() => () => end(), [end])");
   });
 });

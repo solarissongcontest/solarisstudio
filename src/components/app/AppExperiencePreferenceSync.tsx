@@ -27,6 +27,7 @@ export function AppExperiencePreferenceSync() {
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!alive) return;
       setUserId(session?.user?.id);
     });
 
