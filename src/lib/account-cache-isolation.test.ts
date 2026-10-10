@@ -7,6 +7,9 @@ describe("shared-browser private state", () => {
   it("removes A, preserves public data and prevents A's late response repopulating B", async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     client.setQueryData(["countries"], ["public"]);
+    client.setQueryData(["edition-selection", "A"], "edition A");
+    client.setQueryData(["user-prefs", "A"], "prefs A");
+    client.setQueryData(["user-country-ownership", "A"], "A");
     client.setQueryData(["mysolaris-jury-task", "A", "country", "edition"], "AAAA");
     client.setQueryData(["owned-entry-publication", "edition"], "A publication");
     client.setQueryData(["owned-country-identity-history", "edition"], "A identity");
@@ -17,6 +20,9 @@ describe("shared-browser private state", () => {
     client.setQueryData(["mysolaris-jury-task", "B", "country", "edition"], "BBBB");
     complete("OLD ACCOUNT DATA");
     await pending;
+    expect(client.getQueryData(["edition-selection", "A"])).toBeUndefined();
+    expect(client.getQueryData(["user-prefs", "A"])).toBeUndefined();
+    expect(client.getQueryData(["user-country-ownership", "A"])).toBeUndefined();
     expect(client.getQueryData(["mysolaris-jury-task", "A", "country", "edition"])).toBeUndefined();
     expect(client.getQueryData(["country-confirmation-access", "A"])).toBeUndefined();
     expect(client.getQueryData(["owned-entry-publication", "edition"])).toBeUndefined();
@@ -31,6 +37,7 @@ describe("shared-browser private state", () => {
   it("namespaces private jury observers and remounts the ballot when accounts change", () => {
     const context = readFileSync("src/components/mysolaris/MySolarisContext.tsx", "utf8");
     const jury = readFileSync("src/routes/jury-voting.tsx", "utf8");
+    expect(jury).toContain("useFanSession");
     expect(context).toContain('["mysolaris-jury-task", userId, countryId, currentEdition?.id ?? "none"]');
     expect(jury).toContain('["country-jury-voting-context", userId]');
     expect(jury).toContain('key={`${userId}:${context.country.id}:${openRound.show_id}`}');

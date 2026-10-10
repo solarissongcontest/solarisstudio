@@ -52,9 +52,13 @@ describe("country account username authentication", () => {
     expect(rateLimitMigration).toContain("private.country_auth_rate_limits");
     expect(rateLimitMigration).toContain("country_auth_consume_rate_limit");
     expect(rateLimitMigration).toContain("revoke all on private.country_auth_rate_limits");
-    expect(authFunction).toContain('consumeRateLimit(\n        service,\n        "signup"');
-    expect(authFunction).toContain('consumeRateLimit(\n        service,\n        "signin"');
-    expect(authFunction).toContain('consumeRateLimit(\n        service,\n        "recover"');
+    expect(authFunction).toContain("async function consumeAnonymousRateLimit(");
+    expect(authFunction).toContain("`${scope}:address`");
+    expect(authFunction).toContain("`${scope}:target`");
+    expect(authFunction).toContain('"signup-address"');
+    expect(authFunction).toContain('`${clientAddress}|${countryId}|${instagramUsername}`');
+    expect(authFunction).toContain('consumeAnonymousRateLimit(\n        service,\n        "signin"');
+    expect(authFunction).toContain('consumeAnonymousRateLimit(\n        service,\n        "recover"');
     expect(authFunction).toContain("sha256Hex(`${scope}|${rawKey}`)");
     expect(authFunction).not.toContain('console.log("[country-auth]');
   });

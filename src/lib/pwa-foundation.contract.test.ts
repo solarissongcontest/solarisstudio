@@ -71,7 +71,7 @@ describe("Solaris installed-app foundation", () => {
     expect(styles).toContain("-webkit-backdrop-filter: none");
   });
 
-  it("bumps the installed-app static cache when liquid glass rendering changes", () => {
+  it("tracks the current installed-app static cache generation", () => {
     const worker = source("public/sw.js");
     expect(worker).toContain('const CACHE_VERSION = "solaris-app-v15"');
   });

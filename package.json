@@ -16,7 +16,8 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e:organizer-preflight": "playwright test --config=playwright.pr455-preflight.config.ts"
   },
   "overrides": {
     "esbuild": "0.28.2",

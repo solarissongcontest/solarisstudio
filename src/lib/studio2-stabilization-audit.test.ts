@@ -46,7 +46,6 @@ function routeFile(route: string) {
 const adminNav = source("src/components/admin/admin-navigation.ts");
 const operationsPanel = source("src/components/MySolarisOperationsPanel.tsx");
 const authenticatedRoute = source("src/routes/_authenticated/route.tsx");
-const organizerGate = source("src/components/admin/OrganizerAccessGate.tsx");
 const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
 
 describe("Studio 2 stabilization contract", () => {
@@ -200,19 +199,47 @@ describe("Studio 2 stabilization contract", () => {
     expect(studio2SurfaceRolloutEligible(rules)).toBe(false);
   });
 
-  it("keeps every authenticated Organizer route behind mounted authoritative V2 access", () => {
-    expect(authenticatedRoute).toContain("<OrganizerAccessGate");
-    expect(authenticatedRoute).toContain('pathname === "/admin"');
-    expect(authenticatedRoute).toContain('pathname.startsWith("/admin/")');
+  it("keeps every authenticated Organizer route behind authoritative V2 access", () => {
+    const identityGateStart = authenticatedRoute.indexOf("function AuthenticatedIdentityGate");
+    const identityGateEnd = authenticatedRoute.indexOf(
+      "function MySolarisAccessGate",
+      identityGateStart,
+    );
+    const identityGate = authenticatedRoute.slice(identityGateStart, identityGateEnd);
+    const organizerGateStart = adminRoute.indexOf("function OrganizerAccessGate");
+    const organizerGateEnd = adminRoute.indexOf("export const Route", organizerGateStart);
+    const organizerGate = adminRoute.slice(organizerGateStart, organizerGateEnd);
+
+    expect(authenticatedRoute).toContain("ssr: false");
+    expect(authenticatedRoute).not.toContain("beforeLoad:");
+    expect(authenticatedRoute).not.toContain('.from("user_roles")');
+    expect(identityGate).toContain("useQuery<User | null>({");
+    expect(identityGate).toContain('queryKey: ["authenticated-identity-gate"]');
+    expect(identityGate).toContain("await supabase.auth.getUser()");
+    expect(identityGate).toContain("retry: false");
+    expect(identityGate).toContain("useEffect(() =>");
+    expect(identityGate).toContain("if (identity.isPending || identity.data) return");
+    expect(identityGate).not.toContain("useState(");
+    expect(identityGate).not.toContain("setState(");
+    expect(authenticatedRoute).toContain("<AuthenticatedUserProvider user={identity.data}>");
     expect(authenticatedRoute).not.toContain("hasSolarisOrganizerAccess");
-    expect(organizerGate).toContain("hasSolarisOrganizerAccess(userId)");
-    expect(organizerGate).toContain("useEffect");
-    expect(organizerGate).not.toContain('.from("user_roles")');
+
+    expect(adminRoute).not.toContain("beforeLoad:");
+    expect(adminRoute).not.toContain("loader:");
+    expect(adminRoute).not.toContain('.from("user_roles")');
+    expect(adminRoute).not.toContain("supabase.auth.getUser()");
+    expect(adminRoute).toContain("const user = useAuthenticatedUser()");
+    expect(organizerGate).toContain("useQuery<boolean>({");
+    expect(organizerGate).toContain('queryKey: ["organizer-access-gate", user.id]');
+    expect(organizerGate).toContain("return await hasSolarisOrganizerAccess(user.id)");
+    expect(organizerGate).toContain("retry: false");
+    expect(organizerGate).toContain("useEffect(() =>");
+    expect(organizerGate).toContain("if (organizerAccess.isPending || organizerAccess.data) return");
+    expect(organizerGate).not.toContain("useState(");
+    expect(organizerGate).not.toContain("setState(");
     expect(organizerGate).toContain('to: "/my-solaris"');
     expect(organizerGate).toContain('notice: "organizer-access-required"');
     expect(organizerGate).toContain("replace: true");
-    expect(organizerGate).toContain('state === "allowed"');
-    expect(adminRoute).not.toContain("hasSolarisOrganizerAccess");
-    expect(adminRoute).not.toContain("beforeLoad:");
+    expect(adminRoute).toContain("<OrganizerAccessGate user={user}>");
   });
 });

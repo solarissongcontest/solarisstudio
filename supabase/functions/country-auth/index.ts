@@ -94,6 +94,39 @@ async function consumeRateLimit(
   return data === true;
 }
 
+async function consumeAnonymousRateLimit(
+  service: ReturnType<typeof createClient>,
+  scope: "signup" | "signin" | "recover",
+  clientAddress: string,
+  targetKey: string,
+  targetLimit: number,
+  addressLimit: number,
+  windowSeconds: number,
+) {
+  // A target-only/composite bucket can be bypassed by rotating usernames or
+  // countries. Enforce a separate address bucket as the abuse boundary while
+  // retaining the narrower address+target bucket for repeated attacks against
+  // one account or signup target.
+  const [addressAllowed, targetAllowed] = await Promise.all([
+    consumeRateLimit(
+      service,
+      `${scope}:address`,
+      clientAddress,
+      addressLimit,
+      windowSeconds,
+    ),
+    consumeRateLimit(
+      service,
+      `${scope}:target`,
+      `${clientAddress}|${targetKey}`,
+      targetLimit,
+      windowSeconds,
+    ),
+  ]);
+
+  return addressAllowed && targetAllowed;
+}
+
 async function breachedPasswordCount(password: string) {
   const hash = await sha1Hex(password);
   const prefix = hash.slice(0, 5);
@@ -219,21 +252,36 @@ Deno.serve(async (req) => {
     }
 
     try {
-      // Consume an address-only bucket first: rotating country/username must
-      // never buy the same caller more database/password lookup work.
-      const addressAllowed = await consumeRateLimit(service, "signup-address", clientAddress, 5, 15 * 60);
+      // Signup has a strict address-only bucket so rotating country/username
+      // targets cannot buy the same caller more password or database work.
+      const addressAllowed = await consumeRateLimit(
+        service,
+        "signup-address",
+        clientAddress,
+        5,
+        15 * 60,
+      );
       if (!addressAllowed) {
-        return json({ error: "Too many account creation attempts. Try again later." }, 429, { "Retry-After": "900" });
+        return json(
+          { error: "Too many account creation attempts. Try again later." },
+          429,
+          { "Retry-After": "900" },
+        );
       }
-      const allowed = await consumeRateLimit(
+
+      const targetAllowed = await consumeRateLimit(
         service,
         "signup",
         `${clientAddress}|${countryId}|${instagramUsername}`,
         5,
         15 * 60,
       );
-      if (!allowed) {
-        return json({ error: "Too many account creation attempts. Try again later." }, 429, { "Retry-After": "900" });
+      if (!targetAllowed) {
+        return json(
+          { error: "Too many account creation attempts. Try again later." },
+          429,
+          { "Retry-After": "900" },
+        );
       }
     } catch (error) {
       console.error("[country-auth] Signup rate limiting unavailable", error);
@@ -343,11 +391,13 @@ Deno.serve(async (req) => {
     const password = String(body.password ?? "");
     const identifier = String(body.identifier ?? "").trim().toLowerCase();
     try {
-      const allowed = await consumeRateLimit(
+      const allowed = await consumeAnonymousRateLimit(
         service,
         "signin",
-        `${clientAddress}|${identifier}`,
+        clientAddress,
+        identifier,
         20,
+        60,
         15 * 60,
       );
       if (!allowed) {
@@ -378,11 +428,13 @@ Deno.serve(async (req) => {
   if (action === "recover") {
     const identifier = String(body.identifier ?? "").trim().toLowerCase();
     try {
-      const allowed = await consumeRateLimit(
+      const allowed = await consumeAnonymousRateLimit(
         service,
         "recover",
-        `${clientAddress}|${identifier}`,
+        clientAddress,
+        identifier,
         5,
+        15,
         30 * 60,
       );
       if (!allowed) {

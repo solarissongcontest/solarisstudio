@@ -24,10 +24,7 @@ function OrganizerMenu() {
     editions.find((edition) => edition.id === editionId) ??
     [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
     null;
-  const domains = buildAdminDomainNavigation(
-    activeEdition?.slug,
-    activeEdition ? editionLabel(activeEdition) : "Current edition",
-  );
+  const domains = buildAdminDomainNavigation(activeEdition?.slug, activeEdition ? editionLabel(activeEdition) : "Current edition");
   const groups = useMemo(
     () => filterGroups(buildAdminNavigation(activeEdition?.slug), query),
     [activeEdition?.slug, query],
@@ -56,45 +53,23 @@ function OrganizerMenu() {
         <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
           {domains.map((domain) => {
             const Icon = domain.icon;
-            const content = (
-              <>
+            return (
+              <Link
+                key={domain.id}
+                to={domain.to as any}
+                className="admin-list-row group !rounded-xl !border-0 !px-2.5"
+              >
                 <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-sky-200/10 bg-sky-200/[0.055] text-sky-100">
                   <Icon className="size-4" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold text-foreground">
-                    {domain.label}
-                  </span>
+                  <span className="block text-sm font-semibold text-foreground">{domain.label}</span>
                   <span className="mt-0.5 block line-clamp-2 text-[11px] leading-4 text-muted-foreground">
                     {domain.description}
-                    {domain.availability === "requires-edition"
-                      ? ` · ${domain.unavailableReason}`
-                      : ""}
                   </span>
                 </span>
                 <span className="text-muted-foreground">›</span>
-              </>
-            );
-
-            return domain.availability === "ready" ? (
-              <Link
-                key={domain.id}
-                to={domain.to as any}
-                data-admin-navigation-id={domain.id}
-                className="admin-list-row group !rounded-xl !border-0 !px-2.5"
-              >
-                {content}
               </Link>
-            ) : (
-              <div
-                key={domain.id}
-                aria-disabled="true"
-                data-admin-navigation-id={domain.id}
-                title={domain.unavailableReason}
-                className="admin-list-row group !cursor-not-allowed !rounded-xl !border-0 !px-2.5 opacity-55"
-              >
-                {content}
-              </div>
             );
           })}
         </div>
@@ -103,8 +78,7 @@ function OrganizerMenu() {
       <div className="mb-2 px-1">
         <h2 className="text-sm font-bold text-foreground">All specialist pages</h2>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          Search the complete Organizer directory without turning every tool into permanent
-          navigation.
+          Search the complete Organizer directory without turning every tool into permanent navigation.
         </p>
       </div>
       <label className="mb-4 flex min-h-12 items-center gap-3 rounded-xl border border-white/[0.1] bg-white/[0.03] px-3 focus-within:border-sky-200/30">
@@ -132,22 +106,18 @@ function OrganizerMenu() {
                 <summary className="flex min-h-14 cursor-pointer list-none items-start justify-between gap-3 px-4 py-3">
                   <span className="min-w-0">
                     <span className="block text-sm font-bold text-foreground">{group.label}</span>
-                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                      {group.description}
-                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">{group.description}</span>
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
                     <span className="numeric rounded-full border border-white/[0.08] px-2 py-1 text-[10px] text-muted-foreground">
                       {group.items.length}
                     </span>
-                    <span className="text-xs text-muted-foreground transition group-open:rotate-90">
-                      ›
-                    </span>
+                    <span className="text-xs text-muted-foreground transition group-open:rotate-90">›</span>
                   </span>
                 </summary>
                 <div className="grid gap-1 border-t border-white/[0.07] p-3 sm:grid-cols-2">
                   {group.items.map((item) => (
-                    <DirectoryItem key={item.id} item={item} />
+                    <DirectoryItem key={`${item.to}:${item.label}`} item={item} />
                   ))}
                 </div>
               </details>
@@ -156,9 +126,7 @@ function OrganizerMenu() {
                 <div className="mb-3 flex items-start justify-between gap-3 px-1">
                   <div>
                     <h2 className="text-sm font-bold text-foreground">{group.label}</h2>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      {group.description}
-                    </p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{group.description}</p>
                   </div>
                   <span className="numeric rounded-full border border-white/[0.08] px-2 py-1 text-[10px] text-muted-foreground">
                     {group.items.length}
@@ -166,7 +134,7 @@ function OrganizerMenu() {
                 </div>
                 <div className="grid gap-1 sm:grid-cols-2">
                   {group.items.map((item) => (
-                    <DirectoryItem key={item.id} item={item} />
+                    <DirectoryItem key={`${item.to}:${item.label}`} item={item} />
                   ))}
                 </div>
               </AdminCard>
@@ -199,14 +167,13 @@ function filterGroups(groups: AdminNavigationGroup[], query: string) {
     .filter((group) => group.items.length > 0);
 }
 
-function DirectoryItem({
-  item,
-}: {
-  item: ReturnType<typeof buildAdminNavigation>[number]["items"][number];
-}) {
+function DirectoryItem({ item }: { item: ReturnType<typeof buildAdminNavigation>[number]["items"][number] }) {
   const Icon = item.icon;
-  const content = (
-    <>
+  return (
+    <Link
+      to={item.to as any}
+      className="admin-list-row group !rounded-xl !border-0 !px-2.5"
+    >
       <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-sky-100">
         <Icon className="size-4" />
       </span>
@@ -214,29 +181,9 @@ function DirectoryItem({
         <span className="block text-sm font-semibold text-foreground">{item.label}</span>
         <span className="mt-0.5 block line-clamp-2 text-[11px] leading-4 text-muted-foreground">
           {item.description}
-          {item.availability === "requires-edition" ? ` · ${item.unavailableReason}` : ""}
         </span>
       </span>
       <span className="text-muted-foreground">›</span>
-    </>
-  );
-
-  return item.availability === "ready" ? (
-    <Link
-      to={item.to as any}
-      data-admin-navigation-id={item.id}
-      className="admin-list-row group !rounded-xl !border-0 !px-2.5"
-    >
-      {content}
     </Link>
-  ) : (
-    <div
-      aria-disabled="true"
-      data-admin-navigation-id={item.id}
-      title={item.unavailableReason}
-      className="admin-list-row group !cursor-not-allowed !rounded-xl !border-0 !px-2.5 opacity-55"
-    >
-      {content}
-    </div>
   );
 }

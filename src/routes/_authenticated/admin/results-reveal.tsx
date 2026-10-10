@@ -130,12 +130,10 @@ function ResultsRevealPage() {
   if (featureQuery.isLoading) {
     return (
       <AdminPage>
-        <ObjectPage className="max-w-7xl">
-          <ResultsRevealHeader />
-          <AdminCard>
-            <p className="py-10 text-center text-sm text-muted-foreground">Loading Results Reveal Director…</p>
-          </AdminCard>
-        </ObjectPage>
+        <ResultsRevealHeader />
+        <AdminCard>
+          <p className="py-10 text-center text-sm text-muted-foreground">Loading Results Reveal Director…</p>
+        </AdminCard>
       </AdminPage>
     );
   }
@@ -143,16 +141,14 @@ function ResultsRevealPage() {
   if (featureQuery.data !== true) {
     return (
       <AdminPage>
-        <ObjectPage className="max-w-7xl">
-          <ResultsRevealHeader />
-          <AdminCard>
-            <AdminEmptyState
-              icon={Sparkles}
-              title="Results Reveal Director is disabled"
-              description="Enable the Results Replay rollout flag before using reveal simulations."
-            />
-          </AdminCard>
-        </ObjectPage>
+        <ResultsRevealHeader />
+        <AdminCard>
+          <AdminEmptyState
+            icon={Sparkles}
+            title="Results Reveal Director is disabled"
+            description="Enable the Results Replay rollout flag before using reveal simulations."
+          />
+        </AdminCard>
       </AdminPage>
     );
   }

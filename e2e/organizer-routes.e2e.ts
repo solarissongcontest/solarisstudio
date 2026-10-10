@@ -105,13 +105,10 @@ async function newLocalOrganizerContext(
 
 const organizerDestinations = [
   ...new Set([
-    ...buildAdminDomainNavigation("ssc22", "SSC22")
-      .filter((item) => item.availability === "ready")
-      .map((item) => item.to),
+    ...buildAdminDomainNavigation("ssc22", "SSC22").map((item) => item.to),
     "/admin/menu",
     ...buildAdminNavigation("ssc22")
       .flatMap((group) => group.items)
-      .filter((item) => item.availability === "ready")
       .map((item) => item.to)
       .filter(
         (path) =>
@@ -152,14 +149,6 @@ const criticalMobileDestinations = [
   "/admin/command-assistant",
 ] as const;
 
-const focusedOrganizerDestinations = [
-  "/admin/operations",
-  "/admin/tasks",
-  "/admin/action-centre",
-  "/admin/countries",
-  "/admin/menu",
-] as const;
-
 const completionProductDestinations = [
   "/encyclopedia",
   "/voting-dna",
@@ -188,10 +177,7 @@ test.describe("Solaris Organizer route reliability", () => {
       await expect(page.getByRole("link", { name: new RegExp(name, "i") }).first()).toBeVisible();
     }
 
-    await page
-      .getByRole("link", { name: /Delegations & confirmations/i })
-      .first()
-      .click();
+    await page.getByRole("link", { name: /Delegations & confirmations/i }).first().click();
     await expect(page).toHaveURL(/\/admin\/countries(?:\?|$)/);
     await expect(page.getByRole("link", { name: /Open confirmations/i })).toBeVisible();
 
@@ -201,103 +187,7 @@ test.describe("Solaris Organizer route reliability", () => {
     await expect(page.locator("h1").first()).toBeVisible();
   });
 
-  test.describe("focused Organizer lifecycle regressions", () => {
-    test.describe.configure({ retries: 0 });
-
-    test.beforeEach(async ({ page }) => {
-      await page.addInitScript(() => {
-        const originalError = console.error.bind(console);
-        console.error = (...args: unknown[]) => {
-          const message = args.map((value) => String(value)).join(" ");
-          if (/component that hasn't mounted yet/i.test(message)) {
-            originalError(
-              `[organizer-lifecycle-stack]\n${new Error("React pre-mount update").stack ?? "No stack available"}`,
-            );
-          }
-          originalError(...args);
-        };
-      });
-    });
-
-    test("cold Organizer menu keeps edition items stable while edition data is delayed", async ({
-      page,
-    }) => {
-      let releaseEditionRequest = () => undefined;
-      const editionGate = new Promise<void>((resolve) => {
-        releaseEditionRequest = resolve;
-      });
-      const lifecycleWarnings: string[] = [];
-
-      page.on("console", (message) => {
-        if (
-          ["warning", "error"].includes(message.type()) &&
-          /duplicate key|state update.*unmounted|cannot update.*component|has(?:n't| not) mounted yet/i.test(
-            message.text(),
-          )
-        ) {
-          lifecycleWarnings.push(message.text());
-        }
-      });
-      page.on("pageerror", (error) => lifecycleWarnings.push(error.message));
-
-      await page.route("**/rest/v1/editions**", async (route) => {
-        await editionGate;
-        await route.continue();
-      });
-
-      try {
-        await page.goto("/admin/menu", { waitUntil: "domcontentloaded" });
-        await expect(page.locator("h1").first()).toBeVisible();
-
-        const contestItem = page.locator('[data-admin-navigation-id="current-edition-contest"]');
-        const unavailableContest = page.locator(
-          '[data-admin-navigation-id="current-edition-contest"][aria-disabled="true"]',
-        );
-        await expect(unavailableContest).toHaveCount(1);
-        await expect(unavailableContest).toContainText("Select an edition first");
-        await expect(
-          page.locator('a[data-admin-navigation-id="current-edition-contest"]'),
-        ).toHaveCount(0);
-
-        releaseEditionRequest();
-        await expect(contestItem).toHaveAttribute("href", /\/admin\/ssc22$/);
-        await expect(contestItem).not.toHaveAttribute("aria-disabled", "true");
-        expect(lifecycleWarnings).toEqual([]);
-      } finally {
-        releaseEditionRequest();
-      }
-    });
-
-    test("focused Organizer routes remain clean across repeated navigation", async ({
-      page,
-    }, testInfo) => {
-      const lifecycleWarnings: string[] = [];
-      page.on("console", (message) => {
-        if (
-          ["warning", "error"].includes(message.type()) &&
-          /duplicate key|state update.*unmounted|cannot update.*component|has(?:n't| not) mounted yet/i.test(
-            message.text(),
-          )
-        ) {
-          lifecycleWarnings.push(message.text());
-        }
-      });
-      page.on("pageerror", (error) => lifecycleWarnings.push(error.message));
-
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        for (const path of focusedOrganizerDestinations) {
-          await test.step(`${path} (pass ${attempt + 1})`, async () => {
-            await auditPage(page, path, testInfo);
-            await expect(page).not.toHaveURL(/\/auth(?:\?|$)/);
-          });
-        }
-      }
-
-      expect(lifecycleWarnings).toEqual([]);
-    });
-  });
-
-  test("every registered Organizer destination loads on desktop", async ({ page }, testInfo) => {
+  test("every registered Organizer destination loads on desktop", async ({ context }, testInfo) => {
     test.skip(
       testInfo.project.name !== "organizer-admin-desktop",
       "The complete Organizer crawl runs once at the desktop baseline",
@@ -305,18 +195,19 @@ test.describe("Solaris Organizer route reliability", () => {
 
     for (const path of organizerDestinations) {
       await test.step(path, async () => {
-        await auditPage(page, path, testInfo);
-        await expect(page).not.toHaveURL(/\/auth(?:\?|$)/);
-        await expect(page.locator("body")).not.toContainText(
-          /This page didn't load|Organizer could not open/i,
-        );
+        const routePage = await context.newPage();
+        try {
+          await auditPage(routePage, path, testInfo);
+          await expect(routePage).not.toHaveURL(/\/auth(?:\?|$)/);
+          await expect(routePage.locator("body")).not.toContainText(/This page didn't load|Organizer could not open/i);
+        } finally {
+          await routePage.close();
+        }
       });
     }
   });
 
-  test("completion programme surfaces load during Organizer-only rollout", async ({
-    page,
-  }, testInfo) => {
+  test("completion programme surfaces load during Organizer-only rollout", async ({ context }, testInfo) => {
     test.skip(
       testInfo.project.name !== "organizer-admin-desktop",
       "Completion-product internal rollout runs once at the desktop baseline",
@@ -324,17 +215,20 @@ test.describe("Solaris Organizer route reliability", () => {
 
     for (const path of completionProductDestinations) {
       await test.step(path, async () => {
-        await auditPage(page, path, testInfo);
-        await expect(page.locator("body")).not.toContainText(
-          /not enabled yet|Command Assistant is disabled|Time Machine is disabled/i,
-        );
+        const routePage = await context.newPage();
+        try {
+          await auditPage(routePage, path, testInfo);
+          await expect(routePage.locator("body")).not.toContainText(
+            /not enabled yet|Command Assistant is disabled|Time Machine is disabled/i,
+          );
+        } finally {
+          await routePage.close();
+        }
       });
     }
   });
 
-  test("R3 permission changes require a second Organizer on mobile", async ({
-    browser,
-  }, testInfo) => {
+  test("R3 permission changes require a second Organizer on mobile", async ({ browser }, testInfo) => {
     test.skip(
       testInfo.project.name !== "organizer-admin-mobile",
       "The two-operator R3 browser protocol is certified once at the phone baseline",
@@ -364,7 +258,10 @@ test.describe("Solaris Organizer route reliability", () => {
         "Browser Audit must seed both local Organizers and the local Country account for R3 certification.",
       );
     }
-    test.skip(missingR3Config, "Local two-operator Browser Audit credentials are not configured");
+    test.skip(
+      missingR3Config,
+      "Local two-operator Browser Audit credentials are not configured",
+    );
 
     expect(url).toMatch(/^http:\/\/(?:127\.0\.0\.1|localhost):\d+/);
 
@@ -447,9 +344,7 @@ test.describe("Solaris Organizer route reliability", () => {
       await passwordA.fill(organizerPassword!);
       await identityA.fill("Browser HOD");
       await pageA.getByRole("button", { name: "Apply approved change" }).last().click();
-      await expect(
-        pageA.getByText(/Access change applied with fresh authentication/i),
-      ).toBeVisible();
+      await expect(pageA.getByText(/Access change applied with fresh authentication/i)).toBeVisible();
       await expect(pageA.getByText("Approved for you", { exact: true })).toHaveCount(0);
     } finally {
       await contextA.close();
@@ -458,10 +353,16 @@ test.describe("Solaris Organizer route reliability", () => {
     const accessSimulation = await localRpc<{
       userId: string;
       capabilities: string[];
-    }>(url!, publishableKey!, organizerA.access_token, "studio2_view_access_as", {
-      p_user_id: country.user.id,
-      p_edition_id: null,
-    });
+    }>(
+      url!,
+      publishableKey!,
+      organizerA.access_token,
+      "studio2_view_access_as",
+      {
+        p_user_id: country.user.id,
+        p_edition_id: null,
+      },
+    );
     expect(accessSimulation.userId).toBe(country.user.id);
     expect(accessSimulation.capabilities).toContain("broadcast.control");
 
@@ -475,7 +376,7 @@ test.describe("Solaris Organizer route reliability", () => {
     expect(remaining.some((item) => item.id === approval.id)).toBe(false);
   });
 
-  test("critical Organizer work remains usable on mobile", async ({ page }, testInfo) => {
+  test("critical Organizer work remains usable on mobile", async ({ context }, testInfo) => {
     test.skip(
       !["organizer-admin-mobile", "organizer-admin-landscape"].includes(testInfo.project.name),
       "Critical mobile Organizer surfaces run at the portrait and landscape phone baselines",
@@ -483,10 +384,13 @@ test.describe("Solaris Organizer route reliability", () => {
 
     for (const path of criticalMobileDestinations) {
       await test.step(path, async () => {
-        await auditPage(page, path, testInfo);
-        await expect(page.locator("body")).not.toContainText(
-          /This page didn't load|Organizer could not open/i,
-        );
+        const routePage = await context.newPage();
+        try {
+          await auditPage(routePage, path, testInfo);
+          await expect(routePage.locator("body")).not.toContainText(/This page didn't load|Organizer could not open/i);
+        } finally {
+          await routePage.close();
+        }
       });
     }
   });

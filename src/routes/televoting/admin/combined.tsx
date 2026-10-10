@@ -227,7 +227,7 @@ function CombinedResultsPage() {
           </div>
         </aside>
 
-        <main className="min-w-0 space-y-5">
+        <div className="min-w-0 space-y-5">
           {detailLoading ? <section className="glass p-8 text-center text-sm text-muted-foreground">Loading workspace…</section> : null}
           {detailError ? <section className="glass border-red-300/20 p-5 text-sm text-red-100">{(detailError as Error).message}</section> : null}
           {detail ? (
@@ -247,7 +247,7 @@ function CombinedResultsPage() {
               onDeleted={() => setSelectedId("")}
             />
           ) : null}
-        </main>
+        </div>
       </div>
     </div>
   );

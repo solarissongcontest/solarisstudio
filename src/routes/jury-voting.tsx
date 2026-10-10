@@ -33,8 +33,8 @@ import {
   type VoteIntegritySeverity,
 } from "@/integrations/televoting/integrity";
 import { captureGovernanceSnapshot, type GovernanceReceiptSnapshot } from "@/lib/governance-v5";
-import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { useFanSession } from "@/lib/prediction-data";
+import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
 const supabase = typedSupabase as any;
@@ -117,10 +117,10 @@ function severityClass(severity: VoteIntegritySeverity) {
 function JuryVotingPage() {
   const queryClient = useQueryClient();
   const session = useFanSession();
-  const userId = session.data?.id ?? null;
-  const { data: context, isLoading, error } = useQuery<JuryContext>({
-    enabled: !session.isLoading,
+  const userId = session.data?.id ?? "anonymous";
+  const { data: context, isLoading: contextLoading, error } = useQuery<JuryContext>({
     queryKey: ["country-jury-voting-context", userId],
+    enabled: !session.isLoading,
     queryFn: async () => {
       const { data: sessionData } = await typedSupabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
@@ -132,11 +132,12 @@ function JuryVotingPage() {
     staleTime: 10_000,
     refetchOnWindowFocus: true,
   });
+  const isLoading = session.isLoading || contextLoading;
 
   const rounds = context?.rounds ?? [];
   const openRound = rounds.find((round) => round.status === "open" && round.eligible && !round.already_submitted);
 
-  if (isLoading || session.isLoading) {
+  if (isLoading) {
     return <JuryVotingFrame description="Loading the current jury voting status…"><Panel><p className="text-sm text-muted-foreground">Loading jury voting…</p></Panel></JuryVotingFrame>;
   }
   if (error) {
@@ -169,7 +170,14 @@ function JuryVotingPage() {
         />
 
         {openRound && context.country && context.accessToken ? (
-          <JuryBallotBooth key={`${userId}:${context.country.id}:${openRound.show_id}`} userId={userId!} round={openRound} country={context.country} accessToken={context.accessToken} onSubmitted={() => void queryClient.invalidateQueries({ queryKey: ["country-jury-voting-context"] })} />
+          <JuryBallotBooth
+            key={`${userId}:${context.country.id}:${openRound.show_id}`}
+            userId={userId}
+            round={openRound}
+            country={context.country}
+            accessToken={context.accessToken}
+            onSubmitted={() => void queryClient.invalidateQueries({ queryKey: ["country-jury-voting-context", userId] })}
+          />
         ) : (
           <Panel title="Current status" description="Show-by-show organizer control">
             {rounds.length ? (

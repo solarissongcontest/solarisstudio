@@ -247,6 +247,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
               navigator.standalone === true;
             if (!installed) return;
             const root = document.documentElement;
+            root.dataset.solarisRuntime = "standalone";
+            root.setAttribute("data-solaris-app", "");
             root.setAttribute("data-solaris-app-boot", "");
             window.setTimeout(() => root.removeAttribute("data-solaris-app-boot"), 4000);
           } catch {}

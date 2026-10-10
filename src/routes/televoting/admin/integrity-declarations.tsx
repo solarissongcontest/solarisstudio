@@ -58,7 +58,6 @@ function IntegrityDeclarationsPage() {
     idempotencyKey: string;
   } | null>(null);
 
-
   const { data: admin, isLoading: adminLoading } = useQuery({
     queryKey: ["merged-televoting-admin"],
     queryFn: () => getAdmin(),

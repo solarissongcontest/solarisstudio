@@ -1,135 +1,124 @@
-import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import type { User } from "@supabase/supabase-js";
-import { ShieldCheck } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
+import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { AuthenticatedUserProvider } from "@/components/auth/AuthenticatedUserContext";
 import { CountryFlagLayerEditorAddon } from "@/components/CountryFlagLayerEditorAddon";
 import { CountrySystemFunFactsEditorAddon } from "@/components/CountrySystemFunFactsEditorAddon";
 import { HistoricalNationalFinalManager } from "@/components/HistoricalNationalFinalManager";
 import { NationalFinalResultOrderAddon } from "@/components/NationalFinalResultOrderAddon";
-import { OrganizerAccessGate } from "@/components/admin/OrganizerAccessGate";
 import { supabase } from "@/integrations/supabase/client";
-import { beginLifecycleGeneration } from "@/lib/lifecycle-generation";
+import { useMyCountryAccount } from "@/lib/country-account";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   component: AuthenticatedLayout,
 });
 
-function AuthenticatedLayout() {
-  return (
-    <AuthenticatedSessionGate>
-      {(user) => <AuthenticatedContent user={user} />}
-    </AuthenticatedSessionGate>
-  );
-}
-
-function AuthenticatedSessionGate({ children }: { children: (user: User) => ReactNode }) {
+function AuthenticatedIdentityGate({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
-  const generationRef = useRef(0);
-  const verifiedUserIdRef = useRef<string | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [redirecting, setRedirecting] = useState(false);
+  const identity = useQuery<User | null>({
+    queryKey: ["authenticated-identity-gate"],
+    queryFn: async () => {
+      const { data, error } = await supabase.auth.getUser();
+      return error || !data.user ? null : data.user;
+    },
+    retry: false,
+  });
 
   useEffect(() => {
-    const lifecycle = beginLifecycleGeneration(generationRef);
-
-    const redirectToAuth = () => {
-      if (!lifecycle.isCurrent()) return;
-      verifiedUserIdRef.current = null;
-      setUser(null);
-      setRedirecting(true);
-      const redirect = `${window.location.pathname}${window.location.search}`;
-      void navigate({
-        to: "/auth",
-        search: { redirect },
-        replace: true,
-      });
-    };
-
-    const verifyCurrentUser = async (expectedUserId?: string) => {
-      const { data, error } = await supabase.auth.getUser();
-      if (!lifecycle.isCurrent()) return;
-      if (error || !data.user || (expectedUserId && data.user.id !== expectedUserId)) {
-        redirectToAuth();
-        return;
-      }
-      verifiedUserIdRef.current = data.user.id;
-      setRedirecting(false);
-      setUser(data.user);
-    };
-
-    void verifyCurrentUser();
-    const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!lifecycle.isCurrent()) return;
-      const nextUserId = session?.user?.id ?? null;
-      if (!nextUserId) {
-        if (event === "SIGNED_OUT") redirectToAuth();
-        return;
-      }
-      if (nextUserId === verifiedUserIdRef.current) return;
-
-      // Stop private observers before asynchronously validating a new account.
-      verifiedUserIdRef.current = null;
-      setUser(null);
-      setRedirecting(false);
-      window.setTimeout(() => {
-        if (lifecycle.isCurrent()) void verifyCurrentUser(nextUserId);
-      }, 0);
+    if (identity.isPending || identity.data) return;
+    const redirect = `${window.location.pathname}${window.location.search}`;
+    void navigate({
+      to: "/auth",
+      search: { redirect },
+      replace: true,
     });
+  }, [identity.data, identity.isPending, navigate]);
 
-    return () => {
-      lifecycle.deactivate();
-      subscription.subscription.unsubscribe();
-    };
-  }, [navigate]);
-
-  if (user) return <>{children(user)}</>;
+  if (identity.isPending || !identity.data) {
+    return (
+      <main
+        className="grid min-h-screen place-items-center bg-[#020817] px-5 text-white"
+        aria-busy="true"
+      >
+        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.035] p-5 text-center shadow-2xl">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-sky-100/80">
+            Solaris Studio
+          </p>
+          <p className="mt-2 text-sm font-semibold text-white/85">
+            {identity.isPending ? "Checking your session…" : "Opening sign in…"}
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main
-      id="main-content"
-      className="grid min-h-[60vh] place-items-center bg-[#020817] px-4 text-white"
-      aria-busy="true"
-      aria-live="polite"
-    >
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.035] p-5 shadow-2xl">
-        <div className="flex items-center gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-sky-200/10 bg-sky-200/[0.06] text-sky-100">
-            <ShieldCheck className="size-4" aria-hidden="true" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold">
-              {redirecting ? "Opening sign in…" : "Checking your Solaris session…"}
-            </p>
-            <p className="mt-1 text-xs text-white/60">
-              Private workspaces stay closed until the current account is verified.
-            </p>
-          </div>
-        </div>
-      </div>
-    </main>
+    <AuthenticatedUserProvider user={identity.data}>{children}</AuthenticatedUserProvider>
   );
 }
 
-function AuthenticatedContent({ user }: { user: User }) {
+function MySolarisAccessGate({ children }: { children: ReactNode }) {
+  const account = useMyCountryAccount();
+
+  if (account.isLoading) {
+    return (
+      <AppShell>
+        <p className="text-sm text-muted-foreground">Opening MySolaris…</p>
+      </AppShell>
+    );
+  }
+
+  if (account.data?.access.countryStatus === "suspended") {
+    const reason = account.data.access.suspensionReason;
+    return (
+      <AppShell>
+        <PageHeader
+          eyebrow="MySolaris"
+          title="Country account suspended"
+          description="Participation and delegation tools are unavailable while this account is suspended."
+        />
+        <Panel title="Access unavailable">
+          <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
+            <p>
+              Contact the Solaris organizer before trying to submit votes, confirmations, entries or delegation changes.
+            </p>
+            {reason ? <p>Organizer note: {reason}</p> : null}
+            <Link
+              to="/my-solaris/account"
+              className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 font-semibold text-foreground"
+            >
+              Open account settings
+            </Link>
+          </div>
+        </Panel>
+      </AppShell>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+function AuthenticatedContent() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const isAdminPath = pathname === "/admin" || pathname.startsWith("/admin/");
+  const isMySolaris =
+    pathname === "/my-solaris" ||
+    pathname === "/my-solaris/" ||
+    pathname.startsWith("/my-solaris/");
+  const isMySolarisAccount =
+    pathname === "/my-solaris/account" || pathname === "/my-solaris/account/";
   const isMySolarisTheme = pathname === "/my-solaris/theme" || pathname === "/my-solaris/theme/";
   const isMySolarisPageBuilder =
     pathname === "/my-solaris/page-builder" || pathname === "/my-solaris/page-builder/";
   const isCountryWorkspace =
     pathname === "/my-solaris/country" || pathname === "/my-solaris/country/";
 
-  return (
+  const content = (
     <>
-      {isAdminPath ? (
-        <OrganizerAccessGate key={user.id} userId={user.id}>
-          <Outlet />
-        </OrganizerAccessGate>
-      ) : (
-        <Outlet />
-      )}
+      <Outlet />
       {isCountryWorkspace && (
         <>
           <HistoricalNationalFinalManager />
@@ -139,5 +128,19 @@ function AuthenticatedContent({ user }: { user: User }) {
       {isMySolarisTheme && <CountryFlagLayerEditorAddon />}
       {isMySolarisPageBuilder && <CountrySystemFunFactsEditorAddon />}
     </>
+  );
+
+  if (isMySolaris && !isMySolarisAccount) {
+    return <MySolarisAccessGate>{content}</MySolarisAccessGate>;
+  }
+
+  return content;
+}
+
+function AuthenticatedLayout() {
+  return (
+    <AuthenticatedIdentityGate>
+      <AuthenticatedContent />
+    </AuthenticatedIdentityGate>
   );
 }

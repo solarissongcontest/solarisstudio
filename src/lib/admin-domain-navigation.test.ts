@@ -58,7 +58,7 @@ describe("Organizer domain navigation", () => {
     expect(governance?.workflow?.tabs.map((tab) => tab.label)).toContain("Appeals");
   });
 
-  it("exposes the six current-edition workspaces without relying on search", () => {
+  it("exposes the current-edition workspaces without relying on search", () => {
     const edition = buildAdminContextualSection("/admin/ssc-21", "ssc-21", "SSC21");
     expect(edition?.tabs.map((tab) => tab.label)).toEqual([
       "Overview",
@@ -162,7 +162,6 @@ describe("Organizer domain navigation", () => {
     const domains = buildAdminDomainNavigation("ssc-21", "SSC21");
     const destinations = buildAdminNavigation("ssc-21")
       .flatMap((group) => group.items)
-      .filter((item) => item.availability === "ready")
       .filter(
         (item) =>
           item.to.startsWith("/admin") ||
