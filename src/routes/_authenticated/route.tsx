@@ -1,6 +1,7 @@
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import type { User } from "@supabase/supabase-js";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { AuthenticatedUserProvider } from "@/components/auth/AuthenticatedUserContext";
@@ -11,11 +12,6 @@ import { NationalFinalResultOrderAddon } from "@/components/NationalFinalResultO
 import { supabase } from "@/integrations/supabase/client";
 import { useMyCountryAccount } from "@/lib/country-account";
 
-type AuthenticatedIdentityState =
-  | { status: "checking"; user: null }
-  | { status: "authenticated"; user: User }
-  | { status: "redirecting"; user: null };
-
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   component: AuthenticatedLayout,
@@ -23,38 +19,26 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedIdentityGate({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
-  const [state, setState] = useState<AuthenticatedIdentityState>({
-    status: "checking",
-    user: null,
+  const identity = useQuery<User | null>({
+    queryKey: ["authenticated-identity-gate"],
+    queryFn: async () => {
+      const { data, error } = await supabase.auth.getUser();
+      return error || !data.user ? null : data.user;
+    },
+    retry: false,
   });
 
   useEffect(() => {
-    let active = true;
+    if (identity.isPending || identity.data) return;
+    const redirect = `${window.location.pathname}${window.location.search}`;
+    void navigate({
+      to: "/auth",
+      search: { redirect },
+      replace: true,
+    });
+  }, [identity.data, identity.isPending, navigate]);
 
-    void (async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (!active) return;
-
-      if (error || !data.user) {
-        setState({ status: "redirecting", user: null });
-        const redirect = `${window.location.pathname}${window.location.search}`;
-        await navigate({
-          to: "/auth",
-          search: { redirect },
-          replace: true,
-        });
-        return;
-      }
-
-      setState({ status: "authenticated", user: data.user });
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [navigate]);
-
-  if (state.status !== "authenticated") {
+  if (identity.isPending || !identity.data) {
     return (
       <main
         className="grid min-h-screen place-items-center bg-[#020817] px-5 text-white"
@@ -65,7 +49,7 @@ function AuthenticatedIdentityGate({ children }: { children: ReactNode }) {
             Solaris Studio
           </p>
           <p className="mt-2 text-sm font-semibold text-white/85">
-            {state.status === "checking" ? "Checking your session…" : "Opening sign in…"}
+            {identity.isPending ? "Checking your session…" : "Opening sign in…"}
           </p>
         </div>
       </main>
@@ -73,7 +57,7 @@ function AuthenticatedIdentityGate({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthenticatedUserProvider user={state.user}>{children}</AuthenticatedUserProvider>
+    <AuthenticatedUserProvider user={identity.data}>{children}</AuthenticatedUserProvider>
   );
 }
 

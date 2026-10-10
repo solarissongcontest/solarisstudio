@@ -223,9 +223,12 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
         let rect = node.getBoundingClientRect();
         if (
           node instanceof HTMLInputElement &&
-          ["checkbox", "radio"].includes(node.type) &&
+          ["checkbox", "radio", "file"].includes(node.type) &&
           node.closest("label")
         ) {
+          // The native input can intentionally be visually clipped while the
+          // wrapping label is the real pointer/touch target. Measure that target
+          // instead of reporting a 1px screen-reader-only input as inaccessible.
           rect = node.closest("label")!.getBoundingClientRect();
         }
         if (rect.width === 0 || rect.height === 0) return [];
