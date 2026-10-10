@@ -62,7 +62,7 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(root).toContain('navigator.standalone === true');
   });
 
-  it("audits semantic readiness through visible landmarks instead of first-DOM-node or network-idle heuristics", () => {
+  it("audits semantic readiness through positive visible state instead of first-node, loader-absence or network-idle heuristics", () => {
     const audit = source("e2e/audit-helpers.ts");
     const preflight = source("e2e/pr455-organizer-regression.e2e.ts");
 
@@ -75,10 +75,14 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(audit).not.toContain('waitForLoadState("networkidle"');
     expect(audit).not.toContain("waitForTimeout(250)");
 
-    expect(preflight).toContain('.getByRole("status", { name: "Loading page" })');
-    expect(preflight).toContain('.waitFor({ state: "hidden", timeout: 30_000 })');
+    expect(preflight).toContain("waitForSemanticReadiness");
+    expect(preflight).toContain(".waitForFunction(");
+    expect(preflight).toContain("mainCount === 1 && h1Count === 1 && pendingStatuses.length === 0");
+    expect(preflight).toContain("Loading page|Checking organizer access");
+    expect(preflight).toContain("pendingStatuses: pageState.pendingStatuses");
     expect(preflight).toContain("mainVisible: pageState.mainCount === 1");
     expect(preflight).toContain("headingVisible: pageState.h1Count === 1");
+    expect(preflight).not.toContain('.waitFor({ state: "hidden"');
     expect(preflight).not.toContain('.locator("main")\n    .first()');
     expect(preflight).not.toContain('.locator("h1")\n    .first()');
     expect(preflight).not.toContain('waitForLoadState("networkidle"');

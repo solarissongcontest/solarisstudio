@@ -1,13 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import {
-  expect,
-  test,
-  type BrowserContext,
-  type Page,
-  type TestInfo,
-} from "@playwright/test";
+import { expect, test, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
 
 type OrganizerSession = {
   access_token: string;
@@ -50,7 +44,9 @@ type PreflightAudit = {
   };
   rendering: {
     title: string;
+    readinessWaitResolved: boolean;
     routeLoadingSettled: boolean;
+    pendingStatuses: string[];
     rootContentMounted: boolean;
     bodyContentMounted: boolean;
     mainVisible: boolean;
@@ -83,14 +79,17 @@ type PreflightAudit = {
   };
 };
 
+// Start with a route that already proved fast in CI. It warms the shared
+// Organizer shell before the two route-module-heavy desktop checks without
+// weakening isolation: every case still receives its own browser context/page.
 const organizerCases: readonly PreflightCase[] = [
+  { label: "mobile-entries", path: "/admin/entries/ssc22", viewport: { width: 390, height: 844 } },
   { label: "desktop-hosts", path: "/admin/hosts", viewport: { width: 1440, height: 1000 } },
   {
     label: "desktop-integrity-declarations",
     path: "/televoting/admin/integrity-declarations",
     viewport: { width: 1440, height: 1000 },
   },
-  { label: "mobile-entries", path: "/admin/entries/ssc22", viewport: { width: 390, height: 844 } },
   {
     label: "mobile-results-reveal",
     path: "/admin/results-reveal",
@@ -130,10 +129,7 @@ async function signInOrganizer(config: LocalBrowserConfig): Promise<OrganizerSes
     `${config.supabaseUrl.replace(/\/$/, "")}/auth/v1/token?grant_type=password`,
     {
       method: "POST",
-      headers: {
-        apikey: config.publishableKey,
-        "Content-Type": "application/json",
-      },
+      headers: { apikey: config.publishableKey, "Content-Type": "application/json" },
       body: JSON.stringify({ email: config.email, password: config.password }),
     },
   );
@@ -175,7 +171,6 @@ async function installOrganizerState(
       sameSite: "Lax",
     },
   ]);
-
   await context.addInitScript(
     ({ key, value }) => localStorage.setItem(key, JSON.stringify(value)),
     { key: `sb-${projectRef}-auth-token`, value: session },
@@ -209,14 +204,60 @@ function ignoreConsoleError(message: string) {
   );
 }
 
+async function waitForSemanticReadiness(page: Page) {
+  // Absence of a loader is not readiness: a loader can be absent before it mounts,
+  // and Organizer auth has its own pending phase. Resolve only when the page has
+  // its positive semantic contract, or when a terminal error/auth state is visible.
+  return page
+    .waitForFunction(
+      () => {
+        const visible = (node: Element) => {
+          const element = node as HTMLElement;
+          if (element.closest('[aria-hidden="true"], [inert]')) return false;
+          const style = getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return (
+            style.display !== "none" &&
+            style.visibility !== "hidden" &&
+            rect.width > 0 &&
+            rect.height > 0
+          );
+        };
+
+        const mainCount = [...document.querySelectorAll("main")].filter(visible).length;
+        const h1Count = [...document.querySelectorAll("h1")].filter(visible).length;
+        const pendingStatuses = [...document.querySelectorAll('[role="status"]')]
+          .filter(visible)
+          .map((node) => `${node.getAttribute("aria-label") ?? ""} ${node.textContent ?? ""}`.trim())
+          .filter((label) => /Loading page|Checking organizer access/i.test(label));
+        const bodyText = document.body?.textContent?.replace(/\s+/g, " ").trim() ?? "";
+        const terminalState =
+          location.pathname.startsWith("/auth") ||
+          location.pathname === "/404" ||
+          location.pathname === "/not-found" ||
+          /Something went wrong|This page didn't load|Organizer could not open|sign in to continue|authentication required|session expired/i.test(
+            bodyText,
+          );
+
+        return (
+          (mainCount === 1 && h1Count === 1 && pendingStatuses.length === 0) || terminalState
+        );
+      },
+      undefined,
+      { timeout: 25_000 },
+    )
+    .then(() => true)
+    .catch(() => false);
+}
+
 function classifyAudit(audit: Omit<PreflightAudit, "classification">): string {
   if (audit.supabase.remoteRequests.length > 0) return "ENVIRONMENT_MISMATCH";
+  if (audit.navigation.navigationError) return "APP_BOOT_FAILURE";
   if (
-    audit.navigation.navigationError ||
-    !audit.rendering.rootContentMounted ||
-    !audit.rendering.bodyContentMounted
+    audit.navigation.routeLooksWrong ||
+    (audit.navigation.documentStatus !== null && audit.navigation.documentStatus >= 400)
   ) {
-    return "APP_BOOT_FAILURE";
+    return "ROUTING_FAILURE";
   }
   if (
     audit.auth.authPlaceholderVisible ||
@@ -224,17 +265,14 @@ function classifyAudit(audit: Omit<PreflightAudit, "classification">): string {
   ) {
     return "AUTH_BOOTSTRAP_FAILURE";
   }
-  if (
-    audit.navigation.routeLooksWrong ||
-    (audit.navigation.documentStatus !== null && audit.navigation.documentStatus >= 400)
-  ) {
-    return "ROUTING_FAILURE";
-  }
   if (audit.rendering.errorBoundaryVisible) return "ERROR_BOUNDARY";
+  if (audit.rendering.setupMessageVisible) return "APP_BOOT_FAILURE";
+  if (audit.supabase.rateLimitedRequests.length > 0) return "REQUEST_STORM";
   if (audit.supabase.protectedApiFailures.length > 0) return "RLS_PERMISSION_FAILURE";
   if (audit.supabase.dataApiFailures.length > 0) return "DATA_API_FAILURE";
-  if (audit.supabase.rateLimitedRequests.length > 0) return "REQUEST_STORM";
   if (
+    !audit.rendering.rootContentMounted ||
+    !audit.rendering.bodyContentMounted ||
     !audit.rendering.routeLoadingSettled ||
     !audit.rendering.mainVisible ||
     !audit.rendering.headingVisible
@@ -266,7 +304,8 @@ async function persistAudit(testInfo: TestInfo, audit: PreflightAudit) {
       classification: audit.classification,
       documentStatus: audit.navigation.documentStatus,
       finalPath: audit.navigation.finalPath,
-      routeLoadingSettled: audit.rendering.routeLoadingSettled,
+      readinessWaitResolved: audit.rendering.readinessWaitResolved,
+      pendingStatuses: audit.rendering.pendingStatuses,
       localSupabaseRequests: audit.supabase.localRequests.length,
       remoteSupabaseRequests: audit.supabase.remoteRequests.length,
       protectedApiFailures: audit.supabase.protectedApiFailures.length,
@@ -325,7 +364,11 @@ async function auditOrganizerRoute(
   });
   page.on("request", (request) => {
     if (!isHostedSupabase(request.url())) return;
-    if (remoteRequests.some((record) => record.url === request.url() && record.method === request.method())) {
+    if (
+      remoteRequests.some(
+        (record) => record.url === request.url() && record.method === request.method(),
+      )
+    ) {
       return;
     }
     remoteRequests.push({
@@ -345,16 +388,7 @@ async function auditOrganizerRoute(
     navigationError = error instanceof Error ? error.message : String(error);
   }
 
-  // The CI server is a Vite dev server so the first cold Organizer route can spend
-  // time compiling route modules after DOMContentLoaded. Wait for Solaris' own
-  // route-pending status to disappear rather than sleeping or waiting for network
-  // silence. The trace that motivated this contract showed the real page becoming
-  // ready ~18 seconds after DOMContentLoaded while all network/API health was good.
-  const routeLoadingSettled = await page
-    .getByRole("status", { name: "Loading page" })
-    .waitFor({ state: "hidden", timeout: 30_000 })
-    .then(() => true)
-    .catch(() => false);
+  const readinessWaitResolved = await waitForSemanticReadiness(page);
 
   const pageState = await page.evaluate(() => {
     const visible = (node: Element) => {
@@ -370,26 +404,33 @@ async function auditOrganizerRoute(
       );
     };
 
-    const bodyText = document.body.textContent?.replace(/\s+/g, " ").trim() ?? "";
+    const bodyText = document.body?.textContent?.replace(/\s+/g, " ").trim() ?? "";
     const authStorageKey = Object.keys(localStorage).find(
       (key) => key.startsWith("sb-") && key.endsWith("-auth-token"),
     );
     const mainCount = [...document.querySelectorAll("main")].filter(visible).length;
     const h1Count = [...document.querySelectorAll("h1")].filter(visible).length;
-    const root = document.querySelector("#root, #app, [data-router-managed], body > div");
-    const loadingVisible = [...document.querySelectorAll('[aria-busy="true"], [data-loading="true"]')].some(
-      visible,
-    );
+    const pendingStatuses = [...document.querySelectorAll('[role="status"]')]
+      .filter(visible)
+      .map((node) => `${node.getAttribute("aria-label") ?? ""} ${node.textContent ?? ""}`.trim())
+      .filter((label) => /Loading page|Checking organizer access/i.test(label));
+    const loadingVisible =
+      pendingStatuses.length > 0 ||
+      [...document.querySelectorAll('[aria-busy="true"], [data-loading="true"]')].some(visible);
 
     return {
       title: document.title,
       finalPath: location.pathname,
       bodyContentMounted: bodyText.length > 0,
-      rootContentMounted: Boolean(root?.textContent?.trim()),
+      rootContentMounted: Boolean(
+        document.querySelector("#root, #app, [data-router-managed], main, h1"),
+      ),
       mainCount,
       h1Count,
+      pendingStatuses,
       overflow:
-        Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+        Math.max(document.documentElement.scrollWidth, document.body?.scrollWidth ?? 0) -
+        window.innerWidth,
       loadingVisible,
       errorBoundaryVisible: /Something went wrong|This page didn't load|Organizer could not open/i.test(
         bodyText,
@@ -427,7 +468,9 @@ async function auditOrganizerRoute(
     },
     rendering: {
       title: pageState.title,
-      routeLoadingSettled,
+      readinessWaitResolved,
+      routeLoadingSettled: pageState.pendingStatuses.length === 0,
+      pendingStatuses: pageState.pendingStatuses,
       rootContentMounted: pageState.rootContentMounted,
       bodyContentMounted: pageState.bodyContentMounted,
       mainVisible: pageState.mainCount === 1,
@@ -464,30 +507,92 @@ async function auditOrganizerRoute(
     classification: classifyAudit(withoutClassification),
   };
 
-  // Diagnostic evidence is committed to the result before any assertion can throw.
+  // Persist the evidence before any assertion can throw. A failing route must
+  // always leave enough information to distinguish app, auth, API and harness faults.
   await persistAudit(testInfo, audit);
 
-  expect(audit.supabase.remoteRequests, `${currentCase.path} must never contact hosted Supabase`).toEqual([]);
+  expect(
+    audit.supabase.remoteRequests,
+    `${currentCase.path} must never contact hosted Supabase`,
+  ).toEqual([]);
   expect(audit.navigation.navigationError, `${currentCase.path} navigation must complete`).toBeNull();
-  expect(audit.navigation.documentStatus, `${currentCase.path} should return a document response`).not.toBeNull();
-  expect(audit.navigation.documentStatus!, `${currentCase.path} document must be successful`).toBeLessThan(400);
-  expect(audit.rendering.rootContentMounted, `${currentCase.path} application root must mount`).toBeTruthy();
-  expect(audit.rendering.bodyContentMounted, `${currentCase.path} body must contain application content`).toBeTruthy();
-  expect(audit.rendering.routeLoadingSettled, `${currentCase.path} route loading must settle`).toBeTruthy();
-  expect(audit.rendering.mainCount, `${currentCase.path} should contain one visible main landmark`).toBe(1);
+  expect(
+    audit.navigation.documentStatus,
+    `${currentCase.path} should return a document response`,
+  ).not.toBeNull();
+  expect(
+    audit.navigation.documentStatus!,
+    `${currentCase.path} document must be successful`,
+  ).toBeLessThan(400);
+  expect(
+    audit.auth.sessionStoragePresent,
+    `${currentCase.path} must retain the seeded local auth session`,
+  ).toBeTruthy();
+  expect(
+    audit.auth.authPlaceholderVisible,
+    `${currentCase.path} must not fall back to an auth placeholder`,
+  ).toBeFalsy();
+  expect(
+    audit.navigation.routeLooksWrong,
+    `${currentCase.path} must not redirect to an error/auth route`,
+  ).toBeFalsy();
+  expect(
+    audit.rendering.errorBoundaryVisible,
+    `${currentCase.path} must not render an error boundary`,
+  ).toBeFalsy();
+  expect(
+    audit.rendering.setupMessageVisible,
+    `${currentCase.path} must not render a setup/configuration placeholder`,
+  ).toBeFalsy();
+  expect(
+    audit.rendering.rootContentMounted,
+    `${currentCase.path} application root must mount`,
+  ).toBeTruthy();
+  expect(
+    audit.rendering.bodyContentMounted,
+    `${currentCase.path} body must contain application content`,
+  ).toBeTruthy();
+  expect(
+    audit.rendering.pendingStatuses,
+    `${currentCase.path} must finish route/auth pending states`,
+  ).toEqual([]);
+  expect(
+    audit.rendering.mainCount,
+    `${currentCase.path} should contain one visible main landmark`,
+  ).toBe(1);
   expect(audit.rendering.h1Count, `${currentCase.path} should contain one visible h1`).toBe(1);
-  expect(audit.auth.sessionStoragePresent, `${currentCase.path} must retain the seeded local auth session`).toBeTruthy();
-  expect(audit.auth.authPlaceholderVisible, `${currentCase.path} must not fall back to an auth placeholder`).toBeFalsy();
-  expect(audit.navigation.routeLooksWrong, `${currentCase.path} must not redirect to an error/auth route`).toBeFalsy();
-  expect(audit.rendering.errorBoundaryVisible, `${currentCase.path} must not render an error boundary`).toBeFalsy();
-  expect(audit.supabase.protectedApiFailures, `${currentCase.path} must not hit local 401/403 Data API failures`).toEqual([]);
-  expect(audit.supabase.dataApiFailures, `${currentCase.path} must not hit failing local Data API requests`).toEqual([]);
-  expect(audit.supabase.rateLimitedRequests, `${currentCase.path} must not trigger Supabase rate limiting`).toEqual([]);
-  expect(audit.runtime.pageErrors, `${currentCase.path} must not throw browser runtime errors`).toEqual([]);
-  expect(audit.runtime.consoleErrors, `${currentCase.path} must not emit actionable console errors`).toEqual([]);
-  expect(audit.runtime.failedRequests, `${currentCase.path} must not contain failed requests`).toEqual([]);
-  expect(audit.runtime.failedCriticalResponses, `${currentCase.path} must not contain failed critical responses`).toEqual([]);
-  expect(audit.rendering.overflow, `${currentCase.path} must not overflow the viewport horizontally`).toBeLessThanOrEqual(2);
+  expect(
+    audit.supabase.protectedApiFailures,
+    `${currentCase.path} must not hit local 401/403 Data API failures`,
+  ).toEqual([]);
+  expect(
+    audit.supabase.dataApiFailures,
+    `${currentCase.path} must not hit failing local Data API requests`,
+  ).toEqual([]);
+  expect(
+    audit.supabase.rateLimitedRequests,
+    `${currentCase.path} must not trigger Supabase rate limiting`,
+  ).toEqual([]);
+  expect(
+    audit.runtime.pageErrors,
+    `${currentCase.path} must not throw browser runtime errors`,
+  ).toEqual([]);
+  expect(
+    audit.runtime.consoleErrors,
+    `${currentCase.path} must not emit actionable console errors`,
+  ).toEqual([]);
+  expect(
+    audit.runtime.failedRequests,
+    `${currentCase.path} must not contain failed requests`,
+  ).toEqual([]);
+  expect(
+    audit.runtime.failedCriticalResponses,
+    `${currentCase.path} must not contain failed critical responses`,
+  ).toEqual([]);
+  expect(
+    audit.rendering.overflow,
+    `${currentCase.path} must not overflow the viewport horizontally`,
+  ).toBeLessThanOrEqual(2);
 }
 
 test.describe("PR455 organizer fail-fast preflight", () => {
