@@ -74,10 +74,10 @@ const maintenanceProjects = [
   },
 ];
 
-
 export default defineConfig({
   testDir: "./e2e",
   testMatch: /.*\.e2e\.ts/,
+  globalSetup: process.env.CI ? "./e2e/pr455-browser-preflight.global.ts" : undefined,
   grepInvert: fullAudit ? undefined : /installed-app route invariant crawl/,
   outputDir: "test-results/playwright",
   timeout: process.env.CI ? 8 * 60_000 : 5 * 60_000,
