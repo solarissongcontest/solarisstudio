@@ -79,6 +79,22 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(audit).not.toContain("document.activeElement.blur()");
   });
 
+  it("keeps PR browser audit representative while preserving exhaustive certification", () => {
+    const config = source("playwright.config.ts");
+    const workflow = source(".github/workflows/browser-audit.yml");
+
+    expect(config).toContain('const fullAudit = process.env.E2E_FULL_AUDIT === "1";');
+    expect(config).toContain("const personalityViewportMatrix = fullAudit");
+    expect(config).toContain(
+      "grepInvert: fullAudit ? undefined : /installed-app route invariant crawl/",
+    );
+    expect(config).toContain('{ width: 390, height: 844 }');
+    expect(config).toContain('{ width: 1440, height: 900 }');
+    expect(workflow).toContain("Pull requests run a representative smoke set");
+    expect(workflow).toContain("E2E_FULL_AUDIT:");
+    expect(workflow).toContain("github.event_name == 'workflow_dispatch'");
+  });
+
   it("keeps organizer child content out of primary-main ownership and legacy Action Center aliases on canonical Tasks", () => {
     const gate = source("src/components/admin/UnifiedServiceAdminGate.tsx");
     const combined = source("src/routes/televoting/admin/combined.tsx");
