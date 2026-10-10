@@ -1,4 +1,4 @@
-name: PR457 merge probe
+name: PR457 reconciliation
 
 on:
   push:
@@ -6,30 +6,165 @@ on:
       - pr457-merge-probe
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  merge-probe:
+  reconcile-pr457:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout slice 5 probe
+      - name: Checkout exact PR457 head
         uses: actions/checkout@v4
         with:
-          ref: pr457-merge-probe
+          ref: split/pr450-05-browser-launch-stabilization-final
           fetch-depth: 0
-      - name: Build reconciliation bundle
+
+      - name: Merge current main without weakening predecessor fixes
         shell: bash
         run: |
           set -euo pipefail
+          expected_head="b8906650d23244c3561078a433f973157cf08cb9"
+          expected_main="259813d3c40f7e08f63ca435e34edbaa784bce2c"
+          actual_head="$(git rev-parse HEAD)"
+          test "$actual_head" = "$expected_head" || {
+            echo "PR457 moved: expected $expected_head, got $actual_head" >&2
+            exit 1
+          }
+
           git fetch origin main
-          git branch -f bundle-slice5 b8906650d23244c3561078a433f973157cf08cb9
-          git branch -f bundle-main origin/main
-          git bundle create pr457-reconcile.bundle bundle-slice5 bundle-main
-          git bundle verify pr457-reconcile.bundle
-      - name: Upload reconciliation bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr457-reconcile-bundle
-          path: pr457-reconcile.bundle
-          if-no-files-found: error
-          retention-days: 1
+          actual_main="$(git rev-parse origin/main)"
+          test "$actual_main" = "$expected_main" || {
+            echo "main moved: expected $expected_main, got $actual_main" >&2
+            exit 1
+          }
+
+          git config user.name "Solaris reconciliation bot"
+          git config user.email "reconciliation@users.noreply.github.com"
+
+          set +e
+          git merge --no-commit --no-ff origin/main
+          merge_status=$?
+          set -e
+          test "$merge_status" -eq 1 || {
+            echo "Expected the known 16-file conflict set; merge returned $merge_status" >&2
+            exit 1
+          }
+
+          mapfile -t conflicts < <(git diff --name-only --diff-filter=U)
+          expected_conflicts=(
+            "src/components/admin/AdminShell.tsx"
+            "src/components/app/AccountCacheIsolation.tsx"
+            "src/lib/account-cache-isolation.test.ts"
+            "src/lib/account-cache-isolation.ts"
+            "src/lib/app-information-hierarchy.contract.test.ts"
+            "src/lib/app-launch-lifecycle.test.ts"
+            "src/lib/app-launch-lifecycle.ts"
+            "src/lib/app-launch-offline-reconnect.contract.test.ts"
+            "src/lib/app-overlay-ownership.contract.test.ts"
+            "src/lib/studio2-feature-flags.test.ts"
+            "src/lib/studio2-feature-flags.ts"
+            "src/lib/use-solaris-press-hold.ts"
+            "src/routes/__root.tsx"
+            "src/routes/app-launch.tsx"
+            "src/routes/jury-voting.tsx"
+            "supabase/functions/country-auth/index.ts"
+          )
+          printf '%s\n' "${conflicts[@]}" > /tmp/actual-conflicts
+          printf '%s\n' "${expected_conflicts[@]}" > /tmp/expected-conflicts
+          diff -u /tmp/expected-conflicts /tmp/actual-conflicts
+
+          # For every overlapping predecessor repair, keep current main. Slice 5's
+          # non-overlapping work remains in the merge result automatically.
+          git checkout --theirs -- "${conflicts[@]}"
+          git add "${conflicts[@]}"
+
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path("src/lib/account-cache-isolation.test.ts")
+          s = p.read_text()
+          s = s.replace(
+              '    client.setQueryData(["mysolaris-jury-task", "A", "country", "edition"], "AAAA");\n',
+              '    client.setQueryData(["mysolaris-jury-task", "A", "country", "edition"], "AAAA");\n'
+              '    client.setQueryData(["owned-entry-publication", "edition"], "A publication");\n'
+              '    client.setQueryData(["owned-country-identity-history", "edition"], "A identity");\n'
+              '    client.setQueryData(["owned-hod-history", "edition"], "A HOD history");\n',
+          )
+          s = s.replace(
+              '    expect(client.getQueryData(["country-confirmation-access", "A"])).toBeUndefined();\n',
+              '    expect(client.getQueryData(["country-confirmation-access", "A"])).toBeUndefined();\n'
+              '    expect(client.getQueryData(["owned-entry-publication", "edition"])).toBeUndefined();\n'
+              '    expect(client.getQueryData(["owned-country-identity-history", "edition"])).toBeUndefined();\n'
+              '    expect(client.getQueryData(["owned-hod-history", "edition"])).toBeUndefined();\n',
+          )
+          s = s.replace(
+              '  it("namespaces private jury observers and remounts the ballot when accounts change", () => {\n'
+              '    const jury = readFileSync("src/routes/jury-voting.tsx", "utf8");\n'
+              '    expect(jury).toContain("useFanSession");\n',
+              '  it("namespaces private jury observers and remounts the ballot when accounts change", () => {\n'
+              '    const context = readFileSync("src/components/mysolaris/MySolarisContext.tsx", "utf8");\n'
+              '    const jury = readFileSync("src/routes/jury-voting.tsx", "utf8");\n'
+              '    expect(jury).toContain("useFanSession");\n'
+              '    expect(context).toContain(\'["mysolaris-jury-task", userId, countryId, currentEdition?.id ?? "none"]\');\n',
+          )
+          s = s.replace(
+              "    expect(jury).toContain('`solaris:jury-ballot-draft:${userId}:${country.id}:${round.show_id}`');\n",
+              "    expect(jury).toContain('`solaris:jury-ballot-draft:${userId}:${country.id}:${round.show_id}`');\n"
+              '    const voting = readFileSync("src/routes/_authenticated/my-solaris/voting.tsx", "utf8");\n'
+              "    expect(voting).toContain('[\"mysolaris-jury-window-state\", workspace.user?.id ?? \"none\", country?.id ?? \"none\"');\n",
+          )
+          p.write_text(s)
+
+          p = Path("src/lib/app-information-hierarchy.contract.test.ts")
+          s = p.read_text()
+          s = s.replace(
+              '    expect(toolbar).toContain(\'<h1 className="solaris-app-toolbar-context-title">{chrome.title}</h1>\');\n',
+              '    expect(toolbar).toContain(\'toolbarOwnsHeading && (showBack || chrome.archetype === "directory")\');\n'
+              '    expect(toolbar).toContain(\'<h1 className="solaris-app-toolbar-context-title">{chrome.title}</h1>\');\n'
+              '    expect(toolbar).toContain(\'!chrome.root && !showCenteredContextTitle\');\n',
+          )
+          p.write_text(s)
+
+          p = Path("playwright.config.ts")
+          s = p.read_text()
+          duplicate = '''    // Apply the device descriptor first. Some Playwright descriptors carry\n    // optional media fields as undefined; placing it after reducedMotion can\n    // silently erase the visual-test accessibility contract.\n    ...devices["Desktop Chrome"],\n'''
+          if duplicate not in s:
+              raise SystemExit("Expected duplicate Desktop Chrome descriptor was not produced by merge")
+          p.write_text(s.replace(duplicate, "", 1))
+          PY
+
+          git add -A
+          test -z "$(git diff --name-only --diff-filter=U)"
+          git diff --cached --check
+
+          # Search #438-#449 is frozen. Reconciliation must leave it byte-for-byte
+          # aligned with current main.
+          test -z "$(git diff --cached --name-only origin/main -- \
+            src/components/app/SolarisSearchField.tsx \
+            src/components/ui/command.tsx \
+            src/components/app/solaris-search-motion.css \
+            src/styles/app-shell.css \
+            src/styles.css)"
+
+          changed_count="$(git diff --cached --name-only origin/main | wc -l | tr -d ' ')"
+          test "$changed_count" = "37" || {
+            echo "Unexpected reconciled diff size: $changed_count files" >&2
+            git diff --cached --name-status origin/main
+            exit 1
+          }
+
+          grep -F 'timeout: prSmoke ? 90_000' playwright.config.ts
+          grep -F 'retries: prSmoke ? 0' playwright.config.ts
+          grep -F 'maxFailures: prSmoke ? 1' playwright.config.ts
+          grep -F 'assertPlaywrightSupabaseIsolation();' playwright.config.ts
+          grep -F 'consumeAnonymousRateLimit' supabase/functions/country-auth/index.ts
+          ! grep -F 'supabase.auth' src/components/admin/AdminShell.tsx
+
+          git commit -m "Merge current main into recovery slice 5"
+          git log -1 --oneline
+          git diff --stat origin/main..HEAD
+
+      - name: Push reconciled PR457 head
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push origin HEAD:refs/heads/split/pr450-05-browser-launch-stabilization-final
