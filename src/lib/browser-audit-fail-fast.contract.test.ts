@@ -6,6 +6,7 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 
 const playwrightConfig = source("playwright.config.ts");
 const organizerAudit = source("e2e/organizer-routes.e2e.ts");
+const publicAudit = source("e2e/public-routes.e2e.ts");
 const auditHelpers = source("e2e/audit-helpers.ts");
 const authenticatedRoute = source("src/routes/_authenticated/route.tsx");
 const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
@@ -21,6 +22,17 @@ describe("PR Browser Audit fail-fast and route isolation contract", () => {
   it("isolates Organizer route crawls so one route cannot cancel the next navigation", () => {
     expect(organizerAudit.match(/const routePage = await context\.newPage\(\);/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
     expect(organizerAudit).toContain("await routePage.close();");
+  });
+
+  it("isolates public route crawls so delayed navigation from one route cannot abort the next", () => {
+    expect(publicAudit.match(/const routePage = await context\.newPage\(\);/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    expect(publicAudit).toContain("await routePage.close();");
+  });
+
+  it("gives each static public route its own PR smoke timeout budget", () => {
+    expect(publicAudit).toContain("for (const route of [...STATIC_PUBLIC_ROUTES].sort())");
+    expect(publicAudit).toContain('test(`public route ${route} passes at this viewport`');
+    expect(publicAudit).not.toContain('test("public route families pass at this viewport"');
   });
 
   it("measures a hidden native file input through its real wrapping-label target", () => {
