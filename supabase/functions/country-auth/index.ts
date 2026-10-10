@@ -48,12 +48,83 @@ function safeResetRedirect(req: Request) {
   }
 }
 
+function requestAddress(req: Request) {
+  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return (
+    req.headers.get("cf-connecting-ip")?.trim() ||
+    forwarded ||
+    req.headers.get("x-real-ip")?.trim() ||
+    "unknown"
+  );
+}
+
 async function sha1Hex(value: string) {
   const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(value));
   return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("")
     .toUpperCase();
+}
+
+async function sha256Hex(value: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function consumeRateLimit(
+  service: ReturnType<typeof createClient>,
+  scope: string,
+  rawKey: string,
+  limit: number,
+  windowSeconds: number,
+) {
+  const keyHash = await sha256Hex(`${scope}|${rawKey}`);
+  const { data, error } = await service.rpc("country_auth_consume_rate_limit", {
+    p_scope: scope,
+    p_key_hash: keyHash,
+    p_limit: limit,
+    p_window_seconds: windowSeconds,
+  });
+  if (error) {
+    console.error(`[country-auth] ${scope} rate-limit check failed`, error);
+    throw new Error("Authentication protection is temporarily unavailable.");
+  }
+  return data === true;
+}
+
+async function consumeAnonymousRateLimit(
+  service: ReturnType<typeof createClient>,
+  scope: "signup" | "signin" | "recover",
+  clientAddress: string,
+  targetKey: string,
+  targetLimit: number,
+  addressLimit: number,
+  windowSeconds: number,
+) {
+  // A target-only/composite bucket can be bypassed by rotating usernames or
+  // countries. Enforce a separate address bucket as the abuse boundary while
+  // retaining the narrower address+target bucket for repeated attacks against
+  // one account or signup target.
+  const [addressAllowed, targetAllowed] = await Promise.all([
+    consumeRateLimit(
+      service,
+      `${scope}:address`,
+      clientAddress,
+      addressLimit,
+      windowSeconds,
+    ),
+    consumeRateLimit(
+      service,
+      `${scope}:target`,
+      `${clientAddress}|${targetKey}`,
+      targetLimit,
+      windowSeconds,
+    ),
+  ]);
+
+  return addressAllowed && targetAllowed;
 }
 
 async function breachedPasswordCount(password: string) {
@@ -123,6 +194,7 @@ Deno.serve(async (req) => {
   }
 
   const action = String(body.action ?? "");
+  const clientAddress = requestAddress(req);
 
   async function resolveLoginEmail(identifierInput: unknown) {
     const identifier = String(identifierInput ?? "").trim();
@@ -178,6 +250,25 @@ Deno.serve(async (req) => {
     if (!displayName || displayName.length > 80) {
       return json({ error: "Enter your name or nickname." }, 400);
     }
+
+    try {
+      const allowed = await consumeAnonymousRateLimit(
+        service,
+        "signup",
+        clientAddress,
+        `${countryId}|${instagramUsername}`,
+        5,
+        20,
+        15 * 60,
+      );
+      if (!allowed) {
+        return json({ error: "Too many account creation attempts. Try again later." }, 429);
+      }
+    } catch (error) {
+      console.error("[country-auth] Signup rate limiting unavailable", error);
+      return json({ error: "Account protection is temporarily unavailable. Try again shortly." }, 503);
+    }
+
     const passwordError = await passwordSafetyError(password);
     if (passwordError) return json({ error: passwordError }, password.length < 6 ? 400 : 422);
     if (recoveryEmail && !validEmail(recoveryEmail)) {
@@ -225,6 +316,43 @@ Deno.serve(async (req) => {
       return json({ error: message }, 400);
     }
 
+    // Auth creation and country ownership live in different Supabase subsystems,
+    // so make this flow compensating-transaction safe. The country_accounts
+    // UNIQUE constraints are the authoritative race boundary: if two signups
+    // pass the optimistic availability checks, only one ownership insert wins.
+    const { error: ownershipError } = await service.from("country_accounts").insert({
+      user_id: created.user.id,
+      country_id: countryId,
+      instagram_username: instagramUsername,
+      display_name: displayName,
+    });
+
+    if (ownershipError) {
+      const { error: cleanupError } = await service.auth.admin.deleteUser(created.user.id);
+      if (cleanupError) {
+        console.error(
+          "[country-auth] Failed to roll back Auth user after country ownership failure",
+          cleanupError,
+        );
+      }
+
+      if (ownershipError.code === "23505") {
+        return json(
+          {
+            error:
+              "That country or Instagram username was claimed while your account was being created. Refresh and choose an available option.",
+          },
+          409,
+        );
+      }
+
+      console.error("[country-auth] Country ownership creation failed", ownershipError);
+      return json(
+        { error: "Country ownership could not be created. No account was kept. Please try again." },
+        500,
+      );
+    }
+
     const { data: signedIn, error: signInError } = await publicAuth.auth.signInWithPassword({
       email: authEmail,
       password,
@@ -242,7 +370,26 @@ Deno.serve(async (req) => {
 
   if (action === "signin") {
     const password = String(body.password ?? "");
-    const resolved = await resolveLoginEmail(body.identifier);
+    const identifier = String(body.identifier ?? "").trim().toLowerCase();
+    try {
+      const allowed = await consumeAnonymousRateLimit(
+        service,
+        "signin",
+        clientAddress,
+        identifier,
+        20,
+        60,
+        15 * 60,
+      );
+      if (!allowed) {
+        return json({ error: "Too many sign-in attempts. Try again later." }, 429);
+      }
+    } catch (error) {
+      console.error("[country-auth] Sign-in rate limiting unavailable", error);
+      return json({ error: "Sign-in protection is temporarily unavailable. Try again shortly." }, 503);
+    }
+
+    const resolved = await resolveLoginEmail(identifier);
     if (!resolved.email || !password) return json({ error: "Invalid username/email or password." }, 401);
     if (resolved.suspended) return json({ error: "This country account is suspended." }, 403);
 
@@ -260,7 +407,26 @@ Deno.serve(async (req) => {
   }
 
   if (action === "recover") {
-    const resolved = await resolveLoginEmail(body.identifier);
+    const identifier = String(body.identifier ?? "").trim().toLowerCase();
+    try {
+      const allowed = await consumeAnonymousRateLimit(
+        service,
+        "recover",
+        clientAddress,
+        identifier,
+        5,
+        15,
+        30 * 60,
+      );
+      if (!allowed) {
+        return json({ ok: true, recoveryAvailable: true }, 202);
+      }
+    } catch (error) {
+      console.error("[country-auth] Recovery rate limiting unavailable", error);
+      return json({ ok: true, recoveryAvailable: true }, 202);
+    }
+
+    const resolved = await resolveLoginEmail(identifier);
     if (!resolved.email) {
       return json({ ok: true, recoveryAvailable: true });
     }

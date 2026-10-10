@@ -21,6 +21,7 @@ import {
 } from "@/components/admin/AdminUI";
 import { supabase } from "@/integrations/supabase/client";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
+import { useOrganisationBackendContract } from "@/lib/organisation-backend-contract";
 import {
   resolveSolarisV6OperationRecovery,
   type SolarisV6OperationRecovery,
@@ -36,6 +37,9 @@ type DeliveryRow = {
   status: DeliveryStatus;
   scheduledFor: string;
   sentAt: string | null;
+  providerAcceptedAt: string | null;
+  receivedAt: string | null;
+  displayedAt: string | null;
   openedAt: string | null;
   createdAt: string;
   error: string | null;
@@ -75,6 +79,10 @@ type RuntimeHealth = {
     subscriptions: { active: number; disabled: number };
     deliveries: {
       pending: number;
+      providerAccepted24h: number;
+      received24h: number;
+      displayed24h: number;
+      opened24h: number;
       sent24h: number;
       failed24h: number;
       suppressed24h: number;
@@ -96,10 +104,14 @@ export const Route = createFileRoute("/_authenticated/admin/system-operations")(
 
 function SystemOperationsPage() {
   const queryClient = useQueryClient();
+  const backend = useOrganisationBackendContract();
+  const systemOperationsSupported =
+    backend.data?.capabilities.systemOperations === true;
   const retryIdentities = useRef(new Map<string, RetryIdentity>());
   const [retryRecovery, setRetryRecovery] = useState<RetryRecoveryState | null>(null);
 
   const health = useQuery({
+    enabled: systemOperationsSupported,
     queryKey: ["admin-system-runtime-health"],
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("admin_system_runtime_health", {
@@ -121,6 +133,11 @@ function SystemOperationsPage() {
       operationId: string;
       idempotencyKey: string;
     }) => {
+      if (!systemOperationsSupported) {
+        throw new Error(
+          "The production database does not yet support System Operations.",
+        );
+      }
       const { data, error } = await (supabase as any).rpc(
         "admin_retry_failed_notification_delivery",
         {
@@ -161,6 +178,8 @@ function SystemOperationsPage() {
   });
 
   const retryFailedDelivery = (deliveryId: string) => {
+    if (!systemOperationsSupported) return;
+
     let identity = retryIdentities.current.get(deliveryId);
     if (!identity) {
       const command = createOrganisationCommand({
@@ -215,8 +234,14 @@ function SystemOperationsPage() {
               <button
                 type="button"
                 className="admin-action-secondary"
-                onClick={() => void health.refetch()}
-                disabled={health.isFetching}
+                onClick={() => {
+                  if (systemOperationsSupported) void health.refetch();
+                }}
+                disabled={
+                  backend.isLoading ||
+                  !systemOperationsSupported ||
+                  health.isFetching
+                }
               >
                 <RefreshCw className={health.isFetching ? "size-4 animate-spin" : "size-4"} />
                 {health.isFetching ? "Checking…" : "Refresh"}
@@ -225,7 +250,21 @@ function SystemOperationsPage() {
           }
         />
 
-        {health.isLoading ? (
+        {backend.isLoading ? (
+          <AdminCard>
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              Verifying Organizer backend compatibility…
+            </p>
+          </AdminCard>
+        ) : !systemOperationsSupported ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="System Operations backend update required"
+              description="Protected diagnostics are disabled until the production database exposes the matching runtime-health contract. Solaris will not pretend an unavailable diagnostic is healthy."
+            />
+          </AdminCard>
+        ) : health.isLoading ? (
           <AdminCard>
             <p className="py-12 text-center text-sm text-muted-foreground">
               Checking delivery and scheduler state…
@@ -245,15 +284,20 @@ function SystemOperationsPage() {
           </AdminCard>
         ) : (
           <>
-            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <Metric
                 label="Active push devices"
                 value={data.push.subscriptions.active}
                 tone="neutral"
               />
               <Metric
-                label="Sent · 24h"
-                value={data.push.deliveries.sent24h}
+                label="Provider accepted · 24h"
+                value={data.push.deliveries.providerAccepted24h}
+                tone="neutral"
+              />
+              <Metric
+                label="Displayed · 24h"
+                value={data.push.deliveries.displayed24h}
                 tone="ready"
               />
               <Metric
@@ -272,7 +316,7 @@ function SystemOperationsPage() {
               <AdminCardHeader
                 eyebrow="Push delivery"
                 title="Recent delivery state"
-                description="The dispatcher leases pending rows before sending so concurrent schedulers cannot intentionally claim the same delivery."
+                description="Provider acceptance, device receipt, display and open are tracked separately. A provider-accepted push is not treated as proof that the user saw it."
                 action={
                   <AdminStatus tone={pushAttention ? "attention" : "ready"}>
                     {pushAttention ? "Review" : "Healthy"}
@@ -299,7 +343,13 @@ function SystemOperationsPage() {
                           {humanize(delivery.category)} · {delivery.route}
                         </p>
                         <p className="mt-1 text-[11px] text-muted-foreground">
-                          Created {formatDate(delivery.createdAt)}
+                          {delivery.displayedAt
+                            ? `Displayed ${formatDate(delivery.displayedAt)}`
+                            : delivery.receivedAt
+                              ? `Received by device ${formatDate(delivery.receivedAt)}`
+                              : delivery.providerAcceptedAt
+                                ? `Provider accepted ${formatDate(delivery.providerAcceptedAt)}`
+                                : `Created ${formatDate(delivery.createdAt)}`}
                         </p>
                         {delivery.error ? (
                           <p className="mt-2 max-w-3xl text-xs leading-5 text-amber-100/80">
@@ -330,7 +380,7 @@ function SystemOperationsPage() {
                           <button
                             type="button"
                             className="admin-action-secondary w-full"
-                            disabled={retry.isPending}
+                            disabled={retry.isPending || !systemOperationsSupported}
                             onClick={() => retryFailedDelivery(delivery.id)}
                           >
                             <RefreshCw className="size-4" />

@@ -3,6 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 import { GLOBAL_MAINTENANCE_MODE } from "./src/lib/maintenance";
 
 const fullAudit = process.env.E2E_FULL_AUDIT === "1";
+const prSmoke = Boolean(process.env.CI) && process.env.GITHUB_EVENT_NAME === "pull_request" && !fullAudit;
 const publicViewportMatrix = fullAudit
   ? ([
       { width: 320, height: 568 },
@@ -80,11 +81,15 @@ export default defineConfig({
   globalSetup: process.env.CI ? "./e2e/pr455-browser-preflight.global.ts" : undefined,
   grepInvert: fullAudit ? undefined : /installed-app route invariant crawl/,
   outputDir: "test-results/playwright",
-  timeout: process.env.CI ? 8 * 60_000 : 5 * 60_000,
+  // PR smoke must surface a real failure quickly. Exhaustive/manual certification
+  // keeps the wider timeout and retry budget because it intentionally covers the
+  // full inventory rather than acting as a fast pull-request gate.
+  timeout: prSmoke ? 90_000 : process.env.CI ? 8 * 60_000 : 5 * 60_000,
   expect: { timeout: 20_000 },
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 1 : 0,
+  retries: prSmoke ? 0 : process.env.CI ? 1 : 0,
+  maxFailures: prSmoke ? 1 : 0,
   workers: process.env.CI ? 4 : undefined,
   reporter: process.env.CI
     ? fullAudit

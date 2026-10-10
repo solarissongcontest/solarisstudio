@@ -21,6 +21,20 @@ describe("Solaris V6 Organizer mobile phase", () => {
     expect(navigation).toContain("solaris:organizer-navigation:v1");
   });
 
+  it("does not call or fake the canonical Tasks badge before backend compatibility is proven", () => {
+    const chrome = source("src/components/admin/OrganizerV6MobileChrome.tsx");
+
+    expect(chrome).toContain("useOrganisationBackendContract");
+    expect(chrome).toContain("tasksSupported");
+    expect(chrome).toContain("useOrganizerTaskCountV5(");
+    expect(chrome).toContain("tasksSupported,");
+    expect(chrome).toContain("taskCount.isError");
+    expect(chrome).toContain(
+      'badge: item.id === "tasks" ? unresolvedTaskCount : undefined',
+    );
+    expect(chrome).not.toContain("data: unresolvedTaskCount = 0");
+  });
+
   it("uses the V6 screen and interaction contracts for Organizer navigation", () => {
     const chrome = source("src/components/admin/OrganizerV6MobileChrome.tsx");
     const tabbar = source("src/components/admin/OrganizerV6TabBar.tsx");

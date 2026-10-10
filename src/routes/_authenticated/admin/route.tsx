@@ -1,6 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import type { User } from "@supabase/supabase-js";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import { AdminShell } from "@/components/admin/AdminShell";
 import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
@@ -8,8 +9,6 @@ import { hasSolarisOrganizerAccess } from "@/integrations/supabase/access";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
 
 const ADMIN_RELOAD_KEY = "solaris:admin:last-stale-bundle-reload";
-
-type OrganizerAccessState = "checking" | "allowed" | "redirecting";
 
 function isStaleClientBundleError(error: unknown) {
   const text =
@@ -82,40 +81,28 @@ function AdminRouteError({ error }: { error: unknown; reset: () => void }) {
 
 function OrganizerAccessGate({ user, children }: { user: User; children: ReactNode }) {
   const navigate = useNavigate();
-  const [state, setState] = useState<OrganizerAccessState>("checking");
+  const organizerAccess = useQuery<boolean>({
+    queryKey: ["organizer-access-gate", user.id],
+    queryFn: async () => {
+      try {
+        return await hasSolarisOrganizerAccess(user.id);
+      } catch {
+        return false;
+      }
+    },
+    retry: false,
+  });
 
   useEffect(() => {
-    let active = true;
+    if (organizerAccess.isPending || organizerAccess.data) return;
+    void navigate({
+      to: "/my-solaris",
+      search: { notice: "organizer-access-required" },
+      replace: true,
+    });
+  }, [navigate, organizerAccess.data, organizerAccess.isPending]);
 
-    void (async () => {
-      let isOrganizer = false;
-      try {
-        isOrganizer = await hasSolarisOrganizerAccess(user.id);
-      } catch {
-        isOrganizer = false;
-      }
-
-      if (!active) return;
-
-      if (!isOrganizer) {
-        setState("redirecting");
-        await navigate({
-          to: "/my-solaris",
-          search: { notice: "organizer-access-required" },
-          replace: true,
-        });
-        return;
-      }
-
-      setState("allowed");
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [navigate, user.id]);
-
-  if (state !== "allowed") {
+  if (organizerAccess.isPending || !organizerAccess.data) {
     return (
       <main
         className="grid min-h-screen place-items-center bg-[#020817] px-5 text-white"
@@ -124,7 +111,7 @@ function OrganizerAccessGate({ user, children }: { user: User; children: ReactNo
         <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.035] p-5 text-center shadow-2xl">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-sky-100/80">Solaris Organizer</p>
           <p className="mt-2 text-sm font-semibold text-white/85">
-            {state === "checking" ? "Checking organizer access…" : "Opening MySolaris…"}
+            {organizerAccess.isPending ? "Checking organizer access…" : "Opening MySolaris…"}
           </p>
         </div>
       </main>

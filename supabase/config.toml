@@ -2,3 +2,9 @@ project_id = "dkxmnvekiopyesuzggeu"
 
 [functions.solaris-push-dispatch]
 verify_jwt = false
+
+[functions.notification-receipt]
+verify_jwt = false
+
+[functions.country-auth]
+verify_jwt = false

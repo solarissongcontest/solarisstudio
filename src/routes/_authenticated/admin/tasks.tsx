@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
+import { useOrganisationBackendContract } from "@/lib/organisation-backend-contract";
 import { SolarisMorphingSelection } from "@/components/interaction/SolarisMorphingSelection";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
@@ -50,12 +51,25 @@ function OrganizerTasksPage() {
   const { editionId } = useAdminContext();
   const { filter } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const tasksQuery = useOrganizerTasksV5(editionId, filter);
+  const backend = useOrganisationBackendContract();
+  const tasksSupported = backend.data?.capabilities.organizerTasks === true;
+  const tasksQuery = useOrganizerTasksV5(editionId, filter, tasksSupported);
   const tasks = tasksQuery.data ?? [];
 
-  const critical = tasks.filter((task) => task.priority === "critical").length;
-  const high = tasks.filter((task) => task.priority === "high").length;
-  const waiting = tasks.filter((task) => task.state === "waiting").length;
+  const metricsAvailable =
+    backend.isSuccess &&
+    tasksSupported &&
+    !tasksQuery.isLoading &&
+    !tasksQuery.error;
+  const critical = metricsAvailable
+    ? tasks.filter((task) => task.priority === "critical").length
+    : null;
+  const high = metricsAvailable
+    ? tasks.filter((task) => task.priority === "high").length
+    : null;
+  const waiting = metricsAvailable
+    ? tasks.filter((task) => task.state === "waiting").length
+    : null;
 
   return (
     <AdminPage>
@@ -93,13 +107,39 @@ function OrganizerTasksPage() {
 
         {filter !== "resolved" ? (
           <section className="grid grid-cols-3 gap-2 sm:gap-3">
-            <Metric label="Critical" value={critical} tone={critical ? "blocked" : "ready"} />
-            <Metric label="High" value={high} tone={high ? "attention" : "ready"} />
-            <Metric label="Waiting" value={waiting} tone={waiting ? "info" : "neutral"} />
+            <Metric
+              label="Critical"
+              value={critical}
+              tone={critical == null ? "neutral" : critical ? "blocked" : "ready"}
+            />
+            <Metric
+              label="High"
+              value={high}
+              tone={high == null ? "neutral" : high ? "attention" : "ready"}
+            />
+            <Metric
+              label="Waiting"
+              value={waiting}
+              tone={waiting == null ? "neutral" : waiting ? "info" : "neutral"}
+            />
           </section>
         ) : null}
 
-        {tasksQuery.isLoading ? (
+        {backend.isLoading ? (
+          <AdminCard>
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              Verifying Organizer backend compatibility…
+            </p>
+          </AdminCard>
+        ) : !tasksSupported ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="Organizer Tasks backend update required"
+              description="This frontend will not evaluate Tasks until the production database exposes the matching Organizer Task contract. No zero counts are inferred while task truth is unavailable."
+            />
+          </AdminCard>
+        ) : tasksQuery.isLoading ? (
           <AdminCard>
             <p className="py-12 text-center text-sm text-muted-foreground">
               Evaluating authoritative task state…
@@ -202,15 +242,17 @@ function Metric({
   tone,
 }: {
   label: string;
-  value: number;
+  value: number | null;
   tone: "ready" | "attention" | "blocked" | "info" | "neutral";
 }) {
   return (
     <AdminCard className="!p-3 sm:!p-4">
       <p className="admin-section-label">{label}</p>
       <div className="mt-2 flex items-center justify-between gap-2">
-        <p className="text-2xl font-bold tabular-nums">{value}</p>
-        <AdminStatus tone={tone}>{value ? "Active" : "Clear"}</AdminStatus>
+        <p className="text-2xl font-bold tabular-nums">{value == null ? "—" : value}</p>
+        <AdminStatus tone={tone}>
+          {value == null ? "Unavailable" : value ? "Active" : "Clear"}
+        </AdminStatus>
       </div>
     </AdminCard>
   );
