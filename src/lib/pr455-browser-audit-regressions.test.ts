@@ -62,11 +62,22 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(root).toContain('navigator.standalone === true');
   });
 
-  it("audits only visible page landmarks and genuinely tabbable hidden controls", () => {
+  it("audits semantic readiness through visible landmarks instead of first-DOM-node or network-idle heuristics", () => {
     const audit = source("e2e/audit-helpers.ts");
+    const preflight = source("e2e/pr455-organizer-regression.e2e.ts");
 
     expect(audit).toContain("const visibleMainLandmarks =");
     expect(audit).toContain("mainCount: visibleMainLandmarks.length");
+    expect(audit).toContain('page.locator("main:visible")');
+    expect(audit).toContain('page.locator("h1:visible")');
+    expect(audit).not.toContain('page.locator("main").first()');
+    expect(audit).not.toContain('page.locator("h1").first()');
+    expect(audit).not.toContain('waitForLoadState("networkidle"');
+    expect(audit).not.toContain("waitForTimeout(250)");
+    expect(preflight).toContain('.locator("main:visible")');
+    expect(preflight).toContain('.locator("h1:visible")');
+    expect(preflight).not.toContain('.locator("main")\n    .first()');
+    expect(preflight).not.toContain('.locator("h1")\n    .first()');
     expect(audit).toContain("if (node.tabIndex < 0) return false;");
   });
 

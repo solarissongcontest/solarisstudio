@@ -145,10 +145,12 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
   try {
     const response = await page.goto(path, { waitUntil: "domcontentloaded" });
     expect(response?.status(), `${path} should return a successful document`).toBeLessThan(400);
-    await expect(page.locator("main").first()).toBeVisible();
-    await expect(page.locator("h1").first(), `${path} needs one visible page heading`).toBeVisible({ timeout: 15_000 });
-    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => undefined);
-    await page.waitForTimeout(250);
+    await expect(page.locator("main:visible"), `${path} needs one visible main landmark`).toHaveCount(1, {
+      timeout: 15_000,
+    });
+    await expect(page.locator("h1:visible"), `${path} needs one visible page heading`).toHaveCount(1, {
+      timeout: 15_000,
+    });
 
     const result = await page.evaluate(() => {
       const duplicateIds = [...document.querySelectorAll<HTMLElement>("[id]")]

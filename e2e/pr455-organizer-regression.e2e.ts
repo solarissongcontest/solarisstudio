@@ -358,13 +358,13 @@ async function auditOrganizerRoute(
   }
 
   const mainVisible = await page
-    .locator("main")
+    .locator("main:visible")
     .first()
     .waitFor({ state: "visible", timeout: 15_000 })
     .then(() => true)
     .catch(() => false);
   const headingVisible = await page
-    .locator("h1")
+    .locator("h1:visible")
     .first()
     .waitFor({ state: "visible", timeout: 15_000 })
     .then(() => true)
