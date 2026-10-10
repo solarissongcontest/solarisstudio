@@ -128,6 +128,12 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(workflow).toContain("Pull requests run a representative smoke set");
     expect(workflow).toContain("E2E_FULL_AUDIT:");
     expect(workflow).toContain("github.event_name == 'workflow_dispatch'");
+
+    const publicRoutes = source("e2e/public-routes.e2e.ts");
+    expect(publicRoutes).toContain("const PR_SMOKE_PUBLIC_ROUTES = [");
+    expect(publicRoutes).toContain(
+      "fullAudit ? [...STATIC_PUBLIC_ROUTES].sort() : [...PR_SMOKE_PUBLIC_ROUTES]",
+    );
   });
 
   it("keeps organizer child content out of primary-main ownership and legacy Action Center aliases on canonical Tasks", () => {

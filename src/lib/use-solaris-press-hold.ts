@@ -30,13 +30,18 @@ export function useSolarisPressHold({
   const [held, setHeld] = useState(false);
   const session = useRef<HoldSession | null>(null);
 
+  const disposeSession = useCallback(() => {
+    const active = session.current;
+    if (active && typeof window !== "undefined") window.clearTimeout(active.timer);
+    session.current = null;
+  }, []);
+
   const end = useCallback((pointerId?: number) => {
     const active = session.current;
     if (pointerId !== undefined && active?.pointerId !== pointerId) return;
-    if (active && typeof window !== "undefined") window.clearTimeout(active.timer);
-    session.current = null;
+    disposeSession();
     setHeld(false);
-  }, []);
+  }, [disposeSession]);
 
   const begin = useCallback(
     (pointerId: number, clientX: number, clientY: number) => {
@@ -76,14 +81,7 @@ export function useSolarisPressHold({
     [end, movementTolerance],
   );
 
-  useEffect(
-    () => () => {
-      const active = session.current;
-      if (active && typeof window !== "undefined") window.clearTimeout(active.timer);
-      session.current = null;
-    },
-    [],
-  );
+  useEffect(() => () => disposeSession(), [disposeSession]);
 
   return { held, begin, move, end };
 }
