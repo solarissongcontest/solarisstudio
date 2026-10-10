@@ -36,8 +36,7 @@ describe("App Experience v3 native-feel polish", () => {
     const shell = source("src/components/AppShell.tsx");
     const toolbar = source("src/components/app/AppToolbar.tsx");
 
-    expect(shell).toContain("isAppMode &&");
-    expect(shell).toContain('!pathname.startsWith("/integrity/report")');
+    expect(shell).toContain('isAppMode && appScreen.chrome.toolbar !== "hidden"');
     expect(toolbar).toContain('display: "block"');
     expect(toolbar).toContain('className="solaris-app-toolbar"');
   });
