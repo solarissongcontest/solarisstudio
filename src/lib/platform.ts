@@ -25,6 +25,21 @@ type CapacitorWindow = Window & {
   };
 };
 
+export function hydrationSafeSolarisPlatformSnapshot(): SolarisPlatformSnapshot {
+  return {
+    mode: "web",
+    isAppMode: false,
+    isStandalone: false,
+    isNative: false,
+    isOnline: true,
+    canInstallServiceWorker: false,
+    canPush: false,
+    canNotify: false,
+    canBadge: false,
+    canShare: false,
+  };
+}
+
 export function isStandaloneDisplayMode() {
   if (typeof window === "undefined") return false;
   const mediaStandalone = window.matchMedia?.("(display-mode: standalone)").matches ?? false;
@@ -41,18 +56,7 @@ export function isNativeSolarisRuntime() {
 
 export function detectSolarisPlatform(): SolarisPlatformSnapshot {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
-    return {
-      mode: "web",
-      isAppMode: false,
-      isStandalone: false,
-      isNative: false,
-      isOnline: true,
-      canInstallServiceWorker: false,
-      canPush: false,
-      canNotify: false,
-      canBadge: false,
-      canShare: false,
-    };
+    return hydrationSafeSolarisPlatformSnapshot();
   }
 
   const isNative = isNativeSolarisRuntime();

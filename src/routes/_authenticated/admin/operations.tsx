@@ -38,7 +38,8 @@ export const Route = createFileRoute("/_authenticated/admin/operations")({
       { name: "robots", content: "noindex" },
       {
         name: "description",
-        content: "See what needs attention, what is coming up and the state of the current Solaris edition.",
+        content:
+          "See what needs attention, what is coming up and the state of the current Solaris edition.",
       },
     ],
   }),
@@ -60,10 +61,10 @@ function OrganizerHome() {
   const { data: readinessData, isLoading: readinessLoading } = useAdminReadinessData(
     activeEdition?.id,
   );
-  const {
-    data: schedule = [],
-    isError: scheduleError,
-  } = useAdminOperationalSchedule(activeEdition?.id ?? null, activeEdition?.slug ?? null);
+  const { data: schedule = [], isError: scheduleError } = useAdminOperationalSchedule(
+    activeEdition?.id ?? null,
+    activeEdition?.slug ?? null,
+  );
   const { data: notifications = [] } = useAdminNotifications();
   const markRead = useMarkNotificationRead();
 
@@ -84,8 +85,7 @@ function OrganizerHome() {
     [activeEdition, shows, readinessData],
   );
 
-  const upcoming =
-    schedule.find((item) => new Date(item.at).getTime() >= Date.now()) ?? null;
+  const upcoming = schedule.find((item) => new Date(item.at).getTime() >= Date.now()) ?? null;
   const unread = notifications.filter((item) => !item.read_at);
   const unresolvedInbox = notifications.filter((item) => item.requires_action && !item.resolved_at);
   const issues = readiness?.issues ?? [];
@@ -128,7 +128,11 @@ function OrganizerHome() {
                   }
                   description="Only actionable edition problems appear here. Each item opens the place where it can be fixed."
                   action={
-                    <Link to="/admin/tasks" search={{ filter: "all" }} className="text-xs font-semibold text-sky-100">
+                    <Link
+                      to="/admin/tasks"
+                      search={{ filter: "all" }}
+                      className="text-xs font-semibold text-sky-100"
+                    >
                       Tasks →
                     </Link>
                   }
@@ -169,8 +173,16 @@ function OrganizerHome() {
                 <AdminCard>
                   <AdminCardHeader
                     eyebrow="Notifications"
-                    title={unresolvedInbox.length ? `${unresolvedInbox.length} need attention` : "All caught up"}
-                    description={unread.length ? `${unread.length} unseen · unresolved work stays here after it is read.` : "Complaints, appeals, beta feedback and connected administrative events."}
+                    title={
+                      unresolvedInbox.length
+                        ? `${unresolvedInbox.length} need attention`
+                        : "All caught up"
+                    }
+                    description={
+                      unread.length
+                        ? `${unread.length} unseen · unresolved work stays here after it is read.`
+                        : "Complaints, appeals, beta feedback and connected administrative events."
+                    }
                     action={
                       <Link to="/admin/inbox" className="text-xs font-semibold text-sky-100">
                         Open notifications →
@@ -216,7 +228,9 @@ function OrganizerHome() {
                       )}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No unresolved notification items.</p>
+                    <p className="text-sm text-muted-foreground">
+                      No unresolved notification items.
+                    </p>
                   )}
                 </AdminCard>
 
@@ -226,7 +240,7 @@ function OrganizerHome() {
                     title={
                       scheduleError
                         ? "Schedule unavailable"
-                        : upcoming?.label ?? "Nothing scheduled"
+                        : (upcoming?.label ?? "Nothing scheduled")
                     }
                     description={
                       scheduleError
@@ -236,17 +250,28 @@ function OrganizerHome() {
                           : "There are no upcoming workflow dates for this edition."
                     }
                   />
-                  <Link
-                    to={(upcoming?.href ?? "/admin/system") as any}
-                    className="admin-action-secondary w-full"
-                  >
-                    <Clock3 className="size-4" />
-                    {upcoming
-                      ? upcoming.source === "reminder"
-                        ? "Open reminder"
-                        : "Open workflow"
-                      : "Open schedule"}
-                  </Link>
+                  {upcoming && !upcoming.href ? (
+                    <span
+                      aria-disabled="true"
+                      title="Select an edition first"
+                      className="admin-action-secondary w-full cursor-not-allowed opacity-55"
+                    >
+                      <Clock3 className="size-4" />
+                      Select an edition first
+                    </span>
+                  ) : (
+                    <Link
+                      to={(upcoming?.href ?? "/admin/system") as any}
+                      className="admin-action-secondary w-full"
+                    >
+                      <Clock3 className="size-4" />
+                      {upcoming
+                        ? upcoming.source === "reminder"
+                          ? "Open reminder"
+                          : "Open workflow"
+                        : "Open schedule"}
+                    </Link>
+                  )}
                 </AdminCard>
               </div>
             </div>
@@ -342,7 +367,9 @@ function IssueLink({ issue, slug }: { issue: AdminIssue; slug: string }) {
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-semibold text-foreground">{issue.title}</span>
-        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{issue.detail}</span>
+        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+          {issue.detail}
+        </span>
       </span>
       <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
     </Link>

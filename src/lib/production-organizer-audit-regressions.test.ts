@@ -138,13 +138,25 @@ describe("production Organizer audit regressions", () => {
     expect(confirmations).toContain("This confirmation could not be opened for editing.");
   });
 
-  it("replaces unauthorized Organizer URLs with MySolaris and explains why", () => {
+  it("replaces unauthorized Organizer URLs with MySolaris without a pre-mount role loader", () => {
+    const authenticatedRoute = source("src/routes/_authenticated/route.tsx");
+    const organizerGate = source("src/components/admin/OrganizerAccessGate.tsx");
     const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
     const mySolaris = source("src/routes/_authenticated/my-solaris/index.tsx");
 
-    expect(adminRoute).toContain('to: "/my-solaris"');
-    expect(adminRoute).toContain('notice: "organizer-access-required"');
-    expect(adminRoute).toContain("replace: true");
+    expect(authenticatedRoute).toContain('pathname === "/admin"');
+    expect(authenticatedRoute).toContain('pathname.startsWith("/admin/")');
+    expect(authenticatedRoute).toContain("<OrganizerAccessGate");
+    expect(authenticatedRoute).not.toContain("hasSolarisOrganizerAccess");
+    expect(organizerGate).toContain("useEffect");
+    expect(organizerGate).toContain("hasSolarisOrganizerAccess(userId)");
+    expect(organizerGate).not.toContain('.from("user_roles")');
+    expect(organizerGate).toContain('to: "/my-solaris"');
+    expect(organizerGate).toContain('notice: "organizer-access-required"');
+    expect(organizerGate).toContain("replace: true");
+    expect(organizerGate).toContain('state === "allowed"');
+    expect(adminRoute).not.toContain("hasSolarisOrganizerAccess");
+    expect(adminRoute).not.toContain("beforeLoad:");
     expect(mySolaris).toContain("Organizer access required");
     expect(mySolaris).toContain("does not have Organizer access");
   });

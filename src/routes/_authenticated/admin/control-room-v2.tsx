@@ -1,9 +1,10 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/admin/control-room-v2")({
-  beforeLoad: () => {
-    throw redirect({ to: "/admin/control-room", replace: true });
-  },
   head: () => ({ meta: [{ name: "robots", content: "noindex" }] }),
-  component: () => null,
+  component: AdminControlRoomV2Redirect,
 });
+
+function AdminControlRoomV2Redirect() {
+  return <Navigate to="/admin/control-room" replace />;
+}
