@@ -1,0 +1,34 @@
+name: PR457 merge probe
+
+on:
+  push:
+    branches:
+      - pr457-merge-probe
+
+permissions:
+  contents: read
+
+jobs:
+  merge-probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout slice 5 probe
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Report exact main merge conflicts
+        shell: bash
+        run: |
+          set -uo pipefail
+          git fetch origin main
+          set +e
+          git merge --no-commit --no-ff origin/main
+          status=$?
+          set -e
+          echo "merge_status=$status"
+          echo "conflict_count=$(git diff --name-only --diff-filter=U | wc -l | tr -d ' ')"
+          echo "--- conflict files ---"
+          git diff --name-only --diff-filter=U
+          echo "--- end conflict files ---"
+          git merge --abort || true
+          exit 0
