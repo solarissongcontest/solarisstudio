@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - pr457-merge-probe
-  pull_request:
-    branches:
-      - main
 
 permissions:
   contents: read
@@ -20,21 +17,19 @@ jobs:
         with:
           ref: pr457-merge-probe
           fetch-depth: 0
-      - name: Report exact main merge conflicts
+      - name: Build reconciliation bundle
         shell: bash
         run: |
-          set -uo pipefail
-          git config user.name "Solaris merge probe"
-          git config user.email "merge-probe@users.noreply.github.com"
+          set -euo pipefail
           git fetch origin main
-          set +e
-          git merge --no-commit --no-ff origin/main
-          status=$?
-          set -e
-          echo "merge_status=$status"
-          echo "conflict_count=$(git diff --name-only --diff-filter=U | wc -l | tr -d ' ')"
-          echo "--- conflict files ---"
-          git diff --name-only --diff-filter=U
-          echo "--- end conflict files ---"
-          git merge --abort || true
-          exit 0
+          git branch -f bundle-slice5 b8906650d23244c3561078a433f973157cf08cb9
+          git branch -f bundle-main origin/main
+          git bundle create pr457-reconcile.bundle bundle-slice5 bundle-main
+          git bundle verify pr457-reconcile.bundle
+      - name: Upload reconciliation bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr457-reconcile-bundle
+          path: pr457-reconcile.bundle
+          if-no-files-found: error
+          retention-days: 1
