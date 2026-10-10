@@ -6,12 +6,16 @@ const fullAudit = process.env.E2E_FULL_AUDIT === "1";
 
 async function auditRoutes(page: Page, routes: string[], testInfo: TestInfo) {
   const failures: string[] = [];
+  const context = page.context();
 
   for (const route of routes) {
+    const routePage = await context.newPage();
     try {
-      await test.step(route, () => auditPage(page, route, testInfo));
+      await test.step(route, () => auditPage(routePage, route, testInfo));
     } catch (error) {
       failures.push(`${route}: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      await routePage.close();
     }
   }
 
@@ -147,24 +151,30 @@ test("representative page families remain usable at 200% text size", async ({ pa
     "Text zoom runs once on a mobile and desktop baseline",
   );
 
+  const context = page.context();
   for (const route of ["/editions", "/pulse", "/prediction-league", "/result-lab", "/rules", "/integrity"]) {
-    await page.goto(route, { waitUntil: "domcontentloaded" });
-    await page.evaluate(() => {
-      document.documentElement.style.fontSize = "200%";
-    });
-    await page.waitForTimeout(100);
+    const routePage = await context.newPage();
+    try {
+      await routePage.goto(route, { waitUntil: "domcontentloaded" });
+      await routePage.evaluate(() => {
+        document.documentElement.style.fontSize = "200%";
+      });
+      await routePage.waitForTimeout(100);
 
-    const geometry = await page.evaluate(() => ({
-      overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
-      h1Visible: [...document.querySelectorAll<HTMLElement>("h1")].filter((node) => {
-        const rect = node.getBoundingClientRect();
-        const style = getComputedStyle(node);
-        return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
-      }).length,
-    }));
+      const geometry = await routePage.evaluate(() => ({
+        overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+        h1Visible: [...document.querySelectorAll<HTMLElement>("h1")].filter((node) => {
+          const rect = node.getBoundingClientRect();
+          const style = getComputedStyle(node);
+          return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+        }).length,
+      }));
 
-    expect(geometry.overflow, `${route} should not horizontally overflow at 200% text`).toBeLessThanOrEqual(2);
-    expect(geometry.h1Visible, `${route} should retain one visible page heading at 200% text`).toBe(1);
+      expect(geometry.overflow, `${route} should not horizontally overflow at 200% text`).toBeLessThanOrEqual(2);
+      expect(geometry.h1Visible, `${route} should retain one visible page heading at 200% text`).toBe(1);
+    } finally {
+      await routePage.close();
+    }
   }
 });
 
@@ -182,13 +192,19 @@ test("captures the final visual archetypes for review", async ({ page }, testInf
     ["feed", "/pulse"],
   ] as const;
 
+  const context = page.context();
   for (const [name, route] of archetypes) {
-    await page.goto(route, { waitUntil: "domcontentloaded" });
-    await expect(page.locator("main").first()).toBeVisible();
-    await testInfo.attach(
-      `final-${name}-${testInfo.project.name}.png`,
-      { body: await page.screenshot({ fullPage: true }), contentType: "image/png" },
-    );
+    const routePage = await context.newPage();
+    try {
+      await routePage.goto(route, { waitUntil: "domcontentloaded" });
+      await expect(routePage.locator("main").first()).toBeVisible();
+      await testInfo.attach(
+        `final-${name}-${testInfo.project.name}.png`,
+        { body: await routePage.screenshot({ fullPage: true }), contentType: "image/png" },
+      );
+    } finally {
+      await routePage.close();
+    }
   }
 });
 
