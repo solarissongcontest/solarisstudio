@@ -50,6 +50,7 @@ type PreflightAudit = {
   };
   rendering: {
     title: string;
+    routeLoadingSettled: boolean;
     rootContentMounted: boolean;
     bodyContentMounted: boolean;
     mainVisible: boolean;
@@ -72,6 +73,7 @@ type PreflightAudit = {
     remoteRequests: NetworkRecord[];
     dataApiFailures: NetworkRecord[];
     protectedApiFailures: NetworkRecord[];
+    rateLimitedRequests: NetworkRecord[];
   };
   runtime: {
     consoleErrors: string[];
@@ -82,21 +84,13 @@ type PreflightAudit = {
 };
 
 const organizerCases: readonly PreflightCase[] = [
-  {
-    label: "desktop-hosts",
-    path: "/admin/hosts",
-    viewport: { width: 1440, height: 1000 },
-  },
+  { label: "desktop-hosts", path: "/admin/hosts", viewport: { width: 1440, height: 1000 } },
   {
     label: "desktop-integrity-declarations",
     path: "/televoting/admin/integrity-declarations",
     viewport: { width: 1440, height: 1000 },
   },
-  {
-    label: "mobile-entries",
-    path: "/admin/entries/ssc22",
-    viewport: { width: 390, height: 844 },
-  },
+  { label: "mobile-entries", path: "/admin/entries/ssc22", viewport: { width: 390, height: 844 } },
   {
     label: "mobile-results-reveal",
     path: "/admin/results-reveal",
@@ -186,22 +180,6 @@ async function installOrganizerState(
     ({ key, value }) => localStorage.setItem(key, JSON.stringify(value)),
     { key: `sb-${projectRef}-auth-token`, value: session },
   );
-
-  await context.addInitScript(() => {
-    const originalError = console.error.bind(console);
-    console.error = (...args: unknown[]) => {
-      const first = args[0];
-      if (
-        typeof first === "string" &&
-        first.includes("Can't perform a React state update on a component that hasn't mounted yet")
-      ) {
-        const stack = new Error("React state-update diagnostic").stack ?? "stack unavailable";
-        originalError(...args, `\nReact state-update diagnostic stack:\n${stack}`);
-        return;
-      }
-      originalError(...args);
-    };
-  });
 }
 
 function isHostedSupabase(url: string) {
@@ -210,6 +188,25 @@ function isHostedSupabase(url: string) {
   } catch {
     return false;
   }
+}
+
+function criticalResource(resourceType: string, url: string) {
+  return (
+    ["document", "script", "stylesheet", "font"].includes(resourceType) ||
+    /\/(?:rest|auth|storage)\/v1\//i.test(url) ||
+    isHostedSupabase(url)
+  );
+}
+
+function ignoreConsoleError(message: string) {
+  return (
+    /favicon|hydration (?:failed because|completed but contains)|a tree hydrated but some attributes/i.test(
+      message,
+    ) ||
+    /^Failed to load resource: the server responded with a status of \d{3}(?: \([^)]*\))?$/i.test(
+      message.trim(),
+    )
+  );
 }
 
 function classifyAudit(audit: Omit<PreflightAudit, "classification">): string {
@@ -236,7 +233,14 @@ function classifyAudit(audit: Omit<PreflightAudit, "classification">): string {
   if (audit.rendering.errorBoundaryVisible) return "ERROR_BOUNDARY";
   if (audit.supabase.protectedApiFailures.length > 0) return "RLS_PERMISSION_FAILURE";
   if (audit.supabase.dataApiFailures.length > 0) return "DATA_API_FAILURE";
-  if (!audit.rendering.mainVisible || !audit.rendering.headingVisible) return "SEMANTIC_READINESS_FAILURE";
+  if (audit.supabase.rateLimitedRequests.length > 0) return "REQUEST_STORM";
+  if (
+    !audit.rendering.routeLoadingSettled ||
+    !audit.rendering.mainVisible ||
+    !audit.rendering.headingVisible
+  ) {
+    return "SEMANTIC_READINESS_FAILURE";
+  }
   if (audit.runtime.pageErrors.length > 0 || audit.runtime.consoleErrors.length > 0) {
     return "APP_RUNTIME_FAILURE";
   }
@@ -247,48 +251,32 @@ function classifyAudit(audit: Omit<PreflightAudit, "classification">): string {
   return "OK";
 }
 
-function criticalResource(resourceType: string, url: string) {
-  return (
-    ["document", "script", "stylesheet", "font"].includes(resourceType) ||
-    /\/(?:rest|auth|storage)\/v1\//i.test(url) ||
-    isHostedSupabase(url)
-  );
-}
-
-function ignoreConsoleError(message: string) {
-  return (
-    /favicon|hydration (?:failed because|completed but contains)|a tree hydrated but some attributes/i.test(
-      message,
-    ) ||
-    /^Failed to load resource: the server responded with a status of \d{3}(?: \([^)]*\))?$/i.test(
-      message.trim(),
-    )
-  );
-}
-
 async function persistAudit(testInfo: TestInfo, audit: PreflightAudit) {
   const body = JSON.stringify(audit, null, 2);
   const artifactDir = path.resolve("artifacts/browser-audit/preflight");
   await mkdir(artifactDir, { recursive: true });
   await writeFile(path.join(artifactDir, `${audit.label}.json`), `${body}\n`, "utf8");
-  await testInfo.attach("route-audit.json", {
-    body,
-    contentType: "application/json",
-  });
+  await testInfo.attach("route-audit.json", { body, contentType: "application/json" });
   testInfo.annotations.push({ type: "classification", description: audit.classification });
-  console.log(`PR455_PREFLIGHT_RESULT ${JSON.stringify({
-    route: audit.route,
-    viewport: audit.viewport,
-    classification: audit.classification,
-    documentStatus: audit.navigation.documentStatus,
-    finalPath: audit.navigation.finalPath,
-    remoteSupabaseRequests: audit.supabase.remoteRequests.length,
-    protectedApiFailures: audit.supabase.protectedApiFailures.length,
-    dataApiFailures: audit.supabase.dataApiFailures.length,
-    consoleErrors: audit.runtime.consoleErrors.length,
-    pageErrors: audit.runtime.pageErrors.length,
-    overflow: audit.rendering.overflow,
-  })}`);
+
+  console.log(
+    `PR455_PREFLIGHT_RESULT ${JSON.stringify({
+      route: audit.route,
+      viewport: audit.viewport,
+      classification: audit.classification,
+      documentStatus: audit.navigation.documentStatus,
+      finalPath: audit.navigation.finalPath,
+      routeLoadingSettled: audit.rendering.routeLoadingSettled,
+      localSupabaseRequests: audit.supabase.localRequests.length,
+      remoteSupabaseRequests: audit.supabase.remoteRequests.length,
+      protectedApiFailures: audit.supabase.protectedApiFailures.length,
+      dataApiFailures: audit.supabase.dataApiFailures.length,
+      rateLimitedRequests: audit.supabase.rateLimitedRequests.length,
+      consoleErrors: audit.runtime.consoleErrors.length,
+      pageErrors: audit.runtime.pageErrors.length,
+      overflow: audit.rendering.overflow,
+    })}`,
+  );
 }
 
 async function auditOrganizerRoute(
@@ -357,22 +345,21 @@ async function auditOrganizerRoute(
     navigationError = error instanceof Error ? error.message : String(error);
   }
 
-  const mainVisible = await page
-    .locator("main:visible")
-    .first()
-    .waitFor({ state: "visible", timeout: 15_000 })
-    .then(() => true)
-    .catch(() => false);
-  const headingVisible = await page
-    .locator("h1:visible")
-    .first()
-    .waitFor({ state: "visible", timeout: 15_000 })
+  // The CI server is a Vite dev server so the first cold Organizer route can spend
+  // time compiling route modules after DOMContentLoaded. Wait for Solaris' own
+  // route-pending status to disappear rather than sleeping or waiting for network
+  // silence. The trace that motivated this contract showed the real page becoming
+  // ready ~18 seconds after DOMContentLoaded while all network/API health was good.
+  const routeLoadingSettled = await page
+    .getByRole("status", { name: "Loading page" })
+    .waitFor({ state: "hidden", timeout: 30_000 })
     .then(() => true)
     .catch(() => false);
 
   const pageState = await page.evaluate(() => {
     const visible = (node: Element) => {
       const element = node as HTMLElement;
+      if (element.closest('[aria-hidden="true"], [inert]')) return false;
       const style = getComputedStyle(element);
       const rect = element.getBoundingClientRect();
       return (
@@ -382,6 +369,7 @@ async function auditOrganizerRoute(
         rect.height > 0
       );
     };
+
     const bodyText = document.body.textContent?.replace(/\s+/g, " ").trim() ?? "";
     const authStorageKey = Object.keys(localStorage).find(
       (key) => key.startsWith("sb-") && key.endsWith("-auth-token"),
@@ -424,6 +412,7 @@ async function auditOrganizerRoute(
   const protectedApiFailures = dataApiFailures.filter(
     (record) => record.status === 401 || record.status === 403,
   );
+  const rateLimitedRequests = localRequests.filter((record) => record.status === 429);
 
   const withoutClassification: Omit<PreflightAudit, "classification"> = {
     label: currentCase.label,
@@ -438,10 +427,11 @@ async function auditOrganizerRoute(
     },
     rendering: {
       title: pageState.title,
+      routeLoadingSettled,
       rootContentMounted: pageState.rootContentMounted,
       bodyContentMounted: pageState.bodyContentMounted,
-      mainVisible,
-      headingVisible,
+      mainVisible: pageState.mainCount === 1,
+      headingVisible: pageState.h1Count === 1,
       mainCount: pageState.mainCount,
       h1Count: pageState.h1Count,
       overflow: pageState.overflow,
@@ -460,6 +450,7 @@ async function auditOrganizerRoute(
       remoteRequests,
       dataApiFailures,
       protectedApiFailures,
+      rateLimitedRequests,
     },
     runtime: {
       consoleErrors,
@@ -473,6 +464,7 @@ async function auditOrganizerRoute(
     classification: classifyAudit(withoutClassification),
   };
 
+  // Diagnostic evidence is committed to the result before any assertion can throw.
   await persistAudit(testInfo, audit);
 
   expect(audit.supabase.remoteRequests, `${currentCase.path} must never contact hosted Supabase`).toEqual([]);
@@ -481,8 +473,7 @@ async function auditOrganizerRoute(
   expect(audit.navigation.documentStatus!, `${currentCase.path} document must be successful`).toBeLessThan(400);
   expect(audit.rendering.rootContentMounted, `${currentCase.path} application root must mount`).toBeTruthy();
   expect(audit.rendering.bodyContentMounted, `${currentCase.path} body must contain application content`).toBeTruthy();
-  expect(audit.rendering.mainVisible, `${currentCase.path} needs a visible main landmark`).toBeTruthy();
-  expect(audit.rendering.headingVisible, `${currentCase.path} needs a visible page heading`).toBeTruthy();
+  expect(audit.rendering.routeLoadingSettled, `${currentCase.path} route loading must settle`).toBeTruthy();
   expect(audit.rendering.mainCount, `${currentCase.path} should contain one visible main landmark`).toBe(1);
   expect(audit.rendering.h1Count, `${currentCase.path} should contain one visible h1`).toBe(1);
   expect(audit.auth.sessionStoragePresent, `${currentCase.path} must retain the seeded local auth session`).toBeTruthy();
@@ -491,6 +482,7 @@ async function auditOrganizerRoute(
   expect(audit.rendering.errorBoundaryVisible, `${currentCase.path} must not render an error boundary`).toBeFalsy();
   expect(audit.supabase.protectedApiFailures, `${currentCase.path} must not hit local 401/403 Data API failures`).toEqual([]);
   expect(audit.supabase.dataApiFailures, `${currentCase.path} must not hit failing local Data API requests`).toEqual([]);
+  expect(audit.supabase.rateLimitedRequests, `${currentCase.path} must not trigger Supabase rate limiting`).toEqual([]);
   expect(audit.runtime.pageErrors, `${currentCase.path} must not throw browser runtime errors`).toEqual([]);
   expect(audit.runtime.consoleErrors, `${currentCase.path} must not emit actionable console errors`).toEqual([]);
   expect(audit.runtime.failedRequests, `${currentCase.path} must not contain failed requests`).toEqual([]);
