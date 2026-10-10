@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 export default async function pr455BrowserPreflight() {
   if (!process.env.CI) return;
   if (process.env.SOLARIS_PR455_PREFLIGHT_CHILD === "1") return;
+  if (process.env.SOLARIS_PR455_PREFLIGHT_ALREADY_PASSED === "1") return;
 
   const result = spawnSync(
     "bunx",
