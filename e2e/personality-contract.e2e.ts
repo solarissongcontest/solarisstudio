@@ -96,7 +96,6 @@ test("all personalities survive hostile content at 200% text, RTL and high contr
 });
 
 
-
 test("all canonical flag fixtures fill their standard frame without stretching", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "personality-390", "Flag geometry QA uses the canonical mobile Lab.");
 
@@ -310,7 +309,16 @@ test("all personalities preserve coarse-pointer touch targets", async ({ page },
 test("reference-lock run captures all four canonical gallery views", async ({ page }, testInfo) => {
   test.skip(!["personality-390", "personality-1440"].includes(testInfo.project.name), "Reference locks use canonical 390px and 1440px viewports.");
 
+  // The reference contract explicitly requires reduced motion. The old global
+  // config accidentally let the device descriptor erase this setting, so make
+  // the condition observable here as well as in playwright.config.ts.
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
   await page.goto("/dev/personality-gallery", { waitUntil: "domcontentloaded" });
+  expect(await page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true);
+
+  const allFlags = page.locator("[data-gallery-personality] [data-flag-role='official']");
+  await expect(allFlags).toHaveCount(SOURCE_COUNT);
+  await expect(allFlags.filter({ has: page.locator('[data-flag-state="loading"]') })).toHaveCount(0);
 
   const isMobile = testInfo.project.name === "personality-390";
   const views = isMobile
@@ -331,26 +339,37 @@ test("reference-lock run captures all four canonical gallery views", async ({ pa
     await expect(cards).toHaveCount(SOURCE_COUNT);
 
     for (let index = 0; index < SOURCE_COUNT; index += 1) {
-      let personality = `personality-${index + 1}`;
-      let screenshot: Buffer | null = null;
-      let lastError: unknown = null;
+      const card = cards.nth(index);
+      const personality =
+        (await card.getAttribute("data-gallery-personality")) ?? `personality-${index + 1}`;
+      const preview = card.locator("[data-personality-qa-preview]");
+      await expect(preview).toBeVisible();
 
-      for (let attempt = 0; attempt < 3 && !screenshot; attempt += 1) {
-        const card = page.locator("[data-gallery-personality]").nth(index);
-        personality = (await card.getAttribute("data-gallery-personality")) ?? personality;
-        const preview = card.locator("[data-personality-qa-preview]");
-        await expect(preview).toBeVisible();
+      // Put the target in view synchronously, then prove its geometry does not
+      // move across two rendered frames. This distinguishes real layout motion
+      // from Playwright's locator auto-scroll and removes the previous retry/sleep
+      // loop that could hide nondeterminism.
+      const stability = await preview.evaluate(async (node) => {
+        node.scrollIntoView({ behavior: "auto", block: "center", inline: "nearest" });
+        const measure = () => {
+          const rect = node.getBoundingClientRect();
+          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+        };
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        const first = measure();
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        const second = measure();
+        return { first, second };
+      });
 
-        try {
-          screenshot = await preview.screenshot({ animations: "disabled" });
-        } catch (error) {
-          lastError = error;
-          await page.waitForTimeout(100);
-        }
+      for (const dimension of ["x", "y", "width", "height"] as const) {
+        expect(
+          Math.abs(stability.first[dimension] - stability.second[dimension]),
+          `${personality}/${view} ${dimension} must be stable under reduced motion`,
+        ).toBeLessThanOrEqual(0.25);
       }
 
-      if (!screenshot) throw lastError ?? new Error(`Could not capture ${personality} ${view}`);
-
+      const screenshot = await preview.screenshot({ animations: "disabled" });
       await testInfo.attach(`${personality}-${view}`, {
         body: screenshot,
         contentType: "image/png",

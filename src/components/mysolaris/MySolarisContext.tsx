@@ -84,10 +84,12 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
     [editionsQuery.data],
   );
 
-  const countryId = countryAccountQuery.data?.country?.id ?? null;
+  const userId = userQuery.data?.id ?? null;
+  const account = countryAccountQuery.data?.access.userId === userId ? countryAccountQuery.data : null;
+  const countryId = account?.country?.id ?? null;
   const currentEntryQuery = useQuery({
     enabled: Boolean(userQuery.data && countryId && currentEdition?.id),
-    queryKey: ["mysolaris-current-entry", currentEdition?.id ?? "none", countryId ?? "none"],
+    queryKey: ["mysolaris-current-entry", userId, currentEdition?.id ?? "none", countryId ?? "none"],
     queryFn: () => loadMySolarisParticipant(countryId!, currentEdition!.id),
     staleTime: 15_000,
     refetchInterval: 30_000,
@@ -98,7 +100,7 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
 
   const capabilitiesQuery = useQuery({
     enabled: Boolean(userQuery.data),
-    queryKey: ["mysolaris-capabilities", currentEdition?.id],
+    queryKey: ["mysolaris-capabilities", userId, currentEdition?.id],
     queryFn: async () => {
       const results = await Promise.allSettled(
         PARTICIPANT_CAPABILITIES.map((key) =>
@@ -116,10 +118,10 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
   });
 
   const capabilities = capabilitiesQuery.data ?? EMPTY_CAPABILITIES;
-  const isOrganizer = Boolean(countryAccountQuery.data?.access.isOrganizer);
+  const isOrganizer = Boolean(account?.access.isOrganizer);
   const noticesQuery = useQuery({
     enabled: Boolean(userQuery.data && capabilities.official_communications),
-    queryKey: ["mysolaris-notice-summary", currentEdition?.id, "recipient-inbox"],
+    queryKey: ["mysolaris-notice-summary", userId, currentEdition?.id, "recipient-inbox"],
     queryFn: async () => {
       const notices = await loadStudio2RecipientNoticeInbox(currentEdition?.id);
       return {
@@ -140,7 +142,7 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
 
   const roundsQuery = useQuery({
     enabled: Boolean(userQuery.data),
-    queryKey: ["mysolaris-context-deadlines"],
+    queryKey: ["mysolaris-context-deadlines", userId],
     queryFn: () => getPublicRounds(),
     staleTime: 20_000,
     refetchInterval: 30_000,
@@ -148,8 +150,8 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
   });
 
   const confirmationQuery = useQuery({
-    enabled: Boolean(userQuery.data && countryAccountQuery.data?.country),
-    queryKey: ["country-confirmation-access", "mysolaris-context"],
+    enabled: Boolean(userQuery.data && account?.country),
+    queryKey: ["country-confirmation-access", userId, countryId, "mysolaris-context"],
     queryFn: getCountryConfirmationAccess,
     staleTime: 10_000,
     refetchInterval: 30_000,
@@ -159,10 +161,10 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
   const juryQuery = useQuery({
     enabled: Boolean(
       userQuery.data &&
-        countryAccountQuery.data?.country &&
+        account?.country &&
         currentEdition?.id,
     ),
-    queryKey: ["mysolaris-jury-task", currentEdition?.id ?? "none"],
+    queryKey: ["mysolaris-jury-task", userId, countryId, currentEdition?.id ?? "none"],
     queryFn: () => loadCountryJuryVotingTask(currentEdition!.id),
     staleTime: 15_000,
     refetchInterval: 30_000,
@@ -262,15 +264,15 @@ export function MySolarisProvider({ children }: { children: ReactNode }) {
 
   const value: MySolarisContextValue = {
     user: userQuery.data,
-    countryAccount: countryAccountQuery.data,
+    countryAccount: account ?? undefined,
     currentEdition,
     currentEntry,
     permissions: {
       isOrganizer,
       canManageCountry:
-        Boolean(countryAccountQuery.data?.country) &&
-        countryAccountQuery.data?.access.countryStatus !== "suspended",
-      countryStatus: countryAccountQuery.data?.access.countryStatus ?? null,
+        Boolean(account?.country) &&
+        account?.access.countryStatus !== "suspended",
+      countryStatus: account?.access.countryStatus ?? null,
     },
     capabilities,
     taskCounts,

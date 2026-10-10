@@ -14,6 +14,7 @@
   --admin-success: #76c7a6;
   --admin-warning: #e0b66e;
   --admin-danger: #e58b95;
+  --admin-hit-target-min: 1.5rem;
   --admin-ui-font: "Gotham", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --admin-display-font: "Classica Crastao", Georgia, serif;
 
@@ -65,6 +66,7 @@
 }
 
 .admin-control-room :is(input, select, textarea) {
+  min-width: var(--admin-hit-target-min);
   min-height: 2.75rem;
   border-radius: .8rem;
 }

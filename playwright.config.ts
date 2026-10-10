@@ -2,6 +2,50 @@ import { defineConfig, devices } from "@playwright/test";
 
 import { GLOBAL_MAINTENANCE_MODE } from "./src/lib/maintenance";
 
+const REQUIRED_TEST_SUPABASE_URL_VARS = [
+  "VITE_SUPABASE_URL",
+  "SUPABASE_URL",
+  "E2E_SUPABASE_URL",
+  "VITE_CONFIRMATIONS_SUPABASE_URL",
+  "CONFIRMATIONS_SUPABASE_URL",
+] as const;
+
+function isLoopbackUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return ["127.0.0.1", "localhost", "::1", "[::1]"].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function assertPlaywrightSupabaseIsolation() {
+  for (const name of REQUIRED_TEST_SUPABASE_URL_VARS) {
+    const value = process.env[name];
+    if (!value) {
+      throw new Error(
+        `[Playwright safety] Missing ${name}. Automated browser tests require explicit local Supabase configuration and never fall back to .env/production.`,
+      );
+    }
+    if (!isLoopbackUrl(value)) {
+      throw new Error(
+        `[Playwright safety] Refusing non-local Supabase endpoint in ${name}: ${value}`,
+      );
+    }
+  }
+
+  for (const [name, value] of Object.entries(process.env)) {
+    if (!value || !/SUPABASE.*URL/i.test(name)) continue;
+    if (!isLoopbackUrl(value)) {
+      throw new Error(
+        `[Playwright safety] Refusing hosted/non-loopback Supabase URL from ${name}: ${value}`,
+      );
+    }
+  }
+}
+
+assertPlaywrightSupabaseIsolation();
+
 const fullAudit = process.env.E2E_FULL_AUDIT === "1";
 const prSmoke = Boolean(process.env.CI) && process.env.GITHUB_EVENT_NAME === "pull_request" && !fullAudit;
 const publicViewportMatrix = fullAudit
@@ -165,6 +209,11 @@ export default defineConfig({
       name: "account-states",
       testMatch: /account-states\.e2e\.ts/,
       use: { viewport: { width: 1440, height: 1000 } },
+    },
+    {
+      name: "admin-notifications-postgrest",
+      testMatch: /admin-notifications-postgrest\.e2e\.ts/,
+      use: { viewport: { width: 390, height: 844 } },
     },
     {
       name: "organizer-admin-desktop",

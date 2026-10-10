@@ -14,7 +14,22 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(router).not.toContain('<h1 className="mt-1 font-display text-2xl font-bold">Loading page…</h1>');
     expect(router).not.toContain("createRouter, useRouterState");
     expect(router).not.toContain("const pathname = useRouterState");
-    expect(router).toContain("window.location.pathname");
+    expect(router).not.toContain('typeof window === "undefined" ? "" : window.location.pathname');
+    expect(router).toContain('const [pathname, setPathname] = useState("")');
+    expect(router).toContain("setPathname(window.location.pathname)");
+  });
+
+  it("keeps platform detection hydration-safe before browser capability detection", () => {
+    const runtime = source("src/components/app/AppRuntime.tsx");
+
+    expect(runtime).toContain("const HYDRATION_SAFE_PLATFORM: SolarisPlatformSnapshot");
+    expect(runtime).toContain("useState<SolarisPlatformSnapshot>(\n    HYDRATION_SAFE_PLATFORM");
+    expect(runtime).toContain("const HYDRATION_SAFE_LIFECYCLE: AppLifecycleSnapshot");
+    expect(runtime).toContain("const HYDRATION_SAFE_VIEWPORT: AppViewportSnapshot");
+    expect(runtime).toContain("const refresh = () => setPlatform(detectSolarisPlatform())");
+    expect(runtime).not.toContain("const SERVER_SNAPSHOT = detectSolarisPlatform()");
+    expect(runtime).not.toContain("initialAppLifecycleSnapshot()");
+    expect(runtime).not.toContain("initialAppViewportSnapshot()");
   });
 
   it("keeps Organizer directory keys unique before an edition has resolved", () => {
@@ -113,6 +128,12 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(workflow).toContain("Pull requests run a representative smoke set");
     expect(workflow).toContain("E2E_FULL_AUDIT:");
     expect(workflow).toContain("github.event_name == 'workflow_dispatch'");
+
+    const publicRoutes = source("e2e/public-routes.e2e.ts");
+    expect(publicRoutes).toContain("const PR_SMOKE_PUBLIC_ROUTES = [");
+    expect(publicRoutes).toContain(
+      "fullAudit ? [...STATIC_PUBLIC_ROUTES].sort() : [...PR_SMOKE_PUBLIC_ROUTES]",
+    );
   });
 
   it("keeps organizer child content out of primary-main ownership and legacy Action Center aliases on canonical Tasks", () => {

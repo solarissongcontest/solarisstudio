@@ -36,15 +36,17 @@ Required chain starts with:
 14. Apply `20261004194000_restore_public_rls_runtime_privileges.sql` when reached in timestamp order.
 15. Apply `20261004221500_runtime_release_contract.sql`. This intentionally publishes only the fail-closed `organisation-os-v5-20261004-core` contract.
 16. Apply `20261004222500_push_delivery_receipts.sql` before treating System Operations receipt diagnostics as supported.
-17. Apply `20261004230000_organizer_task_runtime_reconciliation.sql`. This restores every V5 task reconciler to the canonical read path and is the only migration that publishes the frontend-supported `organisation-os-v5-20261004-complete` contract.
+17. Apply `20261004230000_organizer_task_runtime_reconciliation.sql`. This is the first migration that publishes the frontend-supported `organisation-os-v5-20261004-complete` contract.
+18. Continue through `20261005043000_pr450_review_blocker_repairs.sql`; it hardens confirmation destination moves, jury/result serialization, upload authorization, maintenance read-only enforcement and other review-blocking invariants.
+19. Apply `20261005043500_pr450_complete_task_wrapper.sql` last. This is the final Organizer Task wrapper and must retain system-job, jury-ballot-review, repaired jury-missing-ballot and Confirmation-sync recovery sources together.
 
-Do not reorder these migrations just to make a single page green.
+Do not reorder these migrations just to make a single page green. A production cutover is complete only after the latest repository migration has applied successfully.
 
 ## Pre-deploy release contract
 
 Before exposing the matching frontend, verify the database contract reports schema id `organisation-os-v5-20261004-complete` and all required Organizer capabilities as true:
 
-- Organizer Tasks: `admin_organizer_tasks(uuid,text)`, `admin_organizer_task_count(uuid)`, `studio2_organizer_tasks`, plus the final all-task reconciliation wrapper including system-job, jury-ballot-review and Confirmation-sync recovery sources
+- Organizer Tasks: `admin_organizer_tasks(uuid,text)`, `admin_organizer_task_count(uuid)`, `studio2_organizer_tasks`, plus the final all-task reconciliation wrapper including system-job, jury-ballot-review, repaired jury-missing-ballot and Confirmation-sync recovery sources
 - System Operations: `admin_system_runtime_health(integer)`, safe retry operation contract, delivery table, receipt-stage columns, and preserved scheduler dead-letter/recovery diagnostics
 - Jury control: `studio2_jury_window_change_preview(uuid,text)`, `studio2_apply_jury_voting_status(uuid,text,uuid,text,bigint)`, and `studio2_jury_window_versions`
 
@@ -71,7 +73,7 @@ Use bounded read-only production checks only. Verify:
 
 - runtime contract reports `organisation-os-v5-20261004-complete` and ready capabilities;
 - Organizer Tasks loads without RPC/schema errors;
-- the Tasks read path reconciles system-job, jury-ballot-review and Confirmation-sync tasks as well as the earlier task sources;
+- the Tasks read path reconciles system-job, jury-ballot-review, repaired jury-missing-ballot and Confirmation-sync tasks as well as the earlier task sources;
 - task metrics never show reassuring zeroes when task evaluation failed;
 - System Operations loads protected health data including scheduler failure/dead-letter fields;
 - jury preview performs the opening eligibility preflight and the apply path remains version-checked and replay-safe;

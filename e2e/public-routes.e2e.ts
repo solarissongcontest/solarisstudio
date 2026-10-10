@@ -4,6 +4,22 @@ import { auditPage, sitemapRoutes, STATIC_PUBLIC_ROUTES } from "./audit-helpers"
 
 const fullAudit = process.env.E2E_FULL_AUDIT === "1";
 
+const PR_SMOKE_PUBLIC_ROUTES = [
+  "/",
+  "/auth",
+  "/confirmations",
+  "/countries",
+  "/editions",
+  "/integrity",
+  "/jury-voting",
+  "/participate",
+  "/pulse",
+  "/result-lab",
+  "/rules",
+  "/televoting",
+  "/wiki",
+] as const;
+
 async function auditRoutes(page: Page, routes: string[], testInfo: TestInfo) {
   const failures: string[] = [];
 
@@ -19,7 +35,8 @@ async function auditRoutes(page: Page, routes: string[], testInfo: TestInfo) {
 }
 
 test("public route families pass at this viewport", async ({ page }, testInfo) => {
-  await auditRoutes(page, [...STATIC_PUBLIC_ROUTES].sort(), testInfo);
+  const routes = fullAudit ? [...STATIC_PUBLIC_ROUTES].sort() : [...PR_SMOKE_PUBLIC_ROUTES];
+  await auditRoutes(page, routes, testInfo);
 });
 
 test("real Country and Wiki pages pass collision and flag audits at this viewport", async ({ page, baseURL }, testInfo) => {
@@ -191,4 +208,3 @@ test("captures the final visual archetypes for review", async ({ page }, testInf
     );
   }
 });
-
