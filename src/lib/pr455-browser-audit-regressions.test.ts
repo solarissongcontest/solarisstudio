@@ -14,7 +14,22 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(router).not.toContain('<h1 className="mt-1 font-display text-2xl font-bold">Loading page…</h1>');
     expect(router).not.toContain("createRouter, useRouterState");
     expect(router).not.toContain("const pathname = useRouterState");
-    expect(router).toContain("window.location.pathname");
+    expect(router).not.toContain('typeof window === "undefined" ? "" : window.location.pathname');
+    expect(router).toContain('const [pathname, setPathname] = useState("")');
+    expect(router).toContain("setPathname(window.location.pathname)");
+  });
+
+  it("keeps platform detection hydration-safe before browser capability detection", () => {
+    const runtime = source("src/components/app/AppRuntime.tsx");
+
+    expect(runtime).toContain("const HYDRATION_SAFE_PLATFORM: SolarisPlatformSnapshot");
+    expect(runtime).toContain("useState<SolarisPlatformSnapshot>(\n    HYDRATION_SAFE_PLATFORM");
+    expect(runtime).toContain("const HYDRATION_SAFE_LIFECYCLE: AppLifecycleSnapshot");
+    expect(runtime).toContain("const HYDRATION_SAFE_VIEWPORT: AppViewportSnapshot");
+    expect(runtime).toContain("const refresh = () => setPlatform(detectSolarisPlatform())");
+    expect(runtime).not.toContain("const SERVER_SNAPSHOT = detectSolarisPlatform()");
+    expect(runtime).not.toContain("initialAppLifecycleSnapshot()");
+    expect(runtime).not.toContain("initialAppViewportSnapshot()");
   });
 
   it("keeps Organizer directory keys unique before an edition has resolved", () => {

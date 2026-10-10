@@ -18,7 +18,6 @@ import {
 import {
   APP_RESUME_EVENT,
   createAppLifecycleController,
-  initialAppLifecycleSnapshot,
   type AppLifecycleSnapshot,
 } from "@/lib/app-lifecycle";
 import {
@@ -27,7 +26,6 @@ import {
 } from "@/lib/app-update-safety";
 import {
   createAppViewportController,
-  initialAppViewportSnapshot,
   type AppViewportSnapshot,
 } from "@/lib/app-viewport";
 import {
@@ -47,16 +45,40 @@ type AppRuntimeValue = SolarisPlatformSnapshot & {
   applyUpdate: () => void;
 };
 
-const SERVER_SNAPSHOT = detectSolarisPlatform();
+const HYDRATION_SAFE_PLATFORM: SolarisPlatformSnapshot = {
+  mode: "web",
+  isAppMode: false,
+  isStandalone: false,
+  isNative: false,
+  isOnline: true,
+  canInstallServiceWorker: false,
+  canPush: false,
+  canNotify: false,
+  canBadge: false,
+  canShare: false,
+};
 const SERVER_CONNECTIVITY = hydrationSafeAppConnectivitySnapshot();
-const SERVER_LIFECYCLE = initialAppLifecycleSnapshot();
-const SERVER_VIEWPORT = initialAppViewportSnapshot();
+const HYDRATION_SAFE_LIFECYCLE: AppLifecycleSnapshot = {
+  phase: "foreground",
+  lastBackgroundAt: null,
+  lastResumeAt: null,
+  backgroundDurationMs: 0,
+};
+const HYDRATION_SAFE_VIEWPORT: AppViewportSnapshot = {
+  viewportWidth: 0,
+  viewportHeight: 0,
+  viewportOffsetLeft: 0,
+  viewportOffsetTop: 0,
+  viewportScale: 1,
+  keyboardInset: 0,
+  keyboardOpen: false,
+};
 
 const AppRuntimeContext = createContext<AppRuntimeValue>({
-  ...SERVER_SNAPSHOT,
+  ...HYDRATION_SAFE_PLATFORM,
   connectivity: SERVER_CONNECTIVITY,
-  lifecycle: SERVER_LIFECYCLE,
-  viewport: SERVER_VIEWPORT,
+  lifecycle: HYDRATION_SAFE_LIFECYCLE,
+  viewport: HYDRATION_SAFE_VIEWPORT,
   updateAvailable: false,
   updateDeferred: false,
   updateBlockedReason: null,
@@ -65,17 +87,17 @@ const AppRuntimeContext = createContext<AppRuntimeValue>({
 
 export function AppRuntime({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const [platform, setPlatform] = useState<SolarisPlatformSnapshot>(() =>
-    detectSolarisPlatform(),
+  const [platform, setPlatform] = useState<SolarisPlatformSnapshot>(
+    HYDRATION_SAFE_PLATFORM,
   );
   const [connectivity, setConnectivity] = useState<AppConnectivitySnapshot>(() =>
     hydrationSafeAppConnectivitySnapshot(),
   );
-  const [lifecycle, setLifecycle] = useState<AppLifecycleSnapshot>(() =>
-    initialAppLifecycleSnapshot(),
+  const [lifecycle, setLifecycle] = useState<AppLifecycleSnapshot>(
+    HYDRATION_SAFE_LIFECYCLE,
   );
-  const [viewport, setViewport] = useState<AppViewportSnapshot>(() =>
-    initialAppViewportSnapshot(),
+  const [viewport, setViewport] = useState<AppViewportSnapshot>(
+    HYDRATION_SAFE_VIEWPORT,
   );
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
   const [, setUpdateSafetyRevision] = useState(0);
