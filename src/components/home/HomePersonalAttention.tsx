@@ -20,11 +20,13 @@ export function HomePersonalAttention({
 }) {
   const userQuery = useFanSession();
   const countryAccountQuery = useMyCountryAccount();
-  const hasCountry = Boolean(countryAccountQuery.data?.country);
+  const userId = userQuery.data?.id ?? null;
+  const countryId = countryAccountQuery.data?.access.userId === userId ? countryAccountQuery.data?.country?.id : null;
+  const hasCountry = Boolean(countryId);
 
   const roundsQuery = useQuery({
     enabled: Boolean(userQuery.data && hasCountry && editionId),
-    queryKey: ["home-personal-attention", "rounds", editionId],
+    queryKey: ["home-personal-attention", userId, countryId, "rounds", editionId],
     queryFn: () => getPublicRounds(),
     staleTime: 30_000,
     refetchOnWindowFocus: true,
@@ -32,7 +34,7 @@ export function HomePersonalAttention({
 
   const confirmationQuery = useQuery({
     enabled: Boolean(userQuery.data && hasCountry && editionId),
-    queryKey: ["country-confirmation-access", "home-personal-attention"],
+    queryKey: ["country-confirmation-access", userId, countryId, "home-personal-attention"],
     queryFn: getCountryConfirmationAccess,
     staleTime: 10_000,
     refetchOnWindowFocus: true,
@@ -40,7 +42,7 @@ export function HomePersonalAttention({
 
   const juryQuery = useQuery({
     enabled: Boolean(userQuery.data && hasCountry && editionId),
-    queryKey: ["home-personal-attention", "jury", editionId],
+    queryKey: ["home-personal-attention", userId, countryId, "jury", editionId],
     queryFn: () => loadCountryJuryVotingTask(editionId!),
     staleTime: 15_000,
     refetchOnWindowFocus: true,

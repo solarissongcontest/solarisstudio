@@ -97,6 +97,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState<string | null>(null);
   const [access, setAccess] = useState<AccountAccess>(EMPTY_ACCESS);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [navigationReady, setNavigationReady] = useState(false);
+
+  useEffect(() => setNavigationReady(true), []);
   const appScreen = resolveSolarisAppScreen(pathname, searchStr);
 
   useEffect(() => {
@@ -297,6 +300,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                   type="button"
                   className="ml-auto grid h-11 w-11 place-items-center rounded-xl border border-border/75 bg-surface/70 transition-[background-color,transform] duration-150 ease-out active:scale-[0.96] motion-reduce:active:scale-100 lg:hidden"
                   aria-label="Open navigation"
+                  disabled={!navigationReady}
+                  aria-busy={!navigationReady}
                   aria-expanded={menuOpen}
                 >
                   <Menu className="h-5 w-5" />

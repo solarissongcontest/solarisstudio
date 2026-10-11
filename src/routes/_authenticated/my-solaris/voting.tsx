@@ -101,6 +101,7 @@ function MySolarisVotingContent() {
   const delegationQuery = useQuery({
     queryKey: [
       "mysolaris-voting-status",
+      workspace.user?.id ?? "none",
       edition?.id ?? "none",
       country?.id ?? "none",
     ],
@@ -122,8 +123,8 @@ function MySolarisVotingContent() {
   });
 
   const juryWindowQuery = useQuery({
-    enabled: Boolean(!organizerInspection && edition?.id),
-    queryKey: ["mysolaris-jury-window-state", edition?.id ?? "none"],
+    enabled: Boolean(workspace.user && !organizerInspection && edition?.id),
+    queryKey: ["mysolaris-jury-window-state", workspace.user?.id ?? "none", country?.id ?? "none", edition?.id ?? "none"],
     queryFn: () => loadCountryJuryVotingState(edition!.id),
     staleTime: 15_000,
     refetchInterval: 30_000,

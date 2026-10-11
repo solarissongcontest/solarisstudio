@@ -11,6 +11,9 @@ eval "$(supabase status -o env)"
 : "${DB_URL:?missing local Supabase DB_URL}"
 : "${ANON_KEY:?missing local Supabase ANON_KEY}"
 : "${SERVICE_ROLE_KEY:?missing local Supabase SERVICE_ROLE_KEY}"
+case "$API_URL" in http://127.0.0.1:*|http://localhost:*) ;; *) fail "Refusing hosted Supabase rehearsal" ;; esac
+case "$DB_URL" in postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;; *) fail "Refusing non-local database rehearsal" ;; esac
+
 
 PASSWORD='RulesIntegrity2026!'
 HTTP_STATUS=''
@@ -240,6 +243,52 @@ sign_in participant-security@solaris.invalid; PARTICIPANT_TOKEN="$LAST_TOKEN"
 # Seed authoritative Organizer access through Permission Engine v2, then use
 # only user-scoped JWTs for the hostile calls below.
 db_exec "insert into public.studio2_role_assignments(user_id, role_key, edition_id, expires_at, assigned_by) values ('$ORGANIZER_A_ID'::uuid, 'organizer', null, null, null), ('$ORGANIZER_B_ID'::uuid, 'organizer', null, null, null) on conflict do nothing;"
+
+
+log "PR450 canonical edition deletion boundary"
+DELETE_EDITION_ID='00000000-0000-4000-8000-00000000f450'
+db_exec "insert into public.editions(id,name,slug,edition_number,status,published) values ('$DELETE_EDITION_ID','Deletion security test','pr450-delete-security',450,'draft',false);"
+rpc_request "$ANON_KEY" admin_confirmation_delete_edition "{\"_id\":\"$DELETE_EDITION_ID\"}"
+expect_failure "anonymous callers cannot delete editions"
+rpc_request "$PARTICIPANT_TOKEN" admin_confirmation_delete_edition "{\"_id\":\"$DELETE_EDITION_ID\"}"
+expect_failure "ordinary participants cannot delete editions"
+# Forge user-editable claims. The JWT is refreshed to include the forged data.
+db_exec "update auth.users set raw_user_meta_data=jsonb_build_object('role','organizer','user_id','$ORGANIZER_A_ID') where id='$PARTICIPANT_ID'::uuid;"
+sign_in participant-security@solaris.invalid; PARTICIPANT_TOKEN="$LAST_TOKEN"
+rpc_request "$PARTICIPANT_TOKEN" admin_confirmation_delete_edition "{\"_id\":\"$DELETE_EDITION_ID\"}"
+expect_failure "forged Organizer metadata cannot delete editions"
+db_exec "insert into public.studio2_capability_grants(user_id,capability,edition_id) values ('$PARTICIPANT_ID'::uuid,'delegation.manage','$DELETE_EDITION_ID'::uuid);"
+rpc_request "$PARTICIPANT_TOKEN" admin_confirmation_delete_edition "{\"_id\":\"$DELETE_EDITION_ID\"}"
+expect_failure "delegation management is not edition deletion permission"
+assert_db_eq "denied calls preserve canonical edition" "select count(*) from public.editions where id='$DELETE_EDITION_ID';" "1"
+rpc_request "$ORGANIZER_A_TOKEN" admin_confirmation_delete_edition "{\"_id\":\"$DELETE_EDITION_ID\"}"
+expect_success "Organizer can delete the empty canonical edition"
+assert_db_eq "authorized deletion removes only target edition" "select count(*) from public.editions where id='$DELETE_EDITION_ID';" "0"
+
+log "PR450 durable signup limiter boundaries"
+for attempt in $(seq 1 6); do
+  request POST "$API_URL/rest/v1/rpc/country_auth_consume_rate_limit" "$SERVICE_ROLE_KEY" "$SERVICE_ROLE_KEY" '{"p_scope":"pr450-window","p_key_hash":"test-address","p_limit":5,"p_window_seconds":900}'
+  expect_success "consume persistent attempt $attempt"
+  if (( attempt <= 5 )); then expected=true; else expected=false; fi
+  [[ "$HTTP_BODY" == "$expected" ]] || fail "Limiter attempt $attempt returned $HTTP_BODY"
+done
+request POST "$API_URL/rest/v1/rpc/country_auth_consume_rate_limit" "$ANON_KEY" "$ANON_KEY" '{"p_scope":"pr450-window","p_key_hash":"test-address","p_limit":1000,"p_window_seconds":900}'
+expect_failure "anonymous caller cannot choose or reset protection budget"
+assert_db_eq "different identities get independent budgets" "select public.country_auth_consume_rate_limit('pr450-window','other-address',5,900);" "t"
+db_exec "update private.country_auth_rate_limits set window_started_at=now()-interval '16 minutes' where scope='pr450-window' and key_hash='test-address';"
+assert_db_eq "expired window permits a new attempt" "select public.country_auth_consume_rate_limit('pr450-window','test-address',5,900);" "t"
+# Separate psql sessions exercise the actual atomic conflict path concurrently.
+rate_outputs="$(mktemp -d)"
+rate_pids=()
+for attempt in $(seq 1 12); do
+  psql "$DB_URL" -XAt -v ON_ERROR_STOP=1 -c "select public.country_auth_consume_rate_limit('pr450-concurrent','same-address',5,900);" > "$rate_outputs/$attempt" &
+  rate_pids+=("$!")
+done
+for rate_pid in "${rate_pids[@]}"; do wait "$rate_pid" || fail "Concurrent limiter query failed"; done
+rate_allowed="$(python3 -c 'from pathlib import Path; import sys; print(sum(p.read_text().strip()=="t" for p in Path(sys.argv[1]).iterdir()))' "$rate_outputs")"
+rm -rf "$rate_outputs"
+[[ "$rate_allowed" == "5" ]] || fail "Concurrent limiter allowed $rate_allowed requests instead of 5"
+assert_db_eq "atomic durable counter records all attempts" "select attempts from private.country_auth_rate_limits where scope='pr450-concurrent' and key_hash='same-address';" "12"
 
 log "Organisation OS V5 R3 permission separation-of-duties tests"
 R3_OPERATION_ID='00000000-0000-4000-8000-00000000f301'

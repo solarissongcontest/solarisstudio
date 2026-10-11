@@ -118,7 +118,8 @@ function MySolarisPage() {
     refetchOnWindowFocus: true,
   });
   const confirmationQuery = useQuery({
-    queryKey: ["country-confirmation-access"],
+    enabled: Boolean(accountData?.access.userId && country),
+    queryKey: ["country-confirmation-access", accountData?.access.userId ?? "none", country?.id ?? "none"],
     queryFn: getCountryConfirmationAccess,
     staleTime: 10_000,
     refetchOnWindowFocus: true,

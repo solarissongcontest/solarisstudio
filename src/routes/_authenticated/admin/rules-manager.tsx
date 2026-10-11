@@ -260,7 +260,7 @@ function RulesManager() {
             />
           </aside>
 
-          <main className="min-w-0 space-y-4">
+          <section aria-label="Rulebook release workspace" className="min-w-0 space-y-4">
             {selected ? (
               <ReleaseWorkspace
                 release={selected}
@@ -288,7 +288,7 @@ function RulesManager() {
                 </div>
               </AdminCard>
             )}
-          </main>
+          </section>
         </div>
       </div>
     </AdminPage>

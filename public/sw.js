@@ -102,8 +102,11 @@ async function reportPushReceipt(data, stage) {
 
   if (!deliveryId || !receiptToken || !receiptUrl) return;
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 3000);
   try {
     await fetch(receiptUrl, {
+      signal: controller.signal,
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -115,6 +118,8 @@ async function reportPushReceipt(data, stage) {
   } catch {
     // Delivery receipts are diagnostics. A telemetry outage must never stop the
     // notification itself from being shown or opened.
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -148,13 +153,12 @@ self.addEventListener("push", (event) => {
     },
   };
 
-  event.waitUntil(
-    (async () => {
-      await reportPushReceipt(options.data, "received");
-      await self.registration.showNotification(title, options);
-      await reportPushReceipt(options.data, "displayed");
-    })(),
-  );
+  // Display is the critical path; receipt networking cannot delay it.
+  const display = self.registration.showNotification(title, options);
+  event.waitUntil(Promise.all([
+    display.then(() => reportPushReceipt(options.data, "displayed")),
+    reportPushReceipt(options.data, "received"),
+  ]));
 });
 
 self.addEventListener("notificationclick", (event) => {

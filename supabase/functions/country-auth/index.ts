@@ -10,10 +10,10 @@ const corsHeaders = {
 const internalEmailSuffix = "@country.solaris.invalid";
 const pwnedPasswordsRangeUrl = "https://api.pwnedpasswords.com/range";
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeaders, "Content-Type": "application/json", ...extraHeaders },
   });
 }
 
@@ -252,17 +252,36 @@ Deno.serve(async (req) => {
     }
 
     try {
-      const allowed = await consumeAnonymousRateLimit(
+      // Signup has a strict address-only bucket so rotating country/username
+      // targets cannot buy the same caller more password or database work.
+      const addressAllowed = await consumeRateLimit(
         service,
-        "signup",
+        "signup-address",
         clientAddress,
-        `${countryId}|${instagramUsername}`,
         5,
-        20,
         15 * 60,
       );
-      if (!allowed) {
-        return json({ error: "Too many account creation attempts. Try again later." }, 429);
+      if (!addressAllowed) {
+        return json(
+          { error: "Too many account creation attempts. Try again later." },
+          429,
+          { "Retry-After": "900" },
+        );
+      }
+
+      const targetAllowed = await consumeRateLimit(
+        service,
+        "signup",
+        `${clientAddress}|${countryId}|${instagramUsername}`,
+        5,
+        15 * 60,
+      );
+      if (!targetAllowed) {
+        return json(
+          { error: "Too many account creation attempts. Try again later." },
+          429,
+          { "Retry-After": "900" },
+        );
       }
     } catch (error) {
       console.error("[country-auth] Signup rate limiting unavailable", error);

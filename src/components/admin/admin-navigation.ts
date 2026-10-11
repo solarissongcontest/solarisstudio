@@ -33,14 +33,25 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type AdminNavigationItem = {
+type AdminNavigationItemBase = {
+  id: string;
   label: string;
   description: string;
-  to: string;
   icon: LucideIcon;
   keywords: string;
   active: (pathname: string) => boolean;
 };
+
+export type AdminNavigationItem =
+  | (AdminNavigationItemBase & {
+      availability: "ready";
+      to: string;
+    })
+  | (AdminNavigationItemBase & {
+      availability: "requires-edition";
+      to: null;
+      unavailableReason: "Select an edition first";
+    });
 
 export type AdminNavigationGroup = {
   label: string;
@@ -49,10 +60,98 @@ export type AdminNavigationGroup = {
   quiet?: boolean;
 };
 
+// These identifiers are deliberately independent from routes. Edition routes
+// become available after data loads, while React identity must remain stable.
+const ADMIN_NAVIGATION_IDS = {
+  Overview: "current-edition-overview",
+  Tasks: "current-edition-tasks",
+  Delegations: "current-edition-delegations",
+  Contest: "current-edition-contest",
+  Host: "current-edition-host",
+  Voting: "current-edition-voting",
+  "Voting declarations": "current-edition-voting-declarations",
+  "Results operations": "current-edition-results",
+  Storytelling: "current-edition-storytelling",
+  Publish: "current-edition-publish",
+  Broadcast: "current-edition-broadcast",
+  "Control Room": "operations-control-room",
+  Workflows: "operations-workflows",
+  Incidents: "operations-incidents",
+  Eligibility: "operations-eligibility",
+  "Media assets": "operations-media-assets",
+  Communications: "operations-communications",
+  "Reveal Director": "live-review-reveal-director",
+  "Broadcast rundown": "live-review-broadcast-rundown",
+  "Simulation Lab": "live-review-simulation-lab",
+  "Time Machine": "live-review-time-machine",
+  "Voting Lab": "live-review-voting-lab",
+  "Confirmation overview": "delegation-confirmation-overview",
+  "Confirmation requirements": "delegation-confirmation-requirements",
+  "Confirmation responses": "delegation-confirmation-responses",
+  "Next in Line": "delegation-next-in-line",
+  "Responses by country": "delegation-responses-by-country",
+  "Submission rounds": "delegation-submission-rounds",
+  "Delegation calendar": "delegation-calendar",
+  "Delegation access": "delegation-access",
+  "Submission history": "delegation-submission-history",
+  "Confirmation edition links": "delegation-edition-links",
+  "Confirmation sync": "delegation-sync",
+  "Confirmation settings": "delegation-settings",
+  "Voting rounds & entries": "voting-rounds-entries",
+  "Jury voting": "voting-jury",
+  "Voting rules": "voting-rules",
+  "Jury integrity": "voting-jury-integrity",
+  "Televote totals": "voting-televote-totals",
+  "Voting integrity review": "voting-integrity-review",
+  "Public vote results": "voting-public-results",
+  "Voting intelligence": "voting-intelligence",
+  "Voting analytics": "voting-analytics",
+  "Combined result tools": "voting-combined-results",
+  "Result integrity": "voting-result-integrity",
+  "Voting audit log": "voting-audit-log",
+  "Voting edition links": "voting-edition-links",
+  "Result backtest": "voting-result-backtest",
+  "Anti-abuse review": "voting-anti-abuse",
+  Investigations: "trust-investigations",
+  "Rule rulings": "trust-rule-rulings",
+  Appeals: "trust-appeals",
+  Evidence: "trust-evidence",
+  Disclosure: "trust-disclosure",
+  "Identity access": "trust-identity-access",
+  "Rules manager": "trust-rules-manager",
+  Interpretations: "trust-interpretations",
+  "Public rules": "trust-public-rules",
+  "Access & permissions": "workspace-access-permissions",
+  Administration: "workspace-administration",
+  "Feature rollout": "workspace-feature-rollout",
+  "All editions": "workspace-all-editions",
+  "Organizer guide": "workspace-organizer-guide",
+  "Country accounts": "workspace-country-accounts",
+  "Flag QA": "workspace-flag-qa",
+  "HOD history": "workspace-hod-history",
+  "Community moderation": "workspace-community-moderation",
+  Predictions: "workspace-predictions",
+  "Fantasy SSC": "workspace-fantasy",
+  "Command Assistant": "workspace-command-assistant",
+  "Anniversary settings": "workspace-anniversary-settings",
+  "Anniversary dates": "workspace-anniversary-dates",
+  "Public UX": "workspace-public-ux",
+  "Beta 3 feedback": "workspace-beta-3-feedback",
+  "Beta 2 feedback": "workspace-beta-2-feedback",
+  "Beta 1 archive": "workspace-beta-1-archive",
+  "Organizer acceptance test": "workspace-acceptance-test",
+  "Organizer beta coverage": "workspace-beta-coverage",
+  "System health": "workspace-system-health",
+  "Delivery & jobs": "workspace-delivery-jobs",
+  "System settings": "workspace-system-settings",
+} as const;
+
+type AdminNavigationLabel = keyof typeof ADMIN_NAVIGATION_IDS;
+
 export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
-  const editionHref = slug ? `/admin/${slug}` : "/admin";
-  const publishHref = slug ? `/admin/publication/${slug}` : "/admin";
-  const broadcastHref = slug ? `/admin/design/${slug}` : "/admin";
+  const editionHref = slug ? `/admin/${slug}` : null;
+  const publishHref = slug ? `/admin/publication/${slug}` : null;
+  const broadcastHref = slug ? `/admin/design/${slug}` : null;
 
   return [
     {
@@ -383,7 +482,7 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
         item(
           "Jury voting",
           "Manage jury rosters, ballots and completion for the selected edition.",
-          slug ? `/admin/jury/${slug}` : "/admin",
+          slug ? `/admin/jury/${slug}` : null,
           Vote,
           "jury voting ballots roster",
           (path) => path.startsWith("/admin/jury/"),
@@ -391,7 +490,7 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
         item(
           "Voting rules",
           "Configure the voting system and point rules for the selected edition.",
-          slug ? `/admin/voting-system/${slug}` : "/admin",
+          slug ? `/admin/voting-system/${slug}` : null,
           Calculator,
           "voting system rules points",
           (path) => path.startsWith("/admin/voting-system/"),
@@ -407,7 +506,7 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
         item(
           "Televote totals",
           "Review or enter aggregate televote points for a show.",
-          slug ? `/admin/televote/${slug}` : "/admin",
+          slug ? `/admin/televote/${slug}` : null,
           Vote,
           "aggregate televote totals points",
           (path) => path.startsWith("/admin/televote/"),
@@ -771,12 +870,28 @@ export function buildAdminNavigation(slug?: string): AdminNavigationGroup[] {
 }
 
 function item(
-  label: string,
+  label: AdminNavigationLabel,
   description: string,
-  to: string,
+  to: string | null,
   icon: LucideIcon,
   keywords: string,
   active: (pathname: string) => boolean,
 ): AdminNavigationItem {
-  return { label, description, to, icon, keywords, active };
+  const base = {
+    id: ADMIN_NAVIGATION_IDS[label],
+    label,
+    description,
+    icon,
+    keywords,
+    active,
+  };
+
+  return to === null
+    ? {
+        ...base,
+        availability: "requires-edition",
+        to: null,
+        unavailableReason: "Select an edition first",
+      }
+    : { ...base, availability: "ready", to };
 }

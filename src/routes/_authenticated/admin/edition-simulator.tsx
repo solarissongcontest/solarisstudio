@@ -44,6 +44,16 @@ const SUBSYSTEMS: EditionSubsystem[] = [
   'predictions',
 ];
 
+function SimulatorPageHeader() {
+  return (
+    <AdminPageHeader
+      eyebrow="Solaris Studio 2"
+      title="Edition Simulator"
+      description="Clone the current Control Room lifecycle into an in-memory rehearsal, then test transitions, subsystem states, incidents and recovery without touching production."
+    />
+  );
+}
+
 function EditionSimulatorPage() {
   const { editionId } = useAdminContext();
   const getControlRoom = useServerFn(getControlRoomModel);
@@ -107,17 +117,29 @@ function EditionSimulatorPage() {
   };
 
   if (featureQuery.isLoading) {
-    return <AdminPage><p className="text-sm text-muted-foreground">Loading Edition Simulator…</p></AdminPage>;
+    return (
+      <AdminPage>
+        <div className="mx-auto max-w-7xl space-y-4">
+          <SimulatorPageHeader />
+          <AdminCard>
+            <p className="py-8 text-center text-sm text-muted-foreground">Loading Edition Simulator…</p>
+          </AdminCard>
+        </div>
+      </AdminPage>
+    );
   }
 
   if (featureQuery.data !== true) {
     return (
       <AdminPage>
-        <AdminEmptyState
-          icon={FlaskConical}
-          title="Edition Simulator is disabled"
-          description="Enable the Edition Simulator rollout flag before rehearsing edition operations."
-        />
+        <div className="mx-auto max-w-7xl space-y-4">
+          <SimulatorPageHeader />
+          <AdminEmptyState
+            icon={FlaskConical}
+            title="Edition Simulator is disabled"
+            description="Enable the Edition Simulator rollout flag before rehearsing edition operations."
+          />
+        </div>
       </AdminPage>
     );
   }
@@ -125,7 +147,14 @@ function EditionSimulatorPage() {
   if (!editionId) {
     return (
       <AdminPage>
-        <AdminEmptyState icon={FlaskConical} title="Select an edition" description="Edition Simulator starts from the currently selected Organizer edition." />
+        <div className="mx-auto max-w-7xl space-y-4">
+          <SimulatorPageHeader />
+          <AdminEmptyState
+            icon={FlaskConical}
+            title="Select an edition"
+            description="Edition Simulator starts from the currently selected Organizer edition."
+          />
+        </div>
       </AdminPage>
     );
   }
@@ -133,11 +162,7 @@ function EditionSimulatorPage() {
   return (
     <AdminPage>
       <div className="mx-auto max-w-7xl space-y-4">
-        <AdminPageHeader
-          eyebrow="Solaris Studio 2"
-          title="Edition Simulator"
-          description="Clone the current Control Room lifecycle into an in-memory rehearsal, then test transitions, subsystem states, incidents and recovery without touching production."
-        />
+        <SimulatorPageHeader />
 
         <AdminCard strong>
           <div className="flex flex-wrap items-start justify-between gap-3">

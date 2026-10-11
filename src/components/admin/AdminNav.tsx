@@ -4,10 +4,7 @@ import { ListTree } from "lucide-react";
 import { useEditions } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { useAdminContext } from "./AdminContext";
-import {
-  buildAdminDomainNavigation,
-  type AdminDomainNavigationItem,
-} from "./admin-domains";
+import { buildAdminDomainNavigation, type AdminDomainNavigationItem } from "./admin-domains";
 
 export function AdminNav() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -20,7 +17,7 @@ export function AdminNav() {
     null;
   const editionNavLabel = activeEdition?.edition_number
     ? `SSC${activeEdition.edition_number}`
-    : activeEdition?.name ?? "Current edition";
+    : (activeEdition?.name ?? "Current edition");
   const domains = buildAdminDomainNavigation(activeEdition?.slug, editionNavLabel);
 
   return (
@@ -40,26 +37,41 @@ export function AdminNav() {
           All Organizer tools
         </Link>
         <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
-          Core workflows are visible in their workspaces. Search and All Organizer tools are for specialist tasks.
+          Core workflows are visible in their workspaces. Search and All Organizer tools are for
+          specialist tasks.
         </p>
       </div>
     </nav>
   );
 }
 
-function DomainLink({
-  item,
-  pathname,
-}: {
-  item: AdminDomainNavigationItem;
-  pathname: string;
-}) {
+function DomainLink({ item, pathname }: { item: AdminDomainNavigationItem; pathname: string }) {
   const Icon = item.icon;
   const active = item.active(pathname);
+
+  if (item.availability === "requires-edition") {
+    return (
+      <div
+        aria-disabled="true"
+        data-admin-navigation-id={item.id}
+        title={item.unavailableReason}
+        className="group flex min-h-11 cursor-not-allowed items-center gap-3 rounded-xl border border-transparent px-2.5 text-sm font-semibold text-muted-foreground opacity-55"
+      >
+        <span className="grid size-8 shrink-0 place-items-center rounded-xl border border-white/[0.06] bg-white/[0.025]">
+          <Icon className="size-4" />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate">{item.label}</span>
+          <span className="block truncate text-[9px] font-medium">{item.unavailableReason}</span>
+        </span>
+      </div>
+    );
+  }
 
   return (
     <Link
       to={item.to as any}
+      data-admin-navigation-id={item.id}
       aria-current={active ? "page" : undefined}
       title={item.description}
       className={cn(

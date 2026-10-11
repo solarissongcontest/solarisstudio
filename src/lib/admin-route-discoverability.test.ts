@@ -26,6 +26,17 @@ function navigablePrefix(pattern: string) {
   return dynamicIndex >= 0 ? publicPath.slice(0, dynamicIndex) || "/" : publicPath;
 }
 
+function isCompatibilityRedirect(content: string) {
+  if (content.includes("throw redirect(")) return true;
+
+  // Mounted aliases avoid TanStack Router publishing a transition before its
+  // React Transitioner has committed. Count only a dedicated *Redirect
+  // component whose sole return is a replacing Navigate as a retired alias.
+  return /function\s+\w+Redirect\(\)\s*\{\s*return\s*<Navigate\b(?=[^>]*\breplace\b)[^>]*\/>;\s*\}/s.test(
+    content,
+  );
+}
+
 const navigationCorpus = [
   source("src/components/admin/admin-navigation.ts"),
   source("src/components/admin/admin-domains.ts"),
@@ -55,7 +66,7 @@ describe("Organizer route discoverability", () => {
       if (pattern === "/_authenticated/admin") continue;
 
       // Compatibility and retired routes are allowed only when they explicitly redirect.
-      if (content.includes("throw redirect(")) continue;
+      if (isCompatibilityRedirect(content)) continue;
 
       const prefix = navigablePrefix(pattern);
       const visible =

@@ -21,7 +21,7 @@ describe("MySolaris scoped data and cross-device refresh", () => {
   it("refreshes participant action truth across devices without waiting for a navigation", () => {
     expect(context).toContain('queryKey: ["mysolaris-current-entry"');
     expect(context).toContain('queryKey: ["mysolaris-jury-task"');
-    expect(context).toContain('queryKey: ["country-confirmation-access", "mysolaris-context"]');
+    expect(context).toContain('queryKey: ["country-confirmation-access", userId, countryId, "mysolaris-context"]');
     expect(context.match(/refetchInterval: 30_000/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
     expect(context.match(/refetchOnWindowFocus: true/g)?.length ?? 0).toBeGreaterThanOrEqual(4);
   });

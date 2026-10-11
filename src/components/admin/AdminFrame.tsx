@@ -11,9 +11,14 @@ import { AdminSectionNav } from "./AdminSectionNav";
  *
  * Mobile chrome ownership belongs to OrganizerV6MobileChrome in AdminShell.
  * Keeping this component chrome-free prevents a second mobile shell contract.
+ * The frame normally owns the Organizer route's document <main> landmark.
+ * Integrity Case is a legacy exception that still owns its internal <main>, so
+ * the frame becomes a neutral div there to preserve exactly one main landmark.
  */
 export function AdminFrame({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const childOwnsMainLandmark = pathname.startsWith("/admin/integrity-case/");
+  const MainContainer = childOwnsMainLandmark ? "div" : "main";
 
   return (
     <div className="admin-frame min-h-[calc(100vh-4rem)]">
@@ -43,7 +48,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="admin-page admin-main min-w-0">
+      <MainContainer className="admin-page admin-main min-w-0">
         <AdminFeatureBoundary
           name="section-navigation"
           fallback={
@@ -67,7 +72,7 @@ export function AdminFrame({ children }: { children: ReactNode }) {
             <DelegationColourOverview />
           </AdminFeatureBoundary>
         ) : null}
-      </main>
+      </MainContainer>
     </div>
   );
 }

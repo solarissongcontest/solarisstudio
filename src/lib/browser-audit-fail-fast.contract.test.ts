@@ -29,8 +29,11 @@ describe("PR Browser Audit fail-fast and route isolation contract", () => {
     expect(publicAudit).toContain("await routePage.close();");
   });
 
-  it("gives each static public route its own PR smoke timeout budget", () => {
-    expect(publicAudit).toContain("for (const route of [...STATIC_PUBLIC_ROUTES].sort())");
+  it("gives each selected static public route its own PR smoke timeout budget without losing full-audit coverage", () => {
+    expect(publicAudit).toContain("const STATIC_ROUTES_TO_AUDIT = fullAudit");
+    expect(publicAudit).toContain("[...STATIC_PUBLIC_ROUTES].sort()");
+    expect(publicAudit).toContain("[...PR_SMOKE_PUBLIC_ROUTES]");
+    expect(publicAudit).toContain("for (const route of STATIC_ROUTES_TO_AUDIT)");
     expect(publicAudit).toContain('test(`public route ${route} passes at this viewport`');
     expect(publicAudit).not.toContain('test("public route families pass at this viewport"');
   });

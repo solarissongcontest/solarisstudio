@@ -1,4 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { createRouter } from "@tanstack/react-router";
 import { AppRouteSkeleton, AppRouteStateFrame } from "@/components/app/AppRouteStateFrame";
 import { useSolarisApp } from "@/components/app/AppRuntime";
@@ -10,12 +11,21 @@ function RoutePending() {
   // Pending UI sits inside TanStack Router's transition machinery. Subscribing
   // to router state from this transient boundary can receive a store update
   // before React has committed the pending component, which React 19 correctly
-  // reports as a pre-mount state update. The browser location is already the
-  // authoritative destination for this purely presentational branch and does
-  // not need a live subscription during the short pending lifetime.
-  const pathname = typeof window === "undefined" ? "" : window.location.pathname;
+  // reports as a pre-mount state update. Reading window during render is also
+  // unsafe for hydration because SSR has no browser pathname. Start from the
+  // same deterministic value on server and client, then specialize after mount.
+  const [pathname, setPathname] = useState("");
+  useEffect(() => {
+    setPathname(window.location.pathname);
+  }, []);
   const alreadyInsideParticipationChrome =
     pathname.startsWith("/confirmations") || pathname.startsWith("/televoting");
+
+  // Nested Organizer loading belongs inside AdminFrame's existing landmark.
+  // A second main during child-route transitions breaks keyboard/screen readers.
+  if (pathname.startsWith("/admin") || pathname.startsWith("/confirmations/admin") || pathname.startsWith("/televoting/admin")) {
+    return <section aria-busy="true" aria-label="Loading Organizer page"><AppRouteSkeleton /></section>;
+  }
 
   if (isAppMode && alreadyInsideParticipationChrome) {
     return (

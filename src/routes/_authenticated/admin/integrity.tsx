@@ -1,9 +1,10 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/admin/integrity")({
-  beforeLoad: () => {
-    throw redirect({ to: "/admin/integrity-investigations", replace: true });
-  },
   head: () => ({ meta: [{ name: "robots", content: "noindex" }] }),
-  component: () => null,
+  component: AdminIntegrityRedirect,
 });
+
+function AdminIntegrityRedirect() {
+  return <Navigate to="/admin/integrity-investigations" replace />;
+}

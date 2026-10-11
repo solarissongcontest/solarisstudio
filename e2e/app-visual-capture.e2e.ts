@@ -1,4 +1,19 @@
+import { readFileSync } from "node:fs";
+
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
+
+// Playwright can shim the JS display-mode signal but cannot emulate the CSS
+// display-mode media feature. Visual release captures must therefore use the
+// exact production app stylesheet with only those predicates neutralized, just
+// like the installed-app invariant suite. Otherwise screenshots silently show
+// browser-mode chrome while claiming to review the installed PWA.
+const INSTALLED_APP_CSS_EMULATION = readFileSync("src/styles/app-shell.css", "utf8")
+  .replace(/\(display-mode:\s*(?:standalone|window-controls-overlay)\)\s+and\s+/g, "")
+  .replace(/\(display-mode:\s*(?:standalone|window-controls-overlay)\)/g, "all");
+
+async function applyInstalledCssEmulation(page: Page) {
+  await page.addStyleTag({ content: INSTALLED_APP_CSS_EMULATION });
+}
 
 async function enableInstalledIosMode(page: Page) {
   await page.addInitScript(() => {
@@ -34,12 +49,14 @@ function slug(path: string) {
 
 async function capture(page: Page, testInfo: TestInfo, path: string) {
   const response = await page.goto(path, { waitUntil: "domcontentloaded" });
+  await applyInstalledCssEmulation(page);
   expect(response?.status(), `${path} should load for visual capture`).toBeLessThan(400);
   await page.waitForLoadState("networkidle", { timeout: 4_000 }).catch(() => undefined);
   await page.waitForTimeout(180);
 
   await expect(page.locator("html")).toHaveAttribute("data-solaris-app", "");
   await expect(page.locator("main").first()).toBeVisible();
+  await expect(page.locator(".solaris-app-toolbar")).toBeVisible();
 
   await testInfo.attach(`visual-${slug(path)}.png`, {
     body: await page.screenshot({
@@ -90,6 +107,7 @@ test("captures the canonical installed-app visual review set", async ({ page }, 
     { path: "/wiki", prefix: "/wiki/" },
   ]) {
     await page.goto(directory.path, { waitUntil: "domcontentloaded" });
+    await applyInstalledCssEmulation(page);
     await page.waitForLoadState("networkidle", { timeout: 4_000 }).catch(() => undefined);
     const href = await page
       .locator(`main a[href^="${directory.prefix}"]`)

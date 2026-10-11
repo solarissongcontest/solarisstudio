@@ -4,6 +4,26 @@ import { auditPage, sitemapRoutes, STATIC_PUBLIC_ROUTES } from "./audit-helpers"
 
 const fullAudit = process.env.E2E_FULL_AUDIT === "1";
 
+const PR_SMOKE_PUBLIC_ROUTES = [
+  "/",
+  "/auth",
+  "/confirmations",
+  "/countries",
+  "/editions",
+  "/integrity",
+  "/jury-voting",
+  "/participate",
+  "/pulse",
+  "/result-lab",
+  "/rules",
+  "/televoting",
+  "/wiki",
+] as const;
+
+const STATIC_ROUTES_TO_AUDIT = fullAudit
+  ? [...STATIC_PUBLIC_ROUTES].sort()
+  : [...PR_SMOKE_PUBLIC_ROUTES];
+
 async function auditRoutes(page: Page, routes: string[], testInfo: TestInfo) {
   const failures: string[] = [];
   const context = page.context();
@@ -22,7 +42,7 @@ async function auditRoutes(page: Page, routes: string[], testInfo: TestInfo) {
   expect(failures, "Every public route should pass the viewport audit").toEqual([]);
 }
 
-for (const route of [...STATIC_PUBLIC_ROUTES].sort()) {
+for (const route of STATIC_ROUTES_TO_AUDIT) {
   test(`public route ${route} passes at this viewport`, async ({ page }, testInfo) => {
     await test.step(route, () => auditPage(page, route, testInfo));
   });
@@ -209,4 +229,3 @@ test("captures the final visual archetypes for review", async ({ page }, testInf
     }
   }
 });
-
