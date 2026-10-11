@@ -1,4 +1,4 @@
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import {
   lazy,
   Suspense,
@@ -18,6 +18,7 @@ import {
   type SolarisAnniversarySeason,
 } from "@/lib/anniversary";
 import { getAnniversaryPreviewPhase } from "@/lib/anniversary-preview";
+import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
 
 const LazyDeepExperience = lazy(() =>
   import("@/components/AnniversaryDeepExperience").then((module) => ({ default: module.AnniversaryDeepExperience })),
@@ -88,8 +89,7 @@ function isDeepRoute(pathname: string) {
 }
 
 export function SolarisAnniversaryCelebration() {
-  const pathname = useLocation({ select: (location) => location.pathname });
-  const searchStr = useLocation({ select: (location) => location.searchStr });
+  const { pathname, searchStr } = useHydrationSafeRouterLocation();
   const [clock, setClock] = useState(() => new Date());
   const [showIntro, setShowIntro] = useState(false);
   const [badgeExpanded, setBadgeExpanded] = useState(false);

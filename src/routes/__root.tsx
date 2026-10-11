@@ -5,7 +5,6 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
-  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -37,6 +36,7 @@ import { SolarisAnniversaryCelebration } from "../components/SolarisAnniversaryC
 import { Toaster } from "../components/ui/sonner";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { appErrorPresentation, classifyAppError } from "../lib/app-error-state";
+import { useHydrationSafeRouterLocation } from "../lib/hydration-safe-router-location";
 import { startPublicWebVitals } from "../lib/public-web-vitals";
 
 const SITE_DESCRIPTION =
@@ -317,7 +317,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { pathname } = useHydrationSafeRouterLocation();
   const serviceAdmin =
     pathname.startsWith("/confirmations/admin") || pathname.startsWith("/televoting/admin");
   const fullAdmin = pathname.startsWith("/admin") || serviceAdmin;

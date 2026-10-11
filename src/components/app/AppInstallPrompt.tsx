@@ -1,6 +1,7 @@
-import { useRouterState } from "@tanstack/react-router";
 import { Download, Share } from "lucide-react";
 import { useEffect, useState } from "react";
+
+import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -31,7 +32,7 @@ function installPromptAllowedOnPath(pathname: string) {
 }
 
 export function AppInstallPrompt({ isAppMode }: { isAppMode: boolean }) {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { pathname } = useHydrationSafeRouterLocation();
   const [installEvent, setInstallEvent] = useState<InstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(true);
   const [eligible, setEligible] = useState(false);

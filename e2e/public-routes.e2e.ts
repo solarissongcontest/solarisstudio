@@ -20,7 +20,7 @@ const PR_SMOKE_PUBLIC_ROUTES = [
   "/wiki",
 ] as const;
 
-const STATIC_ROUTES_TO_AUDIT = fullAudit ? [...STATIC_PUBLIC_ROUTES].sort() : [...PR_SMOKE_PUBLIC_ROUTES];
+const publicRouteAuditSet = fullAudit ? [...STATIC_PUBLIC_ROUTES].sort() : [...PR_SMOKE_PUBLIC_ROUTES];
 
 async function auditRoutes(page: Page, routes: string[], testInfo: TestInfo) {
   const failures: string[] = [];
@@ -40,7 +40,7 @@ async function auditRoutes(page: Page, routes: string[], testInfo: TestInfo) {
   expect(failures, "Every public route should pass the viewport audit").toEqual([]);
 }
 
-for (const route of STATIC_ROUTES_TO_AUDIT) {
+for (const route of publicRouteAuditSet) {
   test(`public route ${route} passes at this viewport`, async ({ page }, testInfo) => {
     await test.step(route, () => auditPage(page, route, testInfo));
   });

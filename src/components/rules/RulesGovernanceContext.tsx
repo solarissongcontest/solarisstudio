@@ -1,7 +1,7 @@
-import { useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { governanceActionForPath } from "@/lib/governance-v5";
+import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
 import { getRuleContext } from "@/lib/rule-context";
 import { consumeRuleReturnRestore } from "@/lib/rule-return-context";
 import { usePublishedRulebook } from "@/lib/rules-governance";
@@ -21,8 +21,7 @@ export const GOVERNANCE_ACTION_STORAGE_KEY = "solaris:governance-action";
  */
 export function RulesGovernanceContext() {
   usePublishedRulebook();
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const searchStr = useRouterState({ select: (state) => state.location.searchStr });
+  const { pathname, searchStr } = useHydrationSafeRouterLocation();
 
   useEffect(() => {
     const context = getRuleContext(pathname);

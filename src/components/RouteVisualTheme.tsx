@@ -1,5 +1,4 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 
 import "@/calm-public-layout.css";
@@ -27,6 +26,7 @@ import {
   useShow,
 } from "@/lib/data";
 import { entityDisplayMap } from "@/lib/entities";
+import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
 import { showPublishesResults } from "@/lib/publication";
 import {
   countryBackgroundCss,
@@ -80,7 +80,7 @@ function isLiveResultContext(status?: string | null) {
 
 export function RouteVisualTheme() {
   useLiquidGlassBackdropCapability();
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { pathname } = useHydrationSafeRouterLocation();
   const countryCode = segmentAfter(pathname, "/countries/") ?? segmentAfter(pathname, "/wiki/");
   const editionSlug = segmentAfter(pathname, "/editions/");
   const showId = segmentAfter(pathname, "/shows/");

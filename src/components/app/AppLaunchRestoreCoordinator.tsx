@@ -1,4 +1,3 @@
-import { useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -14,12 +13,13 @@ import {
   getAppLaunchSafeRootFromSnapshot,
   markAppNavigationRestore,
 } from "@/lib/app-navigation";
+import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
 import { beginLifecycleGeneration } from "@/lib/lifecycle-generation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 
 /** The only owner of post-trampoline cold-launch restoration. */
 export function AppLaunchRestoreCoordinator() {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { pathname } = useHydrationSafeRouterLocation();
   const generationRef = useRef(0);
 
   useEffect(() => {
