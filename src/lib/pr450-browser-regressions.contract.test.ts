@@ -62,6 +62,7 @@ describe("PR 450 browser blocker regressions", () => {
   it("leaves app-launch immediately and restores only from root", () => {
     const launch = source("src/routes/app-launch.tsx");
     const coordinator = source("src/components/app/AppLaunchRestoreCoordinator.tsx");
+    const installedApp = source("e2e/installed-app.e2e.ts");
 
     expect(launch).toContain("<ScriptOnce>{APP_LAUNCH_BOOTSTRAP_SCRIPT}</ScriptOnce>");
     expect(launch).toContain('if (window.location.pathname !== "/app-launch") return;');
@@ -71,5 +72,7 @@ describe("PR 450 browser blocker regressions", () => {
     expect(coordinator).toContain("readAppLaunchTransaction()");
     expect(coordinator).toContain("getAppLaunchDestinationFromSnapshot");
     expect(coordinator).toContain("clearAppLaunchTransaction()");
+    expect(installedApp).toContain('page.goto("/app-launch", { waitUntil: "commit" })');
+    expect(installedApp).not.toContain('window.location.assign("/app-launch")');
   });
 });
