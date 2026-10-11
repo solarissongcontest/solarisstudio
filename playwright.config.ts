@@ -183,12 +183,12 @@ export default defineConfig({
     ...personalityViewportMatrix.map(({ width, height }) => ({
       name: `personality-${width}`,
       testMatch: /personality-contract\.e2e\.ts/,
-      use: { viewport: { width, height } },
+      use: { viewport: { width, height }, serviceWorkers: "block" as const },
     })),
     {
       name: "personality-touch-390",
       testMatch: /personality-contract\.e2e\.ts/,
-      use: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
+      use: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, serviceWorkers: "block" as const },
     },
     {
       name: "governance-mobile-390",
