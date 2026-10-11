@@ -1,5 +1,8 @@
 import type { SolarisTask } from "./participation-os";
-import { projectV3Experience, type V3DomainSnapshot } from "./v3-domain-state";
+import {
+  projectV3Experience,
+  type V3ContestDomainSnapshot,
+} from "./v3-domain-state";
 import { projectV3Actions, projectV3Attention } from "./v3-experience";
 import { projectV3Home } from "./v3-home";
 import { projectV3Journey } from "./v3-journey";
@@ -23,7 +26,7 @@ export type V3BootstrapSource = {
   identity: V3BootstrapIdentity;
   context: V3BootstrapContext;
   capabilities: readonly string[];
-  domain: V3DomainSnapshot;
+  domain: V3ContestDomainSnapshot;
   tasks: readonly SolarisTask[];
   preferences?: {
     hideResultSpoilers?: boolean;
@@ -32,9 +35,9 @@ export type V3BootstrapSource = {
 
 /**
  * The first V3 bootstrap contract is deliberately a pure projection. It does
- * not fetch data and it does not own workflow truth. Existing server-authority
- * supplies domain facts + task evidence, and every visible V3 summary is
- * derived from that same input in one place.
+ * not fetch data and it does not own workflow truth. Existing server authority
+ * supplies contest facts + participant task evidence, and every visible V3
+ * summary is derived from those same inputs in one place.
  */
 export function projectV3Bootstrap(source: V3BootstrapSource) {
   const serverNow = Date.parse(source.serverTime);
