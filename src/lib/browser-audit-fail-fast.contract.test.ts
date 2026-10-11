@@ -10,6 +10,7 @@ const publicAudit = source("e2e/public-routes.e2e.ts");
 const auditHelpers = source("e2e/audit-helpers.ts");
 const authenticatedRoute = source("src/routes/_authenticated/route.tsx");
 const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
+const browserAuditWorkflow = source(".github/workflows/browser-audit.yml");
 
 describe("PR Browser Audit fail-fast and route isolation contract", () => {
   it("fails PR smoke quickly without retries while preserving exhaustive audit behavior", () => {
@@ -36,6 +37,20 @@ describe("PR Browser Audit fail-fast and route isolation contract", () => {
     expect(publicAudit).toContain("for (const route of STATIC_ROUTES_TO_AUDIT)");
     expect(publicAudit).toContain('test(`public route ${route} passes at this viewport`');
     expect(publicAudit).not.toContain('test("public route families pass at this viewport"');
+  });
+
+  it("builds Browser Audit against the isolated local identity and serves a production preview", () => {
+    const localStack = browserAuditWorkflow.indexOf("- name: Start isolated local Supabase for browser audit");
+    const localBuild = browserAuditWorkflow.indexOf("- name: Build audit application against isolated local Supabase");
+    const preview = browserAuditWorkflow.indexOf("bun run preview --host 127.0.0.1 --port 4173 --strictPort");
+
+    expect(localStack).toBeGreaterThanOrEqual(0);
+    expect(localBuild).toBeGreaterThan(localStack);
+    expect(preview).toBeGreaterThan(localBuild);
+    expect(browserAuditWorkflow).toContain('"$VITE_SUPABASE_URL"');
+    expect(browserAuditWorkflow).toContain('"$VITE_CONFIRMATIONS_SUPABASE_URL"');
+    expect(browserAuditWorkflow).toContain("Refusing audit build with hosted/non-local Supabase URL");
+    expect(browserAuditWorkflow).not.toContain("bun run dev --host 127.0.0.1 --port 4173 --strictPort");
   });
 
   it("measures a hidden native file input through its real wrapping-label target", () => {
