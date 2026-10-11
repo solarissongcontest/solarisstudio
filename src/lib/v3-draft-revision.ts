@@ -75,6 +75,14 @@ function assertIdentifier(value: string, label: string) {
   if (!value.trim()) throw new Error(`${label} must not be empty`);
 }
 
+function assertLocalDraft<T>(draft: V3VersionedDraft<T>) {
+  assertRevision(draft.revision, "revision");
+  assertRevision(draft.serverRevision, "serverRevision");
+  if (draft.revision < draft.serverRevision) {
+    throw new Error("local revision cannot be behind its known serverRevision");
+  }
+}
+
 function assertAuthoritativeServerDraft<T>(draft: V3VersionedDraft<T>) {
   assertRevision(draft.revision, "revision");
   assertRevision(draft.serverRevision, "serverRevision");
@@ -126,8 +134,7 @@ export function editV3DraftLocally<T>(
     sessionId?: string | null;
   },
 ): V3VersionedDraft<T> {
-  assertRevision(draft.revision, "revision");
-  assertRevision(draft.serverRevision, "serverRevision");
+  assertLocalDraft(draft);
 
   return {
     ...draft,
@@ -145,8 +152,7 @@ export function buildV3DraftSaveCommand<T>(
   operationId: string,
 ): V3DraftSaveCommand<T> {
   assertIdentifier(operationId, "operationId");
-  assertRevision(draft.revision, "revision");
-  assertRevision(draft.serverRevision, "serverRevision");
+  assertLocalDraft(draft);
 
   return {
     operationId,
@@ -181,6 +187,9 @@ export function applyV3DraftSave<T>(
   assertAuthoritativeServerDraft(serverDraft);
   assertRevision(command.baseRevision, "baseRevision");
   assertRevision(command.clientRevision, "clientRevision");
+  if (command.clientRevision <= command.baseRevision) {
+    throw new Error("clientRevision must be greater than baseRevision for a save");
+  }
 
   if (serverDraft.draftId !== command.draftId) {
     return {
@@ -239,8 +248,7 @@ export function reconcileV3Draft<T>(
   serverDraft: V3VersionedDraft<T> | null,
   online: boolean,
 ): V3DraftReconciliation<T> {
-  assertRevision(localDraft.revision, "revision");
-  assertRevision(localDraft.serverRevision, "serverRevision");
+  assertLocalDraft(localDraft);
 
   const hasLocalChanges = localDraft.revision > localDraft.serverRevision;
 
