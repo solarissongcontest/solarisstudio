@@ -93,8 +93,20 @@ function responsibilityBase() {
       "Participation confirmed",
       "/confirmations",
     ),
-    completedTask("entry:ssc22", "entry", "Entry", "Submitted and verified", "/my-solaris/entry"),
-    completedTask("media:ssc22", "media", "Media", "All required assets accepted", "/my-solaris/entry"),
+    completedTask(
+      "entry:ssc22",
+      "entry",
+      "Entry",
+      "Submitted and verified",
+      "/my-solaris/entry",
+    ),
+    completedTask(
+      "media:ssc22",
+      "media",
+      "Media",
+      "All required assets accepted",
+      "/my-solaris/entry",
+    ),
   ] satisfies SolarisTask[];
 }
 
@@ -141,7 +153,12 @@ function previewTasks(scenario: PreviewScenario): SolarisTask[] {
         : scenario === "results"
           ? "Public voting has closed."
           : "Voting opens during the live show.",
-    state: scenario === "live" ? "available" : scenario === "results" ? "finished" : "upcoming",
+    state:
+      scenario === "live"
+        ? "available"
+        : scenario === "results"
+          ? "finished"
+          : "upcoming",
     importance: "optional",
     blocking: false,
     actionRequired: false,
@@ -173,8 +190,8 @@ function previewSource(scenario: PreviewScenario): V3BootstrapSource {
     capabilities: ["confirmation.manage", "entry.submit", "jury.vote"],
     domain: {
       edition: results ? "completed" : "active",
-      confirmation: "closed",
-      entry: "verified",
+      confirmationWindow: "closed",
+      submissionWindow: "closed",
       show: live ? "live" : results ? "ended" : "scheduled",
       jury: scenario === "action" ? "open" : "finalized",
       televote: live ? "open" : results ? "validated" : "upcoming",
@@ -239,7 +256,10 @@ export function V3FoundationPreview() {
         }
       />
 
-      <div className="relative z-[2] mx-auto flex w-full max-w-[48rem] gap-1 overflow-x-auto px-4 pt-2" aria-label="Preview scenario">
+      <div
+        className="relative z-[2] mx-auto flex w-full max-w-[48rem] gap-1 overflow-x-auto px-4 pt-2"
+        aria-label="Preview scenario"
+      >
         {SCENARIOS.map((item) => (
           <button
             key={item.id}
@@ -259,7 +279,11 @@ export function V3FoundationPreview() {
       {tab === "results" ? <ResultsPreview bootstrap={bootstrap} /> : null}
       {tab === "me" ? <MePreview /> : null}
 
-      <nav className="v3-bottom-nav" aria-label="V3 foundation preview navigation" role="tablist">
+      <nav
+        className="v3-bottom-nav"
+        aria-label="V3 foundation preview navigation"
+        role="tablist"
+      >
         {NAV.map(({ id, label, icon: Icon, emphasis }) => (
           <button
             key={id}
@@ -271,7 +295,11 @@ export function V3FoundationPreview() {
             data-emphasis={emphasis ? "true" : undefined}
             onClick={() => setTab(id)}
           >
-            <Icon className="size-[19px]" strokeWidth={tab === id ? 2.3 : 1.9} aria-hidden="true" />
+            <Icon
+              className="size-[19px]"
+              strokeWidth={tab === id ? 2.3 : 1.9}
+              aria-hidden="true"
+            />
             <span className="v3-bottom-nav__label">{label}</span>
           </button>
         ))}
@@ -418,27 +446,55 @@ function HomePreview({ bootstrap }: { bootstrap: V3BootstrapProjection }) {
                 ? "Semi-final 1 is happening now"
                 : "Semi-final 1 tomorrow"}
           </h2>
-          <p className="mt-2 text-[0.78rem] leading-5 text-white/55">Tetlehamn · 20:00 CEST</p>
+          <p className="mt-2 text-[0.78rem] leading-5 text-white/55">
+            Tetlehamn · 20:00 CEST
+          </p>
           <div className="mt-5 v3-preview-meta-grid">
             <V3Stat value="66" label="Delegations" />
             <V3Stat value="18" label="Semi-finalists" />
-            <V3Stat value={bootstrap.experience.live ? "12 / 18" : "20:00"} label={bootstrap.experience.live ? "Now" : "Show time"} />
-            <V3Stat value={bootstrap.experience.resultsPublic ? "Official" : bootstrap.experience.live ? "Live" : "1 day"} label={bootstrap.experience.resultsPublic ? "Status" : bootstrap.experience.live ? "Status" : "Until show"} />
+            <V3Stat
+              value={bootstrap.experience.live ? "12 / 18" : "20:00"}
+              label={bootstrap.experience.live ? "Now" : "Show time"}
+            />
+            <V3Stat
+              value={
+                bootstrap.experience.resultsPublic
+                  ? "Official"
+                  : bootstrap.experience.live
+                    ? "Live"
+                    : "1 day"
+              }
+              label={
+                bootstrap.experience.resultsPublic || bootstrap.experience.live
+                  ? "Status"
+                  : "Until show"
+              }
+            />
           </div>
         </V3Surface>
       </V3Section>
 
       <V3Section title="Coming up" meta="Next 3">
         <div className="v3-preview-grid">
-          <V3ActionCard title="Semi-final 1" description="Tomorrow · 20:00 CEST" tone="neutral" />
-          <V3ActionCard title="Public voting" description="Opens during the live show" tone="neutral" />
+          <V3ActionCard
+            title="Semi-final 1"
+            description="Tomorrow · 20:00 CEST"
+            tone="neutral"
+          />
+          <V3ActionCard
+            title="Public voting"
+            description="Opens during the live show"
+            tone="neutral"
+          />
         </div>
       </V3Section>
 
       <V3Section title="Latest" meta="Quiet by default">
         <V3Surface className="p-4">
           <p className="text-sm font-semibold">Running order published</p>
-          <p className="mt-1 text-xs leading-5 text-white/48">SSC 22 · Semi-final 1 is ready to explore.</p>
+          <p className="mt-1 text-xs leading-5 text-white/48">
+            SSC 22 · Semi-final 1 is ready to explore.
+          </p>
         </V3Surface>
       </V3Section>
     </V3Screen>
@@ -450,7 +506,8 @@ function ParticipatePreview({ bootstrap }: { bootstrap: V3BootstrapProjection })
     bootstrap.actions.find(
       (action) => action.deliveryClass === "required" && action.actionRequired,
     ) ?? null;
-  const optional = bootstrap.actions.find((action) => action.deliveryClass === "optional") ?? null;
+  const optional =
+    bootstrap.actions.find((action) => action.deliveryClass === "optional") ?? null;
   const complete = bootstrap.journey.filter((step) => step.state === "complete").length;
 
   return (
@@ -461,7 +518,10 @@ function ParticipatePreview({ bootstrap }: { bootstrap: V3BootstrapProjection })
         description="Responsibilities come from the same canonical task evidence as Home. Optional participation remains visibly separate."
       />
 
-      <V3Section title="Your responsibilities" meta={`${complete} of ${bootstrap.journey.length} complete`}>
+      <V3Section
+        title="Your responsibilities"
+        meta={`${complete} of ${bootstrap.journey.length} complete`}
+      >
         <V3Journey>
           {bootstrap.journey.map((step) => (
             <V3JourneyStep
@@ -469,14 +529,23 @@ function ParticipatePreview({ bootstrap }: { bootstrap: V3BootstrapProjection })
               title={step.title}
               detail={step.detail}
               state={step.state}
-              trailing={step.state === "complete" ? "Done" : step.responsibility === "jury" ? "8 / 15" : "Action"}
+              trailing={
+                step.state === "complete"
+                  ? "Done"
+                  : step.responsibility === "jury"
+                    ? "8 / 15"
+                    : "Action"
+              }
             />
           ))}
         </V3Journey>
       </V3Section>
 
       {required ? (
-        <V3Section title="Needs attention" meta={<V3StatusChip tone="required">Required</V3StatusChip>}>
+        <V3Section
+          title="Needs attention"
+          meta={<V3StatusChip tone="required">Required</V3StatusChip>}
+        >
           <V3Surface level="raised" className="p-3">
             <V3ActionCard
               title={required.title}
@@ -498,17 +567,26 @@ function ParticipatePreview({ bootstrap }: { bootstrap: V3BootstrapProjection })
           </V3Surface>
         </V3Section>
       ) : (
-        <V3Section title="Needs attention" meta={<V3StatusChip tone="success">Clear</V3StatusChip>}>
+        <V3Section
+          title="Needs attention"
+          meta={<V3StatusChip tone="success">Clear</V3StatusChip>}
+        >
           <V3Surface className="p-4">
             <p className="text-sm font-semibold">Nothing requires action</p>
-            <p className="mt-1 text-xs leading-5 text-white/48">Solaris will surface the next official responsibility when it becomes actionable.</p>
+            <p className="mt-1 text-xs leading-5 text-white/48">
+              Solaris will surface the next official responsibility when it becomes actionable.
+            </p>
           </V3Surface>
         </V3Section>
       )}
 
       {optional ? (
         <V3Section title="Optional now" meta={<V3StatusChip>Optional</V3StatusChip>}>
-          <V3ActionCard title={optional.title} description={optional.description} tone="neutral" />
+          <V3ActionCard
+            title={optional.title}
+            description={optional.description}
+            tone="neutral"
+          />
         </V3Section>
       ) : null}
     </V3Screen>
@@ -526,14 +604,32 @@ function ExplorePreview() {
       <V3Surface level="glass" className="p-5">
         <p className="v3-kicker">Current edition</p>
         <h2 className="mt-2 text-3xl font-bold tracking-[-0.05em]">SSC 22</h2>
-        <p className="mt-2 text-sm text-white/55">Tetlehamn · Pre-show · 66 delegations</p>
+        <p className="mt-2 text-sm text-white/55">
+          Tetlehamn · Pre-show · 66 delegations
+        </p>
       </V3Surface>
       <V3Section title="Discover">
         <div className="v3-preview-grid">
-          <V3ActionCard title="Countries" description="Delegations, entries and histories" tone="neutral" />
-          <V3ActionCard title="Songs & artists" description="Meet the current field" tone="neutral" />
-          <V3ActionCard title="Shows" description="Semi-finals, finals and running orders" tone="neutral" />
-          <V3ActionCard title="Stories" description="Important Solaris moments" tone="neutral" />
+          <V3ActionCard
+            title="Countries"
+            description="Delegations, entries and histories"
+            tone="neutral"
+          />
+          <V3ActionCard
+            title="Songs & artists"
+            description="Meet the current field"
+            tone="neutral"
+          />
+          <V3ActionCard
+            title="Shows"
+            description="Semi-finals, finals and running orders"
+            tone="neutral"
+          />
+          <V3ActionCard
+            title="Stories"
+            description="Important Solaris moments"
+            tone="neutral"
+          />
         </div>
       </V3Section>
     </V3Screen>
@@ -566,8 +662,16 @@ function ResultsPreview({ bootstrap }: { bootstrap: V3BootstrapProjection }) {
       </V3Surface>
       <V3Section title="Explore this result" meta="Analysis second">
         <div className="v3-preview-grid">
-          <V3ActionCard title="Scorechart" description="See the official points breakdown" tone="neutral" />
-          <V3ActionCard title="Jury vs televote" description="Compare the two voting components" tone="neutral" />
+          <V3ActionCard
+            title="Scorechart"
+            description="See the official points breakdown"
+            tone="neutral"
+          />
+          <V3ActionCard
+            title="Jury vs televote"
+            description="Compare the two voting components"
+            tone="neutral"
+          />
         </div>
       </V3Section>
     </V3Screen>
@@ -589,10 +693,26 @@ function MePreview() {
       </V3Surface>
       <V3Section title="Your Solaris">
         <div className="v3-preview-grid">
-          <V3ActionCard title="History" description="Past editions and roles" tone="neutral" />
-          <V3ActionCard title="Receipts" description="Verified submission history" tone="neutral" />
-          <V3ActionCard title="Following" description="Countries and updates you care about" tone="neutral" />
-          <V3ActionCard title="Preferences" description="Notifications, appearance and accessibility" tone="neutral" />
+          <V3ActionCard
+            title="History"
+            description="Past editions and roles"
+            tone="neutral"
+          />
+          <V3ActionCard
+            title="Receipts"
+            description="Verified submission history"
+            tone="neutral"
+          />
+          <V3ActionCard
+            title="Following"
+            description="Countries and updates you care about"
+            tone="neutral"
+          />
+          <V3ActionCard
+            title="Preferences"
+            description="Notifications, appearance and accessibility"
+            tone="neutral"
+          />
         </div>
       </V3Section>
     </V3Screen>
@@ -608,11 +728,23 @@ function V3Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
-function ResultPreviewRow({ rank, country, points }: { rank: number; country: string; points: string }) {
+function ResultPreviewRow({
+  rank,
+  country,
+  points,
+}: {
+  rank: number;
+  country: string;
+  points: string;
+}) {
   return (
     <div className="flex min-h-12 items-center gap-3 rounded-xl border border-white/[0.055] bg-white/[0.025] px-3 py-2.5">
-      <span className="w-7 text-center text-sm font-bold tabular-nums text-white/45">#{rank}</span>
-      <span className="grid size-8 place-items-center rounded-lg bg-white/[0.055] text-xs font-bold text-white/55">SS</span>
+      <span className="w-7 text-center text-sm font-bold tabular-nums text-white/45">
+        #{rank}
+      </span>
+      <span className="grid size-8 place-items-center rounded-lg bg-white/[0.055] text-xs font-bold text-white/55">
+        SS
+      </span>
       <span className="min-w-0 flex-1 text-sm font-semibold">{country}</span>
       <span className="text-sm font-bold tabular-nums">{points}</span>
     </div>
