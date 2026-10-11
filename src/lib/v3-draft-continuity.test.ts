@@ -24,7 +24,7 @@ function local<T>(
   return {
     schemaVersion: 1,
     identity: options.identity ?? identity,
-    baseRevision: options.baseRevision ?? 4,
+    baseRevision: options.baseRevision === undefined ? 4 : options.baseRevision,
     savedAt: "2026-10-11T19:00:00.000Z",
     deviceId: "iphone",
     dirty: options.dirty ?? true,
