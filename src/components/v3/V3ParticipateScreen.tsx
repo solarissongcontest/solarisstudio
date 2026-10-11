@@ -1,5 +1,6 @@
 import type { V3BootstrapProjection } from "@/lib/v3-bootstrap";
 import type { V3ActionProjection } from "@/lib/v3-experience";
+import { projectV3Participate } from "@/lib/v3-participate";
 import {
   V3ActionCard,
   V3Journey,
@@ -48,34 +49,57 @@ function timingMeta(action: V3ActionProjection, delegationLabel?: string | null)
   );
 }
 
-function activeRequiredActions(bootstrap: V3BootstrapProjection) {
-  return bootstrap.actions.filter(
-    (action) => action.deliveryClass === "required" && action.actionRequired && !action.completed,
-  );
-}
-
-function optionalActions(bootstrap: V3BootstrapProjection) {
-  return bootstrap.actions.filter(
-    (action) => action.deliveryClass === "optional" && !action.completed,
+function ActionList({
+  actions,
+  progressByActionId,
+  delegationLabel,
+}: {
+  actions: readonly V3ActionProjection[];
+  progressByActionId: Readonly<Record<string, V3TaskProgress>>;
+  delegationLabel?: string | null;
+}) {
+  return (
+    <div className="v3-preview-grid">
+      {actions.map((action) => {
+        const progress = progressByActionId[action.id];
+        return (
+          <V3Surface key={action.id} level={action.actionRequired ? "raised" : "base"} className="p-3">
+            <V3ActionCard
+              title={action.title}
+              description={action.description}
+              tone={toneForAction(action)}
+              to={action.route}
+              meta={timingMeta(action, delegationLabel)}
+            />
+            {progress && progress.total > 0 ? (
+              <div className="px-1 pb-1 pt-3">
+                <V3Progress
+                  value={(progress.current / progress.total) * 100}
+                  label={progress.label ?? action.title}
+                />
+              </div>
+            ) : null}
+          </V3Surface>
+        );
+      })}
+    </div>
   );
 }
 
 /**
  * V3 Participate composition.
  *
- * Responsibilities come from Journey and active work comes from Actions. The
- * component receives optional progress enrichment separately because existing
- * SolarisTask does not yet carry a generic progress payload. V3 must not invent
- * fake progress in its canonical projection merely to make the mock-up prettier.
+ * The screen consumes the same bootstrap as Home. The shared Participate
+ * projection groups canonical Actions into required, upcoming, optional and
+ * completed buckets while Journey remains the evidence-backed responsibility
+ * timeline. No network call or second workflow state is introduced here.
  */
 export function V3ParticipateScreen({
   bootstrap,
   progressByActionId = {},
   delegationLabel,
 }: V3ParticipateScreenProps) {
-  const required = activeRequiredActions(bootstrap);
-  const optional = optionalActions(bootstrap);
-  const completed = bootstrap.journey.filter((step) => step.state === "complete").length;
+  const participate = projectV3Participate(bootstrap);
 
   return (
     <V3Screen>
@@ -88,14 +112,14 @@ export function V3ParticipateScreen({
       <V3Section
         title="Your responsibilities"
         meta={
-          bootstrap.journey.length
-            ? `${completed} of ${bootstrap.journey.length} complete`
+          participate.journeyTotalCount
+            ? `${participate.journeyCompleteCount} of ${participate.journeyTotalCount} complete`
             : "No current responsibilities"
         }
       >
-        {bootstrap.journey.length ? (
+        {participate.journeyTotalCount ? (
           <V3Journey>
-            {bootstrap.journey.map((step) => {
+            {participate.journey.map((step) => {
               const progress = progressByActionId[step.id];
               return (
                 <V3JourneyStep
@@ -129,40 +153,21 @@ export function V3ParticipateScreen({
       <V3Section
         title="Needs attention"
         meta={
-          required.length ? (
+          participate.needsAttention.length ? (
             <V3StatusChip tone="required">
-              {required.length} required
+              {participate.needsAttention.length} required
             </V3StatusChip>
           ) : (
             <V3StatusChip tone="success">Clear</V3StatusChip>
           )
         }
       >
-        {required.length ? (
-          <div className="v3-preview-grid">
-            {required.map((action) => {
-              const progress = progressByActionId[action.id];
-              return (
-                <V3Surface key={action.id} level="raised" className="p-3">
-                  <V3ActionCard
-                    title={action.title}
-                    description={action.description}
-                    tone={toneForAction(action)}
-                    to={action.route}
-                    meta={timingMeta(action, delegationLabel)}
-                  />
-                  {progress && progress.total > 0 ? (
-                    <div className="px-1 pb-1 pt-3">
-                      <V3Progress
-                        value={(progress.current / progress.total) * 100}
-                        label={progress.label ?? action.title}
-                      />
-                    </div>
-                  ) : null}
-                </V3Surface>
-              );
-            })}
-          </div>
+        {participate.needsAttention.length ? (
+          <ActionList
+            actions={participate.needsAttention}
+            progressByActionId={progressByActionId}
+            delegationLabel={delegationLabel}
+          />
         ) : (
           <V3Surface className="p-4">
             <p className="text-sm font-semibold">Nothing requires action</p>
@@ -173,32 +178,48 @@ export function V3ParticipateScreen({
         )}
       </V3Section>
 
-      {optional.length ? (
-        <V3Section title="Optional now" meta={<V3StatusChip>Optional</V3StatusChip>}>
-          <div className="v3-preview-grid">
-            {optional.map((action) => (
-              <V3ActionCard
-                key={action.id}
-                title={action.title}
-                description={action.description}
-                tone="neutral"
-                to={action.route}
-              />
-            ))}
-          </div>
+      {participate.next.length ? (
+        <V3Section title="Next" meta={<V3StatusChip tone="progress">Upcoming</V3StatusChip>}>
+          <ActionList
+            actions={participate.next}
+            progressByActionId={progressByActionId}
+            delegationLabel={delegationLabel}
+          />
         </V3Section>
       ) : null}
 
-      {bootstrap.attention.remainingCount > 0 ? (
-        <V3Surface className="mt-6 p-4">
-          <p className="text-sm font-semibold">
-            {bootstrap.attention.remainingCount} more item
-            {bootstrap.attention.remainingCount === 1 ? "" : "s"} need attention
-          </p>
-          <p className="mt-1 text-xs leading-5 text-white/48">
-            Home stays intentionally limited. Participate is the complete operational view.
-          </p>
-        </V3Surface>
+      {participate.optionalNow.length ? (
+        <V3Section title="Optional now" meta={<V3StatusChip>Optional</V3StatusChip>}>
+          <ActionList
+            actions={participate.optionalNow}
+            progressByActionId={progressByActionId}
+            delegationLabel={delegationLabel}
+          />
+        </V3Section>
+      ) : null}
+
+      {participate.completed.length ? (
+        <V3Section title="Completed" meta={`${participate.completed.length} recorded`}>
+          <V3Surface className="p-2">
+            <details>
+              <summary className="min-h-11 cursor-pointer list-none rounded-xl px-3 py-3 text-sm font-semibold text-white/72 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45">
+                View completed activity
+              </summary>
+              <div className="v3-preview-grid px-1 pb-1 pt-1">
+                {participate.completed.slice(0, 8).map((action) => (
+                  <V3ActionCard
+                    key={action.id}
+                    title={action.title}
+                    description={action.description}
+                    tone="complete"
+                    to={action.route}
+                    trailing={false}
+                  />
+                ))}
+              </div>
+            </details>
+          </V3Surface>
+        </V3Section>
       ) : null}
     </V3Screen>
   );
