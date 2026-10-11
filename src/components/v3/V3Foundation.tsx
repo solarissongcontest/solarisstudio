@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import "@/styles/v3-foundations.css";
 
 export type V3StatusTone =
   | "required"
