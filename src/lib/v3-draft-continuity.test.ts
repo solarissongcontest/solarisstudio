@@ -101,6 +101,20 @@ describe("resolveV3DraftContinuity", () => {
     });
   });
 
+  it("does not recreate a known server draft when the authoritative row disappears", () => {
+    const result = resolveV3DraftContinuity({
+      local: local({ ranking: ["a", "b"] }, { baseRevision: 4 }),
+      server: null,
+      submission: { status: "not-submitted" },
+    });
+
+    expect(result).toEqual({
+      kind: "hold",
+      reason: "server-draft-missing",
+      allowAutomaticRetry: false,
+    });
+  });
+
   it("never resurrects a draft after the server confirms submission", () => {
     const result = resolveV3DraftContinuity({
       local: local({ ranking: ["a", "b"] }),
