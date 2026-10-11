@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import {
   AlertTriangle,
@@ -45,7 +46,10 @@ export function V3TopContext({
 }) {
   return (
     <header className="v3-top-context">
-      <div className="v3-top-context__edition" aria-label={`${edition}${phase ? `, ${phase}` : ""}`}>
+      <div
+        className="v3-top-context__edition"
+        aria-label={`${edition}${phase ? `, ${phase}` : ""}`}
+      >
         <span className="v3-top-context__dot" aria-hidden="true" />
         <span className="truncate">{edition}</span>
         {phase ? (
@@ -168,6 +172,7 @@ export function V3ActionCard({
   tone = "neutral",
   icon,
   onClick,
+  to,
   trailing = true,
 }: {
   title: string;
@@ -176,11 +181,12 @@ export function V3ActionCard({
   tone?: V3ActionTone;
   icon?: LucideIcon;
   onClick?: () => void;
+  to?: string;
   trailing?: boolean;
 }) {
   const Icon = icon ?? actionIcon(tone);
-  return (
-    <button type="button" className="v3-action-card" data-tone={tone} onClick={onClick}>
+  const contents = (
+    <>
       <span className="v3-action-card__icon" aria-hidden="true">
         <Icon className="size-4" />
       </span>
@@ -189,7 +195,23 @@ export function V3ActionCard({
         <span className="v3-action-card__description">{description}</span>
         {meta ? <span className="v3-action-card__meta">{meta}</span> : null}
       </span>
-      {trailing ? <ChevronRight className="mt-2 size-4 shrink-0 text-white/35" aria-hidden="true" /> : null}
+      {trailing ? (
+        <ChevronRight className="mt-2 size-4 shrink-0 text-white/35" aria-hidden="true" />
+      ) : null}
+    </>
+  );
+
+  if (to) {
+    return (
+      <Link to={to as any} className="v3-action-card" data-tone={tone}>
+        {contents}
+      </Link>
+    );
+  }
+
+  return (
+    <button type="button" className="v3-action-card" data-tone={tone} onClick={onClick}>
+      {contents}
     </button>
   );
 }
