@@ -9,6 +9,7 @@ on:
       - "supabase/migrations/**"
       - "supabase/functions/integrity-evidence-download/**"
       - "supabase/functions/integrity-evidence-lifecycle/**"
+      - "src/routes/_authenticated/admin/integrity*.tsx"
       - ".github/scripts/rules-integrity-security-rehearsal.sh"
       - ".github/scripts/run-rules-integrity-security-rehearsal.sh"
       - ".github/scripts/pr450-deadline-scope-rehearsal.sh"
