@@ -1,23 +1,15 @@
 /**
- * V3 domain-state vocabulary.
+ * V3 contest-domain vocabulary.
  *
- * These domains are intentionally orthogonal. Solaris workflows overlap in
- * reality, so V3 must never collapse the contest into one giant linear phase
- * enum. Persisted/domain state remains authoritative elsewhere; this module
- * only defines the client-facing contract and derives presentation mode.
+ * These domains are intentionally orthogonal and contest-scoped. Personal
+ * confirmation, entry, media and jury completion live in the authoritative
+ * Participation OS task/workspace evidence and are projected through Journey.
+ * Mixing personal workflow state into this contest snapshot would create two
+ * sources of truth for the same participant obligation.
  */
 export type V3EditionState = "planning" | "active" | "completed" | "archived" | "cancelled";
 
-export type V3ConfirmationState = "scheduled" | "open" | "closed" | "completed" | "cancelled";
-
-export type V3EntryState =
-  | "unavailable"
-  | "draft"
-  | "submitted"
-  | "under_review"
-  | "changes_required"
-  | "verified"
-  | "withdrawn";
+export type V3WindowState = "scheduled" | "open" | "paused" | "closed" | "cancelled";
 
 export type V3ShowState =
   | "scheduled"
@@ -32,6 +24,7 @@ export type V3JuryState =
   | "locked"
   | "upcoming"
   | "open"
+  | "paused"
   | "closed"
   | "reviewing"
   | "validated"
@@ -41,6 +34,7 @@ export type V3TelevoteState =
   | "locked"
   | "upcoming"
   | "open"
+  | "paused"
   | "extended"
   | "closed"
   | "validating"
@@ -56,10 +50,10 @@ export type V3ResultsState =
 
 export type V3PublicationState = "draft" | "scheduled" | "public" | "withdrawn";
 
-export type V3DomainSnapshot = {
+export type V3ContestDomainSnapshot = {
   edition: V3EditionState;
-  confirmation: V3ConfirmationState | null;
-  entry: V3EntryState | null;
+  confirmationWindow: V3WindowState | null;
+  submissionWindow: V3WindowState | null;
   show: V3ShowState | null;
   jury: V3JuryState | null;
   televote: V3TelevoteState | null;
@@ -99,13 +93,15 @@ function resultsArePublic(state: V3ResultsState) {
 }
 
 /**
- * Derive the visual/interaction mode from canonical domain facts.
+ * Derive the visual/interaction mode from canonical contest facts.
  *
  * Priority is deliberate: published results beat live decoration, a live show
  * beats generic active state, and voting can be open independently from show
  * state. No caller should reimplement this precedence ad hoc in Home.
  */
-export function projectV3Experience(snapshot: V3DomainSnapshot): V3ExperienceProjection {
+export function projectV3Experience(
+  snapshot: V3ContestDomainSnapshot,
+): V3ExperienceProjection {
   const votingOpen = isVotingOpen(snapshot.televote);
   const live = isLiveShow(snapshot.show);
   const resultsPublic = resultsArePublic(snapshot.results);
