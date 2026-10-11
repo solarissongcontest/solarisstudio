@@ -76,17 +76,17 @@ describe("PR #450 review-blocker repairs", () => {
     expect(migration).toContain("before insert on public.notification_deliveries");
   });
 
-  it("requires database-enforced read-only state before production maintenance inspection", () => {
+  it("keeps the database read-only probe separate from the emergency Worker maintenance bypass", () => {
     expect(migration).toContain("public.solaris_maintenance_read_only_probe()");
-    expect(server).toContain("maintenanceDatabaseIsReadOnly");
-    expect(server).toContain("solaris_maintenance_read_only_probe");
-    expect(server).toContain(
+    expect(server).not.toContain("maintenanceDatabaseIsReadOnly");
+    expect(server).not.toContain("solaris_maintenance_read_only_probe");
+    expect(server).not.toContain(
       "Maintenance inspection stays locked until the Solaris database is explicitly Read-only or in Maintenance.",
     );
     expect(server).toContain("const localE2EBypass = hasLocalE2EMaintenanceBypass(request)");
-    expect(server).toContain(
-      "maintenanceAdminBypass &&\n          isDocumentNavigation(request) &&\n          !(await maintenanceDatabaseIsReadOnly(env))",
-    );
+    expect(server).toContain("maintenanceAdminBypass &&");
+    expect(server).toContain('request.method !== "GET"');
+    expect(server).toContain('"solaris_studio_maintenance_read_only"');
   });
 
   it("does not touch the protected Search implementation", () => {
