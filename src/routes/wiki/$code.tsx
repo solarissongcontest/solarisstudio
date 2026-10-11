@@ -67,8 +67,8 @@ function CountryWikiRoute() {
 function WikiHydrationSkeleton() {
   return (
     <AppShell>
-      <div className="wiki-canvas wiki-loading" role="status" aria-label="Loading Wiki article">
-        <h1 className="sr-only">Loading Terra Solaris Wiki article</h1>
+      <div className="wiki-canvas wiki-loading" role="status" aria-label="Loading Wiki article" aria-live="polite">
+        <span className="sr-only">Loading Terra Solaris Wiki article</span>
         <div className="wiki-loading-header" />
         <div className="wiki-loading-grid">
           <div />
