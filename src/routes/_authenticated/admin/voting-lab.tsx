@@ -89,17 +89,29 @@ function VotingLabPage() {
   }, [dataQuery.data?.entries]);
 
   if (featureQuery.isLoading) {
-    return <AdminPage><p className="text-sm text-muted-foreground">Loading Voting Laboratory…</p></AdminPage>;
+    return (
+      <AdminPage>
+        <div className="mx-auto max-w-7xl space-y-4">
+          <VotingLabPageHeader />
+          <AdminCard>
+            <p className="py-10 text-center text-sm text-muted-foreground">Loading Voting Laboratory…</p>
+          </AdminCard>
+        </div>
+      </AdminPage>
+    );
   }
 
   if (featureQuery.data !== true) {
     return (
       <AdminPage>
-        <AdminEmptyState
-          icon={FlaskConical}
-          title="Voting Laboratory is disabled"
-          description="Enable the Voting Lab rollout flag before running ballot simulations."
-        />
+        <div className="mx-auto max-w-7xl space-y-4">
+          <VotingLabPageHeader />
+          <AdminEmptyState
+            icon={FlaskConical}
+            title="Voting Laboratory is disabled"
+            description="Enable the Voting Lab rollout flag before running ballot simulations."
+          />
+        </div>
       </AdminPage>
     );
   }
@@ -151,11 +163,7 @@ function VotingLabPage() {
   return (
     <AdminPage>
       <div className="mx-auto max-w-7xl space-y-4">
-        <AdminPageHeader
-          eyebrow="Solaris Studio 2"
-          title="Voting Laboratory"
-          description="Replay real submitted ballots through alternative voting constraints without changing a single official vote. The browser receives only synthetic ballot identities and award rows."
-        />
+        <VotingLabPageHeader />
 
         <AdminCard strong>
           <div className="flex items-start gap-3">
@@ -342,6 +350,16 @@ function VotingLabPage() {
         )}
       </div>
     </AdminPage>
+  );
+}
+
+function VotingLabPageHeader() {
+  return (
+    <AdminPageHeader
+      eyebrow="Solaris Studio 2"
+      title="Voting Laboratory"
+      description="Replay real submitted ballots through alternative voting constraints without changing a single official vote. The browser receives only synthetic ballot identities and award rows."
+    />
   );
 }
 
