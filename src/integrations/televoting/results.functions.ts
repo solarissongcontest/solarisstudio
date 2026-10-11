@@ -1,9 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 
-// Published results are a pure read. Keep this as GET so platform read-only mode
-// does not mistake the server-function request itself for a mutation before the
-// public Supabase read can run.
-export const getMergedPublishedTelevotingResults = createServerFn({ method: "GET" })
+// TanStack Start server functions are invoked through the framework's POST
+// transport even when the operation is a pure read. The Supabase read-only gate
+// only governs the downstream Data API/RPC request, so keep the framework
+// transport canonical here and enforce read-only semantics at the database
+// boundary instead.
+export const getMergedPublishedTelevotingResults = createServerFn({ method: "POST" })
   .inputValidator((data: { roundId?: string }) => ({ roundId: data?.roundId }))
   .handler(async ({ data }) => {
     const { getMergedPublishedTelevotingResultsServer } = await import(
