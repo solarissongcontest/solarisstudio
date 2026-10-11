@@ -1,7 +1,7 @@
 import { AlertTriangle, WifiOff } from "lucide-react";
-import { useRouterState } from "@tanstack/react-router";
 
 import type { AppConnectivitySnapshot } from "@/lib/app-connectivity";
+import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 
 export function AppOfflineBanner({
@@ -9,8 +9,7 @@ export function AppOfflineBanner({
 }: {
   connectivity: AppConnectivitySnapshot;
 }) {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const searchStr = useRouterState({ select: (state) => state.location.searchStr });
+  const { pathname, searchStr } = useHydrationSafeRouterLocation();
   const screen = resolveSolarisAppScreen(pathname, searchStr);
   if (connectivity.status === "online") return null;
 
