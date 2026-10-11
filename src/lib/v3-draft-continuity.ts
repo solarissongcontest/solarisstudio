@@ -70,8 +70,8 @@ export type V3DraftResolution<T> =
     }
   | {
       kind: "hold";
-      reason: "submission-state-unknown";
-      /** Unknown submit state must be reconciled with the server before retrying. */
+      reason: "submission-state-unknown" | "server-draft-missing";
+      /** Unknown authority must be reconciled with the server before retrying. */
       allowAutomaticRetry: false;
     };
 
@@ -133,6 +133,13 @@ export function resolveV3DraftContinuity<T>(input: {
 
   if (local && !server) {
     if (!local.dirty) return { kind: "use-local", draft: local, reason: "local-only" };
+    if (local.baseRevision !== null) {
+      return {
+        kind: "hold",
+        reason: "server-draft-missing",
+        allowAutomaticRetry: false,
+      };
+    }
     return {
       kind: "push-local",
       draft: local,
