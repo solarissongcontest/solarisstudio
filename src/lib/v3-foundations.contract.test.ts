@@ -29,10 +29,13 @@ describe("Solaris Studio V3 foundation preview", () => {
     expect(preview).toContain("Your Solaris identity");
   });
 
-  it("keeps the preview route isolated and out of search indexing", () => {
+  it("keeps the preview route isolated, unindexed and disabled in production by default", () => {
     const route = source("src/routes/v3-preview.tsx");
     expect(route).toContain('name: "robots", content: "noindex,nofollow"');
     expect(route).toContain("V3FoundationPreview");
+    expect(route).toContain("!import.meta.env.PROD");
+    expect(route).toContain('import.meta.env.VITE_SOLARIS_V3_PREVIEW === "1"');
+    expect(route).toContain('redirect({ to: "/", replace: true })');
     expect(route).not.toContain("supabase");
   });
 
