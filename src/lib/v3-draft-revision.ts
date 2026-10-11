@@ -132,6 +132,7 @@ export function editV3DraftLocally<T>(
   return {
     ...draft,
     revision: draft.revision + 1,
+    serverRevision: draft.serverRevision,
     updatedAt: input.updatedAt,
     deviceId: input.deviceId ?? draft.deviceId,
     sessionId: input.sessionId ?? draft.sessionId,
