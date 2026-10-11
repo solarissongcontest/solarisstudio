@@ -55,6 +55,15 @@ describe("PR Browser Audit fail-fast and route isolation contract", () => {
     expect(browserAuditWorkflow).not.toContain("bun run dev --host 127.0.0.1 --port 4173 --strictPort");
   });
 
+  it("injects local Supabase into the Worker runtime and proves SSR routes cannot escape it", () => {
+    expect(browserAuditWorkflow).toContain('--var "SUPABASE_URL:$SUPABASE_URL"');
+    expect(browserAuditWorkflow).toContain('--var "SUPABASE_PUBLISHABLE_KEY:$SUPABASE_PUBLISHABLE_KEY"');
+    expect(browserAuditWorkflow).toContain('--var "CONFIRMATIONS_SUPABASE_URL:$CONFIRMATIONS_SUPABASE_URL"');
+    expect(browserAuditWorkflow).toContain("- name: Verify server-side routes use local Supabase identity");
+    expect(browserAuditWorkflow).toContain("Audit Worker sitemap escaped local Supabase data");
+    expect(browserAuditWorkflow).toContain("Sitemap did not expose representative local Country/Wiki routes");
+  });
+
   it("measures a hidden native file input through its real wrapping-label target", () => {
     expect(auditHelpers).toContain('["checkbox", "radio", "file"].includes(node.type)');
     expect(auditHelpers).toContain('rect = node.closest("label")!.getBoundingClientRect();');
