@@ -29,6 +29,13 @@ async function auditRoutes(page: Page, routes: string[], testInfo: TestInfo) {
   for (const route of routes) {
     const routePage = await context.newPage();
     try {
+      if (/^\/wiki\/[^/]+$/.test(route)) {
+        await routePage.goto(route, { waitUntil: "domcontentloaded" });
+        await expect(
+          routePage.locator(".wiki-loading"),
+          `${route} must finish its transient Wiki loading state before the accessibility audit`,
+        ).toHaveCount(0, { timeout: 15_000 });
+      }
       await test.step(route, () => auditPage(routePage, route, testInfo));
     } catch (error) {
       failures.push(`${route}: ${error instanceof Error ? error.message : String(error)}`);
