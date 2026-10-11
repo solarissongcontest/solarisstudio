@@ -1,4 +1,3 @@
-import { useRouterState } from "@tanstack/react-router";
 import {
   createContext,
   useCallback,
@@ -28,6 +27,7 @@ import {
   createAppViewportController,
   type AppViewportSnapshot,
 } from "@/lib/app-viewport";
+import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
 import {
   detectSolarisPlatform,
   type SolarisPlatformSnapshot,
@@ -86,7 +86,7 @@ const AppRuntimeContext = createContext<AppRuntimeValue>({
 });
 
 export function AppRuntime({ children }: { children: ReactNode }) {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { pathname } = useHydrationSafeRouterLocation();
   const [platform, setPlatform] = useState<SolarisPlatformSnapshot>(
     HYDRATION_SAFE_PLATFORM,
   );

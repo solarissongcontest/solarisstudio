@@ -1,13 +1,13 @@
-import { useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 
 const TASK_ROUTE = /^\/(confirmations|jury-voting|televoting|next-in-line)(\/|$)/;
 
 export function AppTelemetryBridge() {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { pathname } = useHydrationSafeRouterLocation();
   const { isAppMode, lifecycle, connectivity } = useSolarisApp();
   const lastResume = useRef<string | null>(null);
   const previousConnectivity = useRef(connectivity.status);
