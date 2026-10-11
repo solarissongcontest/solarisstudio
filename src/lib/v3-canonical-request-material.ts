@@ -46,7 +46,15 @@ function encodeArray(value: unknown[], ancestors: WeakSet<object>): string {
       throw new Error("canonical JSON does not support symbol keys");
     }
     if (key === "length") continue;
-    if (!/^(0|[1-9]\d*)$/.test(key)) {
+
+    const numericIndex = Number(key);
+    const isRealIndex =
+      /^(0|[1-9]\d*)$/.test(key) &&
+      Number.isSafeInteger(numericIndex) &&
+      numericIndex >= 0 &&
+      numericIndex < value.length &&
+      String(numericIndex) === key;
+    if (!isRealIndex) {
       throw new Error("canonical JSON arrays cannot contain named properties");
     }
   }
