@@ -39,17 +39,19 @@ describe("PR Browser Audit fail-fast and route isolation contract", () => {
     expect(publicAudit).not.toContain('test("public route families pass at this viewport"');
   });
 
-  it("builds Browser Audit against the isolated local identity and serves a production preview", () => {
+  it("builds Browser Audit against the isolated local identity and serves the compiled Worker locally", () => {
     const localStack = browserAuditWorkflow.indexOf("- name: Start isolated local Supabase for browser audit");
     const localBuild = browserAuditWorkflow.indexOf("- name: Build audit application against isolated local Supabase");
-    const preview = browserAuditWorkflow.indexOf("bun run preview --host 127.0.0.1 --port 4173 --strictPort");
+    const localWorker = browserAuditWorkflow.indexOf("bunx wrangler@4.141.0 dev --local --no-bundle --ip 127.0.0.1 --port 4173");
 
     expect(localStack).toBeGreaterThanOrEqual(0);
     expect(localBuild).toBeGreaterThan(localStack);
-    expect(preview).toBeGreaterThan(localBuild);
+    expect(localWorker).toBeGreaterThan(localBuild);
     expect(browserAuditWorkflow).toContain('"$VITE_SUPABASE_URL"');
     expect(browserAuditWorkflow).toContain('"$VITE_CONFIRMATIONS_SUPABASE_URL"');
     expect(browserAuditWorkflow).toContain("Refusing audit build with hosted/non-local Supabase URL");
+    expect(browserAuditWorkflow).toContain("Refusing audit server with hosted Supabase URL");
+    expect(browserAuditWorkflow).not.toContain("bun run preview --host 127.0.0.1 --port 4173 --strictPort");
     expect(browserAuditWorkflow).not.toContain("bun run dev --host 127.0.0.1 --port 4173 --strictPort");
   });
 

@@ -199,12 +199,12 @@ jobs:
               ;;
           esac
 
-          # Serve the production bundle. Vite dev mode can cold-transform and
-          # re-optimize the large route graph while Playwright is hydrating,
-          # leaving pages stuck on server-rendered loading states. Building only
-          # after local Supabase is known also bakes the real local anon identity
-          # into the browser bundle instead of the earlier performance-build stub.
-          bun run preview --host 127.0.0.1 --port 4173 --strictPort > /tmp/solaris-audit-server.log 2>&1 &
+          # Run the already-built Cloudflare Worker locally under workerd. This
+          # avoids Vite's cold module transform/re-optimization path while still
+          # exercising the same .output/server entrypoint and .output/public
+          # assets configured for production. --local prevents a remote Worker
+          # session and --no-bundle preserves the custom TanStack/Nitro build.
+          bunx wrangler@4.141.0 dev --local --no-bundle --ip 127.0.0.1 --port 4173 > /tmp/solaris-audit-server.log 2>&1 &
           echo $! > /tmp/solaris-audit-server.pid
 
           ready=0
