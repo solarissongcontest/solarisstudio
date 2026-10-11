@@ -1,7 +1,7 @@
-import { useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 
 import { useCountries } from "@/lib/data";
+import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
 import { useCountryThemes } from "@/lib/visual-theme";
 
 function countryCodeFromPath(pathname: string) {
@@ -10,7 +10,7 @@ function countryCodeFromPath(pathname: string) {
 }
 
 export function CountryFlagLayerController() {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { pathname } = useHydrationSafeRouterLocation();
   const { data: countries } = useCountries();
   const code = countryCodeFromPath(pathname);
   const { data: themes } = useCountryThemes({ enabled: Boolean(code) });
