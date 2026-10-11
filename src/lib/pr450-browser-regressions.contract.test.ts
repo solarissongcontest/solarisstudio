@@ -20,34 +20,28 @@ describe("PR 450 browser blocker regressions", () => {
     const selectors = source("src/components/admin/AdminSelectors.tsx");
     const countryPicker = source("src/components/CountryPicker.tsx");
 
-    expect(countries).toContain('aria-label="Search countries"');
+    expect(countries).toContain('<span className="sr-only">Search countries</span>');
     expect(countries).toContain('aria-label="Filter countries by readiness"');
     expect(selectors).toContain('aria-label="Search editions"');
     expect(countryPicker).toContain('aria-label="Search country"');
   });
 
-  it("authorizes Organizer routes in a mounted fail-closed gate without a nested async route guard", () => {
+  it("authorizes Organizer routes in the canonical mounted fail-closed gate", () => {
     const authenticated = source("src/routes/_authenticated/route.tsx");
-    const organizerGate = source("src/components/admin/OrganizerAccessGate.tsx");
     const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
 
-    expect(authenticated).toContain('pathname === "/admin"');
-    expect(authenticated).toContain('pathname.startsWith("/admin/")');
-    expect(authenticated).toContain("<OrganizerAccessGate");
+    expect(authenticated).toContain("function AuthenticatedIdentityGate");
+    expect(authenticated).toContain("<AuthenticatedUserProvider user={identity.data}>");
     expect(authenticated).not.toContain("hasSolarisOrganizerAccess");
     expect(authenticated).not.toContain("beforeLoad:");
-    expect(authenticated).toContain("AuthenticatedSessionGate");
-    expect(authenticated).toContain("beginLifecycleGeneration(generationRef)");
 
-    expect(organizerGate).toContain("useEffect");
-    expect(organizerGate).toContain("hasSolarisOrganizerAccess(userId)");
-    expect(organizerGate).not.toContain('.from("user_roles")');
-    expect(organizerGate).toContain('to: "/my-solaris"');
-    expect(organizerGate).toContain('notice: "organizer-access-required"');
-    expect(organizerGate).toContain("replace: true");
-    expect(organizerGate).toContain('state === "allowed"');
-
-    expect(adminRoute).not.toContain("hasSolarisOrganizerAccess");
+    expect(adminRoute).toContain("function OrganizerAccessGate");
+    expect(adminRoute).toContain("hasSolarisOrganizerAccess(user.id)");
+    expect(adminRoute).not.toContain('.from("user_roles")');
+    expect(adminRoute).toContain('to: "/my-solaris"');
+    expect(adminRoute).toContain('notice: "organizer-access-required"');
+    expect(adminRoute).toContain("replace: true");
+    expect(adminRoute).toContain("<OrganizerAccessGate user={user}>");
     expect(adminRoute).not.toContain("supabase.auth.getUser");
     expect(adminRoute).not.toContain("beforeLoad:");
   });
@@ -72,7 +66,8 @@ describe("PR 450 browser blocker regressions", () => {
     expect(coordinator).toContain("readAppLaunchTransaction()");
     expect(coordinator).toContain("getAppLaunchDestinationFromSnapshot");
     expect(coordinator).toContain("clearAppLaunchTransaction()");
-    expect(installedApp).toContain('page.goto("/app-launch", { waitUntil: "commit" })');
-    expect(installedApp).not.toContain('window.location.assign("/app-launch")');
+    expect(installedApp).not.toContain('page.goto("/app-launch"');
+    expect(installedApp).toContain('window.location.assign("/app-launch")');
+    expect(installedApp).toContain('new URL(request.url()).pathname === "/app-launch"');
   });
 });

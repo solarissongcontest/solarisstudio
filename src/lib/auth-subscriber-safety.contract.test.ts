@@ -22,8 +22,10 @@ describe("auth subscriber lifecycle audit", () => {
     expect(settings).toContain("if (alive) setUserId");
     expect(passwordReset).toContain("if (!mounted) return;");
     expect(authenticatedRoute).not.toContain("beforeLoad:");
-    expect(authenticatedRoute).toContain("beginLifecycleGeneration(generationRef)");
-    expect(authenticatedRoute).toContain("lifecycle.isCurrent()");
-    expect(authenticatedRoute).toContain("lifecycle.deactivate()");
+    expect(authenticatedRoute).not.toContain("onAuthStateChange");
+    expect(authenticatedRoute).toContain("useQuery<User | null>");
+    expect(authenticatedRoute).toContain("await supabase.auth.getUser()");
+    expect(authenticatedRoute).toContain('queryKey: ["authenticated-identity-gate"]');
+    expect(authenticatedRoute).toContain("retry: false");
   });
 });

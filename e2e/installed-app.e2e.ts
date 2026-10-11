@@ -55,12 +55,19 @@ async function skipFirstRun(page: Page) {
 }
 
 async function launchInstalledApp(page: Page) {
+  const launchRequest = page.waitForRequest(
+    (request) => new URL(request.url()).pathname === "/app-launch",
+  );
   const startedAt = Date.now();
 
-  // /app-launch intentionally replaces itself during parsing. Waiting for a
-  // later lifecycle event can leave Playwright attached to the superseded
-  // document, so resolve as soon as the launch document is committed.
-  await page.goto("/app-launch", { waitUntil: "commit" });
+  // A parsing-time location.replace() deliberately supersedes the launch
+  // document before its lifecycle completes. Trigger that full-document
+  // navigation from a settled page instead of awaiting page.goto(), whose
+  // navigation promise WebKit can keep attached to the superseded document.
+  await page.evaluate(() => {
+    window.setTimeout(() => window.location.assign("/app-launch"), 0);
+  });
+  await launchRequest;
 
   return startedAt;
 }

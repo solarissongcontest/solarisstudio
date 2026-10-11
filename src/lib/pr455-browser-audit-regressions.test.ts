@@ -146,8 +146,8 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(gate).toContain('aria-label="Checking organizer access"');
     expect(gate).not.toContain("<main");
     expect(combined).not.toContain("<main");
-    expect(britishAlias).toContain('to: "/admin/tasks"');
-    expect(americanAlias).toContain('to: "/admin/tasks"');
+    expect(britishAlias).toContain('to="/admin/tasks"');
+    expect(americanAlias).toContain('to="/admin/tasks"');
     expect(britishAlias).not.toContain('to: "/admin/operations"');
     expect(americanAlias).not.toContain('to: "/admin/operations"');
   });
