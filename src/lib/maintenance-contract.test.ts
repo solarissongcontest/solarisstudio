@@ -17,17 +17,26 @@ describe("emergency global maintenance mode", () => {
     expect(start).not.toContain("maintenanceMiddleware");
   });
 
-  it("keeps a Supabase-independent, server-only maintenance bypass for administrators", () => {
-    expect(server).toContain('MAINTENANCE_ADMIN_SECRET');
+  it("keeps the maintenance secret server-only and production inspection database-read-only", () => {
+    expect(server).toContain("MAINTENANCE_ADMIN_SECRET");
     expect(server).toContain('const MAINTENANCE_ADMIN_PATH = "/__maintenance-admin"');
-    expect(server).toContain('await hasValidMaintenanceBypass(request, secret)');
-    expect(server).toContain('HttpOnly; Secure; SameSite=Strict');
-    expect(server).toContain('It does not grant Solaris account or Organizer permissions.');
-    expect(server).not.toContain('x-solaris-maintenance-bypass');
-    expect(server).not.toContain('maintenanceDatabaseIsReadOnly');
-    expect(server).not.toContain('solaris_maintenance_read_only_probe');
-    expect(envExample).toContain('MAINTENANCE_ADMIN_SECRET=');
-    expect(envExample).not.toContain('VITE_MAINTENANCE_ADMIN_SECRET');
+    expect(server).toContain("await hasValidMaintenanceBypass(request, secret)");
+    expect(server).toContain("maintenanceDatabaseIsReadOnly");
+    expect(server).toContain("solaris_maintenance_read_only_probe");
+    expect(server).toContain('value.startsWith("sb_publishable_")');
+    expect(server).toContain("if (!isNewSupabaseApiKey(publishableKey))");
+    expect(server).toContain('headers.set("authorization", `Bearer ${publishableKey}`)');
+    expect(server).toContain("HttpOnly; Secure; SameSite=Strict");
+    expect(server).toContain("It does not grant Solaris account or Organizer permissions.");
+    expect(server).not.toContain("x-solaris-maintenance-bypass");
+    expect(envExample).toContain("MAINTENANCE_ADMIN_SECRET=");
+    expect(envExample).not.toContain("VITE_MAINTENANCE_ADMIN_SECRET");
+  });
+
+  it("keeps the E2E bypass impossible on a production hostname", () => {
+    expect(server).toContain('url.hostname === "127.0.0.1" || url.hostname === "localhost"');
+    expect(server).toContain("readCookie(request, E2E_MAINTENANCE_BYPASS_COOKIE) === \"1\"");
+    expect(server).not.toContain('process.env.SOLARIS_E2E_BYPASS_MAINTENANCE !== "1"');
   });
 
   it("uses the canonical Solaris visual system and reduced-motion-safe animation", () => {
