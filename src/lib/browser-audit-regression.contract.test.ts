@@ -60,5 +60,9 @@ describe("Browser Audit regression boundaries", () => {
     expect(auditHelpers).toContain("sentinel.focus({ preventScroll: true })");
     expect(auditHelpers).toContain("const stayedOnSentinel = active === sentinel");
     expect(vite).toContain('entries: ["src/router.tsx"]');
+    expect(vite).toContain('process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1"');
+    expect(vite).toContain("warmup:");
+    expect(vite).toContain('"./src/routes/**/*.tsx"');
+    expect(vite).toContain('"./src/components/app/**/*.tsx"');
   });
 });
