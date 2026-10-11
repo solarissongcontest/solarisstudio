@@ -15,6 +15,7 @@ describe("runtime read consistency", () => {
     "src/integrations/confirmations/sync.functions.ts",
   );
   const hodWorkspace = source("src/lib/studio2-hod-workspace.ts");
+  const publicUxEvents = source("src/lib/public-ux-events.ts");
   const participationShell = source(
     "src/components/ParticipationServiceShell.tsx",
   );
@@ -59,6 +60,13 @@ describe("runtime read consistency", () => {
     expect(hodWorkspace).toContain(
       "'entry.media': completed(\n      pendingConfirmationEntry || Boolean(entry?.songUrl?.trim()),",
     );
+  });
+
+  it("stops optional UX telemetry after the first rejected write", () => {
+    expect(publicUxEvents).toContain("let telemetryWriteDisabled = false;");
+    expect(publicUxEvents).toContain("if (telemetryWriteDisabled) return;");
+    expect(publicUxEvents).toContain("if (error) telemetryWriteDisabled = true;");
+    expect(publicUxEvents).toContain("telemetryWriteDisabled = true;");
   });
 
   it("uses one compact state primitive for Televoting and published results", () => {
