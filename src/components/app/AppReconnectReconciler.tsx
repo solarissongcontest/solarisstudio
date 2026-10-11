@@ -1,14 +1,15 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter, useRouterState } from "@tanstack/react-router";
+import { useRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { APP_CONNECTIVITY_RECOVERED_EVENT } from "@/lib/app-connectivity";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
+import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
 
 export function AppReconnectReconciler() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { pathname } = useHydrationSafeRouterLocation();
 
   useEffect(() => {
     const onRecovered = () => {
