@@ -38,8 +38,8 @@ function source(overrides: Partial<V3BootstrapSource> = {}): V3BootstrapSource {
     capabilities: ["jury.vote", "entry.submit"],
     domain: {
       edition: "active",
-      confirmation: "closed",
-      entry: "verified",
+      confirmationWindow: "closed",
+      submissionWindow: "closed",
       show: "scheduled",
       jury: "open",
       televote: "upcoming",
@@ -52,7 +52,7 @@ function source(overrides: Partial<V3BootstrapSource> = {}): V3BootstrapSource {
 }
 
 describe("V3 bootstrap projection", () => {
-  it("drives Home, Journey and Attention from the same task evidence", () => {
+  it("drives Home, Journey and Attention from the same participant task evidence", () => {
     const bootstrap = projectV3Bootstrap(source());
 
     expect(bootstrap.actions[0]?.id).toBe("jury:sf1");
@@ -96,6 +96,25 @@ describe("V3 bootstrap projection", () => {
     expect(bootstrap.journey).toEqual([]);
     expect(bootstrap.attention.badgeCount).toBe(0);
     expect(bootstrap.actions[0]?.deliveryClass).toBe("optional");
+  });
+
+  it("keeps personal entry completion in tasks instead of contest-domain state", () => {
+    const entry = task({
+      id: "entry:22",
+      kind: "entry",
+      title: "Entry ready",
+      state: "completed",
+      actionRequired: false,
+      blocking: false,
+      route: "/my-solaris/entry",
+    });
+    const bootstrap = projectV3Bootstrap(source({ tasks: [entry] }));
+
+    expect("entry" in source().domain).toBe(false);
+    expect(bootstrap.journey[0]).toMatchObject({
+      responsibility: "entry",
+      state: "complete",
+    });
   });
 
   it("applies spoiler protection once at bootstrap projection level", () => {
