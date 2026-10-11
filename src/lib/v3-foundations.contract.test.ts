@@ -19,7 +19,7 @@ describe("Solaris Studio V3 foundation preview", () => {
   });
 
   it("starts with the stable five-area product architecture", () => {
-    const preview = source("src/routes/v3-preview.tsx");
+    const preview = source("src/components/v3/V3FoundationPreview.tsx");
     for (const label of ["Home", "Explore", "Participate", "Results", "Me"]) {
       expect(preview).toContain(`label: \"${label}\"`);
     }
@@ -27,6 +27,13 @@ describe("Solaris Studio V3 foundation preview", () => {
     expect(preview).toContain("Optional now");
     expect(preview).toContain("Outcome first");
     expect(preview).toContain("Your Solaris identity");
+  });
+
+  it("keeps the preview route isolated and out of search indexing", () => {
+    const route = source("src/routes/v3-preview.tsx");
+    expect(route).toContain('name: "robots", content: "noindex,nofollow"');
+    expect(route).toContain("V3FoundationPreview");
+    expect(route).not.toContain("supabase");
   });
 
   it("keeps required status semantic rather than colour-only", () => {
@@ -39,7 +46,7 @@ describe("Solaris Studio V3 foundation preview", () => {
 
   it("does not make gesture-only behaviour part of the first foundation slice", () => {
     const components = source("src/components/v3/V3Foundation.tsx");
-    const preview = source("src/routes/v3-preview.tsx");
+    const preview = source("src/components/v3/V3FoundationPreview.tsx");
     expect(components).not.toContain("onPointerMove");
     expect(components).not.toContain("onTouchMove");
     expect(preview).not.toContain("onPointerMove");
