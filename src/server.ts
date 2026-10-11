@@ -68,6 +68,10 @@ function maintenanceSecret(env: unknown) {
   return workerEnv?.MAINTENANCE_ADMIN_SECRET ?? process.env.MAINTENANCE_ADMIN_SECRET ?? "";
 }
 
+function isNewSupabaseApiKey(value: string) {
+  return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
+}
+
 function maintenanceDatabaseConfig(env: unknown) {
   const workerEnv = env && typeof env === "object" ? (env as ServerEnv) : undefined;
   return {
@@ -88,16 +92,20 @@ async function maintenanceDatabaseIsReadOnly(env: unknown) {
   const { url, publishableKey } = maintenanceDatabaseConfig(env);
   if (!url || !publishableKey) return false;
 
+  const headers = new Headers({
+    apikey: publishableKey,
+    "content-type": "application/json",
+  });
+  if (!isNewSupabaseApiKey(publishableKey)) {
+    headers.set("authorization", `Bearer ${publishableKey}`);
+  }
+
   try {
     const response = await fetch(
       `${url.replace(/\/$/, "")}/rest/v1/rpc/solaris_maintenance_read_only_probe`,
       {
         method: "POST",
-        headers: {
-          apikey: publishableKey,
-          authorization: `Bearer ${publishableKey}`,
-          "content-type": "application/json",
-        },
+        headers,
         body: "{}",
       },
     );
@@ -117,8 +125,6 @@ function isDocumentNavigation(request: Request) {
 }
 
 function hasLocalE2EMaintenanceBypass(request: Request) {
-  if (process.env.SOLARIS_E2E_BYPASS_MAINTENANCE !== "1") return false;
-
   const url = new URL(request.url);
   const localHost = url.hostname === "127.0.0.1" || url.hostname === "localhost";
   if (!localHost) return false;
@@ -297,10 +303,10 @@ async function handleMaintenanceAdminRequest(
     return adminPageResponse("Incorrect maintenance access secret.", 401);
   }
 
-  // The Worker emergency bypass may expose the real application only when the
-  // authoritative Supabase control plane is already enforcing read-only or
-  // maintenance semantics. If the database cannot prove that invariant, fail
-  // closed instead of trusting browser UI or Worker request-method filtering.
+  // The maintenance gate may expose the hidden production application only
+  // when Supabase itself proves that writes are already blocked. The Worker
+  // method filter below is defense in depth because the browser can talk to
+  // Supabase directly.
   if (!(await maintenanceDatabaseIsReadOnly(env))) {
     return adminPageResponse(
       "Maintenance inspection stays locked until the Solaris database is explicitly Read-only or in Maintenance.",
@@ -334,7 +340,6 @@ function maintenanceResponse(request: Request) {
   const headers = {
     "cache-control": "no-store, max-age=0",
     "content-language": "en",
-    "retry-after": "Sat, 10 Oct 2026 00:00:00 GMT",
     "x-robots-tag": "noindex, nofollow",
   };
 
@@ -353,7 +358,7 @@ function maintenanceResponse(request: Request) {
       error: "solaris_studio_maintenance",
       message:
         "Solaris Studio is temporarily offline while database service is restored. Writes are disabled during the outage.",
-      expected_return: "2026-10-10",
+      expected_return: "coming_soon",
     }),
     {
       status: 503,
@@ -451,11 +456,8 @@ export default {
           return maintenanceResponse(request);
         }
 
-        // Re-check the authoritative database gate on each document navigation.
-        // We deliberately do not probe it for every JS/CSS/image request, both
-        // to keep the bypass bounded and to avoid turning an inspection session
-        // into gratuitous Supabase traffic. Local E2E bypass never reaches this
-        // production probe and remains fully isolated.
+        // Re-check the authoritative database gate on each production document
+        // navigation. Local E2E never reaches this probe and remains isolated.
         if (
           maintenanceAdminBypass &&
           isDocumentNavigation(request) &&
@@ -484,7 +486,6 @@ export default {
               headers: {
                 "cache-control": "no-store, max-age=0",
                 "content-type": "application/json; charset=utf-8",
-                "retry-after": "Sat, 10 Oct 2026 00:00:00 GMT",
               },
             },
           );

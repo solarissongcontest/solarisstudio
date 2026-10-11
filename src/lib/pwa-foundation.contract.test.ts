@@ -14,6 +14,20 @@ describe("Solaris installed-app foundation", () => {
     expect(runtime).toContain('data-solaris-app');
   });
 
+  it("does not reload an uncontrolled page when its first service worker claims it", () => {
+    const runtime = source("src/components/app/AppRuntime.tsx");
+    expect(runtime).toContain(
+      "let hasEverHadController = Boolean(navigator.serviceWorker.controller);",
+    );
+    expect(runtime).toContain("const pageWasAlreadyControlled = hasEverHadController;");
+    expect(runtime).toContain(
+      "hasEverHadController || Boolean(navigator.serviceWorker.controller)",
+    );
+    expect(runtime).toContain("if (!pageWasAlreadyControlled || controllerReloadStarted) return;");
+    expect(runtime).toContain("controllerReloadStarted = true;");
+    expect(runtime).toContain("window.location.reload();");
+  });
+
   it("uses the stable five-area app navigation with Me as a permanent label", () => {
     const tabs = source("src/components/app/AppTabBar.tsx");
     const scrollPhysics = source("src/lib/use-scroll-responsive-bar.ts");

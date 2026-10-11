@@ -4,6 +4,9 @@
   "compatibility_date": "2026-08-15",
   "compatibility_flags": ["nodejs_compat"],
   "main": ".output/server/index.mjs",
+  "vars": {
+    "NODE_ENV": "production"
+  },
   "assets": {
     "directory": ".output/public"
   },

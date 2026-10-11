@@ -179,6 +179,8 @@ export function AppRuntime({ children }: { children: ReactNode }) {
 
     let active = true;
     let registration: ServiceWorkerRegistration | null = null;
+    let hasEverHadController = Boolean(navigator.serviceWorker.controller);
+    let controllerReloadStarted = false;
 
     const inspectWaiting = (next: ServiceWorkerRegistration) => {
       if (active && next.waiting) setWaitingWorker(next.waiting);
@@ -213,6 +215,17 @@ export function AppRuntime({ children }: { children: ReactNode }) {
 
     const onControllerChange = () => {
       if (!active) return;
+
+      const pageWasAlreadyControlled = hasEverHadController;
+      hasEverHadController =
+        hasEverHadController || Boolean(navigator.serviceWorker.controller);
+
+      // clients.claim() can make the first installed worker take control of a
+      // previously uncontrolled tab. Reloading for that initial adoption causes
+      // a surprise navigation during normal first visits. Only reload when an
+      // already-controlled page receives a replacement worker.
+      if (!pageWasAlreadyControlled || controllerReloadStarted) return;
+      controllerReloadStarted = true;
       window.location.reload();
     };
     const onResume = () => {
