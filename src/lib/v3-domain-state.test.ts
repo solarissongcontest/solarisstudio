@@ -2,14 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   projectV3Experience,
-  type V3DomainSnapshot,
+  type V3ContestDomainSnapshot,
 } from "./v3-domain-state";
 
-function snapshot(overrides: Partial<V3DomainSnapshot> = {}): V3DomainSnapshot {
+function snapshot(
+  overrides: Partial<V3ContestDomainSnapshot> = {},
+): V3ContestDomainSnapshot {
   return {
     edition: "active",
-    confirmation: "closed",
-    entry: "verified",
+    confirmationWindow: "closed",
+    submissionWindow: "closed",
     show: "scheduled",
     jury: "closed",
     televote: "locked",
@@ -19,11 +21,11 @@ function snapshot(overrides: Partial<V3DomainSnapshot> = {}): V3DomainSnapshot {
   };
 }
 
-describe("V3 domain-state experience projection", () => {
-  it("does not require workflows to form one linear global phase", () => {
+describe("V3 contest-domain experience projection", () => {
+  it("does not require overlapping contest systems to form one linear global phase", () => {
     const state = snapshot({
-      confirmation: "closed",
-      entry: "under_review",
+      confirmationWindow: "closed",
+      submissionWindow: "open",
       jury: "open",
       show: "scheduled",
       televote: "upcoming",
@@ -35,6 +37,12 @@ describe("V3 domain-state experience projection", () => {
       votingOpen: false,
       resultsPublic: false,
     });
+  });
+
+  it("keeps participant entry completion out of contest-domain state", () => {
+    const state = snapshot({ submissionWindow: "open" });
+    expect("entry" in state).toBe(false);
+    expect("confirmation" in state).toBe(false);
   });
 
   it("projects a preparing show as show-day without pretending voting is open", () => {
