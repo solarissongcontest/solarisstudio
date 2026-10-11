@@ -53,29 +53,39 @@ export function evaluateV3CapabilityRequirement(
 
 export type V3CapabilitySurface =
   | "confirmation_manage"
-  | "entry_submit"
-  | "jury_vote"
+  | "entry_edit"
+  | "jury_manage"
   | "organizer_mode"
   | "results_publish"
   | "roles_manage";
 
+/**
+ * These keys intentionally mirror the authoritative Permission Engine v2
+ * capability vocabulary already present in Solaris. Do not invent a new V3
+ * role/capability namespace in the client.
+ */
 const SURFACE_REQUIREMENTS: Readonly<Record<V3CapabilitySurface, V3CapabilityRequirement>> = Object.freeze({
-  confirmation_manage: { anyOf: ["confirmation.manage", "participation.manage"] },
-  entry_submit: { anyOf: ["entry.submit", "entry.manage"] },
-  jury_vote: { anyOf: ["jury.vote"] },
+  confirmation_manage: { anyOf: ["confirmation.manage"] },
+  entry_edit: { anyOf: ["entry.edit"] },
+  jury_manage: { anyOf: ["jury.ballots.manage", "voting.manage"] },
   organizer_mode: {
     anyOf: [
-      "participation.manage",
-      "contest.manage",
+      "edition.manage",
+      "delegation.manage",
+      "confirmation.manage",
+      "entry.approve",
       "voting.manage",
-      "results.manage",
-      "communications.manage",
+      "jury.ballots.manage",
+      "televote.ballots.manage",
+      "results.publish",
+      "communications.send",
       "integrity.manage",
-      "platform.manage",
+      "broadcast.control",
+      "permissions.manage",
     ],
   },
-  results_publish: { anyOf: ["results.publish", "results.manage"] },
-  roles_manage: { anyOf: ["roles.manage", "platform.manage"] },
+  results_publish: { anyOf: ["results.publish", "publishing.publish"] },
+  roles_manage: { anyOf: ["permissions.manage"] },
 });
 
 export function projectV3SurfaceAccess(
