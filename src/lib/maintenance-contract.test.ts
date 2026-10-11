@@ -24,6 +24,8 @@ describe("emergency global maintenance mode", () => {
     expect(server).toContain('HttpOnly; Secure; SameSite=Strict');
     expect(server).toContain('It does not grant Solaris account or Organizer permissions.');
     expect(server).not.toContain('x-solaris-maintenance-bypass');
+    expect(server).not.toContain('maintenanceDatabaseIsReadOnly');
+    expect(server).not.toContain('solaris_maintenance_read_only_probe');
     expect(envExample).toContain('MAINTENANCE_ADMIN_SECRET=');
     expect(envExample).not.toContain('VITE_MAINTENANCE_ADMIN_SECRET');
   });
@@ -50,8 +52,10 @@ describe("emergency global maintenance mode", () => {
     expect(page).toContain("@media (prefers-reduced-motion: reduce)");
   });
 
-  it("publishes the return date and deadline postponement", () => {
-    expect(config).toContain('"10 October 2026"');
+  it("publishes an open-ended return status and teases the new app experience", () => {
+    expect(config).toContain('"Coming soon — a new Solaris Studio app experience is on the way"');
+    expect(config).toContain('"11 October 2026"');
+    expect(config).not.toContain('"10 October 2026"');
     expect(page).toContain(
       "All deadlines scheduled during this outage will be postponed.",
     );
@@ -62,12 +66,14 @@ describe("emergency global maintenance mode", () => {
   it("blocks writes while still allowing the maintenance branding assets", () => {
     expect(server).toContain('request.method === "GET" || request.method === "HEAD"');
     expect(server).toContain('"solaris_studio_maintenance"');
+    expect(server).toContain('expected_return: "coming_soon"');
     expect(server).toContain('"/tsbc-maintenance-mark.svg"');
     expect(server).toContain('"/solaris-studio-mark.png"');
     expect(server).toContain('"/solaris-background.webp"');
     expect(server).toContain('"/sw.js"');
     expect(server).toContain('"/offline.html"');
-    expect(server).toContain('"retry-after": "Sat, 10 Oct 2026 00:00:00 GMT"');
+    expect(server).not.toContain('"retry-after": "Sat, 10 Oct 2026 00:00:00 GMT"');
+    expect(server).not.toContain('expected_return: "2026-10-10"');
     expect(server).toContain('"x-robots-tag": "noindex, nofollow"');
     expect(page).toContain('<meta name="robots" content="noindex, nofollow" />');
   });

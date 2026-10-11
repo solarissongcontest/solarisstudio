@@ -14,7 +14,7 @@ test("Solaris Studio serves the emergency maintenance notice across the app", as
   for (const route of ROUTES) {
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
     expect(response?.status(), `${route} should be deliberately unavailable`).toBe(503);
-    expect(response?.headers()["retry-after"]).toBe("Sat, 10 Oct 2026 00:00:00 GMT");
+    expect(response?.headers()["retry-after"]).toBeUndefined();
     expect(response?.headers()["x-robots-tag"]).toContain("noindex");
 
     const main = page.locator('[data-solaris-maintenance="true"]');
@@ -22,7 +22,8 @@ test("Solaris Studio serves the emergency maintenance notice across the app", as
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Solaris Studio is temporarily offline",
     );
-    await expect(page.getByText("10 October 2026", { exact: true })).toBeVisible();
+    await expect(page.getByText(/Coming soon/i)).toBeVisible();
+    await expect(page.getByText(/new Solaris Studio app experience/i)).toBeVisible();
     await expect(
       page.getByText(/All deadlines scheduled during this outage will be postponed/i),
     ).toBeVisible();
@@ -50,8 +51,9 @@ test("maintenance mode blocks writes instead of forwarding them to app services"
 
   expect(response.status()).toBe(503);
   expect(response.headers()["content-type"]).toContain("application/json");
+  expect(response.headers()["retry-after"]).toBeUndefined();
   await expect(response.json()).resolves.toMatchObject({
     error: "solaris_studio_maintenance",
-    expected_return: "2026-10-10",
+    expected_return: "coming_soon",
   });
 });

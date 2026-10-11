@@ -12,7 +12,6 @@ type ServerEntry = {
 type ServerEnv = {
   MAINTENANCE_ADMIN_SECRET?: string;
   SUPABASE_URL?: string;
-  SUPABASE_PUBLISHABLE_KEY?: string;
   SOLARIS_PUSH_DISPATCH_SECRET?: string;
 };
 
@@ -66,54 +65,6 @@ function errorResponse() {
 function maintenanceSecret(env: unknown) {
   const workerEnv = env && typeof env === "object" ? (env as ServerEnv) : undefined;
   return workerEnv?.MAINTENANCE_ADMIN_SECRET ?? process.env.MAINTENANCE_ADMIN_SECRET ?? "";
-}
-
-function maintenanceDatabaseConfig(env: unknown) {
-  const workerEnv = env && typeof env === "object" ? (env as ServerEnv) : undefined;
-  return {
-    url:
-      workerEnv?.SUPABASE_URL ??
-      process.env.SUPABASE_URL ??
-      process.env.VITE_SUPABASE_URL ??
-      "",
-    publishableKey:
-      workerEnv?.SUPABASE_PUBLISHABLE_KEY ??
-      process.env.SUPABASE_PUBLISHABLE_KEY ??
-      process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
-      "",
-  };
-}
-
-async function maintenanceDatabaseIsReadOnly(env: unknown) {
-  const { url, publishableKey } = maintenanceDatabaseConfig(env);
-  if (!url || !publishableKey) return false;
-
-  try {
-    const response = await fetch(
-      `${url.replace(/\/$/, "")}/rest/v1/rpc/solaris_maintenance_read_only_probe`,
-      {
-        method: "POST",
-        headers: {
-          apikey: publishableKey,
-          authorization: `Bearer ${publishableKey}`,
-          "content-type": "application/json",
-        },
-        body: "{}",
-      },
-    );
-    if (!response.ok) return false;
-    return (await response.json().catch(() => false)) === true;
-  } catch (error) {
-    console.error("[maintenance] Failed to verify database read-only state", error);
-    return false;
-  }
-}
-
-function isDocumentNavigation(request: Request) {
-  if (request.method !== "GET") return false;
-  const destination = request.headers.get("sec-fetch-dest");
-  const accept = request.headers.get("accept") ?? "";
-  return destination === "document" || accept.includes("text/html");
 }
 
 function hasLocalE2EMaintenanceBypass(request: Request) {
@@ -258,11 +209,7 @@ function sameOrigin(request: Request) {
   return origin === new URL(request.url).origin;
 }
 
-async function handleMaintenanceAdminRequest(
-  request: Request,
-  secret: string,
-  env: unknown,
-) {
+async function handleMaintenanceAdminRequest(request: Request, secret: string) {
   if (!GLOBAL_MAINTENANCE_MODE) {
     return Response.redirect(new URL("/", request.url), 303);
   }
@@ -297,17 +244,6 @@ async function handleMaintenanceAdminRequest(
     return adminPageResponse("Incorrect maintenance access secret.", 401);
   }
 
-  // The Worker emergency bypass may expose the real application only when the
-  // authoritative Supabase control plane is already enforcing read-only or
-  // maintenance semantics. If the database cannot prove that invariant, fail
-  // closed instead of trusting browser UI or Worker request-method filtering.
-  if (!(await maintenanceDatabaseIsReadOnly(env))) {
-    return adminPageResponse(
-      "Maintenance inspection stays locked until the Solaris database is explicitly Read-only or in Maintenance.",
-      503,
-    );
-  }
-
   const cookieValue = await createMaintenanceBypassCookie(secret);
   return new Response(null, {
     status: 303,
@@ -334,7 +270,6 @@ function maintenanceResponse(request: Request) {
   const headers = {
     "cache-control": "no-store, max-age=0",
     "content-language": "en",
-    "retry-after": "Sat, 10 Oct 2026 00:00:00 GMT",
     "x-robots-tag": "noindex, nofollow",
   };
 
@@ -353,7 +288,7 @@ function maintenanceResponse(request: Request) {
       error: "solaris_studio_maintenance",
       message:
         "Solaris Studio is temporarily offline while database service is restored. Writes are disabled during the outage.",
-      expected_return: "2026-10-10",
+      expected_return: "coming_soon",
     }),
     {
       status: 503,
@@ -432,7 +367,7 @@ export default {
       const secret = maintenanceSecret(env);
 
       if (url.pathname === MAINTENANCE_ADMIN_PATH) {
-        return await handleMaintenanceAdminRequest(request, secret, env);
+        return await handleMaintenanceAdminRequest(request, secret);
       }
 
       if (url.pathname === MAINTENANCE_ADMIN_LOGOUT_PATH) {
@@ -451,23 +386,10 @@ export default {
           return maintenanceResponse(request);
         }
 
-        // Re-check the authoritative database gate on each document navigation.
-        // We deliberately do not probe it for every JS/CSS/image request, both
-        // to keep the bypass bounded and to avoid turning an inspection session
-        // into gratuitous Supabase traffic. Local E2E bypass never reaches this
-        // production probe and remains fully isolated.
-        if (
-          maintenanceAdminBypass &&
-          isDocumentNavigation(request) &&
-          !(await maintenanceDatabaseIsReadOnly(env))
-        ) {
-          return maintenanceResponse(request);
-        }
-
         // Production maintenance bypass is deliberately inspection-only.
-        // Worker-side method filtering is defense in depth; the database mode
-        // above is the actual authority that prevents direct Supabase writes.
-        // Local E2E may exercise writes because its Supabase stack is isolated.
+        // It lets authorized administrators verify the hidden application, but
+        // cannot turn an outage into an undocumented mutation channel. Local
+        // E2E may exercise writes because its Supabase stack is isolated.
         if (
           maintenanceAdminBypass &&
           request.method !== "GET" &&
@@ -484,7 +406,6 @@ export default {
               headers: {
                 "cache-control": "no-store, max-age=0",
                 "content-type": "application/json; charset=utf-8",
-                "retry-after": "Sat, 10 Oct 2026 00:00:00 GMT",
               },
             },
           );
