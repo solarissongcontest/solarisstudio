@@ -1,5 +1,12 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { BellRing, Flag, LayoutDashboard, Layers3, MoreHorizontal, type LucideIcon } from "lucide-react";
+import {
+  BellRing,
+  Flag,
+  LayoutDashboard,
+  Layers3,
+  MoreHorizontal,
+  type LucideIcon,
+} from "lucide-react";
 import { useEffect } from "react";
 
 import { OrganizerV6TabBar, type OrganizerV6TabItem } from "@/components/admin/OrganizerV6TabBar";
@@ -27,7 +34,8 @@ import { useAdminContext } from "./AdminContext";
 type MobileItem = {
   id: AdminAppTabId;
   label: string;
-  href: string;
+  href: string | null;
+  availability: "ready" | "requires-edition";
   icon: LucideIcon;
   active: (pathname: string) => boolean;
 };
@@ -47,7 +55,7 @@ export function OrganizerV6MobileChrome() {
     [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
     null;
   const slug = activeEdition?.slug;
-  const editionHref = slug ? `/admin/${slug}` : "/admin";
+  const editionHref = slug ? `/admin/${slug}` : null;
   const taskCount = useOrganizerTaskCountV5(
     activeEdition?.id ?? null,
     tasksSupported,
@@ -58,19 +66,48 @@ export function OrganizerV6MobileChrome() {
       : undefined;
 
   const mobileItems: MobileItem[] = [
-    { id: "home", label: "Home", href: "/admin/operations", icon: LayoutDashboard, active: (path) => path.startsWith("/admin/operations") },
-    { id: "edition", label: "Edition", href: editionHref, icon: Layers3, active: (path) => adminEditionRoute(path, slug) },
     {
-      id: "tasks", label: "Tasks", href: "/admin/tasks", icon: BellRing,
+      id: "home",
+      label: "Home",
+      href: "/admin/operations",
+      availability: "ready",
+      icon: LayoutDashboard,
+      active: (path) => path.startsWith("/admin/operations"),
+    },
+    {
+      id: "edition",
+      label: "Edition",
+      href: editionHref,
+      availability: slug ? "ready" : "requires-edition",
+      icon: Layers3,
+      active: (path) => adminEditionRoute(path, slug),
+    },
+    {
+      id: "tasks",
+      label: "Tasks",
+      href: "/admin/tasks",
+      availability: "ready",
+      icon: BellRing,
       active: (path) =>
         path.startsWith("/admin/tasks") ||
         path.startsWith("/admin/action-center") ||
         path.startsWith("/admin/action-centre") ||
         path.startsWith("/admin/inbox"),
     },
-    { id: "delegations", label: "Delegations", href: "/admin/countries", icon: Flag, active: adminDelegationRoute },
     {
-      id: "more", label: "More", href: "/admin/more", icon: MoreHorizontal,
+      id: "delegations",
+      label: "Delegations",
+      href: "/admin/countries",
+      availability: "ready",
+      icon: Flag,
+      active: adminDelegationRoute,
+    },
+    {
+      id: "more",
+      label: "More",
+      href: "/admin/more",
+      availability: "ready",
+      icon: MoreHorizontal,
       active: (path) =>
         !path.startsWith("/admin/operations") &&
         !path.startsWith("/admin/tasks") &&
@@ -90,9 +127,7 @@ export function OrganizerV6MobileChrome() {
     rememberAdminLocation(pathname, searchStr, restoreY ?? undefined, slug);
     if (restoreY != null) {
       window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() =>
-          window.scrollTo({ top: restoreY, behavior: "auto" }),
-        );
+        window.requestAnimationFrame(() => window.scrollTo({ top: restoreY, behavior: "auto" }));
       });
     }
 
@@ -105,8 +140,7 @@ export function OrganizerV6MobileChrome() {
       if (frame != null) return;
       frame = window.requestAnimationFrame(persistScroll);
     };
-    const onPageHide = () =>
-      updateAdminScrollPosition(pathname, searchStr, window.scrollY, slug);
+    const onPageHide = () => updateAdminScrollPosition(pathname, searchStr, window.scrollY, slug);
 
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("pagehide", onPageHide);
@@ -119,10 +153,12 @@ export function OrganizerV6MobileChrome() {
   }, [pathname, searchStr, slug]);
 
   const openMobileItem = (item: MobileItem) => {
+    if (item.availability !== "ready" || !item.href) return;
     if (typeof window === "undefined" || window.innerWidth >= 900) return;
     const active = item.active(pathname);
     const root = adminAppTabRoot(item.id, slug);
-    const normalizedPath = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+    const normalizedPath =
+      pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
     const normalizedRoot = root.endsWith("/") && root !== "/" ? root.slice(0, -1) : root;
 
     if (active && normalizedPath === normalizedRoot) {
@@ -143,16 +179,17 @@ export function OrganizerV6MobileChrome() {
     <OrganizerV6TabBar
       pathname={pathname}
       mode={screen.tabbar}
-      items={mobileItems.map(
-        (item): OrganizerV6TabItem => ({
-          id: item.id,
-          label: item.label,
-          href: item.href,
-          icon: item.icon,
-          active: item.active(pathname),
-          badge: item.id === "tasks" ? unresolvedTaskCount : undefined,
-        }),
-      )}
+      items={mobileItems.map((item): OrganizerV6TabItem => ({
+        id: item.id,
+        label: item.label,
+        href: item.href,
+        availability: item.availability,
+        unavailableReason:
+          item.availability === "requires-edition" ? "Select an edition first" : undefined,
+        icon: item.icon,
+        active: item.active(pathname),
+        badge: item.id === "tasks" ? unresolvedTaskCount : undefined,
+      }))}
       onSelect={(item) => {
         const source = mobileItems.find((candidate) => candidate.id === item.id);
         if (source) openMobileItem(source);

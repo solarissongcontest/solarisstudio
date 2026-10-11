@@ -34,6 +34,11 @@ type RpcClient = {
   ): PromiseLike<{ data: unknown; error: { message?: string } | null }>;
 };
 
+function normalizeOrganizerEditionId(editionId: string | null | undefined) {
+  const normalized = editionId?.trim();
+  return normalized ? normalized : null;
+}
+
 export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
   if (!Array.isArray(value)) {
     throw new Error("Invalid Organizer Tasks payload: expected an array");
@@ -94,7 +99,7 @@ export async function loadOrganizerTasksV5(
   client: RpcClient = supabase as unknown as RpcClient,
 ) {
   const { data, error } = await client.rpc("admin_organizer_tasks", {
-    p_edition_id: editionId ?? null,
+    p_edition_id: normalizeOrganizerEditionId(editionId),
     p_filter: filter,
   });
   if (error) throw new Error(error.message || "Organizer Tasks could not be loaded.");
@@ -106,7 +111,7 @@ export async function loadOrganizerTaskCountV5(
   client: RpcClient = supabase as unknown as RpcClient,
 ) {
   const { data, error } = await client.rpc("admin_organizer_task_count", {
-    p_edition_id: editionId ?? null,
+    p_edition_id: normalizeOrganizerEditionId(editionId),
   });
   if (error) throw new Error(error.message || "Organizer task count could not be loaded.");
   const value = Number(data ?? 0);
@@ -118,10 +123,11 @@ export function useOrganizerTasksV5(
   filter: OrganizerTaskFilter,
   enabled = true,
 ) {
+  const normalizedEditionId = normalizeOrganizerEditionId(editionId);
   return useQuery({
     enabled,
-    queryKey: ["organizer-tasks-v5", editionId ?? "all", filter],
-    queryFn: () => loadOrganizerTasksV5(editionId, filter),
+    queryKey: ["organizer-tasks-v5", normalizedEditionId ?? "all", filter],
+    queryFn: () => loadOrganizerTasksV5(normalizedEditionId, filter),
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
   });
@@ -131,10 +137,11 @@ export function useOrganizerTaskCountV5(
   editionId: string | null | undefined,
   enabled = true,
 ) {
+  const normalizedEditionId = normalizeOrganizerEditionId(editionId);
   return useQuery({
     enabled,
-    queryKey: ["organizer-task-count-v5", editionId ?? "all"],
-    queryFn: () => loadOrganizerTaskCountV5(editionId),
+    queryKey: ["organizer-task-count-v5", normalizedEditionId ?? "all"],
+    queryFn: () => loadOrganizerTaskCountV5(normalizedEditionId),
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
   });

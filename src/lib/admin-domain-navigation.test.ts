@@ -164,12 +164,14 @@ describe("Organizer domain navigation", () => {
       .flatMap((group) => group.items)
       .filter(
         (item) =>
-          item.to.startsWith("/admin") ||
-          item.to.startsWith("/televoting/admin") ||
-          item.to.startsWith("/confirmations/admin"),
+          item.to !== null &&
+          (item.to.startsWith("/admin") ||
+            item.to.startsWith("/televoting/admin") ||
+            item.to.startsWith("/confirmations/admin")),
       );
 
     for (const destination of destinations) {
+      if (destination.to === null) continue;
       const owners = domains.filter((domain) => domain.active(destination.to));
       expect(
         owners.map((owner) => owner.label),

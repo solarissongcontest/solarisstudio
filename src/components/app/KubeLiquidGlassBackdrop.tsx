@@ -219,11 +219,15 @@ export function KubeLiquidGlassBackdrop({
       return;
     }
 
+    let disposed = false;
     let frame = 0;
     const update = () => {
+      if (disposed) return;
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
+        if (disposed) return;
         const rect = element.getBoundingClientRect();
+        if (disposed) return;
         setMaps(buildMaps(Math.round(rect.width), Math.round(rect.height)));
       });
     };
@@ -232,6 +236,7 @@ export function KubeLiquidGlassBackdrop({
     const observer = new ResizeObserver(update);
     observer.observe(element);
     return () => {
+      disposed = true;
       cancelAnimationFrame(frame);
       observer.disconnect();
     };

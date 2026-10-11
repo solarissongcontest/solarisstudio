@@ -279,7 +279,7 @@ function MediaAssetsPage() {
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">Review decisions apply only to the exact canonical source loaded now. If a delegation replaces the source later, the old decision becomes superseded and the replacement must be reviewed again.</p>
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row xl:max-w-3xl">
-                  <input value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} className="admin-input min-w-0 flex-1" placeholder="Review reason (required)" />
+                  <input aria-label="Review reason" value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} className="admin-input min-w-0 flex-1" placeholder="Review reason (required)" />
                   <button type="button" className="admin-action-secondary" onClick={selectVisible}>Select visible</button>
                   <button type="button" className="admin-action-secondary" onClick={() => setSelectedKeys(new Set())} disabled={!selectedKeys.size}>Clear</button>
                   <button type="button" className="admin-action-primary" disabled={!selectedKeys.size || reviewReason.trim().length < 5 || !canApproveSelected || reviewMutation.isPending} onClick={() => reviewMutation.mutate({ decision: 'approved' })}>Approve selected</button>

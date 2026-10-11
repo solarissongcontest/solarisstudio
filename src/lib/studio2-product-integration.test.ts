@@ -22,8 +22,10 @@ describe("Studio 2 product integration", () => {
     expect(adminNav).toContain('"Control Room",');
     expect(adminNav).toContain('"/admin/control-room"');
     expect(controlRoom).toContain("Control Room — Solaris Organizer");
-    expect(controlRoomAlias).toContain('to: "/admin/control-room"');
-    expect(controlRoomAlias).not.toContain('to: "/admin/operations"');
+    expect(controlRoomAlias).toContain("Navigate");
+    expect(controlRoomAlias).toContain('to="/admin/control-room"');
+    expect(controlRoomAlias).not.toContain('to="/admin/operations"');
+    expect(controlRoomAlias).not.toContain("beforeLoad:");
   });
 
   it("keeps rollout controls discoverable while preserving Rules as a separate workstream", () => {

@@ -308,6 +308,7 @@ function StorytellingPage() {
                 description="Every generation, edit, reorder and publication action produces an immutable execution receipt and a canonical Studio 2 event."
               />
               <input
+                aria-label="Reason for editorial changes"
                 value={auditReason}
                 onChange={(event) => setAuditReason(event.target.value)}
                 placeholder="e.g. Prepare official SSC 20 post-edition story"
