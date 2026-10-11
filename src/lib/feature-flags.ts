@@ -18,6 +18,7 @@ export const SOLARIS_FEATURE_FLAGS = [
   'fantasy_ssc',
   'time_machine',
   'solaris_command_assistant',
+  'solaris_app_v3',
 ] as const;
 
 export type SolarisFeatureFlag = (typeof SOLARIS_FEATURE_FLAGS)[number];
