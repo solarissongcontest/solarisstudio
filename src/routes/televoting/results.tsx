@@ -7,6 +7,7 @@ import { Trophy } from "lucide-react";
 import {
   ParticipationRouteChrome,
   ParticipationServiceShell,
+  ParticipationStatusPanel,
 } from "@/components/ParticipationServiceShell";
 import { getMergedPublishedTelevotingResults } from "@/integrations/televoting/results.functions";
 import { televotingSupabase } from "@/integrations/televoting/client";
@@ -133,21 +134,29 @@ function TelevotingResultsPage() {
         maxWidth="max-w-4xl"
       >
         {statusLoading || resultsLoading ? (
-          <section className="data-panel p-8 text-center text-sm text-muted-foreground">Loading published results…</section>
+          <ParticipationStatusPanel
+            title="Loading published results"
+            description="Checking the latest published Televoting scoreboard."
+          />
         ) : serverStatus && !serverStatus.votingReady ? (
-          <section className="data-panel p-8 text-center">
-            <Trophy className="mx-auto size-8 text-primary/70" />
-            <h2 className="mt-4 font-display text-xl font-bold">Results server prepared</h2>
-            <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">Published-result code is integrated, but this preview cannot currently read the protected published result payload.</p>
-          </section>
+          <ParticipationStatusPanel
+            tone="warning"
+            icon={<Trophy className="size-5" />}
+            title="Results are temporarily unavailable"
+            description="Published-result code is integrated, but this runtime cannot currently read the published result payload."
+          />
         ) : error ? (
-          <section className="data-panel border-destructive/30 p-6 text-sm text-destructive">{error instanceof Error ? error.message : "Results could not be loaded."}</section>
+          <ParticipationStatusPanel
+            tone="danger"
+            title="Results could not be loaded"
+            description={error instanceof Error ? error.message : "The published result service could not be read."}
+          />
         ) : !round ? (
-          <section className="data-panel p-8 text-center">
-            <Trophy className="mx-auto size-8 text-primary/70" />
-            <h2 className="mt-4 font-display text-xl font-bold">No results published yet</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Published televote scoreboards appear here after the organizer publishes a calculated round.</p>
-          </section>
+          <ParticipationStatusPanel
+            icon={<Trophy className="size-5" />}
+            title="No results published yet"
+            description="Published televote scoreboards appear here after the organizer publishes a calculated round."
+          />
         ) : (
           <div className="space-y-4">
             <section className="grid grid-cols-3 gap-2">

@@ -7,11 +7,20 @@ describe("Wiki hydration stability", () => {
   it("keeps the first browser render aligned with SSR before cached country data can replace the skeleton", () => {
     expect(route).toContain("const [clientReady, setClientReady] = useState(false);");
     expect(route).toContain("setClientReady(true);");
-    expect(route).toContain("clientReady ? <CountryWikiExperience code={code} /> : <WikiHydrationSkeleton />");
+    expect(route).toContain("clientReady ? <CountryWikiExperience code={code} /> : <WikiHydrationSkeleton code={code} />");
   });
 
   it("preserves the full-width Wiki loading shell during the hydration gate", () => {
     expect(route).toContain('className="wiki-canvas wiki-loading"');
     expect(route).toContain('aria-label="Loading Wiki article"');
+    expect(route).toContain('aria-live="polite"');
+  });
+
+  it("keeps one semantic article heading in the SSR loading tree until the stable article hydrates", () => {
+    const skeletonStart = route.indexOf("function WikiHydrationSkeleton");
+    expect(skeletonStart).toBeGreaterThanOrEqual(0);
+    const skeleton = route.slice(skeletonStart);
+    expect(skeleton).toContain('<h1 className="sr-only">{code.toUpperCase()} — Terra Solaris Wiki</h1>');
+    expect(skeleton).toContain('<span className="sr-only">Loading Terra Solaris Wiki article</span>');
   });
 });

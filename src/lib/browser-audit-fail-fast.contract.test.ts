@@ -12,12 +12,13 @@ const authenticatedRoute = source("src/routes/_authenticated/route.tsx");
 const adminRoute = source("src/routes/_authenticated/admin/route.tsx");
 const browserAuditWorkflow = source(".github/workflows/browser-audit.yml");
 
-describe("PR Browser Audit fail-fast and route isolation contract", () => {
-  it("fails PR smoke quickly without retries while preserving exhaustive audit behavior", () => {
+describe("PR Browser Audit bounded smoke and route isolation contract", () => {
+  it("keeps PR smoke bounded and retry-free while reporting every representative failure", () => {
     expect(playwrightConfig).toContain('process.env.GITHUB_EVENT_NAME === "pull_request"');
     expect(playwrightConfig).toContain("timeout: prSmoke ? 90_000");
     expect(playwrightConfig).toContain("retries: prSmoke ? 0");
-    expect(playwrightConfig).toContain("maxFailures: prSmoke ? 1 : 0");
+    expect(playwrightConfig).toContain("maxFailures: 0");
+    expect(playwrightConfig).not.toContain("maxFailures: prSmoke ? 1 : 0");
   });
 
   it("isolates Organizer route crawls so one route cannot cancel the next navigation", () => {
@@ -53,6 +54,15 @@ describe("PR Browser Audit fail-fast and route isolation contract", () => {
     expect(browserAuditWorkflow).toContain("Refusing audit server with hosted Supabase URL");
     expect(browserAuditWorkflow).not.toContain("bun run preview --host 127.0.0.1 --port 4173 --strictPort");
     expect(browserAuditWorkflow).not.toContain("bun run dev --host 127.0.0.1 --port 4173 --strictPort");
+  });
+
+  it("injects local Supabase into the Worker runtime and proves SSR routes cannot escape it", () => {
+    expect(browserAuditWorkflow).toContain('--var "SUPABASE_URL:$SUPABASE_URL"');
+    expect(browserAuditWorkflow).toContain('--var "SUPABASE_PUBLISHABLE_KEY:$SUPABASE_PUBLISHABLE_KEY"');
+    expect(browserAuditWorkflow).toContain('--var "CONFIRMATIONS_SUPABASE_URL:$CONFIRMATIONS_SUPABASE_URL"');
+    expect(browserAuditWorkflow).toContain("- name: Verify server-side routes use local Supabase identity");
+    expect(browserAuditWorkflow).toContain("Audit Worker sitemap escaped local Supabase data");
+    expect(browserAuditWorkflow).toContain("Sitemap did not expose representative local Country/Wiki routes");
   });
 
   it("measures a hidden native file input through its real wrapping-label target", () => {

@@ -53,6 +53,12 @@ const SESSION_KEY = "solaris:public-ux-session:v1";
 const BETA_TASK_KEY = "solaris:beta3-navigation-task:v1";
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
+// Telemetry is deliberately best-effort. In read-only/maintenance mode the
+// server correctly rejects this write. Once a write is rejected, stop emitting
+// more telemetry for the lifetime of this page instead of turning one harmless
+// optional event into repeated 405 traffic and avoidable egress.
+let telemetryWriteDisabled = false;
+
 type StoredSession = {
   id: string;
   createdAt: number;
@@ -116,6 +122,7 @@ export function trackPublicUxEvent(
   if (typeof window === "undefined") return;
   if (window.navigator.webdriver) return;
   if (window.location.pathname.startsWith("/admin")) return;
+  if (telemetryWriteDisabled) return;
 
   const betaTask = readActiveBetaTask();
   const metadata = sanitizeMetadata({
@@ -145,8 +152,16 @@ export function trackPublicUxEvent(
     metadata,
   };
 
-  // UX measurement must never delay a user's click or submission.
-  void Promise.resolve(client.from("public_ux_events").insert(payload)).catch(() => undefined);
+  // UX measurement must never delay a user's click or submission. Any failed
+  // write disables telemetry until the next page load; telemetry is optional,
+  // whereas repeatedly hammering a deliberately read-only API is not useful.
+  void Promise.resolve(client.from("public_ux_events").insert(payload))
+    .then(({ error }) => {
+      if (error) telemetryWriteDisabled = true;
+    })
+    .catch(() => {
+      telemetryWriteDisabled = true;
+    });
 }
 
 function sanitizeMetadata(metadata: PublicUxMetadata): PublicUxMetadata {

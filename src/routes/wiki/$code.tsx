@@ -59,16 +59,17 @@ function CountryWikiRoute() {
     <>
       <CountryPersonalityStyles />
       <CountryDesignV2Styles />
-      {clientReady ? <CountryWikiExperience code={code} /> : <WikiHydrationSkeleton />}
+      {clientReady ? <CountryWikiExperience code={code} /> : <WikiHydrationSkeleton code={code} />}
     </>
   );
 }
 
-function WikiHydrationSkeleton() {
+function WikiHydrationSkeleton({ code }: { code: string }) {
   return (
     <AppShell>
-      <div className="wiki-canvas wiki-loading" role="status" aria-label="Loading Wiki article">
-        <h1 className="sr-only">Loading Terra Solaris Wiki article</h1>
+      <div className="wiki-canvas wiki-loading" role="status" aria-label="Loading Wiki article" aria-live="polite">
+        <h1 className="sr-only">{code.toUpperCase()} — Terra Solaris Wiki</h1>
+        <span className="sr-only">Loading Terra Solaris Wiki article</span>
         <div className="wiki-loading-header" />
         <div className="wiki-loading-grid">
           <div />

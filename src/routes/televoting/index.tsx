@@ -7,6 +7,7 @@ import { Clock3, ShieldCheck, Vote } from "lucide-react";
 import {
   ParticipationRouteChrome,
   ParticipationServiceShell,
+  ParticipationStatusPanel,
 } from "@/components/ParticipationServiceShell";
 import type { MergedTelevotingEntry } from "@/components/televoting/TelevotingBooth";
 import { TelevotingBoothWithReceipt } from "@/components/televoting/TelevotingBoothWithReceipt";
@@ -154,20 +155,22 @@ function TelevotingPage() {
         ]}
       >
         {isLoading ? (
-          <section className="data-panel p-8 text-center text-sm text-muted-foreground">Loading the live voting round…</section>
+          <ParticipationStatusPanel
+            title="Loading Televoting"
+            description="Checking whether a voting round is open."
+          />
         ) : error ? (
-          <section className="data-panel border-destructive/30 p-8 text-center">
-            <h2 className="font-display text-xl font-bold">Voting data could not be loaded</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Please try again shortly.</p>
-          </section>
+          <ParticipationStatusPanel
+            tone="danger"
+            title="Voting data could not be loaded"
+            description="The live round could not be read. Please try again shortly."
+          />
         ) : !data ? (
-          <section className="data-panel p-8 text-center sm:p-10">
-            <Clock3 className="mx-auto size-8 text-primary/70" />
-            <h2 className="mt-4 font-display text-2xl font-bold">Voting is currently closed</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-              There is no open Televoting round right now. This page updates automatically when a voting round opens.
-            </p>
-          </section>
+          <ParticipationStatusPanel
+            icon={<Clock3 className="size-5" />}
+            title="Voting is currently closed"
+            description="There is no open Televoting round right now. This page updates automatically when a voting round opens."
+          />
         ) : (
           <div className="space-y-5">
             <section className="data-panel p-5 sm:p-6">
@@ -209,14 +212,14 @@ function TelevotingPage() {
                   ))}
                 </section>
 
-                <section className="data-panel p-6 text-center">
-                  <ShieldCheck className="mx-auto size-7 text-primary/75" />
-                  <h2 className="mt-3 font-display text-xl font-bold">Voting is temporarily unavailable</h2>
-                  <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-                    This voting round is visible, but ballots cannot be submitted right now. Please try again shortly.
-                  </p>
-                  <Button className="mt-5" disabled><Vote className="size-4" /> Enter voting booth</Button>
-                </section>
+                <ParticipationStatusPanel
+                  tone="warning"
+                  icon={<ShieldCheck className="size-5" />}
+                  title="Voting is temporarily unavailable"
+                  description="This voting round is visible, but ballots cannot be submitted right now. Please try again shortly."
+                >
+                  <Button disabled><Vote className="size-4" /> Enter voting booth</Button>
+                </ParticipationStatusPanel>
               </>
             )}
           </div>

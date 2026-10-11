@@ -199,12 +199,22 @@ jobs:
               ;;
           esac
 
-          # Run the already-built Cloudflare Worker locally under workerd. This
-          # avoids Vite's cold module transform/re-optimization path while still
-          # exercising the same .output/server entrypoint and .output/public
-          # assets configured for production. --local prevents a remote Worker
-          # session and --no-bundle preserves the custom TanStack/Nitro build.
-          bunx wrangler@4.141.0 dev --local --no-bundle --ip 127.0.0.1 --port 4173 > /tmp/solaris-audit-server.log 2>&1 &
+          # Run the already-built Cloudflare Worker locally under workerd. Pass
+          # every Supabase binding explicitly so server-side routes (including
+          # sitemap.xml SSR) cannot inherit a hosted/default Worker binding.
+          # --local prevents a remote Worker session and --no-bundle preserves
+          # the custom TanStack/Nitro build.
+          bunx wrangler@4.141.0 dev --local --no-bundle --ip 127.0.0.1 --port 4173 \
+            --var "SUPABASE_URL:$SUPABASE_URL" \
+            --var "SUPABASE_PUBLISHABLE_KEY:$SUPABASE_PUBLISHABLE_KEY" \
+            --var "VITE_SUPABASE_URL:$VITE_SUPABASE_URL" \
+            --var "VITE_SUPABASE_PUBLISHABLE_KEY:$VITE_SUPABASE_PUBLISHABLE_KEY" \
+            --var "CONFIRMATIONS_SUPABASE_URL:$CONFIRMATIONS_SUPABASE_URL" \
+            --var "CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY:$CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY" \
+            --var "VITE_CONFIRMATIONS_SUPABASE_URL:$VITE_CONFIRMATIONS_SUPABASE_URL" \
+            --var "VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY:$VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY" \
+            --var "SOLARIS_E2E_BYPASS_MAINTENANCE:1" \
+            > /tmp/solaris-audit-server.log 2>&1 &
           echo $! > /tmp/solaris-audit-server.pid
 
           ready=0
@@ -228,6 +238,46 @@ jobs:
             tail -n 200 /tmp/solaris-audit-server.log || true
             exit 1
           fi
+
+      - name: Verify server-side routes use local Supabase identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          const expectedUrl = process.env.E2E_SUPABASE_URL;
+          const expectedKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
+          if (!expectedUrl || !expectedKey || !/^http:\/\/(127\.0\.0\.1|localhost):/.test(expectedUrl)) {
+            throw new Error("Server-route Supabase probe requires isolated local Supabase");
+          }
+
+          const localCountriesResponse = await fetch(`${expectedUrl}/rest/v1/countries?select=short_code&order=short_code`, {
+            headers: {
+              apikey: expectedKey,
+              Authorization: `Bearer ${expectedKey}`,
+            },
+          });
+          if (!localCountriesResponse.ok) {
+            throw new Error(`Local country probe failed: HTTP ${localCountriesResponse.status}`);
+          }
+          const localCodes = new Set((await localCountriesResponse.json()).map((row) => String(row.short_code).toUpperCase()));
+
+          const sitemapResponse = await fetch("http://127.0.0.1:4173/sitemap.xml", {
+            headers: { cookie: "solaris_e2e_maintenance_bypass=1" },
+          });
+          if (!sitemapResponse.ok) {
+            throw new Error(`Local Worker sitemap probe failed: HTTP ${sitemapResponse.status}`);
+          }
+          const xml = await sitemapResponse.text();
+          const routeCodes = [...xml.matchAll(/<loc>[^<]*\/(?:countries|wiki)\/([^/<]+)<\/loc>/g)]
+            .map((match) => decodeURIComponent(match[1]).toUpperCase());
+          if (routeCodes.length < 2) {
+            throw new Error("Sitemap did not expose representative local Country/Wiki routes");
+          }
+          const unknownCodes = [...new Set(routeCodes.filter((code) => !localCodes.has(code)))];
+          if (unknownCodes.length) {
+            throw new Error(`Audit Worker sitemap escaped local Supabase data: ${unknownCodes.join(", ")}`);
+          }
+          NODE
 
       - name: Verify browser receives the local Supabase identity
         shell: bash

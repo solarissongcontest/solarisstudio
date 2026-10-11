@@ -1,5 +1,26 @@
 import { createServerFn } from "@tanstack/react-start";
 
+async function checkPublicBackend() {
+  try {
+    const { televotingPublicServer } = await import(
+      "@/integrations/televoting/public.server"
+    );
+
+    // Use the same server-side public client that the ballot submission path uses.
+    // A bounded HEAD read proves configuration, schema reachability and public
+    // database access. Environment variables merely existing never proved any of
+    // those things and could make a broken backend look healthy.
+    const { error } = await televotingPublicServer
+      .from("rounds")
+      .select("id", { head: true, count: "exact" })
+      .limit(1);
+
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
 async function checkAdminBackend() {
   try {
     const [{ requireSolarisOrganizerServer }, { televotingAdmin }] = await Promise.all([
@@ -21,11 +42,12 @@ async function checkAdminBackend() {
 }
 
 export const getMergedTelevotingServerStatus = createServerFn({ method: "GET" }).handler(
-  async () => ({
-    votingReady: Boolean(
-      import.meta.env.VITE_SUPABASE_URL &&
-        import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-    ),
-    adminReady: await checkAdminBackend(),
-  }),
+  async () => {
+    const [votingReady, adminReady] = await Promise.all([
+      checkPublicBackend(),
+      checkAdminBackend(),
+    ]);
+
+    return { votingReady, adminReady };
+  },
 );

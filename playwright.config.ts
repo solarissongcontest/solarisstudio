@@ -119,21 +119,185 @@ const maintenanceProjects = [
   },
 ];
 
+const publicProjects = publicViewportMatrix.map(({ width, height }) => ({
+  name: `public-${width}`,
+  testMatch: /public-routes\.e2e\.ts/,
+  use: { viewport: { width, height } },
+}));
+
+const personalityProjects = personalityViewportMatrix.map(({ width, height }) => ({
+  name: `personality-${width}`,
+  testMatch: /personality-contract\.e2e\.ts/,
+  use: { viewport: { width, height }, serviceWorkers: "block" as const },
+}));
+
+const representativePrProjects = [
+  {
+    name: "public-390",
+    testMatch: /public-routes\.e2e\.ts/,
+    use: { viewport: { width: 390, height: 844 } },
+  },
+  {
+    name: "public-1440",
+    testMatch: /public-routes\.e2e\.ts/,
+    use: { viewport: { width: 1440, height: 900 } },
+  },
+  {
+    // Keep the exact loading/failure/fallback regression that this PR exposed.
+    // The exhaustive gallery and reference-lock capture remain in fullAudit.
+    name: "personality-390",
+    testMatch: /personality-contract\.e2e\.ts/,
+    grep: /flag loading, failure and fallback states are deterministic/,
+    use: { viewport: { width: 390, height: 844 }, serviceWorkers: "block" as const },
+  },
+  {
+    // Account/read-only states are release-critical for PR #464.
+    name: "account-states",
+    testMatch: /account-states\.e2e\.ts/,
+    use: { viewport: { width: 1440, height: 1000 } },
+  },
+  {
+    // One installed-app shell path proves the mobile chrome without running the
+    // exhaustive PWA launch/geometry certification suite on every pull request.
+    name: "ios-pwa-portrait",
+    testMatch: /installed-app\.e2e\.ts/,
+    grep: /installed app shell survives representative navigation without duplicate chrome/,
+    use: {
+      ...devices["iPhone 13"],
+      browserName: "webkit" as const,
+      viewport: { width: 390, height: 844 },
+      reducedMotion: "reduce" as const,
+    },
+  },
+];
+
+const exhaustiveProjects = [
+  ...publicProjects,
+  ...personalityProjects,
+  {
+    name: "personality-touch-390",
+    testMatch: /personality-contract\.e2e\.ts/,
+    use: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, serviceWorkers: "block" as const },
+  },
+  {
+    name: "governance-mobile-390",
+    testMatch: /governance\.e2e\.ts/,
+    use: { viewport: { width: 390, height: 844 } },
+  },
+  {
+    name: "governance-tablet-768",
+    testMatch: /governance\.e2e\.ts/,
+    use: { viewport: { width: 768, height: 1024 } },
+  },
+  {
+    name: "governance-desktop-1440",
+    testMatch: /governance\.e2e\.ts/,
+    use: { viewport: { width: 1440, height: 1000 } },
+  },
+  {
+    name: "account-states",
+    testMatch: /account-states\.e2e\.ts/,
+    use: { viewport: { width: 1440, height: 1000 } },
+  },
+  {
+    name: "admin-notifications-postgrest",
+    testMatch: /admin-notifications-postgrest\.e2e\.ts/,
+    use: { viewport: { width: 390, height: 844 } },
+  },
+  {
+    name: "organizer-admin-desktop",
+    testMatch: /organizer-routes\.e2e\.ts/,
+    use: { viewport: { width: 1440, height: 1000 } },
+  },
+  {
+    name: "organizer-admin-mobile",
+    testMatch: /organizer-routes\.e2e\.ts/,
+    use: { viewport: { width: 390, height: 844 } },
+  },
+  {
+    name: "organizer-admin-landscape",
+    testMatch: /organizer-routes\.e2e\.ts/,
+    use: { viewport: { width: 844, height: 390 } },
+  },
+  {
+    name: "visual-ios-320",
+    testMatch: /app-visual-capture\.e2e\.ts/,
+    use: {
+      ...devices["iPhone 13"],
+      browserName: "webkit" as const,
+      viewport: { width: 320, height: 568 },
+      reducedMotion: "reduce" as const,
+    },
+  },
+  {
+    name: "visual-ios-390",
+    testMatch: /app-visual-capture\.e2e\.ts/,
+    use: {
+      ...devices["iPhone 13"],
+      browserName: "webkit" as const,
+      viewport: { width: 390, height: 844 },
+      reducedMotion: "reduce" as const,
+    },
+  },
+  {
+    name: "ios-pwa-narrow-320",
+    testMatch: /installed-app\.e2e\.ts/,
+    use: {
+      ...devices["iPhone 13"],
+      browserName: "webkit" as const,
+      viewport: { width: 320, height: 568 },
+      reducedMotion: "reduce" as const,
+    },
+  },
+  {
+    name: "ios-pwa-portrait",
+    testMatch: /installed-app\.e2e\.ts/,
+    use: {
+      ...devices["iPhone 13"],
+      browserName: "webkit" as const,
+      viewport: { width: 390, height: 844 },
+      reducedMotion: "reduce" as const,
+    },
+  },
+  {
+    name: "ios-pwa-large-430",
+    testMatch: /installed-app\.e2e\.ts/,
+    use: {
+      ...devices["iPhone 13"],
+      browserName: "webkit" as const,
+      viewport: { width: 430, height: 932 },
+      reducedMotion: "reduce" as const,
+    },
+  },
+  {
+    name: "ios-pwa-landscape",
+    testMatch: /installed-app\.e2e\.ts/,
+    use: {
+      ...devices["iPhone 13"],
+      browserName: "webkit" as const,
+      viewport: { width: 844, height: 390 },
+      reducedMotion: "reduce" as const,
+    },
+  },
+];
+
 export default defineConfig({
   testDir: "./e2e",
   testMatch: /.*\.e2e\.ts/,
   globalSetup: process.env.CI ? "./e2e/pr455-browser-preflight.global.ts" : undefined,
   grepInvert: fullAudit ? undefined : /installed-app route invariant crawl/,
   outputDir: "test-results/playwright",
-  // PR smoke must surface a real failure quickly. Exhaustive/manual certification
-  // keeps the wider timeout and retry budget because it intentionally covers the
-  // full inventory rather than acting as a fast pull-request gate.
+  // A PR is a release proof, not an exhaustive crawler. The broad inventory is
+  // still preserved for main/manual certification below; PRs run a deterministic
+  // representative matrix after the separate Organizer fail-fast preflight.
   timeout: prSmoke ? 90_000 : process.env.CI ? 8 * 60_000 : 5 * 60_000,
   expect: { timeout: 20_000 },
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: prSmoke ? 0 : process.env.CI ? 1 : 0,
-  maxFailures: prSmoke ? 1 : 0,
+  // The representative PR matrix is already bounded. Do not stop after the first
+  // failure: one CI run must report the whole actionable browser failure set.
+  maxFailures: 0,
   workers: process.env.CI ? 4 : undefined,
   reporter: process.env.CI
     ? fullAudit
@@ -148,9 +312,6 @@ export default defineConfig({
         ]
     : "list",
   use: {
-    // Device descriptors contain undefined optional emulation fields. Put the
-    // descriptor first so Solaris' deterministic audit settings cannot be
-    // silently erased by those undefined values.
     ...devices["Desktop Chrome"],
     baseURL,
     navigationTimeout: 60_000,
@@ -162,9 +323,6 @@ export default defineConfig({
     colorScheme: "dark",
     storageState: appAuditStorageState,
   },
-  // CI starts and health-checks its server explicitly and passes E2E_BASE_URL.
-  // For local runs, use Vite dev rather than Vite preview because the production
-  // build targets Cloudflare and does not emit TanStack's Node preview bundle.
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
@@ -173,122 +331,10 @@ export default defineConfig({
         reuseExistingServer: true,
         timeout: 120_000,
       },
-  projects: GLOBAL_MAINTENANCE_MODE && !maintenanceAuditBypass ? maintenanceProjects : [
-    ...(GLOBAL_MAINTENANCE_MODE ? maintenanceProjects : []),
-    ...publicViewportMatrix.map(({ width, height }) => ({
-      name: `public-${width}`,
-      testMatch: /public-routes\.e2e\.ts/,
-      use: { viewport: { width, height } },
-    })),
-    ...personalityViewportMatrix.map(({ width, height }) => ({
-      name: `personality-${width}`,
-      testMatch: /personality-contract\.e2e\.ts/,
-      use: { viewport: { width, height } },
-    })),
-    {
-      name: "personality-touch-390",
-      testMatch: /personality-contract\.e2e\.ts/,
-      use: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
-    },
-    {
-      name: "governance-mobile-390",
-      testMatch: /governance\.e2e\.ts/,
-      use: { viewport: { width: 390, height: 844 } },
-    },
-    {
-      name: "governance-tablet-768",
-      testMatch: /governance\.e2e\.ts/,
-      use: { viewport: { width: 768, height: 1024 } },
-    },
-    {
-      name: "governance-desktop-1440",
-      testMatch: /governance\.e2e\.ts/,
-      use: { viewport: { width: 1440, height: 1000 } },
-    },
-    {
-      name: "account-states",
-      testMatch: /account-states\.e2e\.ts/,
-      use: { viewport: { width: 1440, height: 1000 } },
-    },
-    {
-      name: "admin-notifications-postgrest",
-      testMatch: /admin-notifications-postgrest\.e2e\.ts/,
-      use: { viewport: { width: 390, height: 844 } },
-    },
-    {
-      name: "organizer-admin-desktop",
-      testMatch: /organizer-routes\.e2e\.ts/,
-      use: { viewport: { width: 1440, height: 1000 } },
-    },
-    {
-      name: "organizer-admin-mobile",
-      testMatch: /organizer-routes\.e2e\.ts/,
-      use: { viewport: { width: 390, height: 844 } },
-    },
-    {
-      name: "organizer-admin-landscape",
-      testMatch: /organizer-routes\.e2e\.ts/,
-      use: { viewport: { width: 844, height: 390 } },
-    },
-    {
-      name: "visual-ios-320",
-      testMatch: /app-visual-capture\.e2e\.ts/,
-      use: {
-        ...devices["iPhone 13"],
-        browserName: "webkit",
-        viewport: { width: 320, height: 568 },
-        reducedMotion: "reduce",
-      },
-    },
-    {
-      name: "visual-ios-390",
-      testMatch: /app-visual-capture\.e2e\.ts/,
-      use: {
-        ...devices["iPhone 13"],
-        browserName: "webkit",
-        viewport: { width: 390, height: 844 },
-        reducedMotion: "reduce",
-      },
-    },
-    {
-      name: "ios-pwa-narrow-320",
-      testMatch: /installed-app\.e2e\.ts/,
-      use: {
-        ...devices["iPhone 13"],
-        browserName: "webkit",
-        viewport: { width: 320, height: 568 },
-        reducedMotion: "reduce",
-      },
-    },
-    {
-      name: "ios-pwa-portrait",
-      testMatch: /installed-app\.e2e\.ts/,
-      use: {
-        ...devices["iPhone 13"],
-        browserName: "webkit",
-        viewport: { width: 390, height: 844 },
-        reducedMotion: "reduce",
-      },
-    },
-    {
-      name: "ios-pwa-large-430",
-      testMatch: /installed-app\.e2e\.ts/,
-      use: {
-        ...devices["iPhone 13"],
-        browserName: "webkit",
-        viewport: { width: 430, height: 932 },
-        reducedMotion: "reduce",
-      },
-    },
-    {
-      name: "ios-pwa-landscape",
-      testMatch: /installed-app\.e2e\.ts/,
-      use: {
-        ...devices["iPhone 13"],
-        browserName: "webkit",
-        viewport: { width: 844, height: 390 },
-        reducedMotion: "reduce",
-      },
-    },
-  ],
+  projects: GLOBAL_MAINTENANCE_MODE && !maintenanceAuditBypass
+    ? maintenanceProjects
+    : [
+        ...(GLOBAL_MAINTENANCE_MODE ? maintenanceProjects : []),
+        ...(prSmoke ? representativePrProjects : exhaustiveProjects),
+      ],
 });

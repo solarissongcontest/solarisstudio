@@ -14,6 +14,8 @@ type ServiceAction = {
   label: string;
 };
 
+type ParticipationStatusTone = "neutral" | "danger" | "warning" | "success";
+
 const ParticipationChromeContext = createContext(false);
 
 export function ParticipationRouteChrome({ children }: { children: ReactNode }) {
@@ -25,6 +27,62 @@ export function ParticipationRouteChrome({ children }: { children: ReactNode }) 
     <ParticipationChromeContext.Provider value>
       <AppShell>{children}</AppShell>
     </ParticipationChromeContext.Provider>
+  );
+}
+
+/**
+ * Compact shared state treatment for focused participation routes.
+ *
+ * Loading, closed, empty and unavailable states should feel like the same app,
+ * not individually designed poster screens. Keep this deliberately compact so
+ * mobile users retain context and navigation around the state message.
+ */
+export function ParticipationStatusPanel({
+  title,
+  description,
+  icon,
+  tone = "neutral",
+  children,
+}: {
+  title: string;
+  description?: string;
+  icon?: ReactNode;
+  tone?: ParticipationStatusTone;
+  children?: ReactNode;
+}) {
+  return (
+    <section
+      className={cn(
+        "data-panel p-5 sm:p-6",
+        tone === "danger" && "border-destructive/30",
+        tone === "warning" && "border-amber-300/20",
+        tone === "success" && "border-emerald-300/20",
+      )}
+      role={tone === "danger" ? "alert" : undefined}
+    >
+      <div className="flex min-w-0 items-start gap-3.5">
+        {icon ? (
+          <div
+            className={cn(
+              "grid size-10 shrink-0 place-items-center rounded-xl border border-border/70 bg-surface text-primary",
+              tone === "danger" && "text-destructive",
+              tone === "warning" && "text-amber-200",
+              tone === "success" && "text-emerald-200",
+            )}
+            aria-hidden="true"
+          >
+            {icon}
+          </div>
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base font-semibold leading-6 sm:text-lg">{title}</h2>
+          {description ? (
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+          ) : null}
+          {children ? <div className="mt-4">{children}</div> : null}
+        </div>
+      </div>
+    </section>
   );
 }
 
