@@ -8,8 +8,7 @@ export type V3DraftSyncState =
 export type V3DraftConflictReason =
   | "stale_revision"
   | "future_revision"
-  | "draft_mismatch"
-  | "operation_reused";
+  | "draft_mismatch";
 
 export type V3VersionedDraft<T> = {
   draftId: string;
@@ -24,7 +23,7 @@ export type V3VersionedDraft<T> = {
   deviceId: string | null;
   sessionId: string | null;
   value: T;
-  /** Last server-accepted operation, when known. */
+  /** Last server-accepted operation, useful for diagnostics and future adapters. */
   lastOperationId: string | null;
 };
 
@@ -43,7 +42,6 @@ export type V3DraftSaveCommand<T> = {
 export type V3DraftSaveAccepted<T> = {
   status: "accepted";
   operationId: string;
-  replayed: boolean;
   previousRevision: number;
   draft: V3VersionedDraft<T>;
 };
@@ -77,16 +75,14 @@ function assertIdentifier(value: string, label: string) {
   if (!value.trim()) throw new Error(`${label} must not be empty`);
 }
 
-function sameOperationPayload<T>(
-  serverDraft: V3VersionedDraft<T>,
-  command: V3DraftSaveCommand<T>,
-) {
-  if (serverDraft.lastOperationId !== command.operationId) return false;
-
-  // The accepted operation advanced the server exactly one step beyond its
-  // base revision. Replaying that exact command is safe and must not increment
-  // the revision a second time.
-  return command.baseRevision === serverDraft.serverRevision - 1;
+function assertAuthoritativeServerDraft<T>(draft: V3VersionedDraft<T>) {
+  assertRevision(draft.revision, "revision");
+  assertRevision(draft.serverRevision, "serverRevision");
+  if (draft.revision !== draft.serverRevision) {
+    throw new Error(
+      "serverDraft must be authoritative: revision and serverRevision must match",
+    );
+  }
 }
 
 export function createV3VersionedDraft<T>(input: {
@@ -169,6 +165,10 @@ export function buildV3DraftSaveCommand<T>(
  * A persistence adapter must execute the equivalent comparison and write in a
  * single transaction/conditional update. This helper intentionally performs
  * no database or network work itself.
+ *
+ * This helper also intentionally does NOT claim operation-id idempotency.
+ * A real adapter may add that, but only if it stores enough operation metadata
+ * to prove that a retried operation has the same payload.
  */
 export function applyV3DraftSave<T>(
   serverDraft: V3VersionedDraft<T>,
@@ -177,7 +177,7 @@ export function applyV3DraftSave<T>(
 ): V3DraftSaveResult<T> {
   assertIdentifier(command.operationId, "operationId");
   assertIdentifier(command.draftId, "draftId");
-  assertRevision(serverDraft.serverRevision, "serverRevision");
+  assertAuthoritativeServerDraft(serverDraft);
   assertRevision(command.baseRevision, "baseRevision");
   assertRevision(command.clientRevision, "clientRevision");
 
@@ -186,26 +186,6 @@ export function applyV3DraftSave<T>(
       status: "conflict",
       operationId: command.operationId,
       reason: "draft_mismatch",
-      attemptedBaseRevision: command.baseRevision,
-      serverDraft,
-    };
-  }
-
-  if (serverDraft.lastOperationId === command.operationId) {
-    if (sameOperationPayload(serverDraft, command)) {
-      return {
-        status: "accepted",
-        operationId: command.operationId,
-        replayed: true,
-        previousRevision: serverDraft.serverRevision - 1,
-        draft: serverDraft,
-      };
-    }
-
-    return {
-      status: "conflict",
-      operationId: command.operationId,
-      reason: "operation_reused",
       attemptedBaseRevision: command.baseRevision,
       serverDraft,
     };
@@ -248,7 +228,6 @@ export function applyV3DraftSave<T>(
   return {
     status: "accepted",
     operationId: command.operationId,
-    replayed: false,
     previousRevision: serverDraft.serverRevision,
     draft: nextDraft,
   };
@@ -295,7 +274,7 @@ export function reconcileV3Draft<T>(
     };
   }
 
-  assertRevision(serverDraft.serverRevision, "serverRevision");
+  assertAuthoritativeServerDraft(serverDraft);
 
   const serverAdvanced = serverDraft.serverRevision > localDraft.serverRevision;
 
