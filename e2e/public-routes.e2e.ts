@@ -20,9 +20,7 @@ const PR_SMOKE_PUBLIC_ROUTES = [
   "/wiki",
 ] as const;
 
-const publicRouteAuditSet = fullAudit
-  ? [...STATIC_PUBLIC_ROUTES].sort()
-  : [...PR_SMOKE_PUBLIC_ROUTES];
+const publicRouteAuditSet = fullAudit ? [...STATIC_PUBLIC_ROUTES].sort() : [...PR_SMOKE_PUBLIC_ROUTES];
 
 async function auditRoutes(page: Page, routes: string[], testInfo: TestInfo) {
   const failures: string[] = [];
