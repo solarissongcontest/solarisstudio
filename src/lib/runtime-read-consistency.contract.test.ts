@@ -8,6 +8,9 @@ describe("runtime read consistency", () => {
   const readContracts = source(
     "supabase/migrations/20261011160000_read_only_public_read_contracts.sql",
   );
+  const confirmationProjectionReconciliation = source(
+    "supabase/migrations/20261011161500_reconcile_confirmation_entry_projection.sql",
+  );
   const resultsFunctions = source(
     "src/integrations/televoting/results.functions.ts",
   );
@@ -59,6 +62,27 @@ describe("runtime read consistency", () => {
     );
     expect(hodWorkspace).toContain(
       "'entry.media': completed(\n      pendingConfirmationEntry || Boolean(entry?.songUrl?.trim()),",
+    );
+  });
+
+  it("reconciles stale accepted Confirmation projections without overwriting canonical values", () => {
+    expect(confirmationProjectionReconciliation).toContain(
+      "canonical.source = 'confirmations'",
+    );
+    expect(confirmationProjectionReconciliation).toContain(
+      "internal_entry.review_status = 'accepted'",
+    );
+    expect(confirmationProjectionReconciliation).toContain(
+      "national_entry.review_status = 'accepted'",
+    );
+    expect(confirmationProjectionReconciliation).toContain(
+      "coalesce(nullif(btrim(canonical.song_url), ''), accepted.song_url)",
+    );
+    expect(confirmationProjectionReconciliation).toContain(
+      "coalesce(nullif(btrim(participant.song), ''), reconciled.song_title)",
+    );
+    expect(confirmationProjectionReconciliation).toContain(
+      "- 'awaiting_official_entry'",
     );
   });
 
