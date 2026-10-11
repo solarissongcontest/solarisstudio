@@ -14,6 +14,9 @@ describe("runtime read consistency", () => {
   const resultsFunctions = source(
     "src/integrations/televoting/results.functions.ts",
   );
+  const televotingStatus = source(
+    "src/integrations/televoting/status.functions.ts",
+  );
   const confirmationSync = source(
     "src/integrations/confirmations/sync.functions.ts",
   );
@@ -47,6 +50,15 @@ describe("runtime read consistency", () => {
     );
     expect(resultsFunctions).toContain(
       "enforce read-only semantics at the database",
+    );
+  });
+
+  it("probes the real public Televoting backend instead of treating env presence as readiness", () => {
+    expect(televotingStatus).toContain("async function checkPublicBackend()");
+    expect(televotingStatus).toContain('from("rounds")');
+    expect(televotingStatus).toContain('select("id", { head: true, count: "exact" })');
+    expect(televotingStatus).not.toContain(
+      "votingReady: Boolean(\n      import.meta.env.VITE_SUPABASE_URL",
     );
   });
 
