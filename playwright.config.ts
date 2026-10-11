@@ -143,10 +143,11 @@ const representativePrProjects = [
     use: { viewport: { width: 1440, height: 900 } },
   },
   {
-    // Keeps the loading/failure/fallback regression that this PR exposed while
-    // avoiding the entire Personality viewport inventory on every pull request.
+    // Keep the exact loading/failure/fallback regression that this PR exposed.
+    // The exhaustive gallery and reference-lock capture remain in fullAudit.
     name: "personality-390",
     testMatch: /personality-contract\.e2e\.ts/,
+    grep: /flag loading, failure and fallback states are deterministic/,
     use: { viewport: { width: 390, height: 844 }, serviceWorkers: "block" as const },
   },
   {
@@ -156,10 +157,11 @@ const representativePrProjects = [
     use: { viewport: { width: 1440, height: 1000 } },
   },
   {
-    // One installed-app path proves the mobile shell without turning the PR gate
-    // into the full four-viewport PWA certification suite.
+    // One installed-app shell path proves the mobile chrome without running the
+    // exhaustive PWA launch/geometry certification suite on every pull request.
     name: "ios-pwa-portrait",
     testMatch: /installed-app\.e2e\.ts/,
+    grep: /installed app shell survives representative navigation without duplicate chrome/,
     use: {
       ...devices["iPhone 13"],
       browserName: "webkit" as const,
@@ -293,7 +295,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: prSmoke ? 0 : process.env.CI ? 1 : 0,
-  maxFailures: prSmoke ? 1 : 0,
+  // The representative PR matrix is already bounded. Do not stop after the first
+  // failure: one CI run must report the whole actionable browser failure set.
+  maxFailures: 0,
   workers: process.env.CI ? 4 : undefined,
   reporter: process.env.CI
     ? fullAudit

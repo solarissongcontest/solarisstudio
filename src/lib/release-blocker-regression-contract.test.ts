@@ -37,8 +37,20 @@ describe("PR #450 release-blocker regression contracts", () => {
   it("keeps visual reference capture in a real reduced-motion browser context", () => {
     const config = source("playwright.config.ts");
     const personality = source("e2e/personality-contract.e2e.ts");
-    const deviceIndex = config.indexOf('...devices["Desktop Chrome"]');
-    const reducedIndex = config.indexOf('reducedMotion: "reduce"');
+    const configStart = config.indexOf("export default defineConfig({");
+    const useStart = config.indexOf(
+      '  use: {\n    ...devices["Desktop Chrome"],',
+      configStart,
+    );
+    const useEnd = config.indexOf("\n  webServer:", useStart);
+
+    expect(configStart).toBeGreaterThanOrEqual(0);
+    expect(useStart).toBeGreaterThan(configStart);
+    expect(useEnd).toBeGreaterThan(useStart);
+
+    const desktopUse = config.slice(useStart, useEnd);
+    const deviceIndex = desktopUse.indexOf('...devices["Desktop Chrome"]');
+    const reducedIndex = desktopUse.indexOf('reducedMotion: "reduce"');
 
     expect(deviceIndex).toBeGreaterThanOrEqual(0);
     expect(reducedIndex).toBeGreaterThan(deviceIndex);
