@@ -2,6 +2,7 @@ import {
   Bell,
   Compass,
   Home,
+  Radio,
   Search,
   Trophy,
   UserRound,
@@ -11,8 +12,12 @@ import {
 import { useMemo, useState } from "react";
 
 import type { SolarisTask } from "@/lib/participation-os";
-import { projectV3Experience, type V3DomainSnapshot } from "@/lib/v3-domain-state";
-import { projectV3Actions, projectV3Attention, type V3ActionProjection } from "@/lib/v3-experience";
+import {
+  projectV3Bootstrap,
+  type V3BootstrapProjection,
+  type V3BootstrapSource,
+} from "@/lib/v3-bootstrap";
+import type { V3ActionProjection } from "@/lib/v3-experience";
 import {
   V3ActionCard,
   V3FoundationShell,
@@ -28,9 +33,10 @@ import {
   V3TopContext,
 } from "./V3Foundation";
 
-const PREVIEW_NOW = Date.parse("2026-10-11T16:48:00.000Z");
+const PREVIEW_NOW = "2026-10-11T16:48:00.000Z";
 
 type PreviewTab = "home" | "explore" | "participate" | "results" | "me";
+type PreviewScenario = "action" | "calm" | "live" | "results";
 type PreviewNavItem = {
   id: PreviewTab;
   label: string;
@@ -46,41 +52,96 @@ const NAV: readonly PreviewNavItem[] = [
   { id: "me", label: "Me", icon: UserRound },
 ];
 
-const PREVIEW_DOMAIN: V3DomainSnapshot = {
-  edition: "active",
-  confirmation: "closed",
-  entry: "verified",
-  show: "scheduled",
-  jury: "open",
-  televote: "upcoming",
-  results: "hidden",
-  publication: "scheduled",
-};
+const SCENARIOS: readonly { id: PreviewScenario; label: string }[] = [
+  { id: "action", label: "Action" },
+  { id: "calm", label: "Calm" },
+  { id: "live", label: "Live" },
+  { id: "results", label: "Results" },
+];
 
-const PREVIEW_TASKS: readonly SolarisTask[] = [
-  {
-    id: "jury:ssc22-sf1",
+function completedTask(
+  id: string,
+  kind: "confirmation" | "entry" | "media" | "jury",
+  title: string,
+  description: string,
+  route: string,
+): SolarisTask {
+  return {
+    id,
     editionId: "22",
-    kind: "jury",
-    title: "Jury voting",
-    description: "Continue your official Semi-final 1 ballot.",
-    state: "needs_attention",
+    kind,
+    title,
+    description,
+    state: "completed",
     importance: "required",
-    blocking: true,
-    actionRequired: true,
-    opensAt: "2026-10-10T18:00:00.000Z",
-    deadline: "2026-10-11T20:00:00.000Z",
-    route: "/jury-voting",
-    priority: 120,
-    why: "Your delegation has an open required jury ballot.",
-  },
-  {
+    blocking: false,
+    actionRequired: false,
+    opensAt: null,
+    deadline: null,
+    route,
+    priority: 60,
+    why: "Representative canonical completion evidence for the isolated V3 preview.",
+  };
+}
+
+function responsibilityBase() {
+  return [
+    completedTask(
+      "confirmation:ssc22",
+      "confirmation",
+      "Confirmation",
+      "Participation confirmed",
+      "/confirmations",
+    ),
+    completedTask("entry:ssc22", "entry", "Entry", "Submitted and verified", "/my-solaris/entry"),
+    completedTask("media:ssc22", "media", "Media", "All required assets accepted", "/my-solaris/entry"),
+  ] satisfies SolarisTask[];
+}
+
+function previewTasks(scenario: PreviewScenario): SolarisTask[] {
+  const tasks = responsibilityBase();
+
+  if (scenario === "action") {
+    tasks.push({
+      id: "jury:ssc22-sf1",
+      editionId: "22",
+      kind: "jury",
+      title: "Jury voting",
+      description: "Continue your official Semi-final 1 ballot.",
+      state: "needs_attention",
+      importance: "required",
+      blocking: true,
+      actionRequired: true,
+      opensAt: "2026-10-10T18:00:00.000Z",
+      deadline: "2026-10-11T20:00:00.000Z",
+      route: "/jury-voting",
+      priority: 120,
+      why: "Your delegation has an open required jury ballot.",
+    });
+  } else {
+    tasks.push(
+      completedTask(
+        "jury:ssc22-sf1",
+        "jury",
+        "Jury",
+        "Official ballot submitted",
+        "/jury-voting",
+      ),
+    );
+  }
+
+  tasks.push({
     id: "televote:ssc22-sf1",
     editionId: "22",
     kind: "televote",
     title: "Public voting",
-    description: "Voting opens during the live show.",
-    state: "upcoming",
+    description:
+      scenario === "live"
+        ? "Voting is open during the live show."
+        : scenario === "results"
+          ? "Public voting has closed."
+          : "Voting opens during the live show.",
+    state: scenario === "live" ? "available" : scenario === "results" ? "finished" : "upcoming",
     importance: "optional",
     blocking: false,
     actionRequired: false,
@@ -89,8 +150,40 @@ const PREVIEW_TASKS: readonly SolarisTask[] = [
     route: "/televoting",
     priority: 35,
     why: "Public televoting is optional participation, not an official delegation responsibility.",
-  },
-];
+  });
+
+  return tasks;
+}
+
+function previewSource(scenario: PreviewScenario): V3BootstrapSource {
+  const live = scenario === "live";
+  const results = scenario === "results";
+
+  return {
+    schemaVersion: 1,
+    generatedAt: PREVIEW_NOW,
+    serverTime: PREVIEW_NOW,
+    identity: { userId: "preview-user", displayName: "Arthur" },
+    context: {
+      editionId: "22",
+      editionLabel: "SSC 22",
+      delegationId: "oland",
+      delegationName: "Oland",
+    },
+    capabilities: ["confirmation.manage", "entry.submit", "jury.vote"],
+    domain: {
+      edition: results ? "completed" : "active",
+      confirmation: "closed",
+      entry: "verified",
+      show: live ? "live" : results ? "ended" : "scheduled",
+      jury: scenario === "action" ? "open" : "finalized",
+      televote: live ? "open" : results ? "validated" : "upcoming",
+      results: results ? "published" : "hidden",
+      publication: results ? "public" : "scheduled",
+    },
+    tasks: previewTasks(scenario),
+  };
+}
 
 function urgencyTone(action: V3ActionProjection | null) {
   if (!action) return "neutral" as const;
@@ -99,7 +192,7 @@ function urgencyTone(action: V3ActionProjection | null) {
     : ("required" as const);
 }
 
-function experienceLabel(mode: ReturnType<typeof projectV3Experience>["mode"]) {
+function experienceLabel(mode: V3BootstrapProjection["experience"]["mode"]) {
   switch (mode) {
     case "show-day":
       return "Show day";
@@ -126,15 +219,14 @@ function experienceLabel(mode: ReturnType<typeof projectV3Experience>["mode"]) {
 
 export function V3FoundationPreview() {
   const [tab, setTab] = useState<PreviewTab>("home");
-  const experience = useMemo(() => projectV3Experience(PREVIEW_DOMAIN), []);
-  const actions = useMemo(() => projectV3Actions(PREVIEW_TASKS, PREVIEW_NOW), []);
-  const attention = useMemo(() => projectV3Attention(actions), [actions]);
+  const [scenario, setScenario] = useState<PreviewScenario>("action");
+  const bootstrap = useMemo(() => projectV3Bootstrap(previewSource(scenario)), [scenario]);
 
   return (
     <V3FoundationShell>
       <V3TopContext
-        edition="SSC 22"
-        phase={tab === "participate" ? "Jury phase" : experienceLabel(experience.mode)}
+        edition={bootstrap.context.editionLabel ?? "Solaris"}
+        phase={tab === "participate" ? "Participation" : experienceLabel(bootstrap.experience.mode)}
         actions={
           <>
             <button className="v3-icon-button" type="button" aria-label="Search preview">
@@ -147,10 +239,24 @@ export function V3FoundationPreview() {
         }
       />
 
-      {tab === "home" ? <HomePreview attention={attention} /> : null}
-      {tab === "participate" ? <ParticipatePreview actions={actions} /> : null}
+      <div className="relative z-[2] mx-auto flex w-full max-w-[48rem] gap-1 overflow-x-auto px-4 pt-2" aria-label="Preview scenario">
+        {SCENARIOS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setScenario(item.id)}
+            aria-pressed={scenario === item.id}
+            className="min-h-9 shrink-0 rounded-full border border-white/[0.08] bg-white/[0.025] px-3 text-[0.68rem] font-semibold text-white/55 aria-pressed:border-white/[0.18] aria-pressed:bg-white/[0.09] aria-pressed:text-white"
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "home" ? <HomePreview bootstrap={bootstrap} /> : null}
+      {tab === "participate" ? <ParticipatePreview bootstrap={bootstrap} /> : null}
       {tab === "explore" ? <ExplorePreview /> : null}
-      {tab === "results" ? <ResultsPreview /> : null}
+      {tab === "results" ? <ResultsPreview bootstrap={bootstrap} /> : null}
       {tab === "me" ? <MePreview /> : null}
 
       <nav className="v3-bottom-nav" aria-label="V3 foundation preview navigation" role="tablist">
@@ -174,46 +280,150 @@ export function V3FoundationPreview() {
   );
 }
 
-function HomePreview({ attention }: { attention: ReturnType<typeof projectV3Attention> }) {
-  const primary = attention.primary;
-  const title = attention.badgeCount
-    ? `${attention.badgeCount} thing${attention.badgeCount === 1 ? "" : "s"} need your attention`
+function HomePreview({ bootstrap }: { bootstrap: V3BootstrapProjection }) {
+  const primary = bootstrap.attention.primary;
+  const attentionTitle = bootstrap.attention.badgeCount
+    ? `${bootstrap.attention.badgeCount} thing${bootstrap.attention.badgeCount === 1 ? "" : "s"} need your attention`
     : "You're all caught up";
+
+  const now = (() => {
+    switch (bootstrap.home.primaryMode) {
+      case "attention":
+        return {
+          eyebrow: "Right now",
+          title: attentionTitle,
+          count: bootstrap.attention.badgeCount as number | "✓",
+          child: primary ? (
+            <V3ActionCard
+              title={primary.title}
+              description={primary.description}
+              tone={urgencyTone(primary)}
+              meta={
+                <>
+                  <span>8 / 15 ranked</span>
+                  <span>Closes in 3h 12m</span>
+                </>
+              }
+            />
+          ) : null,
+        };
+      case "live-voting":
+        return {
+          eyebrow: "Live now",
+          title: "Semi-final 1 is live",
+          count: "✓" as const,
+          child: (
+            <V3ActionCard
+              title="Voting is open"
+              description="Follow the live show or open the optional public vote."
+              icon={Radio}
+              tone="neutral"
+            />
+          ),
+        };
+      case "live":
+        return {
+          eyebrow: "Live now",
+          title: "Semi-final 1 is live",
+          count: "✓" as const,
+          child: null,
+        };
+      case "results":
+        return {
+          eyebrow: "Results",
+          title: "SSC 22 results are in",
+          count: "✓" as const,
+          child: null,
+        };
+      case "results-hidden":
+        return {
+          eyebrow: "Results",
+          title: "SSC 22 results are available",
+          count: "✓" as const,
+          child: null,
+        };
+      case "show-day":
+        return {
+          eyebrow: "Tonight",
+          title: "Semi-final 1 starts soon",
+          count: "✓" as const,
+          child: null,
+        };
+      case "voting":
+        return {
+          eyebrow: "Right now",
+          title: "Voting is open",
+          count: "✓" as const,
+          child: null,
+        };
+      case "post-edition":
+        return {
+          eyebrow: "Edition complete",
+          title: "SSC 22 is complete",
+          count: "✓" as const,
+          child: null,
+        };
+      case "planning":
+        return {
+          eyebrow: "Coming next",
+          title: "A new Solaris edition is taking shape",
+          count: "✓" as const,
+          child: null,
+        };
+      case "cancelled":
+        return {
+          eyebrow: "Edition update",
+          title: "This edition is not continuing",
+          count: "✓" as const,
+          child: null,
+        };
+      case "calm":
+        return {
+          eyebrow: "Right now",
+          title: "You're all caught up",
+          count: "✓" as const,
+          child: null,
+        };
+    }
+  })();
+
+  const contestStatus = bootstrap.experience.resultsPublic
+    ? { label: "Results", tone: "success" as const }
+    : bootstrap.experience.live
+      ? { label: "Live", tone: "live" as const }
+      : { label: "Pre-show", tone: "progress" as const };
 
   return (
     <V3Screen>
       <V3ScreenHeader
         kicker="Foundation preview"
-        title={attention.badgeCount ? "Good evening" : "All caught up"}
-        description="V3 keeps Home structurally stable while canonical state changes what deserves emphasis."
+        title={bootstrap.home.primaryMode === "attention" ? "Good evening" : "Solaris now"}
+        description="The structure stays stable. Canonical state changes emphasis without making users relearn Home every few hours."
       />
 
-      <V3NowCard eyebrow="Right now" title={title} count={attention.badgeCount || "✓"}>
-        {primary ? (
-          <V3ActionCard
-            title={primary.title}
-            description={primary.description}
-            tone={urgencyTone(primary)}
-            meta={
-              <>
-                <span>8 / 15 ranked</span>
-                <span>Closes in 3h 12m</span>
-              </>
-            }
-          />
-        ) : null}
+      <V3NowCard eyebrow={now.eyebrow} title={now.title} count={now.count}>
+        {now.child}
       </V3NowCard>
 
-      <V3Section title="Current contest" meta={<V3StatusChip tone="progress">Pre-show</V3StatusChip>}>
+      <V3Section
+        title="Current contest"
+        meta={<V3StatusChip tone={contestStatus.tone}>{contestStatus.label}</V3StatusChip>}
+      >
         <V3Surface level="raised" className="p-5">
           <p className="v3-kicker">Solaris Song Contest 22</p>
-          <h2 className="mt-2 text-[1.55rem] font-bold leading-[1.02] tracking-[-0.045em]">Semi-final 1 tomorrow</h2>
+          <h2 className="mt-2 text-[1.55rem] font-bold leading-[1.02] tracking-[-0.045em]">
+            {bootstrap.experience.resultsPublic
+              ? "The final result is official"
+              : bootstrap.experience.live
+                ? "Semi-final 1 is happening now"
+                : "Semi-final 1 tomorrow"}
+          </h2>
           <p className="mt-2 text-[0.78rem] leading-5 text-white/55">Tetlehamn · 20:00 CEST</p>
           <div className="mt-5 v3-preview-meta-grid">
             <V3Stat value="66" label="Delegations" />
             <V3Stat value="18" label="Semi-finalists" />
-            <V3Stat value="20:00" label="Show time" />
-            <V3Stat value="1 day" label="Until show" />
+            <V3Stat value={bootstrap.experience.live ? "12 / 18" : "20:00"} label={bootstrap.experience.live ? "Now" : "Show time"} />
+            <V3Stat value={bootstrap.experience.resultsPublic ? "Official" : bootstrap.experience.live ? "Live" : "1 day"} label={bootstrap.experience.resultsPublic ? "Status" : bootstrap.experience.live ? "Status" : "Until show"} />
           </div>
         </V3Surface>
       </V3Section>
@@ -235,24 +445,33 @@ function HomePreview({ attention }: { attention: ReturnType<typeof projectV3Atte
   );
 }
 
-function ParticipatePreview({ actions }: { actions: readonly V3ActionProjection[] }) {
-  const required = actions.find((action) => action.deliveryClass === "required" && action.actionRequired) ?? null;
-  const optional = actions.find((action) => action.deliveryClass === "optional") ?? null;
+function ParticipatePreview({ bootstrap }: { bootstrap: V3BootstrapProjection }) {
+  const required =
+    bootstrap.actions.find(
+      (action) => action.deliveryClass === "required" && action.actionRequired,
+    ) ?? null;
+  const optional = bootstrap.actions.find((action) => action.deliveryClass === "optional") ?? null;
+  const complete = bootstrap.journey.filter((step) => step.state === "complete").length;
 
   return (
     <V3Screen>
       <V3ScreenHeader
         kicker="SSC 22"
         title="Your participation"
-        description="Responsibilities are separated from optional participation, so a public vote never competes visually with an official jury obligation."
+        description="Responsibilities come from the same canonical task evidence as Home. Optional participation remains visibly separate."
       />
 
-      <V3Section title="Your responsibilities" meta="3 of 4 complete">
+      <V3Section title="Your responsibilities" meta={`${complete} of ${bootstrap.journey.length} complete`}>
         <V3Journey>
-          <V3JourneyStep title="Confirmation" detail="Participation confirmed" state="complete" trailing="Done" />
-          <V3JourneyStep title="Entry" detail="Submitted and verified" state="complete" trailing="Done" />
-          <V3JourneyStep title="Media" detail="All required assets accepted" state="complete" trailing="Done" />
-          <V3JourneyStep title="Jury" detail="Official Semi-final 1 ballot" state="active" trailing="8 / 15" />
+          {bootstrap.journey.map((step) => (
+            <V3JourneyStep
+              key={step.id}
+              title={step.title}
+              detail={step.detail}
+              state={step.state}
+              trailing={step.state === "complete" ? "Done" : step.responsibility === "jury" ? "8 / 15" : "Action"}
+            />
+          ))}
         </V3Journey>
       </V3Section>
 
@@ -271,12 +490,21 @@ function ParticipatePreview({ actions }: { actions: readonly V3ActionProjection[
                 </>
               }
             />
-            <div className="px-1 pb-1 pt-3">
-              <V3Progress value={(8 / 15) * 100} label="Jury progress" />
-            </div>
+            {required.kind === "jury" ? (
+              <div className="px-1 pb-1 pt-3">
+                <V3Progress value={(8 / 15) * 100} label="Jury progress" />
+              </div>
+            ) : null}
           </V3Surface>
         </V3Section>
-      ) : null}
+      ) : (
+        <V3Section title="Needs attention" meta={<V3StatusChip tone="success">Clear</V3StatusChip>}>
+          <V3Surface className="p-4">
+            <p className="text-sm font-semibold">Nothing requires action</p>
+            <p className="mt-1 text-xs leading-5 text-white/48">Solaris will surface the next official responsibility when it becomes actionable.</p>
+          </V3Surface>
+        </V3Section>
+      )}
 
       {optional ? (
         <V3Section title="Optional now" meta={<V3StatusChip>Optional</V3StatusChip>}>
@@ -312,7 +540,7 @@ function ExplorePreview() {
   );
 }
 
-function ResultsPreview() {
+function ResultsPreview({ bootstrap }: { bootstrap: V3BootstrapProjection }) {
   return (
     <V3Screen>
       <V3ScreenHeader
@@ -324,7 +552,9 @@ function ResultsPreview() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="v3-kicker">Latest published</p>
-            <h2 className="mt-2 text-2xl font-bold tracking-[-0.045em]">SSC 21 Final</h2>
+            <h2 className="mt-2 text-2xl font-bold tracking-[-0.045em]">
+              {bootstrap.experience.resultsPublic ? "SSC 22 Final" : "SSC 21 Final"}
+            </h2>
           </div>
           <V3StatusChip tone="success">Official</V3StatusChip>
         </div>
