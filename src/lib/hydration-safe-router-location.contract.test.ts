@@ -4,9 +4,32 @@ import { describe, expect, it } from "vitest";
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
+const stripComments = (contents: string) =>
+  contents.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+
+const expectNoReactiveRouterLocationHook = (contents: string, path: string) => {
+  const runtimeSource = stripComments(contents);
+
+  for (const hookName of ["useRouterState", "useLocation"]) {
+    const importPattern = new RegExp(
+      `import\\s*\\{[^}]*\\b${hookName}\\b[^}]*\\}\\s*from\\s*["']@tanstack/react-router["']`,
+      "s",
+    );
+    const callPattern = new RegExp(`\\b${hookName}\\s*\\(`);
+
+    expect(runtimeSource, `${path} must not import ${hookName} during cold render`).not.toMatch(
+      importPattern,
+    );
+    expect(runtimeSource, `${path} must not call ${hookName} during cold render`).not.toMatch(
+      callPattern,
+    );
+  }
+};
+
 describe("hydration-safe root router location", () => {
   it("subscribes only after commit and only to fully resolved locations", () => {
-    const hook = source("src/lib/hydration-safe-router-location.ts");
+    const path = "src/lib/hydration-safe-router-location.ts";
+    const hook = source(path);
     const effectIndex = hook.indexOf("useEffect(() =>");
     const subscribeIndex = hook.indexOf('router.subscribe("onResolved"');
 
@@ -15,8 +38,7 @@ describe("hydration-safe root router location", () => {
     expect(hook).toContain("router.state.location.pathname");
     expect(hook).toContain("router.state.location.searchStr");
     expect(hook).toContain("commit(toLocation)");
-    expect(hook).not.toContain("useRouterState");
-    expect(hook).not.toContain("useLocation");
+    expectNoReactiveRouterLocationHook(hook, path);
   });
 
   it("keeps the cold-start root tree off reactive TanStack location hooks", () => {
@@ -36,12 +58,7 @@ describe("hydration-safe root router location", () => {
 
     for (const path of rootFiles) {
       const contents = source(path);
-      expect(contents, `${path} must not subscribe during cold render`).not.toContain(
-        "useRouterState",
-      );
-      expect(contents, `${path} must not subscribe with useLocation during cold render`).not.toContain(
-        "useLocation",
-      );
+      expectNoReactiveRouterLocationHook(contents, path);
       expect(contents, `${path} must use the post-commit location contract`).toContain(
         "useHydrationSafeRouterLocation",
       );
