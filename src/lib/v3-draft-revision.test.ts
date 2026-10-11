@@ -82,7 +82,13 @@ describe("Solaris Studio V3 draft revision protocol", () => {
   it("refuses a future revision instead of trusting a client that claims unseen server history", () => {
     const revision18 = serverDraft(18, ["A", "B"]);
     const command = {
-      ...buildV3DraftSaveCommand(revision18, "op-future"),
+      ...buildV3DraftSaveCommand(
+        editV3DraftLocally(revision18, {
+          value: { ranking: ["B", "A"] },
+          updatedAt: "2026-10-11T19:29:00.000Z",
+        }),
+        "op-future",
+      ),
       baseRevision: 20,
       clientRevision: 21,
     };
@@ -97,8 +103,12 @@ describe("Solaris Studio V3 draft revision protocol", () => {
 
   it("refuses a save aimed at a different draft identity", () => {
     const revision18 = serverDraft(18, ["A", "B"]);
+    const edited = editV3DraftLocally(revision18, {
+      value: { ranking: ["B", "A"] },
+      updatedAt: "2026-10-11T19:29:00.000Z",
+    });
     const command = {
-      ...buildV3DraftSaveCommand(revision18, "op-wrong-draft"),
+      ...buildV3DraftSaveCommand(edited, "op-wrong-draft"),
       draftId: "jury:ssc22:final:oland",
     };
 
@@ -107,6 +117,15 @@ describe("Solaris Studio V3 draft revision protocol", () => {
     expect(result.status).toBe("conflict");
     if (result.status !== "conflict") return;
     expect(result.reason).toBe("draft_mismatch");
+  });
+
+  it("rejects a save command that contains no local revision advance", () => {
+    const revision18 = serverDraft(18, ["A", "B"]);
+    const command = buildV3DraftSaveCommand(revision18, "op-no-change");
+
+    expect(() => applyV3DraftSave(revision18, command, SERVER_TIME)).toThrow(
+      /clientRevision must be greater than baseRevision/,
+    );
   });
 
   it("never calls an offline local edit server-saved", () => {
@@ -191,6 +210,20 @@ describe("Solaris Studio V3 draft revision protocol", () => {
         SERVER_TIME,
       ),
     ).toThrow(/authoritative/);
+  });
+
+  it("rejects impossible local revision knowledge where revision trails serverRevision", () => {
+    const impossible = {
+      ...serverDraft(18, ["A", "B"]),
+      revision: 17,
+    };
+
+    expect(() =>
+      editV3DraftLocally(impossible, {
+        value: { ranking: ["B", "A"] },
+        updatedAt: "2026-10-11T19:29:00.000Z",
+      }),
+    ).toThrow(/cannot be behind/);
   });
 
   it("does not mutate the server object while evaluating accepted or conflicting saves", () => {
