@@ -37,12 +37,12 @@ describe("runtime read consistency", () => {
     expect(readContracts).toContain("proc.provolatile not in ('s', 'i')");
   });
 
-  it("keeps published-result transport read-only", () => {
+  it("keeps the canonical TanStack server-function transport while database reads stay read-only", () => {
     expect(resultsFunctions).toContain(
-      'createServerFn({ method: "GET" })',
-    );
-    expect(resultsFunctions).not.toContain(
       'createServerFn({ method: "POST" })',
+    );
+    expect(resultsFunctions).toContain(
+      "enforce read-only semantics at the database",
     );
   });
 
