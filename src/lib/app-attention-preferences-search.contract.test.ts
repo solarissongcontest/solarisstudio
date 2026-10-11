@@ -87,10 +87,12 @@ describe("App Experience v3 attention preferences and search", () => {
 
     expect(authChangeStart).toBeGreaterThanOrEqual(0);
     expect(cleanupStart).toBeGreaterThan(authChangeStart);
+    expect(sync).toContain("beginLifecycleGeneration(authGenerationRef)");
 
     const authChangeBlock = sync.slice(authChangeStart, cleanupStart);
-    expect(authChangeBlock).toContain("if (!alive) return;");
+    expect(authChangeBlock).toContain("lifecycle.isCurrent()");
     expect(authChangeBlock).toContain("setUserId(session?.user?.id);");
+    expect(sync.slice(cleanupStart)).toContain("lifecycle.deactivate()");
   });
 
   it("restores Search as the contextual back destination even across primary tabs", () => {

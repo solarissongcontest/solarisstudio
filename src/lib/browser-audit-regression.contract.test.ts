@@ -56,8 +56,9 @@ describe("Browser Audit regression boundaries", () => {
     expect(installedApp).not.toContain('page.goto("/app-launch"');
     expect(installedApp).toContain('window.location.assign("/app-launch")');
     expect(installedApp).toContain('new URL(request.url()).pathname === "/app-launch"');
-    expect(auditHelpers).toContain("await page.bringToFront();");
-    expect(auditHelpers).toContain("window.focus();");
+    expect(auditHelpers).toContain("data-solaris-audit-focus-start");
+    expect(auditHelpers).toContain("sentinel.focus({ preventScroll: true })");
+    expect(auditHelpers).toContain("const stayedOnSentinel = active === sentinel");
     expect(vite).toContain('entries: ["src/router.tsx"]');
   });
 });
