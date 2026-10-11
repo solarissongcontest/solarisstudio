@@ -13,5 +13,14 @@ describe("Wiki hydration stability", () => {
   it("preserves the full-width Wiki loading shell during the hydration gate", () => {
     expect(route).toContain('className="wiki-canvas wiki-loading"');
     expect(route).toContain('aria-label="Loading Wiki article"');
+    expect(route).toContain('aria-live="polite"');
+  });
+
+  it("reserves the page h1 contract for the stable article instead of the transient loading tree", () => {
+    const skeletonStart = route.indexOf("function WikiHydrationSkeleton");
+    expect(skeletonStart).toBeGreaterThanOrEqual(0);
+    const skeleton = route.slice(skeletonStart);
+    expect(skeleton).toContain('<span className="sr-only">Loading Terra Solaris Wiki article</span>');
+    expect(skeleton).not.toContain("<h1");
   });
 });
