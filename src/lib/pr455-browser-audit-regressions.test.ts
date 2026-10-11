@@ -19,6 +19,44 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(router).toContain("setPathname(window.location.pathname)");
   });
 
+  it("keeps hydration-critical root routing off pre-commit TanStack subscriptions", () => {
+    const safeLocation = source("src/lib/hydration-safe-router-location.ts");
+
+    expect(safeLocation).toContain("const router = useRouter();");
+    expect(safeLocation).toContain("router.state.location.pathname");
+    expect(safeLocation).toContain("router.state.location.searchStr");
+    expect(safeLocation).toContain('router.subscribe("onResolved"');
+    expect(safeLocation.indexOf('router.subscribe("onResolved"')).toBeGreaterThan(
+      safeLocation.indexOf("useEffect(() =>"),
+    );
+
+    const hydrationCriticalFiles = [
+      "src/components/app/AppRuntime.tsx",
+      "src/routes/__root.tsx",
+      "src/components/app/AppLaunchRestoreCoordinator.tsx",
+      "src/components/app/AppReconnectReconciler.tsx",
+      "src/components/app/AppTelemetryBridge.tsx",
+      "src/components/app/AppInstallPrompt.tsx",
+      "src/components/app/AppOfflineBanner.tsx",
+      "src/components/RouteVisualTheme.tsx",
+      "src/components/SolarisAnniversaryCelebration.tsx",
+      "src/components/rules/RulesGovernanceContext.tsx",
+    ];
+
+    for (const path of hydrationCriticalFiles) {
+      const contents = source(path);
+      expect(contents, `${path} must not subscribe to router stores before commit`).not.toContain(
+        "useRouterState",
+      );
+      expect(contents, `${path} must not use reactive useLocation during cold hydration`).not.toContain(
+        "useLocation",
+      );
+      expect(contents, `${path} must consume the post-commit location contract`).toContain(
+        "useHydrationSafeRouterLocation",
+      );
+    }
+  });
+
   it("keeps platform detection hydration-safe before browser capability detection", () => {
     const runtime = source("src/components/app/AppRuntime.tsx");
 
