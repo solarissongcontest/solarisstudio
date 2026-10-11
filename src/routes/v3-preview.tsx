@@ -7,6 +7,7 @@ import {
   Trophy,
   UserRound,
   Vote,
+  type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -40,14 +41,20 @@ export const Route = createFileRoute("/v3-preview")({
 });
 
 type PreviewTab = "home" | "explore" | "participate" | "results" | "me";
+type PreviewNavItem = {
+  id: PreviewTab;
+  label: string;
+  icon: LucideIcon;
+  emphasis?: boolean;
+};
 
-const NAV = [
+const NAV: readonly PreviewNavItem[] = [
   { id: "home", label: "Home", icon: Home },
   { id: "explore", label: "Explore", icon: Compass },
   { id: "participate", label: "Participate", icon: Vote, emphasis: true },
   { id: "results", label: "Results", icon: Trophy },
   { id: "me", label: "Me", icon: UserRound },
-] as const;
+];
 
 function V3FoundationPreview() {
   const [tab, setTab] = useState<PreviewTab>("home");
@@ -75,11 +82,12 @@ function V3FoundationPreview() {
       {tab === "results" ? <ResultsPreview /> : null}
       {tab === "me" ? <MePreview /> : null}
 
-      <nav className="v3-bottom-nav" aria-label="V3 foundation preview navigation">
+      <nav className="v3-bottom-nav" aria-label="V3 foundation preview navigation" role="tablist">
         {NAV.map(({ id, label, icon: Icon, emphasis }) => (
           <button
             key={id}
             type="button"
+            role="tab"
             className="v3-bottom-nav__item"
             aria-selected={tab === id}
             data-emphasis={emphasis ? "true" : undefined}
