@@ -92,16 +92,19 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
     ]);
   });
 
-  it("counts one logical delegation across canonical and show-specific participant rows", () => {
+  it("deduplicates country/entity aliases across mixed canonical and show rows", () => {
     expect(
       countDistinctV3Delegations([
         { country_id: "oland", contest_entity_id: null },
-        { country_id: "oland", contest_entity_id: null },
+        { country_id: "oland", contest_entity_id: "entity-oland" },
+        { country_id: null, contest_entity_id: "entity-oland" },
         { country_id: "finland", contest_entity_id: "entity-finland" },
-        { country_id: "finland", contest_entity_id: "entity-finland" },
+        { country_id: "finland", contest_entity_id: null },
+        { country_id: null, contest_entity_id: "entity-neutral" },
+        { country_id: null, contest_entity_id: "entity-neutral" },
         { country_id: null, contest_entity_id: null },
       ]),
-    ).toBe(2);
+    ).toBe(3);
   });
 
   it("does not keep archived required notices in the pending acknowledgement count", () => {
