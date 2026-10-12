@@ -51,7 +51,8 @@ describe("Solaris Studio V3 production primary-surface source architecture", () 
     expect(source).toContain('.eq("published", true)');
     expect(source).toContain('.eq("edition_id", editionId)');
     expect(source).toContain('const PARTICIPANT_IDENTITY_COLUMNS = "country_id,contest_entity_id"');
-    expect(source).toContain('.is("show_id", null)');
+    expect(source.match(/\.select\(PARTICIPANT_IDENTITY_COLUMNS\)/g)).toHaveLength(1);
+    expect(source).not.toContain('.is("show_id", null)');
     expect(source).toContain("countDistinctV3Delegations");
     expect(source).not.toContain('select("*")');
     expect(source).not.toContain("useAllResults");
