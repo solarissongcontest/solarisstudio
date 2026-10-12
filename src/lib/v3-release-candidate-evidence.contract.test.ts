@@ -27,16 +27,30 @@ describe("Solaris Studio V3 release candidate evidence architecture", () => {
     expect(candidate).not.toContain("maxBootstrapFailureRate");
     expect(candidate).not.toContain("maxRuntimeErrorsPerSession");
     expect(candidate).not.toContain("minExposedSessions");
-    expect(candidate).toContain("Structural output compatible with the dedicated rollout-observability slice");
+    expect(candidate).toContain(
+      "Structural output compatible with the dedicated rollout-observability slice",
+    );
   });
 
-  it("binds every evidence class to the exact full candidate SHA", () => {
+  it("binds every evidence class to exact code and stable deployment identity", () => {
     const candidate = source();
 
     expect(candidate).toContain("full 40-character commit SHA");
+    expect(candidate).toContain("deploymentIdentityKey: string");
     expect(candidate).toContain("assertBoundEvidence");
     expect(candidate).toContain("belongs to candidate");
-    expect(candidate).toContain("candidateSha");
+    expect(candidate).toContain("belongs to a different deployment identity");
+    expect(candidate).toContain(
+      "same code can run against another schema or",
+    );
+  });
+
+  it("returns deployment identity with the release decision so downstream rollout does not accept a second caller-owned identity", () => {
+    const candidate = source();
+
+    expect(candidate).toContain("export type V3ReleaseCandidateDecision");
+    expect(candidate).toContain("deploymentIdentityKey: string");
+    expect(candidate).toContain("deploymentIdentityKey,");
   });
 
   it("requires durable evidence references instead of naked booleans", () => {
@@ -69,7 +83,7 @@ describe("Solaris Studio V3 release candidate evidence architecture", () => {
     }
   });
 
-  it("never manufactures release evidence timestamps or candidate identity", () => {
+  it("never manufactures release evidence timestamps or deployment identity", () => {
     const candidate = source();
 
     expect(candidate).not.toContain("Date.now(");
@@ -78,7 +92,7 @@ describe("Solaris Studio V3 release candidate evidence architecture", () => {
     expect(candidate).not.toContain("crypto.randomUUID");
   });
 
-  it("requires candidate-specific verification and promotion-stage evidence", () => {
+  it("requires deployed-candidate verification and promotion-stage evidence", () => {
     const candidate = source();
 
     expect(candidate).toContain("verification.${gate}.missing");
