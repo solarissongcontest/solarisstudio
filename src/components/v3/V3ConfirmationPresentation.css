@@ -1,0 +1,140 @@
+.v3-confirmation-presentation {
+  display: grid;
+  gap: var(--v3-space-5);
+}
+
+.v3-confirmation-workflow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--v3-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.v3-confirmation-workflow-phase {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: var(--v3-space-3);
+  border: 1px solid var(--v3-border-subtle);
+  border-radius: var(--v3-radius-md);
+  background: color-mix(in oklab, var(--v3-surface) 84%, transparent);
+  padding: 0.8rem;
+}
+
+.v3-confirmation-workflow-index {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid color-mix(in oklab, var(--v3-accent) 34%, var(--v3-border-subtle));
+  border-radius: 999px;
+  background: var(--v3-accent-soft);
+  color: var(--v3-accent-strong);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.v3-confirmation-workflow-phase strong,
+.v3-confirmation-workflow-phase span span {
+  display: block;
+}
+
+.v3-confirmation-workflow-phase strong {
+  color: var(--v3-text-primary);
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+
+.v3-confirmation-workflow-phase span span {
+  margin-top: 0.22rem;
+  color: var(--v3-text-tertiary);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.v3-confirmation-engine {
+  min-width: 0;
+}
+
+.v3-confirmation-engine [data-v3-confirmation-task] {
+  gap: var(--v3-space-4);
+}
+
+.v3-confirmation-engine [data-v3-confirmation-task] > section:first-child {
+  border-color: var(--v3-border-subtle);
+  border-radius: var(--v3-radius-lg);
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--v3-surface-raised) 90%, transparent),
+    color-mix(in oklab, var(--v3-surface) 78%, transparent)
+  );
+  box-shadow: var(--v3-shadow-raised);
+}
+
+.v3-confirmation-engine .animate-rise {
+  gap: var(--v3-space-5);
+}
+
+.v3-confirmation-engine .animate-rise > .space-y-3:first-child {
+  margin: 0;
+  border: 1px solid var(--v3-border-subtle);
+  border-radius: var(--v3-radius-md);
+  background: color-mix(in oklab, var(--v3-surface) 82%, transparent);
+  padding: 0.85rem 1rem;
+}
+
+.v3-confirmation-engine .animate-rise > .surface,
+.v3-confirmation-engine > .surface {
+  border-color: var(--v3-border-subtle);
+  border-radius: var(--v3-radius-lg);
+  background: var(--v3-surface);
+  box-shadow: var(--v3-shadow-raised);
+}
+
+.v3-confirmation-engine .animate-rise > .surface > div:last-child {
+  border-color: var(--v3-border-subtle);
+}
+
+.v3-confirmation-engine .animate-rise > .surface button,
+.v3-confirmation-engine > .surface button {
+  min-height: 2.75rem;
+}
+
+.v3-confirmation-engine [role="alert"],
+.v3-confirmation-engine [role="status"] {
+  border-radius: var(--v3-radius-md);
+}
+
+.v3-confirmation-engine .text-muted-foreground {
+  color: var(--v3-text-secondary);
+}
+
+@media (max-width: 720px) {
+  .v3-confirmation-workflow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .v3-confirmation-workflow-phase {
+    min-height: 4.2rem;
+    padding: 0.72rem;
+  }
+
+  .v3-confirmation-engine .animate-rise > .surface,
+  .v3-confirmation-engine > .surface {
+    border-radius: var(--v3-radius-md);
+  }
+}
+
+@media (max-width: 390px) {
+  .v3-confirmation-workflow-phase {
+    gap: var(--v3-space-2);
+  }
+
+  .v3-confirmation-workflow-index {
+    width: 1.55rem;
+    height: 1.55rem;
+  }
+}

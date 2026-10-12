@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const shell = () => read("src/components/v3/V3ConfirmationRouteShell.tsx");
+const presentation = () => read("src/components/v3/V3ConfirmationPresentation.tsx");
+const presentationCss = () => read("src/components/v3/V3ConfirmationPresentation.css");
 const indexRoute = () => read("src/routes/confirmations/index.tsx");
 const editRoute = () => read("src/routes/confirmations/edit/$token.tsx");
 const receiptWrapper = () => read("src/components/ConfirmationFormWithReceipt.tsx");
@@ -27,8 +29,28 @@ describe("V3 Confirmation route cutover", () => {
     expect(source).toContain("<V3AppShell");
     expect(source).toContain("<V3Screen");
     expect(source).toContain('data-v3-confirmation-route-content=""');
+    expect(source).toContain("<V3ConfirmationPresentation>{children}</V3ConfirmationPresentation>");
     expect(source).toContain('to="/participate"');
     expect(source).toContain('to="/guide"');
+  });
+
+  it("keeps V3 presentation separate from the canonical confirmation engine", () => {
+    const source = presentation();
+    const css = presentationCss();
+
+    expect(source).toContain('data-v3-confirmation-presentation=""');
+    expect(source).toContain('data-v3-confirmation-shared-engine=""');
+    expect(source).toContain("Identity");
+    expect(source).toContain("Plan");
+    expect(source).toContain("Entry");
+    expect(source).toContain("Review");
+    expect(source).not.toContain('from "@/components/ConfirmationForm"');
+    expect(source).not.toContain("submitConfirmation");
+    expect(source).not.toContain("saveDraft");
+    expect(source).not.toContain("loadDraft");
+    expect(css).toContain(".v3-confirmation-engine .animate-rise > .surface");
+    expect(css).toContain("var(--v3-surface)");
+    expect(css).toContain("@media (max-width: 720px)");
   });
 
   it("cuts both the round chooser and edit route over through the shared route shell", () => {
@@ -69,6 +91,8 @@ describe("V3 Confirmation route cutover", () => {
   it("does not introduce hosted Supabase endpoints into the route cutover", () => {
     const combined = [
       shell(),
+      presentation(),
+      presentationCss(),
       indexRoute(),
       editRoute(),
       receiptWrapper(),

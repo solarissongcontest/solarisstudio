@@ -9,6 +9,7 @@ import {
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { V3AppShell } from "./V3AppShell";
+import { V3ConfirmationPresentation } from "./V3ConfirmationPresentation";
 import { V3Screen, V3ScreenHeader } from "./V3Foundation";
 
 type ConfirmationRouteAction = {
@@ -149,7 +150,9 @@ export function V3ConfirmationRouteShell({
             </nav>
           ) : null}
 
-          <div data-v3-confirmation-route-content="">{children}</div>
+          <div data-v3-confirmation-route-content="">
+            <V3ConfirmationPresentation>{children}</V3ConfirmationPresentation>
+          </div>
         </div>
       </V3Screen>
     </V3AppShell>
