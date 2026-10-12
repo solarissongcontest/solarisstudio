@@ -129,7 +129,7 @@ export function V3ConfirmationRouteShell({
           <V3ScreenHeader
             kicker="Participate · Confirmation"
             title={title}
-            description={description}
+            description={description ?? ""}
           />
 
           {visibleActions.length ? (
