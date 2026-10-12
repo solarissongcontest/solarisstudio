@@ -209,22 +209,68 @@ export const checkEntryDuplicate = createServerFn({ method: "POST" })
 export const submitConfirmation = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => payloadSchema.parse(data))
   .handler(async ({ data }) => {
-    const { getClientIp, sha256Hex } = await import("@/lib/request.server");
+    const {
+      deriveConfirmationIdempotencyKey,
+      getClientIp,
+      getOrCreateConfirmationOperationEpoch,
+      rotateConfirmationOperationEpoch,
+      sha256Hex,
+    } = await import("@/lib/request.server");
     const { edit_token, ...rest } = data;
-    const payload: Record<string, unknown> = {
+    const logicalPayload: Record<string, unknown> = {
       ...rest,
-      client_ip: getClientIp(),
       ...(edit_token ? { edit_token_hash: await sha256Hex(edit_token) } : {}),
+    };
+    const payload: Record<string, unknown> = {
+      ...logicalPayload,
+      client_ip: getClientIp(),
     };
 
     try {
-      const result = await rpc<{
-        ok: boolean;
-        error?: string;
-        reason?: AvailabilityReason;
-        submission_id?: string;
-        canonical_sync?: "synced" | "pending";
-      }>("submit_confirmation", { payload });
+      const result = data.browser_session_id
+        ? await (async () => {
+            const epoch = getOrCreateConfirmationOperationEpoch();
+            const idempotencyKey = await deriveConfirmationIdempotencyKey(
+              epoch,
+              JSON.stringify(logicalPayload),
+            );
+            const protectedResult = await rpc<{
+              ok: boolean;
+              error?: string;
+              reason?: AvailabilityReason;
+              submission_id?: string;
+              canonical_sync?: "synced" | "pending";
+              receipt?: {
+                authority: "authoritative_server";
+                receipt_id: string;
+                idempotency_key: string;
+                request_hash: string;
+                round_id: string;
+                accepted_at: string;
+                replayed: boolean;
+              };
+            }>("v3_submit_confirmation", {
+              payload,
+              _idempotency_key: idempotencyKey,
+              // The database derives and stores the authoritative request hash.
+              // This compatibility argument remains only for the RPC signature.
+              _request_hash: "database-derived",
+              _browser_session_id: data.browser_session_id,
+            });
+
+            // Rotate only after an acknowledged database result. If the HTTP
+            // response is lost after commit, this Set-Cookie never reaches the
+            // browser, so retry derives the exact same idempotency key.
+            rotateConfirmationOperationEpoch();
+            return protectedResult;
+          })()
+        : await rpc<{
+            ok: boolean;
+            error?: string;
+            reason?: AvailabilityReason;
+            submission_id?: string;
+            canonical_sync?: "synced" | "pending";
+          }>("submit_confirmation", { payload });
 
       if (result.ok && result.submission_id) {
         try {
