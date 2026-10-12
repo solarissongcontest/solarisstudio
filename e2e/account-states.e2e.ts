@@ -57,10 +57,11 @@ async function enableInstalledAppMode(context: BrowserContext) {
   });
 }
 
-async function enableV3ForLocalUser(
+async function setV3ForLocalUser(
   url: string,
   publishableKey: string,
   session: E2ESession,
+  enabled: boolean,
 ) {
   const response = await fetch(`${url.replace(/\/$/, "")}/rest/v1/rpc/studio2_set_feature_flag`, {
     method: "POST",
@@ -71,9 +72,9 @@ async function enableV3ForLocalUser(
     },
     body: JSON.stringify({
       p_key: "solaris_app_v3",
-      p_enabled: true,
+      p_enabled: enabled,
       p_admins_only: false,
-      p_user_ids: [session.user.id],
+      p_user_ids: enabled ? [session.user.id] : [],
       p_edition_ids: [],
     }),
   });
@@ -147,17 +148,21 @@ test("server-authorized V3 rollout renders real app Home and Participate", async
   expect(url).toMatch(/^http:\/\/(?:127\.0\.0\.1|localhost):\d+/);
   await enableInstalledAppMode(context);
   const session = await addSession(context, url!, publishableKey!, email!, password!);
-  await enableV3ForLocalUser(url!, publishableKey!, session);
+  await setV3ForLocalUser(url!, publishableKey!, session, true);
 
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await expect(page.locator("html")).toHaveAttribute("data-solaris-runtime", "standalone");
-  await expect(page.getByRole("navigation", { name: "Primary app navigation" })).toBeVisible();
-  await expect(page.getByText("Current contest", { exact: true })).toBeVisible();
-  await expect(page.getByText("Browser Audit Edition", { exact: true })).toBeVisible();
-  await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
+  try {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator("html")).toHaveAttribute("data-solaris-runtime", "standalone");
+    await expect(page.getByRole("navigation", { name: "Primary app navigation" })).toBeVisible();
+    await expect(page.getByText("Current contest", { exact: true })).toBeVisible();
+    await expect(page.getByText("Browser Audit Edition", { exact: true })).toBeVisible();
+    await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
 
-  await page.goto("/participate", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "Your participation", exact: true })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Primary app navigation" })).toBeVisible();
-  await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
+    await page.goto("/participate", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Your participation", exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Primary app navigation" })).toBeVisible();
+    await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
+  } finally {
+    await setV3ForLocalUser(url!, publishableKey!, session, false);
+  }
 });
