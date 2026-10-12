@@ -7,6 +7,7 @@ const shell = () => read("src/components/v3/V3ConfirmationRouteShell.tsx");
 const indexRoute = () => read("src/routes/confirmations/index.tsx");
 const editRoute = () => read("src/routes/confirmations/edit/$token.tsx");
 const receiptWrapper = () => read("src/components/ConfirmationFormWithReceipt.tsx");
+const rolloutRuntime = () => read("src/lib/v3-primary-runtime.ts");
 
 describe("V3 Confirmation route cutover", () => {
   it("keeps the route cutover app-only, persisted and fail-closed", () => {
@@ -55,8 +56,24 @@ describe("V3 Confirmation route cutover", () => {
     expect(wrapper).toContain("return <V3ConfirmationFlow {...props} />;");
   });
 
+  it("reuses the active route probe instead of racing it from nested confirmation consumers", () => {
+    const runtime = rolloutRuntime();
+
+    expect(runtime).toContain("useQueryClient");
+    expect(runtime).toContain("getObserversCount()");
+    expect(runtime).toContain('refetchOnMount: activeProbeObservers > 0 ? false : "always"');
+    expect(runtime).toContain("gcTime: 0");
+    expect(runtime).toContain("retry: false");
+  });
+
   it("does not introduce hosted Supabase endpoints into the route cutover", () => {
-    const combined = [shell(), indexRoute(), editRoute(), receiptWrapper()].join("\n");
+    const combined = [
+      shell(),
+      indexRoute(),
+      editRoute(),
+      receiptWrapper(),
+      rolloutRuntime(),
+    ].join("\n");
 
     expect(combined).not.toMatch(/https:\/\/[^\s"']+\.supabase\.co/i);
   });

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { getV3PrimarySurfaceBundle } from "./v3-primary-surface.functions";
 import { getV3RolloutProbe } from "./v3-rollout-probe.functions";
@@ -6,13 +6,23 @@ import { getV3RolloutProbe } from "./v3-rollout-probe.functions";
 export const V3_ROLLOUT_QUERY_KEY = ["v3-rollout-probe"] as const;
 
 export function useV3RolloutProbe(enabled: boolean) {
+  const queryClient = useQueryClient();
+  const activeProbeObservers =
+    queryClient
+      .getQueryCache()
+      .find({ queryKey: V3_ROLLOUT_QUERY_KEY, exact: true })
+      ?.getObserversCount() ?? 0;
+
   return useQuery({
     queryKey: V3_ROLLOUT_QUERY_KEY,
     queryFn: () => getV3RolloutProbe(),
     enabled,
     staleTime: 0,
     gcTime: 0,
-    refetchOnMount: "always",
+    // The first mounted gate always asks the server. Nested consumers on the
+    // same mounted route must reuse that authoritative observer instead of
+    // launching a second probe that could race the route-level decision.
+    refetchOnMount: activeProbeObservers > 0 ? false : "always",
     refetchOnWindowFocus: false,
     retry: false,
   });
