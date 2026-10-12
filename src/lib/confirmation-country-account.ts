@@ -55,6 +55,24 @@ export type CountryConfirmationAccess = {
   requirements: CountryConfirmationRequirement[];
 };
 
+export type CountryConfirmationDraftResult = {
+  found: boolean;
+  payload?: unknown;
+  revision: number;
+  updated_at?: string | null;
+  country_id?: string;
+};
+
+export type CountryConfirmationDraftSaveResult = {
+  ok: boolean;
+  conflict: boolean;
+  revision: number;
+  saved_at?: string | null;
+  payload?: unknown;
+  updated_at?: string | null;
+  country_id?: string;
+};
+
 export async function getCountryConfirmationAccess(): Promise<CountryConfirmationAccess> {
   const { data: sessionData } = await supabase.auth.getSession();
   if (!sessionData.session) {
@@ -77,6 +95,71 @@ export async function getCountryConfirmationAccess(): Promise<CountryConfirmatio
     requirements: Array.isArray(requirementsResult.data)
       ? (requirementsResult.data as CountryConfirmationRequirement[])
       : [],
+  };
+}
+
+/**
+ * Country-account drafts are intentionally bound to auth.uid() in Postgres,
+ * not to a browser-provided country or session id. That gives signed-in
+ * delegations real cross-device continuity without weakening anonymous drafts.
+ */
+export async function loadCountryAccountConfirmationDraft(
+  roundId: string,
+): Promise<CountryConfirmationDraftResult> {
+  const { data, error } = await confirmations.rpc(
+    "v3_load_account_confirmation_draft",
+    { _round_id: roundId },
+  );
+  if (error) throw error;
+
+  const result = (data ?? {}) as Partial<CountryConfirmationDraftResult>;
+  return {
+    found: result.found === true,
+    payload: result.payload,
+    revision: Number.isInteger(result.revision) ? Number(result.revision) : 0,
+    updated_at: result.updated_at ?? null,
+    country_id: typeof result.country_id === "string" ? result.country_id : undefined,
+  };
+}
+
+export async function saveCountryAccountConfirmationDraft(input: {
+  roundId: string;
+  payload: Record<string, unknown>;
+  expectedRevision: number;
+}): Promise<CountryConfirmationDraftSaveResult> {
+  const { data, error } = await confirmations.rpc(
+    "v3_save_account_confirmation_draft",
+    {
+      _round_id: input.roundId,
+      _payload: input.payload,
+      _expected_revision: input.expectedRevision,
+    },
+  );
+  if (error) throw error;
+
+  const result = (data ?? {}) as Partial<CountryConfirmationDraftSaveResult>;
+  return {
+    ok: result.ok === true,
+    conflict: result.conflict === true,
+    revision: Number.isInteger(result.revision) ? Number(result.revision) : 0,
+    saved_at: result.saved_at ?? null,
+    payload: result.payload,
+    updated_at: result.updated_at ?? null,
+    country_id: typeof result.country_id === "string" ? result.country_id : undefined,
+  };
+}
+
+export async function deleteCountryAccountConfirmationDraft(roundId: string) {
+  const { data, error } = await confirmations.rpc(
+    "v3_delete_account_confirmation_draft",
+    { _round_id: roundId },
+  );
+  if (error) throw error;
+
+  const result = (data ?? {}) as { ok?: boolean; deleted?: boolean };
+  return {
+    ok: result.ok === true,
+    deleted: result.deleted === true,
   };
 }
 
