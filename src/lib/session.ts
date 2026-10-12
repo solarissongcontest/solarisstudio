@@ -79,7 +79,7 @@ export function writeLocalDraft<T>(roundId: string, payload: T, step: number) {
 
 export function clearLocalDraft(
   roundId: string,
-  receipt: Omit<SubmissionReceiptDetail, "id"> = {},
+  receipt?: Omit<SubmissionReceiptDetail, "id">,
 ) {
   if (typeof window === "undefined") return;
   try {
@@ -88,9 +88,15 @@ export function clearLocalDraft(
     /* ignore */
   }
 
-  // ConfirmationForm only clears the draft after the server has accepted the
-  // response. Broadcasting that fact lets the route show the shared pending →
-  // confirmed receipt state without coupling the giant form to presentation UI.
+  // Clearing a draft and announcing an accepted official submission are
+  // deliberately separate operations. Recovery code may clear a reconciled
+  // draft after it already holds the authoritative receipt; emitting a second
+  // empty receipt event there would regress the UI back to an unknown state.
+  if (!receipt) return;
+
+  // ConfirmationForm supplies receipt context only after an acknowledged
+  // server result. Broadcasting that fact lets presentation UI resolve the
+  // authoritative receipt without coupling the giant form to V3 state.
   dispatchSubmissionReceipt(CONFIRMATION_SUBMITTED_EVENT, roundId, {
     ...receipt,
     governance:
