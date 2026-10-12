@@ -8,9 +8,23 @@ import {
   evaluateSolarisFeatureFlag,
 } from "./feature-flags";
 
-const migration = readFileSync(
-  resolve(process.cwd(), "supabase/migrations/20261011195500_v3_rollout_feature_flag.sql"),
-  "utf8",
+function migrationSource(path: string) {
+  return readFileSync(resolve(process.cwd(), path), "utf8");
+}
+
+function constrainedFlagKeys(source: string) {
+  const constraint = source.match(
+    /add constraint studio2_feature_flags_key_check check\s*\(\s*key in \(([\s\S]*?)\)\s*\)/,
+  );
+  if (!constraint) return [];
+  return [...constraint[1].matchAll(/'([^']+)'/g)].map((match) => match[1]);
+}
+
+const previousConstraintMigration = migrationSource(
+  "supabase/migrations/20260919113422_public_ia_v3_rollout_flag.sql",
+);
+const migration = migrationSource(
+  "supabase/migrations/20261011195500_v3_rollout_feature_flag.sql",
 );
 
 describe("Solaris App V3 rollout persistence", () => {
@@ -59,11 +73,15 @@ describe("Solaris App V3 rollout persistence", () => {
     expect(migration).toContain("on conflict (key) do nothing");
   });
 
-  it("extends rather than replaces the existing constrained flag vocabulary", () => {
-    expect(migration).toContain("studio2_feature_flags_key_check");
-    expect(migration).toContain("'edition_state_engine'");
-    expect(migration).toContain("'solaris_command_assistant'");
-    expect(migration).toContain("'solaris_app_v3'");
+  it("extends the latest persisted constraint without deleting existing flag keys", () => {
+    const previousKeys = constrainedFlagKeys(previousConstraintMigration);
+    const nextKeys = constrainedFlagKeys(migration);
+
+    expect(previousKeys.length).toBeGreaterThan(0);
+    expect(nextKeys).toContain("solaris_app_v3");
+    expect(nextKeys).toContain("public_ia_v3");
+    expect(previousKeys.filter((key) => !nextKeys.includes(key))).toEqual([]);
+    expect(new Set(nextKeys).size).toBe(nextKeys.length);
   });
 
   it("contains no client-side or localStorage rollout mechanism", () => {
