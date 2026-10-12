@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { publicAreaForPath } from "@/lib/public-navigation";
+import { resolveV3ShellActiveArea } from "@/lib/v3-shell-active-area";
 import { cn } from "@/lib/utils";
 import { V3FoundationShell, V3TopContext } from "./V3Foundation";
 
@@ -60,7 +60,8 @@ export function V3AppShell({
   className,
 }: V3AppShellProps) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const publicArea = publicAreaForPath(pathname);
+  const searchStr = useRouterState({ select: (state) => state.location.searchStr });
+  const activeArea = resolveV3ShellActiveArea(pathname, searchStr);
 
   return (
     <V3FoundationShell>
@@ -71,7 +72,7 @@ export function V3AppShell({
 
       <nav className="v3-bottom-nav" aria-label="Primary app navigation">
         {V3_SHELL_DESTINATIONS.map(({ id, label, to, icon: Icon, emphasis }) => {
-          const active = publicArea === id;
+          const active = activeArea === id;
           const attention = id === "participate" ? participateAttentionCount : 0;
 
           return (
