@@ -121,7 +121,7 @@ export function buildV3ResultsProjection(
   }
 
   const rows = input.rows.map(projectRow).sort((a, b) => a.rank - b.rank);
-  const winner = rows.find((row) => row.rank === 1) ?? rows[0] ?? null;
+  const winner = rows.find((row) => row.rank === 1) ?? null;
   const yourResult = input.userDelegationCountryId
     ? rows.find((row) => row.countryId === input.userDelegationCountryId) ?? null
     : null;
