@@ -8,6 +8,14 @@ import {
 } from "@/lib/submission-receipts";
 
 const SESSION_KEY = "ssc.session_id";
+export const CONFIRMATION_DRAFT_SAVED_EVENT = "solaris:confirmation-draft-saved";
+
+export type ConfirmationDraftSavedDetail<T = unknown> = {
+  roundId: string;
+  payload: T;
+  step: number;
+  savedAt: string;
+};
 
 function randomId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
@@ -49,14 +57,24 @@ export function readLocalDraft<T>(roundId: string): LocalDraft<T> | null {
 
 export function writeLocalDraft<T>(roundId: string, payload: T, step: number) {
   if (typeof window === "undefined") return;
+  const savedAt = new Date().toISOString();
   try {
     window.localStorage.setItem(
       draftKey(roundId),
-      JSON.stringify({ payload, step, savedAt: new Date().toISOString() }),
+      JSON.stringify({ payload, step, savedAt }),
     );
   } catch {
     /* storage full or blocked — server autosave still applies */
   }
+
+  // Same-document storage events do not fire. Emit an explicit draft event so
+  // the V3 country-account bridge can mirror the proven legacy form into the
+  // authenticated cross-device draft authority without coupling either layer.
+  window.dispatchEvent(
+    new CustomEvent<ConfirmationDraftSavedDetail<T>>(CONFIRMATION_DRAFT_SAVED_EVENT, {
+      detail: { roundId, payload, step, savedAt },
+    }),
+  );
 }
 
 export function clearLocalDraft(
