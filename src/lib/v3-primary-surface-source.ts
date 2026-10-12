@@ -28,6 +28,11 @@ export type V3PrimarySurfaceDelegation = {
   name: string;
 };
 
+export type V3ParticipantIdentityRow = {
+  country_id?: string | null;
+  contest_entity_id?: string | null;
+};
+
 export type V3PrimarySurfaceReadModel = {
   serverTime: string;
   generatedAt?: string;
@@ -56,6 +61,26 @@ const LIVE_STATUSES = new Set([
   "in_progress",
   "in-progress",
 ]);
+
+export function countDistinctV3Delegations(rows: readonly V3ParticipantIdentityRow[]) {
+  const identities = new Set<string>();
+  for (const row of rows) {
+    const identity = row.contest_entity_id?.trim() || row.country_id?.trim() || null;
+    if (identity) identities.add(identity);
+  }
+  return identities.size;
+}
+
+export function countPendingAcknowledgementTasks(rows: unknown) {
+  if (!Array.isArray(rows)) return 0;
+  return rows.filter((row: any) => {
+    return (
+      row?.acknowledgement_required === true &&
+      row?.acknowledged_at == null &&
+      row?.receipt_archived_at == null
+    );
+  }).length;
+}
 
 function timestamp(value: string, label: string) {
   const normalized = value.trim();
@@ -101,15 +126,17 @@ function upcomingItems(
   results: readonly ResultRow[],
 ): readonly V3PrimaryHomeListItem[] {
   return [...shows]
-    .filter((show) => !showHasPublishedResult(show, results))
+    .filter(
+      (show) =>
+        !LIVE_STATUSES.has(normalizedStatus(show)) &&
+        !showHasPublishedResult(show, results),
+    )
     .sort((a, b) => a.sort_order - b.sort_order)
     .slice(0, 3)
     .map((show) => ({
       id: `show:${show.id}`,
       title: show.name,
-      description: LIVE_STATUSES.has(normalizedStatus(show))
-        ? "Live now"
-        : "Public show information is available.",
+      description: "Public show information is available.",
       to: `/shows/${show.id}`,
     }));
 }
