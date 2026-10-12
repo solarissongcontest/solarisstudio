@@ -3,6 +3,11 @@ begin;
 -- V3 rollout uses the existing server-authoritative Studio 2 feature-flag
 -- mechanism. The flag is seeded disabled so shipping the migration alone can
 -- never expose an unfinished app shell.
+--
+-- IMPORTANT: this constraint is an extension of the latest persisted flag
+-- vocabulary, not a reconstruction from the narrower TypeScript product-surface
+-- catalog. public_ia_v3 is an existing database-managed emergency rollback flag
+-- and must remain valid when Solaris App V3 is added.
 alter table public.studio2_feature_flags
   drop constraint if exists studio2_feature_flags_key_check;
 
@@ -13,9 +18,9 @@ alter table public.studio2_feature_flags
       'workflow_engine', 'official_communications', 'hod_workspace_v2',
       'live_control_room', 'incident_command', 'broadcast_rundown',
       'results_replay', 'voting_lab', 'edition_simulator', 'rules_engine',
-      'public_encyclopedia', 'country_voting_dna', 'prediction_league',
-      'fantasy_ssc', 'time_machine', 'solaris_command_assistant',
-      'solaris_app_v3'
+      'public_encyclopedia', 'public_ia_v3', 'country_voting_dna',
+      'prediction_league', 'fantasy_ssc', 'time_machine',
+      'solaris_command_assistant', 'solaris_app_v3'
     )
   );
 
