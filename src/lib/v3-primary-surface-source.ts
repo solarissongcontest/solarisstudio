@@ -90,12 +90,26 @@ const UPCOMING_STATUSES = new Set([
 ]);
 
 export function countDistinctV3Delegations(rows: readonly V3ParticipantIdentityRow[]) {
-  const identities = new Set<string>();
+  const countryIds = new Set<string>();
+  const entityIds = new Set<string>();
+  const entitiesLinkedToCountry = new Set<string>();
+
   for (const row of rows) {
-    const identity = row.contest_entity_id?.trim() || row.country_id?.trim() || null;
-    if (identity) identities.add(identity);
+    const countryId = row.country_id?.trim() || null;
+    const entityId = row.contest_entity_id?.trim() || null;
+    if (countryId) countryIds.add(countryId);
+    if (entityId) entityIds.add(entityId);
+    // Rows carrying both identifiers establish that the entity is an alias for
+    // that country delegation. This lets canonical, show-scoped and older rows
+    // deduplicate even when some of them carry only one side of the identity.
+    if (countryId && entityId) entitiesLinkedToCountry.add(entityId);
   }
-  return identities.size;
+
+  let entityOnlyDelegations = 0;
+  for (const entityId of entityIds) {
+    if (!entitiesLinkedToCountry.has(entityId)) entityOnlyDelegations += 1;
+  }
+  return countryIds.size + entityOnlyDelegations;
 }
 
 export function countPendingAcknowledgementTasks(rows: unknown) {
