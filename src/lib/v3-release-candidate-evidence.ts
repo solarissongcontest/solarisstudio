@@ -9,6 +9,7 @@ export type V3CandidateEvidenceStatus = "passed" | "failed" | "skipped";
 
 export type V3CandidateEvidenceRef = {
   candidateSha: string;
+  deploymentIdentityKey: string;
   evidenceRef: string;
   observedAt: string;
 };
@@ -27,10 +28,7 @@ export type V3CandidateObservabilityTarget =
   | "full"
   | "retire_legacy";
 
-/**
- * Structural output compatible with the dedicated rollout-observability slice.
- * This module intentionally does not recalculate telemetry thresholds.
- */
+/** Structural output compatible with the dedicated rollout-observability slice. */
 export type V3CandidateObservabilityDecision = {
   target: V3CandidateObservabilityTarget;
   ready: boolean;
@@ -50,6 +48,7 @@ export type V3ReleaseEvidenceBlocker = {
 
 export type V3ReleaseCandidateDecision = {
   candidateSha: string;
+  deploymentIdentityKey: string;
   target: V3WorkflowCutoverStage;
   workflows: readonly V3CriticalWorkflow[];
   ready: boolean;
@@ -71,6 +70,17 @@ function normalizeCandidateSha(value: string) {
   return normalized;
 }
 
+function normalizeDeploymentIdentityKey(value: string) {
+  const normalized = value.trim();
+  if (!normalized) {
+    throw new Error("V3 release evidence requires a deployment identity key.");
+  }
+  if (normalized.length > 1024) {
+    throw new Error("V3 release deployment identity key must not exceed 1024 characters.");
+  }
+  return normalized;
+}
+
 function requiredText(value: string, label: string) {
   const normalized = value.trim();
   if (!normalized) throw new Error(`${label} must not be empty.`);
@@ -87,6 +97,7 @@ function timestamp(value: string, label: string) {
 
 function assertBoundEvidence(
   expectedSha: string,
+  expectedDeploymentIdentityKey: string,
   evidence: V3CandidateEvidenceRef,
   label: string,
 ) {
@@ -94,6 +105,14 @@ function assertBoundEvidence(
   if (evidenceSha !== expectedSha) {
     throw new Error(
       `${label} belongs to candidate ${evidenceSha}, not ${expectedSha}.`,
+    );
+  }
+  const evidenceDeploymentIdentityKey = normalizeDeploymentIdentityKey(
+    evidence.deploymentIdentityKey,
+  );
+  if (evidenceDeploymentIdentityKey !== expectedDeploymentIdentityKey) {
+    throw new Error(
+      `${label} belongs to a different deployment identity than the release candidate.`,
     );
   }
   requiredText(evidence.evidenceRef, `${label}.evidenceRef`);
@@ -125,16 +144,15 @@ function expectedObservabilityTarget(
 }
 
 /**
- * Binds release proof to the exact candidate being promoted.
+ * Binds release proof to the exact deployed candidate being promoted.
  *
- * This module does not run tests, evaluate workflow safety, calculate telemetry
- * thresholds, enable rollout or fetch GitHub artifacts. It consumes those
- * already-authoritative decisions and refuses to combine evidence from another
- * commit SHA. A later integration may populate `evidenceRef` from immutable CI,
- * browser-audit, review or aggregate-telemetry artifacts.
+ * SHA alone is not sufficient: the same code can run against another schema or
+ * immutable deployment. Verification, workflow and observability evidence must
+ * therefore agree on both candidate SHA and stable deployment identity.
  */
 export function evaluateV3ReleaseCandidateEvidence(input: {
   candidateSha: string;
+  deploymentIdentityKey: string;
   target: V3WorkflowCutoverStage;
   workflows: readonly V3CriticalWorkflow[];
   verification: readonly V3CandidateVerificationEvidence[];
@@ -142,6 +160,9 @@ export function evaluateV3ReleaseCandidateEvidence(input: {
   observability?: V3CandidateObservabilityEvidence | null;
 }): V3ReleaseCandidateDecision {
   const candidateSha = normalizeCandidateSha(input.candidateSha);
+  const deploymentIdentityKey = normalizeDeploymentIdentityKey(
+    input.deploymentIdentityKey,
+  );
   const workflows = requestedWorkflows(input.workflows);
   const blockers: V3ReleaseEvidenceBlocker[] = [];
 
@@ -150,7 +171,12 @@ export function evaluateV3ReleaseCandidateEvidence(input: {
     V3CandidateVerificationEvidence
   >();
   for (const evidence of input.verification) {
-    assertBoundEvidence(candidateSha, evidence, `verification.${evidence.gate}`);
+    assertBoundEvidence(
+      candidateSha,
+      deploymentIdentityKey,
+      evidence,
+      `verification.${evidence.gate}`,
+    );
     if (verificationByGate.has(evidence.gate)) {
       throw new Error(`Duplicate ${evidence.gate} verification evidence.`);
     }
@@ -162,14 +188,14 @@ export function evaluateV3ReleaseCandidateEvidence(input: {
     if (!evidence) {
       blockers.push({
         id: `verification.${gate}.missing`,
-        reason: `${gate} verification evidence is missing for this candidate.`,
+        reason: `${gate} verification evidence is missing for this deployed candidate.`,
       });
       continue;
     }
     if (evidence.status !== "passed") {
       blockers.push({
         id: `verification.${gate}.${evidence.status}`,
-        reason: `${gate} verification did not pass on this candidate.`,
+        reason: `${gate} verification did not pass on this deployed candidate.`,
       });
     }
   }
@@ -181,6 +207,7 @@ export function evaluateV3ReleaseCandidateEvidence(input: {
   for (const evidence of input.workflowDecisions) {
     assertBoundEvidence(
       candidateSha,
+      deploymentIdentityKey,
       evidence,
       `workflow.${evidence.decision.workflow}`,
     );
@@ -196,11 +223,10 @@ export function evaluateV3ReleaseCandidateEvidence(input: {
     if (!evidence) {
       blockers.push({
         id: `workflow.${workflow}.missing`,
-        reason: `${workflow} has no cutover-gate decision bound to this candidate.`,
+        reason: `${workflow} has no cutover-gate decision bound to this deployed candidate.`,
       });
       continue;
     }
-
     const decision = evidence.decision;
     if (decision.stage !== input.target) {
       blockers.push({
@@ -235,7 +261,12 @@ export function evaluateV3ReleaseCandidateEvidence(input: {
         reason: `Observability evidence is required before ${input.target} promotion.`,
       });
     } else {
-      assertBoundEvidence(candidateSha, evidence, "observability");
+      assertBoundEvidence(
+        candidateSha,
+        deploymentIdentityKey,
+        evidence,
+        "observability",
+      );
       const windowStart = Date.parse(
         timestamp(evidence.windowStart, "observability.windowStart"),
       );
@@ -274,11 +305,17 @@ export function evaluateV3ReleaseCandidateEvidence(input: {
       }
     }
   } else if (input.observability) {
-    assertBoundEvidence(candidateSha, input.observability, "observability");
+    assertBoundEvidence(
+      candidateSha,
+      deploymentIdentityKey,
+      input.observability,
+      "observability",
+    );
   }
 
   return {
     candidateSha,
+    deploymentIdentityKey,
     target: input.target,
     workflows,
     ready: blockers.length === 0,
