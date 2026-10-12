@@ -9,6 +9,7 @@ function source(path: string) {
 const homeRoute = () => source("src/routes/index.tsx");
 const participateRoute = () => source("src/routes/participate/index.tsx");
 const gate = () => source("src/components/v3/V3PrimaryRouteGate.tsx");
+const appRuntime = () => source("src/components/app/AppRuntime.tsx");
 const runtime = () => source("src/lib/v3-primary-runtime.ts");
 const probe = () => source("src/integrations/v3/rollout-probe.server.ts");
 const migration = () =>
@@ -66,6 +67,21 @@ describe("Solaris Studio V3 primary route cutover architecture", () => {
     expect(sourceText).not.toContain("service_role");
     expect(migrationText).toContain("'solaris_app_v3'");
     expect(migrationText).toContain("false,");
+  });
+
+  it("keeps the initial platform-detection pass query-free before choosing V3 or legacy", () => {
+    const gateText = gate();
+    const appRuntimeText = appRuntime();
+
+    expect(appRuntimeText).toContain(
+      "const [platformResolved, setPlatformResolved] = useState(false)",
+    );
+    expect(appRuntimeText).toContain("setPlatformResolved(true)");
+    expect(gateText).toContain("useV3RolloutProbe(platformResolved && isAppMode)");
+    expect(gateText).toContain("if (!platformResolved) return <LoadingPrimarySurface />;");
+    expect(gateText.indexOf("if (!platformResolved)")).toBeLessThan(
+      gateText.indexOf("if (!isAppMode)"),
+    );
   });
 
   it("does not load the expensive bootstrap until the rollout probe permits it", () => {
