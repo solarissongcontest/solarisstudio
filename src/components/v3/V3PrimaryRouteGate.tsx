@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { useV3PrimarySurfaceBundle, useV3RolloutProbe } from "@/lib/v3-primary-runtime";
-import { decideV3ShellForRoute } from "@/lib/v3-shell-route-boundary";
 import { shouldLoadV3PrimaryBundle } from "@/lib/v3-primary-route-cutover";
+import { decideV3ShellForRoute } from "@/lib/v3-shell-route-boundary";
 import { V3AppShell } from "./V3AppShell";
 import { V3HomeScreen } from "./V3HomeScreen";
 import { V3ParticipateScreen } from "./V3ParticipateScreen";
@@ -59,6 +59,7 @@ export function V3PrimaryRouteGate({
   const bundleQuery = useV3PrimarySurfaceBundle(
     shouldLoadBundle,
     rollout.data?.editionId,
+    rollout.data?.userId,
   );
 
   if (!isAppMode) return <>{legacy}</>;
