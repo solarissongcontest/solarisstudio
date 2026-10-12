@@ -69,7 +69,7 @@ describe("Solaris Studio V3 primary route cutover architecture", () => {
     expect(migrationText).toContain("false,");
   });
 
-  it("keeps the initial platform-detection pass query-free before choosing V3 or legacy", () => {
+  it("keeps the initial platform-detection pass query-free and crawlable before choosing V3 or legacy", () => {
     const gateText = gate();
     const appRuntimeText = appRuntime();
 
@@ -78,16 +78,24 @@ describe("Solaris Studio V3 primary route cutover architecture", () => {
     );
     expect(appRuntimeText).toContain("setPlatformResolved(true)");
     expect(gateText).toContain("useV3RolloutProbe(platformResolved && isAppMode)");
-    expect(gateText).toContain("if (!platformResolved) return <LoadingPrimarySurface />;");
+    expect(gateText).toContain(
+      "if (!platformResolved) return <ResolvingPrimarySurface surface={surface} />;",
+    );
     expect(gateText.indexOf("if (!platformResolved)")).toBeLessThan(
       gateText.indexOf("if (!isAppMode)"),
     );
-    const loadingSurface = gateText.slice(
-      gateText.indexOf("function LoadingPrimarySurface()"),
+    const resolvingSurface = gateText.slice(
+      gateText.indexOf("function ResolvingPrimarySurface"),
       gateText.indexOf("/**\n * Reversible production gate"),
     );
-    expect(loadingSurface).toContain('data-v3-primary-boot=""');
-    expect(loadingSurface).not.toContain("AppShell");
+    expect(resolvingSurface).toContain('data-v3-primary-boot=""');
+    expect(resolvingSurface).toContain("<h1");
+    expect(resolvingSurface).toContain('"Solaris Today"');
+    expect(resolvingSurface).toContain('"Participate in Solaris"');
+    expect(resolvingSurface).toContain('href="/countries"');
+    expect(resolvingSurface).toContain('href="/confirmations"');
+    expect(resolvingSurface).not.toContain("AppShell");
+    expect(resolvingSurface).not.toContain("useQuery(");
     expect(gateText).not.toContain('from "@/components/AppShell"');
   });
 
