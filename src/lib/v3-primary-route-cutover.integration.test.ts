@@ -82,6 +82,13 @@ describe("Solaris Studio V3 primary route cutover architecture", () => {
     expect(gateText.indexOf("if (!platformResolved)")).toBeLessThan(
       gateText.indexOf("if (!isAppMode)"),
     );
+    const loadingSurface = gateText.slice(
+      gateText.indexOf("function LoadingPrimarySurface()"),
+      gateText.indexOf("/**\n * Reversible production gate"),
+    );
+    expect(loadingSurface).toContain('data-v3-primary-boot=""');
+    expect(loadingSurface).not.toContain("AppShell");
+    expect(gateText).not.toContain('from "@/components/AppShell"');
   });
 
   it("does not load the expensive bootstrap until the rollout probe permits it", () => {
