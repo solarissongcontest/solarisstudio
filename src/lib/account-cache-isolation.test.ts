@@ -14,6 +14,15 @@ describe("shared-browser private state", () => {
     client.setQueryData(["owned-entry-publication", "edition"], "A publication");
     client.setQueryData(["owned-country-identity-history", "edition"], "A identity");
     client.setQueryData(["owned-hod-history", "edition"], "A HOD history");
+    client.setQueryData(["v3-rollout-probe"], {
+      enabled: true,
+      editionId: "edition",
+      userId: "A",
+    });
+    client.setQueryData(
+      ["v3-primary-surface-bundle", "edition", "A"],
+      { bootstrap: { identity: { userId: "A" } } },
+    );
     let complete: (value: string) => void = () => undefined;
     const pending = client.fetchQuery({ queryKey: ["country-confirmation-access", "A"], queryFn: () => new Promise<string>((resolve) => { complete = resolve; }) }).catch(() => undefined);
     clearPrivateAccountQueries(client);
@@ -28,6 +37,10 @@ describe("shared-browser private state", () => {
     expect(client.getQueryData(["owned-entry-publication", "edition"])).toBeUndefined();
     expect(client.getQueryData(["owned-country-identity-history", "edition"])).toBeUndefined();
     expect(client.getQueryData(["owned-hod-history", "edition"])).toBeUndefined();
+    expect(client.getQueryData(["v3-rollout-probe"])).toBeUndefined();
+    expect(
+      client.getQueryData(["v3-primary-surface-bundle", "edition", "A"]),
+    ).toBeUndefined();
     expect(client.getQueryData(["mysolaris-jury-task", "B", "country", "edition"])).toBe("BBBB");
     expect(client.getQueryData(["countries"])).toEqual(["public"]);
     clearPrivateAccountQueries(client);
