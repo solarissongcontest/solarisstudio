@@ -72,15 +72,19 @@ describe("Solaris visual-system completion contract", () => {
   it("keeps directories functional and participation edge states in their canonical shells", () => {
     const editions = source("src/routes/editions/index.tsx");
     const confirmationEdit = source("src/routes/confirmations/edit/$token.tsx");
+    const confirmationShell = source("src/components/v3/V3ConfirmationRouteShell.tsx");
     const jury = source("src/routes/jury-voting.tsx");
 
     expect(editions).not.toContain("BackgroundFlag");
     expect(editions).toContain('"Latest published edition"');
     expect(editions).toContain("Past editions");
 
-    expect(confirmationEdit).toContain("<ParticipationRouteChrome>");
-    expect(confirmationEdit).toContain("<ParticipationServiceShell");
-    expect(confirmationEdit).toContain('service="confirmations"');
+    expect(confirmationEdit).toContain("<V3ConfirmationRouteShell");
+    expect(confirmationEdit).not.toContain("<ParticipationRouteChrome>");
+    expect(confirmationEdit).not.toContain("<ParticipationServiceShell");
+    expect(confirmationShell).toContain("<ParticipationRouteChrome>");
+    expect(confirmationShell).toContain("<ParticipationServiceShell");
+    expect(confirmationShell).toContain('service="confirmations"');
 
     expect(jury).toContain("Voting integrity review");
     expect(jury).toContain("This is not a finding of misconduct.");

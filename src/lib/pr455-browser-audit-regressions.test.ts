@@ -123,6 +123,8 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(audit).toContain("mainCount: visibleMainLandmarks.length");
     expect(audit).toContain('page.locator("main:visible")');
     expect(audit).toContain('page.locator("h1:visible")');
+    expect(audit).toContain('page.locator("[data-v3-primary-boot]")');
+    expect(audit).toContain("finish the V3 hydration gate before interaction auditing");
     expect(audit).not.toContain('page.locator("main").first()');
     expect(audit).not.toContain('page.locator("h1").first()');
     expect(audit).not.toContain('waitForLoadState("networkidle"');

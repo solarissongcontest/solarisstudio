@@ -151,6 +151,10 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
     await expect(page.locator("h1:visible"), `${path} needs one visible page heading`).toHaveCount(1, {
       timeout: 15_000,
     });
+    await expect(
+      page.locator("[data-v3-primary-boot]"),
+      `${path} must finish the V3 hydration gate before interaction auditing`,
+    ).toHaveCount(0, { timeout: 15_000 });
 
     const result = await page.evaluate(() => {
       const duplicateIds = [...document.querySelectorAll<HTMLElement>("[id]")]
