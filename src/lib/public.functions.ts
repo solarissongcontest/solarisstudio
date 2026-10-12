@@ -17,6 +17,24 @@ type JsonValue =
   | { [key: string]: JsonValue };
 
 
+type ConfirmationSubmitResult = {
+  ok: boolean;
+  error?: string;
+  reason?: AvailabilityReason;
+  submission_id?: string;
+  canonical_sync?: "synced" | "pending";
+  operation_id?: string;
+  receipt?: {
+    authority: "authoritative_server";
+    receipt_id: string;
+    idempotency_key: string;
+    request_hash: string;
+    round_id: string;
+    accepted_at: string;
+    replayed: boolean;
+  };
+};
+
 async function rpc<T>(
   name: string,
   args: Record<string, unknown>,
@@ -226,51 +244,69 @@ export const submitConfirmation = createServerFn({ method: "POST" })
       client_ip: getClientIp(),
     };
 
-    try {
-      const result = data.browser_session_id
-        ? await (async () => {
-            const epoch = getOrCreateConfirmationOperationEpoch();
-            const idempotencyKey = await deriveConfirmationIdempotencyKey(
-              epoch,
-              JSON.stringify(logicalPayload),
-            );
-            const protectedResult = await rpc<{
-              ok: boolean;
-              error?: string;
-              reason?: AvailabilityReason;
-              submission_id?: string;
-              canonical_sync?: "synced" | "pending";
-              receipt?: {
-                authority: "authoritative_server";
-                receipt_id: string;
-                idempotency_key: string;
-                request_hash: string;
-                round_id: string;
-                accepted_at: string;
-                replayed: boolean;
-              };
-            }>("v3_submit_confirmation", {
-              payload,
-              _idempotency_key: idempotencyKey,
-              // The database derives and stores the authoritative request hash.
-              // This compatibility argument remains only for the RPC signature.
-              _request_hash: "database-derived",
-              _browser_session_id: data.browser_session_id,
-            });
+    let protectedOperationId: string | null = null;
 
-            // Rotate only after an acknowledged database result. If the HTTP
-            // response is lost after commit, this Set-Cookie never reaches the
-            // browser, so retry derives the exact same idempotency key.
-            rotateConfirmationOperationEpoch();
-            return protectedResult;
-          })()
-        : await rpc<{
-            ok: boolean;
-            error?: string;
-            reason?: AvailabilityReason;
-            submission_id?: string;
-            canonical_sync?: "synced" | "pending";
-          }>("submit_confirmation", { payload });
+    try {
+      let result: ConfirmationSubmitResult;
+
+      if (data.browser_session_id) {
+        const epoch = getOrCreateConfirmationOperationEpoch();
+        protectedOperationId = await deriveConfirmationIdempotencyKey(
+          epoch,
+          JSON.stringify(logicalPayload),
+        );
+
+        try {
+          result = await rpc<ConfirmationSubmitResult>("v3_submit_confirmation", {
+            payload,
+            _idempotency_key: protectedOperationId,
+            // The database derives and stores the authoritative request hash.
+            // This compatibility argument remains only for the RPC signature.
+            _request_hash: "database-derived",
+            _browser_session_id: data.browser_session_id,
+          });
+        } catch (submitError) {
+          // The request may have committed before the transport failed. Never
+          // call that a failure until the exact operation ledger says so.
+          try {
+            const reconciled = await rpc<ConfirmationSubmitResult & { found?: boolean }>(
+              "v3_reconcile_confirmation",
+              {
+                _idempotency_key: protectedOperationId,
+                _browser_session_id: data.browser_session_id,
+              },
+            );
+
+            if (reconciled.found === true) {
+              result = reconciled;
+            } else {
+              // Atomic submit + receipt means a reachable ledger with no row is
+              // proof this operation did not commit. Preserve the original
+              // semantic/server error classification below.
+              throw submitError;
+            }
+          } catch (reconcileError) {
+            if (reconcileError === submitError) throw submitError;
+
+            console.error(
+              "[Confirmations] Submission status is uncertain; reconciliation is unavailable",
+              reconcileError,
+            );
+            return {
+              ok: false as const,
+              error: "submission_uncertain" as const,
+              operation_id: protectedOperationId,
+            };
+          }
+        }
+
+        // An acknowledged submit or successful receipt reconciliation closes
+        // this operation epoch. If both transports failed, the early uncertain
+        // return above deliberately leaves the epoch untouched for safe retry.
+        rotateConfirmationOperationEpoch();
+      } else {
+        result = await rpc<ConfirmationSubmitResult>("submit_confirmation", { payload });
+      }
 
       if (result.ok && result.submission_id) {
         try {
@@ -308,7 +344,11 @@ export const submitConfirmation = createServerFn({ method: "POST" })
       ) {
         return { ok: false as const, error: "confirmation_already_complete" };
       }
-      return { ok: false as const, error: "server" };
+      return {
+        ok: false as const,
+        error: "server" as const,
+        ...(protectedOperationId ? { operation_id: protectedOperationId } : {}),
+      };
     }
   });
 
