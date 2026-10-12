@@ -72,6 +72,17 @@ describe("Solaris Studio V3 production primary-surface source architecture", () 
     expect(source).toContain("assembleV3PrimarySurfaceSnapshot");
   });
 
+  it("projects the authoritative HOD workspace into V3 participant tasks", () => {
+    const source = serverSource();
+
+    expect(source).toContain('client.rpc("studio2_hod_context"');
+    expect(source).toContain("mapStudio2HodContext(context.data)");
+    expect(source).toContain("buildStudio2HodWorkspaceSnapshot");
+    expect(source).toContain("tasksFromHodWorkspace(snapshot, input.now)");
+    expect(source).toContain('input.capabilities.includes("hod_workspace_v2")');
+    expect(source).toContain("additionalTasks: hodTasks");
+  });
+
   it("preserves canonical participant preferences and task timing semantics", () => {
     const source = serverSource();
 
@@ -83,14 +94,15 @@ describe("Solaris Studio V3 production primary-surface source architecture", () 
     expect(source).not.toContain("round.closes_at");
   });
 
-  it("preserves existing open-televote parity through the public televoting schema", () => {
+  it("loads open televoting as public contest evidence rather than participant-only state", () => {
     const source = serverSource();
 
     expect(source).toContain('.schema("televoting")');
-    expect(source).toContain('.select("id,name,closed_at,editions(name)")');
+    expect(source).toContain('.select("id,name,closed_at,editions!inner(name,is_active)")');
     expect(source).toContain('.eq("status", "open")');
-    expect(source).toContain("televoteTaskFromRound");
-    expect(source).toContain("televote: participant.televote");
+    expect(source).toContain('.eq("editions.is_active", true)');
+    expect(source).toContain("loadOpenPublicTelevote(publicClient)");
+    expect(source).toContain("televote: publicTelevote");
     expect(source).not.toContain("televotingSupabase");
     expect(source).not.toContain("@/integrations/televoting/client");
   });
