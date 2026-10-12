@@ -52,6 +52,12 @@ const reconcileSchema = z.object({
   browser_session_id: z.string().trim().min(1).max(80),
 });
 
+const receiptLookupSchema = z.object({
+  round_id: z.string().uuid(),
+  browser_session_id: z.string().trim().min(1).max(80),
+  submission_id: z.string().uuid(),
+});
+
 const saveDraftSchema = z.object({
   round_id: z.string().uuid(),
   browser_session_id: z.string().trim().min(1).max(80),
@@ -186,6 +192,35 @@ export const reconcileV3Confirmation = createServerFn({ method: "POST" })
       found: true as const,
       result: await attachCanonicalProjection(result),
     };
+  });
+
+/**
+ * Convert an already-accepted legacy-form submission event into the V3 server
+ * receipt. The database lookup is scoped by round + browser session + exact
+ * submission UUID and returns receipt metadata only, never the private ledger.
+ */
+export const lookupV3ConfirmationReceipt = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => receiptLookupSchema.parse(data))
+  .handler(async ({ data }) => {
+    const result = await rpc<{ found: boolean; receipt?: WireReceipt }>(
+      "v3_lookup_confirmation_receipt",
+      {
+        _round_id: data.round_id,
+        _browser_session_id: data.browser_session_id,
+        _submission_id: data.submission_id,
+      },
+    );
+
+    if (!result.found || !result.receipt) {
+      return { found: false as const };
+    }
+
+    const receipt = normalizeReceipt(result.receipt);
+    if (!receipt || receipt.roundId !== data.round_id) {
+      return { found: false as const };
+    }
+
+    return { found: true as const, receipt };
   });
 
 export const saveV3ConfirmationDraft = createServerFn({ method: "POST" })
