@@ -8,9 +8,20 @@ import {
   resolvePublicEditionState,
 } from "./current-contest-state";
 import type { Edition, ResultRow, Show } from "./data";
-import { buildParticipationTasks, type VotingTaskInput } from "./participation-os";
+import {
+  defaultSubsystemStatesForEdition,
+  normalizeLegacyEditionStatus,
+  type EditionRuntimeState,
+} from "./edition-state";
+import {
+  buildParticipationTasks,
+  sortSolarisTasks,
+  type SolarisTask,
+  type VotingTaskInput,
+} from "./participation-os";
 import { isShowPublic, showPublishesResults } from "./publication";
 import type { PublicRound } from "./confirmation-rounds.functions";
+import type { V3ShowState } from "./v3-domain-state";
 import type {
   V3PrimaryActionProgress,
   V3PrimaryHomeListItem,
@@ -50,6 +61,7 @@ export type V3PrimarySurfaceReadModel = {
   acknowledgementTasks: number;
   jury: VotingTaskInput | null;
   televote: VotingTaskInput | null;
+  additionalTasks?: readonly SolarisTask[];
   progressByActionId?: Readonly<Record<string, V3PrimaryActionProgress>>;
   hideResultSpoilers?: boolean;
 };
@@ -60,6 +72,21 @@ const LIVE_STATUSES = new Set([
   "on-air",
   "in_progress",
   "in-progress",
+]);
+
+// Home's Coming up rail is deliberately allow-listed. A show with a terminal
+// or unknown operational status must never be described as future merely
+// because its results have not been published yet.
+const UPCOMING_STATUSES = new Set([
+  "scheduled",
+  "upcoming",
+  "planned",
+  "planning",
+  "announced",
+  "ready",
+  "preparing",
+  "rehearsal",
+  "rehearsals",
 ]);
 
 export function countDistinctV3Delegations(rows: readonly V3ParticipantIdentityRow[]) {
@@ -128,7 +155,7 @@ function upcomingItems(
   return [...shows]
     .filter(
       (show) =>
-        !LIVE_STATUSES.has(normalizedStatus(show)) &&
+        UPCOMING_STATUSES.has(normalizedStatus(show)) &&
         !showHasPublishedResult(show, results),
     )
     .sort((a, b) => a.sort_order - b.sort_order)
@@ -208,12 +235,43 @@ function assertAnonymousIsolation(input: V3PrimarySurfaceReadModel) {
     input.confirmationResponses.length > 0 ||
     input.confirmationRequirements.length > 0 ||
     input.acknowledgementTasks > 0 ||
-    input.jury
+    input.jury ||
+    (input.additionalTasks?.length ?? 0) > 0
   ) {
     throw new Error(
       "Anonymous V3 bootstrap cannot contain participant-scoped evidence.",
     );
   }
+}
+
+function mergeTasks(base: readonly SolarisTask[], additional: readonly SolarisTask[]) {
+  const byId = new Map<string, SolarisTask>();
+  for (const task of [...base, ...additional]) {
+    const existing = byId.get(task.id);
+    if (!existing || task.priority > existing.priority) byId.set(task.id, task);
+  }
+  return sortSolarisTasks([...byId.values()]);
+}
+
+function runtimeForOpenTelevote(input: {
+  edition: Edition | null;
+  publicPhase: string;
+  liveShow: Show | undefined;
+  televote: VotingTaskInput | null;
+}): { runtime: EditionRuntimeState | null; show: V3ShowState | null } {
+  if (!input.edition || input.televote?.status !== "open") {
+    return { runtime: null, show: null };
+  }
+
+  const editionState = normalizeLegacyEditionStatus(input.edition.status);
+  const subsystems = defaultSubsystemStatesForEdition(editionState);
+  subsystems.televoting = "open";
+  if (input.publicPhase === "results_published") subsystems.results = "published";
+
+  return {
+    runtime: { edition: editionState, subsystems },
+    show: input.liveShow ? "live" : null,
+  };
 }
 
 export function assembleV3PrimarySurfaceSnapshot(
@@ -252,7 +310,7 @@ export function assembleV3PrimarySurfaceSnapshot(
         results: editionResults,
       });
 
-  const tasks = input.viewer
+  const participationTasks = input.viewer
     ? buildParticipationTasks({
         editionId: edition?.id ?? null,
         responses: input.confirmationResponses,
@@ -264,13 +322,24 @@ export function assembleV3PrimarySurfaceSnapshot(
         now: serverTime.ms,
       })
     : [];
+  const tasks = input.viewer
+    ? mergeTasks(participationTasks, input.additionalTasks ?? [])
+    : [];
 
   const liveShow = publicShows.find((show) =>
     LIVE_STATUSES.has(normalizedStatus(show)),
   );
+  const runtimeEvidence = runtimeForOpenTelevote({
+    edition,
+    publicPhase: publicContest.phase,
+    liveShow,
+    televote: input.televote,
+  });
 
   return {
     publicContest,
+    runtime: runtimeEvidence.runtime,
+    show: runtimeEvidence.show,
     tasks,
     identity: {
       userId: input.viewer?.id ?? null,
