@@ -1,5 +1,5 @@
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, LoaderCircle, ShieldCheck } from "lucide-react";
+import { CheckCircle2, LoaderCircle, RefreshCw, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -18,6 +18,7 @@ import {
 } from "@/lib/confirmation-country-account";
 import {
   CONFIRMATION_DRAFT_SAVED_EVENT,
+  clearLocalDraft,
   getBrowserSessionId,
   readLocalDraft,
   writeLocalDraft,
@@ -31,6 +32,7 @@ import {
 import { emptyPayload, type ConfirmationPayload } from "@/lib/ssc";
 import {
   lookupV3ConfirmationReceipt,
+  reconcileV3Confirmation,
   type V3ConfirmationReceipt,
 } from "@/lib/v3-confirmation.functions";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
@@ -53,6 +55,7 @@ type AccountDraftConflict = {
 
 type DraftBridgeMode = "checking" | "inactive" | "active" | "degraded" | "conflict";
 type ReceiptStage = "idle" | "checking" | "confirmed" | "unavailable";
+type UncertainStage = "checking" | "still_uncertain" | "not_committed";
 
 function normalizeAccountDraft(
   roundId: string,
@@ -153,10 +156,13 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
   const roundId = props.round.id;
   const editing = Boolean(props.editToken || props.prefill);
   const lookupAuthoritativeReceipt = useServerFn(lookupV3ConfirmationReceipt);
+  const reconcileAuthoritativeOperation = useServerFn(reconcileV3Confirmation);
 
   const [receipt, setReceipt] = useState<SubmissionReceiptDetail | null>(null);
   const [authoritativeReceipt, setAuthoritativeReceipt] = useState<V3ConfirmationReceipt | null>(null);
   const [receiptStage, setReceiptStage] = useState<ReceiptStage>("idle");
+  const [uncertainOperationId, setUncertainOperationId] = useState<string | null>(null);
+  const [uncertainStage, setUncertainStage] = useState<UncertainStage | null>(null);
   const [bridgeMode, setBridgeMode] = useState<DraftBridgeMode>(
     editing ? "inactive" : "checking",
   );
@@ -181,6 +187,9 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
   }, []);
 
   useEffect(() => {
+    // Edit-token flows intentionally open the current canonical submission.
+    // An older stored receipt for the same round must never hide the edit form.
+    if (editing) return;
     const stored = readStoredV3ConfirmationReceipt(roundId);
     if (!stored) return;
     setReceipt({
@@ -191,7 +200,7 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
     });
     setAuthoritativeReceipt(stored.receipt);
     setReceiptStage("confirmed");
-  }, [roundId]);
+  }, [editing, roundId]);
 
   useEffect(() => {
     if (editing) {
@@ -367,6 +376,85 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
     return () => window.removeEventListener(CONFIRMATION_DRAFT_SAVED_EVENT, onDraftSaved);
   }, [bridgeMode, roundId]);
 
+  const storeConfirmedReceipt = useCallback((input: {
+    submissionId: string;
+    receipt: V3ConfirmationReceipt;
+  }) => {
+    const detail: SubmissionReceiptDetail = {
+      id: roundId,
+      kind: "confirmation",
+      submissionId: input.submissionId,
+      acknowledgedAt: input.receipt.serverAcceptedAt,
+    };
+    setUncertainOperationId(null);
+    setUncertainStage(null);
+    setReceipt(detail);
+    setAuthoritativeReceipt(input.receipt);
+    setReceiptStage("confirmed");
+    writeStoredV3ConfirmationReceipt({
+      roundId,
+      submissionId: input.submissionId,
+      receipt: input.receipt,
+    });
+  }, [roundId]);
+
+  const reconcileUncertainSubmission = useCallback(async (operationId: string) => {
+    setUncertainOperationId(operationId);
+    setUncertainStage("checking");
+    const sessionId = getBrowserSessionId();
+    if (!sessionId) {
+      setUncertainStage("still_uncertain");
+      return;
+    }
+
+    try {
+      const reconciled = await reconcileAuthoritativeOperation({
+        data: {
+          idempotency_key: operationId,
+          browser_session_id: sessionId,
+        },
+      });
+      if (!mounted.current) return;
+
+      if (!reconciled.found) {
+        // The V3 mutation and receipt are atomic. A reachable ledger with no
+        // operation is positive evidence that this operation did not commit.
+        setUncertainStage("not_committed");
+        return;
+      }
+
+      const result = reconciled.result;
+      if (result.ok && result.submission_id && result.receipt) {
+        storeConfirmedReceipt({
+          submissionId: result.submission_id,
+          receipt: result.receipt,
+        });
+        clearLocalDraft(roundId);
+        if (!editing && (bridgeMode === "active" || bridgeMode === "degraded")) {
+          void deleteCountryAccountConfirmationDraft(roundId).catch((error) => {
+            console.error("[V3 Confirmations] Could not clear reconciled account draft", error);
+          });
+        }
+        return;
+      }
+
+      setUncertainStage("not_committed");
+    } catch (error) {
+      if (!mounted.current) return;
+      console.error("[V3 Confirmations] Submission reconciliation is still unavailable", error);
+      setUncertainStage("still_uncertain");
+    }
+  }, [bridgeMode, editing, reconcileAuthoritativeOperation, roundId, storeConfirmedReceipt]);
+
+  const handleSubmissionUncertain = useCallback((operationId?: string) => {
+    if (!operationId) {
+      setUncertainOperationId("unknown");
+      setUncertainStage("still_uncertain");
+      return;
+    }
+    void reconcileUncertainSubmission(operationId);
+  }, [reconcileUncertainSubmission]);
+
   useEffect(() => {
     const onSubmitted = (event: Event) => {
       const detail = (event as CustomEvent<SubmissionReceiptDetail>).detail;
@@ -392,10 +480,7 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
               setReceiptStage("unavailable");
               return;
             }
-            setAuthoritativeReceipt(result.receipt);
-            setReceiptStage("confirmed");
-            writeStoredV3ConfirmationReceipt({
-              roundId,
+            storeConfirmedReceipt({
               submissionId: detail.submissionId!,
               receipt: result.receipt,
             });
@@ -416,7 +501,7 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
 
     window.addEventListener(CONFIRMATION_SUBMITTED_EVENT, onSubmitted);
     return () => window.removeEventListener(CONFIRMATION_SUBMITTED_EVENT, onSubmitted);
-  }, [bridgeMode, editing, lookupAuthoritativeReceipt, roundId]);
+  }, [bridgeMode, editing, lookupAuthoritativeReceipt, roundId, storeConfirmedReceipt]);
 
   const chooseAccountDraft = useCallback(() => {
     if (!bridgeConflict) return;
@@ -470,6 +555,63 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
       );
     }
   }, [activateBridge, bridgeConflict, roundId]);
+
+  if (uncertainOperationId && uncertainStage) {
+    const checking = uncertainStage === "checking";
+    const noCommit = uncertainStage === "not_committed";
+    return (
+      <div className="space-y-4" data-v3-confirmation-reconciliation="">
+        <V3ConfirmationTaskHeader props={props} />
+        <section className="glass-strong mx-auto max-w-2xl p-7 text-center sm:p-9" aria-live="polite">
+          <div className="mx-auto grid size-12 place-items-center rounded-full border border-amber-300/25 bg-amber-300/10 text-amber-100">
+            {checking ? <LoaderCircle className="size-6 animate-spin" /> : <ShieldCheck className="size-6" />}
+          </div>
+          <p className="mt-4 text-[9px] font-black uppercase tracking-[0.18em] text-amber-200">
+            {checking ? "Checking submission status" : noCommit ? "No commit found" : "Status still uncertain"}
+          </p>
+          <h2 className="mt-2 font-display text-2xl font-bold">
+            {checking
+              ? "Checking whether your confirmation was accepted…"
+              : noCommit
+                ? "No submission was committed"
+                : "Solaris still cannot verify the final status"}
+          </h2>
+          <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
+            {checking
+              ? "Do not submit again. Solaris is checking the exact protected operation against the authoritative receipt ledger."
+              : noCommit
+                ? "The authoritative ledger is reachable and contains no record for this operation, so it is safe to return to the form and submit again."
+                : "Keep this screen open or check again after the connection recovers. Solaris will not tell you the submission failed while its authoritative status cannot be proven."}
+          </p>
+          <p className="mx-auto mt-4 max-w-lg break-all font-mono text-[10px] text-muted-foreground">
+            Operation {uncertainOperationId}
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            {!checking && uncertainOperationId !== "unknown" ? (
+              <Button
+                type="button"
+                onClick={() => void reconcileUncertainSubmission(uncertainOperationId)}
+              >
+                <RefreshCw className="size-4" /> Check status again
+              </Button>
+            ) : null}
+            {noCommit ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setUncertainOperationId(null);
+                  setUncertainStage(null);
+                }}
+              >
+                Return to form
+              </Button>
+            ) : null}
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   if (receipt) {
     const confirmed = receiptStage === "confirmed" && authoritativeReceipt;
@@ -609,7 +751,10 @@ function V3ConfirmationFlow(props: ConfirmationFormProps) {
         title="Before you confirm"
         primaryLimit={2}
       />
-      <ConfirmationForm {...props} />
+      <ConfirmationForm
+        {...props}
+        onSubmissionUncertain={handleSubmissionUncertain}
+      />
     </div>
   );
 }
