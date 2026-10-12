@@ -50,7 +50,9 @@ describe("Solaris Studio V3 production primary-surface source architecture", () 
 
     expect(source).toContain('.eq("published", true)');
     expect(source).toContain('.eq("edition_id", editionId)');
-    expect(source).toContain('select("id", { count: "exact", head: true })');
+    expect(source).toContain('const PARTICIPANT_IDENTITY_COLUMNS = "country_id,contest_entity_id"');
+    expect(source).toContain('.is("show_id", null)');
+    expect(source).toContain("countDistinctV3Delegations");
     expect(source).not.toContain('select("*")');
     expect(source).not.toContain("useAllResults");
     expect(source).not.toContain("useAllShows");
@@ -68,6 +70,17 @@ describe("Solaris Studio V3 production primary-surface source architecture", () 
     expect(source).toContain("studio2_feature_enabled");
     expect(source).toContain("studio2_my_notice_inbox");
     expect(source).toContain("assembleV3PrimarySurfaceSnapshot");
+  });
+
+  it("preserves canonical participant preferences and task timing semantics", () => {
+    const source = serverSource();
+
+    expect(source).toContain('.from("notification_preferences")');
+    expect(source).toContain('.select("spoiler_free")');
+    expect(source).toContain("hideResultSpoilers: preferences.data?.spoiler_free === true");
+    expect(source).toContain("countPendingAcknowledgementTasks(inbox.data)");
+    expect(source).toContain('typeof round.closed_at === "string" ? round.closed_at : null');
+    expect(source).not.toContain("round.closes_at");
   });
 
   it("preserves existing open-televote parity through the public televoting schema", () => {
