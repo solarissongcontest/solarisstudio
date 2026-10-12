@@ -13,6 +13,7 @@ on:
       - ".github/scripts/rules-integrity-security-rehearsal.sh"
       - ".github/scripts/run-rules-integrity-security-rehearsal.sh"
       - ".github/scripts/pr450-deadline-scope-rehearsal.sh"
+      - ".github/scripts/v3-confirmation-security-rehearsal.sh"
       - ".github/workflows/rules-integrity-migration-rehearsal.yml"
   workflow_dispatch:
 
@@ -64,6 +65,10 @@ jobs:
       - name: Verify show-scoped Organizer reminder authorization
         shell: bash
         run: bash .github/scripts/pr450-deadline-scope-rehearsal.sh
+
+      - name: Run hostile V3 Confirmation authority rehearsal
+        shell: bash
+        run: bash .github/scripts/v3-confirmation-security-rehearsal.sh
 
       - name: Print local Evidence Edge Function log on failure
         if: failure()
@@ -126,6 +131,12 @@ jobs:
         run: |
           cd /tmp/solaris-main
           bash "$GITHUB_WORKSPACE/.github/scripts/pr450-deadline-scope-rehearsal.sh"
+
+      - name: Run hostile V3 Confirmation authority rehearsal after upgrade
+        shell: bash
+        run: |
+          cd /tmp/solaris-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-confirmation-security-rehearsal.sh"
 
       - name: Stop local Supabase stack
         if: always()
