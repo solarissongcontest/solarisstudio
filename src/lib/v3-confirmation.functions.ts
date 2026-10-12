@@ -70,6 +70,14 @@ const loadDraftSchema = z.object({
   browser_session_id: z.string().trim().min(1).max(80),
 });
 
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
 type WireReceipt = {
   authority: "authoritative_server";
   receipt_id: string;
@@ -240,7 +248,7 @@ export const saveV3ConfirmationDraft = createServerFn({ method: "POST" })
       conflict: boolean;
       revision: number;
       saved_at?: string;
-      payload?: unknown;
+      payload?: JsonValue;
       updated_at?: string;
     }>("v3_save_confirmation_draft", {
       _round_id: data.round_id,
@@ -258,7 +266,7 @@ export const loadV3ConfirmationDraft = createServerFn({ method: "POST" })
   .handler(async ({ data }) =>
     rpc<{
       found: boolean;
-      payload?: unknown;
+      payload?: JsonValue;
       revision: number;
       updated_at?: string;
     }>("v3_load_confirmation_draft", {

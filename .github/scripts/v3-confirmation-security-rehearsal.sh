@@ -114,7 +114,8 @@ RECEIPT_ID='00000000-0000-4000-8000-00000000d521'
 SUBMISSION_ID='00000000-0000-4000-8000-00000000f521'
 SESSION_A='v3-security-session-a'
 SESSION_B='v3-security-session-b'
-REQUEST_HASH='security-rehearsal-hash-a'
+REPLAY_PAYLOAD="{\"round_id\":\"$ROUND_ID\",\"browser_session_id\":\"$SESSION_A\"}"
+REQUEST_HASH="$(db_scalar "select encode(extensions.digest(convert_to(('$REPLAY_PAYLOAD')::jsonb::text, 'UTF8'), 'sha256'), 'hex');")"
 
 log "Creating isolated hostile-test identities"
 create_user v3-confirmation-a@solaris.invalid; USER_A_ID="$LAST_USER_ID"
@@ -181,15 +182,19 @@ expect_success "wrong-session reconciliation remains non-enumerating"
 expect_json "wrong session cannot recover operation" found false
 
 log "Idempotency-key replay is stable and mismatched reuse is rejected"
-rpc_request "$ANON_KEY" v3_submit_confirmation "{\"payload\":{\"round_id\":\"$ROUND_ID\"},\"_idempotency_key\":\"$OPERATION_ID\",\"_request_hash\":\"$REQUEST_HASH\",\"_browser_session_id\":\"$SESSION_A\"}"
-expect_success "same logical operation replay"
+rpc_request "$ANON_KEY" v3_submit_confirmation "{\"payload\":$REPLAY_PAYLOAD,\"_idempotency_key\":\"$OPERATION_ID\",\"_request_hash\":\"caller-supplied-hash-is-not-authority\",\"_browser_session_id\":\"$SESSION_A\"}"
+expect_success "same logical operation replay ignores caller hash"
 expect_json "replay keeps original receipt" receipt.receipt_id "$RECEIPT_ID"
 expect_json "replay flag true" receipt.replayed true
 expect_json "replay keeps original submission" submission_id "$SUBMISSION_ID"
 
-rpc_request "$ANON_KEY" v3_submit_confirmation "{\"payload\":{\"round_id\":\"$ROUND_ID\"},\"_idempotency_key\":\"$OPERATION_ID\",\"_request_hash\":\"different-hash\",\"_browser_session_id\":\"$SESSION_A\"}"
-expect_failure "same idempotency key with different request hash"
-rpc_request "$ANON_KEY" v3_submit_confirmation "{\"payload\":{\"round_id\":\"$ROUND_ID\"},\"_idempotency_key\":\"$OPERATION_ID\",\"_request_hash\":\"$REQUEST_HASH\",\"_browser_session_id\":\"$SESSION_B\"}"
+rpc_request "$ANON_KEY" v3_submit_confirmation "{\"payload\":{\"round_id\":\"$ROUND_ID\",\"browser_session_id\":\"$SESSION_A\",\"country\":\"tampered\"},\"_idempotency_key\":\"$OPERATION_ID\",\"_request_hash\":\"$REQUEST_HASH\",\"_browser_session_id\":\"$SESSION_A\"}"
+expect_failure "same idempotency key with different logical payload"
+
+rpc_request "$ANON_KEY" v3_submit_confirmation "{\"payload\":{\"round_id\":\"$ROUND_ID\",\"browser_session_id\":\"$SESSION_A\"},\"_idempotency_key\":\"$OPERATION_ID\",\"_request_hash\":\"$REQUEST_HASH\",\"_browser_session_id\":\"$SESSION_B\"}"
+expect_failure "browser-session parameter cannot contradict payload"
+
+rpc_request "$ANON_KEY" v3_submit_confirmation "{\"payload\":{\"round_id\":\"$ROUND_ID\",\"browser_session_id\":\"$SESSION_B\"},\"_idempotency_key\":\"$OPERATION_ID\",\"_request_hash\":\"$REQUEST_HASH\",\"_browser_session_id\":\"$SESSION_B\"}"
 expect_failure "same idempotency key with different browser session"
 
 log "Receipt lookup requires exact round, session and accepted submission"
