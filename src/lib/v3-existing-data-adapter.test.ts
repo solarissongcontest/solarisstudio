@@ -60,7 +60,7 @@ const juryTask: SolarisTask = {
 };
 
 describe("V3 existing-data bootstrap adapter", () => {
-  it("prefers orthogonal runtime state when the current page already has it", () => {
+  it("prefers orthogonal runtime state and keeps shell context labels compact", () => {
     const source = v3BootstrapSourceFromExistingData({
       publicContest,
       runtime,
@@ -77,10 +77,27 @@ describe("V3 existing-data bootstrap adapter", () => {
     expect(bootstrap.attention.primary?.id).toBe("jury:sf1");
     expect(bootstrap.context).toMatchObject({
       editionId: "edition-22",
-      editionLabel: "Solaris Song Contest 22",
+      editionLabel: "SSC 22",
       delegationId: "oland",
       delegationName: "Oland",
     });
+  });
+
+  it("falls back to the edition name when no edition number exists", () => {
+    const source = v3BootstrapSourceFromExistingData({
+      publicContest: {
+        ...publicContest,
+        edition: publicContest.edition
+          ? { ...publicContest.edition, edition_number: null, name: "Solaris Special" }
+          : null,
+      },
+      tasks: [],
+      identity: { userId: null, displayName: null },
+      capabilities: [],
+      serverTime: "2026-10-11T18:00:00.000Z",
+    });
+
+    expect(projectV3Bootstrap(source).context.editionLabel).toBe("Solaris Special");
   });
 
   it("falls back to the current public-state resolver without inventing overlapping voting state", () => {
