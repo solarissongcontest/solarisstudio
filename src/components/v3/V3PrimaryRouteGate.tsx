@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { useV3PrimarySurfaceBundle, useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { decideV3ShellForRoute } from "@/lib/v3-shell-route-boundary";
+import { shouldLoadV3PrimaryBundle } from "@/lib/v3-primary-route-cutover";
 import { V3AppShell } from "./V3AppShell";
 import { V3HomeScreen } from "./V3HomeScreen";
 import { V3ParticipateScreen } from "./V3ParticipateScreen";
@@ -49,7 +50,12 @@ export function V3PrimaryRouteGate({
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const rollout = useV3RolloutProbe(isAppMode);
-  const shouldLoadBundle = isAppMode && rollout.data?.enabled === true;
+  const shouldLoadBundle = shouldLoadV3PrimaryBundle({
+    isAppMode,
+    surface,
+    rolloutEnabled: rollout.data?.enabled === true,
+    rolloutUserId: rollout.data?.userId ?? null,
+  });
   const bundleQuery = useV3PrimarySurfaceBundle(
     shouldLoadBundle,
     rollout.data?.editionId,
@@ -58,6 +64,7 @@ export function V3PrimaryRouteGate({
   if (!isAppMode) return <>{legacy}</>;
   if (rollout.isLoading) return <LoadingPrimarySurface />;
   if (rollout.isError || rollout.data?.enabled !== true) return <>{legacy}</>;
+  if (surface === "participate" && !rollout.data.userId) return <>{legacy}</>;
   if (bundleQuery.isLoading) return <LoadingPrimarySurface />;
   if (bundleQuery.isError || !bundleQuery.data) return <>{legacy}</>;
 
