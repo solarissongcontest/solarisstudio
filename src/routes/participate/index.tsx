@@ -13,6 +13,7 @@ import { useMemo } from "react";
 import { AppShell } from "@/components/AppShell";
 import { AppTaskCenter } from "@/components/app/AppTaskCenter";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { V3PrimaryRouteGate } from "@/components/v3/V3PrimaryRouteGate";
 import { PublicCurrentStatus } from "@/components/public/PublicCurrentStatus";
 import { PublicDestinationGrid } from "@/components/public/PublicDestinationGrid";
 import { PublicHubHero } from "@/components/public/PublicHubHero";
@@ -135,6 +136,15 @@ async function loadTelevoteSummary(): Promise<TelevoteSummary> {
 }
 
 function ParticipatePage() {
+  return (
+    <V3PrimaryRouteGate
+      surface="participate"
+      legacy={<LegacyParticipatePage />}
+    />
+  );
+}
+
+function LegacyParticipatePage() {
   const { isAppMode } = useSolarisApp();
   const confirmationsQuery = useQuery({
     queryKey: ["participate-confirmation-rounds"],
