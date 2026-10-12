@@ -46,12 +46,12 @@ export function V3PrimaryRouteGate({
   surface: V3PrimarySurface;
   legacy: ReactNode;
 }) {
-  const { isAppMode } = useSolarisApp();
+  const { isAppMode, platformResolved } = useSolarisApp();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
-  const rollout = useV3RolloutProbe(isAppMode);
+  const rollout = useV3RolloutProbe(platformResolved && isAppMode);
   const shouldLoadBundle = shouldLoadV3PrimaryBundle({
-    isAppMode,
+    isAppMode: platformResolved && isAppMode,
     surface,
     rolloutEnabled: rollout.data?.enabled === true,
     rolloutUserId: rollout.data?.userId ?? null,
@@ -62,6 +62,10 @@ export function V3PrimaryRouteGate({
     rollout.data?.userId,
   );
 
+  // The hydration-safe AppRuntime starts as web until browser platform detection
+  // commits. Do not mount the legacy query graph during that indeterminate pass:
+  // an installed app may be about to select V3 instead.
+  if (!platformResolved) return <LoadingPrimarySurface />;
   if (!isAppMode) return <>{legacy}</>;
   if (rollout.isLoading) return <LoadingPrimarySurface />;
   if (rollout.isError || rollout.data?.enabled !== true) return <>{legacy}</>;
