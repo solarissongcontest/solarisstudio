@@ -11,18 +11,67 @@ import { V3ParticipateScreen } from "./V3ParticipateScreen";
 
 type V3PrimarySurface = "home" | "participate";
 
-function LoadingPrimarySurface() {
+function ResolvingPrimarySurface({ surface }: { surface: V3PrimarySurface }) {
+  const home = surface === "home";
   return (
     <main
-      className="relative z-10 mx-auto flex min-h-[45dvh] w-full max-w-xl items-center justify-center px-4 text-center"
+      className="relative z-10 mx-auto w-full max-w-3xl px-4 py-10 sm:py-14"
       data-v3-primary-boot=""
     >
-      <div role="status" aria-live="polite">
-        <p className="text-sm font-semibold">Loading Solaris</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Checking the current app experience.
+      <header className="border-b border-border/70 pb-5">
+        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">
+          Solaris Song Contest
         </p>
-      </div>
+        <h1 className="mt-2 font-display text-3xl font-black tracking-[-0.04em] sm:text-5xl">
+          {home ? "Solaris Today" : "Participate in Solaris"}
+        </h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+          {home
+            ? "Follow the current contest, explore delegations and editions, and open published Solaris results and show information."
+            : "Open the official participation area for delegation confirmations, jury voting, televoting and other available contest actions."}
+        </p>
+      </header>
+
+      <nav
+        className="mt-5 flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold"
+        aria-label={home ? "Solaris public navigation" : "Solaris participation navigation"}
+      >
+        {home ? (
+          <>
+            <a className="text-primary hover:underline" href="/countries">
+              Delegations
+            </a>
+            <a className="text-primary hover:underline" href="/editions">
+              Editions
+            </a>
+            <a className="text-primary hover:underline" href="/records">
+              Records
+            </a>
+            <a className="text-primary hover:underline" href="/participate">
+              Participate
+            </a>
+          </>
+        ) : (
+          <>
+            <a className="text-primary hover:underline" href="/confirmations">
+              Confirmations
+            </a>
+            <a className="text-primary hover:underline" href="/jury-voting">
+              Jury voting
+            </a>
+            <a className="text-primary hover:underline" href="/televoting">
+              Televoting
+            </a>
+            <a className="text-primary hover:underline" href="/">
+              Solaris Today
+            </a>
+          </>
+        )}
+      </nav>
+
+      <p className="sr-only" role="status" aria-live="polite">
+        Checking the current app experience.
+      </p>
     </main>
   );
 }
@@ -58,15 +107,16 @@ export function V3PrimaryRouteGate({
     rollout.data?.userId,
   );
 
-  // The hydration-safe AppRuntime starts as web until browser platform detection
-  // commits. Do not mount AppShell or either route data graph during that
-  // indeterminate pass: an installed app may be about to select V3 instead.
-  if (!platformResolved) return <LoadingPrimarySurface />;
+  // SSR and the first hydration-safe client pass cannot know whether this is an
+  // installed app. Keep that pass query-free so an installed client cannot start
+  // the legacy data graph before choosing V3, but still return crawlable,
+  // route-specific public content instead of a generic loading document.
+  if (!platformResolved) return <ResolvingPrimarySurface surface={surface} />;
   if (!isAppMode) return <>{legacy}</>;
-  if (rollout.isLoading) return <LoadingPrimarySurface />;
+  if (rollout.isLoading) return <ResolvingPrimarySurface surface={surface} />;
   if (rollout.isError || rollout.data?.enabled !== true) return <>{legacy}</>;
   if (surface === "participate" && !rollout.data.userId) return <>{legacy}</>;
-  if (bundleQuery.isLoading) return <LoadingPrimarySurface />;
+  if (bundleQuery.isLoading) return <ResolvingPrimarySurface surface={surface} />;
   if (bundleQuery.isError || !bundleQuery.data) return <>{legacy}</>;
 
   const bundle = bundleQuery.data;
