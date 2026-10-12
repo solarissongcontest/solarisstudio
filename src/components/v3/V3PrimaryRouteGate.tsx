@@ -1,7 +1,6 @@
 import { useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { AppShell } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { useV3PrimarySurfaceBundle, useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { shouldLoadV3PrimaryBundle } from "@/lib/v3-primary-route-cutover";
@@ -14,20 +13,17 @@ type V3PrimarySurface = "home" | "participate";
 
 function LoadingPrimarySurface() {
   return (
-    <AppShell>
-      <div
-        className="mx-auto flex min-h-[45dvh] max-w-xl items-center justify-center px-4 text-center"
-        role="status"
-        aria-live="polite"
-      >
-        <div>
-          <p className="text-sm font-semibold">Loading Solaris</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Checking the current app experience.
-          </p>
-        </div>
+    <main
+      className="relative z-10 mx-auto flex min-h-[45dvh] w-full max-w-xl items-center justify-center px-4 text-center"
+      data-v3-primary-boot=""
+    >
+      <div role="status" aria-live="polite">
+        <p className="text-sm font-semibold">Loading Solaris</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Checking the current app experience.
+        </p>
       </div>
-    </AppShell>
+    </main>
   );
 }
 
@@ -63,8 +59,8 @@ export function V3PrimaryRouteGate({
   );
 
   // The hydration-safe AppRuntime starts as web until browser platform detection
-  // commits. Do not mount the legacy query graph during that indeterminate pass:
-  // an installed app may be about to select V3 instead.
+  // commits. Do not mount AppShell or either route data graph during that
+  // indeterminate pass: an installed app may be about to select V3 instead.
   if (!platformResolved) return <LoadingPrimarySurface />;
   if (!isAppMode) return <>{legacy}</>;
   if (rollout.isLoading) return <LoadingPrimarySurface />;
