@@ -204,24 +204,17 @@ async function loadDelegation(
 async function loadDelegationCount(client: AnyClient, editionId: string | null) {
   if (!editionId) return 0;
 
-  const canonical = await client
-    .from("participants")
-    .select(PARTICIPANT_IDENTITY_COLUMNS)
-    .eq("edition_id", editionId)
-    .is("show_id", null);
-  throwIfError(canonical.error, "Could not load current-edition canonical delegations");
-  const canonicalRows = (canonical.data ?? []) as V3ParticipantIdentityRow[];
-  if (canonicalRows.length > 0) {
-    return countDistinctV3Delegations(canonicalRows);
-  }
-
-  const appearances = await client
+  // Canonical edition rows are created incrementally, so valid editions can be
+  // mixed: some delegations have a show_id = null row while others only have
+  // show appearances. Read one narrow identity projection across the edition
+  // and deduplicate the union instead of treating canonical rows as all-or-none.
+  const identities = await client
     .from("participants")
     .select(PARTICIPANT_IDENTITY_COLUMNS)
     .eq("edition_id", editionId);
-  throwIfError(appearances.error, "Could not load current-edition delegation identities");
+  throwIfError(identities.error, "Could not load current-edition delegation identities");
   return countDistinctV3Delegations(
-    (appearances.data ?? []) as V3ParticipantIdentityRow[],
+    (identities.data ?? []) as V3ParticipantIdentityRow[],
   );
 }
 
