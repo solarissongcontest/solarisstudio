@@ -18,7 +18,7 @@ describe("V3 app shell migration contract", () => {
       ['me', '/my-solaris', 'Me'],
     ] as const) {
       const [id, to, label] = destination;
-      expect(shell).toContain(`id: \"${id}\", label: \"${label}\", to: \"${to}\"`);
+      expect(shell).toContain(`id: "${id}", label: "${label}", to: "${to}"`);
     }
   });
 
