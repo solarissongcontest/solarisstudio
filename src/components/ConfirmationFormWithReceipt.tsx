@@ -1,10 +1,11 @@
+import { useServerFn } from "@tanstack/react-start";
+import { CheckCircle2, LoaderCircle, ShieldCheck } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   ConfirmationForm,
   type ConfirmationFormProps,
 } from "@/components/ConfirmationForm";
-import { DelayedConfirmationState } from "@/components/DelayedConfirmationState";
 import { GovernanceSnapshot, RulesApplyingHere } from "@/components/rules/GovernanceRules";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +16,7 @@ import {
 } from "@/lib/confirmation-country-account";
 import {
   CONFIRMATION_DRAFT_SAVED_EVENT,
+  getBrowserSessionId,
   readLocalDraft,
   writeLocalDraft,
   type ConfirmationDraftSavedDetail,
@@ -25,6 +27,14 @@ import {
   type SubmissionReceiptDetail,
 } from "@/lib/submission-receipts";
 import { emptyPayload, type ConfirmationPayload } from "@/lib/ssc";
+import {
+  lookupV3ConfirmationReceipt,
+  type V3ConfirmationReceipt,
+} from "@/lib/v3-confirmation.functions";
+import {
+  readStoredV3ConfirmationReceipt,
+  writeStoredV3ConfirmationReceipt,
+} from "@/lib/v3-confirmation-receipt-store";
 
 type AccountDraftVersion = {
   payload: ConfirmationPayload;
@@ -39,6 +49,7 @@ type AccountDraftConflict = {
 };
 
 type DraftBridgeMode = "checking" | "inactive" | "active" | "degraded" | "conflict";
+type ReceiptStage = "idle" | "checking" | "confirmed" | "unavailable";
 
 function normalizeAccountDraft(
   roundId: string,
@@ -75,18 +86,21 @@ function sameDraft(
 }
 
 export function ConfirmationFormWithReceipt(props: ConfirmationFormProps) {
+  const roundId = props.round.id;
+  const editing = Boolean(props.editToken || props.prefill);
+  const lookupAuthoritativeReceipt = useServerFn(lookupV3ConfirmationReceipt);
+
   const [receipt, setReceipt] = useState<SubmissionReceiptDetail | null>(null);
+  const [authoritativeReceipt, setAuthoritativeReceipt] = useState<V3ConfirmationReceipt | null>(null);
+  const [receiptStage, setReceiptStage] = useState<ReceiptStage>("idle");
   const [bridgeMode, setBridgeMode] = useState<DraftBridgeMode>(
-    props.editToken || props.prefill ? "inactive" : "checking",
+    editing ? "inactive" : "checking",
   );
   const [bridgeConflict, setBridgeConflict] = useState<AccountDraftConflict | null>(null);
   const [bridgeMessage, setBridgeMessage] = useState<string | null>(null);
   const accountRevision = useRef(0);
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
   const mounted = useRef(true);
-
-  const roundId = props.round.id;
-  const editing = Boolean(props.editToken || props.prefill);
 
   const activateBridge = useCallback((revision: number) => {
     accountRevision.current = revision;
@@ -101,6 +115,19 @@ export function ConfirmationFormWithReceipt(props: ConfirmationFormProps) {
       mounted.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    const stored = readStoredV3ConfirmationReceipt(roundId);
+    if (!stored) return;
+    setReceipt({
+      id: roundId,
+      kind: "confirmation",
+      submissionId: stored.submissionId,
+      acknowledgedAt: stored.receipt.serverAcceptedAt,
+    });
+    setAuthoritativeReceipt(stored.receipt);
+    setReceiptStage("confirmed");
+  }, [roundId]);
 
   useEffect(() => {
     if (editing) {
@@ -281,6 +308,40 @@ export function ConfirmationFormWithReceipt(props: ConfirmationFormProps) {
       const detail = (event as CustomEvent<SubmissionReceiptDetail>).detail;
       if (detail?.id !== roundId) return;
       setReceipt(detail);
+      setAuthoritativeReceipt(null);
+      setReceiptStage("checking");
+
+      const sessionId = getBrowserSessionId();
+      if (!detail.submissionId || !sessionId) {
+        setReceiptStage("unavailable");
+      } else {
+        void lookupAuthoritativeReceipt({
+          data: {
+            round_id: roundId,
+            browser_session_id: sessionId,
+            submission_id: detail.submissionId,
+          },
+        })
+          .then((result) => {
+            if (!mounted.current) return;
+            if (!result.found) {
+              setReceiptStage("unavailable");
+              return;
+            }
+            setAuthoritativeReceipt(result.receipt);
+            setReceiptStage("confirmed");
+            writeStoredV3ConfirmationReceipt({
+              roundId,
+              submissionId: detail.submissionId!,
+              receipt: result.receipt,
+            });
+          })
+          .catch((error) => {
+            if (!mounted.current) return;
+            console.error("[V3 Confirmations] Authoritative receipt lookup failed", error);
+            setReceiptStage("unavailable");
+          });
+      }
 
       // The official submission is now authoritative. A stale draft must not
       // survive and reappear on another device after a successful submit.
@@ -293,7 +354,7 @@ export function ConfirmationFormWithReceipt(props: ConfirmationFormProps) {
 
     window.addEventListener(CONFIRMATION_SUBMITTED_EVENT, onSubmitted);
     return () => window.removeEventListener(CONFIRMATION_SUBMITTED_EVENT, onSubmitted);
-  }, [bridgeMode, editing, roundId]);
+  }, [bridgeMode, editing, lookupAuthoritativeReceipt, roundId]);
 
   const chooseAccountDraft = useCallback(() => {
     if (!bridgeConflict) return;
@@ -349,22 +410,74 @@ export function ConfirmationFormWithReceipt(props: ConfirmationFormProps) {
   }, [activateBridge, bridgeConflict, roundId]);
 
   if (receipt) {
+    const confirmed = receiptStage === "confirmed" && authoritativeReceipt;
+    const checking = receiptStage === "checking";
     return (
       <div className="space-y-4">
-        <DelayedConfirmationState
-          pendingTitle={editing ? "Your changes are being confirmed" : "Your confirmation is being confirmed"}
-          pendingDescription={
-            editing
-              ? "Your updated response has been stored. Solaris is finalising the receipt before showing the confirmed state."
-              : "Your response has been stored. Solaris is finalising the receipt before showing the confirmed state."
-          }
-          confirmedTitle={editing ? "Changes confirmed" : "Confirmation confirmed"}
-          confirmedDescription={
-            editing
-              ? "Your saved confirmation now includes the changes you submitted."
-              : `Your confirmation response is recorded${receipt.submissionId ? ` · receipt ${receipt.submissionId.slice(0, 8)}` : ""} and available through the normal recovery or country-account tools.`
-          }
-        />
+        <section
+          className="glass-strong mx-auto max-w-2xl p-7 text-center sm:p-9"
+          aria-live="polite"
+          data-confirmation-stage={confirmed ? "confirmed" : checking ? "checking" : "accepted"}
+        >
+          <div
+            className={`mx-auto grid size-12 place-items-center rounded-full border ${
+              confirmed
+                ? "border-emerald-300/25 bg-emerald-300/10 text-emerald-200"
+                : "border-primary/25 bg-primary/10 text-primary"
+            }`}
+          >
+            {checking ? (
+              <LoaderCircle className="size-6 animate-spin" />
+            ) : confirmed ? (
+              <CheckCircle2 className="size-6" />
+            ) : (
+              <ShieldCheck className="size-6" />
+            )}
+          </div>
+
+          <p className="mt-4 text-[9px] font-black uppercase tracking-[0.18em] text-primary">
+            {checking ? "Checking submission status" : confirmed ? "Authoritative receipt" : "Submission accepted"}
+          </p>
+          <h2 className="mt-2 font-display text-2xl font-bold">
+            {checking
+              ? "Checking your confirmation receipt…"
+              : confirmed
+                ? editing
+                  ? "Changes confirmed"
+                  : "Confirmation confirmed"
+                : "Your confirmation was accepted"}
+          </h2>
+          <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
+            {checking
+              ? "Solaris is reconciling the accepted submission against the server receipt ledger. Do not submit it again while this check is running."
+              : confirmed
+                ? "The server receipt ledger confirms this exact submission. You can safely leave this page."
+                : "The submission call was accepted, but this device could not retrieve the V3 receipt metadata. Do not create a second submission just to obtain another receipt."}
+          </p>
+
+          {confirmed ? (
+            <dl className="mx-auto mt-6 max-w-lg space-y-2 rounded-xl border border-border bg-secondary/30 p-4 text-left text-xs">
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Receipt</dt>
+                <dd className="font-mono text-right">{authoritativeReceipt.receiptId}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Accepted by server</dt>
+                <dd className="text-right">{new Date(authoritativeReceipt.serverAcceptedAt).toLocaleString()}</dd>
+              </div>
+              {receipt.submissionId ? (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-muted-foreground">Submission</dt>
+                  <dd className="font-mono text-right">{receipt.submissionId}</dd>
+                </div>
+              ) : null}
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Authority</dt>
+                <dd className="text-right">Authoritative server receipt</dd>
+              </div>
+            </dl>
+          ) : null}
+        </section>
         <GovernanceSnapshot context="confirmation.submit" label="Rules shown for this confirmation" snapshot={receipt.governance} />
       </div>
     );
