@@ -3,6 +3,7 @@ import { useMemo } from "react";
 
 import { AppShell } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { V3PrimaryRouteGate } from "@/components/v3/V3PrimaryRouteGate";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { CurrentContestHero } from "@/components/home/CurrentContestHero";
@@ -86,6 +87,10 @@ const CORE_DESTINATIONS = [
 ] as const;
 
 function HomePage() {
+  return <V3PrimaryRouteGate surface="home" legacy={<LegacyHomePage />} />;
+}
+
+function LegacyHomePage() {
   const { isAppMode } = useSolarisApp();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
