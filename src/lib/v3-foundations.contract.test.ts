@@ -21,7 +21,7 @@ describe("Solaris Studio V3 foundation preview", () => {
   it("starts with the stable five-area product architecture", () => {
     const preview = source("src/components/v3/V3FoundationPreview.tsx");
     for (const label of ["Home", "Explore", "Participate", "Results", "Me"]) {
-      expect(preview).toContain(`label: \"${label}\"`);
+      expect(preview).toContain(`label: "${label}"`);
     }
     expect(preview).toContain("Your responsibilities");
     expect(preview).toContain("Optional now");
@@ -44,7 +44,7 @@ describe("Solaris Studio V3 foundation preview", () => {
     expect(components).toContain("V3StatusChip");
     expect(components).toContain("data-tone={tone}");
     expect(components).toContain("aria-valuenow");
-    expect(components).toContain("aria-label={label ?? \"Progress\"}");
+    expect(components).toContain('aria-label={label ?? "Progress"}');
   });
 
   it("does not make gesture-only behaviour part of the first foundation slice", () => {
