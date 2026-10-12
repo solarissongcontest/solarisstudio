@@ -5,6 +5,8 @@ import type {
   CountryConfirmationResponse,
 } from "./confirmation-country-account";
 import type { Edition, ResultRow, Show } from "./data";
+import type { SolarisTask } from "./participation-os";
+import { loadV3BootstrapProjection } from "./v3-bootstrap-server";
 import {
   assembleV3PrimarySurfaceSnapshot,
   countDistinctV3Delegations,
@@ -181,6 +183,35 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
     expect(confirmation?.state).toBe("needs_attention");
   });
 
+  it("merges authoritative HOD workspace actions into signed-in V3 tasks", () => {
+    const hodTask: SolarisTask = {
+      id: "hod:entry-status",
+      editionId: edition.id,
+      kind: "entry",
+      title: "Entry needs attention",
+      description: "One or more entry requirements currently block approval.",
+      state: "problem",
+      importance: "required",
+      blocking: true,
+      actionRequired: true,
+      opensAt: null,
+      deadline: null,
+      route: "/my-solaris/entry",
+      priority: 140,
+      why: "The canonical eligibility result is blocked.",
+    };
+
+    const snapshot = assembleV3PrimarySurfaceSnapshot({
+      ...base(),
+      viewer: { id: "user-1", displayName: null },
+      delegation: { id: "country-oland", name: "Oland" },
+      capabilities: ["hod_workspace_v2"],
+      additionalTasks: [hodTask],
+    });
+
+    expect(snapshot.tasks).toContainEqual(hodTask);
+  });
+
   it("keeps open public televoting in signed-in Participate parity", () => {
     const snapshot = assembleV3PrimarySurfaceSnapshot({
       ...base(),
@@ -207,6 +238,35 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
         route: "/televoting",
       }),
     );
+  });
+
+  it("projects an open public televote into anonymous live-voting experience", async () => {
+    const liveShow = { ...show, status: "live" } as Show;
+    const snapshot = assembleV3PrimarySurfaceSnapshot({
+      ...base(),
+      shows: [liveShow],
+      televote: {
+        id: "tele-1",
+        title: "Hanvør 2026 public voting",
+        route: "/televoting",
+        eligible: true,
+        submitted: false,
+        status: "open",
+        closesAt: "2026-10-12T07:00:00.000Z",
+        required: false,
+      },
+    });
+
+    expect(snapshot.tasks).toEqual([]);
+    expect(snapshot.runtime?.subsystems.televoting).toBe("open");
+    expect(snapshot.show).toBe("live");
+
+    const bootstrap = await loadV3BootstrapProjection(
+      { viewerId: null, editionId: edition.id, delegationId: null },
+      { loadSnapshot: async () => snapshot },
+    );
+    expect(bootstrap.experience.mode).toBe("live-voting");
+    expect(bootstrap.experience.votingOpen).toBe(true);
   });
 
   it("uses a requested published edition rather than silently switching context", () => {
@@ -250,6 +310,17 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
       description: "Open the current public show.",
       to: "/shows/show-1",
     });
+  });
+
+  it("keeps terminal shows with withheld results out of Coming up", () => {
+    for (const status of ["completed", "closed", "finished", "ended"]) {
+      const terminalShow = { ...show, status } as Show;
+      const snapshot = assembleV3PrimarySurfaceSnapshot({
+        ...base(),
+        shows: [terminalShow],
+      });
+      expect(snapshot.primarySurfaces.upcoming, status).toEqual([]);
+    }
   });
 
   it("moves published show results from Coming up into Latest", () => {
