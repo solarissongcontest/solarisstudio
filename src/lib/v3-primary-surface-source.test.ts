@@ -5,7 +5,11 @@ import type {
   CountryConfirmationResponse,
 } from "./confirmation-country-account";
 import type { Edition, ResultRow, Show } from "./data";
-import { assembleV3PrimarySurfaceSnapshot } from "./v3-primary-surface-source";
+import {
+  assembleV3PrimarySurfaceSnapshot,
+  countDistinctV3Delegations,
+  countPendingAcknowledgementTasks,
+} from "./v3-primary-surface-source";
 
 const edition: Edition = {
   id: "edition-22",
@@ -86,6 +90,40 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
     ]);
   });
 
+  it("counts one logical delegation across canonical and show-specific participant rows", () => {
+    expect(
+      countDistinctV3Delegations([
+        { country_id: "oland", contest_entity_id: null },
+        { country_id: "oland", contest_entity_id: null },
+        { country_id: "finland", contest_entity_id: "entity-finland" },
+        { country_id: "finland", contest_entity_id: "entity-finland" },
+        { country_id: null, contest_entity_id: null },
+      ]),
+    ).toBe(2);
+  });
+
+  it("does not keep archived required notices in the pending acknowledgement count", () => {
+    expect(
+      countPendingAcknowledgementTasks([
+        {
+          acknowledgement_required: true,
+          acknowledged_at: null,
+          receipt_archived_at: null,
+        },
+        {
+          acknowledgement_required: true,
+          acknowledged_at: null,
+          receipt_archived_at: "2026-10-12T06:00:00.000Z",
+        },
+        {
+          acknowledgement_required: true,
+          acknowledged_at: "2026-10-12T06:00:00.000Z",
+          receipt_archived_at: null,
+        },
+      ]),
+    ).toBe(1);
+  });
+
   it("fails closed if anonymous bootstrap accidentally receives participant-scoped evidence", () => {
     expect(() =>
       assembleV3PrimarySurfaceSnapshot({
@@ -130,10 +168,12 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
         },
       ],
       acknowledgementTasks: 1,
+      hideResultSpoilers: true,
     });
 
     expect(snapshot.identity.userId).toBe("user-1");
     expect(snapshot.delegation).toEqual({ id: "country-oland", name: "Oland" });
+    expect(snapshot.hideResultSpoilers).toBe(true);
     expect(snapshot.tasks.map((task) => task.kind)).toEqual(
       expect.arrayContaining(["confirmation", "notice"]),
     );
@@ -194,6 +234,22 @@ describe("Solaris Studio V3 primary surface production snapshot", () => {
         targetEditionId: "not-public",
       }),
     ).toThrow(/not a published Solaris edition/);
+  });
+
+  it("keeps a live show out of Coming up while surfacing it under Latest", () => {
+    const liveShow = { ...show, status: "live" } as Show;
+    const snapshot = assembleV3PrimarySurfaceSnapshot({
+      ...base(),
+      shows: [liveShow],
+    });
+
+    expect(snapshot.primarySurfaces.upcoming).toEqual([]);
+    expect(snapshot.primarySurfaces.latest[0]).toEqual({
+      id: "live:show-1",
+      title: "Grand Final is live",
+      description: "Open the current public show.",
+      to: "/shows/show-1",
+    });
   });
 
   it("moves published show results from Coming up into Latest", () => {
