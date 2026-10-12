@@ -17,6 +17,9 @@ import {
 } from "@/lib/v3-primary-surface-bootstrap";
 import {
   assembleV3PrimarySurfaceSnapshot,
+  countDistinctV3Delegations,
+  countPendingAcknowledgementTasks,
+  type V3ParticipantIdentityRow,
   type V3PrimarySurfaceDelegation,
 } from "@/lib/v3-primary-surface-source";
 import type { V3BootstrapServerRequest } from "@/lib/v3-bootstrap-server";
@@ -33,6 +36,7 @@ const SHOW_COLUMNS =
   "id,edition_id,name,kind,sort_order,status,published,publication_config";
 const RESULT_COLUMNS =
   "id,edition_id,show_id,country_id,final_rank,jury_points,televote_points,total_points";
+const PARTICIPANT_IDENTITY_COLUMNS = "country_id,contest_entity_id";
 
 type RpcResult = {
   data: any;
@@ -128,7 +132,7 @@ function juryTaskFromContext(data: any, editionId: string | null): VotingTaskInp
     submitted: round.already_submitted === true,
     status: "open",
     opensAt: typeof round.opened_at === "string" ? round.opened_at : null,
-    closesAt: typeof round.closes_at === "string" ? round.closes_at : null,
+    closesAt: typeof round.closed_at === "string" ? round.closed_at : null,
     required: true,
   };
 }
@@ -150,13 +154,6 @@ function televoteTaskFromRound(data: any): VotingTaskInput | null {
     closesAt: typeof data.closed_at === "string" ? data.closed_at : null,
     required: false,
   };
-}
-
-function acknowledgementTaskCount(rows: unknown) {
-  if (!Array.isArray(rows)) return 0;
-  return rows.filter((row: any) => {
-    return row?.acknowledgement_required === true && row?.acknowledged_at == null;
-  }).length;
 }
 
 async function loadDelegation(
@@ -183,6 +180,35 @@ async function loadDelegation(
   return { id: String(country.data.id), name: String(country.data.name) };
 }
 
+async function loadDelegationCount(client: AnyClient, editionId: string | null) {
+  if (!editionId) return 0;
+
+  // Modern editions keep one canonical edition-level participant row per logical
+  // delegation. Prefer those rows so the common path stays both exact and cheap.
+  const canonical = await client
+    .from("participants")
+    .select(PARTICIPANT_IDENTITY_COLUMNS)
+    .eq("edition_id", editionId)
+    .is("show_id", null);
+  throwIfError(canonical.error, "Could not load current-edition canonical delegations");
+  const canonicalRows = (canonical.data ?? []) as V3ParticipantIdentityRow[];
+  if (canonicalRows.length > 0) {
+    return countDistinctV3Delegations(canonicalRows);
+  }
+
+  // Older editions may only have show-specific appearances. Fall back to the
+  // narrow identity projection and deduplicate those rows in memory rather than
+  // counting one delegation once per semi/final appearance.
+  const appearances = await client
+    .from("participants")
+    .select(PARTICIPANT_IDENTITY_COLUMNS)
+    .eq("edition_id", editionId);
+  throwIfError(appearances.error, "Could not load current-edition delegation identities");
+  return countDistinctV3Delegations(
+    (appearances.data ?? []) as V3ParticipantIdentityRow[],
+  );
+}
+
 async function loadParticipantEvidence(input: {
   viewer: Exclude<RequestViewer, null>;
   publicClient: AnyClient;
@@ -206,6 +232,11 @@ async function loadParticipantEvidence(input: {
     .eq("status", "open")
     .limit(1)
     .maybeSingle();
+  const preferencePromise = client
+    .from("notification_preferences")
+    .select("spoiler_free")
+    .eq("profile_id", viewer.id)
+    .maybeSingle();
 
   const [
     delegation,
@@ -214,6 +245,7 @@ async function loadParticipantEvidence(input: {
     rounds,
     juryContext,
     televoteRound,
+    preferences,
     featureResults,
   ] = await Promise.all([
     loadDelegation(client, viewer.id),
@@ -222,6 +254,7 @@ async function loadParticipantEvidence(input: {
     publicClient.rpc("public_confirmation_rounds"),
     client.rpc("country_jury_voting_context"),
     televotePromise,
+    preferencePromise,
     featurePromise,
   ]);
 
@@ -230,6 +263,7 @@ async function loadParticipantEvidence(input: {
   throwIfError(rounds.error, "Could not load confirmation rounds");
   throwIfError(juryContext.error, "Could not load jury task context");
   throwIfError(televoteRound.error, "Could not load open televote context");
+  throwIfError(preferences.error, "Could not load Solaris app experience preferences");
 
   const capabilities: string[] = [];
   PARTICIPANT_FEATURES.forEach((key, index) => {
@@ -244,7 +278,7 @@ async function loadParticipantEvidence(input: {
       p_edition_id: editionId,
     });
     throwIfError(inbox.error, "Could not load the participant notice inbox");
-    acknowledgementTasks = acknowledgementTaskCount(inbox.data);
+    acknowledgementTasks = countPendingAcknowledgementTasks(inbox.data);
   }
 
   const confirmationData = (confirmation.data ?? {}) as Partial<CountryConfirmationAccess>;
@@ -261,6 +295,7 @@ async function loadParticipantEvidence(input: {
     acknowledgementTasks,
     jury: juryTaskFromContext(juryContext.data, editionId),
     televote: televoteTaskFromRound(televoteRound.data),
+    hideResultSpoilers: preferences.data?.spoiler_free === true,
   };
 }
 
@@ -293,7 +328,7 @@ async function loadSnapshotForRequest(input: {
   }
   const editionId = selectedEdition?.id ?? null;
 
-  const [showsResult, resultsResult, participantsResult] = editionId
+  const [showsResult, resultsResult, participantCount] = editionId
     ? await Promise.all([
         publicClient
           .from("shows")
@@ -304,19 +339,15 @@ async function loadSnapshotForRequest(input: {
           .from("results")
           .select(RESULT_COLUMNS)
           .eq("edition_id", editionId),
-        publicClient
-          .from("participants")
-          .select("id", { count: "exact", head: true })
-          .eq("edition_id", editionId),
+        loadDelegationCount(publicClient, editionId),
       ])
     : [
         { data: [], error: null },
         { data: [], error: null },
-        { data: null, error: null, count: 0 },
+        0,
       ];
   throwIfError(showsResult.error, "Could not load current-edition shows");
   throwIfError(resultsResult.error, "Could not load current-edition results");
-  throwIfError(participantsResult.error, "Could not load current-edition delegation count");
 
   const participant = viewer
     ? await loadParticipantEvidence({ viewer, publicClient, editionId })
@@ -329,6 +360,7 @@ async function loadSnapshotForRequest(input: {
         acknowledgementTasks: 0,
         jury: null as VotingTaskInput | null,
         televote: null as VotingTaskInput | null,
+        hideResultSpoilers: false,
       };
 
   const generatedAt = new Date().toISOString();
@@ -339,7 +371,7 @@ async function loadSnapshotForRequest(input: {
     editions,
     shows: (showsResult.data ?? []) as Show[],
     results: (resultsResult.data ?? []) as ResultRow[],
-    participantCount: participantsResult.count ?? 0,
+    participantCount,
     viewer: viewer ? { id: viewer.id, displayName: viewer.displayName } : null,
     delegation: participant.delegation,
     capabilities: participant.capabilities,
@@ -350,7 +382,7 @@ async function loadSnapshotForRequest(input: {
     jury: participant.jury,
     televote: participant.televote,
     progressByActionId: {},
-    hideResultSpoilers: false,
+    hideResultSpoilers: participant.hideResultSpoilers,
   });
 }
 
