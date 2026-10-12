@@ -6,6 +6,8 @@ import {
   ConfirmationForm,
   type ConfirmationFormProps,
 } from "@/components/ConfirmationForm";
+import { DelayedConfirmationState } from "@/components/DelayedConfirmationState";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { GovernanceSnapshot, RulesApplyingHere } from "@/components/rules/GovernanceRules";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +33,7 @@ import {
   lookupV3ConfirmationReceipt,
   type V3ConfirmationReceipt,
 } from "@/lib/v3-confirmation.functions";
+import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import {
   readStoredV3ConfirmationReceipt,
   writeStoredV3ConfirmationReceipt,
@@ -85,7 +88,68 @@ function sameDraft(
   return left.step === right.step && JSON.stringify(left.payload) === JSON.stringify(right.payload);
 }
 
-export function ConfirmationFormWithReceipt(props: ConfirmationFormProps) {
+function ConfirmationFlowBoot() {
+  return (
+    <div
+      className="surface p-6 text-sm text-muted-foreground"
+      role="status"
+      aria-live="polite"
+      data-v3-confirmation-boot=""
+    >
+      Preparing the confirmation workflow…
+    </div>
+  );
+}
+
+function LegacyConfirmationFlow(props: ConfirmationFormProps) {
+  const [receipt, setReceipt] = useState<SubmissionReceiptDetail | null>(null);
+
+  useEffect(() => {
+    const onSubmitted = (event: Event) => {
+      const detail = (event as CustomEvent<SubmissionReceiptDetail>).detail;
+      if (detail?.id === props.round.id) setReceipt(detail);
+    };
+
+    window.addEventListener(CONFIRMATION_SUBMITTED_EVENT, onSubmitted);
+    return () => window.removeEventListener(CONFIRMATION_SUBMITTED_EVENT, onSubmitted);
+  }, [props.round.id]);
+
+  if (receipt) {
+    const editing = Boolean(props.editToken || props.prefill);
+    return (
+      <div className="space-y-4">
+        <DelayedConfirmationState
+          pendingTitle={editing ? "Your changes are being confirmed" : "Your confirmation is being confirmed"}
+          pendingDescription={
+            editing
+              ? "Your updated response has been stored. Solaris is finalising the receipt before showing the confirmed state."
+              : "Your response has been stored. Solaris is finalising the receipt before showing the confirmed state."
+          }
+          confirmedTitle={editing ? "Changes confirmed" : "Confirmation confirmed"}
+          confirmedDescription={
+            editing
+              ? "Your saved confirmation now includes the changes you submitted."
+              : `Your confirmation response is recorded${receipt.submissionId ? ` · receipt ${receipt.submissionId.slice(0, 8)}` : ""} and available through the normal recovery or country-account tools.`
+          }
+        />
+        <GovernanceSnapshot context="confirmation.submit" label="Rules shown for this confirmation" snapshot={receipt.governance} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <RulesApplyingHere
+        context="confirmation.submit"
+        title="Before you confirm"
+        primaryLimit={2}
+      />
+      <ConfirmationForm {...props} />
+    </div>
+  );
+}
+
+function V3ConfirmationFlow(props: ConfirmationFormProps) {
   const roundId = props.round.id;
   const editing = Boolean(props.editToken || props.prefill);
   const lookupAuthoritativeReceipt = useServerFn(lookupV3ConfirmationReceipt);
@@ -343,8 +407,6 @@ export function ConfirmationFormWithReceipt(props: ConfirmationFormProps) {
           });
       }
 
-      // The official submission is now authoritative. A stale draft must not
-      // survive and reappear on another device after a successful submit.
       if (!editing && (bridgeMode === "active" || bridgeMode === "degraded")) {
         void deleteCountryAccountConfirmationDraft(roundId).catch((error) => {
           console.error("[V3 Confirmations] Could not clear submitted account draft", error);
@@ -413,7 +475,7 @@ export function ConfirmationFormWithReceipt(props: ConfirmationFormProps) {
     const confirmed = receiptStage === "confirmed" && authoritativeReceipt;
     const checking = receiptStage === "checking";
     return (
-      <div className="space-y-4">
+      <div className="space-y-4" data-v3-confirmation-receipt="">
         <section
           className="glass-strong mx-auto max-w-2xl p-7 text-center sm:p-9"
           aria-live="polite"
@@ -485,41 +547,45 @@ export function ConfirmationFormWithReceipt(props: ConfirmationFormProps) {
 
   if (bridgeMode === "checking") {
     return (
-      <div className="surface p-6 text-sm text-muted-foreground" role="status" aria-live="polite">
-        Preparing your saved confirmation draft…
+      <div className="space-y-4" data-v3-confirmation-task="">
+        <V3ConfirmationTaskHeader props={props} />
+        <ConfirmationFlowBoot />
       </div>
     );
   }
 
   if (bridgeMode === "conflict" && bridgeConflict) {
     return (
-      <div className="surface space-y-4 p-6" role="alert">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-amber-300">Draft changed elsewhere</p>
-          <h2 className="mt-2 text-xl font-semibold">Choose which confirmation draft to continue</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Solaris found different drafts on this device and your signed-in country account. Nothing will be overwritten until you choose.
-          </p>
-          {bridgeMessage ? <p className="mt-3 text-sm text-amber-200">{bridgeMessage}</p> : null}
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-border bg-secondary/30 p-4">
-            <p className="text-sm font-semibold">This device</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Saved {new Date(bridgeConflict.device.savedAt).toLocaleString()}
+      <div className="space-y-4" data-v3-confirmation-task="">
+        <V3ConfirmationTaskHeader props={props} />
+        <div className="surface space-y-4 p-6" role="alert">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-amber-300">Draft changed elsewhere</p>
+            <h2 className="mt-2 text-xl font-semibold">Choose which confirmation draft to continue</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Solaris found different drafts on this device and your signed-in country account. Nothing will be overwritten until you choose.
             </p>
-            <Button type="button" className="mt-4 w-full" onClick={() => void chooseDeviceDraft()}>
-              Keep this device draft
-            </Button>
+            {bridgeMessage ? <p className="mt-3 text-sm text-amber-200">{bridgeMessage}</p> : null}
           </div>
-          <div className="rounded-xl border border-border bg-secondary/30 p-4">
-            <p className="text-sm font-semibold">Country account</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Saved {new Date(bridgeConflict.account.savedAt).toLocaleString()}
-            </p>
-            <Button type="button" variant="outline" className="mt-4 w-full" onClick={chooseAccountDraft}>
-              Use account draft
-            </Button>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-border bg-secondary/30 p-4">
+              <p className="text-sm font-semibold">This device</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Saved {new Date(bridgeConflict.device.savedAt).toLocaleString()}
+              </p>
+              <Button type="button" className="mt-4 w-full" onClick={() => void chooseDeviceDraft()}>
+                Keep this device draft
+              </Button>
+            </div>
+            <div className="rounded-xl border border-border bg-secondary/30 p-4">
+              <p className="text-sm font-semibold">Country account</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Saved {new Date(bridgeConflict.account.savedAt).toLocaleString()}
+              </p>
+              <Button type="button" variant="outline" className="mt-4 w-full" onClick={chooseAccountDraft}>
+                Use account draft
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -527,7 +593,8 @@ export function ConfirmationFormWithReceipt(props: ConfirmationFormProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-v3-confirmation-task="">
+      <V3ConfirmationTaskHeader props={props} />
       {bridgeMode === "active" ? (
         <div className="rounded-xl border border-primary/20 bg-primary/[0.06] px-4 py-3 text-xs text-muted-foreground" role="status">
           Signed-in draft sync is active. Your unfinished confirmation can continue on another device.
@@ -545,4 +612,42 @@ export function ConfirmationFormWithReceipt(props: ConfirmationFormProps) {
       <ConfirmationForm {...props} />
     </div>
   );
+}
+
+function V3ConfirmationTaskHeader({ props }: { props: ConfirmationFormProps }) {
+  const editing = Boolean(props.editToken || props.prefill);
+  return (
+    <section className="rounded-2xl border border-border bg-surface/80 p-5 sm:p-6" aria-label="Confirmation task">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+            Required responsibility
+          </p>
+          <h2 className="mt-2 font-display text-xl font-bold sm:text-2xl">
+            {editing ? "Update confirmation" : "Complete confirmation"}
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            {props.round.edition_name} · {props.round.name}. Review every step before the final server-authoritative submit.
+          </p>
+        </div>
+        <span className="rounded-full border border-primary/20 bg-primary/[0.08] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">
+          Confirmation
+        </span>
+      </div>
+    </section>
+  );
+}
+
+export function ConfirmationFormWithReceipt(props: ConfirmationFormProps) {
+  const { isAppMode, platformResolved } = useSolarisApp();
+  const rollout = useV3RolloutProbe(platformResolved && isAppMode);
+
+  if (!platformResolved) return <ConfirmationFlowBoot />;
+  if (!isAppMode) return <LegacyConfirmationFlow {...props} />;
+  if (rollout.isLoading) return <ConfirmationFlowBoot />;
+  if (rollout.isError || rollout.data?.confirmationEnabled !== true) {
+    return <LegacyConfirmationFlow {...props} />;
+  }
+
+  return <V3ConfirmationFlow {...props} />;
 }
