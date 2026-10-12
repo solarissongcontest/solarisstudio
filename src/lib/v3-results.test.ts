@@ -112,6 +112,33 @@ describe("V3 Results projection", () => {
     });
   });
 
+  it("does not invent a winner when published rows contain no canonical rank one", () => {
+    const projection = buildV3ResultsProjection(
+      input({
+        rows: [
+          {
+            countryId: "vendia",
+            countryName: "Vendia",
+            flagUrl: "/flags/vendia.webp",
+            rank: 2,
+            points: 284,
+          },
+          {
+            countryId: "oland",
+            countryName: "Oland",
+            flagUrl: "/flags/oland.webp",
+            rank: 3,
+            points: 270,
+          },
+        ],
+      }),
+    );
+
+    expect(projection.status).toBe("available");
+    expect(projection.officialResult.rows.map((row) => row.rank)).toEqual([2, 3]);
+    expect(projection.officialResult.winner).toBeNull();
+  });
+
   it("only exposes jury and televote tabs when those components are officially published", () => {
     expect(buildV3ResultsProjection(input()).tabs).toEqual([
       "combined",
