@@ -194,6 +194,9 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     "solaris_app_v3_delegation",
     true,
   );
+  await setV3FeatureForLocalUser(
+    url!, publishableKey!, session, "solaris_app_v3_results", true, [ARCHIVE_EDITION_ID],
+  );
 
   try {
     await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -277,6 +280,35 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await expect(page.locator(".country-profile-v8")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Browserland", exact: true })).toBeVisible();
 
+    // Results is scoped to the published archive edition, not the active one.
+    // Use a real seeded ranking and the shared server-backed spoiler setting.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/results", { waitUntil: "domcontentloaded" });
+    const resultRoot = page.locator("[data-v3-results-root]");
+    await expect(resultRoot).toBeVisible();
+    await expect(resultRoot).toHaveAttribute("data-v3-results-state", "spoiler-protected");
+    await expect(resultRoot).not.toContainText("111222");
+    await expect(resultRoot).not.toContainText("Private archive artist");
+    await expect(resultRoot.getByRole("navigation", { name: "More result analysis" })).toHaveCount(0);
+    const reveal = resultRoot.getByRole("button", { name: "Reveal official result" });
+    await reveal.focus();
+    await page.keyboard.press("Enter");
+    await expect(resultRoot.locator("[data-v3-scoreboard]")).toBeVisible();
+    await expect(resultRoot).toContainText("111222");
+    await expect(resultRoot.getByRole("button", { name: "Jury", exact: true })).toBeVisible();
+    await expect(resultRoot.getByRole("button", { name: "Televote", exact: true })).toHaveCount(0);
+    await resultRoot.getByRole("button", { name: "Jury", exact: true }).click();
+    await expect(resultRoot).toContainText("110222");
+    await expect(resultRoot).not.toContainText("Private archive artist");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(resultRoot).toHaveAttribute("data-v3-results-state", "spoiler-protected");
+    await expect(resultRoot).not.toContainText("111222");
+
+    await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_results", false);
+    await page.goto("/results", { waitUntil: "domcontentloaded" });
+    await expect(resultRoot).toHaveCount(0);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+
     // Re-scope only the Edition Hub flag to a non-current published edition. The
     // route-specific server probe must resolve ssc21 to this canonical ID. The
     // old current-edition probe would incorrectly disable this archive route.
@@ -300,6 +332,7 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await expect(page.locator(".edition-public-page")).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Explore Browser Audit Edition" })).toHaveCount(0);
   } finally {
+    await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_results", false);
     await setV3FeatureForLocalUser(
       url!,
       publishableKey!,

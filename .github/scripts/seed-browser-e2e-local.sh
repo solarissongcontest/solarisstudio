@@ -153,11 +153,40 @@ set name = excluded.name,
     published = excluded.published;
 "
 
+log "Seeding a published archive result for local V3 Results certification"
+db_exec "
+insert into public.shows (id, edition_id, name, kind, published, publication_config)
+values (
+  '00000000-0000-4000-8000-00000000e299'::uuid,
+  '00000000-0000-4000-8000-00000000e219'::uuid,
+  'Browser Archive Final', 'grand-final', true,
+  '{\"participants\":true,\"artists\":false,\"songs\":false,\"results\":true,\"jury_results\":true,\"televote_results\":false}'::jsonb
+)
+on conflict (id) do update set published = excluded.published, publication_config = excluded.publication_config;
+insert into public.participants (id, edition_id, show_id, country_id, artist, song, participation_status, publication_status)
+values
+  ('00000000-0000-4000-8000-00000000e291'::uuid, '00000000-0000-4000-8000-00000000e219'::uuid, '00000000-0000-4000-8000-00000000e299'::uuid, '00000000-0000-4000-8000-00000000e201'::uuid, 'Private archive artist', 'Private archive song', 'confirmed', 'published'),
+  ('00000000-0000-4000-8000-00000000e292'::uuid, '00000000-0000-4000-8000-00000000e219'::uuid, '00000000-0000-4000-8000-00000000e299'::uuid, '00000000-0000-4000-8000-00000000e202'::uuid, 'Second archive artist', 'Second archive song', 'confirmed', 'published')
+on conflict (id) do nothing;
+insert into public.results (id, edition_id, show_id, country_id, jury_points, televote_points, total_points, final_rank)
+values
+  ('00000000-0000-4000-8000-00000000e293'::uuid, '00000000-0000-4000-8000-00000000e219'::uuid, '00000000-0000-4000-8000-00000000e299'::uuid, '00000000-0000-4000-8000-00000000e201'::uuid, 110222, 1000, 111222, 1),
+  ('00000000-0000-4000-8000-00000000e294'::uuid, '00000000-0000-4000-8000-00000000e219'::uuid, '00000000-0000-4000-8000-00000000e299'::uuid, '00000000-0000-4000-8000-00000000e202'::uuid, 110000, 1000, 111000, 2)
+on conflict (id) do nothing;
+"
+
 log "Creating local-only browser identities"
 create_user "$ORGANIZER_EMAIL" "Browser Organizer"
 ORGANIZER_ID="$LAST_USER_ID"
 create_user "$ORGANIZER_B_EMAIL" "Browser Organizer B"
 ORGANIZER_B_ID="$LAST_USER_ID"
+db_exec "
+insert into public.fan_profiles (id) values ('$ORGANIZER_B_ID'::uuid) on conflict (id) do nothing;
+insert into public.notification_preferences (profile_id, spoiler_free)
+values ('$ORGANIZER_B_ID'::uuid, true)
+on conflict (profile_id) do update set spoiler_free = excluded.spoiler_free;
+"
+
 create_user "$COUNTRY_EMAIL" "Browser HOD"
 COUNTRY_ID="$LAST_USER_ID"
 create_user "$SUSPENDED_EMAIL" "Suspended Browser HOD"
