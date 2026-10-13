@@ -46,8 +46,16 @@ function assertPlaywrightSupabaseIsolation() {
 
 assertPlaywrightSupabaseIsolation();
 
-const fullAudit = process.env.E2E_FULL_AUDIT === "1";
-const prSmoke = Boolean(process.env.CI) && process.env.GITHUB_EVENT_NAME === "pull_request" && !fullAudit;
+const fullAuditRequested = process.env.E2E_FULL_AUDIT === "1";
+const routineMainPush =
+  Boolean(process.env.CI) &&
+  process.env.GITHUB_EVENT_NAME === "push" &&
+  process.env.GITHUB_REF === "refs/heads/main";
+const fullAudit = fullAuditRequested && !routineMainPush;
+const representativeCI =
+  Boolean(process.env.CI) &&
+  !fullAudit &&
+  (process.env.GITHUB_EVENT_NAME === "pull_request" || routineMainPush);
 const publicViewportMatrix = fullAudit
   ? ([
       { width: 320, height: 568 },
@@ -131,7 +139,7 @@ const personalityProjects = personalityViewportMatrix.map(({ width, height }) =>
   use: { viewport: { width, height }, serviceWorkers: "block" as const },
 }));
 
-const representativePrProjects = [
+const representativeCiProjects = [
   {
     name: "public-390",
     testMatch: /public-routes\.e2e\.ts/,
@@ -287,16 +295,17 @@ export default defineConfig({
   globalSetup: process.env.CI ? "./e2e/pr455-browser-preflight.global.ts" : undefined,
   grepInvert: fullAudit ? undefined : /installed-app route invariant crawl/,
   outputDir: "test-results/playwright",
-  // A PR is a release proof, not an exhaustive crawler. The broad inventory is
-  // still preserved for main/manual certification below; PRs run a deterministic
-  // representative matrix after the separate Organizer fail-fast preflight.
-  timeout: prSmoke ? 90_000 : process.env.CI ? 8 * 60_000 : 5 * 60_000,
+  // Routine PR and main-push CI is release feedback, not an exhaustive crawler.
+  // The broad inventory stays available for explicit/manual and release-branch
+  // certification; routine CI runs a deterministic representative matrix after
+  // the separate Organizer fail-fast preflight.
+  timeout: representativeCI ? 90_000 : process.env.CI ? 8 * 60_000 : 5 * 60_000,
   expect: { timeout: 20_000 },
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
-  retries: prSmoke ? 0 : process.env.CI ? 1 : 0,
-  // The representative PR matrix is already bounded. Do not stop after the first
-  // failure: one CI run must report the whole actionable browser failure set.
+  retries: representativeCI ? 0 : process.env.CI ? 1 : 0,
+  // The representative CI matrix is already bounded. Do not stop after the first
+  // failure: one run must report the whole actionable browser failure set.
   maxFailures: 0,
   workers: process.env.CI ? 4 : undefined,
   reporter: process.env.CI
@@ -335,6 +344,6 @@ export default defineConfig({
     ? maintenanceProjects
     : [
         ...(GLOBAL_MAINTENANCE_MODE ? maintenanceProjects : []),
-        ...(prSmoke ? representativePrProjects : exhaustiveProjects),
+        ...(representativeCI ? representativeCiProjects : exhaustiveProjects),
       ],
 });
