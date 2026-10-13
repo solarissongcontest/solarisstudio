@@ -64,8 +64,8 @@ describe("V3 Notifications cutover", () => {
 
     expect(source).toContain('p_key: "solaris_app_v3_notifications"');
     expect(source).toContain("notificationsEnabled: false");
-    expect(source).toContain(
-      "accountSettingsEnabled &&\n      !notificationsFlag.error &&\n      notificationsFlag.data === true",
+    expect(source).toMatch(
+      /accountSettingsEnabled\s*&&\s*!notificationsFlag\.error\s*&&\s*notificationsFlag\.data === true/,
     );
     expect(source).toContain("exploreEnabled");
   });
