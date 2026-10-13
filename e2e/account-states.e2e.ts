@@ -147,6 +147,11 @@ test("server-authorized V3 rollout keeps Home and Participate content aligned wi
 
   expect(url).toMatch(/^http:\/\/(?:127\.0\.0\.1|localhost):\d+/);
   await enableInstalledAppMode(context);
+  // This regression covers returning-user primary navigation. First-run onboarding
+  // is a legitimate modal and would otherwise intercept the nav click under test.
+  await context.addInitScript(() => {
+    localStorage.setItem("solaris:app-first-run-complete:v1", "1");
+  });
   const session = await addSession(context, url!, publishableKey!, email!, password!);
   await setV3ForLocalUser(url!, publishableKey!, session, true);
 
