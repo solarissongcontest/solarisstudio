@@ -104,7 +104,26 @@ print(json.dumps({
 }
 
 db_exec() {
-  psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$1" >/dev/null
+  local diagnostic status
+  diagnostic="$(mktemp)"
+  if psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$1" >/dev/null 2>"$diagnostic"; then
+    rm -f "$diagnostic"
+  else
+    status=$?
+    cat "$diagnostic" >&2
+    # Expose only the primary SQL error in the check annotations, not connection
+    # details or the SQL payload. Fixtures are restricted to the local stack.
+    local message
+    message="$(sed -n 's/^ERROR: *//p' "$diagnostic" | head -1)"
+    message="${message//%/%25}"
+    message="${message//$'\r'/%0D}"
+    message="${message//$'\n'/%0A}"
+    if [[ -n "${GITHUB_ACTIONS:-}" && -n "$message" ]]; then
+      printf '::error title=Local browser fixture SQL::%s\n' "$message"
+    fi
+    rm -f "$diagnostic"
+    return "$status"
+  fi
 }
 
 db_scalar() {
