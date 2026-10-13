@@ -14,7 +14,7 @@ import type { ReactNode } from "react";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAppAttentionSummary } from "@/lib/app-attention";
 import { publicAreaForPath } from "@/lib/public-navigation";
-import { getRuleContext } from "@/lib/rule-context";
+import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
 import { cn } from "@/lib/utils";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { V3FoundationShell, V3TopContext } from "./V3Foundation";
@@ -82,6 +82,7 @@ export function V3AppShell({
   const searchAvailable = rollout.data?.searchEnabled === true;
   const rulesGuidanceAvailable = rollout.data?.rulesGuidanceEnabled === true;
   const ruleContext = rulesGuidanceAvailable ? getRuleContext(pathname) : null;
+  const ruleContextPath = sanitizeRuleContextPath(ruleContext?.sourcePath);
 
   const shellActions =
     notificationsAvailable || searchAvailable || rulesGuidanceAvailable || topActions ? (
@@ -93,10 +94,11 @@ export function V3AppShell({
         ) : null}
         {rulesGuidanceAvailable ? (
           <Link
-            to={(ruleContext ? "/rules/applied" : "/rules") as any}
+            to={(ruleContextPath ? "/rules/applied" : "/rules") as any}
+            search={ruleContextPath ? ({ context: ruleContextPath } as any) : undefined}
             className="v3-icon-button"
-            aria-label={ruleContext ? "Rules for this task" : "Rules"}
-            title={ruleContext ? "Rules for this task" : "Rules"}
+            aria-label={ruleContextPath ? "Rules for this task" : "Rules"}
+            title={ruleContextPath ? "Rules for this task" : "Rules"}
             data-v3-rules-guidance-entry=""
             data-v3-rules-guidance-context={ruleContext?.key}
           >
