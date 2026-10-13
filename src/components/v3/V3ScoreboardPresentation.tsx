@@ -8,7 +8,7 @@ import { V3Section, V3StatusChip, V3Surface } from "./V3Foundation";
 
 export type V3ScoreboardPresentationProps = {
   standings: readonly Standing[];
-  countries: ReadonlyMap<string, Country>;
+  countries: ReadonlyMap<string, Country & { entityType?: "global" | "custom" }>;
   participants?: ReadonlyMap<string, Participant>;
   qualifiers?: number | null;
 };
@@ -34,7 +34,7 @@ export function V3ScoreboardPresentation({
   qualifiers,
 }: V3ScoreboardPresentationProps) {
   const rows = [...standings].sort((a, b) => a.rank - b.rank);
-  const winnerStanding = rows.find((row) => row.rank === 1) ?? rows[0] ?? null;
+  const winnerStanding = rows.find((row) => row.rank === 1) ?? null;
   const winnerCountry = winnerStanding ? countries.get(winnerStanding.countryId) : null;
   const winnerParticipant = winnerStanding ? participants?.get(winnerStanding.countryId) : undefined;
   const winnerSubtitle = entrySubtitle(winnerParticipant);
@@ -87,6 +87,7 @@ export function V3ScoreboardPresentation({
         <ol className="grid gap-2" aria-label="Final ranking">
           {rows.map((standing) => {
             const country = countries.get(standing.countryId);
+            const canOpenCountry = Boolean(country?.short_code && country.entityType !== "custom");
             const participant = participants?.get(standing.countryId);
             const subtitle = entrySubtitle(participant);
             const isQualified = qualifiers
@@ -130,7 +131,7 @@ export function V3ScoreboardPresentation({
                   <span className="block text-base font-bold tabular-nums">{standing.total}</span>
                   <span className="block text-[0.65rem] text-[var(--v3-text-tertiary)]">points</span>
                 </span>
-                {country?.short_code ? (
+                {canOpenCountry ? (
                   <ChevronRight className="size-4 shrink-0 text-white/30" aria-hidden="true" />
                 ) : null}
               </>
@@ -139,7 +140,7 @@ export function V3ScoreboardPresentation({
             const className =
               "flex min-h-16 items-center gap-2.5 rounded-2xl border border-[var(--v3-border-subtle)] bg-white/[0.022] px-3 py-2.5 transition active:scale-[0.99]";
 
-            return country?.short_code ? (
+            return canOpenCountry && country ? (
               <li key={standing.countryId}>
                 <Link
                   to="/countries/$code"

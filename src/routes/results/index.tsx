@@ -29,6 +29,12 @@ import {
   type ParticipationAwareParticipant,
 } from "@/lib/participation-status";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
+import { useV3EditionRolloutProbe, useV3RolloutProbe } from "@/lib/v3-primary-runtime";
+import { V3AppShell } from "@/components/v3/V3AppShell";
+import { V3ResultsScreen } from "@/components/v3/V3ResultsScreen";
+import { V3Screen } from "@/components/v3/V3Foundation";
+import { useNotificationPreferences } from "@/lib/engagement-data";
+import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
 
 export const Route = createFileRoute("/results/")({
   head: () => ({
@@ -44,9 +50,8 @@ export const Route = createFileRoute("/results/")({
 });
 
 function ResultsOverviewPage() {
-  const { isAppMode } = useSolarisApp();
+  const { isAppMode, platformResolved } = useSolarisApp();
   const { preferences } = useAppExperiencePreferences();
-  const hideSpoilers = isAppMode && preferences.spoilerFree;
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
   const resultsQuery = useAllResults();
@@ -79,14 +84,15 @@ function ResultsOverviewPage() {
   const resultShows = useMemo(
     () =>
       (shows ?? [])
-        .filter((show) => isShowPublic(show) && resolveShowPublication(show).results)
+        .filter((show) => editionMap.get(show.edition_id)?.published === true && isShowPublic(show) && resolveShowPublication(show).results)
         .sort((a, b) => {
           const aEdition = editionMap.get(a.edition_id)?.edition_number ?? -1;
           const bEdition = editionMap.get(b.edition_id)?.edition_number ?? -1;
           if (aEdition !== bEdition) return bEdition - aEdition;
-          if (a.kind === "grand-final" || a.kind === "final") return -1;
-          if (b.kind === "grand-final" || b.kind === "final") return 1;
-          return b.sort_order - a.sort_order;
+          const aFinal = a.kind === "grand-final" || a.kind === "final";
+          const bFinal = b.kind === "grand-final" || b.kind === "final";
+          if (aFinal !== bFinal) return aFinal ? -1 : 1;
+          return b.sort_order - a.sort_order || a.id.localeCompare(b.id);
         }),
     [shows, editionMap],
   );
@@ -95,17 +101,43 @@ function ResultsOverviewPage() {
   const latestEdition = latestShow ? editionMap.get(latestShow.edition_id) ?? null : null;
   const latestRows = latestShow
     ? competingResults
-        .filter((row) => row.show_id === latestShow.id && row.final_rank != null)
+        .filter((row) => row.show_id === latestShow.id && row.final_rank != null && row.final_rank > 0)
         .sort((a, b) => (a.final_rank ?? 999) - (b.final_rank ?? 999))
     : [];
-  const winnerRow = latestRows[0] ?? null;
-  const runnerUp = latestRows[1] ?? null;
+  const winnerRow = latestRows.find((row) => row.final_rank === 1) ?? null;
+  const runnerUp = latestRows.find((row) => row.final_rank === 2) ?? null;
   const winner = winnerRow ? displayMap.get(winnerRow.country_id) ?? null : null;
   const margin = winnerRow && runnerUp ? winnerRow.total_points - runnerUp.total_points : null;
   const publication = latestShow ? resolveShowPublication(latestShow) : null;
   const archiveQueries = [editionsQuery, showsQuery, resultsQuery, participantsQuery, countriesQuery, entitiesQuery];
 
+  // Cohorts are evaluated against the edition of the actual result, not an
+  // unrelated active edition. Empty states use the current-edition probe.
+  const editionProbe = useV3EditionRolloutProbe(
+    latestEdition?.slug ?? "",
+    platformResolved && isAppMode && Boolean(latestEdition?.slug),
+  );
+  const currentProbe = useV3RolloutProbe(
+    platformResolved && isAppMode && !latestEdition?.slug,
+  );
+  const rollout = latestEdition?.slug ? editionProbe : currentProbe;
+  const serverPreferences = useNotificationPreferences(rollout.data?.userId ?? undefined);
+  const hideSpoilers = isAppMode && resolveV3ResultsSpoilerProtection({
+    localSpoilerFree: preferences.spoilerFree,
+    viewerResolved: Boolean(rollout.data),
+    viewerId: rollout.data?.userId ?? null,
+    serverPending: serverPreferences.isPending,
+    serverError: serverPreferences.isError,
+    serverSpoilerFree: serverPreferences.data?.spoiler_free ?? null,
+  });
+  const v3Enabled = isAppMode && !rollout.isError && rollout.data?.enabled === true && rollout.data?.resultsEnabled === true;
+
+  if (!platformResolved || (isAppMode && rollout.isLoading)) {
+    return <main className="mx-auto max-w-3xl px-4 py-10" data-v3-results-boot=""><h1 className="text-3xl font-bold">Results</h1><p role="status" className="mt-3">Opening published results…</p></main>;
+  }
+
   if (archiveIsLoading(...archiveQueries)) {
+    if (v3Enabled) return <V3AppShell editionLabel="Solaris Studio" phaseLabel="Results"><V3Screen><ArchiveDataLoading label="Loading published results…" /></V3Screen></V3AppShell>;
     return (
       <AppShell>
         <ArchiveDataLoading label="Loading published results…" />
@@ -113,10 +145,50 @@ function ResultsOverviewPage() {
     );
   }
   if (archiveHasError(...archiveQueries)) {
+    if (v3Enabled) return <V3AppShell editionLabel="Solaris Studio" phaseLabel="Results"><V3Screen><ArchiveDataError /></V3Screen></V3AppShell>;
     return (
       <AppShell>
         <ArchiveDataError />
       </AppShell>
+    );
+  }
+
+  if (v3Enabled) {
+    const resultCountries = entityDisplayMap(
+      (entities ?? []).filter((entity) => entity.edition_id === latestEdition?.id),
+      countries,
+    );
+    return (
+      <V3AppShell editionLabel={latestEdition ? editionLabel(latestEdition) : "Solaris Studio"} phaseLabel="Results" activeArea="results">
+        <V3ResultsScreen
+          key={`${rollout.data?.userId ?? "anonymous"}:${latestShow?.id ?? "none"}:${hideSpoilers}`}
+          countries={resultCountries}
+          hideSpoilers={hideSpoilers}
+          input={{
+            editionId: latestEdition?.id ?? "", editionName: latestEdition ? editionLabel(latestEdition) : "Solaris Studio",
+            showId: latestShow?.id ?? "", showName: latestShow?.name ?? "",
+            publication: latestShow && publication?.results ? "published" : "hidden",
+            disclosure: "withheld",
+            rows: latestRows.map((row) => ({
+              countryId: row.country_id, countryName: resultCountries.get(row.country_id)?.name ?? "Unknown country",
+              flagUrl: resultCountries.get(row.country_id)?.flag_image ?? null,
+              rank: row.final_rank!, points: row.total_points,
+              juryPoints: publication?.jury_results ? row.jury_points : null,
+              televotePoints: publication?.televote_results ? row.televote_points : null,
+            })),
+            juryPublished: publication?.jury_results === true,
+            televotePublished: publication?.televote_results === true,
+            userDelegationCountryId: null,
+            resultTools: [{ key: "scorecharts", label: "Full scorecharts", href: "/scorecharts" }],
+            advancedTools: [
+              { key: "analysis", label: "Analysis", href: "/analysis" },
+              { key: "records", label: "Records", href: "/records" },
+              { key: "relationships", label: "Voting relationships", href: "/relationships" },
+              { key: "lab", label: "Result Lab", href: "/result-lab" },
+            ],
+          }}
+        />
+      </V3AppShell>
     );
   }
 
