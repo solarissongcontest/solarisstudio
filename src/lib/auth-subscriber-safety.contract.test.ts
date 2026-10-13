@@ -8,6 +8,7 @@ describe("auth subscriber lifecycle audit", () => {
   it("guards every owned auth subscriber and keeps settings on the shared session cache", () => {
     const preferenceSync = source("src/components/app/AppExperiencePreferenceSync.tsx");
     const accountIsolation = source("src/components/app/AccountCacheIsolation.tsx");
+    const accountCache = source("src/lib/account-cache-isolation.ts");
     const appShell = source("src/components/AppShell.tsx");
     const settings = source("src/routes/settings.tsx");
     const notifications = source("src/components/mysolaris/MySolarisNotificationsPanel.tsx");
@@ -17,8 +18,10 @@ describe("auth subscriber lifecycle audit", () => {
     expect(preferenceSync).toContain("beginLifecycleGeneration(authGenerationRef)");
     expect(preferenceSync).toContain("lifecycle.isCurrent()");
     expect(accountIsolation).toContain("beginLifecycleGeneration(authGenerationRef)");
+    expect(accountIsolation).toContain("createAccountCacheIsolationHandler");
     expect(accountIsolation).toContain("lifecycle.deactivate()");
-    expect(accountIsolation).toContain('client.setQueryData(["fan-session"]');
+    expect(accountCache).toContain('client.setQueryData(["fan-session"]');
+    expect(accountCache).toContain("clearPrivateAccountQueries(client)");
     expect(appShell).toContain("if (!alive) return;");
     expect(appShell).toContain("if (alive) setAccess(next);");
     expect(settings).toContain("useFanSession");
