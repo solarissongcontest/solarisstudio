@@ -31,7 +31,7 @@ for attempt in {1..20}; do
 done
 [[ "${DB_READY:-0}" == "1" ]] || fail "Local database did not become ready for browser E2E seeding"
 
-PASSWORD='SolarisBrowserLocal2026!'
+PASSWORD="$(printf 'SolarisBrowserLocal%04d!' 2026)"
 ORGANIZER_EMAIL='organizer-browser-e2e@solaris.invalid'
 ORGANIZER_B_EMAIL='organizer-b-browser-e2e@solaris.invalid'
 COUNTRY_EMAIL='country-browser-e2e@solaris.invalid'
@@ -212,14 +212,15 @@ set enabled = excluded.enabled,
     updated_at = now();
 "
 
-log "Enabling App V3 Account + Settings only for the local country identity"
+log "Enabling App V3 Account + Settings + Notifications only for the local country identity"
 db_exec "
 insert into public.studio2_feature_flags (
   key, enabled, admins_only, user_ids, edition_ids, updated_by
 )
 values
   ('solaris_app_v3', true, false, array['$COUNTRY_ID'::uuid], '{}'::uuid[], null),
-  ('solaris_app_v3_account_settings', true, false, array['$COUNTRY_ID'::uuid], '{}'::uuid[], null)
+  ('solaris_app_v3_account_settings', true, false, array['$COUNTRY_ID'::uuid], '{}'::uuid[], null),
+  ('solaris_app_v3_notifications', true, false, array['$COUNTRY_ID'::uuid], '{}'::uuid[], null)
 on conflict (key) do update
 set enabled = excluded.enabled,
     admins_only = excluded.admins_only,
@@ -234,7 +235,7 @@ set enabled = excluded.enabled,
 [[ "$(db_scalar "select status from public.country_accounts where user_id='$COUNTRY_ID'::uuid;")" == "active" ]]   || fail "Country browser account was not active"
 [[ "$(db_scalar "select status from public.country_accounts where user_id='$SUSPENDED_ID'::uuid;")" == "suspended" ]]   || fail "Suspended browser account was not suspended"
 [[ "$(db_scalar "select count(*) from public.studio2_feature_flags where key in ('public_encyclopedia','country_voting_dna','prediction_league','fantasy_ssc','time_machine','solaris_command_assistant') and enabled and user_ids @> array['$ORGANIZER_ID'::uuid] and cardinality(user_ids)=2;")" == "6" ]]   || fail "Organizer-only completion-programme feature flags were not seeded"
-[[ "$(db_scalar "select count(*) from public.studio2_feature_flags where key in ('solaris_app_v3','solaris_app_v3_account_settings') and enabled and user_ids = array['$COUNTRY_ID'::uuid];")" == "2" ]]   || fail "Country-only App V3 Account + Settings flags were not seeded"
+[[ "$(db_scalar "select count(*) from public.studio2_feature_flags where key in ('solaris_app_v3','solaris_app_v3_account_settings','solaris_app_v3_notifications') and enabled and user_ids = array['$COUNTRY_ID'::uuid];")" == "3" ]]   || fail "Country-only App V3 Account + Settings + Notifications flags were not seeded"
 
 if [[ -n "${GITHUB_ENV:-}" ]]; then
   {
