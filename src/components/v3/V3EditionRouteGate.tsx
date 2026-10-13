@@ -1,4 +1,4 @@
-import { useLocation } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
@@ -43,6 +43,17 @@ function ResolvingEditionSurface() {
           Loading the public Edition hub.
         </p>
       </header>
+      <nav
+        className="mt-5 flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold"
+        aria-label="Edition navigation while loading"
+      >
+        <Link to="/editions" className="text-primary hover:underline">
+          All editions
+        </Link>
+        <Link to="/explore" className="text-primary hover:underline">
+          Explore Solaris
+        </Link>
+      </nav>
       <p className="sr-only" role="status" aria-live="polite">
         Checking the current Edition experience.
       </p>
