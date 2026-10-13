@@ -1,0 +1,32 @@
+name: Temporary V3 Results Search reconcile
+
+on:
+  push:
+    branches:
+      - v3/results-root-cutover-main
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v3/results-root-cutover-main
+          fetch-depth: 0
+      - name: Reconcile Search product surface
+        run: python scripts/_temporary_v3_results_search_reconcile.py
+      - name: Remove temporary patch files and commit
+        run: |
+          set -euo pipefail
+          rm scripts/_temporary_v3_results_search_reconcile.py
+          rm .github/workflows/_temporary-v3-results-search-reconcile.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/lib/studio2-product-surfaces.ts scripts/_temporary_v3_results_search_reconcile.py .github/workflows/_temporary-v3-results-search-reconcile.yml
+          git diff --cached --check
+          git commit -m 'Reconcile Results product surface with V3 Search'
+          git push origin HEAD:v3/results-root-cutover-main
