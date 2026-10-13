@@ -9,14 +9,14 @@ type E2ESession = {
 function requiredLocalConfig() {
   const supabaseUrl = process.env.E2E_SUPABASE_URL;
   const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
-  const email = process.env.E2E_COUNTRY_EMAIL;
-  const password = process.env.E2E_COUNTRY_PASSWORD;
+  const email = process.env.E2E_EDITION_EMAIL;
+  const password = process.env.E2E_EDITION_PASSWORD;
   const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4173";
   const missing = !supabaseUrl || !publishableKey || !email || !password;
 
   if (missing && process.env.CI) {
     throw new Error(
-      "Browser Audit must provide isolated local Supabase and country credentials for V3 Edition coverage.",
+      "Browser Audit must provide isolated local Supabase and Edition credentials for V3 Edition coverage.",
     );
   }
   test.skip(missing, "Local V3 Edition browser fixture is unavailable");
@@ -35,7 +35,7 @@ function requiredLocalConfig() {
   };
 }
 
-async function signInLocalCountry(): Promise<E2ESession> {
+async function signInLocalEditionIdentity(): Promise<E2ESession> {
   const { supabaseUrl, publishableKey, email, password } = requiredLocalConfig();
   const response = await fetch(
     `${supabaseUrl.replace(/\/$/, "")}/auth/v1/token?grant_type=password`,
@@ -45,7 +45,7 @@ async function signInLocalCountry(): Promise<E2ESession> {
       body: JSON.stringify({ email, password }),
     },
   );
-  expect(response.ok, "The isolated local country account must sign in").toBeTruthy();
+  expect(response.ok, "The isolated local Edition identity must sign in").toBeTruthy();
   return (await response.json()) as E2ESession;
 }
 
@@ -108,7 +108,7 @@ test("V3 Edition owns the clean installed-app hub while canonical deep detail st
     "One canonical installed-iOS viewport is sufficient for this bounded Edition cutover regression.",
   );
 
-  const session = await signInLocalCountry();
+  const session = await signInLocalEditionIdentity();
   const { baseURL } = requiredLocalConfig();
 
   const installed = await browser.newContext({ viewport: { width: 390, height: 844 } });
@@ -117,6 +117,10 @@ test("V3 Edition owns the clean installed-app hub while canonical deep detail st
   await enableInstalledMode(appPage);
 
   await appPage.goto(`${baseURL}/editions/ssc22`, { waitUntil: "domcontentloaded" });
+  await expect(appPage.locator('[data-v3-edition-boot=""]')).toHaveCount(0, {
+    timeout: 15_000,
+  });
+  await expect(appPage.locator("main.v3-screen")).toBeVisible();
   await expect(appPage.getByRole("heading", { name: "Browser Audit Edition" })).toBeVisible();
   await expect(appPage.getByText("Explore this edition", { exact: true })).toBeVisible();
   await expect(
@@ -136,6 +140,9 @@ test("V3 Edition owns the clean installed-app hub while canonical deep detail st
   await installSession(web, session);
   const webPage = await web.newPage();
   await webPage.goto(`${baseURL}/editions/ssc22`, { waitUntil: "domcontentloaded" });
+  await expect(webPage.locator('[data-v3-edition-boot=""]')).toHaveCount(0, {
+    timeout: 15_000,
+  });
   await expect(webPage.locator(".edition-public-page")).toBeVisible();
   await expect(webPage.getByText("Explore this edition", { exact: true })).toHaveCount(0);
   await expectNoHorizontalOverflow(webPage);
