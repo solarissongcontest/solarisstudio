@@ -709,7 +709,10 @@ Deno.serve(async (request) => {
     });
   }
   if (row.status === "rejected" || row.status === "expired") {
-    return json({ error: row.rejection_reason || "Upload authorization is no longer usable." }, 409);
+    return json({
+      error: row.rejection_reason || "Upload authorization is no longer usable.",
+      code: row.status === "expired" ? "authorization_expired" : "authorization_rejected",
+    }, 409);
   }
 
   const { data: platformState, error: platformStateError } = await service
@@ -731,7 +734,7 @@ Deno.serve(async (request) => {
   }
 
   if (new Date(row.expires_at).getTime() <= Date.now()) {
-    await service
+    const { data: expired, error: expiryError } = await service
       .from("studio2_upload_authorizations")
       .update({
         status: "expired",
@@ -739,9 +742,14 @@ Deno.serve(async (request) => {
         finalized_at: new Date().toISOString(),
       })
       .eq("id", row.id)
-      .eq("status", "prepared");
+      .eq("status", "prepared")
+      .select("id")
+      .maybeSingle();
+    if (expiryError || !expired) {
+      return json({ error: "Upload expiration could not be confirmed. Retry finalization." }, 503);
+    }
     await service.storage.from("solaris-upload-quarantine").remove([row.quarantine_path]);
-    return json({ error: "Upload authorization expired." }, 409);
+    return json({ error: "Upload authorization expired.", code: "authorization_expired" }, 409);
   }
 
   const { data: blob, error: downloadError } = await service.storage
@@ -749,7 +757,12 @@ Deno.serve(async (request) => {
     .download(row.quarantine_path);
 
   if (downloadError || !blob) {
-    return json({ error: "Quarantined upload is missing." }, 409);
+    // An unavailable Storage service cannot establish that no object exists.
+    // Only an explicit not-found response permits re-uploading the same path.
+    if (downloadError && (downloadError.status === 404 || downloadError.statusCode === "404")) {
+      return json({ error: "Quarantined upload is missing.", code: "quarantine_missing" }, 409);
+    }
+    return json({ error: "Quarantined upload could not be checked. Retry finalization." }, 503);
   }
 
   const bytes = new Uint8Array(await blob.arrayBuffer());
@@ -789,7 +802,7 @@ Deno.serve(async (request) => {
 
   if (rejection) {
     await service.storage.from("solaris-upload-quarantine").remove([row.quarantine_path]);
-    await service
+    const { data: rejected, error: rejectionError } = await service
       .from("studio2_upload_authorizations")
       .update({
         status: "rejected",
@@ -803,8 +816,13 @@ Deno.serve(async (request) => {
         },
       })
       .eq("id", row.id)
-      .eq("status", "prepared");
-    return json({ error: rejection }, 422);
+      .eq("status", "prepared")
+      .select("id")
+      .maybeSingle();
+    if (rejectionError || !rejected) {
+      return json({ error: "Upload rejection could not be confirmed. Retry finalization." }, 503);
+    }
+    return json({ error: rejection, code: "authorization_rejected" }, 422);
   }
 
   let publishBytes = bytes;
@@ -849,7 +867,7 @@ Deno.serve(async (request) => {
         ? processingError.message
         : "Server-side file processing failed.";
     await service.storage.from("solaris-upload-quarantine").remove([row.quarantine_path]);
-    await service
+    const { data: rejected, error: rejectionError } = await service
       .from("studio2_upload_authorizations")
       .update({
         status: "rejected",
@@ -865,8 +883,13 @@ Deno.serve(async (request) => {
         },
       })
       .eq("id", row.id)
-      .eq("status", "prepared");
-    return json({ error: message }, 422);
+      .eq("status", "prepared")
+      .select("id")
+      .maybeSingle();
+    if (rejectionError || !rejected) {
+      return json({ error: "Upload rejection could not be confirmed. Retry finalization." }, 503);
+    }
+    return json({ error: message, code: "authorization_rejected" }, 422);
   }
 
   const metadata = {
