@@ -18,6 +18,19 @@ type ParticipationStatusTone = "neutral" | "danger" | "warning" | "success";
 
 const ParticipationChromeContext = createContext(false);
 
+/**
+ * Marks participation chrome as already owned by a parent shell. Critical V3
+ * routes use this boundary so the canonical workflow component can be reused
+ * without mounting the legacy AppShell around it.
+ */
+export function ParticipationRouteChromeOwner({ children }: { children: ReactNode }) {
+  return (
+    <ParticipationChromeContext.Provider value>
+      {children}
+    </ParticipationChromeContext.Provider>
+  );
+}
+
 export function ParticipationRouteChrome({ children }: { children: ReactNode }) {
   const nested = useContext(ParticipationChromeContext);
 
@@ -194,9 +207,8 @@ export function ParticipationServiceShell({
                   to={action.to as any}
                   className={cn(
                     "inline-flex min-h-10 items-center justify-center rounded-xl border px-3 text-xs font-semibold transition sm:text-sm",
-                    pathMatches(pathname, action.to)
-                      ? "border-primary/30 bg-primary/[0.10] text-foreground"
-                      : "border-border/75 bg-surface/55 text-muted-foreground hover:bg-surface-strong hover:text-foreground",
+                    pathMatches(pathname, action.to) && "border-primary/30 bg-primary/[0.10] text-foreground",
+                    !pathMatches(pathname, action.to) && "border-border/75 bg-surface/55 text-muted-foreground hover:bg-surface-strong hover:text-foreground",
                   )}
                 >
                   {action.label}
