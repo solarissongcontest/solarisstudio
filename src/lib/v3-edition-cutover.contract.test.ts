@@ -1,14 +1,16 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 const read = (path: string) =>
   readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const readRoot = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 const flags = () => read("lib/feature-flags.ts");
 const surfaces = () => read("lib/studio2-product-surfaces.ts");
 const migration = () =>
-  read("../supabase/migrations/20261013113000_v3_edition_hub_rollout_flag.sql");
+  readRoot("supabase/migrations/20261013113000_v3_edition_hub_rollout_flag.sql");
 const probe = () => read("integrations/v3/rollout-probe.server.ts");
 const source = () => read("integrations/v3/edition-source.server.ts");
 const functions = () => read("lib/v3-edition.functions.ts");
