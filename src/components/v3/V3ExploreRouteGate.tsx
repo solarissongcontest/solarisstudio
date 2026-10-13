@@ -42,7 +42,7 @@ export function V3ExploreRouteGate({ legacy }: { legacy: ReactNode }) {
   const { isAppMode, platformResolved } = useSolarisApp();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
-  const searchHostRef = useRef<HTMLDivElement>(null);
+  const legacySearchHostRef = useRef<HTMLDivElement>(null);
   const rollout = useV3RolloutProbe(platformResolved && isAppMode);
   const shouldLoadBundle =
     platformResolved &&
@@ -81,8 +81,12 @@ export function V3ExploreRouteGate({ legacy }: { legacy: ReactNode }) {
   if (!shell.useV3Shell) return <>{legacy}</>;
 
   const bundle = bundleQuery.data;
+  const globalSearchEnabled = rollout.data.searchEnabled === true;
   const openCanonicalSearch = () => {
-    searchHostRef.current
+    const owner = globalSearchEnabled
+      ? document.querySelector<HTMLElement>('[data-v3-search-owner="canonical"]')
+      : legacySearchHostRef.current;
+    owner
       ?.querySelector<HTMLButtonElement>('button[aria-label="Search Solaris Studio"]')
       ?.click();
   };
@@ -92,9 +96,11 @@ export function V3ExploreRouteGate({ legacy }: { legacy: ReactNode }) {
       editionLabel={bundle.shell.editionLabel}
       phaseLabel={bundle.shell.phaseLabel}
       topActions={
-        <div ref={searchHostRef} data-v3-explore-search-owner="canonical">
-          <PublicCommandPalette compact />
-        </div>
+        !globalSearchEnabled ? (
+          <div ref={legacySearchHostRef} data-v3-explore-search-owner="canonical">
+            <PublicCommandPalette compact />
+          </div>
+        ) : undefined
       }
     >
       <V3ExploreScreen

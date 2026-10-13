@@ -7,13 +7,17 @@ import {
   GOVERNANCE_ACTION_STORAGE_KEY,
   RULE_CONTEXT_STORAGE_KEY,
 } from "@/components/rules/RulesGovernanceContext";
+import { V3RulesRouteGate } from "@/components/v3/V3RulesRouteGate";
 import {
   GOVERNANCE_ACTION_KEYS,
   type GovernanceActionKey,
 } from "@/lib/governance-v5";
-import { getRuleContext } from "@/lib/rule-context";
+import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
 
 export const Route = createFileRoute("/rules/applied")({
+  validateSearch: (search: Record<string, unknown>): { context?: string } => ({
+    context: sanitizeRuleContextPath(search.context),
+  }),
   head: () => ({
     meta: [
       { title: "Rules Applying Here — Solaris Song Contest" },
@@ -37,9 +41,30 @@ function actionFor(path: string | null): GovernanceActionKey | null {
 }
 
 export function AppliedRulesPage() {
+  const { context: contextPath } = Route.useSearch();
+  const content = <AppliedRulesContent contextPath={contextPath} />;
+
+  return (
+    <V3RulesRouteGate
+      phaseLabel="Rule guidance"
+      resolvingTitle="Opening rule guidance"
+      legacy={<AppShell>{content}</AppShell>}
+    >
+      {content}
+    </V3RulesRouteGate>
+  );
+}
+
+function AppliedRulesContent({ contextPath }: { contextPath?: string }) {
   const [context, setContext] = useState<GovernanceActionKey | null>(null);
 
   useEffect(() => {
+    const explicitAction = actionFor(contextPath ?? null);
+    if (explicitAction) {
+      setContext(explicitAction);
+      return;
+    }
+
     try {
       const storedAction = window.sessionStorage.getItem(GOVERNANCE_ACTION_STORAGE_KEY);
       if (
@@ -55,27 +80,25 @@ export function AppliedRulesPage() {
     } catch {
       setContext(null);
     }
-  }, []);
+  }, [contextPath]);
 
   return (
-    <AppShell>
-      <div className="mx-auto max-w-4xl pb-20">
-        <header className="border-b border-border/65 pb-5">
-          <p className="text-xs font-black uppercase tracking-[0.12em] text-primary/80">Applied rules</p>
-          <h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">Rules for your current Solaris task</h1>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Solaris remembers only the coarse workflow family, never ballot contents, case IDs or other sensitive task details.
-          </p>
-        </header>
-        {context ? (
-          <RulesApplyingHere context={context} initiallyExpanded primaryLimit={99} className="mt-5" />
-        ) : (
-          <div className="mt-6 border-y border-border/60 py-6">
-            <p className="text-sm text-muted-foreground">No recent rule-aware task is available in this session.</p>
-            <Link to="/rules" className="mt-3 inline-flex text-sm font-bold text-primary">Open Rules</Link>
-          </div>
-        )}
-      </div>
-    </AppShell>
+    <div className="mx-auto max-w-4xl pb-20">
+      <header className="border-b border-border/65 pb-5">
+        <p className="text-xs font-black uppercase tracking-[0.12em] text-primary/80">Applied rules</p>
+        <h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">Rules for your current Solaris task</h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Solaris remembers only the coarse workflow family, never ballot contents, case IDs or other sensitive task details.
+        </p>
+      </header>
+      {context ? (
+        <RulesApplyingHere context={context} initiallyExpanded primaryLimit={99} className="mt-5" />
+      ) : (
+        <div className="mt-6 border-y border-border/60 py-6">
+          <p className="text-sm text-muted-foreground">No recent rule-aware task is available in this session.</p>
+          <Link to="/rules" className="mt-3 inline-flex text-sm font-bold text-primary">Open Rules</Link>
+        </div>
+      )}
+    </div>
   );
 }
