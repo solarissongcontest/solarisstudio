@@ -1,7 +1,10 @@
 begin;
 
--- Edition detail is a separately reversible App V3 slice. The Explore root can
--- remain on V3 while an Edition route falls back to the proven legacy page.
+-- Edition detail is a separately reversible App V3 slice. This migration runs
+-- after the Notifications rollout migration so both independently shipped V3
+-- feature keys remain valid on clean replay and main-to-feature upgrades.
+-- Explore can remain on V3 while an Edition route falls back to the proven
+-- legacy page.
 alter table public.studio2_feature_flags
   drop constraint if exists studio2_feature_flags_key_check;
 
@@ -17,7 +20,7 @@ alter table public.studio2_feature_flags
       'solaris_command_assistant', 'solaris_app_v3',
       'solaris_app_v3_confirmation', 'solaris_app_v3_scoreboard',
       'solaris_app_v3_account_settings', 'solaris_app_v3_explore',
-      'solaris_app_v3_edition_hub'
+      'solaris_app_v3_notifications', 'solaris_app_v3_edition_hub'
     )
   );
 

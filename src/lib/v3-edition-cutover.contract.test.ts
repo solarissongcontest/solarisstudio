@@ -10,7 +10,9 @@ const readRoot = (path: string) => readFileSync(resolve(process.cwd(), path), "u
 const flags = () => read("lib/feature-flags.ts");
 const surfaces = () => read("lib/studio2-product-surfaces.ts");
 const migration = () =>
-  readRoot("supabase/migrations/20261013113000_v3_edition_hub_rollout_flag.sql");
+  readRoot("supabase/migrations/20261013123000_v3_edition_hub_rollout_flag.sql");
+const notificationsMigration = () =>
+  readRoot("supabase/migrations/20261013120000_v3_notifications_rollout_flag.sql");
 const probe = () => read("integrations/v3/rollout-probe.server.ts");
 const source = () => read("integrations/v3/edition-source.server.ts");
 const functions = () => read("lib/v3-edition.functions.ts");
@@ -25,6 +27,12 @@ describe("V3 Edition production cutover", () => {
     expect(surfaces()).toContain('dependsOn: ["solaris_app_v3", "solaris_app_v3_explore"]');
     expect(migration()).toContain("'solaris_app_v3_edition_hub'");
     expect(migration()).toMatch(/'solaris_app_v3_edition_hub'[\s\S]*?false/);
+  });
+
+  it("preserves independently shipped Notifications vocabulary after migration ordering", () => {
+    expect(notificationsMigration()).toContain("'solaris_app_v3_notifications'");
+    expect(migration()).toContain("'solaris_app_v3_notifications'");
+    expect(migration()).toContain("'solaris_app_v3_edition_hub'");
   });
 
   it("keeps rollout evaluation server-authoritative and fail-closed", () => {
