@@ -11,6 +11,7 @@ import { PublicDestinationGrid } from "@/components/public/PublicDestinationGrid
 import { PublicHubHero } from "@/components/public/PublicHubHero";
 import { PublicPrimaryAction } from "@/components/public/PublicPrimaryAction";
 import { PublicSecondaryLinks } from "@/components/public/PublicSecondaryLinks";
+import { V3ResultsRouteGate } from "@/components/v3/V3ResultsRouteGate";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
@@ -44,6 +45,10 @@ export const Route = createFileRoute("/results/")({
 });
 
 function ResultsOverviewPage() {
+  return <V3ResultsRouteGate legacy={<LegacyResultsOverviewPage />} />;
+}
+
+function LegacyResultsOverviewPage() {
   const { isAppMode } = useSolarisApp();
   const { preferences } = useAppExperiencePreferences();
   const hideSpoilers = isAppMode && preferences.spoilerFree;
