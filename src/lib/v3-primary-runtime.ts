@@ -1,7 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { getV3PrimarySurfaceBundle } from "./v3-primary-surface.functions";
-import { getV3RolloutProbe } from "./v3-rollout-probe.functions";
+import {
+  getV3EditionRolloutProbe,
+  getV3RolloutProbe,
+} from "./v3-rollout-probe.functions";
 
 export const V3_ROLLOUT_QUERY_KEY = ["v3-rollout-probe"] as const;
 
@@ -23,6 +26,21 @@ export function useV3RolloutProbe(enabled: boolean) {
     // same mounted route must reuse that authoritative observer instead of
     // launching a second probe that could race the route-level decision.
     refetchOnMount: activeProbeObservers > 0 ? false : "always",
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+}
+
+export function useV3EditionRolloutProbe(slug: string, enabled: boolean) {
+  const normalizedSlug = slug.trim();
+  return useQuery({
+    queryKey: ["v3-edition-rollout-probe", normalizedSlug],
+    queryFn: () =>
+      getV3EditionRolloutProbe({ data: { slug: normalizedSlug } }),
+    enabled: enabled && Boolean(normalizedSlug),
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
     refetchOnWindowFocus: false,
     retry: false,
   });
