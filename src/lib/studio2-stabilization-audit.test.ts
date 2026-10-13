@@ -37,6 +37,9 @@ function routeFile(route: string) {
       `${route.slice("/my-solaris/".length)}.tsx`,
     );
   }
+  if (route === "/editions/$slug") {
+    return resolve(process.cwd(), "src/routes/editions/$slug.tsx");
+  }
   if (route.startsWith("/") && !route.includes("$")) {
     const routeName = route.slice(1);
     const authenticated = resolve(
