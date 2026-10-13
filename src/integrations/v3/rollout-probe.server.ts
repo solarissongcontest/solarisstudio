@@ -31,6 +31,7 @@ export type V3RolloutProbe = {
   editionHubEnabled: boolean;
   notificationsEnabled: boolean;
   delegationEnabled: boolean;
+  searchEnabled: boolean;
   resultsEnabled: boolean;
   editionId: string | null;
   userId: string | null;
@@ -69,6 +70,7 @@ function disabledProbe(input?: { editionId?: string | null; userId?: string | nu
     editionHubEnabled: false,
     notificationsEnabled: false,
     delegationEnabled: false,
+    searchEnabled: false,
     resultsEnabled: false,
     editionId: input?.editionId ?? null,
     userId: input?.userId ?? null,
@@ -89,6 +91,7 @@ async function evaluateV3Rollout(
     editionHubFlag,
     notificationsFlag,
     delegationFlag,
+    searchFlag,
     resultsFlag,
   ] = await Promise.all([
     client.rpc("studio2_feature_enabled", {
@@ -124,6 +127,10 @@ async function evaluateV3Rollout(
       p_edition_id: editionId,
     }),
     client.rpc("studio2_feature_enabled", {
+      p_key: "solaris_app_v3_search",
+      p_edition_id: editionId,
+    }),
+    client.rpc("studio2_feature_enabled", {
       p_key: "solaris_app_v3_results",
       p_edition_id: editionId,
     }),
@@ -148,6 +155,7 @@ async function evaluateV3Rollout(
     notificationsFlag.data === true;
   const delegationEnabled =
     enabled && exploreEnabled && !delegationFlag.error && delegationFlag.data === true;
+  const searchEnabled = enabled && !searchFlag.error && searchFlag.data === true;
   const resultsEnabled =
     enabled && !resultsFlag.error && resultsFlag.data === true;
 
@@ -160,6 +168,7 @@ async function evaluateV3Rollout(
     editionHubEnabled,
     notificationsEnabled,
     delegationEnabled,
+    searchEnabled,
     resultsEnabled,
     editionId,
     userId,
