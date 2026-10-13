@@ -31,7 +31,7 @@ for attempt in {1..20}; do
 done
 [[ "${DB_READY:-0}" == "1" ]] || fail "Local database did not become ready for browser E2E seeding"
 
-PASSWORD="$(printf 'SolarisBrowserLocal%04d!' 2026)"
+PASSWORD='SolarisBrowserLocal2026!'
 ORGANIZER_EMAIL='organizer-browser-e2e@solaris.invalid'
 ORGANIZER_B_EMAIL='organizer-b-browser-e2e@solaris.invalid'
 COUNTRY_EMAIL='country-browser-e2e@solaris.invalid'
