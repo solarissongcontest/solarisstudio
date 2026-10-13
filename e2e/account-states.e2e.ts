@@ -8,6 +8,8 @@ type E2ESession = {
   [key: string]: unknown;
 };
 
+const ARCHIVE_EDITION_ID = "00000000-0000-4000-8000-00000000e219";
+
 async function addSession(
   context: BrowserContext,
   url: string,
@@ -63,6 +65,7 @@ async function setV3FeatureForLocalUser(
   session: E2ESession,
   key: string,
   enabled: boolean,
+  editionIds: string[] = [],
 ) {
   const response = await fetch(`${url.replace(/\/$/, "")}/rest/v1/rpc/studio2_set_feature_flag`, {
     method: "POST",
@@ -76,7 +79,7 @@ async function setV3FeatureForLocalUser(
       p_enabled: enabled,
       p_admins_only: false,
       p_user_ids: enabled ? [session.user.id] : [],
-      p_edition_ids: [],
+      p_edition_ids: enabled ? editionIds : [],
     }),
   });
   const body = await response.text();
@@ -240,6 +243,29 @@ test("server-authorized V3 rollout keeps primary and Edition content aligned wit
       "page",
     );
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
+
+    // Re-scope only the Edition Hub flag to a non-current published edition. The
+    // route-specific server probe must resolve ssc21 to this canonical ID. The
+    // old current-edition probe would incorrectly disable this archive route.
+    await setV3FeatureForLocalUser(
+      url!,
+      publishableKey!,
+      session,
+      "solaris_app_v3_edition_hub",
+      true,
+      [ARCHIVE_EDITION_ID],
+    );
+
+    await page.goto("/editions/ssc21", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Browser Archive Edition", exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Explore Browser Archive Edition" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "At a glance", exact: true })).toBeVisible();
+    await expect(page.locator(".edition-public-page")).toHaveCount(0);
+
+    // The same edition-scoped flag must not leak back onto the current edition.
+    await page.goto("/editions/ssc22", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".edition-public-page")).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Explore Browser Audit Edition" })).toHaveCount(0);
   } finally {
     await setV3FeatureForLocalUser(
       url!,
