@@ -6,10 +6,13 @@ const workflow = readFileSync(".github/workflows/browser-audit.yml", "utf8");
 describe("browser audit hosted-egress guard", () => {
   it("runs browser CI against isolated local Supabase only", () => {
     expect(workflow).toContain("Start isolated local Supabase for browser audit");
-    expect(workflow).toContain("supabase db reset --local --no-seed");
+    expect(workflow).toContain("supabase start");
+    expect(workflow).toContain("supabase status -o env");
+    expect(workflow).not.toContain("supabase db reset --local --no-seed");
     expect(workflow).toContain("Refusing browser audit against non-local Supabase URL");
     expect(workflow).toContain("Refusing audit server with hosted Supabase URL");
     expect(workflow).toContain("http://127.0.0.1:54321");
+    expect(workflow).toContain("supabase stop --no-backup");
   });
 
   it("does not expose hosted Supabase or account credentials to browser CI", () => {
