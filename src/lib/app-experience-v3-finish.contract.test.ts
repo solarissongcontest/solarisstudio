@@ -35,7 +35,7 @@ describe("App Experience v3 completion contract", () => {
     const more = source("src/components/app/AppMoreNavigation.tsx");
     const navigation = source("src/lib/public-navigation.ts");
 
-    expect(settings).toContain('title="App Settings"');
+    expect(settings).toContain('title="App settings"');
     expect(settings).toContain('title="Notifications"');
     expect(settings).toContain('title="Appearance & accessibility"');
     expect(settings).toContain('title="Storage & offline"');
