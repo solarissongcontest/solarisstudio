@@ -14,6 +14,7 @@ import { ResponsiveTabs } from "@/components/ResponsiveTabs";
 import { CountryDesignV2Hero } from "@/components/country/CountryDesignV2Hero";
 import { CountryDesignV2Styles } from "@/components/country/CountryDesignV2Styles";
 import { CountryIdentityHero } from "@/components/country/CountryIdentityHero";
+import { V3DelegationRouteGate } from "@/components/v3/V3DelegationRouteGate";
 import { allTimeScoreForCountry } from "@/lib/all-time-ranking";
 import { computeCanonicalCountryStats } from "@/lib/canonical-country-stats";
 import { computeCanonicalHeadToHead } from "@/lib/canonical-head-to-head";
@@ -92,11 +93,12 @@ export const Route = createFileRoute("/countries/$code")({
 });
 
 function CountryProfileRoute() {
+  const { code } = Route.useParams();
   return (
     <>
       <CountryPersonalityStyles />
       <CountryDesignV2Styles />
-      <CountryProfilePage />
+      <V3DelegationRouteGate code={code} legacy={<CountryProfilePage />} />
     </>
   );
 }
