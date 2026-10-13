@@ -3,12 +3,22 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
+const workflowFiles = () => {
+  const workflowDir = resolve(process.cwd(), ".github/workflows");
+  return readdirSync(workflowDir).filter((name) => /\.ya?ml$/i.test(name));
+};
 
 describe("CI egress safety contracts", () => {
+  it("rejects hosted Supabase endpoints or Supabase secrets from every GitHub Actions workflow", () => {
+    for (const name of workflowFiles()) {
+      const content = source(`.github/workflows/${name}`);
+      expect(content, name).not.toMatch(/https:\/\/[^\s"']+\.supabase\.co/i);
+      expect(content, name).not.toMatch(/\$\{\{\s*secrets\.[^}\n]*SUPABASE/i);
+    }
+  });
+
   it("keeps every Playwright workflow isolated from hosted Supabase", () => {
-    const workflowDir = resolve(process.cwd(), ".github/workflows");
-    const workflowFiles = readdirSync(workflowDir).filter((name) => /\.ya?ml$/i.test(name));
-    const playwrightWorkflows = workflowFiles
+    const playwrightWorkflows = workflowFiles()
       .map((name) => ({ name, content: source(`.github/workflows/${name}`) }))
       .filter(({ content }) => /playwright/i.test(content));
 

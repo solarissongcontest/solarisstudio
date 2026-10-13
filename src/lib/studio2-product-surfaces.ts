@@ -202,6 +202,16 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
       description:
         "Read-only natural-language command registry over canonical Organizer routes and live bounded summaries.",
     },
+    solaris_app_v3: {
+      key: "solaris_app_v3",
+      label: "Solaris App V3",
+      state: "integrated",
+      audience: "public",
+      route: "/",
+      surfaceLabel: "App V3",
+      description:
+        "Server-authoritative app-mode rollout for the V3 shell and migrated primary user surfaces, with legacy fallback preserved during staged cutover.",
+    },
   };
 
 export const STUDIO2_PRODUCT_SURFACE_LIST = Object.values(STUDIO2_PRODUCT_SURFACES);

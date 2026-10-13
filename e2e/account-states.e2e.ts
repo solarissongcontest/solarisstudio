@@ -2,26 +2,84 @@ import { expect, test, type BrowserContext } from "@playwright/test";
 
 type AccountState = "COUNTRY" | "ORGANIZER" | "SUSPENDED";
 
+type E2ESession = {
+  access_token: string;
+  user: { id: string; email?: string | null };
+  [key: string]: unknown;
+};
+
 async function addSession(
   context: BrowserContext,
   url: string,
   publishableKey: string,
   email: string,
   password: string,
-) {
+): Promise<E2ESession> {
   const response = await fetch(`${url.replace(/\/$/, "")}/auth/v1/token?grant_type=password`, {
     method: "POST",
     headers: { apikey: publishableKey, "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
   expect(response.ok, "The configured E2E account must be able to sign in").toBeTruthy();
-  const session = await response.json();
+  const session = (await response.json()) as E2ESession;
   const projectRef = new URL(url).hostname.split(".")[0];
   const storageKey = `sb-${projectRef}-auth-token`;
   await context.addInitScript(
     ({ key, value }) => localStorage.setItem(key, JSON.stringify(value)),
     { key: storageKey, value: session },
   );
+  return session;
+}
+
+async function enableInstalledAppMode(context: BrowserContext) {
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, "standalone", {
+      configurable: true,
+      value: true,
+    });
+
+    const originalMatchMedia = window.matchMedia.bind(window);
+    window.matchMedia = ((query: string) => {
+      if (query === "(display-mode: standalone)") {
+        return {
+          matches: true,
+          media: query,
+          onchange: null,
+          addListener: () => undefined,
+          removeListener: () => undefined,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+          dispatchEvent: () => false,
+        } as MediaQueryList;
+      }
+      return originalMatchMedia(query);
+    }) as typeof window.matchMedia;
+  });
+}
+
+async function setV3ForLocalUser(
+  url: string,
+  publishableKey: string,
+  session: E2ESession,
+  enabled: boolean,
+) {
+  const response = await fetch(`${url.replace(/\/$/, "")}/rest/v1/rpc/studio2_set_feature_flag`, {
+    method: "POST",
+    headers: {
+      apikey: publishableKey,
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      p_key: "solaris_app_v3",
+      p_enabled: enabled,
+      p_admins_only: false,
+      p_user_ids: enabled ? [session.user.id] : [],
+      p_edition_ids: [],
+    }),
+  });
+  const body = await response.text();
+  expect(response.ok, `Local V3 rollout mutation must succeed: ${body}`).toBeTruthy();
 }
 
 for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies readonly AccountState[]) {
@@ -69,3 +127,42 @@ for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies rea
     }
   });
 }
+
+test("server-authorized V3 rollout renders real app Home and Participate", async ({ page, context }) => {
+  const url = process.env.E2E_SUPABASE_URL;
+  const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
+  const email = process.env.E2E_ORGANIZER_B_EMAIL;
+  const password = process.env.E2E_ORGANIZER_B_PASSWORD;
+  const missingConfig = !url || !publishableKey || !email || !password;
+
+  if (missingConfig && process.env.CI) {
+    throw new Error(
+      "Browser Audit must seed local Organizer B credentials for the V3 positive-path cutover proof.",
+    );
+  }
+  test.skip(
+    missingConfig,
+    "Organizer B browser credentials or E2E Supabase public config are not configured",
+  );
+
+  expect(url).toMatch(/^http:\/\/(?:127\.0\.0\.1|localhost):\d+/);
+  await enableInstalledAppMode(context);
+  const session = await addSession(context, url!, publishableKey!, email!, password!);
+  await setV3ForLocalUser(url!, publishableKey!, session, true);
+
+  try {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.locator("html")).toHaveAttribute("data-solaris-runtime", "standalone");
+    await expect(page.getByRole("navigation", { name: "Primary app navigation" })).toBeVisible();
+    await expect(page.getByText("Current contest", { exact: true })).toBeVisible();
+    await expect(page.getByText("Browser Audit Edition", { exact: true })).toBeVisible();
+    await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
+
+    await page.goto("/participate", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Your participation", exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Primary app navigation" })).toBeVisible();
+    await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
+  } finally {
+    await setV3ForLocalUser(url!, publishableKey!, session, false);
+  }
+});

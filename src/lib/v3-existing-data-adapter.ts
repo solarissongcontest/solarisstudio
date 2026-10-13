@@ -25,6 +25,11 @@ export type V3ExistingDataAdapterInput = {
   hideResultSpoilers?: boolean;
 };
 
+function compactEditionLabel(edition: PublicContestState["edition"]) {
+  if (!edition) return null;
+  return edition.edition_number == null ? edition.name : `SSC ${edition.edition_number}`;
+}
+
 /**
  * Migration adapter for the first V3 rollout slices.
  *
@@ -58,7 +63,7 @@ export function v3BootstrapSourceFromExistingData({
     identity,
     context: {
       editionId: edition?.id ?? null,
-      editionLabel: edition?.name ?? null,
+      editionLabel: compactEditionLabel(edition),
       delegationId: delegation?.id ?? null,
       delegationName: delegation?.name ?? null,
     },

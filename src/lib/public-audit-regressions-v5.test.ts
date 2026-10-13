@@ -65,4 +65,17 @@ describe("public audit regressions after Organisation OS V5 hardening", () => {
     expect(css).toContain(".solaris-app-bottom-spacer");
     expect(css).toContain("var(--solaris-app-bottom-obstruction, 0px)");
   });
+
+  it("does not let a departing tab bar erase a replacement bar's obstruction", () => {
+    const tabs = source("src/components/app/AppTabBar.tsx");
+    const cleanupGuard = 'if (document.querySelector(".solaris-app-tabbar")) return;';
+    const guardIndex = tabs.indexOf(cleanupGuard);
+    const resetIndex = tabs.indexOf(
+      'root.style.setProperty("--solaris-app-bottom-obstruction", "0px");',
+      guardIndex,
+    );
+
+    expect(guardIndex).toBeGreaterThan(-1);
+    expect(resetIndex).toBeGreaterThan(guardIndex);
+  });
 });

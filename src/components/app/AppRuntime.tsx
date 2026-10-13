@@ -36,6 +36,7 @@ import { refreshAppPushSubscription } from "@/lib/app-notifications";
 import { supabase } from "@/integrations/supabase/client";
 
 type AppRuntimeValue = SolarisPlatformSnapshot & {
+  platformResolved: boolean;
   connectivity: AppConnectivitySnapshot;
   lifecycle: AppLifecycleSnapshot;
   viewport: AppViewportSnapshot;
@@ -76,6 +77,7 @@ const HYDRATION_SAFE_VIEWPORT: AppViewportSnapshot = {
 
 const AppRuntimeContext = createContext<AppRuntimeValue>({
   ...HYDRATION_SAFE_PLATFORM,
+  platformResolved: false,
   connectivity: SERVER_CONNECTIVITY,
   lifecycle: HYDRATION_SAFE_LIFECYCLE,
   viewport: HYDRATION_SAFE_VIEWPORT,
@@ -90,6 +92,7 @@ export function AppRuntime({ children }: { children: ReactNode }) {
   const [platform, setPlatform] = useState<SolarisPlatformSnapshot>(
     HYDRATION_SAFE_PLATFORM,
   );
+  const [platformResolved, setPlatformResolved] = useState(false);
   const [connectivity, setConnectivity] = useState<AppConnectivitySnapshot>(() =>
     hydrationSafeAppConnectivitySnapshot(),
   );
@@ -108,6 +111,7 @@ export function AppRuntime({ children }: { children: ReactNode }) {
     const windowControlsOverlay = window.matchMedia?.("(display-mode: window-controls-overlay)");
 
     refresh();
+    setPlatformResolved(true);
     window.addEventListener("online", refresh);
     window.addEventListener("offline", refresh);
     standalone?.addEventListener?.("change", refresh);
@@ -253,6 +257,7 @@ export function AppRuntime({ children }: { children: ReactNode }) {
   const value = useMemo<AppRuntimeValue>(
     () => ({
       ...platform,
+      platformResolved,
       connectivity,
       lifecycle,
       viewport,
@@ -266,6 +271,7 @@ export function AppRuntime({ children }: { children: ReactNode }) {
       connectivity,
       lifecycle,
       platform,
+      platformResolved,
       updateSafety.reason,
       updateSafety.safe,
       viewport,

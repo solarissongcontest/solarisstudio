@@ -1,0 +1,90 @@
+import { getRequestHeader } from "@tanstack/react-start/server";
+
+import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
+import { createSolarisAuthenticatedClientServer } from "@/integrations/supabase/organizer.server";
+import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
+import type { Edition } from "@/lib/data";
+
+const EDITION_COLUMNS =
+  "id,edition_number,name,year,slug,description,host_country_id,host_city,logo,theme_id,status,published";
+
+type RolloutClient = {
+  auth?: {
+    getUser(token?: string): Promise<{
+      data: { user: { id: string } | null };
+      error: unknown;
+    }>;
+  };
+  from(table: string): any;
+  rpc(name: string, args?: Record<string, unknown>): PromiseLike<{
+    data: unknown;
+    error: unknown;
+  }>;
+};
+
+export type V3RolloutProbe = {
+  enabled: boolean;
+  editionId: string | null;
+  userId: string | null;
+};
+
+function bearerToken() {
+  const header = getRequestHeader("authorization")?.trim() ?? "";
+  if (!header) return null;
+  if (!header.startsWith("Bearer ")) return null;
+  const token = header.slice("Bearer ".length).trim();
+  return token || null;
+}
+
+async function rolloutClientForRequest(publicClient: RolloutClient) {
+  const token = bearerToken();
+  if (!token) return { client: publicClient, userId: null };
+
+  try {
+    const authenticated =
+      createSolarisAuthenticatedClientServer() as unknown as RolloutClient;
+    const { data, error } = await authenticated.auth!.getUser(token);
+    if (error || !data.user) return { client: publicClient, userId: null };
+    return { client: authenticated, userId: data.user.id };
+  } catch {
+    return { client: publicClient, userId: null };
+  }
+}
+
+/**
+ * Cheap, fail-closed V3 rollout probe.
+ *
+ * This intentionally runs before the heavier V3 Home/Participate bootstrap so
+ * disabled production users do not pay for a second data graph. The persisted
+ * Studio 2 flag remains the sole rollout authority; errors resolve to disabled.
+ */
+export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
+  try {
+    const publicClient =
+      createConfirmationPublicRuntimeClient() as unknown as RolloutClient;
+    const editionResult = await publicClient
+      .from("editions")
+      .select(EDITION_COLUMNS)
+      .eq("published", true)
+      .order("edition_number", { ascending: false });
+
+    if (editionResult.error) {
+      return { enabled: false, editionId: null, userId: null };
+    }
+
+    const edition = resolveCurrentPublicEdition(
+      ((editionResult.data ?? []) as Edition[]),
+    );
+    const editionId = edition?.id ?? null;
+    const { client, userId } = await rolloutClientForRequest(publicClient);
+    const flag = await client.rpc("studio2_feature_enabled", {
+      p_key: "solaris_app_v3",
+      p_edition_id: editionId,
+    });
+
+    if (flag.error) return { enabled: false, editionId, userId };
+    return { enabled: flag.data === true, editionId, userId };
+  } catch {
+    return { enabled: false, editionId: null, userId: null };
+  }
+}

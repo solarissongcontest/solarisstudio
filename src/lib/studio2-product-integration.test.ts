@@ -39,6 +39,15 @@ describe("Studio 2 product integration", () => {
     expect(studio2SurfaceRolloutEligible(rules)).toBe(false);
   });
 
+  it("registers Solaris App V3 as an explicit rollout surface", () => {
+    const appV3 = STUDIO2_PRODUCT_SURFACES.solaris_app_v3;
+
+    expect(appV3.key).toBe("solaris_app_v3");
+    expect(appV3.state).toBe("integrated");
+    expect(appV3.route).toBe("/");
+    expect(studio2SurfaceRolloutEligible(appV3)).toBe(true);
+  });
+
   it("keeps delegation operations discoverable from native MySolaris content", () => {
     expect(operationsPanel).toContain("NAV_TARGETS.mySolarisTasks");
     expect(operationsPanel).toContain("NAV_TARGETS.mySolarisEntry");
