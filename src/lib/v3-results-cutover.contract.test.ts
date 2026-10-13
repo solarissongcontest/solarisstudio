@@ -40,11 +40,12 @@ describe("V3 Results production cutover", () => {
     expect(server).not.toMatch(/useAllResults|useAllShows|useAllParticipants|useCountries/);
   });
 
-  it("ships the Results rollout disabled and keeps publication filtering in Postgres", () => {
+  it("ships the Results rollout disabled after Search and keeps publication filtering in Postgres", () => {
     const migration = source(
-      "supabase/migrations/20261013140000_v3_results_root_cutover.sql",
+      "supabase/migrations/20261013143000_v3_results_root_cutover.sql",
     );
 
+    expect(migration).toContain("'solaris_app_v3_search'");
     expect(migration).toContain("'solaris_app_v3_results'");
     expect(migration).toMatch(/'solaris_app_v3_results',\s*false,/s);
     expect(migration).toContain("create or replace function public.v3_public_results_root()");
