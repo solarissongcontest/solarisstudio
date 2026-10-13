@@ -15,6 +15,7 @@ const previousMigration = () =>
   read("supabase/migrations/20261013010000_v3_scoreboard_rollout_flag.sql");
 const probe = () => read("src/integrations/v3/rollout-probe.server.ts");
 const shell = () => read("src/components/v3/V3AccountSettingsRouteShell.tsx");
+const accountSession = () => read("src/lib/account-session.ts");
 const accountRoute = () => read("src/routes/_authenticated/my-solaris/account.tsx");
 const settingsRoute = () => read("src/routes/settings.tsx");
 const notificationsPanel = () =>
@@ -108,12 +109,17 @@ describe("V3 Account + Settings cutover", () => {
     expect(notifications).not.toContain('queryKey: ["mysolaris-notification-user"]');
   });
 
-  it("preserves explicit V3 sign out through the canonical auth client", () => {
+  it("keeps sign out canonical, presentation-only and hidden for anonymous settings", () => {
     const source = shell();
+    const session = accountSession();
 
-    expect(source).toContain("supabase.auth.signOut()");
+    expect(source).toContain("signOutSolarisAccount");
+    expect(source).toContain("{session.data ? (");
     expect(source).toContain('aria-label="Sign out"');
     expect(source).toContain('window.location.href = "/"');
+    expect(source).not.toContain("integrations/supabase");
+    expect(source).not.toContain("supabase.auth.signOut");
+    expect(session).toContain("supabase.auth.signOut()");
   });
 
   it("does not expose a browser-controlled rollout escape hatch", () => {
