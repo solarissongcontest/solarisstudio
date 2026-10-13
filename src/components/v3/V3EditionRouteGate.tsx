@@ -18,7 +18,12 @@ const LEGACY_EDITION_SECTION_HASHES = new Set([
 ]);
 
 function normalizeHash(value: string) {
-  return decodeURIComponent(value.replace(/^#/, ""));
+  const raw = value.replace(/^#/, "");
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
 }
 
 function ResolvingEditionSurface() {
