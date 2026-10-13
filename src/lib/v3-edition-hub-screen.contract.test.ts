@@ -40,7 +40,7 @@ describe("V3 Edition hub screen architecture boundary", () => {
       "edition-stories",
       "edition-results",
     ]) {
-      expect(source).toContain(`id=\"${id}\"`);
+      expect(source).toContain(`id="${id}"`);
     }
     expect(source).not.toContain("?tab=participants");
     expect(source).not.toContain("?tab=songs");
