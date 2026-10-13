@@ -1,0 +1,154 @@
+[data-solaris-v3] .v3-focused-task-shell {
+  min-height: 100dvh;
+}
+
+[data-solaris-v3] .v3-focused-task-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 0.5rem;
+  min-height: calc(4rem + env(safe-area-inset-top));
+  padding:
+    calc(env(safe-area-inset-top) + 0.45rem)
+    max(0.75rem, env(safe-area-inset-right))
+    0.55rem
+    max(0.75rem, env(safe-area-inset-left));
+  border-bottom: 1px solid var(--v3-border-subtle);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--v3-bg-base) 92%, transparent),
+      color-mix(in oklab, var(--v3-bg-base) 80%, transparent)
+    );
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
+  backdrop-filter: blur(22px) saturate(145%);
+}
+
+[data-solaris-v3] .v3-focused-task-toolbar__side {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+[data-solaris-v3] .v3-focused-task-toolbar__side--start {
+  justify-content: flex-start;
+}
+
+[data-solaris-v3] .v3-focused-task-toolbar__side--end {
+  justify-content: flex-end;
+}
+
+[data-solaris-v3] .v3-focused-task-toolbar__button {
+  display: inline-flex;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  border: 1px solid transparent;
+  border-radius: var(--v3-radius-md);
+  color: var(--v3-text-secondary);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    transform var(--v3-motion-instant) var(--v3-ease-enter),
+    color var(--v3-motion-fast) var(--v3-ease-enter),
+    background-color var(--v3-motion-fast) var(--v3-ease-enter),
+    border-color var(--v3-motion-fast) var(--v3-ease-enter);
+}
+
+[data-solaris-v3] .v3-focused-task-toolbar__button:hover {
+  border-color: var(--v3-border-subtle);
+  color: var(--v3-text-primary);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+[data-solaris-v3] .v3-focused-task-toolbar__button:active {
+  transform: scale(0.96);
+}
+
+[data-solaris-v3] .v3-focused-task-toolbar__button:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--v3-accent) 75%, white);
+  outline-offset: 2px;
+}
+
+[data-solaris-v3] .v3-focused-task-toolbar__back {
+  max-width: 100%;
+  justify-content: flex-start;
+  padding: 0 0.45rem 0 0.2rem;
+}
+
+[data-solaris-v3] .v3-focused-task-toolbar__back span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-solaris-v3] .v3-focused-task-toolbar__icon {
+  width: 2.75rem;
+  padding: 0;
+}
+
+[data-solaris-v3] .v3-focused-task-toolbar__title-wrap {
+  min-width: 0;
+  max-width: min(52vw, 24rem);
+  text-align: center;
+}
+
+[data-solaris-v3] .v3-focused-task-toolbar__title {
+  overflow: hidden;
+  margin: 0;
+  color: var(--v3-text-primary);
+  font-size: 0.9rem;
+  font-weight: 750;
+  line-height: 1.15;
+  letter-spacing: -0.018em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-solaris-v3] .v3-focused-task-toolbar__context {
+  overflow: hidden;
+  margin: 0.2rem 0 0;
+  color: var(--v3-text-tertiary);
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.035em;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-solaris-v3] .v3-focused-task-content {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 48rem);
+  margin: 0 auto;
+  padding:
+    1rem
+    max(1rem, env(safe-area-inset-right))
+    calc(2.25rem + env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
+}
+
+@media (max-width: 390px) {
+  [data-solaris-v3] .v3-focused-task-toolbar {
+    grid-template-columns: minmax(0, 0.85fr) minmax(7rem, 1.3fr) minmax(0, 0.85fr);
+  }
+
+  [data-solaris-v3] .v3-focused-task-toolbar__back span {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  [data-solaris-v3] .v3-focused-task-toolbar {
+    background: var(--v3-bg-base);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
