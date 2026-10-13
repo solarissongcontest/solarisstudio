@@ -10,11 +10,11 @@ import {
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
-import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { Panel } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { MySolarisNotificationsPanel } from "@/components/mysolaris/MySolarisNotificationsPanel";
 import { Switch } from "@/components/ui/switch";
-import { supabase } from "@/integrations/supabase/client";
+import { V3AccountSettingsRouteShell } from "@/components/v3/V3AccountSettingsRouteShell";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import {
   clearOfflinePublicIndex,
@@ -26,6 +26,7 @@ import {
   estimateSolarisStorage,
   type SolarisStorageEstimate,
 } from "@/lib/app-storage";
+import { useFanSession } from "@/lib/prediction-data";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -54,8 +55,9 @@ function formatBytes(value: number | null) {
 
 function AppSettingsPage() {
   const app = useSolarisApp();
+  const session = useFanSession();
+  const userId = session.isLoading ? undefined : session.data?.id ?? null;
   const { preferences, update } = useAppExperiencePreferences();
-  const [userId, setUserId] = useState<string | null | undefined>(undefined);
   const [accessibility, setAccessibility] = useState({
     reducedMotion: false,
     reducedTransparency: false,
@@ -66,20 +68,6 @@ function AppSettingsPage() {
   const [storage, setStorage] = useState<SolarisStorageEstimate>(EMPTY_STORAGE);
   const [clearing, setClearing] = useState(false);
   const [storageMessage, setStorageMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    void supabase.auth.getUser().then(({ data }) => {
-      if (alive) setUserId(data.user?.id ?? null);
-    });
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (alive) setUserId(session?.user?.id ?? null);
-    });
-    return () => {
-      alive = false;
-      subscription.subscription.unsubscribe();
-    };
-  }, []);
 
   useEffect(() => {
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -138,13 +126,11 @@ function AppSettingsPage() {
     (offlineIndex?.shows.length ?? 0);
 
   return (
-    <AppShell>
-      <PageHeader
-        eyebrow="Solaris Studio"
-        title="App Settings"
-        description="App behavior, notifications, accessibility, offline storage and install status in one place."
-      />
-
+    <V3AccountSettingsRouteShell
+      section="settings"
+      title="App settings"
+      description="Device behavior, notifications, accessibility, offline storage and install status in one place."
+    >
       <div className="space-y-4">
         <Panel
           className={app.isAppMode ? "solaris-app-settings-panel" : undefined}
@@ -334,7 +320,7 @@ function AppSettingsPage() {
           </div>
         </Panel>
       </div>
-    </AppShell>
+    </V3AccountSettingsRouteShell>
   );
 }
 

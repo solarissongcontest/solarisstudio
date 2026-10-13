@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { Panel } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { Switch } from "@/components/ui/switch";
-import { supabase } from "@/integrations/supabase/client";
 import {
   DEFAULT_SOLARIS_NOTIFICATION_CATEGORIES,
   useNotificationPreferences,
@@ -25,6 +24,7 @@ import {
   syncAppExperiencePreferencesFromServer,
   useAppExperiencePreferences,
 } from "@/lib/app-experience";
+import { useFanSession } from "@/lib/prediction-data";
 
 const CATEGORIES = [
   ["confirmations", "Confirmations", "Opening times, changes and missing confirmations"],
@@ -48,14 +48,7 @@ const EMPTY_PUSH: AppPushState = {
 
 export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { includeSpoilerFree?: boolean } = {}) {
   const { isAppMode } = useSolarisApp();
-  const userQuery = useQuery({
-    queryKey: ["mysolaris-notification-user"],
-    queryFn: async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (error) throw error;
-      return data.user;
-    },
-  });
+  const userQuery = useFanSession();
   const userId = userQuery.data?.id;
   const preferences = useNotificationPreferences(userId);
   const save = useSaveNotificationPreferences(userId);
@@ -150,14 +143,14 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
     setExternal(true);
     try {
       await save.mutateAsync({
-      in_app_enabled: true,
-      categories: selected,
-      external_enabled: true,
-      quiet_hours_start: quietStart || null,
-      quiet_hours_end: quietEnd || null,
-      urgent_deadline_reminders: urgent,
-      spoiler_free: spoilerFree,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        in_app_enabled: true,
+        categories: selected,
+        external_enabled: true,
+        quiet_hours_start: quietStart || null,
+        quiet_hours_end: quietEnd || null,
+        urgent_deadline_reminders: urgent,
+        spoiler_free: spoilerFree,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
       });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Notification preferences could not be saved.");
@@ -182,14 +175,14 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
     setExternal(false);
     try {
       await save.mutateAsync({
-      in_app_enabled: true,
-      categories: selected,
-      external_enabled: false,
-      quiet_hours_start: quietStart || null,
-      quiet_hours_end: quietEnd || null,
-      urgent_deadline_reminders: urgent,
-      spoiler_free: spoilerFree,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        in_app_enabled: true,
+        categories: selected,
+        external_enabled: false,
+        quiet_hours_start: quietStart || null,
+        quiet_hours_end: quietEnd || null,
+        urgent_deadline_reminders: urgent,
+        spoiler_free: spoilerFree,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
       });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Notification preferences could not be saved.");
@@ -456,7 +449,6 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
     </Panel>
   );
 }
-
 
 function RequiredWorkFallback({
   status,
