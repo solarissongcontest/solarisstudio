@@ -128,7 +128,7 @@ for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies rea
   });
 }
 
-test("server-authorized V3 rollout renders real app Home and Participate", async ({ page, context }) => {
+test("server-authorized V3 rollout keeps Home and Participate content aligned with app navigation", async ({ page, context }) => {
   const url = process.env.E2E_SUPABASE_URL;
   const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
   const email = process.env.E2E_ORGANIZER_B_EMAIL;
@@ -147,21 +147,44 @@ test("server-authorized V3 rollout renders real app Home and Participate", async
 
   expect(url).toMatch(/^http:\/\/(?:127\.0\.0\.1|localhost):\d+/);
   await enableInstalledAppMode(context);
+  // This regression covers returning-user primary navigation. First-run onboarding
+  // is a legitimate modal and would otherwise intercept the nav click under test.
+  await context.addInitScript(() => {
+    localStorage.setItem("solaris:app-first-run-complete:v1", "1");
+  });
   const session = await addSession(context, url!, publishableKey!, email!, password!);
   await setV3ForLocalUser(url!, publishableKey!, session, true);
 
   try {
     await page.goto("/", { waitUntil: "domcontentloaded" });
     await expect(page.locator("html")).toHaveAttribute("data-solaris-runtime", "standalone");
-    await expect(page.getByRole("navigation", { name: "Primary app navigation" })).toBeVisible();
+    const primaryNav = page.getByRole("navigation", { name: "Primary app navigation" });
+    await expect(primaryNav).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Solaris now", exact: true })).toBeVisible();
     await expect(page.getByText("Current contest", { exact: true })).toBeVisible();
     await expect(page.getByText("Browser Audit Edition", { exact: true })).toBeVisible();
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
 
-    await page.goto("/participate", { waitUntil: "domcontentloaded" });
+    // Use the real client-side app navigation. A fresh page.goto() cannot catch
+    // retained-route mismatches where the URL/nav advances before old content.
+    await primaryNav.getByRole("link", { name: "Participate", exact: true }).click();
+    await expect(page).toHaveURL(/\/participate\/?$/);
     await expect(page.getByRole("heading", { name: "Your participation", exact: true })).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Primary app navigation" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Solaris now", exact: true })).not.toBeVisible();
+    await expect(primaryNav.getByRole("link", { name: "Participate", exact: true })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
+
+    await primaryNav.getByRole("link", { name: "Home", exact: true }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("heading", { name: "Solaris now", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your participation", exact: true })).not.toBeVisible();
+    await expect(primaryNav.getByRole("link", { name: "Home", exact: true })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
   } finally {
     await setV3ForLocalUser(url!, publishableKey!, session, false);
   }

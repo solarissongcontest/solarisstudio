@@ -79,7 +79,7 @@ describe("Solaris Studio V3 primary route cutover architecture", () => {
     expect(appRuntimeText).toContain("setPlatformResolved(true)");
     expect(gateText).toContain("useV3RolloutProbe(platformResolved && isAppMode)");
     expect(gateText).toContain(
-      "if (!platformResolved) return <ResolvingPrimarySurface surface={surface} />;",
+      "if (!platformResolved) return <ResolvingPrimarySurface surface={effectiveSurface} />;",
     );
     expect(gateText.indexOf("if (!platformResolved)")).toBeLessThan(
       gateText.indexOf("if (!isAppMode)"),
@@ -97,6 +97,25 @@ describe("Solaris Studio V3 primary route cutover architecture", () => {
     expect(resolvingSurface).not.toContain("AppShell");
     expect(resolvingSurface).not.toContain("useQuery(");
     expect(gateText).not.toContain('from "@/components/AppShell"');
+  });
+
+  it("derives V3 primary content ownership from the live canonical pathname", () => {
+    const gateText = gate();
+
+    expect(gateText).toContain("resolveV3PrimarySurface(surface, pathname)");
+    expect(gateText).toContain("surface: effectiveSurface");
+    expect(gateText).toContain('effectiveSurface === "participate"');
+    expect(gateText).toContain('effectiveSurface === "home"');
+    expect(gateText).not.toContain('{surface === "home" ? (');
+  });
+
+  it("never falls back to the stale route page during a retained primary transition", () => {
+    const gateText = gate();
+
+    expect(gateText).toContain("const routeTransitionRetained = effectiveSurface !== surface");
+    expect(gateText).toContain("const safeLegacyFallback = routeTransitionRetained ? (");
+    expect(gateText).toContain("<ResolvingPrimarySurface surface={effectiveSurface} />");
+    expect(gateText).toContain("return safeLegacyFallback");
   });
 
   it("does not load the expensive bootstrap until the rollout probe permits it", () => {
