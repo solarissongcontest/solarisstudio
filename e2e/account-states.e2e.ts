@@ -144,7 +144,7 @@ for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies rea
   });
 }
 
-test("server-authorized V3 rollout keeps primary content aligned with app navigation", async ({ page, context }) => {
+test("server-authorized V3 rollout keeps primary and Edition content aligned with app navigation", async ({ page, context }) => {
   const url = process.env.E2E_SUPABASE_URL;
   const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
   const email = process.env.E2E_ORGANIZER_B_EMAIL;
@@ -175,6 +175,13 @@ test("server-authorized V3 rollout keeps primary content aligned with app naviga
     publishableKey!,
     session,
     "solaris_app_v3_explore",
+    true,
+  );
+  await setV3FeatureForLocalUser(
+    url!,
+    publishableKey!,
+    session,
+    "solaris_app_v3_edition_hub",
     true,
   );
 
@@ -219,7 +226,28 @@ test("server-authorized V3 rollout keeps primary content aligned with app naviga
       "page",
     );
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
+
+    await page.getByRole("link", { name: /Open edition/i }).click();
+    await expect(page).toHaveURL(/\/editions\/ssc22\/?$/);
+    await expect(page.getByRole("heading", { name: "Browser Audit Edition", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "At a glance", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Participants", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Songs & artists", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Results", exact: true })).toBeVisible();
+    await expect(primaryNav.getByRole("link", { name: "Explore", exact: true })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
   } finally {
+    await setV3FeatureForLocalUser(
+      url!,
+      publishableKey!,
+      session,
+      "solaris_app_v3_edition_hub",
+      false,
+    );
     await setV3FeatureForLocalUser(
       url!,
       publishableKey!,
