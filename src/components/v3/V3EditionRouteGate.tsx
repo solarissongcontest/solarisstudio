@@ -1,5 +1,5 @@
 import { useRouterState } from "@tanstack/react-router";
-import { useRef, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
@@ -49,7 +49,6 @@ export function V3EditionRouteGate({
   const { isAppMode, platformResolved } = useSolarisApp();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
-  const searchHostRef = useRef<HTMLDivElement>(null);
   const rollout = useV3EditionRolloutProbe(
     slug,
     platformResolved && isAppMode,
@@ -90,23 +89,18 @@ export function V3EditionRouteGate({
   if (!shell.useV3Shell || shell.rootTab !== "explore") return <>{legacy}</>;
 
   const bundle = bundleQuery.data;
-  const openCanonicalSearch = () => {
-    searchHostRef.current
-      ?.querySelector<HTMLButtonElement>('button[aria-label="Search Solaris Studio"]')
-      ?.click();
-  };
+  const globalSearchEnabled = rollout.data.searchEnabled === true;
 
   return (
     <V3AppShell
       editionLabel={bundle.shell.editionLabel}
       phaseLabel={bundle.shell.phaseLabel}
       topActions={
-        <div ref={searchHostRef} data-v3-edition-search-owner="canonical">
-          <PublicCommandPalette compact />
-          <button type="button" className="sr-only" onClick={openCanonicalSearch}>
-            Open Solaris search
-          </button>
-        </div>
+        !globalSearchEnabled ? (
+          <div data-v3-edition-search-owner="canonical">
+            <PublicCommandPalette compact />
+          </div>
+        ) : undefined
       }
     >
       <V3EditionHubScreen projection={bundle.projection} />

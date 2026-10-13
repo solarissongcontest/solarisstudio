@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAppAttentionSummary } from "@/lib/app-attention";
 import { publicAreaForPath } from "@/lib/public-navigation";
 import { cn } from "@/lib/utils";
@@ -55,9 +56,10 @@ export type V3AppShellProps = {
  * migrations and does not require duplicate routes, duplicate state or a
  * simultaneous rewrite of Home/Explore/Participate/Results/Me.
  *
- * The Notifications action is also server-gated. Its badge may use the local
- * attention cache as a display hint, but the destination itself is enabled
- * only by the authoritative rollout probe and never by browser storage.
+ * Notifications and Search are also server-gated. Search reuses the existing
+ * installed-app PublicCommandPalette so V3 cannot acquire a second query index,
+ * recents store or search-return model. The browser can display local attention
+ * hints, but it cannot enable either server-gated destination/capability.
  */
 export function V3AppShell({
   children,
@@ -74,9 +76,15 @@ export function V3AppShell({
   const rollout = useV3RolloutProbe(true);
   const notificationsAvailable =
     rollout.data?.notificationsEnabled === true && Boolean(rollout.data.userId);
+  const searchAvailable = rollout.data?.searchEnabled === true;
 
-  const shellActions = notificationsAvailable || topActions ? (
+  const shellActions = notificationsAvailable || searchAvailable || topActions ? (
     <>
+      {searchAvailable ? (
+        <div data-v3-search-entry="" data-v3-search-owner="canonical">
+          <PublicCommandPalette compact />
+        </div>
+      ) : null}
       {notificationsAvailable ? (
         <Link
           to={"/notifications" as any}
