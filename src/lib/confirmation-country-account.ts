@@ -14,6 +14,7 @@ export type CountryConfirmationResponse = {
   edition_name: string;
   edition_number: number;
   country: string;
+  participating?: boolean | null;
   submitted_at: string;
   updated_at: string;
   selection_method?: string | null;

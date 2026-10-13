@@ -140,15 +140,24 @@ function confirmationTaskForEdition(
       return bTime - aTime;
     })[0] ?? null;
 
+  const resolvedResponse = requirement?.resolved_by_submission_id
+    ? editionResponses.find(
+        (response) => response.submission_id === requirement.resolved_by_submission_id,
+      ) ?? latestResponse
+    : latestResponse;
+
   // A current requirement is authoritative. This is what makes explicit
   // reconfirmation work even when an older edition response still exists.
   if (requirement?.status === "satisfied") {
+    const notParticipating = resolvedResponse?.participating === false;
     return {
       id: `confirmation:${editionId}:g${requirement.generation}`,
       editionId,
       kind: "confirmation",
-      title: "Country confirmed",
-      description: "Your current edition confirmation requirement is satisfied.",
+      title: notParticipating ? "Not participating" : "Country confirmed",
+      description: notParticipating
+        ? "Your delegation has confirmed it is not participating in this edition."
+        : "Your current edition confirmation requirement is satisfied.",
       state: "completed",
       importance: "required",
       blocking: false,
@@ -157,9 +166,13 @@ function confirmationTaskForEdition(
       deadline: null,
       route: "/confirmations",
       priority: 120,
-      why: latestResponse?.round_name
-        ? `Generation ${requirement.generation} is satisfied through ${latestResponse.round_name}.`
-        : `The server records confirmation requirement generation ${requirement.generation} as satisfied.`,
+      why: resolvedResponse?.round_name
+        ? notParticipating
+          ? `Generation ${requirement.generation} records non-participation through ${resolvedResponse.round_name}.`
+          : `Generation ${requirement.generation} is satisfied through ${resolvedResponse.round_name}.`
+        : notParticipating
+          ? `The server records confirmation requirement generation ${requirement.generation} as satisfied with non-participation.`
+          : `The server records confirmation requirement generation ${requirement.generation} as satisfied.`,
     };
   }
 
@@ -187,12 +200,15 @@ function confirmationTaskForEdition(
   // never treated as a personal obligation.
   if (!requirement) {
     if (!latestResponse) return null;
+    const notParticipating = latestResponse.participating === false;
     return {
       id: `confirmation:${editionId}`,
       editionId,
       kind: "confirmation",
-      title: "Country confirmed",
-      description: "Your delegation confirmation for this edition has been received.",
+      title: notParticipating ? "Not participating" : "Country confirmed",
+      description: notParticipating
+        ? "Your delegation has confirmed it is not participating in this edition."
+        : "Your delegation confirmation for this edition has been received.",
       state: "completed",
       importance: "required",
       blocking: false,
@@ -202,8 +218,12 @@ function confirmationTaskForEdition(
       route: "/confirmations",
       priority: 120,
       why: latestResponse.round_name
-        ? `Solaris has a recorded confirmation response for this edition through ${latestResponse.round_name}.`
-        : "Solaris has a recorded confirmation response for this edition.",
+        ? notParticipating
+          ? `Solaris has a recorded non-participation response for this edition through ${latestResponse.round_name}.`
+          : `Solaris has a recorded confirmation response for this edition through ${latestResponse.round_name}.`
+        : notParticipating
+          ? "Solaris has a recorded non-participation response for this edition."
+          : "Solaris has a recorded confirmation response for this edition.",
     };
   }
 
@@ -386,7 +406,7 @@ function votingTask(
         : "This optional voting window has closed."
       : open
         ? required
-          ? "The official voting window is open and Solaris has no recorded submission."
+          ? "The official voting window is open and Solaris has no recorded submission yet."
           : "This voting option is available now."
         : "The official voting window has not opened yet.",
   };

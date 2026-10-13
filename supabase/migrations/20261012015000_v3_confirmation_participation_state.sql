@@ -8,7 +8,8 @@ begin;
 --
 -- Preserve the read-only runtime contract added on 2026-10-11: this RPC must
 -- remain STABLE so platform Read-only mode can permit it, and execution remains
--- authenticated-only after the canonical Confirmations grant hardening.
+-- restricted to authenticated callers plus service-role server tooling after
+-- the canonical Confirmations grant hardening.
 
 create or replace function public.public_country_account_confirmation_access()
 returns jsonb
@@ -162,7 +163,37 @@ $$;
 
 revoke all on function public.public_country_account_confirmation_access() from public;
 revoke execute on function public.public_country_account_confirmation_access() from anon;
-grant execute on function public.public_country_account_confirmation_access() to authenticated;
+grant execute on function public.public_country_account_confirmation_access() to authenticated, service_role;
+
+do $verify$
+declare
+  v_volatility "char";
+begin
+  select proc.provolatile
+  into v_volatility
+  from pg_proc proc
+  join pg_namespace namespace on namespace.oid = proc.pronamespace
+  where namespace.nspname = 'public'
+    and proc.proname = 'public_country_account_confirmation_access'
+    and pg_get_function_identity_arguments(proc.oid) = '';
+
+  if v_volatility is distinct from 's' then
+    raise exception 'public_country_account_confirmation_access must remain STABLE';
+  end if;
+
+  if has_function_privilege('anon', 'public.public_country_account_confirmation_access()', 'EXECUTE') then
+    raise exception 'anon must not execute public_country_account_confirmation_access';
+  end if;
+
+  if not has_function_privilege('authenticated', 'public.public_country_account_confirmation_access()', 'EXECUTE') then
+    raise exception 'authenticated must execute public_country_account_confirmation_access';
+  end if;
+
+  if not has_function_privilege('service_role', 'public.public_country_account_confirmation_access()', 'EXECUTE') then
+    raise exception 'service_role must execute public_country_account_confirmation_access';
+  end if;
+end
+$verify$;
 
 notify pgrst, 'reload schema';
 
