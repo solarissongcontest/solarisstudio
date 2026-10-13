@@ -34,7 +34,7 @@ describe("V3 Scoreboard cutover", () => {
     const sql = migration();
     expect(sql).toContain("'solaris_app_v3_scoreboard'");
     expect(sql).toContain("on conflict (key) do nothing");
-    expect(sql.slice(sql.indexOf("values (")).toContain("false,");
+    expect(sql.slice(sql.indexOf("values ("))).toContain("false,");
   });
 
   it("extends the persisted feature vocabulary without deleting an existing key", () => {
