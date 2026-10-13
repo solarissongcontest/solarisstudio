@@ -256,6 +256,17 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
       description:
         "Reversible installed-app Explore root over publication-safe server projections, with the public web and legacy Explore route preserved during staged rollout.",
     },
+    solaris_app_v3_notifications: {
+      key: "solaris_app_v3_notifications",
+      label: "Solaris App V3 · Notifications",
+      state: "integrated",
+      audience: "public",
+      route: "/notifications",
+      surfaceLabel: "Notifications V3",
+      dependsOn: ["solaris_app_v3", "solaris_app_v3_account_settings"],
+      description:
+        "Reversible installed-app notification center over canonical account preferences, push delivery state and official participant communication destinations.",
+    },
   };
 
 export const STUDIO2_PRODUCT_SURFACE_LIST = Object.values(STUDIO2_PRODUCT_SURFACES);
