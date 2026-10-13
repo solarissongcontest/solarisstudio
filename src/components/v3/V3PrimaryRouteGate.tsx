@@ -3,7 +3,10 @@ import type { ReactNode } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { useV3PrimarySurfaceBundle, useV3RolloutProbe } from "@/lib/v3-primary-runtime";
-import { shouldLoadV3PrimaryBundle } from "@/lib/v3-primary-route-cutover";
+import {
+  resolveV3PrimarySurface,
+  shouldLoadV3PrimaryBundle,
+} from "@/lib/v3-primary-route-cutover";
 import { decideV3ShellForRoute } from "@/lib/v3-shell-route-boundary";
 import { V3AppShell } from "./V3AppShell";
 import { V3HomeScreen } from "./V3HomeScreen";
@@ -83,6 +86,10 @@ function ResolvingPrimarySurface({ surface }: { surface: V3PrimarySurface }) {
  * failure or unsafe route returns the existing route unchanged. Participate is
  * deliberately signed-in-only for this first slice so anonymous public-voting
  * parity remains on the proven legacy route until its V3 projection is ready.
+ *
+ * The canonical router pathname owns which primary V3 surface is rendered. This
+ * keeps content and shell navigation in lockstep even if TanStack Router retains
+ * the previous route component for part of a client-side transition.
  */
 export function V3PrimaryRouteGate({
   surface,
@@ -94,10 +101,11 @@ export function V3PrimaryRouteGate({
   const { isAppMode, platformResolved } = useSolarisApp();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
+  const effectiveSurface = resolveV3PrimarySurface(surface, pathname);
   const rollout = useV3RolloutProbe(platformResolved && isAppMode);
   const shouldLoadBundle = shouldLoadV3PrimaryBundle({
     isAppMode: platformResolved && isAppMode,
-    surface,
+    surface: effectiveSurface,
     rolloutEnabled: rollout.data?.enabled === true,
     rolloutUserId: rollout.data?.userId ?? null,
   });
@@ -111,17 +119,17 @@ export function V3PrimaryRouteGate({
   // installed app. Keep that pass query-free so an installed client cannot start
   // the legacy data graph before choosing V3, but still return crawlable,
   // route-specific public content instead of a generic loading document.
-  if (!platformResolved) return <ResolvingPrimarySurface surface={surface} />;
+  if (!platformResolved) return <ResolvingPrimarySurface surface={effectiveSurface} />;
   if (!isAppMode) return <>{legacy}</>;
-  if (rollout.isLoading) return <ResolvingPrimarySurface surface={surface} />;
+  if (rollout.isLoading) return <ResolvingPrimarySurface surface={effectiveSurface} />;
   if (rollout.isError || rollout.data?.enabled !== true) return <>{legacy}</>;
-  if (surface === "participate" && !rollout.data.userId) return <>{legacy}</>;
-  if (bundleQuery.isLoading) return <ResolvingPrimarySurface surface={surface} />;
+  if (effectiveSurface === "participate" && !rollout.data.userId) return <>{legacy}</>;
+  if (bundleQuery.isLoading) return <ResolvingPrimarySurface surface={effectiveSurface} />;
   if (bundleQuery.isError || !bundleQuery.data) return <>{legacy}</>;
 
   const bundle = bundleQuery.data;
   const isAuthenticated = Boolean(bundle.bootstrap.identity.userId);
-  if (surface === "participate" && !isAuthenticated) return <>{legacy}</>;
+  if (effectiveSurface === "participate" && !isAuthenticated) return <>{legacy}</>;
 
   const shell = decideV3ShellForRoute({
     pathname,
@@ -145,7 +153,7 @@ export function V3PrimaryRouteGate({
       phaseLabel={bundle.shell.phaseLabel}
       participateAttentionCount={bundle.shell.participateAttentionCount}
     >
-      {surface === "home" ? (
+      {effectiveSurface === "home" ? (
         <V3HomeScreen
           bootstrap={bundle.home.bootstrap}
           currentContest={bundle.home.currentContest}
