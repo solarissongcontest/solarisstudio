@@ -18,6 +18,7 @@ import { PublicDestinationGrid } from "@/components/public/PublicDestinationGrid
 import { PublicHubHero } from "@/components/public/PublicHubHero";
 import { PublicPrimaryAction } from "@/components/public/PublicPrimaryAction";
 import { PublicSecondaryLinks } from "@/components/public/PublicSecondaryLinks";
+import { V3ExploreRouteGate } from "@/components/v3/V3ExploreRouteGate";
 
 export const Route = createFileRoute("/explore/")({
   head: () => ({
@@ -93,7 +94,7 @@ const SECONDARY_DESTINATIONS = [
 function ExplorePage() {
   const { isAppMode } = useSolarisApp();
 
-  return (
+  const legacy = (
     <AppShell>
       {!isAppMode ? (
         <PublicHubHero
@@ -151,4 +152,6 @@ function ExplorePage() {
       )}
     </AppShell>
   );
+
+  return <V3ExploreRouteGate legacy={legacy} />;
 }
