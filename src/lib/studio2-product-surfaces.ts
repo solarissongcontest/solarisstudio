@@ -299,6 +299,17 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
       description:
         "Server-gated global V3 shell entry to the canonical installed-app Search experience, backed by the publication-safe lightweight search projection and existing search-return continuity.",
     },
+    solaris_app_v3_rules_guidance: {
+      key: "solaris_app_v3_rules_guidance",
+      label: "Solaris App V3 · Rules & Guidance",
+      state: "integrated",
+      audience: "public",
+      route: "/rules",
+      surfaceLabel: "Rules & Guidance V3",
+      dependsOn: ["solaris_app_v3"],
+      description:
+        "Reversible installed-app Rules landing and contextual workflow guidance over the canonical versioned rulebook, with full rule detail, search, chapter and governance tooling remaining canonically owned by the existing Rules domain.",
+    },
     solaris_app_v3_results: {
       key: "solaris_app_v3_results",
       label: "Solaris App V3 · Results",
