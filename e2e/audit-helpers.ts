@@ -145,16 +145,20 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
   try {
     const response = await page.goto(path, { waitUntil: "domcontentloaded" });
     expect(response?.status(), `${path} should return a successful document`).toBeLessThan(400);
+
+    // Resolve transient V3 gate surfaces before accepting the final route's
+    // semantic landmarks. A resolver may own its own <main>/<h1>; checking those
+    // first can race the hand-off to a legacy or data-backed destination.
+    await expect(
+      page.locator("[data-v3-primary-boot], [data-v3-explore-boot], [data-v3-edition-boot], [data-v3-confirmation-route-boot], [data-v3-account-settings-route-boot], [data-v3-notifications-route-boot]"),
+      `${path} must finish the V3 hydration gate before interaction auditing`,
+    ).toHaveCount(0, { timeout: 15_000 });
     await expect(page.locator("main:visible"), `${path} needs one visible main landmark`).toHaveCount(1, {
       timeout: 15_000,
     });
     await expect(page.locator("h1:visible"), `${path} needs one visible page heading`).toHaveCount(1, {
       timeout: 15_000,
     });
-    await expect(
-      page.locator("[data-v3-primary-boot], [data-v3-explore-boot], [data-v3-edition-boot], [data-v3-confirmation-route-boot], [data-v3-account-settings-route-boot], [data-v3-notifications-route-boot]"),
-      `${path} must finish the V3 hydration gate before interaction auditing`,
-    ).toHaveCount(0, { timeout: 15_000 });
 
     const result = await page.evaluate(() => {
       const duplicateIds = [...document.querySelectorAll<HTMLElement>("[id]")]
