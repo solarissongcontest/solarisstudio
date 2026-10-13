@@ -256,6 +256,17 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
       description:
         "Reversible installed-app Explore root over publication-safe server projections, with the public web and legacy Explore route preserved during staged rollout.",
     },
+    solaris_app_v3_edition_hub: {
+      key: "solaris_app_v3_edition_hub",
+      label: "Solaris App V3 · Edition Hub",
+      state: "integrated",
+      audience: "public",
+      route: "/editions/:slug",
+      surfaceLabel: "Edition Hub V3",
+      dependsOn: ["solaris_app_v3", "solaris_app_v3_explore"],
+      description:
+        "Reversible installed-app Edition detail over publication-safe participants, entries, shows, stories and official published results, with legacy public-web fallback preserved.",
+    },
     solaris_app_v3_notifications: {
       key: "solaris_app_v3_notifications",
       label: "Solaris App V3 · Notifications",

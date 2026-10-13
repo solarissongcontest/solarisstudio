@@ -15,6 +15,14 @@ function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), "utf8");
 }
 
+function dynamicRouteName(route: string) {
+  return route
+    .slice(1)
+    .split("/")
+    .map((segment) => (segment.startsWith(":") ? `$${segment.slice(1)}` : segment))
+    .join("/");
+}
+
 function routeFile(route: string) {
   if (route.startsWith("/admin/")) {
     return resolve(
@@ -36,6 +44,9 @@ function routeFile(route: string) {
       "src/routes/_authenticated/my-solaris",
       `${route.slice("/my-solaris/".length)}.tsx`,
     );
+  }
+  if (route.startsWith("/") && (route.includes(":") || route.includes("$"))) {
+    return resolve(process.cwd(), "src/routes", `${dynamicRouteName(route)}.tsx`);
   }
   if (route.startsWith("/") && !route.includes("$")) {
     const routeName = route.slice(1);
@@ -85,6 +96,15 @@ describe("Studio 2 stabilization contract", () => {
         true,
       );
     }
+  });
+
+  it("maps manifest dynamic parameters onto TanStack file-route parameters", () => {
+    expect(routeFile("/editions/:slug")).toBe(
+      resolve(process.cwd(), "src/routes/editions/$slug.tsx"),
+    );
+    expect(routeFile("/editions/$slug")).toBe(
+      resolve(process.cwd(), "src/routes/editions/$slug.tsx"),
+    );
   });
 
   it("keeps organizer Studio 2 surfaces discoverable from Organizer navigation", () => {
