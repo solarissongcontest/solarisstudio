@@ -160,18 +160,25 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(audit).not.toContain("document.activeElement.blur()");
   });
 
-  it("keeps PR browser audit representative while preserving exhaustive certification", () => {
+  it("keeps routine PR and main-push browser audits representative while preserving exhaustive certification", () => {
     const config = source("playwright.config.ts");
     const workflow = source(".github/workflows/browser-audit.yml");
 
-    expect(config).toContain('const fullAudit = process.env.E2E_FULL_AUDIT === "1";');
+    expect(config).toContain('const fullAuditRequested = process.env.E2E_FULL_AUDIT === "1";');
+    expect(config).toContain('process.env.GITHUB_EVENT_NAME === "push"');
+    expect(config).toContain('process.env.GITHUB_REF === "refs/heads/main"');
+    expect(config).toContain("const fullAudit = fullAuditRequested && !routineMainPush;");
+    expect(config).toContain("const representativeCI =");
     expect(config).toContain("const personalityViewportMatrix = fullAudit");
+    expect(config).toContain("...(representativeCI ? representativeCiProjects : exhaustiveProjects)");
     expect(config).toContain(
       "grepInvert: fullAudit ? undefined : /installed-app route invariant crawl/",
     );
     expect(config).toContain('{ width: 390, height: 844 }');
     expect(config).toContain('{ width: 1440, height: 900 }');
     expect(workflow).toContain("Pull requests run a representative smoke set");
+    const fullAuditSetting = workflow.split("E2E_FULL_AUDIT:")[1]?.split("\n")[0];
+    expect(fullAuditSetting).not.toContain("github.ref == 'refs/heads/main'");
     expect(workflow).toContain("E2E_FULL_AUDIT:");
     expect(workflow).toContain("github.event_name == 'workflow_dispatch'");
 

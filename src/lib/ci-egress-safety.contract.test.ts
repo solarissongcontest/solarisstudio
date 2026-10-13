@@ -58,7 +58,9 @@ describe("CI egress safety contracts", () => {
 
     expect(workflow).toContain("push:");
     expect(workflow).toContain("branches: [main]");
-    expect(workflow).toContain("github.ref == 'refs/heads/main'");
+    expect(workflow).toContain("as do main pushes");
+    const fullAuditSetting = workflow.split("E2E_FULL_AUDIT:")[1]?.split("\n")[0];
+    expect(fullAuditSetting).not.toContain("github.ref == 'refs/heads/main'");
     expect(workflow).toContain("github.head_ref == 'recovery/canonical-main-v6-20261004'");
   });
 
