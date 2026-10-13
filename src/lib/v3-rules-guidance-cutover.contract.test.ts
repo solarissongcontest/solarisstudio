@@ -71,14 +71,16 @@ describe("V3 Rules & Guidance cutover", () => {
     expect(source).not.toMatch(/VITE_.*RULE|localStorage|sessionStorage/i);
   });
 
-  it("adds one shell Rules entry that reuses canonical coarse workflow context", () => {
+  it("adds one shell Rules entry that reuses only canonical sanitized workflow context", () => {
     const source = shell();
 
     expect(source).toContain('rollout.data?.rulesGuidanceEnabled === true');
     expect(source).toContain("getRuleContext(pathname)");
-    expect(source).toContain('to={(ruleContext ? "/rules/applied" : "/rules") as any}');
+    expect(source).toContain("sanitizeRuleContextPath(ruleContext?.sourcePath)");
+    expect(source).toContain('to={(ruleContextPath ? "/rules/applied" : "/rules") as any}');
+    expect(source).toContain("search={ruleContextPath ? ({ context: ruleContextPath } as any) : undefined}");
     expect(source).toContain('data-v3-rules-guidance-entry=""');
-    expect(source).toContain('aria-label={ruleContext ? "Rules for this task" : "Rules"}');
+    expect(source).toContain('aria-label={ruleContextPath ? "Rules for this task" : "Rules"}');
     expect(source).not.toContain("GOVERNANCE_ACTION_STORAGE_KEY");
     expect(source).not.toContain("RULE_CONTEXT_STORAGE_KEY");
   });
@@ -101,6 +103,17 @@ describe("V3 Rules & Guidance cutover", () => {
     expect(applied).toContain("<V3RulesRouteGate");
     expect(applied).toContain("legacy={<AppShell>{content}</AppShell>}");
     expect(applied).toContain("<RulesApplyingHere");
+  });
+
+  it("validates explicit contextual handoff before using it and retains session fallback", () => {
+    const source = appliedRoute();
+
+    expect(source).toContain("validateSearch");
+    expect(source).toContain("sanitizeRuleContextPath(search.context)");
+    expect(source).toContain("const explicitAction = actionFor(contextPath ?? null)");
+    expect(source).toContain("GOVERNANCE_ACTION_STORAGE_KEY");
+    expect(source).toContain("RULE_CONTEXT_STORAGE_KEY");
+    expect(source).toContain("RulesApplyingHere context={context}");
   });
 
   it("keeps the versioned rulebook and workflow guidance as the only rule authorities", () => {
