@@ -56,6 +56,7 @@ export function V3ScoreboardPresentation({
                 <FlagChip
                   code={winnerCountry.short_code}
                   color={winnerCountry.accent_color}
+                  image={winnerCountry.flag_image}
                 />
                 <div className="min-w-0">
                   <p className="truncate text-xl font-bold tracking-[-0.03em]">
@@ -103,8 +104,9 @@ export function V3ScoreboardPresentation({
                 </span>
                 <span className="shrink-0">
                   <FlagChip
-                    code={country?.short_code ?? ""}
-                    color={country?.accent_color ?? null}
+                    code={country?.short_code ?? "?"}
+                    color={country?.accent_color ?? "#64748b"}
+                    image={country?.flag_image}
                   />
                 </span>
                 <span className="min-w-0 flex-1">
