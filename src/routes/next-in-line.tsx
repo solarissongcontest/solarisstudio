@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { NextInLineCompetition } from "@/components/NextInLineCompetition";
+import { V3NextInLineRouteGate } from "@/components/v3/V3NextInLineRouteGate";
 
 export const Route = createFileRoute("/next-in-line")({
   head: () => ({
@@ -12,5 +12,5 @@ export const Route = createFileRoute("/next-in-line")({
       },
     ],
   }),
-  component: NextInLineCompetition,
+  component: V3NextInLineRouteGate,
 });
