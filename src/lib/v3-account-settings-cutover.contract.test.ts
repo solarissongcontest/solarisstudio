@@ -92,6 +92,14 @@ describe("V3 Account + Settings cutover", () => {
     expect(settings).toContain("estimateSolarisStorage");
   });
 
+  it("uses the shared cached session instead of another settings auth observer", () => {
+    const settings = settingsRoute();
+
+    expect(settings).toContain("useFanSession");
+    expect(settings).not.toContain("supabase.auth.getUser");
+    expect(settings).not.toContain("supabase.auth.onAuthStateChange");
+  });
+
   it("does not expose a browser-controlled rollout escape hatch", () => {
     const combined = [migration(), probe(), shell(), accountRoute(), settingsRoute()].join("\n");
 
