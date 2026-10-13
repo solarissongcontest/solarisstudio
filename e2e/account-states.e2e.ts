@@ -194,6 +194,13 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     "solaris_app_v3_delegation",
     true,
   );
+  await setV3FeatureForLocalUser(
+    url!,
+    publishableKey!,
+    session,
+    "solaris_app_v3_results",
+    true,
+  );
 
   try {
     await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -225,6 +232,21 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
       "aria-current",
       "page",
     );
+
+    await primaryNav.getByRole("link", { name: "Results", exact: true }).click();
+    await expect(page).toHaveURL(/\/results\/?$/);
+    const v3Results = page.locator("[data-v3-results]");
+    await expect(v3Results).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Results", exact: true })).toBeVisible();
+    await expect(v3Results).toContainText("Browser Audit Grand Final");
+    await expect(v3Results).toContainText("Browserland");
+    await expect(v3Results).toContainText("312");
+    await expect(page.locator(".solaris-app-result-hero")).toHaveCount(0);
+    await expect(primaryNav.getByRole("link", { name: "Results", exact: true })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
 
     await primaryNav.getByRole("link", { name: "Explore", exact: true }).click();
     await expect(page).toHaveURL(/\/explore\/?$/);
@@ -277,6 +299,20 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await expect(page.locator(".country-profile-v8")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Browserland", exact: true })).toBeVisible();
 
+    // Disabling only Results must fail closed to the proven legacy Results root
+    // while the global V3 shell remains eligible.
+    await setV3FeatureForLocalUser(
+      url!,
+      publishableKey!,
+      session,
+      "solaris_app_v3_results",
+      false,
+    );
+    await page.goto("/results", { waitUntil: "domcontentloaded" });
+    await expect(page.locator("[data-v3-results]")).toHaveCount(0);
+    await expect(page.locator(".solaris-app-result-hero")).toBeVisible();
+    await expect(page.getByText("Browserland", { exact: true })).toBeVisible();
+
     // Re-scope only the Edition Hub flag to a non-current published edition. The
     // route-specific server probe must resolve ssc21 to this canonical ID. The
     // old current-edition probe would incorrectly disable this archive route.
@@ -300,6 +336,13 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await expect(page.locator(".edition-public-page")).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Explore Browser Audit Edition" })).toHaveCount(0);
   } finally {
+    await setV3FeatureForLocalUser(
+      url!,
+      publishableKey!,
+      session,
+      "solaris_app_v3_results",
+      false,
+    );
     await setV3FeatureForLocalUser(
       url!,
       publishableKey!,

@@ -153,6 +153,58 @@ set name = excluded.name,
     published = excluded.published;
 "
 
+
+log "Seeding publication-safe local Results fixture"
+db_exec "
+insert into public.shows (
+  id, edition_id, name, kind, sort_order, published, publication_config
+)
+values (
+  '00000000-0000-4000-8000-00000000e231'::uuid,
+  '00000000-0000-4000-8000-00000000e220'::uuid,
+  'Browser Audit Grand Final',
+  'grand-final',
+  3,
+  true,
+  '{\"participants\":true,\"artists\":true,\"songs\":true,\"semi_split\":true,\"running_order\":true,\"qualifiers\":true,\"results\":true,\"jury_results\":true,\"televote_results\":true,\"detailed_voting\":false}'::jsonb
+)
+on conflict (id) do update
+set name = excluded.name,
+    kind = excluded.kind,
+    sort_order = excluded.sort_order,
+    published = excluded.published,
+    publication_config = excluded.publication_config;
+
+insert into public.results (
+  id, edition_id, show_id, country_id,
+  jury_points, televote_points, total_points, final_rank
+)
+values
+  (
+    '00000000-0000-4000-8000-00000000e241'::uuid,
+    '00000000-0000-4000-8000-00000000e220'::uuid,
+    '00000000-0000-4000-8000-00000000e231'::uuid,
+    '00000000-0000-4000-8000-00000000e201'::uuid,
+    160, 152, 312, 1
+  ),
+  (
+    '00000000-0000-4000-8000-00000000e242'::uuid,
+    '00000000-0000-4000-8000-00000000e220'::uuid,
+    '00000000-0000-4000-8000-00000000e231'::uuid,
+    '00000000-0000-4000-8000-00000000e202'::uuid,
+    140, 144, 284, 2
+  )
+on conflict (id) do update
+set edition_id = excluded.edition_id,
+    show_id = excluded.show_id,
+    country_id = excluded.country_id,
+    jury_points = excluded.jury_points,
+    televote_points = excluded.televote_points,
+    total_points = excluded.total_points,
+    final_rank = excluded.final_rank,
+    updated_at = now();
+"
+
 log "Creating local-only browser identities"
 create_user "$ORGANIZER_EMAIL" "Browser Organizer"
 ORGANIZER_ID="$LAST_USER_ID"
@@ -246,6 +298,7 @@ set enabled = excluded.enabled,
 [[ "$(db_scalar "select status from public.country_accounts where user_id='$COUNTRY_ID'::uuid;")" == "active" ]]   || fail "Country browser account was not active"
 [[ "$(db_scalar "select status from public.country_accounts where user_id='$SUSPENDED_ID'::uuid;")" == "suspended" ]]   || fail "Suspended browser account was not suspended"
 [[ "$(db_scalar "select count(*) from public.editions where id in ('00000000-0000-4000-8000-00000000e219'::uuid,'00000000-0000-4000-8000-00000000e220'::uuid) and published;")" == "2" ]]   || fail "Both current and archived Edition browser fixtures were not published"
+[[ "$(db_scalar "select count(*) from public.results where show_id='00000000-0000-4000-8000-00000000e231'::uuid and final_rank in (1,2);")" == "2" ]]   || fail "Published V3 Results browser fixture was not created"
 [[ "$(db_scalar "select count(*) from public.studio2_feature_flags where key in ('public_encyclopedia','country_voting_dna','prediction_league','fantasy_ssc','time_machine','solaris_command_assistant') and enabled and user_ids @> array['$ORGANIZER_ID'::uuid] and cardinality(user_ids)=2;")" == "6" ]]   || fail "Organizer-only completion-programme feature flags were not seeded"
 [[ "$(db_scalar "select count(*) from public.studio2_feature_flags where key in ('solaris_app_v3','solaris_app_v3_account_settings','solaris_app_v3_notifications') and enabled and user_ids = array['$COUNTRY_ID'::uuid];")" == "3" ]]   || fail "Country-only App V3 Account + Settings + Notifications flags were not seeded"
 
