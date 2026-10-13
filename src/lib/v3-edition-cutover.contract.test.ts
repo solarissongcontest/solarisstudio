@@ -17,6 +17,8 @@ const source = () => read("src/integrations/v3/edition-source.server.ts");
 const gate = () => read("src/components/v3/V3EditionRouteGate.tsx");
 const route = () => read("src/routes/editions/$slug.tsx");
 const runtime = () => read("src/lib/v3-edition-runtime.ts");
+const seed = () => read(".github/scripts/seed-browser-e2e-local.sh");
+const browser = () => read("e2e/v3-edition.e2e.ts");
 
 function constrainedFlagKeys(sql: string) {
   const constraint = sql.match(
@@ -107,6 +109,15 @@ describe("V3 Edition cutover", () => {
     expect(code).not.toContain("sessionStorage");
   });
 
+  it("keeps the hydration-safe Edition surface keyboard navigable", () => {
+    const code = gate();
+
+    expect(code).toContain('aria-label="Edition navigation while loading"');
+    expect(code).toContain('to="/editions"');
+    expect(code).toContain('to="/explore"');
+    expect(code).toContain('data-v3-edition-boot=""');
+  });
+
   it("selects V3 before mounting the legacy Edition data graph", () => {
     const code = route();
     const wrapperStart = code.indexOf("function EditionPage()");
@@ -133,6 +144,20 @@ describe("V3 Edition cutover", () => {
     expect(code).toContain("refetchOnWindowFocus: false");
     expect(code).toContain("retry: false");
     expect(code).not.toContain("refetchInterval");
+  });
+
+  it("isolates Edition browser rollout from the shared country regression identity", () => {
+    const fixture = seed();
+    const e2e = browser();
+
+    expect(fixture).toContain("EDITION_EMAIL='edition-browser-e2e@solaris.invalid'");
+    expect(fixture).toContain("EDITION_ID=\"$LAST_USER_ID\"");
+    expect(fixture).toContain("('solaris_app_v3_explore', true, false, array['$EDITION_ID'::uuid]");
+    expect(fixture).toContain("('solaris_app_v3_edition', true, false, array['$EDITION_ID'::uuid]");
+    expect(fixture).toContain("E2E_EDITION_EMAIL=$EDITION_EMAIL");
+    expect(e2e).toContain("process.env.E2E_EDITION_EMAIL");
+    expect(e2e).toContain("process.env.E2E_EDITION_PASSWORD");
+    expect(e2e).not.toContain("process.env.E2E_COUNTRY_EMAIL");
   });
 
   it("does not expose a browser-controlled Edition rollout escape hatch", () => {
