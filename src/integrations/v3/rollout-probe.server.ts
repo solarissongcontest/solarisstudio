@@ -26,6 +26,7 @@ export type V3RolloutProbe = {
   enabled: boolean;
   confirmationEnabled: boolean;
   scoreboardEnabled: boolean;
+  accountSettingsEnabled: boolean;
   editionId: string | null;
   userId: string | null;
 };
@@ -77,6 +78,7 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
         enabled: false,
         confirmationEnabled: false,
         scoreboardEnabled: false,
+        accountSettingsEnabled: false,
         editionId: null,
         userId: null,
       };
@@ -87,7 +89,7 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
     );
     const editionId = edition?.id ?? null;
     const { client, userId } = await rolloutClientForRequest(publicClient);
-    const [globalFlag, confirmationFlag, scoreboardFlag] = await Promise.all([
+    const [globalFlag, confirmationFlag, scoreboardFlag, accountSettingsFlag] = await Promise.all([
       client.rpc("studio2_feature_enabled", {
         p_key: "solaris_app_v3",
         p_edition_id: editionId,
@@ -100,6 +102,10 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
         p_key: "solaris_app_v3_scoreboard",
         p_edition_id: editionId,
       }),
+      client.rpc("studio2_feature_enabled", {
+        p_key: "solaris_app_v3_account_settings",
+        p_edition_id: editionId,
+      }),
     ]);
 
     if (globalFlag.error) {
@@ -107,6 +113,7 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
         enabled: false,
         confirmationEnabled: false,
         scoreboardEnabled: false,
+        accountSettingsEnabled: false,
         editionId,
         userId,
       };
@@ -117,13 +124,23 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
       enabled && !confirmationFlag.error && confirmationFlag.data === true;
     const scoreboardEnabled =
       enabled && !scoreboardFlag.error && scoreboardFlag.data === true;
+    const accountSettingsEnabled =
+      enabled && !accountSettingsFlag.error && accountSettingsFlag.data === true;
 
-    return { enabled, confirmationEnabled, scoreboardEnabled, editionId, userId };
+    return {
+      enabled,
+      confirmationEnabled,
+      scoreboardEnabled,
+      accountSettingsEnabled,
+      editionId,
+      userId,
+    };
   } catch {
     return {
       enabled: false,
       confirmationEnabled: false,
       scoreboardEnabled: false,
+      accountSettingsEnabled: false,
       editionId: null,
       userId: null,
     };
