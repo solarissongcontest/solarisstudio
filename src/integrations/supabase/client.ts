@@ -64,8 +64,15 @@ let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>, {
-  get(_, prop, receiver) {
+  get(_, prop) {
     if (!_supabase) _supabase = createSupabaseClient();
-    return Reflect.get(_supabase, prop, receiver);
+
+    // Supabase client methods read sibling services through `this` (for example
+    // rpc() reads this.rest). Returning a raw method from this lazy proxy makes
+    // detached references lose that receiver and crash at runtime. Bind methods
+    // to the canonical client so both direct and intentionally wrapped calls
+    // preserve the same client/service graph.
+    const value = Reflect.get(_supabase, prop, _supabase);
+    return typeof value === 'function' ? value.bind(_supabase) : value;
   },
 });
