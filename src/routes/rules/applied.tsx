@@ -12,9 +12,12 @@ import {
   GOVERNANCE_ACTION_KEYS,
   type GovernanceActionKey,
 } from "@/lib/governance-v5";
-import { getRuleContext } from "@/lib/rule-context";
+import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
 
 export const Route = createFileRoute("/rules/applied")({
+  validateSearch: (search: Record<string, unknown>): { context?: string } => ({
+    context: sanitizeRuleContextPath(search.context),
+  }),
   head: () => ({
     meta: [
       { title: "Rules Applying Here — Solaris Song Contest" },
@@ -38,7 +41,8 @@ function actionFor(path: string | null): GovernanceActionKey | null {
 }
 
 export function AppliedRulesPage() {
-  const content = <AppliedRulesContent />;
+  const { context: contextPath } = Route.useSearch();
+  const content = <AppliedRulesContent contextPath={contextPath} />;
 
   return (
     <V3RulesRouteGate
@@ -51,10 +55,16 @@ export function AppliedRulesPage() {
   );
 }
 
-function AppliedRulesContent() {
+function AppliedRulesContent({ contextPath }: { contextPath?: string }) {
   const [context, setContext] = useState<GovernanceActionKey | null>(null);
 
   useEffect(() => {
+    const explicitAction = actionFor(contextPath ?? null);
+    if (explicitAction) {
+      setContext(explicitAction);
+      return;
+    }
+
     try {
       const storedAction = window.sessionStorage.getItem(GOVERNANCE_ACTION_STORAGE_KEY);
       if (
@@ -70,7 +80,7 @@ function AppliedRulesContent() {
     } catch {
       setContext(null);
     }
-  }, []);
+  }, [contextPath]);
 
   return (
     <div className="mx-auto max-w-4xl pb-20">
