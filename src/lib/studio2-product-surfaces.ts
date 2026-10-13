@@ -223,6 +223,17 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
       description:
         "Reversible V3 Confirmation cutover with authoritative receipts, revision-safe drafts, reconciliation, and legacy fallback preserved during staged rollout.",
     },
+    solaris_app_v3_scoreboard: {
+      key: "solaris_app_v3_scoreboard",
+      label: "Solaris App V3 · Scoreboard",
+      state: "integrated",
+      audience: "public",
+      route: "/shows",
+      surfaceLabel: "Scoreboard V3",
+      dependsOn: ["solaris_app_v3"],
+      description:
+        "Reversible installed-app scoreboard presentation over the canonical published show result data, with public web and legacy rendering preserved during staged rollout.",
+    },
   };
 
 export const STUDIO2_PRODUCT_SURFACE_LIST = Object.values(STUDIO2_PRODUCT_SURFACES);
