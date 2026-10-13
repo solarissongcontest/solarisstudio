@@ -1,9 +1,11 @@
 import { Link } from "@tanstack/react-router";
-import { CircleHelp, Settings, UserRound } from "lucide-react";
+import { CircleHelp, LogOut, Settings, UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { supabase } from "@/integrations/supabase/client";
+import { useFanSession } from "@/lib/prediction-data";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { cn } from "@/lib/utils";
 import { V3AppShell } from "./V3AppShell";
@@ -52,7 +54,14 @@ export function V3AccountSettingsRouteShell({
   children,
 }: V3AccountSettingsRouteShellProps) {
   const { isAppMode, platformResolved } = useSolarisApp();
+  const session = useFanSession();
   const rollout = useV3RolloutProbe(platformResolved && isAppMode);
+
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    window.location.href = "/";
+  };
 
   if (!platformResolved || (isAppMode && rollout.isLoading)) {
     return <ResolvingAccountSettingsRoute title={title} />;
@@ -72,9 +81,22 @@ export function V3AccountSettingsRouteShell({
       editionLabel="Solaris Studio"
       phaseLabel="Me"
       topActions={
-        <Link to="/guide" className="v3-icon-button" aria-label="Open Solaris guide" title="Guide">
-          <CircleHelp className="size-4" />
-        </Link>
+        <>
+          <Link to="/guide" className="v3-icon-button" aria-label="Open Solaris guide" title="Guide">
+            <CircleHelp className="size-4" />
+          </Link>
+          {session.data ? (
+            <button
+              type="button"
+              className="v3-icon-button"
+              onClick={() => void signOut()}
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut className="size-4" />
+            </button>
+          ) : null}
+        </>
       }
     >
       <V3Screen className="pb-8">
