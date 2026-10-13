@@ -33,6 +33,7 @@ export type V3RolloutProbe = {
   delegationEnabled: boolean;
   searchEnabled: boolean;
   rulesGuidanceEnabled: boolean;
+  nextInLineEnabled: boolean;
   editionId: string | null;
   userId: string | null;
 };
@@ -72,6 +73,7 @@ function disabledProbe(input?: { editionId?: string | null; userId?: string | nu
     delegationEnabled: false,
     searchEnabled: false,
     rulesGuidanceEnabled: false,
+    nextInLineEnabled: false,
     editionId: input?.editionId ?? null,
     userId: input?.userId ?? null,
   };
@@ -93,6 +95,7 @@ async function evaluateV3Rollout(
     delegationFlag,
     searchFlag,
     rulesGuidanceFlag,
+    nextInLineFlag,
   ] = await Promise.all([
     client.rpc("studio2_feature_enabled", {
       p_key: "solaris_app_v3",
@@ -134,6 +137,10 @@ async function evaluateV3Rollout(
       p_key: "solaris_app_v3_rules_guidance",
       p_edition_id: editionId,
     }),
+    client.rpc("studio2_feature_enabled", {
+      p_key: "solaris_app_v3_next_in_line",
+      p_edition_id: editionId,
+    }),
   ]);
 
   if (globalFlag.error) return disabledProbe({ editionId, userId });
@@ -158,6 +165,8 @@ async function evaluateV3Rollout(
   const searchEnabled = enabled && !searchFlag.error && searchFlag.data === true;
   const rulesGuidanceEnabled =
     enabled && !rulesGuidanceFlag.error && rulesGuidanceFlag.data === true;
+  const nextInLineEnabled =
+    enabled && !nextInLineFlag.error && nextInLineFlag.data === true;
 
   return {
     enabled,
@@ -170,6 +179,7 @@ async function evaluateV3Rollout(
     delegationEnabled,
     searchEnabled,
     rulesGuidanceEnabled,
+    nextInLineEnabled,
     editionId,
     userId,
   };
