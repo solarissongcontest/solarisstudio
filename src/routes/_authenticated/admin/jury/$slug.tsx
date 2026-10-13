@@ -110,10 +110,10 @@ type LifecycleRpcResult = {
   error: { message?: string } | null;
 };
 
-const lifecycleRpc = supabase.rpc as unknown as (
+const lifecycleRpc = (
   functionName: string,
   args: Record<string, unknown>,
-) => Promise<LifecycleRpcResult>;
+) => (supabase as any).rpc(functionName, args) as Promise<LifecycleRpcResult>;
 
 type VoterDraft = {
   kind: VoterKind;

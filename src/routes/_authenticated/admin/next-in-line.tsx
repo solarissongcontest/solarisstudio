@@ -73,10 +73,10 @@ type RpcResult = {
   error: { message: string } | null;
 };
 
-const nextInLineRpc = confirmationsSupabase.rpc as unknown as (
+const nextInLineRpc = (
   functionName: string,
   args: Record<string, unknown>,
-) => Promise<RpcResult>;
+) => confirmationsSupabase.rpc(functionName, args) as Promise<RpcResult>;
 
 type SearchState = { country?: string };
 
@@ -404,6 +404,7 @@ function NextInLineAdminPage() {
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              aria-label="Search Next in Line responses"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search country, artist or song…"

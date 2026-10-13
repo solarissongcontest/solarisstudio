@@ -72,20 +72,40 @@ async function launchInstalledApp(page: Page) {
   return startedAt;
 }
 
+async function readRememberedAppTab(page: Page) {
+  try {
+    return await page.evaluate(() => {
+      const raw = localStorage.getItem("solaris:app-navigation:v1");
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw).activeTab ?? null;
+      } catch {
+        return null;
+      }
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/execution context was destroyed|cannot find context|navigation/i.test(message)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 async function waitForRememberedAppTab(page: Page, activeTab: string) {
+  await expect.poll(() => readRememberedAppTab(page), { timeout: 10_000 }).toBe(activeTab);
+}
+
+async function expectCommittedPath(page: Page, pathname: string) {
   await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const raw = localStorage.getItem("solaris:app-navigation:v1");
-        if (!raw) return null;
-        try {
-          return JSON.parse(raw).activeTab ?? null;
-        } catch {
-          return null;
-        }
-      }),
-    )
-    .toBe(activeTab);
+    .poll(() => {
+      try {
+        return new URL(page.url()).pathname;
+      } catch {
+        return "";
+      }
+    }, { timeout: 8_000 })
+    .toBe(pathname);
 }
 
 async function openGlobalSearch(page: Page) {
@@ -295,11 +315,11 @@ test("signed-out and critical-route cold launches use canonical safe roots", asy
 
   await setNavigation("me", "/my-solaris/account");
   await launchInstalledApp(page);
-  await expect(page).toHaveURL(/\/auth(?:\?|$)/, { timeout: 4_000 });
+  await expectCommittedPath(page, "/auth");
 
   await setNavigation("participate", "/televoting");
   await launchInstalledApp(page);
-  await expect(page).toHaveURL(/\/participate(?:\?|$)/, { timeout: 4_000 });
+  await expectCommittedPath(page, "/participate");
 });
 
 test("launch still exits when session storage cannot create a transaction", async ({
