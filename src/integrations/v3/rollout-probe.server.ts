@@ -29,6 +29,7 @@ export type V3RolloutProbe = {
   accountSettingsEnabled: boolean;
   exploreEnabled: boolean;
   notificationsEnabled: boolean;
+  editionEnabled: boolean;
   editionId: string | null;
   userId: string | null;
 };
@@ -64,6 +65,7 @@ function disabledProbe(input?: { editionId?: string | null; userId?: string | nu
     accountSettingsEnabled: false,
     exploreEnabled: false,
     notificationsEnabled: false,
+    editionEnabled: false,
     editionId: input?.editionId ?? null,
     userId: input?.userId ?? null,
   };
@@ -102,6 +104,7 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
       accountSettingsFlag,
       exploreFlag,
       notificationsFlag,
+      editionFlag,
     ] = await Promise.all([
       client.rpc("studio2_feature_enabled", {
         p_key: "solaris_app_v3",
@@ -127,6 +130,10 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
         p_key: "solaris_app_v3_notifications",
         p_edition_id: editionId,
       }),
+      client.rpc("studio2_feature_enabled", {
+        p_key: "solaris_app_v3_edition",
+        p_edition_id: editionId,
+      }),
     ]);
 
     if (globalFlag.error) return disabledProbe({ editionId, userId });
@@ -144,6 +151,8 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
       accountSettingsEnabled &&
       !notificationsFlag.error &&
       notificationsFlag.data === true;
+    const editionEnabled =
+      exploreEnabled && !editionFlag.error && editionFlag.data === true;
 
     return {
       enabled,
@@ -152,6 +161,7 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
       accountSettingsEnabled,
       exploreEnabled,
       notificationsEnabled,
+      editionEnabled,
       editionId,
       userId,
     };
