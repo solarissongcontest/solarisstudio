@@ -18,6 +18,7 @@ import {
 import { PublicCurrentStatus } from "@/components/public/PublicCurrentStatus";
 import { PublicStatus } from "@/components/public/PublicStatus";
 import { StoryCards } from "@/components/StoryCards";
+import { V3EditionRouteGate } from "@/components/v3/V3EditionRouteGate";
 import {
   editionLabel,
   useAllResults,
@@ -77,8 +78,17 @@ export const Route = createFileRoute("/editions/$slug")({
 });
 
 function EditionPage() {
-  const { isAppMode } = useSolarisApp();
   const { slug } = Route.useParams();
+  return (
+    <V3EditionRouteGate
+      slug={slug}
+      legacy={<LegacyEditionPage slug={slug} />}
+    />
+  );
+}
+
+function LegacyEditionPage({ slug }: { slug: string }) {
+  const { isAppMode } = useSolarisApp();
   const editionQuery = useEdition(slug);
   const { data: edition } = editionQuery;
   const [historyEnabled, setHistoryEnabled] = useState(!isAppMode);
