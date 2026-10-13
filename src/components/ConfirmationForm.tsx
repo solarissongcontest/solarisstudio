@@ -197,6 +197,8 @@ export interface ConfirmationFormProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   prefill?: any;
   availability?: AvailabilityReason;
+  /** V3 recovery boundary for a submit whose database status cannot be proven yet. */
+  onSubmissionUncertain?: (operationId?: string) => void;
 }
 
 function sameWinner(
@@ -206,7 +208,7 @@ function sameWinner(
   return data.artist === entry.artist && data.song_title === entry.song_title && data.song_url === entry.song_url;
 }
 
-export function ConfirmationForm({ round, editToken, prefill, availability }: ConfirmationFormProps) {
+export function ConfirmationForm({ round, editToken, prefill, availability, onSubmissionUncertain }: ConfirmationFormProps) {
   const { connectivity } = useSolarisApp();
   const submissionConnectivityReady = connectivity.status === "online";
   const submit = useServerFn(submitConfirmation);
@@ -634,7 +636,16 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
       };
       const result = await submit({ data: payload });
       if (!result.ok) {
-        if (result.reason) setBlocked(availabilityMessage(result.reason));
+        if (result.error === "submission_uncertain") {
+          const operationId = typeof result.operation_id === "string" ? result.operation_id : undefined;
+          if (onSubmissionUncertain) onSubmissionUncertain(operationId);
+          else {
+            setBlocked(
+              "Solaris could not yet prove whether the server accepted this submission. Do not create a different submission. Returning to the form and trying the same payload again reuses the protected operation identity.",
+            );
+          }
+        }
+        else if (result.reason) setBlocked(availabilityMessage(result.reason));
         else if (result.error === "duplicate_song") setBlocked(duplicateMessage("song"));
         else if (result.error === "duplicate_artist") setBlocked(duplicateMessage("artist"));
         else if (result.error === "confirmation_already_complete") {
@@ -909,8 +920,7 @@ export function ConfirmationForm({ round, editToken, prefill, availability }: Co
                         </Field>
                         {data.replacement_video_required ? (
                           <Field label="Replacement video link" error={errors.nf_winner_replacement}>
-                            <Input value={data.replacement_video_url} onChange={(event) => set("replacement_video_url", event.target.value)} placeholder="https://" />
-                          </Field>
+                            <Input value={data.replacement_video_url} onChange={(event) => set("replacement_video_url", event.target.value)} placeholder="https://" /></Field>
                         ) : null}
                       </div>
                     ) : null}

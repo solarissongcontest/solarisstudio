@@ -212,6 +212,17 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
       description:
         "Server-authoritative app-mode rollout for the V3 shell and migrated primary user surfaces, with legacy fallback preserved during staged cutover.",
     },
+    solaris_app_v3_confirmation: {
+      key: "solaris_app_v3_confirmation",
+      label: "Solaris App V3 · Confirmation",
+      state: "integrated",
+      audience: "public",
+      route: "/confirmations",
+      surfaceLabel: "Confirmation V3",
+      dependsOn: ["solaris_app_v3"],
+      description:
+        "Reversible V3 Confirmation cutover with authoritative receipts, revision-safe drafts, reconciliation, and legacy fallback preserved during staged rollout.",
+    },
   };
 
 export const STUDIO2_PRODUCT_SURFACE_LIST = Object.values(STUDIO2_PRODUCT_SURFACES);

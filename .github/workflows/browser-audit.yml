@@ -69,8 +69,11 @@ jobs:
         run: |
           set -euo pipefail
 
+          # GitHub runners start with no preserved local Supabase volume. `supabase
+          # start` therefore creates the clean database and applies every local
+          # migration itself. Re-running `db reset` here only destroys that fresh
+          # database and replays the same migration history a second time.
           supabase start
-          supabase db reset --local --no-seed
           supabase status -o env > /tmp/solaris-browser-supabase.env
 
           set -a

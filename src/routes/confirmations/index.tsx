@@ -13,10 +13,7 @@ import {
 } from "lucide-react";
 
 import { ConfirmationFormWithReceipt } from "@/components/ConfirmationFormWithReceipt";
-import {
-  ParticipationRouteChrome,
-  ParticipationServiceShell,
-} from "@/components/ParticipationServiceShell";
+import { V3ConfirmationRouteShell } from "@/components/v3/V3ConfirmationRouteShell";
 import { PublicStatus } from "@/components/public/PublicStatus";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,40 +58,37 @@ function ConfirmationsRouteError({
   console.error("[confirmations] route load failed", error);
 
   return (
-    <ParticipationRouteChrome>
-      <ParticipationServiceShell
-        service="confirmations"
-        title="Confirmations"
-        description="Participation confirmation for the current Solaris edition."
-        actions={[{ to: "/participate", label: "Back to Participate" }]}
-        maxWidth="max-w-xl"
-      >
-        <section className="solaris-app-recovery-state data-panel p-5 sm:p-6" role="alert">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">
-            {offline ? "Offline" : "Couldn’t load confirmations"}
-          </p>
-          <h2 className="mt-2 text-lg font-bold">
-            {offline ? "Reconnect to load confirmation rounds" : "Confirmation data is temporarily unavailable"}
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            {offline
-              ? "Submitting or editing a confirmation requires a connection. Nothing has been submitted or changed."
-              : "Solaris could not load the official confirmation rounds. Your saved response has not been changed."}
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button
-              type="button"
-              onClick={() => {
-                void router.invalidate();
-                reset();
-              }}
-            >
-              Try again
-            </Button>
-          </div>
-        </section>
-      </ParticipationServiceShell>
-    </ParticipationRouteChrome>
+    <V3ConfirmationRouteShell
+      title="Confirmations"
+      description="Participation confirmation for the current Solaris edition."
+      actions={[{ to: "/participate", label: "Back to Participate" }]}
+      maxWidth="max-w-xl"
+    >
+      <section className="solaris-app-recovery-state data-panel p-5 sm:p-6" role="alert">
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">
+          {offline ? "Offline" : "Couldn’t load confirmations"}
+        </p>
+        <h2 className="mt-2 text-lg font-bold">
+          {offline ? "Reconnect to load confirmation rounds" : "Confirmation data is temporarily unavailable"}
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {offline
+            ? "Submitting or editing a confirmation requires a connection. Nothing has been submitted or changed."
+            : "Solaris could not load the official confirmation rounds. Your saved response has not been changed."}
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button
+            type="button"
+            onClick={() => {
+              void router.invalidate();
+              reset();
+            }}
+          >
+            Try again
+          </Button>
+        </div>
+      </section>
+    </V3ConfirmationRouteShell>
   );
 }
 
@@ -214,55 +208,117 @@ function ConfirmationsPage() {
   }
 
   return (
-    <ParticipationRouteChrome>
-      <ParticipationServiceShell
-        service="confirmations"
-        title={selected ? selected.name : "Confirmations"}
-        description={
-          selected
-            ? `Submit participation and entry details for ${selected.edition_name}. Your progress saves while you work.`
-            : "Confirm participation, selection method and entry details for the current Solaris Song Contest edition."
-        }
-        actions={[
-          { to: "/confirmations/recover", label: "Recover response" },
-          { to: "/confirmations/next-in-line", label: "Next in Line" },
-        ]}
-        maxWidth="max-w-6xl"
-      >
-        <div className="confirmations-theme">
-          {accountAccess?.authenticated && accountAccess.country && preferredAccountResponse ? (
-            <section className="data-panel mb-5 border-primary/20 p-4 sm:p-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-primary">
-                    <UserRoundCheck className="size-4" />
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em]">
-                      Country account connected
-                    </p>
-                  </div>
-                  <h2 className="mt-2 font-display text-lg font-bold">
-                    Signed in as {accountAccess.country.name}
-                  </h2>
-                  <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-                    {preferredRequirement?.status === "required"
-                      ? "TSBC has explicitly requested a new confirmation generation. Your earlier response remains in history; update it or use an open submission window to satisfy the current requirement."
-                      : "Solaris Studio found your completed edition confirmation automatically. A later submission round does not require you to confirm again."}
-                  </p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    SSC {preferredAccountResponse.edition_number} · {preferredAccountResponse.round_name}
+    <V3ConfirmationRouteShell
+      title={selected ? selected.name : "Confirmations"}
+      description={
+        selected
+          ? `Submit participation and entry details for ${selected.edition_name}. Your progress saves while you work.`
+          : "Confirm participation, selection method and entry details for the current Solaris Song Contest edition."
+      }
+      actions={[
+        { to: "/confirmations/recover", label: "Recover response" },
+        { to: "/confirmations/next-in-line", label: "Next in Line" },
+      ]}
+      maxWidth="max-w-6xl"
+      editionLabel={selected?.edition_name ?? rounds[0]?.edition_name ?? "Solaris Song Contest"}
+      phaseLabel={selected ? "Confirmation task" : "Confirmations"}
+    >
+      <div className="confirmations-theme">
+        {accountAccess?.authenticated && accountAccess.country && preferredAccountResponse ? (
+          <section className="data-panel mb-5 border-primary/20 p-4 sm:p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-primary">
+                  <UserRoundCheck className="size-4" />
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em]">
+                    Country account connected
                   </p>
                 </div>
+                <h2 className="mt-2 font-display text-lg font-bold">
+                  Signed in as {accountAccess.country.name}
+                </h2>
+                <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+                  {preferredRequirement?.status === "required"
+                    ? "TSBC has explicitly requested a new confirmation generation. Your earlier response remains in history; update it or use an open submission window to satisfy the current requirement."
+                    : "Solaris Studio found your completed edition confirmation automatically. A later submission round does not require you to confirm again."}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  SSC {preferredAccountResponse.edition_number} · {preferredAccountResponse.round_name}
+                </p>
+              </div>
 
+              <Button
+                type="button"
+                disabled={!preferredAccountResponse.can_edit || openingRoundId !== null}
+                onClick={() => void editCountryAccountResponse(preferredAccountResponse)}
+                className="shrink-0"
+              >
+                {preferredAccountResponse.can_edit ? (
+                  <>
+                    <PencilLine className="size-4" />
+                    {openingRoundId === preferredAccountResponse.round_id
+                      ? "Opening…"
+                      : "Edit your response"}
+                  </>
+                ) : (
+                  <>
+                    <LockKeyhole className="size-4" /> Editing closed
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {accountEditError ? (
+              <div className="mt-4 rounded-xl border border-red-300/20 bg-red-300/10 p-3 text-sm text-red-100">
+                {accountEditError}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
+        {selected ? (
+          <section>
+            <button
+              type="button"
+              onClick={() => setSelectedId(null)}
+              className="mb-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold text-muted-foreground transition hover:bg-surface-strong hover:text-foreground"
+            >
+              <ArrowLeft className="size-3.5" /> Choose another round
+            </button>
+
+            <div className="data-panel mb-5 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
+                  {selected.edition_name}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {selectedAccountResponse
+                    ? "You already have a response for this round. Open that response instead of submitting a second one."
+                    : "Complete the six-step confirmation form below."}
+                </p>
+              </div>
+              <StatePill round={selected} />
+            </div>
+
+            {selectedAccountResponse ? (
+              <div className="data-panel p-5 text-center sm:p-6">
+                <PencilLine className="mx-auto size-6 text-primary" />
+                <h2 className="mt-3 font-display text-xl font-bold">Your response already exists</h2>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+                  {selectedAccountResponse.can_edit
+                    ? "Editing is open. Because you are signed in to this country account, Solaris Studio can open the saved response directly."
+                    : "Your response is saved, but editing is currently closed."}
+                </p>
                 <Button
                   type="button"
-                  disabled={!preferredAccountResponse.can_edit || openingRoundId !== null}
-                  onClick={() => void editCountryAccountResponse(preferredAccountResponse)}
-                  className="shrink-0"
+                  disabled={!selectedAccountResponse.can_edit || openingRoundId !== null}
+                  onClick={() => void editCountryAccountResponse(selectedAccountResponse)}
+                  className="mt-5"
                 >
-                  {preferredAccountResponse.can_edit ? (
+                  {selectedAccountResponse.can_edit ? (
                     <>
                       <PencilLine className="size-4" />
-                      {openingRoundId === preferredAccountResponse.round_id
+                      {openingRoundId === selectedAccountResponse.round_id
                         ? "Opening…"
                         : "Edit your response"}
                     </>
@@ -273,244 +329,181 @@ function ConfirmationsPage() {
                   )}
                 </Button>
               </div>
-
-              {accountEditError ? (
-                <div className="mt-4 rounded-xl border border-red-300/20 bg-red-300/10 p-3 text-sm text-red-100">
-                  {accountEditError}
-                </div>
-              ) : null}
-            </section>
-          ) : null}
-
-          {selected ? (
-            <section>
-              <button
-                type="button"
-                onClick={() => setSelectedId(null)}
-                className="mb-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-surface px-3 text-xs font-semibold text-muted-foreground transition hover:bg-surface-strong hover:text-foreground"
-              >
-                <ArrowLeft className="size-3.5" /> Choose another round
-              </button>
-
-              <div className="data-panel mb-5 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
-                    {selected.edition_name}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {selectedAccountResponse
-                      ? "You already have a response for this round. Open that response instead of submitting a second one."
-                      : "Complete the six-step confirmation form below."}
-                  </p>
-                </div>
-                <StatePill round={selected} />
+            ) : selectedRequirementBlocksNewSubmission ? (
+              <div className="data-panel p-5 text-center sm:p-6">
+                <UserRoundCheck className="mx-auto size-6 text-primary" />
+                <h2 className="mt-3 font-display text-xl font-bold">
+                  {selectedRequirement?.status === "waived"
+                    ? "No confirmation is required"
+                    : selectedRequirement?.status === "satisfied"
+                      ? "Your edition confirmation is complete"
+                      : "No current confirmation requirement"}
+                </h2>
+                <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
+                  {selectedRequirement?.status === "satisfied"
+                    ? "This country already satisfied its edition-level confirmation requirement. Opening another round does not create another obligation."
+                    : selectedRequirement?.status === "waived"
+                      ? "TSBC has waived this country’s current edition confirmation requirement."
+                      : "This country does not currently have an edition-level confirmation requirement. A round is only a submission window."}
+                </p>
               </div>
-
-              {selectedAccountResponse ? (
-                <div className="data-panel p-5 text-center sm:p-6">
-                  <PencilLine className="mx-auto size-6 text-primary" />
-                  <h2 className="mt-3 font-display text-xl font-bold">Your response already exists</h2>
-                  <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-                    {selectedAccountResponse.can_edit
-                      ? "Editing is open. Because you are signed in to this country account, Solaris Studio can open the saved response directly."
-                      : "Your response is saved, but editing is currently closed."}
-                  </p>
-                  <Button
-                    type="button"
-                    disabled={!selectedAccountResponse.can_edit || openingRoundId !== null}
-                    onClick={() => void editCountryAccountResponse(selectedAccountResponse)}
-                    className="mt-5"
-                  >
-                    {selectedAccountResponse.can_edit ? (
-                      <>
-                        <PencilLine className="size-4" />
-                        {openingRoundId === selectedAccountResponse.round_id
-                          ? "Opening…"
-                          : "Edit your response"}
-                      </>
-                    ) : (
-                      <>
-                        <LockKeyhole className="size-4" /> Editing closed
-                      </>
-                    )}
-                  </Button>
-                </div>
-              ) : selectedRequirementBlocksNewSubmission ? (
-                <div className="data-panel p-5 text-center sm:p-6">
-                  <UserRoundCheck className="mx-auto size-6 text-primary" />
-                  <h2 className="mt-3 font-display text-xl font-bold">
-                    {selectedRequirement?.status === "waived"
-                      ? "No confirmation is required"
-                      : selectedRequirement?.status === "satisfied"
-                        ? "Your edition confirmation is complete"
-                        : "No current confirmation requirement"}
-                  </h2>
-                  <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
-                    {selectedRequirement?.status === "satisfied"
-                      ? "This country already satisfied its edition-level confirmation requirement. Opening another round does not create another obligation."
-                      : selectedRequirement?.status === "waived"
-                        ? "TSBC has waived this country’s current edition confirmation requirement."
-                        : "This country does not currently have an edition-level confirmation requirement. A round is only a submission window."}
-                  </p>
-                </div>
-              ) : (
-                <ConfirmationFormWithReceipt round={selected} availability={roundReason(selected)} />
-              )}
-            </section>
-          ) : rounds.length ? (
-            <section className="space-y-3">
-              <div className="mb-3 flex items-end justify-between gap-3 border-b border-border/60 pb-3">
-                <div>
-                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-primary">
-                    Available rounds
-                  </p>
-                  <h2 className="mt-1 font-display text-xl font-bold">Choose a confirmation round</h2>
-                </div>
-                <span className="numeric text-xs text-muted-foreground">{rounds.length}</span>
+            ) : (
+              <ConfirmationFormWithReceipt round={selected} availability={roundReason(selected)} />
+            )}
+          </section>
+        ) : rounds.length ? (
+          <section className="space-y-3">
+            <div className="mb-3 flex items-end justify-between gap-3 border-b border-border/60 pb-3">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-primary">
+                  Available rounds
+                </p>
+                <h2 className="mt-1 font-display text-xl font-bold">Choose a confirmation round</h2>
               </div>
+              <span className="numeric text-xs text-muted-foreground">{rounds.length}</span>
+            </div>
 
-              {rounds.map((round) => {
-                const reason = roundReason(round);
-                const canOpen = reason === "OPEN";
-                const opens = formatDate(round.opens_at);
-                const closes = formatDate(round.closes_at);
-                const untilOpen =
-                  round.opens_at && now != null ? millisecondsUntil(round.opens_at, now) : null;
-                const untilClose =
-                  round.closes_at && now != null ? millisecondsUntil(round.closes_at, now) : null;
-                const remaining =
-                  round.response_limit === null
-                    ? null
-                    : Math.max(round.response_limit - round.response_count, 0);
-                const ownResponse = accountResponses.find((response) => response.round_id === round.id) ?? null;
-                const roundRequirement =
-                  accountRequirements.find(
-                    (requirement) => requirement.edition_id === round.edition_id,
-                  ) ?? null;
-                const signedInCountry = Boolean(accountAccess?.authenticated && accountAccess.country);
-                const requirementAllowsNewSubmission =
-                  !signedInCountry || roundRequirement?.status === "required";
-                const canStartNewSubmission = canOpen && requirementAllowsNewSubmission;
+            {rounds.map((round) => {
+              const reason = roundReason(round);
+              const canOpen = reason === "OPEN";
+              const opens = formatDate(round.opens_at);
+              const closes = formatDate(round.closes_at);
+              const untilOpen =
+                round.opens_at && now != null ? millisecondsUntil(round.opens_at, now) : null;
+              const untilClose =
+                round.closes_at && now != null ? millisecondsUntil(round.closes_at, now) : null;
+              const remaining =
+                round.response_limit === null
+                  ? null
+                  : Math.max(round.response_limit - round.response_count, 0);
+              const ownResponse = accountResponses.find((response) => response.round_id === round.id) ?? null;
+              const roundRequirement =
+                accountRequirements.find(
+                  (requirement) => requirement.edition_id === round.edition_id,
+                ) ?? null;
+              const signedInCountry = Boolean(accountAccess?.authenticated && accountAccess.country);
+              const requirementAllowsNewSubmission =
+                !signedInCountry || roundRequirement?.status === "required";
+              const canStartNewSubmission = canOpen && requirementAllowsNewSubmission;
 
-                return (
-                  <article key={round.id} className="data-panel p-4 sm:p-5">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2.5">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-                            SSC {round.edition_number}
-                          </p>
-                          <StatePill round={round} />
-                          {ownResponse ? (
-                            <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary">
-                              Your response
-                            </span>
-                          ) : null}
-                        </div>
-                        <h2 className="mt-2 font-display text-xl font-bold sm:text-2xl">{round.name}</h2>
-                        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                          {ownResponse
-                            ? ownResponse.can_edit
-                              ? "Your response is saved and editing is open."
-                              : "Your response is saved. Editing is currently closed."
-                            : signedInCountry && roundRequirement?.status === "satisfied"
-                              ? "Your edition confirmation requirement is already satisfied. This later round does not require another response."
-                              : signedInCountry && roundRequirement?.status === "waived"
-                                ? "TSBC has waived your current edition confirmation requirement."
-                                : signedInCountry && !roundRequirement
-                                  ? "No edition-level confirmation requirement is currently assigned to your delegation."
-                                  : canOpen
-                                    ? remaining === null
-                                      ? "Responses are being accepted."
-                                      : `${remaining} ${remaining === 1 ? "place" : "places"} remaining.`
-                                    : reason === "NOT_OPEN_YET" && opens
-                                ? `Opens ${opens}.`
-                                : reason === "DEADLINE_PASSED" && closes
-                                  ? `Closed ${closes}.`
-                                  : reason === "RESPONSE_LIMIT_REACHED"
-                                    ? "This round has reached its response limit."
-                                    : "This round is currently closed."}
+              return (
+                <article key={round.id} className="data-panel p-4 sm:p-5">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                          SSC {round.edition_number}
                         </p>
-
-                        {reason === "NOT_OPEN_YET" && untilOpen !== null ? (
-                          <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-sky-200/20 bg-sky-200/[0.07] px-3 py-2 text-sky-100">
-                            <Clock3 className="size-3.5 shrink-0" />
-                            <span className="numeric text-xs font-bold tabular-nums">
-                              {formatLiveCountdown(untilOpen)}
-                            </span>
-                            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-100/70">
-                              until opening
-                            </span>
-                          </div>
-                        ) : canOpen && untilClose !== null ? (
-                          <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-emerald-200/20 bg-emerald-200/[0.07] px-3 py-2 text-emerald-100">
-                            <Clock3 className="size-3.5 shrink-0" />
-                            <span className="numeric text-xs font-bold tabular-nums">
-                              {formatLiveCountdown(untilClose)}
-                            </span>
-                            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-100/70">
-                              until closing
-                            </span>
-                          </div>
+                        <StatePill round={round} />
+                        {ownResponse ? (
+                          <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary">
+                            Your response
+                          </span>
                         ) : null}
                       </div>
+                      <h2 className="mt-2 font-display text-xl font-bold sm:text-2xl">{round.name}</h2>
+                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                        {ownResponse
+                          ? ownResponse.can_edit
+                            ? "Your response is saved and editing is open."
+                            : "Your response is saved. Editing is currently closed."
+                          : signedInCountry && roundRequirement?.status === "satisfied"
+                            ? "Your edition confirmation requirement is already satisfied. This later round does not require another response."
+                            : signedInCountry && roundRequirement?.status === "waived"
+                              ? "TSBC has waived your current edition confirmation requirement."
+                              : signedInCountry && !roundRequirement
+                                ? "No edition-level confirmation requirement is currently assigned to your delegation."
+                                : canOpen
+                                  ? remaining === null
+                                    ? "Responses are being accepted."
+                                    : `${remaining} ${remaining === 1 ? "place" : "places"} remaining.`
+                                  : reason === "NOT_OPEN_YET" && opens
+                              ? `Opens ${opens}.`
+                              : reason === "DEADLINE_PASSED" && closes
+                                ? `Closed ${closes}.`
+                                : reason === "RESPONSE_LIMIT_REACHED"
+                                  ? "This round has reached its response limit."
+                                  : "This round is currently closed."}
+                      </p>
 
-                      {ownResponse ? (
-                        <Button
-                          type="button"
-                          disabled={!ownResponse.can_edit || openingRoundId !== null}
-                          onClick={() => void editCountryAccountResponse(ownResponse)}
-                          className="shrink-0"
-                        >
-                          {ownResponse.can_edit ? (
-                            <>
-                              <PencilLine className="size-4" />
-                              {openingRoundId === ownResponse.round_id ? "Opening…" : "Edit your response"}
-                            </>
-                          ) : (
-                            <>
-                              <LockKeyhole className="size-4" /> Editing closed
-                            </>
-                          )}
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          disabled={!canStartNewSubmission}
-                          onClick={() => setSelectedId(round.id)}
-                          className="shrink-0"
-                        >
-                          {canStartNewSubmission ? (
-                            <>Open confirmation <ArrowRight className="size-4" /></>
-                          ) : signedInCountry && roundRequirement?.status === "satisfied" ? (
-                            <><UserRoundCheck className="size-4" /> Already confirmed</>
-                          ) : signedInCountry && roundRequirement?.status === "waived" ? (
-                            <><UserRoundCheck className="size-4" /> Not required</>
-                          ) : signedInCountry && !roundRequirement ? (
-                            <><LockKeyhole className="size-4" /> No requirement</>
-                          ) : (
-                            <><LockKeyhole className="size-4" /> {reason === "NOT_OPEN_YET" ? "Upcoming" : reason === "RESPONSE_LIMIT_REACHED" ? "Full" : "Closed"}</>
-                          )}
-                        </Button>
-                      )}
+                      {reason === "NOT_OPEN_YET" && untilOpen !== null ? (
+                        <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-sky-200/20 bg-sky-200/[0.07] px-3 py-2 text-sky-100">
+                          <Clock3 className="size-3.5 shrink-0" />
+                          <span className="numeric text-xs font-bold tabular-nums">
+                            {formatLiveCountdown(untilOpen)}
+                          </span>
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-100/70">
+                            until opening
+                          </span>
+                        </div>
+                      ) : canOpen && untilClose !== null ? (
+                        <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-emerald-200/20 bg-emerald-200/[0.07] px-3 py-2 text-emerald-100">
+                          <Clock3 className="size-3.5 shrink-0" />
+                          <span className="numeric text-xs font-bold tabular-nums">
+                            {formatLiveCountdown(untilClose)}
+                          </span>
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-100/70">
+                            until closing
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
-                  </article>
-                );
-              })}
-            </section>
-          ) : (
-            <section className="data-panel p-8 text-center sm:p-10">
-              <LockKeyhole className="mx-auto size-7 text-muted-foreground" />
-              <h2 className="mt-4 font-display text-xl font-bold sm:text-2xl">
-                No confirmation rounds are available
-              </h2>
-              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-                When a confirmation round is published, it will appear here automatically.
-              </p>
-            </section>
-          )}
-        </div>
-      </ParticipationServiceShell>
-    </ParticipationRouteChrome>
+
+                    {ownResponse ? (
+                      <Button
+                        type="button"
+                        disabled={!ownResponse.can_edit || openingRoundId !== null}
+                        onClick={() => void editCountryAccountResponse(ownResponse)}
+                        className="shrink-0"
+                      >
+                        {ownResponse.can_edit ? (
+                          <>
+                            <PencilLine className="size-4" />
+                            {openingRoundId === ownResponse.round_id ? "Opening…" : "Edit your response"}
+                          </>
+                        ) : (
+                          <>
+                            <LockKeyhole className="size-4" /> Editing closed
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        disabled={!canStartNewSubmission}
+                        onClick={() => setSelectedId(round.id)}
+                        className="shrink-0"
+                      >
+                        {canStartNewSubmission ? (
+                          <>Open confirmation <ArrowRight className="size-4" /></>
+                        ) : signedInCountry && roundRequirement?.status === "satisfied" ? (
+                          <><UserRoundCheck className="size-4" /> Already confirmed</>
+                        ) : signedInCountry && roundRequirement?.status === "waived" ? (
+                          <><UserRoundCheck className="size-4" /> Not required</>
+                        ) : signedInCountry && !roundRequirement ? (
+                          <><LockKeyhole className="size-4" /> No requirement</>
+                        ) : (
+                          <><LockKeyhole className="size-4" /> {reason === "NOT_OPEN_YET" ? "Upcoming" : reason === "RESPONSE_LIMIT_REACHED" ? "Full" : "Closed"}</>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </section>
+        ) : (
+          <section className="data-panel p-8 text-center sm:p-10">
+            <LockKeyhole className="mx-auto size-7 text-muted-foreground" />
+            <h2 className="mt-4 font-display text-xl font-bold sm:text-2xl">
+              No confirmation rounds are available
+            </h2>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+              When a confirmation round is published, it will appear here automatically.
+            </p>
+          </section>
+        )}
+      </div>
+    </V3ConfirmationRouteShell>
   );
 }

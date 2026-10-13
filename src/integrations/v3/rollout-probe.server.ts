@@ -24,6 +24,7 @@ type RolloutClient = {
 
 export type V3RolloutProbe = {
   enabled: boolean;
+  confirmationEnabled: boolean;
   editionId: string | null;
   userId: string | null;
 };
@@ -56,7 +57,9 @@ async function rolloutClientForRequest(publicClient: RolloutClient) {
  *
  * This intentionally runs before the heavier V3 Home/Participate bootstrap so
  * disabled production users do not pay for a second data graph. The persisted
- * Studio 2 flag remains the sole rollout authority; errors resolve to disabled.
+ * Studio 2 flags remain the sole rollout authority; errors resolve to disabled.
+ * Critical workflows have an additional slice flag so the shell can remain on
+ * while a single workflow is rolled back independently.
  */
 export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
   try {
@@ -69,7 +72,12 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
       .order("edition_number", { ascending: false });
 
     if (editionResult.error) {
-      return { enabled: false, editionId: null, userId: null };
+      return {
+        enabled: false,
+        confirmationEnabled: false,
+        editionId: null,
+        userId: null,
+      };
     }
 
     const edition = resolveCurrentPublicEdition(
@@ -77,14 +85,32 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
     );
     const editionId = edition?.id ?? null;
     const { client, userId } = await rolloutClientForRequest(publicClient);
-    const flag = await client.rpc("studio2_feature_enabled", {
-      p_key: "solaris_app_v3",
-      p_edition_id: editionId,
-    });
+    const [globalFlag, confirmationFlag] = await Promise.all([
+      client.rpc("studio2_feature_enabled", {
+        p_key: "solaris_app_v3",
+        p_edition_id: editionId,
+      }),
+      client.rpc("studio2_feature_enabled", {
+        p_key: "solaris_app_v3_confirmation",
+        p_edition_id: editionId,
+      }),
+    ]);
 
-    if (flag.error) return { enabled: false, editionId, userId };
-    return { enabled: flag.data === true, editionId, userId };
+    if (globalFlag.error) {
+      return { enabled: false, confirmationEnabled: false, editionId, userId };
+    }
+
+    const enabled = globalFlag.data === true;
+    const confirmationEnabled =
+      enabled && !confirmationFlag.error && confirmationFlag.data === true;
+
+    return { enabled, confirmationEnabled, editionId, userId };
   } catch {
-    return { enabled: false, editionId: null, userId: null };
+    return {
+      enabled: false,
+      confirmationEnabled: false,
+      editionId: null,
+      userId: null,
+    };
   }
 }

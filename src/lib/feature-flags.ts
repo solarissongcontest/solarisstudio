@@ -19,6 +19,7 @@ export const SOLARIS_FEATURE_FLAGS = [
   'time_machine',
   'solaris_command_assistant',
   'solaris_app_v3',
+  'solaris_app_v3_confirmation',
 ] as const;
 
 export type SolarisFeatureFlag = (typeof SOLARIS_FEATURE_FLAGS)[number];

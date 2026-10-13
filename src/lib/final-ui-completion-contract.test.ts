@@ -142,11 +142,16 @@ describe("final UI completion contracts", () => {
 
   it("keeps participation edge states inside the shared participation shell", () => {
     const edit = source("src/routes/confirmations/edit/$token.tsx");
+    const confirmationShell = source("src/components/v3/V3ConfirmationRouteShell.tsx");
     const jury = source("src/routes/jury-voting.tsx");
 
-    expect(edit).toContain("<ParticipationRouteChrome>");
-    expect(edit).toContain("<ParticipationServiceShell");
+    expect(edit).toContain("<V3ConfirmationRouteShell");
+    expect(edit).not.toContain("<ParticipationRouteChrome>");
+    expect(edit).not.toContain("<ParticipationServiceShell");
     expect(edit).not.toContain("confirmations-backdrop");
+    expect(confirmationShell).toContain("<ParticipationRouteChrome>");
+    expect(confirmationShell).toContain("<ParticipationServiceShell");
+    expect(confirmationShell).toContain("rollout.isError || rollout.data?.confirmationEnabled !== true");
     expect(jury).toContain("Solaris found an unusual pattern");
     expect(jury).not.toContain("Your jury ballot was automatically flagged");
   });

@@ -123,6 +123,8 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(audit).toContain("mainCount: visibleMainLandmarks.length");
     expect(audit).toContain('page.locator("main:visible")');
     expect(audit).toContain('page.locator("h1:visible")');
+    expect(audit).toContain('page.locator("[data-v3-primary-boot]")');
+    expect(audit).toContain("finish the V3 hydration gate before interaction auditing");
     expect(audit).not.toContain('page.locator("main").first()');
     expect(audit).not.toContain('page.locator("h1").first()');
     expect(audit).not.toContain('waitForLoadState("networkidle"');
@@ -172,6 +174,16 @@ describe("PR455 Browser Audit regression contracts", () => {
     expect(publicRoutes).toContain(
       "fullAudit ? [...STATIC_PUBLIC_ROUTES].sort() : [...PR_SMOKE_PUBLIC_ROUTES]",
     );
+  });
+
+  it("does not replay the entire local migration stack twice before browser auditing", () => {
+    const workflow = source(".github/workflows/browser-audit.yml");
+
+    expect(workflow).toContain("supabase start");
+    expect(workflow).toContain("supabase status -o env");
+    expect(workflow).not.toContain("supabase db reset --local --no-seed");
+    expect(workflow).toContain("Refusing browser audit against non-local Supabase URL");
+    expect(workflow).toContain("supabase stop --no-backup");
   });
 
   it("keeps organizer child content out of primary-main ownership and legacy Action Center aliases on canonical Tasks", () => {
