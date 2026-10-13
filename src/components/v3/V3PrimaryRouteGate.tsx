@@ -89,7 +89,9 @@ function ResolvingPrimarySurface({ surface }: { surface: V3PrimarySurface }) {
  *
  * The canonical router pathname owns which primary V3 surface is rendered. This
  * keeps content and shell navigation in lockstep even if TanStack Router retains
- * the previous route component for part of a client-side transition.
+ * the previous route component for part of a client-side transition. While such
+ * a retained transition is known to be in progress, fail-closed states render a
+ * route-specific neutral surface instead of the stale route's legacy page.
  */
 export function V3PrimaryRouteGate({
   surface,
@@ -102,6 +104,7 @@ export function V3PrimaryRouteGate({
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const effectiveSurface = resolveV3PrimarySurface(surface, pathname);
+  const routeTransitionRetained = effectiveSurface !== surface;
   const rollout = useV3RolloutProbe(platformResolved && isAppMode);
   const shouldLoadBundle = shouldLoadV3PrimaryBundle({
     isAppMode: platformResolved && isAppMode,
@@ -121,15 +124,22 @@ export function V3PrimaryRouteGate({
   // route-specific public content instead of a generic loading document.
   if (!platformResolved) return <ResolvingPrimarySurface surface={effectiveSurface} />;
   if (!isAppMode) return <>{legacy}</>;
+
+  const safeLegacyFallback = routeTransitionRetained ? (
+    <ResolvingPrimarySurface surface={effectiveSurface} />
+  ) : (
+    <>{legacy}</>
+  );
+
   if (rollout.isLoading) return <ResolvingPrimarySurface surface={effectiveSurface} />;
-  if (rollout.isError || rollout.data?.enabled !== true) return <>{legacy}</>;
-  if (effectiveSurface === "participate" && !rollout.data.userId) return <>{legacy}</>;
+  if (rollout.isError || rollout.data?.enabled !== true) return safeLegacyFallback;
+  if (effectiveSurface === "participate" && !rollout.data.userId) return safeLegacyFallback;
   if (bundleQuery.isLoading) return <ResolvingPrimarySurface surface={effectiveSurface} />;
-  if (bundleQuery.isError || !bundleQuery.data) return <>{legacy}</>;
+  if (bundleQuery.isError || !bundleQuery.data) return safeLegacyFallback;
 
   const bundle = bundleQuery.data;
   const isAuthenticated = Boolean(bundle.bootstrap.identity.userId);
-  if (effectiveSurface === "participate" && !isAuthenticated) return <>{legacy}</>;
+  if (effectiveSurface === "participate" && !isAuthenticated) return safeLegacyFallback;
 
   const shell = decideV3ShellForRoute({
     pathname,
@@ -145,7 +155,7 @@ export function V3PrimaryRouteGate({
     isAuthenticated,
   });
 
-  if (!shell.useV3Shell) return <>{legacy}</>;
+  if (!shell.useV3Shell) return safeLegacyFallback;
 
   return (
     <V3AppShell
