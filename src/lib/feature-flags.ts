@@ -27,6 +27,7 @@ export const SOLARIS_FEATURE_FLAGS = [
   'solaris_app_v3_notifications',
   'solaris_app_v3_delegation',
   'solaris_app_v3_search',
+  'solaris_app_v3_rules_guidance',
 ] as const;
 
 export type SolarisFeatureFlag = (typeof SOLARIS_FEATURE_FLAGS)[number];
