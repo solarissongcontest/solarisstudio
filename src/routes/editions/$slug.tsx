@@ -3,11 +3,11 @@ import { Clock3, Radio, Trophy, Vote } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { AppShell, Panel } from "@/components/AppShell";
-import { useSolarisApp } from "@/components/app/AppRuntime";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { EntryListenLinks } from "@/components/EntryListenLinks";
 import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
   EditionEmptyState,
   EditionHero,
@@ -18,6 +18,8 @@ import {
 import { PublicCurrentStatus } from "@/components/public/PublicCurrentStatus";
 import { PublicStatus } from "@/components/public/PublicStatus";
 import { StoryCards } from "@/components/StoryCards";
+import { V3EditionRouteGate } from "@/components/v3/V3EditionRouteGate";
+import { resolvePublicEditionState } from "@/lib/current-contest-state";
 import {
   editionLabel,
   useAllResults,
@@ -28,7 +30,6 @@ import {
   useEdition,
   useShows,
 } from "@/lib/data";
-import { resolvePublicEditionState } from "@/lib/current-contest-state";
 import { meaningfulEditionSubtitle, resolveEditionPublicStyle } from "@/lib/edition-public-design";
 import { canonicalEditionEntries } from "@/lib/entry-utils";
 import { entityDisplayMap, type EntityDisplay } from "@/lib/entities";
@@ -77,6 +78,17 @@ export const Route = createFileRoute("/editions/$slug")({
 });
 
 function EditionPage() {
+  const { slug } = Route.useParams();
+  return <V3EditionRouteGate slug={slug} legacy={<LegacyEditionPage />} />;
+}
+
+/**
+ * Proven legacy public Edition page. It remains the public-web experience and
+ * the fail-closed rollback target for the independently gated installed-app V3
+ * Edition slice. Because this is passed as an element to V3EditionRouteGate,
+ * its archive-wide query graph does not mount when V3 owns the route.
+ */
+function LegacyEditionPage() {
   const { isAppMode } = useSolarisApp();
   const { slug } = Route.useParams();
   const editionQuery = useEdition(slug);
