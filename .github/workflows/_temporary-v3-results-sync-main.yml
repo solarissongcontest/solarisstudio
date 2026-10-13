@@ -1,0 +1,31 @@
+name: Temporary V3 Results sync main
+
+on:
+  push:
+    branches:
+      - v3/results-root-cutover-main
+
+permissions:
+  contents: write
+
+jobs:
+  sync-main:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v3/results-root-cutover-main
+          fetch-depth: 0
+      - name: Merge current main into Results branch
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin main
+          git merge --no-commit --no-ff origin/main
+          rm .github/workflows/_temporary-v3-results-sync-main.yml
+          git add -A
+          git diff --cached --check
+          git commit -m 'Sync V3 Results cutover with current main'
+          git push origin HEAD:v3/results-root-cutover-main
