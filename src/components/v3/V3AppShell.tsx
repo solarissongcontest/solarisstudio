@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
+  BookOpen,
   Compass,
   Home,
   Trophy,
@@ -13,6 +14,7 @@ import type { ReactNode } from "react";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAppAttentionSummary } from "@/lib/app-attention";
 import { publicAreaForPath } from "@/lib/public-navigation";
+import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
 import { cn } from "@/lib/utils";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { V3FoundationShell, V3TopContext } from "./V3Foundation";
@@ -56,10 +58,11 @@ export type V3AppShellProps = {
  * migrations and does not require duplicate routes, duplicate state or a
  * simultaneous rewrite of Home/Explore/Participate/Results/Me.
  *
- * Notifications and Search are also server-gated. Search reuses the existing
- * installed-app PublicCommandPalette so V3 cannot acquire a second query index,
- * recents store or search-return model. The browser can display local attention
- * hints, but it cannot enable either server-gated destination/capability.
+ * Notifications, Search and Rules guidance are also server-gated. Search
+ * reuses the existing installed-app PublicCommandPalette. Rules guidance links
+ * into the existing versioned Rules domain and its coarse workflow contexts,
+ * so V3 does not acquire another query index, rule corpus, recents store or
+ * guidance state model. Browser-local state cannot enable these capabilities.
  */
 export function V3AppShell({
   children,
@@ -77,35 +80,52 @@ export function V3AppShell({
   const notificationsAvailable =
     rollout.data?.notificationsEnabled === true && Boolean(rollout.data.userId);
   const searchAvailable = rollout.data?.searchEnabled === true;
+  const rulesGuidanceAvailable = rollout.data?.rulesGuidanceEnabled === true;
+  const ruleContext = rulesGuidanceAvailable ? getRuleContext(pathname) : null;
+  const ruleContextPath = sanitizeRuleContextPath(ruleContext?.sourcePath);
 
-  const shellActions = notificationsAvailable || searchAvailable || topActions ? (
-    <>
-      {searchAvailable ? (
-        <div data-v3-search-entry="" data-v3-search-owner="canonical">
-          <PublicCommandPalette compact />
-        </div>
-      ) : null}
-      {notificationsAvailable ? (
-        <Link
-          to={"/notifications" as any}
-          className="v3-icon-button"
-          aria-label="Notifications"
-          title="Notifications"
-          data-v3-notifications-entry=""
-        >
-          <span className="relative grid place-items-center" aria-hidden="true">
-            <Bell className="size-[18px]" />
-            {attention.me > 0 ? (
-              <span className="absolute -right-2 -top-2 grid min-h-4 min-w-4 place-items-center rounded-full bg-[var(--v3-danger)] px-1 text-[0.58rem] font-extrabold leading-none text-white shadow-[0_0_0_2px_var(--v3-bg-base)]">
-                {attention.me > 9 ? "9+" : attention.me}
-              </span>
-            ) : null}
-          </span>
-        </Link>
-      ) : null}
-      {topActions}
-    </>
-  ) : undefined;
+  const shellActions =
+    notificationsAvailable || searchAvailable || rulesGuidanceAvailable || topActions ? (
+      <>
+        {searchAvailable ? (
+          <div data-v3-search-entry="" data-v3-search-owner="canonical">
+            <PublicCommandPalette compact />
+          </div>
+        ) : null}
+        {rulesGuidanceAvailable ? (
+          <Link
+            to={(ruleContextPath ? "/rules/applied" : "/rules") as any}
+            search={ruleContextPath ? ({ context: ruleContextPath } as any) : undefined}
+            className="v3-icon-button"
+            aria-label={ruleContextPath ? "Rules for this task" : "Rules"}
+            title={ruleContextPath ? "Rules for this task" : "Rules"}
+            data-v3-rules-guidance-entry=""
+            data-v3-rules-guidance-context={ruleContext?.key}
+          >
+            <BookOpen className="size-[18px]" aria-hidden="true" />
+          </Link>
+        ) : null}
+        {notificationsAvailable ? (
+          <Link
+            to={"/notifications" as any}
+            className="v3-icon-button"
+            aria-label="Notifications"
+            title="Notifications"
+            data-v3-notifications-entry=""
+          >
+            <span className="relative grid place-items-center" aria-hidden="true">
+              <Bell className="size-[18px]" />
+              {attention.me > 0 ? (
+                <span className="absolute -right-2 -top-2 grid min-h-4 min-w-4 place-items-center rounded-full bg-[var(--v3-danger)] px-1 text-[0.58rem] font-extrabold leading-none text-white shadow-[0_0_0_2px_var(--v3-bg-base)]">
+                  {attention.me > 9 ? "9+" : attention.me}
+                </span>
+              ) : null}
+            </span>
+          </Link>
+        ) : null}
+        {topActions}
+      </>
+    ) : undefined;
 
   return (
     <V3FoundationShell>
