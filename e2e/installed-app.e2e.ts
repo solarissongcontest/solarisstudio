@@ -72,6 +72,22 @@ async function launchInstalledApp(page: Page) {
   return startedAt;
 }
 
+async function waitForRememberedAppTab(page: Page, activeTab: string) {
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const raw = localStorage.getItem("solaris:app-navigation:v1");
+        if (!raw) return null;
+        try {
+          return JSON.parse(raw).activeTab ?? null;
+        } catch {
+          return null;
+        }
+      }),
+    )
+    .toBe(activeTab);
+}
+
 async function openGlobalSearch(page: Page) {
   const allSearchTriggers = page.getByRole("button", { name: "Search Solaris Studio" });
   await expect(
@@ -215,10 +231,17 @@ test("cold launch preserves Results query, history semantics and post-restore pe
         }),
       );
     });
+    await waitForRememberedAppTab(page, "results");
   };
 
+  // Let the real Explore route finish its own navigation persistence before the
+  // test injects a synthetic previous-session destination. Otherwise the
+  // hydration effect can legitimately overwrite the fixture after DCL, turning
+  // this into a timing test instead of a cold-launch transaction test.
+  await page.goto("/explore", { waitUntil: "domcontentloaded" });
+  await waitForRememberedAppTab(page, "explore");
+
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    await page.goto("/explore", { waitUntil: "domcontentloaded" });
     await seedResultsNavigation();
 
     await launchInstalledApp(page);
@@ -228,19 +251,13 @@ test("cold launch preserves Results query, history semantics and post-restore pe
       .poll(() => page.evaluate(() => sessionStorage.getItem("solaris:app-launch-transaction:v1")))
       .toBeNull();
 
-    await page.evaluate(() => window.history.back());
+    await page.goBack({ waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/explore(?:[?#]|$)/, { timeout: 5_000 });
     await expect(page).not.toHaveURL(/\/app-launch(?:[?#]|$)/);
+    await waitForRememberedAppTab(page, "explore");
   }
 
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const raw = localStorage.getItem("solaris:app-navigation:v1");
-        return raw ? JSON.parse(raw).activeTab : null;
-      }),
-    )
-    .toBe("explore");
+  await waitForRememberedAppTab(page, "explore");
 });
 
 test("signed-out and critical-route cold launches use canonical safe roots", async ({
@@ -253,6 +270,7 @@ test("signed-out and critical-route cold launches use canonical safe roots", asy
 
   const setNavigation = async (activeTab: string, pathname: string) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
+    await waitForRememberedAppTab(page, "home");
     await page.evaluate(
       ({ activeTab, pathname }) => {
         const entry = {
@@ -272,6 +290,7 @@ test("signed-out and critical-route cold launches use canonical safe roots", asy
       },
       { activeTab, pathname },
     );
+    await waitForRememberedAppTab(page, activeTab);
   };
 
   await setNavigation("me", "/my-solaris/account");
