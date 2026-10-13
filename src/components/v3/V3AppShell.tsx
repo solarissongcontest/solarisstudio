@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  Bell,
   Compass,
   Home,
   Trophy,
@@ -9,8 +10,10 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { useAppAttentionSummary } from "@/lib/app-attention";
 import { publicAreaForPath } from "@/lib/public-navigation";
 import { cn } from "@/lib/utils";
+import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { V3FoundationShell, V3TopContext } from "./V3Foundation";
 
 type V3Area = "home" | "explore" | "participate" | "results" | "me";
@@ -39,6 +42,7 @@ export type V3AppShellProps = {
   editionLabel: string;
   phaseLabel?: string | null;
   participateAttentionCount?: number;
+  activeArea?: V3Area;
   topActions?: ReactNode;
   className?: string;
 };
@@ -50,29 +54,62 @@ export type V3AppShellProps = {
  * destinations. It can therefore be rolled out independently from page
  * migrations and does not require duplicate routes, duplicate state or a
  * simultaneous rewrite of Home/Explore/Participate/Results/Me.
+ *
+ * The Notifications action is also server-gated. Its badge may use the local
+ * attention cache as a display hint, but the destination itself is enabled
+ * only by the authoritative rollout probe and never by browser storage.
  */
 export function V3AppShell({
   children,
   editionLabel,
   phaseLabel,
   participateAttentionCount = 0,
+  activeArea,
   topActions,
   className,
 }: V3AppShellProps) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const publicArea = publicAreaForPath(pathname);
+  const publicArea = activeArea ?? publicAreaForPath(pathname);
+  const attention = useAppAttentionSummary();
+  const rollout = useV3RolloutProbe(true);
+  const notificationsAvailable =
+    rollout.data?.notificationsEnabled === true && Boolean(rollout.data.userId);
+
+  const shellActions = notificationsAvailable || topActions ? (
+    <>
+      {notificationsAvailable ? (
+        <Link
+          to={"/notifications" as any}
+          className="v3-icon-button"
+          aria-label="Notifications"
+          title="Notifications"
+          data-v3-notifications-entry=""
+        >
+          <span className="relative grid place-items-center" aria-hidden="true">
+            <Bell className="size-[18px]" />
+            {attention.me > 0 ? (
+              <span className="absolute -right-2 -top-2 grid min-h-4 min-w-4 place-items-center rounded-full bg-[var(--v3-danger)] px-1 text-[0.58rem] font-extrabold leading-none text-white shadow-[0_0_0_2px_var(--v3-bg-base)]">
+                {attention.me > 9 ? "9+" : attention.me}
+              </span>
+            ) : null}
+          </span>
+        </Link>
+      ) : null}
+      {topActions}
+    </>
+  ) : undefined;
 
   return (
     <V3FoundationShell>
       <div className={cn("min-h-dvh", className)}>
-        <V3TopContext edition={editionLabel} phase={phaseLabel} actions={topActions} />
+        <V3TopContext edition={editionLabel} phase={phaseLabel} actions={shellActions} />
         {children}
       </div>
 
       <nav className="v3-bottom-nav" aria-label="Primary app navigation">
         {V3_SHELL_DESTINATIONS.map(({ id, label, to, icon: Icon, emphasis }) => {
           const active = publicArea === id;
-          const attention = id === "participate" ? participateAttentionCount : 0;
+          const attentionCount = id === "participate" ? participateAttentionCount : 0;
 
           return (
             <Link
@@ -85,9 +122,9 @@ export function V3AppShell({
             >
               <span className="relative grid place-items-center" aria-hidden="true">
                 <Icon className="size-[19px]" strokeWidth={active ? 2.3 : 1.9} />
-                {attention > 0 ? (
+                {attentionCount > 0 ? (
                   <span className="absolute -right-2 -top-2 grid min-h-4 min-w-4 place-items-center rounded-full bg-[var(--v3-danger)] px-1 text-[0.58rem] font-extrabold leading-none text-white shadow-[0_0_0_2px_var(--v3-bg-base)]">
-                    {attention > 9 ? "9+" : attention}
+                    {attentionCount > 9 ? "9+" : attentionCount}
                   </span>
                 ) : null}
               </span>

@@ -38,7 +38,15 @@ function routeFile(route: string) {
     );
   }
   if (route.startsWith("/") && !route.includes("$")) {
-    return resolve(process.cwd(), "src/routes", route.slice(1), "index.tsx");
+    const routeName = route.slice(1);
+    const authenticated = resolve(
+      process.cwd(),
+      "src/routes/_authenticated",
+      `${routeName}.tsx`,
+    );
+    if (existsSync(authenticated)) return authenticated;
+
+    return resolve(process.cwd(), "src/routes", routeName, "index.tsx");
   }
   return null;
 }
