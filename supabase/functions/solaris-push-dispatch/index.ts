@@ -140,6 +140,39 @@ Deno.serve(async (req) => {
     return json({ error: "Push dispatcher access denied." }, 401);
   }
 
+  // Read the canonical singleton with the service role. The operator snapshot
+  // RPC requires a user capability; a scheduled dispatcher has no user session.
+  // Authenticate first, then stop before any mutation or external push request.
+  const { data: operationalState, error: operationalError } = await service
+    .from("studio2_platform_operational_state")
+    .select("mode")
+    .eq("singleton", true)
+    .single();
+
+  if (operationalError || !operationalState) {
+    console.error("[solaris-push-dispatch] operational state load failed", operationalError);
+    return json({ error: "Platform operational state is unavailable." }, 503);
+  }
+
+  if (operationalState.mode === "read_only" || operationalState.mode === "maintenance") {
+    return json({
+      ok: true,
+      skipped: true,
+      reason: "platform_writes_suspended",
+      mode: operationalState.mode,
+      enqueued: 0,
+      examined: 0,
+      sent: 0,
+      failed: 0,
+      suppressed: 0,
+      deferred: 0,
+    });
+  }
+
+  if (operationalState.mode !== "normal" && operationalState.mode !== "degraded") {
+    return json({ error: "Platform operational state is unavailable." }, 503);
+  }
+
   const vapidPublicKey =
     Deno.env.get("WEB_PUSH_VAPID_PUBLIC_KEY") ??
     runtime?.vapid_public_key ??
