@@ -44,7 +44,7 @@ describe("V3 Notifications cutover", () => {
     const sql = migration();
     expect(sql).toContain("'solaris_app_v3_notifications'");
     expect(sql).toContain("on conflict (key) do nothing");
-    expect(sql.slice(sql.indexOf("values (")).toContain("false,");
+    expect(sql.slice(sql.indexOf("values ("))).toContain("false,");
   });
 
   it("extends the post-Explore persisted vocabulary without deleting an existing flag", () => {
