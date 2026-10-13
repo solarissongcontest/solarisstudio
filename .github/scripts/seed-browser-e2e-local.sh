@@ -35,6 +35,7 @@ PASSWORD='SolarisBrowserLocal2026!'
 ORGANIZER_EMAIL='organizer-browser-e2e@solaris.invalid'
 ORGANIZER_B_EMAIL='organizer-b-browser-e2e@solaris.invalid'
 COUNTRY_EMAIL='country-browser-e2e@solaris.invalid'
+EDITION_EMAIL='edition-browser-e2e@solaris.invalid'
 SUSPENDED_EMAIL='suspended-browser-e2e@solaris.invalid'
 
 HTTP_BODY=''
@@ -149,6 +150,8 @@ create_user "$ORGANIZER_B_EMAIL" "Browser Organizer B"
 ORGANIZER_B_ID="$LAST_USER_ID"
 create_user "$COUNTRY_EMAIL" "Browser HOD"
 COUNTRY_ID="$LAST_USER_ID"
+create_user "$EDITION_EMAIL" "Edition Browser"
+EDITION_ID="$LAST_USER_ID"
 create_user "$SUSPENDED_EMAIL" "Suspended Browser HOD"
 SUSPENDED_ID="$LAST_USER_ID"
 
@@ -212,17 +215,17 @@ set enabled = excluded.enabled,
     updated_at = now();
 "
 
-log "Enabling App V3 Account + Settings + Explore + Notifications + Edition only for the local country identity"
+log "Enabling existing App V3 Account + Settings + Notifications only for the local country identity"
 db_exec "
 insert into public.studio2_feature_flags (
   key, enabled, admins_only, user_ids, edition_ids, updated_by
 )
 values
-  ('solaris_app_v3', true, false, array['$COUNTRY_ID'::uuid], '{}'::uuid[], null),
+  ('solaris_app_v3', true, false, array['$COUNTRY_ID'::uuid, '$EDITION_ID'::uuid], '{}'::uuid[], null),
   ('solaris_app_v3_account_settings', true, false, array['$COUNTRY_ID'::uuid], '{}'::uuid[], null),
-  ('solaris_app_v3_explore', true, false, array['$COUNTRY_ID'::uuid], '{}'::uuid[], null),
   ('solaris_app_v3_notifications', true, false, array['$COUNTRY_ID'::uuid], '{}'::uuid[], null),
-  ('solaris_app_v3_edition', true, false, array['$COUNTRY_ID'::uuid], '{}'::uuid[], null)
+  ('solaris_app_v3_explore', true, false, array['$EDITION_ID'::uuid], '{}'::uuid[], null),
+  ('solaris_app_v3_edition', true, false, array['$EDITION_ID'::uuid], '{}'::uuid[], null)
 on conflict (key) do update
 set enabled = excluded.enabled,
     admins_only = excluded.admins_only,
@@ -237,7 +240,9 @@ set enabled = excluded.enabled,
 [[ "$(db_scalar "select status from public.country_accounts where user_id='$COUNTRY_ID'::uuid;")" == "active" ]]   || fail "Country browser account was not active"
 [[ "$(db_scalar "select status from public.country_accounts where user_id='$SUSPENDED_ID'::uuid;")" == "suspended" ]]   || fail "Suspended browser account was not suspended"
 [[ "$(db_scalar "select count(*) from public.studio2_feature_flags where key in ('public_encyclopedia','country_voting_dna','prediction_league','fantasy_ssc','time_machine','solaris_command_assistant') and enabled and user_ids @> array['$ORGANIZER_ID'::uuid] and cardinality(user_ids)=2;")" == "6" ]]   || fail "Organizer-only completion-programme feature flags were not seeded"
-[[ "$(db_scalar "select count(*) from public.studio2_feature_flags where key in ('solaris_app_v3','solaris_app_v3_account_settings','solaris_app_v3_explore','solaris_app_v3_notifications','solaris_app_v3_edition') and enabled and user_ids = array['$COUNTRY_ID'::uuid];")" == "5" ]]   || fail "Country-only App V3 Account + Settings + Explore + Notifications + Edition flags were not seeded"
+[[ "$(db_scalar "select count(*) from public.studio2_feature_flags where key in ('solaris_app_v3_account_settings','solaris_app_v3_notifications') and enabled and user_ids = array['$COUNTRY_ID'::uuid];")" == "2" ]]   || fail "Country-only App V3 Account + Settings + Notifications slice flags were not seeded"
+[[ "$(db_scalar "select count(*) from public.studio2_feature_flags where key in ('solaris_app_v3_explore','solaris_app_v3_edition') and enabled and user_ids = array['$EDITION_ID'::uuid];")" == "2" ]]   || fail "Edition-only App V3 Explore + Edition flags were not seeded"
+[[ "$(db_scalar "select count(*) from public.studio2_feature_flags where key='solaris_app_v3' and enabled and user_ids @> array['$COUNTRY_ID'::uuid,'$EDITION_ID'::uuid] and cardinality(user_ids)=2;")" == "1" ]]   || fail "Shared App V3 root flag was not seeded for country and Edition browser identities"
 
 if [[ -n "${GITHUB_ENV:-}" ]]; then
   {
@@ -247,6 +252,8 @@ if [[ -n "${GITHUB_ENV:-}" ]]; then
     echo "E2E_ORGANIZER_B_PASSWORD=$PASSWORD"
     echo "E2E_COUNTRY_EMAIL=$COUNTRY_EMAIL"
     echo "E2E_COUNTRY_PASSWORD=$PASSWORD"
+    echo "E2E_EDITION_EMAIL=$EDITION_EMAIL"
+    echo "E2E_EDITION_PASSWORD=$PASSWORD"
     echo "E2E_SUSPENDED_EMAIL=$SUSPENDED_EMAIL"
     echo "E2E_SUSPENDED_PASSWORD=$PASSWORD"
   } >> "$GITHUB_ENV"
