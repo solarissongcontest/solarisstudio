@@ -12,6 +12,7 @@ function ResolvingDelegationSurface({ code }: { code: string }) {
   return (
     <main
       className="relative z-10 mx-auto w-full max-w-3xl px-4 py-10 sm:py-14"
+      data-v3-explore-boot=""
       data-v3-delegation-boot=""
     >
       <header className="border-b border-border/70 pb-5">
