@@ -16,7 +16,10 @@ type RolloutClient = {
     }>;
   };
   from(table: string): any;
-  rpc(name: string, args?: Record<string, unknown>): PromiseLike<{
+  rpc(
+    name: string,
+    args?: Record<string, unknown>,
+  ): PromiseLike<{
     data: unknown;
     error: unknown;
   }>;
@@ -33,6 +36,7 @@ export type V3RolloutProbe = {
   delegationEnabled: boolean;
   searchEnabled: boolean;
   rulesGuidanceEnabled: boolean;
+  resultsEnabled?: boolean;
   editionId: string | null;
   userId: string | null;
 };
@@ -50,8 +54,7 @@ async function rolloutClientForRequest(publicClient: RolloutClient) {
   if (!token) return { client: publicClient, userId: null };
 
   try {
-    const authenticated =
-      createSolarisAuthenticatedClientServer() as unknown as RolloutClient;
+    const authenticated = createSolarisAuthenticatedClientServer() as unknown as RolloutClient;
     const { data, error } = await authenticated.auth!.getUser(token);
     if (error || !data.user) return { client: publicClient, userId: null };
     return { client: authenticated, userId: data.user.id };
@@ -60,7 +63,10 @@ async function rolloutClientForRequest(publicClient: RolloutClient) {
   }
 }
 
-function disabledProbe(input?: { editionId?: string | null; userId?: string | null }): V3RolloutProbe {
+function disabledProbe(input?: {
+  editionId?: string | null;
+  userId?: string | null;
+}): V3RolloutProbe {
   return {
     enabled: false,
     confirmationEnabled: false,
@@ -72,6 +78,7 @@ function disabledProbe(input?: { editionId?: string | null; userId?: string | nu
     delegationEnabled: false,
     searchEnabled: false,
     rulesGuidanceEnabled: false,
+    resultsEnabled: false,
     editionId: input?.editionId ?? null,
     userId: input?.userId ?? null,
   };
@@ -93,6 +100,7 @@ async function evaluateV3Rollout(
     delegationFlag,
     searchFlag,
     rulesGuidanceFlag,
+    resultsFlag,
   ] = await Promise.all([
     client.rpc("studio2_feature_enabled", {
       p_key: "solaris_app_v3",
@@ -134,25 +142,24 @@ async function evaluateV3Rollout(
       p_key: "solaris_app_v3_rules_guidance",
       p_edition_id: editionId,
     }),
+    client.rpc("studio2_feature_enabled", {
+      p_key: "solaris_app_v3_results",
+      p_edition_id: editionId,
+    }),
   ]);
 
   if (globalFlag.error) return disabledProbe({ editionId, userId });
 
   const enabled = globalFlag.data === true;
-  const confirmationEnabled =
-    enabled && !confirmationFlag.error && confirmationFlag.data === true;
-  const scoreboardEnabled =
-    enabled && !scoreboardFlag.error && scoreboardFlag.data === true;
+  const confirmationEnabled = enabled && !confirmationFlag.error && confirmationFlag.data === true;
+  const scoreboardEnabled = enabled && !scoreboardFlag.error && scoreboardFlag.data === true;
   const accountSettingsEnabled =
     enabled && !accountSettingsFlag.error && accountSettingsFlag.data === true;
-  const exploreEnabled =
-    enabled && !exploreFlag.error && exploreFlag.data === true;
+  const exploreEnabled = enabled && !exploreFlag.error && exploreFlag.data === true;
   const editionHubEnabled =
     enabled && exploreEnabled && !editionHubFlag.error && editionHubFlag.data === true;
   const notificationsEnabled =
-    accountSettingsEnabled &&
-    !notificationsFlag.error &&
-    notificationsFlag.data === true;
+    accountSettingsEnabled && !notificationsFlag.error && notificationsFlag.data === true;
   const delegationEnabled =
     enabled && exploreEnabled && !delegationFlag.error && delegationFlag.data === true;
   const searchEnabled = enabled && !searchFlag.error && searchFlag.data === true;
@@ -170,6 +177,7 @@ async function evaluateV3Rollout(
     delegationEnabled,
     searchEnabled,
     rulesGuidanceEnabled,
+    resultsEnabled: enabled && !resultsFlag.error && resultsFlag.data === true,
     editionId,
     userId,
   };
@@ -184,8 +192,7 @@ async function evaluateV3Rollout(
  */
 export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
   try {
-    const publicClient =
-      createConfirmationPublicRuntimeClient() as unknown as RolloutClient;
+    const publicClient = createConfirmationPublicRuntimeClient() as unknown as RolloutClient;
     const editionResult = await publicClient
       .from("editions")
       .select(EDITION_COLUMNS)
@@ -194,9 +201,7 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
 
     if (editionResult.error) return disabledProbe();
 
-    const edition = resolveCurrentPublicEdition(
-      ((editionResult.data ?? []) as Edition[]),
-    );
+    const edition = resolveCurrentPublicEdition((editionResult.data ?? []) as Edition[]);
     return evaluateV3Rollout(publicClient, edition?.id ?? null);
   } catch {
     return disabledProbe();
@@ -214,8 +219,7 @@ export async function loadV3EditionRolloutProbe(slug: string): Promise<V3Rollout
   if (!cleanSlug) return disabledProbe();
 
   try {
-    const publicClient =
-      createConfirmationPublicRuntimeClient() as unknown as RolloutClient;
+    const publicClient = createConfirmationPublicRuntimeClient() as unknown as RolloutClient;
     const editionResult = await publicClient
       .from("editions")
       .select("id")

@@ -104,7 +104,26 @@ print(json.dumps({
 }
 
 db_exec() {
-  psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$1" >/dev/null
+  local diagnostic status
+  diagnostic="$(mktemp)"
+  if psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$1" >/dev/null 2>"$diagnostic"; then
+    rm -f "$diagnostic"
+  else
+    status=$?
+    cat "$diagnostic" >&2
+    # Expose only the primary SQL error in the check annotations, not connection
+    # details or the SQL payload. Fixtures are restricted to the local stack.
+    local message
+    message="$(sed -n 's/^ERROR: *//p' "$diagnostic" | head -1)"
+    message="${message//%/%25}"
+    message="${message//$'\r'/%0D}"
+    message="${message//$'\n'/%0A}"
+    if [[ -n "${GITHUB_ACTIONS:-}" && -n "$message" ]]; then
+      printf '::error title=Local browser fixture SQL::%s\n' "$message"
+    fi
+    rm -f "$diagnostic"
+    return "$status"
+  fi
 }
 
 db_scalar() {
@@ -153,11 +172,53 @@ set name = excluded.name,
     published = excluded.published;
 "
 
+log "Seeding a published archive result for local V3 Results certification"
+db_exec "
+insert into public.shows (id, edition_id, name, kind, published, publication_config)
+values (
+  '00000000-0000-4000-8000-00000000e299'::uuid,
+  '00000000-0000-4000-8000-00000000e219'::uuid,
+  'Browser Archive Final', 'grand-final', false,
+  '{\"participants\":true,\"artists\":false,\"songs\":false,\"results\":true,\"jury_results\":true,\"televote_results\":false}'::jsonb
+)
+on conflict (id) do update set published = excluded.published, publication_config = excluded.publication_config;
+insert into public.participants (id, edition_id, show_id, country_id, artist, song, participation_status, publication_status)
+values
+  ('00000000-0000-4000-8000-00000000e291'::uuid, '00000000-0000-4000-8000-00000000e219'::uuid, '00000000-0000-4000-8000-00000000e299'::uuid, '00000000-0000-4000-8000-00000000e201'::uuid, 'Private archive artist', 'Private archive song', 'confirmed', 'published'),
+  ('00000000-0000-4000-8000-00000000e292'::uuid, '00000000-0000-4000-8000-00000000e219'::uuid, '00000000-0000-4000-8000-00000000e299'::uuid, '00000000-0000-4000-8000-00000000e202'::uuid, 'Second archive artist', 'Second archive song', 'confirmed', 'published')
+on conflict (id) do nothing;
+-- Respect the real publication guard: establish the current reviewed, locked
+-- and reveal-ready calculation before publishing this local archive fixture.
+insert into public.studio2_result_operations (
+  show_id, edition_id, calculation_version, reviewed_version, locked_version, reveal_ready_version
+) values (
+  '00000000-0000-4000-8000-00000000e299'::uuid,
+  '00000000-0000-4000-8000-00000000e219'::uuid, 1, 1, 1, 1
+)
+on conflict (show_id) do update set calculation_version = 1, reviewed_version = 1, locked_version = 1, reveal_ready_version = 1;
+update public.shows set published = true
+where id = '00000000-0000-4000-8000-00000000e299'::uuid;
+-- Participant/publication triggers materialize canonical result rows. Assign
+-- deterministic fixture scores after those triggers, without disabling them.
+update public.results set jury_points = 110222, televote_points = 1000, total_points = 111222, final_rank = 1
+where show_id = '00000000-0000-4000-8000-00000000e299'::uuid and country_id = '00000000-0000-4000-8000-00000000e201'::uuid;
+update public.results set jury_points = 110000, televote_points = 1000, total_points = 111000, final_rank = 2
+where show_id = '00000000-0000-4000-8000-00000000e299'::uuid and country_id = '00000000-0000-4000-8000-00000000e202'::uuid;
+
+"
+
 log "Creating local-only browser identities"
 create_user "$ORGANIZER_EMAIL" "Browser Organizer"
 ORGANIZER_ID="$LAST_USER_ID"
 create_user "$ORGANIZER_B_EMAIL" "Browser Organizer B"
 ORGANIZER_B_ID="$LAST_USER_ID"
+db_exec "
+insert into public.fan_profiles (id) values ('$ORGANIZER_B_ID'::uuid) on conflict (id) do nothing;
+insert into public.notification_preferences (profile_id, spoiler_free)
+values ('$ORGANIZER_B_ID'::uuid, true)
+on conflict (profile_id) do update set spoiler_free = excluded.spoiler_free;
+"
+
 create_user "$COUNTRY_EMAIL" "Browser HOD"
 COUNTRY_ID="$LAST_USER_ID"
 create_user "$SUSPENDED_EMAIL" "Suspended Browser HOD"
