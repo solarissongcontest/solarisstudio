@@ -27,6 +27,7 @@ export type V3RolloutProbe = {
   confirmationEnabled: boolean;
   scoreboardEnabled: boolean;
   accountSettingsEnabled: boolean;
+  exploreEnabled: boolean;
   editionId: string | null;
   userId: string | null;
 };
@@ -54,14 +55,26 @@ async function rolloutClientForRequest(publicClient: RolloutClient) {
   }
 }
 
+function disabledProbe(input?: { editionId?: string | null; userId?: string | null }): V3RolloutProbe {
+  return {
+    enabled: false,
+    confirmationEnabled: false,
+    scoreboardEnabled: false,
+    accountSettingsEnabled: false,
+    exploreEnabled: false,
+    editionId: input?.editionId ?? null,
+    userId: input?.userId ?? null,
+  };
+}
+
 /**
  * Cheap, fail-closed V3 rollout probe.
  *
- * This intentionally runs before the heavier V3 Home/Participate bootstrap so
- * disabled production users do not pay for a second data graph. The persisted
- * Studio 2 flags remain the sole rollout authority; errors resolve to disabled.
- * Migrated surfaces have independent slice flags so the V3 shell can remain on
- * while one surface is rolled back without affecting the others.
+ * This intentionally runs before heavier V3 surface bootstraps so disabled
+ * production users do not pay for duplicate data graphs. The persisted Studio 2
+ * flags remain the sole rollout authority; errors resolve to disabled. Migrated
+ * surfaces have independent slice flags so the V3 shell can remain on while one
+ * surface is rolled back without affecting the others.
  */
 export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
   try {
@@ -73,23 +86,20 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
       .eq("published", true)
       .order("edition_number", { ascending: false });
 
-    if (editionResult.error) {
-      return {
-        enabled: false,
-        confirmationEnabled: false,
-        scoreboardEnabled: false,
-        accountSettingsEnabled: false,
-        editionId: null,
-        userId: null,
-      };
-    }
+    if (editionResult.error) return disabledProbe();
 
     const edition = resolveCurrentPublicEdition(
       ((editionResult.data ?? []) as Edition[]),
     );
     const editionId = edition?.id ?? null;
     const { client, userId } = await rolloutClientForRequest(publicClient);
-    const [globalFlag, confirmationFlag, scoreboardFlag, accountSettingsFlag] = await Promise.all([
+    const [
+      globalFlag,
+      confirmationFlag,
+      scoreboardFlag,
+      accountSettingsFlag,
+      exploreFlag,
+    ] = await Promise.all([
       client.rpc("studio2_feature_enabled", {
         p_key: "solaris_app_v3",
         p_edition_id: editionId,
@@ -106,18 +116,13 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
         p_key: "solaris_app_v3_account_settings",
         p_edition_id: editionId,
       }),
+      client.rpc("studio2_feature_enabled", {
+        p_key: "solaris_app_v3_explore",
+        p_edition_id: editionId,
+      }),
     ]);
 
-    if (globalFlag.error) {
-      return {
-        enabled: false,
-        confirmationEnabled: false,
-        scoreboardEnabled: false,
-        accountSettingsEnabled: false,
-        editionId,
-        userId,
-      };
-    }
+    if (globalFlag.error) return disabledProbe({ editionId, userId });
 
     const enabled = globalFlag.data === true;
     const confirmationEnabled =
@@ -126,23 +131,19 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
       enabled && !scoreboardFlag.error && scoreboardFlag.data === true;
     const accountSettingsEnabled =
       enabled && !accountSettingsFlag.error && accountSettingsFlag.data === true;
+    const exploreEnabled =
+      enabled && !exploreFlag.error && exploreFlag.data === true;
 
     return {
       enabled,
       confirmationEnabled,
       scoreboardEnabled,
       accountSettingsEnabled,
+      exploreEnabled,
       editionId,
       userId,
     };
   } catch {
-    return {
-      enabled: false,
-      confirmationEnabled: false,
-      scoreboardEnabled: false,
-      accountSettingsEnabled: false,
-      editionId: null,
-      userId: null,
-    };
+    return disabledProbe();
   }
 }

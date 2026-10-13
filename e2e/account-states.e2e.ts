@@ -57,10 +57,11 @@ async function enableInstalledAppMode(context: BrowserContext) {
   });
 }
 
-async function setV3ForLocalUser(
+async function setV3FeatureForLocalUser(
   url: string,
   publishableKey: string,
   session: E2ESession,
+  key: string,
   enabled: boolean,
 ) {
   const response = await fetch(`${url.replace(/\/$/, "")}/rest/v1/rpc/studio2_set_feature_flag`, {
@@ -71,7 +72,7 @@ async function setV3ForLocalUser(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      p_key: "solaris_app_v3",
+      p_key: key,
       p_enabled: enabled,
       p_admins_only: false,
       p_user_ids: enabled ? [session.user.id] : [],
@@ -79,7 +80,22 @@ async function setV3ForLocalUser(
     }),
   });
   const body = await response.text();
-  expect(response.ok, `Local V3 rollout mutation must succeed: ${body}`).toBeTruthy();
+  expect(response.ok, `Local ${key} rollout mutation must succeed: ${body}`).toBeTruthy();
+}
+
+async function setV3ForLocalUser(
+  url: string,
+  publishableKey: string,
+  session: E2ESession,
+  enabled: boolean,
+) {
+  await setV3FeatureForLocalUser(
+    url,
+    publishableKey,
+    session,
+    "solaris_app_v3",
+    enabled,
+  );
 }
 
 for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies readonly AccountState[]) {
@@ -128,7 +144,7 @@ for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies rea
   });
 }
 
-test("server-authorized V3 rollout keeps Home and Participate content aligned with app navigation", async ({ page, context }) => {
+test("server-authorized V3 rollout keeps primary content aligned with app navigation", async ({ page, context }) => {
   const url = process.env.E2E_SUPABASE_URL;
   const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
   const email = process.env.E2E_ORGANIZER_B_EMAIL;
@@ -154,6 +170,13 @@ test("server-authorized V3 rollout keeps Home and Participate content aligned wi
   });
   const session = await addSession(context, url!, publishableKey!, email!, password!);
   await setV3ForLocalUser(url!, publishableKey!, session, true);
+  await setV3FeatureForLocalUser(
+    url!,
+    publishableKey!,
+    session,
+    "solaris_app_v3_explore",
+    true,
+  );
 
   try {
     await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -185,7 +208,25 @@ test("server-authorized V3 rollout keeps Home and Participate content aligned wi
       "aria-current",
       "page",
     );
+
+    await primaryNav.getByRole("link", { name: "Explore", exact: true }).click();
+    await expect(page).toHaveURL(/\/explore\/?$/);
+    await expect(page.getByRole("heading", { name: "Discover the contest", exact: true })).toBeVisible();
+    await expect(page.getByText("Browser Audit Edition", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Solaris now", exact: true })).not.toBeVisible();
+    await expect(primaryNav.getByRole("link", { name: "Explore", exact: true })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
   } finally {
+    await setV3FeatureForLocalUser(
+      url!,
+      publishableKey!,
+      session,
+      "solaris_app_v3_explore",
+      false,
+    );
     await setV3ForLocalUser(url!, publishableKey!, session, false);
   }
 });

@@ -245,6 +245,17 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
       description:
         "Shared installed-app account and settings presentation over canonical Solaris identity, security, preference, notification and device-state engines.",
     },
+    solaris_app_v3_explore: {
+      key: "solaris_app_v3_explore",
+      label: "Solaris App V3 · Explore",
+      state: "integrated",
+      audience: "public",
+      route: "/explore",
+      surfaceLabel: "Explore V3",
+      dependsOn: ["solaris_app_v3"],
+      description:
+        "Reversible installed-app Explore root over publication-safe server projections, with the public web and legacy Explore route preserved during staged rollout.",
+    },
   };
 
 export const STUDIO2_PRODUCT_SURFACE_LIST = Object.values(STUDIO2_PRODUCT_SURFACES);
