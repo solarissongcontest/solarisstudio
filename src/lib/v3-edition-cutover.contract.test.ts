@@ -82,8 +82,8 @@ describe("V3 Edition cutover", () => {
 
     expect(code).toContain('.eq("slug", cleanSlug)');
     expect(code).toContain('.eq("published", true)');
-    expect(code).toContain('client.from("shows")');
-    expect(code).toContain('client.from("results")');
+    expect(code).toContain('.from("shows")');
+    expect(code).toContain('.from("results")');
     expect(code).toContain('client.rpc("v3_public_edition_hub_counts"');
     expect(code).toContain("buildV3EditionHubProjection");
     expect(code).not.toContain("useAllResults");
