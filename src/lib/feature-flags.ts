@@ -24,6 +24,7 @@ export const SOLARIS_FEATURE_FLAGS = [
   'solaris_app_v3_account_settings',
   'solaris_app_v3_explore',
   'solaris_app_v3_notifications',
+  'solaris_app_v3_edition',
 ] as const;
 
 export type SolarisFeatureFlag = (typeof SOLARIS_FEATURE_FLAGS)[number];
