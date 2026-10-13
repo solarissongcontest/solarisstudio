@@ -278,6 +278,17 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
       description:
         "Reversible installed-app notification center over canonical account preferences, push delivery state and official participant communication destinations.",
     },
+    solaris_app_v3_delegation: {
+      key: "solaris_app_v3_delegation",
+      label: "Solaris App V3 · Delegation",
+      state: "integrated",
+      audience: "public",
+      route: "/countries/:code",
+      surfaceLabel: "Delegation V3",
+      dependsOn: ["solaris_app_v3", "solaris_app_v3_explore"],
+      description:
+        "Reversible installed-app delegation detail over publication-safe country identity and entry history, while placements, points and voting analysis remain owned by canonical Results and analysis surfaces.",
+    },
   };
 
 export const STUDIO2_PRODUCT_SURFACE_LIST = Object.values(STUDIO2_PRODUCT_SURFACES);

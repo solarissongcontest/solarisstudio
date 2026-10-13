@@ -147,7 +147,7 @@ for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies rea
   });
 }
 
-test("server-authorized V3 rollout keeps primary and Edition content aligned with app navigation", async ({ page, context }) => {
+test("server-authorized V3 rollout keeps primary, Edition and Delegation content aligned with app navigation", async ({ page, context }) => {
   const url = process.env.E2E_SUPABASE_URL;
   const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
   const email = process.env.E2E_ORGANIZER_B_EMAIL;
@@ -185,6 +185,13 @@ test("server-authorized V3 rollout keeps primary and Edition content aligned wit
     publishableKey!,
     session,
     "solaris_app_v3_edition_hub",
+    true,
+  );
+  await setV3FeatureForLocalUser(
+    url!,
+    publishableKey!,
+    session,
+    "solaris_app_v3_delegation",
     true,
   );
 
@@ -244,6 +251,32 @@ test("server-authorized V3 rollout keeps primary and Edition content aligned wit
     );
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
 
+    // Delegation detail is an Explore-owned installed-app surface. With the
+    // dedicated server flag enabled, the route must use V3 without mounting the
+    // archive-heavy legacy country profile.
+    await page.goto("/countries/BRW", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Browserland", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Current entry", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Participation history", exact: true })).toBeVisible();
+    await expect(page.locator(".country-profile-v8")).toHaveCount(0);
+    await expect(primaryNav.getByRole("link", { name: "Explore", exact: true })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+
+    // Disabling only Delegation must fail closed to the proven legacy country
+    // route while global V3 + Explore stay enabled.
+    await setV3FeatureForLocalUser(
+      url!,
+      publishableKey!,
+      session,
+      "solaris_app_v3_delegation",
+      false,
+    );
+    await page.goto("/countries/BRW", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".country-profile-v8")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Browserland", exact: true })).toBeVisible();
+
     // Re-scope only the Edition Hub flag to a non-current published edition. The
     // route-specific server probe must resolve ssc21 to this canonical ID. The
     // old current-edition probe would incorrectly disable this archive route.
@@ -267,6 +300,13 @@ test("server-authorized V3 rollout keeps primary and Edition content aligned wit
     await expect(page.locator(".edition-public-page")).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Explore Browser Audit Edition" })).toHaveCount(0);
   } finally {
+    await setV3FeatureForLocalUser(
+      url!,
+      publishableKey!,
+      session,
+      "solaris_app_v3_delegation",
+      false,
+    );
     await setV3FeatureForLocalUser(
       url!,
       publishableKey!,
