@@ -178,7 +178,7 @@ insert into public.shows (id, edition_id, name, kind, published, publication_con
 values (
   '00000000-0000-4000-8000-00000000e299'::uuid,
   '00000000-0000-4000-8000-00000000e219'::uuid,
-  'Browser Archive Final', 'grand-final', true,
+  'Browser Archive Final', 'grand-final', false,
   '{\"participants\":true,\"artists\":false,\"songs\":false,\"results\":true,\"jury_results\":true,\"televote_results\":false}'::jsonb
 )
 on conflict (id) do update set published = excluded.published, publication_config = excluded.publication_config;
@@ -187,11 +187,24 @@ values
   ('00000000-0000-4000-8000-00000000e291'::uuid, '00000000-0000-4000-8000-00000000e219'::uuid, '00000000-0000-4000-8000-00000000e299'::uuid, '00000000-0000-4000-8000-00000000e201'::uuid, 'Private archive artist', 'Private archive song', 'confirmed', 'published'),
   ('00000000-0000-4000-8000-00000000e292'::uuid, '00000000-0000-4000-8000-00000000e219'::uuid, '00000000-0000-4000-8000-00000000e299'::uuid, '00000000-0000-4000-8000-00000000e202'::uuid, 'Second archive artist', 'Second archive song', 'confirmed', 'published')
 on conflict (id) do nothing;
-insert into public.results (id, edition_id, show_id, country_id, jury_points, televote_points, total_points, final_rank)
-values
-  ('00000000-0000-4000-8000-00000000e293'::uuid, '00000000-0000-4000-8000-00000000e219'::uuid, '00000000-0000-4000-8000-00000000e299'::uuid, '00000000-0000-4000-8000-00000000e201'::uuid, 110222, 1000, 111222, 1),
-  ('00000000-0000-4000-8000-00000000e294'::uuid, '00000000-0000-4000-8000-00000000e219'::uuid, '00000000-0000-4000-8000-00000000e299'::uuid, '00000000-0000-4000-8000-00000000e202'::uuid, 110000, 1000, 111000, 2)
-on conflict (id) do nothing;
+-- Respect the real publication guard: establish the current reviewed, locked
+-- and reveal-ready calculation before publishing this local archive fixture.
+insert into public.studio2_result_operations (
+  show_id, edition_id, calculation_version, reviewed_version, locked_version, reveal_ready_version
+) values (
+  '00000000-0000-4000-8000-00000000e299'::uuid,
+  '00000000-0000-4000-8000-00000000e219'::uuid, 1, 1, 1, 1
+)
+on conflict (show_id) do update set calculation_version = 1, reviewed_version = 1, locked_version = 1, reveal_ready_version = 1;
+update public.shows set published = true
+where id = '00000000-0000-4000-8000-00000000e299'::uuid;
+-- Participant/publication triggers materialize canonical result rows. Assign
+-- deterministic fixture scores after those triggers, without disabling them.
+update public.results set jury_points = 110222, televote_points = 1000, total_points = 111222, final_rank = 1
+where show_id = '00000000-0000-4000-8000-00000000e299'::uuid and country_id = '00000000-0000-4000-8000-00000000e201'::uuid;
+update public.results set jury_points = 110000, televote_points = 1000, total_points = 111000, final_rank = 2
+where show_id = '00000000-0000-4000-8000-00000000e299'::uuid and country_id = '00000000-0000-4000-8000-00000000e202'::uuid;
+
 "
 
 log "Creating local-only browser identities"
