@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 const config = readFileSync("playwright.config.ts", "utf8");
 
 function representativeProject(name: string) {
-  const prStart = config.indexOf("const representativePrProjects = [");
+  const prStart = config.indexOf("const representativeCiProjects = [");
   const prEnd = config.indexOf("const exhaustiveProjects = [", prStart);
   expect(prStart).toBeGreaterThanOrEqual(0);
   expect(prEnd).toBeGreaterThan(prStart);
