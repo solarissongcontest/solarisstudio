@@ -267,6 +267,17 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
       description:
         "Reversible installed-app notification center over canonical account preferences, push delivery state and official participant communication destinations.",
     },
+    solaris_app_v3_edition: {
+      key: "solaris_app_v3_edition",
+      label: "Solaris App V3 · Edition",
+      state: "integrated",
+      audience: "public",
+      route: "/editions/$slug",
+      surfaceLabel: "Edition V3",
+      dependsOn: ["solaris_app_v3", "solaris_app_v3_explore"],
+      description:
+        "Reversible installed-app Edition hub over publication-safe Explore projections, with public web and deep-linked canonical Edition detail sections preserved during staged rollout.",
+    },
   };
 
 export const STUDIO2_PRODUCT_SURFACE_LIST = Object.values(STUDIO2_PRODUCT_SURFACES);
