@@ -240,7 +240,7 @@ export function TelevotingBooth({
     onSuccess: ({ result, ballot }) => {
       const governance = markTelevotingRoundSubmitted(roundId, {
         submissionId: result.id,
-        acknowledgedAt: new Date().toISOString(),
+        acknowledgedAt: null,
       });
       try {
         localStorage.setItem(
@@ -266,10 +266,9 @@ export function TelevotingBooth({
     onError: (caught) => {
       const message = caught instanceof Error ? caught.message : "Could not submit your vote";
       toast.error(message);
-      if (/already voted|already recorded/i.test(message)) {
-        markTelevotingRoundSubmitted(roundId);
-        setStage("done");
-      } else if (/integrity check|ballot changed|connection or device identity changed/i.test(message)) {
+      // A duplicate identity or device is not proof that this ballot was accepted.
+      // Keep the ballot available until an authoritative submission is returned.
+      if (/integrity check|ballot changed|connection or device identity changed/i.test(message)) {
         returnToBallot();
       }
     },
