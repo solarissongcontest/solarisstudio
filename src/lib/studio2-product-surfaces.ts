@@ -289,6 +289,17 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
       description:
         "Reversible installed-app delegation detail over publication-safe country identity and entry history, while placements, points and voting analysis remain owned by canonical Results and analysis surfaces.",
     },
+    solaris_app_v3_results: {
+      key: "solaris_app_v3_results",
+      label: "Solaris App V3 · Results",
+      state: "integrated",
+      audience: "public",
+      route: "/results",
+      surfaceLabel: "Results V3",
+      dependsOn: ["solaris_app_v3"],
+      description:
+        "Reversible installed-app Results root over one bounded publication-safe official result projection, with spoiler protection, delegation personalization and legacy public-web fallback preserved.",
+    },
   };
 
 export const STUDIO2_PRODUCT_SURFACE_LIST = Object.values(STUDIO2_PRODUCT_SURFACES);
