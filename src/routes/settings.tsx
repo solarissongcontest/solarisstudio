@@ -10,10 +10,11 @@ import {
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
-import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { Panel } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { MySolarisNotificationsPanel } from "@/components/mysolaris/MySolarisNotificationsPanel";
 import { Switch } from "@/components/ui/switch";
+import { V3AccountSettingsRouteShell } from "@/components/v3/V3AccountSettingsRouteShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import {
@@ -138,13 +139,11 @@ function AppSettingsPage() {
     (offlineIndex?.shows.length ?? 0);
 
   return (
-    <AppShell>
-      <PageHeader
-        eyebrow="Solaris Studio"
-        title="App Settings"
-        description="App behavior, notifications, accessibility, offline storage and install status in one place."
-      />
-
+    <V3AccountSettingsRouteShell
+      section="settings"
+      title="App settings"
+      description="Device behavior, notifications, accessibility, offline storage and install status in one place."
+    >
       <div className="space-y-4">
         <Panel
           className={app.isAppMode ? "solaris-app-settings-panel" : undefined}
@@ -334,7 +333,7 @@ function AppSettingsPage() {
           </div>
         </Panel>
       </div>
-    </AppShell>
+    </V3AccountSettingsRouteShell>
   );
 }
 
