@@ -8,11 +8,13 @@ const source = readFileSync(
 );
 
 describe("V3 Edition hub screen architecture boundary", () => {
-  it("renders the canonical Edition hub projection without acquiring data ownership", () => {
-    expect(source).toContain("V3EditionHubProjection");
-    expect(source).toContain("projection.sections.map");
-    expect(source).toContain("projection.hero.resultsAvailable");
-    expect(source).toContain("projection.liveAction");
+  it("renders the complete resolved Edition projection without acquiring data ownership", () => {
+    expect(source).toContain("V3EditionPageProjection");
+    expect(source).toContain("projection.participants.map");
+    expect(source).toContain("projection.entries.map");
+    expect(source).toContain("projection.shows.map");
+    expect(source).toContain("projection.story");
+    expect(source).toContain("projection.results.rows");
 
     for (const forbidden of [
       "@supabase",
@@ -29,24 +31,38 @@ describe("V3 Edition hub screen architecture boundary", () => {
     }
   });
 
-  it("keeps locked and empty sections non-interactive", () => {
-    expect(source).toContain('section.state === "locked"');
-    expect(source).toContain('section.state === "empty"');
-    expect(source).toContain("Available after official publication");
-    expect(source).toContain("Nothing public here yet");
+  it("owns real in-page section destinations instead of inert tab-shaped placeholders", () => {
+    for (const id of [
+      "edition-overview",
+      "edition-participants",
+      "edition-songs",
+      "edition-schedule",
+      "edition-stories",
+      "edition-results",
+    ]) {
+      expect(source).toContain(`id=\"${id}\"`);
+    }
+    expect(source).not.toContain("?tab=participants");
+    expect(source).not.toContain("?tab=songs");
+    expect(source).not.toContain("?tab=schedule");
+    expect(source).not.toContain("?tab=stories");
+    expect(source).not.toContain("?tab=results");
   });
 
-  it("does not own result rows, score analysis or publication decisions", () => {
-    expect(source).not.toMatch(/scorechart|juryPoints|televotePoints|totalPoints|leaderboard/);
-    expect(source).not.toMatch(/resultRows|winner:|placement:|points:/);
+  it("keeps locked and empty publication states explicit and non-analytical", () => {
+    expect(source).toContain('projection.results.state === "locked"');
+    expect(source).toContain('projection.results.state === "empty"');
+    expect(source).toContain("Official results are still locked");
+    expect(source).toContain("no ranked rows are available yet");
+    expect(source).not.toMatch(/juryPoints|televotePoints|scorechart|votingMatrix|leaderboard/);
     expect(source).not.toMatch(/publishResults|setResultsPublished|resultsPublication\s*=/);
   });
 
-  it("reuses the shared V3 screen primitives and only consumes resolved Live state", () => {
+  it("reuses shared V3 primitives and consumes only resolved Live state", () => {
     expect(source).toContain('from "./V3Foundation"');
     expect(source).toContain("<V3Screen>");
     expect(source).toContain("<V3ScreenHeader");
-    expect(source).toContain("projection.liveAction ?");
+    expect(source).toContain("projection.hub.liveAction ?");
     expect(source).not.toMatch(/Date\.now|new Date|setInterval|WebSocket|EventSource/);
   });
 });
