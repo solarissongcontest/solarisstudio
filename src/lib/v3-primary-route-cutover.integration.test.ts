@@ -109,6 +109,15 @@ describe("Solaris Studio V3 primary route cutover architecture", () => {
     expect(gateText).not.toContain('{surface === "home" ? (');
   });
 
+  it("never falls back to the stale route page during a retained primary transition", () => {
+    const gateText = gate();
+
+    expect(gateText).toContain("const routeTransitionRetained = effectiveSurface !== surface");
+    expect(gateText).toContain("const safeLegacyFallback = routeTransitionRetained ? (");
+    expect(gateText).toContain("<ResolvingPrimarySurface surface={effectiveSurface} />");
+    expect(gateText).toContain("return safeLegacyFallback");
+  });
+
   it("does not load the expensive bootstrap until the rollout probe permits it", () => {
     const gateText = gate();
     const runtimeText = runtime();
