@@ -71,14 +71,87 @@ function disabledProbe(input?: { editionId?: string | null; userId?: string | nu
   };
 }
 
+async function evaluateV3Rollout(
+  publicClient: RolloutClient,
+  editionId: string | null,
+): Promise<V3RolloutProbe> {
+  const { client, userId } = await rolloutClientForRequest(publicClient);
+  const [
+    globalFlag,
+    confirmationFlag,
+    scoreboardFlag,
+    accountSettingsFlag,
+    exploreFlag,
+    editionHubFlag,
+    notificationsFlag,
+  ] = await Promise.all([
+    client.rpc("studio2_feature_enabled", {
+      p_key: "solaris_app_v3",
+      p_edition_id: editionId,
+    }),
+    client.rpc("studio2_feature_enabled", {
+      p_key: "solaris_app_v3_confirmation",
+      p_edition_id: editionId,
+    }),
+    client.rpc("studio2_feature_enabled", {
+      p_key: "solaris_app_v3_scoreboard",
+      p_edition_id: editionId,
+    }),
+    client.rpc("studio2_feature_enabled", {
+      p_key: "solaris_app_v3_account_settings",
+      p_edition_id: editionId,
+    }),
+    client.rpc("studio2_feature_enabled", {
+      p_key: "solaris_app_v3_explore",
+      p_edition_id: editionId,
+    }),
+    client.rpc("studio2_feature_enabled", {
+      p_key: "solaris_app_v3_edition_hub",
+      p_edition_id: editionId,
+    }),
+    client.rpc("studio2_feature_enabled", {
+      p_key: "solaris_app_v3_notifications",
+      p_edition_id: editionId,
+    }),
+  ]);
+
+  if (globalFlag.error) return disabledProbe({ editionId, userId });
+
+  const enabled = globalFlag.data === true;
+  const confirmationEnabled =
+    enabled && !confirmationFlag.error && confirmationFlag.data === true;
+  const scoreboardEnabled =
+    enabled && !scoreboardFlag.error && scoreboardFlag.data === true;
+  const accountSettingsEnabled =
+    enabled && !accountSettingsFlag.error && accountSettingsFlag.data === true;
+  const exploreEnabled =
+    enabled && !exploreFlag.error && exploreFlag.data === true;
+  const editionHubEnabled =
+    enabled && exploreEnabled && !editionHubFlag.error && editionHubFlag.data === true;
+  const notificationsEnabled =
+    accountSettingsEnabled &&
+    !notificationsFlag.error &&
+    notificationsFlag.data === true;
+
+  return {
+    enabled,
+    confirmationEnabled,
+    scoreboardEnabled,
+    accountSettingsEnabled,
+    exploreEnabled,
+    editionHubEnabled,
+    notificationsEnabled,
+    editionId,
+    userId,
+  };
+}
+
 /**
- * Cheap, fail-closed V3 rollout probe.
+ * Cheap, fail-closed V3 rollout probe for the current public edition.
  *
  * This intentionally runs before heavier V3 surface bootstraps so disabled
  * production users do not pay for duplicate data graphs. The persisted Studio 2
- * flags remain the sole rollout authority; errors resolve to disabled. Migrated
- * surfaces have independent slice flags so the V3 shell can remain on while one
- * surface is rolled back without affecting the others.
+ * flags remain the sole rollout authority; errors resolve to disabled.
  */
 export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
   try {
@@ -95,76 +168,34 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
     const edition = resolveCurrentPublicEdition(
       ((editionResult.data ?? []) as Edition[]),
     );
-    const editionId = edition?.id ?? null;
-    const { client, userId } = await rolloutClientForRequest(publicClient);
-    const [
-      globalFlag,
-      confirmationFlag,
-      scoreboardFlag,
-      accountSettingsFlag,
-      exploreFlag,
-      editionHubFlag,
-      notificationsFlag,
-    ] = await Promise.all([
-      client.rpc("studio2_feature_enabled", {
-        p_key: "solaris_app_v3",
-        p_edition_id: editionId,
-      }),
-      client.rpc("studio2_feature_enabled", {
-        p_key: "solaris_app_v3_confirmation",
-        p_edition_id: editionId,
-      }),
-      client.rpc("studio2_feature_enabled", {
-        p_key: "solaris_app_v3_scoreboard",
-        p_edition_id: editionId,
-      }),
-      client.rpc("studio2_feature_enabled", {
-        p_key: "solaris_app_v3_account_settings",
-        p_edition_id: editionId,
-      }),
-      client.rpc("studio2_feature_enabled", {
-        p_key: "solaris_app_v3_explore",
-        p_edition_id: editionId,
-      }),
-      client.rpc("studio2_feature_enabled", {
-        p_key: "solaris_app_v3_edition_hub",
-        p_edition_id: editionId,
-      }),
-      client.rpc("studio2_feature_enabled", {
-        p_key: "solaris_app_v3_notifications",
-        p_edition_id: editionId,
-      }),
-    ]);
+    return evaluateV3Rollout(publicClient, edition?.id ?? null);
+  } catch {
+    return disabledProbe();
+  }
+}
 
-    if (globalFlag.error) return disabledProbe({ editionId, userId });
+/**
+ * Edition-route rollout probe. The server resolves the requested public slug to
+ * its canonical edition id before evaluating edition-scoped feature flags.
+ * Browser input can select a route, but it cannot supply or forge the authority
+ * scope used by studio2_feature_enabled.
+ */
+export async function loadV3EditionRolloutProbe(slug: string): Promise<V3RolloutProbe> {
+  const cleanSlug = slug.trim();
+  if (!cleanSlug) return disabledProbe();
 
-    const enabled = globalFlag.data === true;
-    const confirmationEnabled =
-      enabled && !confirmationFlag.error && confirmationFlag.data === true;
-    const scoreboardEnabled =
-      enabled && !scoreboardFlag.error && scoreboardFlag.data === true;
-    const accountSettingsEnabled =
-      enabled && !accountSettingsFlag.error && accountSettingsFlag.data === true;
-    const exploreEnabled =
-      enabled && !exploreFlag.error && exploreFlag.data === true;
-    const editionHubEnabled =
-      enabled && exploreEnabled && !editionHubFlag.error && editionHubFlag.data === true;
-    const notificationsEnabled =
-      accountSettingsEnabled &&
-      !notificationsFlag.error &&
-      notificationsFlag.data === true;
+  try {
+    const publicClient =
+      createConfirmationPublicRuntimeClient() as unknown as RolloutClient;
+    const editionResult = await publicClient
+      .from("editions")
+      .select("id")
+      .eq("slug", cleanSlug)
+      .eq("published", true)
+      .maybeSingle();
 
-    return {
-      enabled,
-      confirmationEnabled,
-      scoreboardEnabled,
-      accountSettingsEnabled,
-      exploreEnabled,
-      editionHubEnabled,
-      notificationsEnabled,
-      editionId,
-      userId,
-    };
+    if (editionResult.error || !editionResult.data?.id) return disabledProbe();
+    return evaluateV3Rollout(publicClient, String(editionResult.data.id));
   } catch {
     return disabledProbe();
   }

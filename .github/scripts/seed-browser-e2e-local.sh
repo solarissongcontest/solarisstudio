@@ -125,19 +125,30 @@ set name = excluded.name,
 insert into public.editions (
   id, name, slug, edition_number, year, status, published
 )
-values (
-  '00000000-0000-4000-8000-00000000e220'::uuid,
-  'Browser Audit Edition',
-  'ssc22',
-  22,
-  2026,
-  'active',
-  true
-)
+values
+  (
+    '00000000-0000-4000-8000-00000000e219'::uuid,
+    'Browser Archive Edition',
+    'ssc21',
+    21,
+    2025,
+    'completed',
+    true
+  ),
+  (
+    '00000000-0000-4000-8000-00000000e220'::uuid,
+    'Browser Audit Edition',
+    'ssc22',
+    22,
+    2026,
+    'active',
+    true
+  )
 on conflict (id) do update
 set name = excluded.name,
     slug = excluded.slug,
     edition_number = excluded.edition_number,
+    year = excluded.year,
     status = excluded.status,
     published = excluded.published;
 "
@@ -234,6 +245,7 @@ set enabled = excluded.enabled,
 [[ "$(db_scalar "select count(*) from public.studio2_role_assignments where user_id='$ORGANIZER_B_ID'::uuid and role_key='organizer';")" == "1" ]]   || fail "Second Organizer authoritative role was not created"
 [[ "$(db_scalar "select status from public.country_accounts where user_id='$COUNTRY_ID'::uuid;")" == "active" ]]   || fail "Country browser account was not active"
 [[ "$(db_scalar "select status from public.country_accounts where user_id='$SUSPENDED_ID'::uuid;")" == "suspended" ]]   || fail "Suspended browser account was not suspended"
+[[ "$(db_scalar "select count(*) from public.editions where id in ('00000000-0000-4000-8000-00000000e219'::uuid,'00000000-0000-4000-8000-00000000e220'::uuid) and published;")" == "2" ]]   || fail "Both current and archived Edition browser fixtures were not published"
 [[ "$(db_scalar "select count(*) from public.studio2_feature_flags where key in ('public_encyclopedia','country_voting_dna','prediction_league','fantasy_ssc','time_machine','solaris_command_assistant') and enabled and user_ids @> array['$ORGANIZER_ID'::uuid] and cardinality(user_ids)=2;")" == "6" ]]   || fail "Organizer-only completion-programme feature flags were not seeded"
 [[ "$(db_scalar "select count(*) from public.studio2_feature_flags where key in ('solaris_app_v3','solaris_app_v3_account_settings','solaris_app_v3_notifications') and enabled and user_ids = array['$COUNTRY_ID'::uuid];")" == "3" ]]   || fail "Country-only App V3 Account + Settings + Notifications flags were not seeded"
 

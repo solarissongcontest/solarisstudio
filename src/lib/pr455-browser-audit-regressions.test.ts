@@ -118,14 +118,18 @@ describe("PR455 Browser Audit regression contracts", () => {
   it("audits semantic readiness through positive visible state instead of first-node, loader-absence or network-idle heuristics", () => {
     const audit = source("e2e/audit-helpers.ts");
     const preflight = source("e2e/pr455-organizer-regression.e2e.ts");
+    const bootLocator = audit.indexOf(
+      'page.locator("[data-v3-primary-boot], [data-v3-explore-boot], [data-v3-edition-boot], [data-v3-confirmation-route-boot], [data-v3-account-settings-route-boot], [data-v3-notifications-route-boot]")',
+    );
+    const finalMainReadiness = audit.indexOf('page.locator("main:visible")', bootLocator + 1);
+    const finalHeadingReadiness = audit.indexOf('page.locator("h1:visible")', finalMainReadiness + 1);
 
     expect(audit).toContain("const visibleMainLandmarks =");
     expect(audit).toContain("mainCount: visibleMainLandmarks.length");
-    expect(audit).toContain('page.locator("main:visible")');
-    expect(audit).toContain('page.locator("h1:visible")');
-    expect(audit).toContain(
-      'page.locator("[data-v3-primary-boot], [data-v3-explore-boot], [data-v3-edition-boot], [data-v3-confirmation-route-boot], [data-v3-account-settings-route-boot], [data-v3-notifications-route-boot]")',
-    );
+    expect(bootLocator).toBeGreaterThanOrEqual(0);
+    expect(finalMainReadiness).toBeGreaterThan(bootLocator);
+    expect(finalHeadingReadiness).toBeGreaterThan(finalMainReadiness);
+    expect(audit).toContain("Resolve transient V3 gate surfaces before accepting the final route's");
     expect(audit).toContain("finish the V3 hydration gate before interaction auditing");
     expect(audit).not.toContain('page.locator("main").first()');
     expect(audit).not.toContain('page.locator("h1").first()');
