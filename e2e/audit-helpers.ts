@@ -58,6 +58,16 @@ const ignorableRequest = (url: string) =>
 
 const criticalResourceTypes = new Set(["document", "script", "stylesheet", "font"]);
 
+const V3_BOOT_SELECTOR = [
+  "[data-v3-primary-boot]",
+  "[data-v3-confirmation-route-boot]",
+  "[data-v3-confirmation-boot]",
+  "[data-v3-account-settings-route-boot]",
+  "[data-v3-explore-boot]",
+  "[data-v3-notifications-route-boot]",
+  "[data-v3-edition-boot]",
+].join(", ");
+
 function isBackendApiResponse(url: string) {
   return (
     /\/rest\/v1\//i.test(url) ||
@@ -152,8 +162,8 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
       timeout: 15_000,
     });
     await expect(
-      page.locator("[data-v3-primary-boot]"),
-      `${path} must finish the V3 hydration gate before interaction auditing`,
+      page.locator(V3_BOOT_SELECTOR),
+      `${path} must finish every V3 hydration gate before interaction auditing`,
     ).toHaveCount(0, { timeout: 15_000 });
 
     const result = await page.evaluate(() => {
