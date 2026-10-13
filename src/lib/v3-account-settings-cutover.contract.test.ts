@@ -17,6 +17,8 @@ const probe = () => read("src/integrations/v3/rollout-probe.server.ts");
 const shell = () => read("src/components/v3/V3AccountSettingsRouteShell.tsx");
 const accountRoute = () => read("src/routes/_authenticated/my-solaris/account.tsx");
 const settingsRoute = () => read("src/routes/settings.tsx");
+const notificationsPanel = () =>
+  read("src/components/mysolaris/MySolarisNotificationsPanel.tsx");
 
 function constrainedFlagKeys(source: string) {
   const constraint = source.match(
@@ -92,16 +94,37 @@ describe("V3 Account + Settings cutover", () => {
     expect(settings).toContain("estimateSolarisStorage");
   });
 
-  it("uses the shared cached session instead of another settings auth observer", () => {
+  it("uses one cached account session instead of route-specific auth observers", () => {
     const settings = settingsRoute();
+    const notifications = notificationsPanel();
+    const routeShell = shell();
 
     expect(settings).toContain("useFanSession");
+    expect(notifications).toContain("useFanSession");
+    expect(routeShell).toContain("useFanSession");
     expect(settings).not.toContain("supabase.auth.getUser");
     expect(settings).not.toContain("supabase.auth.onAuthStateChange");
+    expect(notifications).not.toContain("supabase.auth.getUser");
+    expect(notifications).not.toContain('queryKey: ["mysolaris-notification-user"]');
+  });
+
+  it("preserves explicit V3 sign out through the canonical auth client", () => {
+    const source = shell();
+
+    expect(source).toContain("supabase.auth.signOut()");
+    expect(source).toContain('aria-label="Sign out"');
+    expect(source).toContain('window.location.href = "/"');
   });
 
   it("does not expose a browser-controlled rollout escape hatch", () => {
-    const combined = [migration(), probe(), shell(), accountRoute(), settingsRoute()].join("\n");
+    const combined = [
+      migration(),
+      probe(),
+      shell(),
+      accountRoute(),
+      settingsRoute(),
+      notificationsPanel(),
+    ].join("\n");
 
     expect(combined).not.toContain("VITE_SOLARIS_APP_V3_ACCOUNT_SETTINGS");
     expect(combined).not.toContain("localStorage.getItem(\"solaris_app_v3_account_settings\"");
