@@ -22,12 +22,15 @@ describe("V3 app shell migration contract", () => {
     }
   });
 
-  it("uses Participate attention rather than creating a second global notification count", () => {
+  it("keeps Participate attention scoped while Notifications reuses the shared attention summary", () => {
     const shell = source("src/components/v3/V3AppShell.tsx");
 
     expect(shell).toContain('id === "participate" ? participateAttentionCount : 0');
-    expect(shell).toContain('attention > 9 ? "9+" : attention');
+    expect(shell).toContain('attentionCount > 9 ? "9+" : attentionCount');
+    expect(shell).toContain("const attention = useAppAttentionSummary()");
+    expect(shell).toContain('attention.me > 9 ? "9+" : attention.me');
     expect(shell).not.toContain("localStorage");
+    expect(shell).not.toContain("sessionStorage");
   });
 
   it("does not put essential navigation behind gesture-only handlers", () => {
