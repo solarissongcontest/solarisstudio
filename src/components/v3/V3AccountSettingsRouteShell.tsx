@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
-import { supabase } from "@/integrations/supabase/client";
+import { signOutSolarisAccount } from "@/lib/account-session";
+import { useFanSession } from "@/lib/prediction-data";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { cn } from "@/lib/utils";
 import { V3AppShell } from "./V3AppShell";
@@ -53,6 +54,7 @@ export function V3AccountSettingsRouteShell({
   children,
 }: V3AccountSettingsRouteShellProps) {
   const { isAppMode, platformResolved } = useSolarisApp();
+  const session = useFanSession();
   const rollout = useV3RolloutProbe(platformResolved && isAppMode);
 
   if (!platformResolved || (isAppMode && rollout.isLoading)) {
@@ -73,7 +75,7 @@ export function V3AccountSettingsRouteShell({
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await signOutSolarisAccount();
     window.location.href = "/";
   };
 
@@ -91,15 +93,17 @@ export function V3AccountSettingsRouteShell({
           >
             <CircleHelp className="size-4" />
           </Link>
-          <button
-            type="button"
-            className="v3-icon-button"
-            aria-label="Sign out"
-            title="Sign out"
-            onClick={() => void signOut()}
-          >
-            <LogOut className="size-4" />
-          </button>
+          {session.data ? (
+            <button
+              type="button"
+              className="v3-icon-button"
+              aria-label="Sign out"
+              title="Sign out"
+              onClick={() => void signOut()}
+            >
+              <LogOut className="size-4" />
+            </button>
+          ) : null}
         </>
       }
     >
