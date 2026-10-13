@@ -6,7 +6,13 @@ import { createServerFn } from "@tanstack/react-start";
  * server from public-safe sources.
  */
 export const getV3EditionBundle = createServerFn({ method: "GET" })
-  .validator((input: { slug: string }) => ({ slug: String(input.slug ?? "") }))
+  .inputValidator((input: unknown) => {
+    const slug =
+      typeof input === "object" && input && "slug" in input
+        ? String((input as { slug?: unknown }).slug ?? "")
+        : "";
+    return { slug };
+  })
   .handler(async ({ data }) => {
     const { loadV3EditionBundle } = await import(
       "@/integrations/v3/edition-source.server"
