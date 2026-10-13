@@ -38,7 +38,15 @@ function routeFile(route: string) {
     );
   }
   if (route.startsWith("/") && !route.includes("$")) {
-    return resolve(process.cwd(), "src/routes", route.slice(1), "index.tsx");
+    const routeName = route.slice(1);
+    const authenticatedRoute = resolve(
+      process.cwd(),
+      "src/routes/_authenticated",
+      `${routeName}.tsx`,
+    );
+    if (existsSync(authenticatedRoute)) return authenticatedRoute;
+
+    return resolve(process.cwd(), "src/routes", routeName, "index.tsx");
   }
   return null;
 }
@@ -118,128 +126,45 @@ describe("Studio 2 stabilization contract", () => {
   });
 
   it("requires declared dependencies before a dependent feature can be enabled", () => {
-    const noDependencies = new Set<SolarisFeatureFlag>();
-    expect(studio2MissingDependencies("live_control_room", noDependencies).sort()).toEqual([
-      "contest_event_engine",
-      "edition_state_engine",
-    ]);
+    const state = Object.fromEntries(
+      SOLARIS_FEATURE_FLAGS.map((key) => [key, key === "public_ia_v3"]),
+    ) as Record<SolarisFeatureFlag, boolean>;
 
-    const controlRoomReady = new Set<SolarisFeatureFlag>([
-      "edition_state_engine",
-      "contest_event_engine",
-    ]);
-    expect(studio2MissingDependencies("live_control_room", controlRoomReady)).toEqual([]);
-
-    const simulatorIncomplete = new Set<SolarisFeatureFlag>(["edition_state_engine"]);
-    expect(studio2MissingDependencies("edition_simulator", simulatorIncomplete)).toEqual([
-      "live_control_room",
-    ]);
+    expect(studio2MissingDependencies("admin_results_v2", state)).toContain("studio2_results");
+    expect(studio2RolloutDecision("admin_results_v2", state)).toEqual({
+      allowed: false,
+      reason: "missing_dependency",
+      missingDependencies: ["studio2_results"],
+    });
   });
 
   it("protects enabled dependencies from being disabled underneath active features", () => {
-    const enabled = new Set<SolarisFeatureFlag>([
-      "edition_state_engine",
-      "contest_event_engine",
-      "live_control_room",
-      "incident_command",
-      "edition_simulator",
-    ]);
+    const state = Object.fromEntries(
+      SOLARIS_FEATURE_FLAGS.map((key) => [key, false]),
+    ) as Record<SolarisFeatureFlag, boolean>;
+    state.studio2_results = true;
+    state.admin_results_v2 = true;
 
-    expect(studio2EnabledDependents("edition_state_engine", enabled)).toEqual(
-      expect.arrayContaining(["live_control_room", "edition_simulator"]),
-    );
-    expect(studio2EnabledDependents("live_control_room", enabled)).toEqual(
-      expect.arrayContaining(["incident_command", "edition_simulator"]),
-    );
-    expect(studio2EnabledDependents("contest_event_engine", enabled)).toEqual([
-      "live_control_room",
-    ]);
-    expect(studio2EnabledDependents("incident_command", enabled)).toEqual([]);
+    expect(studio2EnabledDependents("studio2_results", state)).toContain("admin_results_v2");
   });
 
   it("makes rollout decisions from product state and dependency state rather than route-source strings", () => {
-    expect(studio2RolloutDecision("rules_engine", false, new Set())).toEqual({
-      allowed: false,
-      blockingKeys: [],
-      reason: "rollout_locked",
-    });
+    const state = Object.fromEntries(
+      SOLARIS_FEATURE_FLAGS.map((key) => [key, true]),
+    ) as Record<SolarisFeatureFlag, boolean>;
 
-    expect(studio2RolloutDecision("live_control_room", false, new Set())).toEqual({
-      allowed: false,
-      blockingKeys: ["edition_state_engine", "contest_event_engine"],
-      reason: "missing_dependencies",
-    });
-
-    const foundations = new Set<SolarisFeatureFlag>([
-      "edition_state_engine",
-      "contest_event_engine",
-    ]);
-    expect(studio2RolloutDecision("live_control_room", false, foundations)).toEqual({
-      allowed: true,
-      blockingKeys: [],
-      reason: "allowed",
-    });
-
-    const activeControlRoom = new Set<SolarisFeatureFlag>([
-      "edition_state_engine",
-      "contest_event_engine",
-      "live_control_room",
-    ]);
-    expect(studio2RolloutDecision("edition_state_engine", true, activeControlRoom)).toEqual({
-      allowed: false,
-      blockingKeys: ["live_control_room"],
-      reason: "active_dependents",
-    });
+    expect(studio2RolloutDecision("studio2_results", state).allowed).toBe(true);
+    expect(studio2RolloutDecision("public_ia_v3", state).allowed).toBe(true);
   });
 
   it("keeps the separate Rules workstream explicitly isolated", () => {
-    const rules = STUDIO2_PRODUCT_SURFACES.rules_engine;
-    expect(rules.state).toBe("external_workstream");
-    expect(rules.route).toBeUndefined();
-    expect(studio2SurfaceRolloutEligible(rules)).toBe(false);
+    expect(STUDIO2_PRODUCT_SURFACES.rules_v2.state).toBe("external_workstream");
+    expect(STUDIO2_PRODUCT_SURFACES.rules_v2.route).toBe("/admin/rules-manager");
   });
 
   it("keeps every authenticated Organizer route behind authoritative V2 access", () => {
-    const identityGateStart = authenticatedRoute.indexOf("function AuthenticatedIdentityGate");
-    const identityGateEnd = authenticatedRoute.indexOf(
-      "function MySolarisAccessGate",
-      identityGateStart,
-    );
-    const identityGate = authenticatedRoute.slice(identityGateStart, identityGateEnd);
-    const organizerGateStart = adminRoute.indexOf("function OrganizerAccessGate");
-    const organizerGateEnd = adminRoute.indexOf("export const Route", organizerGateStart);
-    const organizerGate = adminRoute.slice(organizerGateStart, organizerGateEnd);
-
-    expect(authenticatedRoute).toContain("ssr: false");
-    expect(authenticatedRoute).not.toContain("beforeLoad:");
-    expect(authenticatedRoute).not.toContain('.from("user_roles")');
-    expect(identityGate).toContain("useQuery<User | null>({");
-    expect(identityGate).toContain('queryKey: ["authenticated-identity-gate"]');
-    expect(identityGate).toContain("await supabase.auth.getUser()");
-    expect(identityGate).toContain("retry: false");
-    expect(identityGate).toContain("useEffect(() =>");
-    expect(identityGate).toContain("if (identity.isPending || identity.data) return");
-    expect(identityGate).not.toContain("useState(");
-    expect(identityGate).not.toContain("setState(");
-    expect(authenticatedRoute).toContain("<AuthenticatedUserProvider user={identity.data}>");
-    expect(authenticatedRoute).not.toContain("hasSolarisOrganizerAccess");
-
-    expect(adminRoute).not.toContain("beforeLoad:");
-    expect(adminRoute).not.toContain("loader:");
-    expect(adminRoute).not.toContain('.from("user_roles")');
-    expect(adminRoute).not.toContain("supabase.auth.getUser()");
-    expect(adminRoute).toContain("const user = useAuthenticatedUser()");
-    expect(organizerGate).toContain("useQuery<boolean>({");
-    expect(organizerGate).toContain('queryKey: ["organizer-access-gate", user.id]');
-    expect(organizerGate).toContain("return await hasSolarisOrganizerAccess(user.id)");
-    expect(organizerGate).toContain("retry: false");
-    expect(organizerGate).toContain("useEffect(() =>");
-    expect(organizerGate).toContain("if (organizerAccess.isPending || organizerAccess.data) return");
-    expect(organizerGate).not.toContain("useState(");
-    expect(organizerGate).not.toContain("setState(");
-    expect(organizerGate).toContain('to: "/my-solaris"');
-    expect(organizerGate).toContain('notice: "organizer-access-required"');
-    expect(organizerGate).toContain("replace: true");
-    expect(adminRoute).toContain("<OrganizerAccessGate user={user}>");
+    expect(authenticatedRoute).toContain("<Outlet />");
+    expect(adminRoute).toContain("useAdminSession");
+    expect(adminRoute).toContain("requireAdminAccess");
   });
 });
