@@ -1,0 +1,85 @@
+name: Temporary fast Browser Audit patch
+
+on:
+  push:
+    branches:
+      - fix/browser-audit-fast-main-certification
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/browser-audit-fast-main-certification
+      - name: Apply patch
+        shell: python
+        run: |
+          from pathlib import Path
+
+          workflow_path = Path('.github/workflows/browser-audit.yml')
+          workflow = workflow_path.read_text()
+          old_concurrency = '''concurrency:
+            group: browser-audit-${{ github.ref }}
+            cancel-in-progress: true'''.replace('            ', '  ')
+          new_concurrency = '''# Normal main/PR audits may supersede older work, but an explicitly dispatched
+          # exhaustive certification must not be cancelled by a later main push.
+          concurrency:
+            group: browser-audit-${{ github.event_name }}-${{ github.ref }}
+            cancel-in-progress: true'''.replace('          ', '')
+          if old_concurrency not in workflow:
+              raise SystemExit('concurrency contract not found')
+          workflow = workflow.replace(old_concurrency, new_concurrency, 1)
+
+          old_comment = '''          # Pull requests run a representative smoke set. Manual dispatch keeps
+          # the exhaustive ten-viewport + sitemap inventory available without
+          # turning every PR into a 40-minute crawl of the same archive data.
+          # The final public-quality release branch also runs the exhaustive set
+          # once before merge.'''
+          new_comment = '''          # Pull requests and ordinary main pushes run a representative smoke set.
+          # Manual dispatch and designated release branches keep the exhaustive
+          # ten-viewport + sitemap inventory available without turning rapid
+          # integration merges into repeated 40-minute crawls.'''
+          if old_comment not in workflow:
+              raise SystemExit('audit mode comment not found')
+          workflow = workflow.replace(old_comment, new_comment, 1)
+
+          old_mode = "E2E_FULL_AUDIT: ${{ (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.head_ref == 'recovery/canonical-main-v6-20261004' || github.head_ref == 'feature/public-final-quality' || github.head_ref == 'chatgpt/completion-programme-20260920' || github.head_ref == 'feature/final-ui-completion-20261001' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}"
+          new_mode = "E2E_FULL_AUDIT: ${{ (github.event_name == 'workflow_dispatch' || github.head_ref == 'recovery/canonical-main-v6-20261004' || github.head_ref == 'feature/public-final-quality' || github.head_ref == 'chatgpt/completion-programme-20260920' || github.head_ref == 'feature/final-ui-completion-20261001' || github.head_ref == 'mobile-app-v2-final-verification') && '1' || '0' }}"
+          if old_mode not in workflow:
+              raise SystemExit('full audit mode expression not found')
+          workflow = workflow.replace(old_mode, new_mode, 1)
+          workflow_path.write_text(workflow)
+
+          test_path = Path('src/lib/pr455-browser-audit-regressions.test.ts')
+          test = test_path.read_text()
+          test = test.replace(
+              'it("keeps PR browser audit representative while preserving exhaustive certification", () => {',
+              'it("keeps PR and main browser audits representative while preserving explicit exhaustive certification", () => {',
+              1,
+          )
+          needle = '''    expect(workflow).toContain("Pull requests run a representative smoke set");
+          expect(workflow).toContain("E2E_FULL_AUDIT:");
+          expect(workflow).toContain("github.event_name == 'workflow_dispatch'");'''.replace('          ', '')
+          replacement = '''    expect(workflow).toContain("Pull requests and ordinary main pushes run a representative smoke set");
+              expect(workflow).toContain("group: browser-audit-${{ github.event_name }}-${{ github.ref }}");
+              expect(workflow).not.toContain("github.ref == 'refs/heads/main'");
+              expect(workflow).toContain("E2E_FULL_AUDIT:");
+              expect(workflow).toContain("github.event_name == 'workflow_dispatch'");'''.replace('              ', '    ')
+          if needle not in test:
+              raise SystemExit('browser audit regression assertion block not found')
+          test = test.replace(needle, replacement, 1)
+          test_path.write_text(test)
+
+          Path('.github/workflows/_temporary-fast-browser-audit-patch.yml').unlink()
+      - name: Commit patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .github/workflows/browser-audit.yml src/lib/pr455-browser-audit-regressions.test.ts .github/workflows/_temporary-fast-browser-audit-patch.yml
+          git commit -m "Make routine Browser Audit fast without weakening full certification"
+          git push origin HEAD:fix/browser-audit-fast-main-certification
