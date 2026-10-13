@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/AppShell";
 import { RulesHomeV5 } from "@/components/rules/RulesHomeV5";
+import { V3RulesRouteGate } from "@/components/v3/V3RulesRouteGate";
 import { usePublishedRulebook } from "@/lib/rules-governance";
 
 export const Route = createFileRoute("/rules/")({
@@ -20,9 +21,15 @@ export const Route = createFileRoute("/rules/")({
 
 function RulesPage() {
   const published = usePublishedRulebook();
+  const content = <RulesHomeV5 key={published.version} version={published.version} />;
+
   return (
-    <AppShell>
-      <RulesHomeV5 key={published.version} version={published.version} />
-    </AppShell>
+    <V3RulesRouteGate
+      phaseLabel="Rules"
+      resolvingTitle="Opening Rules"
+      legacy={<AppShell>{content}</AppShell>}
+    >
+      {content}
+    </V3RulesRouteGate>
   );
 }
