@@ -77,8 +77,8 @@ export function V3AccountSettingsRouteShell({
         </Link>
       }
     >
-      <V3Screen className="pb-8" data-v3-account-settings-screen={section}>
-        <div data-v3-account-settings-route="">
+      <V3Screen className="pb-8">
+        <div data-v3-account-settings-route="" data-v3-account-settings-screen={section}>
           <V3ScreenHeader kicker="Me" title={title} description={description} />
 
           <nav
