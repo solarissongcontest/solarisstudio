@@ -103,7 +103,10 @@ describe("V3 Notifications cutover", () => {
     expect(source).toContain('to="/participate"');
     expect(source).toContain('to="/settings"');
     expect(source).toContain("Notifications are never the source of truth");
-    expect(source).toContain("acknowledgement required");
+    expect(source).toContain('item.state === "acknowledgement_required"');
+    expect(source).toContain(
+      "Read and acknowledge these in the authoritative official-notice workflow.",
+    );
   });
 
   it("adds the V3 shell bell only from server rollout identity while badge state remains display-only", () => {
