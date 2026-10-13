@@ -27,9 +27,22 @@ export type V3RolloutProbe = {
   confirmationEnabled: boolean;
   scoreboardEnabled: boolean;
   accountSettingsEnabled: boolean;
+  notificationsEnabled: boolean;
   editionId: string | null;
   userId: string | null;
 };
+
+function disabledProbe(editionId: string | null = null, userId: string | null = null): V3RolloutProbe {
+  return {
+    enabled: false,
+    confirmationEnabled: false,
+    scoreboardEnabled: false,
+    accountSettingsEnabled: false,
+    notificationsEnabled: false,
+    editionId,
+    userId,
+  };
+}
 
 function bearerToken() {
   const header = getRequestHeader("authorization")?.trim() ?? "";
@@ -73,23 +86,20 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
       .eq("published", true)
       .order("edition_number", { ascending: false });
 
-    if (editionResult.error) {
-      return {
-        enabled: false,
-        confirmationEnabled: false,
-        scoreboardEnabled: false,
-        accountSettingsEnabled: false,
-        editionId: null,
-        userId: null,
-      };
-    }
+    if (editionResult.error) return disabledProbe();
 
     const edition = resolveCurrentPublicEdition(
       ((editionResult.data ?? []) as Edition[]),
     );
     const editionId = edition?.id ?? null;
     const { client, userId } = await rolloutClientForRequest(publicClient);
-    const [globalFlag, confirmationFlag, scoreboardFlag, accountSettingsFlag] = await Promise.all([
+    const [
+      globalFlag,
+      confirmationFlag,
+      scoreboardFlag,
+      accountSettingsFlag,
+      notificationsFlag,
+    ] = await Promise.all([
       client.rpc("studio2_feature_enabled", {
         p_key: "solaris_app_v3",
         p_edition_id: editionId,
@@ -106,18 +116,13 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
         p_key: "solaris_app_v3_account_settings",
         p_edition_id: editionId,
       }),
+      client.rpc("studio2_feature_enabled", {
+        p_key: "solaris_app_v3_notifications",
+        p_edition_id: editionId,
+      }),
     ]);
 
-    if (globalFlag.error) {
-      return {
-        enabled: false,
-        confirmationEnabled: false,
-        scoreboardEnabled: false,
-        accountSettingsEnabled: false,
-        editionId,
-        userId,
-      };
-    }
+    if (globalFlag.error) return disabledProbe(editionId, userId);
 
     const enabled = globalFlag.data === true;
     const confirmationEnabled =
@@ -126,23 +131,21 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
       enabled && !scoreboardFlag.error && scoreboardFlag.data === true;
     const accountSettingsEnabled =
       enabled && !accountSettingsFlag.error && accountSettingsFlag.data === true;
+    const notificationsEnabled =
+      accountSettingsEnabled &&
+      !notificationsFlag.error &&
+      notificationsFlag.data === true;
 
     return {
       enabled,
       confirmationEnabled,
       scoreboardEnabled,
       accountSettingsEnabled,
+      notificationsEnabled,
       editionId,
       userId,
     };
   } catch {
-    return {
-      enabled: false,
-      confirmationEnabled: false,
-      scoreboardEnabled: false,
-      accountSettingsEnabled: false,
-      editionId: null,
-      userId: null,
-    };
+    return disabledProbe();
   }
 }
