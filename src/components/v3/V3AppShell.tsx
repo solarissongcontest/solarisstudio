@@ -13,7 +13,7 @@ import type { ReactNode } from "react";
 
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAppAttentionSummary } from "@/lib/app-attention";
-import { publicAreaForPath } from "@/lib/public-navigation";
+import { resolveV3ShellActiveArea } from "@/lib/v3-shell-active-area";
 import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
 import { cn } from "@/lib/utils";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
@@ -74,7 +74,8 @@ export function V3AppShell({
   className,
 }: V3AppShellProps) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const publicArea = activeArea ?? publicAreaForPath(pathname);
+  const searchStr = useRouterState({ select: (state) => state.location.searchStr });
+  const publicArea = activeArea ?? resolveV3ShellActiveArea(pathname, searchStr);
   const attention = useAppAttentionSummary();
   const rollout = useV3RolloutProbe(true);
   const notificationsAvailable =

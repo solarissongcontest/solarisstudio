@@ -1,6 +1,6 @@
 # V3 release stabilization — 13 October 2026
 
-This change implements the first repository-side steps from the V3 status audit.
+These changes continue the repository-side implementation from the V3 status audit.
 It does not certify V3 or establish the current production operating mode.
 
 ## Repository changes
@@ -8,7 +8,7 @@ It does not certify V3 or establish the current production operating mode.
 - Port PR #537's representative PR/main Browser Audit selection onto current
   main, preserving local Supabase isolation, Organizer preflight, explicit
   exhaustive certification and the release-branch exceptions. Published history
-  remains unchanged. This is a local implementation, not a GitHub merge.
+  remains unchanged. This shipped through merged PR #537.
 - Authenticate the push dispatcher, then read the canonical platform-mode
   singleton with the service role before VAPID setup, Organizer reconciliation,
   enqueue, queue leasing or delivery. Read-only and maintenance return HTTP 200
@@ -125,11 +125,34 @@ service-role path is intentional. Cross-check the existing permission inventory.
 Inspect leaked-password protection in Supabase Auth settings; SQL policy metadata
 cannot establish that setting. Review `pg_net` consumers before any relocation.
 
-## Next implementation gate
+## Follow-up implementation and deployment
 
-Complete production synchronization, protected recovery and exact-head CI before
-the next production cutover. Entry/Media then needs immutable submitted versions,
-exact review binding, revision-safe drafts, receipt/idempotency/reconciliation and
-authorized upload continuity, following Confirmation's existing authority pattern.
-Jury, Televote, Results, Me, Organizer and Live remain separate production cutovers.
-Do not merge stale stacked projection PRs or retire legacy routes before parity.
+- Media recovery (#540) reuses the same upload authorization across ambiguous
+  Storage/finalization responses and coalesces mounted-form retries. Deploy the
+  updated `solaris-upload-finalize` Edge Function separately. This does not yet
+  provide reload, cross-device, or lost-prepare-response recovery.
+- Results (#541) integrates the production `/results` route with canonical ranks,
+  publication-controlled splits and shared spoiler preferences. Apply
+  `20261013200000_v3_results_cutover.sql` in migration order; it creates a disabled
+  `solaris_app_v3_results` flag and preserves existing flag values. Keep it disabled
+  until the intended edition/user cohort and production deployment are reviewed.
+- Televote (#542) only confirms a ballot after a successful server response with
+  a submission ID. Duplicate identity/device/network errors remain errors, and a
+  missing server acceptance timestamp remains null. Exact-ballot reconciliation
+  after a lost response remains unfinished.
+- The V3 shell consumes canonical route hierarchy and search context for active
+  tabs. Explicit surface-owned active-area overrides remain supported.
+
+The operator reported applying the earlier Delegation, Search and Rules migrations;
+that report does not establish the newer Results migration or Edge deployments.
+Use the bounded inspection above to verify the actual production migration head.
+
+## Remaining production cutovers
+
+Entry still needs immutable submitted versions, exact review binding,
+revision-safe drafts and receipt/idempotency/reconciliation through the existing
+server authority. Media recovery is a partial implementation of that workflow.
+Jury, the complete Televote recovery protocol, Me, Organizer and Live remain
+separate production cutovers. Complete protected operating-mode recovery and
+exact-head CI for each cutover. Do not merge stale stacked projection PRs or retire
+legacy routes before parity and exhaustive V3 certification.
