@@ -55,8 +55,11 @@ export async function buildTelevotingClientIdentity() {
 
 export function markTelevotingRoundSubmitted(
   roundId: string,
-  receipt: { submissionId?: string | null; acknowledgedAt?: string | null } = {},
+  receipt: { submissionId: string; acknowledgedAt?: string | null },
 ) {
+  if (!receipt.submissionId.trim()) {
+    throw new Error("A server submission id is required to confirm a ballot");
+  }
   try {
     const raw = localStorage.getItem(SUBMITTED_KEY);
     const rounds: string[] = raw ? JSON.parse(raw) : [];
@@ -66,14 +69,14 @@ export function markTelevotingRoundSubmitted(
     // Database-level duplicate checks remain authoritative.
   }
 
-  // This function is only called after the server has accepted the ballot or
-  // confirmed it was already recorded. The receipt event drives the shared
+  // This function is only called after the server has accepted the ballot.
+  // The receipt event drives the shared
   // pending → confirmed UI without weakening any database-side protection.
   const governance = captureGovernanceSnapshot("televote.vote");
   dispatchSubmissionReceipt(TELEVOTE_SUBMITTED_EVENT, roundId, {
     kind: "televote",
-    submissionId: receipt.submissionId ?? null,
-    acknowledgedAt: receipt.acknowledgedAt ?? new Date().toISOString(),
+    submissionId: receipt.submissionId,
+    acknowledgedAt: receipt.acknowledgedAt ?? null,
     governance,
   });
   return governance;
