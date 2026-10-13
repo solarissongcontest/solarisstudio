@@ -310,6 +310,17 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
       description:
         "Reversible installed-app Rules landing and contextual workflow guidance over the canonical versioned rulebook, with full rule detail, search, chapter and governance tooling remaining canonically owned by the existing Rules domain.",
     },
+    solaris_app_v3_next_in_line: {
+      key: "solaris_app_v3_next_in_line",
+      label: "Solaris App V3 · Next in Line",
+      state: "integrated",
+      audience: "public",
+      route: "/next-in-line",
+      surfaceLabel: "Next in Line V3",
+      dependsOn: ["solaris_app_v3"],
+      description:
+        "Reversible installed-app focused-task chrome for the canonical Next in Line competition, preserving existing window, eligibility, duplicate-check and submission authority with legacy public-web fallback.",
+    },
   };
 
 export const STUDIO2_PRODUCT_SURFACE_LIST = Object.values(STUDIO2_PRODUCT_SURFACES);
