@@ -14,6 +14,8 @@ const migration = () =>
 const notificationsMigration = () =>
   readRoot("supabase/migrations/20261013120000_v3_notifications_rollout_flag.sql");
 const probe = () => read("integrations/v3/rollout-probe.server.ts");
+const probeFunctions = () => read("lib/v3-rollout-probe.functions.ts");
+const primaryRuntime = () => read("lib/v3-primary-runtime.ts");
 const source = () => read("integrations/v3/edition-source.server.ts");
 const functions = () => read("lib/v3-edition.functions.ts");
 const runtime = () => read("lib/v3-edition-runtime.ts");
@@ -42,6 +44,23 @@ describe("V3 Edition production cutover", () => {
     expect(gate()).toContain("rollout.data?.editionHubEnabled === true");
     expect(gate()).toContain("bundleQuery.isError");
     expect(gate()).toContain("return <>{legacy}</>");
+  });
+
+  it("evaluates Edition rollout against the edition resolved from the requested route slug", () => {
+    const server = probe();
+    const targetedStart = server.indexOf("export async function loadV3EditionRolloutProbe");
+    const targeted = server.slice(targetedStart);
+
+    expect(targetedStart).toBeGreaterThan(0);
+    expect(targeted).toContain("const cleanSlug = slug.trim()");
+    expect(targeted).toContain('.select("id")');
+    expect(targeted).toContain('.eq("slug", cleanSlug)');
+    expect(targeted).toContain('.eq("published", true)');
+    expect(targeted).toContain("return evaluateV3Rollout(publicClient, String(editionResult.data.id))");
+    expect(probeFunctions()).toContain("loadV3EditionRolloutProbe(data.slug)");
+    expect(primaryRuntime()).toContain('["v3-edition-rollout-probe", normalizedSlug]');
+    expect(gate()).toContain("useV3EditionRolloutProbe(");
+    expect(gate()).not.toContain("useV3RolloutProbe(platformResolved && isAppMode)");
   });
 
   it("keeps public web legacy and prevents the legacy archive graph from mounting under V3", () => {
