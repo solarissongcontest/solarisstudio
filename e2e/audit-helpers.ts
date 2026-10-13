@@ -152,7 +152,7 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
       timeout: 15_000,
     });
     await expect(
-      page.locator("[data-v3-primary-boot]"),
+      page.locator("[data-v3-primary-boot], [data-v3-explore-boot], [data-v3-edition-boot], [data-v3-confirmation-route-boot], [data-v3-account-settings-route-boot], [data-v3-notifications-route-boot]"),
       `${path} must finish the V3 hydration gate before interaction auditing`,
     ).toHaveCount(0, { timeout: 15_000 });
 
