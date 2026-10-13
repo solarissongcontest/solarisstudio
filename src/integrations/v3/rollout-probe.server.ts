@@ -25,6 +25,7 @@ type RolloutClient = {
 export type V3RolloutProbe = {
   enabled: boolean;
   confirmationEnabled: boolean;
+  scoreboardEnabled: boolean;
   editionId: string | null;
   userId: string | null;
 };
@@ -58,8 +59,8 @@ async function rolloutClientForRequest(publicClient: RolloutClient) {
  * This intentionally runs before the heavier V3 Home/Participate bootstrap so
  * disabled production users do not pay for a second data graph. The persisted
  * Studio 2 flags remain the sole rollout authority; errors resolve to disabled.
- * Critical workflows have an additional slice flag so the shell can remain on
- * while a single workflow is rolled back independently.
+ * Migrated surfaces have independent slice flags so the V3 shell can remain on
+ * while one surface is rolled back without affecting the others.
  */
 export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
   try {
@@ -75,6 +76,7 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
       return {
         enabled: false,
         confirmationEnabled: false,
+        scoreboardEnabled: false,
         editionId: null,
         userId: null,
       };
@@ -85,7 +87,7 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
     );
     const editionId = edition?.id ?? null;
     const { client, userId } = await rolloutClientForRequest(publicClient);
-    const [globalFlag, confirmationFlag] = await Promise.all([
+    const [globalFlag, confirmationFlag, scoreboardFlag] = await Promise.all([
       client.rpc("studio2_feature_enabled", {
         p_key: "solaris_app_v3",
         p_edition_id: editionId,
@@ -94,21 +96,34 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
         p_key: "solaris_app_v3_confirmation",
         p_edition_id: editionId,
       }),
+      client.rpc("studio2_feature_enabled", {
+        p_key: "solaris_app_v3_scoreboard",
+        p_edition_id: editionId,
+      }),
     ]);
 
     if (globalFlag.error) {
-      return { enabled: false, confirmationEnabled: false, editionId, userId };
+      return {
+        enabled: false,
+        confirmationEnabled: false,
+        scoreboardEnabled: false,
+        editionId,
+        userId,
+      };
     }
 
     const enabled = globalFlag.data === true;
     const confirmationEnabled =
       enabled && !confirmationFlag.error && confirmationFlag.data === true;
+    const scoreboardEnabled =
+      enabled && !scoreboardFlag.error && scoreboardFlag.data === true;
 
-    return { enabled, confirmationEnabled, editionId, userId };
+    return { enabled, confirmationEnabled, scoreboardEnabled, editionId, userId };
   } catch {
     return {
       enabled: false,
       confirmationEnabled: false,
+      scoreboardEnabled: false,
       editionId: null,
       userId: null,
     };
