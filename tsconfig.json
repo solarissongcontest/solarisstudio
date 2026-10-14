@@ -5,6 +5,7 @@
     "docs/v3/**/*.ts",
     "scripts/check-v3-capability-registry.ts",
     "scripts/check-v3-capability-report.ts",
+    "scripts/check-v3-navigation-search-contracts.ts",
     "vite.config.ts",
     "eslint.config.js"
   ],
