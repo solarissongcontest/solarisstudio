@@ -62,7 +62,7 @@ const lines = [
   `- System domains: **${V3_SYSTEM_DOMAIN_REGISTRY.length}**`,
   `- Required System concepts with owners: **${V3_REQUIRED_SYSTEM_CONCEPTS.length}**`,
   `- Domains with verified physical Supabase tables: **${Object.keys(V3_VERIFIED_DOMAIN_TABLES).length}**`,
-  `- System domains still pending physical store/RPC audit: **${pendingSystem.length}**`,
+  `- System domains still pending physical table ownership audit: **${pendingSystem.length}**`,
   "",
   "## Public migration state",
   "",
@@ -142,9 +142,9 @@ const lines = [
   "",
   "## System physical ownership",
   "",
-  `Read-only schema evidence: **${escapeCell(V3_SYSTEM_PHYSICAL_AUDIT_SOURCE.projectId)}**, inspected **${escapeCell(V3_SYSTEM_PHYSICAL_AUDIT_SOURCE.inspectedAt)}** via ${escapeCell(V3_SYSTEM_PHYSICAL_AUDIT_SOURCE.method)}.`,
+  `Read-only table/schema evidence: **${escapeCell(V3_SYSTEM_PHYSICAL_AUDIT_SOURCE.projectId)}**, inspected **${escapeCell(V3_SYSTEM_PHYSICAL_AUDIT_SOURCE.inspectedAt)}** via ${escapeCell(V3_SYSTEM_PHYSICAL_AUDIT_SOURCE.method)}.`,
   "",
-  "| Domain | Audit status | Primary physical tables |",
+  "| Domain | Table-audit status | Primary physical tables |",
   "| --- | --- | --- |",
   ...[...V3_SYSTEM_DOMAIN_REGISTRY]
     .sort((a, b) => a.domain.localeCompare(b.domain))
@@ -153,11 +153,11 @@ const lines = [
         `| ${escapeCell(domain.domain)} | ${escapeCell(domain.physicalAuditStatus)} | ${escapeCell(domain.primaryTables.join(", ") || "pending")} |`,
     ),
   "",
-  "## System physical-audit backlog",
+  "## System physical-table audit backlog",
   "",
   pendingSystem.length
-    ? "These domains have a canonical logical owner but their physical Supabase tables/RPCs are not yet certified in S1:"
-    : "No System domain remains pending physical audit.",
+    ? "These domains have a canonical logical owner but their physical Supabase table ownership is not yet certified in S1:"
+    : "No System domain remains pending physical table ownership audit.",
   "",
   ...pendingSystem.map(
     (domain) =>
@@ -166,7 +166,7 @@ const lines = [
   "",
   "## Release interpretation",
   "",
-  "A green registry guard means the currently scanned discovery sources are mapped and there are no known route/API/flag/Search/notification/System ownership orphans. It does **not** mean every capability has reached parity, every RPC/security boundary has been audited, or Solaris V3 is release-certified.",
+  "A green registry guard means the currently scanned discovery sources are mapped and there are no known route/API/flag/Search/notification/System ownership orphans. It does **not** mean every capability has reached parity, every RPC/command/security boundary has been physically audited, or Solaris V3 is release-certified.",
   "",
 ].join("\n");
 
