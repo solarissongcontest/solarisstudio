@@ -31,3 +31,19 @@ describe("mounted Televote retry continuity", () => {
     }
   });
 });
+
+it("the production point editor cannot alter an in-flight ballot", () => {
+  const text = readFileSync("src/components/televoting/TelevotingBooth.tsx", "utf8");
+  const source = ts.createSourceFile("booth.tsx", text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let adjust: ts.FunctionDeclaration | undefined;
+  function visit(node: ts.Node) { if (ts.isFunctionDeclaration(node) && node.name?.text === "adjust") adjust = node; ts.forEachChild(node, visit); }
+  visit(source);
+  if (!adjust) throw new Error("Point editor missing");
+  const code = ts.transpileModule(adjust.getText(source), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  for (const pending of ["preflightMutation", "submitMutation", "attestationMutation"]) {
+    let changed = false;
+    const state = { preflightMutation: { isPending: pending === "preflightMutation" }, submitMutation: { isPending: pending === "submitMutation" }, attestationMutation: { isPending: pending === "attestationMutation" }, clearIntegrityState: () => { changed = true; }, setPoints: () => { changed = true; } };
+    runInNewContext(code + '\nadjust("A", 1);', state);
+    expect(changed).toBe(false);
+  }
+});

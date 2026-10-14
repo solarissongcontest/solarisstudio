@@ -383,6 +383,7 @@ export function TelevotingBooth({
   }
 
   function adjust(entryKey: string, delta: number) {
+    if (preflightMutation.isPending || submitMutation.isPending || attestationMutation.isPending) return;
     clearIntegrityState();
     setPoints((previous) => {
       const current = previous[entryKey] ?? 0;
@@ -484,7 +485,7 @@ export function TelevotingBooth({
         ) : null}
 
         <div className="grid gap-2 sm:grid-cols-2">
-          <Button variant="outline" className="min-h-12" onClick={returnToBallot}><ArrowLeft className="size-4" /> Review my votes</Button>
+          <Button variant="outline" className="min-h-12" onClick={returnToBallot} disabled={attestationMutation.isPending || submitMutation.isPending}><ArrowLeft className="size-4" /> Review my votes</Button>
           <Button className="min-h-12" onClick={submitPendingReviewedBallot} disabled={submitMutation.isPending}>
             <ShieldCheck className="size-4" /> {submitMutation.isPending ? "Submitting…" : "My ballot is correct"}
           </Button>
@@ -523,7 +524,7 @@ export function TelevotingBooth({
               </p>
               {provisional ? <p className="mt-3 rounded-xl border border-red-200/20 bg-red-950/20 p-3 text-xs leading-5">Because this case also contains unusually strong current-round coordination evidence, the ballot will be recorded for organizer integrity review rather than automatically rejected.</p> : null}
             </div>
-            <Button type="button" variant="outline" onClick={returnToBallot}><ArrowLeft className="size-4" /> Change my votes</Button>
+            <Button type="button" variant="outline" onClick={returnToBallot} disabled={attestationMutation.isPending || submitMutation.isPending}><ArrowLeft className="size-4" /> Change my votes</Button>
           </div>
         </div>
 
@@ -640,9 +641,9 @@ export function TelevotingBooth({
                 <div className="min-w-0"><p className="truncate font-medium">{entry.display_name}</p><p className="mt-1 truncate text-xs text-muted-foreground">{entry.display_code}{entry.subtitle ? ` · ${entry.subtitle}` : ""}{ownEntry ? " · your entry" : ""}</p></div>
               </div>
               <div className="flex items-center justify-end gap-2">
-                <Button type="button" size="sm" variant="outline" disabled={ownEntry || value <= 0} onClick={() => adjust(entry.entry_key, -1)}><Minus className="size-3.5" /></Button>
+                <Button type="button" size="sm" variant="outline" disabled={checking || ownEntry || value <= 0} onClick={() => adjust(entry.entry_key, -1)}><Minus className="size-3.5" /></Button>
                 <span className="w-8 text-center text-xl font-medium tabular-nums">{value}</span>
-                <Button type="button" size="sm" variant="outline" disabled={ownEntry || value >= MAX_PER_ENTRY || remaining <= 0} onClick={() => adjust(entry.entry_key, 1)}><Plus className="size-3.5" /></Button>
+                <Button type="button" size="sm" variant="outline" disabled={checking || ownEntry || value >= MAX_PER_ENTRY || remaining <= 0} onClick={() => adjust(entry.entry_key, 1)}><Plus className="size-3.5" /></Button>
               </div>
             </article>
           );
