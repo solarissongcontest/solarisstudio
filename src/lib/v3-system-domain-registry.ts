@@ -1,4 +1,8 @@
 import { SOLARIS_V6_DOMAINS } from "./solaris-v6-domain-registry";
+import {
+  V3_SYSTEM_PHYSICAL_AUDIT_SOURCE,
+  V3_VERIFIED_DOMAIN_TABLES,
+} from "./v3-system-physical-audit";
 
 export type V3RetentionClass =
   | "ephemeral"
@@ -245,10 +249,29 @@ const CROSS_CUTTING_OWNERS: readonly SystemDomainOwner[] = [
   },
 ];
 
-export const V3_SYSTEM_DOMAIN_REGISTRY: readonly SystemDomainOwner[] = [
+const LOGICAL_SYSTEM_DOMAIN_REGISTRY: readonly SystemDomainOwner[] = [
   ...V6_DOMAIN_OWNERS,
   ...CROSS_CUTTING_OWNERS,
 ];
+
+const physicalEvidence = `${V3_SYSTEM_PHYSICAL_AUDIT_SOURCE.method} · ${V3_SYSTEM_PHYSICAL_AUDIT_SOURCE.projectId} · ${V3_SYSTEM_PHYSICAL_AUDIT_SOURCE.inspectedAt}`;
+
+/**
+ * Canonical exported ownership registry. Logical domain ownership is defined
+ * above; verified physical tables are overlaid from the read-only Supabase
+ * inventory so schema evidence cannot drift into a separate forgotten report.
+ */
+export const V3_SYSTEM_DOMAIN_REGISTRY: readonly SystemDomainOwner[] =
+  LOGICAL_SYSTEM_DOMAIN_REGISTRY.map((domain) => {
+    const verifiedTables = V3_VERIFIED_DOMAIN_TABLES[domain.domain];
+    if (!verifiedTables?.length) return domain;
+    return {
+      ...domain,
+      primaryTables: verifiedTables,
+      physicalAuditStatus: "verified",
+      ownershipEvidence: [...domain.ownershipEvidence, physicalEvidence],
+    };
+  });
 
 export const V3_REQUIRED_SYSTEM_CONCEPTS = [
   "identity",
