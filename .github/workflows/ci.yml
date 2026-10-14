@@ -56,6 +56,27 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Generate V3 capability report
+        run: bun run report:v3-registry > v3-capability-report.md
+
+      - name: Enforce V3 capability and system registries
+        run: bun run certify:v3-registry
+
+      - name: Enforce V3 non-route discovery registries
+        run: bun run scripts/check-v3-non-route-capabilities.ts
+
+      - name: Enforce System V3 S1 dependency and consequence registries
+        run: bun run scripts/check-v3-system-s1-registries.ts
+
+      - name: Upload V3 capability report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-capability-report
+          path: v3-capability-report.md
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Force fresh route generation
         shell: bash
         run: |
@@ -111,7 +132,7 @@ jobs:
         with:
           name: unit-test-report
           path: unit-test-output.txt
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 1
 
       - name: Lint
@@ -148,12 +169,15 @@ jobs:
             echo
             echo "### Solaris Studio quality run"
             echo
-            echo "- Fresh dependency install: completed"
-            echo "- Fresh TanStack route generation: verified"
-            echo "- Generated route tree: untracked and ignored"
-            echo "- Production build: executed"
-            echo "- Client performance budget: enforced"
-            echo "- TypeScript: executed"
-            echo "- Unit tests: executed and output retained"
-            echo "- Lint: executed as a blocking quality gate"
+            echo "- Fresh dependency install: attempted"
+            echo "- V3 capability report: generated when registry modules loaded successfully"
+            echo "- V3 route/API/capability registry guard: attempted"
+            echo "- V3 search/notification/physical ownership guard: attempted"
+            echo "- System V3 S1 workflow dependency/consequence guard: attempted"
+            echo "- Fresh TanStack route generation: attempted when prior gates passed"
+            echo "- Generated route tree verification: attempted when build ran"
+            echo "- Production build and client budget: attempted when prior gates passed"
+            echo "- TypeScript: attempted when prior gates passed"
+            echo "- Unit tests: attempted when prior gates passed; output retained when produced"
+            echo "- Lint: attempted when prior gates passed"
           } >> "$GITHUB_STEP_SUMMARY"
