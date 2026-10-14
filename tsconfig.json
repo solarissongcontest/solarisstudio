@@ -3,6 +3,7 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "docs/v3/**/*.ts",
+    "scripts/check-v3-capability-registry.ts",
     "vite.config.ts",
     "eslint.config.js"
   ],
