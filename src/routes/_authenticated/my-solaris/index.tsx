@@ -1,3 +1,6 @@
+import { MySolarisProvider } from "@/components/mysolaris/MySolarisContext";
+import { V3MeRoot } from "@/components/v3/V3MeRoot";
+import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { FlagFrame } from "@/components/FlagMedia";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -97,6 +100,21 @@ function payloadCountryId(payload: unknown) {
 }
 
 function MySolarisPage() {
+  const { isAppMode, platformResolved } = useSolarisApp();
+  const search = Route.useSearch();
+  // Preserve every existing tab, deep link and Organizer inspection context.
+  const root = !search.tab && !search.country && !search.notice;
+  const rollout = useV3RolloutProbe(platformResolved && isAppMode && root);
+  if (root && (!platformResolved || (isAppMode && rollout.isLoading))) {
+    return <main className="p-6"><h1>Me</h1><p role="status">Opening your account…</p></main>;
+  }
+  if (root && isAppMode && !rollout.isError && rollout.data?.enabled === true && rollout.data.meEnabled === true && rollout.data.userId) {
+    return <MySolarisProvider editionId={rollout.data.editionId}><V3MeRoot key={rollout.data.userId} viewerId={rollout.data.userId} editionId={rollout.data.editionId} /></MySolarisProvider>;
+  }
+  return <LegacyMySolarisPage />;
+}
+
+function LegacyMySolarisPage() {
   const { isAppMode } = useSolarisApp();
   const now = useNow();
   const { tab: requestedTab, notice } = Route.useSearch();

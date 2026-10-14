@@ -6,8 +6,8 @@ import { getCountryConfirmationAccess } from "@/lib/confirmation-country-account
 import { getPublicRounds, type PublicRound } from "@/lib/confirmation-rounds.functions";
 import { useMyCountryAccount } from "@/lib/country-account";
 import { loadCountryJuryVotingTask } from "@/lib/country-jury-task";
-import { useEditions, type Edition, type Participant } from "@/lib/data";
-import { loadMySolarisParticipant } from "@/lib/my-solaris-data";
+import { useEditions, type Edition } from "@/lib/data";
+import { loadMySolarisParticipant, type MySolarisParticipant } from "@/lib/my-solaris-data";
 import { useFanSession } from "@/lib/prediction-data";
 import { loadStudio2RecipientNoticeInbox } from "@/lib/studio2-recipient-inbox";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
@@ -43,7 +43,7 @@ export type MySolarisContextValue = {
   user: ReturnType<typeof useFanSession>["data"];
   countryAccount: ReturnType<typeof useMyCountryAccount>["data"];
   currentEdition: Edition | null;
-  currentEntry: Participant | null;
+  currentEntry: MySolarisParticipant | null;
   permissions: {
     isOrganizer: boolean;
     canManageCountry: boolean;
@@ -71,17 +71,16 @@ const EMPTY_CAPABILITIES = Object.freeze(
 
 const MySolarisContext = createContext<MySolarisContextValue | null>(null);
 
-export function MySolarisProvider({ children }: { children: ReactNode }) {
+export function MySolarisProvider({ children, editionId }: { children: ReactNode; editionId?: string | null }) {
   const userQuery = useFanSession();
   const countryAccountQuery = useMyCountryAccount();
   const editionsQuery = useEditions();
 
   const currentEdition = useMemo(
-    () =>
-      [...(editionsQuery.data ?? [])].sort(
-        (a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1),
-      )[0] ?? null,
-    [editionsQuery.data],
+    () => editionId !== undefined
+      ? (editionsQuery.data ?? []).find((edition) => edition.id === editionId) ?? null
+      : [...(editionsQuery.data ?? [])].sort((a,b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ?? null,
+    [editionsQuery.data, editionId],
   );
 
   const userId = userQuery.data?.id ?? null;

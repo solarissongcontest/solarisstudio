@@ -217,3 +217,34 @@ expect_json "wrong submission cannot recover receipt" found false
 [[ "$(db_scalar "select count(*) from private.v3_confirmation_account_drafts where round_id='$ROUND_ID'::uuid and country_id='$COUNTRY_A'::uuid;")" == "1" ]] || fail "stale account writer duplicated canonical draft"
 
 log "PASS: V3 Confirmation hostile security rehearsal complete"
+
+
+log "Me activity is server-owned and restricted to the caller's active delegation"
+rpc_request "$ANON_KEY" v3_me_confirmation_summary '{}'
+expect_failure "anonymous Me summary denied"
+rpc_request "$USER_A_TOKEN" v3_me_confirmation_summary '{}'
+expect_success "unbound operation summary"
+expect_json "operation without a canonical submission is not counted" receipt_count 0
+db_exec "insert into public.submissions(id,edition_id,round_id,instagram_username,country,browser_session_id) values ('$SUBMISSION_ID','$EDITION_ID','$ROUND_ID','me_receipt_fixture','V3 Security A','$SESSION_A');"
+rpc_request "$USER_A_TOKEN" v3_me_confirmation_summary '{}'
+expect_success "own delegation summary"
+expect_json "own delegation scope" country_id "$COUNTRY_A"
+expect_json "own summary viewer" viewer_id "$USER_A_ID"
+expect_json "own receipt count" receipt_count 1
+rpc_request "$USER_B_TOKEN" v3_me_confirmation_summary '{}'
+expect_success "other delegation summary"
+expect_json "other delegation scope" country_id "$COUNTRY_B"
+expect_json "other delegation does not count A receipts" receipt_count 0
+# A receipt with a real submission ID but the wrong round is not attributable.
+db_exec "insert into private.v3_confirmation_operations(idempotency_key,request_hash,round_id,browser_session_id,result) values ('00000000-0000-4000-8000-00000000f529','me-scope-mismatch','$OTHER_ROUND_ID','me-fixture',jsonb_build_object('submission_id','$SUBMISSION_ID'));"
+rpc_request "$USER_A_TOKEN" v3_me_confirmation_summary '{}'
+expect_success "receipt round binding"
+expect_json "wrong-round operation excluded" receipt_count 1
+db_exec "update public.country_accounts set status='suspended' where user_id='$USER_A_ID'::uuid;"
+rpc_request "$USER_A_TOKEN" v3_me_confirmation_summary '{}'
+expect_success "suspended summary remains non-enumerating"
+expect_json "suspended summary unavailable" available false
+expect_json "suspended count remains unknown" receipt_count ''
+db_exec "update public.country_accounts set status='active' where user_id='$USER_A_ID'::uuid;"
+db_exec "begin transaction read only; set local role authenticated; select set_config('request.jwt.claims',jsonb_build_object('sub','$USER_A_ID','role','authenticated')::text,true); select public.v3_me_confirmation_summary(); rollback;"
+log "PASS: Me delegation receipt scope and read-only access verified"
