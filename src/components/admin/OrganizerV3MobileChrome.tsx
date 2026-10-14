@@ -65,6 +65,7 @@ export function OrganizerV3MobileChrome() {
     editions.find((edition) => edition.id === editionId) ??
     [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
     null;
+  const navigationScope = activeEdition?.id ?? null;
   const taskCount = useOrganizerTaskCountV5(activeEdition?.id ?? null, tasksSupported);
   const unresolvedTaskCount =
     tasksSupported && !taskCount.isError && typeof taskCount.data === "number"
@@ -76,8 +77,19 @@ export function OrganizerV3MobileChrome() {
       return;
     }
 
-    const restoreY = consumeV3OrganizerNavigationRestore(pathname, searchStr);
-    rememberV3OrganizerLocation(pathname, searchStr, restoreY ?? undefined);
+    const restoreY = consumeV3OrganizerNavigationRestore(
+      pathname,
+      searchStr,
+      undefined,
+      navigationScope,
+    );
+    rememberV3OrganizerLocation(
+      pathname,
+      searchStr,
+      restoreY ?? undefined,
+      undefined,
+      navigationScope,
+    );
     if (restoreY != null) {
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => window.scrollTo({ top: restoreY, behavior: "auto" }));
@@ -87,14 +99,26 @@ export function OrganizerV3MobileChrome() {
     let frame: number | null = null;
     const persistScroll = () => {
       frame = null;
-      updateV3OrganizerScrollPosition(pathname, searchStr, window.scrollY);
+      updateV3OrganizerScrollPosition(
+        pathname,
+        searchStr,
+        window.scrollY,
+        undefined,
+        navigationScope,
+      );
     };
     const onScroll = () => {
       if (frame != null) return;
       frame = window.requestAnimationFrame(persistScroll);
     };
     const onPageHide = () =>
-      updateV3OrganizerScrollPosition(pathname, searchStr, window.scrollY);
+      updateV3OrganizerScrollPosition(
+        pathname,
+        searchStr,
+        window.scrollY,
+        undefined,
+        navigationScope,
+      );
 
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("pagehide", onPageHide);
@@ -102,9 +126,15 @@ export function OrganizerV3MobileChrome() {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("pagehide", onPageHide);
       if (frame != null) window.cancelAnimationFrame(frame);
-      updateV3OrganizerScrollPosition(pathname, searchStr, window.scrollY);
+      updateV3OrganizerScrollPosition(
+        pathname,
+        searchStr,
+        window.scrollY,
+        undefined,
+        navigationScope,
+      );
     };
-  }, [pathname, searchStr]);
+  }, [navigationScope, pathname, searchStr]);
 
   const items = V3_ORGANIZER_TAB_ORDER.map((id): OrganizerV6TabItem => {
     const definition = TAB_DEFINITIONS[id];
@@ -132,9 +162,9 @@ export function OrganizerV3MobileChrome() {
     }
 
     const target = alreadyActive
-      ? resetV3OrganizerTabToRoot(id)
-      : getV3OrganizerTabDestination(id);
-    markV3OrganizerNavigationRestore(target);
+      ? resetV3OrganizerTabToRoot(id, undefined, navigationScope)
+      : getV3OrganizerTabDestination(id, undefined, navigationScope);
+    markV3OrganizerNavigationRestore(target, undefined, navigationScope);
     void runAppViewTransition(alreadyActive ? "pop" : "tab", () =>
       navigate({ to: v3OrganizerEntryHref(target) as any }),
     );
