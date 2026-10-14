@@ -13,7 +13,7 @@ const receipt = { found: true, authority: "authoritative_server", id: "submissio
 function runtime(readResults: unknown[], writeResult: unknown) {
   const reads = [...readResults];
   const read = vi.fn(async () => reads.shift() ?? { data: { found: false }, error: null });
-  const write = vi.fn(async () => writeResult);
+  const write = vi.fn(async (_name: string, _args: Record<string, unknown>) => writeResult);
   const schema = vi.fn(() => ({ rpc: read }));
   const rate = vi.fn();
   const exports: { submit?: (data: typeof input) => Promise<unknown> } = {};
