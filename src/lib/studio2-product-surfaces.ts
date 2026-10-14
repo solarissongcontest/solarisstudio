@@ -178,7 +178,7 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
   },
   solaris_app_v3_jury: {
     key: "solaris_app_v3_jury", label: "Solaris App V3 · Jury", state: "integrated", audience: "delegation",
-    route: "/jury-voting", surfaceLabel: "Jury V3", dependsOn: ["solaris_app_v3"],
+    route: "/participate", surfaceLabel: "Jury V3", dependsOn: ["solaris_app_v3"],
     description: "Reversible official Jury reliability layer with revision-safe server drafts, idempotent canonical submission, uncertainty recovery and authoritative receipts.",
   },
 };

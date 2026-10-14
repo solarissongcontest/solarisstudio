@@ -6,6 +6,7 @@ const migration = readFileSync(
   "utf8",
 );
 const boundary = readFileSync("src/lib/v3-jury.functions.ts", "utf8");
+const server = readFileSync("src/integrations/v3/jury-actions.server.ts", "utf8");
 const route = readFileSync("src/routes/jury-voting.tsx", "utf8");
 const rollout = readFileSync("src/integrations/v3/rollout-probe.server.ts", "utf8");
 const flagMigration = readFileSync(
@@ -81,22 +82,24 @@ describe("V3 Jury reliability foundation", () => {
   });
 
   it("keeps participant writes behind an authenticated server boundary", () => {
-    expect(boundary).toContain("getSolarisAccessTokenServer");
-    expect(boundary).toContain("createSolarisAuthenticatedClientServer");
-    expect(boundary).toContain('client.auth.getUser(token)');
-    expect(boundary).toContain('authenticatedRpc("v3_save_jury_draft"');
-    expect(boundary).toContain('authenticatedRpc("v3_submit_jury_ballot"');
-    expect(boundary).toContain('authenticatedRpc("v3_reconcile_jury_submission"');
-    expect(boundary).toContain('authenticatedRpc("v3_jury_receipt"');
-    expect(boundary).not.toContain("supabaseAdmin");
-    expect(boundary).not.toContain('.from("jury_votes")');
+    expect(server).toContain("getSolarisAccessTokenServer");
+    expect(server).toContain("createSolarisAuthenticatedClientServer");
+    expect(server).toContain('client.auth.getUser(token)');
+    expect(server).toContain('authenticatedRpc("v3_save_jury_draft"');
+    expect(server).toContain('authenticatedRpc("v3_submit_jury_ballot"');
+    expect(server).toContain('authenticatedRpc("v3_reconcile_jury_submission"');
+    expect(server).toContain('authenticatedRpc("v3_jury_receipt"');
+    expect(server).not.toContain("supabaseAdmin");
+    expect(server).not.toContain('.from("jury_votes")');
+    expect(boundary).toContain('await import(\n      "@/integrations/v3/jury-actions.server"');
+    expect(boundary).not.toContain("integrations/supabase");
   });
 
   it("does not trust a caller-selected request hash or malformed receipt", () => {
-    expect(boundary).toContain("_request_hash: null");
-    expect(boundary).toContain('receipt.authority !== "authoritative_server"');
-    expect(boundary).toContain("Number.isSafeInteger(stateVersion)");
-    expect(boundary).toContain("normalizeReceipt(result.receipt)");
+    expect(server).toContain("_request_hash: null");
+    expect(server).toContain('receipt.authority !== "authoritative_server"');
+    expect(server).toContain("Number.isSafeInteger(stateVersion)");
+    expect(server).toContain("normalizeReceipt(result.receipt)");
   });
 
   it("submits through the V3 command and reconciles an ambiguous response", () => {
