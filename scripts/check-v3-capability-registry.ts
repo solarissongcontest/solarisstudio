@@ -111,6 +111,10 @@ const INFRASTRUCTURE_ROUTE_PATTERNS = [
   "/robots.txt",
 ] as const;
 
+// Exact source-route exemptions only. Never replace this with /admin/* pattern
+// matching: that would hide future Organizer capabilities from the registry guard.
+const EXACT_SOURCE_INFRASTRUCTURE_ROUTES = new Set(["/admin/*"]);
+
 function isInfrastructureRoute(route: string) {
   return matchesAnyPattern(route, INFRASTRUCTURE_ROUTE_PATTERNS, true);
 }
@@ -175,7 +179,7 @@ function validateRegistryShape() {
 function validateRouteInventory() {
   const discovered = routeIdsFromSource();
   for (const { route, file } of discovered) {
-    if (isInfrastructureRoute(route)) continue;
+    if (EXACT_SOURCE_INFRASTRUCTURE_ROUTES.has(route) || isInfrastructureRoute(route)) continue;
     if (isOrganizerRoute(route)) {
       if (!organizerRouteCovered(route, true)) {
         fail("organizer-route", `${route} (${file}) has no Organizer V3 capability classification`);
