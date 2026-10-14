@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const flags = readFileSync("src/lib/feature-flags.ts", "utf8");
+const surfaces = readFileSync("src/lib/studio2-product-surfaces.ts", "utf8");
 const rollout = readFileSync("src/integrations/v3/rollout-probe.server.ts", "utf8");
 const shell = readFileSync("src/components/admin/AdminShell.tsx", "utf8");
 const mobile = readFileSync("src/components/admin/OrganizerV3MobileChrome.tsx", "utf8");
@@ -13,8 +14,11 @@ const migration = readFileSync(
 );
 
 describe("V3 Organizer reversible cutover", () => {
-  it("persists an Organizer-only flag that starts disabled", () => {
+  it("persists an Organizer-only flag that starts disabled and registers the rollout surface", () => {
     expect(flags).toContain("'solaris_app_v3_organizer'");
+    expect(surfaces).toContain("solaris_app_v3_organizer: {");
+    expect(surfaces).toContain('audience: "organizer"');
+    expect(surfaces).toContain('route: "/admin/operations"');
     expect(migration).toContain("'solaris_app_v3_organizer'");
     expect(migration).toMatch(/'solaris_app_v3_organizer',\s*false,\s*true/);
   });
