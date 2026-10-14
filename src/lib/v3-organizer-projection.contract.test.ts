@@ -7,10 +7,11 @@ describe("V3 Organizer projection authority", () => {
   const server = source("src/lib/v3-organizer-projection.server.ts");
   const fn = source("src/lib/v3-organizer-projection.functions.ts");
 
-  it("requires authenticated Organizer and edition capability checks", () => {
-    expect(server).toContain("requireSolarisOrganizerServer()");
+  it("uses the authoritative edition-scoped capability context", () => {
     expect(server).toContain('requireSolarisCapabilityServer("edition.read", editionId)');
+    expect(server).toContain("actorId: capability.userId");
     expect(server).toContain("createSolarisAuthenticatedClientServer()");
+    expect(server).not.toContain("requireSolarisOrganizerServer");
     expect(server).not.toContain("supabaseAdmin");
   });
 
