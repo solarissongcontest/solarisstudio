@@ -296,6 +296,11 @@ expect_json "new revision appended" versions.0.revision 2
 expect_json "parent version preserved" versions.0.parent_version_id "$VERSION_ONE"
 expect_json "original content preserved" versions.1.content.song_title "Original song"
 expect_json "original review preserved" versions.1.reviews.0.decision accepted
+db_exec "update public.country_accounts set status='suspended' where user_id='$USER_A_ID';"
+rpc_request "$USER_A_TOKEN" v3_confirmation_entry_versions "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\"}"
+expect_failure "suspended delegation cannot read Entry history"
+db_exec "update public.country_accounts set status='active' where user_id='$USER_A_ID';"
+
 rpc_request "$USER_B_TOKEN" studio2_apply_confirmation_entry_review "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\",\"p_target_status\":\"accepted\",\"p_reason\":\"Stale review\",\"p_operation_id\":\"00000000-0000-4000-8000-00000000f535\",\"p_idempotency_key\":\"v3-entry-rehearsal-stale\",\"p_expected_version\":$EXPECTED_VERSION}"
 expect_failure "old preview cannot approve edited content"
 # A metadata-only update must neither create a version nor forge review evidence.
@@ -304,7 +309,7 @@ db_exec "update public.internal_entries set reviewed_version_id='$VERSION_ONE',c
 # Restoring old content still appends a new version and needs another review.
 db_exec "update public.internal_entries set song_title='Original song',song_url='https://example.invalid/original' where id='$ENTRY_ID';"
 [[ "$(db_scalar "select content_revision || ':' || review_status from public.internal_entries where id='$ENTRY_ID';")" == "3:pending" ]] || fail "restored content reused old approval"
-db_exec "insert into public.national_finals(id,submission_id,nf_name) values ('$NF_ID','$SUBMISSION_ID','Version final');"
+db_exec "insert into public.national_finals(id,submission_id,nf_name,country_id,edition_id) values ('$NF_ID','$SUBMISSION_ID','Version final','$COUNTRY_A','$EDITION_ID');"
 db_exec "insert into public.national_final_entries(id,national_final_id,artist,song_title,review_status) values ('$NF_ENTRY_ID','$NF_ID','Final artist','Final song','accepted');"
 expect_db_failure "unbound accepted status is not winner evidence" "update public.national_finals set winning_entry_id='$NF_ENTRY_ID' where id='$NF_ID';"
 # Trusted fixture review uses the same row trigger as the canonical reviewed update.
@@ -314,4 +319,11 @@ expect_db_failure "selected winner content cannot change" "update public.nationa
 db_exec "update public.national_finals set winning_entry_id=null where id='$NF_ID'; update public.national_final_entries set song_title='Unreviewed winner' where id='$NF_ENTRY_ID';"
 expect_db_failure "old winner review cannot select edited version" "update public.national_finals set winning_entry_id='$NF_ENTRY_ID' where id='$NF_ID';"
 db_exec "begin transaction read only; set local role authenticated; select set_config('request.jwt.claims',jsonb_build_object('sub','$USER_A_ID','role','authenticated')::text,true); select public.v3_confirmation_entry_versions('internal','$ENTRY_ID'); rollback;"
+db_exec "insert into public.editions(id,name,slug,edition_number,status,published) values ('00000000-0000-4000-8000-00000000f538','Other Entry edition','other-entry-edition',9538,'draft',false);"
+expect_db_failure "versioned submission cannot move editions" "update public.submissions set edition_id='00000000-0000-4000-8000-00000000f538' where id='$SUBMISSION_ID';"
+expect_db_failure "versioned National Final cannot become unowned" "update public.national_finals set submission_id=null where id='$NF_ID';"
+db_exec "insert into public.national_finals(id,nf_name,country_id,edition_id) values ('00000000-0000-4000-8000-00000000f536','Historical unowned final','$COUNTRY_A','$EDITION_ID');"
+expect_db_failure "versioned candidate cannot escape into historical workflow" "update public.national_final_entries set national_final_id='00000000-0000-4000-8000-00000000f536' where id='$NF_ENTRY_ID';"
+# Unowned historical finals still permit their existing accepted/winner workflow.
+db_exec "insert into public.national_final_entries(id,national_final_id,artist,song_title,review_status) values ('00000000-0000-4000-8000-00000000f537','00000000-0000-4000-8000-00000000f536','Historical artist','Historical song','accepted'); update public.national_finals set winning_entry_id='00000000-0000-4000-8000-00000000f537' where id='00000000-0000-4000-8000-00000000f536';"
 log "PASS: immutable Entry versions, exact reviews, stale preview and winner protection"

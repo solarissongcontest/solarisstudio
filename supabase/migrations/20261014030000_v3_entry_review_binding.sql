@@ -94,7 +94,16 @@ declare
   content_snapshot jsonb := private.v3_entry_content(to_jsonb(new));
   changed boolean;
 begin
-  if target='internal' then submission_uuid:=new.submission_id;
+  if tg_op='UPDATE' then
+    if old.current_version_id is not null and (
+      new.id is distinct from old.id
+      or to_jsonb(new)->'submission_id' is distinct from to_jsonb(old)->'submission_id'
+      or to_jsonb(new)->'national_final_id' is distinct from to_jsonb(old)->'national_final_id'
+    ) then
+      raise exception 'Versioned entries cannot change their Confirmation ownership' using errcode='22023';
+    end if;
+  end if;
+  if target='internal'  then submission_uuid:=new.submission_id;
   else select nf.submission_id into submission_uuid from public.national_finals nf where nf.id=(to_jsonb(new)->>'national_final_id')::uuid;
   end if;
   -- Historical national finals without Confirmation ownership keep their own workflow.
@@ -104,14 +113,10 @@ begin
   end if;
   select s.edition_id into edition_uuid from public.submissions s where s.id=submission_uuid;
   if tg_op='UPDATE' then
-    if new.id is distinct from old.id or (target='internal' and to_jsonb(new)->'submission_id' is distinct from to_jsonb(old)->'submission_id')
-       or (target='national_final' and to_jsonb(new)->'national_final_id' is distinct from to_jsonb(old)->'national_final_id') then
-      raise exception 'Versioned entries cannot change their Confirmation ownership' using errcode='22023';
-    end if;
     new.current_version_id:=old.current_version_id;
     new.content_revision:=old.content_revision;
     new.reviewed_version_id:=old.reviewed_version_id;
-    changed:=content_snapshot is distinct from private.v3_entry_content(to_jsonb(old));
+    changed:=old.current_version_id is null or content_snapshot is distinct from private.v3_entry_content(to_jsonb(old));
   else
     changed:=true; new.content_revision:=0; new.current_version_id:=null; new.reviewed_version_id:=null;
   end if;
@@ -151,6 +156,32 @@ create trigger v3_bind_internal_entry before insert or update on public.internal
 for each row execute function private.v3_bind_confirmation_entry_version();
 create trigger v3_bind_nf_entry before insert or update on public.national_final_entries
 for each row execute function private.v3_bind_confirmation_entry_version();
+
+-- Moving the parent must not silently re-scope a previously reviewed version.
+create function private.v3_guard_entry_parent_scope()
+returns trigger language plpgsql security definer set search_path = pg_catalog, public, private as $$
+begin
+  if tg_table_name='submissions' then
+    if new.edition_id is distinct from old.edition_id and exists (
+      select 1 from private.v3_entry_versions v where v.submission_id=old.id
+    ) then
+      raise exception 'Versioned Confirmation submissions cannot change edition' using errcode='22023';
+    end if;
+  else
+    if new.submission_id is distinct from old.submission_id and exists (
+      select 1 from public.national_final_entries i where i.national_final_id=old.id and i.current_version_id is not null
+    ) then
+      raise exception 'Versioned National Finals cannot change Confirmation ownership' using errcode='22023';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+revoke all on function private.v3_guard_entry_parent_scope() from public,anon,authenticated;
+create trigger v3_guard_entry_submission_scope before update of edition_id on public.submissions
+for each row execute function private.v3_guard_entry_parent_scope();
+create trigger v3_guard_entry_nf_scope before update of submission_id on public.national_finals
+for each row execute function private.v3_guard_entry_parent_scope();
 
 create function private.v3_guard_exact_reviewed_winner()
 returns trigger language plpgsql security definer set search_path = pg_catalog, public, private as $$

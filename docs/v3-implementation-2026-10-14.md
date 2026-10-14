@@ -67,7 +67,8 @@ replacement video requirements/URL. Running order, result position and
 next-in-line selection remain separate operations. Revisions are contiguous for
 a canonical entry identity; restoring old content through the existing editor
 creates another revision and requires another review. A replacement canonical
-row starts a new entry identity, while the old evidence is retained privately.
+row starts a new entry identity, while the old evidence is retained privately. Versioned entry/parent identities
+cannot be moved to another Confirmation or edition to reuse old review evidence.
 
 The existing capability-checked, idempotent review operation remains the writer.
 It locks the entry before checking the submission review revision, refreshes its
