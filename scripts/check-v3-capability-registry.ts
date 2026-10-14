@@ -8,12 +8,12 @@ import {
   V3_ORGANIZER_CLASSIFICATION_BY_ID,
   V3_ORGANIZER_DISCOVERED_IDS,
   V3_ORGANIZER_FEATURE_FLAGS,
-} from "../src/lib/v3-organizer-capability-registry";
-import {
-  V3_PUBLIC_CAPABILITY_REGISTRY,
+  V3_ORGANIZER_NON_CAPABILITY_ROUTES,
+  V3_ORGANIZER_ROUTE_OWNERSHIP,
+  V3_PUBLIC_CAPABILITIES,
   V3_PUBLIC_FEATURE_FLAGS,
   V3_PUBLIC_SOURCE_SURFACE_IDS,
-} from "../src/lib/v3-public-capability-registry";
+} from "../src/lib/v3-capability-registry";
 import {
   V3_REQUIRED_SYSTEM_CONCEPTS,
   V3_SYSTEM_CONCEPT_OWNER,
@@ -75,18 +75,30 @@ function normalizeDynamicSegments(route: string) {
   return route.replace(/\$[A-Za-z][A-Za-z0-9_]*/g, ":param");
 }
 
+function normalizedPattern(pattern: string) {
+  return pattern.replace(/:[A-Za-z][A-Za-z0-9_]*/g, ":param");
+}
+
 function organizerOwned(route: string) {
+  if (V3_ORGANIZER_NON_CAPABILITY_ROUTES.has(route)) return true;
   const normalized = normalizeDynamicSegments(route);
-  return V3_ORGANIZER_CAPABILITY_REGISTRY.some((item) =>
-    item.legacyRoutes.some((pattern) => routeMatches(pattern.replace(/:[A-Za-z][A-Za-z0-9_]*/g, ":param"), normalized)),
+  if (
+    V3_ORGANIZER_CAPABILITY_REGISTRY.some((item) =>
+      item.legacyRoutes.some((pattern) => routeMatches(normalizedPattern(pattern), normalized)),
+    )
+  ) {
+    return true;
+  }
+  return V3_ORGANIZER_ROUTE_OWNERSHIP.some((alias) =>
+    routeMatches(normalizedPattern(alias.routePattern), normalized),
   );
 }
 
 function publicOwned(route: string) {
   const normalized = normalizeDynamicSegments(route);
-  return V3_PUBLIC_CAPABILITY_REGISTRY.some((item) =>
+  return V3_PUBLIC_CAPABILITIES.some((item) =>
     [...item.legacyRoutes, item.targetRoute].some((pattern) =>
-      routeMatches(pattern.replace(/:[A-Za-z][A-Za-z0-9_]*/g, ":param"), normalized),
+      routeMatches(normalizedPattern(pattern), normalized),
     ),
   );
 }
@@ -122,6 +134,15 @@ if (organizerRegistryDiff.missing.length || organizerRegistryDiff.extra.length) 
     "organizer-registry",
     `Organizer registry drift. missing=${organizerRegistryDiff.missing.join(",") || "none"} extra=${organizerRegistryDiff.extra.join(",") || "none"}`,
   );
+}
+
+for (const alias of V3_ORGANIZER_ROUTE_OWNERSHIP) {
+  if (!V3_ORGANIZER_DISCOVERED_IDS.has(alias.ownerLegacyId)) {
+    fail(
+      "organizer-route-ownership",
+      `${alias.routePattern} points at unknown Organizer capability ${alias.ownerLegacyId}`,
+    );
+  }
 }
 
 const expectedV3Flags = SOLARIS_FEATURE_FLAGS.filter((flag) => flag.startsWith("solaris_app_v3"));
@@ -164,8 +185,8 @@ for (const file of routeFiles) {
   if (!route) continue;
 
   // Development-only diagnostics are not product capabilities. API routes are
-  // deliberately reported separately until the API ownership sub-registry is
-  // completed; they are not silently treated as Public UI capabilities.
+  // inventoried in the next S1 sub-slice; they are deliberately excluded here
+  // rather than being mislabeled as UI capabilities.
   if (route.startsWith("/dev/")) continue;
   if (route.startsWith("/api/")) continue;
 
@@ -192,7 +213,7 @@ if (failures.length) {
 console.log(
   [
     "V3 capability registry guard passed",
-    `public=${V3_PUBLIC_CAPABILITY_REGISTRY.length}`,
+    `public=${V3_PUBLIC_CAPABILITIES.length}`,
     `organizer=${V3_ORGANIZER_CAPABILITY_REGISTRY.length}`,
     `systemDomains=${V3_SYSTEM_DOMAIN_REGISTRY.length}`,
     `systemConcepts=${V3_REQUIRED_SYSTEM_CONCEPTS.length}`,
