@@ -316,6 +316,9 @@ function EntryReviewCard({
           p_operation_id: command.operationId,
           p_idempotency_key: command.idempotencyKey,
           p_expected_version: preview.expectedVersion,
+          ...(entry.current_version_id
+            ? { p_expected_entry_version: entry.current_version_id }
+            : {}),
         },
       );
       if (rpcError) throw rpcError;
@@ -697,6 +700,14 @@ function ResponseDetailPage() {
         p_operation_id: command.operationId,
         p_idempotency_key: command.idempotencyKey,
         p_expected_version: preview.expectedVersion,
+        ...(action === "select" &&
+        data.national_final.entries.find((entry) => entry.id === entryId)?.current_version_id
+          ? {
+              p_expected_entry_version: data.national_final.entries.find(
+                (entry) => entry.id === entryId,
+              )!.current_version_id,
+            }
+          : {}),
       },
     );
     if (rpcError) throw rpcError;

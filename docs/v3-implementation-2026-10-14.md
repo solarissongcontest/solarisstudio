@@ -108,3 +108,14 @@ retained. INSERT evidence is recorded after the canonical row exists so an
 UPSERT conflict cannot create a phantom version for its discarded insert row.
 Authority rehearsals also exercise these paths and the real historical NF
 restore wrapper, including a repeated same-content restore.
+
+The review and winner-select RPCs now require the displayed content version in
+addition to the shared review revision. Their defaulted eighth parameter keeps
+legacy RPC lookup resolvable, but missing/stale version identity fails closed.
+The app sends it only when the server exposes version metadata, so deploying
+the app first still supports the older database. After migration, older cached
+clients must reload the updated app before reviewing; winner clear remains
+available without a content-version argument. Restoration now uses a private,
+case/whitespace-normalized matcher for candidate identity; the old canonical
+restore wrapper referenced a missing public helper. Positive NF restoration and
+rejection of later moderation removals are exercised through that real wrapper.

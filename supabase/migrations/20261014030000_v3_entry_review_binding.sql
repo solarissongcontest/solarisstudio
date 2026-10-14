@@ -369,6 +369,7 @@ revoke all on function private.studio2_confirmation_review_context(text, uuid)
   from public, anon, authenticated;
 
 
+drop function public.studio2_apply_confirmation_entry_review(text, uuid, text, text, uuid, text, bigint);
 create or replace function public.studio2_apply_confirmation_entry_review(
   p_target_type text,
   p_entry_id uuid,
@@ -376,7 +377,8 @@ create or replace function public.studio2_apply_confirmation_entry_review(
   p_reason text,
   p_operation_id uuid,
   p_idempotency_key text,
-  p_expected_version bigint
+  p_expected_version bigint,
+  p_expected_entry_version uuid default null
 )
 returns jsonb
 language plpgsql
@@ -414,6 +416,9 @@ begin
     perform 1 from public.national_final_entries where id=p_entry_id for update;
   end if;
   v_context := private.studio2_confirmation_review_context(v_target_type, p_entry_id);
+  if (v_context->>'currentVersionId')::uuid is distinct from p_expected_entry_version then
+    raise exception 'The displayed entry version is required and must still be current. Reload this response before reviewing.' using errcode='40001';
+  end if;
 
   select version
   into v_current_version
@@ -518,10 +523,10 @@ end
 $apply$;
 
 revoke all on function public.studio2_apply_confirmation_entry_review(
-  text, uuid, text, text, uuid, text, bigint
+  text, uuid, text, text, uuid, text, bigint, uuid
 ) from public, anon;
 grant execute on function public.studio2_apply_confirmation_entry_review(
-  text, uuid, text, text, uuid, text, bigint
+  text, uuid, text, text, uuid, text, bigint, uuid
 ) to authenticated, service_role;
 
 
@@ -880,6 +885,7 @@ grant execute on function public.studio2_confirmation_winner_change_preview(uuid
   to authenticated, service_role;
 
 
+drop function public.studio2_apply_confirmation_winner_change(uuid, text, uuid, text, uuid, text, bigint);
 create or replace function public.studio2_apply_confirmation_winner_change(
   p_national_final_id uuid,
   p_action text,
@@ -887,7 +893,8 @@ create or replace function public.studio2_apply_confirmation_winner_change(
   p_reason text,
   p_operation_id uuid,
   p_idempotency_key text,
-  p_expected_version bigint
+  p_expected_version bigint,
+  p_expected_entry_version uuid default null
 )
 returns jsonb
 language plpgsql
@@ -929,6 +936,12 @@ begin
   perform 1 from public.national_final_entries
   where id=case when v_action='select' then p_entry_id else v_nf.winning_entry_id end
   for update;
+  if v_action='select' then
+    select * into v_entry from public.national_final_entries where id=p_entry_id;
+    if v_entry.current_version_id is distinct from p_expected_entry_version then
+      raise exception 'The displayed winner candidate version is required and must still be current. Reload this response before selecting it.' using errcode='40001';
+    end if;
+  end if;
 
   select version
   into v_current_version
@@ -1033,17 +1046,17 @@ end
 $winner_apply$;
 
 revoke all on function public.studio2_apply_confirmation_winner_change(
-  uuid, text, uuid, text, uuid, text, bigint
+  uuid, text, uuid, text, uuid, text, bigint, uuid
 ) from public, anon;
 grant execute on function public.studio2_apply_confirmation_winner_change(
-  uuid, text, uuid, text, uuid, text, bigint
+  uuid, text, uuid, text, uuid, text, bigint, uuid
 ) to authenticated, service_role;
 
 
 
 create function private.v3_normalize_confirmation_entry_text(value text)
 returns text language sql immutable set search_path = pg_catalog as $$
-  select lower(regexp_replace(btrim(coalesce(value,'')), '[[:space:]]+', ' ', 'g'));
+  select lower(btrim(regexp_replace(coalesce(value,''), '[[:space:]]+', ' ', 'g')));
 $$;
 revoke all on function private.v3_normalize_confirmation_entry_text(text) from public,anon,authenticated,service_role;
 

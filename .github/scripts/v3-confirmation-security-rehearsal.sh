@@ -281,7 +281,7 @@ rpc_request "$USER_B_TOKEN" studio2_confirmation_entry_review_preview "{\"p_targ
 expect_success "versioned review preview"
 expect_json "preview binds displayed content" currentVersionId "$VERSION_ONE"
 EXPECTED_VERSION="$(printf '%s' "$HTTP_BODY" | json_value expectedVersion)"
-rpc_request "$USER_B_TOKEN" studio2_apply_confirmation_entry_review "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\",\"p_target_status\":\"accepted\",\"p_reason\":\"Reviewed original version\",\"p_operation_id\":\"00000000-0000-4000-8000-00000000f534\",\"p_idempotency_key\":\"v3-entry-rehearsal-review\",\"p_expected_version\":$EXPECTED_VERSION}"
+rpc_request "$USER_B_TOKEN" studio2_apply_confirmation_entry_review "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\",\"p_target_status\":\"accepted\",\"p_reason\":\"Reviewed original version\",\"p_operation_id\":\"00000000-0000-4000-8000-00000000f534\",\"p_idempotency_key\":\"v3-entry-rehearsal-review\",\"p_expected_version\":$EXPECTED_VERSION,\"p_expected_entry_version\":\"$VERSION_ONE\"}"
 expect_success "canonical review operation"
 [[ "$(db_scalar "select reviewed_version_id from public.internal_entries where id='$ENTRY_ID';")" == "$VERSION_ONE" ]] || fail "review not bound to exact original version"
 [[ "$(db_scalar "select reviewed_version_id from public.submission_review_history where target_entry_id='$ENTRY_ID' order by created_at desc limit 1;")" == "$VERSION_ONE" ]] || fail "review history lost exact version"
@@ -300,12 +300,19 @@ expect_json "new revision appended" versions.0.revision 2
 expect_json "parent version preserved" versions.0.parent_version_id "$VERSION_ONE"
 expect_json "original content preserved" versions.1.content.song_title "Original song"
 expect_json "original review preserved" versions.1.reviews.0.decision accepted
+CURRENT_REVIEW_VERSION="$(db_scalar "select version from public.studio2_confirmation_review_versions where submission_id='$SUBMISSION_ID';")"
+rpc_request "$USER_B_TOKEN" studio2_apply_confirmation_entry_review "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\",\"p_target_status\":\"accepted\",\"p_reason\":\"Fresh revision but wrong displayed content\",\"p_operation_id\":\"00000000-0000-4000-8000-00000000f53a\",\"p_idempotency_key\":\"v3-unseen-entry-rehearsal\",\"p_expected_version\":$CURRENT_REVIEW_VERSION,\"p_expected_entry_version\":\"$VERSION_ONE\"}"
+expect_failure "fresh CAS does not authorize approval of a different displayed version"
+rpc_request "$USER_B_TOKEN" studio2_apply_confirmation_entry_review "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\",\"p_target_status\":\"accepted\",\"p_reason\":\"Missing displayed content\",\"p_operation_id\":\"00000000-0000-4000-8000-00000000f53a\",\"p_idempotency_key\":\"v3-unseen-entry-rehearsal\",\"p_expected_version\":$CURRENT_REVIEW_VERSION}"
+expect_failure "older caller without displayed version cannot approve fresh content"
+
+
 db_exec "update public.country_accounts set status='suspended' where user_id='$USER_A_ID';"
 rpc_request "$USER_A_TOKEN" v3_confirmation_entry_versions "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\"}"
 expect_failure "suspended delegation cannot read Entry history"
 db_exec "update public.country_accounts set status='active' where user_id='$USER_A_ID';"
 
-rpc_request "$USER_B_TOKEN" studio2_apply_confirmation_entry_review "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\",\"p_target_status\":\"accepted\",\"p_reason\":\"Stale review\",\"p_operation_id\":\"00000000-0000-4000-8000-00000000f535\",\"p_idempotency_key\":\"v3-entry-rehearsal-stale\",\"p_expected_version\":$EXPECTED_VERSION}"
+rpc_request "$USER_B_TOKEN" studio2_apply_confirmation_entry_review "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\",\"p_target_status\":\"accepted\",\"p_reason\":\"Stale review\",\"p_operation_id\":\"00000000-0000-4000-8000-00000000f535\",\"p_idempotency_key\":\"v3-entry-rehearsal-stale\",\"p_expected_version\":$EXPECTED_VERSION,\"p_expected_entry_version\":\"$VERSION_ONE\"}"
 expect_failure "old preview cannot approve edited content"
 # A metadata-only update must neither create a version nor forge review evidence.
 db_exec "update public.internal_entries set reviewed_version_id='$VERSION_ONE',current_version_id='$VERSION_ONE',content_revision=999 where id='$ENTRY_ID';"
