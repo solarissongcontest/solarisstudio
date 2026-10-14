@@ -52,6 +52,11 @@ describe("Organisation OS V5 operation contract", () => {
     expect(command.idempotencyKey).toBe("stable-key");
     expect(command.expectedVersion).toBe(4);
     expect(command.riskClass).toBe("R2");
+    expect(command.commandId).toBeTruthy();
+    expect(command.correlationId).toBe(command.operationId);
+    expect(command.subjectType).toBe("entity");
+    expect(command.subjectId).toBe("example");
+    expect(command).not.toHaveProperty("actorId");
   });
 
   it("stores successful command receipts without storing request payloads", () => {
@@ -72,7 +77,9 @@ describe("Organisation OS V5 operation contract", () => {
     const route = source("src/routes/_authenticated/admin/community-moderation.tsx");
     expect(route).toContain('const MODERATION_RISK = "R2"');
     expect(route).toContain("requiresImpactPreview(MODERATION_RISK)");
-    expect(route).toContain("Predictions, scores, percentiles and historical competitive data remain unchanged.");
+    expect(route).toContain(
+      "Predictions, scores, percentiles and historical competitive data remain unchanged.",
+    );
     expect(route).toContain("p_operation_id");
     expect(route).toContain("p_idempotency_key");
   });
