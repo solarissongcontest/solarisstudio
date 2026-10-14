@@ -309,6 +309,21 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await expect(resultRoot).toHaveCount(0);
     await page.setViewportSize({ width: 1440, height: 1000 });
 
+    await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_me", true);
+    await page.goto("/my-solaris", { waitUntil: "domcontentloaded" });
+    const meRoot = page.locator("[data-v3-me-root]");
+    await expect(meRoot).toBeVisible();
+    await expect(meRoot.getByRole("heading", { name: "Identity", exact: true })).toBeVisible();
+    await expect(meRoot.getByRole("heading", { name: "History", exact: true })).toBeVisible();
+    await expect(meRoot).toContainText("Delegation history is unavailable");
+    await expect(meRoot.getByRole("link", { name: /Switch to Organizer/ })).toBeVisible();
+    await expect(meRoot).not.toContainText("Private archive artist");
+    await page.goto("/my-solaris?tab=account", { waitUntil: "domcontentloaded" });
+    await expect(meRoot).toHaveCount(0);
+    await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_me", false);
+    await page.goto("/my-solaris", { waitUntil: "domcontentloaded" });
+    await expect(meRoot).toHaveCount(0);
+
     // Re-scope only the Edition Hub flag to a non-current published edition. The
     // route-specific server probe must resolve ssc21 to this canonical ID. The
     // old current-edition probe would incorrectly disable this archive route.
@@ -332,6 +347,7 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await expect(page.locator(".edition-public-page")).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Explore Browser Audit Edition" })).toHaveCount(0);
   } finally {
+    await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_me", false);
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_results", false);
     await setV3FeatureForLocalUser(
       url!,
