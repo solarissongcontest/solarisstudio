@@ -11,7 +11,7 @@ import { resolveOrganizerV6Screen } from "@/lib/organizer-v6-screen-registry";
 import { useScrollMorphProgress } from "@/lib/use-scroll-morph-progress";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { AdminCommandPalette } from "./AdminCommandPalette";
-import { AdminContextProvider } from "./AdminContext";
+import { AdminContextProvider, useAdminContext } from "./AdminContext";
 import { AdminFeatureBoundary } from "./AdminFeatureBoundary";
 import { AdminFrame } from "./AdminFrame";
 import { AdminHealthStrip } from "./AdminHealthStrip";
@@ -117,18 +117,37 @@ export function AdminShell({
         </header>
 
         <div className="relative z-10">
-          <AdminFrame>
-            {showJuryWindowControl ? (
-              <AdminFeatureBoundary name="jury-voting-window">
-                <JuryVotingWindowControl />
-              </AdminFeatureBoundary>
-            ) : null}
+          <AdminEditionScopedWorkspace showJuryWindowControl={showJuryWindowControl}>
             {children}
-          </AdminFrame>
+          </AdminEditionScopedWorkspace>
           {organizerV3Enabled ? <OrganizerV3MobileChrome /> : <OrganizerV6MobileChrome />}
         </div>
       </div>
     </AdminContextProvider>
+  );
+}
+
+function AdminEditionScopedWorkspace({
+  children,
+  showJuryWindowControl,
+}: {
+  children: ReactNode;
+  showJuryWindowControl: boolean;
+}) {
+  const { editionId } = useAdminContext();
+  const scope = editionId || "unscoped";
+
+  return (
+    <div key={scope} data-organizer-edition-scope={scope}>
+      <AdminFrame>
+        {showJuryWindowControl ? (
+          <AdminFeatureBoundary name="jury-voting-window">
+            <JuryVotingWindowControl />
+          </AdminFeatureBoundary>
+        ) : null}
+        {children}
+      </AdminFrame>
+    </div>
   );
 }
 
