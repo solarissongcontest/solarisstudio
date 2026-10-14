@@ -20,10 +20,10 @@ const live: ControlRoomModel = {
   subsystems: {
     confirmations: "closed",
     submissions: "open",
-    jury: "closed",
+    juryVoting: "closed",
     televoting: "closed",
-    results: "hidden",
-    publication: "hidden",
+    results: "not_started",
+    predictions: "open",
   },
   currentSegment: null,
   nextSegment: null,
