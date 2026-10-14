@@ -2,18 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
   ArrowRight,
-  Bell,
   CheckCircle2,
-  ClipboardCheck,
   Clock3,
-  Eye,
-  Layers3,
-  RadioTower,
+  History,
   ShieldAlert,
   Trophy,
-  Vote,
 } from "lucide-react";
-import { useMemo } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
@@ -22,336 +16,270 @@ import {
   AdminCardHeader,
   AdminEmptyState,
   AdminPageHeader,
+  AdminProgress,
   AdminStatus,
 } from "@/components/admin/AdminUI";
-import { useAdminNotifications, useMarkNotificationRead } from "@/lib/admin-ops";
-import { useAdminOperationalSchedule } from "@/lib/admin-schedule";
-import { editionLabel, useEditions } from "@/lib/data";
-import type { OrganizerTaskV5 } from "@/lib/admin-tasks-v5";
+import type {
+  V3OrganizerAttentionItem,
+  V3OrganizerDomainSummary,
+  V3OrganizerReadinessFactor,
+} from "@/lib/v3-organizer-projection";
 import { useV3OrganizerProjection } from "@/lib/v3-organizer-projection.query";
 
 export const Route = createFileRoute("/_authenticated/admin/operations")({
   head: () => ({
     meta: [
-      { title: "Home — Solaris Organizer" },
+      { title: "Overview — Solaris Organizer" },
       { name: "robots", content: "noindex" },
       {
         name: "description",
         content:
-          "See what needs attention, what is coming up and the state of the current Solaris edition.",
+          "See the current Solaris edition context, highest-priority work, next operation and explainable readiness.",
       },
     ],
   }),
-  component: OrganizerHome,
+  component: OrganizerOverview,
 });
 
-function OrganizerHome() {
+function OrganizerOverview() {
   const { editionId } = useAdminContext();
-  const { data: editions = [] } = useEditions();
-
-  const activeEdition = useMemo(() => {
-    const ordered = [...editions].sort(
-      (a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1),
-    );
-    return ordered.find((edition) => edition.id === editionId) ?? ordered[0] ?? null;
-  }, [editions, editionId]);
-
-  const projectionQuery = useV3OrganizerProjection(activeEdition?.id);
+  const projectionQuery = useV3OrganizerProjection(editionId || null);
   const projection = projectionQuery.data ?? null;
-  const { data: schedule = [], isError: scheduleError } = useAdminOperationalSchedule(
-    activeEdition?.id ?? null,
-    activeEdition?.slug ?? null,
-  );
-  const { data: notifications = [] } = useAdminNotifications();
-  const markRead = useMarkNotificationRead();
-
-  const upcoming = schedule.find((item) => new Date(item.at).getTime() >= Date.now()) ?? null;
-  const unread = notifications.filter((item) => !item.read_at);
-  const unresolvedInbox = notifications.filter((item) => item.requires_action && !item.resolved_at);
-  const topTasks = projection?.tasks.top ?? [];
 
   return (
     <AdminPage>
       <div className="mx-auto max-w-5xl">
         <AdminPageHeader
-          eyebrow="Home"
+          eyebrow="Overview"
           title="Solaris Organizer"
-          description="What needs attention, what is coming up and where to continue. Everything else stays out of the way until you need it."
+          description="Current scope, what needs intervention, what happens next and why the edition is or is not ready."
         />
 
-        {!activeEdition ? (
+        {!editionId ? (
           <AdminCard>
             <AdminEmptyState
               icon={Trophy}
-              title="No current edition"
-              description="Choose or create an edition before starting contest operations."
-              action={
-                <Link to="/admin" className="admin-action-primary">
-                  Manage editions
-                </Link>
-              }
+              title="Choose an edition"
+              description="Select the edition in the Organizer toolbar. Overview never invents an edition scope on its own."
             />
+          </AdminCard>
+        ) : projectionQuery.isLoading ? (
+          <AdminCard>
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Building the authoritative Organizer projection…
+            </p>
+          </AdminCard>
+        ) : projectionQuery.error || !projection ? (
+          <AdminCard>
+            <div className="flex items-start gap-3 rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-4">
+              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-100" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">Organizer state unavailable</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {projectionQuery.error instanceof Error
+                    ? projectionQuery.error.message
+                    : "Solaris could not verify the current edition projection."}
+                </p>
+              </div>
+            </div>
           </AdminCard>
         ) : (
           <>
-            <div className="grid gap-4 lg:grid-cols-[1.25fr_.75fr]">
+            <section
+              className="mb-4 flex flex-col gap-3 rounded-2xl border border-sky-200/10 bg-sky-200/[0.035] p-4 sm:flex-row sm:items-center sm:justify-between"
+              data-organizer-context-lock=""
+              aria-label="Current Organizer context"
+            >
+              <div className="min-w-0">
+                <p className="admin-section-label">Current context</p>
+                <h2 className="mt-1 truncate text-lg font-bold tracking-[-.025em] text-foreground">
+                  {projection.context.editionLabel}
+                  {projection.context.showLabel ? ` · ${projection.context.showLabel}` : ""}
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {projection.edition.name} · state {humanize(projection.live.editionState)}
+                </p>
+              </div>
+              <AdminStatus
+                tone={
+                  projection.risk === "critical"
+                    ? "blocked"
+                    : projection.risk === "elevated"
+                      ? "attention"
+                      : "ready"
+                }
+              >
+                {projection.risk === "critical"
+                  ? "Critical attention"
+                  : projection.risk === "elevated"
+                    ? "Needs attention"
+                    : "On track"}
+              </AdminStatus>
+            </section>
+
+            <section className="grid gap-4 lg:grid-cols-[1.25fr_.75fr]" aria-label="Current priorities">
               <AdminCard strong>
                 <AdminCardHeader
-                  eyebrow="Do now"
+                  eyebrow="Needs attention"
                   title={
-                    projectionQuery.isLoading
-                      ? "Evaluating authoritative work…"
-                      : projectionQuery.error
-                        ? "Organizer state unavailable"
-                        : projection?.tasks.total
-                          ? `${projection.tasks.total} ${projection.tasks.total === 1 ? "task needs" : "tasks need"} attention`
-                          : "No unresolved Organizer tasks"
+                    projection.attention.length
+                      ? `${projection.tasks.total} ${projection.tasks.total === 1 ? "item needs" : "items need"} attention`
+                      : "No organizer action required"
                   }
-                  description="This queue is projected from canonical domain state. Reading a notification never resolves the underlying work."
+                  description={
+                    projection.attention.length
+                      ? "Only the highest-priority unresolved canonical conditions are shown here."
+                      : "Solaris currently has no unresolved Organizer Task for this edition."
+                  }
                   action={
                     <Link
                       to="/admin/tasks"
                       search={{ filter: "all" }}
                       className="text-xs font-semibold text-sky-100"
                     >
-                      Tasks →
+                      All tasks →
                     </Link>
                   }
                 />
 
-                {projectionQuery.isLoading ? (
-                  <p className="py-6 text-center text-sm text-muted-foreground">
-                    Evaluating canonical Organizer task and live state…
-                  </p>
-                ) : projectionQuery.error ? (
-                  <div className="rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-4">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-100" />
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">Solaris could not verify Organizer state</p>
-                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                          {projectionQuery.error instanceof Error
-                            ? projectionQuery.error.message
-                            : "The canonical Organizer projection is temporarily unavailable."}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : topTasks.length ? (
+                {projection.attention.length ? (
                   <div className="divide-y divide-white/[0.07]">
-                    {topTasks.map((task) => (
-                      <TaskLink key={task.id} task={task} />
+                    {projection.attention.map((item) => (
+                      <AttentionLink key={item.id} item={item} />
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-emerald-200/10 bg-emerald-200/[0.045] p-4">
-                    <div className="flex items-start gap-3">
-                      <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-200" />
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        The canonical Organizer Task Engine currently reports no unresolved work for this edition.
+                  <div className="flex items-start gap-3 rounded-xl border border-emerald-200/10 bg-emerald-200/[0.045] p-4">
+                    <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-200" />
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Nothing is asking for intervention</p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        Normal state stays quiet. The next scheduled operation is shown beside this card.
                       </p>
                     </div>
                   </div>
                 )}
-
-                {projection && projection.tasks.total > topTasks.length ? (
-                  <Link
-                    to="/admin/tasks"
-                    search={{ filter: "all" }}
-                    className="admin-action-secondary mt-3"
-                  >
-                    Review all {projection.tasks.total} tasks <ArrowRight className="size-4" />
-                  </Link>
-                ) : null}
               </AdminCard>
 
-              <div className="space-y-4">
-                <AdminCard>
-                  <AdminCardHeader
-                    eyebrow="Notifications"
-                    title={
-                      unresolvedInbox.length
-                        ? `${unresolvedInbox.length} need attention`
-                        : "All caught up"
-                    }
-                    description={
-                      unread.length
-                        ? `${unread.length} unseen · unresolved work stays here after it is read.`
-                        : "Complaints, appeals, beta feedback and connected administrative events."
-                    }
-                    action={
-                      <Link to="/admin/inbox" className="text-xs font-semibold text-sky-100">
-                        Open notifications →
-                      </Link>
-                    }
-                  />
-                  {unresolvedInbox.length ? (
-                    <div className="divide-y divide-white/[0.07]">
-                      {unresolvedInbox.slice(0, 3).map((item) =>
-                        item.href ? (
-                          <Link
-                            key={item.id}
-                            to={item.href as any}
-                            onClick={() => markRead.mutate(item.id)}
-                            className="admin-list-row"
-                          >
-                            <Bell className="size-4 shrink-0 text-sky-100" />
-                            <span className="min-w-0 flex-1">
-                              <span className="block text-sm font-semibold text-foreground">
-                                {item.title}
-                              </span>
-                              {item.body ? (
-                                <span className="mt-1 block line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                                  {item.body}
-                                </span>
-                              ) : null}
-                            </span>
-                            <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
-                          </Link>
-                        ) : (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => markRead.mutate(item.id)}
-                            className="admin-list-row w-full text-left"
-                          >
-                            <Bell className="size-4 shrink-0 text-sky-100" />
-                            <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
-                              {item.title}
-                            </span>
-                          </button>
-                        ),
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No unresolved notification items.
-                    </p>
-                  )}
-                </AdminCard>
+              <AdminCard>
+                <AdminCardHeader
+                  eyebrow="Next"
+                  title={projection.upcoming[0]?.label ?? "Nothing scheduled"}
+                  description={
+                    projection.upcoming[0]
+                      ? `${projection.upcoming[0].detail} · ${new Date(projection.upcoming[0].at).toLocaleString()}`
+                      : "No future operational deadline is currently projected."
+                  }
+                />
+                {projection.upcoming[0] ? (
+                  <Link
+                    to={projection.upcoming[0].route as any}
+                    className="admin-action-secondary w-full"
+                  >
+                    <Clock3 className="size-4" />
+                    Open next operation
+                  </Link>
+                ) : (
+                  <Link to="/admin/tasks" search={{ filter: "all" }} className="admin-action-secondary w-full">
+                    <Clock3 className="size-4" />
+                    Review task queue
+                  </Link>
+                )}
+              </AdminCard>
+            </section>
 
-                <AdminCard>
-                  <AdminCardHeader
-                    eyebrow="Upcoming"
-                    title={
-                      scheduleError
-                        ? "Schedule unavailable"
-                        : (upcoming?.label ?? "Nothing scheduled")
-                    }
-                    description={
-                      scheduleError
-                        ? "Solaris could not verify the operational schedule."
-                        : upcoming
-                          ? `${upcoming.detail} · ${new Date(upcoming.at).toLocaleString()}`
-                          : "There are no upcoming workflow dates for this edition."
-                    }
+            <section className="mt-4" aria-label="Edition readiness">
+              <AdminCard>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="admin-section-label">Readiness</p>
+                    <h2 className="mt-1 text-2xl font-bold tracking-[-.035em]">
+                      {projection.readiness.overall}%
+                    </h2>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      Deterministic edition health, calculated by server rules at {new Date(projection.readiness.calculatedAt).toLocaleTimeString()}.
+                    </p>
+                  </div>
+                  <div className="min-w-44">
+                    <AdminProgress value={projection.readiness.overall} />
+                    <p className="mt-2 text-[10px] text-muted-foreground">
+                      State {projection.readiness.stateVersion}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <ReadinessGroup
+                    title="Blocking"
+                    items={projection.readiness.blocking}
+                    empty="No blocking readiness factor"
+                    tone="blocked"
                   />
-                  {upcoming && !upcoming.href ? (
-                    <span
-                      aria-disabled="true"
-                      title="Select an edition first"
-                      className="admin-action-secondary w-full cursor-not-allowed opacity-55"
-                    >
-                      <Clock3 className="size-4" />
-                      Select an edition first
-                    </span>
-                  ) : (
-                    <Link
-                      to={(upcoming?.href ?? "/admin/system") as any}
-                      className="admin-action-secondary w-full"
-                    >
-                      <Clock3 className="size-4" />
-                      {upcoming
-                        ? upcoming.source === "reminder"
-                          ? "Open reminder"
-                          : "Open workflow"
-                        : "Open schedule"}
+                  <ReadinessGroup
+                    title="Incomplete"
+                    items={projection.readiness.incomplete}
+                    empty="No incomplete readiness factor"
+                    tone="attention"
+                  />
+                  <ReadinessGroup
+                    title="Ready"
+                    items={projection.readiness.ready}
+                    empty="No verified ready factor"
+                    tone="ready"
+                  />
+                </div>
+              </AdminCard>
+            </section>
+
+            <section className="mt-4 grid gap-4 lg:grid-cols-[.8fr_1.2fr]" aria-label="Recent changes and domains">
+              <AdminCard>
+                <AdminCardHeader
+                  eyebrow="Recent changes"
+                  title={projection.recentChanges.length ? "Meaningful organizer history" : "No recent recorded changes"}
+                  description="Recent authoritative audit activity for this edition."
+                  action={
+                    <Link to="/admin/more" className="text-xs font-semibold text-sky-100">
+                      Audit & tools →
                     </Link>
-                  )}
-                </AdminCard>
-              </div>
-            </div>
+                  }
+                />
+                {projection.recentChanges.length ? (
+                  <div className="divide-y divide-white/[0.07]">
+                    {projection.recentChanges.slice(0, 5).map((change) => (
+                      <div key={change.id} className="flex items-start gap-3 py-3">
+                        <History className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-foreground">{humanize(change.action)}</p>
+                          <p className="mt-1 truncate text-xs text-muted-foreground">{change.subject}</p>
+                        </div>
+                        <time className="shrink-0 text-[10px] text-muted-foreground">
+                          {new Date(change.createdAt).toLocaleString()}
+                        </time>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No edition-scoped audit event is available in this projection.</p>
+                )}
+              </AdminCard>
 
-            <AdminCard className="mt-4">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <p className="admin-section-label">Current edition</p>
-                  <h2 className="mt-1 text-xl font-bold tracking-[-.03em]">
-                    {editionLabel(activeEdition)}
-                  </h2>
-                  <p className="mt-1 text-xs text-muted-foreground">{activeEdition.name}</p>
-                  {projection ? (
-                    <p className="mt-2 text-[11px] text-muted-foreground">
-                      {humanize(projection.live.editionState)} · live health {projection.live.overallHealth}
-                    </p>
-                  ) : null}
+              <AdminCard>
+                <AdminCardHeader
+                  eyebrow="Domains"
+                  title="Operational state"
+                  description="Quiet summaries stay quiet; problems link directly to the domain that owns them."
+                />
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {Object.entries(projection.domains).map(([key, domain]) => (
+                    <DomainCard key={key} domain={domain} />
+                  ))}
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {projection ? (
-                    <>
-                      <span className="rounded-full border border-white/[0.08] px-3 py-1.5 text-[10px] text-muted-foreground">
-                        {projection.tasks.critical} critical
-                      </span>
-                      <span className="rounded-full border border-white/[0.08] px-3 py-1.5 text-[10px] text-muted-foreground">
-                        {projection.tasks.high} high
-                      </span>
-                      <AdminStatus
-                        tone={
-                          projection.risk === "critical"
-                            ? "blocked"
-                            : projection.risk === "elevated"
-                              ? "attention"
-                              : "ready"
-                        }
-                      >
-                        {projection.risk === "critical"
-                          ? "Critical attention"
-                          : projection.risk === "elevated"
-                            ? "Needs attention"
-                            : "Operationally clear"}
-                      </AdminStatus>
-                    </>
-                  ) : (
-                    <AdminStatus tone="neutral">
-                      {projectionQuery.isLoading ? "Checking" : "Unavailable"}
-                    </AdminStatus>
-                  )}
-                </div>
-              </div>
+              </AdminCard>
+            </section>
 
-              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
-                <QuickLink
-                  to="/admin/countries"
-                  icon={ClipboardCheck}
-                  label="Delegations"
-                  detail="Confirmations, countries & access"
-                />
-                <QuickLink
-                  to={`/admin/shows/${activeEdition.slug}`}
-                  icon={Layers3}
-                  label="Contest"
-                  detail="Shows, entries & running order"
-                />
-                <QuickLink
-                  to="/televoting/admin"
-                  icon={Vote}
-                  label="Voting & results"
-                  detail="Jury, televote & official results"
-                />
-                <QuickLink
-                  to="/admin/control-room"
-                  icon={RadioTower}
-                  label="Live"
-                  detail="Operations, incidents & rundown"
-                />
-                <QuickLink
-                  to={`/admin/publication/${activeEdition.slug}`}
-                  icon={Eye}
-                  label="Publish"
-                  detail="Release, comms & design"
-                />
-              </div>
-            </AdminCard>
+            <p className="mt-4 text-[10px] text-muted-foreground">
+              Authoritative refresh {new Date(projection.serverTime).toLocaleString()} · projection {projection.stateVersion}
+            </p>
           </>
         )}
       </div>
@@ -359,10 +287,10 @@ function OrganizerHome() {
   );
 }
 
-function TaskLink({ task }: { task: OrganizerTaskV5 }) {
-  const critical = task.priority === "critical";
+function AttentionLink({ item }: { item: V3OrganizerAttentionItem }) {
+  const critical = item.severity === "critical";
   return (
-    <Link to={task.href as any} className="admin-list-row group">
+    <Link to={item.route as any} className="admin-list-row group">
       <span
         className={`grid size-9 shrink-0 place-items-center rounded-xl border ${
           critical
@@ -373,38 +301,77 @@ function TaskLink({ task }: { task: OrganizerTaskV5 }) {
         {critical ? <ShieldAlert className="size-4" /> : <AlertTriangle className="size-4" />}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold text-foreground">{task.title}</span>
-          {task.state === "waiting" ? <AdminStatus tone="info">Waiting</AdminStatus> : null}
-        </span>
-        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-          {task.description}
-        </span>
+        <span className="block text-sm font-semibold text-foreground">{item.title}</span>
+        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{item.detail}</span>
+        <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">{item.consequence}</span>
       </span>
       <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
     </Link>
   );
 }
 
-function QuickLink({
-  to,
-  icon: Icon,
-  label,
-  detail,
+function ReadinessGroup({
+  title,
+  items,
+  empty,
+  tone,
 }: {
-  to: string;
-  icon: typeof Vote;
-  label: string;
-  detail: string;
+  title: string;
+  items: V3OrganizerReadinessFactor[];
+  empty: string;
+  tone: "blocked" | "attention" | "ready";
 }) {
   return (
+    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-bold text-foreground">{title}</p>
+        <AdminStatus tone={tone}>{items.length}</AdminStatus>
+      </div>
+      <div className="mt-3 space-y-2">
+        {items.length ? (
+          items.map((item) => (
+            <Link
+              key={item.id}
+              to={item.route as any}
+              className="block rounded-lg border border-white/[0.06] bg-white/[0.018] p-2.5 transition hover:bg-white/[0.04]"
+            >
+              <span className="block text-xs font-semibold text-foreground">{item.label}</span>
+              <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">{item.detail}</span>
+            </Link>
+          ))
+        ) : (
+          <p className="text-xs leading-5 text-muted-foreground">{empty}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DomainCard({ domain }: { domain: V3OrganizerDomainSummary }) {
+  const tone =
+    domain.state === "blocked"
+      ? "blocked"
+      : domain.state === "attention"
+        ? "attention"
+        : domain.state === "active"
+          ? "info"
+          : "ready";
+
+  return (
     <Link
-      to={to as any}
+      to={(domain.recommendedAction?.route ?? domain.primaryRoute) as any}
       className="rounded-xl border border-white/[0.07] bg-white/[0.022] p-3 transition hover:border-white/[0.14] hover:bg-white/[0.04]"
     >
-      <Icon className="size-4 text-sky-100" />
-      <span className="mt-3 block text-sm font-semibold">{label}</span>
-      <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">{detail}</span>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground">{domain.label}</p>
+          <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{domain.detail}</p>
+        </div>
+        <AdminStatus tone={tone}>{humanize(domain.state)}</AdminStatus>
+      </div>
+      {domain.recommendedAction ? (
+        <p className="mt-3 text-[11px] font-semibold text-sky-100">{domain.recommendedAction.label} →</p>
+      ) : null}
     </Link>
   );
 }
