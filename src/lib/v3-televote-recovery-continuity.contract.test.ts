@@ -11,6 +11,7 @@ describe("V3 Televote recovery continuity contract", () => {
   const cookie = source("src/integrations/televoting/recovery-cookie.server.ts");
   const functions = source("src/integrations/televoting/vote.functions.ts");
   const server = source("src/integrations/televoting/vote.server.ts");
+  const reconciliation = source("src/lib/v3-televote-reconciliation.ts");
   const wrapper = source("src/components/televoting/TelevotingBoothWithReceipt.tsx");
 
   it("keeps recovery secrets hashed at rest and unavailable to browser database roles", () => {
@@ -39,6 +40,13 @@ describe("V3 Televote recovery continuity contract", () => {
     expect(server).toContain('"v3_create_televote_recovery_handle"');
     expect(functions).toContain("reconcileMergedTelevotingRecoveryCookie");
     expect(wrapper).toContain("recoverCookieReceipt({ data: { roundId } })");
+  });
+
+  it("never returns the submission-capable preflight token through recovery", () => {
+    const recoveryFunction = migration.split("create or replace function public.v3_reconcile_televote_recovery")[1] ?? "";
+    expect(recoveryFunction).toMatch(/returns table \(\s*found boolean,\s*id uuid,\s*round_id uuid,\s*status text,/);
+    expect(reconciliation).toContain('Object.prototype.hasOwnProperty.call(value, "preflight_id")');
+    expect(reconciliation).toContain("it cannot authorize a submission, reveal the ballot, or disclose the");
   });
 
   it("makes portable recovery read-only, explicit, and reusable after a successful import", () => {
