@@ -2,7 +2,7 @@ import { isScopedV3MeSummary } from "@/lib/v3-me-summary";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
-import { loadV3MeSummary } from "@/integrations/v3/me-summary.client";
+import { getV3MeSummary } from "@/lib/v3-me.functions";
 import { editionLabel, useEditions } from "@/lib/data";
 import { useMyFollows } from "@/lib/engagement-data";
 import { useFanProfile } from "@/lib/prediction-data";
@@ -22,7 +22,7 @@ export function V3MeRoot({ viewerId, editionId }: { viewerId: string; editionId:
   const summaryKey = ["v3-me-summary", viewerId] as const;
   const summary = useQuery({
     queryKey: summaryKey, enabled: ownsIdentity,
-    queryFn: loadV3MeSummary,
+    queryFn: () => getV3MeSummary(),
     staleTime: 15_000, refetchOnWindowFocus: true, retry: false,
   });
   useEffect(() => {
