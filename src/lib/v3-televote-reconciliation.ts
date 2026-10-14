@@ -13,10 +13,29 @@ export type TelevoteReceipt = TelevoteAcceptedVote & {
   authority: "authoritative_server";
 };
 
+export type TelevoteRecoveryHandle = {
+  operationId: string;
+  recoverySecret: string;
+};
+
 export function verifiedTelevoteReceipt(
   value: unknown,
   roundId: string,
   preflightToken: string,
+): TelevoteReceipt | null {
+  const receipt = verifiedTelevoteRecoveryReceipt(value, roundId);
+  if (!receipt || receipt.preflight_id !== preflightToken) return null;
+  return receipt;
+}
+
+/**
+ * Verify the deliberately low-privilege recovery response. Possession of a
+ * recovery handle can establish only whether this round has an accepted vote;
+ * it cannot authorize a submission or reveal the ballot.
+ */
+export function verifiedTelevoteRecoveryReceipt(
+  value: unknown,
+  roundId: string,
 ): TelevoteReceipt | null {
   if (!value || typeof value !== "object") return null;
   const receipt = value as Partial<TelevoteReceipt>;
@@ -24,7 +43,8 @@ export function verifiedTelevoteReceipt(
     receipt.found !== true ||
     receipt.authority !== "authoritative_server" ||
     receipt.round_id !== roundId ||
-    receipt.preflight_id !== preflightToken ||
+    typeof receipt.preflight_id !== "string" ||
+    !receipt.preflight_id.trim() ||
     typeof receipt.id !== "string" ||
     !receipt.id.trim() ||
     typeof receipt.accepted_at !== "string" ||
@@ -33,6 +53,22 @@ export function verifiedTelevoteReceipt(
   )
     return null;
   return receipt as TelevoteReceipt;
+}
+
+export function serializeTelevoteRecoveryCode(handle: TelevoteRecoveryHandle) {
+  if (!handle.operationId.trim() || !handle.recoverySecret.trim()) return null;
+  return `${handle.operationId.trim()}.${handle.recoverySecret.trim()}`;
+}
+
+export function parseTelevoteRecoveryCode(value: string): TelevoteRecoveryHandle | null {
+  const normalized = value.trim();
+  const separator = normalized.indexOf(".");
+  if (separator <= 0 || separator === normalized.length - 1 || normalized.indexOf(".", separator + 1) >= 0) return null;
+  const operationId = normalized.slice(0, separator);
+  const recoverySecret = normalized.slice(separator + 1);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operationId)) return null;
+  if (!/^[0-9a-f]{64}$/i.test(recoverySecret)) return null;
+  return { operationId, recoverySecret };
 }
 
 /** Read evidence before retrying a write; never infer success from its error. */
