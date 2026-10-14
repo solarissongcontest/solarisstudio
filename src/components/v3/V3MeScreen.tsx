@@ -81,7 +81,7 @@ export function V3MeScreen({ projection }: V3MeScreenProps) {
           <V3Surface className="p-4">
             <p className="text-sm font-semibold">Current participation is not confirmed here</p>
             <p className="mt-1 text-xs leading-5 text-white/48">
-              Open Participate for current responsibilities and server confirmation.
+              Open Participate to check your current edition.
             </p>
           </V3Surface>
         )}
@@ -97,7 +97,7 @@ export function V3MeScreen({ projection }: V3MeScreenProps) {
               <V3ActionCard
                 key={`${item.editionId}:${item.href}`}
                 title={item.editionName}
-                description={item.roleLabel ?? "Recorded delegation confirmation"}
+                description={item.roleLabel ?? "Recorded delegation history"}
                 tone="neutral"
                 to={item.href}
                 meta={
