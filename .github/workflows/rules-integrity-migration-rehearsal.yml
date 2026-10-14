@@ -19,6 +19,7 @@ on:
       - ".github/scripts/v3-televote-reconciliation-rehearsal.sh"
       - ".github/scripts/v3-entry-legacy-upgrade-rehearsal.sh"
       - ".github/scripts/v3-entry-restore-provenance-assert.sh"
+      - ".github/scripts/v3-operation-receipt-rehearsal.sh"
       - ".github/workflows/rules-integrity-migration-rehearsal.yml"
   workflow_dispatch:
 
@@ -62,6 +63,10 @@ jobs:
 
       - name: Verify local migration history
         run: supabase migration list --local
+
+      - name: Prove System V3 operation receipt semantics
+        shell: bash
+        run: bash .github/scripts/v3-operation-receipt-rehearsal.sh
 
       - name: Run live Rules and Integrity adversarial rehearsal
         shell: bash
@@ -160,6 +165,12 @@ jobs:
           if [[ -f /tmp/v3-entry-legacy-seeded ]]; then
             bash "$GITHUB_WORKSPACE/.github/scripts/v3-entry-legacy-upgrade-rehearsal.sh"
           fi
+
+      - name: Prove System V3 operation receipt semantics after upgrade
+        shell: bash
+        run: |
+          cd /tmp/solaris-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-operation-receipt-rehearsal.sh"
 
       - name: Verify show-scoped reminder authorization after upgrade
         shell: bash
