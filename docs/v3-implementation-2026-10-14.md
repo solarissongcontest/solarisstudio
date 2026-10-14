@@ -26,3 +26,26 @@ Apply `20261014010000_v3_televote_receipt_reconciliation.sql` in migration order
 and deploy the matching application/server bundle. No existing applied migration
 or feature-flag value is rewritten. Production verification must follow the
 existing protected operational-mode workflow; automated rehearsals stay local.
+
+## Identity-first Me root
+
+The installed-app `/my-solaris` root is separately gated by disabled-by-default
+`solaris_app_v3_me`. Explicit legacy tabs, nested routes and Organizer country
+inspection contexts retain their established behavior. The V3 root composes the
+existing MySolaris account provider, profile and following queries. The provider
+accepts the server's canonical edition context for V3 without changing the
+legacy workspace's edition selection.
+
+The new authenticated STABLE summary RPC derives active delegation access inside
+the database and counts only V3 Confirmation receipts matching an allowed
+submission and its exact round. Browser summaries are bound to both viewer and
+country; unavailable data stays unknown. History describes recorded delegation
+confirmations, not personal membership or who submitted them. Current membership
+requires a confirmed canonical entry and active delegation access. Organizer
+navigation uses the existing authoritative access engine.
+
+Apply `20261014020000_v3_me_cutover.sql` after the Televote migration, then deploy
+the matching application bundle. Keep the Me flag disabled until the intended
+rollout cohort is selected. Other workflow receipt histories, anonymous recovery
+across reload/devices, Entry version binding, Jury, Organizer and Live cutovers
+still need separate implementation and certification.
