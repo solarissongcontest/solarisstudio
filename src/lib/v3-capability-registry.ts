@@ -24,3 +24,18 @@ export {
   V3_ORGANIZER_ROUTE_OWNERSHIP,
 } from "./v3-organizer-route-ownership";
 export { V3_API_CAPABILITY_REGISTRY } from "./v3-api-capability-registry";
+export {
+  V3_SYSTEM_DOMAIN_REGISTRY,
+  V3_REQUIRED_SYSTEM_CONCEPTS,
+  V3_SYSTEM_CONCEPT_OWNER,
+} from "./v3-system-domain-registry";
+export {
+  V3_WORKFLOW_DEPENDENCY_REGISTRY,
+  validateV3WorkflowDependencyRegistry,
+  v3WorkflowDependency,
+} from "./v3-workflow-dependency-registry";
+export {
+  V3_DOMAIN_CONSEQUENCE_REGISTRY,
+  validateV3DomainConsequenceRegistry,
+  v3DomainConsequence,
+} from "./v3-domain-consequence-registry";
