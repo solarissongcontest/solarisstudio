@@ -59,6 +59,9 @@ jobs:
       - name: Enforce V3 capability and domain registry coverage
         run: bun run check:v3-registry
 
+      - name: Verify generated V3 capability report
+        run: bun run check:v3-registry-report
+
       - name: Force fresh route generation
         shell: bash
         run: |
@@ -153,6 +156,7 @@ jobs:
             echo
             echo "- Hosted Supabase isolation: configured before any project checks"
             echo "- V3 capability/domain registry coverage: fail-fast blocking gate before build"
+            echo "- Generated V3 capability report freshness: blocking gate before build"
             echo "- Build, bundle, route-generation, TypeScript, unit-test, lint and source-mutation evidence: see the individual step conclusions above"
             echo "- Skipped stages are intentionally not reported as executed"
           } >> "$GITHUB_STEP_SUMMARY"
