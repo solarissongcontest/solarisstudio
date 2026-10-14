@@ -181,6 +181,11 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
     route: "/participate", surfaceLabel: "Jury V3", dependsOn: ["solaris_app_v3"],
     description: "Reversible official Jury reliability layer with revision-safe server drafts, idempotent canonical submission, uncertainty recovery and authoritative receipts.",
   },
+  solaris_app_v3_organizer: {
+    key: "solaris_app_v3_organizer", label: "Solaris App V3 · Organizer", state: "integrated", audience: "organizer",
+    route: "/admin/operations", surfaceLabel: "Organizer V3", dependsOn: ["solaris_app_v3"],
+    description: "Reversible Organizer V3 operational shell over existing canonical admin authorities, with Overview, Tasks, Control, Live and More ownership and edition-scoped navigation continuity.",
+  },
 };
 
 export const STUDIO2_PRODUCT_SURFACE_LIST = Object.values(STUDIO2_PRODUCT_SURFACES);
