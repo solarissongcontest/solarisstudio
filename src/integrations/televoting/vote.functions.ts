@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
+import { parseTelevoteRecoveryCode, serializeTelevoteRecoveryCode } from "@/lib/v3-televote-reconciliation";
+
 export type TelevotingVoteEntry = {
   target_country_code: string;
   points: number;
@@ -13,6 +15,13 @@ export type TelevotingVoteInput = {
   fingerprintHash?: string | null;
   deviceTokenHash?: string | null;
 };
+
+function validateRoundId(value: unknown) {
+  const roundId = String(value ?? "").trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(roundId))
+    throw new Error("Invalid voting round");
+  return roundId;
+}
 
 function validateBallot(data: TelevotingVoteInput) {
   if (!data?.roundId) throw new Error("Missing round");
@@ -50,10 +59,9 @@ function validateRecoveryHandle(data: {
   operationId: string;
   recoverySecret: string;
 }) {
-  const roundId = String(data?.roundId ?? "").trim();
+  const roundId = validateRoundId(data?.roundId);
   const operationId = String(data?.operationId ?? "").trim();
   const recoverySecret = String(data?.recoverySecret ?? "").trim();
-  if (!roundId) throw new Error("Missing round");
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operationId))
     throw new Error("Invalid vote recovery operation");
   if (!/^[0-9a-f]{64}$/i.test(recoverySecret)) throw new Error("Invalid vote recovery secret");
@@ -65,23 +73,23 @@ export const preflightMergedTelevotingVote = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { runVoteIntegrityPreflightServer } =
       await import("@/integrations/televoting/preflight.server");
-    return runVoteIntegrityPreflightServer(data);
-  });
+    const report = await runVoteIntegrityPreflightServer(data);
 
-// The preflight bearer token stays memory-only. This server endpoint exchanges
-// it for a separate read-only receipt recovery capability that is safe to
-// persist because it cannot submit or alter a ballot.
-export const createMergedTelevotingRecoveryHandle = createServerFn({ method: "POST" })
-  .inputValidator((data: { preflightToken: string }) => {
-    const preflightToken = String(data?.preflightToken ?? "").trim();
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(preflightToken))
-      throw new Error("Invalid voting preflight token");
-    return { preflightToken };
-  })
-  .handler(async ({ data }) => {
+    // Exchange the submission-capable preflight token for a separate
+    // read-only recovery capability while the preflight is still server-side.
+    // Only the low-privilege capability is persisted, and only in an HTTP-only
+    // cookie. Missing migration support returns null and keeps the existing
+    // rollout path backward-compatible.
     const { createMergedTelevotingRecoveryHandleServer } =
       await import("@/integrations/televoting/vote.server");
-    return createMergedTelevotingRecoveryHandleServer(data.preflightToken);
+    const recovery = await createMergedTelevotingRecoveryHandleServer(report.token);
+    if (recovery) {
+      const { writeTelevoteRecoveryCookie } =
+        await import("@/integrations/televoting/recovery-cookie.server");
+      writeTelevoteRecoveryCookie(data.roundId, recovery);
+    }
+
+    return report;
   });
 
 export const attestMergedTelevotingVote = createServerFn({ method: "POST" })
@@ -143,8 +151,50 @@ export const reconcileMergedTelevotingVote = createServerFn({ method: "POST" })
     return reconcileMergedTelevotingVoteServer(data);
   });
 
+// Reload recovery does not need the submission-capable preflight token. The
+// HTTP-only cookie carries a separate read-only capability created at preflight.
+export const reconcileMergedTelevotingRecoveryCookie = createServerFn({ method: "POST" })
+  .inputValidator((data: { roundId: string }) => ({ roundId: validateRoundId(data?.roundId) }))
+  .handler(async ({ data }) => {
+    const { readTelevoteRecoveryCookie } =
+      await import("@/integrations/televoting/recovery-cookie.server");
+    const handle = readTelevoteRecoveryCookie(data.roundId);
+    if (!handle) return null;
+    const { reconcileMergedTelevotingRecoveryServer } =
+      await import("@/integrations/televoting/vote.server");
+    return reconcileMergedTelevotingRecoveryServer({ roundId: data.roundId, ...handle });
+  });
+
+// Portable recovery is explicit. The secret may be revealed only after the
+// server has proved that the capability resolves to an accepted receipt.
+export const exportMergedTelevotingRecoveryCode = createServerFn({ method: "POST" })
+  .inputValidator((data: { roundId: string }) => ({ roundId: validateRoundId(data?.roundId) }))
+  .handler(async ({ data }) => {
+    const { readTelevoteRecoveryCookie } =
+      await import("@/integrations/televoting/recovery-cookie.server");
+    const handle = readTelevoteRecoveryCookie(data.roundId);
+    if (!handle) return null;
+    const { reconcileMergedTelevotingRecoveryServer } =
+      await import("@/integrations/televoting/vote.server");
+    const receipt = await reconcileMergedTelevotingRecoveryServer({ roundId: data.roundId, ...handle });
+    return receipt ? serializeTelevoteRecoveryCode(handle) : null;
+  });
+
 export const reconcileMergedTelevotingRecovery = createServerFn({ method: "POST" })
   .inputValidator(validateRecoveryHandle)
+  .handler(async ({ data }) => {
+    const { reconcileMergedTelevotingRecoveryServer } =
+      await import("@/integrations/televoting/vote.server");
+    return reconcileMergedTelevotingRecoveryServer(data);
+  });
+
+export const recoverMergedTelevotingReceiptCode = createServerFn({ method: "POST" })
+  .inputValidator((data: { roundId: string; recoveryCode: string }) => {
+    const roundId = validateRoundId(data?.roundId);
+    const parsed = parseTelevoteRecoveryCode(String(data?.recoveryCode ?? ""));
+    if (!parsed) throw new Error("Invalid vote recovery code");
+    return { roundId, ...parsed };
+  })
   .handler(async ({ data }) => {
     const { reconcileMergedTelevotingRecoveryServer } =
       await import("@/integrations/televoting/vote.server");
