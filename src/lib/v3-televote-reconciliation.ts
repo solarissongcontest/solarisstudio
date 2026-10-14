@@ -13,18 +13,27 @@ export type TelevoteReceipt = TelevoteAcceptedVote & {
   authority: "authoritative_server";
 };
 
-export function verifiedTelevoteReceipt(
-  value: unknown,
-  roundId: string,
-  preflightToken: string,
-): TelevoteReceipt | null {
+export type TelevoteRecoveryReceipt = {
+  found: true;
+  id: string;
+  round_id: string;
+  status: "active" | "suspicious" | "verified";
+  accepted_at: string;
+  authority: "authoritative_server";
+};
+
+export type TelevoteRecoveryHandle = {
+  operationId: string;
+  recoverySecret: string;
+};
+
+function verifiedReceiptFields(value: unknown, roundId: string) {
   if (!value || typeof value !== "object") return null;
-  const receipt = value as Partial<TelevoteReceipt>;
+  const receipt = value as Partial<TelevoteRecoveryReceipt>;
   if (
     receipt.found !== true ||
     receipt.authority !== "authoritative_server" ||
     receipt.round_id !== roundId ||
-    receipt.preflight_id !== preflightToken ||
     typeof receipt.id !== "string" ||
     !receipt.id.trim() ||
     typeof receipt.accepted_at !== "string" ||
@@ -32,7 +41,58 @@ export function verifiedTelevoteReceipt(
     !["active", "suspicious", "verified"].includes(receipt.status ?? "")
   )
     return null;
-  return receipt as TelevoteReceipt;
+
+  return {
+    found: true as const,
+    id: receipt.id,
+    round_id: receipt.round_id,
+    status: receipt.status as TelevoteRecoveryReceipt["status"],
+    accepted_at: receipt.accepted_at,
+    authority: "authoritative_server" as const,
+  };
+}
+
+export function verifiedTelevoteReceipt(
+  value: unknown,
+  roundId: string,
+  preflightToken: string,
+): TelevoteReceipt | null {
+  if (!value || typeof value !== "object") return null;
+  const receipt = value as Partial<TelevoteReceipt>;
+  const safe = verifiedReceiptFields(value, roundId);
+  if (!safe || receipt.preflight_id !== preflightToken) return null;
+  return { ...safe, preflight_id: receipt.preflight_id };
+}
+
+/**
+ * Verify the deliberately low-privilege recovery response. Possession of a
+ * recovery handle can establish only whether this round has an accepted vote;
+ * it cannot authorize a submission, reveal the ballot, or disclose the
+ * submission-capable preflight token.
+ */
+export function verifiedTelevoteRecoveryReceipt(
+  value: unknown,
+  roundId: string,
+): TelevoteRecoveryReceipt | null {
+  if (!value || typeof value !== "object") return null;
+  if (Object.prototype.hasOwnProperty.call(value, "preflight_id")) return null;
+  return verifiedReceiptFields(value, roundId);
+}
+
+export function serializeTelevoteRecoveryCode(handle: TelevoteRecoveryHandle) {
+  if (!handle.operationId.trim() || !handle.recoverySecret.trim()) return null;
+  return `${handle.operationId.trim()}.${handle.recoverySecret.trim()}`;
+}
+
+export function parseTelevoteRecoveryCode(value: string): TelevoteRecoveryHandle | null {
+  const normalized = value.trim();
+  const separator = normalized.indexOf(".");
+  if (separator <= 0 || separator === normalized.length - 1 || normalized.indexOf(".", separator + 1) >= 0) return null;
+  const operationId = normalized.slice(0, separator);
+  const recoverySecret = normalized.slice(separator + 1);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operationId)) return null;
+  if (!/^[0-9a-f]{64}$/i.test(recoverySecret)) return null;
+  return { operationId, recoverySecret };
 }
 
 /** Read evidence before retrying a write; never infer success from its error. */
