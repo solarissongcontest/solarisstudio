@@ -70,7 +70,7 @@ describe("pre-submit voting integrity", () => {
 
     expect(migration).toContain("revoke execute on function televoting.submit_vote");
     expect(migration).toContain("grant execute on function televoting.submit_vote_checked");
-    expect(voteServer).toContain('rpc("submit_vote_checked"');
+    expect(voteServer).toMatch(/rpc\s*\(\s*"submit_vote_checked"/);
     expect(voteServer).not.toContain('rpc("submit_vote"');
   });
 });
