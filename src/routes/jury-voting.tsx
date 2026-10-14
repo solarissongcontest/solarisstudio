@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   Vote,
 } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { Panel } from "@/components/AppShell";
@@ -36,6 +36,22 @@ import { captureGovernanceSnapshot, type GovernanceReceiptSnapshot } from "@/lib
 import { useFanSession } from "@/lib/prediction-data";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
+import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
+import {
+  lookupV3JuryReceipt,
+  loadV3JuryDraft,
+  reconcileV3JurySubmission,
+  saveV3JuryDraft,
+  submitV3JuryBallot,
+  type V3JuryReceipt,
+} from "@/lib/v3-jury.functions";
+import {
+  clearV3JuryOperation,
+  prepareV3JuryOperation,
+  readV3JuryOperation,
+  updateV3JuryOperation,
+  writeV3JuryOperation,
+} from "@/lib/v3-jury-operation";
 
 const supabase = typedSupabase as any;
 
@@ -114,10 +130,25 @@ function severityClass(severity: VoteIntegritySeverity) {
   return "border-sky-300/20 bg-sky-300/10 text-sky-100";
 }
 
+function getOrCreateBrowserId(storage: Storage | null, key: string) {
+  if (!storage) return null;
+  try {
+    const existing = storage.getItem(key);
+    if (existing) return existing;
+    const created = crypto.randomUUID();
+    storage.setItem(key, created);
+    return created;
+  } catch {
+    return null;
+  }
+}
+
 function JuryVotingPage() {
   const queryClient = useQueryClient();
   const session = useFanSession();
   const userId = session.data?.id ?? "anonymous";
+  const rollout = useV3RolloutProbe(!session.isLoading);
+  const v3ReliabilityEnabled = rollout.data?.juryEnabled === true;
   const { data: context, isLoading: contextLoading, error } = useQuery<JuryContext>({
     queryKey: ["country-jury-voting-context", userId],
     enabled: !session.isLoading,
@@ -176,6 +207,7 @@ function JuryVotingPage() {
             round={openRound}
             country={context.country}
             accessToken={context.accessToken}
+            v3ReliabilityEnabled={v3ReliabilityEnabled}
             onSubmitted={() => void queryClient.invalidateQueries({ queryKey: ["country-jury-voting-context", userId] })}
           />
         ) : (
@@ -183,9 +215,12 @@ function JuryVotingPage() {
             {rounds.length ? (
               <div className="divide-y divide-border/60">
                 {rounds.map((round) => (
-                  <div key={round.show_id} className="flex min-w-0 flex-col items-start gap-2 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                    <div className="min-w-0"><p className="truncate text-sm font-semibold">SSC {round.edition_number} · {round.show_name}</p><p className="mt-1 text-xs text-muted-foreground">{round.already_submitted ? "Your country's jury ballot is already recorded." : !round.eligible ? "Your country is not in this show's jury roster." : round.status === "open" ? "Jury voting is open." : "Jury voting is closed."}</p></div>
-                    <span className={cn("shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em]", round.already_submitted ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200" : round.status === "open" ? "border-primary/25 bg-primary/10 text-primary" : "border-border bg-surface text-muted-foreground")}>{round.already_submitted ? "Recorded" : round.status}</span>
+                  <div key={round.show_id} className="py-3 first:pt-0 last:pb-0">
+                    <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                      <div className="min-w-0"><p className="truncate text-sm font-semibold">SSC {round.edition_number} · {round.show_name}</p><p className="mt-1 text-xs text-muted-foreground">{round.already_submitted ? "Your country's jury ballot is already recorded." : !round.eligible ? "Your country is not in this show's jury roster." : round.status === "open" ? "Jury voting is open." : "Jury voting is closed."}</p></div>
+                      <span className={cn("shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em]", round.already_submitted ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200" : round.status === "open" ? "border-primary/25 bg-primary/10 text-primary" : "border-border bg-surface text-muted-foreground")}>{round.already_submitted ? "Recorded" : round.status}</span>
+                    </div>
+                    {round.already_submitted && v3ReliabilityEnabled ? <JuryRecordedReceipt round={round} /> : null}
                   </div>
                 ))}
               </div>
@@ -203,10 +238,49 @@ function JuryVotingFrame({ children, description }: { children: ReactNode; descr
   return <ParticipationRouteChrome><ParticipationServiceShell service="jury" title="Jury voting" description={description} maxWidth="max-w-6xl">{children}</ParticipationServiceShell></ParticipationRouteChrome>;
 }
 
-function JuryBallotBooth({ userId, round, country, accessToken, onSubmitted }: { userId: string; round: JuryRound; country: JuryCountry; accessToken: string; onSubmitted: () => void }) {
+function JuryRecordedReceipt({ round }: { round: JuryRound }) {
+  const lookupReceipt = useServerFn(lookupV3JuryReceipt);
+  const receiptQuery = useQuery({
+    queryKey: ["v3-jury-receipt", round.show_id],
+    queryFn: () => lookupReceipt({ data: { showId: round.show_id } }),
+    staleTime: 60_000,
+  });
+  const receipt = receiptQuery.data?.receipt;
+
+  if (receiptQuery.isLoading) {
+    return <p className="mt-2 text-xs text-muted-foreground">Checking authoritative receipt…</p>;
+  }
+  if (receiptQuery.error) {
+    return <p className="mt-2 text-xs text-amber-200">The ballot is recorded, but its receipt could not be loaded.</p>;
+  }
+  if (!receipt) {
+    return <p className="mt-2 text-xs text-muted-foreground" data-v3-jury-receipt="legacy-unavailable">This ballot predates V3 receipt evidence. Solaris does not manufacture a receipt from browser state.</p>;
+  }
+  return (
+    <div className="mt-2 rounded-lg border border-emerald-300/15 bg-emerald-300/[0.04] px-3 py-2 text-xs text-muted-foreground" data-v3-jury-receipt="authoritative">
+      <span className="font-semibold text-emerald-200">Receipt {receipt.receiptId}</span>
+      <span className="mx-2" aria-hidden="true">·</span>
+      <time dateTime={receipt.acceptedAt}>{new Date(receipt.acceptedAt).toLocaleString()}</time>
+    </div>
+  );
+}
+
+function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEnabled, onSubmitted }: { userId: string; round: JuryRound; country: JuryCountry; accessToken: string; v3ReliabilityEnabled: boolean; onSubmitted: () => void }) {
   const preflight = useServerFn(preflightCountryJuryVote);
   const attest = useServerFn(attestCountryJuryVote);
+  const loadDraft = useServerFn(loadV3JuryDraft);
+  const saveDraft = useServerFn(saveV3JuryDraft);
+  const submitBallot = useServerFn(submitV3JuryBallot);
+  const reconcileSubmission = useServerFn(reconcileV3JurySubmission);
   const draftKey = `solaris:jury-ballot-draft:${userId}:${country.id}:${round.show_id}`;
+  const [deviceId] = useState(() => getOrCreateBrowserId(
+    typeof window === "undefined" ? null : window.localStorage,
+    "ssc.v3.jury.device",
+  ));
+  const [sessionId] = useState(() => getOrCreateBrowserId(
+    typeof window === "undefined" ? null : window.sessionStorage,
+    "ssc.v3.jury.session",
+  ));
   const [stage, setStage] = useState<Stage>("vote");
   const [selections, setSelections] = useState<Array<string | null>>(() => {
     if (typeof window === "undefined") return round.point_scale.map(() => null);
@@ -230,9 +304,43 @@ function JuryBallotBooth({ userId, round, country, accessToken, onSubmitted }: {
   const [acceptedPressure, setAcceptedPressure] = useState(false);
   const [acceptedConsequences, setAcceptedConsequences] = useState(false);
   const [governanceReceipt, setGovernanceReceipt] = useState<GovernanceReceiptSnapshot | null>(null);
+  const [submissionReceipt, setSubmissionReceipt] = useState<V3JuryReceipt | null>(null);
+  const [checkingSubmission, setCheckingSubmission] = useState(false);
+  const [draftReady, setDraftReady] = useState(false);
+  const [serverRevision, setServerRevision] = useState(0);
+  const [draftStatus, setDraftStatus] = useState<"loading" | "saved" | "saving" | "offline" | "conflict">("loading");
+  const [draftConflict, setDraftConflict] = useState<{ selections: Array<string | null>; revision: number } | null>(null);
+  const lastSavedFingerprint = useRef<string | null>(null);
 
   const ballot = useMemo(() => round.point_scale.map((points, index) => ({ target_country_id: selections[index], points })).filter((entry): entry is { target_country_id: string; points: number } => Boolean(entry.target_country_id)), [round.point_scale, selections]);
   const complete = ballot.length === round.point_scale.length;
+
+  useEffect(() => {
+    if (!v3ReliabilityEnabled) {
+      setDraftReady(false);
+      setDraftStatus("offline");
+      return;
+    }
+    let cancelled = false;
+    void loadDraft({ data: { showId: round.show_id } })
+      .then((result) => {
+        if (cancelled) return;
+        const remoteSelections = result.payload?.selections ?? null;
+        if (result.found === true && remoteSelections?.length === round.point_scale.length) {
+          setSelections(remoteSelections);
+          lastSavedFingerprint.current = JSON.stringify(remoteSelections);
+        }
+        setServerRevision(result.serverRevision);
+        setDraftStatus("saved");
+        setDraftReady(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDraftStatus("offline");
+        setDraftReady(true);
+      });
+    return () => { cancelled = true; };
+  }, [loadDraft, round.point_scale.length, round.show_id, v3ReliabilityEnabled]);
 
   useEffect(() => {
     if (typeof window === "undefined" || stage === "done") return;
@@ -246,13 +354,108 @@ function JuryBallotBooth({ userId, round, country, accessToken, onSubmitted }: {
     }
   }, [draftKey, selections, stage]);
 
+  useEffect(() => {
+    if (!v3ReliabilityEnabled || !draftReady || stage !== "vote" || draftConflict) return;
+    const fingerprint = JSON.stringify(selections);
+    if (lastSavedFingerprint.current === fingerprint) return;
+    const expectedRevision = serverRevision;
+    const timer = window.setTimeout(() => {
+      setDraftStatus("saving");
+      void saveDraft({
+        data: {
+          showId: round.show_id,
+          selections,
+          expectedRevision,
+          deviceId,
+          sessionId,
+        },
+      }).then((result) => {
+        const nextRevision = result.serverRevision;
+        if (result.conflict === true) {
+          const newerSelections = result.payload?.selections ?? [];
+          if (newerSelections.length === round.point_scale.length) {
+            setDraftConflict({ selections: newerSelections, revision: nextRevision });
+            setDraftStatus("conflict");
+            return;
+          }
+        }
+        if (result.ok === true) {
+          lastSavedFingerprint.current = fingerprint;
+          setServerRevision(nextRevision);
+          setDraftStatus("saved");
+          return;
+        }
+        setDraftStatus("offline");
+      }).catch(() => setDraftStatus("offline"));
+    }, 750);
+    return () => window.clearTimeout(timer);
+  }, [deviceId, draftConflict, draftReady, round.point_scale.length, round.show_id, saveDraft, selections, serverRevision, sessionId, stage, v3ReliabilityEnabled]);
+
   const submitMutation = useMutation({
     mutationFn: async (token: string) => {
-      const { data, error } = await supabase.rpc("submit_country_jury_ballot", { _show_id: round.show_id, _entries: ballot, _preflight_id: token });
-      if (error) throw error;
-      return data as string;
+      if (!v3ReliabilityEnabled) {
+        const { error } = await supabase.rpc("submit_country_jury_ballot", {
+          _show_id: round.show_id,
+          _entries: ballot,
+          _preflight_id: token,
+        });
+        if (error) throw error;
+        return null;
+      }
+      const fingerprint = JSON.stringify(ballot);
+      const prepared = prepareV3JuryOperation({
+        existing: readV3JuryOperation(round.show_id),
+        showId: round.show_id,
+        ballotFingerprint: fingerprint,
+        newOperationId: crypto.randomUUID(),
+        now: new Date().toISOString(),
+      });
+      const dispatched = updateV3JuryOperation(
+        prepared.operation,
+        "dispatched",
+        new Date().toISOString(),
+      );
+      writeV3JuryOperation(dispatched);
+
+      try {
+        const result = await submitBallot({
+          data: {
+            showId: round.show_id,
+            entries: ballot,
+            preflightId: token,
+            operationId: dispatched.operationId,
+          },
+        });
+        if (!result.receipt) throw new Error("The jury authority returned no receipt.");
+        return result.receipt;
+      } catch (submitError) {
+        const uncertain = updateV3JuryOperation(
+          dispatched,
+          "uncertain",
+          new Date().toISOString(),
+        );
+        writeV3JuryOperation(uncertain);
+        setCheckingSubmission(true);
+        try {
+          const recovered = await reconcileSubmission({
+            data: { operationId: uncertain.operationId },
+          });
+          if (recovered.found && recovered.receipt) return recovered.receipt;
+        } catch {
+          // Preserve the original uncertainty and operation id for an exact retry.
+        } finally {
+          setCheckingSubmission(false);
+        }
+        throw new Error(
+          submitError instanceof Error
+            ? `Submission status is not yet confirmed. Retry safely to check the same operation. ${submitError.message}`
+            : "Submission status is not yet confirmed. Retry safely to check the same operation.",
+        );
+      }
     },
-    onSuccess: () => {
+    onSuccess: (receipt) => {
+      if (v3ReliabilityEnabled) clearV3JuryOperation(round.show_id);
+      setSubmissionReceipt(receipt);
       setGovernanceReceipt(captureGovernanceSnapshot("jury.vote"));
       try {
         window.sessionStorage.removeItem(draftKey);
@@ -329,10 +532,35 @@ function JuryBallotBooth({ userId, round, country, accessToken, onSubmitted }: {
     setSelections((previous) => previous.map((value, itemIndex) => itemIndex === index ? countryId || null : countryId && value === countryId ? null : value));
   }
 
+  function useServerDraft() {
+    if (!draftConflict) return;
+    setSelections(draftConflict.selections);
+    setServerRevision(draftConflict.revision);
+    lastSavedFingerprint.current = JSON.stringify(draftConflict.selections);
+    setDraftConflict(null);
+    setDraftStatus("saved");
+  }
+
+  function overwriteAfterConflict() {
+    if (!draftConflict) return;
+    setServerRevision(draftConflict.revision);
+    lastSavedFingerprint.current = null;
+    setDraftConflict(null);
+    setDraftStatus("saving");
+  }
+
   if (stage === "done") {
     return (
       <div className="space-y-4">
         <DelayedConfirmationState pendingTitle="Jury ballot stored" pendingDescription={`Solaris has accepted ${country.name}'s jury ballot for ${round.show_name}. The official vote is already in the database.`} confirmedTitle="Jury vote confirmed" confirmedDescription={`${country.name}'s jury ballot for ${round.show_name} is recorded. The organizer can still correct it from the existing admin jury workspace if needed.`} />
+        {submissionReceipt ? (
+          <Panel title="Authoritative receipt" description="Issued by Solaris after the canonical ballot commit">
+            <dl className="grid gap-3 text-sm sm:grid-cols-2" data-v3-jury-receipt="authoritative">
+              <div><dt className="text-xs text-muted-foreground">Receipt ID</dt><dd className="mt-1 break-all font-mono text-xs">{submissionReceipt.receiptId}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Server accepted</dt><dd className="mt-1"><time dateTime={submissionReceipt.acceptedAt}>{new Date(submissionReceipt.acceptedAt).toLocaleString()}</time></dd></div>
+            </dl>
+          </Panel>
+        ) : null}
         <GovernanceSnapshot
           context="jury.vote"
           label="Rules shown for this jury ballot"
@@ -350,7 +578,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, onSubmitted }: {
         </section>
         <IntegrityEvidence report={report} />
         <Panel title="Your choice" description="Nothing has been submitted yet">
-          <div className="grid gap-2 sm:grid-cols-2"><Button variant="outline" onClick={returnToBallot}><ArrowLeft className="size-4" /> Change my votes</Button><Button disabled={submitMutation.isPending} onClick={() => submitMutation.mutate(report.token)}><CheckCircle2 className="size-4" /> {submitMutation.isPending ? "Submitting…" : "My ballot is correct · submit"}</Button></div>
+          <div className="grid gap-2 sm:grid-cols-2"><Button variant="outline" onClick={returnToBallot}><ArrowLeft className="size-4" /> Change my votes</Button><Button disabled={submitMutation.isPending} onClick={() => submitMutation.mutate(report.token)}><CheckCircle2 className="size-4" /> {checkingSubmission ? "Checking submission status…" : submitMutation.isPending ? "Submitting…" : "My ballot is correct · submit"}</Button></div>
         </Panel>
       </div>
     );
@@ -400,6 +628,16 @@ function JuryBallotBooth({ userId, round, country, accessToken, onSubmitted }: {
   return (
     <Panel title={`${round.show_name} jury ballot`} description={`SSC ${round.edition_number} · Assign each jury score exactly once.`}>
       <div className="space-y-4">
+        {draftConflict ? (
+          <div className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-4" role="alert" data-v3-jury-draft="conflict">
+            <p className="text-sm font-semibold text-amber-100">A newer ballot draft was saved on another device.</p>
+            <p className="mt-1 text-xs leading-relaxed text-amber-100/80">Solaris stopped this device from overwriting it. Choose which draft to continue with.</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <Button variant="outline" onClick={useServerDraft}>Use newer server draft</Button>
+              <Button onClick={overwriteAfterConflict}>Keep this device’s draft</Button>
+            </div>
+          </div>
+        ) : null}
         <div className="space-y-2">
           {round.point_scale.map((points, index) => {
             const selected = selections[index] ?? "";
@@ -413,7 +651,7 @@ function JuryBallotBooth({ userId, round, country, accessToken, onSubmitted }: {
         </div>
         <label className="flex items-start gap-3 rounded-xl border border-border bg-surface p-3 text-sm"><input type="checkbox" checked={acceptedRule} onChange={(event) => setAcceptedRule(event.target.checked)} className="mt-0.5" /><span className="leading-relaxed text-muted-foreground">I confirm that this ballot reflects my own independent preferences and is not part of an agreed or reciprocal voting arrangement.</span></label>
         <GovernanceInlineReference context="jury.vote" ruleIds={["9.2", "11.2", "11.4"]} label="Voting rules" />
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3 text-xs text-muted-foreground"><span>{ballot.length}/{round.point_scale.length} scores assigned</span><span className="inline-flex items-center gap-1.5"><ShieldCheck className="size-3.5 text-primary" /> Integrity v4 · recent editions weighted most</span></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface p-3 text-xs text-muted-foreground"><span>{ballot.length}/{round.point_scale.length} scores assigned</span><span aria-live="polite">{!v3ReliabilityEnabled ? "Saved on this device" : draftStatus === "loading" ? "Loading server draft…" : draftStatus === "saving" ? "Saving…" : draftStatus === "saved" ? `Saved · revision ${serverRevision}` : draftStatus === "conflict" ? "Save conflict" : "Saved on this device · reconnect to sync"}</span><span className="inline-flex items-center gap-1.5"><ShieldCheck className="size-3.5 text-primary" /> Integrity v4 · recent editions weighted most</span></div>
         <Button className="w-full" disabled={!complete || !acceptedRule || preflightMutation.isPending || submitMutation.isPending} onClick={() => preflightMutation.mutate()}><Vote className="size-4" />{preflightMutation.isPending || submitMutation.isPending ? "Checking ballot…" : "Review and submit jury vote"}</Button>
       </div>
     </Panel>

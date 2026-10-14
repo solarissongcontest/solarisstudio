@@ -176,6 +176,11 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
     route: "/my-solaris/entry", surfaceLabel: "Entry V3", dependsOn: ["solaris_app_v3", "hod_workspace_v2"],
     description: "Reversible installed-app participant Entry surface over the canonical HOD workspace, Confirmation entry-version evidence and existing submission authority, with legacy Organizer inspection preserved.",
   },
+  solaris_app_v3_jury: {
+    key: "solaris_app_v3_jury", label: "Solaris App V3 · Jury", state: "integrated", audience: "delegation",
+    route: "/participate", surfaceLabel: "Jury V3", dependsOn: ["solaris_app_v3"],
+    description: "Reversible official Jury reliability layer with revision-safe server drafts, idempotent canonical submission, uncertainty recovery and authoritative receipts.",
+  },
 };
 
 export const STUDIO2_PRODUCT_SURFACE_LIST = Object.values(STUDIO2_PRODUCT_SURFACES);
