@@ -9,6 +9,7 @@ import { type CSSProperties, type ReactNode } from "react";
 import { useAdminNotifications } from "@/lib/admin-ops";
 import { resolveOrganizerV6Screen } from "@/lib/organizer-v6-screen-registry";
 import { useScrollMorphProgress } from "@/lib/use-scroll-morph-progress";
+import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { AdminCommandPalette } from "./AdminCommandPalette";
 import { AdminContextProvider } from "./AdminContext";
 import { AdminFeatureBoundary } from "./AdminFeatureBoundary";
@@ -16,6 +17,7 @@ import { AdminFrame } from "./AdminFrame";
 import { AdminHealthStrip } from "./AdminHealthStrip";
 import { AdminPermissionShadowProbe } from "./AdminPermissionShadowProbe";
 import { OrganizerV6MobileChrome } from "./OrganizerV6MobileChrome";
+import { OrganizerV3MobileChrome } from "./OrganizerV3MobileChrome";
 import { JuryVotingWindowControl } from "./JuryVotingWindowControl";
 import { AdminSelectors } from "./AdminSelectors";
 
@@ -29,6 +31,8 @@ export function AdminShell({
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const screen = resolveOrganizerV6Screen(pathname);
   const morphProgress = useScrollMorphProgress({ resetKey: pathname });
+  const organizerV3 = useV3RolloutProbe(true);
+  const organizerV3Enabled = organizerV3.data?.organizerEnabled === true;
   const organizerToolbarStyle = {
     "--organizer-toolbar-title-scale": (1.035 - morphProgress * 0.035).toFixed(4),
     "--organizer-toolbar-title-y": `${(1 - morphProgress) * 1.25}px`,
@@ -43,7 +47,10 @@ export function AdminShell({
 
   return (
     <AdminContextProvider>
-      <div className="admin-control-room relative min-h-screen overflow-x-clip [&_.site-nav]:hidden [&_.mobile-quick-nav]:hidden [&_.app-background]:hidden [&_.app-main]:!max-w-none [&_.app-main]:!p-0">
+      <div
+        className="admin-control-room relative min-h-screen overflow-x-clip [&_.site-nav]:hidden [&_.mobile-quick-nav]:hidden [&_.app-background]:hidden [&_.app-main]:!max-w-none [&_.app-main]:!p-0"
+        data-organizer-generation={organizerV3Enabled ? "v3" : "legacy"}
+      >
         <AdminPermissionShadowProbe />
         <header
           className="sticky top-0 z-[70] border-b border-white/[0.07] bg-[#06101f]/88 backdrop-blur-2xl"
@@ -118,7 +125,7 @@ export function AdminShell({
             ) : null}
             {children}
           </AdminFrame>
-          <OrganizerV6MobileChrome />
+          {organizerV3Enabled ? <OrganizerV3MobileChrome /> : <OrganizerV6MobileChrome />}
         </div>
       </div>
     </AdminContextProvider>
