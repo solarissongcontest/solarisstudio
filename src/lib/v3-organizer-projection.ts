@@ -21,13 +21,26 @@ export type V3OrganizerEditionProjection = {
   status: string | null;
 };
 
+export type V3OrganizerTaskSummary = {
+  id: string;
+  priority: OrganizerTaskV5["priority"];
+  state: OrganizerTaskV5["state"];
+  title: string;
+  description: string;
+  href: string;
+  dueAt: string | null;
+  assignedTo: string | null;
+  openedAt: string;
+  lastEvaluatedAt: string;
+};
+
 export type V3OrganizerTaskProjection = {
   total: number;
   critical: number;
   high: number;
   waiting: number;
   mine: number;
-  top: OrganizerTaskV5[];
+  top: V3OrganizerTaskSummary[];
 };
 
 export type V3OrganizerReadinessFactor = {
@@ -159,6 +172,21 @@ function sortedUnresolved(tasks: readonly OrganizerTaskV5[]) {
       if (due) return due;
       return a.openedAt.localeCompare(b.openedAt);
     });
+}
+
+function summarizeTask(task: OrganizerTaskV5): V3OrganizerTaskSummary {
+  return {
+    id: task.id,
+    priority: task.priority,
+    state: task.state,
+    title: task.title,
+    description: task.description,
+    href: task.href,
+    dueAt: task.dueAt,
+    assignedTo: task.assignedTo,
+    openedAt: task.openedAt,
+    lastEvaluatedAt: task.lastEvaluatedAt,
+  };
 }
 
 export function organizerTaskDomain(task: Pick<OrganizerTaskV5, "href" | "sourceKind" | "taskType">): V3OrganizerDomainKey {
@@ -315,7 +343,8 @@ export function buildV3OrganizerProjection(input: {
   const high = unresolved.filter((task) => task.priority === "high").length;
   const waiting = unresolved.filter((task) => task.state === "waiting").length;
   const mine = unresolved.filter((task) => task.assignedTo === input.actorId).length;
-  const top = unresolved.slice(0, 5);
+  const topTasks = unresolved.slice(0, 5);
+  const top = topTasks.map(summarizeTask);
 
   const risk: V3OrganizerRisk =
     input.live.overallHealth === "critical" || critical > 0
@@ -350,7 +379,7 @@ export function buildV3OrganizerProjection(input: {
     edition: input.edition,
     activeShow: input.activeShow,
     readiness: buildReadiness(input.edition, input.health, serverTime, stateVersion),
-    attention: top.map((task) => ({
+    attention: topTasks.map((task) => ({
       id: task.id,
       severity: task.priority,
       title: task.title,
