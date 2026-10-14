@@ -1,0 +1,86 @@
+import type { ReactNode } from "react";
+
+import { useSolarisApp } from "@/components/app/AppRuntime";
+import { useV3EntryBundle } from "@/lib/v3-entry-runtime";
+import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
+import { V3AppShell } from "./V3AppShell";
+import { V3EntryScreen } from "./V3EntryScreen";
+
+function ResolvingEntrySurface() {
+  return (
+    <main
+      className="relative z-10 mx-auto w-full max-w-3xl px-4 py-10 sm:py-14"
+      data-v3-entry-boot=""
+    >
+      <header className="border-b border-border/70 pb-5">
+        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">
+          Participate · Entry
+        </p>
+        <h1 className="mt-2 font-display text-3xl font-black tracking-[-0.04em] sm:text-5xl">
+          Your entry
+        </h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+          Checking your current delegation, readiness and immutable review evidence.
+        </p>
+      </header>
+      <p className="sr-only" role="status" aria-live="polite">
+        Opening your Entry workspace.
+      </p>
+    </main>
+  );
+}
+
+/**
+ * Installed-app participant Entry cutover. Organizer country inspection and
+ * every disabled/error state preserve the canonical legacy module. The V3
+ * private bundle is not requested until the server has authorized the slice and
+ * identified an authenticated viewer.
+ */
+export function V3EntryRouteGate({
+  legacy,
+  organizerInspection,
+  focusReadiness,
+}: {
+  legacy: ReactNode;
+  organizerInspection: boolean;
+  focusReadiness: boolean;
+}) {
+  const { isAppMode, platformResolved } = useSolarisApp();
+  const rollout = useV3RolloutProbe(
+    platformResolved && isAppMode && !organizerInspection,
+  );
+  const shouldLoadBundle =
+    platformResolved &&
+    isAppMode &&
+    !organizerInspection &&
+    rollout.data?.enabled === true &&
+    rollout.data?.entryEnabled === true &&
+    Boolean(rollout.data?.userId);
+  const bundle = useV3EntryBundle(shouldLoadBundle, rollout.data?.userId);
+
+  if (organizerInspection || !isAppMode) return <>{legacy}</>;
+  if (!platformResolved || rollout.isLoading) return <ResolvingEntrySurface />;
+  if (
+    rollout.isError ||
+    rollout.data?.enabled !== true ||
+    rollout.data?.entryEnabled !== true ||
+    !rollout.data.userId
+  ) {
+    return <>{legacy}</>;
+  }
+  if (bundle.isLoading) return <ResolvingEntrySurface />;
+  if (bundle.isError || !bundle.data) return <>{legacy}</>;
+
+  return (
+    <V3AppShell
+      editionLabel={bundle.data.shell.editionLabel}
+      phaseLabel={bundle.data.shell.phaseLabel}
+      activeArea="participate"
+    >
+      <V3EntryScreen
+        projection={bundle.data.projection}
+        focusReadiness={focusReadiness}
+      />
+    </V3AppShell>
+  );
+}
