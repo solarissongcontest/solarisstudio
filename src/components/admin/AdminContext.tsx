@@ -108,7 +108,9 @@ export function AdminContextProvider({ children }: { children: ReactNode }) {
         editionLabel: edition.label,
         showId: editionChanged ? null : current.showId,
         showLabel: editionChanged ? null : current.showLabel,
-        contextVersion: current.contextVersion + 1,
+        // Slug/label hydration for the same edition is metadata enrichment, not
+        // a scope transition. Only a real edition switch invalidates scoped UI.
+        contextVersion: editionChanged ? current.contextVersion + 1 : current.contextVersion,
       };
     });
     persistEditionId(edition.id);
