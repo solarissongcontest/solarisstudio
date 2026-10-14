@@ -49,3 +49,11 @@ the matching application bundle. Keep the Me flag disabled until the intended
 rollout cohort is selected. Other workflow receipt histories, anonymous recovery
 across reload/devices, Entry version binding, Jury, Organizer and Live cutovers
 still need separate implementation and certification.
+
+
+The normal Televote submit button also retains the attempted round, identity,
+preflight token and exact point allocation for an unchanged in-memory retry.
+It starts a fresh preflight only when those inputs no longer match. Point editing
+and review navigation are locked while checks, attestation or submission are in
+flight. These client safeguards do not establish acceptance; server reconciliation
+and the original checked mutator remain authoritative.

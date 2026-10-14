@@ -1,4 +1,4 @@
-import { initialTelevoteStage, recoverTelevoteTransportResponse } from "@/lib/v3-televote-reconciliation";
+import { canReuseTelevoteAttempt, initialTelevoteStage, recoverTelevoteTransportResponse, type TelevoteAttemptSnapshot } from "@/lib/v3-televote-reconciliation";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -154,6 +154,7 @@ export function TelevotingBooth({
   const [integrityReport, setIntegrityReport] = useState<VoteIntegrityReport | null>(null);
   const [pendingBallot, setPendingBallot] = useState<TelevotingVoteEntry[]>([]);
   const [pendingIdentity, setPendingIdentity] = useState<ClientIdentity | null>(null);
+  const [attemptedBallot, setAttemptedBallot] = useState<TelevoteAttemptSnapshot | null>(null);
   const [signedName, setSignedName] = useState("");
   const [acceptedAutomatic, setAcceptedAutomatic] = useState(false);
   const [acceptedIndependence, setAcceptedIndependence] = useState(false);
@@ -236,6 +237,7 @@ export function TelevotingBooth({
           fingerprintHash: identity.fingerprintHash,
           deviceTokenHash: identity.deviceTokenHash,
       };
+      setAttemptedBallot({ roundId: data.roundId, preflightToken: token, username: data.username, countryCode: data.countryCode, entries: ballot.map((entry) => ({ ...entry })) });
       const result = await recoverTelevoteTransportResponse(
         () => submitVote({ data }),
         () => reconcileVote({ data }),
@@ -360,6 +362,17 @@ export function TelevotingBooth({
     setStage("vote");
   }
 
+  function reviewOrRetryBallot() {
+    const retained = integrityReport && pendingIdentity && canReuseTelevoteAttempt(attemptedBallot, {
+      roundId, preflightToken: integrityReport.token, username, countryCode: home, entries: currentBallot(),
+    });
+    if (retained) {
+      submitPendingReviewedBallot();
+      return;
+    }
+    preflightMutation.mutate();
+  }
+
   function submitPendingReviewedBallot() {
     if (!integrityReport || !pendingIdentity || !pendingBallot.length) return;
     submitMutation.mutate({
@@ -370,6 +383,7 @@ export function TelevotingBooth({
   }
 
   function adjust(entryKey: string, delta: number) {
+    if (preflightMutation.isPending || submitMutation.isPending || attestationMutation.isPending) return;
     clearIntegrityState();
     setPoints((previous) => {
       const current = previous[entryKey] ?? 0;
@@ -471,7 +485,7 @@ export function TelevotingBooth({
         ) : null}
 
         <div className="grid gap-2 sm:grid-cols-2">
-          <Button variant="outline" className="min-h-12" onClick={returnToBallot}><ArrowLeft className="size-4" /> Review my votes</Button>
+          <Button variant="outline" className="min-h-12" onClick={returnToBallot} disabled={attestationMutation.isPending || submitMutation.isPending}><ArrowLeft className="size-4" /> Review my votes</Button>
           <Button className="min-h-12" onClick={submitPendingReviewedBallot} disabled={submitMutation.isPending}>
             <ShieldCheck className="size-4" /> {submitMutation.isPending ? "Submitting…" : "My ballot is correct"}
           </Button>
@@ -510,7 +524,7 @@ export function TelevotingBooth({
               </p>
               {provisional ? <p className="mt-3 rounded-xl border border-red-200/20 bg-red-950/20 p-3 text-xs leading-5">Because this case also contains unusually strong current-round coordination evidence, the ballot will be recorded for organizer integrity review rather than automatically rejected.</p> : null}
             </div>
-            <Button type="button" variant="outline" onClick={returnToBallot}><ArrowLeft className="size-4" /> Change my votes</Button>
+            <Button type="button" variant="outline" onClick={returnToBallot} disabled={attestationMutation.isPending || submitMutation.isPending}><ArrowLeft className="size-4" /> Change my votes</Button>
           </div>
         </div>
 
@@ -627,9 +641,9 @@ export function TelevotingBooth({
                 <div className="min-w-0"><p className="truncate font-medium">{entry.display_name}</p><p className="mt-1 truncate text-xs text-muted-foreground">{entry.display_code}{entry.subtitle ? ` · ${entry.subtitle}` : ""}{ownEntry ? " · your entry" : ""}</p></div>
               </div>
               <div className="flex items-center justify-end gap-2">
-                <Button type="button" size="sm" variant="outline" disabled={ownEntry || value <= 0} onClick={() => adjust(entry.entry_key, -1)}><Minus className="size-3.5" /></Button>
+                <Button type="button" size="sm" variant="outline" disabled={checking || ownEntry || value <= 0} onClick={() => adjust(entry.entry_key, -1)}><Minus className="size-3.5" /></Button>
                 <span className="w-8 text-center text-xl font-medium tabular-nums">{value}</span>
-                <Button type="button" size="sm" variant="outline" disabled={ownEntry || value >= MAX_PER_ENTRY || remaining <= 0} onClick={() => adjust(entry.entry_key, 1)}><Plus className="size-3.5" /></Button>
+                <Button type="button" size="sm" variant="outline" disabled={checking || ownEntry || value >= MAX_PER_ENTRY || remaining <= 0} onClick={() => adjust(entry.entry_key, 1)}><Plus className="size-3.5" /></Button>
               </div>
             </article>
           );
@@ -639,7 +653,7 @@ export function TelevotingBooth({
       <div className="televote-submit-bar glass-strong flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <Button variant="outline" onClick={() => { clearIntegrityState(); setPoints({}); }} disabled={!used || checking}><RotateCcw className="size-4" /> Reset ballot</Button>
         <div className="televote-submit-help text-xs leading-5 text-muted-foreground sm:text-right">Exactly 20 points · at least 5 entries · max 10 per entry<br /><span className="text-sky-100/65">Every ballot is checked for current and historical integrity patterns before submission.</span></div>
-        <Button disabled={!canSubmit || checking} onClick={() => preflightMutation.mutate()}><ShieldAlert className="size-4" /> {checking ? "Checking ballot…" : "Review & submit"}</Button>
+        <Button disabled={!canSubmit || checking} onClick={reviewOrRetryBallot}><ShieldAlert className="size-4" /> {checking ? "Checking ballot…" : "Review & submit"}</Button>
       </div>
     </section>
   );
