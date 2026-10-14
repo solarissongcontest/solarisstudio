@@ -90,7 +90,6 @@ returns table (
   found boolean,
   id uuid,
   round_id uuid,
-  preflight_id uuid,
   status text,
   accepted_at timestamptz,
   authority text
@@ -110,7 +109,7 @@ begin
      or length(p_recovery_secret) < 32
      or length(p_recovery_secret) > 256 then
     return query
-    select false, null::uuid, null::uuid, null::uuid, null::text, null::timestamptz, 'authoritative_server'::text;
+    select false, null::uuid, null::uuid, null::text, null::timestamptz, 'authoritative_server'::text;
     return;
   end if;
 
@@ -122,7 +121,7 @@ begin
 
   if v_preflight_id is null then
     return query
-    select false, null::uuid, null::uuid, null::uuid, null::text, null::timestamptz, 'authoritative_server'::text;
+    select false, null::uuid, null::uuid, null::text, null::timestamptz, 'authoritative_server'::text;
     return;
   end if;
 
@@ -135,7 +134,7 @@ begin
      or v_preflight.submission_id is null
      or v_preflight.submitted_at is null then
     return query
-    select false, null::uuid, null::uuid, null::uuid, null::text, null::timestamptz, 'authoritative_server'::text;
+    select false, null::uuid, null::uuid, null::text, null::timestamptz, 'authoritative_server'::text;
     return;
   end if;
 
@@ -148,7 +147,7 @@ begin
 
   if v_submission.id is null then
     return query
-    select false, null::uuid, null::uuid, null::uuid, null::text, null::timestamptz, 'authoritative_server'::text;
+    select false, null::uuid, null::uuid, null::text, null::timestamptz, 'authoritative_server'::text;
     return;
   end if;
 
@@ -157,7 +156,6 @@ begin
     true,
     v_submission.id,
     v_submission.round_id,
-    v_preflight.id,
     v_submission.status,
     coalesce(v_preflight.submitted_at, v_submission.created_at),
     'authoritative_server'::text;
@@ -165,7 +163,7 @@ end;
 $$;
 
 comment on function public.v3_reconcile_televote_recovery(uuid, text) is
-  'Resolves a read-only Televote recovery capability to an authoritative accepted receipt. Service-role only.';
+  'Resolves a read-only Televote recovery capability to an authoritative accepted receipt without disclosing the submission-capable preflight token. Service-role only.';
 
 revoke all on function public.v3_reconcile_televote_recovery(uuid, text) from public, anon, authenticated;
 grant execute on function public.v3_reconcile_televote_recovery(uuid, text) to service_role;
