@@ -250,7 +250,7 @@ function buildDomains(
     if (key === "results" && !domainTasks.length && live.subsystems.results === "published") {
       state = "complete";
     }
-    if (key === "production" && !domainTasks.length && live.editionState === "live") {
+    if (key === "production" && !domainTasks.length && live.editionState === "live_show") {
       state = "active";
     }
 
