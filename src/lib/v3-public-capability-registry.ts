@@ -507,7 +507,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
 ] as const satisfies readonly PublicCapabilityMigration[];
 
 export const V3_PUBLIC_SOURCE_SURFACE_IDS = new Set(
-  V3_PUBLIC_CAPABILITY_REGISTRY.flatMap((item) => (item.sourceSurfaceId ? [item.sourceSurfaceId] : [])),
+  V3_PUBLIC_CAPABILITY_REGISTRY.flatMap((item) =>
+    "sourceSurfaceId" in item ? [item.sourceSurfaceId] : [],
+  ),
 );
 
 export const V3_PUBLIC_FEATURE_FLAGS = new Set(
