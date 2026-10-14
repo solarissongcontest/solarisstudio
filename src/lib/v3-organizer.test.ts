@@ -99,30 +99,44 @@ describe("V3 Organizer information architecture", () => {
 describe("V3 Organizer tab continuity", () => {
   it("remembers independent deep destinations and scroll positions per V3 tab", () => {
     const storage = new MemoryStorage();
+    const scope = "edition-22";
 
-    rememberV3OrganizerLocation("/admin/entries/ssc-22", "?show=sf1", 420, storage);
-    rememberV3OrganizerLocation("/admin/control-room", "", 88, storage);
-    updateV3OrganizerScrollPosition("/admin/entries/ssc-22", "?show=sf1", 512, storage);
+    rememberV3OrganizerLocation("/admin/entries/ssc-22", "?show=sf1", 420, storage, scope);
+    rememberV3OrganizerLocation("/admin/control-room", "", 88, storage, scope);
+    updateV3OrganizerScrollPosition("/admin/entries/ssc-22", "?show=sf1", 512, storage, scope);
 
-    expect(getV3OrganizerTabDestination("control", storage)).toMatchObject({
+    expect(getV3OrganizerTabDestination("control", storage, scope)).toMatchObject({
       pathname: "/admin/entries/ssc-22",
       searchStr: "?show=sf1",
       scrollY: 512,
     });
-    expect(getV3OrganizerTabDestination("live", storage)).toMatchObject({
+    expect(getV3OrganizerTabDestination("live", storage, scope)).toMatchObject({
       pathname: "/admin/control-room",
       scrollY: 88,
     });
-    expect(readV3OrganizerNavigationState(storage).activeTab).toBe("live");
+    expect(readV3OrganizerNavigationState(storage, scope).activeTab).toBe("live");
   });
 
   it("resets only the active tab to its canonical root", () => {
     const storage = new MemoryStorage();
-    rememberV3OrganizerLocation("/admin/entries/ssc-22", "", 300, storage);
-    rememberV3OrganizerLocation("/admin/control-room", "", 100, storage);
+    const scope = "edition-22";
+    rememberV3OrganizerLocation("/admin/entries/ssc-22", "", 300, storage, scope);
+    rememberV3OrganizerLocation("/admin/control-room", "", 100, storage, scope);
 
-    expect(resetV3OrganizerTabToRoot("control", storage).pathname).toBe("/admin/control");
-    expect(getV3OrganizerTabDestination("control", storage).pathname).toBe("/admin/control");
-    expect(getV3OrganizerTabDestination("live", storage).pathname).toBe("/admin/control-room");
+    expect(resetV3OrganizerTabToRoot("control", storage, scope).pathname).toBe("/admin/control");
+    expect(getV3OrganizerTabDestination("control", storage, scope).pathname).toBe("/admin/control");
+    expect(getV3OrganizerTabDestination("live", storage, scope).pathname).toBe("/admin/control-room");
+  });
+
+  it("never reopens a deep route remembered for a different edition", () => {
+    const storage = new MemoryStorage();
+    rememberV3OrganizerLocation("/admin/entries/ssc-21", "", 240, storage, "edition-21");
+
+    expect(getV3OrganizerTabDestination("control", storage, "edition-21").pathname).toBe(
+      "/admin/entries/ssc-21",
+    );
+    expect(getV3OrganizerTabDestination("control", storage, "edition-22").pathname).toBe(
+      "/admin/control",
+    );
   });
 });
