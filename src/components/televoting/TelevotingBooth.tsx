@@ -1,4 +1,4 @@
-import { initialTelevoteStage, recoverTelevoteTransportResponse } from "@/lib/v3-televote-reconciliation";
+import { canReuseTelevoteAttempt, initialTelevoteStage, recoverTelevoteTransportResponse, type TelevoteAttemptSnapshot } from "@/lib/v3-televote-reconciliation";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -154,6 +154,7 @@ export function TelevotingBooth({
   const [integrityReport, setIntegrityReport] = useState<VoteIntegrityReport | null>(null);
   const [pendingBallot, setPendingBallot] = useState<TelevotingVoteEntry[]>([]);
   const [pendingIdentity, setPendingIdentity] = useState<ClientIdentity | null>(null);
+  const [attemptedBallot, setAttemptedBallot] = useState<TelevoteAttemptSnapshot | null>(null);
   const [signedName, setSignedName] = useState("");
   const [acceptedAutomatic, setAcceptedAutomatic] = useState(false);
   const [acceptedIndependence, setAcceptedIndependence] = useState(false);
@@ -236,6 +237,7 @@ export function TelevotingBooth({
           fingerprintHash: identity.fingerprintHash,
           deviceTokenHash: identity.deviceTokenHash,
       };
+      setAttemptedBallot({ roundId: data.roundId, preflightToken: token, username: data.username, countryCode: data.countryCode, entries: ballot.map((entry) => ({ ...entry })) });
       const result = await recoverTelevoteTransportResponse(
         () => submitVote({ data }),
         () => reconcileVote({ data }),
@@ -358,6 +360,17 @@ export function TelevotingBooth({
   function returnToBallot() {
     clearIntegrityState();
     setStage("vote");
+  }
+
+  function reviewOrRetryBallot() {
+    const retained = integrityReport && pendingIdentity && canReuseTelevoteAttempt(attemptedBallot, {
+      roundId, preflightToken: integrityReport.token, username, countryCode: home, entries: currentBallot(),
+    });
+    if (retained) {
+      submitPendingReviewedBallot();
+      return;
+    }
+    preflightMutation.mutate();
   }
 
   function submitPendingReviewedBallot() {
@@ -639,7 +652,7 @@ export function TelevotingBooth({
       <div className="televote-submit-bar glass-strong flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <Button variant="outline" onClick={() => { clearIntegrityState(); setPoints({}); }} disabled={!used || checking}><RotateCcw className="size-4" /> Reset ballot</Button>
         <div className="televote-submit-help text-xs leading-5 text-muted-foreground sm:text-right">Exactly 20 points · at least 5 entries · max 10 per entry<br /><span className="text-sky-100/65">Every ballot is checked for current and historical integrity patterns before submission.</span></div>
-        <Button disabled={!canSubmit || checking} onClick={() => preflightMutation.mutate()}><ShieldAlert className="size-4" /> {checking ? "Checking ballot…" : "Review & submit"}</Button>
+        <Button disabled={!canSubmit || checking} onClick={reviewOrRetryBallot}><ShieldAlert className="size-4" /> {checking ? "Checking ballot…" : "Review & submit"}</Button>
       </div>
     </section>
   );
