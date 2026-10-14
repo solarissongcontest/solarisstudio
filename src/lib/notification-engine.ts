@@ -1,14 +1,28 @@
 import type { SolarisTask } from "./participation-os";
 
-export type SolarisNotificationCategory =
-  | "confirmations"
-  | "jury"
-  | "televoting"
-  | "deadlines"
-  | "official"
-  | "results"
-  | "following"
-  | "predictions";
+export const SOLARIS_NOTIFICATION_CATEGORIES = [
+  "confirmations",
+  "jury",
+  "televoting",
+  "deadlines",
+  "official",
+  "results",
+  "following",
+  "predictions",
+] as const;
+
+export type SolarisNotificationCategory = (typeof SOLARIS_NOTIFICATION_CATEGORIES)[number];
+
+export const SCHEDULED_TASK_NOTIFICATION_KINDS = [
+  "opens_soon",
+  "opened",
+  "deadline_3d",
+  "deadline_24h",
+  "deadline_3h",
+  "deadline_1h",
+] as const;
+
+export type ScheduledTaskNotificationKind = (typeof SCHEDULED_TASK_NOTIFICATION_KINDS)[number];
 
 export type NotificationPreferences = {
   enabled: boolean;
@@ -21,7 +35,7 @@ export type NotificationPreferences = {
 export type ScheduledTaskNotification = {
   taskId: string;
   category: SolarisNotificationCategory;
-  kind: "opens_soon" | "opened" | "deadline_3d" | "deadline_24h" | "deadline_3h" | "deadline_1h";
+  kind: ScheduledTaskNotificationKind;
   dueAt: string;
   dedupeKey: string;
   title: string;
@@ -35,7 +49,11 @@ const WINDOWS = [
   { kind: "deadline_24h", ms: 24 * HOUR, tolerance: 20 * 60 * 1000 },
   { kind: "deadline_3h", ms: 3 * HOUR, tolerance: 15 * 60 * 1000 },
   { kind: "deadline_1h", ms: HOUR, tolerance: 10 * 60 * 1000 },
-] as const;
+] as const satisfies ReadonlyArray<{
+  kind: ScheduledTaskNotificationKind;
+  ms: number;
+  tolerance: number;
+}>;
 
 function categoryFor(task: SolarisTask): SolarisNotificationCategory {
   if (task.kind === "confirmation") return "confirmations";
