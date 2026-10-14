@@ -50,7 +50,8 @@ describe("V3 Organizer reversible cutover", () => {
     expect(navigation).toContain('return `${RESTORE_PREFIX}:${scopeToken(scopeKey)}`');
     expect(shell).toContain("AdminEditionScopedWorkspace");
     expect(shell).toContain('data-organizer-edition-scope={scope}');
-    expect(shell).toContain("<div key={scope}");
+    expect(shell).toContain('key={`${scope}:${contextVersion}`}');
+    expect(shell).toContain("data-organizer-context-version={contextVersion}");
   });
 
   it("keeps Control as a presentation router over existing authorities", () => {
