@@ -108,7 +108,7 @@ sign_in v3-entry-receipt-b@solaris.invalid; USER_B_TOKEN="$LAST_TOKEN"
 
 log "Seeding canonical submissions and one private authoritative operation"
 db_exec "insert into public.countries(id,name,short_code) values ('$COUNTRY_A','Entry Receipt A','ERA'),('$COUNTRY_B','Entry Receipt B','ERB');"
-db_exec "insert into public.editions(id,name,year,slug,edition_number,status,published) values ('$EDITION_ID','V3 Entry Receipt Security',2026,'v3-entry-receipt-security',9601,'active',true);"
+db_exec "insert into public.editions(id,name,year,slug,edition_number,status,published) values ('$EDITION_ID','V3 Entry Receipt Security',2026,'v3-entry-receipt-security',9601,'active',false);"
 db_exec "insert into public.submission_rounds(id,edition_id,name,status,opens_at,closes_at,editing_enabled) values ('$ROUND_ID','$EDITION_ID','Entry receipt round','open',now()-interval '1 hour',now()+interval '1 hour',true);"
 db_exec "insert into public.country_accounts(user_id,country_id,status) values ('$USER_A_ID','$COUNTRY_A','active'),('$USER_B_ID','$COUNTRY_B','active');"
 db_exec "insert into public.submissions(id,edition_id,round_id,instagram_username,country,has_country_account,country_account,participating,selection_method,editing_allowed,browser_session_id) values ('$SUBMISSION_WITH_RECEIPT','$EDITION_ID','$ROUND_ID','entryreceipt','Entry Receipt A',true,'ERA',true,'internal',true,'entry-receipt-session'),('$LEGACY_SUBMISSION','$EDITION_ID','$ROUND_ID','entryreceiptlegacy','ERA',true,'ERA',true,'internal',true,'entry-receipt-legacy');"
