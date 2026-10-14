@@ -1424,4 +1424,50 @@ $$;
 revoke all on function public.admin_restore_confirmation_version_apply(uuid, uuid, text) from public,anon,authenticated,service_role;
 
 
+create or replace function private.studio2_touch_confirmation_review_version()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $touch$
+declare
+  v_submission_id uuid;
+  v_national_final_id uuid;
+begin
+  if tg_table_name = 'internal_entries' then
+    v_submission_id := coalesce(new.submission_id, old.submission_id);
+  elsif tg_table_name = 'national_finals' then
+    v_submission_id := coalesce(new.submission_id, old.submission_id);
+  elsif tg_table_name = 'national_final_entries' then
+    v_national_final_id := coalesce(new.national_final_id, old.national_final_id);
+    select nf.submission_id
+    into v_submission_id
+    from public.national_finals nf
+    where nf.id = v_national_final_id;
+  end if;
+
+  -- A cascading response delete must not recreate a CAS row for a gone parent.
+  if v_submission_id is not null and exists (
+    select 1 from public.submissions where id=v_submission_id
+  ) then
+    insert into public.studio2_confirmation_review_versions (
+      submission_id,
+      version,
+      updated_at
+    )
+    values (v_submission_id, 1, now())
+    on conflict (submission_id)
+    do update set
+      version = public.studio2_confirmation_review_versions.version + 1,
+      updated_at = now();
+  end if;
+
+  return coalesce(new, old);
+end
+$touch$;
+
+revoke all on function private.studio2_touch_confirmation_review_version()
+  from public, anon, authenticated;
+
+
 commit;
