@@ -144,10 +144,17 @@ function targetRouteFor(route: string, classification: V3MigrationClassification
 
 const discoveredOrganizerItems = buildAdminNavigation("__edition__").flatMap((group) => group.items);
 
+function organizerClassificationFor(id: string): V3MigrationClassification | null {
+  if (!Object.hasOwn(V3_ORGANIZER_CLASSIFICATION_BY_ID, id)) return null;
+  return V3_ORGANIZER_CLASSIFICATION_BY_ID[
+    id as keyof typeof V3_ORGANIZER_CLASSIFICATION_BY_ID
+  ];
+}
+
 export const V3_ORGANIZER_CAPABILITY_REGISTRY: readonly AdminCapabilityMigration[] =
   discoveredOrganizerItems.flatMap((item) => {
     if (item.availability !== "ready") return [];
-    const classification = V3_ORGANIZER_CLASSIFICATION_BY_ID[item.id];
+    const classification = organizerClassificationFor(item.id);
     if (!classification) return [];
     const ownerCapability = capabilityForOrganizerPath(item.to) ?? "edition.read";
     return [
