@@ -17,16 +17,28 @@ export type TelevotingVoteInput = {
 function validateBallot(data: TelevotingVoteInput) {
   if (!data?.roundId) throw new Error("Missing round");
   const username = String(data?.username ?? "").trim();
-  if (username.length < 2 || username.length > 40) throw new Error("Username must be 2–40 characters");
+  if (username.length < 2 || username.length > 40)
+    throw new Error("Username must be 2–40 characters");
   if (!data?.countryCode) throw new Error("Home country required");
-  if (!Array.isArray(data.entries) || data.entries.length < 5) throw new Error("Vote for at least 5 entries");
+  if (!Array.isArray(data.entries) || data.entries.length < 5)
+    throw new Error("Vote for at least 5 entries");
 
   const total = data.entries.reduce((sum, entry) => sum + Number(entry.points || 0), 0);
   if (total !== 20) throw new Error("You must distribute exactly 20 points");
-  if (data.entries.some((entry) => !entry.target_country_code || !Number.isInteger(entry.points) || entry.points < 1 || entry.points > 10)) {
+  if (
+    data.entries.some(
+      (entry) =>
+        !entry.target_country_code ||
+        !Number.isInteger(entry.points) ||
+        entry.points < 1 ||
+        entry.points > 10,
+    )
+  ) {
     throw new Error("Each selected entry must receive between 1 and 10 points");
   }
-  if (new Set(data.entries.map((entry) => entry.target_country_code)).size !== data.entries.length) {
+  if (
+    new Set(data.entries.map((entry) => entry.target_country_code)).size !== data.entries.length
+  ) {
     throw new Error("Duplicate voting entry");
   }
 
@@ -36,54 +48,66 @@ function validateBallot(data: TelevotingVoteInput) {
 export const preflightMergedTelevotingVote = createServerFn({ method: "POST" })
   .inputValidator((data: TelevotingVoteInput) => validateBallot(data))
   .handler(async ({ data }) => {
-    const { runVoteIntegrityPreflightServer } = await import(
-      "@/integrations/televoting/preflight.server"
-    );
+    const { runVoteIntegrityPreflightServer } =
+      await import("@/integrations/televoting/preflight.server");
     return runVoteIntegrityPreflightServer(data);
   });
 
 export const attestMergedTelevotingVote = createServerFn({ method: "POST" })
-  .inputValidator((data: {
-    token: string;
-    signedName: string;
-    acceptedAutomaticDetection: boolean;
-    acceptedIndependence: boolean;
-    acceptedCoordination: boolean;
-    acceptedPressure: boolean;
-    acceptedConsequences: boolean;
-  }) => {
-    if (!data?.token) throw new Error("Missing integrity-check token");
-    return {
-      token: String(data.token),
-      signedName: String(data.signedName ?? "").trim(),
-      acceptedAutomaticDetection: Boolean(data.acceptedAutomaticDetection),
-      acceptedIndependence: Boolean(data.acceptedIndependence),
-      acceptedCoordination: Boolean(data.acceptedCoordination),
-      acceptedPressure: Boolean(data.acceptedPressure),
-      acceptedConsequences: Boolean(data.acceptedConsequences),
-    };
-  })
-  .handler(async ({ data }) => {
-    const { signFullVoteIntegrityAttestationServer } = await import(
-      "@/integrations/televoting/integrity-attestation.server"
-    );
-    return signFullVoteIntegrityAttestationServer(data);
-  });
-
-export const submitMergedTelevotingVote = createServerFn({ method: "POST" })
   .inputValidator(
-    (data: TelevotingVoteInput & { preflightToken: string }) => {
-      const validated = validateBallot(data);
-      if (!data?.preflightToken) throw new Error("Run the automatic voting integrity check before submitting");
+    (data: {
+      token: string;
+      signedName: string;
+      acceptedAutomaticDetection: boolean;
+      acceptedIndependence: boolean;
+      acceptedCoordination: boolean;
+      acceptedPressure: boolean;
+      acceptedConsequences: boolean;
+    }) => {
+      if (!data?.token) throw new Error("Missing integrity-check token");
       return {
-        ...validated,
-        preflightToken: String(data.preflightToken),
+        token: String(data.token),
+        signedName: String(data.signedName ?? "").trim(),
+        acceptedAutomaticDetection: Boolean(data.acceptedAutomaticDetection),
+        acceptedIndependence: Boolean(data.acceptedIndependence),
+        acceptedCoordination: Boolean(data.acceptedCoordination),
+        acceptedPressure: Boolean(data.acceptedPressure),
+        acceptedConsequences: Boolean(data.acceptedConsequences),
       };
     },
   )
   .handler(async ({ data }) => {
-    const { submitMergedTelevotingVoteServer } = await import(
-      "@/integrations/televoting/vote.server"
-    );
+    const { signFullVoteIntegrityAttestationServer } =
+      await import("@/integrations/televoting/integrity-attestation.server");
+    return signFullVoteIntegrityAttestationServer(data);
+  });
+
+export const submitMergedTelevotingVote = createServerFn({ method: "POST" })
+  .inputValidator((data: TelevotingVoteInput & { preflightToken: string }) => {
+    const validated = validateBallot(data);
+    if (!data?.preflightToken)
+      throw new Error("Run the automatic voting integrity check before submitting");
+    return {
+      ...validated,
+      preflightToken: String(data.preflightToken),
+    };
+  })
+  .handler(async ({ data }) => {
+    const { submitMergedTelevotingVoteServer } =
+      await import("@/integrations/televoting/vote.server");
     return submitMergedTelevotingVoteServer(data);
+  });
+
+// POST keeps the ballot identity and bearer capability out of navigation URLs.
+// The backing SQL RPC is STABLE and remains readable during suspended writes.
+export const reconcileMergedTelevotingVote = createServerFn({ method: "POST" })
+  .inputValidator((data: TelevotingVoteInput & { preflightToken: string }) => {
+    const validated = validateBallot(data);
+    if (!data?.preflightToken) throw new Error("Missing ballot receipt capability");
+    return { ...validated, preflightToken: String(data.preflightToken) };
+  })
+  .handler(async ({ data }) => {
+    const { reconcileMergedTelevotingVoteServer } =
+      await import("@/integrations/televoting/vote.server");
+    return reconcileMergedTelevotingVoteServer(data);
   });
