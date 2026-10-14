@@ -1,3 +1,5 @@
+import { EntryVersionEvidence } from "@/components/ConfirmationReviewStatus";
+import { assertDisplayedEntryVersion } from "@/lib/v3-entry-review-preview";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -56,6 +58,9 @@ type ReviewEntry = {
   review_status: string;
   review_reason: string | null;
   reviewed_at: string | null;
+  current_version_id?: string | null;
+  reviewed_version_id?: string | null;
+  content_revision?: number | null;
   removed?: boolean;
   position?: number;
   preview_start?: string | null;
@@ -165,7 +170,8 @@ function detailState(data: ResponseDetail): DetailState {
     );
     if (!entries.length || data.nf_entries_unknown) return "neutral";
     if (entries.some((entry) => entry.review_status === "declined")) return "issue";
-    if (entries.some((entry) => !entry.review_status || entry.review_status === "pending")) return "review";
+    if (entries.some((entry) => !entry.review_status || entry.review_status === "pending"))
+      return "review";
     return data.national_final?.winning_entry_id ? "ready" : "neutral";
   }
 
@@ -211,11 +217,15 @@ function TechnicalRows({ entry }: { entry: ReviewEntry }) {
     <div className="mt-3 grid gap-2 sm:grid-cols-3">
       <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
         <p className="admin-section-label">25s preview</p>
-        <p className="mt-1 text-xs font-semibold">{formatRange(entry.preview_start, entry.preview_end)}</p>
+        <p className="mt-1 text-xs font-semibold">
+          {formatRange(entry.preview_start, entry.preview_end)}
+        </p>
       </div>
       <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
         <p className="admin-section-label">90s final clip</p>
-        <p className="mt-1 text-xs font-semibold">{formatRange(entry.final_clip_start, entry.final_clip_end)}</p>
+        <p className="mt-1 text-xs font-semibold">
+          {formatRange(entry.final_clip_start, entry.final_clip_end)}
+        </p>
       </div>
       <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
         <p className="admin-section-label">Replacement video</p>
@@ -279,10 +289,15 @@ function EntryReviewCard({
         },
       );
       if (previewError) throw previewError;
-      const preview = previewData as { expectedVersion?: number } | null;
+      const preview = previewData as {
+        expectedVersion?: number;
+        currentVersionId?: string | null;
+      } | null;
       if (!preview || typeof preview.expectedVersion !== "number") {
         throw new Error("Selection review preview did not return a version.");
       }
+
+      assertDisplayedEntryVersion(entry.current_version_id, preview.currentVersionId);
 
       const command = createOrganisationCommand({
         command: "confirmation.entry.review",
@@ -372,7 +387,9 @@ function EntryReviewCard({
               </h3>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              {typeof entry.position === "number" ? <span>Running order {entry.position}</span> : null}
+              {typeof entry.position === "number" ? (
+                <span>Running order {entry.position}</span>
+              ) : null}
               {entry.song_url ? (
                 <a
                   href={entry.song_url}
@@ -394,14 +411,20 @@ function EntryReviewCard({
         </div>
 
         <TechnicalRows entry={entry} />
+        <EntryVersionEvidence entry={entry} />
 
         {entry.review_reason ? (
           <p className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 text-xs leading-relaxed text-muted-foreground">
-            <span className="font-semibold text-foreground">Review note:</span> {entry.review_reason}
+            <span className="font-semibold text-foreground">Review note:</span>{" "}
+            {entry.review_reason}
           </p>
         ) : null}
 
-        <button type="button" onClick={() => setOpen(true)} className="admin-action-secondary mt-4 w-full">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="admin-action-secondary mt-4 w-full"
+        >
           {status === "pending" ? "Review entry" : "Review actions"}
         </button>
       </AdminCard>
@@ -419,6 +442,7 @@ function EntryReviewCard({
           </div>
 
           <TechnicalRows entry={entry} />
+          <EntryVersionEvidence entry={entry} />
 
           <div className="space-y-2">
             <Label htmlFor={`review-reason-${entry.id}`}>Organiser reason</Label>
@@ -528,29 +552,36 @@ function ResponseDetailPage() {
   const [creatingLink, setCreatingLink] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const syncSnapshot = useCallback(async (detail: ResponseDetail) => {
-    setSyncingSolaris(true);
-    setSolarisSyncError(null);
-    try {
-      const result = await syncToSolaris({ data: { snapshot: detail } });
-      setSolarisSync(result);
-      if (!result.ok) setSolarisSyncError(result.message ?? "Solaris sync needs attention.");
-      return result;
-    } catch (caught) {
-      setSolarisSync(null);
-      const message = caught instanceof Error ? caught.message : "Could not sync this response to Solaris.";
-      setSolarisSyncError(message);
-      throw caught;
-    } finally {
-      setSyncingSolaris(false);
-    }
-  }, [syncToSolaris]);
+  const syncSnapshot = useCallback(
+    async (detail: ResponseDetail) => {
+      setSyncingSolaris(true);
+      setSolarisSyncError(null);
+      try {
+        const result = await syncToSolaris({ data: { snapshot: detail } });
+        setSolarisSync(result);
+        if (!result.ok) setSolarisSyncError(result.message ?? "Solaris sync needs attention.");
+        return result;
+      } catch (caught) {
+        setSolarisSync(null);
+        const message =
+          caught instanceof Error ? caught.message : "Could not sync this response to Solaris.";
+        setSolarisSyncError(message);
+        throw caught;
+      } finally {
+        setSyncingSolaris(false);
+      }
+    },
+    [syncToSolaris],
+  );
 
   const loadTechnical = useCallback(async () => {
     setTechnicalError(null);
-    const { data: result, error: rpcError } = await confirmationsSupabase.rpc("admin_confirmation_technical", {
-      _submission_id: id,
-    });
+    const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
+      "admin_confirmation_technical",
+      {
+        _submission_id: id,
+      },
+    );
     if (rpcError) {
       setTechnicalError(rpcError.message);
       return;
@@ -566,9 +597,12 @@ function ResponseDetailPage() {
       return;
     }
 
-    const { data: result, error: rpcError } = await confirmationsSupabase.rpc("admin_confirmation_response", {
-      _submission_id: id,
-    });
+    const { data: result, error: rpcError } = await confirmationsSupabase.rpc(
+      "admin_confirmation_response",
+      {
+        _submission_id: id,
+      },
+    );
 
     if (rpcError) {
       setError(rpcError.message);
@@ -601,12 +635,15 @@ function ResponseDetailPage() {
     setSavingControls(true);
     setError(null);
     try {
-      const { error: rpcError } = await confirmationsSupabase.rpc("admin_update_confirmation_controls", {
-        _submission_id: data.id,
-        _editing_allowed: editingAllowed,
-        _locked: locked,
-        _admin_notes: notes,
-      });
+      const { error: rpcError } = await confirmationsSupabase.rpc(
+        "admin_update_confirmation_controls",
+        {
+          _submission_id: data.id,
+          _editing_allowed: editingAllowed,
+          _locked: locked,
+          _admin_notes: notes,
+        },
+      );
       if (rpcError) throw rpcError;
       toast.success("Response settings saved");
       setSettingsOpen(false);
@@ -618,11 +655,7 @@ function ResponseDetailPage() {
     }
   }
 
-  async function changeWinner(
-    action: "select" | "clear",
-    reason: string,
-    entryId: string | null,
-  ) {
+  async function changeWinner(action: "select" | "clear", reason: string, entryId: string | null) {
     if (!data?.national_final) return;
 
     const { data: previewData, error: previewError } = await confirmationsSupabase.rpc(
@@ -634,7 +667,10 @@ function ResponseDetailPage() {
       },
     );
     if (previewError) throw previewError;
-    const preview = previewData as { expectedVersion?: number } | null;
+    const preview = previewData as {
+      expectedVersion?: number;
+      currentVersionId?: string | null;
+    } | null;
     if (!preview || typeof preview.expectedVersion !== "number") {
       throw new Error("National Final winner preview did not return a version.");
     }
@@ -722,9 +758,12 @@ function ResponseDetailPage() {
   }
 
   async function revokeToken(tokenId: string) {
-    const { error: rpcError } = await confirmationsSupabase.rpc("admin_confirmation_revoke_edit_token", {
-      _token_id: tokenId,
-    });
+    const { error: rpcError } = await confirmationsSupabase.rpc(
+      "admin_confirmation_revoke_edit_token",
+      {
+        _token_id: tokenId,
+      },
+    );
     if (rpcError) {
       toast.error(rpcError.message);
       return;
@@ -736,13 +775,19 @@ function ResponseDetailPage() {
 
   async function deleteResponse() {
     if (!data || deleting) return;
-    if (!window.confirm(`Delete ${data.country}'s confirmation permanently? This cannot be undone.`)) return;
+    if (
+      !window.confirm(`Delete ${data.country}'s confirmation permanently? This cannot be undone.`)
+    )
+      return;
 
     setDeleting(true);
     try {
-      const { error: rpcError } = await confirmationsSupabase.rpc("admin_confirmation_delete_response", {
-        _submission_id: data.id,
-      });
+      const { error: rpcError } = await confirmationsSupabase.rpc(
+        "admin_confirmation_delete_response",
+        {
+          _submission_id: data.id,
+        },
+      );
       if (rpcError) throw rpcError;
       toast.success("Confirmation deleted");
       await navigate({ to: "/confirmations/admin/responses" });
@@ -756,7 +801,9 @@ function ResponseDetailPage() {
   if (loading) {
     return (
       <div className="admin-page pb-5">
-        <AdminCard className="py-10 text-center text-sm text-muted-foreground">Loading response…</AdminCard>
+        <AdminCard className="py-10 text-center text-sm text-muted-foreground">
+          Loading response…
+        </AdminCard>
       </div>
     );
   }
@@ -774,7 +821,10 @@ function ResponseDetailPage() {
           }
         />
         <AdminCard>
-          <AdminEmptyState title="Response not found" description={error ?? "This response could not be loaded."} />
+          <AdminEmptyState
+            title="Response not found"
+            description={error ?? "This response could not be loaded."}
+          />
         </AdminCard>
       </div>
     );
@@ -785,7 +835,8 @@ function ResponseDetailPage() {
   );
   const entryCount = data.internal_entry ? 1 : activeNfEntries.length;
   const acceptedCount = [data.internal_entry, ...activeNfEntries].filter(
-    (entry): entry is ReviewEntry => Boolean(entry && !entry.removed && entry.review_status === "accepted"),
+    (entry): entry is ReviewEntry =>
+      Boolean(entry && !entry.removed && entry.review_status === "accepted"),
   ).length;
   const state = detailState(data);
   const copyArtists = activeNfEntries.map((entry) => entry.artist ?? "Unknown artist").join("\n");
@@ -825,7 +876,9 @@ function ResponseDetailPage() {
                   disabled={syncingSolaris}
                   onClick={() => void manualSync()}
                   trailing={
-                    <AdminStatus tone={solarisSync?.ok ? "ready" : solarisSyncError ? "attention" : "neutral"}>
+                    <AdminStatus
+                      tone={solarisSync?.ok ? "ready" : solarisSyncError ? "attention" : "neutral"}
+                    >
                       {syncingSolaris ? "Syncing" : solarisSync?.ok ? "Linked" : "Check"}
                     </AdminStatus>
                   }
@@ -858,8 +911,24 @@ function ResponseDetailPage() {
                   : "Selection method not provided"}
               </p>
             </div>
-            <AdminStatus tone={state === "ready" ? "ready" : state === "issue" ? "attention" : state === "review" ? "blocked" : "neutral"}>
-              {state === "ready" ? "Ready" : state === "issue" ? "Needs fixing" : state === "review" ? "Needs review" : "Waiting"}
+            <AdminStatus
+              tone={
+                state === "ready"
+                  ? "ready"
+                  : state === "issue"
+                    ? "attention"
+                    : state === "review"
+                      ? "blocked"
+                      : "neutral"
+              }
+            >
+              {state === "ready"
+                ? "Ready"
+                : state === "issue"
+                  ? "Needs fixing"
+                  : state === "review"
+                    ? "Needs review"
+                    : "Waiting"}
             </AdminStatus>
           </div>
 
@@ -878,7 +947,9 @@ function ResponseDetailPage() {
             </div>
             <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
               <p className="text-[11px] font-semibold text-muted-foreground">Country account</p>
-              <p className="mt-1 truncate text-sm font-bold">{data.country_account || (data.has_country_account ? "Provided" : "None")}</p>
+              <p className="mt-1 truncate text-sm font-bold">
+                {data.country_account || (data.has_country_account ? "Provided" : "None")}
+              </p>
             </div>
           </div>
         </AdminCard>
@@ -907,7 +978,8 @@ function ResponseDetailPage() {
               action={
                 data.national_final.winning_entry_id ? (
                   <AdminStatus tone="ready">Winner set</AdminStatus>
-                ) : activeNfEntries.length && activeNfEntries.every((entry) => entry.review_status === "accepted") ? (
+                ) : activeNfEntries.length &&
+                  activeNfEntries.every((entry) => entry.review_status === "accepted") ? (
                   <AdminStatus tone="neutral">Waiting for winner</AdminStatus>
                 ) : (
                   <AdminStatus tone="attention">Review in progress</AdminStatus>
@@ -919,13 +991,25 @@ function ResponseDetailPage() {
               <div className="mb-4 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
                 <p className="admin-section-label">Copy National Final entries</p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                  <button type="button" onClick={() => void copyValue(copyArtists, "Artists")} className="admin-action-secondary">
+                  <button
+                    type="button"
+                    onClick={() => void copyValue(copyArtists, "Artists")}
+                    className="admin-action-secondary"
+                  >
                     <Copy className="size-4" /> Artists
                   </button>
-                  <button type="button" onClick={() => void copyValue(copySongs, "Songs")} className="admin-action-secondary">
+                  <button
+                    type="button"
+                    onClick={() => void copyValue(copySongs, "Songs")}
+                    className="admin-action-secondary"
+                  >
                     <Copy className="size-4" /> Songs
                   </button>
-                  <button type="button" onClick={() => void copyValue(copyArtistSongs, "Artist – song list")} className="admin-action-secondary">
+                  <button
+                    type="button"
+                    onClick={() => void copyValue(copyArtistSongs, "Artist – song list")}
+                    className="admin-action-secondary"
+                  >
                     <Copy className="size-4" /> Artist – song
                   </button>
                 </div>
@@ -941,7 +1025,9 @@ function ResponseDetailPage() {
                   winner={data.national_final?.winning_entry_id === entry.id}
                   onChanged={load}
                   onWinner={(reason) => setWinner(entry, reason)}
-                  onClearWinner={data.national_final?.winning_entry_id === entry.id ? clearWinner : undefined}
+                  onClearWinner={
+                    data.national_final?.winning_entry_id === entry.id ? clearWinner : undefined
+                  }
                 />
               ))}
             </div>
@@ -958,14 +1044,18 @@ function ResponseDetailPage() {
             <button
               type="button"
               onClick={() => setLinkType("reusable")}
-              className={linkType === "reusable" ? "admin-action-primary" : "admin-action-secondary"}
+              className={
+                linkType === "reusable" ? "admin-action-primary" : "admin-action-secondary"
+              }
             >
               Reusable
             </button>
             <button
               type="button"
               onClick={() => setLinkType("one_time")}
-              className={linkType === "one_time" ? "admin-action-primary" : "admin-action-secondary"}
+              className={
+                linkType === "one_time" ? "admin-action-primary" : "admin-action-secondary"
+              }
             >
               One-time
             </button>
@@ -983,10 +1073,18 @@ function ResponseDetailPage() {
             <div className="mt-3 rounded-xl border border-sky-200/15 bg-sky-200/[0.035] p-3">
               <p className="break-all text-xs text-muted-foreground">{generatedLink}</p>
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => void copyValue(generatedLink, "Edit link")} className="admin-action-secondary">
+                <button
+                  type="button"
+                  onClick={() => void copyValue(generatedLink, "Edit link")}
+                  className="admin-action-secondary"
+                >
                   <Copy className="size-4" /> Copy
                 </button>
-                <button type="button" onClick={() => window.open(generatedLink, "_blank", "noopener,noreferrer")} className="admin-action-secondary">
+                <button
+                  type="button"
+                  onClick={() => window.open(generatedLink, "_blank", "noopener,noreferrer")}
+                  className="admin-action-secondary"
+                >
                   <ExternalLink className="size-4" /> Open
                 </button>
               </div>
@@ -997,12 +1095,23 @@ function ResponseDetailPage() {
             <div className="mt-4 space-y-2 border-t border-white/[0.07] pt-4">
               <p className="admin-section-label">Active link</p>
               {activeTokens.map((token) => (
-                <div key={token.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+                <div
+                  key={token.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"
+                >
                   <div className="min-w-0 text-xs">
-                    <p className="font-semibold capitalize">{token.token_type.replaceAll("_", " ")}</p>
-                    <p className="mt-1 text-muted-foreground">Used {token.use_count} {token.use_count === 1 ? "time" : "times"}</p>
+                    <p className="font-semibold capitalize">
+                      {token.token_type.replaceAll("_", " ")}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      Used {token.use_count} {token.use_count === 1 ? "time" : "times"}
+                    </p>
                   </div>
-                  <button type="button" onClick={() => void revokeToken(token.id)} className="admin-action-secondary !min-h-9 !px-3 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => void revokeToken(token.id)}
+                    className="admin-action-secondary !min-h-9 !px-3 text-xs"
+                  >
                     Revoke
                   </button>
                 </div>
@@ -1036,14 +1145,21 @@ function ResponseDetailPage() {
               {technical?.ip_history.length ? (
                 <div className="rounded-xl border border-white/[0.07] bg-white/[0.02]">
                   {technical.ip_history.map((item) => (
-                    <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] p-3 text-xs last:border-0">
+                    <div
+                      key={item.id}
+                      className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] p-3 text-xs last:border-0"
+                    >
                       <span className="font-mono">{item.ip_address}</span>
-                      <span className="text-muted-foreground">Last seen {new Date(item.last_seen_at).toLocaleString()}</span>
+                      <span className="text-muted-foreground">
+                        Last seen {new Date(item.last_seen_at).toLocaleString()}
+                      </span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">No stored IP history for this response.</p>
+                <p className="text-xs text-muted-foreground">
+                  No stored IP history for this response.
+                </p>
               )}
             </div>
           )}
@@ -1063,12 +1179,16 @@ function ResponseDetailPage() {
                     <span className="block text-sm font-semibold">
                       {item.artist ? `${item.artist} — ${item.song_title ?? ""}` : "Entry"}
                     </span>
-                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{item.reason}</span>
+                    <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                      {item.reason}
+                    </span>
                     <span className="mt-1 block text-[11px] text-muted-foreground/70">
                       {new Date(item.created_at).toLocaleString()}
                     </span>
                   </span>
-                  <AdminStatus tone={reviewTone(item.action)}>{item.action.replaceAll("_", " ")}</AdminStatus>
+                  <AdminStatus tone={reviewTone(item.action)}>
+                    {item.action.replaceAll("_", " ")}
+                  </AdminStatus>
                 </div>
               ))}
             </div>
@@ -1086,7 +1206,9 @@ function ResponseDetailPage() {
               <RefreshCw className="mt-0.5 size-4 shrink-0 text-amber-200" />
               <div>
                 <p className="text-sm font-semibold">Solaris sync needs attention</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{solarisSyncError}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {solarisSyncError}
+                </p>
               </div>
             </div>
           </AdminCard>
@@ -1119,7 +1241,9 @@ function ResponseDetailPage() {
           <label className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
             <span>
               <span className="block text-sm font-semibold">Allow editing</span>
-              <span className="mt-1 block text-xs text-muted-foreground">The delegation can update this response.</span>
+              <span className="mt-1 block text-xs text-muted-foreground">
+                The delegation can update this response.
+              </span>
             </span>
             <Switch checked={editingAllowed} onCheckedChange={setEditingAllowed} />
           </label>
@@ -1127,7 +1251,9 @@ function ResponseDetailPage() {
           <label className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
             <span>
               <span className="block text-sm font-semibold">Lock response</span>
-              <span className="mt-1 block text-xs text-muted-foreground">Blocks delegation changes until unlocked.</span>
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Blocks delegation changes until unlocked.
+              </span>
             </span>
             <Switch checked={locked} onCheckedChange={setLocked} />
           </label>

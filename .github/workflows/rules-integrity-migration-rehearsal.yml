@@ -15,6 +15,7 @@ on:
       - ".github/scripts/pr450-deadline-scope-rehearsal.sh"
       - ".github/scripts/v3-confirmation-security-rehearsal.sh"
       - ".github/scripts/v3-televote-reconciliation-rehearsal.sh"
+      - ".github/scripts/v3-entry-legacy-upgrade-rehearsal.sh"
       - ".github/workflows/rules-integrity-migration-rehearsal.yml"
   workflow_dispatch:
 
@@ -121,6 +122,11 @@ jobs:
           supabase db reset --local --no-seed
           supabase migration list --local
 
+      - name: Seed a legacy accepted entry before upgrade
+        run: |
+          cd /tmp/solaris-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-entry-legacy-upgrade-rehearsal.sh" --seed
+
       - name: Apply feature migration set as an upgrade
         shell: bash
         run: |
@@ -129,6 +135,11 @@ jobs:
           cd /tmp/solaris-main
           supabase migration up --local --include-all
           supabase migration list --local
+
+      - name: Verify legacy Entry observations do not fabricate approval evidence
+        run: |
+          cd /tmp/solaris-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-entry-legacy-upgrade-rehearsal.sh"
 
       - name: Verify show-scoped reminder authorization after upgrade
         shell: bash

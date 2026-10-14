@@ -57,3 +57,42 @@ It starts a fresh preflight only when those inputs no longer match. Point editin
 and review navigation are locked while checks, attestation or submission are in
 flight. These client safeguards do not establish acceptance; server reconciliation
 and the original checked mutator remain authoritative.
+
+## Entry content versions and exact review binding
+
+Confirmation internal entries and submission-linked National Final candidates
+now append private, immutable content snapshots on creation and material edits.
+The snapshot covers artist, song, song URL, preview/final clip boundaries and
+replacement video requirements/URL. Running order, result position and
+next-in-line selection remain separate operations. Revisions are contiguous for
+a canonical entry identity; restoring old content through the existing editor
+creates another revision and requires another review. A replacement canonical
+row starts a new entry identity, while the old evidence is retained privately.
+
+The existing capability-checked, idempotent review operation remains the writer.
+It locks the entry before checking the submission review revision, refreshes its
+context after locking, and records exact version identity in review history.
+The Organizer also compares its displayed version with the fresh preview: an
+unseen replacement version requires a refresh before approval. Content changes
+reset approval/rejection to pending; removed NF candidates remain removed.
+Selecting a submission-linked NF winner requires an exact current-version
+review. Clear the winner before editing its content. A concurrent conflicting
+operation can fail with PostgreSQL's serialization/deadlock protection; refresh
+and preview again rather than retrying a stale command.
+
+Apply `20261014030000_v3_entry_review_binding.sql` and deploy the matching app.
+Existing decisions and winners are preserved, but their initial snapshots are
+marked `legacy_observation` and are **not** retroactively certified. Re-review
+an older accepted candidate before selecting it as a new winner. Country and
+Organizer review panels distinguish this evidence from a review of the current
+version. Historical national finals without a Confirmation submission keep
+their existing workflow. A private history RPC grants active owning delegations
+or edition-scoped reviewers read access, with no direct ledger grants.
+
+Clean and upgrade rehearsals exercise the real review RPC, stale preview
+rejection, immutable content/reviews, pointer spoofing, restoring old content,
+country/anonymous isolation, read-only history, and winner protection. The
+upgrade job seeds an accepted entry on main before applying the migration and
+checks that no exact-version review was fabricated. This completes the Entry
+server binding increment; the dedicated V3 Entry screen, an explicit restore
+command with provenance, and broader rollout certification remain outstanding.

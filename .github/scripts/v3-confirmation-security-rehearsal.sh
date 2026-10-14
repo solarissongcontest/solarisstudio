@@ -248,3 +248,60 @@ expect_json "suspended count remains unknown" receipt_count ''
 db_exec "update public.country_accounts set status='active' where user_id='$USER_A_ID'::uuid;"
 db_exec "begin transaction read only; set local role authenticated; select set_config('request.jwt.claims',jsonb_build_object('sub','$USER_A_ID','role','authenticated')::text,true); select public.v3_me_confirmation_summary(); rollback;"
 log "PASS: Me delegation receipt scope and read-only access verified"
+
+log "Entry versions preserve reviewed content and reject stale approval"
+ENTRY_ID='00000000-0000-4000-8000-00000000f531'
+NF_ID='00000000-0000-4000-8000-00000000f532'
+NF_ENTRY_ID='00000000-0000-4000-8000-00000000f533'
+db_exec "insert into public.internal_entries(id,submission_id,artist,song_title,song_url) values ('$ENTRY_ID','$SUBMISSION_ID','Version artist','Original song','https://example.invalid/original');"
+db_exec "insert into public.studio2_capability_grants(user_id,capability,edition_id) values ('$USER_B_ID','confirmation.manage','$EDITION_ID');"
+rpc_request "$USER_A_TOKEN" v3_confirmation_entry_versions "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\"}"
+expect_success "own entry history"
+expect_json "first immutable revision" versions.0.revision 1
+expect_json "canonical source is not legacy approval" versions.0.source canonical_write
+VERSION_ONE="$(printf '%s' "$HTTP_BODY" | json_value versions.0.id)"
+rpc_request "$ANON_KEY" v3_confirmation_entry_versions "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\"}"
+expect_failure "anonymous entry history"
+# B has a scoped review capability, but removing it must close cross-country reads.
+db_exec "delete from public.studio2_capability_grants where user_id='$USER_B_ID' and capability='confirmation.manage';"
+rpc_request "$USER_B_TOKEN" v3_confirmation_entry_versions "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\"}"
+expect_failure "other delegation entry history"
+db_exec "insert into public.studio2_capability_grants(user_id,capability,edition_id) values ('$USER_B_ID','confirmation.manage','$EDITION_ID');"
+rpc_request "$USER_B_TOKEN" studio2_confirmation_entry_review_preview "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\",\"p_target_status\":\"accepted\"}"
+expect_success "versioned review preview"
+expect_json "preview binds displayed content" currentVersionId "$VERSION_ONE"
+EXPECTED_VERSION="$(printf '%s' "$HTTP_BODY" | json_value expectedVersion)"
+rpc_request "$USER_B_TOKEN" studio2_apply_confirmation_entry_review "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\",\"p_target_status\":\"accepted\",\"p_reason\":\"Reviewed original version\",\"p_operation_id\":\"00000000-0000-4000-8000-00000000f534\",\"p_idempotency_key\":\"v3-entry-rehearsal-review\",\"p_expected_version\":$EXPECTED_VERSION}"
+expect_success "canonical review operation"
+[[ "$(db_scalar "select reviewed_version_id from public.internal_entries where id='$ENTRY_ID';")" == "$VERSION_ONE" ]] || fail "review not bound to exact original version"
+[[ "$(db_scalar "select reviewed_version_id from public.submission_review_history where target_entry_id='$ENTRY_ID' order by created_at desc limit 1;")" == "$VERSION_ONE" ]] || fail "review history lost exact version"
+expect_db_failure "entry snapshot cannot be rewritten" "update private.v3_entry_versions set content='{}' where id='$VERSION_ONE';"
+expect_db_failure "entry review cannot be deleted" "delete from private.v3_entry_reviews where version_id='$VERSION_ONE';"
+expect_db_failure "authenticated cannot read private entry ledger" "set local role authenticated; select * from private.v3_entry_versions;"
+db_exec "update public.internal_entries set song_title='Changed song',song_url='https://example.invalid/changed',current_version_id='$VERSION_ONE',reviewed_version_id='$VERSION_ONE',content_revision=900 where id='$ENTRY_ID';"
+[[ "$(db_scalar "select review_status || ':' || content_revision || ':' || (reviewed_version_id is null)::text from public.internal_entries where id='$ENTRY_ID';")" == "pending:2:true" ]] || fail "edited entry retained old approval or forged revision"
+rpc_request "$USER_A_TOKEN" v3_confirmation_entry_versions "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\"}"
+expect_success "history after content edit"
+expect_json "new revision appended" versions.0.revision 2
+expect_json "parent version preserved" versions.0.parent_version_id "$VERSION_ONE"
+expect_json "original content preserved" versions.1.content.song_title "Original song"
+expect_json "original review preserved" versions.1.reviews.0.decision accepted
+rpc_request "$USER_B_TOKEN" studio2_apply_confirmation_entry_review "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\",\"p_target_status\":\"accepted\",\"p_reason\":\"Stale review\",\"p_operation_id\":\"00000000-0000-4000-8000-00000000f535\",\"p_idempotency_key\":\"v3-entry-rehearsal-stale\",\"p_expected_version\":$EXPECTED_VERSION}"
+expect_failure "old preview cannot approve edited content"
+# A metadata-only update must neither create a version nor forge review evidence.
+db_exec "update public.internal_entries set reviewed_version_id='$VERSION_ONE',current_version_id='$VERSION_ONE',content_revision=999 where id='$ENTRY_ID';"
+[[ "$(db_scalar "select content_revision || ':' || (reviewed_version_id is null)::text from public.internal_entries where id='$ENTRY_ID';")" == "2:true" ]] || fail "client replaced authoritative version pointers"
+# Restoring old content still appends a new version and needs another review.
+db_exec "update public.internal_entries set song_title='Original song',song_url='https://example.invalid/original' where id='$ENTRY_ID';"
+[[ "$(db_scalar "select content_revision || ':' || review_status from public.internal_entries where id='$ENTRY_ID';")" == "3:pending" ]] || fail "restored content reused old approval"
+db_exec "insert into public.national_finals(id,submission_id,nf_name) values ('$NF_ID','$SUBMISSION_ID','Version final');"
+db_exec "insert into public.national_final_entries(id,national_final_id,artist,song_title,review_status) values ('$NF_ENTRY_ID','$NF_ID','Final artist','Final song','accepted');"
+expect_db_failure "unbound accepted status is not winner evidence" "update public.national_finals set winning_entry_id='$NF_ENTRY_ID' where id='$NF_ID';"
+# Trusted fixture review uses the same row trigger as the canonical reviewed update.
+db_exec "update public.national_final_entries set reviewed_at=clock_timestamp(),reviewed_by='$USER_B_ID' where id='$NF_ENTRY_ID';"
+db_exec "update public.national_finals set winning_entry_id='$NF_ENTRY_ID' where id='$NF_ID';"
+expect_db_failure "selected winner content cannot change" "update public.national_final_entries set song_title='Unreviewed winner' where id='$NF_ENTRY_ID';"
+db_exec "update public.national_finals set winning_entry_id=null where id='$NF_ID'; update public.national_final_entries set song_title='Unreviewed winner' where id='$NF_ENTRY_ID';"
+expect_db_failure "old winner review cannot select edited version" "update public.national_finals set winning_entry_id='$NF_ENTRY_ID' where id='$NF_ID';"
+db_exec "begin transaction read only; set local role authenticated; select set_config('request.jwt.claims',jsonb_build_object('sub','$USER_A_ID','role','authenticated')::text,true); select public.v3_confirmation_entry_versions('internal','$ENTRY_ID'); rollback;"
+log "PASS: immutable Entry versions, exact reviews, stale preview and winner protection"

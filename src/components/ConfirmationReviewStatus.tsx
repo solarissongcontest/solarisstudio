@@ -7,6 +7,9 @@ export type ConfirmationReviewEntry = {
   review_status?: string | null;
   review_reason?: string | null;
   reviewed_at?: string | null;
+  content_revision?: number | null;
+  current_version_id?: string | null;
+  reviewed_version_id?: string | null;
   removed?: boolean | null;
   position?: number | null;
 };
@@ -38,14 +41,18 @@ export function ConfirmationReviewStatus({
         <div className="flex items-start gap-3">
           <ReviewIcon status={status} />
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-75">Entry review</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] opacity-75">
+              Entry review
+            </p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <p className="text-sm font-semibold">{reviewHeading(status, "entry")}</p>
               <ReviewBadge status={status} />
             </div>
             <p className="mt-1 text-xs leading-relaxed opacity-75">
-              {[internalEntry.artist, internalEntry.song_title].filter(Boolean).join(" — ") || "Submitted entry"}
+              {[internalEntry.artist, internalEntry.song_title].filter(Boolean).join(" — ") ||
+                "Submitted entry"}
             </p>
+            <EntryVersionEvidence entry={internalEntry} />
             {status === "declined" && internalEntry.review_reason ? (
               <p className="mt-2 rounded-lg border border-current/15 bg-black/10 px-3 py-2 text-xs leading-relaxed">
                 <span className="font-semibold">Reason:</span> {internalEntry.review_reason}
@@ -71,7 +78,10 @@ export function ConfirmationReviewStatus({
   const overall = pendingCount ? "pending" : declinedCount ? "declined" : "accepted";
 
   return (
-    <section className={reviewPanelClass(overall, compact)} aria-label="National Final song review status">
+    <section
+      className={reviewPanelClass(overall, compact)}
+      aria-label="National Final song review status"
+    >
       <div className="flex items-start gap-3">
         <ReviewIcon status={overall} />
         <div className="min-w-0 flex-1">
@@ -97,10 +107,14 @@ export function ConfirmationReviewStatus({
                 >
                   <div className="min-w-0">
                     <p className="truncate text-xs font-semibold">
-                      {[entry.artist, entry.song_title].filter(Boolean).join(" — ") || `Song ${index + 1}`}
+                      {[entry.artist, entry.song_title].filter(Boolean).join(" — ") ||
+                        `Song ${index + 1}`}
                     </p>
+                    <EntryVersionEvidence entry={entry} />
                     {status === "declined" && entry.review_reason ? (
-                      <p className="mt-1 text-[11px] leading-relaxed opacity-75">{entry.review_reason}</p>
+                      <p className="mt-1 text-[11px] leading-relaxed opacity-75">
+                        {entry.review_reason}
+                      </p>
                     ) : null}
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
@@ -174,4 +188,21 @@ function reviewHeading(status: ReviewStatus, noun: string) {
   if (status === "declined") return `Your ${noun} was not accepted`;
   if (status === "removed") return `Your ${noun} was removed`;
   return `Your ${noun} is waiting for review`;
+}
+
+export function EntryVersionEvidence({ entry }: { entry: ConfirmationReviewEntry }) {
+  if (!entry.current_version_id || !entry.content_revision) return null;
+  const reviewed = entry.reviewed_version_id === entry.current_version_id;
+  const status = normalizeReviewStatus(entry.review_status);
+  const decision = status === "accepted" || status === "declined";
+  return (
+    <p className="mt-1 text-[11px] leading-relaxed opacity-75">
+      Version {entry.content_revision}
+      {reviewed && decision
+        ? " · Review applies to this version"
+        : decision
+          ? " · Earlier review has no version binding"
+          : " · Awaiting review of this version"}
+    </p>
+  );
 }
