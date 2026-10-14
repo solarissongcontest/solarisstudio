@@ -36,6 +36,13 @@ export type V3EntryReadinessCheck = {
   message: string;
 };
 
+export type V3EntrySubmissionReceipt = {
+  authority: "authoritative_server";
+  receiptId: string;
+  roundId: string;
+  acceptedAt: string;
+};
+
 export type V3EntryProjection = {
   state: "ready" | "no-delegation" | "no-edition";
   edition: {
@@ -49,9 +56,14 @@ export type V3EntryProjection = {
   } | null;
   confirmation: {
     submissionId: string;
+    roundId: string | null;
+    roundName: string | null;
+    submittedAt: string | null;
+    updatedAt: string | null;
     selectionMethod: string | null;
     canEdit: boolean;
     editReason: string | null;
+    receipt: V3EntrySubmissionReceipt | null;
     internalEntry: V3EntryCandidate | null;
     nationalFinal: {
       id: string;
