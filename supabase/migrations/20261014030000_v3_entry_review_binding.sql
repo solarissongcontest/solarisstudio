@@ -95,7 +95,7 @@ declare
   changed boolean;
 begin
   if target='internal' then submission_uuid:=new.submission_id;
-  else select nf.submission_id into submission_uuid from public.national_finals nf where nf.id=new.national_final_id;
+  else select nf.submission_id into submission_uuid from public.national_finals nf where nf.id=(to_jsonb(new)->>'national_final_id')::uuid;
   end if;
   -- Historical national finals without Confirmation ownership keep their own workflow.
   if submission_uuid is null then
@@ -117,7 +117,7 @@ begin
   end if;
   if changed then
     if target='national_final' and tg_op='UPDATE' and exists (
-      select 1 from public.national_finals nf where nf.id=new.national_final_id and nf.winning_entry_id=new.id
+      select 1 from public.national_finals nf where nf.id=(to_jsonb(new)->>'national_final_id')::uuid and nf.winning_entry_id=new.id
     ) then
       raise exception 'Clear the National Final winner before editing its reviewed content' using errcode='22023';
     end if;
@@ -699,6 +699,259 @@ begin
   return result;
 end;
 $$;
+
+
+create or replace function public.studio2_confirmation_winner_change_preview(
+  p_national_final_id uuid,
+  p_action text,
+  p_entry_id uuid default null
+)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = pg_catalog, public, private
+as $winner_preview$
+declare
+  v_action text := lower(btrim(coalesce(p_action, '')));
+  v_nf public.national_finals;
+  v_submission public.submissions;
+  v_entry public.national_final_entries;
+  v_version bigint;
+begin
+  select * into v_nf
+  from public.national_finals
+  where id = p_national_final_id;
+
+  if v_nf.id is null then
+    raise exception 'National Final not found' using errcode = 'P0002';
+  end if;
+
+  select * into v_submission
+  from public.submissions
+  where id = v_nf.submission_id;
+
+  if not public.studio2_access_allowed(
+    'confirmation.manage',
+    v_submission.edition_id,
+    false
+  ) then
+    raise exception 'Missing Solaris capability: confirmation.manage'
+      using errcode = '42501';
+  end if;
+
+  if v_action = 'select' then
+    select * into v_entry
+    from public.national_final_entries
+    where id = p_entry_id
+      and national_final_id = p_national_final_id;
+
+    if v_entry.id is null then
+      raise exception 'National Final candidate not found'
+        using errcode = 'P0002';
+    end if;
+    if v_entry.removed or v_entry.review_status <> 'accepted'
+       or v_entry.current_version_id is null
+       or v_entry.reviewed_version_id is distinct from v_entry.current_version_id then
+      raise exception 'Only an accepted active National Final candidate can be selected as winner'
+        using errcode = '23514';
+    end if;
+  elsif v_action = 'clear' then
+    if v_nf.winning_entry_id is null then
+      raise exception 'No National Final winner is currently selected'
+        using errcode = '23514';
+    end if;
+  else
+    raise exception 'Unknown National Final winner action'
+      using errcode = '22023';
+  end if;
+
+  select version
+  into v_version
+  from public.studio2_confirmation_review_versions
+  where submission_id = v_nf.submission_id;
+
+  return jsonb_build_object(
+    'action', v_action,
+    'submissionId', v_nf.submission_id,
+    'editionId', v_submission.edition_id,
+    'nationalFinalId', v_nf.id,
+    'currentWinnerEntryId', v_nf.winning_entry_id,
+    'currentVersionId', v_entry.current_version_id,
+    'contentRevision', v_entry.content_revision,
+    'targetEntryId', case when v_action = 'select' then p_entry_id else null end,
+    'expectedVersion', coalesce(v_version, 1),
+    'riskClass', 'R2',
+    'alreadyApplied',
+      (v_action = 'select' and v_nf.winning_entry_id = p_entry_id)
+  );
+end
+$winner_preview$;
+
+revoke all on function public.studio2_confirmation_winner_change_preview(uuid, text, uuid)
+  from public, anon;
+grant execute on function public.studio2_confirmation_winner_change_preview(uuid, text, uuid)
+  to authenticated, service_role;
+
+
+create or replace function public.studio2_apply_confirmation_winner_change(
+  p_national_final_id uuid,
+  p_action text,
+  p_entry_id uuid,
+  p_reason text,
+  p_operation_id uuid,
+  p_idempotency_key text,
+  p_expected_version bigint
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $winner_apply$
+declare
+  v_action text := lower(btrim(coalesce(p_action, '')));
+  v_reason text := nullif(btrim(coalesce(p_reason, '')), '');
+  v_preview jsonb;
+  v_nf public.national_finals;
+  v_entry public.national_final_entries;
+  v_previous_entry public.national_final_entries;
+  v_submission_id uuid;
+  v_current_version bigint;
+  v_claim jsonb;
+  v_operation_id uuid;
+  v_history_entry_id uuid;
+  v_history_artist text;
+  v_history_song text;
+  v_result jsonb;
+begin
+  if v_reason is null then
+    raise exception 'A reason is required for National Final winner changes'
+      using errcode = '22023';
+  end if;
+
+  select * into v_nf
+  from public.national_finals
+  where id = p_national_final_id
+  for update;
+
+  if v_nf.id is null then
+    raise exception 'National Final not found' using errcode = 'P0002';
+  end if;
+  v_submission_id := v_nf.submission_id;
+
+  -- Entry-before-CAS ordering matches content and review writers.
+  perform 1 from public.national_final_entries
+  where id=case when v_action='select' then p_entry_id else v_nf.winning_entry_id end
+  for update;
+
+  select version
+  into v_current_version
+  from public.studio2_confirmation_review_versions
+  where submission_id = v_submission_id
+  for update;
+
+  if coalesce(v_current_version, 1) is distinct from p_expected_version then
+    raise exception 'National Final winner state changed since this preview was loaded. Refresh before continuing.'
+      using errcode = '40001';
+  end if;
+
+  v_preview := public.studio2_confirmation_winner_change_preview(
+    p_national_final_id,
+    v_action,
+    p_entry_id
+  );
+
+  v_claim := private.studio2_claim_operation(
+    p_operation_id,
+    p_idempotency_key,
+    'confirmation.nf_winner.' || v_action,
+    'R2',
+    jsonb_build_object(
+      'submissionId', v_submission_id,
+      'nationalFinalId', p_national_final_id,
+      'entryId', p_entry_id,
+      'expectedVersion', p_expected_version
+    )
+  );
+
+  if coalesce((v_claim ->> 'replayed')::boolean, false) then
+    return v_claim -> 'result';
+  end if;
+  v_operation_id := (v_claim ->> 'operationId')::uuid;
+
+  if v_action = 'select' then
+    select * into v_entry
+    from public.national_final_entries
+    where id = p_entry_id
+      and national_final_id = p_national_final_id;
+
+    update public.national_finals
+    set winning_entry_id = p_entry_id
+    where id = p_national_final_id;
+
+    v_history_entry_id := v_entry.id;
+    v_history_artist := v_entry.artist;
+    v_history_song := v_entry.song_title;
+  else
+    select * into v_previous_entry
+    from public.national_final_entries
+    where id = v_nf.winning_entry_id;
+
+    update public.national_finals
+    set winning_entry_id = null
+    where id = p_national_final_id;
+
+    v_history_entry_id := v_nf.winning_entry_id;
+    v_history_artist := v_previous_entry.artist;
+    v_history_song := v_previous_entry.song_title;
+  end if;
+
+  insert into public.submission_review_history (
+    submission_id,
+    target_type,
+    target_entry_id,
+    artist_snapshot,
+    song_title_snapshot,
+    action,
+    reason,
+    admin_user_id
+  )
+  values (
+    v_submission_id,
+    'national_final',
+    v_history_entry_id,
+    v_history_artist,
+    v_history_song,
+    case when v_action = 'select' then 'winner_selected' else 'winner_cleared' end,
+    v_reason,
+    auth.uid()
+  );
+
+  select version
+  into v_current_version
+  from public.studio2_confirmation_review_versions
+  where submission_id = v_submission_id;
+
+  v_result := jsonb_build_object(
+    'ok', true,
+    'submissionId', v_submission_id,
+    'nationalFinalId', p_national_final_id,
+    'action', v_action,
+    'winnerEntryId', case when v_action = 'select' then p_entry_id else null end,
+    'version', v_current_version,
+    'operationId', v_operation_id
+  );
+
+  return private.studio2_complete_operation(v_operation_id, v_result);
+end
+$winner_apply$;
+
+revoke all on function public.studio2_apply_confirmation_winner_change(
+  uuid, text, uuid, text, uuid, text, bigint
+) from public, anon;
+grant execute on function public.studio2_apply_confirmation_winner_change(
+  uuid, text, uuid, text, uuid, text, bigint
+) to authenticated, service_role;
 
 
 commit;

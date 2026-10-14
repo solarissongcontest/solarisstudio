@@ -2,7 +2,7 @@
 set -euo pipefail
 
 log() { printf '\n[v3-confirmation-security] %s\n' "$*"; }
-fail() { printf '\n[v3-confirmation-security] FAIL: %s\n' "$*" >&2; exit 1; }
+fail() { printf '\n[v3-confirmation-security] FAIL: %s\n' "$*" >&2; printf '::error::%s\n' "$*"; exit 1; }
 
 # This rehearsal is intentionally hostile and intentionally local-only. Never
 # point it at hosted Supabase: it creates disposable users and canonical rows.
@@ -71,7 +71,17 @@ expect_json() {
   log "PASS: $label"
 }
 
-db_exec() { psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$1" >/dev/null; }
+db_exec() {
+  local diagnostic
+  diagnostic="$(mktemp)"
+  if ! psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$1" >/dev/null 2>"$diagnostic"; then
+    cat "$diagnostic" >&2
+    printf '::error::%s\n' "$(sed -n '/ERROR:/p' "$diagnostic" | head -1)"
+    rm -f "$diagnostic"
+    exit 1
+  fi
+  rm -f "$diagnostic"
+}
 db_scalar() { psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c "$1"; }
 
 expect_db_failure() {

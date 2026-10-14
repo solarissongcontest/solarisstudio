@@ -675,6 +675,11 @@ function ResponseDetailPage() {
       throw new Error("National Final winner preview did not return a version.");
     }
 
+    if (action === "select") {
+      const displayedEntry = data.national_final.entries.find((entry) => entry.id === entryId);
+      assertDisplayedEntryVersion(displayedEntry?.current_version_id, preview.currentVersionId);
+    }
+
     const command = createOrganisationCommand({
       command: `confirmation.nf_winner.${action}`,
       riskClass: "R2",
