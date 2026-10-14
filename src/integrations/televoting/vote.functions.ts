@@ -61,18 +61,22 @@ export const preflightMergedTelevotingVote = createServerFn({ method: "POST" })
       await import("@/integrations/televoting/preflight.server");
     const report = await runVoteIntegrityPreflightServer(data);
 
-    // Exchange the submission-capable preflight token for a separate
-    // read-only recovery capability while the preflight is still server-side.
-    // Only the low-privilege capability is persisted, and only in an HTTP-only
-    // cookie. Missing migration support returns null and keeps the existing
-    // rollout path backward-compatible.
-    const { createMergedTelevotingRecoveryHandleServer } =
-      await import("@/integrations/televoting/vote.server");
-    const recovery = await createMergedTelevotingRecoveryHandleServer(report.token);
-    if (recovery) {
-      const { writeTelevoteRecoveryCookie } =
-        await import("@/integrations/televoting/recovery-cookie.server");
-      writeTelevoteRecoveryCookie(data.roundId, recovery);
+    // Recovery continuity is additive. A failure in this lower-privilege layer
+    // must never take down the mature preflight/submission path after the
+    // authoritative integrity preflight has already succeeded.
+    try {
+      const { createMergedTelevotingRecoveryHandleServer } =
+        await import("@/integrations/televoting/vote.server");
+      const recovery = await createMergedTelevotingRecoveryHandleServer(report.token);
+      if (recovery) {
+        const { writeTelevoteRecoveryCookie } =
+          await import("@/integrations/televoting/recovery-cookie.server");
+        writeTelevoteRecoveryCookie(data.roundId, recovery);
+      }
+    } catch {
+      // The browser still receives the short-lived preflight token and can use
+      // the existing exact-ballot submission/reconciliation path. No recovery
+      // secret or submission authority is logged or exposed here.
     }
 
     return report;
