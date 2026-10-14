@@ -23,3 +23,4 @@ export {
   V3_ORGANIZER_NON_CAPABILITY_ROUTES,
   V3_ORGANIZER_ROUTE_OWNERSHIP,
 } from "./v3-organizer-route-ownership";
+export { V3_API_CAPABILITY_REGISTRY } from "./v3-api-capability-registry";
