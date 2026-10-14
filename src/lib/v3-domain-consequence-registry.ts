@@ -48,7 +48,9 @@ const NOTIFICATION_PROVIDER_BY_DOMAIN_EVENT: Readonly<Record<string, readonly st
   "notice.published": ["official-communications"],
 };
 
-const providerIds = new Set(V3_NOTIFICATION_PROVIDER_REGISTRY.map((provider) => provider.id));
+const providerIds: ReadonlySet<string> = new Set(
+  V3_NOTIFICATION_PROVIDER_REGISTRY.map((provider) => provider.id),
+);
 
 function unique(values: readonly string[]) {
   return [...new Set(values)];
