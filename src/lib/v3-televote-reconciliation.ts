@@ -13,38 +13,27 @@ export type TelevoteReceipt = TelevoteAcceptedVote & {
   authority: "authoritative_server";
 };
 
+export type TelevoteRecoveryReceipt = {
+  found: true;
+  id: string;
+  round_id: string;
+  status: "active" | "suspicious" | "verified";
+  accepted_at: string;
+  authority: "authoritative_server";
+};
+
 export type TelevoteRecoveryHandle = {
   operationId: string;
   recoverySecret: string;
 };
 
-export function verifiedTelevoteReceipt(
-  value: unknown,
-  roundId: string,
-  preflightToken: string,
-): TelevoteReceipt | null {
-  const receipt = verifiedTelevoteRecoveryReceipt(value, roundId);
-  if (!receipt || receipt.preflight_id !== preflightToken) return null;
-  return receipt;
-}
-
-/**
- * Verify the deliberately low-privilege recovery response. Possession of a
- * recovery handle can establish only whether this round has an accepted vote;
- * it cannot authorize a submission or reveal the ballot.
- */
-export function verifiedTelevoteRecoveryReceipt(
-  value: unknown,
-  roundId: string,
-): TelevoteReceipt | null {
+function verifiedReceiptFields(value: unknown, roundId: string) {
   if (!value || typeof value !== "object") return null;
-  const receipt = value as Partial<TelevoteReceipt>;
+  const receipt = value as Partial<TelevoteRecoveryReceipt>;
   if (
     receipt.found !== true ||
     receipt.authority !== "authoritative_server" ||
     receipt.round_id !== roundId ||
-    typeof receipt.preflight_id !== "string" ||
-    !receipt.preflight_id.trim() ||
     typeof receipt.id !== "string" ||
     !receipt.id.trim() ||
     typeof receipt.accepted_at !== "string" ||
@@ -52,7 +41,42 @@ export function verifiedTelevoteRecoveryReceipt(
     !["active", "suspicious", "verified"].includes(receipt.status ?? "")
   )
     return null;
-  return receipt as TelevoteReceipt;
+
+  return {
+    found: true as const,
+    id: receipt.id,
+    round_id: receipt.round_id,
+    status: receipt.status as TelevoteRecoveryReceipt["status"],
+    accepted_at: receipt.accepted_at,
+    authority: "authoritative_server" as const,
+  };
+}
+
+export function verifiedTelevoteReceipt(
+  value: unknown,
+  roundId: string,
+  preflightToken: string,
+): TelevoteReceipt | null {
+  if (!value || typeof value !== "object") return null;
+  const receipt = value as Partial<TelevoteReceipt>;
+  const safe = verifiedReceiptFields(value, roundId);
+  if (!safe || receipt.preflight_id !== preflightToken) return null;
+  return { ...safe, preflight_id: receipt.preflight_id };
+}
+
+/**
+ * Verify the deliberately low-privilege recovery response. Possession of a
+ * recovery handle can establish only whether this round has an accepted vote;
+ * it cannot authorize a submission, reveal the ballot, or disclose the
+ * submission-capable preflight token.
+ */
+export function verifiedTelevoteRecoveryReceipt(
+  value: unknown,
+  roundId: string,
+): TelevoteRecoveryReceipt | null {
+  if (!value || typeof value !== "object") return null;
+  if (Object.prototype.hasOwnProperty.call(value, "preflight_id")) return null;
+  return verifiedReceiptFields(value, roundId);
 }
 
 export function serializeTelevoteRecoveryCode(handle: TelevoteRecoveryHandle) {
