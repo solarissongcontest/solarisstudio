@@ -430,6 +430,17 @@ begin
   where account.user_id = v_user_id
   limit 1;
   if not found then
+    return jsonb_build_object('submitted', false, 'found', false, 'server_time', now());
+  end if;
+
+  select ballot.* into v_ballot
+  from public.jury_ballot_submissions ballot
+  where ballot.show_id = _show_id
+    and ballot.user_id = v_user_id
+    and ballot.voter_country_id = v_account.country_id
+  order by ballot.submitted_at desc
+  limit 1;
+  if not found then
     if exists (
       select 1
       from public.jury_votes vote
@@ -446,17 +457,6 @@ begin
       );
     end if;
 
-    return jsonb_build_object('submitted', false, 'found', false, 'server_time', now());
-  end if;
-
-  select ballot.* into v_ballot
-  from public.jury_ballot_submissions ballot
-  where ballot.show_id = _show_id
-    and ballot.user_id = v_user_id
-    and ballot.voter_country_id = v_account.country_id
-  order by ballot.submitted_at desc
-  limit 1;
-  if not found then
     return jsonb_build_object('submitted', false, 'found', false, 'server_time', now());
   end if;
 

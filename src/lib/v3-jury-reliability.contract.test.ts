@@ -57,7 +57,11 @@ describe("V3 Jury reliability foundation", () => {
   });
 
   it("reports legacy ballots without inventing receipt evidence", () => {
+    const ballotLookup = migration.indexOf("select ballot.* into v_ballot");
+    const legacyLookup = migration.indexOf("from public.jury_votes vote", ballotLookup);
     expect(migration).toContain("from public.jury_votes vote");
+    expect(ballotLookup).toBeGreaterThan(-1);
+    expect(legacyLookup).toBeGreaterThan(ballotLookup);
     expect(migration).toContain("'legacy', true");
     expect(migration).toContain("'submitted', true");
     expect(migration).toContain("'found', false");
