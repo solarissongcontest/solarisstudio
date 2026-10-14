@@ -1,7 +1,7 @@
 export const V3_SYSTEM_PHYSICAL_AUDIT_SOURCE = {
   projectId: "dkxmnvekiopyesuzggeu",
   inspectedAt: "2026-10-14",
-  method: "read-only information_schema.tables inventory",
+  method: "read-only information_schema / pg_catalog inventory plus to_regclass verification",
 } as const;
 
 /**
@@ -199,6 +199,10 @@ export const V3_VERIFIED_DOMAIN_TABLES: Readonly<Record<string, readonly string[
   identity: [
     "auth.users",
     "auth.identities",
+  ],
+  account: [
+    "public.country_accounts",
+    "auth.users",
   ],
   session: [
     "auth.sessions",
