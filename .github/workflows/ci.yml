@@ -56,6 +56,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Enforce V3 capability and system registries
+        run: bun run certify:v3-registry
+
       - name: Force fresh route generation
         shell: bash
         run: |
@@ -149,6 +152,7 @@ jobs:
             echo "### Solaris Studio quality run"
             echo
             echo "- Fresh dependency install: completed"
+            echo "- V3 capability/system registry guard: executed"
             echo "- Fresh TanStack route generation: verified"
             echo "- Generated route tree: untracked and ignored"
             echo "- Production build: executed"
