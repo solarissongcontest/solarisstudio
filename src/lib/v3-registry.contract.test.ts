@@ -10,12 +10,11 @@ import {
   V3_ORGANIZER_CLASSIFICATION_BY_ID,
   V3_ORGANIZER_DISCOVERED_IDS,
   V3_ORGANIZER_FEATURE_FLAGS,
-} from "./v3-organizer-capability-registry";
-import {
-  V3_PUBLIC_CAPABILITY_REGISTRY,
+  V3_ORGANIZER_ROUTE_OWNERSHIP,
+  V3_PUBLIC_CAPABILITIES,
   V3_PUBLIC_FEATURE_FLAGS,
   V3_PUBLIC_SOURCE_SURFACE_IDS,
-} from "./v3-public-capability-registry";
+} from "./v3-capability-registry";
 import {
   V3_REQUIRED_SYSTEM_CONCEPTS,
   V3_SYSTEM_CONCEPT_OWNER,
@@ -55,6 +54,12 @@ describe("Solaris V3 migration registries", () => {
     expect(unique(registered)).toEqual(registered);
   });
 
+  it("keeps Organizer detail-route ownership attached to a classified capability", () => {
+    for (const alias of V3_ORGANIZER_ROUTE_OWNERSHIP) {
+      expect(V3_ORGANIZER_DISCOVERED_IDS.has(alias.ownerLegacyId), alias.routePattern).toBe(true);
+    }
+  });
+
   it("maps every V3 feature flag to Public or Organizer ownership", () => {
     const expected = SOLARIS_FEATURE_FLAGS.filter((flag) => flag.startsWith("solaris_app_v3")).sort();
     const mapped = unique([
@@ -68,7 +73,7 @@ describe("Solaris V3 migration registries", () => {
     const manifest = JSON.parse(
       readFileSync(resolve(process.cwd(), "public/site.webmanifest"), "utf8"),
     ) as { shortcuts?: Array<{ url?: string }> };
-    const registeredRoutes = V3_PUBLIC_CAPABILITY_REGISTRY.flatMap((item) => [
+    const registeredRoutes = V3_PUBLIC_CAPABILITIES.flatMap((item) => [
       ...item.legacyRoutes,
       item.targetRoute,
     ]);
@@ -113,7 +118,7 @@ describe("Solaris V3 migration registries", () => {
   });
 
   it("contains no implicit UNKNOWN migration outcome", () => {
-    for (const item of V3_PUBLIC_CAPABILITY_REGISTRY) {
+    for (const item of V3_PUBLIC_CAPABILITIES) {
       expect(["redesign", "merge", "contextualize", "restrict", "retire"]).toContain(
         item.classification,
       );
