@@ -5,6 +5,7 @@ const flags = readFileSync("src/lib/feature-flags.ts", "utf8");
 const rollout = readFileSync("src/integrations/v3/rollout-probe.server.ts", "utf8");
 const shell = readFileSync("src/components/admin/AdminShell.tsx", "utf8");
 const mobile = readFileSync("src/components/admin/OrganizerV3MobileChrome.tsx", "utf8");
+const navigation = readFileSync("src/lib/v3-organizer-navigation.ts", "utf8");
 const control = readFileSync("src/routes/_authenticated/admin/control.tsx", "utf8");
 const migration = readFileSync(
   "supabase/migrations/20261014142000_v3_organizer_cutover.sql",
@@ -36,6 +37,16 @@ describe("V3 Organizer reversible cutover", () => {
     expect(mobile).toContain("V3_ORGANIZER_TAB_ORDER.map");
     expect(mobile).toContain("getV3OrganizerTabDestination");
     expect(mobile).toContain("consumeV3OrganizerNavigationRestore");
+  });
+
+  it("locks navigation and active workflow UI to the selected edition context", () => {
+    expect(mobile).toContain("const navigationScope = activeEdition?.id ?? null");
+    expect(mobile).toContain("navigationScope,");
+    expect(navigation).toContain('return `${STORAGE_PREFIX}:${scopeToken(scopeKey)}`');
+    expect(navigation).toContain('return `${RESTORE_PREFIX}:${scopeToken(scopeKey)}`');
+    expect(shell).toContain("AdminEditionScopedWorkspace");
+    expect(shell).toContain('data-organizer-edition-scope={scope}');
+    expect(shell).toContain("<div key={scope}");
   });
 
   it("keeps Control as a presentation router over existing authorities", () => {
