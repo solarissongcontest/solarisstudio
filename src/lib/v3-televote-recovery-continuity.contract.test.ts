@@ -33,6 +33,11 @@ describe("V3 Televote recovery continuity contract", () => {
     expect(functions).not.toMatch(/localStorage|sessionStorage/);
   });
 
+  it("keeps recovery additive so its own failure cannot block a valid voting preflight", () => {
+    expect(functions).toContain("Recovery continuity is additive");
+    expect(functions).toMatch(/const report = await runVoteIntegrityPreflightServer\(data\);[\s\S]*?try \{[\s\S]*?createMergedTelevotingRecoveryHandleServer\(report\.token\)[\s\S]*?\} catch \{[\s\S]*?\}[\s\S]*?return report;/);
+  });
+
   it("routes recovery through rate-limited server authority rather than direct browser RPCs", () => {
     expect(server).toContain('enforceTelevotingRateLimit(`vote-recovery:');
     expect(server).toContain('enforceTelevotingRateLimit(`vote-recovery-create:');
