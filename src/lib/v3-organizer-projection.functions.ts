@@ -10,6 +10,6 @@ export const getV3OrganizerProjection = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) => {
     const { loadV3OrganizerProjectionServer } =
-      await import("@/lib/v3-organizer-projection.server");
+      await import("@/lib/organizer-v3-projection.server");
     return loadV3OrganizerProjectionServer(data.editionId);
   });
