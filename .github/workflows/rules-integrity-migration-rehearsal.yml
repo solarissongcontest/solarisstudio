@@ -16,6 +16,7 @@ on:
       - ".github/scripts/v3-confirmation-security-rehearsal.sh"
       - ".github/scripts/v3-televote-reconciliation-rehearsal.sh"
       - ".github/scripts/v3-entry-legacy-upgrade-rehearsal.sh"
+      - ".github/scripts/v3-entry-restore-provenance-assert.sh"
       - ".github/workflows/rules-integrity-migration-rehearsal.yml"
   workflow_dispatch:
 
@@ -71,6 +72,10 @@ jobs:
       - name: Run hostile V3 Confirmation authority rehearsal
         shell: bash
         run: bash .github/scripts/v3-confirmation-security-rehearsal.sh
+
+      - name: Verify immutable Entry restore provenance
+        shell: bash
+        run: bash .github/scripts/v3-entry-restore-provenance-assert.sh
 
       - name: Verify exact-ballot Televote receipt authority
         run: bash .github/scripts/v3-televote-reconciliation-rehearsal.sh
@@ -157,6 +162,12 @@ jobs:
         run: |
           cd /tmp/solaris-main
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-confirmation-security-rehearsal.sh"
+
+      - name: Verify immutable Entry restore provenance after upgrade
+        shell: bash
+        run: |
+          cd /tmp/solaris-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-entry-restore-provenance-assert.sh"
 
       - name: Verify Televote receipt authority after upgrade
         run: bash .github/scripts/v3-televote-reconciliation-rehearsal.sh
