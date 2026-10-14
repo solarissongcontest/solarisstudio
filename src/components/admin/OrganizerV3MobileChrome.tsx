@@ -154,7 +154,7 @@ export function OrganizerV3MobileChrome() {
     const alreadyActive = activeTab === id;
     const rootPath = v3OrganizerTabRoot(id);
     const normalizedPath = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
-    const normalizedRoot = rootPath.endsWith("/") && rootPath !== "/" ? rootPath.slice(0, -1) : rootPath;
+    const normalizedRoot = rootPath.endsWith("/") ? rootPath.slice(0, -1) : rootPath;
 
     if (alreadyActive && normalizedPath === normalizedRoot) {
       window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
