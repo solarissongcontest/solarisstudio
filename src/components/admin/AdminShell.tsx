@@ -43,6 +43,7 @@ export function AdminShell({
   ).length;
 
   const pageAlreadyShowsHealth = pathname === "/admin/operations";
+  const pageOwnsContextLock = pathname === "/admin/operations";
   const showJuryWindowControl = pathname.startsWith("/admin/jury/");
 
   return (
@@ -117,7 +118,10 @@ export function AdminShell({
         </header>
 
         <div className="relative z-10">
-          <AdminEditionScopedWorkspace showJuryWindowControl={showJuryWindowControl}>
+          <AdminEditionScopedWorkspace
+            showJuryWindowControl={showJuryWindowControl}
+            showContextLock={!pageOwnsContextLock}
+          >
             {children}
           </AdminEditionScopedWorkspace>
           {organizerV3Enabled ? <OrganizerV3MobileChrome /> : <OrganizerV6MobileChrome />}
@@ -130,16 +134,46 @@ export function AdminShell({
 function AdminEditionScopedWorkspace({
   children,
   showJuryWindowControl,
+  showContextLock,
 }: {
   children: ReactNode;
   showJuryWindowControl: boolean;
+  showContextLock: boolean;
 }) {
-  const { editionId } = useAdminContext();
+  const {
+    editionId,
+    editionLabel,
+    showLabel,
+    contextVersion,
+  } = useAdminContext();
   const scope = editionId || "unscoped";
 
   return (
-    <div key={scope} data-organizer-edition-scope={scope}>
+    <div
+      key={`${scope}:${contextVersion}`}
+      data-organizer-edition-scope={scope}
+      data-organizer-context-version={contextVersion}
+    >
       <AdminFrame>
+        {showContextLock && editionId ? (
+          <div
+            className="mb-3 flex min-h-10 items-center justify-between gap-3 rounded-xl border border-sky-200/10 bg-sky-200/[0.03] px-3 py-2"
+            data-organizer-context-lock=""
+            aria-label="Current Organizer context"
+          >
+            <div className="min-w-0">
+              <span className="block text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Context
+              </span>
+              <strong className="mt-0.5 block truncate text-xs text-foreground">
+                {editionLabel ?? "Selected edition"}
+                {showLabel ? ` · ${showLabel}` : ""}
+              </strong>
+            </div>
+            <span className="shrink-0 text-[9px] font-semibold text-sky-100">Organizer</span>
+          </div>
+        ) : null}
+
         {showJuryWindowControl ? (
           <AdminFeatureBoundary name="jury-voting-window">
             <JuryVotingWindowControl />
