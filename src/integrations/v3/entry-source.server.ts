@@ -14,6 +14,7 @@ import {
   type V3EntryCandidate,
   type V3EntryProjection,
   type V3EntryReviewStatus,
+  type V3EntrySubmissionReceipt,
   type V3EntryVersionEvidence,
 } from "@/lib/v3-entry";
 
@@ -46,7 +47,11 @@ type ConfirmationEntryRow = {
 
 type ConfirmationResponse = {
   submission_id?: unknown;
+  round_id?: unknown;
+  round_name?: unknown;
   edition_id?: unknown;
+  submitted_at?: unknown;
+  updated_at?: unknown;
   selection_method?: unknown;
   can_edit?: unknown;
   reason?: unknown;
@@ -58,6 +63,11 @@ type CountryAccessPayload = {
   authenticated?: unknown;
   country?: unknown;
   responses?: unknown;
+};
+
+type EntryReceiptPayload = {
+  found?: unknown;
+  receipt?: unknown;
 };
 
 export type V3EntryServerBundle = {
@@ -160,6 +170,23 @@ function mapVersionHistory(value: unknown): V3EntryVersionEvidence[] {
   });
 }
 
+function mapSubmissionReceipt(value: unknown): V3EntrySubmissionReceipt | null {
+  const payload = objectOrNull(value) as EntryReceiptPayload | null;
+  if (!payload || payload.found !== true) return null;
+  const receipt = objectOrNull(payload.receipt);
+  if (!receipt || receipt.authority !== "authoritative_server") return null;
+  const receiptId = stringOrNull(receipt.receipt_id);
+  const roundId = stringOrNull(receipt.round_id);
+  const acceptedAt = stringOrNull(receipt.accepted_at);
+  if (!receiptId || !roundId || !acceptedAt) return null;
+  return {
+    authority: "authoritative_server",
+    receiptId,
+    roundId,
+    acceptedAt,
+  };
+}
+
 function editionLabel(edition: Edition) {
   return edition.edition_number == null
     ? edition.name
@@ -189,9 +216,10 @@ function emptyProjection(
 /**
  * Authenticated participant Entry read model. Identity is derived from the
  * bearer token, delegation ownership from the canonical country-account RPC,
- * readiness from studio2_hod_context, and immutable review evidence from the
- * exact-version history RPC. It does not read the public participant archive
- * and owns no mutation path.
+ * readiness from studio2_hod_context, immutable review evidence from the
+ * exact-version history RPC, and receipt evidence from an authenticated
+ * country-account projection over the existing Confirmation operation ledger.
+ * It does not read the public participant archive and owns no submission writer.
  */
 export async function loadCurrentV3EntryBundle(): Promise<V3EntryServerBundle> {
   const token = getSolarisAccessTokenServer();
@@ -252,6 +280,16 @@ export async function loadCurrentV3EntryBundle(): Promise<V3EntryServerBundle> {
   const response = responses
     .map((value) => objectOrNull(value) as ConfirmationResponse | null)
     .find((value) => value && stringOrNull(value.edition_id) === edition.id) ?? null;
+  const submissionId = stringOrNull(response?.submission_id);
+
+  let submissionReceipt: V3EntrySubmissionReceipt | null = null;
+  if (submissionId) {
+    const receiptResult = await client.rpc("v3_country_account_entry_receipt", {
+      p_submission_id: submissionId,
+    });
+    throwIfError(receiptResult.error, "Could not load authoritative Entry receipt evidence");
+    submissionReceipt = mapSubmissionReceipt(receiptResult.data);
+  }
 
   const internalEntry = mapCandidate(response?.internal_entry);
   const nationalFinalRaw = objectOrNull(response?.national_final);
@@ -284,12 +322,17 @@ export async function loadCurrentV3EntryBundle(): Promise<V3EntryServerBundle> {
     state: "ready",
     edition: { id: edition.id, label: editionLabel(edition) },
     delegation: { id: countryId, name: countryName, code: countryCode.toUpperCase() },
-    confirmation: response && stringOrNull(response.submission_id)
+    confirmation: response && submissionId
       ? {
-          submissionId: stringOrNull(response.submission_id)!,
+          submissionId,
+          roundId: stringOrNull(response.round_id),
+          roundName: stringOrNull(response.round_name),
+          submittedAt: stringOrNull(response.submitted_at),
+          updatedAt: stringOrNull(response.updated_at),
           selectionMethod: stringOrNull(response.selection_method),
           canEdit: response.can_edit === true,
           editReason: stringOrNull(response.reason),
+          receipt: submissionReceipt,
           internalEntry,
           nationalFinal: nationalFinalRaw && stringOrNull(nationalFinalRaw.id)
             ? {
