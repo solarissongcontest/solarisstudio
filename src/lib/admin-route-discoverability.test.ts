@@ -43,6 +43,10 @@ const navigationCorpus = [
   source("src/components/admin/admin-contextual-navigation.ts"),
   source("src/components/admin/AdminNav.tsx"),
   source("src/components/admin/AdminFrame.tsx"),
+  // V3 Organizer owns its five canonical mobile areas in this server-selected
+  // mapping. Count those roots as real navigation owners rather than forcing a
+  // duplicate legacy-nav literal just to satisfy route discoverability.
+  source("src/lib/v3-organizer.ts"),
   source("src/routes/_authenticated/admin/operations.tsx"),
   source("src/routes/_authenticated/admin/menu.tsx"),
 ].join("\n");
