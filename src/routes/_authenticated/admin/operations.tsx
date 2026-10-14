@@ -22,14 +22,13 @@ import {
   AdminCardHeader,
   AdminEmptyState,
   AdminPageHeader,
-  AdminProgress,
   AdminStatus,
 } from "@/components/admin/AdminUI";
-import { buildEditionReadiness, type AdminIssue } from "@/lib/admin-readiness";
-import { useAdminReadinessData } from "@/lib/admin-readiness-data";
 import { useAdminNotifications, useMarkNotificationRead } from "@/lib/admin-ops";
 import { useAdminOperationalSchedule } from "@/lib/admin-schedule";
-import { editionLabel, useAllShows, useEditions } from "@/lib/data";
+import { editionLabel, useEditions } from "@/lib/data";
+import type { OrganizerTaskV5 } from "@/lib/admin-tasks-v5";
+import { useV3OrganizerProjection } from "@/lib/v3-organizer-projection.query";
 
 export const Route = createFileRoute("/_authenticated/admin/operations")({
   head: () => ({
@@ -49,7 +48,6 @@ export const Route = createFileRoute("/_authenticated/admin/operations")({
 function OrganizerHome() {
   const { editionId } = useAdminContext();
   const { data: editions = [] } = useEditions();
-  const { data: shows = [] } = useAllShows();
 
   const activeEdition = useMemo(() => {
     const ordered = [...editions].sort(
@@ -58,9 +56,8 @@ function OrganizerHome() {
     return ordered.find((edition) => edition.id === editionId) ?? ordered[0] ?? null;
   }, [editions, editionId]);
 
-  const { data: readinessData, isLoading: readinessLoading } = useAdminReadinessData(
-    activeEdition?.id,
-  );
+  const projectionQuery = useV3OrganizerProjection(activeEdition?.id);
+  const projection = projectionQuery.data ?? null;
   const { data: schedule = [], isError: scheduleError } = useAdminOperationalSchedule(
     activeEdition?.id ?? null,
     activeEdition?.slug ?? null,
@@ -68,28 +65,10 @@ function OrganizerHome() {
   const { data: notifications = [] } = useAdminNotifications();
   const markRead = useMarkNotificationRead();
 
-  const readiness = useMemo(
-    () =>
-      activeEdition
-        ? buildEditionReadiness({
-            edition: activeEdition,
-            shows,
-            participants: readinessData?.participants ?? [],
-            voters: readinessData?.voters ?? [],
-            juryVotes: readinessData?.juryVotes ?? [],
-            juryBallotStatuses: readinessData?.juryBallotStatuses ?? [],
-            televotes: readinessData?.televotes ?? [],
-            results: readinessData?.results ?? [],
-          })
-        : null,
-    [activeEdition, shows, readinessData],
-  );
-
   const upcoming = schedule.find((item) => new Date(item.at).getTime() >= Date.now()) ?? null;
   const unread = notifications.filter((item) => !item.read_at);
   const unresolvedInbox = notifications.filter((item) => item.requires_action && !item.resolved_at);
-  const issues = readiness?.issues ?? [];
-  const topIssues = issues.slice(0, 4);
+  const topTasks = projection?.tasks.top ?? [];
 
   return (
     <AdminPage>
@@ -120,13 +99,15 @@ function OrganizerHome() {
                 <AdminCardHeader
                   eyebrow="Do now"
                   title={
-                    readinessLoading
-                      ? "Checking the edition…"
-                      : issues.length
-                        ? `${issues.length} ${issues.length === 1 ? "item needs" : "items need"} attention`
-                        : "Nothing is blocking the edition"
+                    projectionQuery.isLoading
+                      ? "Evaluating authoritative work…"
+                      : projectionQuery.error
+                        ? "Organizer state unavailable"
+                        : projection?.tasks.total
+                          ? `${projection.tasks.total} ${projection.tasks.total === 1 ? "task needs" : "tasks need"} attention`
+                          : "No unresolved Organizer tasks"
                   }
-                  description="Only actionable edition problems appear here. Each item opens the place where it can be fixed."
+                  description="This queue is projected from canonical domain state. Reading a notification never resolves the underlying work."
                   action={
                     <Link
                       to="/admin/tasks"
@@ -138,14 +119,28 @@ function OrganizerHome() {
                   }
                 />
 
-                {readinessLoading ? (
+                {projectionQuery.isLoading ? (
                   <p className="py-6 text-center text-sm text-muted-foreground">
-                    Checking current edition state…
+                    Evaluating canonical Organizer task and live state…
                   </p>
-                ) : topIssues.length ? (
+                ) : projectionQuery.error ? (
+                  <div className="rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-100" />
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Solaris could not verify Organizer state</p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          {projectionQuery.error instanceof Error
+                            ? projectionQuery.error.message
+                            : "The canonical Organizer projection is temporarily unavailable."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : topTasks.length ? (
                   <div className="divide-y divide-white/[0.07]">
-                    {topIssues.map((issue) => (
-                      <IssueLink key={issue.id} issue={issue} slug={activeEdition.slug} />
+                    {topTasks.map((task) => (
+                      <TaskLink key={task.id} task={task} />
                     ))}
                   </div>
                 ) : (
@@ -153,18 +148,19 @@ function OrganizerHome() {
                     <div className="flex items-start gap-3">
                       <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-200" />
                       <p className="text-sm leading-relaxed text-muted-foreground">
-                        Current automated checks have no blocking edition issue.
+                        The canonical Organizer Task Engine currently reports no unresolved work for this edition.
                       </p>
                     </div>
                   </div>
                 )}
 
-                {issues.length > topIssues.length ? (
+                {projection && projection.tasks.total > topTasks.length ? (
                   <Link
-                    to={`/admin/${activeEdition.slug}` as any}
+                    to="/admin/tasks"
+                    search={{ filter: "all" }}
                     className="admin-action-secondary mt-3"
                   >
-                    Review all {issues.length} edition items <ArrowRight className="size-4" />
+                    Review all {projection.tasks.total} tasks <ArrowRight className="size-4" />
                   </Link>
                 ) : null}
               </AdminCard>
@@ -284,31 +280,42 @@ function OrganizerHome() {
                     {editionLabel(activeEdition)}
                   </h2>
                   <p className="mt-1 text-xs text-muted-foreground">{activeEdition.name}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="min-w-28">
-                    <p className="mb-1 text-[10px] font-semibold text-muted-foreground">
-                      Readiness {readinessLoading ? "…" : `${readiness?.progress ?? 0}%`}
+                  {projection ? (
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      {humanize(projection.live.editionState)} · live health {projection.live.overallHealth}
                     </p>
-                    <AdminProgress value={readiness?.progress ?? 0} />
-                  </div>
-                  <AdminStatus
-                    tone={
-                      readiness?.status === "ready"
-                        ? "ready"
-                        : readiness?.status === "blocked"
-                          ? "blocked"
-                          : "attention"
-                    }
-                  >
-                    {readinessLoading
-                      ? "Checking"
-                      : readiness?.status === "ready"
-                        ? "Ready"
-                        : readiness?.status === "blocked"
-                          ? "Blocked"
-                          : "Needs attention"}
-                  </AdminStatus>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {projection ? (
+                    <>
+                      <span className="rounded-full border border-white/[0.08] px-3 py-1.5 text-[10px] text-muted-foreground">
+                        {projection.tasks.critical} critical
+                      </span>
+                      <span className="rounded-full border border-white/[0.08] px-3 py-1.5 text-[10px] text-muted-foreground">
+                        {projection.tasks.high} high
+                      </span>
+                      <AdminStatus
+                        tone={
+                          projection.risk === "critical"
+                            ? "blocked"
+                            : projection.risk === "elevated"
+                              ? "attention"
+                              : "ready"
+                        }
+                      >
+                        {projection.risk === "critical"
+                          ? "Critical attention"
+                          : projection.risk === "elevated"
+                            ? "Needs attention"
+                            : "Operationally clear"}
+                      </AdminStatus>
+                    </>
+                  ) : (
+                    <AdminStatus tone="neutral">
+                      {projectionQuery.isLoading ? "Checking" : "Unavailable"}
+                    </AdminStatus>
+                  )}
                 </div>
               </div>
 
@@ -352,10 +359,10 @@ function OrganizerHome() {
   );
 }
 
-function IssueLink({ issue, slug }: { issue: AdminIssue; slug: string }) {
-  const critical = issue.severity === "critical";
+function TaskLink({ task }: { task: OrganizerTaskV5 }) {
+  const critical = task.priority === "critical";
   return (
-    <Link to={issueHref(slug, issue)} className="admin-list-row group">
+    <Link to={task.href as any} className="admin-list-row group">
       <span
         className={`grid size-9 shrink-0 place-items-center rounded-xl border ${
           critical
@@ -366,28 +373,17 @@ function IssueLink({ issue, slug }: { issue: AdminIssue; slug: string }) {
         {critical ? <ShieldAlert className="size-4" /> : <AlertTriangle className="size-4" />}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-foreground">{issue.title}</span>
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold text-foreground">{task.title}</span>
+          {task.state === "waiting" ? <AdminStatus tone="info">Waiting</AdminStatus> : null}
+        </span>
         <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-          {issue.detail}
+          {task.description}
         </span>
       </span>
       <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
     </Link>
   );
-}
-
-function issueHref(slug: string, issue: AdminIssue) {
-  const base = areaHref(slug, issue.area);
-  if (!issue.showId || issue.area === "setup") return base;
-  return `${base}?show=${encodeURIComponent(issue.showId)}` as any;
-}
-
-function areaHref(slug: string, area: string) {
-  if (area === "setup") return `/admin/shows/${slug}` as any;
-  if (area === "entries") return `/admin/entries/${slug}` as any;
-  if (area === "jury") return `/admin/jury/${slug}` as any;
-  if (area === "televote") return `/admin/televote/${slug}` as any;
-  return `/admin/publication/${slug}` as any;
 }
 
 function QuickLink({
