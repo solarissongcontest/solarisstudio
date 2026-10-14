@@ -1,3 +1,5 @@
+import { createSystemCommand, type SystemCommand } from "./system-operation-contract";
+
 export const ORGANISATION_SCREEN_STATES = [
   "loading",
   "ready",
@@ -29,14 +31,10 @@ export type OrganisationCommandScope = {
   entityId?: string | null;
 };
 
-export type OrganisationCommandEnvelope<TPayload> = {
-  operationId: string;
-  idempotencyKey: string;
-  expectedVersion: number | null;
+export type OrganisationCommandEnvelope<TPayload> = SystemCommand<TPayload> & {
+  expectedVersion: number | string | null;
   riskClass: OrganisationRiskClass;
   scope: OrganisationCommandScope;
-  command: string;
-  payload: TPayload;
 };
 
 export function createOrganisationCommand<TPayload>(input: {
@@ -44,19 +42,41 @@ export function createOrganisationCommand<TPayload>(input: {
   payload: TPayload;
   riskClass: OrganisationRiskClass;
   scope?: OrganisationCommandScope;
-  expectedVersion?: number | null;
+  expectedVersion?: number | string | null;
+  reason?: string | null;
+  commandId?: string;
   operationId?: string;
   idempotencyKey?: string;
+  correlationId?: string;
+  requestedAt?: string;
 }): OrganisationCommandEnvelope<TPayload> {
-  const operationId = input.operationId ?? crypto.randomUUID();
-  return {
-    operationId,
-    idempotencyKey: input.idempotencyKey ?? operationId,
-    expectedVersion: input.expectedVersion ?? null,
-    riskClass: input.riskClass,
-    scope: input.scope ?? {},
+  const scope = input.scope ?? {};
+  const command = createSystemCommand({
     command: input.command,
     payload: input.payload,
+    expectedVersion: input.expectedVersion,
+    editionId: scope.editionId,
+    showId: scope.showId,
+    subjectType: scope.entityId
+      ? "entity"
+      : scope.roundId
+        ? "round"
+        : scope.countryId
+          ? "country"
+          : undefined,
+    subjectId: scope.entityId ?? scope.roundId ?? scope.countryId,
+    reason: input.reason,
+    commandId: input.commandId,
+    operationId: input.operationId,
+    idempotencyKey: input.idempotencyKey,
+    correlationId: input.correlationId,
+    requestedAt: input.requestedAt,
+  });
+  return {
+    ...command,
+    expectedVersion: command.expectedVersion ?? null,
+    riskClass: input.riskClass,
+    scope,
   };
 }
 
