@@ -14,6 +14,7 @@ on:
       - ".github/scripts/run-rules-integrity-security-rehearsal.sh"
       - ".github/scripts/pr450-deadline-scope-rehearsal.sh"
       - ".github/scripts/v3-confirmation-security-rehearsal.sh"
+      - ".github/scripts/v3-televote-reconciliation-rehearsal.sh"
       - ".github/workflows/rules-integrity-migration-rehearsal.yml"
   workflow_dispatch:
 
@@ -69,6 +70,9 @@ jobs:
       - name: Run hostile V3 Confirmation authority rehearsal
         shell: bash
         run: bash .github/scripts/v3-confirmation-security-rehearsal.sh
+
+      - name: Verify exact-ballot Televote receipt authority
+        run: bash .github/scripts/v3-televote-reconciliation-rehearsal.sh
 
       - name: Print local Evidence Edge Function log on failure
         if: failure()
@@ -137,6 +141,9 @@ jobs:
         run: |
           cd /tmp/solaris-main
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-confirmation-security-rehearsal.sh"
+
+      - name: Verify Televote receipt authority after upgrade
+        run: bash .github/scripts/v3-televote-reconciliation-rehearsal.sh
 
       - name: Stop local Supabase stack
         if: always()

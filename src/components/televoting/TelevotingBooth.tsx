@@ -1,3 +1,4 @@
+import { initialTelevoteStage, recoverTelevoteTransportResponse } from "@/lib/v3-televote-reconciliation";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -37,6 +38,7 @@ import {
   attestMergedTelevotingVote,
   preflightMergedTelevotingVote,
   submitMergedTelevotingVote,
+  reconcileMergedTelevotingVote,
   type TelevotingVoteEntry,
 } from "@/integrations/televoting/vote.functions";
 import { cn } from "@/lib/utils";
@@ -61,7 +63,7 @@ type Country = {
   flag_url: string | null;
 };
 
-type Stage = "register" | "vote" | "review" | "integrity" | "done";
+type Stage = "remembered" | "register" | "vote" | "review" | "integrity" | "done";
 type ClientIdentity = Awaited<ReturnType<typeof buildTelevotingClientIdentity>>;
 
 const TOTAL = 20;
@@ -144,7 +146,7 @@ export function TelevotingBooth({
 }) {
   const alreadyVoted = hasSubmittedTelevotingRound(roundId) || storedReceipt(roundId);
   const restoredTask = useMemo(() => readTaskDraft(roundId), [roundId]);
-  const [stage, setStage] = useState<Stage>(alreadyVoted ? "done" : restoredTask?.stage ?? "register");
+  const [stage, setStage] = useState<Stage>(initialTelevoteStage(alreadyVoted, restoredTask?.stage));
   const [username, setUsername] = useState(restoredTask?.username ?? "");
   const [home, setHome] = useState(restoredTask?.home ?? "");
   const [points, setPoints] = useState<Record<string, number>>(restoredTask?.points ?? {});
@@ -175,6 +177,7 @@ export function TelevotingBooth({
   const preflightVote = useServerFn(preflightMergedTelevotingVote);
   const attestVote = useServerFn(attestMergedTelevotingVote);
   const submitVote = useServerFn(submitMergedTelevotingVote);
+  const reconcileVote = useServerFn(reconcileMergedTelevotingVote);
   const used = Object.values(points).reduce((sum, value) => sum + value, 0);
   const entriesUsed = Object.values(points).filter((value) => value > 0).length;
   const remaining = Math.max(0, TOTAL - used);
@@ -224,8 +227,7 @@ export function TelevotingBooth({
       ballot: TelevotingVoteEntry[];
       identity: ClientIdentity;
     }) => {
-      const result = await submitVote({
-        data: {
+      const data = {
           roundId,
           username: username.trim(),
           countryCode: home,
@@ -233,14 +235,17 @@ export function TelevotingBooth({
           preflightToken: token,
           fingerprintHash: identity.fingerprintHash,
           deviceTokenHash: identity.deviceTokenHash,
-        },
-      });
+      };
+      const result = await recoverTelevoteTransportResponse(
+        () => submitVote({ data }),
+        () => reconcileVote({ data }),
+      );
       return { result, ballot };
     },
     onSuccess: ({ result, ballot }) => {
       const governance = markTelevotingRoundSubmitted(roundId, {
         submissionId: result.id,
-        acknowledgedAt: null,
+        acknowledgedAt: result.accepted_at ?? null,
       });
       try {
         localStorage.setItem(
@@ -375,6 +380,18 @@ export function TelevotingBooth({
       if (next === 0) delete output[entryKey];
       return output;
     });
+  }
+
+  if (stage === "remembered") {
+    return (
+      <section className="glass-strong p-7 text-center sm:p-9">
+        <h2 className="text-2xl font-medium">This device remembers a vote</h2>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+          A browser record cannot verify the ballot on the server. The normal server duplicate protections still apply.
+        </p>
+        <Button className="mt-5" onClick={() => setStage("register")}>Review a ballot</Button>
+      </section>
+    );
   }
 
   if (stage === "done") {
