@@ -223,8 +223,13 @@ log "Me activity is server-owned and restricted to the caller's active delegatio
 rpc_request "$ANON_KEY" v3_me_confirmation_summary '{}'
 expect_failure "anonymous Me summary denied"
 rpc_request "$USER_A_TOKEN" v3_me_confirmation_summary '{}'
+expect_success "unbound operation summary"
+expect_json "operation without a canonical submission is not counted" receipt_count 0
+db_exec "insert into public.submissions(id,edition_id,round_id,instagram_username,country,browser_session_id) values ('$SUBMISSION_ID','$EDITION_ID','$ROUND_ID','me_receipt_fixture','V3 Security A','$SESSION_A');"
+rpc_request "$USER_A_TOKEN" v3_me_confirmation_summary '{}'
 expect_success "own delegation summary"
 expect_json "own delegation scope" country_id "$COUNTRY_A"
+expect_json "own summary viewer" viewer_id "$USER_A_ID"
 expect_json "own receipt count" receipt_count 1
 rpc_request "$USER_B_TOKEN" v3_me_confirmation_summary '{}'
 expect_success "other delegation summary"
