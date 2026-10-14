@@ -45,12 +45,43 @@ function validateBallot(data: TelevotingVoteInput) {
   return { ...data, username };
 }
 
+function validateRecoveryHandle(data: {
+  roundId: string;
+  operationId: string;
+  recoverySecret: string;
+}) {
+  const roundId = String(data?.roundId ?? "").trim();
+  const operationId = String(data?.operationId ?? "").trim();
+  const recoverySecret = String(data?.recoverySecret ?? "").trim();
+  if (!roundId) throw new Error("Missing round");
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operationId))
+    throw new Error("Invalid vote recovery operation");
+  if (!/^[0-9a-f]{64}$/i.test(recoverySecret)) throw new Error("Invalid vote recovery secret");
+  return { roundId, operationId, recoverySecret };
+}
+
 export const preflightMergedTelevotingVote = createServerFn({ method: "POST" })
   .inputValidator((data: TelevotingVoteInput) => validateBallot(data))
   .handler(async ({ data }) => {
     const { runVoteIntegrityPreflightServer } =
       await import("@/integrations/televoting/preflight.server");
     return runVoteIntegrityPreflightServer(data);
+  });
+
+// The preflight bearer token stays memory-only. This server endpoint exchanges
+// it for a separate read-only receipt recovery capability that is safe to
+// persist because it cannot submit or alter a ballot.
+export const createMergedTelevotingRecoveryHandle = createServerFn({ method: "POST" })
+  .inputValidator((data: { preflightToken: string }) => {
+    const preflightToken = String(data?.preflightToken ?? "").trim();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(preflightToken))
+      throw new Error("Invalid voting preflight token");
+    return { preflightToken };
+  })
+  .handler(async ({ data }) => {
+    const { createMergedTelevotingRecoveryHandleServer } =
+      await import("@/integrations/televoting/vote.server");
+    return createMergedTelevotingRecoveryHandleServer(data.preflightToken);
   });
 
 export const attestMergedTelevotingVote = createServerFn({ method: "POST" })
@@ -110,4 +141,12 @@ export const reconcileMergedTelevotingVote = createServerFn({ method: "POST" })
     const { reconcileMergedTelevotingVoteServer } =
       await import("@/integrations/televoting/vote.server");
     return reconcileMergedTelevotingVoteServer(data);
+  });
+
+export const reconcileMergedTelevotingRecovery = createServerFn({ method: "POST" })
+  .inputValidator(validateRecoveryHandle)
+  .handler(async ({ data }) => {
+    const { reconcileMergedTelevotingRecoveryServer } =
+      await import("@/integrations/televoting/vote.server");
+    return reconcileMergedTelevotingRecoveryServer(data);
   });
