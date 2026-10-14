@@ -38,6 +38,7 @@ export type V3RolloutProbe = {
   rulesGuidanceEnabled: boolean;
   resultsEnabled?: boolean;
   meEnabled?: boolean;
+  entryEnabled?: boolean;
   editionId: string | null;
   userId: string | null;
 };
@@ -80,6 +81,8 @@ function disabledProbe(input?: {
     searchEnabled: false,
     rulesGuidanceEnabled: false,
     resultsEnabled: false,
+    meEnabled: false,
+    entryEnabled: false,
     editionId: input?.editionId ?? null,
     userId: input?.userId ?? null,
   };
@@ -103,55 +106,21 @@ async function evaluateV3Rollout(
     rulesGuidanceFlag,
     meFlag,
     resultsFlag,
+    entryFlag,
   ] = await Promise.all([
-    client.rpc("studio2_feature_enabled", {
-      p_key: "solaris_app_v3",
-      p_edition_id: editionId,
-    }),
-    client.rpc("studio2_feature_enabled", {
-      p_key: "solaris_app_v3_confirmation",
-      p_edition_id: editionId,
-    }),
-    client.rpc("studio2_feature_enabled", {
-      p_key: "solaris_app_v3_scoreboard",
-      p_edition_id: editionId,
-    }),
-    client.rpc("studio2_feature_enabled", {
-      p_key: "solaris_app_v3_account_settings",
-      p_edition_id: editionId,
-    }),
-    client.rpc("studio2_feature_enabled", {
-      p_key: "solaris_app_v3_explore",
-      p_edition_id: editionId,
-    }),
-    client.rpc("studio2_feature_enabled", {
-      p_key: "solaris_app_v3_edition_hub",
-      p_edition_id: editionId,
-    }),
-    client.rpc("studio2_feature_enabled", {
-      p_key: "solaris_app_v3_notifications",
-      p_edition_id: editionId,
-    }),
-    client.rpc("studio2_feature_enabled", {
-      p_key: "solaris_app_v3_delegation",
-      p_edition_id: editionId,
-    }),
-    client.rpc("studio2_feature_enabled", {
-      p_key: "solaris_app_v3_search",
-      p_edition_id: editionId,
-    }),
-    client.rpc("studio2_feature_enabled", {
-      p_key: "solaris_app_v3_rules_guidance",
-      p_edition_id: editionId,
-    }),
-    client.rpc("studio2_feature_enabled", {
-      p_key: "solaris_app_v3_me",
-      p_edition_id: editionId,
-    }),
-    client.rpc("studio2_feature_enabled", {
-      p_key: "solaris_app_v3_results",
-      p_edition_id: editionId,
-    }),
+    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3", p_edition_id: editionId }),
+    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_confirmation", p_edition_id: editionId }),
+    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_scoreboard", p_edition_id: editionId }),
+    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_account_settings", p_edition_id: editionId }),
+    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_explore", p_edition_id: editionId }),
+    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_edition_hub", p_edition_id: editionId }),
+    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_notifications", p_edition_id: editionId }),
+    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_delegation", p_edition_id: editionId }),
+    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_search", p_edition_id: editionId }),
+    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_rules_guidance", p_edition_id: editionId }),
+    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_me", p_edition_id: editionId }),
+    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_results", p_edition_id: editionId }),
+    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_entry", p_edition_id: editionId }),
   ]);
 
   if (globalFlag.error) return disabledProbe({ editionId, userId });
@@ -185,18 +154,13 @@ async function evaluateV3Rollout(
     rulesGuidanceEnabled,
     meEnabled: enabled && !meFlag.error && meFlag.data === true,
     resultsEnabled: enabled && !resultsFlag.error && resultsFlag.data === true,
+    entryEnabled: enabled && !entryFlag.error && entryFlag.data === true,
     editionId,
     userId,
   };
 }
 
-/**
- * Cheap, fail-closed V3 rollout probe for the current public edition.
- *
- * This intentionally runs before heavier V3 surface bootstraps so disabled
- * production users do not pay for duplicate data graphs. The persisted Studio 2
- * flags remain the sole rollout authority; errors resolve to disabled.
- */
+/** Cheap, fail-closed V3 rollout probe for the current public edition. */
 export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
   try {
     const publicClient = createConfirmationPublicRuntimeClient() as unknown as RolloutClient;
@@ -215,12 +179,7 @@ export async function loadV3RolloutProbe(): Promise<V3RolloutProbe> {
   }
 }
 
-/**
- * Edition-route rollout probe. The server resolves the requested public slug to
- * its canonical edition id before evaluating edition-scoped feature flags.
- * Browser input can select a route, but it cannot supply or forge the authority
- * scope used by studio2_feature_enabled.
- */
+/** Edition-route variant. Browser slug never supplies the authority scope. */
 export async function loadV3EditionRolloutProbe(slug: string): Promise<V3RolloutProbe> {
   const cleanSlug = slug.trim();
   if (!cleanSlug) return disabledProbe();
