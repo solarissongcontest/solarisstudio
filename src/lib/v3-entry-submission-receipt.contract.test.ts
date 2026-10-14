@@ -27,7 +27,7 @@ describe("V3 Entry submission receipt and edit continuity", () => {
     expect(sql).toContain("if not found then");
     expect(sql).toContain("'found', false");
     expect(sql).not.toContain("clock_timestamp()");
-    expect(screen()).toContain("no authoritative V3 receipt is available for this record");
+    expect(screen()).toContain('data-v3-entry-receipt="legacy-unavailable"');
     expect(screen()).toContain("does not manufacture one from browser or device timestamps");
   });
 
