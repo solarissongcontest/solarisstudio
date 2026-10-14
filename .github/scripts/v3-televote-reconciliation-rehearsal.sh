@@ -72,7 +72,7 @@ begin
 
  select to_jsonb(x) into r from public.v3_reconcile_televote_recovery(v_operation_id, v_secret) x;
  if r->>'found' <> 'true' or r->>'authority' <> 'authoritative_server' or r->>'accepted_at' is null then raise exception 'Committed receipt was not recovered with read-only capability'; end if;
- if r ?| array['ballot_map','username','country_code','ip_hash','fingerprint_hash','device_token_hash','risk_score','moderator_note','recovery_secret'] then raise exception 'Portable recovery leaks ballot, identity, integrity evidence or secret'; end if;
+ if r ?| array['preflight_id','ballot_map','username','country_code','ip_hash','fingerprint_hash','device_token_hash','risk_score','moderator_note','recovery_secret'] then raise exception 'Portable recovery leaks submission authority, ballot, identity, integrity evidence or secret'; end if;
 
  select to_jsonb(x) into r from public.v3_reconcile_televote_recovery(v_operation_id, repeat('0', 64)) x;
  if r->>'found' <> 'false' then raise exception 'Wrong recovery secret was accepted'; end if;
