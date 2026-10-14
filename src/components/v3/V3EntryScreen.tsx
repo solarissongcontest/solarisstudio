@@ -1,3 +1,4 @@
+import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
@@ -8,7 +9,9 @@ import {
   RotateCcw,
   ShieldCheck,
 } from "lucide-react";
+import { useState } from "react";
 
+import { openCurrentV3EntryEditor } from "@/lib/v3-entry.actions";
 import type {
   V3EntryCandidate,
   V3EntryProjection,
@@ -79,6 +82,25 @@ function statusIcon(level: string) {
   return Clock3;
 }
 
+function dateTimeLabel(value: string | null) {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return value;
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(timestamp);
+}
+
+function editFailureMessage(reason: string) {
+  if (reason === "locked") return "This submission is locked and cannot be edited.";
+  if (reason === "editing_closed") return "Editing is currently closed for this submission.";
+  if (reason === "no_submission") return "There is no current submission to edit.";
+  if (reason === "no_delegation") return "Your active delegation could not be resolved.";
+  if (reason === "no_current_edition") return "There is no current edition to edit.";
+  return "Solaris could not open the canonical submission editor. Nothing was changed.";
+}
+
 export function V3EntryScreen({
   projection,
   focusReadiness = false,
@@ -86,6 +108,29 @@ export function V3EntryScreen({
   projection: V3EntryProjection;
   focusReadiness?: boolean;
 }) {
+  const openEntryEditor = useServerFn(openCurrentV3EntryEditor);
+  const [openingEditor, setOpeningEditor] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const handleOpenEditor = async () => {
+    if (openingEditor) return;
+    setOpeningEditor(true);
+    setEditError(null);
+    try {
+      const result = await openEntryEditor({ data: {} });
+      if (!result.ok) {
+        setEditError(editFailureMessage(result.reason));
+        return;
+      }
+      window.location.assign(result.href);
+    } catch (error) {
+      console.error("[V3 Entry] Could not open canonical Confirmation editor", error);
+      setEditError("Solaris could not open the canonical submission editor. Nothing was changed.");
+    } finally {
+      setOpeningEditor(false);
+    }
+  };
+
   if (projection.state === "no-edition") {
     return (
       <V3Screen>
@@ -171,13 +216,39 @@ export function V3EntryScreen({
                 </span>
               </div>
 
-              <Link
-                to="/confirmations"
-                className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--v3-accent)] px-4 font-semibold text-[var(--v3-bg-base)]"
-              >
-                <PencilLine className="size-4" aria-hidden="true" />
-                {confirmation.canEdit ? "Manage confirmation" : "Open confirmation record"}
-              </Link>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {confirmation.canEdit ? (
+                  <button
+                    type="button"
+                    disabled={openingEditor}
+                    onClick={() => void handleOpenEditor()}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--v3-accent)] px-4 font-semibold text-[var(--v3-bg-base)] disabled:opacity-60"
+                  >
+                    <PencilLine className="size-4" aria-hidden="true" />
+                    {openingEditor ? "Opening…" : "Edit submission"}
+                  </button>
+                ) : (
+                  <Link
+                    to="/confirmations"
+                    className="inline-flex min-h-11 items-center rounded-xl bg-[var(--v3-accent)] px-4 font-semibold text-[var(--v3-bg-base)]"
+                  >
+                    Open confirmation record
+                  </Link>
+                )}
+                {confirmation.canEdit ? (
+                  <Link
+                    to="/confirmations"
+                    className="inline-flex min-h-11 items-center rounded-xl border border-[var(--v3-border)] px-4 font-semibold"
+                  >
+                    Confirmation home
+                  </Link>
+                ) : null}
+              </div>
+              {editError ? (
+                <p className="mt-3 text-sm text-[var(--v3-danger)]" role="alert">
+                  {editError}
+                </p>
+              ) : null}
               {!confirmation.canEdit && confirmation.editReason ? (
                 <p className="mt-3 text-xs text-[var(--v3-text-tertiary)]">
                   {confirmation.editReason === "locked"
@@ -190,13 +261,13 @@ export function V3EntryScreen({
             <V3Surface className="p-5">
               <h2 className="font-semibold">No current confirmation response</h2>
               <p className="mt-2 text-sm leading-6 text-[var(--v3-text-secondary)]">
-                Start from Confirmation. Entry review and readiness will appear here from the same canonical response.
+                Start from Confirmation. Its existing V3 draft, submission and reconciliation flow remains the canonical Entry writer.
               </p>
               <Link
                 to="/confirmations"
                 className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-[var(--v3-accent)] px-4 font-semibold text-[var(--v3-bg-base)]"
               >
-                Open Confirmation
+                Start or continue submission
               </Link>
             </V3Surface>
           )}
@@ -225,6 +296,56 @@ export function V3EntryScreen({
             </div>
           ) : null}
         </V3Section>
+
+        {confirmation ? (
+          <V3Section title="Submission record">
+            <V3Surface className="p-5" data-v3-entry-submission-record="">
+              {confirmation.receipt ? (
+                <div data-v3-entry-receipt="authoritative">
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full border border-emerald-400/30 text-emerald-300">
+                      <ShieldCheck className="size-4" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-emerald-200">Authoritative server receipt</p>
+                      <p className="mt-1 text-sm leading-6 text-[var(--v3-text-secondary)]">
+                        Solaris confirmed this exact Confirmation operation on the server
+                        {dateTimeLabel(confirmation.receipt.acceptedAt)
+                          ? ` · ${dateTimeLabel(confirmation.receipt.acceptedAt)}`
+                          : ""}.
+                      </p>
+                      <p className="mt-2 font-mono text-xs text-[var(--v3-text-tertiary)]">
+                        Receipt {confirmation.receipt.receiptId.slice(0, 8)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div data-v3-entry-receipt="legacy-unavailable">
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full border border-[var(--v3-border)] text-[var(--v3-text-secondary)]">
+                      <Clock3 className="size-4" aria-hidden="true" />
+                    </span>
+                    <div>
+                      <p className="font-semibold">Canonical submission recorded</p>
+                      <p className="mt-1 text-sm leading-6 text-[var(--v3-text-secondary)]">
+                        {dateTimeLabel(confirmation.submittedAt)
+                          ? `Submitted ${dateTimeLabel(confirmation.submittedAt)}. `
+                          : ""}
+                        An authoritative V3 receipt is not available for this record. Solaris does not manufacture one from browser or device timestamps.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="mt-4 border-t border-[var(--v3-border-subtle)] pt-3 text-xs text-[var(--v3-text-tertiary)]">
+                {confirmation.roundName ? <span>{confirmation.roundName}</span> : null}
+                {confirmation.roundName && confirmation.updatedAt ? <span> · </span> : null}
+                {confirmation.updatedAt ? <span>Last changed {dateTimeLabel(confirmation.updatedAt)}</span> : null}
+              </div>
+            </V3Surface>
+          </V3Section>
+        ) : null}
 
         <V3Section title="Entry readiness">
           <div
@@ -332,7 +453,7 @@ export function V3EntryScreen({
               ))}
             </V3Surface>
             <p className="px-1 text-xs leading-5 text-[var(--v3-text-tertiary)]">
-              Version history is immutable review evidence. Submission receipts remain owned by Confirmation.
+              Version history is immutable review evidence. Submission receipts remain owned by Confirmation; Entry only displays receipt evidence already authorized by the server.
             </p>
           </V3Section>
         ) : null}
