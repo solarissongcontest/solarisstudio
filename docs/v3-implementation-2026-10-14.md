@@ -50,7 +50,6 @@ rollout cohort is selected. Other workflow receipt histories, anonymous recovery
 across reload/devices, Entry version binding, Jury, Organizer and Live cutovers
 still need separate implementation and certification.
 
-
 The normal Televote submit button also retains the attempted round, identity,
 preflight token and exact point allocation for an unchanged in-memory retry.
 It starts a fresh preflight only when those inputs no longer match. Point editing
@@ -67,8 +66,9 @@ replacement video requirements/URL. Running order, result position and
 next-in-line selection remain separate operations. Revisions are contiguous for
 a canonical entry identity; restoring old content through the existing editor
 creates another revision and requires another review. A replacement canonical
-row starts a new entry identity, while the old evidence is retained privately. Versioned entry/parent identities
-cannot be moved to another Confirmation or edition to reuse old review evidence.
+row starts a new entry identity, while the old evidence is retained privately.
+Versioned entry/parent identities cannot be moved to another Confirmation or
+edition to reuse old review evidence.
 
 The existing capability-checked, idempotent review operation remains the writer.
 It locks the entry before checking the submission review revision, refreshes its
@@ -80,9 +80,10 @@ Selecting a submission-linked NF winner requires an exact current-version
 review. Restoring a historical NF snapshot leaves the winner unset and all
 restored content pending; even an identical-content restore creates a new
 version identity. The original restore wrapper keeps its moderation-removal
-checks and durable submission-level restore provenance. Clear the winner before editing its content. A concurrent conflicting
-operation can fail with PostgreSQL's serialization/deadlock protection; refresh
-and preview again rather than retrying a stale command.
+checks and durable submission-level restore provenance. Clear the winner before
+editing its content. A concurrent conflicting operation can fail with PostgreSQL's
+serialization/deadlock protection; refresh and preview again rather than retrying
+a stale command.
 
 Apply `20261014030000_v3_entry_review_binding.sql` and deploy the matching app.
 Existing decisions and winners are preserved, but their initial snapshots are
@@ -98,8 +99,9 @@ rejection, immutable content/reviews, pointer spoofing, restoring old content,
 country/anonymous isolation, read-only history, and winner protection. The
 upgrade job seeds an accepted entry on main before applying the migration and
 checks that no exact-version review was fabricated. This completes the Entry
-server binding increment; the dedicated V3 Entry screen, an explicit restore
-command with provenance, and broader rollout certification remain outstanding.
+server binding increment; the dedicated V3 Entry screen, participant-side
+submission/receipt experience and broader rollout certification remain
+outstanding.
 
 Bound public review-history rows cannot be updated, rebound or directly deleted,
 and browser inserts must go through the canonical review operation. Response
@@ -119,3 +121,38 @@ available without a content-version argument. Restoration now uses a private,
 case/whitespace-normalized matcher for candidate identity; the old canonical
 restore wrapper referenced a missing public helper. Positive NF restoration and
 rejection of later moderation removals are exercised through that real wrapper.
+
+## Immutable Entry restore provenance
+
+`20261014040000_v3_entry_restore_provenance.sql` makes Organizer restoration an
+explicit Entry-version event instead of leaving it indistinguishable from an
+ordinary participant/canonical content write. Each Entry version created by the
+already-authorized historical Confirmation restore now has source
+`organizer_restore` and stores the exact immutable `submission_versions.id` that
+was selected as the restore source. Ordinary writes remain `canonical_write`;
+legacy backfill remains `legacy_observation`. A database constraint requires the
+restore source and provenance UUID to appear together.
+
+The restore wrapper still owns authorization, round-first locking, moderation
+removal protection and the original mutation helper. Immediately around that
+helper it establishes a transaction-local provenance marker. Entry triggers
+validate that the marked historical version belongs to the same canonical
+submission before recording it, so a different Confirmation cannot be cited as
+the source. The marker is restored after the operation and cannot grant review
+or winner authority. Restored content remains pending and exact-version review
+is still required.
+
+The authorized `v3_confirmation_entry_versions` read model now exposes
+`restored_from_submission_version_id` with each immutable version. The private
+ledger deliberately does not foreign-key that UUID back to the public historical
+row: canonical response deletion may cascade through public submission history,
+but must not erase already-recorded audit evidence. Clean and upgrade migration
+rehearsals execute the real guarded restore twice, assert fresh provenance-bound
+versions, reject inconsistent source/provenance rows through the schema
+constraint, and verify the evidence survives deletion of the disposable
+canonical response. All rehearsals refuse hosted Supabase and run only against
+the isolated local stack.
+
+This closes the explicit restore-provenance backend gap. The dedicated V3 Entry
+participant presentation, participant draft/submission and receipt UX, and full
+Entry rollout certification are the remaining Entry-facing slices.
