@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { SOLARIS_FEATURE_FLAGS } from "../src/lib/feature-flags";
 import { SOLARIS_V6_FEATURE_SURFACES } from "../src/lib/solaris-v6-surface-registry";
 import {
+  V3_API_CAPABILITY_REGISTRY,
   V3_ORGANIZER_CAPABILITY_REGISTRY,
   V3_ORGANIZER_CLASSIFICATION_BY_ID,
   V3_ORGANIZER_DISCOVERED_IDS,
@@ -44,10 +45,16 @@ function setDiff(expected: Iterable<string>, actual: Iterable<string>) {
   };
 }
 
-function routeIdFromFile(path: string) {
-  const source = readFileSync(path, "utf8");
+function routeIdFromSource(source: string) {
   const match = source.match(/createFileRoute\(\s*["'`]([^"'`]+)["'`]\s*\)/);
   return match?.[1] ?? null;
+}
+
+function apiMethodsFromSource(source: string) {
+  return [...source.matchAll(/\b(GET|POST|PUT|PATCH|DELETE)\s*:/g)]
+    .map((match) => match[1])
+    .filter((value, index, values) => values.indexOf(value) === index)
+    .sort();
 }
 
 function publicPath(routeId: string) {
@@ -177,18 +184,44 @@ for (const shortcut of manifest.shortcuts ?? []) {
   }
 }
 
+const apiRouteIds: string[] = [];
 const routeFiles = filesUnder(resolve(process.cwd(), "src/routes")).filter((path) => /\.(?:ts|tsx)$/.test(path));
 for (const file of routeFiles) {
-  const rawRouteId = routeIdFromFile(file);
+  const source = readFileSync(file, "utf8");
+  const rawRouteId = routeIdFromSource(source);
   if (!rawRouteId) continue;
   const route = publicPath(rawRouteId);
   if (!route) continue;
 
-  // Development-only diagnostics are not product capabilities. API routes are
-  // inventoried in the next S1 sub-slice; they are deliberately excluded here
-  // rather than being mislabeled as UI capabilities.
+  // Development-only diagnostics are not production product capabilities.
   if (route.startsWith("/dev/")) continue;
-  if (route.startsWith("/api/")) continue;
+
+  if (route.startsWith("/api/")) {
+    apiRouteIds.push(route);
+    const registered = V3_API_CAPABILITY_REGISTRY.find((item) => item.route === route);
+    if (!registered) {
+      fail("api-routes", `Unregistered API route: ${rawRouteId} (${file.replace(`${process.cwd()}/`, "")})`);
+      continue;
+    }
+
+    const sourceMethods = apiMethodsFromSource(source);
+    const registeredMethods = [...registered.methods].sort();
+    const methodDiff = setDiff(sourceMethods, registeredMethods);
+    if (methodDiff.missing.length || methodDiff.extra.length) {
+      fail(
+        "api-methods",
+        `${route} method ownership drift. source=${sourceMethods.join(",") || "none"} registry=${registeredMethods.join(",") || "none"}`,
+      );
+    }
+    const consequential = sourceMethods.some((method) => method !== "GET");
+    if (consequential !== registered.mutation) {
+      fail("api-mutation", `${route} mutation=${registered.mutation} does not match its HTTP methods`);
+    }
+    if (registered.mutation && registered.riskTier === 0) {
+      fail("api-risk", `${route} is mutating but has Risk Tier 0`);
+    }
+    continue;
+  }
 
   const isOrganizer =
     route.startsWith("/admin") ||
@@ -203,6 +236,14 @@ for (const file of routeFiles) {
   }
 }
 
+const apiDiff = setDiff(apiRouteIds, V3_API_CAPABILITY_REGISTRY.map((item) => item.route));
+if (apiDiff.missing.length || apiDiff.extra.length) {
+  fail(
+    "api-registry",
+    `API route ownership drift. missing=${apiDiff.missing.join(",") || "none"} extra=${apiDiff.extra.join(",") || "none"}`,
+  );
+}
+
 if (failures.length) {
   console.error("V3 capability registry guard failed.\n");
   for (const failure of failures) console.error(`[${failure.area}] ${failure.message}`);
@@ -215,6 +256,7 @@ console.log(
     "V3 capability registry guard passed",
     `public=${V3_PUBLIC_CAPABILITIES.length}`,
     `organizer=${V3_ORGANIZER_CAPABILITY_REGISTRY.length}`,
+    `api=${V3_API_CAPABILITY_REGISTRY.length}`,
     `systemDomains=${V3_SYSTEM_DOMAIN_REGISTRY.length}`,
     `systemConcepts=${V3_REQUIRED_SYSTEM_CONCEPTS.length}`,
     `v3Flags=${mappedV3Flags.size}`,
