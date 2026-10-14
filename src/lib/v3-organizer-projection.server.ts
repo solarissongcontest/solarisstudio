@@ -1,8 +1,5 @@
 import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
-import {
-  createSolarisAuthenticatedClientServer,
-  requireSolarisOrganizerServer,
-} from "@/integrations/supabase/organizer.server";
+import { createSolarisAuthenticatedClientServer } from "@/integrations/supabase/organizer.server";
 import { loadOrganizerTasksV5 } from "@/lib/admin-tasks-v5";
 import { loadControlRoomModelServer } from "@/lib/control-room.server";
 import {
@@ -20,10 +17,10 @@ export async function loadV3OrganizerProjectionServer(
 ): Promise<V3OrganizerProjection> {
   if (!validEditionId(editionId)) throw new Error("Invalid edition id");
 
-  const [organizer] = await Promise.all([
-    requireSolarisOrganizerServer(),
-    requireSolarisCapabilityServer("edition.read", editionId),
-  ]);
+  // The capability engine is authoritative for edition-scoped Organizer
+  // access. Do not re-impose the older global organizer-role requirement here,
+  // or legitimate edition-scoped operators would be rejected.
+  const capability = await requireSolarisCapabilityServer("edition.read", editionId);
 
   const db = createSolarisAuthenticatedClientServer();
   const { data: editionRow, error: editionError } = await (db as any)
@@ -56,6 +53,6 @@ export async function loadV3OrganizerProjectionServer(
     edition,
     tasks,
     live,
-    actorId: organizer.id,
+    actorId: capability.userId,
   });
 }
