@@ -45,10 +45,12 @@ describe("production Organizer audit regressions", () => {
     const home = source("src/routes/_authenticated/admin/operations.tsx");
     const strip = source("src/components/admin/AdminHealthStrip.tsx");
 
-    expect(home).toContain("buildEditionReadiness");
-    expect(home).toContain("useAdminReadinessData");
-    expect(strip).toContain("buildEditionReadiness");
-    expect(strip).toContain("useAdminReadinessData");
+    expect(home).toContain("useV3OrganizerProjection");
+    expect(home).toContain("projection.readiness");
+    expect(strip).toContain("useV3OrganizerProjection");
+    expect(strip).toContain("projection.readiness");
+    expect(strip).not.toContain("buildEditionReadiness");
+    expect(strip).not.toContain("useAdminReadinessData");
     expect(strip).not.toContain("useAdminHealthSummary");
   });
 
@@ -110,12 +112,15 @@ describe("production Organizer audit regressions", () => {
 
   it("keeps custom reminders visually and semantically separate from workflows", () => {
     const schedule = source("src/lib/admin-schedule.ts");
+    const projectionServer = source("src/lib/organizer-v3-projection.server.ts");
     const home = source("src/routes/_authenticated/admin/operations.tsx");
 
     expect(schedule).toContain('source: "reminder"');
     expect(schedule).toContain("Organizer reminder · does not control a Solaris workflow");
-    expect(home).toContain('upcoming.source === "reminder"');
-    expect(home).toContain('"Open reminder"');
+    expect(projectionServer).toContain("Reminder ·");
+    expect(projectionServer).toContain("Organizer reminder · does not control a Solaris workflow");
+    expect(home).toContain("projection.upcoming[0]");
+    expect(home).not.toContain("useAdminOperationalSchedule");
   });
 
   it("keeps Inbox read state separate from unresolved actionable work", () => {
@@ -124,8 +129,9 @@ describe("production Organizer audit regressions", () => {
 
     expect(inbox).toContain("item.requires_action && !item.resolved_at");
     expect(inbox).toContain("filter === \"unread\"");
-    expect(home).toContain("item.requires_action && !item.resolved_at");
-    expect(home).toContain("unresolved work stays here after it is read");
+    expect(home).toContain("projection.attention");
+    expect(home).toContain("highest-priority unresolved canonical conditions");
+    expect(home).not.toContain("read_at");
   });
 
   it("supports both create and edit states for country-account confirmations", () => {
