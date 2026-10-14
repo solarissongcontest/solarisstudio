@@ -345,6 +345,11 @@ expect_json "restored winner explicitly requires review" winner_requires_review 
 rpc_request "$USER_B_TOKEN" admin_restore_confirmation_version "{\"_submission_id\":\"$SUBMISSION_ID\",\"_version_id\":\"00000000-0000-4000-8000-00000000f539\",\"_reason\":\"Restore the same content as another new version\"}"
 expect_success "same-content restore still creates a new content identity"
 [[ "$(db_scalar "select content_revision from public.national_final_entries where national_final_id='$NF_ID' and song_title='Final song';")" == "2" ]] || fail "same-content restore reused an old version identity"
+# Historical restoration must still respect later moderation removal.
+db_exec "update public.national_final_entries set review_status='removed',removed=true,reviewed_at=clock_timestamp(),reviewed_by='$USER_B_ID' where national_final_id='$NF_ID' and song_title='Final song';"
+rpc_request "$USER_B_TOKEN" admin_restore_confirmation_version "{\"_submission_id\":\"$SUBMISSION_ID\",\"_version_id\":\"00000000-0000-4000-8000-00000000f539\",\"_reason\":\"Must not resurrect a removed candidate\"}"
+expect_failure "restore cannot bypass later moderation removal"
+[[ "$(db_scalar "select count(*) from public.national_final_entries where national_final_id='$NF_ID' and removed;")" == "1" ]] || fail "restore resurrected a removed candidate"
 # Canonical response deletion must remain possible without deleting private evidence.
 db_exec "delete from public.submissions where id='$SUBMISSION_ID';"
 [[ "$(db_scalar "select count(*) > 0 from private.v3_entry_versions where submission_id='$SUBMISSION_ID';")" == "t" ]] || fail "canonical deletion rewrote immutable evidence"

@@ -1040,6 +1040,13 @@ grant execute on function public.studio2_apply_confirmation_winner_change(
 ) to authenticated, service_role;
 
 
+
+create function private.v3_normalize_confirmation_entry_text(value text)
+returns text language sql immutable set search_path = pg_catalog as $$
+  select lower(regexp_replace(btrim(coalesce(value,'')), '[[:space:]]+', ' ', 'g'));
+$$;
+revoke all on function private.v3_normalize_confirmation_entry_text(text) from public,anon,authenticated,service_role;
+
 -- Preserve the existing guarded restore wrapper and moderation checks.
 create or replace function public.admin_restore_confirmation_version_apply(
   _submission_id uuid,
@@ -1087,11 +1094,18 @@ begin
   select * into existing
   from public.submissions
   where id = _submission_id
-  for update;
+  for no key update;
 
   if existing.id is null then
     raise exception 'Submission not found';
   end if;
+
+  -- Lock entries before parent updates touch the shared review revision.
+  perform 1 from public.national_finals where submission_id=existing.id for update;
+  perform 1 from public.internal_entries where submission_id=existing.id for update;
+  perform 1 from public.national_final_entries e
+    join public.national_finals nf on nf.id=e.national_final_id
+    where nf.submission_id=existing.id order by e.id for update of e;
 
   select * into target
   from public.submission_versions
@@ -1318,8 +1332,8 @@ begin
         select 1
         from jsonb_array_elements(target_entries) incoming
         where coalesce((incoming ->> 'removed')::boolean, false) = false
-          and public.normalize_entry_text(incoming ->> 'artist') = public.normalize_entry_text(e.artist)
-          and public.normalize_entry_text(incoming ->> 'song_title') = public.normalize_entry_text(e.song_title)
+          and private.v3_normalize_confirmation_entry_text(incoming ->> 'artist') = private.v3_normalize_confirmation_entry_text(e.artist)
+          and private.v3_normalize_confirmation_entry_text(incoming ->> 'song_title') = private.v3_normalize_confirmation_entry_text(e.song_title)
       );
 
     idx := 0;
@@ -1334,8 +1348,8 @@ begin
       from public.national_final_entries e
       where e.national_final_id = nf_id
         and coalesce(e.removed, false) = false
-        and public.normalize_entry_text(e.artist) = public.normalize_entry_text(item ->> 'artist')
-        and public.normalize_entry_text(e.song_title) = public.normalize_entry_text(item ->> 'song_title')
+        and private.v3_normalize_confirmation_entry_text(e.artist) = private.v3_normalize_confirmation_entry_text(item ->> 'artist')
+        and private.v3_normalize_confirmation_entry_text(e.song_title) = private.v3_normalize_confirmation_entry_text(item ->> 'song_title')
       limit 1;
 
       if entry_id is null then
@@ -1470,4 +1484,91 @@ revoke all on function private.studio2_touch_confirmation_review_version()
   from public, anon, authenticated;
 
 
+create or replace function public.admin_restore_confirmation_version(
+  _submission_id uuid,
+  _version_id uuid,
+  _reason text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $$
+declare
+  target_round_id uuid;
+  native_admin boolean := false;
+  solaris_admin boolean := false;
+begin
+  native_admin := private.solaris_confirmation_admin_allowed();
+  if not native_admin then
+    solaris_admin := private.solaris_confirmation_admin_allowed();
+  end if;
+  if not (native_admin or solaris_admin) then
+    raise exception 'Forbidden';
+  end if;
+
+  if nullif(btrim(coalesce(_reason, '')), '') is null then
+    raise exception 'Restore reason is required';
+  end if;
+
+  select s.round_id
+  into target_round_id
+  from public.submissions s
+  where s.id = _submission_id;
+
+  if target_round_id is null then
+    raise exception 'Submission not found';
+  end if;
+
+  -- Match submit_confirmation(): round first, then submission inside the helper.
+  perform 1
+  from public.submission_rounds r
+  where r.id = target_round_id
+  for update;
+
+  -- A historical delegation snapshot must never bypass a later organizer
+  -- moderation removal. If a target NF contains an entry that currently exists
+  -- only as a removed moderation record, require manual organizer resolution
+  -- rather than silently recreating it as a new active row.
+  if exists (
+    select 1
+    from public.submission_versions v
+    join public.national_finals nf
+      on nf.submission_id = _submission_id
+    join public.national_final_entries removed_entry
+      on removed_entry.national_final_id = nf.id
+     and coalesce(removed_entry.removed, false) = true
+    where v.id = _version_id
+      and v.submission_id = _submission_id
+      and exists (
+        select 1
+        from jsonb_array_elements(
+          case
+            when jsonb_typeof(v.snapshot -> 'nf_entries') = 'array'
+              then v.snapshot -> 'nf_entries'
+            else '[]'::jsonb
+          end
+        ) historical_entry
+        where coalesce((historical_entry ->> 'removed')::boolean, false) = false
+          and private.v3_normalize_confirmation_entry_text(historical_entry ->> 'artist')
+              = private.v3_normalize_confirmation_entry_text(removed_entry.artist)
+          and private.v3_normalize_confirmation_entry_text(historical_entry ->> 'song_title')
+              = private.v3_normalize_confirmation_entry_text(removed_entry.song_title)
+      )
+  ) then
+    raise exception 'Restore blocked: the historical snapshot contains a National Final entry removed by organizer moderation';
+  end if;
+
+  return public.admin_restore_confirmation_version_apply(
+    _submission_id,
+    _version_id,
+    _reason
+  );
+end;
+$$;
+
+revoke all on function public.admin_restore_confirmation_version(uuid, uuid, text)
+  from public;
+grant execute on function public.admin_restore_confirmation_version(uuid, uuid, text)
+  to authenticated, service_role;
 commit;
