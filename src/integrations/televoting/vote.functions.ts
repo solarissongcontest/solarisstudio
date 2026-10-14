@@ -54,20 +54,6 @@ function validateBallot(data: TelevotingVoteInput) {
   return { ...data, username };
 }
 
-function validateRecoveryHandle(data: {
-  roundId: string;
-  operationId: string;
-  recoverySecret: string;
-}) {
-  const roundId = validateRoundId(data?.roundId);
-  const operationId = String(data?.operationId ?? "").trim();
-  const recoverySecret = String(data?.recoverySecret ?? "").trim();
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operationId))
-    throw new Error("Invalid vote recovery operation");
-  if (!/^[0-9a-f]{64}$/i.test(recoverySecret)) throw new Error("Invalid vote recovery secret");
-  return { roundId, operationId, recoverySecret };
-}
-
 export const preflightMergedTelevotingVote = createServerFn({ method: "POST" })
   .inputValidator((data: TelevotingVoteInput) => validateBallot(data))
   .handler(async ({ data }) => {
@@ -180,14 +166,6 @@ export const exportMergedTelevotingRecoveryCode = createServerFn({ method: "POST
     return receipt ? serializeTelevoteRecoveryCode(handle) : null;
   });
 
-export const reconcileMergedTelevotingRecovery = createServerFn({ method: "POST" })
-  .inputValidator(validateRecoveryHandle)
-  .handler(async ({ data }) => {
-    const { reconcileMergedTelevotingRecoveryServer } =
-      await import("@/integrations/televoting/vote.server");
-    return reconcileMergedTelevotingRecoveryServer(data);
-  });
-
 export const recoverMergedTelevotingReceiptCode = createServerFn({ method: "POST" })
   .inputValidator((data: { roundId: string; recoveryCode: string }) => {
     const roundId = validateRoundId(data?.roundId);
@@ -198,5 +176,16 @@ export const recoverMergedTelevotingReceiptCode = createServerFn({ method: "POST
   .handler(async ({ data }) => {
     const { reconcileMergedTelevotingRecoveryServer } =
       await import("@/integrations/televoting/vote.server");
-    return reconcileMergedTelevotingRecoveryServer(data);
+    const receipt = await reconcileMergedTelevotingRecoveryServer(data);
+    if (receipt) {
+      // Adopt the same low-privilege recovery capability on this browser so
+      // later reloads can recover without asking for the portable code again.
+      const { writeTelevoteRecoveryCookie } =
+        await import("@/integrations/televoting/recovery-cookie.server");
+      writeTelevoteRecoveryCookie(data.roundId, {
+        operationId: data.operationId,
+        recoverySecret: data.recoverySecret,
+      });
+    }
+    return receipt;
   });
