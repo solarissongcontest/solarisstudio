@@ -325,17 +325,12 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
     void loadDraft({ data: { showId: round.show_id } })
       .then((result) => {
         if (cancelled) return;
-        const payload = result.payload && typeof result.payload === "object" && !Array.isArray(result.payload)
-          ? result.payload as { selections?: unknown }
-          : null;
-        const remoteSelections = Array.isArray(payload?.selections)
-          ? payload.selections.map((value) => typeof value === "string" ? value : null)
-          : null;
+        const remoteSelections = result.payload?.selections ?? null;
         if (result.found === true && remoteSelections?.length === round.point_scale.length) {
           setSelections(remoteSelections);
           lastSavedFingerprint.current = JSON.stringify(remoteSelections);
         }
-        setServerRevision(Number(result.server_revision ?? result.revision ?? 0));
+        setServerRevision(result.serverRevision);
         setDraftStatus("saved");
         setDraftReady(true);
       })
@@ -375,14 +370,9 @@ function JuryBallotBooth({ userId, round, country, accessToken, v3ReliabilityEna
           sessionId,
         },
       }).then((result) => {
-        const nextRevision = Number(result.server_revision ?? result.revision ?? expectedRevision);
+        const nextRevision = result.serverRevision;
         if (result.conflict === true) {
-          const payload = result.payload && typeof result.payload === "object" && !Array.isArray(result.payload)
-            ? result.payload as { selections?: unknown }
-            : null;
-          const newerSelections = Array.isArray(payload?.selections)
-            ? payload.selections.map((value) => typeof value === "string" ? value : null)
-            : [];
+          const newerSelections = result.payload?.selections ?? [];
           if (newerSelections.length === round.point_scale.length) {
             setDraftConflict({ selections: newerSelections, revision: nextRevision });
             setDraftStatus("conflict");

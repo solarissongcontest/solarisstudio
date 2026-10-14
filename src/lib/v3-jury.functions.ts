@@ -52,6 +52,22 @@ export type V3JuryReceipt = {
   replayed: boolean;
 };
 
+export type V3JuryDraftResult = {
+  found?: boolean;
+  ok?: boolean;
+  conflict?: boolean;
+  reason?: string;
+  draftId?: string;
+  showId?: string;
+  payload?: { selections: Array<string | null> };
+  revision: number;
+  serverRevision: number;
+  deviceId?: string;
+  sessionId?: string;
+  updatedAt?: string;
+  serverTime?: string;
+};
+
 type WireReceipt = {
   authority?: unknown;
   operation_id?: unknown;
@@ -77,6 +93,40 @@ function requiredString(value: unknown, label: string) {
     throw new Error(`Invalid ${label} returned by the jury authority.`);
   }
   return value;
+}
+
+function optionalString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function safeRevision(value: unknown) {
+  const revision = Number(value);
+  return Number.isSafeInteger(revision) && revision >= 0 ? revision : 0;
+}
+
+function normalizeDraftResult(value: Record<string, unknown>): V3JuryDraftResult {
+  const payload = objectOrNull(value.payload);
+  const selections = Array.isArray(payload?.selections)
+    ? payload.selections.map((selection) =>
+        typeof selection === "string" ? selection : null,
+      )
+    : undefined;
+  const revision = safeRevision(value.revision);
+  return {
+    found: value.found === true,
+    ok: value.ok === true,
+    conflict: value.conflict === true,
+    reason: optionalString(value.reason),
+    draftId: optionalString(value.draft_id),
+    showId: optionalString(value.show_id),
+    payload: selections ? { selections } : undefined,
+    revision,
+    serverRevision: safeRevision(value.server_revision ?? revision),
+    deviceId: optionalString(value.device_id),
+    sessionId: optionalString(value.session_id),
+    updatedAt: optionalString(value.updated_at),
+    serverTime: optionalString(value.server_time),
+  };
 }
 
 function normalizeReceipt(value: unknown): V3JuryReceipt | undefined {
@@ -124,21 +174,25 @@ async function authenticatedRpc(
 
 export const loadV3JuryDraft = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => showSchema.parse(data))
-  .handler(async ({ data }) =>
-    authenticatedRpc("v3_load_jury_draft", { _show_id: data.showId }),
-  );
+  .handler(async ({ data }) => {
+    const result = await authenticatedRpc("v3_load_jury_draft", {
+      _show_id: data.showId,
+    });
+    return normalizeDraftResult(result);
+  });
 
 export const saveV3JuryDraft = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => saveDraftSchema.parse(data))
-  .handler(async ({ data }) =>
-    authenticatedRpc("v3_save_jury_draft", {
+  .handler(async ({ data }) => {
+    const result = await authenticatedRpc("v3_save_jury_draft", {
       _show_id: data.showId,
       _payload: { selections: data.selections },
       _expected_revision: data.expectedRevision,
       _device_id: data.deviceId ?? null,
       _session_id: data.sessionId ?? null,
-    }),
-  );
+    });
+    return normalizeDraftResult(result);
+  });
 
 export const submitV3JuryBallot = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => submitSchema.parse(data))
@@ -150,7 +204,12 @@ export const submitV3JuryBallot = createServerFn({ method: "POST" })
       _operation_id: data.operationId,
       _request_hash: null,
     });
-    return { ...result, receipt: normalizeReceipt(result.receipt) };
+    return {
+      ok: result.ok === true,
+      ballotSubmissionId: optionalString(result.ballot_submission_id),
+      showId: optionalString(result.show_id),
+      receipt: normalizeReceipt(result.receipt),
+    };
   });
 
 export const reconcileV3JurySubmission = createServerFn({ method: "POST" })
@@ -162,7 +221,9 @@ export const reconcileV3JurySubmission = createServerFn({ method: "POST" })
     if (result.found !== true) return { found: false as const };
     return {
       found: true as const,
-      ...result,
+      ok: result.ok === true,
+      ballotSubmissionId: optionalString(result.ballot_submission_id),
+      showId: optionalString(result.show_id),
       receipt: normalizeReceipt(result.receipt),
     };
   });
@@ -173,5 +234,13 @@ export const lookupV3JuryReceipt = createServerFn({ method: "POST" })
     const result = await authenticatedRpc("v3_jury_receipt", {
       _show_id: data.showId,
     });
-    return { ...result, receipt: normalizeReceipt(result.receipt) };
+    return {
+      submitted: result.submitted === true,
+      found: result.found === true,
+      legacy: result.legacy === true,
+      ballotSubmissionId: optionalString(result.ballot_submission_id),
+      submittedAt: optionalString(result.submitted_at),
+      serverTime: optionalString(result.server_time),
+      receipt: normalizeReceipt(result.receipt),
+    };
   });
