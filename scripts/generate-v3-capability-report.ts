@@ -4,9 +4,18 @@ import {
   V3_PUBLIC_CAPABILITIES,
 } from "../src/lib/v3-capability-registry";
 import {
+  V3_NOTIFICATION_CATEGORY_REGISTRY,
+  V3_NOTIFICATION_PROVIDER_REGISTRY,
+} from "../src/lib/v3-notification-provider-registry";
+import { V3_SEARCH_PROVIDER_REGISTRY } from "../src/lib/v3-search-provider-registry";
+import {
   V3_REQUIRED_SYSTEM_CONCEPTS,
   V3_SYSTEM_DOMAIN_REGISTRY,
 } from "../src/lib/v3-system-domain-registry";
+import {
+  V3_SYSTEM_PHYSICAL_AUDIT_SOURCE,
+  V3_VERIFIED_DOMAIN_TABLES,
+} from "../src/lib/v3-system-physical-audit";
 
 function escapeCell(value: unknown) {
   return String(value ?? "").replaceAll("|", "\\|").replaceAll("\n", " ");
@@ -31,6 +40,10 @@ const pendingSystem = V3_SYSTEM_DOMAIN_REGISTRY.filter(
 const unresolvedPublic = V3_PUBLIC_CAPABILITIES.filter((item) =>
   ["discovered", "mapped", "specified", "building"].includes(item.specificationStatus),
 ).sort((a, b) => a.id.localeCompare(b.id));
+const notificationDeliveryClasses = countBy(
+  V3_NOTIFICATION_CATEGORY_REGISTRY,
+  (item) => item.deliveryClass,
+);
 
 const lines = [
   "# Solaris Studio V3 capability report",
@@ -43,8 +56,12 @@ const lines = [
   `- Public/participant capabilities: **${V3_PUBLIC_CAPABILITIES.length}**`,
   `- Organizer capabilities: **${V3_ORGANIZER_CAPABILITY_REGISTRY.length}**`,
   `- API routes: **${V3_API_CAPABILITY_REGISTRY.length}**`,
+  `- Public Search providers: **${V3_SEARCH_PROVIDER_REGISTRY.length}**`,
+  `- Notification categories: **${V3_NOTIFICATION_CATEGORY_REGISTRY.length}**`,
+  `- Notification producer families: **${V3_NOTIFICATION_PROVIDER_REGISTRY.length}**`,
   `- System domains: **${V3_SYSTEM_DOMAIN_REGISTRY.length}**`,
   `- Required System concepts with owners: **${V3_REQUIRED_SYSTEM_CONCEPTS.length}**`,
+  `- Domains with verified physical Supabase tables: **${Object.keys(V3_VERIFIED_DOMAIN_TABLES).length}**`,
   `- System domains still pending physical store/RPC audit: **${pendingSystem.length}**`,
   "",
   "## Public migration state",
@@ -94,6 +111,48 @@ const lines = [
       `| ${escapeCell(item.route)} | ${escapeCell(item.methods.join(", "))} | ${escapeCell(item.ownerDomain)} | ${escapeCell(item.audience)} | ${item.mutation ? "yes" : "no"} | ${item.riskTier} |`,
   ),
   "",
+  "## Public Search ownership",
+  "",
+  "| Provider | Mode | Domain owner | Capability | Result groups |",
+  "| --- | --- | --- | --- | --- |",
+  ...V3_SEARCH_PROVIDER_REGISTRY.map(
+    (item) =>
+      `| ${escapeCell(item.id)} | ${escapeCell(item.mode)} | ${escapeCell(item.ownerDomain)} | ${escapeCell(item.capabilityId)} | ${escapeCell(item.resultGroups.join(", "))} |`,
+  ),
+  "",
+  "## Notification ownership",
+  "",
+  "### Categories by delivery class",
+  "",
+  ...notificationDeliveryClasses.map(([deliveryClass, count]) => `- ${deliveryClass}: ${count}`),
+  "",
+  "| Category | Domain owner | Class | Preference controlled | Default route |",
+  "| --- | --- | --- | --- | --- |",
+  ...V3_NOTIFICATION_CATEGORY_REGISTRY.map(
+    (item) =>
+      `| ${escapeCell(item.category)} | ${escapeCell(item.ownerDomain)} | ${escapeCell(item.deliveryClass)} | ${item.preferenceControlled ? "yes" : "no"} | ${escapeCell(item.defaultRoute)} |`,
+  ),
+  "",
+  "| Producer | Domain owner | Categories | Event types | Action required |",
+  "| --- | --- | --- | --- | --- |",
+  ...V3_NOTIFICATION_PROVIDER_REGISTRY.map(
+    (item) =>
+      `| ${escapeCell(item.id)} | ${escapeCell(item.ownerDomain)} | ${escapeCell(item.categories.join(", "))} | ${escapeCell(item.eventTypes.join(", "))} | ${item.actionRequired ? "yes" : "no"} |`,
+  ),
+  "",
+  "## System physical ownership",
+  "",
+  `Read-only schema evidence: **${escapeCell(V3_SYSTEM_PHYSICAL_AUDIT_SOURCE.projectId)}**, inspected **${escapeCell(V3_SYSTEM_PHYSICAL_AUDIT_SOURCE.inspectedAt)}** via ${escapeCell(V3_SYSTEM_PHYSICAL_AUDIT_SOURCE.method)}.`,
+  "",
+  "| Domain | Audit status | Primary physical tables |",
+  "| --- | --- | --- |",
+  ...[...V3_SYSTEM_DOMAIN_REGISTRY]
+    .sort((a, b) => a.domain.localeCompare(b.domain))
+    .map(
+      (domain) =>
+        `| ${escapeCell(domain.domain)} | ${escapeCell(domain.physicalAuditStatus)} | ${escapeCell(domain.primaryTables.join(", ") || "pending")} |`,
+    ),
+  "",
   "## System physical-audit backlog",
   "",
   pendingSystem.length
@@ -107,7 +166,7 @@ const lines = [
   "",
   "## Release interpretation",
   "",
-  "A green registry guard means discovery sources are mapped and there are no currently known route/flag/domain/API ownership orphans. It does **not** mean every capability has reached parity, every System physical store has been audited, or Solaris V3 is release-certified.",
+  "A green registry guard means the currently scanned discovery sources are mapped and there are no known route/API/flag/Search/notification/System ownership orphans. It does **not** mean every capability has reached parity, every RPC/security boundary has been audited, or Solaris V3 is release-certified.",
   "",
 ].join("\n");
 
