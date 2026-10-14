@@ -299,6 +299,12 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
       description:
         "Server-gated global V3 shell entry to the canonical installed-app Search experience, backed by the publication-safe lightweight search projection and existing search-return continuity.",
     },
+    solaris_app_v3_me: {
+      key: "solaris_app_v3_me", label: "Solaris App V3 · Me",
+      state: "integrated", audience: "public", route: "/my-solaris",
+      surfaceLabel: "Me V3", dependsOn: ["solaris_app_v3"],
+      description: "Authenticated identity-first root using canonical MySolaris ownership and private server receipt activity, with legacy deep links preserved.",
+    },
     solaris_app_v3_results: {
       key: "solaris_app_v3_results",
       label: "Solaris App V3 · Results",

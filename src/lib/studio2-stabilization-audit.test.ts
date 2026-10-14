@@ -56,6 +56,8 @@ function routeFile(route: string) {
       `${routeName}.tsx`,
     );
     if (existsSync(authenticated)) return authenticated;
+    const authenticatedIndex = resolve(process.cwd(), "src/routes/_authenticated", routeName, "index.tsx");
+    if (existsSync(authenticatedIndex)) return authenticatedIndex;
 
     return resolve(process.cwd(), "src/routes", routeName, "index.tsx");
   }

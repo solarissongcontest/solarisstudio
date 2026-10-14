@@ -37,6 +37,7 @@ export type V3RolloutProbe = {
   searchEnabled: boolean;
   rulesGuidanceEnabled: boolean;
   resultsEnabled?: boolean;
+  meEnabled?: boolean;
   editionId: string | null;
   userId: string | null;
 };
@@ -100,6 +101,7 @@ async function evaluateV3Rollout(
     delegationFlag,
     searchFlag,
     rulesGuidanceFlag,
+    meFlag,
     resultsFlag,
   ] = await Promise.all([
     client.rpc("studio2_feature_enabled", {
@@ -143,6 +145,10 @@ async function evaluateV3Rollout(
       p_edition_id: editionId,
     }),
     client.rpc("studio2_feature_enabled", {
+      p_key: "solaris_app_v3_me",
+      p_edition_id: editionId,
+    }),
+    client.rpc("studio2_feature_enabled", {
       p_key: "solaris_app_v3_results",
       p_edition_id: editionId,
     }),
@@ -177,6 +183,7 @@ async function evaluateV3Rollout(
     delegationEnabled,
     searchEnabled,
     rulesGuidanceEnabled,
+    meEnabled: enabled && !meFlag.error && meFlag.data === true,
     resultsEnabled: enabled && !resultsFlag.error && resultsFlag.data === true,
     editionId,
     userId,
