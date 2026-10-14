@@ -116,7 +116,9 @@ begin
     new.current_version_id:=old.current_version_id;
     new.content_revision:=old.content_revision;
     new.reviewed_version_id:=old.reviewed_version_id;
-    changed:=old.current_version_id is null or content_snapshot is distinct from private.v3_entry_content(to_jsonb(old));
+    changed:=old.current_version_id is null
+      or coalesce(current_setting('solaris.v3_force_entry_version',true)=submission_uuid::text,false)
+      or content_snapshot is distinct from private.v3_entry_content(to_jsonb(old));
   else
     changed:=true; new.content_revision:=0; new.current_version_id:=null; new.reviewed_version_id:=null;
   end if;
@@ -127,11 +129,17 @@ begin
       raise exception 'Clear the National Final winner before editing its reviewed content' using errcode='22023';
     end if;
     new.content_revision:=coalesce(new.content_revision,0)+1;
+    if tg_op='INSERT' then
+      -- ON CONFLICT can discard an INSERT candidate after BEFORE triggers.
+      -- Record its evidence only in AFTER INSERT, once a row really exists.
+      new.current_version_id:=gen_random_uuid();
+    else
     insert into private.v3_entry_versions(target_type, entry_id, submission_id, edition_id,
       revision, parent_version_id, source, content, content_hash, actor_id)
     values(target,new.id,submission_uuid,edition_uuid,new.content_revision,new.current_version_id,
       'canonical_write',content_snapshot,encode(extensions.digest(content_snapshot::text,'sha256'),'hex'),auth.uid())
     returning id into new.current_version_id;
+    end if;
     new.reviewed_version_id:=null;
     -- Inserting a trusted legacy/historical status is not an exact-version review.
     if tg_op='UPDATE' then
@@ -156,6 +164,29 @@ create trigger v3_bind_internal_entry before insert or update on public.internal
 for each row execute function private.v3_bind_confirmation_entry_version();
 create trigger v3_bind_nf_entry before insert or update on public.national_final_entries
 for each row execute function private.v3_bind_confirmation_entry_version();
+
+create function private.v3_record_inserted_entry_version()
+returns trigger language plpgsql security definer set search_path = pg_catalog, public, private as $$
+declare submission_uuid uuid; edition_uuid uuid; content_snapshot jsonb;
+begin
+  if new.current_version_id is null then return new; end if;
+  if tg_table_name='internal_entries' then submission_uuid:=new.submission_id;
+  else select nf.submission_id into submission_uuid from public.national_finals nf where nf.id=(to_jsonb(new)->>'national_final_id')::uuid;
+  end if;
+  select s.edition_id into edition_uuid from public.submissions s where s.id=submission_uuid;
+  content_snapshot:=private.v3_entry_content(to_jsonb(new));
+  insert into private.v3_entry_versions(id,target_type,entry_id,submission_id,edition_id,revision,source,content,content_hash,actor_id)
+  values(new.current_version_id,case when tg_table_name='internal_entries' then 'internal' else 'national_final' end,
+    new.id,submission_uuid,edition_uuid,1,'canonical_write',content_snapshot,
+    encode(extensions.digest(content_snapshot::text,'sha256'),'hex'),auth.uid());
+  return new;
+end;
+$$;
+revoke all on function private.v3_record_inserted_entry_version() from public,anon,authenticated;
+create trigger v3_record_inserted_internal_entry after insert on public.internal_entries
+for each row execute function private.v3_record_inserted_entry_version();
+create trigger v3_record_inserted_nf_entry after insert on public.national_final_entries
+for each row execute function private.v3_record_inserted_entry_version();
 
 -- Moving the parent must not silently re-scope a previously reviewed version.
 create function private.v3_guard_entry_parent_scope()
@@ -217,6 +248,30 @@ $$;
 revoke all on function private.v3_bind_review_history_version() from public, anon, authenticated;
 create trigger v3_bind_review_history before insert on public.submission_review_history
 for each row execute function private.v3_bind_review_history_version();
+
+-- Canonical operation functions run as their owner; browser writes must not
+-- fabricate, rebind or erase reviewed audit evidence through the old ALL policy.
+create trigger studio2_guard_direct_review_history_insert before insert on public.submission_review_history
+for each row execute function private.studio2_guard_direct_confirmation_review_transition();
+create function private.v3_guard_bound_review_history()
+returns trigger language plpgsql security definer set search_path = pg_catalog, public as $$
+begin
+  if tg_op='DELETE' then
+    -- Canonical response deletion retains the separate immutable private ledger.
+    if old.reviewed_version_id is not null and exists(select 1 from public.submissions where id=old.submission_id) then
+      raise exception 'Bound review history cannot be erased' using errcode='42501';
+    end if;
+    return old;
+  end if;
+  if old.reviewed_version_id is not null or new.reviewed_version_id is distinct from old.reviewed_version_id then
+    raise exception 'Bound review history cannot be changed' using errcode='42501';
+  end if;
+  return new;
+end;
+$$;
+revoke all on function private.v3_guard_bound_review_history() from public,anon,authenticated;
+create trigger v3_guard_bound_review_history before update or delete on public.submission_review_history
+for each row execute function private.v3_guard_bound_review_history();
 
 create function public.v3_confirmation_entry_versions(p_target_type text, p_entry_id uuid, p_before_revision bigint default null)
 returns jsonb language plpgsql stable security definer set search_path = pg_catalog, public, private as $$
@@ -983,6 +1038,390 @@ revoke all on function public.studio2_apply_confirmation_winner_change(
 grant execute on function public.studio2_apply_confirmation_winner_change(
   uuid, text, uuid, text, uuid, text, bigint
 ) to authenticated, service_role;
+
+
+-- Preserve the existing guarded restore wrapper and moderation checks.
+create or replace function public.admin_restore_confirmation_version_apply(
+  _submission_id uuid,
+  _version_id uuid,
+  _reason text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public', 'pg_temp'
+as $$
+declare
+  existing public.submissions;
+  restored public.submissions;
+  target public.submission_versions;
+  target_submission jsonb;
+  target_internal jsonb;
+  target_nf jsonb;
+  target_entries jsonb;
+  current_snapshot jsonb;
+  native_admin boolean := false;
+  solaris_admin boolean := false;
+  actor_id uuid := null;
+  next_version integer;
+  nf_id uuid;
+  entry_id uuid;
+  mapped_winner_id uuid := null;
+  target_winner_text text;
+  item jsonb;
+  idx integer := 0;
+  previous_force_version text;
+begin
+  native_admin := private.solaris_confirmation_admin_allowed();
+  if not native_admin then
+    solaris_admin := private.solaris_confirmation_admin_allowed();
+  end if;
+  if not (native_admin or solaris_admin) then
+    raise exception 'Forbidden';
+  end if;
+
+  if nullif(btrim(coalesce(_reason, '')), '') is null then
+    raise exception 'Restore reason is required';
+  end if;
+
+  select * into existing
+  from public.submissions
+  where id = _submission_id
+  for update;
+
+  if existing.id is null then
+    raise exception 'Submission not found';
+  end if;
+
+  select * into target
+  from public.submission_versions
+  where id = _version_id
+    and submission_id = _submission_id;
+
+  if target.id is null then
+    raise exception 'Historical version not found for this submission';
+  end if;
+
+  target_submission := coalesce(target.snapshot -> 'submission', '{}'::jsonb);
+  target_internal := target.snapshot -> 'internal';
+  target_nf := target.snapshot -> 'national_final';
+  target_entries := case
+    when jsonb_typeof(target.snapshot -> 'nf_entries') = 'array'
+      then target.snapshot -> 'nf_entries'
+    else '[]'::jsonb
+  end;
+  target_winner_text := nullif(target.snapshot #>> '{national_final,winning_entry_id}', '');
+
+  current_snapshot := jsonb_build_object(
+    'submission', to_jsonb(existing),
+    'internal', (
+      select to_jsonb(i)
+      from public.internal_entries i
+      where i.submission_id = existing.id
+      limit 1
+    ),
+    'national_final', (
+      select to_jsonb(n)
+      from public.national_finals n
+      where n.submission_id = existing.id
+      limit 1
+    ),
+    'nf_entries', (
+      select coalesce(jsonb_agg(to_jsonb(e) order by e.position), '[]'::jsonb)
+      from public.national_final_entries e
+      join public.national_finals n on n.id = e.national_final_id
+      where n.submission_id = existing.id
+    )
+  );
+
+  select greatest(
+    existing.edit_count,
+    coalesce(max(v.version), 0)
+  ) + 1
+  into next_version
+  from public.submission_versions v
+  where v.submission_id = existing.id;
+
+  actor_id := case when native_admin then auth.uid() else null end;
+
+  insert into public.submission_versions(
+    submission_id,
+    version,
+    snapshot,
+    change_source,
+    change_reason,
+    actor_user_id,
+    restored_from_version_id
+  ) values (
+    existing.id,
+    next_version,
+    current_snapshot,
+    'organizer_restore',
+    btrim(_reason),
+    actor_id,
+    target.id
+  );
+
+  update public.submissions
+  set
+    instagram_username = case
+      when target_submission ? 'instagram_username'
+        then coalesce(nullif(target_submission ->> 'instagram_username', ''), instagram_username)
+      else instagram_username
+    end,
+    country_account = case
+      when target_submission ? 'country_account'
+        then nullif(target_submission ->> 'country_account', '')
+      else country_account
+    end,
+    has_country_account = case
+      when target_submission ? 'has_country_account'
+        then coalesce((target_submission ->> 'has_country_account')::boolean, has_country_account)
+      else has_country_account
+    end,
+    participating = case
+      when target_submission ? 'participating'
+        then coalesce((target_submission ->> 'participating')::boolean, participating)
+      else participating
+    end,
+    selection_method = case
+      when target_submission ? 'selection_method'
+        then nullif(target_submission ->> 'selection_method', '')
+      else selection_method
+    end,
+    entry_unknown = case
+      when target_submission ? 'entry_unknown'
+        then coalesce((target_submission ->> 'entry_unknown')::boolean, entry_unknown)
+      else entry_unknown
+    end,
+    nf_entries_unknown = case
+      when target_submission ? 'nf_entries_unknown'
+        then coalesce((target_submission ->> 'nf_entries_unknown')::boolean, nf_entries_unknown)
+      else nf_entries_unknown
+    end,
+    reveal_date_type = case when target_submission ? 'reveal_date_type' then nullif(target_submission ->> 'reveal_date_type', '') else reveal_date_type end,
+    reveal_exact_date = case when target_submission ? 'reveal_exact_date' then nullif(target_submission ->> 'reveal_exact_date', '')::date else reveal_exact_date end,
+    reveal_approximate_text = case when target_submission ? 'reveal_approximate_text' then nullif(target_submission ->> 'reveal_approximate_text', '') else reveal_approximate_text end,
+    nf_date_type = case when target_submission ? 'nf_date_type' then nullif(target_submission ->> 'nf_date_type', '') else nf_date_type end,
+    nf_exact_date = case when target_submission ? 'nf_exact_date' then nullif(target_submission ->> 'nf_exact_date', '')::date else nf_exact_date end,
+    nf_approximate_text = case when target_submission ? 'nf_approximate_text' then nullif(target_submission ->> 'nf_approximate_text', '') else nf_approximate_text end,
+    nf_result_date_type = case when target_submission ? 'nf_result_date_type' then nullif(target_submission ->> 'nf_result_date_type', '') else nf_result_date_type end,
+    nf_result_exact_date = case when target_submission ? 'nf_result_exact_date' then nullif(target_submission ->> 'nf_result_exact_date', '')::date else nf_result_exact_date end,
+    nf_result_approximate_text = case when target_submission ? 'nf_result_approximate_text' then nullif(target_submission ->> 'nf_result_approximate_text', '') else nf_result_approximate_text end,
+    edit_count = next_version,
+    updated_at = now()
+  where id = existing.id
+  returning * into restored;
+
+  -- This marker only forces a new content identity; it grants no permissions
+  -- or review authority. The existing restore authorization/provenance remains.
+  previous_force_version:=current_setting('solaris.v3_force_entry_version',true);
+  perform set_config('solaris.v3_force_entry_version',restored.id::text,true);
+
+  -- Restore delegation-owned entry content, but never historical organizer
+  -- approvals/declines/removals. Anything restored must be reviewed again.
+  if not restored.participating
+     or restored.selection_method is null
+     or restored.selection_method = 'unknown' then
+    delete from public.internal_entries where submission_id = restored.id;
+    delete from public.national_finals where submission_id = restored.id;
+
+  elsif restored.selection_method = 'internal' then
+    delete from public.national_finals where submission_id = restored.id;
+
+    if jsonb_typeof(target_internal) = 'object' then
+      insert into public.internal_entries(
+        submission_id,
+        artist,
+        song_title,
+        song_url,
+        preview_start,
+        preview_end,
+        final_clip_start,
+        final_clip_end,
+        replacement_video_required,
+        replacement_video_url,
+        review_status,
+        review_reason,
+        reviewed_at,
+        reviewed_by
+      ) values (
+        restored.id,
+        nullif(target_internal ->> 'artist', ''),
+        nullif(target_internal ->> 'song_title', ''),
+        nullif(target_internal ->> 'song_url', ''),
+        nullif(target_internal ->> 'preview_start', ''),
+        nullif(target_internal ->> 'preview_end', ''),
+        nullif(target_internal ->> 'final_clip_start', ''),
+        nullif(target_internal ->> 'final_clip_end', ''),
+        coalesce((target_internal ->> 'replacement_video_required')::boolean, false),
+        nullif(target_internal ->> 'replacement_video_url', ''),
+        'pending',
+        null,
+        null,
+        null
+      )
+      on conflict (submission_id) do update set
+        artist = excluded.artist,
+        song_title = excluded.song_title,
+        song_url = excluded.song_url,
+        preview_start = excluded.preview_start,
+        preview_end = excluded.preview_end,
+        final_clip_start = excluded.final_clip_start,
+        final_clip_end = excluded.final_clip_end,
+        replacement_video_required = excluded.replacement_video_required,
+        replacement_video_url = excluded.replacement_video_url,
+        review_status = 'pending',
+        review_reason = null,
+        reviewed_at = null,
+        reviewed_by = null;
+    else
+      delete from public.internal_entries where submission_id = restored.id;
+    end if;
+
+  elsif restored.selection_method = 'national_final' then
+    delete from public.internal_entries where submission_id = restored.id;
+
+    select id into nf_id
+    from public.national_finals
+    where submission_id = restored.id
+    limit 1;
+
+    if nf_id is null then
+      insert into public.national_finals(
+        submission_id,
+        nf_name,
+        expected_entry_count,
+        winning_entry_id
+      ) values (
+        restored.id,
+        case when jsonb_typeof(target_nf) = 'object' then nullif(target_nf ->> 'nf_name', '') else null end,
+        case when jsonb_typeof(target_nf) = 'object' then nullif(target_nf ->> 'expected_entry_count', '')::integer else null end,
+        null
+      ) returning id into nf_id;
+    else
+      update public.national_finals
+      set
+        nf_name = case when jsonb_typeof(target_nf) = 'object' then nullif(target_nf ->> 'nf_name', '') else null end,
+        expected_entry_count = case when jsonb_typeof(target_nf) = 'object' then nullif(target_nf ->> 'expected_entry_count', '')::integer else null end,
+        winning_entry_id = null
+      where id = nf_id;
+    end if;
+
+    -- Preserve already-removed moderation records. Current active entries that
+    -- do not exist in the target delegation snapshot are removed from the
+    -- active lineup, matching ordinary delegation edit behavior.
+    delete from public.national_final_entries e
+    where e.national_final_id = nf_id
+      and coalesce(e.removed, false) = false
+      and not exists (
+        select 1
+        from jsonb_array_elements(target_entries) incoming
+        where coalesce((incoming ->> 'removed')::boolean, false) = false
+          and public.normalize_entry_text(incoming ->> 'artist') = public.normalize_entry_text(e.artist)
+          and public.normalize_entry_text(incoming ->> 'song_title') = public.normalize_entry_text(e.song_title)
+      );
+
+    idx := 0;
+    mapped_winner_id := null;
+    for item in select value from jsonb_array_elements(target_entries) loop
+      if coalesce((item ->> 'removed')::boolean, false) then
+        continue;
+      end if;
+
+      entry_id := null;
+      select e.id into entry_id
+      from public.national_final_entries e
+      where e.national_final_id = nf_id
+        and coalesce(e.removed, false) = false
+        and public.normalize_entry_text(e.artist) = public.normalize_entry_text(item ->> 'artist')
+        and public.normalize_entry_text(e.song_title) = public.normalize_entry_text(item ->> 'song_title')
+      limit 1;
+
+      if entry_id is null then
+        insert into public.national_final_entries(
+          national_final_id,
+          artist,
+          song_title,
+          song_url,
+          position,
+          preview_start,
+          preview_end,
+          final_clip_start,
+          final_clip_end,
+          replacement_video_required,
+          replacement_video_url,
+          review_status,
+          review_reason,
+          reviewed_at,
+          reviewed_by,
+          removed,
+          removed_at
+        ) values (
+          nf_id,
+          nullif(item ->> 'artist', ''),
+          nullif(item ->> 'song_title', ''),
+          nullif(item ->> 'song_url', ''),
+          idx,
+          nullif(item ->> 'preview_start', ''),
+          nullif(item ->> 'preview_end', ''),
+          nullif(item ->> 'final_clip_start', ''),
+          nullif(item ->> 'final_clip_end', ''),
+          coalesce((item ->> 'replacement_video_required')::boolean, false),
+          nullif(item ->> 'replacement_video_url', ''),
+          'pending',
+          null,
+          null,
+          null,
+          false,
+          null
+        ) returning id into entry_id;
+      else
+        update public.national_final_entries
+        set
+          artist = nullif(item ->> 'artist', ''),
+          song_title = nullif(item ->> 'song_title', ''),
+          song_url = nullif(item ->> 'song_url', ''),
+          position = idx,
+          preview_start = nullif(item ->> 'preview_start', ''),
+          preview_end = nullif(item ->> 'preview_end', ''),
+          final_clip_start = nullif(item ->> 'final_clip_start', ''),
+          final_clip_end = nullif(item ->> 'final_clip_end', ''),
+          replacement_video_required = coalesce((item ->> 'replacement_video_required')::boolean, false),
+          replacement_video_url = nullif(item ->> 'replacement_video_url', ''),
+          review_status = 'pending',
+          review_reason = null,
+          reviewed_at = null,
+          reviewed_by = null,
+          removed = false,
+          removed_at = null
+        where id = entry_id;
+      end if;
+
+      if target_winner_text is not null and item ->> 'id' = target_winner_text then
+        mapped_winner_id := entry_id;
+      end if;
+
+      idx := idx + 1;
+    end loop;
+
+    update public.national_finals
+    set winning_entry_id = null
+    where id = nf_id;
+  end if;
+
+  perform set_config('solaris.v3_force_entry_version',coalesce(previous_force_version,''),true);
+  return jsonb_build_object(
+    'ok', true,
+    'winner_requires_review', target_winner_text is not null,
+    'submission_id', restored.id,
+    'captured_version', next_version,
+    'restored_from_version_id', target.id
+  );
+end;
+$$;
+
+revoke all on function public.admin_restore_confirmation_version_apply(uuid, uuid, text) from public,anon,authenticated,service_role;
 
 
 commit;

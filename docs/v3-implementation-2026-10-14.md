@@ -77,7 +77,10 @@ The Organizer also compares its displayed version with the fresh preview: an
 unseen replacement version requires a refresh before approval. Content changes
 reset approval/rejection to pending; removed NF candidates remain removed.
 Selecting a submission-linked NF winner requires an exact current-version
-review. Clear the winner before editing its content. A concurrent conflicting
+review. Restoring a historical NF snapshot leaves the winner unset and all
+restored content pending; even an identical-content restore creates a new
+version identity. The original restore wrapper keeps its moderation-removal
+checks and durable submission-level restore provenance. Clear the winner before editing its content. A concurrent conflicting
 operation can fail with PostgreSQL's serialization/deadlock protection; refresh
 and preview again rather than retrying a stale command.
 
@@ -97,3 +100,11 @@ upgrade job seeds an accepted entry on main before applying the migration and
 checks that no exact-version review was fabricated. This completes the Entry
 server binding increment; the dedicated V3 Entry screen, an explicit restore
 command with provenance, and broader rollout certification remain outstanding.
+
+Bound public review-history rows cannot be updated, rebound or directly deleted,
+and browser inserts must go through the canonical review operation. Response
+cascade deletion remains possible while the separate private evidence is
+retained. INSERT evidence is recorded after the canonical row exists so an
+UPSERT conflict cannot create a phantom version for its discarded insert row.
+Authority rehearsals also exercise these paths and the real historical NF
+restore wrapper, including a repeated same-content restore.
