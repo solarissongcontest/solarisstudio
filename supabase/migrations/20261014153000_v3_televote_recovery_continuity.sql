@@ -20,9 +20,6 @@ comment on table private.v3_televote_recovery_handles is
 
 revoke all on table private.v3_televote_recovery_handles from public, anon, authenticated;
 
-create index if not exists v3_televote_recovery_handles_preflight_idx
-  on private.v3_televote_recovery_handles(preflight_id);
-
 create or replace function public.v3_create_televote_recovery_handle(
   p_preflight_token uuid
 )
