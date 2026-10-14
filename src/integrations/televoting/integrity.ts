@@ -1,5 +1,4 @@
 import type { IntegrityIntervention } from "@/integrations/televoting/integrity-policy";
-import type { TelevoteRecoveryHandle } from "@/lib/v3-televote-reconciliation";
 
 export type VoteIntegritySeverity =
   | "none"
@@ -40,7 +39,6 @@ export type VoteIntegrityReport = {
   expiresAt: string;
   automatic: true;
   modelVersion?: string;
-  recovery?: TelevoteRecoveryHandle | null;
   relationshipRisk: number;
   riskScore: number;
   confidence?: number;
