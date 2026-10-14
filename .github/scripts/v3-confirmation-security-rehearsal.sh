@@ -2,7 +2,7 @@
 set -euo pipefail
 
 log() { printf '\n[v3-confirmation-security] %s\n' "$*"; }
-fail() { printf '\n[v3-confirmation-security] FAIL: %s\n' "$*" >&2; exit 1; }
+fail() { printf '\n[v3-confirmation-security] FAIL: %s\n' "$*" >&2; printf '::error::%s\n' "$*"; exit 1; }
 
 # This rehearsal is intentionally hostile and intentionally local-only. Never
 # point it at hosted Supabase: it creates disposable users and canonical rows.
@@ -71,7 +71,17 @@ expect_json() {
   log "PASS: $label"
 }
 
-db_exec() { psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$1" >/dev/null; }
+db_exec() {
+  local diagnostic
+  diagnostic="$(mktemp)"
+  if ! psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$1" >/dev/null 2>"$diagnostic"; then
+    cat "$diagnostic" >&2
+    printf '::error::%s\n' "$(sed -n '/ERROR:/p' "$diagnostic" | head -1)"
+    rm -f "$diagnostic"
+    exit 1
+  fi
+  rm -f "$diagnostic"
+}
 db_scalar() { psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c "$1"; }
 
 expect_db_failure() {
@@ -248,3 +258,106 @@ expect_json "suspended count remains unknown" receipt_count ''
 db_exec "update public.country_accounts set status='active' where user_id='$USER_A_ID'::uuid;"
 db_exec "begin transaction read only; set local role authenticated; select set_config('request.jwt.claims',jsonb_build_object('sub','$USER_A_ID','role','authenticated')::text,true); select public.v3_me_confirmation_summary(); rollback;"
 log "PASS: Me delegation receipt scope and read-only access verified"
+
+log "Entry versions preserve reviewed content and reject stale approval"
+ENTRY_ID='00000000-0000-4000-8000-00000000f531'
+NF_ID='00000000-0000-4000-8000-00000000f532'
+NF_ENTRY_ID='00000000-0000-4000-8000-00000000f533'
+db_exec "insert into public.internal_entries(id,submission_id,artist,song_title,song_url) values ('$ENTRY_ID','$SUBMISSION_ID','Version artist','Original song','https://example.invalid/original');"
+db_exec "insert into public.studio2_capability_grants(user_id,capability,edition_id) values ('$USER_B_ID','confirmation.manage','$EDITION_ID');"
+rpc_request "$USER_A_TOKEN" v3_confirmation_entry_versions "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\"}"
+expect_success "own entry history"
+expect_json "first immutable revision" versions.0.revision 1
+expect_json "canonical source is not legacy approval" versions.0.source canonical_write
+VERSION_ONE="$(printf '%s' "$HTTP_BODY" | json_value versions.0.id)"
+rpc_request "$ANON_KEY" v3_confirmation_entry_versions "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\"}"
+expect_failure "anonymous entry history"
+# B has a scoped review capability, but removing it must close cross-country reads.
+db_exec "delete from public.studio2_capability_grants where user_id='$USER_B_ID' and capability='confirmation.manage';"
+rpc_request "$USER_B_TOKEN" v3_confirmation_entry_versions "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\"}"
+expect_failure "other delegation entry history"
+db_exec "insert into public.studio2_capability_grants(user_id,capability,edition_id) values ('$USER_B_ID','confirmation.manage','$EDITION_ID');"
+rpc_request "$USER_B_TOKEN" studio2_confirmation_entry_review_preview "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\",\"p_target_status\":\"accepted\"}"
+expect_success "versioned review preview"
+expect_json "preview binds displayed content" currentVersionId "$VERSION_ONE"
+EXPECTED_VERSION="$(printf '%s' "$HTTP_BODY" | json_value expectedVersion)"
+rpc_request "$USER_B_TOKEN" studio2_apply_confirmation_entry_review "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\",\"p_target_status\":\"accepted\",\"p_reason\":\"Reviewed original version\",\"p_operation_id\":\"00000000-0000-4000-8000-00000000f534\",\"p_idempotency_key\":\"v3-entry-rehearsal-review\",\"p_expected_version\":$EXPECTED_VERSION,\"p_expected_entry_version\":\"$VERSION_ONE\"}"
+expect_success "canonical review operation"
+[[ "$(db_scalar "select reviewed_version_id from public.internal_entries where id='$ENTRY_ID';")" == "$VERSION_ONE" ]] || fail "review not bound to exact original version"
+[[ "$(db_scalar "select reviewed_version_id from public.submission_review_history where target_entry_id='$ENTRY_ID' order by created_at desc limit 1;")" == "$VERSION_ONE" ]] || fail "review history lost exact version"
+expect_db_failure "entry snapshot cannot be rewritten" "update private.v3_entry_versions set content='{}' where id='$VERSION_ONE';"
+expect_db_failure "entry review cannot be deleted" "delete from private.v3_entry_reviews where version_id='$VERSION_ONE';"
+expect_db_failure "bound public audit cannot be rebound" "update public.submission_review_history set reviewed_version_id=null where target_entry_id='$ENTRY_ID';"
+expect_db_failure "bound public audit cannot be deleted" "delete from public.submission_review_history where target_entry_id='$ENTRY_ID';"
+expect_db_failure "browser reviewer cannot fabricate a bound audit event" "begin; set local role authenticated; select set_config('request.jwt.claims',jsonb_build_object('sub','$USER_B_ID','role','authenticated')::text,true); insert into public.submission_review_history(submission_id,target_type,target_entry_id,action,reason) values ('$SUBMISSION_ID','internal','$ENTRY_ID','declined','Fabricated browser audit'); rollback;"
+
+expect_db_failure "authenticated cannot read private entry ledger" "set local role authenticated; select * from private.v3_entry_versions;"
+db_exec "update public.internal_entries set song_title='Changed song',song_url='https://example.invalid/changed',current_version_id='$VERSION_ONE',reviewed_version_id='$VERSION_ONE',content_revision=900 where id='$ENTRY_ID';"
+[[ "$(db_scalar "select review_status || ':' || content_revision || ':' || (reviewed_version_id is null)::text from public.internal_entries where id='$ENTRY_ID';")" == "pending:2:true" ]] || fail "edited entry retained old approval or forged revision"
+rpc_request "$USER_A_TOKEN" v3_confirmation_entry_versions "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\"}"
+expect_success "history after content edit"
+expect_json "new revision appended" versions.0.revision 2
+expect_json "parent version preserved" versions.0.parent_version_id "$VERSION_ONE"
+expect_json "original content preserved" versions.1.content.song_title "Original song"
+expect_json "original review preserved" versions.1.reviews.0.decision accepted
+CURRENT_REVIEW_VERSION="$(db_scalar "select version from public.studio2_confirmation_review_versions where submission_id='$SUBMISSION_ID';")"
+rpc_request "$USER_B_TOKEN" studio2_apply_confirmation_entry_review "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\",\"p_target_status\":\"accepted\",\"p_reason\":\"Fresh revision but wrong displayed content\",\"p_operation_id\":\"00000000-0000-4000-8000-00000000f53a\",\"p_idempotency_key\":\"v3-unseen-entry-rehearsal\",\"p_expected_version\":$CURRENT_REVIEW_VERSION,\"p_expected_entry_version\":\"$VERSION_ONE\"}"
+expect_failure "fresh CAS does not authorize approval of a different displayed version"
+rpc_request "$USER_B_TOKEN" studio2_apply_confirmation_entry_review "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\",\"p_target_status\":\"accepted\",\"p_reason\":\"Missing displayed content\",\"p_operation_id\":\"00000000-0000-4000-8000-00000000f53a\",\"p_idempotency_key\":\"v3-unseen-entry-rehearsal\",\"p_expected_version\":$CURRENT_REVIEW_VERSION}"
+expect_failure "older caller without displayed version cannot approve fresh content"
+
+
+db_exec "update public.country_accounts set status='suspended' where user_id='$USER_A_ID';"
+rpc_request "$USER_A_TOKEN" v3_confirmation_entry_versions "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\"}"
+expect_failure "suspended delegation cannot read Entry history"
+db_exec "update public.country_accounts set status='active' where user_id='$USER_A_ID';"
+
+rpc_request "$USER_B_TOKEN" studio2_apply_confirmation_entry_review "{\"p_target_type\":\"internal\",\"p_entry_id\":\"$ENTRY_ID\",\"p_target_status\":\"accepted\",\"p_reason\":\"Stale review\",\"p_operation_id\":\"00000000-0000-4000-8000-00000000f535\",\"p_idempotency_key\":\"v3-entry-rehearsal-stale\",\"p_expected_version\":$EXPECTED_VERSION,\"p_expected_entry_version\":\"$VERSION_ONE\"}"
+expect_failure "old preview cannot approve edited content"
+# A metadata-only update must neither create a version nor forge review evidence.
+db_exec "update public.internal_entries set reviewed_version_id='$VERSION_ONE',current_version_id='$VERSION_ONE',content_revision=999 where id='$ENTRY_ID';"
+[[ "$(db_scalar "select content_revision || ':' || (reviewed_version_id is null)::text from public.internal_entries where id='$ENTRY_ID';")" == "2:true" ]] || fail "client replaced authoritative version pointers"
+# Restoring old content still appends a new version and needs another review.
+db_exec "update public.internal_entries set song_title='Original song',song_url='https://example.invalid/original' where id='$ENTRY_ID';"
+[[ "$(db_scalar "select content_revision || ':' || review_status from public.internal_entries where id='$ENTRY_ID';")" == "3:pending" ]] || fail "restored content reused old approval"
+db_exec "insert into public.internal_entries(submission_id,artist,song_title,song_url) values ('$SUBMISSION_ID','Version artist','Upsert content','https://example.invalid/upsert') on conflict(submission_id) do update set song_title=excluded.song_title,song_url=excluded.song_url;"
+[[ "$(db_scalar "select content_revision from public.internal_entries where id='$ENTRY_ID';")" == "4" ]] || fail "UPSERT did not advance the real entry"
+[[ "$(db_scalar "select count(*) from private.v3_entry_versions where submission_id='$SUBMISSION_ID' and target_type='internal' and entry_id<>'$ENTRY_ID';")" == "0" ]] || fail "UPSERT created evidence for a discarded insert candidate"
+
+db_exec "insert into public.national_finals(id,submission_id,nf_name,country_id,edition_id) values ('$NF_ID','$SUBMISSION_ID','Version final','$COUNTRY_A','$EDITION_ID');"
+db_exec "insert into public.national_final_entries(id,national_final_id,artist,song_title,review_status) values ('$NF_ENTRY_ID','$NF_ID','Final artist','Final song','accepted');"
+expect_db_failure "unbound accepted status is not winner evidence" "update public.national_finals set winning_entry_id='$NF_ENTRY_ID' where id='$NF_ID';"
+# Trusted fixture review uses the same row trigger as the canonical reviewed update.
+db_exec "update public.national_final_entries set reviewed_at=clock_timestamp(),reviewed_by='$USER_B_ID' where id='$NF_ENTRY_ID';"
+db_exec "update public.national_finals set winning_entry_id='$NF_ENTRY_ID' where id='$NF_ID';"
+# Capture a real older delegation snapshot with an accepted, selected winner.
+db_exec "insert into public.submission_versions(id,submission_id,version,snapshot) select '00000000-0000-4000-8000-00000000f539',s.id,1,jsonb_build_object('submission',to_jsonb(s)||jsonb_build_object('selection_method','national_final'),'national_final',to_jsonb(nf),'nf_entries',(select jsonb_agg(to_jsonb(i)) from public.national_final_entries i where i.national_final_id=nf.id)) from public.submissions s join public.national_finals nf on nf.submission_id=s.id where s.id='$SUBMISSION_ID';"
+expect_db_failure "selected winner content cannot change" "update public.national_final_entries set song_title='Unreviewed winner' where id='$NF_ENTRY_ID';"
+db_exec "update public.national_finals set winning_entry_id=null where id='$NF_ID'; update public.national_final_entries set song_title='Unreviewed winner' where id='$NF_ENTRY_ID';"
+expect_db_failure "old winner review cannot select edited version" "update public.national_finals set winning_entry_id='$NF_ENTRY_ID' where id='$NF_ID';"
+db_exec "begin transaction read only; set local role authenticated; select set_config('request.jwt.claims',jsonb_build_object('sub','$USER_A_ID','role','authenticated')::text,true); select public.v3_confirmation_entry_versions('internal','$ENTRY_ID'); rollback;"
+db_exec "insert into public.editions(id,name,slug,edition_number,status,published) values ('00000000-0000-4000-8000-00000000f538','Other Entry edition','other-entry-edition',9538,'draft',false);"
+expect_db_failure "versioned submission cannot move editions" "update public.submissions set edition_id='00000000-0000-4000-8000-00000000f538' where id='$SUBMISSION_ID';"
+expect_db_failure "versioned National Final cannot become unowned" "update public.national_finals set submission_id=null where id='$NF_ID';"
+db_exec "insert into public.national_finals(id,nf_name,country_id,edition_id) values ('00000000-0000-4000-8000-00000000f536','Historical unowned final','$COUNTRY_A','$EDITION_ID');"
+expect_db_failure "versioned candidate cannot escape into historical workflow" "update public.national_final_entries set national_final_id='00000000-0000-4000-8000-00000000f536' where id='$NF_ENTRY_ID';"
+# Unowned historical finals still permit their existing accepted/winner workflow.
+db_exec "insert into public.national_final_entries(id,national_final_id,artist,song_title,review_status) values ('00000000-0000-4000-8000-00000000f537','00000000-0000-4000-8000-00000000f536','Historical artist','Historical song','accepted'); update public.national_finals set winning_entry_id='00000000-0000-4000-8000-00000000f537' where id='00000000-0000-4000-8000-00000000f536';"
+db_exec "insert into public.studio2_capability_grants(user_id,capability,edition_id) values ('$USER_B_ID','delegation.manage',null);"
+rpc_request "$USER_B_TOKEN" admin_restore_confirmation_version "{\"_submission_id\":\"$SUBMISSION_ID\",\"_version_id\":\"00000000-0000-4000-8000-00000000f539\",\"_reason\":\"Restore reviewed winner content for a new review\"}"
+expect_success "restore a National Final snapshot with a historical winner"
+expect_json "restored winner explicitly requires review" winner_requires_review true
+[[ "$(db_scalar "select winning_entry_id is null from public.national_finals where id='$NF_ID';")" == "t" ]] || fail "restore reused winner approval"
+[[ "$(db_scalar "select count(*) from public.national_final_entries where national_final_id='$NF_ID' and song_title='Final song' and review_status='pending' and reviewed_version_id is null and current_version_id is not null;")" == "1" ]] || fail "restore did not produce pending versioned content"
+rpc_request "$USER_B_TOKEN" admin_restore_confirmation_version "{\"_submission_id\":\"$SUBMISSION_ID\",\"_version_id\":\"00000000-0000-4000-8000-00000000f539\",\"_reason\":\"Restore the same content as another new version\"}"
+expect_success "same-content restore still creates a new content identity"
+[[ "$(db_scalar "select content_revision from public.national_final_entries where national_final_id='$NF_ID' and song_title='Final song';")" == "2" ]] || fail "same-content restore reused an old version identity"
+# Historical restoration must still respect later moderation removal.
+db_exec "update public.national_final_entries set review_status='removed',removed=true,reviewed_at=clock_timestamp(),reviewed_by='$USER_B_ID' where national_final_id='$NF_ID' and song_title='Final song';"
+rpc_request "$USER_B_TOKEN" admin_restore_confirmation_version "{\"_submission_id\":\"$SUBMISSION_ID\",\"_version_id\":\"00000000-0000-4000-8000-00000000f539\",\"_reason\":\"Must not resurrect a removed candidate\"}"
+expect_failure "restore cannot bypass later moderation removal"
+[[ "$(db_scalar "select count(*) from public.national_final_entries where national_final_id='$NF_ID' and removed;")" == "1" ]] || fail "restore resurrected a removed candidate"
+# Canonical response deletion must remain possible without deleting private evidence.
+db_exec "delete from public.submissions where id='$SUBMISSION_ID';"
+[[ "$(db_scalar "select count(*) > 0 from private.v3_entry_versions where submission_id='$SUBMISSION_ID';")" == "t" ]] || fail "canonical deletion rewrote immutable evidence"
+log "PASS: immutable Entry versions, exact reviews, stale preview and winner protection"
