@@ -160,18 +160,64 @@ for (const provider of V3_NOTIFICATION_PROVIDER_REGISTRY) {
   }
 }
 
-// Discover dot-qualified delivery events in every migration that touches the
-// delivery table. This catches new explicit event types without attempting to
-// parse arbitrary SQL expressions. Dynamic content_events passthrough is
-// represented by the registered content_events.* provider.
+/**
+ * Return only SQL statements that actually INSERT into notification_deliveries.
+ *
+ * A migration can mention notification_deliveries while also containing role
+ * capabilities, task types, cron relation names, commands and other dotted
+ * strings. Treating every dotted literal in such a file as an event type turns
+ * permissions like `system.read` into fake notifications. Statement scoping
+ * keeps discovery attached to the actual delivery write boundary.
+ */
+function notificationInsertStatements(source: string) {
+  const statements: string[] = [];
+  const needle = /insert\s+into\s+public\.notification_deliveries\b/gi;
+  for (const match of source.matchAll(needle)) {
+    const index = match.index ?? -1;
+    if (index < 0) continue;
+    const start = source.lastIndexOf(";", index) + 1;
+    const nextSemicolon = source.indexOf(";", index);
+    const end = nextSemicolon < 0 ? source.length : nextSemicolon + 1;
+    statements.push(source.slice(start, end));
+  }
+  return statements;
+}
+
+function explicitDeliveryEventTypes(source: string) {
+  const values = new Set<string>();
+  for (const statement of notificationInsertStatements(source)) {
+    for (const match of statement.matchAll(/'([a-z][a-z0-9_]*\.[a-z0-9_.]+)'/g)) {
+      const value = match[1];
+      if (
+        value.startsWith("public.") ||
+        value.startsWith("private.") ||
+        value.startsWith("auth.") ||
+        value.startsWith("televoting.")
+      ) {
+        continue;
+      }
+      values.add(value);
+    }
+  }
+
+  // Also catch explicit event-type rewrites that do not use INSERT. Dynamic
+  // assignments (columns, variables, CASE expressions) are owned by provider
+  // evidence and intentionally cannot be discovered as concrete literals.
+  for (const match of source.matchAll(/\bevent_type\s*=\s*'([a-z][a-z0-9_]*\.[a-z0-9_.]+)'/g)) {
+    values.add(match[1]);
+  }
+  return values;
+}
+
+// Discover explicit delivery event literals only at the actual delivery write
+// boundary. Dynamic content_events passthrough remains represented by the
+// registered content_events.* provider.
 const discoveredDeliveryEvents = new Set<string>();
 for (const name of migrationFiles) {
   const source = file(`supabase/migrations/${name}`);
   if (!source.includes("notification_deliveries")) continue;
-  for (const match of source.matchAll(/'([a-z][a-z0-9_]*\.[a-z0-9_.]+)'/g)) {
-    const value = match[1];
-    if (value.startsWith("public.") || value.startsWith("private.") || value.startsWith("auth.") || value.startsWith("televoting.")) continue;
-    discoveredDeliveryEvents.add(value);
+  for (const eventType of explicitDeliveryEventTypes(source)) {
+    discoveredDeliveryEvents.add(eventType);
   }
 }
 for (const eventType of discoveredDeliveryEvents) {
