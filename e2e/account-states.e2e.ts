@@ -10,8 +10,7 @@ type E2ESession = {
 
 const ARCHIVE_EDITION_ID = "00000000-0000-4000-8000-00000000e219";
 
-async function addSession(
-  context: BrowserContext,
+async function fetchSession(
   url: string,
   publishableKey: string,
   email: string,
@@ -23,7 +22,17 @@ async function addSession(
     body: JSON.stringify({ email, password }),
   });
   expect(response.ok, "The configured E2E account must be able to sign in").toBeTruthy();
-  const session = (await response.json()) as E2ESession;
+  return (await response.json()) as E2ESession;
+}
+
+async function addSession(
+  context: BrowserContext,
+  url: string,
+  publishableKey: string,
+  email: string,
+  password: string,
+): Promise<E2ESession> {
+  const session = await fetchSession(url, publishableKey, email, password);
   const projectRef = new URL(url).hostname.split(".")[0];
   const storageKey = `sb-${projectRef}-auth-token`;
   await context.addInitScript(
@@ -66,6 +75,7 @@ async function setV3FeatureForLocalUser(
   key: string,
   enabled: boolean,
   editionIds: string[] = [],
+  targetUserIds?: string[],
 ) {
   const response = await fetch(`${url.replace(/\/$/, "")}/rest/v1/rpc/studio2_set_feature_flag`, {
     method: "POST",
@@ -78,7 +88,7 @@ async function setV3FeatureForLocalUser(
       p_key: key,
       p_enabled: enabled,
       p_admins_only: false,
-      p_user_ids: enabled ? [session.user.id] : [],
+      p_user_ids: enabled ? (targetUserIds ?? [session.user.id]) : [],
       p_edition_ids: enabled ? editionIds : [],
     }),
   });
@@ -100,6 +110,11 @@ async function setV3ForLocalUser(
     enabled,
   );
 }
+
+// Several tests deliberately mutate the same local rollout rows. Serializing this
+// one account-state project prevents one valid rollout proof from rewriting the
+// authority scope underneath another. This affects only isolated local Supabase.
+test.describe.configure({ mode: "serial" });
 
 for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies readonly AccountState[]) {
   test(`${state.toLowerCase()} account keeps the correct access scope`, async ({ page, context }) => {
@@ -147,6 +162,75 @@ for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies rea
   });
 }
 
+test("country participant Entry cuts over to V3 without taking Organizer inspection ownership", async ({ page, context }) => {
+  const url = process.env.E2E_SUPABASE_URL;
+  const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
+  const countryEmail = process.env.E2E_COUNTRY_EMAIL;
+  const countryPassword = process.env.E2E_COUNTRY_PASSWORD;
+  const organizerEmail = process.env.E2E_ORGANIZER_EMAIL;
+  const organizerPassword = process.env.E2E_ORGANIZER_PASSWORD;
+  const missingConfig =
+    !url || !publishableKey || !countryEmail || !countryPassword || !organizerEmail || !organizerPassword;
+
+  if (missingConfig && process.env.CI) {
+    throw new Error("Browser Audit must seed local country + Organizer credentials for V3 Entry proof.");
+  }
+  test.skip(missingConfig, "Local V3 Entry browser credentials are not configured");
+  expect(url).toMatch(/^http:\/\/(?:127\.0\.0\.1|localhost):\d+/);
+
+  await enableInstalledAppMode(context);
+  await context.addInitScript(() => {
+    localStorage.setItem("solaris:app-first-run-complete:v1", "1");
+  });
+  const country = await addSession(
+    context,
+    url!,
+    publishableKey!,
+    countryEmail!,
+    countryPassword!,
+  );
+  const organizer = await fetchSession(
+    url!,
+    publishableKey!,
+    organizerEmail!,
+    organizerPassword!,
+  );
+  const target = [country.user.id];
+
+  await setV3FeatureForLocalUser(url!, publishableKey!, organizer, "solaris_app_v3", true, [], target);
+  await setV3FeatureForLocalUser(url!, publishableKey!, organizer, "hod_workspace_v2", true, [], target);
+  await setV3FeatureForLocalUser(
+    url!,
+    publishableKey!,
+    organizer,
+    "solaris_app_v3_entry",
+    true,
+    [],
+    target,
+  );
+
+  try {
+    await page.goto("/my-solaris/entry", { waitUntil: "domcontentloaded" });
+    const entryRoot = page.locator("[data-v3-entry-root]");
+    await expect(entryRoot).toBeVisible();
+    await expect(entryRoot).toHaveAttribute("data-v3-entry-state", "ready");
+    await expect(page.getByRole("heading", { name: "Your entry", exact: true })).toBeVisible();
+    await expect(page.locator("[data-v3-entry-readiness]")).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Primary app navigation" })
+      .getByRole("link", { name: "Participate", exact: true }))
+      .toHaveAttribute("aria-current", "page");
+    await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
+
+    // A country selector is an Organizer inspection contract. It must never be
+    // silently reinterpreted as the participant V3 Entry workspace.
+    await page.goto("/my-solaris/entry?country=BRW", { waitUntil: "domcontentloaded" });
+    await expect(entryRoot).toHaveCount(0);
+  } finally {
+    await setV3FeatureForLocalUser(url!, publishableKey!, organizer, "solaris_app_v3_entry", false);
+    await setV3FeatureForLocalUser(url!, publishableKey!, organizer, "hod_workspace_v2", false);
+  }
+});
+
 test("server-authorized V3 rollout keeps primary, Edition and Delegation content aligned with app navigation", async ({ page, context }) => {
   const url = process.env.E2E_SUPABASE_URL;
   const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
@@ -173,27 +257,9 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
   });
   const session = await addSession(context, url!, publishableKey!, email!, password!);
   await setV3ForLocalUser(url!, publishableKey!, session, true);
-  await setV3FeatureForLocalUser(
-    url!,
-    publishableKey!,
-    session,
-    "solaris_app_v3_explore",
-    true,
-  );
-  await setV3FeatureForLocalUser(
-    url!,
-    publishableKey!,
-    session,
-    "solaris_app_v3_edition_hub",
-    true,
-  );
-  await setV3FeatureForLocalUser(
-    url!,
-    publishableKey!,
-    session,
-    "solaris_app_v3_delegation",
-    true,
-  );
+  await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_explore", true);
+  await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_edition_hub", true);
+  await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_delegation", true);
   await setV3FeatureForLocalUser(
     url!, publishableKey!, session, "solaris_app_v3_results", true, [ARCHIVE_EDITION_ID],
   );
@@ -208,15 +274,12 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await expect(page.getByText("Browser Audit Edition", { exact: true })).toBeVisible();
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
 
-    // Use the real client-side app navigation. A fresh page.goto() cannot catch
-    // retained-route mismatches where the URL/nav advances before old content.
     await primaryNav.getByRole("link", { name: "Participate", exact: true }).click();
     await expect(page).toHaveURL(/\/participate\/?$/);
     await expect(page.getByRole("heading", { name: "Your participation", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Solaris now", exact: true })).not.toBeVisible();
     await expect(primaryNav.getByRole("link", { name: "Participate", exact: true })).toHaveAttribute(
-      "aria-current",
-      "page",
+      "aria-current", "page",
     );
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
 
@@ -225,8 +288,7 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await expect(page.getByRole("heading", { name: "Solaris now", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Your participation", exact: true })).not.toBeVisible();
     await expect(primaryNav.getByRole("link", { name: "Home", exact: true })).toHaveAttribute(
-      "aria-current",
-      "page",
+      "aria-current", "page",
     );
 
     await primaryNav.getByRole("link", { name: "Explore", exact: true }).click();
@@ -235,8 +297,7 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await expect(page.getByText("Browser Audit Edition", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Solaris now", exact: true })).not.toBeVisible();
     await expect(primaryNav.getByRole("link", { name: "Explore", exact: true })).toHaveAttribute(
-      "aria-current",
-      "page",
+      "aria-current", "page",
     );
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
 
@@ -249,39 +310,24 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await expect(page.getByRole("heading", { name: "Schedule", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Results", exact: true })).toBeVisible();
     await expect(primaryNav.getByRole("link", { name: "Explore", exact: true })).toHaveAttribute(
-      "aria-current",
-      "page",
+      "aria-current", "page",
     );
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
 
-    // Delegation detail is an Explore-owned installed-app surface. With the
-    // dedicated server flag enabled, the route must use V3 without mounting the
-    // archive-heavy legacy country profile.
     await page.goto("/countries/BRW", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "Browserland", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Current entry", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Participation history", exact: true })).toBeVisible();
     await expect(page.locator(".country-profile-v8")).toHaveCount(0);
     await expect(primaryNav.getByRole("link", { name: "Explore", exact: true })).toHaveAttribute(
-      "aria-current",
-      "page",
+      "aria-current", "page",
     );
 
-    // Disabling only Delegation must fail closed to the proven legacy country
-    // route while global V3 + Explore stay enabled.
-    await setV3FeatureForLocalUser(
-      url!,
-      publishableKey!,
-      session,
-      "solaris_app_v3_delegation",
-      false,
-    );
+    await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_delegation", false);
     await page.goto("/countries/BRW", { waitUntil: "domcontentloaded" });
     await expect(page.locator(".country-profile-v8")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Browserland", exact: true })).toBeVisible();
 
-    // Results is scoped to the published archive edition, not the active one.
-    // Use a real seeded ranking and the shared server-backed spoiler setting.
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/results", { waitUntil: "domcontentloaded" });
     const resultRoot = page.locator("[data-v3-results-root]");
@@ -324,16 +370,8 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await page.goto("/my-solaris", { waitUntil: "domcontentloaded" });
     await expect(meRoot).toHaveCount(0);
 
-    // Re-scope only the Edition Hub flag to a non-current published edition. The
-    // route-specific server probe must resolve ssc21 to this canonical ID. The
-    // old current-edition probe would incorrectly disable this archive route.
     await setV3FeatureForLocalUser(
-      url!,
-      publishableKey!,
-      session,
-      "solaris_app_v3_edition_hub",
-      true,
-      [ARCHIVE_EDITION_ID],
+      url!, publishableKey!, session, "solaris_app_v3_edition_hub", true, [ARCHIVE_EDITION_ID],
     );
 
     await page.goto("/editions/ssc21", { waitUntil: "domcontentloaded" });
@@ -342,34 +380,15 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await expect(page.getByRole("heading", { name: "At a glance", exact: true })).toBeVisible();
     await expect(page.locator(".edition-public-page")).toHaveCount(0);
 
-    // The same edition-scoped flag must not leak back onto the current edition.
     await page.goto("/editions/ssc22", { waitUntil: "domcontentloaded" });
     await expect(page.locator(".edition-public-page")).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Explore Browser Audit Edition" })).toHaveCount(0);
   } finally {
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_me", false);
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_results", false);
-    await setV3FeatureForLocalUser(
-      url!,
-      publishableKey!,
-      session,
-      "solaris_app_v3_delegation",
-      false,
-    );
-    await setV3FeatureForLocalUser(
-      url!,
-      publishableKey!,
-      session,
-      "solaris_app_v3_edition_hub",
-      false,
-    );
-    await setV3FeatureForLocalUser(
-      url!,
-      publishableKey!,
-      session,
-      "solaris_app_v3_explore",
-      false,
-    );
+    await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_delegation", false);
+    await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_edition_hub", false);
+    await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_explore", false);
     await setV3ForLocalUser(url!, publishableKey!, session, false);
   }
 });
