@@ -11,8 +11,8 @@ export function useV3OrganizerProjection(editionId: string | null | undefined) {
     enabled: Boolean(normalized),
     queryKey: ["v3-organizer-projection", normalized],
     queryFn: () => load({ data: { editionId: normalized! } }),
-    staleTime: 15_000,
-    refetchInterval: 30_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
     refetchIntervalInBackground: false,
   });
 }
