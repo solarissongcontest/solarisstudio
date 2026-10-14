@@ -65,6 +65,9 @@ jobs:
       - name: Enforce V3 non-route discovery registries
         run: bun run scripts/check-v3-non-route-capabilities.ts
 
+      - name: Enforce System V3 S1 dependency and consequence registries
+        run: bun run scripts/check-v3-system-s1-registries.ts
+
       - name: Upload V3 capability report
         if: always()
         uses: actions/upload-artifact@v4
@@ -170,6 +173,7 @@ jobs:
             echo "- V3 capability report: generated when registry modules loaded successfully"
             echo "- V3 route/API/capability registry guard: attempted"
             echo "- V3 search/notification/physical ownership guard: attempted"
+            echo "- System V3 S1 workflow dependency/consequence guard: attempted"
             echo "- Fresh TanStack route generation: attempted when prior gates passed"
             echo "- Generated route tree verification: attempted when build ran"
             echo "- Production build and client budget: attempted when prior gates passed"
