@@ -19,14 +19,16 @@ describe("Organizer discoverability", () => {
     expect(edition).toContain("More edition tools");
   });
 
-  it("keeps Home aligned with the five current-edition workspaces", () => {
+  it("keeps Home aligned with the projected current-edition domains", () => {
     const home = source("src/routes/_authenticated/admin/operations.tsx");
+    const projection = source("src/lib/v3-organizer-projection.ts");
 
-    expect(home).toContain('to="/admin/countries"');
-    expect(home).toContain('label="Delegations"');
-    expect(home).toContain('label="Voting & results"');
-    expect(home).toContain('label="Live"');
+    expect(home).toContain("projection.domains");
     expect(home).toContain('to="/admin/tasks"');
+    expect(projection).toContain('delegations: { label: "Delegations", route: "/admin/countries" }');
+    expect(projection).toContain('voting: { label: "Voting", route: `/admin/jury/${edition.slug}` }');
+    expect(projection).toContain('results: { label: "Results & publication", route: "/admin/results" }');
+    expect(projection).toContain('production: { label: "Production", route: "/admin/control-room" }');
   });
 
   it("makes confirmations reachable from the Delegations hub without search", () => {
@@ -79,7 +81,6 @@ describe("Organizer discoverability", () => {
   it("keeps protected Rules & Cases specialist workflows visibly connected", () => {
     const evidence = source("src/routes/_authenticated/admin/integrity-evidence.tsx");
     const disclosure = source("src/routes/_authenticated/admin/integrity-disclosure.tsx");
-
     expect(evidence).toContain('to="/admin/integrity-disclosure"');
     expect(evidence).toContain('to="/admin/integrity-identity"');
     expect(disclosure).toContain('to="/admin/integrity-identity"');
