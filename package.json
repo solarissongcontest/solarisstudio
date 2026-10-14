@@ -11,6 +11,7 @@
     "certify:mobile-v2": "node scripts/check-mobile-v2-release-readiness.mjs",
     "certify:organisation-v5": "node scripts/check-organisation-os-v5-release-readiness.mjs",
     "certify:v3-registry": "bun run scripts/check-v3-capability-registry.ts",
+    "report:v3-registry": "bun run scripts/generate-v3-capability-report.ts",
     "preview": "vite preview",
     "lint": "eslint .",
     "lint:ci": "eslint . --quiet",
