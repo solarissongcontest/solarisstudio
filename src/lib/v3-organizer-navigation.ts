@@ -22,8 +22,8 @@ type V3OrganizerNavigationState = {
   tabs: Partial<Record<V3OrganizerTabId, V3OrganizerTabState>>;
 };
 
-const STORAGE_KEY = "solaris:organizer-v3-navigation:v1";
-const RESTORE_INTENT_KEY = "solaris:organizer-v3-navigation-restore:v1";
+const STORAGE_PREFIX = "solaris:organizer-v3-navigation:v1";
+const RESTORE_PREFIX = "solaris:organizer-v3-navigation-restore:v1";
 const MAX_HISTORY_PER_TAB = 20;
 const VALID_TABS: readonly V3OrganizerTabId[] = ["overview", "tasks", "control", "live", "more"];
 
@@ -46,6 +46,19 @@ function browserSessionStorage(): Storage | null {
   } catch {
     return null;
   }
+}
+
+function scopeToken(scopeKey?: string | null) {
+  const value = scopeKey?.trim();
+  return value ? encodeURIComponent(value) : "unscoped";
+}
+
+function storageKey(scopeKey?: string | null) {
+  return `${STORAGE_PREFIX}:${scopeToken(scopeKey)}`;
+}
+
+function restoreKey(scopeKey?: string | null) {
+  return `${RESTORE_PREFIX}:${scopeToken(scopeKey)}`;
 }
 
 function normalizeSearch(searchStr?: string | null) {
@@ -103,10 +116,11 @@ export function v3OrganizerEntryHref(
 
 export function readV3OrganizerNavigationState(
   storage: StorageReader | null = browserStorage(),
+  scopeKey?: string | null,
 ): V3OrganizerNavigationState {
   if (!storage) return emptyState();
   try {
-    const raw = storage.getItem(STORAGE_KEY);
+    const raw = storage.getItem(storageKey(scopeKey));
     if (!raw) return emptyState();
     const parsed = JSON.parse(raw) as Partial<V3OrganizerNavigationState>;
     const activeTab = VALID_TABS.includes(parsed.activeTab as V3OrganizerTabId)
@@ -138,10 +152,11 @@ export function readV3OrganizerNavigationState(
 export function writeV3OrganizerNavigationState(
   state: V3OrganizerNavigationState,
   storage: StorageWriter | null = browserStorage(),
+  scopeKey?: string | null,
 ) {
   if (!storage) return;
   try {
-    storage.setItem(STORAGE_KEY, JSON.stringify(state));
+    storage.setItem(storageKey(scopeKey), JSON.stringify(state));
   } catch {
     // Organizer navigation memory is progressive enhancement.
   }
@@ -152,10 +167,11 @@ export function rememberV3OrganizerLocation(
   searchStr = "",
   scrollY?: number,
   storage: Storage | null = browserStorage(),
+  scopeKey?: string | null,
 ) {
   if (!storage || !safeOrganizerPath(pathname)) return;
   const tab = v3OrganizerTabForPath(pathname);
-  const state = readV3OrganizerNavigationState(storage);
+  const state = readV3OrganizerNavigationState(storage, scopeKey);
   const previous = state.tabs[tab];
   const next: V3OrganizerHistoryEntry = {
     pathname,
@@ -174,7 +190,7 @@ export function rememberV3OrganizerLocation(
 
   state.activeTab = tab;
   state.tabs[tab] = { current: next, history };
-  writeV3OrganizerNavigationState(state, storage);
+  writeV3OrganizerNavigationState(state, storage, scopeKey);
 }
 
 export function updateV3OrganizerScrollPosition(
@@ -182,10 +198,11 @@ export function updateV3OrganizerScrollPosition(
   searchStr: string,
   scrollY: number,
   storage: Storage | null = browserStorage(),
+  scopeKey?: string | null,
 ) {
   if (!storage || !safeOrganizerPath(pathname)) return;
   const tab = v3OrganizerTabForPath(pathname);
-  const state = readV3OrganizerNavigationState(storage);
+  const state = readV3OrganizerNavigationState(storage, scopeKey);
   const tabState = state.tabs[tab];
   if (!tabState) return;
   const href = pathname + normalizeSearch(searchStr);
@@ -201,14 +218,15 @@ export function updateV3OrganizerScrollPosition(
     current: v3OrganizerEntryHref(tabState.current) === href ? entry : tabState.current,
     history,
   };
-  writeV3OrganizerNavigationState(state, storage);
+  writeV3OrganizerNavigationState(state, storage, scopeKey);
 }
 
 export function getV3OrganizerTabDestination(
   tab: V3OrganizerTabId,
   storage: StorageReader | null = browserStorage(),
+  scopeKey?: string | null,
 ): V3OrganizerHistoryEntry {
-  const current = readV3OrganizerNavigationState(storage).tabs[tab]?.current;
+  const current = readV3OrganizerNavigationState(storage, scopeKey).tabs[tab]?.current;
   if (current && v3OrganizerTabForPath(current.pathname) === tab) return current;
   return defaultEntry(tab);
 }
@@ -216,24 +234,26 @@ export function getV3OrganizerTabDestination(
 export function resetV3OrganizerTabToRoot(
   tab: V3OrganizerTabId,
   storage: Storage | null = browserStorage(),
+  scopeKey?: string | null,
 ) {
   const root = { ...defaultEntry(tab), visitedAt: new Date().toISOString() };
   if (!storage) return root;
-  const state = readV3OrganizerNavigationState(storage);
+  const state = readV3OrganizerNavigationState(storage, scopeKey);
   state.activeTab = tab;
   state.tabs[tab] = { current: root, history: [root] };
-  writeV3OrganizerNavigationState(state, storage);
+  writeV3OrganizerNavigationState(state, storage, scopeKey);
   return root;
 }
 
 export function markV3OrganizerNavigationRestore(
   entry: V3OrganizerHistoryEntry,
   storage: StorageWriter | null = browserSessionStorage(),
+  scopeKey?: string | null,
 ) {
   if (!storage) return;
   try {
     storage.setItem(
-      RESTORE_INTENT_KEY,
+      restoreKey(scopeKey),
       JSON.stringify({ href: v3OrganizerEntryHref(entry), scrollY: entry.scrollY }),
     );
   } catch {
@@ -245,14 +265,16 @@ export function consumeV3OrganizerNavigationRestore(
   pathname: string,
   searchStr = "",
   storage: Storage | null = browserSessionStorage(),
+  scopeKey?: string | null,
 ): number | null {
   if (!storage) return null;
   try {
-    const raw = storage.getItem(RESTORE_INTENT_KEY);
+    const key = restoreKey(scopeKey);
+    const raw = storage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { href?: string; scrollY?: number };
     if (parsed.href !== pathname + normalizeSearch(searchStr)) return null;
-    storage.removeItem(RESTORE_INTENT_KEY);
+    storage.removeItem(key);
     return typeof parsed.scrollY === "number" && Number.isFinite(parsed.scrollY)
       ? Math.max(0, parsed.scrollY)
       : 0;
