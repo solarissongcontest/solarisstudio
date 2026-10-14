@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   initialTelevoteStage,
+  parseTelevoteRecoveryCode,
   recoverTelevoteTransportResponse,
+  serializeTelevoteRecoveryCode,
   submitTelevoteWithReconciliation,
   verifiedTelevoteReceipt,
+  verifiedTelevoteRecoveryReceipt,
   type TelevoteReceipt,
 } from "./v3-televote-reconciliation";
 
@@ -100,6 +103,55 @@ describe("exact-ballot Televote reconciliation", () => {
       expect(verifiedTelevoteReceipt({ ...receipt, status }, "round", "token")).not.toBeNull();
     }
   });
+});
+
+describe("read-only Televote recovery capabilities", () => {
+  const roundId = "11111111-1111-4111-8111-111111111111";
+  const handle = {
+    operationId: "22222222-2222-4222-8222-222222222222",
+    recoverySecret: "ab".repeat(32),
+  };
+  const recoveryReceipt = {
+    ...receipt,
+    round_id: roundId,
+    preflight_id: "33333333-3333-4333-8333-333333333333",
+  };
+
+  it("round-trips a portable recovery code without exposing submission authority", () => {
+    const code = serializeTelevoteRecoveryCode(handle);
+    expect(code).toBe(`${handle.operationId}.${handle.recoverySecret}`);
+    expect(parseTelevoteRecoveryCode(code!)).toEqual(handle);
+  });
+
+  for (const invalid of [
+    "",
+    handle.operationId,
+    `${handle.operationId}.short`,
+    `not-a-uuid.${handle.recoverySecret}`,
+    `${handle.operationId}.${handle.recoverySecret}.extra`,
+  ]) {
+    it(`rejects malformed recovery code ${JSON.stringify(invalid)}`, () => {
+      expect(parseTelevoteRecoveryCode(invalid)).toBeNull();
+    });
+  }
+
+  it("accepts an authoritative receipt without requiring the submission token", () => {
+    expect(verifiedTelevoteRecoveryReceipt(recoveryReceipt, roundId)).toEqual(recoveryReceipt);
+  });
+
+  for (const patch of [
+    { authority: "local" },
+    { round_id: "other" },
+    { preflight_id: "" },
+    { id: "" },
+    { accepted_at: null },
+    { status: "deleted" },
+    { found: false },
+  ]) {
+    it(`rejects forged recovery receipt ${JSON.stringify(patch)}`, () => {
+      expect(verifiedTelevoteRecoveryReceipt({ ...recoveryReceipt, ...patch }, roundId)).toBeNull();
+    });
+  }
 });
 
 describe("browser history is not Televote authority", () => {
