@@ -38,6 +38,7 @@ describe("Organizer rearchitecture foundation", () => {
     const schedule = source("src/lib/admin-schedule.ts");
     const system = source("src/routes/_authenticated/admin/system.tsx");
     const home = source("src/routes/_authenticated/admin/operations.tsx");
+    const projectionServer = source("src/lib/organizer-v3-projection.server.ts");
 
     expect(schedule).toContain('from("submission_rounds")');
     expect(schedule).toContain('from("jury_voting_windows")');
@@ -48,7 +49,16 @@ describe("Organizer rearchitecture foundation", () => {
     expect(system).toContain("Operational schedule");
     expect(system).toContain("Custom reminders");
     expect(system).toContain("never controls a submission round");
-    expect(home).toContain("useAdminOperationalSchedule");
+
+    expect(home).toContain("useV3OrganizerProjection");
+    expect(home).not.toContain("useAdminOperationalSchedule");
+    expect(projectionServer).toContain('from("submission_rounds")');
+    expect(projectionServer).toContain('from("jury_voting_windows")');
+    expect(projectionServer).toContain('from("televoting_round_bindings")');
+    expect(projectionServer).toContain('.schema("televoting")');
+    expect(projectionServer).toContain('"scheduled_publish_at"');
+    expect(projectionServer).toContain('from("studio2_official_notices")');
+    expect(projectionServer).toContain("does not control a Solaris workflow");
   });
 
   it("ignores zero-point materialized result placeholders in readiness", () => {

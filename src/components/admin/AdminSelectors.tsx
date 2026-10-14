@@ -2,14 +2,19 @@ import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Check, ChevronDown, Search, Trophy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import { editionLabel, useEditions } from "@/lib/data";
+import { editionLabel as formatEditionLabel, useEditions } from "@/lib/data";
 import { useAdminContext } from "./AdminContext";
 import { AdminSheet } from "./AdminUI";
 
 export function AdminSelectors() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const navigate = useNavigate();
-  const { editionId, setEditionId } = useAdminContext();
+  const {
+    editionId,
+    editionSlug,
+    editionLabel,
+    setEditionContext,
+  } = useAdminContext();
   const { data: editions = [] } = useEditions();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -42,7 +47,7 @@ export function AdminSelectors() {
     if (!needle) return orderedEditions;
     return orderedEditions.filter((edition) =>
       [
-        editionLabel(edition),
+        formatEditionLabel(edition),
         edition.name,
         edition.slug,
         edition.host_city ?? "",
@@ -55,8 +60,16 @@ export function AdminSelectors() {
   }, [orderedEditions, search]);
 
   useEffect(() => {
-    if (activeEdition && activeEdition.id !== editionId) setEditionId(activeEdition.id);
-  }, [activeEdition, editionId, setEditionId]);
+    if (!activeEdition) return;
+    const label = formatEditionLabel(activeEdition);
+    if (
+      activeEdition.id !== editionId ||
+      activeEdition.slug !== editionSlug ||
+      label !== editionLabel
+    ) {
+      setEditionContext({ id: activeEdition.id, slug: activeEdition.slug, label });
+    }
+  }, [activeEdition, editionId, editionSlug, editionLabel, setEditionContext]);
 
   useEffect(() => {
     if (!open) setSearch("");
@@ -66,7 +79,11 @@ export function AdminSelectors() {
     const nextEdition = orderedEditions.find((edition) => edition.id === nextId);
     if (!nextEdition) return;
 
-    setEditionId(nextEdition.id);
+    setEditionContext({
+      id: nextEdition.id,
+      slug: nextEdition.slug,
+      label: formatEditionLabel(nextEdition),
+    });
     setOpen(false);
 
     if (!routeEdition) return;
@@ -140,7 +157,7 @@ export function AdminSelectors() {
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[10px] font-semibold text-muted-foreground">Edition</span>
             <span className="block truncate text-xs font-bold text-foreground">
-              {activeEdition ? editionLabel(activeEdition) : "Choose edition"}
+              {activeEdition ? formatEditionLabel(activeEdition) : "Choose edition"}
             </span>
           </span>
           <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
@@ -184,7 +201,7 @@ export function AdminSelectors() {
                   {edition.edition_number ?? "?"}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold text-foreground">{editionLabel(edition)}</span>
+                  <span className="block text-sm font-semibold text-foreground">{formatEditionLabel(edition)}</span>
                   <span className="mt-1 block truncate text-xs text-muted-foreground">
                     {edition.name}
                     {edition.host_city ? ` · ${edition.host_city}` : ""}
