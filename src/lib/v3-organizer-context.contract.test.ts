@@ -31,4 +31,11 @@ describe("V3 OrganizerContext shell contract", () => {
     expect(shell).toContain("data-organizer-context-version={contextVersion}");
     expect(shell).toContain('key={`${scope}:${contextVersion}`}');
   });
+
+  it("increments contextVersion for scope changes, not same-edition metadata hydration", () => {
+    expect(context).toContain(
+      "contextVersion: editionChanged ? current.contextVersion + 1 : current.contextVersion",
+    );
+    expect(context).toMatch(/setShowContext[\s\S]*contextVersion: current\.contextVersion \+ 1/);
+  });
 });
