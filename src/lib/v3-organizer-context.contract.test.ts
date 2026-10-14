@@ -2,12 +2,14 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const context = readFileSync("src/components/admin/AdminContext.tsx", "utf8");
+const projection = readFileSync("src/lib/v3-organizer-projection.ts", "utf8");
 const selector = readFileSync("src/components/admin/AdminSelectors.tsx", "utf8");
 const shell = readFileSync("src/components/admin/AdminShell.tsx", "utf8");
 
 describe("V3 OrganizerContext shell contract", () => {
   it("exposes the canonical context shape without breaking legacy editionId consumers", () => {
-    expect(context).toContain("type OrganizerContext");
+    expect(context).toContain('import type { OrganizerContext } from "@/lib/v3-organizer-projection"');
+    expect(projection).toContain("export type OrganizerContext");
     expect(context).toContain("editionSlug: state.editionSlug");
     expect(context).toContain("editionLabel: state.editionLabel");
     expect(context).toContain("showId: state.showId");
