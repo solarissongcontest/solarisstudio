@@ -56,8 +56,20 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Generate V3 capability report
+        run: bun run report:v3-registry > v3-capability-report.md
+
       - name: Enforce V3 capability and system registries
         run: bun run certify:v3-registry
+
+      - name: Upload V3 capability report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-capability-report
+          path: v3-capability-report.md
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Force fresh route generation
         shell: bash
@@ -152,6 +164,7 @@ jobs:
             echo "### Solaris Studio quality run"
             echo
             echo "- Fresh dependency install: attempted"
+            echo "- V3 capability report: generated when registry modules loaded successfully"
             echo "- V3 capability/system registry guard: attempted"
             echo "- Fresh TanStack route generation: attempted when prior gates passed"
             echo "- Generated route tree verification: attempted when build ran"
