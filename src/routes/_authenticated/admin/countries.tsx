@@ -6,6 +6,7 @@ import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
+import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useEditions } from '@/lib/data';
 import {
   loadStudio2CountryCockpit,
@@ -49,9 +50,7 @@ function CountriesCockpitPage() {
   const navigate = Route.useNavigate();
   const editionsQuery = useEditions();
   const editions = editionsQuery.data ?? [];
-  const selectedEdition = editions.find((edition) => edition.id === editionId)
-    ?? [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0]
-    ?? null;
+  const selectedEdition = selectOrganizerEdition(editions, editionId);
   const resolvedEditionId = selectedEdition?.id ?? '';
 
   const cockpitQuery = useQuery({
@@ -219,7 +218,7 @@ function CountriesCockpitPage() {
             <AdminEmptyState
               icon={Flag}
               title="No edition selected"
-              description="Select an edition before the country cockpit can build its readiness matrix."
+              description="Select an edition before the country cockpit can build its readiness matrix. Solaris will not substitute another edition for missing or stale Organizer context."
             />
           </AdminCard>
         ) : cockpitQuery.isLoading || editionsQuery.isLoading ? (
