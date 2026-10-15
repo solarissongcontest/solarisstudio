@@ -38,6 +38,10 @@ db_exec "insert into televoting.editions(id,name) values ('$EDITION_ID','S3 Tele
 db_exec "insert into televoting.rounds(id,edition_id,name,status) values ('$ROUND_ID','$EDITION_ID','S3 Televote Round','closed');"
 db_exec "insert into televoting.round_entries(round_id,entry_type,entry_key,custom_name,display_order) select '$ROUND_ID'::uuid,'custom',entry_key,'S3 target ' || entry_key,ord::int from unnest(array['T3A','T3B','T3C','T3D','T3E']) with ordinality as target(entry_key,ord);"
 
+log "Legacy custom-entry fallback resolves pgcrypto through the hardened schema"
+AUTO_KEY="$(db_value "insert into televoting.round_entries(round_id,entry_type,entry_key,custom_name,display_order) values ('$ROUND_ID','custom',null,'Generated-key rehearsal',99) returning entry_key;")"
+[[ "$AUTO_KEY" =~ ^x_[0-9a-f]{12}$ ]] || fail "generated round-entry key has unexpected format: $AUTO_KEY"
+
 db_exec "insert into televoting.vote_submissions(id,round_id,username,username_normalized,country_code,status) values ('$SUBMISSION_ID','$ROUND_ID','S3 Televote Voter','s3 televote voter','T3H','active');"
 db_exec "insert into televoting.vote_entries(submission_id,target_country_code,points) select '$SUBMISSION_ID'::uuid,entry_key,4 from unnest(array['T3A','T3B','T3C','T3D','T3E']) entry_key;"
 db_exec "insert into televoting.vote_preflight_checks(id,round_id,username_normalized,country_code,ballot_map,channel,submission_id,submitted_at) values ('$PREFLIGHT_ID','$ROUND_ID','s3 televote voter','T3H','{\"T3A\":4,\"T3B\":4,\"T3C\":4,\"T3D\":4,\"T3E\":4}'::jsonb,'televote','$SUBMISSION_ID',now());"
