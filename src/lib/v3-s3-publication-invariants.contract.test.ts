@@ -48,12 +48,16 @@ describe("System V3 S3 Publication invariants", () => {
     expect(migration).toContain(
       "studio2_show_publication_executions_operation_v3_uidx",
     );
+    expect(migration).toContain("v3_validate_publication_execution");
     expect(migration).toContain("v3_reject_publication_execution_mutation");
     expect(migration).toContain(
       "studio2_show_publication_executions_terminal_v3_check",
     );
     expect(migration).toContain(
-      "studio2_show_publication_executions_result_version_v3_check",
+      "Outcome publication execution requires exact result-version provenance",
+    );
+    expect(migration).not.toContain(
+      "check (\n    not private.studio2_publication_has_outcomes(intended_config)",
     );
   });
 
