@@ -277,7 +277,7 @@ export function buildV3OrganizerControlGroups(
     {
       key: "production",
       label: "Production",
-      description: "Broadcast setup, rundown and reveal preparation.",
+      description: "Configure the edition's active broadcast presentation. Live execution stays under Live.",
       items: [
         {
           key: "broadcast",
@@ -287,18 +287,11 @@ export function buildV3OrganizerControlGroups(
           editionScoped: true,
         },
         {
-          key: "rundown",
-          label: "Broadcast rundown",
-          description: "Show rundown and cue sequence",
-          href: "/admin/broadcast-rundown",
-          editionScoped: false,
-        },
-        {
-          key: "reveal",
-          label: "Reveal Director",
-          description: "Plan and rehearse the official results reveal sequence",
-          href: "/admin/results-reveal",
-          editionScoped: false,
+          key: "theme",
+          label: "Edition theme",
+          description: "Edition visual theme and presentation configuration",
+          href: editionHref("/admin/edition-theme/:slug"),
+          editionScoped: true,
         },
       ],
     },
