@@ -5,6 +5,7 @@ const control = readFileSync("src/routes/_authenticated/admin/control.tsx", "utf
 const countries = readFileSync("src/routes/_authenticated/admin/countries.tsx", "utf8");
 const countryDetail = readFileSync("src/routes/_authenticated/admin/countries.$countryId.tsx", "utf8");
 const eligibility = readFileSync("src/routes/_authenticated/admin/eligibility.tsx", "utf8");
+const media = readFileSync("src/routes/_authenticated/admin/media-assets.tsx", "utf8");
 const results = readFileSync("src/routes/_authenticated/admin/results.tsx", "utf8");
 
 const protectedRoutes = [
@@ -12,6 +13,7 @@ const protectedRoutes = [
   ["Delegations", countries],
   ["Delegation detail", countryDetail],
   ["Eligibility", eligibility],
+  ["Media review", media],
   ["Results", results],
 ] as const;
 
@@ -25,6 +27,7 @@ describe("V3 Organizer explicit edition context", () => {
     expect(countries).toContain('selectOrganizerEdition(editions, editionId)');
     expect(countryDetail).toContain('selectOrganizerEdition(editions, editionId)');
     expect(eligibility).toContain('selectOrganizerEdition(editions, editionId)');
+    expect(media).toContain('selectOrganizerEdition(editions, editionId)');
     expect(results).toContain('selectOrganizerEdition(editions, editionId)');
   });
 
@@ -38,5 +41,6 @@ describe("V3 Organizer explicit edition context", () => {
     expect(countries).toContain("will not substitute another edition");
     expect(countryDetail).toContain("will not substitute another edition");
     expect(eligibility).toContain("will not substitute another edition");
+    expect(media).toContain("will not substitute another edition");
   });
 });
