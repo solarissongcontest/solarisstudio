@@ -87,6 +87,7 @@ export function V3LiquidTabBar({
   } = useSolarisPressHold();
 
   const previewIndex = dragPreviewIndex ?? activeIndex;
+  const visualLensIndex = dragging ? activeIndex : previewIndex;
   const count = Math.max(1, destinations.length);
 
   useLayoutEffect(() => {
@@ -141,6 +142,11 @@ export function V3LiquidTabBar({
     triggerSelectionHaptic(6);
   }, [dragging, previewIndex]);
 
+  useEffect(() => {
+    if (dragging || dragPreviewIndex == null || dragPreviewIndex !== activeIndex) return;
+    setDragPreviewIndex(null);
+  }, [activeIndex, dragPreviewIndex, dragging]);
+
   const tabRects = () => {
     const material = materialRef.current;
     if (!material) return [];
@@ -165,6 +171,13 @@ export function V3LiquidTabBar({
     resetDragDom();
     setDragging(false);
     setDragPreviewIndex(null);
+  }, [endHold, resetDragDom]);
+
+  const settleDrag = useCallback((targetIndex: number) => {
+    endHold();
+    resetDragDom();
+    setDragging(false);
+    setDragPreviewIndex(targetIndex);
   }, [endHold, resetDragDom]);
 
   useEffect(() => {
@@ -292,8 +305,12 @@ export function V3LiquidTabBar({
       // Pointer capture may already have been released by the browser.
     }
 
-    clearDrag();
-    if (!moved || targetIndex === drag.originIndex) return;
+    if (!moved || targetIndex === drag.originIndex) {
+      clearDrag();
+      return;
+    }
+
+    settleDrag(targetIndex);
     selectDestination(targetIndex);
   };
 
@@ -306,7 +323,7 @@ export function V3LiquidTabBar({
 
   const indicatorStyle = {
     width: `calc((100% - .76rem - ${Math.max(0, count - 1) * 0.14}rem) / ${count})`,
-    transform: `translate3d(calc(${activeIndex} * (100% + .14rem) + var(--v3-liquid-drag-x)), 0, 0) scaleX(var(--v3-liquid-scale-x))`,
+    transform: `translate3d(calc(${visualLensIndex} * (100% + .14rem) + var(--v3-liquid-drag-x)), 0, 0) scaleX(var(--v3-liquid-scale-x))`,
   } as CSSProperties;
 
   return (
