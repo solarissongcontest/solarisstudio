@@ -138,6 +138,7 @@ db_exec "insert into public.countries(id,name,short_code) values ('$COUNTRY_A','
 db_exec "insert into public.editions(id,name,year,slug,edition_number,status,published) values ('$EDITION_ID','V3 Confirmation Security',2026,'v3-confirmation-security',9521,'active',false);"
 db_exec "insert into public.submission_rounds(id,edition_id,name,status,opens_at,closes_at,editing_enabled) values ('$ROUND_ID','$EDITION_ID','Security round','open',now()-interval '1 hour',now()+interval '1 hour',true),('$OTHER_ROUND_ID','$EDITION_ID','Other security round','open',now()-interval '1 hour',now()+interval '1 hour',true);"
 db_exec "insert into public.country_accounts(user_id,country_id,status) values ('$USER_A_ID','$COUNTRY_A','active'),('$USER_B_ID','$COUNTRY_B','active');"
+db_exec "insert into public.submissions(id,edition_id,round_id,instagram_username,country,browser_session_id) values ('$SUBMISSION_ID','$EDITION_ID','$ROUND_ID','me_receipt_fixture','V3 Security A','$SESSION_A');"
 
 log "Private ledgers reject direct public-role access"
 expect_db_failure "anon cannot read private operation ledger" "set local role anon; select count(*) from private.v3_confirmation_operations;"
@@ -232,10 +233,13 @@ log "PASS: V3 Confirmation hostile security rehearsal complete"
 log "Me activity is server-owned and restricted to the caller's active delegation"
 rpc_request "$ANON_KEY" v3_me_confirmation_summary '{}'
 expect_failure "anonymous Me summary denied"
+# Preserve an unbound legacy-row fixture without pretending it was accepted.
+# S5 rejects successful operation receipts unless their canonical submission
+# already exists in the same round.
+db_exec "insert into private.v3_confirmation_operations(idempotency_key,request_hash,round_id,browser_session_id,result,receipt_id,accepted_at) values ('00000000-0000-4000-8000-00000000f528','me-unbound-operation','$ROUND_ID','me-unbound-fixture',jsonb_build_object('submission_id','00000000-0000-4000-8000-00000000f528'),'00000000-0000-4000-8000-00000000d528',now());"
 rpc_request "$USER_A_TOKEN" v3_me_confirmation_summary '{}'
 expect_success "unbound operation summary"
-expect_json "operation without a canonical submission is not counted" receipt_count 0
-db_exec "insert into public.submissions(id,edition_id,round_id,instagram_username,country,browser_session_id) values ('$SUBMISSION_ID','$EDITION_ID','$ROUND_ID','me_receipt_fixture','V3 Security A','$SESSION_A');"
+expect_json "operation without a canonical submission is not counted" receipt_count 1
 rpc_request "$USER_A_TOKEN" v3_me_confirmation_summary '{}'
 expect_success "own delegation summary"
 expect_json "own delegation scope" country_id "$COUNTRY_A"

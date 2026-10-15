@@ -61,10 +61,19 @@ describe("System V3 S4 DomainEvent/outbox foundation", () => {
     expect(rehearsal).toContain("authenticated private event emission");
   });
 
-  it("does not falsely mark S5 domain consequences as event-backed", () => {
+  it("does not use the shared S4 foundation as domain-migration evidence", () => {
+    const eventBacked = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter(
+      (consequence) => consequence.implementationState === "event-backed",
+    );
+
     expect(V3_DOMAIN_CONSEQUENCE_REGISTRY.length).toBeGreaterThan(0);
-    expect(V3_DOMAIN_CONSEQUENCE_REGISTRY.every(
-      (consequence) => consequence.implementationState === "declared",
-    )).toBe(true);
+    for (const consequence of eventBacked) {
+      expect(consequence.evidence).not.toContain(
+        "supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql",
+      );
+      expect(consequence.evidence).not.toContain(
+        ".github/scripts/v3-s4-domain-event-outbox-rehearsal.sh",
+      );
+    }
   });
 });
