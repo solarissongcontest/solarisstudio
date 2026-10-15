@@ -129,10 +129,17 @@ async function serverHasSubscription(userId: string, endpoint: string) {
   return Boolean(data?.endpoint);
 }
 
+async function currentPushUserId(explicitUserId?: string | null) {
+  if (explicitUserId) return explicitUserId;
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return null;
+  return data.user.id;
+}
+
 /**
- * For authenticated callers, `subscribed` means both the browser subscription
- * and the user's RLS-protected Solaris registration exist. A browser-only
- * subscription must never be presented as active Solaris delivery.
+ * `subscribed` means both the browser subscription and the current authenticated
+ * user's RLS-protected Solaris registration exist. A browser-only or previous-
+ * account subscription must never be presented as active Solaris delivery.
  */
 export async function getAppPushState(userId?: string | null): Promise<AppPushState> {
   const key = await vapidPublicKey();
@@ -146,10 +153,11 @@ export async function getAppPushState(userId?: string | null): Promise<AppPushSt
   }
   const registration = await navigator.serviceWorker.getRegistration("/");
   const subscription = await registration?.pushManager.getSubscription();
+  const resolvedUserId = subscription ? await currentPushUserId(userId) : null;
   const subscribed =
-    subscription && userId
-      ? await serverHasSubscription(userId, subscription.endpoint)
-      : Boolean(subscription);
+    subscription && resolvedUserId
+      ? await serverHasSubscription(resolvedUserId, subscription.endpoint)
+      : false;
   return {
     supported: true,
     configured: Boolean(key),
