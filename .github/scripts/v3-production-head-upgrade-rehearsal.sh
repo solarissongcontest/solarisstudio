@@ -131,7 +131,8 @@ for rehearsal in \
   v3-televote-reconciliation-rehearsal.sh \
   v3-s3-televote-invariants-rehearsal.sh \
   v3-s3-results-invariants-rehearsal.sh \
-  v3-s3-publication-invariants-rehearsal.sh
+  v3-s3-publication-invariants-rehearsal.sh \
+  v3-s3-identity-access-invariants-rehearsal.sh
   do
     log "Running $rehearsal"
     bash "$ROOT/.github/scripts/$rehearsal"
