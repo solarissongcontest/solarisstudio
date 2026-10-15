@@ -50,7 +50,7 @@ export function V3MeRoot({ viewerId, editionId }: { viewerId: string; editionId:
     historyAvailable: scoped,
     history: scoped ? [...summary.data!.history].filter((item) => item.edition_id !== editionId).sort((a,b) => b.edition_number-a.edition_number).map((item) => ({ editionId: item.edition_id, editionName: item.edition_name, roleLabel: "Recorded delegation confirmation", completed: false, href: "/my-solaris/history" })) : [],
     activity: { verifiedReceiptCount: scoped ? summary.data!.receipt_count : null, awaitingAuthoritativeReceiptCount: null, href: "/my-solaris/activity" },
-    following: { followedCountryCount: following ? following.filter((item) => item.entity_type === "country").length : null, followedContentCount: following ? following.filter((item) => item.entity_type !== "country").length : null, href: "/my-solaris/activity" },
+    following: { followedCountryCount: following ? following.filter((item) => item.entity_type === "country").length : null, followedContentCount: following ? following.filter((item) => item.entity_type !== "country").length : null, href: "/my-solaris/saved" },
     preferenceLinks: [{ key: "settings", label: "Experience preferences", href: "/settings" }, { key: "notifications", label: "Notifications", href: "/notifications" }],
     accountLinks: [{ key: "account", label: "Account and security", href: "/my-solaris/account" }],
     canEnterOrganizer: account?.access.isOrganizer === true, organizerHref: "/admin",
