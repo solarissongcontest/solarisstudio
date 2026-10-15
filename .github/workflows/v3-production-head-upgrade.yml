@@ -1,0 +1,49 @@
+name: V3 production-head upgrade rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/**"
+      - ".github/scripts/v3-production-head-upgrade-rehearsal.sh"
+      - ".github/workflows/v3-production-head-upgrade.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-production-head-upgrade-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  production-head-upgrade:
+    name: Upgrade hosted-production schema head locally
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout feature head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Ensure PostgreSQL client is available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Rehearse the exact hosted production migration delta locally
+        shell: bash
+        env:
+          V3_PRODUCTION_MIGRATION_HEAD: "20261014020000"
+        run: bash .github/scripts/v3-production-head-upgrade-rehearsal.sh
