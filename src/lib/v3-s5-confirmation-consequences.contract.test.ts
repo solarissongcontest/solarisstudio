@@ -10,6 +10,10 @@ const submitRuntime = readFileSync(
   "supabase/migrations/20261015183100_v3_confirmation_submit_runtime_replay_restore.sql",
   "utf8",
 );
+const submitDependencies = readFileSync(
+  "supabase/migrations/20261015183200_v3_confirmation_submit_runtime_dependencies_restore.sql",
+  "utf8",
+);
 const rehearsal = readFileSync(
   ".github/scripts/v3-s5-confirmation-consequences-rehearsal.sh",
   "utf8",
@@ -35,6 +39,30 @@ describe("System V3 S5 Confirmation consequences", () => {
     expect(submitRuntime).toContain("from public, anon, authenticated, service_role");
     expect(submitRuntime).toContain("has_function_privilege('anon', 'public.submit_confirmation(jsonb)', 'EXECUTE')");
     expect(submitRuntime).toContain("public.v3_submit_confirmation(jsonb,uuid,text,text)");
+  });
+
+  it("restores every deployed helper and trigger required by the legacy submit implementation", () => {
+    for (const signature of [
+      "public.normalize_entry_text(value text)",
+      "public.find_entry_duplicate(",
+      "public.round_availability(_round_id uuid)",
+      "public.generate_recovery_code()",
+      "public.ensure_submission_recovery_code()",
+      "public.register_submission_browser()",
+      "public.sync_round_stats()",
+    ]) {
+      expect(submitDependencies).toContain(`create or replace function ${signature}`);
+    }
+
+    expect(submitDependencies).toContain("create trigger ensure_submission_recovery_code_trg");
+    expect(submitDependencies).toContain("create trigger register_submission_browser_trg");
+    expect(submitDependencies).toContain("create trigger submissions_stats_trg");
+    expect(submitDependencies).toContain(
+      "revoke all on function public.find_entry_duplicate(uuid, uuid, text, text, text)",
+    );
+    expect(submitDependencies).toContain(
+      "grant execute on function public.round_availability(uuid)",
+    );
   });
 
   it("emits completed facts from the common S2 success boundary", () => {
