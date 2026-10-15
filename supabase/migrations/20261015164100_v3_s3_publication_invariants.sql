@@ -72,14 +72,6 @@ alter table public.studio2_show_publication_executions
   check (scheduled_operation_id is not null)
   not valid;
 
-alter table public.studio2_show_publication_executions
-  add constraint studio2_show_publication_executions_result_version_v3_check
-  check (
-    not private.studio2_publication_has_outcomes(intended_config)
-    or source_result_version is not null
-  )
-  not valid;
-
 alter table public.studio2_show_publication_controls
   validate constraint studio2_show_publication_controls_failure_pair_v3_check;
 alter table public.studio2_show_publication_controls
@@ -88,8 +80,6 @@ alter table public.studio2_show_publication_executions
   validate constraint studio2_show_publication_executions_terminal_v3_check;
 alter table public.studio2_show_publication_executions
   validate constraint studio2_show_publication_executions_operation_v3_check;
-alter table public.studio2_show_publication_executions
-  validate constraint studio2_show_publication_executions_result_version_v3_check;
 
 -- One schedule operation has one immutable terminal execution record.
 create unique index if not exists studio2_show_publication_executions_operation_v3_uidx
@@ -225,6 +215,47 @@ create trigger v3_validate_publication_control
 before insert or update
 on public.studio2_show_publication_controls
 for each row execute function private.v3_validate_publication_control();
+
+-- Cross-row/semantic validation belongs behind a private SECURITY DEFINER
+-- trigger rather than a public CHECK that would require browser/service roles
+-- to execute private helper functions directly.
+create or replace function private.v3_validate_publication_execution()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $guard$
+begin
+  if new.scheduled_operation_id is null then
+    raise exception 'Publication execution requires its scheduling operation identity'
+      using errcode = '23514';
+  end if;
+
+  if new.status = 'succeeded' and new.failure_reason is not null then
+    raise exception 'Successful publication execution cannot carry failure evidence'
+      using errcode = '23514';
+  elsif new.status = 'blocked' and new.failure_reason is null then
+    raise exception 'Blocked publication execution requires failure evidence'
+      using errcode = '23514';
+  end if;
+
+  if private.studio2_publication_has_outcomes(new.intended_config)
+     and new.source_result_version is null then
+    raise exception 'Outcome publication execution requires exact result-version provenance'
+      using errcode = '23514';
+  end if;
+
+  return new;
+end
+$guard$;
+
+revoke all on function private.v3_validate_publication_execution()
+  from public, anon, authenticated;
+
+create trigger v3_validate_publication_execution
+before insert
+on public.studio2_show_publication_executions
+for each row execute function private.v3_validate_publication_execution();
 
 create or replace function private.v3_reject_publication_execution_mutation()
 returns trigger
