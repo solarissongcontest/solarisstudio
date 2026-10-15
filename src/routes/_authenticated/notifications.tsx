@@ -147,7 +147,13 @@ function V3NotificationsRouteContent({
 
   useEffect(() => {
     if (!noticeId || !selected) return;
-    if (selected.inboxState === "read" || selected.inboxState === "acknowledged") return;
+    if (
+      selected.inboxState === "read" ||
+      selected.inboxState === "acknowledged" ||
+      selected.inboxState === "archived"
+    ) {
+      return;
+    }
     if (openedNoticeIds.current.has(noticeId)) return;
 
     openedNoticeIds.current.add(noticeId);
