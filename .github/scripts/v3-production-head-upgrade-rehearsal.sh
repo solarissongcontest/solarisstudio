@@ -5,6 +5,10 @@ log() { printf '\n[v3-production-head-upgrade] %s\n' "$*"; }
 fail() { printf '\n[v3-production-head-upgrade] FAIL: %s\n' "$*" >&2; printf '::error::%s\n' "$*"; exit 1; }
 
 PRODUCTION_HEAD="${V3_PRODUCTION_MIGRATION_HEAD:-20261014020000}"
+# Immutable fingerprint of every migration at or before the hosted production
+# head. This makes the rehearsal fail closed if a branch rewrites deployed SQL
+# or inserts a backdated migration while retaining the same maximum version.
+PRODUCTION_BASELINE_SHA256="b60f5f9e923462943dde34fb2f6d4e2d003626b87952833a92948c6302bdf513"
 ROOT="$(git rev-parse --show-toplevel)"
 MIGRATIONS_DIR="$ROOT/supabase/migrations"
 HELD_DIR="$(mktemp -d)"
@@ -42,6 +46,18 @@ LATEST_HEAD="${all_migrations[$last_index]%%_*}"
 [[ "$LATEST_HEAD" =~ ^[0-9]{14}$ ]] || fail "Cannot derive repository migration head"
 [[ "$LATEST_HEAD" > "$PRODUCTION_HEAD" ]] || fail "Repository head must be ahead of production for this rehearsal"
 
+baseline_fingerprint="$({
+  for base in "${all_migrations[@]}"; do
+    version="${base%%_*}"
+    [[ "$version" =~ ^[0-9]{14}$ ]] || continue
+    if [[ "$version" < "$PRODUCTION_HEAD" || "$version" == "$PRODUCTION_HEAD" ]]; then
+      sha256sum "$MIGRATIONS_DIR/$base" | awk '{print $1}'
+    fi
+  done
+} | sha256sum | awk '{print $1}')"
+[[ "$baseline_fingerprint" == "$PRODUCTION_BASELINE_SHA256" ]] \
+  || fail "A migration at or before hosted production head was added or changed"
+
 log "Holding migrations newer than hosted production head $PRODUCTION_HEAD"
 held=0
 for base in "${all_migrations[@]}"; do
@@ -77,9 +93,15 @@ baseline_head="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select version from 
 [[ "$baseline_head" == "$PRODUCTION_HEAD" ]] \
   || fail "Local baseline head is $baseline_head, expected hosted production head $PRODUCTION_HEAD"
 
+log "Seeding representative legacy Entry evidence before the upgrade"
+bash "$ROOT/.github/scripts/v3-entry-legacy-upgrade-rehearsal.sh" --seed
+
 log "Restoring the exact repository delta and applying it as one upgrade"
 restore_migrations
 supabase migration up --local --include-all
+
+log "Verifying the legacy Entry evidence survived without fabricated approval provenance"
+bash "$ROOT/.github/scripts/v3-entry-legacy-upgrade-rehearsal.sh"
 
 upgraded_head="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select version from supabase_migrations.schema_migrations order by version desc limit 1;")"
 [[ "$upgraded_head" == "$LATEST_HEAD" ]] \
