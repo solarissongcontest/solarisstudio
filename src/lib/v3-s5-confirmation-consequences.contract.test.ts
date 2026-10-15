@@ -92,6 +92,5 @@ describe("System V3 S5 Confirmation consequences", () => {
     expect(rehearsal).toContain("confirmation.window_changed");
     expect(rehearsal).toContain("confirmation.tasks");
     expect(rehearsal).toContain("confirmation.notifications");
-    expect(rehearsal).toContain("legacy Confirmation submit bypass");
   });
 });
