@@ -1,12 +1,14 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { useEffect, useRef } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { V3AppShell } from "@/components/v3/V3AppShell";
 import {
   V3NotificationsScreen,
   type V3NotificationInboxItem,
 } from "@/components/v3/V3NotificationsScreen";
-import { V3AppShell } from "@/components/v3/V3AppShell";
+import { V3OfficialNoticeDetail } from "@/components/v3/V3OfficialNoticeDetail";
 import {
   describeAppPushDelivery,
   getAppPushState,
@@ -17,10 +19,21 @@ import {
   useNotificationPreferences,
 } from "@/lib/engagement-data";
 import { noticeTypeLabel } from "@/lib/official-communications";
+import {
+  acknowledgeStudio2InboxNotice,
+  archiveStudio2Notice,
+  markStudio2NoticeOpened,
+} from "@/lib/studio2-communications";
 import { loadStudio2RecipientNoticeInbox } from "@/lib/studio2-recipient-inbox";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
 export const Route = createFileRoute("/_authenticated/notifications")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    notice:
+      typeof search.notice === "string" && search.notice.trim()
+        ? search.notice.trim()
+        : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Notifications — Solaris Studio" },
@@ -42,6 +55,7 @@ const EMPTY_PUSH: AppPushState = {
 };
 
 function NotificationsRoute() {
+  const { notice } = Route.useSearch();
   const { isAppMode, platformResolved } = useSolarisApp();
   const rollout = useV3RolloutProbe(platformResolved && isAppMode);
 
@@ -77,6 +91,7 @@ function NotificationsRoute() {
     <V3NotificationsRouteContent
       userId={rollout.data.userId}
       editionId={rollout.data.editionId}
+      noticeId={notice}
     />
   );
 }
@@ -84,10 +99,14 @@ function NotificationsRoute() {
 function V3NotificationsRouteContent({
   userId,
   editionId,
+  noticeId,
 }: {
   userId: string;
   editionId: string | null;
+  noticeId?: string;
 }) {
+  const queryClient = useQueryClient();
+  const openedNoticeIds = useRef(new Set<string>());
   const preferences = useNotificationPreferences(userId);
   const push = useQuery({
     queryKey: ["solaris-app-push-state", userId],
@@ -96,13 +115,49 @@ function V3NotificationsRouteContent({
     refetchOnWindowFocus: true,
     retry: false,
   });
+  const inboxKey = ["v3-notifications-inbox", userId, editionId ?? "current"] as const;
   const inbox = useQuery({
-    queryKey: ["v3-notifications-inbox", userId, editionId ?? "current"],
+    queryKey: inboxKey,
     queryFn: () => loadStudio2RecipientNoticeInbox(editionId),
     staleTime: 20_000,
     refetchOnWindowFocus: true,
     retry: false,
   });
+
+  const refreshInbox = async () => {
+    await queryClient.invalidateQueries({ queryKey: inboxKey });
+  };
+  const markOpened = useMutation({
+    mutationFn: (id: string) => markStudio2NoticeOpened(id),
+    onSuccess: refreshInbox,
+  });
+  const acknowledge = useMutation({
+    mutationFn: (id: string) => acknowledgeStudio2InboxNotice(id),
+    onSuccess: refreshInbox,
+  });
+  const archive = useMutation({
+    mutationFn: ({ id, archived }: { id: string; archived: boolean }) =>
+      archiveStudio2Notice(id, archived),
+    onSuccess: refreshInbox,
+  });
+
+  const selected = noticeId
+    ? (inbox.data ?? []).find((item) => item.notice.id === noticeId) ?? null
+    : null;
+
+  useEffect(() => {
+    if (!noticeId || !selected) return;
+    if (selected.inboxState === "read" || selected.inboxState === "acknowledged") return;
+    if (openedNoticeIds.current.has(noticeId)) return;
+
+    openedNoticeIds.current.add(noticeId);
+    markOpened.mutate(noticeId, {
+      onError: () => openedNoticeIds.current.delete(noticeId),
+    });
+    // markOpened is intentionally omitted: the mutation object is recreated by
+    // React Query, while notice identity/state are the authoritative triggers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noticeId, selected?.inboxState]);
 
   const preferenceRow = preferences.data;
   const categories = preferenceRow?.categories?.length
@@ -126,17 +181,40 @@ function V3NotificationsRouteContent({
     acknowledgementRequired: item.notice.acknowledgementRequired,
   }));
 
+  const detailState = inbox.isLoading
+    ? "loading"
+    : inbox.isError
+      ? "error"
+      : selected
+        ? "ready"
+        : "missing";
+
   return (
     <V3AppShell editionLabel="Solaris Studio" phaseLabel="Notifications" activeArea="me">
-      <V3NotificationsScreen
-        deliveryStatus={deliveryStatus}
-        enabledCategoryCount={categories.length}
-        quietHoursLabel={`${quietStart}–${quietEnd}`}
-        urgentDeadlineReminders={preferenceRow?.urgent_deadline_reminders ?? true}
-        preferencesUnavailable={preferences.isError}
-        inboxUnavailable={inbox.isError}
-        inboxItems={inboxItems}
-      />
+      {noticeId ? (
+        <V3OfficialNoticeDetail
+          item={selected}
+          state={detailState}
+          busy={markOpened.isPending || acknowledge.isPending || archive.isPending}
+          mutationError={markOpened.error || acknowledge.error || archive.error}
+          onAcknowledge={() => {
+            if (selected) acknowledge.mutate(selected.notice.id);
+          }}
+          onArchive={(archived) => {
+            if (selected) archive.mutate({ id: selected.notice.id, archived });
+          }}
+        />
+      ) : (
+        <V3NotificationsScreen
+          deliveryStatus={deliveryStatus}
+          enabledCategoryCount={categories.length}
+          quietHoursLabel={`${quietStart}–${quietEnd}`}
+          urgentDeadlineReminders={preferenceRow?.urgent_deadline_reminders ?? true}
+          preferencesUnavailable={preferences.isError}
+          inboxUnavailable={inbox.isError}
+          inboxItems={inboxItems}
+        />
+      )}
     </V3AppShell>
   );
 }
