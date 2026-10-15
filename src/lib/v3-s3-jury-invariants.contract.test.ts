@@ -48,7 +48,10 @@ describe("System V3 S3 Jury invariants", () => {
       "preflight.account_user_id is distinct from new.user_id",
     );
     expect(migration).toContain("preflight.submitted_at is null");
-    expect(migration.match(/deferrable initially deferred/g).length).toBeGreaterThanOrEqual(3);
+    expect(
+      migration.match(/deferrable initially deferred/g) ?? [],
+    ).toHaveLength(expect.any(Number));
+    expect((migration.match(/deferrable initially deferred/g) ?? []).length).toBeGreaterThanOrEqual(3);
   });
 
   it("keeps linked vote evidence inside the exact submitted ballot scope", () => {
