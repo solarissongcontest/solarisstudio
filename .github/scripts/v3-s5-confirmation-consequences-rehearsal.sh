@@ -134,7 +134,7 @@ SUBMISSION_ID="$(printf '%s' "$HTTP_BODY" | json_value submission_id)"
 
 [[ "$(db_value "select command || ':' || status || ':' || correlation_id::text from public.studio2_operation_receipts where operation_id='$SUBMIT_OPERATION_ID'::uuid;")" == "confirmation.submit:succeeded:$SUBMIT_OPERATION_ID" ]] || fail "anonymous Confirmation was not bridged into the canonical S2 receipt"
 [[ "$(db_value "select actor_id is null from public.studio2_operation_receipts where operation_id='$SUBMIT_OPERATION_ID'::uuid;")" == 't' ]] || fail "anonymous Confirmation receipt unexpectedly fabricated an actor"
-[[ "$(db_value "select status from public.studio2_confirmation_requirements where id='$REQUIREMENT_ID'::uuid;")" == 'satisfied' ]] || fail "canonical Confirmation requirement was not satisfied by the submission"
+[[ "$(db_value "select status from public.studio2_confirmation_requirements where id='$REQUIREMENT_ID'::uuid;")" == 'waived' ]] || fail "non-participating Confirmation did not waive the canonical requirement"
 
 SUBMITTED_EVENT_ID="$(db_value "select id from private.v3_domain_events where operation_id='$SUBMIT_OPERATION_ID'::uuid and event_type='confirmation.submitted';")"
 [[ -n "$SUBMITTED_EVENT_ID" ]] || fail "confirmation.submitted DomainEvent was not emitted"
@@ -144,7 +144,7 @@ SUBMITTED_EVENT_ID="$(db_value "select id from private.v3_domain_events where op
 log "Task consequence resolves stale required-confirmation work under the S4 lease"
 [[ "$(service_value "select event_id from public.studio2_claim_domain_event_deliveries('confirmation.tasks','s5-task-worker',1,60);")" == "$SUBMITTED_EVENT_ID" ]] || fail "confirmation.tasks could not claim submitted event"
 service_exec "select public.studio2_process_confirmation_domain_event('$SUBMITTED_EVENT_ID'::uuid,'confirmation.tasks','s5-task-worker');"
-[[ "$(db_value "select state from public.studio2_organizer_tasks where source_key='confirmation-requirement:$REQUIREMENT_ID';")" == 'resolved' ]] || fail "Confirmation task consequence did not resolve satisfied requirement"
+[[ "$(db_value "select state from public.studio2_organizer_tasks where source_key='confirmation-requirement:$REQUIREMENT_ID';")" == 'resolved' ]] || fail "Confirmation task consequence did not resolve waived requirement"
 [[ "$(db_value "select count(*) from private.v3_domain_event_consumer_receipts where event_id='$SUBMITTED_EVENT_ID'::uuid and consumer_key='confirmation.tasks';")" == '1' ]] || fail "Confirmation task consumer receipt missing"
 [[ "$(service_value "select public.studio2_process_confirmation_domain_event('$SUBMITTED_EVENT_ID'::uuid,'confirmation.tasks','replay-worker')->>'replayed';")" == 'true' ]] || fail "Confirmation task consumer replay was not idempotent"
 
