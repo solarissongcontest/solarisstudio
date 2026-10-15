@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import {
   MySolarisNoticesModule,
   type NoticesSearch,
@@ -8,6 +9,7 @@ import { OrganizerPublicNoticesModule } from "@/components/mysolaris/modules/Org
 import { OrganizerRecipientNoticesModule } from "@/components/mysolaris/modules/OrganizerRecipientNoticesModule";
 import { useMyCountryAccount } from "@/lib/country-account";
 import type { NoticeInboxState } from "@/lib/official-communications";
+import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
 const INBOX_STATES = new Set([
   "unread",
@@ -32,8 +34,34 @@ export const Route = createFileRoute("/_authenticated/my-solaris/notices")({
 });
 
 function NoticesRoute() {
+  const search = Route.useSearch();
+  const { isAppMode, platformResolved } = useSolarisApp();
+  const rollout = useV3RolloutProbe(platformResolved && isAppMode);
   const account = useMyCountryAccount();
   const access = account.data?.access;
+
+  if (isAppMode && (!platformResolved || rollout.isLoading || account.isLoading)) {
+    return (
+      <p className="px-4 py-10 text-sm text-muted-foreground" role="status" aria-live="polite">
+        Opening official notices…
+      </p>
+    );
+  }
+
+  if (
+    isAppMode &&
+    !rollout.isError &&
+    rollout.data?.notificationsEnabled === true &&
+    access?.isOrganizer !== true
+  ) {
+    return (
+      <Navigate
+        to="/notifications"
+        search={search.notice ? { notice: search.notice } : {}}
+        replace
+      />
+    );
+  }
 
   if (access?.isOrganizer && access.countryId && access.countryStatus === "active") {
     return <OrganizerRecipientNoticesModule />;
