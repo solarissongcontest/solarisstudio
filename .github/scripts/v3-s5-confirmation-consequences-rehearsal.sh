@@ -75,6 +75,20 @@ service_value() {
 service_exec() {
   psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "set \"request.jwt.claim.role\" = 'service_role'; $1" >/dev/null
 }
+claim_and_process() {
+  local consumer_key="$1" worker_id="$2" expected_event_id="$3" claimed event_id
+  claimed="$(service_value "select event_id::text from public.studio2_claim_domain_event_deliveries('$consumer_key','$worker_id',100,60);")"
+  printf '%s\n' "$claimed" | grep -Fxq "$expected_event_id" \
+    || fail "$consumer_key could not claim expected event $expected_event_id"
+
+  # Production workers must drain older deliveries before newer ones. Process
+  # the whole claimed batch so this rehearsal remains valid after earlier
+  # upgrade-path rehearsals have legitimately emitted Confirmation events.
+  while IFS= read -r event_id; do
+    [[ -n "$event_id" ]] || continue
+    service_exec "select public.studio2_process_confirmation_domain_event('$event_id'::uuid,'$consumer_key','$worker_id');"
+  done <<< "$claimed"
+}
 expect_db_failure() {
   local label="$1" sql="$2" output
   output="$(mktemp)"
@@ -142,15 +156,13 @@ SUBMITTED_EVENT_ID="$(db_value "select id from private.v3_domain_events where op
 [[ "$(db_value "select count(*) from private.v3_domain_event_outbox where event_id='$SUBMITTED_EVENT_ID'::uuid and consumer_key in ('confirmation.tasks','confirmation.notifications');")" == '2' ]] || fail "confirmation.submitted did not create both consequence deliveries"
 
 log "Task consequence resolves stale required-confirmation work under the S4 lease"
-[[ "$(service_value "select event_id from public.studio2_claim_domain_event_deliveries('confirmation.tasks','s5-task-worker',1,60);")" == "$SUBMITTED_EVENT_ID" ]] || fail "confirmation.tasks could not claim submitted event"
-service_exec "select public.studio2_process_confirmation_domain_event('$SUBMITTED_EVENT_ID'::uuid,'confirmation.tasks','s5-task-worker');"
+claim_and_process 'confirmation.tasks' 's5-task-worker' "$SUBMITTED_EVENT_ID"
 [[ "$(db_value "select state from public.studio2_organizer_tasks where source_key='confirmation-requirement:$REQUIREMENT_ID';")" == 'resolved' ]] || fail "Confirmation task consequence did not resolve waived requirement"
 [[ "$(db_value "select count(*) from private.v3_domain_event_consumer_receipts where event_id='$SUBMITTED_EVENT_ID'::uuid and consumer_key='confirmation.tasks';")" == '1' ]] || fail "Confirmation task consumer receipt missing"
 [[ "$(service_value "select public.studio2_process_confirmation_domain_event('$SUBMITTED_EVENT_ID'::uuid,'confirmation.tasks','replay-worker')->>'replayed';")" == 'true' ]] || fail "Confirmation task consumer replay was not idempotent"
 
 log "Notification consequence re-evaluates the existing deduplicating provider"
-[[ "$(service_value "select event_id from public.studio2_claim_domain_event_deliveries('confirmation.notifications','s5-notification-worker',1,60);")" == "$SUBMITTED_EVENT_ID" ]] || fail "confirmation.notifications could not claim submitted event"
-service_exec "select public.studio2_process_confirmation_domain_event('$SUBMITTED_EVENT_ID'::uuid,'confirmation.notifications','s5-notification-worker');"
+claim_and_process 'confirmation.notifications' 's5-notification-worker' "$SUBMITTED_EVENT_ID"
 [[ "$(db_value "select count(*) from private.v3_domain_event_consumer_receipts where event_id='$SUBMITTED_EVENT_ID'::uuid and consumer_key='confirmation.notifications';")" == '1' ]] || fail "Confirmation notification consumer receipt missing"
 
 log "Exact submit replay does not duplicate the event or outbox"
@@ -180,10 +192,8 @@ WINDOW_EVENT_ID="$(db_value "select id from private.v3_domain_events where opera
 [[ "$(db_value "select edition_id::text from private.v3_domain_events where id='$WINDOW_EVENT_ID'::uuid;")" == "$EDITION_ID" ]] || fail "window event lost edition scope"
 [[ "$(db_value "select count(*) from private.v3_domain_event_outbox where event_id='$WINDOW_EVENT_ID'::uuid;")" == '2' ]] || fail "window event did not create both consequence deliveries"
 
-[[ "$(service_value "select event_id from public.studio2_claim_domain_event_deliveries('confirmation.tasks','s5-window-task-worker',1,60);")" == "$WINDOW_EVENT_ID" ]] || fail "window task consequence could not be claimed"
-service_exec "select public.studio2_process_confirmation_domain_event('$WINDOW_EVENT_ID'::uuid,'confirmation.tasks','s5-window-task-worker');"
-[[ "$(service_value "select event_id from public.studio2_claim_domain_event_deliveries('confirmation.notifications','s5-window-notification-worker',1,60);")" == "$WINDOW_EVENT_ID" ]] || fail "window notification consequence could not be claimed"
-service_exec "select public.studio2_process_confirmation_domain_event('$WINDOW_EVENT_ID'::uuid,'confirmation.notifications','s5-window-notification-worker');"
+claim_and_process 'confirmation.tasks' 's5-window-task-worker' "$WINDOW_EVENT_ID"
+claim_and_process 'confirmation.notifications' 's5-window-notification-worker' "$WINDOW_EVENT_ID"
 
 log "A rejected submit is not rewritten into a completed domain fact"
 FAILED_SESSION='s5-confirmation-closed-session'
@@ -197,7 +207,7 @@ log "Browser roles cannot run event consequences"
 expect_db_failure "authenticated Confirmation consequence processing" "set role authenticated; set \"request.jwt.claim.role\"='authenticated'; select public.studio2_process_confirmation_domain_event('$WINDOW_EVENT_ID'::uuid,'confirmation.tasks','browser-worker');"
 expect_db_failure "anonymous Confirmation consequence processing" "set role anon; set \"request.jwt.claim.role\"='anon'; select public.studio2_process_confirmation_domain_event('$WINDOW_EVENT_ID'::uuid,'confirmation.tasks','browser-worker');"
 
-[[ "$(db_value "select count(*) from private.v3_domain_events where event_type in ('confirmation.submitted','confirmation.window_changed');")" == '2' ]] || fail "Confirmation S5 produced an unexpected number of canonical facts"
+[[ "$(db_value "select count(*) from private.v3_domain_events where operation_id in ('$SUBMIT_OPERATION_ID'::uuid,'$ROUND_OPERATION_ID'::uuid) and event_type in ('confirmation.submitted','confirmation.window_changed');")" == '2' ]] || fail "Confirmation S5 produced an unexpected number of canonical facts for its operations"
 [[ "$(db_value "select count(*) from private.v3_domain_event_outbox where event_id in ('$SUBMITTED_EVENT_ID'::uuid,'$WINDOW_EVENT_ID'::uuid) and status='completed';")" == '4' ]] || fail "Confirmation S5 consequence deliveries did not all complete"
 
 log "System V3 S5 Confirmation consequence rehearsal passed"
