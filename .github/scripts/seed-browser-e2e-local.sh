@@ -187,18 +187,9 @@ values
   ('00000000-0000-4000-8000-00000000e291'::uuid, '00000000-0000-4000-8000-00000000e219'::uuid, '00000000-0000-4000-8000-00000000e299'::uuid, '00000000-0000-4000-8000-00000000e201'::uuid, 'Private archive artist', 'Private archive song', 'confirmed', 'published'),
   ('00000000-0000-4000-8000-00000000e292'::uuid, '00000000-0000-4000-8000-00000000e219'::uuid, '00000000-0000-4000-8000-00000000e299'::uuid, '00000000-0000-4000-8000-00000000e202'::uuid, 'Second archive artist', 'Second archive song', 'confirmed', 'published')
 on conflict (id) do nothing;
--- Materialize canonical result rows explicitly, then assign deterministic
--- scores before binding lifecycle version 1 to its immutable evidence.
-select public.materialize_show_results_if_missing(
-  '00000000-0000-4000-8000-00000000e299'::uuid
-);
-update public.results set jury_points = 110222, televote_points = 1000, total_points = 111222, final_rank = 1
-where show_id = '00000000-0000-4000-8000-00000000e299'::uuid and country_id = '00000000-0000-4000-8000-00000000e201'::uuid;
-update public.results set jury_points = 110000, televote_points = 1000, total_points = 111000, final_rank = 2
-where show_id = '00000000-0000-4000-8000-00000000e299'::uuid and country_id = '00000000-0000-4000-8000-00000000e202'::uuid;
-
--- Respect the real publication guard: establish the current reviewed, locked
--- and reveal-ready exact calculation before publishing the archive fixture.
+-- Establish a reveal-ready version so the real publication path materializes
+-- the archive rows, then make it private while deterministic scores are bound
+-- to a new immutable version.
 insert into public.studio2_result_operations (
   show_id, edition_id, calculation_version, reviewed_version, locked_version, reveal_ready_version
 ) values (
@@ -206,6 +197,21 @@ insert into public.studio2_result_operations (
   '00000000-0000-4000-8000-00000000e219'::uuid, 1, 1, 1, 1
 )
 on conflict (show_id) do update set calculation_version = 1, reviewed_version = 1, locked_version = 1, reveal_ready_version = 1;
+update public.shows set published = true
+where id = '00000000-0000-4000-8000-00000000e299'::uuid;
+update public.shows set published = false
+where id = '00000000-0000-4000-8000-00000000e299'::uuid;
+update public.results set jury_points = 110222, televote_points = 1000, total_points = 111222, final_rank = 1
+where show_id = '00000000-0000-4000-8000-00000000e299'::uuid and country_id = '00000000-0000-4000-8000-00000000e201'::uuid;
+update public.results set jury_points = 110000, televote_points = 1000, total_points = 111000, final_rank = 2
+where show_id = '00000000-0000-4000-8000-00000000e299'::uuid and country_id = '00000000-0000-4000-8000-00000000e202'::uuid;
+update public.studio2_result_operations
+set calculation_version = 2,
+    reviewed_version = 2,
+    locked_version = 2,
+    reveal_ready_version = 2,
+    updated_at = now()
+where show_id = '00000000-0000-4000-8000-00000000e299'::uuid;
 update public.shows set published = true
 where id = '00000000-0000-4000-8000-00000000e299'::uuid;
 
