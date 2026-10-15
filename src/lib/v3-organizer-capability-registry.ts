@@ -108,14 +108,23 @@ function canonicalLegacyRoute(route: string) {
 }
 
 function targetDomainFor(id: string) {
+  if (/simulation-lab|time-machine|voting-lab|command-assistant/.test(id)) {
+    return "specialist-labs";
+  }
+  if (/storytelling|anniversary|predictions|fantasy|community-moderation/.test(id)) {
+    return "engagement-editorial";
+  }
+  if (/beta-|acceptance-test|beta-coverage|public-ux|flag-qa/.test(id)) {
+    return "product-qa";
+  }
   if (/confirmation|delegation|country|hod|next-in-line|eligibility|submission/.test(id)) {
     return "delegations";
   }
   if (/jury|voting|televote|result/.test(id)) return "voting-results";
   if (/trust|integrity|rules/.test(id)) return "governance";
-  if (/broadcast|reveal|simulation|time-machine|control-room|incident/.test(id)) return "live-production";
+  if (/broadcast|reveal|control-room|incident/.test(id)) return "live-production";
   if (/communication/.test(id)) return "communications";
-  if (/media|contest|host|storytelling/.test(id)) return "contest";
+  if (/media|contest|host/.test(id)) return "contest";
   if (/task|workflow/.test(id)) return "tasks-operations";
   if (/overview/.test(id)) return "overview";
   return "platform";
