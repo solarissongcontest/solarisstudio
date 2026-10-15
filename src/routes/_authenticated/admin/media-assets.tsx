@@ -8,6 +8,7 @@ import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminEmptyState, AdminPageHeader, AdminSheet, AdminStatus } from '@/components/admin/AdminUI';
+import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useCountries, useEditions } from '@/lib/data';
 import { MEDIA_ASSET_TYPES, type MediaAssetType } from '@/lib/media-asset-vault';
 import { loadStudio2CountryCockpit } from '@/lib/studio2-country-cockpit';
@@ -62,9 +63,7 @@ function MediaAssetsPage() {
   const [reviewReason, setReviewReason] = useState('');
 
   const editions = editionsQuery.data ?? [];
-  const selectedEdition = editions.find((edition) => edition.id === editionId)
-    ?? [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0]
-    ?? null;
+  const selectedEdition = selectOrganizerEdition(editions, editionId);
   const resolvedEditionId = selectedEdition?.id ?? '';
 
   const cockpitQuery = useQuery({
@@ -234,7 +233,13 @@ function MediaAssetsPage() {
         />
 
         {!selectedEdition && !editionsQuery.isLoading ? (
-          <AdminCard><AdminEmptyState icon={Images} title="No edition selected" description="Select an edition before reviewing media operations." /></AdminCard>
+          <AdminCard>
+            <AdminEmptyState
+              icon={Images}
+              title="No edition selected"
+              description="Select an edition before reviewing media operations. Solaris will not substitute another edition for missing or stale Organizer context."
+            />
+          </AdminCard>
         ) : editionsQuery.isLoading || countriesQuery.isLoading || cockpitQuery.isLoading || reviewsQuery.isLoading ? (
           <AdminCard><p className="py-12 text-center text-sm text-muted-foreground">Building media inventory…</p></AdminCard>
         ) : error ? (
