@@ -21,7 +21,13 @@ export const Route = createFileRoute("/rules/")({
 
 function RulesPage() {
   const published = usePublishedRulebook();
-  const content = <RulesHomeV5 key={published.version} version={published.version} />;
+  const content = (
+    <RulesHomeV5
+      key={published.version}
+      version={published.version}
+      effectiveFrom={published.data?.effective_from ?? null}
+    />
+  );
 
   return (
     <V3RulesRouteGate
