@@ -20,6 +20,7 @@ import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
 import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import type { SolarisTabbarMode } from "@/lib/solaris-screen-contract";
 import { cn } from "@/lib/utils";
+import "@/styles/v3-organizer-navigation.css";
 
 export type OrganizerV6TabItem = {
   id: string;
@@ -40,6 +41,9 @@ type DragState = {
   lastX: number;
   lastAt: number;
   velocityX: number;
+  minDelta: number;
+  maxDelta: number;
+  slotWidth: number;
 };
 
 export function OrganizerV6TabBar({
@@ -108,9 +112,6 @@ export function OrganizerV6TabBar({
       rootObserver?.disconnect();
       window.removeEventListener("resize", sync);
       window.visualViewport?.removeEventListener("resize", sync);
-      // Preserve the last valid measurement across dependency replacement.
-      // The next layout effect publishes its value before paint; unmount reset
-      // is deliberately owned by the separate cleanup below.
     };
   }, [collapsed, mode, pathname]);
 
@@ -180,6 +181,13 @@ export function OrganizerV6TabBar({
       return;
     }
 
+    const rects = tabRects();
+    const origin = rects[index];
+    if (!origin) return;
+    const first = rects[0] ?? origin;
+    const last = rects.at(-1) ?? origin;
+    const originCenter = origin.left + origin.width / 2;
+
     dragState.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -188,6 +196,9 @@ export function OrganizerV6TabBar({
       lastX: event.clientX,
       lastAt: event.timeStamp,
       velocityX: 0,
+      minDelta: first.left + first.width / 2 - originCenter,
+      maxDelta: last.left + last.width / 2 - originCenter,
+      slotWidth: origin.width,
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginHold(event.pointerId, event.clientX, event.clientY);
@@ -199,12 +210,6 @@ export function OrganizerV6TabBar({
     if (!drag || drag.pointerId !== event.pointerId) return;
     moveHold(event.pointerId, event.clientX, event.clientY);
 
-    const rects = tabRects();
-    const origin = rects[drag.originIndex];
-    if (!origin) return;
-    const first = rects[0] ?? origin;
-    const last = rects.at(-1) ?? origin;
-    const originCenter = origin.left + origin.width / 2;
     const rawDelta = event.clientX - drag.startX;
     const elapsed = Math.max(1, event.timeStamp - drag.lastAt);
     const instantVelocity = (event.clientX - drag.lastX) / elapsed;
@@ -214,9 +219,9 @@ export function OrganizerV6TabBar({
 
     const response = resolveElasticDrag({
       rawDelta,
-      minDelta: first.left + first.width / 2 - originCenter,
-      maxDelta: last.left + last.width / 2 - originCenter,
-      slotWidth: origin.width,
+      minDelta: drag.minDelta,
+      maxDelta: drag.maxDelta,
+      slotWidth: drag.slotWidth,
       rubberBand: true,
     });
 
@@ -230,7 +235,7 @@ export function OrganizerV6TabBar({
     const previewIndex = resolveTabDragTargetIndex({
       rawDelta,
       originIndex: drag.originIndex,
-      slotWidth: origin.width,
+      slotWidth: drag.slotWidth,
       itemCount: items.length,
       activationRatio: 0.62,
       maxSteps: 1,
@@ -242,19 +247,18 @@ export function OrganizerV6TabBar({
   const finishDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    const rects = tabRects();
-    const origin = rects[drag.originIndex];
     const targetIndex = resolveTabDragTargetIndex({
       rawDelta: event.clientX - drag.startX,
       velocityX: drag.velocityX,
       velocityProjectionMs: 110,
       originIndex: drag.originIndex,
-      slotWidth: origin?.width ?? 1,
+      slotWidth: drag.slotWidth,
       itemCount: items.length,
       activationRatio: 0.72,
       maxSteps: 1,
     });
-    suppressClick.current = drag.moved;
+    const longPressed = held;
+    suppressClick.current = drag.moved || longPressed;
 
     try {
       event.currentTarget.releasePointerCapture?.(event.pointerId);
@@ -263,7 +267,7 @@ export function OrganizerV6TabBar({
     }
 
     clearDrag();
-    if (!drag.moved || targetIndex === drag.originIndex) return;
+    if (longPressed || !drag.moved || targetIndex === drag.originIndex) return;
     const target = items[targetIndex];
     if (target) onSelect(target);
   };
@@ -271,7 +275,7 @@ export function OrganizerV6TabBar({
   const cancelDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    suppressClick.current = drag.moved;
+    suppressClick.current = drag.moved || held;
     clearDrag();
   };
 

@@ -39,6 +39,9 @@ type DragState = {
   lastX: number;
   lastAt: number;
   velocityX: number;
+  minDelta: number;
+  maxDelta: number;
+  slotWidth: number;
 };
 
 function triggerSelectionHaptic(duration = 8) {
@@ -95,8 +98,11 @@ export function V3LiquidTabBar({
     const bar = barRef.current;
 
     const sync = () => {
-      if (!bar) return;
-      if (root.hasAttribute("data-solaris-keyboard-open")) {
+      if (
+        !bar ||
+        window.innerWidth >= 1024 ||
+        root.hasAttribute("data-solaris-keyboard-open")
+      ) {
         root.style.setProperty("--v3-bottom-obstruction", "0px");
         root.style.setProperty("--solaris-bottom-obstruction", "0px");
         return;
@@ -112,9 +118,7 @@ export function V3LiquidTabBar({
       typeof ResizeObserver !== "undefined" && bar ? new ResizeObserver(sync) : null;
     if (observer && bar) observer.observe(bar);
     const rootObserver =
-      typeof MutationObserver !== "undefined"
-        ? new MutationObserver(sync)
-        : null;
+      typeof MutationObserver !== "undefined" ? new MutationObserver(sync) : null;
     rootObserver?.observe(root, {
       attributes: true,
       attributeFilter: ["data-solaris-keyboard-open"],
@@ -234,6 +238,15 @@ export function V3LiquidTabBar({
       return;
     }
 
+    // Pre-measure once at gesture start. Pointer-move stays compositor/refs only
+    // and never mixes layout reads into the hot path.
+    const rects = tabRects();
+    const origin = rects[index];
+    if (!origin) return;
+    const first = rects[0] ?? origin;
+    const last = rects.at(-1) ?? origin;
+    const originCenter = origin.left + origin.width / 2;
+
     dragState.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -242,6 +255,9 @@ export function V3LiquidTabBar({
       lastX: event.clientX,
       lastAt: event.timeStamp,
       velocityX: 0,
+      minDelta: first.left + first.width / 2 - originCenter,
+      maxDelta: last.left + last.width / 2 - originCenter,
+      slotWidth: origin.width,
     };
     lastPreviewHaptic.current = index;
     event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -254,12 +270,6 @@ export function V3LiquidTabBar({
     if (!drag || drag.pointerId !== event.pointerId) return;
     moveHold(event.pointerId, event.clientX, event.clientY);
 
-    const rects = tabRects();
-    const origin = rects[drag.originIndex];
-    if (!origin) return;
-    const first = rects[0] ?? origin;
-    const last = rects.at(-1) ?? origin;
-    const originCenter = origin.left + origin.width / 2;
     const rawDelta = event.clientX - drag.startX;
     const elapsed = Math.max(1, event.timeStamp - drag.lastAt);
     const instantVelocity = (event.clientX - drag.lastX) / elapsed;
@@ -269,9 +279,9 @@ export function V3LiquidTabBar({
 
     const response = resolveElasticDrag({
       rawDelta,
-      minDelta: first.left + first.width / 2 - originCenter,
-      maxDelta: last.left + last.width / 2 - originCenter,
-      slotWidth: origin.width,
+      minDelta: drag.minDelta,
+      maxDelta: drag.maxDelta,
+      slotWidth: drag.slotWidth,
       rubberBand: true,
     });
 
@@ -287,7 +297,7 @@ export function V3LiquidTabBar({
     const nextPreview = resolveTabDragTargetIndex({
       rawDelta,
       originIndex: drag.originIndex,
-      slotWidth: origin.width,
+      slotWidth: drag.slotWidth,
       itemCount: destinations.length,
       activationRatio: 0.62,
       maxSteps: 1,
@@ -308,20 +318,19 @@ export function V3LiquidTabBar({
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
 
-    const rects = tabRects();
-    const origin = rects[drag.originIndex];
     const targetIndex = resolveTabDragTargetIndex({
       rawDelta: event.clientX - drag.startX,
       velocityX: drag.velocityX,
       velocityProjectionMs: 110,
       originIndex: drag.originIndex,
-      slotWidth: origin?.width ?? 1,
+      slotWidth: drag.slotWidth,
       itemCount: destinations.length,
       activationRatio: 0.72,
       maxSteps: 1,
     });
     const moved = drag.moved;
-    suppressClick.current = moved;
+    const longPressed = held;
+    suppressClick.current = moved || longPressed;
 
     try {
       event.currentTarget.releasePointerCapture?.(event.pointerId);
@@ -329,7 +338,9 @@ export function V3LiquidTabBar({
       // Pointer capture may already have been released by the browser.
     }
 
-    if (!moved || targetIndex === drag.originIndex) {
+    // A completed long press is tactile/deformational only. It must not fall
+    // through into navigation on release.
+    if (longPressed || !moved || targetIndex === drag.originIndex) {
       clearDrag();
       return;
     }
@@ -341,7 +352,7 @@ export function V3LiquidTabBar({
   const cancelDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    suppressClick.current = drag.moved;
+    suppressClick.current = drag.moved || held;
     clearDrag();
   };
 

@@ -29,6 +29,7 @@ import {
 import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
 import { cn } from "@/lib/utils";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
+import { V3DesktopPrimaryNavigation } from "./V3DesktopPrimaryNavigation";
 import { V3FoundationShell, V3TopContext } from "./V3Foundation";
 import {
   V3LiquidTabBar,
@@ -252,6 +253,10 @@ export function V3AppShell({
     <V3FoundationShell>
       <div className={cn("min-h-dvh", className)}>
         <V3TopContext edition={editionLabel} phase={phaseLabel} actions={shellActions} />
+        <V3DesktopPrimaryNavigation
+          destinations={liquidDestinations}
+          onSelect={openTab}
+        />
         <V3TopLevelSwipeSurface
           pathname={pathname}
           searchStr={searchStr}

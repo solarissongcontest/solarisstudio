@@ -1,0 +1,24 @@
+/* Keep the Organizer mobile navigation material physically bounded even though
+   legacy admin styles also target .admin-mobile-nav. The glass lives on the
+   inner material, never on a viewport-width fixed backdrop. */
+.admin-mobile-nav[data-v6-organizer-tabbar] {
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+html[data-solaris-keyboard-open] .admin-mobile-nav[data-v6-organizer-tabbar] {
+  opacity: 0;
+  transform: translateY(calc(100% + env(safe-area-inset-bottom) + 2rem));
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-mobile-nav[data-v6-organizer-tabbar] {
+    transition: none;
+  }
+}
