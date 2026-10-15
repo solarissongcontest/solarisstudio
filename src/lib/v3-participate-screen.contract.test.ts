@@ -25,4 +25,12 @@ describe("V3 Participate screen contract", () => {
     expect(participate).toContain("participate.needsAttention");
     expect(participate).toContain("participate.optionalNow");
   });
+
+  it("shows canonical action timing instead of a generic local deadline badge", () => {
+    expect(participate).toContain("action.deadline ? formatActionTime(action.deadline) : null");
+    expect(participate).toContain("action.opensAt ? formatActionTime(action.opensAt) : null");
+    expect(participate).toContain("`Closes ${deadline}`");
+    expect(participate).toContain("`Opens ${opensAt}`");
+    expect(participate).not.toContain('action.deadline ? "Deadline set"');
+  });
 });
