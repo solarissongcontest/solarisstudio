@@ -378,6 +378,11 @@ export async function auditPage(page: Page, path: string, testInfo: TestInfo) {
     ).toEqual([]);
 
     const focusSentinelSelector = "[data-solaris-audit-focus-start]";
+    // auditRoutes opens representative dynamic pages in temporary tabs. Make
+    // the page receiving the synthetic keypress explicit: Chromium can leave a
+    // newly-created tab without keyboard ownership while it is still reacting
+    // to late query updates, which makes Tab incorrectly remain on the sentinel.
+    await page.bringToFront();
     await page.evaluate((selector) => {
       document.querySelector(selector)?.remove();
       const sentinel = document.createElement("span");
