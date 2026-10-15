@@ -90,6 +90,42 @@ describe("V3 Organizer projection", () => {
     expect(projection.risk).toBe("critical");
   });
 
+  it("routes Contest readiness to the workspace that actually owns each job", () => {
+    const projection = buildV3OrganizerProjection({
+      edition,
+      actorId: "organizer-1",
+      live,
+      tasks: [],
+      health: {
+        progress: 70,
+        missing_songs: 1,
+        missing_artists: 1,
+        running_issues: 2,
+      },
+      serverTime: "2026-10-15T18:00:00Z",
+    });
+
+    expect(projection.readiness.incomplete).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "entries",
+          label: "Entry review",
+          route: "/confirmations/admin/responses",
+        }),
+        expect.objectContaining({
+          id: "running-order",
+          label: "Running order",
+          route: "/admin/entries/ssc-22",
+        }),
+      ]),
+    );
+    expect(projection.readiness.incomplete).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "running-order", route: "/admin/lineup-sync/ssc-22" }),
+      ]),
+    );
+  });
+
   it("elevates for live attention even when the task queue is clear", () => {
     const projection = buildV3OrganizerProjection({
       edition,
