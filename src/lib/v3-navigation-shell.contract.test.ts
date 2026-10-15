@@ -68,4 +68,14 @@ describe("V3 navigation shell acceptance guardrails", () => {
     expect(focused).toContain('data-v3-swipe-owner="content"');
     expect(gesture).toContain('if (screen.behavior.criticalTask) return "critical-flow"');
   });
+
+  it("does not enable page swipe until live adjacent DOM surfaces are available", () => {
+    const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
+    const shell = source("src/components/v3/V3AppShell.tsx");
+
+    expect(swipe).toContain("previewReady = false");
+    expect(swipe).toContain('policy === "enabled" && previewReady');
+    expect(swipe).toContain("data-v3-top-level-swipe-preview-ready");
+    expect(shell).not.toContain("previewReady={true}");
+  });
 });

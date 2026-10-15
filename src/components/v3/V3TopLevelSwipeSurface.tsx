@@ -32,10 +32,11 @@ type SwipeState = {
 /**
  * Shell-owned top-level swipe recognizer.
  *
- * This intentionally owns only gesture arbitration and direct movement of the
- * active surface. Route content keeps ownership of nested horizontal controls,
- * forms and focused workflows. A later live-adjacent-page compositor can reuse
- * the exact same progress without changing the gesture contract.
+ * Gesture arbitration is complete here, but the recognizer is intentionally
+ * disabled until a caller supplies a live previous/current/next compositor.
+ * Sliding a lone current page would expose empty space and violate the canonical
+ * no-screenshot-fake requirement. Public/Organizer feature owners may provide
+ * live adjacent surfaces later without changing the ownership classifier.
  */
 export function V3TopLevelSwipeSurface({
   children,
@@ -43,6 +44,7 @@ export function V3TopLevelSwipeSurface({
   searchStr,
   activeIndex,
   itemCount,
+  previewReady = false,
   onCommit,
 }: {
   children: ReactNode;
@@ -50,6 +52,7 @@ export function V3TopLevelSwipeSurface({
   searchStr: string;
   activeIndex: number;
   itemCount: number;
+  previewReady?: boolean;
   onCommit: (targetIndex: number) => void;
 }) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
@@ -58,7 +61,7 @@ export function V3TopLevelSwipeSurface({
   const policy = resolveV3TopLevelSwipePolicy(pathname, searchStr);
   // Keep SSR/hydration deterministic. Reduced-motion preference is checked at
   // gesture start and CSS also disables the movement path.
-  const enabled = policy === "enabled";
+  const enabled = policy === "enabled" && previewReady;
 
   const clearSettleTimer = useCallback(() => {
     if (settleTimerRef.current == null) return;
@@ -199,8 +202,6 @@ export function V3TopLevelSwipeSurface({
       "--v3-page-swipe-x",
       `${(direction * drag.viewportWidth).toFixed(2)}px`,
     );
-    // Settle the finger-owned surface first, then commit one canonical route.
-    // No synthetic history entries or intermediate fake tabs are created.
     settleTimerRef.current = window.setTimeout(() => {
       settleTimerRef.current = null;
       onCommit(targetIndex);
@@ -212,6 +213,7 @@ export function V3TopLevelSwipeSurface({
       ref={surfaceRef}
       className="v3-top-level-swipe-surface"
       data-v3-top-level-swipe-policy={policy}
+      data-v3-top-level-swipe-preview-ready={previewReady ? "true" : "false"}
       data-v3-top-level-swipe-enabled={enabled ? "true" : "false"}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

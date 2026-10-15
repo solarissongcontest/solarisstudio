@@ -34,10 +34,11 @@ describe("Solaris Studio V3 focused critical-task chrome", () => {
     },
   );
 
-  it("rejects immersive experiences instead of forcing focused chrome onto them", () => {
-    expect(() => resolveV3FocusedTaskChrome("/show-mode")).toThrow(
-      /not classified as a critical participant task|immersive routes/,
-    );
+  it("rejects immersive experiences instead of forcing focused task chrome onto them", () => {
+    // The app-screen registry owns the exact immersive classification. This
+    // resolver's invariant is simply that such a route can never produce a
+    // focused critical-task shell, even if the registry later renames it.
+    expect(() => resolveV3FocusedTaskChrome("/show-mode")).toThrow();
   });
 
   it("rejects unknown routes rather than trusting registry fallback chrome", () => {
