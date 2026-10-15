@@ -1,0 +1,27 @@
+[data-solaris-v3] .v3-top-level-swipe-surface {
+  --v3-page-swipe-x: 0px;
+  min-width: 0;
+  transform: translate3d(var(--v3-page-swipe-x), 0, 0);
+  transition: transform 180ms var(--v3-ease-spring);
+}
+
+[data-solaris-v3] .v3-top-level-swipe-surface[data-v3-top-level-swipe-enabled="true"] {
+  touch-action: pan-y pinch-zoom;
+}
+
+[data-solaris-v3] .v3-top-level-swipe-surface[data-v3-page-swiping="true"] {
+  transition: none;
+  will-change: transform;
+}
+
+[data-solaris-v3] .v3-top-level-swipe-surface[data-v3-page-settling="true"] {
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-solaris-v3] .v3-top-level-swipe-surface {
+    transform: none !important;
+    transition: none !important;
+    touch-action: auto;
+  }
+}
