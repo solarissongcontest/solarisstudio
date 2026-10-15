@@ -25,21 +25,51 @@ describe("V3 app shell migration contract", () => {
   it("keeps Participate attention scoped while Notifications reuses the shared attention summary", () => {
     const shell = source("src/components/v3/V3AppShell.tsx");
 
-    expect(shell).toContain('id === "participate" ? participateAttentionCount : 0');
-    expect(shell).toContain('attentionCount > 9 ? "9+" : attentionCount');
+    expect(shell).toContain('destination.id === "participate" ? participateAttentionCount : 0');
     expect(shell).toContain("const attention = useAppAttentionSummary()");
     expect(shell).toContain('attention.me > 9 ? "9+" : attention.me');
     expect(shell).not.toContain("localStorage");
     expect(shell).not.toContain("sessionStorage");
   });
 
-  it("does not put essential navigation behind gesture-only handlers", () => {
+  it("keeps semantic links authoritative while liquid gestures remain progressive enhancement", () => {
     const shell = source("src/components/v3/V3AppShell.tsx");
+    const tabbar = source("src/components/v3/V3LiquidTabBar.tsx");
 
-    expect(shell).toContain('aria-label="Primary app navigation"');
-    expect(shell).toContain('aria-current={active ? "page" : undefined}');
+    expect(shell).toContain("<V3LiquidTabBar");
     expect(shell).not.toContain("onPointerMove");
     expect(shell).not.toContain("onTouchMove");
     expect(shell).not.toContain("onLongPress");
+
+    expect(tabbar).toContain('aria-label="Primary app navigation"');
+    expect(tabbar).toContain('aria-current={active ? "page" : undefined}');
+    expect(tabbar).toContain("<Link");
+    expect(tabbar).toContain("onPointerMove={moveDrag}");
+    expect(tabbar).toContain("prefersReducedMotion()");
+    expect(tabbar).not.toContain("localStorage");
+    expect(tabbar).not.toContain("sessionStorage");
+    expect(tabbar).not.toContain("supabase");
+    expect(tabbar).not.toContain("fetch(");
+  });
+
+  it("uses Solaris glass, hysteresis and interruption-safe direct manipulation", () => {
+    const tabbar = source("src/components/v3/V3LiquidTabBar.tsx");
+    const css = source("src/styles/v3-liquid-tabbar.css");
+
+    expect(tabbar).toContain("KubeLiquidGlassBackdrop");
+    expect(tabbar).toContain("useScrollResponsiveBar");
+    expect(tabbar).toContain("useSolarisPressHold");
+    expect(tabbar).toContain("rubberBand: true");
+    expect(tabbar).toContain("velocityProjectionMs: 110");
+    expect(tabbar).toContain('window.addEventListener("blur", resetInterruptedGesture)');
+    expect(tabbar).toContain('window.addEventListener("orientationchange", resetInterruptedGesture)');
+    expect(tabbar).toContain('document.addEventListener("visibilitychange", resetWhenHidden)');
+
+    expect(css).toContain('.v3-liquid-tabbar__lens');
+    expect(css).toContain('[data-collapsed="true"]');
+    expect(css).toContain('prefers-reduced-motion: reduce');
+    expect(css).toContain('prefers-reduced-transparency: reduce');
+    expect(css).toContain('touch-action: pan-y');
+    expect(css).toContain('--v3-bottom-obstruction');
   });
 });
