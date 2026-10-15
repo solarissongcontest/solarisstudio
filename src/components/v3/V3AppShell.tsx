@@ -34,6 +34,7 @@ import {
   V3LiquidTabBar,
   type V3LiquidTabDestination,
 } from "./V3LiquidTabBar";
+import { V3TopLevelSwipeSurface } from "./V3TopLevelSwipeSurface";
 
 type V3Area = "home" | "explore" | "participate" | "results" | "me";
 
@@ -211,8 +212,15 @@ export function V3AppShell({
       badge: destination.id === "participate" ? participateAttentionCount : 0,
     }),
   );
+  const activeIndex = Math.max(
+    0,
+    liquidDestinations.findIndex((destination) => destination.active),
+  );
 
-  const openTab = (destination: V3LiquidTabDestination) => {
+  const openTab = (
+    destination: V3LiquidTabDestination,
+    navigationMode: "tap" | "swipe" = "tap",
+  ) => {
     const id = destination.id as V3PublicTabId;
     const alreadyActive = publicArea === id;
     const normalizedPath = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
@@ -230,16 +238,32 @@ export function V3AppShell({
       ? resetV3PublicTabToRoot(id, undefined, navigationScope)
       : getV3PublicTabDestination(id, undefined, navigationScope);
     markV3PublicNavigationRestore(target, undefined, navigationScope);
-    void runAppViewTransition(alreadyActive ? "pop" : "tab", () =>
-      navigate({ to: v3PublicEntryHref(target) as any }),
-    );
+    const navigateToTarget = () => navigate({ to: v3PublicEntryHref(target) as any });
+
+    if (navigationMode === "swipe") {
+      void navigateToTarget();
+      return;
+    }
+
+    void runAppViewTransition(alreadyActive ? "pop" : "tab", navigateToTarget);
   };
 
   return (
     <V3FoundationShell>
       <div className={cn("min-h-dvh", className)}>
         <V3TopContext edition={editionLabel} phase={phaseLabel} actions={shellActions} />
-        {children}
+        <V3TopLevelSwipeSurface
+          pathname={pathname}
+          searchStr={searchStr}
+          activeIndex={activeIndex}
+          itemCount={liquidDestinations.length}
+          onCommit={(targetIndex) => {
+            const target = liquidDestinations[targetIndex];
+            if (target) openTab(target, "swipe");
+          }}
+        >
+          {children}
+        </V3TopLevelSwipeSurface>
       </div>
 
       <V3LiquidTabBar
