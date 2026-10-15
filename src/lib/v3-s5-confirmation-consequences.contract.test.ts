@@ -6,6 +6,10 @@ const migration = readFileSync(
   "supabase/migrations/20261015183000_v3_s5_confirmation_consequences.sql",
   "utf8",
 );
+const submitRuntime = readFileSync(
+  "supabase/migrations/20261015183100_v3_confirmation_submit_runtime_replay_restore.sql",
+  "utf8",
+);
 const rehearsal = readFileSync(
   ".github/scripts/v3-s5-confirmation-consequences-rehearsal.sh",
   "utf8",
@@ -20,6 +24,17 @@ describe("System V3 S5 Confirmation consequences", () => {
     expect(migration).toContain("private.studio2_request_fingerprint");
     expect(migration).not.toContain("create or replace function public.v3_submit_confirmation");
     expect(migration).not.toMatch(/insert\s+into\s+private\.v3_confirmation_operations/i);
+  });
+
+  it("restores clean-replay submit parity without reopening the legacy command bypass", () => {
+    expect(submitRuntime).toContain("create or replace function public.submit_confirmation(payload jsonb)");
+    expect(submitRuntime).toContain("public.round_availability(r.id)");
+    expect(submitRuntime).toContain("public.find_entry_duplicate(");
+    expect(submitRuntime).toContain("insert into public.submission_versions");
+    expect(submitRuntime).toContain("revoke all on function public.submit_confirmation(jsonb)");
+    expect(submitRuntime).toContain("from public, anon, authenticated, service_role");
+    expect(submitRuntime).toContain("has_function_privilege('anon', 'public.submit_confirmation(jsonb)', 'EXECUTE')");
+    expect(submitRuntime).toContain("public.v3_submit_confirmation(jsonb,uuid,text,text)");
   });
 
   it("emits completed facts from the common S2 success boundary", () => {
@@ -77,5 +92,6 @@ describe("System V3 S5 Confirmation consequences", () => {
     expect(rehearsal).toContain("confirmation.window_changed");
     expect(rehearsal).toContain("confirmation.tasks");
     expect(rehearsal).toContain("confirmation.notifications");
+    expect(rehearsal).toContain("legacy Confirmation submit bypass");
   });
 });
