@@ -88,8 +88,8 @@ db_exec "begin;
 commit;"
 db_exec "update public.studio2_result_operations set reviewed_version=null,reviewed_at=null,locked_version=null,locked_at=null,reveal_ready_version=null,reveal_ready_at=null where show_id='$SHOW_ID';"
 
-[[ "$(db_value "select count(*) from pg_constraint where conname in ('studio2_show_publication_controls_failure_pair_v3_check','studio2_show_publication_controls_schedule_owner_v3_check','studio2_show_publication_executions_terminal_v3_check','studio2_show_publication_executions_operation_v3_check','studio2_show_publication_executions_result_version_v3_check') and convalidated;")" == '5' ]] || fail "S3 Publication staged checks are not all validated"
-[[ "$(db_value "select count(*) from pg_trigger where tgname in ('v3_validate_publication_control','v3_reject_publication_execution_mutation','v3_validate_publication_projection_from_control','v3_validate_publication_projection_from_show','v3_validate_publication_projection_from_results') and tgenabled <> 'D';")" == '5' ]] || fail "S3 Publication invariant triggers are not enabled"
+[[ "$(db_value "select count(*) from pg_constraint where conname in ('studio2_show_publication_controls_failure_pair_v3_check','studio2_show_publication_controls_schedule_owner_v3_check','studio2_show_publication_executions_terminal_v3_check','studio2_show_publication_executions_operation_v3_check') and convalidated;")" == '4' ]] || fail "S3 Publication staged checks are not all validated"
+[[ "$(db_value "select count(*) from pg_trigger where tgname in ('v3_validate_publication_control','v3_validate_publication_execution','v3_reject_publication_execution_mutation','v3_validate_publication_projection_from_control','v3_validate_publication_projection_from_show','v3_validate_publication_projection_from_results') and tgenabled <> 'D';")" == '6' ]] || fail "S3 Publication invariant triggers are not enabled"
 [[ "$(db_value "select count(*) from pg_indexes where schemaname='public' and indexname='studio2_show_publication_executions_operation_v3_uidx';")" == '1' ]] || fail "S3 Publication execution identity index is missing"
 
 log "System V3 S3 Publication invariant rehearsal passed"
