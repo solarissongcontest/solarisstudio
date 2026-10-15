@@ -7,6 +7,8 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 const rootRoute = () => read("src/routes/rules/index.tsx");
 const home = () => read("src/components/rules/RulesHomeV5.tsx");
 const detailRoute = () => read("src/routes/rules/$ruleId.tsx");
+const searchRoute = () => read("src/routes/rules/search.tsx");
+const historyRoute = () => read("src/routes/rules/changes.tsx");
 const governance = () => read("src/lib/rules-governance.ts");
 
 describe("V3 Public Rules parity", () => {
@@ -35,8 +37,22 @@ describe("V3 Public Rules parity", () => {
     expect(route).toContain('to="/rules"');
   });
 
+  it("keeps search and previous-version browsing inside the same reversible V3 Rules surface", () => {
+    const search = searchRoute();
+    const history = historyRoute();
+
+    expect(search).toContain("<V3RulesRouteGate");
+    expect(search).toContain('data-v3-rules-search=""');
+    expect(search).toContain('to="/rules/$ruleId"');
+    expect(history).toContain("<V3RulesRouteGate");
+    expect(history).toContain('data-v3-rulebook-history=""');
+    expect(history).toContain("release.effective_from ?? release.published_at");
+    expect(history).toContain("history.isLoading");
+    expect(history).toContain("history.isError");
+  });
+
   it("does not create a second client-side rule authority", () => {
-    const combined = [rootRoute(), home(), detailRoute()].join("\n");
+    const combined = [rootRoute(), home(), detailRoute(), searchRoute(), historyRoute()].join("\n");
 
     expect(combined).not.toContain("public_current_rulebook_release");
     expect(combined).not.toContain("public_rulebook_release_history");
