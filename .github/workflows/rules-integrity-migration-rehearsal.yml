@@ -16,6 +16,7 @@ on:
       - ".github/scripts/v3-confirmation-security-rehearsal.sh"
       - ".github/scripts/v3-s3-confirmation-invariants-rehearsal.sh"
       - ".github/scripts/v3-s3-entry-invariants-rehearsal.sh"
+      - ".github/scripts/v3-s3-media-invariants-rehearsal.sh"
       - ".github/scripts/v3-entry-receipt-security-rehearsal.sh"
       - ".github/scripts/v3-jury-security-rehearsal.sh"
       - ".github/scripts/v3-televote-reconciliation-rehearsal.sh"
@@ -93,6 +94,10 @@ jobs:
       - name: Prove System V3 S3 Entry invariants
         shell: bash
         run: bash .github/scripts/v3-s3-entry-invariants-rehearsal.sh
+
+      - name: Prove System V3 S3 Media invariants
+        shell: bash
+        run: bash .github/scripts/v3-s3-media-invariants-rehearsal.sh
 
       - name: Verify V3 Entry receipt authority
         shell: bash
@@ -215,6 +220,12 @@ jobs:
         run: |
           cd /tmp/solaris-main
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-s3-entry-invariants-rehearsal.sh"
+
+      - name: Prove System V3 S3 Media invariants after upgrade
+        shell: bash
+        run: |
+          cd /tmp/solaris-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s3-media-invariants-rehearsal.sh"
 
       - name: Verify V3 Entry receipt authority after upgrade
         shell: bash
