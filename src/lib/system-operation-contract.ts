@@ -26,6 +26,14 @@ export type SystemErrorCode = (typeof SYSTEM_ERROR_CODES)[number];
 
 export type SystemErrorMetadataValue = string | number | boolean | null;
 
+export type SystemJsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | SystemJsonValue[]
+  | { [key: string]: SystemJsonValue };
+
 /** Safe, bounded failure information. Raw database errors never belong here. */
 export type SystemError = {
   code: SystemErrorCode;
@@ -82,7 +90,7 @@ export type SystemOperation = {
   error?: SystemError | null;
 };
 
-export type SystemReceipt<TResult = unknown> = {
+export type SystemReceipt<TResult = SystemJsonValue> = {
   operationId: string;
   commandId: string;
   correlationId: string;
