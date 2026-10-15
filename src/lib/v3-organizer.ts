@@ -73,6 +73,14 @@ export function v3OrganizerTabForPath(pathname: string): V3OrganizerTabId {
   return "more";
 }
 
+export type V3OrganizerControlDomainKey =
+  | "delegations"
+  | "contest"
+  | "voting"
+  | "results"
+  | "communications"
+  | "production";
+
 export type V3OrganizerControlItem = {
   key: string;
   label: string;
@@ -82,38 +90,55 @@ export type V3OrganizerControlItem = {
 };
 
 export type V3OrganizerControlGroup = {
-  key: "participation" | "contest" | "voting" | "publication";
+  key: V3OrganizerControlDomainKey;
   label: string;
+  description: string;
   items: readonly V3OrganizerControlItem[];
 };
 
-export function buildV3OrganizerControlGroups(slug?: string | null): readonly V3OrganizerControlGroup[] {
+/**
+ * Control deliberately groups existing authoritative workspaces into the
+ * canonical Organizer operational domains. It never creates a second mutation
+ * surface. Edition-scoped routes fail closed until an explicit edition slug is
+ * supplied by OrganizerContext.
+ */
+export function buildV3OrganizerControlGroups(
+  slug?: string | null,
+): readonly V3OrganizerControlGroup[] {
   const editionHref = (path: string) => (slug ? path.replace(":slug", slug) : null);
 
   return [
     {
-      key: "participation",
-      label: "Participation",
+      key: "delegations",
+      label: "Delegations",
+      description: "Participation, confirmations, delegation access and history.",
       items: [
         {
           key: "confirmations",
           label: "Confirmations",
-          description: "Rounds, responses and participation decisions",
+          description: "Rounds, requirements, responses and participation decisions",
           href: "/confirmations/admin",
           editionScoped: false,
         },
         {
-          key: "entries",
-          label: "Entries",
-          description: "Entry review, readiness and corrections",
-          href: editionHref("/admin/entries/:slug"),
-          editionScoped: true,
+          key: "countries",
+          label: "Countries",
+          description: "Country readiness, participation and delegation context",
+          href: "/admin/countries",
+          editionScoped: false,
         },
         {
-          key: "media",
-          label: "Media",
-          description: "Assets, artwork and submission media",
-          href: "/admin/media-assets",
+          key: "delegation-access",
+          label: "Delegation access",
+          description: "Recovery and access controls for delegation workflows",
+          href: "/confirmations/admin/recovery-codes",
+          editionScoped: false,
+        },
+        {
+          key: "submission-history",
+          label: "Submission history",
+          description: "Confirmation revisions and restoration history",
+          href: "/admin/submission-versions",
           editionScoped: false,
         },
       ],
@@ -121,12 +146,20 @@ export function buildV3OrganizerControlGroups(slug?: string | null): readonly V3
     {
       key: "contest",
       label: "Contest",
+      description: "Entries, media, shows, running order and contest readiness.",
       items: [
         {
-          key: "delegations",
-          label: "Delegations",
-          description: "Countries, access and participation status",
-          href: "/admin/countries",
+          key: "entries",
+          label: "Entries",
+          description: "Entry state, review work and contest participation data",
+          href: editionHref("/admin/entries/:slug"),
+          editionScoped: true,
+        },
+        {
+          key: "media",
+          label: "Media",
+          description: "Assets, artwork and submission media review",
+          href: "/admin/media-assets",
           editionScoped: false,
         },
         {
@@ -143,12 +176,27 @@ export function buildV3OrganizerControlGroups(slug?: string | null): readonly V3
           href: editionHref("/admin/lineup-sync/:slug"),
           editionScoped: true,
         },
+        {
+          key: "eligibility",
+          label: "Eligibility",
+          description: "Country eligibility checks, blockers and governed overrides",
+          href: "/admin/eligibility",
+          editionScoped: false,
+        },
       ],
     },
     {
       key: "voting",
       label: "Voting",
+      description: "Voting rounds, Jury, Televote, declarations and integrity.",
       items: [
+        {
+          key: "voting-overview",
+          label: "Voting overview",
+          description: "Voting rounds, availability and operational state",
+          href: "/televoting/admin",
+          editionScoped: false,
+        },
         {
           key: "jury",
           label: "Jury",
@@ -159,43 +207,93 @@ export function buildV3OrganizerControlGroups(slug?: string | null): readonly V3
         {
           key: "televote",
           label: "Televote",
-          description: "Voting operations and validation",
+          description: "Voting operations, intake and validation",
           href: editionHref("/admin/televote/:slug"),
           editionScoped: true,
         },
         {
-          key: "results",
-          label: "Results",
-          description: "Validation, official result state and release",
-          href: "/admin/results",
+          key: "voting-declarations",
+          label: "Declarations",
+          description: "Signed voting-integrity declarations",
+          href: "/televoting/admin/integrity-declarations",
+          editionScoped: false,
+        },
+        {
+          key: "voting-integrity",
+          label: "Integrity",
+          description: "Voting integrity exceptions and review",
+          href: "/admin/jury-integrity",
           editionScoped: false,
         },
       ],
     },
     {
-      key: "publication",
-      label: "Publication",
+      key: "results",
+      label: "Results & publication",
+      description: "Official result lifecycle, validation and public release.",
       items: [
         {
+          key: "results",
+          label: "Results operations",
+          description: "Validation, official result state and release lifecycle",
+          href: "/admin/results",
+          editionScoped: false,
+        },
+        {
           key: "publication",
-          label: "Edition publication",
-          description: "Release state and publication readiness",
+          label: "Publication",
+          description: "Public visibility, release state and publication readiness",
           href: editionHref("/admin/publication/:slug"),
           editionScoped: true,
         },
         {
+          key: "public-vote-results",
+          label: "Public vote results",
+          description: "Inspect the canonical public-vote result workspace",
+          href: "/televoting/admin/results",
+          editionScoped: false,
+        },
+      ],
+    },
+    {
+      key: "communications",
+      label: "Communications",
+      description: "Official notices, announcements and delivery operations.",
+      items: [
+        {
           key: "communications",
-          label: "Announcements",
-          description: "Official communications and public updates",
+          label: "Official communications",
+          description: "Draft, schedule and publish official notices",
           href: "/admin/communications",
           editionScoped: false,
         },
+      ],
+    },
+    {
+      key: "production",
+      label: "Production",
+      description: "Broadcast setup, rundown and reveal preparation.",
+      items: [
         {
-          key: "design",
-          label: "Edition design",
-          description: "Artwork, presentation and edition identity",
+          key: "broadcast",
+          label: "Broadcast & design",
+          description: "Edition presentation, scoreboard and broadcast configuration",
           href: editionHref("/admin/design/:slug"),
           editionScoped: true,
+        },
+        {
+          key: "rundown",
+          label: "Broadcast rundown",
+          description: "Show rundown and cue sequence",
+          href: "/admin/broadcast-rundown",
+          editionScoped: false,
+        },
+        {
+          key: "reveal",
+          label: "Reveal Director",
+          description: "Plan and rehearse the official results reveal sequence",
+          href: "/admin/results-reveal",
+          editionScoped: false,
         },
       ],
     },
