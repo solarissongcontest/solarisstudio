@@ -71,13 +71,23 @@ describe("V3 Organizer information architecture", () => {
     expect(v3OrganizerTabForPath("/admin/access-permissions")).toBe("more");
   });
 
-  it("builds Control from existing canonical routes and locks edition-scoped items without context", () => {
+  it("groups Control by canonical operational domains and locks edition-scoped routes without context", () => {
     const withoutEdition = buildV3OrganizerControlGroups(null);
+    expect(withoutEdition.map((group) => group.key)).toEqual([
+      "delegations",
+      "contest",
+      "voting",
+      "results",
+      "communications",
+      "production",
+    ]);
     expect(withoutEdition.map((group) => group.label)).toEqual([
-      "Participation",
+      "Delegations",
       "Contest",
       "Voting",
-      "Publication",
+      "Results & publication",
+      "Communications",
+      "Production",
     ]);
     expect(
       withoutEdition.flatMap((group) => group.items).find((item) => item.key === "entries")?.href,
@@ -85,6 +95,9 @@ describe("V3 Organizer information architecture", () => {
     expect(
       withoutEdition.flatMap((group) => group.items).find((item) => item.key === "confirmations")?.href,
     ).toBe("/confirmations/admin");
+    expect(
+      withoutEdition.flatMap((group) => group.items).find((item) => item.key === "publication")?.href,
+    ).toBeNull();
 
     const scoped = buildV3OrganizerControlGroups("ssc-22");
     expect(scoped.flatMap((group) => group.items).find((item) => item.key === "entries")?.href).toBe(
@@ -92,6 +105,12 @@ describe("V3 Organizer information architecture", () => {
     );
     expect(scoped.flatMap((group) => group.items).find((item) => item.key === "jury")?.href).toBe(
       "/admin/jury/ssc-22",
+    );
+    expect(scoped.flatMap((group) => group.items).find((item) => item.key === "publication")?.href).toBe(
+      "/admin/publication/ssc-22",
+    );
+    expect(scoped.flatMap((group) => group.items).find((item) => item.key === "broadcast")?.href).toBe(
+      "/admin/design/ssc-22",
     );
   });
 });
