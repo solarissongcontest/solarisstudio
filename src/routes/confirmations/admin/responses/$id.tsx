@@ -35,6 +35,10 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
+import { reconcileSystemOperation } from "@/lib/system-operation.functions";
+import { normalizeSystemReceipt } from "@/lib/system-receipt";
+import { toSystemError } from "@/lib/system-error";
+import type { SystemReceipt } from "@/lib/system-operation-contract";
 import {
   syncConfirmationSnapshotToSolaris,
   type ConfirmationSolarisSyncResult,
@@ -253,6 +257,8 @@ function TechnicalRows({ entry }: { entry: ReviewEntry }) {
 function EntryReviewCard({
   entry,
   targetType,
+  editionId,
+  submissionId,
   winner,
   onChanged,
   onWinner,
@@ -260,6 +266,8 @@ function EntryReviewCard({
 }: {
   entry: ReviewEntry;
   targetType: "internal" | "national_final";
+  editionId?: string | null;
+  submissionId: string;
   winner?: boolean;
   onChanged: () => Promise<void>;
   onWinner?: (reason: string) => Promise<void>;
@@ -269,7 +277,25 @@ function EntryReviewCard({
   const [reason, setReason] = useState(entry.review_reason ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<SystemReceipt | null>(null);
+  const reconcileOperation = useServerFn(reconcileSystemOperation);
   const status = reviewLabel(entry);
+
+  async function recoverReview(operationId: string) {
+    const reconciliation = await reconcileOperation({ data: { operationId } });
+    if (!reconciliation.ok) return false;
+    setReceipt(reconciliation.receipt);
+    if (reconciliation.receipt.status !== "succeeded") {
+      throw new Error(
+        reconciliation.receipt.error?.message ??
+          "This review is still being processed. Keep the operation receipt and retry reconciliation.",
+      );
+    }
+    toast.success("Entry review confirmed after reconnecting");
+    setOpen(false);
+    await onChanged();
+    return true;
+  }
 
   async function review(nextStatus: "pending" | "accepted" | "declined" | "removed") {
     if (nextStatus !== "accepted" && !reason.trim()) {
@@ -300,28 +326,57 @@ function EntryReviewCard({
       assertDisplayedEntryVersion(entry.current_version_id, preview.currentVersionId);
 
       const command = createOrganisationCommand({
-        command: "confirmation.entry.review",
+        command:
+          nextStatus === "declined"
+            ? "entry.request_changes"
+            : nextStatus === "accepted"
+              ? "entry.accept"
+              : nextStatus === "removed"
+                ? "entry.remove"
+                : "entry.reset_review",
         riskClass: "R2",
-        scope: { entityId: entry.id },
-        payload: { targetType, targetStatus: nextStatus },
+        scope: { editionId, entityId: entry.id },
+        payload: {
+          submissionId,
+          targetType,
+          targetStatus: nextStatus,
+          expectedEntryVersion: entry.current_version_id ?? null,
+        },
+        reason: reason.trim() || null,
         expectedVersion: preview.expectedVersion,
       });
-      const { error: rpcError } = await confirmationsSupabase.rpc(
-        "studio2_apply_confirmation_entry_review",
-        {
+      let mutation;
+      try {
+        mutation = await confirmationsSupabase.rpc("studio2_apply_confirmation_entry_review", {
           p_target_type: targetType,
           p_entry_id: entry.id,
           p_target_status: nextStatus,
           p_reason: reason.trim(),
           p_operation_id: command.operationId,
           p_idempotency_key: command.idempotencyKey,
+          p_correlation_id: command.correlationId,
           p_expected_version: preview.expectedVersion,
           ...(entry.current_version_id
             ? { p_expected_entry_version: entry.current_version_id }
             : {}),
-        },
-      );
-      if (rpcError) throw rpcError;
+        });
+      } catch (caught) {
+        if (await recoverReview(command.operationId)) return;
+        throw caught;
+      }
+      if (mutation.error) {
+        const systemError = toSystemError(mutation.error);
+        if (systemError.retryable && (await recoverReview(command.operationId))) return;
+        throw new Error(systemError.message);
+      }
+      const canonicalReceipt = normalizeSystemReceipt(mutation.data);
+      if (!canonicalReceipt || canonicalReceipt.status !== "succeeded") {
+        if (await recoverReview(command.operationId)) return;
+        throw new Error(
+          "The review response could not be verified. Reconcile the operation before retrying.",
+        );
+      }
+      setReceipt(canonicalReceipt);
       toast.success(
         nextStatus === "accepted"
           ? "Entry accepted"
@@ -334,7 +389,7 @@ function EntryReviewCard({
       setOpen(false);
       await onChanged();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Review action failed.");
+      setError(toSystemError(caught).message);
     } finally {
       setBusy(false);
     }
@@ -421,6 +476,25 @@ function EntryReviewCard({
             <span className="font-semibold text-foreground">Review note:</span>{" "}
             {entry.review_reason}
           </p>
+        ) : null}
+
+        {receipt ? (
+          <div className="mt-3 rounded-xl border border-emerald-200/20 bg-emerald-200/[0.04] p-3 text-xs">
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-semibold text-emerald-100">Operation receipt</span>
+              <AdminStatus tone={receipt.status === "succeeded" ? "ready" : "attention"}>
+                {receipt.status}
+              </AdminStatus>
+            </div>
+            <p className="mt-2 break-all font-mono text-[11px] text-muted-foreground">
+              {receipt.operationId}
+            </p>
+            {receipt.replayed ? (
+              <p className="mt-1 text-muted-foreground">
+                Recovered from the canonical operation ledger.
+              </p>
+            ) : null}
+          </div>
         ) : null}
 
         <button
@@ -981,7 +1055,13 @@ function ResponseDetailPage() {
                 {reviewLabel(data.internal_entry)}
               </AdminStatus>
             </div>
-            <EntryReviewCard entry={data.internal_entry} targetType="internal" onChanged={load} />
+            <EntryReviewCard
+              entry={data.internal_entry}
+              targetType="internal"
+              editionId={data.edition?.id}
+              submissionId={data.id}
+              onChanged={load}
+            />
           </section>
         ) : null}
 
@@ -1038,6 +1118,8 @@ function ResponseDetailPage() {
                   key={entry.id}
                   entry={entry}
                   targetType="national_final"
+                  editionId={data.edition?.id}
+                  submissionId={data.id}
                   winner={data.national_final?.winning_entry_id === entry.id}
                   onChanged={load}
                   onWinner={(reason) => setWinner(entry, reason)}
