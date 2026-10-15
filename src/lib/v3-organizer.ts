@@ -29,6 +29,7 @@ export function isV3OrganizerLivePath(pathname: string) {
   return (
     pathname.startsWith("/admin/control-room") ||
     pathname.startsWith("/admin/broadcast-rundown") ||
+    pathname.startsWith("/admin/results-reveal") ||
     pathname.startsWith("/admin/incidents")
   );
 }
@@ -53,10 +54,7 @@ export function isV3OrganizerControlPath(pathname: string) {
     pathname.startsWith("/admin/friend-voting") ||
     pathname.startsWith("/admin/jury-integrity") ||
     pathname.startsWith("/admin/results") ||
-    pathname.startsWith("/admin/voting-lab") ||
     pathname.startsWith("/admin/workflows") ||
-    pathname.startsWith("/admin/edition-simulator") ||
-    pathname.startsWith("/admin/storytelling") ||
     pathname.startsWith("/admin/media-assets") ||
     pathname.startsWith("/admin/communications") ||
     pathname.startsWith("/admin/publication/") ||
