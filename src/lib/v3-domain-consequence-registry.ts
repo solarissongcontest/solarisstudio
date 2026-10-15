@@ -48,6 +48,17 @@ const NOTIFICATION_PROVIDER_BY_DOMAIN_EVENT: Readonly<Record<string, readonly st
   "notice.published": ["official-communications"],
 };
 
+const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
+  "confirmation.submitted": [
+    "supabase/migrations/20261015183000_v3_s5_confirmation_consequences.sql",
+    ".github/scripts/v3-s5-confirmation-consequences-rehearsal.sh",
+  ],
+  "confirmation.window_changed": [
+    "supabase/migrations/20261015183000_v3_s5_confirmation_consequences.sql",
+    ".github/scripts/v3-s5-confirmation-consequences-rehearsal.sh",
+  ],
+};
+
 const providerIds: ReadonlySet<string> = new Set(
   V3_NOTIFICATION_PROVIDER_REGISTRY.map((provider) => provider.id),
 );
@@ -65,8 +76,10 @@ function unique(values: readonly string[]) {
  * producers are mapped only where the current code has evidence for that event;
  * we do not pretend every domain mutation sends a notification.
  *
- * `implementationState: declared` means ownership is documented, not that the
- * S4 transactional outbox exists yet.
+ * `implementationState: declared` means ownership is documented but the
+ * owning command has not yet proven transactional S4 emission plus executable
+ * consequence consumers. Only events with concrete migration/rehearsal evidence
+ * may be marked `event-backed`.
  */
 export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
   V3_SYSTEM_DOMAIN_REGISTRY.flatMap((domain) =>
@@ -81,6 +94,7 @@ export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
         ...domain.organizerConsumers,
         ...domain.backgroundConsumers,
       ]);
+      const eventBackedEvidence = EVENT_BACKED_CONSEQUENCES[eventType];
 
       return {
         eventType,
@@ -104,8 +118,10 @@ export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
           domain.sensitivityClass !== "public" ||
           domain.mutationCommands.length > 0,
         consumers,
-        implementationState: "declared",
-        evidence: domain.ownershipEvidence,
+        implementationState: eventBackedEvidence ? "event-backed" : "declared",
+        evidence: eventBackedEvidence
+          ? unique([...domain.ownershipEvidence, ...eventBackedEvidence])
+          : domain.ownershipEvidence,
       } satisfies V3DomainConsequence;
     }),
   );
@@ -128,6 +144,12 @@ export function validateV3DomainConsequenceRegistry() {
     for (const notification of consequence.notificationEffects) {
       if (!providerIds.has(notification.providerId)) {
         errors.push(`${consequence.eventType} references unknown notification provider ${notification.providerId}`);
+      }
+    }
+    if (consequence.implementationState === "event-backed") {
+      const evidence = EVENT_BACKED_CONSEQUENCES[consequence.eventType];
+      if (!evidence?.length) {
+        errors.push(`${consequence.eventType} claims event-backed consequences without implementation evidence`);
       }
     }
   }
