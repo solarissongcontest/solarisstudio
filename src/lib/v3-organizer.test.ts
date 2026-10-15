@@ -106,6 +106,10 @@ describe("V3 Organizer information architecture", () => {
       "/confirmations/admin",
     );
     expect(unscopedItems.find((item) => item.key === "publication")?.href).toBeNull();
+    expect(unscopedItems.find((item) => item.key === "broadcast")?.href).toBeNull();
+    expect(unscopedItems.find((item) => item.key === "theme")?.href).toBeNull();
+    expect(unscopedItems.find((item) => item.key === "rundown")).toBeUndefined();
+    expect(unscopedItems.find((item) => item.key === "reveal")).toBeUndefined();
 
     const scoped = buildV3OrganizerControlGroups("ssc-22");
     const scopedItems = scoped.flatMap((group) => group.items);
@@ -126,6 +130,9 @@ describe("V3 Organizer information architecture", () => {
     );
     expect(scopedItems.find((item) => item.key === "broadcast")?.href).toBe(
       "/admin/design/ssc-22",
+    );
+    expect(scopedItems.find((item) => item.key === "theme")?.href).toBe(
+      "/admin/edition-theme/ssc-22",
     );
   });
 });
