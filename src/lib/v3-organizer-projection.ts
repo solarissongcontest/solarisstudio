@@ -215,8 +215,8 @@ function buildReadiness(
   const progress = Math.max(0, Math.min(100, Number(health?.progress ?? 0)));
   const critical = Math.max(0, Number(health?.critical_count ?? 0));
   const incomplete = [
-    factor("entries", Number(health?.missing_songs ?? 0) + Number(health?.missing_artists ?? 0), "Entry metadata", `/admin/entries/${edition.slug}`),
-    factor("running-order", Number(health?.running_issues ?? 0), "Running order", `/admin/lineup-sync/${edition.slug}`),
+    factor("entries", Number(health?.missing_songs ?? 0) + Number(health?.missing_artists ?? 0), "Entry review", "/confirmations/admin/responses"),
+    factor("running-order", Number(health?.running_issues ?? 0), "Running order", `/admin/entries/${edition.slug}`),
     factor("jury", Number(health?.jury_issues ?? 0), "Jury", `/admin/jury/${edition.slug}`),
     factor("televote", Number(health?.televote_issues ?? 0), "Televote", `/admin/televote/${edition.slug}`),
     factor("results", Number(health?.result_issues ?? 0), "Results", "/admin/results"),
@@ -233,8 +233,8 @@ function buildReadiness(
 
   const incompleteIds = new Set(incomplete.map((item) => item.id));
   const ready = [
-    { id: "entries", label: "Entries", route: `/admin/entries/${edition.slug}` },
-    { id: "running-order", label: "Running order", route: `/admin/lineup-sync/${edition.slug}` },
+    { id: "entries", label: "Entry review", route: "/confirmations/admin/responses" },
+    { id: "running-order", label: "Running order", route: `/admin/entries/${edition.slug}` },
     { id: "jury", label: "Jury", route: `/admin/jury/${edition.slug}` },
     { id: "televote", label: "Televote", route: `/admin/televote/${edition.slug}` },
     { id: "results", label: "Results", route: "/admin/results" },
