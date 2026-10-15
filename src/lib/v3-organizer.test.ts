@@ -60,7 +60,7 @@ describe("V3 Organizer information architecture", () => {
     ]);
   });
 
-  it("classifies deep operational routes under their V3 owner", () => {
+  it("classifies deep operational routes under their canonical V3 owner", () => {
     expect(v3OrganizerTabForPath("/admin/operations")).toBe("overview");
     expect(v3OrganizerTabForPath("/admin/inbox")).toBe("tasks");
     expect(v3OrganizerTabForPath("/admin/entries/ssc-22")).toBe("control");
@@ -68,6 +68,12 @@ describe("V3 Organizer information architecture", () => {
     expect(v3OrganizerTabForPath("/televoting/admin/results")).toBe("control");
     expect(v3OrganizerTabForPath("/admin/control-room")).toBe("live");
     expect(v3OrganizerTabForPath("/admin/broadcast-rundown")).toBe("live");
+    expect(v3OrganizerTabForPath("/admin/results-reveal")).toBe("live");
+    expect(v3OrganizerTabForPath("/admin/incidents")).toBe("live");
+    expect(v3OrganizerTabForPath("/admin/edition-simulator")).toBe("more");
+    expect(v3OrganizerTabForPath("/admin/time-machine")).toBe("more");
+    expect(v3OrganizerTabForPath("/admin/voting-lab")).toBe("more");
+    expect(v3OrganizerTabForPath("/admin/storytelling")).toBe("more");
     expect(v3OrganizerTabForPath("/admin/access-permissions")).toBe("more");
   });
 
