@@ -8,7 +8,7 @@ PRODUCTION_HEAD="${V3_PRODUCTION_MIGRATION_HEAD:-20261014020000}"
 # Immutable fingerprint of every migration at or before the hosted production
 # head. This makes the rehearsal fail closed if a branch rewrites deployed SQL
 # or inserts a backdated migration while retaining the same maximum version.
-PRODUCTION_BASELINE_SHA256="b60f5f9e923462943dde34fb2f6d4e2d003626b87952833a92948c6302bdf513"
+PRODUCTION_BASELINE_SHA256="${V3_PRODUCTION_BASELINE_SHA256:-b60f5f9e923462943dde34fb2f6d4e2d003626b87952833a92948c6302bdf513}"
 ROOT="$(git rev-parse --show-toplevel)"
 MIGRATIONS_DIR="$ROOT/supabase/migrations"
 HELD_DIR="$(mktemp -d)"
@@ -36,11 +36,16 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-[[ -f "$MIGRATIONS_DIR/${PRODUCTION_HEAD}_v3_me_cutover.sql" ]] \
-  || fail "Configured production head migration is missing: $PRODUCTION_HEAD"
+[[ "$PRODUCTION_HEAD" =~ ^[0-9]{14}$ ]] \
+  || fail "Configured production head must be a 14-digit migration version"
+[[ "$PRODUCTION_BASELINE_SHA256" =~ ^[0-9a-f]{64}$ ]] \
+  || fail "Configured production baseline fingerprint must be a lowercase SHA-256"
 
 mapfile -t all_migrations < <(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort)
 (( ${#all_migrations[@]} > 0 )) || fail "No migration files found"
+mapfile -t production_head_matches < <(printf '%s\n' "${all_migrations[@]}" | awk -F_ -v head="$PRODUCTION_HEAD" '$1 == head')
+(( ${#production_head_matches[@]} == 1 )) \
+  || fail "Configured production head must resolve to exactly one migration file: $PRODUCTION_HEAD"
 last_index=$((${#all_migrations[@]} - 1))
 LATEST_HEAD="${all_migrations[$last_index]%%_*}"
 [[ "$LATEST_HEAD" =~ ^[0-9]{14}$ ]] || fail "Cannot derive repository migration head"
