@@ -67,6 +67,40 @@ function noticeStateLabel(item: V3NotificationInboxItem) {
   return "Read";
 }
 
+function NoticeLinks({ items }: { items: readonly V3NotificationInboxItem[] }) {
+  return (
+    <div className="grid gap-2.5">
+      {items.map((item) => (
+        <Link
+          key={item.id}
+          to="/notifications"
+          search={{ notice: item.id }}
+          className="block"
+        >
+          <V3Surface level="raised" className="transition hover:border-white/20">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-white/[0.055] text-[var(--v3-text-secondary)]">
+                <BellRing className="size-4" aria-hidden="true" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-semibold text-[var(--v3-text-primary)]">
+                    {item.title}
+                  </span>
+                  <V3StatusChip tone={noticeTone(item)}>{noticeStateLabel(item)}</V3StatusChip>
+                </span>
+                <span className="mt-1 block text-xs leading-5 text-[var(--v3-text-secondary)]">
+                  {item.typeLabel} · {formatNoticeTime(item.sentAt)}
+                </span>
+              </span>
+            </div>
+          </V3Surface>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 export function V3NotificationsScreen({
   deliveryStatus,
   enabledCategoryCount,
@@ -76,7 +110,13 @@ export function V3NotificationsScreen({
   inboxUnavailable = false,
   inboxItems,
 }: V3NotificationsScreenProps) {
-  const activeItems = inboxItems.filter((item) => item.state !== "archived");
+  const sortedItems = [...inboxItems].sort((a, b) => {
+    const aTime = a.sentAt ? new Date(a.sentAt).getTime() : 0;
+    const bTime = b.sentAt ? new Date(b.sentAt).getTime() : 0;
+    return bTime - aTime;
+  });
+  const activeItems = sortedItems.filter((item) => item.state !== "archived");
+  const archivedItems = sortedItems.filter((item) => item.state === "archived");
   const acknowledgementCount = activeItems.filter(
     (item) =>
       item.state === "acknowledgement_required" ||
@@ -86,13 +126,6 @@ export function V3NotificationsScreen({
     (item) => item.state === "unread" && !item.acknowledgementRequired,
   ).length;
   const attentionCount = acknowledgementCount + unreadWithoutAction;
-  const latest = [...activeItems]
-    .sort((a, b) => {
-      const aTime = a.sentAt ? new Date(a.sentAt).getTime() : 0;
-      const bTime = b.sentAt ? new Date(b.sentAt).getTime() : 0;
-      return bTime - aTime;
-    })
-    .slice(0, 3);
 
   return (
     <V3Screen className="pb-8">
@@ -141,7 +174,7 @@ export function V3NotificationsScreen({
                 {unreadWithoutAction > 0 ? (
                   <V3ActionCard
                     title={`${unreadWithoutAction} unread official message${unreadWithoutAction === 1 ? "" : "s"}`}
-                    description="Read the latest official Solaris communications below."
+                    description="Read the official Solaris communications below."
                     icon={Mail}
                     tone="neutral"
                     to="/notifications"
@@ -157,7 +190,10 @@ export function V3NotificationsScreen({
           </V3NowCard>
         </V3Section>
 
-        <V3Section title="Latest official messages">
+        <V3Section
+          title="Official messages"
+          meta={inboxUnavailable ? undefined : `${activeItems.length} in inbox`}
+        >
           {inboxUnavailable ? (
             <V3Surface>
               <p className="text-sm font-semibold">Inbox status unavailable</p>
@@ -165,36 +201,8 @@ export function V3NotificationsScreen({
                 Solaris could not load the current authorized notice projection. No cached message is treated as current authority.
               </p>
             </V3Surface>
-          ) : latest.length ? (
-            <div className="grid gap-2.5">
-              {latest.map((item) => (
-                <Link
-                  key={item.id}
-                  to="/notifications"
-                  search={{ notice: item.id }}
-                  className="block"
-                >
-                  <V3Surface level="raised" className="transition hover:border-white/20">
-                    <div className="flex items-start gap-3">
-                      <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-white/[0.055] text-[var(--v3-text-secondary)]">
-                        <BellRing className="size-4" aria-hidden="true" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold text-[var(--v3-text-primary)]">
-                            {item.title}
-                          </span>
-                          <V3StatusChip tone={noticeTone(item)}>{noticeStateLabel(item)}</V3StatusChip>
-                        </span>
-                        <span className="mt-1 block text-xs leading-5 text-[var(--v3-text-secondary)]">
-                          {item.typeLabel} · {formatNoticeTime(item.sentAt)}
-                        </span>
-                      </span>
-                    </div>
-                  </V3Surface>
-                </Link>
-              ))}
-            </div>
+          ) : activeItems.length ? (
+            <NoticeLinks items={activeItems} />
           ) : (
             <V3Surface>
               <div className="flex items-start gap-3">
@@ -208,6 +216,19 @@ export function V3NotificationsScreen({
               </div>
             </V3Surface>
           )}
+
+          {!inboxUnavailable && archivedItems.length ? (
+            <V3Surface className="mt-3 p-2">
+              <details>
+                <summary className="min-h-11 cursor-pointer list-none rounded-xl px-3 py-3 text-sm font-semibold text-[var(--v3-text-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/45">
+                  Archived messages · {archivedItems.length}
+                </summary>
+                <div className="px-1 pb-1 pt-1">
+                  <NoticeLinks items={archivedItems} />
+                </div>
+              </details>
+            </V3Surface>
+          ) : null}
         </V3Section>
 
         <V3Section title="Delivery">
@@ -276,7 +297,7 @@ export function V3NotificationsScreen({
               <div className="min-w-0">
                 <p className="text-sm font-semibold">Notifications are never the source of truth</p>
                 <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
-                  Missing, delayed or blocked push delivery cannot hide required participation. Tasks and official Notices remain authoritative inside Solaris.
+                  Missing, delayed or blocked push delivery cannot hide required participation. Tasks and official notices remain downstream of canonical workflow state.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Link
