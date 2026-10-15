@@ -56,7 +56,7 @@ export function describeAppPushDelivery(
       mode: "active",
       title: "Push is active",
       description:
-        "This device can receive Solaris alerts. Required work still remains available inside Solaris even if delivery is delayed.",
+        "This device is registered with Solaris for alerts. Required work still remains available inside Solaris even if delivery is delayed.",
       requiredWorkAvailable: true,
     };
   }
@@ -117,7 +117,24 @@ function pushSupported() {
   );
 }
 
-export async function getAppPushState(): Promise<AppPushState> {
+async function serverHasSubscription(userId: string, endpoint: string) {
+  const { data, error } = await (supabase as any)
+    .from("app_push_subscriptions")
+    .select("endpoint")
+    .eq("user_id", userId)
+    .eq("endpoint", endpoint)
+    .is("disabled_at", null)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data?.endpoint);
+}
+
+/**
+ * For authenticated callers, `subscribed` means both the browser subscription
+ * and the user's RLS-protected Solaris registration exist. A browser-only
+ * subscription must never be presented as active Solaris delivery.
+ */
+export async function getAppPushState(userId?: string | null): Promise<AppPushState> {
   const key = await vapidPublicKey();
   if (!pushSupported()) {
     return {
@@ -129,11 +146,15 @@ export async function getAppPushState(): Promise<AppPushState> {
   }
   const registration = await navigator.serviceWorker.getRegistration("/");
   const subscription = await registration?.pushManager.getSubscription();
+  const subscribed =
+    subscription && userId
+      ? await serverHasSubscription(userId, subscription.endpoint)
+      : Boolean(subscription);
   return {
     supported: true,
     configured: Boolean(key),
     permission: Notification.permission,
-    subscribed: Boolean(subscription),
+    subscribed,
   };
 }
 
@@ -187,7 +208,21 @@ export async function enableAppPush(userId: string) {
       applicationServerKey: base64UrlToBytes(key) as BufferSource,
     }));
 
-  await storeSubscription(userId, subscription);
+  try {
+    await storeSubscription(userId, subscription);
+  } catch (error) {
+    // If Solaris could not register a brand-new browser subscription, remove it
+    // again so a later state read cannot mistake browser-only state for active
+    // Solaris delivery. Existing subscriptions are preserved for safe retry.
+    if (!existing) {
+      try {
+        await subscription.unsubscribe();
+      } catch {
+        // Registration failure remains the authoritative error returned below.
+      }
+    }
+    throw error;
+  }
   return subscription;
 }
 
@@ -197,8 +232,8 @@ export async function disableAppPush(userId: string) {
   const subscription = await registration?.pushManager.getSubscription();
   const endpoint = subscription?.endpoint ?? null;
 
-  if (subscription) await subscription.unsubscribe();
-
+  // Disable server delivery first. If that fails, preserve the browser
+  // subscription so the UI can truthfully report that delivery is still active.
   if (endpoint) {
     const { error } = await (supabase as any)
       .from("app_push_subscriptions")
@@ -206,6 +241,16 @@ export async function disableAppPush(userId: string) {
       .eq("user_id", userId)
       .eq("endpoint", endpoint);
     if (error) throw error;
+  }
+
+  // Once the server registration is gone, failure to remove the local browser
+  // object cannot cause Solaris to deliver another notification.
+  if (subscription) {
+    try {
+      await subscription.unsubscribe();
+    } catch {
+      // A future enable can reuse/re-register the browser object if it survives.
+    }
   }
 }
 
