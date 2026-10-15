@@ -11,7 +11,11 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
-import { resolveElasticDrag, resolveTabDragTargetIndex } from "@/lib/interaction-physics";
+import {
+  prefersReducedMotion,
+  resolveElasticDrag,
+  resolveTabDragTargetIndex,
+} from "@/lib/interaction-physics";
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
 import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import type { SolarisTabbarMode } from "@/lib/solaris-screen-contract";
@@ -33,6 +37,9 @@ type DragState = {
   startX: number;
   originIndex: number;
   moved: boolean;
+  lastX: number;
+  lastAt: number;
+  velocityX: number;
 };
 
 export function OrganizerV6TabBar({
@@ -70,7 +77,12 @@ export function OrganizerV6TabBar({
     const bar = barRef.current;
 
     const sync = () => {
-      if (!bar || window.innerWidth >= 720 || mode === "hidden") {
+      if (
+        !bar ||
+        window.innerWidth >= 720 ||
+        mode === "hidden" ||
+        root.hasAttribute("data-solaris-keyboard-open")
+      ) {
         root.style.setProperty("--solaris-bottom-obstruction", "0px");
         return;
       }
@@ -82,11 +94,18 @@ export function OrganizerV6TabBar({
     sync();
     const observer = typeof ResizeObserver !== "undefined" && bar ? new ResizeObserver(sync) : null;
     if (observer && bar) observer.observe(bar);
+    const rootObserver =
+      typeof MutationObserver !== "undefined" ? new MutationObserver(sync) : null;
+    rootObserver?.observe(root, {
+      attributes: true,
+      attributeFilter: ["data-solaris-keyboard-open"],
+    });
     window.addEventListener("resize", sync);
     window.visualViewport?.addEventListener("resize", sync);
 
     return () => {
       observer?.disconnect();
+      rootObserver?.disconnect();
       window.removeEventListener("resize", sync);
       window.visualViewport?.removeEventListener("resize", sync);
       // Preserve the last valid measurement across dependency replacement.
@@ -133,15 +152,15 @@ export function OrganizerV6TabBar({
     };
 
     window.addEventListener("blur", resetInterruptedGesture);
+    window.addEventListener("resize", resetInterruptedGesture);
     window.addEventListener("orientationchange", resetInterruptedGesture);
     document.addEventListener("visibilitychange", resetWhenHidden);
 
     return () => {
       window.removeEventListener("blur", resetInterruptedGesture);
+      window.removeEventListener("resize", resetInterruptedGesture);
       window.removeEventListener("orientationchange", resetInterruptedGesture);
       document.removeEventListener("visibilitychange", resetWhenHidden);
-      // Effect cleanup is resource teardown, not a UI transition. React state
-      // disappears with the component, so never enqueue state updates here.
       resetDragDom();
     };
   }, [clearDrag, pathname, resetDragDom]);
@@ -151,7 +170,13 @@ export function OrganizerV6TabBar({
     index: number,
     active: boolean,
   ) => {
-    if (!active || collapsed || (event.pointerType === "mouse" && event.button !== 0)) {
+    if (
+      !active ||
+      collapsed ||
+      prefersReducedMotion() ||
+      document.documentElement.hasAttribute("data-solaris-keyboard-open") ||
+      (event.pointerType === "mouse" && event.button !== 0)
+    ) {
       return;
     }
 
@@ -160,6 +185,9 @@ export function OrganizerV6TabBar({
       startX: event.clientX,
       originIndex: index,
       moved: false,
+      lastX: event.clientX,
+      lastAt: event.timeStamp,
+      velocityX: 0,
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginHold(event.pointerId, event.clientX, event.clientY);
@@ -177,11 +205,19 @@ export function OrganizerV6TabBar({
     const first = rects[0] ?? origin;
     const last = rects.at(-1) ?? origin;
     const originCenter = origin.left + origin.width / 2;
+    const rawDelta = event.clientX - drag.startX;
+    const elapsed = Math.max(1, event.timeStamp - drag.lastAt);
+    const instantVelocity = (event.clientX - drag.lastX) / elapsed;
+    drag.velocityX = drag.velocityX * 0.68 + instantVelocity * 0.32;
+    drag.lastX = event.clientX;
+    drag.lastAt = event.timeStamp;
+
     const response = resolveElasticDrag({
-      rawDelta: event.clientX - drag.startX,
+      rawDelta,
       minDelta: first.left + first.width / 2 - originCenter,
       maxDelta: last.left + last.width / 2 - originCenter,
       slotWidth: origin.width,
+      rubberBand: true,
     });
 
     if (response.moved) drag.moved = true;
@@ -192,11 +228,12 @@ export function OrganizerV6TabBar({
     material?.setAttribute("data-drag-direction", response.direction);
 
     const previewIndex = resolveTabDragTargetIndex({
-      rawDelta: event.clientX - drag.startX,
+      rawDelta,
       originIndex: drag.originIndex,
       slotWidth: origin.width,
       itemCount: items.length,
       activationRatio: 0.62,
+      maxSteps: 1,
     });
     setDragPreviewIndex(previewIndex);
     if (drag.moved) event.preventDefault();
@@ -209,10 +246,13 @@ export function OrganizerV6TabBar({
     const origin = rects[drag.originIndex];
     const targetIndex = resolveTabDragTargetIndex({
       rawDelta: event.clientX - drag.startX,
+      velocityX: drag.velocityX,
+      velocityProjectionMs: 110,
       originIndex: drag.originIndex,
       slotWidth: origin?.width ?? 1,
       itemCount: items.length,
       activationRatio: 0.72,
+      maxSteps: 1,
     });
     suppressClick.current = drag.moved;
 
