@@ -49,7 +49,7 @@ describe("V3 official notices parity", () => {
     expect(source).toContain('title="Why am I seeing this?"');
     expect(source).toContain("audienceReason(notice.audience, notice.audienceGroup)");
     expect(source).toContain("Notification delivery is not workflow truth");
-    expect(source).toContain('to="/participate"') === false;
+    expect(source).not.toContain('to="/participate"');
   });
 
   it("does not add browser-owned acknowledgement or rollout authority", () => {
