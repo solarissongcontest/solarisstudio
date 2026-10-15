@@ -1,3 +1,5 @@
+import { createSystemError, systemErrorCodeFromUnknown } from "@/lib/system-error";
+
 /**
  * Central translation of backend failures into messages an organizer can act on.
  *
@@ -14,15 +16,36 @@ type PostgrestLike = {
 };
 
 const CONSTRAINT_MESSAGES: Array<[RegExp, string]> = [
-  [/editions_slug_key/, "An edition with that URL name already exists. Pick a different name or edition number."],
-  [/jury_votes_show_voter_points_key|jury_votes_edition_voter_points_key/, "This jury has already awarded that point value in this show. Clear the existing score first."],
-  [/jury_votes_show_voter_recipient_key|jury_votes_edition_voter_recipient_key/, "This jury has already scored that country in this show."],
-  [/jury_votes_voter_identity_check/, "This ballot has no jury attached. Pick a voting jury and try again."],
+  [
+    /editions_slug_key/,
+    "An edition with that URL name already exists. Pick a different name or edition number.",
+  ],
+  [
+    /jury_votes_show_voter_points_key|jury_votes_edition_voter_points_key/,
+    "This jury has already awarded that point value in this show. Clear the existing score first.",
+  ],
+  [
+    /jury_votes_show_voter_recipient_key|jury_votes_edition_voter_recipient_key/,
+    "This jury has already scored that country in this show.",
+  ],
+  [
+    /jury_votes_voter_identity_check/,
+    "This ballot has no jury attached. Pick a voting jury and try again.",
+  ],
   [/jury_votes_points_positive/, "Jury points must be greater than zero."],
   [/jury_votes_check/, "A jury cannot award points to its own country."],
-  [/participants_show_country_key|participants_edition_country_noshow_key/, "That country is already in this show's line-up."],
-  [/televote_votes_show_country_key|televote_votes_edition_country_noshow_key/, "That country already has a televote total for this show."],
-  [/results_show_country_key|results_edition_country_noshow_key/, "Results for that country are already archived for this show."],
+  [
+    /participants_show_country_key|participants_edition_country_noshow_key/,
+    "That country is already in this show's line-up.",
+  ],
+  [
+    /televote_votes_show_country_key|televote_votes_edition_country_noshow_key/,
+    "That country already has a televote total for this show.",
+  ],
+  [
+    /results_show_country_key|results_edition_country_noshow_key/,
+    "Results for that country are already archived for this show.",
+  ],
   [/countries_name_key/, "A country with that name already exists."],
   [/user_roles_user_id_role_key/, "That role is already assigned."],
 ];
@@ -60,6 +83,9 @@ export function describeSupabaseError(error: unknown, fallback = "Something went
     if (/JWT|token is expired|not authenticated/i.test(err.message ?? "")) {
       return "Your session expired. Sign in again — your entries are still on screen.";
     }
+
+    const systemCode = systemErrorCodeFromUnknown(error);
+    if (systemCode) return createSystemError(systemCode).message;
   }
 
   return fallback;
