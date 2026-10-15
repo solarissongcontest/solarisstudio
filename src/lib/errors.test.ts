@@ -47,6 +47,19 @@ describe("describeSupabaseError", () => {
     expect(describeSupabaseError({ message: "boom" }, "Could not save the show.")).toBe(
       "Could not save the show.",
     );
-    expect(describeSupabaseError(null, "Could not save the show.")).toBe("Could not save the show.");
+    expect(describeSupabaseError(null, "Could not save the show.")).toBe(
+      "Could not save the show.",
+    );
+  });
+
+  it("uses the shared safe taxonomy for canonical operation failures", () => {
+    const message = describeSupabaseError({
+      code: "P0001",
+      message: "IDEMPOTENCY_CONFLICT",
+      details: "private receipt fingerprint mismatch",
+    });
+    expect(message).toMatch(/request identity/i);
+    expect(message).not.toContain("fingerprint");
+    expect(message).not.toContain("private receipt");
   });
 });
