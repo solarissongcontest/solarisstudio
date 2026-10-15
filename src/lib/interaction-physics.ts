@@ -101,7 +101,17 @@ export type ElasticDragResponse = {
   growRadius: number;
   moved: boolean;
   direction: "left" | "center" | "right";
+  overscroll: number;
 };
+
+function resolveRubberBandDistance(distance: number, dimension: number, constant = 0.55) {
+  const safeDistance = Math.max(0, distance);
+  const safeDimension = Math.max(1, dimension);
+  return (
+    (safeDistance * safeDimension * constant) /
+    (safeDimension + constant * safeDistance)
+  );
+}
 
 export function resolveElasticDrag({
   rawDelta,
@@ -109,28 +119,48 @@ export function resolveElasticDrag({
   maxDelta,
   slotWidth,
   movementThreshold = 7,
+  rubberBand = false,
 }: {
   rawDelta: number;
   minDelta: number;
   maxDelta: number;
   slotWidth: number;
   movementThreshold?: number;
+  rubberBand?: boolean;
 }): ElasticDragResponse {
-  const delta = Math.min(maxDelta, Math.max(minDelta, rawDelta));
-  const distance = Math.abs(delta);
   const safeSlotWidth = Math.max(1, slotWidth);
-  const progress = Math.min(1, distance / Math.max(1, safeSlotWidth * 1.15));
+  const clampedDelta = Math.min(maxDelta, Math.max(minDelta, rawDelta));
+  let delta = clampedDelta;
+  let overscroll = 0;
+
+  if (rubberBand && rawDelta < minDelta) {
+    overscroll = minDelta - rawDelta;
+    delta = minDelta - resolveRubberBandDistance(overscroll, safeSlotWidth * 0.9);
+  } else if (rubberBand && rawDelta > maxDelta) {
+    overscroll = rawDelta - maxDelta;
+    delta = maxDelta + resolveRubberBandDistance(overscroll, safeSlotWidth * 0.9);
+  }
+
+  const distance = Math.abs(delta);
+  const canonicalDistance = Math.abs(clampedDelta);
+  const progress = Math.min(1, canonicalDistance / Math.max(1, safeSlotWidth * 1.15));
+  const overscrollProgress = Math.min(1, overscroll / Math.max(1, safeSlotWidth * 0.8));
+  const stretch = Math.min(
+    SOLARIS_INTERACTION_TOKENS.stretch.max,
+    progress * SOLARIS_INTERACTION_TOKENS.stretch.standard + overscrollProgress * 0.018,
+  );
 
   return {
     delta,
     distance,
     progress,
-    scaleX: 1 + progress * SOLARIS_INTERACTION_TOKENS.stretch.standard,
-    growWidth: progress * 10,
-    growHeight: progress * 9,
-    growRadius: progress * 4,
-    moved: distance >= movementThreshold,
-    direction: delta > 2 ? "right" : delta < -2 ? "left" : "center",
+    scaleX: 1 + stretch,
+    growWidth: progress * 10 + overscrollProgress * 4,
+    growHeight: progress * 9 + overscrollProgress * 2.5,
+    growRadius: progress * 4 + overscrollProgress * 1.5,
+    moved: Math.abs(rawDelta) >= movementThreshold,
+    direction: rawDelta > 2 ? "right" : rawDelta < -2 ? "left" : "center",
+    overscroll,
   };
 }
 
@@ -140,24 +170,32 @@ export function resolveTabDragTargetIndex({
   slotWidth,
   itemCount,
   activationRatio = 0.72,
+  velocityX = 0,
+  velocityProjectionMs = 0,
 }: {
   rawDelta: number;
   originIndex: number;
   slotWidth: number;
   itemCount: number;
   activationRatio?: number;
+  velocityX?: number;
+  velocityProjectionMs?: number;
 }) {
   const count = Math.max(1, Math.floor(itemCount));
   const origin = Math.min(count - 1, Math.max(0, Math.floor(originIndex)));
   const width = Math.max(1, slotWidth);
-  const distance = Math.abs(rawDelta);
+  const projectedTravel = Math.max(
+    -width * 1.35,
+    Math.min(width * 1.35, velocityX * Math.max(0, velocityProjectionMs)),
+  );
+  const projectedDelta = rawDelta + projectedTravel;
+  const distance = Math.abs(projectedDelta);
   const firstThreshold = width * Math.max(0.5, Math.min(0.95, activationRatio));
 
-  if (distance < firstThreshold || rawDelta === 0) return origin;
+  if (distance < firstThreshold || projectedDelta === 0) return origin;
 
-  const steps =
-    1 + Math.floor(Math.max(0, distance - firstThreshold) / width);
-  const direction = rawDelta > 0 ? 1 : -1;
+  const steps = 1 + Math.floor(Math.max(0, distance - firstThreshold) / width);
+  const direction = projectedDelta > 0 ? 1 : -1;
   return Math.min(count - 1, Math.max(0, origin + direction * steps));
 }
 
