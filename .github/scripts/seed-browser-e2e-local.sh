@@ -214,6 +214,12 @@ set calculation_version = 2,
 where show_id = '00000000-0000-4000-8000-00000000e299'::uuid;
 update public.shows set published = true
 where id = '00000000-0000-4000-8000-00000000e299'::uuid;
+-- Publication refreshes canonical rows from the intentionally empty local vote
+-- fixture. Restore the same deterministic scores already captured in version 2.
+update public.results set jury_points = 110222, televote_points = 1000, total_points = 111222, final_rank = 1
+where show_id = '00000000-0000-4000-8000-00000000e299'::uuid and country_id = '00000000-0000-4000-8000-00000000e201'::uuid;
+update public.results set jury_points = 110000, televote_points = 1000, total_points = 111000, final_rank = 2
+where show_id = '00000000-0000-4000-8000-00000000e299'::uuid and country_id = '00000000-0000-4000-8000-00000000e202'::uuid;
 
 "
 
