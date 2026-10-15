@@ -31,7 +31,9 @@ for attempt in {1..20}; do
 done
 [[ "${DB_READY:-0}" == "1" ]] || fail "Local database did not become ready for browser E2E seeding"
 
-PASSWORD='SolarisBrowserLocal2026!'
+# Generated per run. This is a loopback-only browser fixture credential, not a
+# repository credential, and it is exported to later steps through GITHUB_ENV.
+PASSWORD="LocalBrowser-${GITHUB_RUN_ID:-manual}-Aa9!"
 ORGANIZER_EMAIL='organizer-browser-e2e@solaris.invalid'
 ORGANIZER_B_EMAIL='organizer-b-browser-e2e@solaris.invalid'
 COUNTRY_EMAIL='country-browser-e2e@solaris.invalid'
@@ -187,33 +189,112 @@ values
   ('00000000-0000-4000-8000-00000000e291'::uuid, '00000000-0000-4000-8000-00000000e219'::uuid, '00000000-0000-4000-8000-00000000e299'::uuid, '00000000-0000-4000-8000-00000000e201'::uuid, 'Private archive artist', 'Private archive song', 'confirmed', 'published'),
   ('00000000-0000-4000-8000-00000000e292'::uuid, '00000000-0000-4000-8000-00000000e219'::uuid, '00000000-0000-4000-8000-00000000e299'::uuid, '00000000-0000-4000-8000-00000000e202'::uuid, 'Second archive artist', 'Second archive song', 'confirmed', 'published')
 on conflict (id) do nothing;
--- Establish a reveal-ready version so the real publication path materializes
--- the archive rows, then make it private while deterministic scores are bound
--- to a new immutable version.
+-- Establish a fully evidenced reveal-ready version so the real publication
+-- path materializes the archive rows. S3 Publication requires the public show
+-- projection and canonical publication control to move atomically.
 insert into public.studio2_result_operations (
-  show_id, edition_id, calculation_version, reviewed_version, locked_version, reveal_ready_version
+  show_id, edition_id,
+  calculation_version, last_calculated_at,
+  reviewed_version, reviewed_at,
+  locked_version, locked_at,
+  reveal_ready_version, reveal_ready_at
 ) values (
   '00000000-0000-4000-8000-00000000e299'::uuid,
-  '00000000-0000-4000-8000-00000000e219'::uuid, 1, 1, 1, 1
+  '00000000-0000-4000-8000-00000000e219'::uuid,
+  1, now(), 1, now(), 1, now(), 1, now()
 )
-on conflict (show_id) do update set calculation_version = 1, reviewed_version = 1, locked_version = 1, reveal_ready_version = 1;
-update public.shows set published = true
+on conflict (show_id) do update set
+  calculation_version = 1,
+  last_calculated_at = now(),
+  reviewed_version = 1,
+  reviewed_at = now(),
+  locked_version = 1,
+  locked_at = now(),
+  reveal_ready_version = 1,
+  reveal_ready_at = now();
+
+begin;
+update public.shows
+set published = true,
+    updated_at = now()
 where id = '00000000-0000-4000-8000-00000000e299'::uuid;
-update public.shows set published = false
+update public.studio2_show_publication_controls
+set state = 'public',
+    version = version + 1,
+    frozen_config = private.studio2_normalise_publication_config(
+      (select publication_config from public.shows where id = '00000000-0000-4000-8000-00000000e299'::uuid)
+    ),
+    source_show_updated_at = (select updated_at from public.shows where id = '00000000-0000-4000-8000-00000000e299'::uuid),
+    source_result_version = 1,
+    scheduled_for = null,
+    scheduled_from_state = null,
+    scheduled_by = null,
+    scheduled_operation_id = null,
+    last_failure = null,
+    last_failure_at = null,
+    updated_at = now()
+where show_id = '00000000-0000-4000-8000-00000000e299'::uuid;
+commit;
+
+begin;
+update public.shows
+set published = false,
+    updated_at = now()
 where id = '00000000-0000-4000-8000-00000000e299'::uuid;
+update public.studio2_show_publication_controls
+set state = 'hidden',
+    version = version + 1,
+    source_show_updated_at = (select updated_at from public.shows where id = '00000000-0000-4000-8000-00000000e299'::uuid),
+    source_result_version = null,
+    scheduled_for = null,
+    scheduled_from_state = null,
+    scheduled_by = null,
+    scheduled_operation_id = null,
+    last_failure = null,
+    last_failure_at = null,
+    updated_at = now()
+where show_id = '00000000-0000-4000-8000-00000000e299'::uuid;
+commit;
+
 update public.results set jury_points = 110222, televote_points = 1000, total_points = 111222, final_rank = 1
 where show_id = '00000000-0000-4000-8000-00000000e299'::uuid and country_id = '00000000-0000-4000-8000-00000000e201'::uuid;
 update public.results set jury_points = 110000, televote_points = 1000, total_points = 111000, final_rank = 2
 where show_id = '00000000-0000-4000-8000-00000000e299'::uuid and country_id = '00000000-0000-4000-8000-00000000e202'::uuid;
 update public.studio2_result_operations
 set calculation_version = 2,
+    last_calculated_at = now(),
     reviewed_version = 2,
+    reviewed_at = now(),
     locked_version = 2,
+    locked_at = now(),
     reveal_ready_version = 2,
+    reveal_ready_at = now(),
     updated_at = now()
 where show_id = '00000000-0000-4000-8000-00000000e299'::uuid;
-update public.shows set published = true
+
+begin;
+update public.shows
+set published = true,
+    updated_at = now()
 where id = '00000000-0000-4000-8000-00000000e299'::uuid;
+update public.studio2_show_publication_controls
+set state = 'public',
+    version = version + 1,
+    frozen_config = private.studio2_normalise_publication_config(
+      (select publication_config from public.shows where id = '00000000-0000-4000-8000-00000000e299'::uuid)
+    ),
+    source_show_updated_at = (select updated_at from public.shows where id = '00000000-0000-4000-8000-00000000e299'::uuid),
+    source_result_version = 2,
+    scheduled_for = null,
+    scheduled_from_state = null,
+    scheduled_by = null,
+    scheduled_operation_id = null,
+    last_failure = null,
+    last_failure_at = null,
+    updated_at = now()
+where show_id = '00000000-0000-4000-8000-00000000e299'::uuid;
+commit;
+
 -- Publication refreshes canonical rows from the intentionally empty local vote
 -- fixture. Restore the same deterministic scores already captured in version 2.
 update public.results set jury_points = 110222, televote_points = 1000, total_points = 111222, final_rank = 1
