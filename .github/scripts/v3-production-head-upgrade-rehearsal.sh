@@ -133,7 +133,8 @@ for rehearsal in \
   v3-s3-results-invariants-rehearsal.sh \
   v3-s3-publication-invariants-rehearsal.sh \
   v3-s3-identity-access-invariants-rehearsal.sh \
-  v3-s4-domain-event-outbox-rehearsal.sh
+  v3-s4-domain-event-outbox-rehearsal.sh \
+  v3-s5-confirmation-consequences-rehearsal.sh
   do
     log "Running $rehearsal"
     bash "$ROOT/.github/scripts/$rehearsal"
