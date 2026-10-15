@@ -30,12 +30,30 @@ export type SystemReconciliationResult<TResult extends SystemJsonValue = SystemJ
   | { ok: true; receipt: SystemReceipt<TResult> }
   | { ok: false; error: SystemError };
 
+type ReconciliationClient = {
+  rpc: (
+    name: "studio2_reconcile_operation",
+    parameters: { p_operation_id: string },
+  ) => Promise<{ data: unknown; error: unknown }>;
+};
+
+type ReconciliationDependencies = {
+  createClient: () => ReconciliationClient;
+};
+
+const defaultReconciliationDependencies: ReconciliationDependencies = {
+  createClient: () => createSolarisAuthenticatedClientServer() as unknown as ReconciliationClient,
+};
+
 export async function reconcileSystemOperationServer<
   TResult extends SystemJsonValue = SystemJsonValue,
->(operationId: string): Promise<SystemReconciliationResult<TResult>> {
+>(
+  operationId: string,
+  dependencies: ReconciliationDependencies = defaultReconciliationDependencies,
+): Promise<SystemReconciliationResult<TResult>> {
   try {
-    const client = createSolarisAuthenticatedClientServer();
-    const { data, error } = await (client as any).rpc("studio2_reconcile_operation", {
+    const client = dependencies.createClient();
+    const { data, error } = await client.rpc("studio2_reconcile_operation", {
       p_operation_id: operationId,
     });
 
