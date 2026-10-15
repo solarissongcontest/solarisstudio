@@ -26,21 +26,21 @@ expect_db_failure() {
   log "PASS: $label rejected"
 }
 
-COUNTRY_A='00000000-0000-4000-8000-00000000c801'
-COUNTRY_B='00000000-0000-4000-8000-00000000c802'
-EDITION_A='00000000-0000-4000-8000-00000000e801'
-EDITION_B='00000000-0000-4000-8000-00000000e802'
-SHOW_A='00000000-0000-4000-8000-00000000a801'
-SHOW_A2='00000000-0000-4000-8000-00000000a802'
-SHOW_B='00000000-0000-4000-8000-00000000a803'
-USER_A='00000000-0000-4000-8000-00000000d801'
-USER_B='00000000-0000-4000-8000-00000000d802'
-PREFLIGHT_ID='00000000-0000-4000-8000-00000000f801'
-BALLOT_ID='00000000-0000-4000-8000-00000000b801'
+COUNTRY_A='00000000-0000-4000-8000-00000000c891'
+COUNTRY_B='00000000-0000-4000-8000-00000000c892'
+EDITION_A='00000000-0000-4000-8000-00000000e891'
+EDITION_B='00000000-0000-4000-8000-00000000e892'
+SHOW_A='00000000-0000-4000-8000-00000000a891'
+SHOW_A2='00000000-0000-4000-8000-00000000a892'
+SHOW_B='00000000-0000-4000-8000-00000000a893'
+USER_A='00000000-0000-4000-8000-00000000d891'
+USER_B='00000000-0000-4000-8000-00000000d892'
+PREFLIGHT_ID='00000000-0000-4000-8000-00000000f891'
+BALLOT_ID='00000000-0000-4000-8000-00000000b891'
 
 log "Seeding isolated Jury invariant fixtures"
 db_exec "insert into public.countries(id,name,short_code) values ('$COUNTRY_A','S3 Jury Invariant A','S3A'),('$COUNTRY_B','S3 Jury Invariant B','S3B');"
-db_exec "insert into public.editions(id,name,year,slug,edition_number,status,published) values ('$EDITION_A','S3 Jury Invariant A',2026,'s3-jury-invariant-a',9801,'active',false),('$EDITION_B','S3 Jury Invariant B',2026,'s3-jury-invariant-b',9802,'active',false);"
+db_exec "insert into public.editions(id,name,year,slug,edition_number,status,published) values ('$EDITION_A','S3 Jury Invariant A',2026,'s3-jury-invariant-a',9891,'active',false),('$EDITION_B','S3 Jury Invariant B',2026,'s3-jury-invariant-b',9892,'active',false);"
 db_exec "insert into public.shows(id,edition_id,name,kind,sort_order,published,voting_config) values ('$SHOW_A','$EDITION_A','S3 Jury A','final',1,false,'{}'::jsonb),('$SHOW_A2','$EDITION_A','S3 Jury A2','semi-final',2,false,'{}'::jsonb),('$SHOW_B','$EDITION_B','S3 Jury B','final',1,false,'{}'::jsonb);"
 db_exec "insert into public.jury_voting_windows(show_id,edition_id,status,opened_at) values ('$SHOW_A','$EDITION_A','open',now());"
 
