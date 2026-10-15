@@ -56,7 +56,9 @@ export function V3TopLevelSwipeSurface({
   const dragRef = useRef<SwipeState | null>(null);
   const settleTimerRef = useRef<number | null>(null);
   const policy = resolveV3TopLevelSwipePolicy(pathname, searchStr);
-  const enabled = policy === "enabled" && !prefersReducedMotion();
+  // Keep SSR/hydration deterministic. Reduced-motion preference is checked at
+  // gesture start and CSS also disables the movement path.
+  const enabled = policy === "enabled";
 
   const clearSettleTimer = useCallback(() => {
     if (settleTimerRef.current == null) return;
@@ -98,6 +100,7 @@ export function V3TopLevelSwipeSurface({
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (
       !enabled ||
+      prefersReducedMotion() ||
       event.pointerType === "mouse" ||
       event.button !== 0 ||
       elementBlocksV3TopLevelSwipe(event.target) ||
