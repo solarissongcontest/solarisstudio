@@ -6,6 +6,10 @@ const migration = readFileSync(
   "supabase/migrations/20261015090000_v3_s3_televote_invariants.sql",
   "utf8",
 );
+const roundEntryCryptoFix = readFileSync(
+  "supabase/migrations/20261015091000_v3_televote_round_entry_crypto_path.sql",
+  "utf8",
+);
 
 describe("System V3 S3 Televote invariants", () => {
   it("preserves the existing configured active-ballot identity instead of inventing a second rule", () => {
@@ -48,6 +52,16 @@ describe("System V3 S3 Televote invariants", () => {
     expect(migration).toContain("v3_guard_televote_submission_identity");
     expect(migration).toContain("country.code = new.country_code");
     expect(migration).toContain("Modern Televote ballot must use a known voting country");
+  });
+
+  it("keeps the legacy round-entry key fallback compatible with the hardened pgcrypto schema", () => {
+    expect(roundEntryCryptoFix).toContain(
+      "create or replace function televoting.round_entries_normalize()",
+    );
+    expect(roundEntryCryptoFix).toContain("extensions.gen_random_bytes(6)");
+    expect(roundEntryCryptoFix).not.toMatch(/(?<!\.)gen_random_bytes\(6\)/);
+    expect(roundEntryCryptoFix).toContain("new.entry_key := old.entry_key");
+    expect(roundEntryCryptoFix).toContain("set search_path = televoting, pg_temp");
   });
 
   it("revokes direct execution of private S3 guards", () => {
