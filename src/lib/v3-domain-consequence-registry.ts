@@ -57,6 +57,18 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
     "supabase/migrations/20261015183000_v3_s5_confirmation_consequences.sql",
     ".github/scripts/v3-s5-confirmation-consequences-rehearsal.sh",
   ],
+  "entry.submitted": [
+    "supabase/migrations/20261015190000_v3_s5_entry_consequences.sql",
+    ".github/scripts/v3-s5-entry-consequences-rehearsal.sh",
+  ],
+  "entry.reviewed": [
+    "supabase/migrations/20261015190000_v3_s5_entry_consequences.sql",
+    ".github/scripts/v3-s5-entry-consequences-rehearsal.sh",
+  ],
+  "entry.changes_requested": [
+    "supabase/migrations/20261015190000_v3_s5_entry_consequences.sql",
+    ".github/scripts/v3-s5-entry-consequences-rehearsal.sh",
+  ],
 };
 
 const providerIds: ReadonlySet<string> = new Set(
