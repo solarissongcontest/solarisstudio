@@ -95,6 +95,8 @@ it("the real Organizer review handler rejects an unseen preview before mutation"
     await runInNewContext(code + '\nreview("accepted");', {
       entry: { id: "entry", current_version_id: "displayed" },
       targetType: "internal",
+      editionId: "edition",
+      submissionId: "submission",
       reason: "",
       assertDisplayedEntryVersion,
       setBusy: () => {},
@@ -107,10 +109,19 @@ it("the real Organizer review handler rejects an unseen preview before mutation"
           if (name.endsWith("preview"))
             return { data: { expectedVersion: 3, currentVersionId: previewVersion }, error: null };
           writes.push(name);
-          return { error: null };
+          return { data: { status: "succeeded" }, error: null };
         },
       },
-      createOrganisationCommand: () => ({ operationId: "operation", idempotencyKey: "key" }),
+      createOrganisationCommand: () => ({
+        operationId: "operation",
+        idempotencyKey: "key",
+        correlationId: "correlation",
+      }),
+      normalizeSystemReceipt: () => ({ status: "succeeded" }),
+      toSystemError: (error: unknown) => ({
+        message: error instanceof Error ? error.message : "Review action failed.",
+      }),
+      setReceipt: () => {},
       toast: { success: () => {} },
       onChanged: async () => {
         changed = true;

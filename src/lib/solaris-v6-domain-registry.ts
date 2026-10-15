@@ -42,7 +42,9 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: ["edition.blocker"],
     legacySources: ["browser-global selected edition", "legacy direct edition mutations"],
     migrationState: "canonical-write",
-    retirementCriteria: ["No operational route derives edition identity from browser-global state."],
+    retirementCriteria: [
+      "No operational route derives edition identity from browser-global state.",
+    ],
   },
   {
     id: "delegation",
@@ -56,7 +58,9 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: ["delegation.attention"],
     legacySources: ["legacy HOD role inference", "unscoped country ownership checks"],
     migrationState: "canonical-read",
-    retirementCriteria: ["All ownership and editing rights are derived from canonical account/capability state."],
+    retirementCriteria: [
+      "All ownership and editing rights are derived from canonical account/capability state.",
+    ],
   },
   {
     id: "participation",
@@ -69,7 +73,9 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: ["participation.blocker"],
     legacySources: ["independent UI readiness aggregators"],
     migrationState: "canonical-read",
-    retirementCriteria: ["Home, Tasks, Participant View and readiness consume the same projection."],
+    retirementCriteria: [
+      "Home, Tasks, Participant View and readiness consume the same projection.",
+    ],
   },
   {
     id: "confirmation",
@@ -77,12 +83,19 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     canonicalReadProjection: "canonical confirmations runtime",
     participantProjection: "confirmation flow",
     organizerProjection: "Organizer Confirmations",
-    commands: ["confirmation.submit", "confirmation.open", "confirmation.close", "confirmation.grant_edit"],
+    commands: [
+      "confirmation.submit",
+      "confirmation.open",
+      "confirmation.close",
+      "confirmation.grant_edit",
+    ],
     events: ["confirmation.submitted", "confirmation.window_changed"],
     tasks: ["confirmation.missing", "confirmation.sync_failed"],
     legacySources: ["legacy confirmations service authority"],
     migrationState: "canonical-write",
-    retirementCriteria: ["Later rounds cannot recreate an already-satisfied participation requirement."],
+    retirementCriteria: [
+      "Later rounds cannot recreate an already-satisfied participation requirement.",
+    ],
   },
   {
     id: "entry",
@@ -91,9 +104,14 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     publicProjection: "public entry",
     participantProjection: "MySolaris entry",
     organizerProjection: "Organizer entry review",
-    commands: ["entry.submit", "entry.review", "entry.restore_version"],
-    events: ["entry.submitted", "entry.reviewed", "entry.version_changed"],
-    tasks: ["entry.incomplete", "entry.review_required"],
+    commands: ["entry.submit", "entry.review", "entry.request_changes", "entry.restore_version"],
+    events: [
+      "entry.submitted",
+      "entry.reviewed",
+      "entry.changes_requested",
+      "entry.version_changed",
+    ],
+    tasks: ["entry.incomplete", "entry.review_required", "entry.correction_required"],
     legacySources: ["unversioned direct entry edits"],
     migrationState: "canonical-read",
     retirementCriteria: ["All approvals bind to an exact immutable submitted version."],
@@ -110,7 +128,9 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: ["selection.review_required"],
     legacySources: ["client-side winner assignment"],
     migrationState: "canonical-write",
-    retirementCriteria: ["Winner assignment only accepts the current valid accepted candidate version."],
+    retirementCriteria: [
+      "Winner assignment only accepts the current valid accepted candidate version.",
+    ],
   },
   {
     id: "jury",
@@ -136,7 +156,9 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: ["televote.missing", "televote.integrity_review"],
     legacySources: ["client-clock eligibility", "direct round state writes"],
     migrationState: "canonical-write",
-    retirementCriteria: ["Server time and server transition validation exclusively determine ballot acceptance."],
+    retirementCriteria: [
+      "Server time and server transition validation exclusively determine ballot acceptance.",
+    ],
   },
   {
     id: "results",
@@ -189,7 +211,9 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: ["acknowledgement.required"],
     legacySources: ["read/unread state treated as acknowledgement"],
     migrationState: "canonical-write",
-    retirementCriteria: ["Material notice changes can never inherit acknowledgement from an older version."],
+    retirementCriteria: [
+      "Material notice changes can never inherit acknowledgement from an older version.",
+    ],
   },
   {
     id: "task",
@@ -258,7 +282,9 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: ["rules.compatibility_blocker"],
     legacySources: ["hard-coded derived rule copy"],
     migrationState: "canonical-read",
-    retirementCriteria: ["Derived tooling validates compatibility before a rule release becomes authoritative."],
+    retirementCriteria: [
+      "Derived tooling validates compatibility before a rule release becomes authoritative.",
+    ],
   },
   {
     id: "integrity",
@@ -271,7 +297,9 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: ["integrity.review_required"],
     legacySources: ["ungoverned evidence reads"],
     migrationState: "canonical-read",
-    retirementCriteria: ["Protected reads and consequential decisions are capability-scoped and auditable."],
+    retirementCriteria: [
+      "Protected reads and consequential decisions are capability-scoped and auditable.",
+    ],
   },
   {
     id: "permissions",
@@ -284,7 +312,9 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: ["permissions.approval_required"],
     legacySources: ["client role checks", "user-editable authorization metadata"],
     migrationState: "canonical-write",
-    retirementCriteria: ["Domain code checks trusted capabilities rather than scattered role literals."],
+    retirementCriteria: [
+      "Domain code checks trusted capabilities rather than scattered role literals.",
+    ],
   },
   {
     id: "live-show",
@@ -297,7 +327,9 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: ["show.blocker"],
     legacySources: ["transient realtime payload as authority"],
     migrationState: "canonical-read",
-    retirementCriteria: ["Realtime invalidates cached state and the client re-reads canonical show truth."],
+    retirementCriteria: [
+      "Realtime invalidates cached state and the client re-reads canonical show truth.",
+    ],
   },
   {
     id: "incident",
@@ -322,7 +354,9 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: ["next_in_line.review_required"],
     legacySources: ["confirmation-round identity reused as Next in Line state"],
     migrationState: "canonical-write",
-    retirementCriteria: ["Next in Line remains a distinct canonical competition mechanism with server-authoritative eligibility."],
+    retirementCriteria: [
+      "Next in Line remains a distinct canonical competition mechanism with server-authoritative eligibility.",
+    ],
   },
   {
     id: "prediction",
@@ -336,7 +370,9 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: ["prediction.operation_required"],
     legacySources: ["parallel leaderboard score authority"],
     migrationState: "canonical-read",
-    retirementCriteria: ["Leaderboard output derives from canonical prediction submissions and one scoring lifecycle."],
+    retirementCriteria: [
+      "Leaderboard output derives from canonical prediction submissions and one scoring lifecycle.",
+    ],
   },
   {
     id: "fantasy",
@@ -350,7 +386,9 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: ["fantasy.operation_required"],
     legacySources: ["parallel result-derived fantasy scoring"],
     migrationState: "canonical-read",
-    retirementCriteria: ["Fantasy scoring consumes canonical published contest results rather than maintaining competing result truth."],
+    retirementCriteria: [
+      "Fantasy scoring consumes canonical published contest results rather than maintaining competing result truth.",
+    ],
   },
   {
     id: "community-profile",
@@ -364,7 +402,9 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: ["community_profile.moderation"],
     legacySources: ["leaderboard display identity coupled to competitive score state"],
     migrationState: "canonical-read",
-    retirementCriteria: ["Moderating public identity never mutates predictions, scores or historical competition data."],
+    retirementCriteria: [
+      "Moderating public identity never mutates predictions, scores or historical competition data.",
+    ],
   },
   {
     id: "personal-preference",
@@ -376,11 +416,14 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: [],
     legacySources: [],
     migrationState: "canonical-read",
-    retirementCriteria: ["Private preferences remain user-owned and are never promoted into Organizer authority."],
+    retirementCriteria: [
+      "Private preferences remain user-owned and are never promoted into Organizer authority.",
+    ],
   },
   {
     id: "activity",
-    canonicalWriteModel: "canonical domain events; activity itself is a derived recipient projection",
+    canonicalWriteModel:
+      "canonical domain events; activity itself is a derived recipient projection",
     canonicalReadProjection: "participant activity feed projection",
     participantProjection: "MySolaris Activity",
     commands: [],
@@ -388,7 +431,9 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: [],
     legacySources: ["separate editable activity-feed truth"],
     migrationState: "canonical-read",
-    retirementCriteria: ["Activity is reconstructed from canonical source events and cannot independently mutate domain state."],
+    retirementCriteria: [
+      "Activity is reconstructed from canonical source events and cannot independently mutate domain state.",
+    ],
   },
   {
     id: "public-ux",
@@ -401,7 +446,9 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: [],
     legacySources: ["page-local analytics interpretations"],
     migrationState: "canonical-read",
-    retirementCriteria: ["Diagnostics remain aggregate/support evidence and never become contest-state authority."],
+    retirementCriteria: [
+      "Diagnostics remain aggregate/support evidence and never become contest-state authority.",
+    ],
   },
   {
     id: "notification",
@@ -414,7 +461,9 @@ export const SOLARIS_V6_DOMAINS: readonly SolarisV6DomainDefinition[] = [
     tasks: ["notification.delivery_failed"],
     legacySources: ["push payload as business truth", "unread count as task count"],
     migrationState: "canonical-read",
-    retirementCriteria: ["Push, Inbox and badges are projections and never replace the underlying domain/task truth."],
+    retirementCriteria: [
+      "Push, Inbox and badges are projections and never replace the underlying domain/task truth.",
+    ],
   },
 ] as const;
 
