@@ -33,6 +33,9 @@ type DragState = {
   startX: number;
   originIndex: number;
   moved: boolean;
+  lastX: number;
+  lastAt: number;
+  velocityX: number;
 };
 
 export function OrganizerV6TabBar({
@@ -160,6 +163,9 @@ export function OrganizerV6TabBar({
       startX: event.clientX,
       originIndex: index,
       moved: false,
+      lastX: event.clientX,
+      lastAt: event.timeStamp,
+      velocityX: 0,
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginHold(event.pointerId, event.clientX, event.clientY);
@@ -177,11 +183,19 @@ export function OrganizerV6TabBar({
     const first = rects[0] ?? origin;
     const last = rects.at(-1) ?? origin;
     const originCenter = origin.left + origin.width / 2;
+    const rawDelta = event.clientX - drag.startX;
+    const elapsed = Math.max(1, event.timeStamp - drag.lastAt);
+    const instantVelocity = (event.clientX - drag.lastX) / elapsed;
+    drag.velocityX = drag.velocityX * 0.68 + instantVelocity * 0.32;
+    drag.lastX = event.clientX;
+    drag.lastAt = event.timeStamp;
+
     const response = resolveElasticDrag({
-      rawDelta: event.clientX - drag.startX,
+      rawDelta,
       minDelta: first.left + first.width / 2 - originCenter,
       maxDelta: last.left + last.width / 2 - originCenter,
       slotWidth: origin.width,
+      rubberBand: true,
     });
 
     if (response.moved) drag.moved = true;
@@ -192,7 +206,7 @@ export function OrganizerV6TabBar({
     material?.setAttribute("data-drag-direction", response.direction);
 
     const previewIndex = resolveTabDragTargetIndex({
-      rawDelta: event.clientX - drag.startX,
+      rawDelta,
       originIndex: drag.originIndex,
       slotWidth: origin.width,
       itemCount: items.length,
@@ -209,6 +223,8 @@ export function OrganizerV6TabBar({
     const origin = rects[drag.originIndex];
     const targetIndex = resolveTabDragTargetIndex({
       rawDelta: event.clientX - drag.startX,
+      velocityX: drag.velocityX,
+      velocityProjectionMs: 110,
       originIndex: drag.originIndex,
       slotWidth: origin?.width ?? 1,
       itemCount: items.length,
