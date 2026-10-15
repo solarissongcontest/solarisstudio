@@ -1,19 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const rpc = vi.fn();
-
-vi.mock("@/integrations/supabase/organizer.server", () => ({
-  createSolarisAuthenticatedClientServer: () => ({ rpc }),
-}));
+import { describe, expect, it } from "vitest";
 
 import {
   normalizeSystemReceipt,
   reconcileSystemOperationServer,
 } from "@/lib/system-operation-reconciliation.server";
-
-beforeEach(() => {
-  rpc.mockReset();
-});
 
 describe("System V3 receipt reconciliation", () => {
   it("normalizes a successful legacy Organizer receipt", () => {
@@ -96,39 +86,52 @@ describe("System V3 receipt reconciliation", () => {
   });
 
   it("retrieves the actor-scoped canonical receipt through the shared RPC", async () => {
-    rpc.mockResolvedValue({
-      data: {
-        operationId: "00000000-0000-4000-8000-000000000001",
-        correlationId: "00000000-0000-4000-8000-000000000002",
-        command: "entry.request_changes",
-        status: "processing",
-        result: null,
-        error: null,
-        createdAt: "2026-10-15T00:00:00.000Z",
-        updatedAt: "2026-10-15T00:00:01.000Z",
-        completedAt: null,
-      },
-      error: null,
+    const calls: Array<[string, { p_operation_id: string }]> = [];
+    const result = await reconcileSystemOperationServer("00000000-0000-4000-8000-000000000001", {
+      createClient: () => ({
+        rpc: async (name, parameters) => {
+          calls.push([name, parameters]);
+          return {
+            data: {
+              operationId: "00000000-0000-4000-8000-000000000001",
+              correlationId: "00000000-0000-4000-8000-000000000002",
+              command: "entry.request_changes",
+              status: "processing",
+              result: null,
+              error: null,
+              createdAt: "2026-10-15T00:00:00.000Z",
+              updatedAt: "2026-10-15T00:00:01.000Z",
+              completedAt: null,
+            },
+            error: null,
+          };
+        },
+      }),
     });
-
-    const result = await reconcileSystemOperationServer("00000000-0000-4000-8000-000000000001");
-    expect(rpc).toHaveBeenCalledWith("studio2_reconcile_operation", {
-      p_operation_id: "00000000-0000-4000-8000-000000000001",
-    });
+    expect(calls).toEqual([
+      [
+        "studio2_reconcile_operation",
+        {
+          p_operation_id: "00000000-0000-4000-8000-000000000001",
+        },
+      ],
+    ]);
     expect(result).toMatchObject({ ok: true, receipt: { status: "processing" } });
   });
 
   it("returns safe taxonomy errors instead of raw Postgres failures", async () => {
-    rpc.mockResolvedValue({
-      data: null,
-      error: {
-        code: "P0001",
-        message: "IDEMPOTENCY_CONFLICT",
-        details: "private.studio2_operation_receipts secret row",
-      },
+    const result = await reconcileSystemOperationServer("00000000-0000-4000-8000-000000000001", {
+      createClient: () => ({
+        rpc: async () => ({
+          data: null,
+          error: {
+            code: "P0001",
+            message: "IDEMPOTENCY_CONFLICT",
+            details: "private.studio2_operation_receipts secret row",
+          },
+        }),
+      }),
     });
-
-    const result = await reconcileSystemOperationServer("00000000-0000-4000-8000-000000000001");
     expect(result).toMatchObject({
       ok: false,
       error: { code: "IDEMPOTENCY_CONFLICT", retryable: false },
