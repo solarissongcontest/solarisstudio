@@ -11,6 +11,9 @@ describe("Solaris V6 Organizer interaction parity", () => {
     expect(organizer).toContain("resolveElasticDrag");
     expect(organizer).toContain("resolveTabDragTargetIndex");
     expect(organizer).toContain("activationRatio: 0.72");
+    expect(organizer).toContain("rubberBand: true");
+    expect(organizer).toContain("velocityProjectionMs: 110");
+    expect(organizer).toContain("velocityX: drag.velocityX");
     expect(organizer).toContain("dragging ? activeIndex");
     expect(organizer).toContain("KubeLiquidGlassBackdrop");
     expect(organizer).toContain("onPointerCancel");
