@@ -9,6 +9,10 @@ const rehearsal = readFileSync(
   ".github/scripts/v3-s3-publication-invariants-rehearsal.sh",
   "utf8",
 );
+const browserSeed = readFileSync(
+  ".github/scripts/seed-browser-e2e-local.sh",
+  "utf8",
+);
 
 describe("System V3 S3 Publication invariants", () => {
   it("preserves legacy evidence instead of fabricating publication versions", () => {
@@ -59,6 +63,17 @@ describe("System V3 S3 Publication invariants", () => {
     expect(migration).not.toContain(
       "check (\n    not private.studio2_publication_has_outcomes(intended_config)",
     );
+  });
+
+  it("keeps browser certification fixtures on the canonical Publication state machine", () => {
+    expect(browserSeed).toContain("last_calculated_at = now()");
+    expect(browserSeed).toContain("reviewed_at = now()");
+    expect(browserSeed).toContain("locked_at = now()");
+    expect(browserSeed).toContain("reveal_ready_at = now()");
+    expect(browserSeed).toContain("source_result_version = 1");
+    expect(browserSeed).toContain("source_result_version = 2");
+    expect(browserSeed).toContain("set state = 'hidden'");
+    expect(browserSeed.match(/set state = 'public'/g)?.length).toBe(2);
   });
 
   it("keeps hostile verification local-only", () => {
