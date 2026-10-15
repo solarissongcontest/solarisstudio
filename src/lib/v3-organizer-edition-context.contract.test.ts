@@ -4,12 +4,14 @@ import { describe, expect, it } from "vitest";
 const control = readFileSync("src/routes/_authenticated/admin/control.tsx", "utf8");
 const countries = readFileSync("src/routes/_authenticated/admin/countries.tsx", "utf8");
 const countryDetail = readFileSync("src/routes/_authenticated/admin/countries.$countryId.tsx", "utf8");
+const eligibility = readFileSync("src/routes/_authenticated/admin/eligibility.tsx", "utf8");
 const results = readFileSync("src/routes/_authenticated/admin/results.tsx", "utf8");
 
 const protectedRoutes = [
   ["Control", control],
   ["Delegations", countries],
   ["Delegation detail", countryDetail],
+  ["Eligibility", eligibility],
   ["Results", results],
 ] as const;
 
@@ -19,19 +21,22 @@ describe("V3 Organizer explicit edition context", () => {
     expect(source).not.toContain("ordered[0]");
   });
 
-  it("uses the shared exact-match selector in delegation detail and Results", () => {
+  it("uses the shared exact-match selector in scoped specialist workspaces", () => {
+    expect(countries).toContain('selectOrganizerEdition(editions, editionId)');
     expect(countryDetail).toContain('selectOrganizerEdition(editions, editionId)');
+    expect(eligibility).toContain('selectOrganizerEdition(editions, editionId)');
     expect(results).toContain('selectOrganizerEdition(editions, editionId)');
   });
 
-  it("keeps Control and the delegation list exact-match scoped", () => {
+  it("keeps Control exact-match scoped while it consumes the Organizer projection", () => {
     expect(control).toContain('editions.find((edition) => edition.id === editionId) ?? null');
-    expect(countries).toContain('selectOrganizerEdition(editions, editionId)');
+    expect(control).toContain('useV3OrganizerProjection(activeEdition?.id)');
   });
 
   it("documents why stale or missing scope does not silently switch editions", () => {
     expect(control).toContain("Solaris will not guess a different edition for you");
     expect(countries).toContain("will not substitute another edition");
     expect(countryDetail).toContain("will not substitute another edition");
+    expect(eligibility).toContain("will not substitute another edition");
   });
 });
