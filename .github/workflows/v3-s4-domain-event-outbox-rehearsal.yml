@@ -1,0 +1,100 @@
+name: V3 S4 Domain Event Outbox rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/**"
+      - ".github/scripts/v3-s4-domain-event-outbox-rehearsal.sh"
+      - ".github/scripts/v3-production-head-upgrade-rehearsal.sh"
+      - ".github/workflows/v3-s4-domain-event-outbox-rehearsal.yml"
+      - "src/lib/v3-domain-event-contract.ts"
+      - "src/lib/v3-s4-domain-event-outbox.contract.test.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s4-domain-event-outbox-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-replay:
+    name: Clean replay + DomainEvent outbox lifecycle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout feature head
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated local Supabase
+        run: supabase start
+
+      - name: Rebuild from the complete migration chain
+        run: supabase db reset --local --no-seed
+
+      - name: Prove S4 DomainEvent and outbox semantics
+        run: bash .github/scripts/v3-s4-domain-event-outbox-rehearsal.sh
+
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+  upgrade-from-main:
+    name: Current main upgrade + DomainEvent outbox lifecycle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout feature head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Prepare disposable current-main worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          git worktree add /tmp/solaris-s4-main origin/main
+
+      - name: Build current main locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-s4-main
+          supabase start
+          supabase db reset --local --no-seed
+
+      - name: Apply the feature migration delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a --delete "$GITHUB_WORKSPACE/supabase/migrations/" /tmp/solaris-s4-main/supabase/migrations/
+          cd /tmp/solaris-s4-main
+          supabase migration up --local --include-all
+
+      - name: Prove S4 DomainEvent and outbox semantics after upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-s4-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s4-domain-event-outbox-rehearsal.sh"
+
+      - name: Stop isolated local Supabase
+        if: always()
+        shell: bash
+        run: |
+          cd /tmp/solaris-s4-main 2>/dev/null || exit 0
+          supabase stop --no-backup || true
