@@ -118,10 +118,12 @@ export function V3LiquidTabBar({
 
   useEffect(
     () => () => {
-      if (document.querySelector("[data-v3-liquid-tabbar]")) return;
-      const root = document.documentElement;
-      root.style.removeProperty("--v3-bottom-obstruction");
-      root.style.setProperty("--solaris-bottom-obstruction", "0px");
+      window.requestAnimationFrame(() => {
+        if (document.querySelector("[data-v3-liquid-tabbar]")) return;
+        const root = document.documentElement;
+        root.style.removeProperty("--v3-bottom-obstruction");
+        root.style.setProperty("--solaris-bottom-obstruction", "0px");
+      });
     },
     [],
   );
