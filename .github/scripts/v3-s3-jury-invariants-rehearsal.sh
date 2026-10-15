@@ -41,7 +41,7 @@ BALLOT_ID='00000000-0000-4000-8000-00000000b801'
 log "Seeding isolated Jury invariant fixtures"
 db_exec "insert into public.countries(id,name,short_code) values ('$COUNTRY_A','S3 Jury Invariant A','S3A'),('$COUNTRY_B','S3 Jury Invariant B','S3B');"
 db_exec "insert into public.editions(id,name,year,slug,edition_number,status,published) values ('$EDITION_A','S3 Jury Invariant A',2026,'s3-jury-invariant-a',9801,'active',false),('$EDITION_B','S3 Jury Invariant B',2026,'s3-jury-invariant-b',9802,'active',false);"
-db_exec "insert into public.shows(id,edition_id,name,kind,sort_order,published,voting_config) values ('$SHOW_A','$EDITION_A','S3 Jury A','final',1,false,'{}'::jsonb),('$SHOW_A2','$EDITION_A','S3 Jury A2','semifinal',2,false,'{}'::jsonb),('$SHOW_B','$EDITION_B','S3 Jury B','final',1,false,'{}'::jsonb);"
+db_exec "insert into public.shows(id,edition_id,name,kind,sort_order,published,voting_config) values ('$SHOW_A','$EDITION_A','S3 Jury A','final',1,false,'{}'::jsonb),('$SHOW_A2','$EDITION_A','S3 Jury A2','semi-final',2,false,'{}'::jsonb),('$SHOW_B','$EDITION_B','S3 Jury B','final',1,false,'{}'::jsonb);"
 db_exec "insert into public.jury_voting_windows(show_id,edition_id,status,opened_at) values ('$SHOW_A','$EDITION_A','open',now());"
 
 log "Window scope and one-open-per-edition rules are database-enforced"
