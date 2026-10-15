@@ -187,8 +187,11 @@ values
   ('00000000-0000-4000-8000-00000000e291'::uuid, '00000000-0000-4000-8000-00000000e219'::uuid, '00000000-0000-4000-8000-00000000e299'::uuid, '00000000-0000-4000-8000-00000000e201'::uuid, 'Private archive artist', 'Private archive song', 'confirmed', 'published'),
   ('00000000-0000-4000-8000-00000000e292'::uuid, '00000000-0000-4000-8000-00000000e219'::uuid, '00000000-0000-4000-8000-00000000e299'::uuid, '00000000-0000-4000-8000-00000000e202'::uuid, 'Second archive artist', 'Second archive song', 'confirmed', 'published')
 on conflict (id) do nothing;
--- Participant triggers materialize canonical result rows. Assign deterministic
+-- Materialize canonical result rows explicitly, then assign deterministic
 -- scores before binding lifecycle version 1 to its immutable evidence.
+select public.materialize_show_results_if_missing(
+  '00000000-0000-4000-8000-00000000e299'::uuid
+);
 update public.results set jury_points = 110222, televote_points = 1000, total_points = 111222, final_rank = 1
 where show_id = '00000000-0000-4000-8000-00000000e299'::uuid and country_id = '00000000-0000-4000-8000-00000000e201'::uuid;
 update public.results set jury_points = 110000, televote_points = 1000, total_points = 111000, final_rank = 2
