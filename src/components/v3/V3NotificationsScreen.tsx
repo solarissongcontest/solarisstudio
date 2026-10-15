@@ -116,31 +116,35 @@ export function V3NotificationsScreen({
             count={inboxUnavailable ? undefined : attentionCount > 0 ? attentionCount : "✓"}
           >
             {inboxUnavailable ? (
-              <V3ActionCard
-                title="Open the canonical notice inbox"
-                description="If notification delivery is degraded, required official communications remain available in MySolaris."
-                icon={ShieldCheck}
-                tone="neutral"
-                to="/my-solaris/notices"
-              />
+              <V3Surface>
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="mt-0.5 size-5 shrink-0 text-[var(--v3-text-secondary)]" aria-hidden="true" />
+                  <div>
+                    <p className="text-sm font-semibold">Official inbox state could not be loaded</p>
+                    <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
+                      Solaris will not infer acknowledgement or workflow state from push delivery. Required participation remains authoritative in Participate.
+                    </p>
+                  </div>
+                </div>
+              </V3Surface>
             ) : attentionCount > 0 ? (
               <div className="grid gap-2.5">
                 {acknowledgementCount > 0 ? (
                   <V3ActionCard
                     title={`${acknowledgementCount} acknowledgement${acknowledgementCount === 1 ? "" : "s"} required`}
-                    description="Read and acknowledge these in the authoritative official-notice workflow."
+                    description="Open the official message below and acknowledge it after reading."
                     icon={ShieldCheck}
                     tone="required"
-                    to="/my-solaris/notices"
+                    to="/notifications"
                   />
                 ) : null}
                 {unreadWithoutAction > 0 ? (
                   <V3ActionCard
                     title={`${unreadWithoutAction} unread official message${unreadWithoutAction === 1 ? "" : "s"}`}
-                    description="Open your canonical notice inbox to read the full messages."
+                    description="Read the latest official Solaris communications below."
                     icon={Mail}
                     tone="neutral"
-                    to="/my-solaris/notices"
+                    to="/notifications"
                   />
                 ) : null}
               </div>
@@ -153,22 +157,12 @@ export function V3NotificationsScreen({
           </V3NowCard>
         </V3Section>
 
-        <V3Section
-          title="Latest official messages"
-          meta={
-            <Link
-              to="/my-solaris/notices"
-              className="text-xs font-semibold text-[var(--v3-text-secondary)] hover:text-[var(--v3-text-primary)]"
-            >
-              Open all
-            </Link>
-          }
-        >
+        <V3Section title="Latest official messages">
           {inboxUnavailable ? (
             <V3Surface>
               <p className="text-sm font-semibold">Inbox status unavailable</p>
               <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
-                Solaris could not load the notification summary. The canonical Notices route remains the fallback.
+                Solaris could not load the current authorized notice projection. No cached message is treated as current authority.
               </p>
             </V3Surface>
           ) : latest.length ? (
@@ -176,7 +170,7 @@ export function V3NotificationsScreen({
               {latest.map((item) => (
                 <Link
                   key={item.id}
-                  to="/my-solaris/notices"
+                  to="/notifications"
                   search={{ notice: item.id }}
                   className="block"
                 >
@@ -290,12 +284,6 @@ export function V3NotificationsScreen({
                     className="inline-flex min-h-10 items-center rounded-xl border border-[var(--v3-border-subtle)] px-3 text-xs font-semibold"
                   >
                     Open Participate
-                  </Link>
-                  <Link
-                    to="/my-solaris/notices"
-                    className="inline-flex min-h-10 items-center rounded-xl border border-[var(--v3-border-subtle)] px-3 text-xs font-semibold"
-                  >
-                    Open Notices
                   </Link>
                 </div>
               </div>
