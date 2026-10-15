@@ -144,19 +144,19 @@ export function buildV3OrganizerControlGroups(
     {
       key: "contest",
       label: "Contest",
-      description: "Entries, media, shows, running order and contest readiness.",
+      description: "Entry review, media, shows, running order and contest readiness.",
       items: [
         {
-          key: "entries",
-          label: "Entries",
-          description: "Entry state, review work and contest participation data",
-          href: editionHref("/admin/entries/:slug"),
-          editionScoped: true,
+          key: "entry-review",
+          label: "Entry review",
+          description: "Review submitted songs, request corrections and verify current entry versions",
+          href: "/confirmations/admin/responses",
+          editionScoped: false,
         },
         {
           key: "media",
-          label: "Media",
-          description: "Assets, artwork and submission media review",
+          label: "Media review",
+          description: "Assets, validation evidence, replacement state and organizer review",
           href: "/admin/media-assets",
           editionScoped: false,
         },
@@ -170,7 +170,14 @@ export function buildV3OrganizerControlGroups(
         {
           key: "running-order",
           label: "Running order",
-          description: "Line-up placement and synchronization",
+          description: "Line-up allocation and authoritative running-order operations",
+          href: editionHref("/admin/entries/:slug"),
+          editionScoped: true,
+        },
+        {
+          key: "progression",
+          label: "Progression",
+          description: "Heat progression and line-up synchronization",
           href: editionHref("/admin/lineup-sync/:slug"),
           editionScoped: true,
         },
