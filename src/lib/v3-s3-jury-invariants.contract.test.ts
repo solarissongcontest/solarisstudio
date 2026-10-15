@@ -49,9 +49,8 @@ describe("System V3 S3 Jury invariants", () => {
     );
     expect(migration).toContain("preflight.submitted_at is null");
     expect(
-      migration.match(/deferrable initially deferred/g) ?? [],
-    ).toHaveLength(expect.any(Number));
-    expect((migration.match(/deferrable initially deferred/g) ?? []).length).toBeGreaterThanOrEqual(3);
+      (migration.match(/deferrable initially deferred/g) ?? []).length,
+    ).toBeGreaterThanOrEqual(3);
   });
 
   it("keeps linked vote evidence inside the exact submitted ballot scope", () => {
