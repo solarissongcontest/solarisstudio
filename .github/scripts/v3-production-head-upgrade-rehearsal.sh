@@ -22,6 +22,7 @@ restore_migrations() {
 
 cleanup() {
   local status=$?
+  trap - EXIT INT TERM
   restore_migrations || true
   if [[ "$STARTED" == true ]]; then
     (cd "$ROOT" && supabase stop --no-backup) >/dev/null 2>&1 || true
@@ -36,7 +37,8 @@ trap cleanup EXIT INT TERM
 
 mapfile -t all_migrations < <(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort)
 (( ${#all_migrations[@]} > 0 )) || fail "No migration files found"
-LATEST_HEAD="${all_migrations[-1]%%_*}"
+last_index=$((${#all_migrations[@]} - 1))
+LATEST_HEAD="${all_migrations[$last_index]%%_*}"
 [[ "$LATEST_HEAD" =~ ^[0-9]{14}$ ]] || fail "Cannot derive repository migration head"
 [[ "$LATEST_HEAD" > "$PRODUCTION_HEAD" ]] || fail "Repository head must be ahead of production for this rehearsal"
 
@@ -51,6 +53,7 @@ for base in "${all_migrations[@]}"; do
   fi
 done
 (( held > 0 )) || fail "No post-production migrations were isolated"
+expected_delta="$held"
 
 log "Building disposable local Supabase at the hosted production migration head"
 cd "$ROOT"
@@ -82,7 +85,6 @@ upgraded_head="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select version from 
 [[ "$upgraded_head" == "$LATEST_HEAD" ]] \
   || fail "Local upgraded head is $upgraded_head, expected repository head $LATEST_HEAD"
 
-expected_delta="$(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | awk -F_ -v cutoff="$PRODUCTION_HEAD" '$1 > cutoff {count++} END {print count+0}')"
 applied_delta="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select count(*) from supabase_migrations.schema_migrations where version > '$PRODUCTION_HEAD';")"
 [[ "$applied_delta" == "$expected_delta" ]] \
   || fail "Applied migration delta count $applied_delta differs from repository delta $expected_delta"
