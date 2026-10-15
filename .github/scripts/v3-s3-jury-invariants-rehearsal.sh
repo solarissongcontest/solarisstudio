@@ -39,7 +39,7 @@ PREFLIGHT_ID='00000000-0000-4000-8000-00000000f891'
 BALLOT_ID='00000000-0000-4000-8000-00000000b891'
 
 log "Seeding isolated Jury invariant fixtures"
-db_exec "insert into public.countries(id,name,short_code) values ('$COUNTRY_A','S3 Jury Invariant A','S3A'),('$COUNTRY_B','S3 Jury Invariant B','S3B');"
+db_exec "insert into public.countries(id,name,short_code) values ('$COUNTRY_A','S3 Jury Invariant A','J3A'),('$COUNTRY_B','S3 Jury Invariant B','J3B');"
 db_exec "insert into public.editions(id,name,year,slug,edition_number,status,published) values ('$EDITION_A','S3 Jury Invariant A',2026,'s3-jury-invariant-a',9891,'active',false),('$EDITION_B','S3 Jury Invariant B',2026,'s3-jury-invariant-b',9892,'active',false);"
 db_exec "insert into public.shows(id,edition_id,name,kind,sort_order,published,voting_config) values ('$SHOW_A','$EDITION_A','S3 Jury A','final',1,false,'{}'::jsonb),('$SHOW_A2','$EDITION_A','S3 Jury A2','semi-final',2,false,'{}'::jsonb),('$SHOW_B','$EDITION_B','S3 Jury B','final',1,false,'{}'::jsonb);"
 db_exec "insert into public.jury_voting_windows(show_id,edition_id,status,opened_at) values ('$SHOW_A','$EDITION_A','open',now());"
@@ -50,7 +50,7 @@ expect_db_failure "second open Jury window in one edition" "insert into public.j
 expect_db_failure "open Jury window without opened_at" "update public.jury_voting_windows set opened_at=null where show_id='$SHOW_A';"
 
 log "Creating one exact modern ballot/preflight pair"
-db_exec "begin; insert into televoting.vote_preflight_checks(id,round_id,username_normalized,country_code,ballot_map,channel,canonical_edition_id,show_id,account_user_id,expires_at) values ('$PREFLIGHT_ID',null,'s3-jury-invariant-a','S3A','{}'::jsonb,'jury','$EDITION_A','$SHOW_A','$USER_A',now()+interval '20 minutes'); insert into public.jury_ballot_submissions(id,edition_id,show_id,user_id,voter_country_id,preflight_id) values ('$BALLOT_ID','$EDITION_A','$SHOW_A','$USER_A','$COUNTRY_A','$PREFLIGHT_ID'); update televoting.vote_preflight_checks set jury_ballot_submission_id='$BALLOT_ID',submitted_at=now() where id='$PREFLIGHT_ID'; commit;"
+db_exec "begin; insert into televoting.vote_preflight_checks(id,round_id,username_normalized,country_code,ballot_map,channel,canonical_edition_id,show_id,account_user_id,expires_at) values ('$PREFLIGHT_ID',null,'s3-jury-invariant-a','J3A','{}'::jsonb,'jury','$EDITION_A','$SHOW_A','$USER_A',now()+interval '20 minutes'); insert into public.jury_ballot_submissions(id,edition_id,show_id,user_id,voter_country_id,preflight_id) values ('$BALLOT_ID','$EDITION_A','$SHOW_A','$USER_A','$COUNTRY_A','$PREFLIGHT_ID'); update televoting.vote_preflight_checks set jury_ballot_submission_id='$BALLOT_ID',submitted_at=now() where id='$PREFLIGHT_ID'; commit;"
 
 [[ "$(db_value "select count(*) from public.jury_ballot_submissions where id='$BALLOT_ID';")" == '1' ]] || fail "valid exact Jury ballot/preflight pair was not committed"
 
