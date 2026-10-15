@@ -8,6 +8,10 @@ psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 insert into televoting.editions(id,name) values ('00000000-0000-4000-8000-00000000f401','V3 receipt rehearsal');
 insert into televoting.rounds(id,edition_id,name,status) values ('00000000-0000-4000-8000-00000000f402','00000000-0000-4000-8000-00000000f401','Closed receipt round','closed');
+insert into televoting.countries(code,name) values ('HOME','V3 receipt home');
+insert into televoting.round_entries(round_id,entry_type,entry_key,custom_name,display_order)
+select '00000000-0000-4000-8000-00000000f402'::uuid,'custom',key,'Receipt target ' || key,ord::int
+from unnest(array['A','B','C','D','E']) with ordinality as target(key,ord);
 insert into televoting.vote_submissions(id,round_id,username,username_normalized,country_code,status)
 values ('00000000-0000-4000-8000-00000000f403','00000000-0000-4000-8000-00000000f402','Receipt Voter','receipt voter','HOME','active');
 insert into televoting.vote_entries(submission_id,target_country_code,points)
