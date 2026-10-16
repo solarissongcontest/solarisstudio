@@ -115,6 +115,19 @@ export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
   });
 }
 
+export function parseOrganizerTaskCountV5(value: unknown): number {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim()
+        ? Number(value)
+        : Number.NaN;
+  if (!Number.isFinite(parsed) || parsed < 0 || !Number.isInteger(parsed)) {
+    throw new Error("Invalid Organizer task count payload.");
+  }
+  return parsed;
+}
+
 export async function loadOrganizerTasksV5(
   editionId: string | null | undefined,
   filter: OrganizerTaskFilter,
@@ -146,8 +159,7 @@ export async function loadOrganizerTaskCountV5(
     p_edition_id: normalizedEditionId,
   });
   if (error) throw new Error(error.message || "Organizer task count could not be loaded.");
-  const value = Number(data ?? 0);
-  return Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
+  return parseOrganizerTaskCountV5(data);
 }
 
 export function useOrganizerTasksV5(
