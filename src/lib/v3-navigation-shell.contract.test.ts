@@ -35,6 +35,25 @@ describe("V3 navigation shell acceptance guardrails", () => {
     }
   });
 
+  it("cancels direct tab manipulation when chrome or PWA lifecycle takes ownership", () => {
+    const publicTabs = source("src/components/v3/V3LiquidTabBar.tsx");
+    const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
+
+    for (const tabs of [publicTabs, organizerTabs]) {
+      expect(tabs).toContain("APP_RESUME_EVENT");
+      expect(tabs).toContain('"data-solaris-feature-overlay-open"');
+      expect(tabs).toContain('"data-solaris-keyboard-open"');
+      expect(tabs).toContain("rootInterruptionObserver?.observe");
+      expect(tabs).toContain(
+        'window.addEventListener("pagehide", resetInterruptedGesture)',
+      );
+      expect(tabs).toContain(
+        "window.addEventListener(APP_RESUME_EVENT, resetInterruptedGesture)",
+      );
+      expect(tabs).toContain("rootInterruptionObserver?.disconnect()");
+    }
+  });
+
   it("uses one canonical destination model while desktop stops rendering the phone bar", () => {
     const shell = source("src/components/v3/V3AppShell.tsx");
     const desktop = source("src/components/v3/V3DesktopPrimaryNavigation.tsx");
