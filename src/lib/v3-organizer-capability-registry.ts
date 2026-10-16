@@ -131,22 +131,22 @@ function targetDomainFor(id: string) {
   return "platform";
 }
 
-const BUILDING_CAPABILITIES = new Set([
-  "current-edition-tasks",
-  "operations-control-room",
-  "current-edition-delegations",
-  "current-edition-contest",
-  "current-edition-voting",
-  "current-edition-results",
-  "operations-eligibility",
-  "operations-media-assets",
-  "current-edition-publish",
-  "operations-communications",
-]);
-
 function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStatus"] {
   if (id === "current-edition-overview") return "parity";
-  if (BUILDING_CAPABILITIES.has(id)) return "building";
+  if (
+    id === "current-edition-tasks" ||
+    id === "operations-control-room" ||
+    id === "current-edition-delegations" ||
+    id === "current-edition-contest" ||
+    id === "current-edition-voting" ||
+    id === "current-edition-results" ||
+    id === "operations-eligibility" ||
+    id === "operations-media-assets" ||
+    id === "current-edition-publish" ||
+    id === "operations-communications"
+  ) {
+    return "building";
+  }
   return "planned";
 }
 
