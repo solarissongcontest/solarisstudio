@@ -12,6 +12,7 @@ import {
   PlayCircle,
   ShieldAlert,
   Trophy,
+  Users,
 } from "lucide-react";
 
 import {
@@ -35,7 +36,7 @@ export const Route = createFileRoute("/televoting/admin/")({
 });
 
 function VotingAdminOverview() {
-  const { editionId } = useAdminContext();
+  const { editionId, editionSlug } = useAdminContext();
   const getOverview = useServerFn(getMergedTelevotingOverview);
 
   const { data, isLoading, error } = useQuery({
@@ -182,11 +183,26 @@ function VotingAdminOverview() {
               description="Core operations stay prominent; analytics and rehearsal tools remain deliberately secondary."
             />
             <div className="divide-y divide-white/[0.07]">
+              {editionSlug ? (
+                <WorkspaceRow
+                  to={`/admin/jury/${editionSlug}`}
+                  icon={Users}
+                  title="Jury"
+                  description="Manage the selected edition's jury roster, ballots, did-not-vote state and governed ballot review."
+                  detail="Exact edition"
+                />
+              ) : (
+                <WorkspaceUnavailableRow
+                  icon={Users}
+                  title="Jury"
+                  description="Jury operations become available after the selected edition identity has resolved. Solaris will not guess an edition slug."
+                />
+              )}
               <WorkspaceRow
                 to="/televoting/admin/rounds"
                 icon={PlayCircle}
-                title="Rounds & entries"
-                description="Choose eligible entries and countries, then operate the round lifecycle."
+                title="Public voting rounds & entries"
+                description="Choose eligible entries and countries, then operate the public voting round lifecycle."
                 detail={data.openRounds ? `${data.openRounds} open now` : `${data.rounds} configured`}
               />
               <WorkspaceRow
@@ -194,7 +210,7 @@ function VotingAdminOverview() {
                 icon={ShieldAlert}
                 title="Integrity review"
                 description="Review ballots Solaris flagged and record organizer decisions."
-                detail={data.blocked ? `${data.blocked} blocked` : "No blocked ballots"}
+                detail={data.blocked ? `${data.blocked} blocked` : "No blocked public ballots"}
               />
               <WorkspaceRow
                 to="/televoting/admin/results"
@@ -317,5 +333,28 @@ function WorkspaceRow({
       {detail ? <span className="hidden shrink-0 text-[11px] font-semibold text-sky-100/70 sm:block">{detail}</span> : null}
       <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" />
     </Link>
+  );
+}
+
+function WorkspaceUnavailableRow({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: typeof PlayCircle;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="admin-action-row opacity-70" aria-disabled="true">
+      <span className="admin-action-row-icon">
+        <Icon className="size-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{description}</span>
+      </span>
+      <AdminStatus tone="neutral">Context required</AdminStatus>
+    </div>
   );
 }
