@@ -74,13 +74,13 @@ function parseRundownValue(raw: unknown): Studio2BroadcastRundownConfig | null {
   const value = raw as Record<string, unknown>;
   const startAt = readString(value.startAt);
   const rawSegments = Array.isArray(value.segments) ? value.segments : [];
-  const segments = rawSegments
-    .map((segment, index) => parseSegment(segment, index))
-    .filter((segment): segment is RundownSegment => segment !== null);
+  const parsedSegments = rawSegments.map((segment, index) => parseSegment(segment, index));
+  if (parsedSegments.some((segment) => segment === null)) return null;
+  const segments = parsedSegments as RundownSegment[];
 
   if (!startAt || !Number.isFinite(new Date(startAt).getTime())) return null;
 
-  return {
+  const parsed: Studio2BroadcastRundownConfig = {
     version: 2,
     revision: readNonNegativeInteger(value.revision),
     startAt,
@@ -91,6 +91,13 @@ function parseRundownValue(raw: unknown): Studio2BroadcastRundownConfig | null {
     updatedAt: readString(value.updatedAt),
     updatedBy: readString(value.updatedBy),
   };
+
+  try {
+    validateStudio2BroadcastRundown(parsed);
+  } catch {
+    return null;
+  }
+  return parsed;
 }
 
 export function parseStudio2BroadcastRundown(
