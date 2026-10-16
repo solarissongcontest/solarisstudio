@@ -144,7 +144,8 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "operations-eligibility" ||
     id === "operations-media-assets" ||
     id === "current-edition-publish" ||
-    id === "operations-communications"
+    id === "operations-communications" ||
+    id === "workspace-command-assistant"
   ) {
     return "building";
   }
