@@ -9,7 +9,9 @@ import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStat
 import { supabase } from "@/integrations/supabase/client";
 import { useEditions } from "@/lib/data";
 import { matchSolarisAssistantCommands } from "@/lib/solaris-command-assistant";
+import { buildCommandAssistantInsight } from "@/lib/solaris-command-assistant-insights";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
+import { useV3OrganizerProjection } from "@/lib/v3-organizer-projection.query";
 
 export const Route = createFileRoute("/_authenticated/admin/command-assistant")({
   head: () => ({
@@ -40,6 +42,7 @@ function CommandAssistantPage() {
 
   const selectedEdition = editionsQuery.data?.find((edition) => edition.id === editionId) ?? null;
   const resolvedEditionId = selectedEdition?.id ?? "";
+  const projectionQuery = useV3OrganizerProjection(resolvedEditionId || null);
 
   const snapshot = useQuery({
     enabled: feature.data === true && Boolean(resolvedEditionId),
@@ -68,6 +71,12 @@ function CommandAssistantPage() {
   });
 
   const matches = useMemo(() => matchSolarisAssistantCommands(prompt), [prompt]);
+  const insight = useMemo(
+    () => prompt.trim() && projectionQuery.data
+      ? buildCommandAssistantInsight(prompt, projectionQuery.data)
+      : null,
+    [projectionQuery.data, prompt],
+  );
 
   if (feature.isLoading) {
     return <AdminPage><p className="text-sm text-muted-foreground">Loading Command Assistant…</p></AdminPage>;
@@ -90,7 +99,7 @@ function CommandAssistantPage() {
         <AdminPageHeader
           eyebrow="Organizer command layer"
           title="Solaris Command Assistant"
-          description="Read-only first: natural wording is matched to a fixed command registry and existing Solaris workspaces. It cannot generate arbitrary SQL, bypass permissions or silently execute a write."
+          description="Read-only first: natural wording is matched to a fixed command registry and the canonical Organizer projection. It can explain blockers and point to the next safe workspace, but it cannot generate arbitrary SQL, bypass permissions or silently execute a write."
         />
 
         <AdminCard strong>
@@ -101,13 +110,13 @@ function CommandAssistantPage() {
               <input
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
-                placeholder="Show SSC entries still missing a song"
+                placeholder="Why can't I publish results?"
                 className="min-h-12 w-full rounded-xl border border-white/[0.09] bg-black/15 pl-10 pr-3 text-sm outline-none focus:border-sky-300/30"
               />
             </div>
           </label>
           <p className="mt-2 text-xs text-muted-foreground">
-            Requests are matched locally against registered read-only operations. Arbitrary database commands are never generated or executed.
+            Requests are interpreted against registered read-only operations and the selected edition projection. Unknown wording is never converted into an invented database command.
           </p>
         </AdminCard>
 
@@ -140,6 +149,38 @@ function CommandAssistantPage() {
             />
           </AdminCard>
         )}
+
+        {selectedEdition && prompt.trim() ? (
+          <AdminCard strong>
+            <AdminCardHeader
+              eyebrow="Canonical explanation"
+              title={insight?.title ?? "Checking blockers…"}
+              description="Derived from the same Organizer projection used by Control and readiness surfaces."
+            />
+            {projectionQuery.isLoading ? (
+              <p className="text-sm text-muted-foreground">Reading current blockers and recommended action…</p>
+            ) : projectionQuery.error ? (
+              <AdminStatus tone="blocked">{projectionQuery.error instanceof Error ? projectionQuery.error.message : "Organizer projection is unavailable"}</AdminStatus>
+            ) : insight ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <AdminStatus tone={insight.blockerCount ? "blocked" : "ready"}>
+                    {insight.blockerCount ? `${insight.blockerCount} critical blocker${insight.blockerCount === 1 ? "" : "s"}` : "No critical blocker in this domain"}
+                  </AdminStatus>
+                  <AdminStatus tone="neutral">Read-only explanation</AdminStatus>
+                </div>
+                <p className="text-sm leading-6 text-muted-foreground">{insight.summary}</p>
+                {insight.nextAction ? (
+                  <Link to={insight.nextAction.route as any} className="admin-action-primary w-full sm:w-auto">
+                    {insight.nextAction.label}
+                  </Link>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No action is currently projected for this scope.</p>
+                )}
+              </div>
+            ) : null}
+          </AdminCard>
+        ) : null}
 
         <AdminCard>
           <AdminCardHeader eyebrow="Registered commands" title={prompt ? "Best matches" : "Available read-only workflows"} />
