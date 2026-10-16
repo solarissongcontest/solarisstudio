@@ -5,6 +5,7 @@ import { useSolarisApp } from "@/components/app/AppRuntime";
 import { MySolarisAnniversaryRecap } from "@/components/mysolaris/MySolarisAnniversaryRecap";
 import { MySolarisProvider, useMySolaris } from "@/components/mysolaris/MySolarisContext";
 import { MySolarisWorkspaceNav } from "@/components/mysolaris/MySolarisWorkspaceNav";
+import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
 export function MySolarisWorkspaceShell({ children }: { children: ReactNode }) {
@@ -26,6 +27,8 @@ function MySolarisWorkspaceContent({ children }: { children: ReactNode }) {
   const workspace = useMySolaris();
   const location = useRouterState({ select: (state) => state.location });
   const votingOverview = location.pathname === "/my-solaris/voting";
+  const focusedTask =
+    isAppMode && resolveSolarisAppScreen(location.pathname).behavior.criticalTask;
   const organizerInspection = Boolean(
     votingOverview &&
       countryInspectionTarget(location.search) &&
@@ -60,6 +63,11 @@ function MySolarisWorkspaceContent({ children }: { children: ReactNode }) {
   ) {
     return <Navigate to="/participate" replace />;
   }
+
+  // Critical participant work keeps MySolarisProvider authority but must not
+  // inherit the generic MySolaris sidebar, recap or account-status chrome.
+  // The route-owned V3 focused shell supplies the only task navigation.
+  if (focusedTask) return <>{children}</>;
 
   return (
     <div className="solaris-mysolaris-workspace min-w-0 lg:grid lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:items-start lg:gap-6 xl:grid-cols-[14.5rem_minmax(0,1fr)]">
