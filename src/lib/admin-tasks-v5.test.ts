@@ -136,6 +136,21 @@ describe("Organizer Tasks edition RPC boundary", () => {
     ])).toThrow("Invalid Organizer Task resolved timestamp at index 0");
   });
 
+  it("rejects task state that contradicts the database-backed resolution timestamp invariant", () => {
+    expect(() => mapOrganizerTasksV5([
+      { ...validTask(), state: "resolved", resolvedAt: null },
+    ])).toThrow("Invalid Organizer Task resolution state at index 0");
+    expect(() => mapOrganizerTasksV5([
+      { ...validTask(), state: "open", resolvedAt: "2026-10-16T10:02:00Z" },
+    ])).toThrow("Invalid Organizer Task resolution state at index 0");
+
+    expect(mapOrganizerTasksV5([{
+      ...validTask(),
+      state: "resolved",
+      resolvedAt: "2026-10-16T10:02:00Z",
+    }])[0]?.state).toBe("resolved");
+  });
+
   it("rejects arrays and scalar values where a resolution predicate object is required", () => {
     expect(() => mapOrganizerTasksV5([
       { ...validTask(), resolutionPredicate: [] },
