@@ -39,3 +39,15 @@ export {
   validateV3DomainConsequenceRegistry,
   v3DomainConsequence,
 } from "./v3-domain-consequence-registry";
+export {
+  V3_PROJECTION_RECONCILIATION_REGISTRY,
+  validateV3ProjectionReconciliationRegistry,
+  v3ProjectionReconciliation,
+  v3ProjectionsInvalidatedByEvent,
+} from "./v3-projection-reconciliation-registry";
+export { assessV3ProjectionFreshness } from "./v3-projection-freshness";
+export type {
+  V3ProjectionAuthorityEvidence,
+  V3ProjectionFreshnessResult,
+  V3ProjectionObservation,
+} from "./v3-projection-freshness";
