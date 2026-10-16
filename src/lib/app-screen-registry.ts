@@ -203,6 +203,21 @@ export function resolveSolarisAppScreen(pathname: string, searchStr = ""): Solar
     };
   }
 
+  if (/^\/my-solaris\/entry(\/|$)/.test(pathname)) {
+    return {
+      id: "mysolaris.entry",
+      title: "Entry",
+      hierarchy: {
+        rootTab: "participate",
+        parent: { label: "Participate", href: "/participate" },
+      },
+      presentation: "task",
+      ...TASK_DEFAULTS,
+      access: { auth: "authenticated" },
+      helpTo: "/guide",
+    };
+  }
+
   if (pathname.startsWith("/my-solaris/")) {
     const destination = publicDestinationForPath(pathname);
     return {
