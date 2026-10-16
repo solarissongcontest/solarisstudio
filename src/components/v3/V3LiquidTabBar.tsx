@@ -438,10 +438,12 @@ export function V3LiquidTabBar({
     clearDrag();
   };
 
-  // Keep the decorative lens in the same physical left-to-right slot axis as
-  // the rendered tab boxes. Route and drag semantics still normalize RTL above;
-  // the lens position must not mirror a second time when document direction flips.
-  const physicalLensIndex = visualLensIndex;
+  // Keep the decorative lens in a physical left-to-right coordinate system.
+  // The grid itself mirrors in RTL, while route/gesture selection stays logical.
+  // Mixing an RTL right anchor with a negative percentage transform made WebKit
+  // mirror the translation twice and could throw the lens outside the material.
+  const physicalLensIndex =
+    layoutDirection === "rtl" ? count - 1 - visualLensIndex : visualLensIndex;
   const totalGap = Math.max(0, count - 1) * 2;
   const indicatorStyle = {
     width: `calc((100% - 12px - ${totalGap}px) / ${count})`,

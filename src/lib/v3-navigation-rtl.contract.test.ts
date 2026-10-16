@@ -27,16 +27,25 @@ describe("V3 navigation RTL integration contract", () => {
     expect(css).toMatch(/:dir\(rtl\)[\s\S]*page--next[\s\S]*translate3d\(-100%/);
   });
 
-  it("keeps the public selected lens on the rendered physical slot axis in RTL", () => {
+  it("mirrors the public slot index exactly once while keeping one physical lens anchor", () => {
     const tabbar = source("src/components/v3/V3LiquidTabBar.tsx");
+    const fixedCss = source("src/styles/v3-navigation-fixed-geometry.css");
 
-    expect(tabbar).toContain("const physicalLensIndex = visualLensIndex");
+    expect(tabbar).toContain("const physicalLensIndex =");
+    expect(tabbar).toContain(
+      'layoutDirection === "rtl" ? count - 1 - visualLensIndex : visualLensIndex',
+    );
     expect(tabbar).toContain('left: "6px"');
     expect(tabbar).toContain('right: "auto"');
     expect(tabbar).toContain('direction: "ltr"');
     expect(tabbar).toContain("${physicalLensIndex} * (100% + 2px)");
     expect(tabbar).not.toContain("visualLensIndex * inlineSign");
-    expect(tabbar).not.toContain("count - 1 - visualLensIndex");
+    expect(fixedCss).toMatch(
+      /data-layout-direction="rtl"[\s\S]*\.v3-liquid-tabbar__lens[\s\S]*left: 6px;[\s\S]*right: auto;/,
+    );
+    expect(fixedCss).not.toMatch(
+      /data-layout-direction="rtl"[\s\S]*\.v3-liquid-tabbar__lens[\s\S]*left: auto;[\s\S]*right: 6px;/,
+    );
   });
 
   it("keeps the Organizer selected lens on its explicit physical RTL axis", () => {

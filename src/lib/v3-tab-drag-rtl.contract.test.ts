@@ -22,19 +22,28 @@ describe("V3 direct tab drag RTL and hot-loop contract", () => {
     }
   });
 
-  it("keeps active lenses on an explicit physical axis while badges stay logical", () => {
+  it("keeps active lenses on one physical axis while badges stay logical", () => {
     const publicTabs = source("src/components/v3/V3LiquidTabBar.tsx");
     const publicCss = source("src/styles/v3-liquid-tabbar.css");
+    const fixedCss = source("src/styles/v3-navigation-fixed-geometry.css");
     const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
 
-    expect(publicTabs).toContain("const physicalLensIndex = visualLensIndex");
+    expect(publicTabs).toContain("const physicalLensIndex =");
+    expect(publicTabs).toContain(
+      'layoutDirection === "rtl" ? count - 1 - visualLensIndex : visualLensIndex',
+    );
     expect(publicTabs).toContain('left: "6px"');
     expect(publicTabs).toContain('right: "auto"');
     expect(publicTabs).toContain('direction: "ltr"');
     expect(publicTabs).toContain("${physicalLensIndex} * (100% + 2px)");
     expect(publicTabs).not.toContain("visualLensIndex * inlineSign");
-    expect(publicTabs).not.toContain("count - 1 - visualLensIndex");
     expect(publicCss).toContain("inset-inline-end: -0.52rem");
+    expect(fixedCss).toMatch(
+      /data-layout-direction="rtl"[\s\S]*\.v3-liquid-tabbar__lens[\s\S]*left: 6px;[\s\S]*right: auto;/,
+    );
+    expect(fixedCss).not.toMatch(
+      /data-layout-direction="rtl"[\s\S]*\.v3-liquid-tabbar__lens[\s\S]*left: auto;[\s\S]*right: 6px;/,
+    );
 
     expect(organizerTabs).toContain("const physicalLensIndex =");
     expect(organizerTabs).toContain(

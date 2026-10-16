@@ -26,9 +26,15 @@
   border-radius: calc(25px + var(--v3-liquid-pull-radius));
 }
 
+/*
+ * The RTL grid mirrors its tab boxes, but the decorative lens intentionally
+ * stays on one physical left-origin coordinate axis. The component mirrors the
+ * slot index once; re-anchoring this element to the right mirrors it a second
+ * time and sends the lens to the wrong tab in WebKit.
+ */
 [data-solaris-v3] .v3-liquid-tabbar[data-layout-direction="rtl"] .v3-liquid-tabbar__lens {
-  left: auto;
-  right: 6px;
+  left: 6px;
+  right: auto;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__item {
