@@ -35,4 +35,18 @@ describe("V3 Organizer canonical capability domains", () => {
     expect(capability("operations-media-assets").targetDomain).toBe("contest");
     expect(capability("delegation-confirmation-overview").targetDomain).toBe("delegations");
   });
+
+  it("marks implemented O15 and O17 slices building without overstating parity", () => {
+    for (const id of [
+      "current-edition-storytelling",
+      "workspace-predictions",
+      "workspace-fantasy",
+      "live-review-simulation-lab",
+      "live-review-time-machine",
+      "live-review-voting-lab",
+      "workspace-command-assistant",
+    ]) {
+      expect(capability(id).migrationStatus).toBe("building");
+    }
+  });
 });
