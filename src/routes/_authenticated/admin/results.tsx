@@ -38,8 +38,10 @@ import {
   resultActionLabel,
   resultLifecycleLabel,
   resultLifecycleTone,
+  studio2ResultBlockers,
   summarizeStudio2ResultsOperations,
   type Studio2ResultAction,
+  type Studio2ResultBlocker,
   type Studio2ResultOperationRow,
 } from '@/lib/studio2-results-operations';
 
@@ -326,6 +328,7 @@ function ShowResultCard({ row, editionSlug, busy, onAction }: {
 }) {
   const pre = row.preconditions;
   const actions = availableStudio2ResultActions(row);
+  const blockers = studio2ResultBlockers(row);
   return (
     <AdminCard className="!p-4">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -352,6 +355,30 @@ function ShowResultCard({ row, editionSlug, busy, onAction }: {
           ))}
         </div>
       </div>
+
+      {blockers.length ? (
+        <div className="mt-4 rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold text-amber-50">Next stage is blocked</p>
+              <p className="mt-1 text-[11px] leading-5 text-amber-100/70">
+                These explanations mirror the current authoritative Results snapshot. The server still rechecks every command immediately before commit.
+              </p>
+            </div>
+            <AdminStatus tone="attention">{blockers.length} blocker{blockers.length === 1 ? '' : 's'}</AdminStatus>
+          </div>
+          <div className="mt-3 grid gap-2 lg:grid-cols-2">
+            {blockers.map((blocker) => (
+              <ResultBlockerLink
+                key={blocker.id}
+                blocker={blocker}
+                editionSlug={editionSlug}
+                showId={row.showId}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <ReadinessCell label="Jury" ready={pre.juryReady} value={readinessLabel(pre.juryEnabled, pre.juryReady)} detail={pre.juryEnabled ? `${pre.juryVoterCount} voters · ${pre.juryIncompleteCount} incomplete · ${pre.juryConflictCount} conflicts · ${pre.juryDnvCount} DNV` : 'Disabled in voting configuration'} />
@@ -382,6 +409,41 @@ function ShowResultCard({ row, editionSlug, busy, onAction }: {
       </div>
     </AdminCard>
   );
+}
+
+function ResultBlockerLink({
+  blocker,
+  editionSlug,
+  showId,
+}: {
+  blocker: Studio2ResultBlocker;
+  editionSlug: string;
+  showId: string;
+}) {
+  const href = resultBlockerHref(blocker.id, editionSlug, showId);
+  return (
+    <a href={href} className="group rounded-xl border border-amber-100/10 bg-black/10 p-3 transition hover:bg-amber-100/[0.04]">
+      <span className="flex items-start justify-between gap-3">
+        <span className="min-w-0">
+          <span className="block text-xs font-semibold text-foreground">{blocker.label}</span>
+          <span className="mt-1 block text-[11px] leading-5 text-muted-foreground">{blocker.detail}</span>
+        </span>
+        <ExternalLink className="mt-0.5 size-3.5 shrink-0 text-amber-100/60 transition group-hover:text-amber-100" />
+      </span>
+    </a>
+  );
+}
+
+function resultBlockerHref(
+  blocker: Studio2ResultBlocker['id'],
+  editionSlug: string,
+  showId: string,
+) {
+  const encodedShowId = encodeURIComponent(showId);
+  if (blocker === 'jury') return `/admin/jury/${editionSlug}?show=${encodedShowId}`;
+  if (blocker === 'televote') return `/admin/televote/${editionSlug}?show=${encodedShowId}`;
+  if (blocker === 'reconciliation') return '/televoting/admin/result-integrity';
+  return `/admin/voting-system/${editionSlug}?show=${encodedShowId}`;
 }
 
 function ReadinessCell({ label, ready, value, detail }: { label: string; ready: boolean; value: string; detail: string }) {
@@ -419,7 +481,7 @@ function operationDescription(pending: PendingOperation) {
     case 'calculate': return `Calculate ${pending.row.showName} from canonical jury and televote data. Review, lock and reveal approvals attached to ${version} are cleared because they belong to old numbers.`;
     case 'review': return `Record that version ${version} of ${pending.row.showName} has been reviewed against the current result rows and reconciliation checks.`;
     case 'lock': return `Lock reviewed version ${version} of ${pending.row.showName}. Recalculation requires an explicit unlock first.`;
-    case 'unlock': return `Unlock version ${version} of ${pending.row.showName}. Reveal readiness is cleared at the same time.`;
+    case 'unlock': return `Unlock version ${version} of ${pending.row.showName} so it can be recalculated or replaced. Reveal readiness must already be cleared before this rollback is offered.`;
     case 'mark_reveal_ready': return `Mark locked version ${version} of ${pending.row.showName} ready for the existing Reveal Director workflow. This does not publish anything.`;
     case 'clear_reveal_ready': return `Clear reveal readiness for version ${version} of ${pending.row.showName}. The result remains locked.`;
   }
