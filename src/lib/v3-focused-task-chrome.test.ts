@@ -8,6 +8,7 @@ describe("Solaris Studio V3 focused critical-task chrome", () => {
     ["/jury-voting", "Jury voting", "/guide"],
     ["/televoting", "Televoting", "/televoting/how-to-vote"],
     ["/next-in-line", "Next in Line", "/guide"],
+    ["/my-solaris/entry", "Entry", "/guide"],
   ] as const)("reuses canonical task chrome for %s", (pathname, title, helpTo) => {
     const chrome = resolveV3FocusedTaskChrome(pathname);
 
@@ -23,6 +24,13 @@ describe("Solaris Studio V3 focused critical-task chrome", () => {
     const chrome = resolveV3FocusedTaskChrome("/jury-voting");
     expect(chrome.pathname).toBe("/jury-voting");
     expect(chrome.screenId).toBe("participation.task");
+  });
+
+  it("keeps Entry on its own authenticated screen identity", () => {
+    const chrome = resolveV3FocusedTaskChrome("/my-solaris/entry");
+    expect(chrome.pathname).toBe("/my-solaris/entry");
+    expect(chrome.screenId).toBe("mysolaris.entry");
+    expect(chrome.rootTab).toBe("participate");
   });
 
   it.each(["/", "/results", "/countries/oland", "/my-solaris"])(
