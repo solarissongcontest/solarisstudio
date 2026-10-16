@@ -21,6 +21,23 @@ describe("Archived Televote results", () => {
     expect(workspace).not.toContain("useServerFn(getMergedTelevotingRounds);");
   });
 
+  it("passes only the exact edition projection into the active result mutation workflow", () => {
+    const workspace = source("components/televoting/VotingResultsWorkspace.tsx");
+    const active = source("components/televoting/VotingResultsView.tsx");
+
+    expect(workspace).toContain('key={editionId}');
+    expect(workspace).toContain('editionId={editionId}');
+    expect(workspace).toContain('editionName={data.edition.name}');
+    expect(workspace).toContain('rounds={data.edition.rounds}');
+
+    expect(active).toContain("type VotingResultsViewProps");
+    expect(active).toContain("rounds: readonly MergedAdminRound[]");
+    expect(active).toContain("selectedRoundStillInEdition");
+    expect(active).toContain('["merged-televoting-conversion", editionId, effectiveRoundId]');
+    expect(active).not.toContain("getMergedTelevotingRounds");
+    expect(active).not.toContain("editions.flatMap");
+  });
+
   it("keeps archived editions read-only", () => {
     const workspace = source("components/televoting/VotingResultsWorkspace.tsx");
     expect(workspace).toContain("if (data.edition.is_archived)");
