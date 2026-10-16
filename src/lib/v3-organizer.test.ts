@@ -74,6 +74,7 @@ describe("V3 Organizer information architecture", () => {
     expect(v3OrganizerTabForPath("/admin/time-machine")).toBe("more");
     expect(v3OrganizerTabForPath("/admin/voting-lab")).toBe("more");
     expect(v3OrganizerTabForPath("/admin/storytelling")).toBe("more");
+    expect(v3OrganizerTabForPath("/admin/system-operations")).toBe("more");
     expect(v3OrganizerTabForPath("/admin/access-permissions")).toBe("more");
   });
 
@@ -121,9 +122,7 @@ describe("V3 Organizer information architecture", () => {
     expect(scopedItems.find((item) => item.key === "theme")?.href).toBe(
       "/admin/edition-theme/ssc-22",
     );
-    expect(scopedItems.find((item) => item.key === "delivery-issues")?.href).toBe(
-      "/admin/system-operations",
-    );
+    expect(scopedItems.find((item) => item.key === "delivery-issues")).toBeUndefined();
     expect(scopedItems.find((item) => item.key === "rundown")).toBeUndefined();
     expect(scopedItems.find((item) => item.key === "reveal")).toBeUndefined();
   });
