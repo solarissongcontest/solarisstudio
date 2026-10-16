@@ -68,12 +68,17 @@ function OrganizerTasksPage() {
   const navigate = Route.useNavigate();
   const backend = useOrganisationBackendContract();
   const tasksSupported = backend.data?.capabilities.organizerTasks === true;
-  const tasksQuery = useOrganizerTasksV5(editionId, filter, tasksSupported);
+  const tasksQuery = useOrganizerTasksV5(
+    editionId,
+    filter,
+    tasksSupported && Boolean(editionId),
+  );
   const tasks = tasksQuery.data ?? [];
   const visibleTasks =
     domain === "all" ? tasks : tasks.filter((task) => taskDomain(task) === domain);
 
   const metricsAvailable =
+    Boolean(editionId) &&
     backend.isSuccess &&
     tasksSupported &&
     !tasksQuery.isLoading &&
@@ -172,7 +177,15 @@ function OrganizerTasksPage() {
           </section>
         ) : null}
 
-        {backend.isLoading ? (
+        {!editionId ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="Choose an edition"
+              description="Select the edition in the Organizer toolbar before evaluating Tasks. Solaris never merges task truth across editions when Organizer scope is missing."
+            />
+          </AdminCard>
+        ) : backend.isLoading ? (
           <AdminCard>
             <p className="py-12 text-center text-sm text-muted-foreground">
               Verifying Organizer backend compatibility…
