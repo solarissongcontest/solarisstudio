@@ -28,7 +28,9 @@ describe("V3 navigation shell acceptance guardrails", () => {
 
     for (const tabs of [publicTabs, organizerTabs]) {
       expect(tabs).toContain("const longPressed = held");
-      expect(tabs).toContain("suppressClick.current = drag.moved || longPressed");
+      expect(tabs).toMatch(
+        /suppressClick\.current = (?:drag\.moved|moved) \|\| longPressed/,
+      );
       expect(tabs).toContain("if (longPressed ||");
     }
   });
