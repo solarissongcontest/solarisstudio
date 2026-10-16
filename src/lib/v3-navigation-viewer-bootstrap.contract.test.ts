@@ -24,12 +24,16 @@ describe("V3 navigation viewer bootstrap", () => {
     expect(code).toContain("markV3PublicNavigationRestore(target, undefined, navigationScope)");
   });
 
-  it("does not enable live cross-page previews before viewer identity resolves", () => {
+  it("does not mount or enable live cross-page previews before viewer identity resolves", () => {
     const code = shell();
-    const readyStart = code.indexOf("const swipePreviewReady =");
+    const previousStart = code.indexOf("const previousSurface =");
+    const readyStart = code.indexOf("const swipePreviewReady =", previousStart);
     const openTabStart = code.indexOf("const openTab =", readyStart);
+    const surfaceBlock = code.slice(previousStart, readyStart);
     const readyBlock = code.slice(readyStart, openTabStart);
 
+    expect(surfaceBlock).toMatch(/const previousSurface =\s+navigationIdentityReady &&/);
+    expect(surfaceBlock).toMatch(/const nextSurface =\s+navigationIdentityReady &&/);
     expect(readyBlock).toContain("navigationIdentityReady &&");
     expect(readyBlock).toContain("swipePreviewSurfaces != null");
   });
