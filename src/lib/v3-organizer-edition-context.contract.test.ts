@@ -99,8 +99,13 @@ describe("V3 Organizer explicit edition context", () => {
     expect(confirmationSettings).toContain("No edition selected");
   });
 
-  it("keeps Recovery Access explicitly blocked on a server-side edition-scoped contract", () => {
-    expect(recoveryCodes).toContain("loadConfirmationRecoveryCodes()");
+  it("keeps Recovery Access fail-closed until the server read is edition-scoped", () => {
+    expect(recoveryCodes).toContain("useAdminContext()");
+    expect(recoveryCodes).toContain('title="Select an edition"');
+    expect(recoveryCodes).toContain("Edition-scoped Recovery Access requires a server update");
+    expect(recoveryCodes).toContain("does not fetch or cache recovery codes");
+    expect(recoveryCodes).not.toContain("loadConfirmationRecoveryCodes");
+
     expect(confirmationAdmin).toContain('rpc("admin_confirmation_recovery_codes")');
     expect(confirmationAdmin).not.toContain('rpc("admin_confirmation_recovery_codes",');
   });
@@ -239,6 +244,7 @@ describe("V3 Organizer explicit edition context", () => {
     expect(confirmationCountries).toContain("will not merge responses across editions");
     expect(confirmationResponses).toContain("exact edition selected in Solaris Organizer");
     expect(confirmationSettings).toContain("will not substitute a globally active or first edition");
+    expect(recoveryCodes).toContain("will not substitute another edition or load recovery credentials across editions");
     expect(eligibility).toContain("will not substitute another edition");
     expect(media).toContain("will not substitute another edition");
     expect(communications).toContain("never broadens a missing edition into an all-editions view");
