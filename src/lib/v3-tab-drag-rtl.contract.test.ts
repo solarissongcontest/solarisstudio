@@ -27,15 +27,13 @@ describe("V3 direct tab drag RTL and hot-loop contract", () => {
     const publicCss = source("src/styles/v3-liquid-tabbar.css");
     const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
 
-    expect(publicTabs).toContain("const physicalLensIndex =");
-    expect(publicTabs).toContain(
-      'layoutDirection === "rtl" ? count - 1 - visualLensIndex : visualLensIndex',
-    );
+    expect(publicTabs).toContain("const physicalLensIndex = visualLensIndex");
     expect(publicTabs).toContain('left: "6px"');
     expect(publicTabs).toContain('right: "auto"');
     expect(publicTabs).toContain('direction: "ltr"');
     expect(publicTabs).toContain("${physicalLensIndex} * (100% + 2px)");
     expect(publicTabs).not.toContain("visualLensIndex * inlineSign");
+    expect(publicTabs).not.toContain("count - 1 - visualLensIndex");
     expect(publicCss).toContain("inset-inline-end: -0.52rem");
 
     expect(organizerTabs).toContain("const physicalLensIndex =");
