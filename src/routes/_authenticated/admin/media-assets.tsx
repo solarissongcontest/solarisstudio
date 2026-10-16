@@ -69,13 +69,7 @@ function MediaAssetsPage() {
   useEffect(() => {
     setSelectedKeys(new Set());
     setReviewReason('');
-    if (search.asset) {
-      void navigate({
-        search: (previous) => ({ ...previous, asset: undefined }),
-        replace: true,
-      });
-    }
-  }, [navigate, resolvedEditionId]);
+  }, [resolvedEditionId]);
 
   const cockpitQuery = useQuery({
     queryKey: ['studio2-country-cockpit', resolvedEditionId || 'none'],
@@ -86,7 +80,13 @@ function MediaAssetsPage() {
   const reviewsQuery = useQuery({
     queryKey: ['studio2-media-asset-reviews', resolvedEditionId || 'none'],
     enabled: Boolean(resolvedEditionId),
-    queryFn: () => listStudio2MediaAssetReviews(resolvedEditionId),
+    queryFn: async () => {
+      const reviews = await listStudio2MediaAssetReviews(resolvedEditionId);
+      if (reviews.some((review) => review.editionId !== resolvedEditionId)) {
+        throw new Error('Media Review returned review evidence for another edition.');
+      }
+      return reviews;
+    },
     staleTime: 10_000,
   });
 
