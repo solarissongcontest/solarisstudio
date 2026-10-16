@@ -16,21 +16,25 @@ const televoteServer = readFileSync(
 
 describe("V3 Organizer Voting safety contracts", () => {
   it("keeps Jury open/close on previewed, versioned and idempotent server authority", () => {
-    expect(juryWindow).toContain("previewJuryVotingStatusChange");
-    expect(juryWindow).toContain("applyJuryVotingStatusChange");
+    expect(juryWindow).toContain('rpc("studio2_jury_window_change_preview"');
+    expect(juryWindow).toContain('rpc("studio2_apply_jury_voting_status"');
     expect(juryWindow).toContain("expectedVersion");
     expect(juryWindow).toContain("operationId");
     expect(juryWindow).toContain("idempotencyKey");
+    expect(juryWindow).toContain("p_expected_version");
+    expect(juryWindow).toContain("p_operation_id");
+    expect(juryWindow).toContain("p_idempotency_key");
     expect(juryWindow).toContain("AdminConfirmSheet");
     expect(juryWindow).not.toContain('.from("shows").update');
   });
 
   it("keeps Televote open/close on the governed merged-round status command", () => {
-    expect(televoteServer).toContain("previewMergedRoundStatusChange");
-    expect(televoteServer).toContain("applyMergedRoundStatusChange");
+    expect(televoteServer).toContain("previewMergedTelevotingRoundStatusServer");
+    expect(televoteServer).toContain("setMergedTelevotingRoundStatusServer");
     expect(televoteServer).toContain("studio2_round_status_change_preview");
     expect(televoteServer).toContain("studio2_apply_round_status_change");
-    expect(televoteServer).toContain("p_expected_version");
+    expect(televoteServer).toContain("p_expected_global_version");
+    expect(televoteServer).toContain("p_expected_round_version");
     expect(televoteServer).toContain("p_operation_id");
     expect(televoteServer).toContain("p_idempotency_key");
   });
