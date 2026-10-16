@@ -100,12 +100,15 @@ export type V3OrganizerControlGroup = {
  * Control deliberately groups existing authoritative workspaces into the
  * canonical Organizer operational domains. It never creates a second mutation
  * surface. Edition-scoped routes fail closed until an explicit edition slug is
- * supplied by OrganizerContext.
+ * supplied by OrganizerContext. Some legacy authorities do not carry the slug
+ * in their URL; contextHref still locks entry into those workspaces to the
+ * explicit Organizer edition context.
  */
 export function buildV3OrganizerControlGroups(
   slug?: string | null,
 ): readonly V3OrganizerControlGroup[] {
   const editionHref = (path: string) => (slug ? path.replace(":slug", slug) : null);
+  const contextHref = (path: string) => (slug ? path : null);
 
   return [
     {
@@ -117,29 +120,29 @@ export function buildV3OrganizerControlGroups(
           key: "confirmations",
           label: "Confirmations",
           description: "Rounds, requirements, responses and participation decisions",
-          href: "/confirmations/admin",
-          editionScoped: false,
+          href: contextHref("/confirmations/admin"),
+          editionScoped: true,
         },
         {
           key: "countries",
           label: "Countries",
           description: "Country readiness, participation and delegation context",
-          href: "/admin/countries",
-          editionScoped: false,
+          href: contextHref("/admin/countries"),
+          editionScoped: true,
         },
         {
           key: "delegation-access",
           label: "Delegation access",
           description: "Recovery and access controls for delegation workflows",
-          href: "/confirmations/admin/recovery-codes",
-          editionScoped: false,
+          href: contextHref("/confirmations/admin/recovery-codes"),
+          editionScoped: true,
         },
         {
           key: "submission-history",
           label: "Submission history",
           description: "Confirmation revisions and restoration history",
-          href: "/admin/submission-versions",
-          editionScoped: false,
+          href: contextHref("/admin/submission-versions"),
+          editionScoped: true,
         },
       ],
     },
@@ -152,15 +155,15 @@ export function buildV3OrganizerControlGroups(
           key: "entry-review",
           label: "Entry review",
           description: "Review submitted entry content, corrections and verification state",
-          href: "/confirmations/admin/responses",
-          editionScoped: false,
+          href: contextHref("/confirmations/admin/responses"),
+          editionScoped: true,
         },
         {
           key: "media",
           label: "Media",
           description: "Assets, artwork and submission media review",
-          href: "/admin/media-assets",
-          editionScoped: false,
+          href: contextHref("/admin/media-assets"),
+          editionScoped: true,
         },
         {
           key: "shows",
@@ -180,8 +183,8 @@ export function buildV3OrganizerControlGroups(
           key: "eligibility",
           label: "Eligibility",
           description: "Country eligibility checks, blockers and governed overrides",
-          href: "/admin/eligibility",
-          editionScoped: false,
+          href: contextHref("/admin/eligibility"),
+          editionScoped: true,
         },
       ],
     },
@@ -194,8 +197,8 @@ export function buildV3OrganizerControlGroups(
           key: "voting-overview",
           label: "Voting overview",
           description: "Voting rounds, availability and operational state",
-          href: "/televoting/admin",
-          editionScoped: false,
+          href: contextHref("/televoting/admin"),
+          editionScoped: true,
         },
         {
           key: "jury",
@@ -215,15 +218,15 @@ export function buildV3OrganizerControlGroups(
           key: "voting-declarations",
           label: "Declarations",
           description: "Signed voting-integrity declarations",
-          href: "/televoting/admin/integrity-declarations",
-          editionScoped: false,
+          href: contextHref("/televoting/admin/integrity-declarations"),
+          editionScoped: true,
         },
         {
           key: "voting-integrity",
           label: "Integrity",
           description: "Voting integrity exceptions and review",
-          href: "/admin/jury-integrity",
-          editionScoped: false,
+          href: contextHref("/admin/jury-integrity"),
+          editionScoped: true,
         },
       ],
     },
@@ -236,8 +239,8 @@ export function buildV3OrganizerControlGroups(
           key: "results",
           label: "Results operations",
           description: "Validation, official result state and release lifecycle",
-          href: "/admin/results",
-          editionScoped: false,
+          href: contextHref("/admin/results"),
+          editionScoped: true,
         },
         {
           key: "publication",
@@ -250,8 +253,8 @@ export function buildV3OrganizerControlGroups(
           key: "public-vote-results",
           label: "Public vote results",
           description: "Inspect the canonical public-vote result workspace",
-          href: "/televoting/admin/results",
-          editionScoped: false,
+          href: contextHref("/televoting/admin/results"),
+          editionScoped: true,
         },
       ],
     },
@@ -264,8 +267,8 @@ export function buildV3OrganizerControlGroups(
           key: "communications",
           label: "Official communications",
           description: "Draft, schedule and publish official notices",
-          href: "/admin/communications",
-          editionScoped: false,
+          href: contextHref("/admin/communications"),
+          editionScoped: true,
         },
       ],
     },
@@ -285,15 +288,15 @@ export function buildV3OrganizerControlGroups(
           key: "rundown",
           label: "Broadcast rundown",
           description: "Show rundown and cue sequence",
-          href: "/admin/broadcast-rundown",
-          editionScoped: false,
+          href: contextHref("/admin/broadcast-rundown"),
+          editionScoped: true,
         },
         {
           key: "reveal",
           label: "Reveal Director",
           description: "Plan and rehearse the official results reveal sequence",
-          href: "/admin/results-reveal",
-          editionScoped: false,
+          href: contextHref("/admin/results-reveal"),
+          editionScoped: true,
         },
       ],
     },

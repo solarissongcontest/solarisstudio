@@ -71,7 +71,7 @@ describe("V3 Organizer information architecture", () => {
     expect(v3OrganizerTabForPath("/admin/access-permissions")).toBe("more");
   });
 
-  it("groups Control by canonical operational domains, separates Entry Review from Running Order, and locks edition-scoped routes without context", () => {
+  it("groups Control by canonical domains, separates Entry Review from Running Order, and fails closed without edition context", () => {
     const withoutEdition = buildV3OrganizerControlGroups(null);
     expect(withoutEdition.map((group) => group.key)).toEqual([
       "delegations",
@@ -89,18 +89,11 @@ describe("V3 Organizer information architecture", () => {
       "Communications",
       "Production",
     ]);
-    const unscopedItems = withoutEdition.flatMap((group) => group.items);
-    expect(unscopedItems.find((item) => item.key === "entry-review")?.href).toBe(
-      "/confirmations/admin/responses",
-    );
-    expect(unscopedItems.find((item) => item.key === "running-order")?.href).toBeNull();
-    expect(unscopedItems.find((item) => item.key === "confirmations")?.href).toBe(
-      "/confirmations/admin",
-    );
-    expect(unscopedItems.find((item) => item.key === "publication")?.href).toBeNull();
+    expect(withoutEdition.flatMap((group) => group.items).every((item) => item.href === null)).toBe(true);
 
     const scoped = buildV3OrganizerControlGroups("ssc-22");
     const scopedItems = scoped.flatMap((group) => group.items);
+    expect(scopedItems.every((item) => typeof item.href === "string" && item.href.length > 0)).toBe(true);
     expect(scopedItems.find((item) => item.key === "entry-review")?.href).toBe(
       "/confirmations/admin/responses",
     );
