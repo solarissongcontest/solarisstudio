@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  matchesStudio2CountryCockpitQuery,
   sortStudio2CountryCockpitOperationally,
   type Studio2CountryCockpitRow,
 } from './studio2-country-cockpit';
@@ -11,11 +12,22 @@ function row(input: {
   score: number;
   overdue?: number;
   issues?: number;
+  artist?: string | null;
+  songTitle?: string | null;
+  hod?: string | null;
 }) {
   return {
     context: {
       countryName: input.name,
       unresolvedOrganizerIssues: input.issues ?? 0,
+      entry:
+        input.artist || input.songTitle
+          ? {
+              artist: input.artist ?? null,
+              songTitle: input.songTitle ?? null,
+            }
+          : null,
+      juryMembers: input.hod ? [{ displayName: input.hod }] : [],
     },
     operationalReadiness: {
       state: input.state,
@@ -67,5 +79,28 @@ describe('Organizer country cockpit ordering', () => {
       'Calm',
     ]);
     expect(ordered[0]?.operationalReadiness.state).toBe('attention_required');
+  });
+});
+
+describe('Organizer country cockpit search', () => {
+  const delegation = row({
+    name: 'Oland',
+    state: 'attention_required',
+    score: 74,
+    artist: 'Nera Vale',
+    songTitle: 'Divine Gate',
+    hod: 'Marie Levila',
+  });
+
+  it('matches country, artist, song and HOD fields case-insensitively', () => {
+    expect(matchesStudio2CountryCockpitQuery(delegation, 'oland')).toBe(true);
+    expect(matchesStudio2CountryCockpitQuery(delegation, 'NERA')).toBe(true);
+    expect(matchesStudio2CountryCockpitQuery(delegation, 'divine gate')).toBe(true);
+    expect(matchesStudio2CountryCockpitQuery(delegation, 'levila')).toBe(true);
+  });
+
+  it('treats an empty query as all delegations and rejects unrelated text', () => {
+    expect(matchesStudio2CountryCockpitQuery(delegation, '   ')).toBe(true);
+    expect(matchesStudio2CountryCockpitQuery(delegation, 'vendia')).toBe(false);
   });
 });
