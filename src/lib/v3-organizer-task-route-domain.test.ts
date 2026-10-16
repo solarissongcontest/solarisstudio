@@ -40,6 +40,15 @@ describe("V3 Organizer Tasks domain taxonomy", () => {
     ).toBe("integrity");
   });
 
+  it("surfaces production and live-show work independently from System", () => {
+    expect(
+      organizerTaskDomain(task("/admin/broadcast-rundown", "broadcast_rundown", "rundown.attention")),
+    ).toBe("production");
+    expect(
+      organizerTaskDomain(task("/admin/results-reveal", "production_reveal", "reveal.readiness")),
+    ).toBe("production");
+  });
+
   it("surfaces communications independently instead of falling back to System", () => {
     expect(
       organizerTaskDomain(
