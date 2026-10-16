@@ -4,7 +4,9 @@ import {
   BookOpen,
   CalendarDays,
   ClipboardCheck,
+  Database,
   ExternalLink,
+  FileLock2,
   Gavel,
   History,
   KeyRound,
@@ -31,6 +33,9 @@ const groups = [
       { label: "Investigations", description: "Triage reports, evidence and governed integrity cases.", to: "/admin/integrity-investigations", icon: ShieldCheck },
       { label: "Rule rulings", description: "Review pre-clearance requests before delegations act.", to: "/admin/integrity-preclearance", icon: Gavel },
       { label: "Appeals", description: "Review sanctions through the independent appeal workflow.", to: "/admin/integrity-appeals", icon: Gavel },
+      { label: "Evidence", description: "Manage evidence access, retention and deletion lifecycle.", to: "/admin/integrity-evidence", icon: Database },
+      { label: "Disclosure", description: "Review protected disclosure requests and governed decisions.", to: "/admin/integrity-disclosure", icon: FileLock2 },
+      { label: "Identity access", description: "Control sealed-identity break-glass access and its audit trail.", to: "/admin/integrity-identity", icon: KeyRound },
       { label: "Rules manager", description: "Draft, validate and publish governed rulebook releases.", to: "/admin/rules-manager", icon: BookOpen },
       { label: "Interpretations", description: "Publish official rule clarifications and precedent.", to: "/admin/rule-interpretations", icon: BookOpen },
     ],
@@ -47,14 +52,13 @@ const groups = [
     title: "Editions & Archive",
     items: [
       { label: "Manage editions", description: "Create editions and manage their lifecycle and settings.", to: "/admin/editions", icon: Trophy },
-      { label: "Time Machine", description: "Inspect historical edition state without mutating production.", to: "/admin/time-machine", icon: History },
-      { label: "Simulation Lab", description: "Rehearse an edition safely without changing canonical state.", to: "/admin/edition-simulator", icon: ClipboardCheck },
       { label: "Edition dates", description: "Maintain historical main-event dates used by anniversary and archive features.", to: "/admin/anniversary-dates", icon: CalendarDays },
     ],
   },
   {
     title: "Engagement",
     items: [
+      { label: "Storytelling", description: "Manage editorial edition stories and archive narratives.", to: "/admin/storytelling", icon: BookOpen },
       { label: "Predictions", description: "Create and manage prediction rounds for visitors.", to: "/admin/predictions", icon: Sparkles },
       { label: "Fantasy SSC", description: "Manage roster costs, budget, lock windows and scoring.", to: "/admin/fantasy", icon: Trophy },
       { label: "Community moderation", description: "Moderate public fan display identities without changing scores.", to: "/admin/community-moderation", icon: ShieldCheck },
@@ -62,14 +66,12 @@ const groups = [
     ],
   },
   {
-    title: "Research & Quality",
+    title: "Product QA",
     items: [
-      { label: "Public UX", description: "Review public navigation, search and task-completion telemetry.", to: "/admin/public-ux", icon: BarChart3 },
-      { label: "Beta 3 feedback", description: "Review navigation and findability study results.", to: "/admin/beta3-feedback", icon: BarChart3 },
-      { label: "Beta 2 feedback", description: "See current public-site usability results and comparisons.", to: "/admin/beta2-feedback", icon: BarChart3 },
-      { label: "Beta 1 archive", description: "Read the original closed Beta 1 responses and benchmarks.", to: "/admin/beta1-feedback", icon: History },
-      { label: "Organizer acceptance test", description: "Run through the main organizer tasks and record what worked.", to: "/admin/beta-test", icon: ClipboardCheck },
-      { label: "Organizer beta coverage", description: "Compare organizer tests, missing checks and reported bugs.", to: "/admin/admin-beta-feedback", icon: BarChart3 },
+      { label: "Feedback Studies", description: "Open Beta 1, Beta 2 and Beta 3 as distinct historical study datasets from one canonical QA workspace.", to: "/admin/feedback-studies", icon: BarChart3 },
+      { label: "Organizer Acceptance Test", description: "Run the canonical organizer scenarios and record whether each workflow passes.", to: "/admin/beta-test", icon: ClipboardCheck },
+      { label: "QA Coverage", description: "Compare capability scenarios, device coverage, missing checks and reported defects.", to: "/admin/admin-beta-feedback", icon: BarChart3 },
+      { label: "Public UX", description: "Review privacy-respecting public navigation, search and task-completion telemetry.", to: "/admin/public-ux", icon: BarChart3 },
     ],
   },
   {
@@ -79,6 +81,15 @@ const groups = [
       { label: "Delivery & jobs", description: "Inspect push delivery receipts, queue state and Solaris scheduler runs.", to: "/admin/system-operations", icon: Settings },
       { label: "System settings", description: "Manage deadlines, audit history and maintenance settings.", to: "/admin/system", icon: Settings },
       { label: "Feature rollout", description: "See and control which Solaris Studio capabilities are enabled.", to: "/admin/feature-rollout", icon: Rocket },
+    ],
+  },
+  {
+    title: "Specialist labs",
+    items: [
+      { label: "Simulation Lab", description: "Rehearse an edition safely without changing canonical state.", to: "/admin/edition-simulator", icon: ClipboardCheck },
+      { label: "Time Machine", description: "Inspect historical edition state without mutating production.", to: "/admin/time-machine", icon: History },
+      { label: "Voting Lab", description: "Run voting experiments and diagnostics outside live contest operations.", to: "/admin/voting-lab", icon: BarChart3 },
+      { label: "Command Assistant", description: "Use the specialist organizer command assistant without mixing it into operational Control.", to: "/admin/command-assistant", icon: Sparkles },
     ],
   },
   {
@@ -96,7 +107,7 @@ function MoreAdmin() {
       <AdminPageHeader
         eyebrow="Solaris Organizer"
         title="More"
-        description="Governance, people, archive, engagement, research, system and low-frequency Organizer tools."
+        description="Governance, people, archive, engagement, Product QA, system, specialist labs and low-frequency Organizer tools."
       />
 
       <div className="space-y-4">

@@ -21,14 +21,14 @@ describe("Friend Voting prepared V5 scope", () => {
     expect(code).toContain("Select an edition or a specific HOD before opening Network");
   });
 
-  it("surfaces Friend Voting as a primary Voting workspace", () => {
+  it("keeps relationship intelligence discoverable under advanced Voting tools", () => {
     const overview = source("routes/televoting/admin/index.tsx");
     const workspace = overview.indexOf('eyebrow="Voting workspace"');
-    const friendVoting = overview.indexOf('title="Friend-voting intelligence"');
     const advanced = overview.indexOf("Advanced voting tools");
+    const intelligence = overview.indexOf('title="Friend-voting intelligence"');
     expect(workspace).toBeGreaterThan(-1);
-    expect(friendVoting).toBeGreaterThan(workspace);
-    expect(advanced).toBeGreaterThan(friendVoting);
+    expect(advanced).toBeGreaterThan(workspace);
+    expect(intelligence).toBeGreaterThan(advanced);
     expect(overview).toContain('to="/admin/friend-voting"');
   });
 

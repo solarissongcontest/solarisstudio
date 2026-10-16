@@ -167,7 +167,47 @@ type RpcClient = {
   rpc(name: string, args?: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }>;
 };
 
+type HostOperationInput = {
+  editionId: string;
+  action: HostOperationAction;
+  reason: string;
+  executionId: string;
+  bidId?: string | null;
+  expectedRevision?: number | null;
+  payload?: Record<string, unknown>;
+};
+
 const rpcClient = supabase as unknown as RpcClient;
+
+// Keep the first execution identity for an operation whose result is uncertain.
+// The server's immutable execution receipt makes reusing this id safe: if the
+// first request committed but its response was lost, retrying returns the same
+// receipt instead of applying the mutation a second time.
+const pendingHostExecutionIds = new Map<string, string>();
+const MAX_PENDING_HOST_EXECUTIONS = 64;
+
+function hostOperationFingerprint(input: HostOperationInput, reason: string): string {
+  return JSON.stringify({
+    editionId: input.editionId,
+    action: input.action,
+    bidId: input.bidId ?? null,
+    expectedRevision: input.expectedRevision ?? null,
+    reason,
+    payload: input.payload ?? {},
+  });
+}
+
+function executionIdForHostOperation(fingerprint: string, proposedExecutionId: string): string {
+  const existing = pendingHostExecutionIds.get(fingerprint);
+  if (existing) return existing;
+
+  if (pendingHostExecutionIds.size >= MAX_PENDING_HOST_EXECUTIONS) {
+    const oldest = pendingHostExecutionIds.keys().next().value;
+    if (oldest) pendingHostExecutionIds.delete(oldest);
+  }
+  pendingHostExecutionIds.set(fingerprint, proposedExecutionId);
+  return proposedExecutionId;
+}
 
 function object(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`Invalid ${label}`);
@@ -321,6 +361,20 @@ function parseExecution(value: unknown): HostOperationExecution {
   };
 }
 
+export function validateHostOperationExecution(
+  execution: HostOperationExecution,
+  request: Pick<HostOperationInput, 'editionId' | 'action'> & { executionId: string },
+): HostOperationExecution {
+  const mismatches: string[] = [];
+  if (execution.executionId !== request.executionId) mismatches.push('executionId');
+  if (execution.editionId !== request.editionId) mismatches.push('editionId');
+  if (execution.action !== request.action) mismatches.push('action');
+  if (mismatches.length) {
+    throw new Error(`Host operation receipt does not match the requested command (${mismatches.join(', ')}).`);
+  }
+  return execution;
+}
+
 async function rpc(name: string, args: Record<string, unknown>) {
   const { data, error } = await rpcClient.rpc(name, args);
   if (error) throw error;
@@ -330,18 +384,18 @@ async function rpc(name: string, args: Record<string, unknown>) {
 export async function loadStudio2HostManagement(editionId: string): Promise<HostManagementSnapshot> {
   if (!editionId) throw new Error('Edition is required.');
   const data = await rpc('studio2_host_management_snapshot', { p_edition_id: editionId });
-  return parseHostManagementSnapshot(data);
+  const snapshot = parseHostManagementSnapshot(data);
+  if (
+    snapshot.edition.id !== editionId ||
+    snapshot.bids.some((bid) => bid.editionId !== editionId) ||
+    (snapshot.operations && snapshot.operations.editionId !== editionId)
+  ) {
+    throw new Error('Host Management returned data outside the selected edition scope.');
+  }
+  return snapshot;
 }
 
-export async function executeStudio2HostOperation(input: {
-  editionId: string;
-  action: HostOperationAction;
-  reason: string;
-  executionId: string;
-  bidId?: string | null;
-  expectedRevision?: number | null;
-  payload?: Record<string, unknown>;
-}): Promise<HostOperationExecution> {
+export async function executeStudio2HostOperation(input: HostOperationInput): Promise<HostOperationExecution> {
   const reason = input.reason.trim();
   if (!input.editionId) throw new Error('Edition is required.');
   if (!HOST_OPERATION_ACTIONS.includes(input.action)) throw new Error('Unsupported host operation.');
@@ -351,16 +405,27 @@ export async function executeStudio2HostOperation(input: {
     throw new Error('Expected host revision is invalid.');
   }
 
+  const fingerprint = hostOperationFingerprint(input, reason);
+  const executionId = executionIdForHostOperation(fingerprint, input.executionId);
   const data = await rpc('studio2_execute_host_operation', {
     p_edition_id: input.editionId,
     p_action: input.action,
     p_reason: reason,
-    p_execution_id: input.executionId,
+    p_execution_id: executionId,
     p_bid_id: input.bidId ?? null,
     p_expected_revision: input.expectedRevision ?? null,
     p_payload: input.payload ?? {},
   });
-  return parseExecution(data);
+  const execution = validateHostOperationExecution(parseExecution(data), {
+    executionId,
+    editionId: input.editionId,
+    action: input.action,
+  });
+  // Only a receipt that proves it belongs to this exact semantic operation can
+  // retire the retry identity. A malformed/stale receipt leaves the identity
+  // available so response-loss recovery cannot accidentally mint a duplicate.
+  pendingHostExecutionIds.delete(fingerprint);
+  return execution;
 }
 
 export function hostBidStatusLabel(status: HostBidStatus): string {

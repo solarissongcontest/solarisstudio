@@ -5,7 +5,10 @@ import {
   parseStudio2ResultOperationRow,
   resultActionLabel,
   resultLifecycleLabel,
+  studio2ResultBlockers,
   summarizeStudio2ResultsOperations,
+  validateStudio2ResultExecution,
+  type Studio2ResultExecution,
   type Studio2ResultOperationRow,
 } from './studio2-results-operations';
 
@@ -53,6 +56,24 @@ function row(overrides: Partial<Studio2ResultOperationRow> = {}): Studio2ResultO
   };
 }
 
+function execution(overrides: Partial<Studio2ResultExecution> = {}): Studio2ResultExecution {
+  return {
+    executionId: 'execution-1',
+    showId: 'show-1',
+    editionId: 'edition-22',
+    action: 'lock',
+    reason: 'Lock reviewed result',
+    calculationVersion: 4,
+    previousVersion: 4,
+    materializedRows: 0,
+    updatedRows: 1,
+    preconditionsBefore: row().preconditions,
+    preconditionsAfter: row().preconditions,
+    idempotentReplay: false,
+    ...overrides,
+  };
+}
+
 describe('Studio 2 results operations model', () => {
   it('parses a valid snapshot row and rejects unknown lifecycle values', () => {
     const parsed = parseStudio2ResultOperationRow(row());
@@ -60,6 +81,25 @@ describe('Studio 2 results operations model', () => {
     expect(parsed.preconditions.juryReady).toBe(true);
 
     expect(() => parseStudio2ResultOperationRow({ ...row(), lifecycle: 'magic' })).toThrow('Invalid result lifecycle');
+  });
+
+  it('rejects a result receipt whose semantic command identity does not match the request', () => {
+    const receipt = execution();
+    const request = { executionId: 'execution-1', showId: 'show-1', action: 'lock' as const };
+
+    expect(validateStudio2ResultExecution(receipt, request)).toBe(receipt);
+    expect(() => validateStudio2ResultExecution(
+      execution({ executionId: 'execution-other' }),
+      request,
+    )).toThrow('executionId');
+    expect(() => validateStudio2ResultExecution(
+      execution({ showId: 'show-other' }),
+      request,
+    )).toThrow('showId');
+    expect(() => validateStudio2ResultExecution(
+      execution({ action: 'unlock' }),
+      request,
+    )).toThrow('action');
   });
 
   it('does not call unversioned legacy result rows calculated', () => {
@@ -84,6 +124,58 @@ describe('Studio 2 results operations model', () => {
     }))).not.toContain('calculate');
   });
 
+  it('explains Jury and Televote inputs that block calculation', () => {
+    const blocked = row({
+      lifecycle: 'votes_collected',
+      preconditions: {
+        ...row().preconditions,
+        juryReady: false,
+        juryIncompleteCount: 2,
+        juryConflictCount: 1,
+        televoteReady: false,
+        televoteVoteRows: 37,
+        calculationReady: false,
+      },
+    });
+
+    expect(studio2ResultBlockers(blocked)).toEqual([
+      {
+        id: 'jury',
+        label: 'Jury input is not finalized',
+        detail: '2 incomplete · 1 conflicts · 0 did not vote',
+      },
+      {
+        id: 'televote',
+        label: 'Public vote input is not finalized',
+        detail: '37 canonical public-vote rows are currently available',
+      },
+    ]);
+  });
+
+  it('explains reconciliation blockers only after a governed calculation version exists', () => {
+    const calculated = row({
+      lifecycle: 'validation',
+      calculationVersion: 5,
+      preconditions: {
+        ...row().preconditions,
+        resultRowCount: 9,
+        entityCountMismatch: 1,
+        sourceReconcileIssueCount: 2,
+        reconcileIssueCount: 3,
+        resultReady: false,
+      },
+    });
+
+    expect(studio2ResultBlockers(calculated)).toEqual([
+      {
+        id: 'reconciliation',
+        label: 'Calculated result needs reconciliation',
+        detail: '1 participant/result-row count mismatch · 2 total or weighting issues',
+      },
+    ]);
+    expect(studio2ResultBlockers(row())).toEqual([]);
+  });
+
   it('requires review before locking and lock before reveal readiness', () => {
     const calculated = row({
       lifecycle: 'calculated',
@@ -99,6 +191,31 @@ describe('Studio 2 results operations model', () => {
     const locked = row({ ...reviewed, lifecycle: 'locked', lockedVersion: 2 });
     expect(availableStudio2ResultActions(locked)).toContain('mark_reveal_ready');
     expect(availableStudio2ResultActions(locked)).toContain('unlock');
+  });
+
+  it('unwinds reveal readiness before allowing a locked version to be unlocked', () => {
+    const revealReady = row({
+      lifecycle: 'reveal_ready',
+      calculationVersion: 4,
+      reviewedVersion: 4,
+      lockedVersion: 4,
+      revealReadyVersion: 4,
+      preconditions: {
+        ...row().preconditions,
+        resultRowCount: 10,
+        resultReady: true,
+      },
+    });
+
+    expect(availableStudio2ResultActions(revealReady)).toEqual(['clear_reveal_ready']);
+
+    const cleared = row({
+      ...revealReady,
+      lifecycle: 'locked',
+      revealReadyVersion: null,
+    });
+    expect(availableStudio2ResultActions(cleared)).toContain('unlock');
+    expect(availableStudio2ResultActions(cleared)).toContain('mark_reveal_ready');
   });
 
   it('makes published results fully read-only even if lifecycle metadata is stale', () => {
@@ -117,6 +234,7 @@ describe('Studio 2 results operations model', () => {
     });
 
     expect(availableStudio2ResultActions(published)).toEqual([]);
+    expect(studio2ResultBlockers(published)).toEqual([]);
   });
 
   it('restores normal lifecycle availability once Publication makes results private', () => {

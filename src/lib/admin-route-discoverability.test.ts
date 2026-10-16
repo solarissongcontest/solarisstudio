@@ -48,6 +48,10 @@ const navigationCorpus = [
   // duplicate legacy-nav literal just to satisfy route discoverability.
   source("src/lib/v3-organizer.ts"),
   source("src/routes/_authenticated/admin/operations.tsx"),
+  // More is the canonical owner for low-frequency Product QA, governance,
+  // platform and specialist workspaces. A route linked from More is therefore
+  // deliberately discoverable even when it is not duplicated in global nav.
+  source("src/routes/_authenticated/admin/more.tsx"),
   source("src/routes/_authenticated/admin/menu.tsx"),
 ].join("\n");
 

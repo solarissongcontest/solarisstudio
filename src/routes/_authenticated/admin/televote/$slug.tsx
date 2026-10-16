@@ -4,6 +4,7 @@ import { ArrowLeft, Save, TriangleAlert, Vote } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminCard,
@@ -27,6 +28,7 @@ import {
 import { entityDisplayMap } from "@/lib/entities";
 import { reportSupabaseError } from "@/lib/errors";
 import { hasPublishedResults, resolveShowPublication } from "@/lib/publication";
+import { validateEditionCommandScope } from "@/lib/solaris-v6-edition-context";
 import { resolveVoting } from "@/lib/voting";
 
 type TelevoteSearch = { show?: string };
@@ -41,19 +43,27 @@ export const Route = createFileRoute("/_authenticated/admin/televote/$slug")({
   validateSearch: (search: Record<string, unknown>): TelevoteSearch => ({
     show: typeof search.show === "string" && search.show ? search.show : undefined,
   }),
-  component: TelevoteTotalsWorkspace,
+  component: TelevoteTotalsRoute,
 });
+
+function TelevoteTotalsRoute() {
+  const { editionId } = useAdminContext();
+  return <TelevoteTotalsWorkspace key={editionId || "unscoped"} />;
+}
 
 function TelevoteTotalsWorkspace() {
   const { slug } = Route.useParams();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const qc = useQueryClient();
+  const { editionId: organizerEditionId } = useAdminContext();
   const { data: edition, isLoading: loadingEdition } = useEdition(slug);
-  const { data: shows = [], isLoading: loadingShows } = useShows(edition?.id);
-  const { data: allParticipants = [] } = useParticipants(edition?.id);
+  const scopedEditionId = edition && organizerEditionId === edition.id ? edition.id : undefined;
+  const contextMismatch = Boolean(edition && organizerEditionId !== edition.id);
+  const { data: shows = [], isLoading: loadingShows } = useShows(scopedEditionId);
+  const { data: allParticipants = [] } = useParticipants(scopedEditionId);
   const { data: countries = [] } = useCountries();
-  const { data: entities = [] } = useContestEntities(edition?.id);
+  const { data: entities = [] } = useContestEntities(scopedEditionId);
 
   const orderedShows = useMemo(() => [...shows].sort((a, b) => a.sort_order - b.sort_order), [shows]);
   const selectedShow = orderedShows.find((show) => show.id === search.show) ?? orderedShows[0] ?? null;
@@ -111,17 +121,42 @@ function TelevoteTotalsWorkspace() {
   const hasExistingTotals = televotes.some((vote) => vote.points !== 0);
   const requiresConfirmation = hasExistingTotals || publishedResults;
 
+  function assertTelevoteEditionScope() {
+    if (!edition || !organizerEditionId || !selectedShow) {
+      throw Object.assign(
+        new Error("Televote totals require an exact Organizer edition and show context."),
+        { status: 409 },
+      );
+    }
+    const scope = validateEditionCommandScope({
+      routeEditionId: edition.id,
+      commandEditionId: organizerEditionId,
+      entityEditionId: selectedShow.edition_id,
+      capabilityEditionId: organizerEditionId,
+    });
+    if (!scope.ok) {
+      throw Object.assign(
+        new Error(
+          `Edition context changed before the Televote totals save (${scope.mismatches.join(", ")}). Refresh canonical state before retrying.`,
+        ),
+        { status: 409 },
+      );
+    }
+    return edition.id;
+  }
+
   async function saveChanges() {
     if (!edition || !selectedShow || !changes.length) return;
     setBusy(true);
     try {
+      const commandEditionId = assertTelevoteEditionScope();
       for (const change of changes) {
         const existing = voteFor(change.key);
         const identity = identityFor(change.key);
         const query = existing
           ? (supabase.from("televote_votes") as any).update({ points: change.points }).eq("id", existing.id)
           : (supabase.from("televote_votes") as any).insert({
-              edition_id: edition.id,
+              edition_id: commandEditionId,
               show_id: selectedShow.id,
               country_id: identity.country_id,
               contest_entity_id: identity.contest_entity_id,
@@ -150,12 +185,46 @@ function TelevoteTotalsWorkspace() {
     else void saveChanges();
   }
 
-  if (loadingEdition || loadingShows) {
+  if (loadingEdition) {
     return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading televote totals…</p></AdminCard>;
   }
 
   if (!edition) {
     return <AdminCard><AdminEmptyState icon={Vote} title="Edition not found" description="Choose another edition from the organizer workspace." action={<Link to="/admin" className="admin-action-secondary">Back to editions</Link>} /></AdminCard>;
+  }
+
+  if (!organizerEditionId) {
+    return (
+      <AdminPage>
+        <AdminCard>
+          <AdminEmptyState
+            icon={Vote}
+            title="Choose an edition"
+            description="Televote totals are edition-scoped official voting inputs. Select the exact edition in the Organizer toolbar before loading or changing totals."
+            action={<Link to="/televoting/admin" className="admin-action-secondary">Back to Voting</Link>}
+          />
+        </AdminCard>
+      </AdminPage>
+    );
+  }
+
+  if (contextMismatch) {
+    return (
+      <AdminPage>
+        <AdminCard>
+          <AdminEmptyState
+            icon={TriangleAlert}
+            title="Edition context mismatch"
+            description="This Televote totals URL belongs to a different edition than the one selected in Solaris Organizer. Reads and saves stay blocked until the contexts match."
+            action={<Link to="/televoting/admin" className="admin-action-secondary">Back to Voting</Link>}
+          />
+        </AdminCard>
+      </AdminPage>
+    );
+  }
+
+  if (loadingShows) {
+    return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading televote totals…</p></AdminCard>;
   }
 
   if (!orderedShows.length) {

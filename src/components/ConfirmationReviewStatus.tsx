@@ -34,7 +34,7 @@ export function ConfirmationReviewStatus({
 }) {
   if (selectionMethod === "internal") {
     if (!internalEntry) return null;
-    const status = normalizeReviewStatus(internalEntry.review_status);
+    const status = reviewDisplayStatus(internalEntry);
 
     return (
       <section className={reviewPanelClass(status, compact)} aria-label="Entry review status">
@@ -71,7 +71,7 @@ export function ConfirmationReviewStatus({
     .sort((a, b) => (a.position ?? 999) - (b.position ?? 999));
   if (!entries.length) return null;
 
-  const statuses = entries.map((entry) => normalizeReviewStatus(entry.review_status));
+  const statuses = entries.map(reviewDisplayStatus);
   const pendingCount = statuses.filter((status) => status === "pending").length;
   const declinedCount = statuses.filter((status) => status === "declined").length;
   const acceptedCount = statuses.filter((status) => status === "accepted").length;
@@ -98,7 +98,7 @@ export function ConfirmationReviewStatus({
 
           <div className="mt-3 space-y-2">
             {entries.map((entry, index) => {
-              const status = normalizeReviewStatus(entry.review_status);
+              const status = reviewDisplayStatus(entry);
               const winner = Boolean(entry.id && nationalFinal.winning_entry_id === entry.id);
               return (
                 <div
@@ -145,6 +145,19 @@ export function normalizeReviewStatus(status?: string | null) {
 
 type ReviewStatus = ReturnType<typeof normalizeReviewStatus>;
 
+export function reviewDisplayStatus(entry: ConfirmationReviewEntry): ReviewStatus {
+  const status = normalizeReviewStatus(entry.review_status);
+  const decision = status === "accepted" || status === "declined";
+  const knownStaleDecision = Boolean(
+    decision &&
+      entry.current_version_id &&
+      entry.reviewed_version_id &&
+      entry.current_version_id !== entry.reviewed_version_id,
+  );
+
+  return knownStaleDecision ? "pending" : status;
+}
+
 function reviewPanelClass(status: ReviewStatus, compact: boolean) {
   const size = compact ? "p-3" : "p-4";
   if (status === "accepted") {
@@ -190,19 +203,27 @@ function reviewHeading(status: ReviewStatus, noun: string) {
   return `Your ${noun} is waiting for review`;
 }
 
-export function EntryVersionEvidence({ entry }: { entry: ConfirmationReviewEntry }) {
+export function entryVersionEvidenceLabel(entry: ConfirmationReviewEntry): string | null {
   if (!entry.current_version_id || !entry.content_revision) return null;
-  const reviewed = entry.reviewed_version_id === entry.current_version_id;
+
   const status = normalizeReviewStatus(entry.review_status);
   const decision = status === "accepted" || status === "declined";
-  return (
-    <p className="mt-1 text-[11px] leading-relaxed opacity-75">
-      Version {entry.content_revision}
-      {reviewed && decision
-        ? " · Review applies to this version"
-        : decision
-          ? " · Earlier review has no version binding"
-          : " · Awaiting review of this version"}
-    </p>
-  );
+  let detail = "Awaiting review of this version";
+
+  if (decision && entry.reviewed_version_id === entry.current_version_id) {
+    detail = "Review applies to this version";
+  } else if (decision && entry.reviewed_version_id) {
+    detail = "Entry changed after review · Review applies to an earlier version";
+  } else if (decision) {
+    detail = "Earlier review has no version binding";
+  }
+
+  return `Version ${entry.content_revision} · ${detail}`;
+}
+
+export function EntryVersionEvidence({ entry }: { entry: ConfirmationReviewEntry }) {
+  const label = entryVersionEvidenceLabel(entry);
+  if (!label) return null;
+
+  return <p className="mt-1 text-[11px] leading-relaxed opacity-75">{label}</p>;
 }

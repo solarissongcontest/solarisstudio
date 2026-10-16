@@ -10,7 +10,7 @@ const organizerAliases = [
   ["src/routes/_authenticated/admin/action-centre.tsx", "/admin/tasks"],
   ["src/routes/_authenticated/admin/status.tsx", "/admin/sync-health"],
   ["src/routes/_authenticated/admin/integrity.tsx", "/admin/integrity-investigations"],
-  ["src/routes/_authenticated/admin/beta-feedback.tsx", "/admin/beta1-feedback"],
+  ["src/routes/_authenticated/admin/beta-feedback.tsx", "/admin/feedback-studies"],
   ["src/routes/_authenticated/admin/control-room-v2.tsx", "/admin/control-room"],
 ] as const;
 
@@ -28,7 +28,7 @@ describe("Browser Audit regression boundaries", () => {
       "src/routes/_authenticated/admin/action-center.tsx",
       "src/routes/_authenticated/admin/action-centre.tsx",
     ]) {
-      expect(source(path)).toContain('search={{ filter: "all" }}');
+      expect(source(path)).toContain('search={{ filter: "all", domain: "all" }}');
     }
   });
 
@@ -37,10 +37,11 @@ describe("Browser Audit regression boundaries", () => {
     expect(storytelling).toContain('aria-label="Reason for editorial changes"');
   });
 
-  it("keeps Results Reveal page identity in every feature state", () => {
+  it("keeps Results Reveal page identity in every feature and edition-scope state", () => {
     const resultsReveal = source("src/routes/_authenticated/admin/results-reveal.tsx");
     expect(resultsReveal).toContain("function ResultsRevealHeader()");
-    expect(resultsReveal.match(/<ResultsRevealHeader \/>/g)).toHaveLength(3);
+    expect(resultsReveal.match(/<ResultsRevealHeader \/>/g)).toHaveLength(4);
+    expect(resultsReveal).toContain('title="Choose an edition"');
   });
 
   it("keeps Browser Audit controls and launch probes aligned with runtime contracts", () => {

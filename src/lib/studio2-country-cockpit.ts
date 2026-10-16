@@ -20,12 +20,81 @@ export async function loadStudio2CountryCockpit(
   editionId: string,
   client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
 ): Promise<Studio2CountryCockpitRow[]> {
-  if (!editionId) return [];
+  const normalizedEditionId = editionId.trim();
+  if (!normalizedEditionId) throw new Error('Country cockpit requires an explicit edition scope.');
   const { data, error } = await client.rpc('studio2_country_cockpit', {
-    p_edition_id: editionId,
+    p_edition_id: normalizedEditionId,
   });
   if (error) throw error;
-  return mapStudio2CountryCockpit(data);
+
+  const rows = mapStudio2CountryCockpit(data);
+  if (rows.some((row) => row.context.editionId !== normalizedEditionId)) {
+    throw new Error('Country cockpit returned data outside the selected edition scope.');
+  }
+  const countryIds = rows.map((row) => row.context.countryId);
+  if (new Set(countryIds).size !== countryIds.length) {
+    throw new Error('Country cockpit returned duplicate country rows for the selected edition.');
+  }
+  return rows;
+}
+
+/**
+ * Delegation search is a view concern over the canonical country cockpit
+ * projection. It never broadens edition scope or performs a second data read.
+ */
+export function matchesStudio2CountryCockpitQuery(
+  row: Studio2CountryCockpitRow,
+  query: string,
+): boolean {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  if (!normalizedQuery) return true;
+
+  const searchableValues = [
+    row.context.countryName,
+    row.context.entry?.artist,
+    row.context.entry?.songTitle,
+    ...row.context.juryMembers.map((member) => member.displayName),
+  ];
+
+  return searchableValues.some(
+    (value) => typeof value === 'string' && value.toLocaleLowerCase().includes(normalizedQuery),
+  );
+}
+
+const operationalStateRank: Record<
+  Studio2CountryCockpitRow['operationalReadiness']['state'],
+  number
+> = {
+  blocked: 0,
+  attention_required: 1,
+  ready: 2,
+};
+
+/**
+ * Organizer lists must surface exceptions before normality. This function only
+ * orders already-canonical country cockpit projections; it does not calculate
+ * readiness or invent a separate task state.
+ */
+export function sortStudio2CountryCockpitOperationally(
+  rows: readonly Studio2CountryCockpitRow[],
+): Studio2CountryCockpitRow[] {
+  return [...rows].sort((a, b) => {
+    const state = operationalStateRank[a.operationalReadiness.state] - operationalStateRank[b.operationalReadiness.state];
+    if (state) return state;
+
+    const overdue =
+      b.operationalReadiness.overdueDeadlines.length -
+      a.operationalReadiness.overdueDeadlines.length;
+    if (overdue) return overdue;
+
+    const issues = b.context.unresolvedOrganizerIssues - a.context.unresolvedOrganizerIssues;
+    if (issues) return issues;
+
+    const score = a.operationalReadiness.score - b.operationalReadiness.score;
+    if (score) return score;
+
+    return a.context.countryName.localeCompare(b.context.countryName);
+  });
 }
 
 export function summarizeCountryCockpit(rows: readonly Studio2CountryCockpitRow[]) {

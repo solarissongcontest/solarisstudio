@@ -1,5 +1,9 @@
 import type { OrganizerTaskV5 } from "@/lib/admin-tasks-v5";
 import type { ControlRoomModel } from "@/lib/control-room-model";
+import {
+  organizerTaskDomain as classifyOrganizerTaskDomain,
+  type OrganizerTaskDomain,
+} from "@/lib/v3-organizer-task-domain";
 
 export type V3OrganizerRisk = "normal" | "elevated" | "critical";
 
@@ -91,7 +95,8 @@ export type V3OrganizerDomainState =
   | "blocked"
   | "active"
   | "not_configured"
-  | "complete";
+  | "complete"
+  | "unknown";
 
 export type V3OrganizerDomainSummary = {
   state: V3OrganizerDomainState;
@@ -156,6 +161,18 @@ const priorityRank: Record<OrganizerTaskV5["priority"], number> = {
   normal: 2,
 };
 
+const projectionTaskDomain: Record<OrganizerTaskDomain, V3OrganizerDomainKey> = {
+  delegations: "delegations",
+  entries: "contest",
+  media: "contest",
+  voting: "voting",
+  integrity: "governance",
+  publication: "results",
+  communications: "communications",
+  production: "production",
+  system: "system",
+};
+
 function dueTime(value: string | null) {
   if (!value) return Number.POSITIVE_INFINITY;
   const parsed = Date.parse(value);
@@ -189,19 +206,18 @@ function summarizeTask(task: OrganizerTaskV5): V3OrganizerTaskSummary {
   };
 }
 
-export function organizerTaskDomain(task: Pick<OrganizerTaskV5, "href" | "sourceKind" | "taskType">): V3OrganizerDomainKey {
-  const text = `${task.href} ${task.sourceKind} ${task.taskType}`.toLowerCase();
-  if (/confirm|delegat|country|participation/.test(text)) return "delegations";
-  if (/entry|media|show|lineup|progress|eligib|submission/.test(text)) return "contest";
-  if (/jury|televote|voting|ballot|integrity/.test(text)) return "voting";
-  if (/result|publication|publish/.test(text)) return "results";
-  if (/communication|notice|announcement|delivery/.test(text)) return "communications";
-  if (/broadcast|rundown|reveal|design|theme|production/.test(text)) return "production";
-  if (/rule|investigation|appeal|evidence|governance|identity/.test(text)) return "governance";
-  return "system";
+export function organizerTaskDomain(
+  task: Pick<OrganizerTaskV5, "href" | "sourceKind" | "taskType">,
+): V3OrganizerDomainKey {
+  return projectionTaskDomain[classifyOrganizerTaskDomain(task)];
 }
 
-function factor(id: string, count: number, label: string, route: string): V3OrganizerReadinessFactor | null {
+function factor(
+  id: string,
+  count: number,
+  label: string,
+  route: string,
+): V3OrganizerReadinessFactor | null {
   if (count <= 0) return null;
   return { id, label, detail: `${count} ${count === 1 ? "issue" : "issues"}`, route };
 }
@@ -212,29 +228,60 @@ function buildReadiness(
   serverTime: string,
   stateVersion: string,
 ): V3OrganizerReadiness {
-  const progress = Math.max(0, Math.min(100, Number(health?.progress ?? 0)));
-  const critical = Math.max(0, Number(health?.critical_count ?? 0));
+  // Missing health evidence is not a clean bill of health. Keep all readiness
+  // factors unverified until the canonical health projection is available.
+  if (!health) {
+    return {
+      overall: 0,
+      blocking: [],
+      incomplete: [],
+      ready: [],
+      calculatedAt: serverTime,
+      stateVersion,
+    };
+  }
+
+  const progress = Math.max(0, Math.min(100, Number(health.progress ?? 0)));
+  const critical = Math.max(0, Number(health.critical_count ?? 0));
   const incomplete = [
-    factor("entries", Number(health?.missing_songs ?? 0) + Number(health?.missing_artists ?? 0), "Entry metadata", `/admin/entries/${edition.slug}`),
-    factor("running-order", Number(health?.running_issues ?? 0), "Running order", `/admin/lineup-sync/${edition.slug}`),
-    factor("jury", Number(health?.jury_issues ?? 0), "Jury", `/admin/jury/${edition.slug}`),
-    factor("televote", Number(health?.televote_issues ?? 0), "Televote", `/admin/televote/${edition.slug}`),
-    factor("results", Number(health?.result_issues ?? 0), "Results", "/admin/results"),
+    factor(
+      "entries",
+      Number(health.missing_songs ?? 0) + Number(health.missing_artists ?? 0),
+      "Entry review",
+      "/confirmations/admin/responses",
+    ),
+    factor(
+      "running-order",
+      Number(health.running_issues ?? 0),
+      "Running order",
+      `/admin/entries/${edition.slug}`,
+    ),
+    factor("jury", Number(health.jury_issues ?? 0), "Jury", `/admin/jury/${edition.slug}`),
+    factor(
+      "televote",
+      Number(health.televote_issues ?? 0),
+      "Televote",
+      `/admin/televote/${edition.slug}`,
+    ),
+    factor("results", Number(health.result_issues ?? 0), "Results", "/admin/results"),
   ].filter((item): item is V3OrganizerReadinessFactor => Boolean(item));
 
   const blocking = critical
-    ? [{
-        id: "critical-health",
-        label: critical === 1 ? "1 critical blocker" : `${critical} critical blockers`,
-        detail: "Critical edition health checks require intervention before high-consequence operations.",
-        route: "/admin/tasks?filter=all",
-      }]
+    ? [
+        {
+          id: "critical-health",
+          label: critical === 1 ? "1 critical blocker" : `${critical} critical blockers`,
+          detail:
+            "Critical edition health checks require intervention before high-consequence operations.",
+          route: "/admin/tasks?filter=all",
+        },
+      ]
     : [];
 
   const incompleteIds = new Set(incomplete.map((item) => item.id));
   const ready = [
-    { id: "entries", label: "Entries", route: `/admin/entries/${edition.slug}` },
-    { id: "running-order", label: "Running order", route: `/admin/lineup-sync/${edition.slug}` },
+    { id: "entries", label: "Entry review", route: "/confirmations/admin/responses" },
+    { id: "running-order", label: "Running order", route: `/admin/entries/${edition.slug}` },
     { id: "jury", label: "Jury", route: `/admin/jury/${edition.slug}` },
     { id: "televote", label: "Televote", route: `/admin/televote/${edition.slug}` },
     { id: "results", label: "Results", route: "/admin/results" },
@@ -245,7 +292,9 @@ function buildReadiness(
   return { overall: progress, blocking, incomplete, ready, calculatedAt: serverTime, stateVersion };
 }
 
-function domainMeta(edition: V3OrganizerEditionProjection): Record<V3OrganizerDomainKey, { label: string; route: string }> {
+function domainMeta(
+  edition: V3OrganizerEditionProjection,
+): Record<V3OrganizerDomainKey, { label: string; route: string }> {
   return {
     delegations: { label: "Delegations", route: "/admin/countries" },
     contest: { label: "Contest", route: `/admin/shows/${edition.slug}` },
@@ -266,38 +315,57 @@ function buildDomains(
   const meta = domainMeta(edition);
   const keys = Object.keys(meta) as V3OrganizerDomainKey[];
 
-  return Object.fromEntries(keys.map((key) => {
-    const domainTasks = sortedUnresolved(tasks.filter((task) => organizerTaskDomain(task) === key));
-    const blocking = domainTasks.filter((task) => task.priority === "critical").length;
-    const first = domainTasks[0];
-    let state: V3OrganizerDomainState = blocking ? "blocked" : domainTasks.length ? "attention" : "ready";
+  return Object.fromEntries(
+    keys.map((key) => {
+      const domainTasks = sortedUnresolved(
+        tasks.filter((task) => organizerTaskDomain(task) === key),
+      );
+      const blocking = domainTasks.filter((task) => task.priority === "critical").length;
+      const first = domainTasks[0];
+      // The current V5 task contract can prove the presence of work, but an
+      // empty legacy queue cannot prove the full V3 domain is ready. #575 owns
+      // the richer canonical task-state/action contract that will eventually
+      // allow positive readiness to be derived server-side.
+      let state: V3OrganizerDomainState = blocking
+        ? "blocked"
+        : domainTasks.length
+          ? "attention"
+          : "unknown";
 
-    if (key === "voting" && !domainTasks.length && [live.subsystems.juryVoting, live.subsystems.televoting].includes("open")) {
-      state = "active";
-    }
-    if (key === "results" && !domainTasks.length && live.subsystems.results === "published") {
-      state = "complete";
-    }
-    if (key === "production" && !domainTasks.length && live.editionState === "live_show") {
-      state = "active";
-    }
+      if (
+        key === "voting" &&
+        !domainTasks.length &&
+        [live.subsystems.juryVoting, live.subsystems.televoting].includes("open")
+      ) {
+        state = "active";
+      }
+      if (key === "results" && !domainTasks.length && live.subsystems.results === "published") {
+        state = "complete";
+      }
+      if (key === "production" && !domainTasks.length && live.editionState === "live_show") {
+        state = "active";
+      }
 
-    return [key, {
-      state,
-      label: meta[key].label,
-      detail: domainTasks.length
-        ? `${domainTasks.length} ${domainTasks.length === 1 ? "item needs" : "items need"} attention`
-        : state === "active"
-          ? "Active operational state"
-          : state === "complete"
-            ? "Complete"
-            : "No known action required",
-      issueCount: domainTasks.length,
-      blockingIssueCount: blocking,
-      primaryRoute: meta[key].route,
-      recommendedAction: first ? { label: first.title, route: first.href } : undefined,
-    } satisfies V3OrganizerDomainSummary];
-  })) as Record<V3OrganizerDomainKey, V3OrganizerDomainSummary>;
+      return [
+        key,
+        {
+          state,
+          label: meta[key].label,
+          detail: domainTasks.length
+            ? `${domainTasks.length} ${domainTasks.length === 1 ? "item needs" : "items need"} attention`
+            : state === "active"
+              ? "Active operational state"
+              : state === "complete"
+                ? "Complete"
+                : "No current task is known, but canonical V3 readiness is not yet proven",
+          issueCount: domainTasks.length,
+          blockingIssueCount: blocking,
+          primaryRoute: meta[key].route,
+          recommendedAction: first ? { label: first.title, route: first.href } : undefined,
+        } satisfies V3OrganizerDomainSummary,
+      ];
+    }),
+  ) as Record<V3OrganizerDomainKey, V3OrganizerDomainSummary>;
 }
 
 function buildStateVersion(input: {
@@ -362,9 +430,10 @@ export function buildV3OrganizerProjection(input: {
     recentChanges,
   });
 
-  const label = input.edition.editionNumber == null
-    ? input.edition.name
-    : `SSC ${input.edition.editionNumber}`;
+  const label =
+    input.edition.editionNumber == null
+      ? input.edition.name
+      : `SSC ${input.edition.editionNumber}`;
 
   return {
     context: {
@@ -409,7 +478,9 @@ export function buildV3OrganizerProjection(input: {
       detail:
         Number(input.health?.issues_count ?? 0) > 0
           ? `${Number(input.health?.issues_count ?? 0)} health ${Number(input.health?.issues_count ?? 0) === 1 ? "issue" : "issues"}`
-          : "No known edition health issue",
+          : input.health
+            ? "No known edition health issue"
+            : "Edition health projection unavailable",
       issueCount: Number(input.health?.issues_count ?? input.live.issues.total ?? 0),
       criticalIssueCount: Number(input.health?.critical_count ?? input.live.issues.critical ?? 0),
     },

@@ -16,6 +16,7 @@ import {
   AdminSheet,
   AdminStatus,
 } from '@/components/admin/AdminUI';
+import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useEditions } from '@/lib/data';
 import { loadStudio2CountryCockpit } from '@/lib/studio2-country-cockpit';
 import {
@@ -72,9 +73,7 @@ function EligibilityPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const editions = editionsQuery.data ?? [];
-  const selectedEdition = editions.find((edition) => edition.id === editionId)
-    ?? [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0]
-    ?? null;
+  const selectedEdition = selectOrganizerEdition(editions, editionId);
   const resolvedEditionId = selectedEdition?.id ?? '';
 
   const cockpitQuery = useQuery({
@@ -183,7 +182,11 @@ function EligibilityPage() {
 
         {!selectedEdition && !editionsQuery.isLoading ? (
           <AdminCard>
-            <AdminEmptyState icon={ShieldCheck} title="No edition selected" description="Select an edition before reviewing eligibility." />
+            <AdminEmptyState
+              icon={ShieldCheck}
+              title="No edition selected"
+              description="Select an edition before reviewing eligibility. Solaris will not substitute another edition for missing or stale Organizer context."
+            />
           </AdminCard>
         ) : cockpitQuery.isLoading || overridesQuery.isLoading || editionsQuery.isLoading ? (
           <AdminCard><p className="py-12 text-center text-sm text-muted-foreground">Building eligibility matrix…</p></AdminCard>
@@ -262,6 +265,7 @@ function EligibilityPage() {
         )}
 
         <EligibilityDetailSheet
+          key={resolvedEditionId || 'unscoped'}
           country={selected}
           overrideHistory={(overridesQuery.data ?? []).filter((item) => item.countryId === selected?.countryId)}
           onClose={() => updateSearch({ country: undefined })}
@@ -514,7 +518,7 @@ function EligibilityOverrideImpactPreview({ pending }: { pending: PendingEligibi
       </p>
 
       <div className="grid grid-cols-2 gap-2">
-        <EligibilityImpactMetric label="Factual state" value={statusLabel(pending.rule.factualStatus)} />
+        <EligibilityImpactMetric label="Edition" value={preview.editionId} />
         <EligibilityImpactMetric label="Effective after change" value={nextEffective} />
         <EligibilityImpactMetric label="Rule" value={pending.rule.id} />
         <EligibilityImpactMetric label="Prior decisions" value={preview.historyCount} />

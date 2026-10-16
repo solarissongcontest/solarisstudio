@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import {
   AdminCard,
   AdminCardHeader,
@@ -38,12 +39,38 @@ export const Route = createFileRoute("/televoting/admin/integrity-declarations")
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: IntegrityDeclarationsPage,
+  component: IntegrityDeclarationsRoute,
 });
 
 type Filter = "all" | "signed" | "submitted" | "unsigned";
 
-function IntegrityDeclarationsPage() {
+function IntegrityDeclarationsRoute() {
+  const { editionId } = useAdminContext();
+
+  if (!editionId) {
+    return (
+      <div className="mx-auto max-w-5xl space-y-4">
+        <AdminPageHeader
+          eyebrow="Voting integrity"
+          title="Declarations"
+          description="Voting integrity declarations are edition-scoped Organizer evidence."
+        />
+        <AdminCard>
+          <AdminEmptyState
+            icon={FileSignature}
+            title="Choose an edition"
+            description="Select the exact edition in the Organizer toolbar before loading declarations. Solaris will not merge declaration evidence across editions."
+            action={<Link to="/televoting/admin" className="admin-action-secondary">Back to Voting</Link>}
+          />
+        </AdminCard>
+      </div>
+    );
+  }
+
+  return <IntegrityDeclarationsPage key={editionId} editionId={editionId} />;
+}
+
+function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const getAdmin = useServerFn(getMergedTelevotingAdmin);
@@ -56,6 +83,7 @@ function IntegrityDeclarationsPage() {
     reason: string;
     operationId: string;
     idempotencyKey: string;
+    editionId: string;
   } | null>(null);
 
   const { data: admin, isLoading: adminLoading } = useQuery({
@@ -73,8 +101,16 @@ function IntegrityDeclarationsPage() {
   }, [admin, adminLoading, navigate]);
 
   const { data: rows = [], isLoading, error } = useQuery<IntegrityDeclarationRow[]>({
-    queryKey: ["merged-integrity-declarations"],
-    queryFn: () => getDeclarations({ data: { limit: 500, signedOnly: false } }),
+    queryKey: ["merged-integrity-declarations", editionId],
+    queryFn: async () => {
+      const result = await getDeclarations({
+        data: { editionId, limit: 500, signedOnly: false },
+      });
+      if (result.some((row) => row.canonical_edition_id !== editionId)) {
+        throw new Error("Voting integrity declarations returned data outside the selected edition scope");
+      }
+      return result;
+    },
     enabled: Boolean(admin),
     refetchInterval: 60_000,
   });
@@ -82,12 +118,17 @@ function IntegrityDeclarationsPage() {
   const previewInvalidation = useMutation({
     mutationFn: previewVotingDeclarationInvalidation,
     onSuccess: async (preview, preflightId) => {
+      if (preview.id !== preflightId) {
+        throw new Error("Voting declaration preview returned evidence for a different declaration");
+      }
       if (preview.alreadyApplied) {
-        await queryClient.invalidateQueries({ queryKey: ["merged-integrity-declarations"] });
+        await queryClient.invalidateQueries({ queryKey: ["merged-integrity-declarations", editionId] });
         return;
       }
       const row = rows.find((item) => item.id === preflightId);
-      if (!row) return;
+      if (!row || row.canonical_edition_id !== editionId) {
+        throw new Error("Voting declaration is outside the selected edition scope");
+      }
       const operationId = crypto.randomUUID();
       setPendingInvalidation({
         row,
@@ -95,21 +136,29 @@ function IntegrityDeclarationsPage() {
         reason: "",
         operationId,
         idempotencyKey: operationId,
+        editionId,
       });
     },
   });
 
   const invalidateDeclaration = useMutation({
-    mutationFn: async (pending: NonNullable<typeof pendingInvalidation>) =>
-      applyVotingDeclarationInvalidation({
+    mutationFn: async (pending: NonNullable<typeof pendingInvalidation>) => {
+      if (pending.editionId !== editionId || pending.row.canonical_edition_id !== editionId) {
+        throw Object.assign(
+          new Error("Organizer edition context changed before declaration invalidation. Reopen the declaration from the current edition."),
+          { status: 409 },
+        );
+      }
+      return applyVotingDeclarationInvalidation({
         preview: pending.preview,
         reason: pending.reason.trim(),
         operationId: pending.operationId,
         idempotencyKey: pending.idempotencyKey,
-      }),
+      });
+    },
     onSuccess: async () => {
       setPendingInvalidation(null);
-      await queryClient.invalidateQueries({ queryKey: ["merged-integrity-declarations"] });
+      await queryClient.invalidateQueries({ queryKey: ["merged-integrity-declarations", editionId] });
     },
   });
 
@@ -132,7 +181,6 @@ function IntegrityDeclarationsPage() {
         row.username,
         row.country_code,
         row.round_name,
-        row.edition_name ?? "",
         row.severity,
         ...row.findings.flatMap((finding) => [finding.targetCode, finding.targetName, finding.scopeLabel, ...finding.reasons]),
       ]
@@ -143,11 +191,11 @@ function IntegrityDeclarationsPage() {
   }, [filter, query, rows]);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="mx-auto max-w-5xl space-y-4" data-v3-organizer-declaration-edition={editionId}>
       <AdminPageHeader
         eyebrow="Voting integrity"
         title="Declarations"
-        description="Review ballots that the automatic Voting Integrity System flagged before submission, including the evidence shown to the voter and any declaration they signed. An automatic flag is evidence for review, not a finding of misconduct by itself."
+        description="Review automatic integrity warnings, evidence and signed declarations from the exact selected edition. An automatic flag is evidence for review, not a finding of misconduct by itself."
         actions={
           <div className="flex flex-wrap gap-2">
             <Link to="/televoting/admin/integrity" className="admin-action-secondary">Integrity cases</Link>
@@ -167,7 +215,7 @@ function IntegrityDeclarationsPage() {
         <AdminCardHeader
           eyebrow="Filter"
           title={`${filtered.length} visible integrity record${filtered.length === 1 ? "" : "s"}`}
-          description="The same voter can have more than one record if they went back and changed the ballot after a warning. That is intentional: every analysed ballot snapshot remains traceable."
+          description="The same voter can have more than one record if they went back and changed the ballot after a warning. Every analysed ballot snapshot remains traceable inside this edition."
         />
         <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
           <label className="relative block">
@@ -215,7 +263,7 @@ function IntegrityDeclarationsPage() {
           <AdminEmptyState
             icon={FileSignature}
             title={rows.length ? "No records match" : "No automatic warnings yet"}
-            description={rows.length ? "Change the search or filter to widen the list." : "When the automatic system requires a pre-submit declaration, the exact warning, evidence and signature trail will appear here."}
+            description={rows.length ? "Change the search or filter to widen the list." : "When the automatic system requires a pre-submit declaration in this edition, the exact warning, evidence and signature trail will appear here."}
           />
         </AdminCard>
       )}

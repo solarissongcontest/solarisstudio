@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Eye, EyeOff, Globe2, LockKeyhole, Settings2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminCard,
@@ -68,19 +69,22 @@ export const Route = createFileRoute("/_authenticated/admin/publication/$slug")(
 
 function PublicationWorkspace() {
   const { slug } = Route.useParams();
+  const { editionId: organizerEditionId } = useAdminContext();
   const qc = useQueryClient();
   const { data: edition, isLoading: loadingEdition } = useEdition(slug);
-  const { data: shows = [], isLoading: loadingShows } = useShows(edition?.id);
+  const scopedEditionId = edition && organizerEditionId === edition.id ? edition.id : undefined;
+  const contextMismatch = Boolean(edition && organizerEditionId !== edition.id);
+  const { data: shows = [], isLoading: loadingShows } = useShows(scopedEditionId);
   const resultOperationsQuery = useQuery({
-    queryKey: ["studio2-results-operations", edition?.id ?? "none"],
-    enabled: Boolean(edition?.id),
-    queryFn: () => loadStudio2ResultsOperations(edition!.id),
+    queryKey: ["studio2-results-operations", scopedEditionId ?? "none"],
+    enabled: Boolean(scopedEditionId),
+    queryFn: () => loadStudio2ResultsOperations(scopedEditionId!),
     staleTime: 10_000,
   });
   const publicationControlsQuery = useQuery({
-    queryKey: ["studio2-show-publication-controls", edition?.id ?? "none"],
-    enabled: Boolean(edition?.id),
-    queryFn: () => loadShowPublicationControls(edition!.id),
+    queryKey: ["studio2-show-publication-controls", scopedEditionId ?? "none"],
+    enabled: Boolean(scopedEditionId),
+    queryFn: () => loadShowPublicationControls(scopedEditionId!),
     staleTime: 5_000,
   });
   const [draft, setDraft] = useState<DraftState | null>(null);
@@ -90,6 +94,16 @@ function PublicationWorkspace() {
   const [publicationPassword, setPublicationPassword] = useState("");
   const [recovery, setRecovery] = useState<SolarisV6OperationRecovery | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!edition || organizerEditionId === edition.id) return;
+    setDraft(null);
+    setPendingRelease(null);
+    setDiscardDraftOpen(false);
+    setScheduleAt("");
+    setPublicationPassword("");
+    setRecovery(null);
+  }, [edition, organizerEditionId]);
 
   const orderedShows = useMemo(() => [...shows].sort((a, b) => a.sort_order - b.sort_order), [shows]);
   const resultOperationByShow = useMemo(
@@ -115,7 +129,24 @@ function PublicationWorkspace() {
     ]);
   }
 
+  function assertPublicationEditionScope(show?: Show) {
+    if (!edition || !scopedEditionId || organizerEditionId !== edition.id) {
+      throw Object.assign(
+        new Error("Organizer edition context changed. Reopen Publication from the currently selected edition."),
+        { status: 409 },
+      );
+    }
+    if (show && show.edition_id !== scopedEditionId) {
+      throw Object.assign(
+        new Error("The selected show no longer belongs to the active Organizer edition context."),
+        { status: 409 },
+      );
+    }
+    return scopedEditionId;
+  }
+
   function openShow(show: Show) {
+    assertPublicationEditionScope(show);
     const control = publicationControlByShow.get(show.id);
     setScheduleAt("");
     setDraft({
@@ -165,6 +196,7 @@ function PublicationWorkspace() {
   ) {
     setBusy(true);
     try {
+      const editionId = assertPublicationEditionScope(show);
       const normalized = normalisePublicationDependencies(config);
       if (
         targetState !== "hidden" &&
@@ -197,7 +229,7 @@ function PublicationWorkspace() {
         preview,
         operationId,
         idempotencyKey: operationId,
-        editionId: edition?.id ?? show.edition_id,
+        editionId,
       });
     } catch (caught) {
       toast.error(
@@ -212,11 +244,12 @@ function PublicationWorkspace() {
     if (!pendingRelease) return;
     setBusy(true);
     try {
+      const activeEditionId = assertPublicationEditionScope(pendingRelease.show);
       const scope = validateEditionCommandScope({
-        routeEditionId: edition?.id ?? null,
+        routeEditionId: activeEditionId,
         commandEditionId: pendingRelease.editionId,
         entityEditionId: pendingRelease.show.edition_id,
-        capabilityEditionId: null,
+        capabilityEditionId: organizerEditionId || null,
       });
 
       if (!scope.ok) {
@@ -311,12 +344,36 @@ function PublicationWorkspace() {
     await reviewChange(show, resolveShowPublication(show), "hidden");
   }
 
-  if (loadingEdition || loadingShows || publicationControlsQuery.isLoading) {
+  if (loadingEdition) {
     return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading publication controls…</p></AdminCard>;
   }
 
   if (!edition) {
     return <AdminCard><AdminEmptyState icon={Globe2} title="Edition not found" description="Choose another edition from the organizer workspace." action={<Link to="/admin" className="admin-action-secondary">Back to editions</Link>} /></AdminCard>;
+  }
+
+  if (contextMismatch || !scopedEditionId) {
+    return (
+      <AdminPage>
+        <AdminPageHeader
+          eyebrow={editionLabel(edition)}
+          title="Publication"
+          description="Publication is locked to the edition selected in Solaris Organizer."
+        />
+        <AdminCard>
+          <AdminEmptyState
+            icon={Globe2}
+            title="Edition context changed"
+            description="This publication URL does not match the edition currently selected in Organizer. Reopen Publication from the active edition so Solaris cannot mix release state across editions."
+            action={<Link to="/admin" className="admin-action-secondary">Back to Organizer</Link>}
+          />
+        </AdminCard>
+      </AdminPage>
+    );
+  }
+
+  if (loadingShows || publicationControlsQuery.isLoading) {
+    return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading publication controls…</p></AdminCard>;
   }
 
   return (
@@ -551,6 +608,9 @@ function PublicationWorkspace() {
         description={
           pendingRelease ? (
             <div className="space-y-3">
+              <p className="text-xs font-semibold text-foreground">
+                {editionLabel(edition)} · {pendingRelease.show.name}
+              </p>
               <p>
                 <strong className="text-foreground">
                   {publicationStateLabel(pendingRelease.preview.currentState)} →{" "}

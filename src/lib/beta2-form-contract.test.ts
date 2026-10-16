@@ -16,6 +16,7 @@ describe("public beta archives and Beta 3 contract", () => {
   const beta3Dashboard = source("routes/_authenticated/admin/beta3-feedback.tsx");
   const beta2Dashboard = source("routes/_authenticated/admin/beta2-feedback.tsx");
   const beta1Archive = source("routes/_authenticated/admin/beta1-feedback.tsx");
+  const feedbackStudies = source("routes/_authenticated/admin/feedback-studies.tsx");
   const more = source("routes/_authenticated/admin/more.tsx");
   const adminNavigation = source("components/admin/admin-navigation.ts");
   const beta2Migration = source("../supabase/migrations/20260820162000_close_beta1_open_beta2.sql");
@@ -85,9 +86,14 @@ describe("public beta archives and Beta 3 contract", () => {
   });
 
   it("exposes Beta 3 evidence without replacing historical dashboards", () => {
-    expect(more).toContain('to: "/admin/beta3-feedback"');
-    expect(more).toContain('to: "/admin/beta2-feedback"');
-    expect(more).toContain('to: "/admin/beta1-feedback"');
+    expect(more).toContain('to: "/admin/feedback-studies"');
+    expect(more).not.toContain('to: "/admin/beta3-feedback"');
+    expect(more).not.toContain('to: "/admin/beta2-feedback"');
+    expect(more).not.toContain('to: "/admin/beta1-feedback"');
+    expect(feedbackStudies).toContain('to: "/admin/beta3-feedback"');
+    expect(feedbackStudies).toContain('to: "/admin/beta2-feedback"');
+    expect(feedbackStudies).toContain('to: "/admin/beta1-feedback"');
+    expect(feedbackStudies).toContain("The V3 workspace consolidates navigation, not source data.");
     expect(adminNavigation).toContain('"Beta 3 feedback",');
     expect(adminNavigation).toContain('"/admin/beta3-feedback"');
     expect(beta3Dashboard).toContain('title="Beta 3 navigation"');

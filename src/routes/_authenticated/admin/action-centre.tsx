@@ -5,5 +5,5 @@ export const Route = createFileRoute("/_authenticated/admin/action-centre")({
 });
 
 function ActionCentreRedirect() {
-  return <Navigate to="/admin/tasks" search={{ filter: "all" }} replace />;
+  return <Navigate to="/admin/tasks" search={{ filter: "all", domain: "all" }} replace />;
 }

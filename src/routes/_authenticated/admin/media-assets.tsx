@@ -6,11 +6,14 @@ import { toast } from 'sonner';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
+import { MediaAssetPreview, safeMediaAssetSourceUrl } from '@/components/admin/MediaAssetPreview';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminEmptyState, AdminPageHeader, AdminSheet, AdminStatus } from '@/components/admin/AdminUI';
+import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useCountries, useEditions } from '@/lib/data';
 import { MEDIA_ASSET_TYPES, type MediaAssetType } from '@/lib/media-asset-vault';
 import { loadStudio2CountryCockpit } from '@/lib/studio2-country-cockpit';
+import { loadOrganizerMediaAssetReviews } from '@/lib/v3-organizer-media-review-scope';
 import {
   STUDIO2_MEDIA_ASSET_STATES,
   buildStudio2MediaAssetInventory,
@@ -48,8 +51,13 @@ export const Route = createFileRoute('/_authenticated/admin/media-assets')({
       { name: 'robots', content: 'noindex' },
     ],
   }),
-  component: MediaAssetsPage,
+  component: MediaAssetsRoute,
 });
+
+function MediaAssetsRoute() {
+  const { editionId } = useAdminContext();
+  return <MediaAssetsPage key={editionId || 'unscoped'} />;
+}
 
 function MediaAssetsPage() {
   const { editionId } = useAdminContext();
@@ -62,9 +70,7 @@ function MediaAssetsPage() {
   const [reviewReason, setReviewReason] = useState('');
 
   const editions = editionsQuery.data ?? [];
-  const selectedEdition = editions.find((edition) => edition.id === editionId)
-    ?? [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0]
-    ?? null;
+  const selectedEdition = selectOrganizerEdition(editions, editionId);
   const resolvedEditionId = selectedEdition?.id ?? '';
 
   const cockpitQuery = useQuery({
@@ -76,7 +82,7 @@ function MediaAssetsPage() {
   const reviewsQuery = useQuery({
     queryKey: ['studio2-media-asset-reviews', resolvedEditionId || 'none'],
     enabled: Boolean(resolvedEditionId),
-    queryFn: () => listStudio2MediaAssetReviews(resolvedEditionId),
+    queryFn: () => loadOrganizerMediaAssetReviews(resolvedEditionId),
     staleTime: 10_000,
   });
 
@@ -234,7 +240,13 @@ function MediaAssetsPage() {
         />
 
         {!selectedEdition && !editionsQuery.isLoading ? (
-          <AdminCard><AdminEmptyState icon={Images} title="No edition selected" description="Select an edition before reviewing media operations." /></AdminCard>
+          <AdminCard>
+            <AdminEmptyState
+              icon={Images}
+              title="No edition selected"
+              description="Select an edition before reviewing media operations. Solaris will not substitute another edition for missing or stale Organizer context."
+            />
+          </AdminCard>
         ) : editionsQuery.isLoading || countriesQuery.isLoading || cockpitQuery.isLoading || reviewsQuery.isLoading ? (
           <AdminCard><p className="py-12 text-center text-sm text-muted-foreground">Building media inventory…</p></AdminCard>
         ) : error ? (
@@ -311,6 +323,7 @@ function MediaAssetsPage() {
 }
 
 function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAssetItem | null; reviews: Awaited<ReturnType<typeof listStudio2MediaAssetReviews>>; onClose: () => void }) {
+  const safeSourceUrl = safeMediaAssetSourceUrl(asset?.sourceUrl);
   return (
     <AdminSheet open={Boolean(asset)} onClose={onClose} title={asset?.title ?? 'Media asset'} description={asset ? `${assetTypeLabel(asset.assetType)} · ${stateLabel(asset.state)}` : undefined}>
       {asset ? (
@@ -319,8 +332,11 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
             <h3 className="text-sm font-semibold">Canonical source</h3>
             <div className="mt-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
               <div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">Current state</span><AdminStatus tone={stateTone(asset.state)}>{stateLabel(asset.state)}</AdminStatus></div>
+              <div className="mt-3">
+                <MediaAssetPreview assetType={asset.assetType} sourceUrl={asset.sourceUrl} title={asset.title} />
+              </div>
               <p className="mt-3 break-all text-sm">{asset.sourceUrl ?? 'No source supplied.'}</p>
-              {asset.sourceUrl ? <a href={asset.sourceUrl} target="_blank" rel="noreferrer" className="admin-action-secondary mt-3 inline-flex">Open source <ExternalLink className="size-4" /></a> : null}
+              {safeSourceUrl ? <a href={safeSourceUrl} target="_blank" rel="noreferrer" className="admin-action-secondary mt-3 inline-flex">Open source <ExternalLink className="size-4" /></a> : null}
               {asset.sourceUpdatedAt ? <p className="mt-3 text-xs text-muted-foreground">Canonical entry updated {formatTimestamp(asset.sourceUpdatedAt)}</p> : null}
             </div>
           </section>

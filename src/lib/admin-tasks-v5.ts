@@ -39,6 +39,63 @@ function normalizeOrganizerEditionId(editionId: string | null | undefined) {
   return normalized ? normalized : null;
 }
 
+function requireOrganizerEditionId(editionId: string | null | undefined) {
+  const normalizedEditionId = normalizeOrganizerEditionId(editionId);
+  if (!normalizedEditionId) {
+    throw new Error("Organizer Tasks requires an explicit edition scope.");
+  }
+  return normalizedEditionId;
+}
+
+function requiredString(value: unknown, field: string, index: number): string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`Invalid Organizer Task ${field} at index ${index}`);
+  }
+  return value.trim();
+}
+
+function optionalString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized || null;
+}
+
+function requiredTimestamp(value: unknown, field: string, index: number): string {
+  const normalized = requiredString(value, field, index);
+  if (!Number.isFinite(Date.parse(normalized))) {
+    throw new Error(`Invalid Organizer Task ${field} at index ${index}`);
+  }
+  return normalized;
+}
+
+function optionalTimestamp(value: unknown, field: string, index: number): string | null {
+  if (value == null) return null;
+  const normalized = requiredString(value, field, index);
+  if (!Number.isFinite(Date.parse(normalized))) {
+    throw new Error(`Invalid Organizer Task ${field} at index ${index}`);
+  }
+  return normalized;
+}
+
+function mapResolutionPredicate(value: unknown, index: number): Record<string, unknown> {
+  if (value == null) return {};
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Invalid Organizer Task resolution predicate at index ${index}`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function mapRuleReference(value: unknown, index: number): string[] {
+  if (value == null) return [];
+  if (!Array.isArray(value)) {
+    throw new Error(`Invalid Organizer Task rule reference at index ${index}`);
+  }
+  if (value.some((item) => typeof item !== "string" || !item.trim())) {
+    throw new Error(`Invalid Organizer Task rule reference at index ${index}`);
+  }
+  return [...new Set(value.map((item) => item.trim()))];
+}
+
 export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
   if (!Array.isArray(value)) {
     throw new Error("Invalid Organizer Tasks payload: expected an array");
@@ -50,47 +107,52 @@ export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
     }
     const task = row as Partial<OrganizerTaskV5>;
     if (
-      typeof task.id !== "string" ||
-      typeof task.sourceKind !== "string" ||
-      typeof task.sourceKey !== "string" ||
-      typeof task.taskType !== "string" ||
       !["critical", "high", "normal"].includes(task.priority ?? "") ||
-      !["open", "waiting", "resolved"].includes(task.state ?? "") ||
-      typeof task.title !== "string" ||
-      typeof task.description !== "string" ||
-      typeof task.href !== "string" ||
-      typeof task.openedAt !== "string" ||
-      typeof task.lastEvaluatedAt !== "string"
+      !["open", "waiting", "resolved"].includes(task.state ?? "")
     ) {
       throw new Error(`Invalid Organizer Task shape at index ${index}`);
     }
 
+    const state = task.state as OrganizerTaskState;
+    const resolvedAt = optionalTimestamp(task.resolvedAt, "resolved timestamp", index);
+    if ((state === "resolved") !== Boolean(resolvedAt)) {
+      throw new Error(`Invalid Organizer Task resolution state at index ${index}`);
+    }
+
     return {
-      id: task.id,
-      editionId: typeof task.editionId === "string" ? task.editionId : null,
-      countryId: typeof task.countryId === "string" ? task.countryId : null,
-      assignedTo: typeof task.assignedTo === "string" ? task.assignedTo : null,
-      sourceKind: task.sourceKind,
-      sourceKey: task.sourceKey,
-      taskType: task.taskType,
+      id: requiredString(task.id, "id", index),
+      editionId: optionalString(task.editionId),
+      countryId: optionalString(task.countryId),
+      assignedTo: optionalString(task.assignedTo),
+      sourceKind: requiredString(task.sourceKind, "source kind", index),
+      sourceKey: requiredString(task.sourceKey, "source key", index),
+      taskType: requiredString(task.taskType, "task type", index),
       priority: task.priority as OrganizerTaskPriority,
-      state: task.state as OrganizerTaskState,
-      title: task.title,
-      description: task.description,
-      href: task.href,
-      dueAt: typeof task.dueAt === "string" ? task.dueAt : null,
-      resolutionPredicate:
-        task.resolutionPredicate && typeof task.resolutionPredicate === "object"
-          ? (task.resolutionPredicate as Record<string, unknown>)
-          : {},
-      ruleReference: Array.isArray(task.ruleReference)
-        ? task.ruleReference.filter((item): item is string => typeof item === "string")
-        : [],
-      openedAt: task.openedAt,
-      resolvedAt: typeof task.resolvedAt === "string" ? task.resolvedAt : null,
-      lastEvaluatedAt: task.lastEvaluatedAt,
+      state,
+      title: requiredString(task.title, "title", index),
+      description: requiredString(task.description, "description", index),
+      href: requiredString(task.href, "route", index),
+      dueAt: optionalTimestamp(task.dueAt, "due timestamp", index),
+      resolutionPredicate: mapResolutionPredicate(task.resolutionPredicate, index),
+      ruleReference: mapRuleReference(task.ruleReference, index),
+      openedAt: requiredTimestamp(task.openedAt, "opened timestamp", index),
+      resolvedAt,
+      lastEvaluatedAt: requiredTimestamp(task.lastEvaluatedAt, "evaluation timestamp", index),
     };
   });
+}
+
+export function parseOrganizerTaskCountV5(value: unknown): number {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim()
+        ? Number(value)
+        : Number.NaN;
+  if (!Number.isFinite(parsed) || parsed < 0 || !Number.isInteger(parsed)) {
+    throw new Error("Invalid Organizer task count payload.");
+  }
+  return parsed;
 }
 
 export async function loadOrganizerTasksV5(
@@ -98,24 +160,33 @@ export async function loadOrganizerTasksV5(
   filter: OrganizerTaskFilter,
   client: RpcClient = supabase as unknown as RpcClient,
 ) {
+  const normalizedEditionId = requireOrganizerEditionId(editionId);
   const { data, error } = await client.rpc("admin_organizer_tasks", {
-    p_edition_id: normalizeOrganizerEditionId(editionId),
+    p_edition_id: normalizedEditionId,
     p_filter: filter,
   });
   if (error) throw new Error(error.message || "Organizer Tasks could not be loaded.");
-  return mapOrganizerTasksV5(data);
+
+  const tasks = mapOrganizerTasksV5(data);
+  const mismatchedTask = tasks.find(
+    (task) => task.editionId !== null && task.editionId !== normalizedEditionId,
+  );
+  if (mismatchedTask) {
+    throw new Error("Organizer Tasks returned data outside the selected edition scope.");
+  }
+  return tasks;
 }
 
 export async function loadOrganizerTaskCountV5(
   editionId: string | null | undefined,
   client: RpcClient = supabase as unknown as RpcClient,
 ) {
+  const normalizedEditionId = requireOrganizerEditionId(editionId);
   const { data, error } = await client.rpc("admin_organizer_task_count", {
-    p_edition_id: normalizeOrganizerEditionId(editionId),
+    p_edition_id: normalizedEditionId,
   });
   if (error) throw new Error(error.message || "Organizer task count could not be loaded.");
-  const value = Number(data ?? 0);
-  return Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
+  return parseOrganizerTaskCountV5(data);
 }
 
 export function useOrganizerTasksV5(
@@ -125,8 +196,8 @@ export function useOrganizerTasksV5(
 ) {
   const normalizedEditionId = normalizeOrganizerEditionId(editionId);
   return useQuery({
-    enabled,
-    queryKey: ["organizer-tasks-v5", normalizedEditionId ?? "all", filter],
+    enabled: enabled && Boolean(normalizedEditionId),
+    queryKey: ["organizer-tasks-v5", normalizedEditionId ?? "unscoped", filter],
     queryFn: () => loadOrganizerTasksV5(normalizedEditionId, filter),
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
@@ -139,8 +210,8 @@ export function useOrganizerTaskCountV5(
 ) {
   const normalizedEditionId = normalizeOrganizerEditionId(editionId);
   return useQuery({
-    enabled,
-    queryKey: ["organizer-task-count-v5", normalizedEditionId ?? "all"],
+    enabled: enabled && Boolean(normalizedEditionId),
+    queryKey: ["organizer-task-count-v5", normalizedEditionId ?? "unscoped"],
     queryFn: () => loadOrganizerTaskCountV5(normalizedEditionId),
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,

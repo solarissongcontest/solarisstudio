@@ -62,24 +62,28 @@ describe("Organisation OS V5 participation-status operations", () => {
     expect(migration).toContain("from authenticated");
   });
 
-  it("keeps one retry identity in the confirmation sheet", () => {
+  it("keeps one retry identity and reconciles uncertain outcomes", () => {
     expect(route).toContain(
       'rpc(\n        "studio2_participation_status_change_preview"',
     );
     expect(route).toContain(
-      'rpc(\n        "studio2_apply_participation_status"',
+      'rpc(\n          "studio2_apply_participation_status"',
     );
     expect(route).not.toContain(
       'rpc("admin_set_participation_status"',
     );
     expect(route).toContain("AdminConfirmSheet");
-    expect(route).toContain("operationId: crypto.randomUUID()");
-    expect(route).toContain("idempotencyKey: crypto.randomUUID()");
+    expect(route).toContain("const operationId = crypto.randomUUID()");
+    expect(route).toContain("idempotencyKey: operationId");
     expect(route).toContain("p_operation_id: pending.operationId");
     expect(route).toContain("p_idempotency_key: pending.idempotencyKey");
     expect(route).toContain(
       "p_expected_version: pending.preview.expectedVersion",
     );
+    expect(route).toContain("useServerFn(reconcileSystemOperation)");
+    expect(route).toContain("recoverStatusChange(pending)");
+    expect(route).toContain("reconciliation.receipt.status === \"succeeded\"");
+    expect(route).toContain("Checking participation change outcome");
     expect(route).toContain("publishedResultRows");
     expect(route).toContain("Existing score rows are not deleted.");
   });

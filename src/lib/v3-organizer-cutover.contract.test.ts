@@ -54,11 +54,16 @@ describe("V3 Organizer reversible cutover", () => {
     expect(shell).toContain("data-organizer-context-version={contextVersion}");
   });
 
-  it("keeps Control as a presentation router over existing authorities", () => {
+  it("keeps Control as a context-safe projection over existing authorities", () => {
     expect(control).toContain("buildV3OrganizerControlGroups");
+    expect(control).toContain("useV3OrganizerProjection");
     expect(control).toContain('data-v3-organizer-control=""');
     expect(control).toContain("Current edition");
     expect(control).toContain("Select edition");
+    expect(control).toContain("summary.recommendedAction");
+    expect(control).toContain("summary.blockingIssueCount");
+    expect(control).toContain("Solaris will not guess a different edition for you");
+    expect(control).not.toContain("ordered[0]");
     expect(control).not.toContain("integrations/supabase/client");
     expect(control).not.toContain(".from(");
     expect(control).not.toContain(".rpc(");

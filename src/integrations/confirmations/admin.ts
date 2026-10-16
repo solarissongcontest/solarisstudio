@@ -69,6 +69,21 @@ export type ConfirmationRoundChangeReceipt = {
   operationId: string;
 };
 
+type ConfirmationRoundPreviewInput = {
+  roundId?: string | null;
+  kind: ConfirmationRoundChangeKind;
+  payload?: ConfirmationRoundChangePayload;
+};
+
+type ConfirmationRoundApplyInput = {
+  roundId?: string | null;
+  kind: ConfirmationRoundChangeKind;
+  payload?: ConfirmationRoundChangePayload;
+  operationId: string;
+  idempotencyKey: string;
+  expectedVersion: number;
+};
+
 export type ConfirmationEdition = {
   id: string;
   name: string;
@@ -226,11 +241,75 @@ export async function setConfirmationRoundEditing(id: string, enabled: boolean) 
   return data === true;
 }
 
-export async function previewConfirmationRoundChange(input: {
-  roundId?: string | null;
-  kind: ConfirmationRoundChangeKind;
-  payload?: ConfirmationRoundChangePayload;
-}): Promise<ConfirmationRoundChangePreview> {
+function isRoundStatus(value: unknown): value is ConfirmationRound["status"] {
+  return ["draft", "open", "closed", "auto_closed"].includes(String(value));
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+export function validateConfirmationRoundChangePreview(
+  value: unknown,
+  input: ConfirmationRoundPreviewInput,
+): ConfirmationRoundChangePreview {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Confirmation round preview returned an invalid payload.");
+  }
+
+  const preview = value as Partial<ConfirmationRoundChangePreview>;
+  const validShape =
+    (preview.riskClass === "R2" || preview.riskClass === "R3") &&
+    ["create", "update", "status", "editing", "delete"].includes(preview.changeKind ?? "") &&
+    (preview.roundId === null || (typeof preview.roundId === "string" && Boolean(preview.roundId.trim()))) &&
+    (preview.roundName === null || typeof preview.roundName === "string") &&
+    typeof preview.editionId === "string" &&
+    Boolean(preview.editionId.trim()) &&
+    isNonNegativeInteger(preview.expectedVersion) &&
+    isNonNegativeInteger(preview.responseCount) &&
+    isNonNegativeInteger(preview.affectedResponses) &&
+    (preview.currentlyEditableResponses === undefined || isNonNegativeInteger(preview.currentlyEditableResponses)) &&
+    isNonNegativeInteger(preview.unresolvedRequirementCount) &&
+    (preview.currentStatus === undefined || isRoundStatus(preview.currentStatus)) &&
+    (preview.targetStatus === undefined || isRoundStatus(preview.targetStatus)) &&
+    (preview.currentEditingEnabled === undefined || typeof preview.currentEditingEnabled === "boolean") &&
+    (preview.targetEditingEnabled === undefined || typeof preview.targetEditingEnabled === "boolean") &&
+    typeof preview.willMoveOpeningTimeToNow === "boolean" &&
+    typeof preview.willClearExpiredClosingTime === "boolean" &&
+    isNonNegativeInteger(preview.requirementsCreated) &&
+    typeof preview.alreadyApplied === "boolean" &&
+    isStringArray(preview.blockers);
+
+  if (!validShape) {
+    throw new Error("Confirmation round preview returned an invalid payload.");
+  }
+  if (preview.changeKind !== input.kind) {
+    throw new Error("Confirmation round preview returned a different change kind.");
+  }
+  if (input.roundId && preview.roundId !== input.roundId) {
+    throw new Error("Confirmation round preview returned a different round.");
+  }
+  if (input.kind === "create" && preview.roundId !== null) {
+    throw new Error("Confirmation round create preview unexpectedly returned an existing round.");
+  }
+  const payloadEditionId = input.payload?.editionId?.trim();
+  if (payloadEditionId && preview.editionId !== payloadEditionId) {
+    throw new Error("Confirmation round preview returned data outside the requested edition scope.");
+  }
+  if (preview.requirementsCreated !== 0) {
+    throw new Error("Confirmation round preview unexpectedly creates confirmation requirements.");
+  }
+
+  return preview as ConfirmationRoundChangePreview;
+}
+
+export async function previewConfirmationRoundChange(
+  input: ConfirmationRoundPreviewInput,
+): Promise<ConfirmationRoundChangePreview> {
   const { data, error } = await confirmationsSupabase.rpc(
     "studio2_confirmation_round_change_preview",
     {
@@ -240,17 +319,61 @@ export async function previewConfirmationRoundChange(input: {
     },
   );
   if (error) throw error;
-  return data as unknown as ConfirmationRoundChangePreview;
+  return validateConfirmationRoundChangePreview(data, input);
 }
 
-export async function applyConfirmationRoundChange(input: {
-  roundId?: string | null;
-  kind: ConfirmationRoundChangeKind;
-  payload?: ConfirmationRoundChangePayload;
-  operationId: string;
-  idempotencyKey: string;
-  expectedVersion: number;
-}): Promise<ConfirmationRoundChangeReceipt> {
+export function validateConfirmationRoundChangeReceipt(
+  value: unknown,
+  input: Pick<
+    ConfirmationRoundApplyInput,
+    "roundId" | "kind" | "operationId" | "expectedVersion"
+  >,
+): ConfirmationRoundChangeReceipt {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Confirmation round command returned an invalid receipt.");
+  }
+
+  const receipt = value as Partial<ConfirmationRoundChangeReceipt>;
+  const validShape =
+    receipt.ok === true &&
+    (receipt.riskClass === "R2" || receipt.riskClass === "R3") &&
+    ["create", "update", "status", "editing", "delete"].includes(receipt.changeKind ?? "") &&
+    typeof receipt.roundId === "string" &&
+    Boolean(receipt.roundId.trim()) &&
+    (receipt.status === null || isRoundStatus(receipt.status)) &&
+    (receipt.editingEnabled === null || typeof receipt.editingEnabled === "boolean") &&
+    isNonNegativeInteger(receipt.affectedResponses) &&
+    isNonNegativeInteger(receipt.requirementsCreated) &&
+    isNonNegativeInteger(receipt.previousVersion) &&
+    isNonNegativeInteger(receipt.version) &&
+    typeof receipt.operationId === "string" &&
+    Boolean(receipt.operationId.trim());
+
+  if (!validShape) {
+    throw new Error("Confirmation round command returned an invalid receipt.");
+  }
+  if (receipt.operationId !== input.operationId) {
+    throw new Error("Confirmation round command returned a receipt for a different operation.");
+  }
+  if (receipt.changeKind !== input.kind) {
+    throw new Error("Confirmation round command returned a receipt for a different change kind.");
+  }
+  if (input.roundId && receipt.roundId !== input.roundId) {
+    throw new Error("Confirmation round command returned a receipt for a different round.");
+  }
+  if (receipt.previousVersion !== input.expectedVersion || receipt.version < receipt.previousVersion) {
+    throw new Error("Confirmation round command returned inconsistent version evidence.");
+  }
+  if (receipt.requirementsCreated !== 0) {
+    throw new Error("Confirmation round change unexpectedly created confirmation requirements.");
+  }
+
+  return receipt as ConfirmationRoundChangeReceipt;
+}
+
+export async function applyConfirmationRoundChange(
+  input: ConfirmationRoundApplyInput,
+): Promise<ConfirmationRoundChangeReceipt> {
   const { data, error } = await confirmationsSupabase.rpc(
     "studio2_apply_confirmation_round_change",
     {
@@ -263,7 +386,7 @@ export async function applyConfirmationRoundChange(input: {
     },
   );
   if (error) throw error;
-  return data as unknown as ConfirmationRoundChangeReceipt;
+  return validateConfirmationRoundChangeReceipt(data, input);
 }
 
 export async function loadConfirmationCalendar(

@@ -40,7 +40,9 @@ export function AdminSelectors() {
         pathname.startsWith(`/admin/publication/${edition.slug}`),
     ) ?? null;
   const savedEdition = orderedEditions.find((edition) => edition.id === editionId) ?? null;
-  const activeEdition = routeEdition ?? savedEdition ?? orderedEditions[0] ?? null;
+  // Organizer context is explicit. A missing or stale context is not permission
+  // to silently operate the newest edition just because it happens to sort first.
+  const activeEdition = routeEdition ?? savedEdition ?? null;
 
   const filteredEditions = useMemo(() => {
     const needle = search.trim().toLowerCase();
