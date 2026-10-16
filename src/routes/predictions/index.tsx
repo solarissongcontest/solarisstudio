@@ -2,10 +2,23 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
 import { AppShell, Panel } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PredictionWorkspaceHeader } from "@/components/predictions/PredictionWorkspaceHeader";
+import { V3AppShell } from "@/components/v3/V3AppShell";
+import { V3PredictionsScreen } from "@/components/v3/V3PredictionsScreen";
+import { V3Screen, V3Surface } from "@/components/v3/V3Foundation";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
-import { usePredictionRounds } from "@/lib/prediction-data";
+import {
+  useFanSession,
+  useMyPredictionHistory,
+  usePredictionRounds,
+} from "@/lib/prediction-data";
 import { formatEventDateTime } from "@/lib/public-time";
+import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
+import {
+  predictionResultSummary,
+  resolveV3PredictionState,
+} from "@/lib/v3-predictions";
 
 export const Route = createFileRoute("/predictions/")({
   head: () => ({
@@ -28,14 +41,69 @@ function useHydratedNow() {
 }
 
 function PredictionArenaPage() {
+  const { isAppMode, platformResolved } = useSolarisApp();
+  const rollout = useV3RolloutProbe(platformResolved && isAppMode);
   const { data: roundData, isLoading } = usePredictionRounds();
   const { data: shows } = useAllShows();
   const { data: editions } = useEditions();
+  const user = useFanSession();
+  const history = useMyPredictionHistory(user.data?.id);
 
   const showMap = new Map((shows ?? []).map((show) => [show.id, show]));
   const editionMap = new Map((editions ?? []).map((edition) => [edition.id, edition]));
   const rounds = roundData?.rounds ?? [];
   const now = useHydratedNow();
+  const v3Enabled =
+    isAppMode &&
+    !rollout.isError &&
+    rollout.data?.enabled === true;
+
+  if (!platformResolved || (isAppMode && rollout.isLoading)) {
+    return <main className="mx-auto max-w-3xl px-4 py-10"><h1 className="text-3xl font-bold">Predictions</h1><p role="status" className="mt-3">Opening predictions…</p></main>;
+  }
+
+  if (v3Enabled) {
+    if (isLoading || user.isLoading || (user.data && history.isLoading) || now == null) {
+      return (
+        <V3AppShell editionLabel="Solaris Studio" phaseLabel="Predictions">
+          <V3Screen><V3Surface className="p-5"><p role="status">Loading prediction rounds…</p></V3Surface></V3Screen>
+        </V3AppShell>
+      );
+    }
+    if (roundData?.schemaReady === false) {
+      return (
+        <V3AppShell editionLabel="Solaris Studio" phaseLabel="Predictions">
+          <V3Screen><V3Surface className="p-5"><h1 className="text-xl font-semibold">Predictions are unavailable</h1><p className="mt-2 text-sm text-[var(--v3-text-secondary)]">Solaris will not substitute browser-local picks for the canonical prediction system.</p></V3Surface></V3Screen>
+        </V3AppShell>
+      );
+    }
+
+    const historyByRound = new Map((history.data ?? []).map((entry) => [entry.round_id, entry]));
+    const cards = rounds.map((round) => {
+      const show = showMap.get(round.show_id);
+      const edition = show ? editionMap.get(show.edition_id) : null;
+      const entry = historyByRound.get(round.id) ?? null;
+      const result = predictionResultSummary(entry);
+      return {
+        id: round.id,
+        showId: round.show_id,
+        title: show?.name ?? "Prediction round",
+        editionLabel: edition ? editionLabel(edition) : "Solaris Song Contest",
+        locksAt: round.locks_at,
+        state: resolveV3PredictionState({ round, entry, nowMs: now }),
+        predictionTypes: round.prediction_types,
+        score: result?.score ?? null,
+        percentile: result?.percentile ?? null,
+        scoringVersion: result?.scoringVersion ?? null,
+      };
+    });
+
+    return (
+      <V3AppShell editionLabel="Solaris Studio" phaseLabel="Predictions">
+        <V3PredictionsScreen rounds={cards} signedIn={Boolean(user.data)} />
+      </V3AppShell>
+    );
+  }
 
   return (
     <AppShell>
