@@ -16,7 +16,11 @@ describe("installed app safe updates", () => {
     expect(routeUpdateBlocker("/confirmations")?.id).toBe("focused-participation-task");
     expect(routeUpdateBlocker("/jury-voting")?.id).toBe("focused-participation-task");
     expect(routeUpdateBlocker("/televoting")?.id).toBe("focused-participation-task");
+    expect(routeUpdateBlocker("/next-in-line")?.id).toBe("focused-participation-task");
+    expect(routeUpdateBlocker("/my-solaris/entry")?.id).toBe("focused-participation-task");
+    expect(routeUpdateBlocker("/my-solaris/entry/")?.id).toBe("focused-participation-task");
     expect(appUpdateSafety("/participate").safe).toBe(true);
+    expect(appUpdateSafety("/my-solaris/activity").safe).toBe(true);
   });
 
   it("supports dynamic blockers for critical mutations outside route rules", () => {
