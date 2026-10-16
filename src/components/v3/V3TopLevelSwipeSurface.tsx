@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useState,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
@@ -30,6 +31,14 @@ type SwipeState = {
   viewportWidth: number;
   lensStepWidth: number;
   tabItems: HTMLElement[];
+};
+
+type SettlingComposition = {
+  originIndex: number;
+  targetIndex: number;
+  previousSurface: ReactNode;
+  currentSurface: ReactNode;
+  nextSurface: ReactNode;
 };
 
 function navigationMaterial() {
@@ -65,6 +74,7 @@ export function V3TopLevelSwipeSurface({
   previewReady = false,
   interactionKey = null,
   onCommit,
+  onSettled,
 }: {
   children: ReactNode;
   previousSurface?: ReactNode;
@@ -76,11 +86,20 @@ export function V3TopLevelSwipeSurface({
   previewReady?: boolean;
   interactionKey?: string | null;
   onCommit: (targetIndex: number) => void;
+  onSettled?: (targetIndex: number) => void;
 }) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<SwipeState | null>(null);
   const settleTimerRef = useRef<number | null>(null);
+  const activeIndexRef = useRef(activeIndex);
+  const committedTargetRef = useRef<number | null>(null);
+  const committedInteractionKeyRef = useRef<string | null>(null);
+  const settlingCompositionRef = useRef<SettlingComposition | null>(null);
+  const [settlingComposition, setSettlingComposition] =
+    useState<SettlingComposition | null>(null);
+  activeIndexRef.current = activeIndex;
+
   const policy = resolveV3TopLevelSwipePolicy(pathname, searchStr);
   const requiredAdjacentSurfacesReady =
     (activeIndex === 0 || previousSurface != null) &&
@@ -98,7 +117,7 @@ export function V3TopLevelSwipeSurface({
   const clearNavigationMaterial = useCallback(() => {
     if (typeof document === "undefined") return;
     const root = document.documentElement;
-    root.style.setProperty("--v3-navigation-progress", String(activeIndex));
+    root.style.setProperty("--v3-navigation-progress", String(activeIndexRef.current));
     root.removeAttribute("data-v3-navigation-progress-owner");
 
     const material = navigationMaterial();
@@ -112,12 +131,19 @@ export function V3TopLevelSwipeSurface({
         item.style.removeProperty("--v3-tab-visual-opacity");
         item.style.removeProperty("--v3-tab-visual-scale");
       });
-  }, [activeIndex]);
+  }, []);
 
   const resetSurface = useCallback(() => {
     clearSettleTimer();
     const drag = dragRef.current;
     dragRef.current = null;
+    committedTargetRef.current = null;
+    committedInteractionKeyRef.current = null;
+    if (settlingCompositionRef.current != null) {
+      settlingCompositionRef.current = null;
+      setSettlingComposition(null);
+    }
+
     const surface = surfaceRef.current;
     if (surface) {
       if (drag) {
@@ -180,10 +206,14 @@ export function V3TopLevelSwipeSurface({
     [activeIndex, itemCount],
   );
 
-  useEffect(
-    () => resetSurface(),
-    [interactionKey, pathname, resetSurface, searchStr],
-  );
+  useEffect(() => {
+    const expectedTarget = committedTargetRef.current;
+    const preservingOwnedCommit =
+      expectedTarget != null &&
+      activeIndex === expectedTarget &&
+      committedInteractionKeyRef.current === interactionKey;
+    if (!preservingOwnedCommit) resetSurface();
+  }, [activeIndex, interactionKey, pathname, resetSurface, searchStr]);
 
   useEffect(() => {
     const interrupt = () => resetSurface();
@@ -223,6 +253,7 @@ export function V3TopLevelSwipeSurface({
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (
       !enabled ||
+      committedTargetRef.current != null ||
       prefersReducedMotion() ||
       shellInteractionBlocked() ||
       event.pointerType === "mouse" ||
@@ -336,12 +367,30 @@ export function V3TopLevelSwipeSurface({
       return;
     }
 
+    const frozenComposition: SettlingComposition = {
+      originIndex: activeIndex,
+      targetIndex,
+      previousSurface,
+      currentSurface: children,
+      nextSurface,
+    };
+    settlingCompositionRef.current = frozenComposition;
+    setSettlingComposition(frozenComposition);
+    committedTargetRef.current = targetIndex;
+    committedInteractionKeyRef.current = interactionKey;
+
     publishVisualProgress(targetIndex, drag, "settle");
+    onCommit(targetIndex);
     settleTimerRef.current = window.setTimeout(() => {
       settleTimerRef.current = null;
-      onCommit(targetIndex);
+      resetSurface();
+      onSettled?.(targetIndex);
     }, 180);
   };
+
+  const visualPreviousSurface = settlingComposition?.previousSurface ?? previousSurface;
+  const visualCurrentSurface = settlingComposition?.currentSurface ?? children;
+  const visualNextSurface = settlingComposition?.nextSurface ?? nextSurface;
 
   return (
     <div
@@ -351,6 +400,7 @@ export function V3TopLevelSwipeSurface({
       data-v3-top-level-swipe-preview-ready={previewReady ? "true" : "false"}
       data-v3-top-level-swipe-adjacent-ready={requiredAdjacentSurfacesReady ? "true" : "false"}
       data-v3-top-level-swipe-enabled={enabled ? "true" : "false"}
+      data-v3-top-level-swipe-committed-target={settlingComposition?.targetIndex ?? undefined}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={(event) => finish(event)}
@@ -360,27 +410,27 @@ export function V3TopLevelSwipeSurface({
       }}
     >
       <div ref={trackRef} className="v3-top-level-swipe-track">
-        {previousSurface != null ? (
+        {visualPreviousSurface != null ? (
           <div
             className="v3-top-level-swipe-page v3-top-level-swipe-page--previous"
             aria-hidden="true"
             inert
             data-v3-swipe-preview="previous"
           >
-            {previousSurface}
+            {visualPreviousSurface}
           </div>
         ) : null}
         <div className="v3-top-level-swipe-page v3-top-level-swipe-page--current">
-          {children}
+          {visualCurrentSurface}
         </div>
-        {nextSurface != null ? (
+        {visualNextSurface != null ? (
           <div
             className="v3-top-level-swipe-page v3-top-level-swipe-page--next"
             aria-hidden="true"
             inert
             data-v3-swipe-preview="next"
           >
-            {nextSurface}
+            {visualNextSurface}
           </div>
         ) : null}
       </div>
