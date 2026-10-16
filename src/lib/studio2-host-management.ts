@@ -361,6 +361,20 @@ function parseExecution(value: unknown): HostOperationExecution {
   };
 }
 
+export function validateHostOperationExecution(
+  execution: HostOperationExecution,
+  request: Pick<HostOperationInput, 'editionId' | 'action'> & { executionId: string },
+): HostOperationExecution {
+  const mismatches: string[] = [];
+  if (execution.executionId !== request.executionId) mismatches.push('executionId');
+  if (execution.editionId !== request.editionId) mismatches.push('editionId');
+  if (execution.action !== request.action) mismatches.push('action');
+  if (mismatches.length) {
+    throw new Error(`Host operation receipt does not match the requested command (${mismatches.join(', ')}).`);
+  }
+  return execution;
+}
+
 async function rpc(name: string, args: Record<string, unknown>) {
   const { data, error } = await rpcClient.rpc(name, args);
   if (error) throw error;
@@ -370,7 +384,15 @@ async function rpc(name: string, args: Record<string, unknown>) {
 export async function loadStudio2HostManagement(editionId: string): Promise<HostManagementSnapshot> {
   if (!editionId) throw new Error('Edition is required.');
   const data = await rpc('studio2_host_management_snapshot', { p_edition_id: editionId });
-  return parseHostManagementSnapshot(data);
+  const snapshot = parseHostManagementSnapshot(data);
+  if (
+    snapshot.edition.id !== editionId ||
+    snapshot.bids.some((bid) => bid.editionId !== editionId) ||
+    (snapshot.operations && snapshot.operations.editionId !== editionId)
+  ) {
+    throw new Error('Host Management returned data outside the selected edition scope.');
+  }
+  return snapshot;
 }
 
 export async function executeStudio2HostOperation(input: HostOperationInput): Promise<HostOperationExecution> {
@@ -394,7 +416,14 @@ export async function executeStudio2HostOperation(input: HostOperationInput): Pr
     p_expected_revision: input.expectedRevision ?? null,
     p_payload: input.payload ?? {},
   });
-  const execution = parseExecution(data);
+  const execution = validateHostOperationExecution(parseExecution(data), {
+    executionId,
+    editionId: input.editionId,
+    action: input.action,
+  });
+  // Only a receipt that proves it belongs to this exact semantic operation can
+  // retire the retry identity. A malformed/stale receipt leaves the identity
+  // available so response-loss recovery cannot accidentally mint a duplicate.
   pendingHostExecutionIds.delete(fingerprint);
   return execution;
 }
