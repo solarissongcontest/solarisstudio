@@ -96,12 +96,23 @@ async function installSession(context: BrowserContext, session: E2ESession) {
 async function startFrameSampler(page: Page, durationMs: number) {
   await page.evaluate((duration) => {
     const samples: number[] = [];
-    const startedAt = performance.now();
-    let previous = startedAt;
+    let startedAt: number | null = null;
+    let previous: number | null = null;
     (window as unknown as { __v3FrameProfile?: Promise<FrameProfile> }).__v3FrameProfile =
       new Promise<FrameProfile>((resolve) => {
         const tick = (now: number) => {
-          if (now !== previous) samples.push(now - previous);
+          // Start the profiling window on the first frame actually delivered by
+          // the browser. Headless WebKit can delay that first RAF while the test
+          // process is busy; counting that scheduler delay as the entire sample
+          // window produced one-frame false failures instead of frame evidence.
+          if (startedAt == null || previous == null) {
+            startedAt = now;
+            previous = now;
+            requestAnimationFrame(tick);
+            return;
+          }
+
+          samples.push(now - previous);
           previous = now;
           if (now - startedAt < duration) {
             requestAnimationFrame(tick);
