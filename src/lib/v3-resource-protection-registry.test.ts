@@ -19,6 +19,9 @@ const operationLedger = source(
 const confirmationLimits = source(
   "supabase/migrations/20261016063000_v3_s8_confirmation_resource_limits.sql",
 );
+const nextInLine = source(
+  "supabase/migrations/20261016150000_v3_s7_next_in_line_authorization.sql",
+);
 const outbox = source("supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql");
 const uploadFinalizer = source("supabase/functions/solaris-upload-finalize/index.ts");
 
@@ -84,6 +87,32 @@ describe("System V3 S8 resource protection registry", () => {
     ).toBe(2);
   });
 
+  it("closes the Next in Line replay/resource gap at the same database boundary as authorization", () => {
+    const protection = v3ResourceProtection("next-in-line-canonical-submit-protection");
+    expect(protection).toMatchObject({
+      kind: "resource-limit",
+      authority: "database",
+      externallyTriggerable: true,
+      replaySafe: true,
+      bounds: {
+        oneRowPerEditionSource: true,
+        maxCountryChars: 80,
+        maxArtistChars: 160,
+        maxSongChars: 160,
+        maxUrlChars: 500,
+        maxPreviewTokenChars: 10,
+        semanticIdempotency: true,
+        directBrowserWritesRevoked: true,
+        anonymousMutationRevoked: true,
+      },
+    });
+    expect(nextInLine).toContain("next_in_line_submissions_edition_source_v3_uidx");
+    expect(nextInLine).toContain("private.studio2_claim_operation(");
+    expect(nextInLine).toContain("payload - array[");
+    expect(nextInLine).toContain("revoke insert, update, delete on table public.next_in_line_submissions");
+    expect(nextInLine).toContain("revoke all on function public.submit_next_in_line(jsonb)");
+  });
+
   it("bounds consumer batch/lease size and uses skip-locked concurrent claims", () => {
     expect(v3ResourceProtection("domain-event-consumer-claim-batch")?.bounds).toMatchObject({
       minBatch: 1,
@@ -127,14 +156,16 @@ describe("System V3 S8 resource protection registry", () => {
     expect(uploadFinalizer).toContain("const THUMBNAIL_MAX_EDGE = 512");
   });
 
-  it("keeps unaudited externally-triggerable surfaces visibly open", () => {
+  it("keeps the remaining unaudited externally-triggerable surfaces visibly open", () => {
     expect(V3_RESOURCE_PROTECTION_GAPS.map((gap) => gap.id)).toEqual(
       expect.arrayContaining([
         "prediction-submit-protection",
-        "next-in-line-submit-protection",
         "organizer-bulk-mutation-bounds",
         "non-image-upload-resource-bounds",
       ]),
+    );
+    expect(V3_RESOURCE_PROTECTION_GAPS.map((gap) => gap.id)).not.toContain(
+      "next-in-line-submit-protection",
     );
     expect(V3_RESOURCE_PROTECTION_GAPS.every((gap) => gap.status === "audit-required")).toBe(true);
   });
