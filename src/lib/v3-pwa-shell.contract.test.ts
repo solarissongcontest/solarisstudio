@@ -12,8 +12,10 @@ describe("V3 PWA shell integration contract", () => {
     const shell = source("src/components/v3/V3AppShell.tsx");
 
     expect(platform).toContain("isStandaloneDisplayMode");
-    expect(platform).toContain('matchMedia("(display-mode: standalone)")');
-    expect(platform).toContain("navigator.standalone");
+    expect(platform).toContain('(display-mode: standalone)');
+    expect(platform).toContain("window.matchMedia");
+    expect(platform).toContain("navigator as IOSNavigator");
+    expect(platform).toContain(".standalone");
     expect(shell).not.toContain("display-mode: standalone");
     expect(shell).not.toContain("navigator.standalone");
   });
@@ -34,9 +36,12 @@ describe("V3 PWA shell integration contract", () => {
     const safety = source("src/lib/app-update-safety.ts");
     const focused = source("src/components/v3/V3FocusedTaskShell.tsx");
 
-    expect(runtime).toContain("isAppUpdateBlocked");
+    expect(runtime).toContain("appUpdateSafety");
+    expect(runtime).toContain("subscribeAppUpdateSafety");
     expect(runtime).toContain("updateDeferred");
     expect(runtime).toContain("controllerchange");
+    expect(runtime).toContain("if (!waitingWorker || !updateSafety.safe) return");
+    expect(safety).toContain("readAppUpdateBlockers");
     expect(safety).toContain("setAppUpdateBlocker");
     expect(focused).toContain("setAppUpdateBlocker");
     expect(focused).toContain("clearAppUpdateBlocker");
