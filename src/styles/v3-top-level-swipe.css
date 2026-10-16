@@ -56,6 +56,9 @@
 
 [data-solaris-v3]
   .v3-liquid-tabbar__material[data-v3-page-swiping="true"]
+  .v3-liquid-tabbar__icon,
+[data-solaris-v3]
+  .v3-liquid-tabbar__material[data-v3-page-settling="true"]
   .v3-liquid-tabbar__icon {
   opacity: var(--v3-tab-visual-opacity, 0.78);
   transform: scale(var(--v3-tab-visual-scale, 0.97));
