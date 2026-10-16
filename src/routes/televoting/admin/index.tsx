@@ -65,8 +65,8 @@ function VotingAdminOverview() {
           }
         : data.blocked > 0
           ? {
-              title: `Review ${data.blocked} blocked ${data.blocked === 1 ? "ballot" : "ballots"}`,
-              description: "Integrity checks found voting that needs an organizer decision.",
+              title: `Review ${data.blocked} blocked public ${data.blocked === 1 ? "ballot" : "ballots"}`,
+              description: "Public-vote integrity checks found ballots that need an organizer decision.",
               to: "/televoting/admin/integrity",
               label: "Review integrity",
             }
@@ -165,7 +165,7 @@ function VotingAdminOverview() {
 
           <AdminCard>
             <AdminCardHeader
-              eyebrow="Next action"
+              eyebrow="Public voting next action"
               title={nextAction.title}
               description={nextAction.description}
               action={
