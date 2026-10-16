@@ -20,7 +20,11 @@ describe("PR 450 browser blocker regressions", () => {
     const selectors = source("src/components/admin/AdminSelectors.tsx");
     const countryPicker = source("src/components/CountryPicker.tsx");
 
-    expect(countries).toContain('<span className="sr-only">Search countries</span>');
+    // The V3 Delegations search now covers country, HOD, artist and song, so the
+    // accessible name follows the broader operational object instead of the old
+    // country-only wording. The regression guard still requires an explicit
+    // screen-reader label rather than relying on placeholder text.
+    expect(countries).toContain('<span className="sr-only">Search delegations</span>');
     expect(countries).toContain('aria-label="Filter countries by readiness"');
     expect(selectors).toContain('aria-label="Search editions"');
     expect(countryPicker).toContain('aria-label="Search country"');
