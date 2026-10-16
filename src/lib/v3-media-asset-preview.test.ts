@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { mediaAssetPreviewKind } from "@/components/admin/MediaAssetPreview";
+import {
+  mediaAssetPreviewKind,
+  safeMediaAssetSourceUrl,
+} from "@/components/admin/MediaAssetPreview";
 
 describe("V3 Media Review embedded preview selection", () => {
   it("embeds ordinary image classes without requiring a download", () => {
@@ -29,8 +32,20 @@ describe("V3 Media Review embedded preview selection", () => {
     expect(mediaAssetPreviewKind("audio_master", "https://example.com/listen/track")).toBe("fallback");
   });
 
-  it("never embeds non-http sources", () => {
+  it("never embeds or links non-http sources", () => {
+    for (const value of ["javascript:alert(1)", "file:///tmp/video.mp4", "data:text/html,hello"]) {
+      expect(safeMediaAssetSourceUrl(value)).toBeNull();
+    }
     expect(mediaAssetPreviewKind("artist_photo", "javascript:alert(1)")).toBe("fallback");
     expect(mediaAssetPreviewKind("performance_video", "file:///tmp/video.mp4")).toBe("fallback");
+  });
+
+  it("normalizes valid HTTP(S) source URLs before rendering them", () => {
+    expect(safeMediaAssetSourceUrl("  https://cdn.example.com/final.mp4  ")).toBe(
+      "https://cdn.example.com/final.mp4",
+    );
+    expect(safeMediaAssetSourceUrl("http://cdn.example.com/image.jpg")).toBe(
+      "http://cdn.example.com/image.jpg",
+    );
   });
 });
