@@ -60,6 +60,9 @@ describe("S14 supported Televote evidence", () => {
     expect(stage7).not.toContain('log "S14_STAGE_7_PUBLIC_VOTING_COMPLETE"');
     expect(stage7).not.toContain('log "S14_INVARIANT_TELEVOTE_COMPLETE"');
     expect(stage7).not.toContain("extension-reopen");
+    expect(stage7).not.toContain("s14-televote-extension-reopen");
+    expect(stage7).not.toContain("Televote after governed extension");
+    expect(stage7).not.toContain("opened_at > closed_at");
     expect(driver).toContain('"supportedPendingStageEvidence": ["stage-7-public-voting"]');
     expect(driver).toContain("stage-7-public-voting");
     expect(driver).not.toContain('"televote-canonical-ballot"');
