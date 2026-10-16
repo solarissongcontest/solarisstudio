@@ -325,6 +325,7 @@ function ConfirmationResponsesList() {
         setError((current) => current ?? result.error.message);
         setNextRows([]);
       } else {
+        setError(null);
         setNextRows(Array.isArray(result.data) ? (result.data as unknown as NextInLineRow[]) : []);
       }
     })();
