@@ -190,19 +190,27 @@ function reviewHeading(status: ReviewStatus, noun: string) {
   return `Your ${noun} is waiting for review`;
 }
 
-export function EntryVersionEvidence({ entry }: { entry: ConfirmationReviewEntry }) {
+export function entryVersionEvidenceLabel(entry: ConfirmationReviewEntry): string | null {
   if (!entry.current_version_id || !entry.content_revision) return null;
-  const reviewed = entry.reviewed_version_id === entry.current_version_id;
+
   const status = normalizeReviewStatus(entry.review_status);
   const decision = status === "accepted" || status === "declined";
-  return (
-    <p className="mt-1 text-[11px] leading-relaxed opacity-75">
-      Version {entry.content_revision}
-      {reviewed && decision
-        ? " · Review applies to this version"
-        : decision
-          ? " · Earlier review has no version binding"
-          : " · Awaiting review of this version"}
-    </p>
-  );
+  let detail = "Awaiting review of this version";
+
+  if (decision && entry.reviewed_version_id === entry.current_version_id) {
+    detail = "Review applies to this version";
+  } else if (decision && entry.reviewed_version_id) {
+    detail = "Entry changed after review · Review applies to an earlier version";
+  } else if (decision) {
+    detail = "Earlier review has no version binding";
+  }
+
+  return `Version ${entry.content_revision} · ${detail}`;
+}
+
+export function EntryVersionEvidence({ entry }: { entry: ConfirmationReviewEntry }) {
+  const label = entryVersionEvidenceLabel(entry);
+  if (!label) return null;
+
+  return <p className="mt-1 text-[11px] leading-relaxed opacity-75">{label}</p>;
 }
