@@ -53,6 +53,20 @@ describe("V3 navigation accessibility and performance release contracts", () => 
     expect(pageSwipe).toContain("prefersReducedMotion()");
   });
 
+  it("degrades optical richness before navigation correctness", () => {
+    const swipeCss = source("src/styles/v3-top-level-swipe.css");
+    const performanceCss = source("src/styles/v3-navigation-performance.css");
+
+    expect(swipeCss).toContain('@import "./v3-navigation-performance.css"');
+    expect(performanceCss).toContain("@media (update: slow)");
+    expect(performanceCss).toMatch(/update: slow[\s\S]*v3-liquid-tabbar__backdrop[\s\S]*display: none/);
+    expect(performanceCss).toMatch(/update: slow[\s\S]*blur\(16px\)/);
+    expect(performanceCss).not.toContain("pointer-events: none");
+    expect(performanceCss).not.toContain("display: none;\n  }\n\n  [data-solaris-v3] .v3-liquid-tabbar__material");
+  expect(performanceCss).not.toContain("v3-liquid-tabbar__item");
+  expect(performanceCss).not.toContain("v3-top-level-swipe-surface");
+  });
+
   it("keeps hot gesture loops free of repeated layout reads and per-pixel semantic state churn", () => {
     const publicTabs = source("src/components/v3/V3LiquidTabBar.tsx");
     const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
