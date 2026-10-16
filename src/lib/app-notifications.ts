@@ -129,8 +129,7 @@ async function serverHasSubscription(userId: string, endpoint: string) {
   return Boolean(data?.endpoint);
 }
 
-async function currentPushUserId(explicitUserId?: string | null) {
-  if (explicitUserId) return explicitUserId;
+async function currentPushUserId() {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
   return data.user.id;
@@ -140,8 +139,12 @@ async function currentPushUserId(explicitUserId?: string | null) {
  * `subscribed` means both the browser subscription and the current authenticated
  * user's RLS-protected Solaris registration exist. A browser-only or previous-
  * account subscription must never be presented as active Solaris delivery.
+ *
+ * Keep this zero-argument function compatible with React Query's queryFn slot.
+ * Viewer identity is resolved from the authenticated Supabase session instead
+ * of accepting React Query's QueryFunctionContext as if it were a user id.
  */
-export async function getAppPushState(userId?: string | null): Promise<AppPushState> {
+export async function getAppPushState(): Promise<AppPushState> {
   const key = await vapidPublicKey();
   if (!pushSupported()) {
     return {
@@ -153,7 +156,7 @@ export async function getAppPushState(userId?: string | null): Promise<AppPushSt
   }
   const registration = await navigator.serviceWorker.getRegistration("/");
   const subscription = await registration?.pushManager.getSubscription();
-  const resolvedUserId = subscription ? await currentPushUserId(userId) : null;
+  const resolvedUserId = subscription ? await currentPushUserId() : null;
   const subscribed =
     subscription && resolvedUserId
       ? await serverHasSubscription(resolvedUserId, subscription.endpoint)
