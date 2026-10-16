@@ -1,21 +1,75 @@
+import { Navigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { MySolarisAnniversaryRecap } from "@/components/mysolaris/MySolarisAnniversaryRecap";
 import { MySolarisProvider, useMySolaris } from "@/components/mysolaris/MySolarisContext";
 import { MySolarisWorkspaceNav } from "@/components/mysolaris/MySolarisWorkspaceNav";
+import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
 export function MySolarisWorkspaceShell({ children }: { children: ReactNode }) {
   return (
     <MySolarisProvider>
-      <div className="solaris-mysolaris-workspace min-w-0 lg:grid lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:items-start lg:gap-6 xl:grid-cols-[14.5rem_minmax(0,1fr)]">
-        <MySolarisWorkspaceNav />
-        <div className="min-w-0">
-          <MySolarisAnniversaryRecap />
-          <AccountStatus />
-          {children}
-        </div>
-      </div>
+      <MySolarisWorkspaceContent>{children}</MySolarisWorkspaceContent>
     </MySolarisProvider>
+  );
+}
+
+function countryInspectionTarget(search: unknown) {
+  if (!search || typeof search !== "object" || !("country" in search)) return null;
+  const country = (search as { country?: unknown }).country;
+  return typeof country === "string" && country.trim() ? country.trim() : null;
+}
+
+function MySolarisWorkspaceContent({ children }: { children: ReactNode }) {
+  const { isAppMode, platformResolved } = useSolarisApp();
+  const workspace = useMySolaris();
+  const location = useRouterState({ select: (state) => state.location });
+  const votingOverview = location.pathname === "/my-solaris/voting";
+  const organizerInspection = Boolean(
+    votingOverview &&
+      countryInspectionTarget(location.search) &&
+      workspace.countryAccount?.access.isOrganizer === true,
+  );
+  const rollout = useV3RolloutProbe(
+    platformResolved && isAppMode && votingOverview && !organizerInspection,
+  );
+
+  if (
+    votingOverview &&
+    isAppMode &&
+    !organizerInspection &&
+    (!platformResolved || rollout.isLoading)
+  ) {
+    return (
+      <main className="min-w-0 px-4 py-10" data-v3-voting-overview-cutover="resolving">
+        <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
+          Opening your current voting responsibilities…
+        </p>
+      </main>
+    );
+  }
+
+  if (
+    votingOverview &&
+    isAppMode &&
+    !organizerInspection &&
+    !rollout.isError &&
+    rollout.data?.enabled === true &&
+    Boolean(rollout.data.userId)
+  ) {
+    return <Navigate to="/participate" replace />;
+  }
+
+  return (
+    <div className="solaris-mysolaris-workspace min-w-0 lg:grid lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:items-start lg:gap-6 xl:grid-cols-[14.5rem_minmax(0,1fr)]">
+      <MySolarisWorkspaceNav />
+      <div className="min-w-0">
+        <MySolarisAnniversaryRecap />
+        <AccountStatus />
+        {children}
+      </div>
+    </div>
   );
 }
 
