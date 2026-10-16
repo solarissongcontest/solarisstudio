@@ -126,6 +126,51 @@ describe("V3 Organizer projection", () => {
     );
   });
 
+  it("does not turn missing health or empty legacy task evidence into a green readiness claim", () => {
+    const projection = buildV3OrganizerProjection({
+      edition,
+      actorId: "organizer-1",
+      live,
+      tasks: [],
+    });
+
+    expect(projection.readiness.overall).toBe(0);
+    expect(projection.readiness.ready).toEqual([]);
+    expect(projection.readiness.incomplete).toEqual([]);
+    expect(projection.domains.contest.state).toBe("unknown");
+    expect(projection.domains.delegations.state).toBe("unknown");
+    expect(projection.systemHealth.detail).toBe("Edition health projection unavailable");
+  });
+
+  it("allows an explicit zero-issue health projection to prove factor readiness", () => {
+    const projection = buildV3OrganizerProjection({
+      edition,
+      actorId: "organizer-1",
+      live,
+      tasks: [],
+      health: {
+        progress: 100,
+        critical_count: 0,
+        missing_songs: 0,
+        missing_artists: 0,
+        running_issues: 0,
+        jury_issues: 0,
+        televote_issues: 0,
+        result_issues: 0,
+      },
+    });
+
+    expect(projection.readiness.overall).toBe(100);
+    expect(projection.readiness.ready.map((factor) => factor.id)).toEqual([
+      "entries",
+      "running-order",
+      "jury",
+      "televote",
+      "results",
+    ]);
+    expect(projection.domains.contest.state).toBe("unknown");
+  });
+
   it("elevates for live attention even when the task queue is clear", () => {
     const projection = buildV3OrganizerProjection({
       edition,
