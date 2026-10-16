@@ -32,7 +32,7 @@ describe("S14 stateful full-contest harness", () => {
       "v3-s14-stage-1-setup.sh",
       "v3-s14-stage-2-onboarding.sh",
       "v3-s14-stage-3-confirmations.sh",
-    ]) expect(driver).toContain(`source \"$SCRIPT_DIR/${path}\"`);
+    ]) expect(driver).toContain(`source "$SCRIPT_DIR/${path}"`);
     expect(driver).not.toContain("v3-confirmation-security-rehearsal.sh");
     expect(driver).not.toContain("v3-entry-receipt-security-rehearsal.sh");
     expect(driver).not.toContain("supabase db reset");
