@@ -114,7 +114,7 @@ export const V3_S14_STAGES: readonly V3S14Stage[] = [
       "network uncertainty",
       "integrity signal",
     ],
-    implementationState: "planned",
+    implementationState: "implemented",
     driverMarker: "S14_STAGE_7_PUBLIC_VOTING_COMPLETE",
     implementationAsset: ".github/scripts/v3-s14-stage-7-public-voting.sh",
   },
@@ -182,7 +182,7 @@ export const V3_S14_INVARIANTS: readonly V3S14Check[] = [
   {
     id: "televote-canonical-ballot",
     label: "no duplicate canonical televote ballot beyond configured rules",
-    implementationState: "planned",
+    implementationState: "implemented",
     driverMarker: "S14_INVARIANT_TELEVOTE_COMPLETE",
     implementationAsset: ".github/scripts/v3-s14-stage-7-public-voting.sh",
   },
