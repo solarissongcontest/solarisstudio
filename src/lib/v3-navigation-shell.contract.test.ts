@@ -83,13 +83,24 @@ describe("V3 navigation shell acceptance guardrails", () => {
     expect(gesture).toContain('if (screen.behavior.criticalTask) return "critical-flow"');
   });
 
-  it("does not enable page swipe until live adjacent DOM surfaces are available", () => {
+  it("composes at most live previous/current/next surfaces from one navigation progress", () => {
     const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
     const shell = source("src/components/v3/V3AppShell.tsx");
+    const css = source("src/styles/v3-top-level-swipe.css");
 
     expect(swipe).toContain("previewReady = false");
-    expect(swipe).toContain('policy === "enabled" && previewReady');
-    expect(swipe).toContain("data-v3-top-level-swipe-preview-ready");
-    expect(shell).not.toContain("previewReady={true}");
+    expect(swipe).toContain("requiredAdjacentSurfacesReady");
+    expect(swipe).toContain('policy === "enabled" && previewReady && requiredAdjacentSurfacesReady');
+    expect(swipe).toContain("--v3-navigation-progress");
+    expect(swipe).toContain("const progress = activeIndex - offset / drag.viewportWidth");
+    expect(swipe).toContain('data-v3-swipe-preview="previous"');
+    expect(swipe).toContain('data-v3-swipe-preview="next"');
+    expect(swipe).not.toMatch(/screenshot|canvas\.toDataURL|html2canvas/i);
+    expect(shell).toContain("swipePreviewSurfaces?: V3TopLevelSwipePreviewSurfaces");
+    expect(shell).toContain("previousSurface={swipePreviewSurfaces?.previous}");
+    expect(shell).toContain("nextSurface={swipePreviewSurfaces?.next}");
+    expect(shell).toContain("previewReady={swipePreviewReady}");
+    expect(css).toContain(".v3-top-level-swipe-page--previous");
+    expect(css).toContain(".v3-top-level-swipe-page--next");
   });
 });
