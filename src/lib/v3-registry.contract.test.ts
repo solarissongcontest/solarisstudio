@@ -62,6 +62,15 @@ describe("Solaris V3 migration registries", () => {
     expect(byId.get("current-edition-results")?.targetDomain).toBe("voting-results");
     expect(byId.get("current-edition-publish")?.targetDomain).toBe("voting-results");
     expect(byId.get("operations-communications")?.targetDomain).toBe("communications");
+    expect(byId.get("current-edition-broadcast")?.targetDomain).toBe("production");
+  });
+
+  it("keeps live execution separate from Production configuration", () => {
+    const byId = new Map(V3_ORGANIZER_CAPABILITY_REGISTRY.map((item) => [item.legacyId, item]));
+    expect(byId.get("operations-control-room")?.targetDomain).toBe("live-production");
+    expect(byId.get("operations-incidents")?.targetDomain).toBe("live-production");
+    expect(byId.get("live-review-reveal-director")?.targetDomain).toBe("live-production");
+    expect(byId.get("live-review-broadcast-rundown")?.targetDomain).toBe("live-production");
   });
 
   it("keeps Organizer detail-route ownership attached to a classified capability", () => {
