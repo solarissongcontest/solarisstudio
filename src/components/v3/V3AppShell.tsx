@@ -58,9 +58,16 @@ const V3_SHELL_DESTINATIONS: readonly V3ShellDestination[] = [
   { id: "me", label: "Me", to: "/my-solaris", icon: UserRound },
 ];
 
+export type V3TopLevelSwipePreviewSurface = {
+  /** Canonical root represented by this live surface. */
+  area: V3Area;
+  /** Live DOM content owned by the Public route layer. */
+  surface: ReactNode;
+};
+
 export type V3TopLevelSwipePreviewSurfaces = {
-  previous?: ReactNode;
-  next?: ReactNode;
+  previous?: V3TopLevelSwipePreviewSurface;
+  next?: V3TopLevelSwipePreviewSurface;
 };
 
 export type V3AppShellProps = {
@@ -72,9 +79,11 @@ export type V3AppShellProps = {
   topActions?: ReactNode;
   className?: string;
   /**
-   * Live adjacent root surfaces supplied by the Public route owner. The shell
-   * never fabricates or fetches these previews; omission keeps page swipe
-   * fail-closed while ordinary tab navigation remains fully available.
+   * Live adjacent root surfaces supplied by the Public route owner. Each
+   * surface carries the canonical root it represents so stale cache/auth/route
+   * handoffs cannot briefly render the wrong adjacent page. The shell never
+   * fabricates or fetches these previews; invalid or missing identity keeps
+   * page swipe fail-closed while ordinary tab navigation remains available.
    */
   swipePreviewSurfaces?: V3TopLevelSwipePreviewSurfaces;
 };
@@ -250,10 +259,27 @@ export function V3AppShell({
     0,
     liquidDestinations.findIndex((destination) => destination.active),
   );
+
+  const expectedPreviousArea =
+    activeIndex > 0 ? (liquidDestinations[activeIndex - 1]?.id as V3Area | undefined) : undefined;
+  const expectedNextArea =
+    activeIndex < liquidDestinations.length - 1
+      ? (liquidDestinations[activeIndex + 1]?.id as V3Area | undefined)
+      : undefined;
+  const previousPreview = swipePreviewSurfaces?.previous;
+  const nextPreview = swipePreviewSurfaces?.next;
+  const previousSurface =
+    expectedPreviousArea && previousPreview?.area === expectedPreviousArea
+      ? previousPreview.surface
+      : null;
+  const nextSurface =
+    expectedNextArea && nextPreview?.area === expectedNextArea
+      ? nextPreview.surface
+      : null;
   const swipePreviewReady =
     swipePreviewSurfaces != null &&
-    (activeIndex === 0 || swipePreviewSurfaces.previous != null) &&
-    (activeIndex === liquidDestinations.length - 1 || swipePreviewSurfaces.next != null);
+    (expectedPreviousArea == null || previousSurface != null) &&
+    (expectedNextArea == null || nextSurface != null);
 
   const openTab = (
     destination: V3LiquidTabDestination,
@@ -301,8 +327,8 @@ export function V3AppShell({
           searchStr={searchStr}
           activeIndex={activeIndex}
           itemCount={liquidDestinations.length}
-          previousSurface={swipePreviewSurfaces?.previous}
-          nextSurface={swipePreviewSurfaces?.next}
+          previousSurface={previousSurface}
+          nextSurface={nextSurface}
           previewReady={swipePreviewReady}
           interactionKey={navigationScope}
           onCommit={(targetIndex) => {
