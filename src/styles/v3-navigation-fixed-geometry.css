@@ -13,23 +13,19 @@
 
 /*
  * Keep the decorative lens out of WebKit's RTL CSS-grid absolute-position
- * coordinate system. The component already mirrors the numeric lens slot once;
- * the material therefore owns one physical LTR axis while RTL visual ordering
- * is expressed only by flex row reversal. Individual items restore RTL direction
- * so logical badge placement still follows the document language.
+ * coordinate system. Flex preserves the inherited logical direction for route
+ * and gesture semantics, while physical left/right continue to anchor the lens
+ * in viewport coordinates. Under RTL a normal flex row naturally places later
+ * logical destinations toward physical left, matching the single mirrored lens
+ * index in the component without a second row-reversal transform.
  */
 [data-solaris-v3] .v3-liquid-tabbar__material {
   --v3-liquid-gap: 2px;
   display: flex;
-  direction: ltr;
   height: 70px;
   gap: 2px;
   padding: 6px;
   border-radius: 32px;
-}
-
-[data-solaris-v3] .v3-liquid-tabbar[data-layout-direction="rtl"] .v3-liquid-tabbar__material {
-  flex-direction: row-reverse;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__lens {
@@ -45,10 +41,6 @@
   min-height: 57px;
   padding: 3px 2px;
   border-radius: 23px;
-}
-
-[data-solaris-v3] .v3-liquid-tabbar[data-layout-direction="rtl"] .v3-liquid-tabbar__item {
-  direction: rtl;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__icon-wrap {
