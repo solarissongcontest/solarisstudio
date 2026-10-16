@@ -7,6 +7,7 @@ import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { supabase } from "@/integrations/supabase/client";
+import { useEditions } from "@/lib/data";
 import { matchSolarisAssistantCommands } from "@/lib/solaris-command-assistant";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 
@@ -29,6 +30,7 @@ type EditionSnapshot = {
 
 function CommandAssistantPage() {
   const { editionId } = useAdminContext();
+  const editionsQuery = useEditions();
   const [prompt, setPrompt] = useState("");
   const feature = useQuery({
     queryKey: ["studio2-feature", "solaris_command_assistant"],
@@ -36,15 +38,22 @@ function CommandAssistantPage() {
     staleTime: 30_000,
   });
 
+  const selectedEdition = editionsQuery.data?.find((edition) => edition.id === editionId) ?? null;
+  const resolvedEditionId = selectedEdition?.id ?? "";
+
   const snapshot = useQuery({
-    enabled: feature.data === true && Boolean(editionId),
-    queryKey: ["command-assistant-snapshot", editionId],
+    enabled: feature.data === true && Boolean(resolvedEditionId),
+    queryKey: ["command-assistant-snapshot", resolvedEditionId || "unscoped"],
     queryFn: async (): Promise<EditionSnapshot> => {
+      if (!resolvedEditionId || resolvedEditionId !== editionId) {
+        throw new Error("Command Assistant requires an exact Organizer edition context.");
+      }
+
       const [participants, missingSong, unpublishedEntries, incidents] = await Promise.all([
-        (supabase as any).from("participants").select("id", { count: "exact", head: true }).eq("edition_id", editionId),
-        (supabase as any).from("participants").select("id", { count: "exact", head: true }).eq("edition_id", editionId).is("song", null),
-        (supabase as any).from("participants").select("id", { count: "exact", head: true }).eq("edition_id", editionId).neq("publication_status", "published"),
-        (supabase as any).from("studio2_incidents").select("id", { count: "exact", head: true }).eq("edition_id", editionId).neq("status", "resolved"),
+        (supabase as any).from("participants").select("id", { count: "exact", head: true }).eq("edition_id", resolvedEditionId),
+        (supabase as any).from("participants").select("id", { count: "exact", head: true }).eq("edition_id", resolvedEditionId).is("song", null),
+        (supabase as any).from("participants").select("id", { count: "exact", head: true }).eq("edition_id", resolvedEditionId).neq("publication_status", "published"),
+        (supabase as any).from("studio2_incidents").select("id", { count: "exact", head: true }).eq("edition_id", resolvedEditionId).neq("status", "resolved"),
       ]);
       for (const response of [participants, missingSong, unpublishedEntries, incidents]) {
         if (response.error) throw response.error;
@@ -102,7 +111,11 @@ function CommandAssistantPage() {
           </p>
         </AdminCard>
 
-        {editionId ? (
+        {editionId && editionsQuery.isLoading ? (
+          <AdminCard>
+            <AdminStatus tone="neutral">Confirming edition context…</AdminStatus>
+          </AdminCard>
+        ) : selectedEdition ? (
           <AdminCard>
             <AdminCardHeader eyebrow="Current edition" title="Bounded live summary" description="A small read-only status projection, not model guesswork." />
             {snapshot.isLoading ? (
@@ -119,7 +132,13 @@ function CommandAssistantPage() {
             ) : null}
           </AdminCard>
         ) : (
-          <AdminCard><AdminStatus tone="attention">Select an edition to load operational context.</AdminStatus></AdminCard>
+          <AdminCard>
+            <AdminEmptyState
+              icon={Sparkles}
+              title="Choose an edition"
+              description="Select an exact Organizer edition before loading operational context. Command Assistant will not turn a missing or stale edition into an all-editions query or a misleading zero-state summary."
+            />
+          </AdminCard>
         )}
 
         <AdminCard>
