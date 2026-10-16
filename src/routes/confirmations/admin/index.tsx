@@ -135,11 +135,7 @@ function DelegationsAdminOverview() {
   }, []);
 
   const activeEdition = useMemo(
-    () =>
-      editions.find((edition) => edition.id === organizerEditionId) ??
-      editions.find((edition) => edition.status === "active") ??
-      editions[0] ??
-      null,
+    () => editions.find((edition) => edition.id === organizerEditionId) ?? null,
     [editions, organizerEditionId],
   );
 
@@ -160,10 +156,10 @@ function DelegationsAdminOverview() {
 
   const nextAction = !activeEdition
     ? {
-        title: "Set up delegation submissions",
-        description: "Choose the active edition before opening submission rounds.",
-        to: "/confirmations/admin/editions",
-        label: "Configure edition",
+        title: "Select an edition",
+        description: "Organizer context must identify the edition before delegation work can begin.",
+        to: "/admin/control",
+        label: "Back to Control",
       }
     : triageCounts.review > 0
       ? {
@@ -227,13 +223,8 @@ function DelegationsAdminOverview() {
         <AdminCard>
           <AdminEmptyState
             icon={Flag}
-            title="No delegation edition configured"
-            description="Set the active edition before opening delegation submissions."
-            action={
-              <Link to="/confirmations/admin/editions" className="admin-action-primary">
-                Configure edition
-              </Link>
-            }
+            title="No edition selected"
+            description="Select an edition from Organizer context before opening delegation submissions. Solaris will not substitute the globally active confirmation edition or another edition for missing or stale context."
           />
         </AdminCard>
       ) : (
@@ -363,7 +354,7 @@ function DelegationsAdminOverview() {
                 to="/confirmations/admin/editions"
                 icon={Flag}
                 title="Delegation edition setup"
-                description="Change the active edition and response-editing controls."
+                description="Manage confirmation edition metadata and response-editing controls. Organizer scope remains owned by the global context."
               />
               <WorkspaceRow
                 to="/confirmations/admin/settings"
