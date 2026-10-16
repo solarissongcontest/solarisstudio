@@ -211,6 +211,20 @@ function parseExecution(value: unknown): Studio2ResultExecution {
   };
 }
 
+export function validateStudio2ResultExecution(
+  execution: Studio2ResultExecution,
+  request: Pick<Studio2ResultExecution, 'executionId' | 'showId' | 'action'>,
+): Studio2ResultExecution {
+  const mismatches: string[] = [];
+  if (execution.executionId !== request.executionId) mismatches.push('executionId');
+  if (execution.showId !== request.showId) mismatches.push('showId');
+  if (execution.action !== request.action) mismatches.push('action');
+  if (mismatches.length) {
+    throw new Error(`Result operation receipt does not match the requested command (${mismatches.join(', ')}).`);
+  }
+  return execution;
+}
+
 async function rpc(name: string, args: Record<string, unknown>) {
   const { data, error } = await rpcClient.rpc(name, args);
   if (error) throw error;
@@ -247,7 +261,8 @@ export async function executeStudio2ResultOperation(input: {
     p_execution_id: input.executionId,
     p_expected_version: input.expectedVersion,
   });
-  return parseExecution(data);
+  const execution = parseExecution(data);
+  return validateStudio2ResultExecution(execution, input);
 }
 
 export function resultLifecycleLabel(state: Studio2ResultLifecycle): string {
