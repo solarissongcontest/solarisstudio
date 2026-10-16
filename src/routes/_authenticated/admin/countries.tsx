@@ -41,7 +41,38 @@ export const Route = createFileRoute('/_authenticated/admin/countries')({
 
 function CountriesRoute() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  if (pathname.startsWith('/admin/countries/')) return <Outlet />;
+  const { editionId } = useAdminContext();
+  const editionsQuery = useEditions();
+  const selectedEdition = selectOrganizerEdition(editionsQuery.data ?? [], editionId);
+
+  if (pathname.startsWith('/admin/countries/')) {
+    if (editionsQuery.isLoading) {
+      return (
+        <AdminPage>
+          <AdminCard>
+            <p className="py-12 text-center text-sm text-muted-foreground">Verifying edition context…</p>
+          </AdminCard>
+        </AdminPage>
+      );
+    }
+
+    if (!selectedEdition) {
+      return (
+        <AdminPage>
+          <AdminCard>
+            <AdminEmptyState
+              icon={Flag}
+              title="Edition context required"
+              description="Select the exact Organizer edition before opening delegation details. Solaris will not substitute the newest edition for a missing or stale context."
+            />
+          </AdminCard>
+        </AdminPage>
+      );
+    }
+
+    return <Outlet />;
+  }
+
   return <CountriesCockpitPage />;
 }
 
@@ -335,7 +366,7 @@ function CountriesCockpitPage() {
                 <AdminDataView
                   rows={filteredRows}
                   columns={countryColumns}
-                  rowKey={(row) => row.context.countryId}
+                  rowKey={(item) => item.context.countryId}
                   ariaLabel="Delegation readiness matrix"
                 />
               ) : (
