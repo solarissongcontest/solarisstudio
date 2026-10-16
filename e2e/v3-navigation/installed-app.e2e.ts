@@ -230,15 +230,9 @@ test("installed app shell survives representative navigation without duplicate c
   expect(initial.obstruction).toBeGreaterThan(0);
   expect(initial.obstruction).toBeLessThanOrEqual(136);
 
-  // Pin the physical selected-lens origin at all representative logical
-  // positions. This catches WebKit RTL static-position regressions that a
-  // single active tab can miss.
-  for (const label of ["Home", "Participate", "Me"] as const) {
-    await assertSelectedLensAlignment(page, "ltr", label);
-  }
-
   // This representative project intentionally runs with Reduced Motion. Prove
-  // that CSS and the JS direct-manipulation guard both honor it.
+  // that CSS and the JS direct-manipulation guard both honor it before route
+  // probes change the current page and its scrollability.
   expect(
     await page.evaluate(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches),
   ).toBe(true);
@@ -342,6 +336,14 @@ test("installed app shell survives representative navigation without duplicate c
     .poll(async () => Number((await readGeometry(page))?.opacity ?? 0))
     .toBeGreaterThan(0.99);
   await expect(page.locator("[data-v3-liquid-tabbar]")).toBeVisible();
+
+  // Probe first/middle/last physical lens positions only after the compact and
+  // keyboard fixtures have completed on their original Account route. Route
+  // transitions can legitimately replace scroll surfaces, so mixing these
+  // probes into that fixture made the audit test its own setup instead of NAV.
+  for (const label of ["Home", "Participate", "Me"] as const) {
+    await assertSelectedLensAlignment(page, "ltr", label);
+  }
 
   // N12 explicitly requires RTL. Flip the document direction in-place so the
   // same authenticated installed-app state proves mirrored physical geometry
