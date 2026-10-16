@@ -70,6 +70,8 @@ where show_id='$show_id'::uuid;
   publication_index=0
   for show_id in "$SEMI_ONE_ID" "$SEMI_TWO_ID"; do
     publication_index=$((publication_index + 1))
+    show_count="$(db_scalar "select count(*) from public.participants where show_id='$show_id'::uuid;")"
+    [[ "$show_count" -gt 0 ]] || fail "show $show_id has no participants at publication time"
     expected_version="$(db_scalar "select version from public.studio2_show_publication_controls where show_id='$show_id'::uuid;")"
     [[ -n "$expected_version" ]] || fail "show $show_id has no publication control version"
     suffix="$(printf '%012d' "$publication_index")"
