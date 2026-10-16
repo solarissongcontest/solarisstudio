@@ -1,19 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { rpcMock } = vi.hoisted(() => ({
-  rpcMock: vi.fn(),
-}));
-
-vi.mock("@/integrations/supabase/client", () => ({
-  supabase: {
-    rpc: rpcMock,
-  },
-}));
-
+import { supabase } from "@/integrations/supabase/client";
 import { executeStudio2HostOperation } from "./studio2-host-management";
 
 describe("Studio2 Host Management uncertain-outcome reconciliation", () => {
   it("reuses the original execution id after response loss so Create Bid cannot execute twice", async () => {
+    const rpcMock = vi.fn();
+    const originalRpc = (supabase as any).rpc;
     const committedExecutionIds = new Set<string>();
     let requestCount = 0;
 
@@ -48,51 +41,57 @@ describe("Studio2 Host Management uncertain-outcome reconciliation", () => {
       };
     });
 
-    const logicalCreateBid = {
-      editionId: "edition-1",
-      action: "create_bid" as const,
-      reason: "Create Helsinki host bid",
-      payload: {
-        countryId: "country-1",
-        city: "Helsinki",
-        venueName: "Solaris Arena",
-      },
-    };
+    (supabase as any).rpc = rpcMock;
 
-    await expect(
-      executeStudio2HostOperation({
+    try {
+      const logicalCreateBid = {
+        editionId: "edition-1",
+        action: "create_bid" as const,
+        reason: "Create Helsinki host bid",
+        payload: {
+          countryId: "country-1",
+          city: "Helsinki",
+          venueName: "Solaris Arena",
+        },
+      };
+
+      await expect(
+        executeStudio2HostOperation({
+          ...logicalCreateBid,
+          executionId: "execution-first",
+        }),
+      ).rejects.toThrow("response lost after server commit");
+
+      const reconciled = await executeStudio2HostOperation({
         ...logicalCreateBid,
-        executionId: "execution-first",
-      }),
-    ).rejects.toThrow("response lost after server commit");
+        // React Query / the caller may generate a new proposed id for the retry.
+        // The Host service must ignore it while the original outcome is unknown.
+        executionId: "execution-should-not-replace-first",
+      });
 
-    const reconciled = await executeStudio2HostOperation({
-      ...logicalCreateBid,
-      // React Query / the caller may generate a new proposed id for the retry.
-      // The Host service must ignore it while the original outcome is unknown.
-      executionId: "execution-should-not-replace-first",
-    });
+      expect(rpcMock).toHaveBeenCalledTimes(2);
+      expect(rpcMock.mock.calls[0]?.[1]?.p_execution_id).toBe("execution-first");
+      expect(rpcMock.mock.calls[1]?.[1]?.p_execution_id).toBe("execution-first");
+      expect(committedExecutionIds).toEqual(new Set(["execution-first"]));
+      expect(reconciled.executionId).toBe("execution-first");
+      expect(reconciled.idempotentReplay).toBe(true);
 
-    expect(rpcMock).toHaveBeenCalledTimes(2);
-    expect(rpcMock.mock.calls[0]?.[1]?.p_execution_id).toBe("execution-first");
-    expect(rpcMock.mock.calls[1]?.[1]?.p_execution_id).toBe("execution-first");
-    expect(committedExecutionIds).toEqual(new Set(["execution-first"]));
-    expect(reconciled.executionId).toBe("execution-first");
-    expect(reconciled.idempotentReplay).toBe(true);
+      // A confirmed result closes the uncertain operation. A later deliberate
+      // command with the same semantic fields is allowed to receive a fresh id.
+      const deliberateLaterCommand = await executeStudio2HostOperation({
+        ...logicalCreateBid,
+        executionId: "execution-later",
+      });
 
-    // A confirmed result closes the uncertain operation. A later deliberate
-    // command with the same semantic fields is allowed to receive a fresh id.
-    const deliberateLaterCommand = await executeStudio2HostOperation({
-      ...logicalCreateBid,
-      executionId: "execution-later",
-    });
-
-    expect(rpcMock).toHaveBeenCalledTimes(3);
-    expect(rpcMock.mock.calls[2]?.[1]?.p_execution_id).toBe("execution-later");
-    expect(committedExecutionIds).toEqual(
-      new Set(["execution-first", "execution-later"]),
-    );
-    expect(deliberateLaterCommand.executionId).toBe("execution-later");
-    expect(deliberateLaterCommand.idempotentReplay).toBe(false);
+      expect(rpcMock).toHaveBeenCalledTimes(3);
+      expect(rpcMock.mock.calls[2]?.[1]?.p_execution_id).toBe("execution-later");
+      expect(committedExecutionIds).toEqual(
+        new Set(["execution-first", "execution-later"]),
+      );
+      expect(deliberateLaterCommand.executionId).toBe("execution-later");
+      expect(deliberateLaterCommand.idempotentReplay).toBe(false);
+    } finally {
+      (supabase as any).rpc = originalRpc;
+    }
   });
 });
