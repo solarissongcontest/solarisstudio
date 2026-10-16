@@ -95,6 +95,8 @@ describe("V3 QA integration infrastructure", () => {
     expect(quality).toContain("v3-completion-dashboard.md");
     expect(quality).toContain("v3-s14-rehearsal-readiness.json");
     expect(quality).toContain("v3-s15-zero-orphan-readiness.json");
+    expect(quality).toContain("github.event.pull_request.head.sha || github.sha");
+    expect(quality).toContain("expected exact source SHA");
   });
 
   it("models S14 as one contest lifecycle and refuses to substitute isolated focused rehearsals", () => {
@@ -154,6 +156,8 @@ describe("V3 QA integration infrastructure", () => {
     expect(preflight).toContain("^[0-9a-fA-F]{40}$");
     expect(preflight).toContain("git rev-parse HEAD");
     expect(preflight).toContain('echo "V3_CANDIDATE_SHA=$actual"');
+    expect(preflight).toContain("GITHUB_SHA: ${{ inputs.candidate_sha }}");
+    expect(preflight).toContain("release evidence identity mismatch");
     expect(preflight).toContain("check-v3-release-integrity.ts --release");
     expect(preflight).toContain("not an S16 certificate");
     expect(integrity).toContain("V3_CANDIDATE_SHA");
