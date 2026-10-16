@@ -18,27 +18,35 @@ describe("V3 direct tab drag RTL and hot-loop contract", () => {
       expect(tabs).toContain("resolveV3LogicalHorizontalDelta(rawDelta, drag.layoutDirection)");
       expect(tabs).toContain("resolveV3LogicalHorizontalDelta(");
       expect(tabs).toContain("drag.velocityX,");
-      expect(tabs).toContain("resolveV3PhysicalInlineSign(layoutDirection)");
       expect(tabs).toContain("data-layout-direction={layoutDirection}");
     }
   });
 
-  it("anchors active lenses and badges on the physical inline end in RTL", () => {
+  it("keeps active lenses on an explicit physical axis while badges stay logical", () => {
     const publicTabs = source("src/components/v3/V3LiquidTabBar.tsx");
     const publicCss = source("src/styles/v3-liquid-tabbar.css");
     const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
 
-    expect(publicTabs).toContain("visualLensIndex * inlineSign");
-    expect(publicCss).toContain(
-      '.v3-liquid-tabbar[data-layout-direction="rtl"] .v3-liquid-tabbar__lens',
+    expect(publicTabs).toContain("const physicalLensIndex =");
+    expect(publicTabs).toContain(
+      'layoutDirection === "rtl" ? count - 1 - visualLensIndex : visualLensIndex',
     );
-    expect(publicCss).toMatch(/data-layout-direction="rtl"[\s\S]*left: auto;[\s\S]*right: 0\.38rem/);
+    expect(publicTabs).toContain('left: "6px"');
+    expect(publicTabs).toContain('right: "auto"');
+    expect(publicTabs).toContain('direction: "ltr"');
+    expect(publicTabs).toContain("${physicalLensIndex} * (100% + 2px)");
+    expect(publicTabs).not.toContain("visualLensIndex * inlineSign");
     expect(publicCss).toContain("inset-inline-end: -0.52rem");
 
-    expect(organizerTabs).toContain("visualActiveIndex * inlineSign");
+    expect(organizerTabs).toContain("const physicalLensIndex =");
     expect(organizerTabs).toContain(
-      'layoutDirection === "rtl" ? "right-[.375rem]" : "left-[.375rem]"',
+      'layoutDirection === "rtl" ? count - 1 - visualActiveIndex : visualActiveIndex',
     );
+    expect(organizerTabs).toContain('left: ".375rem"');
+    expect(organizerTabs).toContain('right: "auto"');
+    expect(organizerTabs).toContain('direction: "ltr"');
+    expect(organizerTabs).toContain("${physicalLensIndex} * (100% + .15rem)");
+    expect(organizerTabs).not.toContain("visualActiveIndex * inlineSign");
     expect(organizerTabs).toContain(
       'layoutDirection === "rtl" ? "-left-3" : "-right-3"',
     );
