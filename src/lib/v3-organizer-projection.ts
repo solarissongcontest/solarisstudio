@@ -192,16 +192,30 @@ function summarizeTask(task: OrganizerTaskV5): V3OrganizerTaskSummary {
 export function organizerTaskDomain(
   task: Pick<OrganizerTaskV5, "href" | "sourceKind" | "taskType">,
 ): V3OrganizerDomainKey {
-  const text = `${task.href} ${task.sourceKind} ${task.taskType}`.toLowerCase();
-  if (/confirm|delegat|country|participation/.test(text)) return "delegations";
-  if (/entry|media|show|lineup|progress|eligib|submission/.test(text)) return "contest";
-  if (/jury|televote|voting|ballot/.test(text)) return "voting";
-  if (/result|publication|publish/.test(text)) return "results";
-  if (/communication|notice|announcement|delivery/.test(text)) return "communications";
-  if (/broadcast|rundown|reveal|design|theme|production/.test(text)) return "production";
-  if (/integrity|rule|investigation|appeal|evidence|governance|identity/.test(text)) {
+  // Canonical source/task identity wins over a route. Entry approval is
+  // intentionally opened from a country workspace, but operationally belongs
+  // to Contest rather than Delegations.
+  const semantic = `${task.sourceKind} ${task.taskType}`.toLowerCase();
+  if (/entry|media|show|lineup|progress|eligib|submission/.test(semantic)) return "contest";
+  if (/jury|televote|voting|ballot/.test(semantic)) return "voting";
+  if (/result|publication|publish/.test(semantic)) return "results";
+  if (/communication|notice|announcement|delivery/.test(semantic)) return "communications";
+  if (/broadcast|rundown|reveal|design|theme|production/.test(semantic)) return "production";
+  if (/integrity|rule|investigation|appeal|evidence|governance|identity/.test(semantic)) {
     return "governance";
   }
+  if (/confirm|delegat|participation/.test(semantic)) return "delegations";
+
+  const route = task.href.toLowerCase();
+  if (/entry|media|show|lineup|progress|eligib|submission/.test(route)) return "contest";
+  if (/jury|televote|voting|ballot/.test(route)) return "voting";
+  if (/result|publication|publish/.test(route)) return "results";
+  if (/communication|notice|announcement|delivery/.test(route)) return "communications";
+  if (/broadcast|rundown|reveal|design|theme|production/.test(route)) return "production";
+  if (/integrity|rule|investigation|appeal|evidence|governance|identity/.test(route)) {
+    return "governance";
+  }
+  if (/confirm|delegat|country|participation/.test(route)) return "delegations";
   return "system";
 }
 
