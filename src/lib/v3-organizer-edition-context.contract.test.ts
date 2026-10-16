@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const control = readFileSync("src/routes/_authenticated/admin/control.tsx", "utf8");
+const tasks = readFileSync("src/routes/_authenticated/admin/tasks.tsx", "utf8");
+const tasksData = readFileSync("src/lib/admin-tasks-v5.ts", "utf8");
 const countries = readFileSync("src/routes/_authenticated/admin/countries.tsx", "utf8");
 const countryDetail = readFileSync("src/routes/_authenticated/admin/countries.$countryId.tsx", "utf8");
 const confirmations = readFileSync("src/routes/confirmations/admin/index.tsx", "utf8");
@@ -20,6 +22,7 @@ const communicationsData = readFileSync("src/lib/studio2-communications.ts", "ut
 
 const protectedRoutes = [
   ["Control", control],
+  ["Tasks", tasks],
   ["Delegations", countries],
   ["Delegation detail", countryDetail],
   ["Confirmations", confirmations],
@@ -100,6 +103,20 @@ describe("V3 Organizer explicit edition context", () => {
     expect(control).not.toContain("ordered[0]");
   });
 
+  it("keeps Organizer Tasks fail-closed to the selected edition", () => {
+    expect(tasks).toContain("tasksSupported && Boolean(editionId)");
+    expect(tasks).toContain("Boolean(editionId) &&");
+    expect(tasks).toContain('title="Choose an edition"');
+    expect(tasks).toContain("never merges task truth across editions when Organizer scope is missing");
+
+    expect(tasksData).toContain("Organizer Tasks requires an explicit edition scope.");
+    expect(tasksData).toContain("const normalizedEditionId = requireOrganizerEditionId(editionId)");
+    expect(tasksData).toContain("p_edition_id: normalizedEditionId");
+    expect(tasksData).toContain("enabled: enabled && Boolean(normalizedEditionId)");
+    expect(tasksData).toContain('normalizedEditionId ?? "unscoped"');
+    expect(tasksData).not.toContain('normalizedEditionId ?? "all"');
+  });
+
   it("keeps Official Communications fail-closed to the selected Organizer edition", () => {
     expect(communications).toContain("enabled: Boolean(editionId)");
     expect(communications).toContain("return loadStudio2Notices(editionId)");
@@ -120,6 +137,7 @@ describe("V3 Organizer explicit edition context", () => {
   });
 
   it("explains why missing scope does not silently switch editions", () => {
+    expect(tasks).toContain("never merges task truth across editions when Organizer scope is missing");
     expect(countries).toContain("will not substitute another edition");
     expect(countryDetail).toContain("will not substitute another edition");
     expect(confirmations).toContain("will not substitute the globally active confirmation edition");
