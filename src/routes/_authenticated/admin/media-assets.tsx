@@ -13,6 +13,7 @@ import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useCountries, useEditions } from '@/lib/data';
 import { MEDIA_ASSET_TYPES, type MediaAssetType } from '@/lib/media-asset-vault';
 import { loadStudio2CountryCockpit } from '@/lib/studio2-country-cockpit';
+import { loadOrganizerMediaAssetReviews } from '@/lib/v3-organizer-media-review-scope';
 import {
   STUDIO2_MEDIA_ASSET_STATES,
   buildStudio2MediaAssetInventory,
@@ -76,7 +77,7 @@ function MediaAssetsPage() {
   const reviewsQuery = useQuery({
     queryKey: ['studio2-media-asset-reviews', resolvedEditionId || 'none'],
     enabled: Boolean(resolvedEditionId),
-    queryFn: () => listStudio2MediaAssetReviews(resolvedEditionId),
+    queryFn: () => loadOrganizerMediaAssetReviews(resolvedEditionId),
     staleTime: 10_000,
   });
 
