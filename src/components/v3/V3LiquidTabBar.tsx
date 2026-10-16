@@ -17,6 +17,11 @@ import {
   resolveElasticDrag,
   resolveTabDragTargetIndex,
 } from "@/lib/interaction-physics";
+import {
+  resolveV3LogicalHorizontalDelta,
+  resolveV3PhysicalInlineSign,
+  type V3LayoutDirection,
+} from "@/lib/v3-navigation-gesture";
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
 import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import { cn } from "@/lib/utils";
@@ -37,6 +42,7 @@ type DragState = {
   captureTarget: HTMLAnchorElement;
   startX: number;
   originIndex: number;
+  previewIndex: number;
   moved: boolean;
   lastX: number;
   lastAt: number;
@@ -44,6 +50,7 @@ type DragState = {
   minDelta: number;
   maxDelta: number;
   slotWidth: number;
+  layoutDirection: V3LayoutDirection;
 };
 
 function triggerSelectionHaptic(duration = 8) {
@@ -54,6 +61,10 @@ function triggerSelectionHaptic(duration = 8) {
 function navigationItemLabel(label: string, badge: number) {
   if (badge <= 0) return label;
   return `${label}, ${badge} item${badge === 1 ? "" : "s"}`;
+}
+
+function layoutDirectionFor(element: Element): V3LayoutDirection {
+  return getComputedStyle(element).direction === "rtl" ? "rtl" : "ltr";
 }
 
 /**
@@ -79,6 +90,7 @@ export function V3LiquidTabBar({
   );
   const [dragPreviewIndex, setDragPreviewIndex] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [layoutDirection, setLayoutDirection] = useState<V3LayoutDirection>("ltr");
   const barRef = useRef<HTMLElement | null>(null);
   const materialRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<DragState | null>(null);
@@ -103,8 +115,18 @@ export function V3LiquidTabBar({
   useLayoutEffect(() => {
     const root = document.documentElement;
     const bar = barRef.current;
+    const material = materialRef.current;
+
+    const syncDirection = () => {
+      if (!material) return;
+      const nextDirection = layoutDirectionFor(material);
+      setLayoutDirection((current) =>
+        current === nextDirection ? current : nextDirection,
+      );
+    };
 
     const sync = () => {
+      syncDirection();
       if (
         !bar ||
         window.innerWidth >= 1024 ||
@@ -128,7 +150,7 @@ export function V3LiquidTabBar({
       typeof MutationObserver !== "undefined" ? new MutationObserver(sync) : null;
     rootObserver?.observe(root, {
       attributes: true,
-      attributeFilter: ["data-solaris-keyboard-open"],
+      attributeFilter: ["data-solaris-keyboard-open", "dir"],
     });
     window.addEventListener("resize", sync);
     window.visualViewport?.addEventListener("resize", sync);
@@ -288,19 +310,27 @@ export function V3LiquidTabBar({
     const first = rects[0] ?? origin;
     const last = rects.at(-1) ?? origin;
     const originCenter = origin.left + origin.width / 2;
+    const firstDelta = first.left + first.width / 2 - originCenter;
+    const lastDelta = last.left + last.width / 2 - originCenter;
+    const nextLayoutDirection = layoutDirectionFor(materialRef.current ?? event.currentTarget);
+    setLayoutDirection((current) =>
+      current === nextLayoutDirection ? current : nextLayoutDirection,
+    );
 
     dragState.current = {
       pointerId: event.pointerId,
       captureTarget: event.currentTarget,
       startX: event.clientX,
       originIndex: index,
+      previewIndex: index,
       moved: false,
       lastX: event.clientX,
       lastAt: event.timeStamp,
       velocityX: 0,
-      minDelta: first.left + first.width / 2 - originCenter,
-      maxDelta: last.left + last.width / 2 - originCenter,
+      minDelta: Math.min(firstDelta, lastDelta),
+      maxDelta: Math.max(firstDelta, lastDelta),
       slotWidth: origin.width,
+      layoutDirection: nextLayoutDirection,
     };
     lastPreviewHaptic.current = index;
     event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -338,14 +368,17 @@ export function V3LiquidTabBar({
     material?.setAttribute("data-drag-direction", response.direction);
 
     const nextPreview = resolveTabDragTargetIndex({
-      rawDelta,
+      rawDelta: resolveV3LogicalHorizontalDelta(rawDelta, drag.layoutDirection),
       originIndex: drag.originIndex,
       slotWidth: drag.slotWidth,
       itemCount: destinations.length,
       activationRatio: 0.62,
       maxSteps: 1,
     });
-    setDragPreviewIndex((current) => (current === nextPreview ? current : nextPreview));
+    if (nextPreview !== drag.previewIndex) {
+      drag.previewIndex = nextPreview;
+      setDragPreviewIndex(nextPreview);
+    }
 
     if (drag.moved) event.preventDefault();
   };
@@ -362,8 +395,14 @@ export function V3LiquidTabBar({
     if (!drag || drag.pointerId !== event.pointerId) return;
 
     const targetIndex = resolveTabDragTargetIndex({
-      rawDelta: event.clientX - drag.startX,
-      velocityX: drag.velocityX,
+      rawDelta: resolveV3LogicalHorizontalDelta(
+        event.clientX - drag.startX,
+        drag.layoutDirection,
+      ),
+      velocityX: resolveV3LogicalHorizontalDelta(
+        drag.velocityX,
+        drag.layoutDirection,
+      ),
       velocityProjectionMs: 110,
       originIndex: drag.originIndex,
       slotWidth: drag.slotWidth,
@@ -399,9 +438,10 @@ export function V3LiquidTabBar({
     clearDrag();
   };
 
+  const inlineSign = resolveV3PhysicalInlineSign(layoutDirection);
   const indicatorStyle = {
     width: `calc((100% - .76rem - ${Math.max(0, count - 1) * 0.14}rem) / ${count})`,
-    transform: `translate3d(calc(${visualLensIndex} * (100% + .14rem) + var(--v3-liquid-drag-x)), 0, 0) scaleX(var(--v3-liquid-scale-x))`,
+    transform: `translate3d(calc(${visualLensIndex * inlineSign} * (100% + .14rem) + var(--v3-liquid-drag-x)), 0, 0) scaleX(var(--v3-liquid-scale-x))`,
   } as CSSProperties;
 
   return (
@@ -411,6 +451,7 @@ export function V3LiquidTabBar({
       aria-label="Primary app navigation"
       data-v3-liquid-tabbar=""
       data-collapsed={collapsed ? "true" : "false"}
+      data-layout-direction={layoutDirection}
       onPointerDown={() => {
         if (collapsed) expand();
       }}
