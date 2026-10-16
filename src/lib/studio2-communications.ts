@@ -123,12 +123,13 @@ export type SaveStudio2NoticeInput = SendStudio2NoticeInput & {
   displaySurfaces: NoticeDisplaySurface[];
 };
 
-function asRows<T>(value: unknown): T[] {
-  return Array.isArray(value) ? (value as T[]) : [];
+function asRows<T>(value: unknown, label = 'communications payload'): T[] {
+  if (!Array.isArray(value)) throw new Error(`Invalid ${label}: expected an array.`);
+  return value as T[];
 }
 
 function mapNotice(row: NoticeRow): OperationalNotice {
-  return {
+  const notice: OperationalNotice = {
     id: row.id,
     editionId: row.edition_id,
     noticeType: row.notice_type ?? 'official_notice',
@@ -148,6 +149,25 @@ function mapNotice(row: NoticeRow): OperationalNotice {
     supersededById: row.superseded_by_id ?? null,
     revision: row.revision ?? 1,
   };
+  if (typeof notice.id !== 'string' || !notice.id.trim()) {
+    throw new Error('Official Communications returned a notice without an id.');
+  }
+  validateOperationalNotice(notice);
+  return notice;
+}
+
+export function validateStudio2NoticeResponse(
+  notice: OperationalNotice,
+  expected: { noticeId?: string | null; editionId?: string | null } = {},
+): OperationalNotice {
+  validateOperationalNotice(notice);
+  if (expected.noticeId && notice.id !== expected.noticeId) {
+    throw new Error('Official Communications returned a different notice than the requested operation.');
+  }
+  if (expected.editionId && notice.editionId !== expected.editionId) {
+    throw new Error('Official Communications returned data outside the requested edition scope.');
+  }
+  return notice;
 }
 
 function mapReceipt(row: ReceiptRow): NoticeReceipt {
@@ -217,7 +237,7 @@ async function assertNoticeInEdition(noticeId: string, editionId: string): Promi
     .eq('id', noticeId)
     .eq('edition_id', editionId);
   if (error) throw error;
-  const matches = asRows<{ id: string; edition_id: string | null }>(data);
+  const matches = asRows<{ id: string; edition_id: string | null }>(data, 'notice edition check');
   if (matches.length !== 1) {
     throw Object.assign(
       new Error('The selected communication is outside the current edition scope.'),
@@ -247,20 +267,28 @@ export async function loadStudio2Notices(editionId?: string | null): Promise<Stu
   const { data: noticeData, error: noticeError } = await noticeQuery;
   if (noticeError) throw noticeError;
 
-  const noticeRows = asRows<NoticeRow>(noticeData);
+  const noticeRows = asRows<NoticeRow>(noticeData, 'Official Communications notice list');
   if (!noticeRows.length) return [];
   if (noticeRows.some((row) => row.edition_id !== scopedEditionId)) {
     throw new Error('Official Communications returned data outside the selected edition scope.');
   }
-
   const noticeIds = noticeRows.map((row) => row.id);
+  if (new Set(noticeIds).size !== noticeIds.length) {
+    throw new Error('Official Communications returned duplicate notice rows.');
+  }
+
   const { data: receiptData, error: receiptError } = await client
     .from('studio2_notice_receipts')
     .select(RECEIPT_COLUMNS)
     .in('notice_id', noticeIds);
 
   if (receiptError) throw receiptError;
-  const receipts = asRows<ReceiptRow>(receiptData).map(mapReceipt);
+  const receiptRows = asRows<ReceiptRow>(receiptData, 'Official Communications receipt list');
+  const receiptKeys = receiptRows.map((row) => `${row.notice_id}:${row.recipient_user_id}`);
+  if (new Set(receiptKeys).size !== receiptKeys.length) {
+    throw new Error('Official Communications returned duplicate recipient receipts.');
+  }
+  const receipts = receiptRows.map(mapReceipt);
 
   return noticeRows.map((row) => {
     const notice = mapNotice(row);
@@ -280,7 +308,7 @@ export async function loadStudio2NoticeInbox(editionId?: string | null): Promise
   });
   if (error) throw error;
 
-  return asRows<InboxRow>(data).map((row) => {
+  return asRows<InboxRow>(data, 'Official Communications inbox').map((row) => {
     const notice = mapNotice(row);
     const receipt = mapInboxReceipt(row);
     return { notice, receipt, inboxState: noticeInboxState(notice, receipt) };
@@ -339,10 +367,12 @@ export async function createStudio2NoticeDraft(
   input: SaveStudio2NoticeInput,
   supersedesId: string | null = null,
 ): Promise<OperationalNotice> {
-  return noticeRpc('studio2_create_notice_draft_v2', {
-    ...saveArgs(input),
+  const editionId = requireEditionId(input.editionId);
+  const notice = await noticeRpc('studio2_create_notice_draft_v2', {
+    ...saveArgs({ ...input, editionId }),
     p_supersedes_id: supersedesId,
   });
+  return validateStudio2NoticeResponse(notice, { editionId });
 }
 
 export async function updateStudio2NoticeDraft(
@@ -356,22 +386,22 @@ export async function updateStudio2NoticeDraft(
     p_notice_id: noticeId,
     ...args,
   });
-  if (notice.editionId !== editionId) {
-    throw new Error('Official Communications returned a draft outside the selected edition scope.');
-  }
-  return notice;
+  return validateStudio2NoticeResponse(notice, { noticeId, editionId });
 }
 
 export async function scheduleStudio2Notice(noticeId: string, scheduledAt: string): Promise<OperationalNotice> {
-  return noticeRpc('studio2_schedule_notice', { p_notice_id: noticeId, p_scheduled_at: scheduledAt });
+  const notice = await noticeRpc('studio2_schedule_notice', { p_notice_id: noticeId, p_scheduled_at: scheduledAt });
+  return validateStudio2NoticeResponse(notice, { noticeId });
 }
 
 export async function publishStudio2Notice(noticeId: string): Promise<OperationalNotice> {
-  return noticeRpc('studio2_publish_notice', { p_notice_id: noticeId });
+  const notice = await noticeRpc('studio2_publish_notice', { p_notice_id: noticeId });
+  return validateStudio2NoticeResponse(notice, { noticeId });
 }
 
 export async function cancelStudio2Notice(noticeId: string, reason: string): Promise<OperationalNotice> {
-  return noticeRpc('studio2_cancel_notice', { p_notice_id: noticeId, p_reason: reason.trim() || null });
+  const notice = await noticeRpc('studio2_cancel_notice', { p_notice_id: noticeId, p_reason: reason.trim() || null });
+  return validateStudio2NoticeResponse(notice, { noticeId });
 }
 
 export async function createSupersedingStudio2NoticeDraft(noticeId: string): Promise<OperationalNotice> {
@@ -382,14 +412,16 @@ export async function archiveStudio2Communication(
   noticeId: string,
   reason: string,
 ): Promise<OperationalNotice> {
-  return noticeRpc('studio2_archive_communication', {
+  const notice = await noticeRpc('studio2_archive_communication', {
     p_notice_id: noticeId,
     p_reason: reason.trim() || null,
   });
+  return validateStudio2NoticeResponse(notice, { noticeId });
 }
 
 export async function restoreStudio2Communication(noticeId: string): Promise<OperationalNotice> {
-  return noticeRpc('studio2_restore_communication', { p_notice_id: noticeId });
+  const notice = await noticeRpc('studio2_restore_communication', { p_notice_id: noticeId });
+  return validateStudio2NoticeResponse(notice, { noticeId });
 }
 
 export async function deleteStudio2Communication(noticeId: string, reason: string): Promise<void> {
@@ -409,7 +441,7 @@ export async function loadStudio2NoticeRevisions(noticeId: string): Promise<Noti
     .eq('notice_id', noticeId)
     .order('revision', { ascending: false });
   if (error) throw error;
-  return asRows<RevisionRow>(data).map(mapRevision);
+  return asRows<RevisionRow>(data, 'Official Communications revision history').map(mapRevision);
 }
 
 export async function markStudio2NoticeOpened(noticeId: string): Promise<void> {
@@ -458,5 +490,9 @@ export async function sendStudio2Notice(input: SendStudio2NoticeInput): Promise<
   });
 
   if (error) throw error;
-  return mapNotice(data as NoticeRow);
+  const notice = mapNotice(data as NoticeRow);
+  if (input.editionId && notice.editionId !== input.editionId) {
+    throw new Error('Official Communications returned data outside the requested edition scope.');
+  }
+  return notice;
 }
