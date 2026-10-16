@@ -50,7 +50,7 @@ export const Route = createFileRoute('/_authenticated/admin/results')({
     { title: 'Results operations — Solaris Organizer' },
     { name: 'robots', content: 'noindex' },
   ] }),
-  component: ResultsOperationsPage,
+  component: ResultsOperationsRoute,
 });
 
 type PendingOperation = {
@@ -59,6 +59,11 @@ type PendingOperation = {
   executionId: string;
   editionId: string;
 };
+
+function ResultsOperationsRoute() {
+  const { editionId } = useAdminContext();
+  return <ResultsOperationsPage key={editionId || 'unscoped'} />;
+}
 
 function ResultsOperationsPage() {
   const { editionId } = useAdminContext();
@@ -259,6 +264,9 @@ function ResultsOperationsPage() {
           title={pending ? resultActionLabel(pending.action, pending.row.calculationVersion) : 'Result operation'}
           description={pending ? (
             <div className="space-y-4">
+              <p className="text-xs font-semibold text-foreground">
+                {edition?.name ?? pending.editionId} · {pending.row.showName}
+              </p>
               <p>{operationDescription(pending)}</p>
               {recovery ? (
                 <div
