@@ -33,11 +33,22 @@ function toneForAction(action: V3ActionProjection) {
   return "neutral" as const;
 }
 
+function formatActionTime(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parsed);
+}
+
 function timingMeta(action: V3ActionProjection, delegationLabel?: string | null) {
-  const values = [
-    action.deadline ? "Deadline set" : action.opensAt ? "Scheduled" : null,
-    delegationLabel ?? null,
-  ].filter(Boolean) as string[];
+  const deadline = action.deadline ? formatActionTime(action.deadline) : null;
+  const opensAt = !deadline && action.opensAt ? formatActionTime(action.opensAt) : null;
+  const timing = deadline ? `Closes ${deadline}` : opensAt ? `Opens ${opensAt}` : null;
+  const values = [timing, delegationLabel ?? null].filter(Boolean) as string[];
 
   if (!values.length) return undefined;
   return (

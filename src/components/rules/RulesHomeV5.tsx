@@ -70,11 +70,29 @@ const FOR_YOU_COPY: Partial<Record<GovernanceActionKey, { title: string; descrip
   },
 };
 
-export function RulesHomeV5({ version }: { version: string }) {
+function formatEffectiveDate(value: string | null | undefined) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
+export function RulesHomeV5({
+  version,
+  effectiveFrom,
+}: {
+  version: string;
+  effectiveFrom?: string | null;
+}) {
   const { isAppMode } = useSolarisApp();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [context, setContext] = useState<GovernanceActionKey | null>(null);
+  const effectiveDate = formatEffectiveDate(effectiveFrom);
 
   useEffect(() => {
     try {
@@ -117,6 +135,13 @@ export function RulesHomeV5({ version }: { version: string }) {
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
             Find the rule that applies, get a direct answer, or browse the official rulebook.
           </p>
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground" data-v3-rulebook-release-meta="">
+            <span aria-label={`Current rulebook version ${version}`}>Current version · v{version}</span>
+            {effectiveDate ? <span>Effective {effectiveDate}</span> : null}
+            <Link to="/rules/changes" className="font-semibold text-primary hover:underline">
+              Previous versions
+            </Link>
+          </div>
         </header>
 
         <SolarisDepthSurface variant="action" className="mt-4">

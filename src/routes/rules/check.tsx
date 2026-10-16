@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { AppShell } from "@/components/AppShell";
+import { V3RulesRouteGate } from "@/components/v3/V3RulesRouteGate";
 
 export const Route = createFileRoute("/rules/check")({
   head: () => ({
@@ -30,62 +31,70 @@ export function RuleCheckerPage() {
     return { status: "No issue found in these checks", tone: "emerald", rule: "6.1", detail: "These three checks do not reveal an obvious problem. Other entry requirements still apply." };
   }, [availability, complete, eurovision, popularity]);
 
-  return (
-    <AppShell>
-      <div className="mx-auto max-w-3xl pb-20">
-        <header className="border-b border-border/65 pb-5">
-          <p className="text-xs font-black uppercase tracking-[0.12em] text-primary/80">Rule checker</p>
-          <h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">Check an entry</h1>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            This tool applies a few objective entry checks. It is guidance, not an official TSBC eligibility decision.
-          </p>
-        </header>
+  const content = (
+    <div className="mx-auto max-w-3xl pb-20" data-v3-rule-checker="">
+      <header className="border-b border-border/65 pb-5">
+        <p className="text-xs font-black uppercase tracking-[0.12em] text-primary/80">Rule checker</p>
+        <h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">Check an entry</h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          This tool applies a few objective entry checks. It is guidance, not an official TSBC eligibility decision.
+        </p>
+      </header>
 
-        <div className="mt-6 space-y-7">
-          <Question
-            title="Has the artist competed in Eurovision under the current restriction?"
-            value={eurovision}
-            setValue={setEurovision}
-          />
-          <Question
-            title="Does the entry exceed the current published popularity limit at the official check time?"
-            value={popularity}
-            setValue={setPopularity}
-          />
-          <Question
-            title="Are the required recording and presentation media available?"
-            value={availability}
-            setValue={setAvailability}
-            yesLabel="Yes"
-            noLabel="No"
-          />
-        </div>
-
-        {result ? (
-          <section className="mt-8 border-t border-border/65 pt-5" aria-live="polite">
-            <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">Result</p>
-            <h2 className="mt-2 text-2xl font-black">{result.status}</h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">{result.detail}</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Link
-                to="/rules/$ruleId"
-                params={{ ruleId: result.rule }}
-                className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground"
-              >
-                Read Rule {result.rule}
-              </Link>
-              <Link
-                to="/integrity/preclearance"
-                search={{ rule: result.rule }}
-                className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-sm font-bold"
-              >
-                Ask TSBC privately
-              </Link>
-            </div>
-          </section>
-        ) : null}
+      <div className="mt-6 space-y-7">
+        <Question
+          title="Has the artist competed in Eurovision under the current restriction?"
+          value={eurovision}
+          setValue={setEurovision}
+        />
+        <Question
+          title="Does the entry exceed the current published popularity limit at the official check time?"
+          value={popularity}
+          setValue={setPopularity}
+        />
+        <Question
+          title="Are the required recording and presentation media available?"
+          value={availability}
+          setValue={setAvailability}
+          yesLabel="Yes"
+          noLabel="No"
+        />
       </div>
-    </AppShell>
+
+      {result ? (
+        <section className="mt-8 border-t border-border/65 pt-5" aria-live="polite">
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">Result</p>
+          <h2 className="mt-2 text-2xl font-black">{result.status}</h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{result.detail}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              to="/rules/$ruleId"
+              params={{ ruleId: result.rule }}
+              className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground"
+            >
+              Read Rule {result.rule}
+            </Link>
+            <Link
+              to="/integrity/preclearance"
+              search={{ rule: result.rule }}
+              className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-sm font-bold"
+            >
+              Ask TSBC privately
+            </Link>
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+
+  return (
+    <V3RulesRouteGate
+      phaseLabel="Rule checker"
+      resolvingTitle="Opening rule checker"
+      legacy={<AppShell>{content}</AppShell>}
+    >
+      {content}
+    </V3RulesRouteGate>
   );
 }
 

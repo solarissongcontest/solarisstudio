@@ -142,6 +142,40 @@ export function V3ResultsScreen({
               </Link>
             </V3Section>
 
+            {projection.yourResult ? (
+              <V3Section title="Your result">
+                <V3Surface level="raised" className="p-4" data-v3-results-personal-context="">
+                  <div className="flex flex-wrap items-baseline justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold">{projection.yourResult.countryName}</p>
+                      <p className="mt-1 text-xs text-[var(--v3-text-secondary)]">
+                        Your delegation in this published result
+                      </p>
+                    </div>
+                    <p className="text-lg font-bold tabular-nums">
+                      #{projection.yourResult.rank} · {projection.yourResult.points} points
+                    </p>
+                  </div>
+                  {projection.tabs.length > 1 ? (
+                    <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-[var(--v3-border-subtle)] pt-3 text-xs">
+                      {projection.yourResult.juryPoints != null ? (
+                        <div>
+                          <dt className="text-[var(--v3-text-tertiary)]">Jury</dt>
+                          <dd className="mt-1 font-semibold tabular-nums">{projection.yourResult.juryPoints} points</dd>
+                        </div>
+                      ) : null}
+                      {projection.yourResult.televotePoints != null ? (
+                        <div>
+                          <dt className="text-[var(--v3-text-tertiary)]">Televote</dt>
+                          <dd className="mt-1 font-semibold tabular-nums">{projection.yourResult.televotePoints} points</dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                  ) : null}
+                </V3Surface>
+              </V3Section>
+            ) : null}
+
             <V3Section title="Explore this result">
               <nav aria-label="Explore this result" className="grid gap-2">
                 {projection.exploreThisResult.map((link) => (
