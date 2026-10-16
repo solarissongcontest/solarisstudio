@@ -125,6 +125,10 @@ describe("V3 navigation shell acceptance guardrails", () => {
     expect(gesture).toContain("'.overflow-x-scroll'");
     expect(gesture).toContain("'[data-carousel]'");
     expect(swipe).toContain("elementBlocksV3TopLevelSwipe(event.target)");
+    expect(swipe).toContain('surface.addEventListener("touchmove", preventOwnedHorizontalTouchPan');
+    expect(swipe).toContain("passive: false");
+    expect(swipe).toContain("event.touches.length !== 1");
+    expect(swipe).toContain('if (owner === "horizontal") event.preventDefault()');
     expect(swipe).toContain("event.preventDefault()");
   });
 
