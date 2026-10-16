@@ -113,14 +113,18 @@ function OrganizerOverview() {
                     ? "blocked"
                     : projection.risk === "elevated"
                       ? "attention"
-                      : "ready"
+                      : readinessVerified
+                        ? "ready"
+                        : "neutral"
                 }
               >
                 {projection.risk === "critical"
                   ? "Critical attention"
                   : projection.risk === "elevated"
                     ? "Needs attention"
-                    : "On track"}
+                    : readinessVerified
+                      ? "On track"
+                      : "Readiness unverified"}
               </AdminStatus>
             </section>
 
