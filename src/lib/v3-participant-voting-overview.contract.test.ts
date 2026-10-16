@@ -7,6 +7,7 @@ const source = readFileSync(
 );
 const projection = readFileSync("src/lib/v3-participate.ts", "utf8");
 const screen = readFileSync("src/components/v3/V3ParticipateScreen.tsx", "utf8");
+const navigation = readFileSync("src/lib/navigation-targets.ts", "utf8");
 const registry = readFileSync("src/lib/v3-public-capability-registry.ts", "utf8");
 
 describe("V3 participant voting overview", () => {
@@ -35,7 +36,12 @@ describe("V3 participant voting overview", () => {
     expect(screen).not.toContain("supabase");
   });
 
-  it("keeps the migration target owned by Participate while legacy cutover remains separate", () => {
+  it("converges participant voting navigation on Participate while the legacy deep link remains available for compatibility", () => {
+    expect(navigation).toContain('mySolarisVoting: "/participate"');
+    expect(navigation).not.toContain('mySolarisVoting: "/my-solaris/voting"');
+  });
+
+  it("keeps the migration target owned by Participate while deep-link cutover remains separate", () => {
     const start = registry.indexOf('id: "participant-voting-overview"');
     const end = registry.indexOf("  },", start);
     const capability = registry.slice(start, end);
