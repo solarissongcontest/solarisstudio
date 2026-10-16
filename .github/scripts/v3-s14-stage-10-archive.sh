@@ -98,33 +98,46 @@ run_s14_stage_10_archive() {
   archive_domain_events="$(db_scalar "select count(*) from private.v3_domain_events where edition_id='$EDITION_ID'::uuid and event_type='edition.archived';")"
   [[ "$archive_domain_events" == "1" ]] || fail "S14 Stage 10 blocked by #678: expected exactly one canonical edition.archived DomainEvent, got $archive_domain_events"
 
-  # Consume the canonical Organizer task/notification reconcilers. System #678
-  # must make archived canonical state resolve obsolete work; QA never deletes or
-  # manually marks these projections complete.
+  # Consume the canonical Organizer task/notification reconcilers. The canonical
+  # invariant is not "all tasks disappear": governance/history work such as an
+  # integrity case may remain legitimately actionable after archive. What must
+  # disappear are current-contest CTAs whose operation is impossible in the
+  # archived state. QA never deletes or manually resolves task projections.
   db_exec "select private.studio2_reconcile_all_organizer_tasks('$EDITION_ID'::uuid);"
 
-  open_tasks="$(db_scalar "select count(*) from public.studio2_organizer_tasks where edition_id='$EDITION_ID'::uuid and state<>'resolved';")"
-  [[ "$open_tasks" == "0" ]] || fail "archived edition still has $open_tasks actionable Organizer tasks"
+  dead_workflow_tasks="$(db_scalar "
+select count(*)
+from public.studio2_organizer_tasks task
+where task.edition_id='$EDITION_ID'::uuid
+  and task.state<>'resolved'
+  and task.task_type ~ '^(confirmation|entry|media|participation|jury|televote|results|publication|show|broadcast|edition\\.(transition|subsystem))\\.';
+")"
+  [[ "$dead_workflow_tasks" == "0" ]] || fail "archived edition still has $dead_workflow_tasks impossible current-workflow Organizer tasks"
 
-  actionable_task_notifications="$(db_scalar "
+  # A notification tied to a task that canonical reconciliation resolved may not
+  # remain an active CTA. Notifications for legitimately surviving governance
+  # tasks are allowed; notification delivery is downstream state, not workflow truth.
+  unreconciled_task_notifications="$(db_scalar "
 select count(*)
 from public.admin_notifications notification
 join public.studio2_organizer_tasks task on task.source_key=notification.source_key
 where task.edition_id='$EDITION_ID'::uuid
+  and task.state='resolved'
   and notification.requires_action
   and notification.resolved_at is null;
 ")"
-  [[ "$actionable_task_notifications" == "0" ]] || fail "archived edition still has $actionable_task_notifications actionable task notifications"
+  [[ "$unreconciled_task_notifications" == "0" ]] || fail "archived edition has $unreconciled_task_notifications resolved-task notifications still claiming action"
 
-  pending_task_deliveries="$(db_scalar "
+  deliverable_resolved_task_notifications="$(db_scalar "
 select count(*)
 from public.notification_deliveries delivery
 join public.studio2_organizer_tasks task on delivery.subject_id=task.id::text
 where task.edition_id='$EDITION_ID'::uuid
+  and task.state='resolved'
   and delivery.category='organizer_tasks'
   and delivery.status in ('pending','processing','failed');
 ")"
-  [[ "$pending_task_deliveries" == "0" ]] || fail "archived edition still has $pending_task_deliveries deliverable Organizer-task notifications"
+  [[ "$deliverable_resolved_task_notifications" == "0" ]] || fail "archived edition has $deliverable_resolved_task_notifications deliverable notifications for resolved Organizer tasks"
 
   result_hash_after="$(s14_result_evidence_hash)"
   publication_hash_after="$(s14_publication_evidence_hash)"
