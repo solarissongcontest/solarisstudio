@@ -29,6 +29,7 @@ export function isV3OrganizerLivePath(pathname: string) {
   return (
     pathname.startsWith("/admin/control-room") ||
     pathname.startsWith("/admin/broadcast-rundown") ||
+    pathname.startsWith("/admin/results-reveal") ||
     pathname.startsWith("/admin/incidents")
   );
 }
@@ -53,10 +54,7 @@ export function isV3OrganizerControlPath(pathname: string) {
     pathname.startsWith("/admin/friend-voting") ||
     pathname.startsWith("/admin/jury-integrity") ||
     pathname.startsWith("/admin/results") ||
-    pathname.startsWith("/admin/voting-lab") ||
     pathname.startsWith("/admin/workflows") ||
-    pathname.startsWith("/admin/edition-simulator") ||
-    pathname.startsWith("/admin/storytelling") ||
     pathname.startsWith("/admin/media-assets") ||
     pathname.startsWith("/admin/communications") ||
     pathname.startsWith("/admin/publication/") ||
@@ -149,19 +147,19 @@ export function buildV3OrganizerControlGroups(
     {
       key: "contest",
       label: "Contest",
-      description: "Entries, media, shows, running order and contest readiness.",
+      description: "Entry review, media, shows, running order and contest readiness.",
       items: [
         {
           key: "entry-review",
           label: "Entry review",
-          description: "Review submitted entry content, corrections and verification state",
+          description: "Review submitted songs, request corrections and verify current entry versions",
           href: contextHref("/confirmations/admin/responses"),
           editionScoped: true,
         },
         {
           key: "media",
-          label: "Media",
-          description: "Assets, artwork and submission media review",
+          label: "Media review",
+          description: "Assets, validation evidence, replacement state and organizer review",
           href: contextHref("/admin/media-assets"),
           editionScoped: true,
         },
@@ -175,7 +173,14 @@ export function buildV3OrganizerControlGroups(
         {
           key: "running-order",
           label: "Running order",
-          description: "Line-up placement and synchronization",
+          description: "Line-up allocation and authoritative running-order operations",
+          href: editionHref("/admin/entries/:slug"),
+          editionScoped: true,
+        },
+        {
+          key: "progression",
+          label: "Progression",
+          description: "Heat progression and line-up synchronization",
           href: editionHref("/admin/lineup-sync/:slug"),
           editionScoped: true,
         },
@@ -270,12 +275,19 @@ export function buildV3OrganizerControlGroups(
           href: contextHref("/admin/communications"),
           editionScoped: true,
         },
+        {
+          key: "delivery-issues",
+          label: "Delivery issues",
+          description: "Inspect failed push deliveries and retry only failed targets",
+          href: contextHref("/admin/system-operations"),
+          editionScoped: true,
+        },
       ],
     },
     {
       key: "production",
       label: "Production",
-      description: "Broadcast setup, rundown and reveal preparation.",
+      description: "Configure the edition's broadcast presentation. Live execution stays under Live.",
       items: [
         {
           key: "broadcast",
@@ -285,17 +297,10 @@ export function buildV3OrganizerControlGroups(
           editionScoped: true,
         },
         {
-          key: "rundown",
-          label: "Broadcast rundown",
-          description: "Show rundown and cue sequence",
-          href: contextHref("/admin/broadcast-rundown"),
-          editionScoped: true,
-        },
-        {
-          key: "reveal",
-          label: "Reveal Director",
-          description: "Plan and rehearse the official results reveal sequence",
-          href: contextHref("/admin/results-reveal"),
+          key: "theme",
+          label: "Edition theme",
+          description: "Edition visual theme and presentation configuration",
+          href: editionHref("/admin/edition-theme/:slug"),
           editionScoped: true,
         },
       ],
