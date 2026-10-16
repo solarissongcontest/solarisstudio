@@ -117,7 +117,8 @@ function targetDomainFor(id: string) {
   if (/beta-|acceptance-test|beta-coverage|public-ux|flag-qa/.test(id)) {
     return "product-qa";
   }
-  if (/confirmation|delegation|country|hod|next-in-line|eligibility|submission/.test(id)) {
+  if (/eligibility/.test(id)) return "contest";
+  if (/confirmation|delegation|country|hod|next-in-line|submission/.test(id)) {
     return "delegations";
   }
   if (/jury|voting|televote|result/.test(id)) return "voting-results";
