@@ -55,11 +55,7 @@ function SettingsPage() {
   }, [navigate]);
 
   const activeEdition = useMemo(
-    () =>
-      editions.find((edition) => edition.id === organizerEditionId) ??
-      editions.find((edition) => edition.status === "active") ??
-      editions[0] ??
-      null,
+    () => editions.find((edition) => edition.id === organizerEditionId) ?? null,
     [editions, organizerEditionId],
   );
 
@@ -83,9 +79,21 @@ function SettingsPage() {
       ) : error ? (
         <AdminCard><p className="text-sm text-rose-200">{error}</p></AdminCard>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4" data-v3-organizer-confirmation-settings="">
           <AdminCard strong>
-            <AdminCardHeader eyebrow="Current context" title={activeEdition ? `SSC ${activeEdition.edition_number}` : "No active edition"} description={activeEdition?.name ?? "Choose or configure an edition before opening confirmations."} action={<AdminStatus tone={activeEdition ? "ready" : "attention"}>{activeEdition ? "Active" : "Needs setup"}</AdminStatus>} />
+            <AdminCardHeader
+              eyebrow="Current context"
+              title={activeEdition ? `SSC ${activeEdition.edition_number}` : "No edition selected"}
+              description={
+                activeEdition?.name ??
+                "Select an edition in Solaris Organizer before using edition-scoped delegation settings. Solaris will not substitute a globally active or first edition."
+              }
+              action={
+                <AdminStatus tone={activeEdition ? "ready" : "attention"}>
+                  {activeEdition ? "Edition locked" : "Select edition"}
+                </AdminStatus>
+              }
+            />
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
                 <p className="admin-section-label">Organizer account</p>
@@ -93,7 +101,9 @@ function SettingsPage() {
               </div>
               <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3">
                 <p className="admin-section-label">Response editing</p>
-                <p className="mt-2 text-sm font-semibold text-foreground">{activeEdition?.editing_enabled ? "Open" : "Closed"}</p>
+                <p className="mt-2 text-sm font-semibold text-foreground">
+                  {activeEdition ? (activeEdition.editing_enabled ? "Open" : "Closed") : "Edition required"}
+                </p>
               </div>
             </div>
           </AdminCard>
