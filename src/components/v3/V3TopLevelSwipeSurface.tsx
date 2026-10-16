@@ -41,6 +41,11 @@ type SettlingComposition = {
   nextSurface: ReactNode;
 };
 
+type CommittedRouteSnapshot = {
+  originRouteKey: string;
+  targetRouteKey: string | null;
+};
+
 type SwipeSlot = "previous" | "current" | "next";
 
 function navigationMaterial() {
@@ -55,6 +60,10 @@ function shellInteractionBlocked() {
     root.hasAttribute("data-solaris-feature-overlay-open") ||
     root.hasAttribute("data-solaris-keyboard-open")
   );
+}
+
+function routeSnapshotKey(pathname: string, searchStr: string) {
+  return `${pathname}\u0000${searchStr}`;
 }
 
 function canonicalSwipeSlot(settlingComposition: SettlingComposition | null): SwipeSlot {
@@ -104,6 +113,7 @@ export function V3TopLevelSwipeSurface({
   const activeIndexRef = useRef(activeIndex);
   const committedTargetRef = useRef<number | null>(null);
   const committedInteractionKeyRef = useRef<string | null>(null);
+  const committedRouteSnapshotRef = useRef<CommittedRouteSnapshot | null>(null);
   const settlingCompositionRef = useRef<SettlingComposition | null>(null);
   const [settlingComposition, setSettlingComposition] =
     useState<SettlingComposition | null>(null);
@@ -148,6 +158,7 @@ export function V3TopLevelSwipeSurface({
     dragRef.current = null;
     committedTargetRef.current = null;
     committedInteractionKeyRef.current = null;
+    committedRouteSnapshotRef.current = null;
     if (settlingCompositionRef.current != null) {
       settlingCompositionRef.current = null;
       setSettlingComposition(null);
@@ -217,11 +228,27 @@ export function V3TopLevelSwipeSurface({
 
   useEffect(() => {
     const expectedTarget = committedTargetRef.current;
-    const preservingOwnedCommit =
+    const routeSnapshot = committedRouteSnapshotRef.current;
+    const ownedTargetActive =
       expectedTarget != null &&
       activeIndex === expectedTarget &&
-      committedInteractionKeyRef.current === interactionKey;
-    if (!preservingOwnedCommit) resetSurface();
+      committedInteractionKeyRef.current === interactionKey &&
+      routeSnapshot != null;
+
+    if (!ownedTargetActive) {
+      resetSurface();
+      return;
+    }
+
+    const currentRouteKey = routeSnapshotKey(pathname, searchStr);
+    if (routeSnapshot.targetRouteKey == null) {
+      if (currentRouteKey !== routeSnapshot.originRouteKey) {
+        routeSnapshot.targetRouteKey = currentRouteKey;
+      }
+      return;
+    }
+
+    if (currentRouteKey !== routeSnapshot.targetRouteKey) resetSurface();
   }, [activeIndex, interactionKey, pathname, resetSurface, searchStr]);
 
   useEffect(() => {
@@ -387,6 +414,10 @@ export function V3TopLevelSwipeSurface({
     setSettlingComposition(frozenComposition);
     committedTargetRef.current = targetIndex;
     committedInteractionKeyRef.current = interactionKey;
+    committedRouteSnapshotRef.current = {
+      originRouteKey: routeSnapshotKey(pathname, searchStr),
+      targetRouteKey: null,
+    };
 
     publishVisualProgress(targetIndex, drag, "settle");
     onCommit(targetIndex);
