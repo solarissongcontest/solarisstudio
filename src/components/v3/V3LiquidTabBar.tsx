@@ -19,7 +19,6 @@ import {
 } from "@/lib/interaction-physics";
 import {
   resolveV3LogicalHorizontalDelta,
-  resolveV3PhysicalInlineSign,
   type V3LayoutDirection,
 } from "@/lib/v3-navigation-gesture";
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
@@ -439,11 +438,19 @@ export function V3LiquidTabBar({
     clearDrag();
   };
 
-  const inlineSign = resolveV3PhysicalInlineSign(layoutDirection);
+  // Keep the decorative lens in a physical left-to-right coordinate system.
+  // The grid itself mirrors in RTL, while route/gesture selection stays logical.
+  // Mixing an RTL right anchor with a negative percentage transform made WebKit
+  // mirror the translation twice and could throw the lens outside the material.
+  const physicalLensIndex =
+    layoutDirection === "rtl" ? count - 1 - visualLensIndex : visualLensIndex;
   const totalGap = Math.max(0, count - 1) * 2;
   const indicatorStyle = {
     width: `calc((100% - 12px - ${totalGap}px) / ${count})`,
-    transform: `translate3d(calc(${visualLensIndex * inlineSign} * (100% + 2px) + var(--v3-liquid-drag-x)), 0, 0) scaleX(var(--v3-liquid-scale-x))`,
+    left: "6px",
+    right: "auto",
+    direction: "ltr",
+    transform: `translate3d(calc(${physicalLensIndex} * (100% + 2px) + var(--v3-liquid-drag-x)), 0, 0) scaleX(var(--v3-liquid-scale-x))`,
   } as CSSProperties;
 
   return (
