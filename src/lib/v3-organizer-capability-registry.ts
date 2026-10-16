@@ -108,7 +108,8 @@ function canonicalLegacyRoute(route: string) {
 }
 
 function targetDomainFor(id: string) {
-  if (/confirmation|delegation|country|hod|next-in-line|eligibility|submission/.test(id)) {
+  if (/eligibility/.test(id)) return "contest";
+  if (/confirmation|delegation|country|hod|next-in-line|submission/.test(id)) {
     return "delegations";
   }
   if (/jury|voting|televote|result/.test(id)) return "voting-results";
@@ -129,7 +130,17 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "current-edition-delegations" ||
     id === "current-edition-contest" ||
     id === "current-edition-voting" ||
-    id === "current-edition-results"
+    id === "current-edition-results" ||
+    id === "delegation-confirmation-overview" ||
+    id === "delegation-confirmation-requirements" ||
+    id === "delegation-confirmation-responses" ||
+    id === "delegation-responses-by-country" ||
+    id === "delegation-submission-rounds" ||
+    id === "delegation-calendar" ||
+    id === "delegation-access" ||
+    id === "delegation-submission-history" ||
+    id === "delegation-sync" ||
+    id === "delegation-settings"
   ) {
     return "building";
   }

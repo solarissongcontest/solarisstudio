@@ -14,6 +14,7 @@ import {
   AdminPageHeader,
   AdminStatus,
 } from "@/components/admin/AdminUI";
+import { selectOrganizerEdition } from "@/lib/admin-edition-selection";
 import { useCountries, useEditions } from "@/lib/data";
 import { loadStudio2HodWorkspace } from "@/lib/studio2-hod-workspace";
 
@@ -51,10 +52,7 @@ function CountryDetailPage() {
   const editionsQuery = useEditions();
   const countriesQuery = useCountries();
   const editions = editionsQuery.data ?? [];
-  const selectedEdition =
-    editions.find((edition) => edition.id === editionId) ??
-    [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
-    null;
+  const selectedEdition = selectOrganizerEdition(editions, editionId);
   const country =
     (countriesQuery.data ?? []).find((candidate) => candidate.id === countryId) ?? null;
   const resolvedEditionId = selectedEdition?.id ?? "";
@@ -132,7 +130,7 @@ function CountryDetailPage() {
             <AdminEmptyState
               icon={Flag}
               title="No edition selected"
-              description="Select an edition before inspecting a delegation."
+              description="Select an edition before inspecting a delegation. Solaris will not substitute another edition for missing or stale Organizer context."
             />
           </AdminCard>
         ) : workspaceQuery.isLoading || editionsQuery.isLoading || countriesQuery.isLoading ? (
