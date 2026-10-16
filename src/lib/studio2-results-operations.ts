@@ -100,24 +100,36 @@ function object(value: unknown, label: string): Record<string, unknown> {
 }
 
 function stringValue(value: unknown, label: string): string {
-  if (typeof value !== 'string' || !value) throw new Error(`Invalid ${label}`);
-  return value;
+  if (typeof value !== 'string' || !value.trim()) throw new Error(`Invalid ${label}`);
+  return value.trim();
 }
 
 function nullableString(value: unknown): string | null {
-  return typeof value === 'string' && value ? value : null;
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
-function numberValue(value: unknown, label: string): number {
+function integerValue(value: unknown, label: string): number {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed)) throw new Error(`Invalid ${label}`);
+  if (!Number.isInteger(parsed)) throw new Error(`Invalid ${label}`);
   return parsed;
 }
 
-function nullableNumber(value: unknown): number | null {
+function nonNegativeIntegerValue(value: unknown, label: string): number {
+  const parsed = integerValue(value, label);
+  if (parsed < 0) throw new Error(`Invalid ${label}`);
+  return parsed;
+}
+
+function nullableNonNegativeInteger(value: unknown, label: string): number | null {
   if (value == null) return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+  return nonNegativeIntegerValue(value, label);
+}
+
+function nullableTimestamp(value: unknown, label: string): string | null {
+  if (value == null) return null;
+  const timestamp = stringValue(value, label);
+  if (!Number.isFinite(Date.parse(timestamp))) throw new Error(`Invalid ${label}`);
+  return timestamp;
 }
 
 function boolValue(value: unknown, label: string): boolean {
@@ -127,24 +139,24 @@ function boolValue(value: unknown, label: string): boolean {
 
 export function parseStudio2ResultPreconditions(value: unknown): Studio2ResultPreconditions {
   const row = object(value, 'result preconditions');
-  const participantCount = numberValue(row.participantCount, 'participantCount');
-  const resultRowCount = numberValue(row.resultRowCount, 'resultRowCount');
-  const sourceReconcileIssueCount = numberValue(row.reconcileIssueCount, 'reconcileIssueCount');
+  const participantCount = nonNegativeIntegerValue(row.participantCount, 'participantCount');
+  const resultRowCount = nonNegativeIntegerValue(row.resultRowCount, 'resultRowCount');
+  const sourceReconcileIssueCount = nonNegativeIntegerValue(row.reconcileIssueCount, 'reconcileIssueCount');
   const entityCountMismatch = Math.abs(resultRowCount - participantCount);
   const reconciliationIssues = sourceReconcileIssueCount + entityCountMismatch;
   const sourceResultReady = boolValue(row.resultReady, 'resultReady');
   return {
     participantCount,
     juryEnabled: boolValue(row.juryEnabled, 'juryEnabled'),
-    juryRequiredPoints: numberValue(row.juryRequiredPoints, 'juryRequiredPoints'),
-    juryVoterCount: numberValue(row.juryVoterCount, 'juryVoterCount'),
-    juryVoteRows: numberValue(row.juryVoteRows, 'juryVoteRows'),
-    juryDnvCount: numberValue(row.juryDnvCount, 'juryDnvCount'),
-    juryIncompleteCount: numberValue(row.juryIncompleteCount, 'juryIncompleteCount'),
-    juryConflictCount: numberValue(row.juryConflictCount, 'juryConflictCount'),
+    juryRequiredPoints: nonNegativeIntegerValue(row.juryRequiredPoints, 'juryRequiredPoints'),
+    juryVoterCount: nonNegativeIntegerValue(row.juryVoterCount, 'juryVoterCount'),
+    juryVoteRows: nonNegativeIntegerValue(row.juryVoteRows, 'juryVoteRows'),
+    juryDnvCount: nonNegativeIntegerValue(row.juryDnvCount, 'juryDnvCount'),
+    juryIncompleteCount: nonNegativeIntegerValue(row.juryIncompleteCount, 'juryIncompleteCount'),
+    juryConflictCount: nonNegativeIntegerValue(row.juryConflictCount, 'juryConflictCount'),
     juryReady: boolValue(row.juryReady, 'juryReady'),
     televoteEnabled: boolValue(row.televoteEnabled, 'televoteEnabled'),
-    televoteVoteRows: numberValue(row.televoteVoteRows, 'televoteVoteRows'),
+    televoteVoteRows: nonNegativeIntegerValue(row.televoteVoteRows, 'televoteVoteRows'),
     televoteReady: boolValue(row.televoteReady, 'televoteReady'),
     calculationReady: boolValue(row.calculationReady, 'calculationReady'),
     resultRowCount,
@@ -161,7 +173,7 @@ export function parseStudio2ResultOperationRow(value: unknown): Studio2ResultOpe
   if (!STUDIO2_RESULT_LIFECYCLE.includes(row.lifecycle as Studio2ResultLifecycle)) {
     throw new Error('Invalid result lifecycle');
   }
-  const calculationVersion = numberValue(row.calculationVersion, 'calculationVersion');
+  const calculationVersion = nonNegativeIntegerValue(row.calculationVersion, 'calculationVersion');
   // Legacy result rows can exist without a governed calculation receipt. They
   // are reconciliation evidence, not proof that Results operations calculated
   // a version. Never contradict Publication's "No calculated results" state.
@@ -172,19 +184,19 @@ export function parseStudio2ResultOperationRow(value: unknown): Studio2ResultOpe
     showId: stringValue(row.showId, 'showId'),
     showName: stringValue(row.showName, 'showName'),
     showKind: stringValue(row.showKind, 'showKind'),
-    sortOrder: numberValue(row.sortOrder, 'sortOrder'),
+    sortOrder: integerValue(row.sortOrder, 'sortOrder'),
     lifecycle,
     calculationVersion,
-    lastCalculatedAt: nullableString(row.lastCalculatedAt),
+    lastCalculatedAt: nullableTimestamp(row.lastCalculatedAt, 'lastCalculatedAt'),
     lastCalculatedBy: nullableString(row.lastCalculatedBy),
-    reviewedVersion: nullableNumber(row.reviewedVersion),
-    reviewedAt: nullableString(row.reviewedAt),
+    reviewedVersion: nullableNonNegativeInteger(row.reviewedVersion, 'reviewedVersion'),
+    reviewedAt: nullableTimestamp(row.reviewedAt, 'reviewedAt'),
     reviewedBy: nullableString(row.reviewedBy),
-    lockedVersion: nullableNumber(row.lockedVersion),
-    lockedAt: nullableString(row.lockedAt),
+    lockedVersion: nullableNonNegativeInteger(row.lockedVersion, 'lockedVersion'),
+    lockedAt: nullableTimestamp(row.lockedAt, 'lockedAt'),
     lockedBy: nullableString(row.lockedBy),
-    revealReadyVersion: nullableNumber(row.revealReadyVersion),
-    revealReadyAt: nullableString(row.revealReadyAt),
+    revealReadyVersion: nullableNonNegativeInteger(row.revealReadyVersion, 'revealReadyVersion'),
+    revealReadyAt: nullableTimestamp(row.revealReadyAt, 'revealReadyAt'),
     revealReadyBy: nullableString(row.revealReadyBy),
     preconditions: parseStudio2ResultPreconditions(row.preconditions),
   };
@@ -201,10 +213,10 @@ function parseExecution(value: unknown): Studio2ResultExecution {
     editionId: stringValue(row.editionId, 'editionId'),
     action: row.action as Studio2ResultAction,
     reason: stringValue(row.reason, 'reason'),
-    calculationVersion: numberValue(row.calculationVersion, 'calculationVersion'),
-    previousVersion: numberValue(row.previousVersion, 'previousVersion'),
-    materializedRows: numberValue(row.materializedRows ?? 0, 'materializedRows'),
-    updatedRows: numberValue(row.updatedRows ?? 0, 'updatedRows'),
+    calculationVersion: nonNegativeIntegerValue(row.calculationVersion, 'calculationVersion'),
+    previousVersion: nonNegativeIntegerValue(row.previousVersion, 'previousVersion'),
+    materializedRows: nonNegativeIntegerValue(row.materializedRows ?? 0, 'materializedRows'),
+    updatedRows: nonNegativeIntegerValue(row.updatedRows ?? 0, 'updatedRows'),
     preconditionsBefore: parseStudio2ResultPreconditions(row.preconditionsBefore),
     preconditionsAfter: parseStudio2ResultPreconditions(row.preconditionsAfter),
     idempotentReplay: boolValue(row.idempotentReplay, 'idempotentReplay'),
@@ -213,12 +225,18 @@ function parseExecution(value: unknown): Studio2ResultExecution {
 
 export function validateStudio2ResultExecution(
   execution: Studio2ResultExecution,
-  request: Pick<Studio2ResultExecution, 'executionId' | 'showId' | 'action'>,
+  request: Pick<Studio2ResultExecution, 'executionId' | 'showId' | 'action'> & {
+    expectedVersion?: number;
+  },
 ): Studio2ResultExecution {
   const mismatches: string[] = [];
   if (execution.executionId !== request.executionId) mismatches.push('executionId');
   if (execution.showId !== request.showId) mismatches.push('showId');
   if (execution.action !== request.action) mismatches.push('action');
+  if (request.expectedVersion !== undefined && execution.previousVersion !== request.expectedVersion) {
+    mismatches.push('previousVersion');
+  }
+  if (execution.calculationVersion < execution.previousVersion) mismatches.push('calculationVersion');
   if (mismatches.length) {
     throw new Error(`Result operation receipt does not match the requested command (${mismatches.join(', ')}).`);
   }
@@ -232,10 +250,16 @@ async function rpc(name: string, args: Record<string, unknown>) {
 }
 
 export async function loadStudio2ResultsOperations(editionId: string): Promise<Studio2ResultOperationRow[]> {
-  if (!editionId) return [];
-  const data = await rpc('studio2_results_operations_snapshot', { p_edition_id: editionId });
-  if (!Array.isArray(data)) return [];
-  return data.map(parseStudio2ResultOperationRow);
+  const normalizedEditionId = editionId.trim();
+  if (!normalizedEditionId) throw new Error('Results operations requires an explicit edition scope.');
+  const data = await rpc('studio2_results_operations_snapshot', { p_edition_id: normalizedEditionId });
+  if (!Array.isArray(data)) throw new Error('Invalid results operations snapshot: expected an array.');
+  const rows = data.map(parseStudio2ResultOperationRow);
+  const showIds = rows.map((row) => row.showId);
+  if (new Set(showIds).size !== showIds.length) {
+    throw new Error('Results operations snapshot returned duplicate show rows.');
+  }
+  return rows;
 }
 
 export async function executeStudio2ResultOperation(input: {
@@ -246,23 +270,28 @@ export async function executeStudio2ResultOperation(input: {
   expectedVersion: number;
 }): Promise<Studio2ResultExecution> {
   const reason = input.reason.trim();
-  if (!input.showId) throw new Error('Show is required.');
+  if (!input.showId.trim()) throw new Error('Show is required.');
   if (!STUDIO2_RESULT_ACTIONS.includes(input.action)) throw new Error('Unsupported result operation.');
   if (reason.length < 5) throw new Error('A reason of at least 5 characters is required.');
-  if (!input.executionId) throw new Error('Execution id is required.');
+  if (!input.executionId.trim()) throw new Error('Execution id is required.');
   if (!Number.isInteger(input.expectedVersion) || input.expectedVersion < 0) {
     throw new Error('Expected calculation version is invalid.');
   }
 
   const data = await rpc('studio2_execute_result_operation', {
-    p_show_id: input.showId,
+    p_show_id: input.showId.trim(),
     p_action: input.action,
     p_reason: reason,
-    p_execution_id: input.executionId,
+    p_execution_id: input.executionId.trim(),
     p_expected_version: input.expectedVersion,
   });
   const execution = parseExecution(data);
-  return validateStudio2ResultExecution(execution, input);
+  return validateStudio2ResultExecution(execution, {
+    executionId: input.executionId.trim(),
+    showId: input.showId.trim(),
+    action: input.action,
+    expectedVersion: input.expectedVersion,
+  });
 }
 
 export function resultLifecycleLabel(state: Studio2ResultLifecycle): string {
