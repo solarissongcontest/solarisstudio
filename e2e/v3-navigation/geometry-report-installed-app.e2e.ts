@@ -128,7 +128,7 @@ async function measureExpanded(page: Page) {
   });
 }
 
-async function measureCompact(page: Page) {
+async function measureCompact(page: Page, expandedHeight: number) {
   await page.evaluate(() => {
     const spacer = document.createElement("div");
     spacer.dataset.v3GeometryScrollFixture = "";
@@ -137,7 +137,19 @@ async function measureCompact(page: Page) {
     document.body.append(spacer);
     window.scrollTo(0, 420);
   });
-  await expect(page.locator("[data-v3-liquid-tabbar]")).toHaveAttribute("data-collapsed", "true");
+  const bar = page.locator("[data-v3-liquid-tabbar]");
+  await expect(bar).toHaveAttribute("data-collapsed", "true");
+  // The React state attribute can flip before WebKit has exposed the resulting
+  // computed geometry. N14 evidence must sample the compact material itself,
+  // not a one-tick intermediate layout that still has expanded dimensions.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const material = document.querySelector<HTMLElement>(".v3-liquid-tabbar__material");
+        return material?.getBoundingClientRect().height ?? Number.POSITIVE_INFINITY;
+      }),
+    )
+    .toBeLessThan(expandedHeight - 1);
   return page.evaluate(() => {
     const material = document.querySelector<HTMLElement>(".v3-liquid-tabbar__material");
     if (!material) return null;
@@ -165,7 +177,7 @@ test("installed app shell survives representative navigation without duplicate c
   const expanded = await measureExpanded(page);
   expect(expanded).not.toBeNull();
   if (!expanded) return;
-  const compact = await measureCompact(page);
+  const compact = await measureCompact(page, expanded.shellHeight);
   expect(compact).not.toBeNull();
   if (!compact) return;
 
