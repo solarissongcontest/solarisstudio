@@ -52,6 +52,17 @@
   transform: translate3d(100%, 0, 0);
 }
 
+/* Keep the same logical previous/current/next composition when the document is
+   right-to-left. The JS publishes logical progress and mirrors the physical
+   track/lens translation; the adjacent live DOM surfaces mirror here too. */
+[data-solaris-v3] .v3-top-level-swipe-surface:dir(rtl) .v3-top-level-swipe-page--previous {
+  transform: translate3d(100%, 0, 0);
+}
+
+[data-solaris-v3] .v3-top-level-swipe-surface:dir(rtl) .v3-top-level-swipe-page--next {
+  transform: translate3d(-100%, 0, 0);
+}
+
 /* Page swipe and the selected Liquid Glass lens are one gesture. The hot loop
    sets one navigation progress and derives both transforms from it. */
 [data-solaris-v3]
