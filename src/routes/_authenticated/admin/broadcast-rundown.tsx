@@ -49,8 +49,13 @@ export const Route = createFileRoute('/_authenticated/admin/broadcast-rundown')(
       { name: 'robots', content: 'noindex' },
     ],
   }),
-  component: BroadcastRundownPage,
+  component: BroadcastRundownRoute,
 });
+
+function BroadcastRundownRoute() {
+  const { editionId } = useAdminContext();
+  return <BroadcastRundownPage key={editionId || 'unscoped'} />;
+}
 
 function BroadcastRundownPage() {
   const { editionId } = useAdminContext();
