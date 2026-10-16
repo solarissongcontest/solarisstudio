@@ -134,6 +134,7 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "delegation-confirmation-overview" ||
     id === "delegation-confirmation-requirements" ||
     id === "delegation-confirmation-responses" ||
+    id === "delegation-next-in-line" ||
     id === "delegation-responses-by-country" ||
     id === "delegation-submission-rounds" ||
     id === "delegation-calendar" ||
