@@ -61,6 +61,8 @@ describe("System V3 S1 registries", () => {
     expect(eventBacked).toEqual([
       "confirmation.submitted",
       "confirmation.window_changed",
+      "entry.changes_requested",
+      "entry.reviewed",
     ]);
 
     const migrated = new Set(eventBacked);
