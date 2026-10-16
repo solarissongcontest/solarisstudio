@@ -125,6 +125,7 @@ describe("V3 navigation shell acceptance guardrails", () => {
     expect(swipe).toContain("shellInteractionBlocked()");
     expect(swipe).toContain("interactionKey?: string | null");
     expect(swipe).toContain("[interactionKey, pathname, resetSurface, searchStr]");
+    expect(swipe).toContain("surface.releasePointerCapture?.(drag.pointerId)");
     expect(shell).toContain("interactionKey={navigationScope}");
   });
 
