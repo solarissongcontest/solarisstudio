@@ -112,7 +112,15 @@ export async function loadOrganizerTasksV5(
     p_filter: filter,
   });
   if (error) throw new Error(error.message || "Organizer Tasks could not be loaded.");
-  return mapOrganizerTasksV5(data);
+
+  const tasks = mapOrganizerTasksV5(data);
+  const mismatchedTask = tasks.find(
+    (task) => task.editionId !== null && task.editionId !== normalizedEditionId,
+  );
+  if (mismatchedTask) {
+    throw new Error("Organizer Tasks returned data outside the selected edition scope.");
+  }
+  return tasks;
 }
 
 export async function loadOrganizerTaskCountV5(
