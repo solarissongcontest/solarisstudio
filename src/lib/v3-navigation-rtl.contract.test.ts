@@ -27,7 +27,7 @@ describe("V3 navigation RTL integration contract", () => {
     expect(css).toMatch(/:dir\(rtl\)[\s\S]*page--next[\s\S]*translate3d\(-100%/);
   });
 
-  it("mirrors the public slot index exactly once while keeping one physical lens anchor", () => {
+  it("mirrors the public slot index once and anchors the absolute lens to a physical grid track", () => {
     const tabbar = source("src/components/v3/V3LiquidTabBar.tsx");
     const fixedCss = source("src/styles/v3-navigation-fixed-geometry.css");
 
@@ -35,16 +35,19 @@ describe("V3 navigation RTL integration contract", () => {
     expect(tabbar).toContain(
       'layoutDirection === "rtl" ? count - 1 - visualLensIndex : visualLensIndex',
     );
-    expect(tabbar).toContain('left: "6px"');
-    expect(tabbar).toContain('right: "auto"');
     expect(tabbar).toContain('direction: "ltr"');
     expect(tabbar).toContain("${physicalLensIndex} * (100% + 2px)");
     expect(tabbar).not.toContain("visualLensIndex * inlineSign");
+
+    expect(fixedCss).toMatch(/v3-liquid-tabbar__lens[\s\S]*grid-column: 1 \/ 2;/);
+    expect(fixedCss).toMatch(/v3-liquid-tabbar__lens[\s\S]*width: 100% !important;/);
+    expect(fixedCss).toMatch(/v3-liquid-tabbar__lens[\s\S]*left: 0 !important;/);
+    expect(fixedCss).toMatch(/v3-liquid-tabbar__lens[\s\S]*right: auto !important;/);
     expect(fixedCss).toMatch(
-      /data-layout-direction="rtl"[\s\S]*\.v3-liquid-tabbar__lens[\s\S]*left: 6px;[\s\S]*right: auto;/,
+      /data-layout-direction="rtl"[\s\S]*\.v3-liquid-tabbar__lens[\s\S]*grid-column: -2 \/ -1;/,
     );
     expect(fixedCss).not.toMatch(
-      /data-layout-direction="rtl"[\s\S]*\.v3-liquid-tabbar__lens[\s\S]*left: auto;[\s\S]*right: 6px;/,
+      /data-layout-direction="rtl"[\s\S]*\.v3-liquid-tabbar__lens[\s\S]*right: 6px;/,
     );
   });
 
