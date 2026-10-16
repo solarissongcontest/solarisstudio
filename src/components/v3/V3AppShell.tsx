@@ -58,6 +58,11 @@ const V3_SHELL_DESTINATIONS: readonly V3ShellDestination[] = [
   { id: "me", label: "Me", to: "/my-solaris", icon: UserRound },
 ];
 
+export type V3TopLevelSwipePreviewSurfaces = {
+  previous?: ReactNode;
+  next?: ReactNode;
+};
+
 export type V3AppShellProps = {
   children: ReactNode;
   editionLabel: string;
@@ -66,6 +71,12 @@ export type V3AppShellProps = {
   activeArea?: V3Area;
   topActions?: ReactNode;
   className?: string;
+  /**
+   * Live adjacent root surfaces supplied by the Public route owner. The shell
+   * never fabricates or fetches these previews; omission keeps page swipe
+   * fail-closed while ordinary tab navigation remains fully available.
+   */
+  swipePreviewSurfaces?: V3TopLevelSwipePreviewSurfaces;
 };
 
 /**
@@ -83,6 +94,7 @@ export function V3AppShell({
   activeArea,
   topActions,
   className,
+  swipePreviewSurfaces,
 }: V3AppShellProps) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
@@ -217,6 +229,10 @@ export function V3AppShell({
     0,
     liquidDestinations.findIndex((destination) => destination.active),
   );
+  const swipePreviewReady =
+    swipePreviewSurfaces != null &&
+    (activeIndex === 0 || swipePreviewSurfaces.previous != null) &&
+    (activeIndex === liquidDestinations.length - 1 || swipePreviewSurfaces.next != null);
 
   const openTab = (
     destination: V3LiquidTabDestination,
@@ -262,6 +278,9 @@ export function V3AppShell({
           searchStr={searchStr}
           activeIndex={activeIndex}
           itemCount={liquidDestinations.length}
+          previousSurface={swipePreviewSurfaces?.previous}
+          nextSurface={swipePreviewSurfaces?.next}
+          previewReady={swipePreviewReady}
           onCommit={(targetIndex) => {
             const target = liquidDestinations[targetIndex];
             if (target) openTab(target, "swipe");
