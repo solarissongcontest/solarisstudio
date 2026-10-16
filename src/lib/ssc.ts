@@ -1,10 +1,23 @@
 export type SelectionMethod = "internal" | "national_final" | "unknown";
 export type DateType = "exact" | "approximate" | "unknown" | "immediately";
+export type EntryCreditRole =
+  | "composer"
+  | "lyricist"
+  | "songwriter"
+  | "producer"
+  | "arranger"
+  | "other";
+
+export interface EntryCredit {
+  role: EntryCreditRole;
+  name: string;
+}
 
 export interface NfEntryInput {
   artist: string;
   song_title: string;
   song_url: string;
+  credits: EntryCredit[];
 }
 
 export interface ConfirmationPayload {
@@ -20,6 +33,7 @@ export interface ConfirmationPayload {
   artist: string;
   song_title: string;
   song_url: string;
+  credits: EntryCredit[];
   preview_start: string;
   preview_end: string;
   final_clip_start: string;
@@ -53,6 +67,7 @@ export const emptyPayload = (roundId: string): ConfirmationPayload => ({
   artist: "",
   song_title: "",
   song_url: "",
+  credits: [],
   preview_start: "",
   preview_end: "",
   final_clip_start: "",
