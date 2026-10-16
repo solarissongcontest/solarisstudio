@@ -24,21 +24,16 @@ import {
   type OrganizerTaskFilter,
   type OrganizerTaskV5,
 } from "@/lib/admin-tasks-v5";
+import {
+  ORGANIZER_TASK_DOMAINS,
+  organizerTaskDomain,
+  type OrganizerTaskDomain,
+} from "@/lib/v3-organizer-task-domain";
 
 const FILTERS = ["all", "mine", "waiting", "resolved"] as const;
-const DOMAINS = [
-  "all",
-  "delegations",
-  "entries",
-  "media",
-  "voting",
-  "integrity",
-  "publication",
-  "communications",
-  "system",
-] as const;
+const DOMAINS = ["all", ...ORGANIZER_TASK_DOMAINS] as const;
 
-type OrganizerTaskDomainFilter = (typeof DOMAINS)[number];
+type OrganizerTaskDomainFilter = "all" | OrganizerTaskDomain;
 
 type TasksSearch = {
   filter: OrganizerTaskFilter;
@@ -76,7 +71,7 @@ function OrganizerTasksPage() {
   );
   const tasks = tasksQuery.data ?? [];
   const visibleTasks =
-    domain === "all" ? tasks : tasks.filter((task) => taskDomain(task) === domain);
+    domain === "all" ? tasks : tasks.filter((task) => organizerTaskDomain(task) === domain);
 
   const metricsAvailable =
     Boolean(editionId) &&
@@ -258,7 +253,7 @@ function OrganizerTasksPage() {
 
 function TaskRow({ task }: { task: OrganizerTaskV5 }) {
   const resolved = task.state === "resolved";
-  const domain = taskDomain(task);
+  const domain = organizerTaskDomain(task);
   return (
     <Link
       to={task.href as any}
@@ -319,39 +314,6 @@ function Metric({
       </div>
     </AdminCard>
   );
-}
-
-export function taskDomain(
-  task: Pick<OrganizerTaskV5, "href" | "sourceKind" | "taskType">,
-): Exclude<OrganizerTaskDomainFilter, "all"> {
-  // Canonical task identity wins over the route. A domain-specific task may be
-  // opened from a delegation or review workspace without changing ownership.
-  const semantic = `${task.sourceKind} ${task.taskType}`.toLowerCase();
-  if (/media|asset|artwork|photo|video|audio/.test(semantic)) return "media";
-  if (/integrity|investigation|appeal|evidence|anti[-_ ]?abuse|fraud|ruling|rule/.test(semantic)) {
-    return "integrity";
-  }
-  if (/jury|televote|voting|ballot|public.?vote/.test(semantic)) return "voting";
-  if (/entry|submission|show|lineup|progress|eligib/.test(semantic)) return "entries";
-  if (/result|publication|publish/.test(semantic)) return "publication";
-  if (/communication|notice|announcement|delivery|message|reminder/.test(semantic)) {
-    return "communications";
-  }
-  if (/confirm|delegat|participation/.test(semantic)) return "delegations";
-
-  const route = task.href.toLowerCase();
-  if (/media|asset|artwork|photo|video|audio/.test(route)) return "media";
-  if (/integrity|investigation|appeal|evidence|anti[-_ ]?abuse|fraud|ruling|rule/.test(route)) {
-    return "integrity";
-  }
-  if (/jury|televote|voting|ballot|public.?vote/.test(route)) return "voting";
-  if (/entry|submission|show|lineup|progress|eligib/.test(route)) return "entries";
-  if (/result|publication|publish/.test(route)) return "publication";
-  if (/communication|notice|announcement|delivery|message|reminder/.test(route)) {
-    return "communications";
-  }
-  if (/confirm|delegat|country|participation/.test(route)) return "delegations";
-  return "system";
 }
 
 function taskTone(task: OrganizerTaskV5) {
