@@ -51,7 +51,7 @@ export const ORGANISATION_OS_V5_COUNTERPARTS: readonly OrganisationCounterpart[]
   },
   {
     id: "mysolaris.voting",
-    participantSurface: "/my-solaris/voting",
+    participantSurface: "/participate",
     organizerSurface: "/televoting/admin",
     kind: "operate",
     rationale:

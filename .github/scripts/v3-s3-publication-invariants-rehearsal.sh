@@ -70,7 +70,18 @@ expect_db_failure "published result invalidation" "update public.studio2_result_
 log "Scheduling requires complete operation identity"
 expect_db_failure "scheduled publication without actor and operation" "update public.studio2_show_publication_controls set state='scheduled',version=version+1,scheduled_from_state='public',scheduled_for=now()+interval '10 minutes',source_show_updated_at=(select updated_at from public.shows where id='$SHOW_ID'),source_result_version=1,scheduled_by=null,scheduled_operation_id=null where show_id='$SHOW_ID';"
 
-log "Terminal execution evidence is exact and immutable"
+log "Terminal execution evidence is exact, provenance-backed and immutable"
+# S5 makes terminal scheduler execution a consequential fact. Seed the parent
+# scheduling operation so this S3 fixture models the same causal chain as the
+# real scheduler instead of fabricating an orphan scheduled_operation_id.
+db_exec "insert into public.studio2_operation_receipts(
+  operation_id,idempotency_key,correlation_id,request_fingerprint,command,risk_class,scope,status,result,completed_at
+) values (
+  '$OPERATION_ID','$OPERATION_ID','$OPERATION_ID',repeat('c',64),'publication.show.change','R2',
+  jsonb_build_object('editionId','$EDITION_ID','showId','$SHOW_ID'),'succeeded',
+  jsonb_build_object('ok',true,'showId','$SHOW_ID','state','scheduled','version',(select version from public.studio2_show_publication_controls where show_id='$SHOW_ID')),
+  now()
+);"
 db_exec "insert into public.studio2_show_publication_executions(id,show_id,edition_id,scheduled_operation_id,status,intended_config,source_show_updated_at,source_result_version,checks,failure_reason) values ('$EXECUTION_ID','$SHOW_ID','$EDITION_ID','$OPERATION_ID','succeeded',private.studio2_normalise_publication_config('{\"results\":true}'::jsonb),(select updated_at from public.shows where id='$SHOW_ID'),1,'{}'::jsonb,null);"
 expect_db_failure "execution rewrite" "update public.studio2_show_publication_executions set checks='{\"rewritten\":true}'::jsonb where id='$EXECUTION_ID';"
 expect_db_failure "execution deletion" "delete from public.studio2_show_publication_executions where id='$EXECUTION_ID';"
