@@ -16,6 +16,7 @@ const stage2 = source(".github/scripts/v3-s14-stage-2-onboarding.sh");
 const stage3 = source(".github/scripts/v3-s14-stage-3-confirmations.sh");
 const stage4 = source(".github/scripts/v3-s14-stage-4-entries.sh");
 const stage5 = source(".github/scripts/v3-s14-stage-5-running-orders.sh");
+const stage6 = source(".github/scripts/v3-s14-stage-6-jury.sh");
 const readiness = source("scripts/check-v3-s14-rehearsal-readiness.ts");
 
 describe("S14 stateful full-contest harness", () => {
@@ -36,9 +37,13 @@ describe("S14 stateful full-contest harness", () => {
       "v3-s14-stage-3-confirmations.sh",
       "v3-s14-stage-4-entries.sh",
       "v3-s14-stage-5-running-orders.sh",
-    ]) expect(driver).toContain(`source "$SCRIPT_DIR/${path}"`);
+      "v3-s14-stage-6-jury.sh",
+    ]) {
+      expect(driver).toContain(path);
+    }
     expect(driver).not.toContain("v3-confirmation-security-rehearsal.sh");
     expect(driver).not.toContain("v3-entry-receipt-security-rehearsal.sh");
+    expect(driver).not.toContain("v3-jury-security-rehearsal.sh");
     expect(driver).not.toContain("v3-s5-publication-consequences-rehearsal.sh");
     expect(driver).not.toContain("supabase db reset");
   });
@@ -51,9 +56,9 @@ describe("S14 stateful full-contest harness", () => {
     expect(runtime).not.toContain("supabase.co");
   });
 
-  it("implements Confirmation, Entry and Running Order lifecycle evidence without claiming later stages", () => {
-    expect(V3_S14_STAGES.slice(0, 5).every((item) => item.implementationState === "implemented")).toBe(true);
-    expect(V3_S14_STAGES.slice(5).every((item) => item.implementationState === "planned")).toBe(true);
+  it("implements stages one through six while leaving later stages explicitly planned", () => {
+    expect(V3_S14_STAGES.slice(0, 6).every((item) => item.implementationState === "implemented")).toBe(true);
+    expect(V3_S14_STAGES.slice(6).every((item) => item.implementationState === "planned")).toBe(true);
     expect(stage3).toContain("seq 1 66");
     expect(stage3).toContain("v3_submit_confirmation");
     expect(stage3).toContain("v3_reconcile_confirmation");
@@ -87,6 +92,28 @@ describe("S14 stateful full-contest harness", () => {
     expect(stage5).not.toContain("v3-s5-publication-consequences-rehearsal.sh");
   });
 
+  it("executes the governed Jury lifecycle with hostile cases and canonical receipts", () => {
+    expect(stage6).toContain("studio2_jury_window_change_preview");
+    expect(stage6).toContain("studio2_apply_jury_voting_status");
+    expect(stage6).toContain("v3_save_jury_draft");
+    expect(stage6).toContain("v3_submit_jury_ballot");
+    expect(stage6).toContain("v3_reconcile_jury_submission");
+    expect(stage6).toContain("studio2_jury_ballot_review_preview");
+    expect(stage6).toContain("studio2_apply_jury_ballot_review");
+    expect(stage6).toContain("studio2_jury_dnv_preview");
+    expect(stage6).toContain("studio2_apply_jury_dnv");
+    expect(stage6).toContain("own-country Jury ballot");
+    expect(stage6).toContain("invalid Jury point scale");
+    expect(stage6).toContain("stale second-device conflict surfaced");
+    expect(stage6).toContain("31 valid reviewed ballots");
+    expect(stage6).toContain("jury.opened");
+    expect(stage6).toContain("jury.ballot_changed");
+    expect(stage6).toContain("jury.closed");
+    expect(stage6).toContain("S14_INVARIANT_JURY_COMPLETE");
+    expect(stage6).toContain("S14_STAGE_6_JURY_COMPLETE");
+    expect(stage6).not.toContain("v3-jury-security-rehearsal.sh");
+  });
+
   it("uses the real notification category vocabulary during onboarding", () => {
     expect(stage2).toContain("'televoting'");
     expect(stage2).not.toContain("'televote'");
@@ -109,6 +136,7 @@ describe("S14 stateful full-contest harness", () => {
       "confirmation-no-effective-duplicates",
       "entry-valid-revision",
       "media-accepted-revision",
+      "jury-single-final-ballot",
     ]);
     for (const marker of [
       "S14_FAILURE_NETWORK_AFTER_COMMIT_COMPLETE",
@@ -121,9 +149,10 @@ describe("S14 stateful full-contest harness", () => {
       "S14_INVARIANT_ENTRY_COMPLETE",
       "S14_INVARIANT_MEDIA_COMPLETE",
     ]) expect(stage4).toContain(marker);
+    expect(stage6).toContain("S14_INVARIANT_JURY_COMPLETE");
   });
 
-  it("cannot emit release-grade evidence while Stages 6-10 remain pending", () => {
+  it("cannot emit release-grade evidence while Stages 7-10 remain pending", () => {
     expect(driver).toContain('"passed": False');
     expect(driver).toContain("s14-full-contest.partial.json");
     expect(driver).toContain("No release-grade s14-full-contest.json was written");
@@ -140,6 +169,7 @@ describe("S14 stateful full-contest harness", () => {
       ".github/scripts/v3-s14-stage-3-confirmations.sh",
       ".github/scripts/v3-s14-stage-4-entries.sh",
       ".github/scripts/v3-s14-stage-5-running-orders.sh",
+      ".github/scripts/v3-s14-stage-6-jury.sh",
     ]) {
       expect(() => execFileSync("bash", ["-n", path], { stdio: "pipe" })).not.toThrow();
     }
