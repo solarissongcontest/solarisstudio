@@ -20,7 +20,7 @@ describe("V3 physical lens overlay contract", () => {
       /v3-liquid-tabbar__lens-layer[\s\S]*position: absolute;[\s\S]*top: 0;[\s\S]*right: 0;[\s\S]*bottom: 0;[\s\S]*left: 0;[\s\S]*direction: ltr;[\s\S]*pointer-events: none;/,
     );
     expect(css).toMatch(
-      /v3-liquid-tabbar__lens[\s\S]*position: relative !important;[\s\S]*display: block;[\s\S]*left: 6px !important;[\s\S]*right: auto !important;[\s\S]*bottom: auto !important;/,
+      /v3-liquid-tabbar__lens[\s\S]*position: absolute !important;[\s\S]*display: block;[\s\S]*left: 6px !important;[\s\S]*right: auto !important;[\s\S]*top: 6px !important;[\s\S]*bottom: 6px !important;/,
     );
   });
 
@@ -37,7 +37,7 @@ describe("V3 physical lens overlay contract", () => {
       /v6-organizer-tabbar__lens-layer[\s\S]*position: absolute;[\s\S]*top: 0;[\s\S]*right: 0;[\s\S]*bottom: 0;[\s\S]*left: 0;[\s\S]*direction: ltr;[\s\S]*pointer-events: none;/,
     );
     expect(css).toMatch(
-      /v6-organizer-tabbar__lens[\s\S]*position: relative !important;[\s\S]*display: block;[\s\S]*left: \.375rem !important;[\s\S]*right: auto !important;/,
+      /v6-organizer-tabbar__lens[\s\S]*position: absolute !important;[\s\S]*display: block;[\s\S]*left: \.375rem !important;[\s\S]*right: auto !important;/,
     );
   });
 });

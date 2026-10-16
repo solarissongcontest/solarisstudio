@@ -27,7 +27,7 @@ describe("V3 navigation RTL integration contract", () => {
     expect(css).toMatch(/:dir\(rtl\)[\s\S]*page--next[\s\S]*translate3d\(-100%/);
   });
 
-  it("preserves logical Public direction while isolating the lens in normal LTR overlay flow", () => {
+  it("preserves logical Public direction while anchoring the lens in a physical LTR overlay", () => {
     const tabbar = source("src/components/v3/V3LiquidTabBar.tsx");
     const fixedCss = source("src/styles/v3-navigation-fixed-geometry.css");
 
@@ -46,13 +46,13 @@ describe("V3 navigation RTL integration contract", () => {
       /\.v3-liquid-tabbar__lens-layer\s*\{[^}]*position: absolute;[^}]*left: 0;[^}]*direction: ltr;[^}]*\}/,
     );
     expect(fixedCss).toMatch(
-      /\.v3-liquid-tabbar__lens\s*\{[^}]*position: relative !important;[^}]*display: block;[^}]*left: 6px !important;[^}]*right: auto !important;[^}]*bottom: auto !important;[^}]*height: calc\(100% - 12px\);[^}]*\}/,
+      /\.v3-liquid-tabbar__lens\s*\{[^}]*position: absolute !important;[^}]*display: block;[^}]*left: 6px !important;[^}]*right: auto !important;[^}]*top: 6px !important;[^}]*bottom: 6px !important;[^}]*height: auto !important;[^}]*\}/,
     );
     expect(fixedCss).not.toContain("grid-column:");
     expect(fixedCss).toMatch(/v3-liquid-tabbar__item[\s\S]*flex: 1 1 0;/);
   });
 
-  it("keeps Organizer on the same inherited-logical / normal-flow physical-lens model", () => {
+  it("keeps Organizer on the same inherited-logical / physical-lens model", () => {
     const tabbar = source("src/components/admin/OrganizerV6TabBar.tsx");
     const organizerCss = source("src/styles/v3-organizer-navigation.css");
 
@@ -73,7 +73,7 @@ describe("V3 navigation RTL integration contract", () => {
       /\.v6-organizer-tabbar__lens-layer\s*\{[^}]*position: absolute;[^}]*left: 0;[^}]*direction: ltr;[^}]*\}/,
     );
     expect(organizerCss).toMatch(
-      /\.v6-organizer-tabbar__lens\s*\{[^}]*position: relative !important;[^}]*display: block;[^}]*left: \.375rem !important;[^}]*right: auto !important;[^}]*\}/,
+      /\.v6-organizer-tabbar__lens\s*\{[^}]*position: absolute !important;[^}]*display: block;[^}]*left: \.375rem !important;[^}]*right: auto !important;[^}]*\}/,
     );
     expect(organizerCss).toMatch(/data-organizer-tab-index[\s\S]*flex: 1 1 0;/);
   });

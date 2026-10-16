@@ -15,9 +15,9 @@
  * Keep the decorative lens out of WebKit's RTL flex/grid static-position
  * coordinate systems. The material preserves inherited logical direction for
  * route and gesture semantics; a fully constrained LTR overlay owns the lens'
- * physical coordinates. The lens itself deliberately participates in normal
- * LTR block flow inside that overlay instead of using absolute positioning, so
- * WebKit cannot assign it an RTL flex-child static position before transforms.
+ * physical coordinates. The lens is absolutely anchored inside that overlay
+ * with explicit physical left/right/top/bottom values, so its starting point
+ * never depends on the RTL flex container's static-position calculation.
  */
 [data-solaris-v3] .v3-liquid-tabbar__material {
   --v3-liquid-gap: 2px;
@@ -41,14 +41,14 @@
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__lens {
-  position: relative !important;
+  position: absolute !important;
   display: block;
   box-sizing: border-box;
   left: 6px !important;
   right: auto !important;
-  top: 6px;
-  bottom: auto !important;
-  height: calc(100% - 12px);
+  top: 6px !important;
+  bottom: 6px !important;
+  height: auto !important;
   border-radius: calc(25px + var(--v3-liquid-pull-radius));
 }
 

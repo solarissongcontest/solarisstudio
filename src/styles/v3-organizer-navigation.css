@@ -14,9 +14,9 @@
 /*
  * Organizer shares the Public tab-bar physics but its material is authored with
  * utility classes. Flex preserves inherited logical direction. The decorative
- * lens layer is fully constrained and LTR, while the lens itself stays in
- * normal LTR block flow. This removes the last WebKit RTL static-position input
- * without changing Organizer route semantics or the shared mirrored slot math.
+ * lens layer is fully constrained and LTR, and the lens is absolutely anchored
+ * to physical coordinates inside that layer. It therefore never inherits an
+ * RTL flex static position while the shared mirrored slot math stays unchanged.
  */
 .admin-mobile-nav[data-v6-organizer-tabbar] > div {
   display: flex !important;
@@ -35,7 +35,7 @@
 }
 
 .admin-mobile-nav[data-v6-organizer-tabbar] .v6-organizer-tabbar__lens {
-  position: relative !important;
+  position: absolute !important;
   display: block;
   left: .375rem !important;
   right: auto !important;
