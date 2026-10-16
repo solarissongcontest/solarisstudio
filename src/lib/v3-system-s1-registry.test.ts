@@ -66,6 +66,7 @@ describe("System V3 S1 registries", () => {
       "jury.ballot_changed",
       "jury.closed",
       "jury.opened",
+      "media.reviewed",
       "televote.ballot_submitted",
       "televote.closed",
       "televote.opened",
