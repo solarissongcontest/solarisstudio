@@ -7,6 +7,8 @@ const tasksData = readFileSync("src/lib/admin-tasks-v5.ts", "utf8");
 const workflows = readFileSync("src/routes/_authenticated/admin/workflows.tsx", "utf8");
 const adminOps = readFileSync("src/lib/admin-ops.ts", "utf8");
 const incidents = readFileSync("src/routes/_authenticated/admin/incidents.tsx", "utf8");
+const resultsReveal = readFileSync("src/routes/_authenticated/admin/results-reveal.tsx", "utf8");
+const broadcastRundown = readFileSync("src/routes/_authenticated/admin/broadcast-rundown.tsx", "utf8");
 const countries = readFileSync("src/routes/_authenticated/admin/countries.tsx", "utf8");
 const countryDetail = readFileSync("src/routes/_authenticated/admin/countries.$countryId.tsx", "utf8");
 const confirmations = readFileSync("src/routes/confirmations/admin/index.tsx", "utf8");
@@ -28,6 +30,8 @@ const protectedRoutes = [
   ["Tasks", tasks],
   ["Workflows", workflows],
   ["Incidents", incidents],
+  ["Results Reveal", resultsReveal],
+  ["Broadcast Rundown", broadcastRundown],
   ["Delegations", countries],
   ["Delegation detail", countryDetail],
   ["Confirmations", confirmations],
@@ -150,6 +154,24 @@ describe("V3 Organizer explicit edition context", () => {
     expect(incidents).toContain("Edition context changed before the incident command");
   });
 
+  it("keeps Live reveal and rundown work fail-closed to Organizer edition scope", () => {
+    expect(resultsReveal).toContain("useShows(editionId ?? undefined)");
+    expect(resultsReveal).toContain("useContestEntities(editionId ?? undefined)");
+    expect(resultsReveal).toContain("enabled: Boolean(editionId)");
+    expect(resultsReveal).toContain("editionId ?? 'unscoped'");
+    expect(resultsReveal).toContain("isStudio2FeatureEnabled('results_replay', editionId!)");
+    expect(resultsReveal).toContain('title="Choose an edition"');
+    expect(resultsReveal).toContain("will not infer another edition or load an unscoped Results Replay flag");
+
+    expect(broadcastRundown).toContain("useShows(editionId ?? undefined)");
+    expect(broadcastRundown).toContain("validateEditionCommandScope");
+    expect(broadcastRundown).toContain("routeEditionId: editionId ?? null");
+    expect(broadcastRundown).toContain("commandEditionId: editionId ?? null");
+    expect(broadcastRundown).toContain("entityEditionId: show?.edition_id ?? null");
+    expect(broadcastRundown).toContain('title="Choose an edition"');
+    expect(broadcastRundown).toContain("never substitutes another edition for live production work");
+  });
+
   it("keeps Official Communications fail-closed to the selected Organizer edition", () => {
     expect(communications).toContain("enabled: Boolean(editionId)");
     expect(communications).toContain("return loadStudio2Notices(editionId)");
@@ -173,6 +195,8 @@ describe("V3 Organizer explicit edition context", () => {
     expect(tasks).toContain("never merges task truth across editions when Organizer scope is missing");
     expect(workflows).toContain("will not substitute the newest or globally active edition");
     expect(incidents).toContain("will not substitute the newest or globally active edition");
+    expect(resultsReveal).toContain("will not infer another edition or load an unscoped Results Replay flag");
+    expect(broadcastRundown).toContain("never substitutes another edition for live production work");
     expect(countries).toContain("will not substitute another edition");
     expect(countryDetail).toContain("will not substitute another edition");
     expect(confirmations).toContain("will not substitute the globally active confirmation edition");
