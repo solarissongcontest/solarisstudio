@@ -105,6 +105,10 @@ async function selectedLensDelta(page: Page) {
   });
 }
 
+function accessibleLabel(label: ProbeLabel) {
+  return new RegExp(`^${label}(?:,|$)`);
+}
+
 async function assertSelectedLens(
   page: Page,
   direction: LayoutDirection,
@@ -112,12 +116,13 @@ async function assertSelectedLens(
 ) {
   const nav = page.locator("[data-v3-liquid-tabbar]");
   const active = nav.locator('[data-v3-tab-index][aria-current="page"]');
-  if ((await active.getAttribute("aria-label")) !== label) {
-    await nav.getByRole("link", { name: label, exact: true }).click();
+  const currentLabel = await active.getAttribute("aria-label");
+  if (!currentLabel?.startsWith(label)) {
+    await nav.getByRole("link", { name: accessibleLabel(label) }).click();
   }
 
   await expect(nav).toHaveAttribute("data-layout-direction", direction);
-  await expect(active).toHaveAttribute("aria-label", new RegExp(`^${label}`));
+  await expect(active).toHaveAttribute("aria-label", accessibleLabel(label));
   await expect.poll(() => selectedLensDelta(page)).toBeLessThanOrEqual(3);
 }
 
