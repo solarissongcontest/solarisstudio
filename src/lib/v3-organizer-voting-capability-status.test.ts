@@ -14,6 +14,7 @@ describe("V3 Organizer core Voting migration status", () => {
     expect(status("voting-rules")).toBe("building");
     expect(status("voting-televote-totals")).toBe("building");
     expect(status("voting-integrity-review")).toBe("building");
+    expect(status("voting-public-results")).toBe("building");
   });
 
   it("does not claim parity while canonical voting authority is still incomplete", () => {
@@ -24,6 +25,7 @@ describe("V3 Organizer core Voting migration status", () => {
       "voting-rules",
       "voting-televote-totals",
       "voting-integrity-review",
+      "voting-public-results",
     ]) {
       expect(status(id)).not.toBe("parity");
       expect(status(id)).not.toBe("cutover");
