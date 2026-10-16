@@ -74,6 +74,8 @@ jobs:
             /tmp/solaris-s14-deadline-main/supabase/migrations/
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261017002100_v3_s14_televote_deadline_replay_fix.sql" \
             /tmp/solaris-s14-deadline-main/supabase/migrations/
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261017002200_v3_s14_televote_deadline_open_compatibility.sql" \
+            /tmp/solaris-s14-deadline-main/supabase/migrations/
           cd /tmp/solaris-s14-deadline-main
           supabase migration up --local --include-all
       - name: Rehearse genuine deadline extension after upgrade
