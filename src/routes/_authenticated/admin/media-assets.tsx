@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
+import { MediaAssetPreview } from '@/components/admin/MediaAssetPreview';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminEmptyState, AdminPageHeader, AdminSheet, AdminStatus } from '@/components/admin/AdminUI';
 import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
@@ -324,6 +325,9 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
             <h3 className="text-sm font-semibold">Canonical source</h3>
             <div className="mt-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
               <div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">Current state</span><AdminStatus tone={stateTone(asset.state)}>{stateLabel(asset.state)}</AdminStatus></div>
+              <div className="mt-3">
+                <MediaAssetPreview assetType={asset.assetType} sourceUrl={asset.sourceUrl} title={asset.title} />
+              </div>
               <p className="mt-3 break-all text-sm">{asset.sourceUrl ?? 'No source supplied.'}</p>
               {asset.sourceUrl ? <a href={asset.sourceUrl} target="_blank" rel="noreferrer" className="admin-action-secondary mt-3 inline-flex">Open source <ExternalLink className="size-4" /></a> : null}
               {asset.sourceUpdatedAt ? <p className="mt-3 text-xs text-muted-foreground">Canonical entry updated {formatTimestamp(asset.sourceUpdatedAt)}</p> : null}
