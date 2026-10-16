@@ -118,9 +118,10 @@ describe("V3 navigation shell acceptance guardrails", () => {
     const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
 
     expect(swipe).toContain("function canonicalSwipeSlot");
+    expect(swipe).toContain("activeIndex !== settlingComposition.targetIndex");
     expect(swipe).toContain('targetIndex < settlingComposition.originIndex) return "previous"');
     expect(swipe).toContain('targetIndex > settlingComposition.originIndex) return "next"');
-    expect(swipe).toContain("const canonicalSlot = canonicalSwipeSlot(settlingComposition)");
+    expect(swipe).toContain("const canonicalSlot = canonicalSwipeSlot(settlingComposition, activeIndex)");
     expect(swipe).toContain(
       'aria-hidden={canonicalSlot === "previous" ? undefined : true}',
     );
