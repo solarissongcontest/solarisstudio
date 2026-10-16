@@ -26,6 +26,7 @@ import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
 import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import { cn } from "@/lib/utils";
 import "@/styles/v3-liquid-tabbar.css";
+import "@/styles/v3-navigation-fixed-geometry.css";
 
 export type V3LiquidTabDestination = {
   id: string;
@@ -439,9 +440,10 @@ export function V3LiquidTabBar({
   };
 
   const inlineSign = resolveV3PhysicalInlineSign(layoutDirection);
+  const totalGap = Math.max(0, count - 1) * 2;
   const indicatorStyle = {
-    width: `calc((100% - .76rem - ${Math.max(0, count - 1) * 0.14}rem) / ${count})`,
-    transform: `translate3d(calc(${visualLensIndex * inlineSign} * (100% + .14rem) + var(--v3-liquid-drag-x)), 0, 0) scaleX(var(--v3-liquid-scale-x))`,
+    width: `calc((100% - 12px - ${totalGap}px) / ${count})`,
+    transform: `translate3d(calc(${visualLensIndex * inlineSign} * (100% + 2px) + var(--v3-liquid-drag-x)), 0, 0) scaleX(var(--v3-liquid-scale-x))`,
   } as CSSProperties;
 
   return (
