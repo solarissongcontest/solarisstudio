@@ -88,7 +88,8 @@ export type V3EntryProjection = {
     code: string;
   } | null;
   confirmation: V3EntryConfirmationProjection | null;
-  lifecycle: V3EntryLifecycle | null;
+  /** Optional server-resolved lifecycle. Older read-model revisions omit it. */
+  lifecycle?: V3EntryLifecycle | null;
   readiness: {
     score: number | null;
     state: string | null;
