@@ -1,13 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { AlertTriangle, ExternalLink, Images, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminEmptyState, AdminPageHeader, AdminSheet, AdminStatus } from '@/components/admin/AdminUI';
+import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useCountries, useEditions } from '@/lib/data';
 import { MEDIA_ASSET_TYPES, type MediaAssetType } from '@/lib/media-asset-vault';
 import { loadStudio2CountryCockpit } from '@/lib/studio2-country-cockpit';
@@ -62,10 +63,19 @@ function MediaAssetsPage() {
   const [reviewReason, setReviewReason] = useState('');
 
   const editions = editionsQuery.data ?? [];
-  const selectedEdition = editions.find((edition) => edition.id === editionId)
-    ?? [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0]
-    ?? null;
+  const selectedEdition = selectOrganizerEdition(editions, editionId);
   const resolvedEditionId = selectedEdition?.id ?? '';
+
+  useEffect(() => {
+    setSelectedKeys(new Set());
+    setReviewReason('');
+    if (search.asset) {
+      void navigate({
+        search: (previous) => ({ ...previous, asset: undefined }),
+        replace: true,
+      });
+    }
+  }, [navigate, resolvedEditionId]);
 
   const cockpitQuery = useQuery({
     queryKey: ['studio2-country-cockpit', resolvedEditionId || 'none'],
@@ -167,16 +177,21 @@ function MediaAssetsPage() {
   const error = editionsQuery.error ?? countriesQuery.error ?? cockpitQuery.error ?? reviewsQuery.error;
 
   const reviewMutation = useMutation({
-    mutationFn: async ({ decision }: { decision: Studio2MediaReviewDecision }) => {
-      if (!selectedEdition) throw new Error('No edition is selected.');
+    mutationFn: async ({ decision, commandEditionId }: { decision: Studio2MediaReviewDecision; commandEditionId: string }) => {
+      if (!selectedEdition || selectedEdition.id !== commandEditionId || editionId !== commandEditionId) {
+        throw new Error('Organizer edition changed. Review the current media selection again before applying a decision.');
+      }
       if (!reviewableSelected.length || reviewableSelected.length !== selectedItems.length) {
         throw new Error('Only uploaded assets that are not processing can be reviewed.');
+      }
+      if (reviewableSelected.some((item) => item.editionId !== commandEditionId)) {
+        throw new Error('Selected media contains data from another edition. Clear the selection and reload the current edition.');
       }
       if (decision === 'approved' && !canApproveSelected) {
         throw new Error('Resolve blocked validation checks before approving these assets.');
       }
       return reviewStudio2MediaAssets({
-        editionId: selectedEdition.id,
+        editionId: commandEditionId,
         reviews: reviewableSelected.map((item) => ({
           assetKey: item.assetKey,
           assetType: item.assetType,
@@ -189,7 +204,8 @@ function MediaAssetsPage() {
       });
     },
     onSuccess: async (_rows, variables) => {
-      await queryClient.invalidateQueries({ queryKey: ['studio2-media-asset-reviews', resolvedEditionId] });
+      await queryClient.invalidateQueries({ queryKey: ['studio2-media-asset-reviews', variables.commandEditionId] });
+      if (editionId !== variables.commandEditionId) return;
       toast.success(variables.decision === 'approved' ? 'Media assets approved.' : 'Media assets marked invalid.');
       setSelectedKeys(new Set());
       setReviewReason('');
@@ -234,7 +250,7 @@ function MediaAssetsPage() {
         />
 
         {!selectedEdition && !editionsQuery.isLoading ? (
-          <AdminCard><AdminEmptyState icon={Images} title="No edition selected" description="Select an edition before reviewing media operations." /></AdminCard>
+          <AdminCard><AdminEmptyState icon={Images} title="No edition selected" description="Select the exact Organizer edition before reviewing media operations. Solaris will not substitute the newest edition for missing or stale context." /></AdminCard>
         ) : editionsQuery.isLoading || countriesQuery.isLoading || cockpitQuery.isLoading || reviewsQuery.isLoading ? (
           <AdminCard><p className="py-12 text-center text-sm text-muted-foreground">Building media inventory…</p></AdminCard>
         ) : error ? (
@@ -282,8 +298,8 @@ function MediaAssetsPage() {
                   <input aria-label="Review reason" value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} className="admin-input min-w-0 flex-1" placeholder="Review reason (required)" />
                   <button type="button" className="admin-action-secondary" onClick={selectVisible}>Select visible</button>
                   <button type="button" className="admin-action-secondary" onClick={() => setSelectedKeys(new Set())} disabled={!selectedKeys.size}>Clear</button>
-                  <button type="button" className="admin-action-primary" disabled={!selectedKeys.size || reviewReason.trim().length < 5 || !canApproveSelected || reviewMutation.isPending} onClick={() => reviewMutation.mutate({ decision: 'approved' })}>Approve selected</button>
-                  <button type="button" className="admin-action-secondary" disabled={!selectedKeys.size || reviewReason.trim().length < 5 || reviewMutation.isPending} onClick={() => reviewMutation.mutate({ decision: 'invalid' })}>Mark invalid</button>
+                  <button type="button" className="admin-action-primary" disabled={!resolvedEditionId || !selectedKeys.size || reviewReason.trim().length < 5 || !canApproveSelected || reviewMutation.isPending} onClick={() => reviewMutation.mutate({ decision: 'approved', commandEditionId: resolvedEditionId })}>Approve selected</button>
+                  <button type="button" className="admin-action-secondary" disabled={!resolvedEditionId || !selectedKeys.size || reviewReason.trim().length < 5 || reviewMutation.isPending} onClick={() => reviewMutation.mutate({ decision: 'invalid', commandEditionId: resolvedEditionId })}>Mark invalid</button>
                 </div>
               </div>
               {selectedKeys.size ? <p className="mt-3 text-xs text-muted-foreground">{selectedKeys.size} selected · {reviewableSelected.length} reviewable</p> : null}
