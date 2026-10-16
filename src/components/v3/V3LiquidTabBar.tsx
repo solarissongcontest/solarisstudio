@@ -49,6 +49,11 @@ function triggerSelectionHaptic(duration = 8) {
   navigator.vibrate(duration);
 }
 
+function navigationItemLabel(label: string, badge: number) {
+  if (badge <= 0) return label;
+  return `${label}, ${badge} item${badge === 1 ? "" : "s"}`;
+}
+
 /**
  * Canonical V3 mobile navigation material.
  *
@@ -411,7 +416,7 @@ export function V3LiquidTabBar({
               to={destination.to as any}
               className="v3-liquid-tabbar__item"
               aria-current={active ? "page" : undefined}
-              aria-label={destination.label}
+              aria-label={navigationItemLabel(destination.label, badge)}
               data-v3-tab-index={index}
               data-active={active ? "true" : "false"}
               data-visual-active={visuallyActive ? "true" : "false"}
