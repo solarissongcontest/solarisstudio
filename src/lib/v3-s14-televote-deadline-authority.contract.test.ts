@@ -7,6 +7,11 @@ const migration = readFileSync(
   "utf8",
 );
 
+const bindingScopeRepair = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20261017002100_v3_fix_televote_round_binding_status_scope.sql"),
+  "utf8",
+);
+
 function body(name: string) {
   const marker = `create or replace function ${name}`;
   const start = migration.indexOf(marker);
@@ -67,6 +72,16 @@ describe("System V3 S14 Televote deadline authority", () => {
     expect(submit).toContain("Voting deadline has passed");
     expect(submit).toContain("insert into televoting.vote_submissions");
     expect(submit).toContain("insert into televoting.vote_entries");
+  });
+
+  it("repairs the governed lifecycle binding scope with the canonical text remote id", () => {
+    expect(bindingScopeRepair).toContain(
+      "create or replace function televoting.studio2_apply_round_status_change(",
+    );
+    expect(bindingScopeRepair.match(/where remote_round_id = p_round_id::text;/g)).toHaveLength(2);
+    expect(bindingScopeRepair).not.toMatch(/where remote_round_id = p_round_id;/);
+    expect(bindingScopeRepair).toContain("private.studio2_claim_operation");
+    expect(bindingScopeRepair).toContain("private.studio2_complete_operation");
   });
 
   it("emits a durable versioned televote.extended fact with exact deadline provenance", () => {
