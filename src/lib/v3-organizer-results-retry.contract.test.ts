@@ -27,4 +27,14 @@ describe("V3 Organizer Results uncertain-outcome recovery", () => {
     expect(results).toContain("Edition context changed before the result operation");
     expect(results).toContain("commandEditionId: operation.editionId");
   });
+
+  it("remounts pending Tier 3/4 result work when the Organizer edition changes", () => {
+    expect(results).toContain("component: ResultsOperationsRoute");
+    expect(results).toContain("function ResultsOperationsRoute()");
+    expect(results).toContain("<ResultsOperationsPage key={editionId || 'unscoped'} />");
+  });
+
+  it("repeats edition and show context inside the confirmation sheet", () => {
+    expect(results).toContain("{edition?.name ?? pending.editionId} · {pending.row.showName}");
+  });
 });
