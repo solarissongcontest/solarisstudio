@@ -134,7 +134,7 @@ function OrganizerOverview() {
                   action={
                     <Link
                       to="/admin/tasks"
-                      search={{ filter: "all" }}
+                      search={{ filter: "all", domain: "all" }}
                       className="text-xs font-semibold text-sky-100"
                     >
                       All tasks →
@@ -180,7 +180,11 @@ function OrganizerOverview() {
                     Open next operation
                   </Link>
                 ) : (
-                  <Link to="/admin/tasks" search={{ filter: "all" }} className="admin-action-secondary w-full">
+                  <Link
+                    to="/admin/tasks"
+                    search={{ filter: "all", domain: "all" }}
+                    className="admin-action-secondary w-full"
+                  >
                     <Clock3 className="size-4" />
                     Review task queue
                   </Link>
