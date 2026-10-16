@@ -53,8 +53,9 @@ describe("V3 navigation RTL integration contract", () => {
     );
   });
 
-  it("keeps the Organizer selected lens on its explicit physical RTL axis", () => {
+  it("keeps the Organizer selected lens on the same physical-axis model", () => {
     const tabbar = source("src/components/admin/OrganizerV6TabBar.tsx");
+    const organizerCss = source("src/styles/v3-organizer-navigation.css");
 
     expect(tabbar).toContain("const physicalLensIndex =");
     expect(tabbar).toContain(
@@ -65,5 +66,15 @@ describe("V3 navigation RTL integration contract", () => {
     expect(tabbar).toContain('direction: "ltr"');
     expect(tabbar).toContain("${physicalLensIndex} * (100% + .15rem)");
     expect(tabbar).not.toContain("visualActiveIndex * inlineSign");
+
+    expect(organizerCss).toMatch(/data-v6-organizer-tabbar\] > div[\s\S]*display: flex !important;/);
+    expect(organizerCss).toMatch(/data-v6-organizer-tabbar\] > div[\s\S]*direction: ltr;/);
+    expect(organizerCss).toMatch(
+      /data-layout-direction="rtl"[\s\S]*> div[\s\S]*flex-direction: row-reverse;/,
+    );
+    expect(organizerCss).toMatch(/data-organizer-tab-index[\s\S]*flex: 1 1 0;/);
+    expect(organizerCss).toMatch(
+      /data-layout-direction="rtl"[\s\S]*data-organizer-tab-index[\s\S]*direction: rtl;/,
+    );
   });
 });
