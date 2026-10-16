@@ -109,11 +109,14 @@ describe("S14 stateful full-contest harness", () => {
     expect(stage6).not.toContain("v3-jury-security-rehearsal.sh");
   });
 
-  it("drives public voting through governed lifecycle, checked ballots, reconciliation and integrity evidence", () => {
+  it("drives show-bound public voting through governed lifecycle, recovery and integrity evidence", () => {
     expect(stage7).toContain("Content-Profile: televoting");
     expect(stage7).toContain("studio2_round_status_change_preview");
     expect(stage7).toContain("studio2_apply_round_status_change");
-    expect(stage7).toContain("display_order > 50");
+    expect(stage7).toContain("televoting_round_bindings");
+    expect(stage7).toContain("TV_ROUND_TWO_ID");
+    expect(stage7).toContain("does not contain exactly 33 entries");
+    expect(stage7).toContain("exactly project its bound Solaris semi-final");
     expect(stage7).toContain("submit_vote_checked");
     expect(stage7).toContain("already voted");
     expect(stage7).toContain("Round is not open");
@@ -123,6 +126,7 @@ describe("S14 stateful full-contest harness", () => {
     expect(stage7).toContain("v3_reconcile_televote_recovery");
     expect(stage7).toContain("risk_score 42");
     expect(stage7).toContain("pre_submit_integrity_check");
+    expect(stage7).toContain("both S14 Televote rounds are not bound to Solaris shows");
     expect(stage7).toContain("S14_INVARIANT_TELEVOTE_COMPLETE");
     expect(stage7).toContain("S14_STAGE_7_PUBLIC_VOTING_COMPLETE");
     expect(stage7).not.toContain("v3-televote-reconciliation-rehearsal.sh");
