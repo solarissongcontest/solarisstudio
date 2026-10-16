@@ -279,7 +279,9 @@ export function V3AppShell({
     const navigateToTarget = () => navigate({ to: v3PublicEntryHref(target) as any });
 
     if (navigationMode === "swipe") {
-      void Promise.resolve(navigateToTarget()).then(focusCurrentRouteAfterSwipe);
+      // The swipe compositor already owns the transition. Commit the canonical
+      // route immediately and do not start a second View Transition animation.
+      void navigateToTarget();
       return;
     }
 
@@ -307,6 +309,7 @@ export function V3AppShell({
             const target = liquidDestinations[targetIndex];
             if (target) openTab(target, "swipe");
           }}
+          onSettled={() => focusCurrentRouteAfterSwipe()}
         >
           {children}
         </V3TopLevelSwipeSurface>
