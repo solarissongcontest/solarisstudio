@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
-import { FlaskConical, ShieldCheck, SlidersHorizontal, Trophy } from 'lucide-react';
+import { FlaskConical, ShieldCheck, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
@@ -49,10 +49,14 @@ function VotingLabPage() {
   });
 
   const dataQuery = useQuery({
-    queryKey: ['studio2-voting-lab-data', editionId ?? 'all', roundId || 'default'],
-    enabled: featureQuery.data === true,
-    queryFn: () => getData({ data: { editionId: editionId ?? null, roundId: roundId || null } }),
+    queryKey: ['studio2-voting-lab-data', editionId ?? 'none', roundId || 'default'],
+    enabled: featureQuery.data === true && Boolean(editionId),
+    queryFn: () => getData({ data: { editionId: editionId!, roundId: roundId || null } }),
   });
+
+  useEffect(() => {
+    setRoundId('');
+  }, [editionId]);
 
   useEffect(() => {
     if (!roundId && dataQuery.data?.selectedRoundId) setRoundId(dataQuery.data.selectedRoundId);
@@ -110,6 +114,21 @@ function VotingLabPage() {
             icon={FlaskConical}
             title="Voting Laboratory is disabled"
             description="Enable the Voting Lab rollout flag before running ballot simulations."
+          />
+        </div>
+      </AdminPage>
+    );
+  }
+
+  if (!editionId) {
+    return (
+      <AdminPage>
+        <div className="mx-auto max-w-7xl space-y-4">
+          <VotingLabPageHeader />
+          <AdminEmptyState
+            icon={FlaskConical}
+            title="Select an edition"
+            description="Voting Laboratory is edition-scoped. Select the exact Organizer edition first; Solaris will not load an all-editions ballot sample or substitute another edition."
           />
         </div>
       </AdminPage>
