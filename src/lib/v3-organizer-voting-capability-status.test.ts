@@ -12,6 +12,7 @@ describe("V3 Organizer core Voting migration status", () => {
     expect(status("voting-rounds-entries")).toBe("building");
     expect(status("voting-jury")).toBe("building");
     expect(status("voting-rules")).toBe("building");
+    expect(status("voting-jury-integrity")).toBe("building");
     expect(status("voting-televote-totals")).toBe("building");
     expect(status("voting-integrity-review")).toBe("building");
     expect(status("voting-public-results")).toBe("building");
@@ -23,6 +24,7 @@ describe("V3 Organizer core Voting migration status", () => {
       "voting-rounds-entries",
       "voting-jury",
       "voting-rules",
+      "voting-jury-integrity",
       "voting-televote-totals",
       "voting-integrity-review",
       "voting-public-results",
