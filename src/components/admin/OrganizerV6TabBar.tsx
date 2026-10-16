@@ -21,6 +21,10 @@ import {
   resolveV3LogicalHorizontalDelta,
   type V3LayoutDirection,
 } from "@/lib/v3-navigation-gesture";
+import {
+  resolveV3NavigationVisualProgress,
+  resolveV3TabIconVisualState,
+} from "@/lib/v3-navigation-visual-progress";
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
 import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import type { SolarisTabbarMode } from "@/lib/solaris-screen-contract";
@@ -52,6 +56,7 @@ type DragState = {
   maxDelta: number;
   slotWidth: number;
   layoutDirection: V3LayoutDirection;
+  tabIcons: SVGElement[];
 };
 
 function organizerItemLabel(item: OrganizerV6TabItem) {
@@ -169,6 +174,11 @@ export function OrganizerV6TabBar({
       } catch {
         // Browser may already have released pointer capture.
       }
+      for (const icon of drag.tabIcons) {
+        icon.style.removeProperty("opacity");
+        icon.style.removeProperty("transform");
+        icon.style.removeProperty("stroke-width");
+      }
     }
 
     const material = materialRef.current;
@@ -254,6 +264,9 @@ export function OrganizerV6TabBar({
     const firstDelta = first.left + first.width / 2 - originCenter;
     const lastDelta = last.left + last.width / 2 - originCenter;
     const nextLayoutDirection = layoutDirectionFor(materialRef.current ?? event.currentTarget);
+    const tabIcons = materialRef.current
+      ? Array.from(materialRef.current.querySelectorAll<SVGElement>("[data-organizer-tab-index] svg"))
+      : [];
     setLayoutDirection((current) =>
       current === nextLayoutDirection ? current : nextLayoutDirection,
     );
@@ -272,6 +285,7 @@ export function OrganizerV6TabBar({
       maxDelta: Math.max(firstDelta, lastDelta),
       slotWidth: origin.width,
       layoutDirection: nextLayoutDirection,
+      tabIcons,
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginHold(event.pointerId, event.clientX, event.clientY);
@@ -304,6 +318,22 @@ export function OrganizerV6TabBar({
     material?.style.setProperty("--organizer-tab-scale-x", response.scaleX.toFixed(4));
     material?.style.setProperty("--organizer-bar-grow", `${response.growHeight.toFixed(2)}px`);
     material?.setAttribute("data-drag-direction", response.direction);
+
+    const visualProgress = resolveV3NavigationVisualProgress({
+      originIndex: drag.originIndex,
+      physicalDelta: response.delta,
+      slotWidth: drag.slotWidth,
+      itemCount: items.length,
+      direction: drag.layoutDirection,
+    });
+    for (let iconIndex = 0; iconIndex < drag.tabIcons.length; iconIndex += 1) {
+      const icon = drag.tabIcons[iconIndex];
+      if (!icon) continue;
+      const visualState = resolveV3TabIconVisualState(iconIndex, visualProgress);
+      icon.style.opacity = visualState.opacity.toFixed(4);
+      icon.style.transform = `scale(${visualState.scale.toFixed(4)})`;
+      icon.style.setProperty("stroke-width", visualState.strokeWidth.toFixed(4));
+    }
 
     const previewIndex = resolveTabDragTargetIndex({
       rawDelta: resolveV3LogicalHorizontalDelta(rawDelta, drag.layoutDirection),
@@ -363,7 +393,7 @@ export function OrganizerV6TabBar({
 
   const count = Math.max(1, items.length);
   // Organizer uses the same physical lens coordinate model as the public bar.
-  // Grid placement mirrors the tab items in RTL; the decorative lens itself is
+  // Flex placement mirrors tab items naturally in RTL; the decorative lens is
   // always left-anchored so browser directionality cannot mirror X twice.
   const physicalLensIndex =
     layoutDirection === "rtl" ? count - 1 - visualActiveIndex : visualActiveIndex;

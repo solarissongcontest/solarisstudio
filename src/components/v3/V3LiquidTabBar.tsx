@@ -21,6 +21,10 @@ import {
   resolveV3LogicalHorizontalDelta,
   type V3LayoutDirection,
 } from "@/lib/v3-navigation-gesture";
+import {
+  resolveV3NavigationVisualProgress,
+  resolveV3TabIconVisualState,
+} from "@/lib/v3-navigation-visual-progress";
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
 import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import { cn } from "@/lib/utils";
@@ -377,21 +381,20 @@ export function V3LiquidTabBar({
     material?.style.setProperty("--v3-liquid-pull-radius", `${response.growRadius.toFixed(2)}px`);
     material?.setAttribute("data-drag-direction", response.direction);
 
-    const logicalVisualDelta = resolveV3LogicalHorizontalDelta(
-      response.delta,
-      drag.layoutDirection,
-    );
-    const visualProgress = Math.min(
-      Math.max(0, destinations.length - 1),
-      Math.max(0, drag.originIndex + logicalVisualDelta / Math.max(1, drag.slotWidth)),
-    );
+    const visualProgress = resolveV3NavigationVisualProgress({
+      originIndex: drag.originIndex,
+      physicalDelta: response.delta,
+      slotWidth: drag.slotWidth,
+      itemCount: destinations.length,
+      direction: drag.layoutDirection,
+    });
     for (let iconIndex = 0; iconIndex < drag.tabIcons.length; iconIndex += 1) {
       const icon = drag.tabIcons[iconIndex];
       if (!icon) continue;
-      const weight = Math.max(0, 1 - Math.abs(iconIndex - visualProgress));
-      icon.style.opacity = (0.78 + weight * 0.22).toFixed(4);
-      icon.style.transform = `scale(${(0.97 + weight * 0.05).toFixed(4)})`;
-      icon.style.setProperty("stroke-width", (1.9 + weight * 0.35).toFixed(4));
+      const visualState = resolveV3TabIconVisualState(iconIndex, visualProgress);
+      icon.style.opacity = visualState.opacity.toFixed(4);
+      icon.style.transform = `scale(${visualState.scale.toFixed(4)})`;
+      icon.style.setProperty("stroke-width", visualState.strokeWidth.toFixed(4));
     }
 
     const nextPreview = resolveTabDragTargetIndex({
