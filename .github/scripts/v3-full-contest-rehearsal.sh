@@ -18,6 +18,7 @@ source "$SCRIPT_DIR/v3-s14-stage-6-jury.sh"
 source "$SCRIPT_DIR/v3-s14-stage-7-public-voting.sh"
 source "$SCRIPT_DIR/v3-s14-stage-8-results.sh"
 source "$SCRIPT_DIR/v3-s14-stage-9-publication.sh"
+source "$SCRIPT_DIR/v3-s14-stage-10-archive.sh"
 
 run_s14_stage_1_setup
 run_s14_stage_2_onboarding
@@ -28,6 +29,11 @@ run_s14_stage_6_jury
 run_s14_stage_7_public_voting
 run_s14_stage_8_results
 run_s14_stage_9_publication
+# Stage 10 cannot transition the edition until the System-owned versioned,
+# idempotent, reconcilable edition-lifecycle command lands. Its safe preflight
+# still runs on the same contest so the blocker and pre-archive invariants are
+# executable evidence rather than prose.
+run_s14_stage_10_archive_preflight
 
 PENDING_STAGES=(
   stage-10-archive
@@ -36,11 +42,11 @@ PENDING_STAGES=(
 OUTPUT_DIR="${V3_RELEASE_EVIDENCE_DIR:-v3-release-evidence}"
 mkdir -p "$OUTPUT_DIR"
 PARTIAL_PATH="$OUTPUT_DIR/s14-full-contest.partial.json"
-python3 - "$PARTIAL_PATH" "$CANDIDATE_SHA" "${PENDING_STAGES[@]}" <<'PY'
+python3 - "$PARTIAL_PATH" "$CANDIDATE_SHA" "${archive_contract_ready:-false}" "${archive_contract_blockers:-unknown}" "${PENDING_STAGES[@]}" <<'PY'
 import json, sys
-path, sha, *pending = sys.argv[1:]
+path, sha, archive_ready, archive_blockers, *pending = sys.argv[1:]
 payload = {
-    "schemaVersion": 2,
+    "schemaVersion": 3,
     "candidateSha": sha,
     "passed": False,
     "partial": True,
@@ -55,6 +61,11 @@ payload = {
         "stage-8-results",
         "stage-9-publication",
     ],
+    "archiveFoundation": {
+        "preflightPassed": True,
+        "transitionContractReady": archive_ready == "true",
+        "transitionContractBlockers": [] if archive_ready == "true" else [b for b in archive_blockers.split(",") if b and b != "unknown"],
+    },
     "implementedInvariants": [
         "confirmation-no-effective-duplicates",
         "entry-valid-revision",
@@ -82,7 +93,7 @@ with open(path, "w", encoding="utf-8") as handle:
 PY
 
 if [[ "${V3_S14_ALLOW_PARTIAL:-0}" == "1" ]]; then
-  log "Partial S14 harness passed through Stage 9; release-grade S14 remains blocked by ${#PENDING_STAGES[@]} stage."
+  log "Partial S14 harness passed through Stage 9 plus the Stage 10 Archive preflight; release-grade S14 remains blocked by the edition-lifecycle contract and final Archive transition."
   exit 0
 fi
 
