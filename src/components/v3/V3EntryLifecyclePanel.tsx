@@ -9,6 +9,7 @@ import {
 
 import {
   deriveV3EntryLifecycle,
+  inferV3EntryCorrectionSection,
   type V3EntryLifecycleState,
   type V3EntryProjection,
 } from "@/lib/v3-entry";
@@ -74,11 +75,26 @@ const PRESENTATION: Record<V3EntryLifecycleState, Presentation> = {
   },
 };
 
+function sectionLabel(value: ReturnType<typeof inferV3EntryCorrectionSection>) {
+  if (!value) return null;
+  if (value === "song") return "Song";
+  if (value === "artist") return "Artist";
+  if (value === "credits") return "Credits";
+  if (value === "metadata") return "Metadata";
+  if (value === "media") return "Media";
+  return "Review";
+}
+
 export function V3EntryLifecyclePanel({ projection }: { projection: V3EntryProjection }) {
   if (projection.state !== "ready") return null;
 
   const lifecycle = projection.lifecycle ?? deriveV3EntryLifecycle(projection.confirmation);
   const presentation = PRESENTATION[lifecycle.state];
+  const correctionSection =
+    lifecycle.state === "changes-required"
+      ? inferV3EntryCorrectionSection(lifecycle.issue)
+      : null;
+  const correctionSectionLabel = sectionLabel(correctionSection);
   const Icon = presentation.icon;
 
   return (
@@ -117,6 +133,14 @@ export function V3EntryLifecyclePanel({ projection }: { projection: V3EntryProje
                   Organizer reason
                 </p>
                 <p className="mt-1 text-sm leading-6">{lifecycle.issue}</p>
+                {correctionSectionLabel ? (
+                  <p
+                    className="mt-2 text-xs font-semibold text-[var(--v3-text-secondary)]"
+                    data-v3-entry-correction-section={correctionSection ?? undefined}
+                  >
+                    Suggested editor section: {correctionSectionLabel}
+                  </p>
+                ) : null}
               </div>
             ) : null}
             {lifecycle.affectedCandidateIds.length > 1 ? (
