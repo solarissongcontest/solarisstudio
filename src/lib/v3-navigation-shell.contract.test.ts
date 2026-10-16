@@ -1,0 +1,234 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+function source(path: string) {
+  return readFileSync(resolve(process.cwd(), path), "utf8");
+}
+
+describe("V3 navigation shell acceptance guardrails", () => {
+  it("pre-measures drag geometry instead of forcing layout reads for every pointer pixel", () => {
+    const publicTabs = source("src/components/v3/V3LiquidTabBar.tsx");
+    const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
+
+    for (const tabs of [publicTabs, organizerTabs]) {
+      expect(tabs).toContain("const rects = tabRects();");
+      expect(tabs).toContain("slotWidth: origin.width");
+      expect(tabs).toContain("slotWidth: drag.slotWidth");
+      expect(tabs).toContain("minDelta: drag.minDelta");
+      expect(tabs).toContain("maxDelta: drag.maxDelta");
+      expect(tabs).toContain("maxSteps: 1");
+      expect(tabs).toContain("rubberBand: true");
+    }
+  });
+
+  it("prevents completed long press from falling through into navigation", () => {
+    const publicTabs = source("src/components/v3/V3LiquidTabBar.tsx");
+    const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
+
+    for (const tabs of [publicTabs, organizerTabs]) {
+      expect(tabs).toContain("const longPressed = held");
+      expect(tabs).toMatch(
+        /suppressClick\.current = (?:drag\.moved|moved) \|\| longPressed/,
+      );
+      expect(tabs).toContain("if (longPressed ||");
+    }
+  });
+
+  it("cancels direct tab manipulation when chrome or PWA lifecycle takes ownership", () => {
+    const publicTabs = source("src/components/v3/V3LiquidTabBar.tsx");
+    const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
+
+    for (const tabs of [publicTabs, organizerTabs]) {
+      expect(tabs).toContain("APP_RESUME_EVENT");
+      expect(tabs).toContain('"data-solaris-feature-overlay-open"');
+      expect(tabs).toContain('"data-solaris-keyboard-open"');
+      expect(tabs).toContain("rootInterruptionObserver?.observe");
+      expect(tabs).toContain(
+        'window.addEventListener("pagehide", resetInterruptedGesture)',
+      );
+      expect(tabs).toContain(
+        "window.addEventListener(APP_RESUME_EVENT, resetInterruptedGesture)",
+      );
+      expect(tabs).toContain("rootInterruptionObserver?.disconnect()");
+      expect(tabs).toContain("captureTarget: HTMLAnchorElement");
+      expect(tabs).toContain("captureTarget: event.currentTarget");
+      expect(tabs).toContain("drag.captureTarget.hasPointerCapture?.(drag.pointerId)");
+      expect(tabs).toContain("drag.captureTarget.releasePointerCapture?.(drag.pointerId)");
+    }
+  });
+
+  it("uses one canonical destination model while desktop stops rendering the phone bar", () => {
+    const shell = source("src/components/v3/V3AppShell.tsx");
+    const desktop = source("src/components/v3/V3DesktopPrimaryNavigation.tsx");
+    const responsive = source("src/styles/v3-responsive-shell.css");
+
+    expect(shell).toContain("<V3DesktopPrimaryNavigation");
+    expect(shell).toContain("destinations={liquidDestinations}");
+    expect(desktop).toContain('aria-label="Primary app navigation"');
+    expect(desktop).toContain('aria-current={destination.active ? "page" : undefined}');
+    expect(responsive).toContain("@media (min-width: 1024px)");
+    expect(responsive).toContain(".v3-bottom-nav.v3-liquid-tabbar");
+    expect(responsive).toContain("display: none !important");
+    expect(responsive).toContain("width: min(100%, 76rem)");
+  });
+
+  it("announces navigation badge counts once on public and Organizer surfaces", () => {
+    const shell = source("src/components/v3/V3AppShell.tsx");
+    const publicTabs = source("src/components/v3/V3LiquidTabBar.tsx");
+    const desktop = source("src/components/v3/V3DesktopPrimaryNavigation.tsx");
+    const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
+
+    expect(publicTabs).toContain("navigationItemLabel(destination.label, badge)");
+    expect(desktop).toContain("navigationItemLabel(destination.label, badge)");
+    expect(organizerTabs).toContain("organizerItemLabel(item)");
+    expect(organizerTabs).not.toContain("aria-label={`${item.badge} unresolved item");
+    expect(organizerTabs).toMatch(/v6-organizer-tabbar[\s\S]*aria-hidden="true"/);
+    expect(shell).toContain("const notificationLabel =");
+    expect(shell).toContain("aria-label={notificationLabel}");
+  });
+
+  it("keeps Organizer glass bounded and removes mobile chrome when the keyboard opens", () => {
+    const organizer = source("src/components/admin/OrganizerV6TabBar.tsx");
+    const css = source("src/styles/v3-organizer-navigation.css");
+
+    expect(organizer).toContain('data-v6-organizer-tabbar=""');
+    expect(organizer).toContain('data-solaris-keyboard-open');
+    expect(css).toContain("background: transparent !important");
+    expect(css).toContain('html[data-solaris-keyboard-open]');
+    expect(css).toContain("pointer-events: none");
+  });
+
+  it("keeps critical task chrome separate and blocks unsafe service-worker activation", () => {
+    const focused = source("src/components/v3/V3FocusedTaskShell.tsx");
+    const gesture = source("src/lib/v3-navigation-gesture.ts");
+
+    expect(focused).toContain("setAppUpdateBlocker");
+    expect(focused).toContain("clearAppUpdateBlocker");
+    expect(focused).toContain('data-v3-swipe-owner="content"');
+    expect(gesture).toContain('if (screen.behavior.criticalTask) return "critical-flow"');
+  });
+
+  it("composes at most live previous/current/next surfaces from one navigation progress", () => {
+    const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
+    const shell = source("src/components/v3/V3AppShell.tsx");
+    const css = source("src/styles/v3-top-level-swipe.css");
+
+    expect(swipe).toContain("previewReady = false");
+    expect(swipe).toContain("requiredAdjacentSurfacesReady");
+    expect(swipe).toContain('policy === "enabled" && previewReady && requiredAdjacentSurfacesReady');
+    expect(swipe).toContain("--v3-navigation-progress");
+    expect(swipe).toContain("const progress = activeIndex - offset / drag.viewportWidth");
+    expect(swipe).toContain("lensStepWidth");
+    expect(swipe).toContain('data-v3-swipe-preview="previous"');
+    expect(swipe).toContain('data-v3-swipe-preview="next"');
+    expect(swipe).toContain('inert={canonicalSlot !== "previous"}');
+    expect(swipe).toContain('inert={canonicalSlot !== "current"}');
+    expect(swipe).toContain('inert={canonicalSlot !== "next"}');
+    expect(swipe).not.toMatch(/screenshot|canvas\.toDataURL|html2canvas/i);
+    expect(shell).toContain("swipePreviewSurfaces?: V3TopLevelSwipePreviewSurfaces");
+    expect(shell).toContain("previousSurface={previousSurface}");
+    expect(shell).toContain("nextSurface={nextSurface}");
+    expect(shell).toContain("previewReady={swipePreviewReady}");
+    expect(css).toContain(".v3-top-level-swipe-page--previous");
+    expect(css).toContain(".v3-top-level-swipe-page--next");
+    expect(css).toContain('data-v3-page-settling="true"');
+    expect(css).toContain("--v3-tab-visual-opacity");
+    expect(css).toContain("--v3-tab-visual-scale");
+  });
+
+  it("preserves native nested horizontal ownership before JS gesture arbitration", () => {
+    const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
+    const gesture = source("src/lib/v3-navigation-gesture.ts");
+    const css = source("src/styles/v3-top-level-swipe.css");
+
+    expect(css).not.toContain("touch-action: pan-y pinch-zoom");
+    expect(css).toMatch(/data-v3-top-level-swipe-enabled="true"[\s\S]*touch-action: auto/);
+    expect(gesture).toContain("'.overflow-x-auto'");
+    expect(gesture).toContain("'.overflow-x-scroll'");
+    expect(gesture).toContain("'[data-carousel]'");
+    expect(swipe).toContain("elementBlocksV3TopLevelSwipe(event.target)");
+    expect(swipe).toContain('surface.addEventListener("touchmove", preventOwnedHorizontalTouchPan');
+    expect(swipe).toContain("passive: false");
+    expect(swipe).toContain("event.touches.length !== 1");
+    expect(swipe).toContain('if (owner === "horizontal") event.preventDefault()');
+    expect(swipe).toContain("event.preventDefault()");
+  });
+
+  it("moves accessibility ownership to the canonical winning slot during frozen settle", () => {
+    const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
+
+    expect(swipe).toContain("function canonicalSwipeSlot");
+    expect(swipe).toContain("activeIndex !== settlingComposition.targetIndex");
+    expect(swipe).toContain('targetIndex < settlingComposition.originIndex) return "previous"');
+    expect(swipe).toContain('targetIndex > settlingComposition.originIndex) return "next"');
+    expect(swipe).toContain("const canonicalSlot = canonicalSwipeSlot(settlingComposition, activeIndex)");
+    expect(swipe).toContain(
+      'aria-hidden={canonicalSlot === "previous" ? undefined : true}',
+    );
+    expect(swipe).toContain(
+      'aria-hidden={canonicalSlot === "current" ? undefined : true}',
+    );
+    expect(swipe).toContain('aria-hidden={canonicalSlot === "next" ? undefined : true}');
+    expect(swipe).toContain(
+      'data-v3-swipe-canonical={canonicalSlot === "previous" ? "true" : undefined}',
+    );
+    expect(swipe).toContain(
+      'data-v3-swipe-canonical={canonicalSlot === "current" ? "true" : undefined}',
+    );
+    expect(swipe).toContain(
+      'data-v3-swipe-canonical={canonicalSlot === "next" ? "true" : undefined}',
+    );
+  });
+
+  it("cancels page manipulation when shell ownership or lifecycle changes", () => {
+    const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
+    const shell = source("src/components/v3/V3AppShell.tsx");
+
+    expect(swipe).toContain("APP_RESUME_EVENT");
+    expect(swipe).toContain('"data-solaris-feature-overlay-open"');
+    expect(swipe).toContain('"data-solaris-keyboard-open"');
+    expect(swipe).toContain('window.addEventListener("pagehide", interrupt)');
+    expect(swipe).toContain("rootInterruptionObserver.observe");
+    expect(swipe).toContain("shellInteractionBlocked()");
+    expect(swipe).toContain("interactionKey?: string | null");
+    expect(swipe).toContain("committedInteractionKeyRef.current === interactionKey");
+    expect(swipe).toContain("surface.releasePointerCapture?.(drag.pointerId)");
+    expect(shell).toContain("interactionKey={navigationScope}");
+  });
+
+  it("fails closed when a committed swipe is redirected during visual settle", () => {
+    const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
+
+    expect(swipe).toContain("type CommittedRouteSnapshot");
+    expect(swipe).toContain("committedRouteSnapshotRef");
+    expect(swipe).toContain("originRouteKey: routeSnapshotKey(pathname, searchStr)");
+    expect(swipe).toContain("if (routeSnapshot.targetRouteKey == null)");
+    expect(swipe).toContain("routeSnapshot.targetRouteKey = currentRouteKey");
+    expect(swipe).toContain("if (currentRouteKey !== routeSnapshot.targetRouteKey) resetSurface()");
+  });
+
+  it("commits a winning swipe promptly while preserving one visual settle", () => {
+    const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
+    const shell = source("src/components/v3/V3AppShell.tsx");
+
+    expect(swipe).toContain("type SettlingComposition");
+    expect(swipe).toContain("currentSurface: children");
+    expect(swipe).toContain("committedTargetRef.current = targetIndex");
+    expect(swipe).toMatch(
+      /publishVisualProgress\(targetIndex, drag, "settle"\);\s+onCommit\(targetIndex\);\s+settleTimerRef\.current = window\.setTimeout/,
+    );
+    expect(swipe).toContain("visualCurrentSurface = settlingComposition?.currentSurface ?? children");
+    expect(shell).toContain("void navigateToTarget();");
+    expect(shell).not.toContain("Promise.resolve(navigateToTarget()).then");
+  });
+
+  it("hands focus to canonical page content after a committed swipe settles", () => {
+    const shell = source("src/components/v3/V3AppShell.tsx");
+
+    expect(shell).toContain("function focusCurrentRouteAfterSwipe()");
+    expect(shell).toContain('target.setAttribute("tabindex", "-1")');
+    expect(shell).toContain("target.focus({ preventScroll: true })");
+    expect(shell).toContain("onSettled={() => focusCurrentRouteAfterSwipe()}");
+  });
+});

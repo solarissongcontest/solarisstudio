@@ -1,0 +1,127 @@
+/*
+ * The canonical mobile bar is icon-only. User text scaling must therefore
+ * enlarge surrounding page typography without resizing the physical navigation
+ * object or moving its icon/lens centers. Keep these dimensions in CSS px,
+ * aligned with v3-navigation-geometry.ts, rather than rem.
+ */
+[data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar {
+  left: max(11px, env(safe-area-inset-left));
+  right: max(11px, env(safe-area-inset-right));
+  bottom: calc(env(safe-area-inset-bottom) + 7px);
+  width: min(calc(100% - 22px), 544px);
+}
+
+/*
+ * Keep the decorative lens out of WebKit's RTL flex/grid static-position
+ * coordinate systems. The material preserves inherited logical direction for
+ * route and gesture semantics; a fully constrained LTR overlay owns the lens'
+ * physical coordinates. Under RTL a normal flex row naturally places later
+ * logical destinations toward physical left, matching the single mirrored lens
+ * index in the component without browser-dependent static positioning.
+ */
+[data-solaris-v3] .v3-liquid-tabbar__material {
+  --v3-liquid-gap: 2px;
+  display: flex;
+  height: 70px;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 32px;
+}
+
+[data-solaris-v3] .v3-liquid-tabbar__lens-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  direction: ltr;
+  pointer-events: none;
+}
+
+[data-solaris-v3] .v3-liquid-tabbar__lens {
+  left: 6px !important;
+  right: auto !important;
+  top: 6px;
+  bottom: 6px;
+  border-radius: calc(25px + var(--v3-liquid-pull-radius));
+}
+
+[data-solaris-v3] .v3-liquid-tabbar__item {
+  flex: 1 1 0;
+  min-height: 57px;
+  padding: 3px 2px;
+  border-radius: 23px;
+}
+
+[data-solaris-v3] .v3-liquid-tabbar__icon-wrap {
+  width: 25px;
+  height: 25px;
+}
+
+[data-solaris-v3] .v3-liquid-tabbar__icon {
+  width: 19px;
+  height: 19px;
+}
+
+[data-solaris-v3] .v3-liquid-tabbar__badge {
+  inset-inline-end: -8px;
+  top: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 9px;
+}
+
+[data-solaris-v3] .v3-liquid-tabbar[data-collapsed="true"] .v3-liquid-tabbar__material {
+  width: min(324px, calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+  height: 57px;
+  border-radius: 28px;
+}
+
+[data-solaris-v3] .v3-liquid-tabbar[data-collapsed="true"] .v3-liquid-tabbar__item {
+  min-height: 44px;
+}
+
+[data-solaris-v3] .v3-liquid-tabbar[data-collapsed="true"] .v3-liquid-tabbar__icon-wrap {
+  width: 22px;
+  height: 22px;
+}
+
+[data-solaris-v3] .v3-liquid-tabbar[data-collapsed="true"] .v3-liquid-tabbar__icon {
+  width: 17px;
+  height: 17px;
+}
+
+[data-solaris-v3] .v3-screen {
+  padding-bottom: calc(var(--v3-bottom-obstruction, 116px) + 16px);
+}
+
+html[data-solaris-keyboard-open] [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar {
+  transform: translateY(calc(100% + env(safe-area-inset-bottom) + 32px));
+}
+
+@media (max-width: 374px) {
+  [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar {
+    left: max(7px, env(safe-area-inset-left));
+    right: max(7px, env(safe-area-inset-right));
+    width: min(calc(100% - 14px), 544px);
+  }
+
+  [data-solaris-v3] .v3-liquid-tabbar__material {
+    height: 66px;
+    border-radius: 30px;
+  }
+
+  [data-solaris-v3] .v3-liquid-tabbar__item {
+    min-height: 54px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  [data-solaris-v3] .v3-liquid-tabbar__material {
+    height: 57px;
+    border-radius: 27px;
+  }
+
+  [data-solaris-v3] .v3-liquid-tabbar__item {
+    min-height: 44px;
+  }
+}
