@@ -47,6 +47,25 @@ function requireOrganizerEditionId(editionId: string | null | undefined) {
   return normalizedEditionId;
 }
 
+function mapResolutionPredicate(value: unknown, index: number): Record<string, unknown> {
+  if (value == null) return {};
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`Invalid Organizer Task resolution predicate at index ${index}`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function mapRuleReference(value: unknown, index: number): string[] {
+  if (value == null) return [];
+  if (!Array.isArray(value)) {
+    throw new Error(`Invalid Organizer Task rule reference at index ${index}`);
+  }
+  if (value.some((item) => typeof item !== "string" || !item.trim())) {
+    throw new Error(`Invalid Organizer Task rule reference at index ${index}`);
+  }
+  return [...new Set(value.map((item) => item.trim()))];
+}
+
 export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
   if (!Array.isArray(value)) {
     throw new Error("Invalid Organizer Tasks payload: expected an array");
@@ -87,13 +106,8 @@ export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
       description: task.description,
       href: task.href,
       dueAt: typeof task.dueAt === "string" ? task.dueAt : null,
-      resolutionPredicate:
-        task.resolutionPredicate && typeof task.resolutionPredicate === "object"
-          ? (task.resolutionPredicate as Record<string, unknown>)
-          : {},
-      ruleReference: Array.isArray(task.ruleReference)
-        ? task.ruleReference.filter((item): item is string => typeof item === "string")
-        : [],
+      resolutionPredicate: mapResolutionPredicate(task.resolutionPredicate, index),
+      ruleReference: mapRuleReference(task.ruleReference, index),
       openedAt: task.openedAt,
       resolvedAt: typeof task.resolvedAt === "string" ? task.resolvedAt : null,
       lastEvaluatedAt: task.lastEvaluatedAt,
