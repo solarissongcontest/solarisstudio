@@ -141,6 +141,7 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "current-edition-contest" ||
     id === "current-edition-host" ||
     id === "current-edition-voting" ||
+    id === "current-edition-voting-declarations" ||
     id === "current-edition-results" ||
     id === "operations-eligibility" ||
     id === "operations-media-assets" ||
