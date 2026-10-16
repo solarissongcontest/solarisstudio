@@ -64,6 +64,7 @@ describe("V3 Organizer information architecture", () => {
     expect(v3OrganizerTabForPath("/admin/operations")).toBe("overview");
     expect(v3OrganizerTabForPath("/admin/inbox")).toBe("tasks");
     expect(v3OrganizerTabForPath("/admin/entries/ssc-22")).toBe("control");
+    expect(v3OrganizerTabForPath("/admin/participant-status/ssc-22")).toBe("control");
     expect(v3OrganizerTabForPath("/confirmations/admin/responses")).toBe("control");
     expect(v3OrganizerTabForPath("/televoting/admin/results")).toBe("control");
     expect(v3OrganizerTabForPath("/admin/control-room")).toBe("live");
@@ -78,7 +79,7 @@ describe("V3 Organizer information architecture", () => {
     expect(v3OrganizerTabForPath("/admin/access-permissions")).toBe("more");
   });
 
-  it("groups Control by canonical domains, separates review/running-order/progression, and fails closed without edition context", () => {
+  it("groups Control by canonical domains, separates Contest workspaces, and fails closed without edition context", () => {
     const withoutEdition = buildV3OrganizerControlGroups(null);
     expect(withoutEdition.map((group) => group.key)).toEqual([
       "delegations",
@@ -106,6 +107,9 @@ describe("V3 Organizer information architecture", () => {
     );
     expect(scopedItems.find((item) => item.key === "running-order")?.href).toBe(
       "/admin/entries/ssc-22",
+    );
+    expect(scopedItems.find((item) => item.key === "participants")?.href).toBe(
+      "/admin/participant-status/ssc-22",
     );
     expect(scopedItems.find((item) => item.key === "progression")?.href).toBe(
       "/admin/lineup-sync/ssc-22",
