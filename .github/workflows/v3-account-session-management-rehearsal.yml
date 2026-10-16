@@ -1,0 +1,83 @@
+name: V3 Account session management rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/**"
+      - ".github/scripts/v3-account-session-management-rehearsal.sh"
+      - ".github/workflows/v3-account-session-management-rehearsal.yml"
+      - "src/lib/v3-account-session-management.contract.test.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-account-session-management-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-replay:
+    name: Clean replay + account session checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Start isolated local Supabase
+        run: supabase start
+      - name: Rebuild complete migration chain
+        run: supabase db reset --local --no-seed
+      - name: Rehearse account session contract
+        run: bash .github/scripts/v3-account-session-management-rehearsal.sh
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+  upgrade-from-main:
+    name: Current main upgrade + account session checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Prepare disposable current-main worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          git worktree add /tmp/solaris-account-session-main origin/main
+      - name: Build current main locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-account-session-main
+          supabase start
+          supabase db reset --local --no-seed
+      - name: Apply feature migration delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a --delete "$GITHUB_WORKSPACE/supabase/migrations/" /tmp/solaris-account-session-main/supabase/migrations/
+          cd /tmp/solaris-account-session-main
+          supabase migration up --local --include-all
+      - name: Rehearse contract after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-account-session-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-account-session-management-rehearsal.sh"
+      - name: Stop isolated local Supabase
+        if: always()
+        shell: bash
+        run: |
+          cd /tmp/solaris-account-session-main 2>/dev/null || exit 0
+          supabase stop --no-backup || true
