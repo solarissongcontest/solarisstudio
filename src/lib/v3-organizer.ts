@@ -275,13 +275,6 @@ export function buildV3OrganizerControlGroups(
           href: contextHref("/admin/communications"),
           editionScoped: true,
         },
-        {
-          key: "delivery-issues",
-          label: "Delivery issues",
-          description: "Inspect failed push deliveries and retry only failed targets",
-          href: contextHref("/admin/system-operations"),
-          editionScoped: true,
-        },
       ],
     },
     {
