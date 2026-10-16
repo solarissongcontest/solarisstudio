@@ -19,6 +19,7 @@ const stage5 = source(".github/scripts/v3-s14-stage-5-running-orders.sh");
 const stage6 = source(".github/scripts/v3-s14-stage-6-jury.sh");
 const stage7 = source(".github/scripts/v3-s14-stage-7-public-voting.sh");
 const stage8 = source(".github/scripts/v3-s14-stage-8-results.sh");
+const stage9 = source(".github/scripts/v3-s14-stage-9-publication.sh");
 const resultsAdapter = source("scripts/v3-s14-materialize-televote-results.ts");
 const readiness = source("scripts/check-v3-s14-rehearsal-readiness.ts");
 
@@ -43,6 +44,7 @@ describe("S14 stateful full-contest harness", () => {
       "v3-s14-stage-6-jury.sh",
       "v3-s14-stage-7-public-voting.sh",
       "v3-s14-stage-8-results.sh",
+      "v3-s14-stage-9-publication.sh",
     ]) expect(driver).toContain(`source "$SCRIPT_DIR/${path}"`);
     expect(driver).not.toContain("v3-confirmation-security-rehearsal.sh");
     expect(driver).not.toContain("v3-entry-receipt-security-rehearsal.sh");
@@ -50,6 +52,7 @@ describe("S14 stateful full-contest harness", () => {
     expect(driver).not.toContain("v3-jury-security-rehearsal.sh");
     expect(driver).not.toContain("v3-televote-reconciliation-rehearsal.sh");
     expect(driver).not.toContain("v3-s3-results-invariants-rehearsal.sh");
+    expect(driver).not.toContain("v3-s3-publication-invariants-rehearsal.sh");
     expect(driver).not.toContain("supabase db reset");
   });
 
@@ -61,9 +64,9 @@ describe("S14 stateful full-contest harness", () => {
     expect(runtime).not.toContain("supabase.co");
   });
 
-  it("implements the contest lifecycle through Results without claiming later stages", () => {
-    expect(V3_S14_STAGES.slice(0, 8).every((item) => item.implementationState === "implemented")).toBe(true);
-    expect(V3_S14_STAGES.slice(8).every((item) => item.implementationState === "planned")).toBe(true);
+  it("implements the contest lifecycle through Publication without claiming Archive", () => {
+    expect(V3_S14_STAGES.slice(0, 9).every((item) => item.implementationState === "implemented")).toBe(true);
+    expect(V3_S14_STAGES.slice(9).every((item) => item.implementationState === "planned")).toBe(true);
     expect(stage3).toContain("seq 1 66");
     expect(stage3).toContain("v3_submit_confirmation");
     expect(stage3).toContain("v3_reconcile_confirmation");
@@ -163,6 +166,22 @@ describe("S14 stateful full-contest harness", () => {
     expect(resultsAdapter).toContain("V3_DESTRUCTIVE_VERIFICATION");
   });
 
+  it("publishes the exact finalized result version and recovers from missed realtime through authoritative refresh", () => {
+    expect(stage9).toContain("studio2_show_publication_change_preview");
+    expect(stage9).toContain("studio2_apply_show_publication_change");
+    expect(stage9).toContain("private.v3_publication_result_version_release_ready");
+    expect(stage9).toContain("riskClass R3");
+    expect(stage9).toContain("sourceResultVersion");
+    expect(stage9).toContain("auth_freshness_evidence");
+    expect(stage9).toContain("$API_URL/rest/v1/results");
+    expect(stage9).toContain("private.v3_result_versions");
+    expect(stage9).toContain("publication.changed");
+    expect(stage9).toContain("S14_FAILURE_REALTIME_DISCONNECT_COMPLETE");
+    expect(stage9).toContain("S14_INVARIANT_PUBLICATION_COMPLETE");
+    expect(stage9).toContain("S14_STAGE_9_PUBLICATION_COMPLETE");
+    expect(stage9).not.toContain("v3-s3-publication-invariants-rehearsal.sh");
+  });
+
   it("uses the real notification category vocabulary during onboarding", () => {
     expect(stage2).toContain("'televoting'");
     expect(stage2).not.toContain("'televote'");
@@ -177,6 +196,7 @@ describe("S14 stateful full-contest harness", () => {
       "db-timeout-before-commit",
       "duplicate-request",
       "worker-crash",
+      "realtime-disconnect",
       "stale-client",
       "two-organizers",
     ]);
@@ -190,6 +210,7 @@ describe("S14 stateful full-contest harness", () => {
       "jury-single-final-ballot",
       "televote-canonical-ballot",
       "result-reproducible",
+      "publication-final-version",
     ]);
     for (const marker of [
       "S14_FAILURE_NETWORK_AFTER_COMMIT_COMPLETE",
@@ -207,13 +228,14 @@ describe("S14 stateful full-contest harness", () => {
     expect(stage8).toContain("S14_FAILURE_DB_TIMEOUT_COMPLETE");
     expect(stage8).toContain("S14_FAILURE_WORKER_CRASH_COMPLETE");
     expect(stage8).toContain("S14_INVARIANT_RESULT_COMPLETE");
+    expect(stage9).toContain("S14_FAILURE_REALTIME_DISCONNECT_COMPLETE");
+    expect(stage9).toContain("S14_INVARIANT_PUBLICATION_COMPLETE");
   });
 
-  it("cannot emit release-grade evidence while Stages 9-10 remain pending", () => {
+  it("cannot emit release-grade evidence while Stage 10 remains pending", () => {
     expect(driver).toContain('"passed": False');
     expect(driver).toContain("s14-full-contest.partial.json");
-    expect(driver).toContain("\"stage-8-results\",");
-    expect(driver).toContain("stage-9-publication");
+    expect(driver).toContain("\"stage-9-publication\",");
     expect(driver).toContain("stage-10-archive");
     expect(driver).toContain("No release-grade s14-full-contest.json was written");
     expect(driver).not.toContain('"passed": True');
@@ -232,6 +254,7 @@ describe("S14 stateful full-contest harness", () => {
       ".github/scripts/v3-s14-stage-6-jury.sh",
       ".github/scripts/v3-s14-stage-7-public-voting.sh",
       ".github/scripts/v3-s14-stage-8-results.sh",
+      ".github/scripts/v3-s14-stage-9-publication.sh",
     ]) {
       expect(() => execFileSync("bash", ["-n", path], { stdio: "pipe" })).not.toThrow();
     }
