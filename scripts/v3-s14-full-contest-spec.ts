@@ -86,7 +86,7 @@ export const V3_S14_STAGES: readonly V3S14Stage[] = [
     id: "stage-5-running-orders",
     label: "running orders",
     requirements: ["allocate", "publish", "verify public show"],
-    implementationState: "planned",
+    implementationState: "implemented",
     driverMarker: "S14_STAGE_5_RUNNING_ORDERS_COMPLETE",
     implementationAsset: ".github/scripts/v3-s14-stage-5-running-orders.sh",
   },
