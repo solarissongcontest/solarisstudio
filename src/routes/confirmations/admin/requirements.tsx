@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2, CircleAlert, RefreshCw, RotateCcw, ShieldCheck } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
@@ -31,6 +31,8 @@ type PendingAction =
   | null;
 
 const RISK = "R2" as const;
+const STALE_CONTEXT_ERROR =
+  "Organizer edition context changed before this confirmation requirement command. Review the requirement again in the selected edition.";
 
 export const Route = createFileRoute("/confirmations/admin/requirements")({
   head: () => ({
@@ -58,8 +60,8 @@ function ConfirmationRequirementsPage() {
   });
 
   const ensure = useMutation({
-    mutationFn: () => ensureConfirmationRequirements(editionId),
-    onSuccess: async (result) => {
+    mutationFn: (targetEditionId: string) => ensureConfirmationRequirements(targetEditionId),
+    onSuccess: async (result, targetEditionId) => {
       toast.success(
         result.created
           ? String(result.created) + " confirmation requirement" + (result.created === 1 ? "" : "s") + " created"
@@ -67,10 +69,10 @@ function ConfirmationRequirementsPage() {
       );
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["confirmation-requirements", editionId || "none"],
+          queryKey: ["confirmation-requirements", targetEditionId],
         }),
-        queryClient.invalidateQueries({ queryKey: ["organizer-tasks-v5"] }),
-        queryClient.invalidateQueries({ queryKey: ["organizer-task-count-v5"] }),
+        queryClient.invalidateQueries({ queryKey: ["organizer-tasks-v5", targetEditionId] }),
+        queryClient.invalidateQueries({ queryKey: ["organizer-task-count-v5", targetEditionId] }),
       ]);
     },
     onError: (error) =>
@@ -81,8 +83,13 @@ function ConfirmationRequirementsPage() {
     mutationFn: async (input: {
       kind: "reconfirm" | "waive";
       requirement: ConfirmationRequirement;
+      organizerEditionId: string;
       actionReason: string;
     }) => {
+      if (input.requirement.editionId !== input.organizerEditionId) {
+        throw new Error(STALE_CONTEXT_ERROR);
+      }
+
       const command = createOrganisationCommand({
         command:
           input.kind === "reconfirm"
@@ -90,7 +97,7 @@ function ConfirmationRequirementsPage() {
             : "confirmation.requirement.waive",
         riskClass: RISK,
         scope: {
-          editionId: input.requirement.editionId,
+          editionId: input.organizerEditionId,
           countryId: input.requirement.countryId,
           entityId: input.requirement.id,
         },
@@ -124,13 +131,24 @@ function ConfirmationRequirementsPage() {
       setReason("");
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["confirmation-requirements", editionId || "none"],
+          queryKey: ["confirmation-requirements", variables.organizerEditionId],
         }),
-        queryClient.invalidateQueries({ queryKey: ["organizer-tasks-v5"] }),
-        queryClient.invalidateQueries({ queryKey: ["organizer-task-count-v5"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["organizer-tasks-v5", variables.organizerEditionId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["organizer-task-count-v5", variables.organizerEditionId],
+        }),
       ]);
     },
   });
+
+  useEffect(() => {
+    // A pending R2 decision belongs to the edition in which it was opened.
+    // Never let an old sheet survive a global Organizer context switch.
+    setPending(null);
+    setReason("");
+  }, [editionId]);
 
   const requirements = requirementsQuery.data ?? [];
   const counts = useMemo(
@@ -150,6 +168,10 @@ function ConfirmationRequirementsPage() {
   );
 
   function start(next: Exclude<PendingAction, null>) {
+    if (!editionId || next.requirement.editionId !== editionId) {
+      toast.error(STALE_CONTEXT_ERROR);
+      return;
+    }
     action.reset();
     setReason("");
     setPending(next);
@@ -157,15 +179,22 @@ function ConfirmationRequirementsPage() {
 
   function submitAction() {
     if (!pending || reason.trim().length < 5) return;
+    if (!editionId || pending.requirement.editionId !== editionId) {
+      setPending(null);
+      setReason("");
+      toast.error(STALE_CONTEXT_ERROR);
+      return;
+    }
     action.mutate({
       kind: pending.kind,
       requirement: pending.requirement,
+      organizerEditionId: editionId,
       actionReason: reason.trim(),
     });
   }
 
   return (
-    <div className="admin-page pb-5">
+    <div className="admin-page pb-5" data-v3-organizer-confirmation-requirements="">
       <AdminPageHeader
         eyebrow="Delegations · Confirmations"
         title="Confirmation requirements"
@@ -176,7 +205,9 @@ function ConfirmationRequirementsPage() {
               type="button"
               className="admin-action-secondary"
               disabled={!editionId || ensure.isPending}
-              onClick={() => ensure.mutate()}
+              onClick={() => {
+                if (editionId) ensure.mutate(editionId);
+              }}
             >
               <RefreshCw className={ensure.isPending ? "size-4 animate-spin" : "size-4"} />
               {ensure.isPending ? "Checking…" : "Ensure active delegations"}
@@ -193,7 +224,7 @@ function ConfirmationRequirementsPage() {
           <AdminEmptyState
             icon={CircleAlert}
             title="Choose an edition"
-            description="Select an Organizer edition before managing its confirmation requirements."
+            description="Select an Organizer edition before managing its confirmation requirements. Solaris will not retain a pending requirement decision from another edition."
           />
         </AdminCard>
       ) : (
