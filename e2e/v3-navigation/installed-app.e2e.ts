@@ -185,7 +185,9 @@ test("installed app shell survives representative navigation without duplicate c
   await expect(page.locator('[data-v3-liquid-tabbar] [aria-current="page"]')).toHaveCount(1);
 
   for (const label of ["Home", "Explore", "Participate", "Results", "Me"]) {
-    await expect(page.locator("[data-v3-liquid-tabbar]").getByRole("link", { name: label })).toHaveCount(1);
+    await expect(
+      page.locator("[data-v3-liquid-tabbar]").getByRole("link", { name: label, exact: true }),
+    ).toHaveCount(1);
   }
 
   const initial = await readGeometry(page);
