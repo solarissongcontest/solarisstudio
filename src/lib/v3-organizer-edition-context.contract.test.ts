@@ -222,9 +222,11 @@ describe("V3 Organizer explicit edition context", () => {
     expect(communications).toContain('title="Choose an edition"');
     expect(communications).toContain("never broadens a missing edition into an all-editions view");
 
-    expect(communicationsData).toContain("if (!editionId)");
+    expect(communicationsData).toContain("const scopedEditionId = requireEditionId(editionId)");
     expect(communicationsData).toContain("Official Communications requires an explicit edition scope.");
-    expect(communicationsData).toContain(".eq('edition_id', editionId)");
+    expect(communicationsData).toContain(".eq('edition_id', scopedEditionId)");
+    expect(communicationsData).toContain("row.edition_id !== scopedEditionId");
+    expect(communicationsData).toContain("assertNoticeInEdition(noticeId, editionId)");
     expect(communicationsData).not.toContain("if (editionId) noticeQuery = noticeQuery.eq('edition_id', editionId)");
   });
 
