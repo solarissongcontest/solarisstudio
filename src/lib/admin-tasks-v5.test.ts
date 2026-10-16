@@ -90,6 +90,52 @@ describe("Organizer Tasks edition RPC boundary", () => {
     expect(task?.ruleReference).toEqual(["rule-12", "rule-14"]);
   });
 
+  it("preserves intentionally global tasks while trimming optional scoped identities", () => {
+    const [globalTask] = mapOrganizerTasksV5([{ ...validTask(), editionId: null }]);
+    const [scopedTask] = mapOrganizerTasksV5([{
+      ...validTask(),
+      countryId: " country-1 ",
+      assignedTo: " organizer-1 ",
+    }]);
+
+    expect(globalTask?.editionId).toBeNull();
+    expect(scopedTask?.countryId).toBe("country-1");
+    expect(scopedTask?.assignedTo).toBe("organizer-1");
+  });
+
+  it("rejects blank authoritative task identity, route and operator-facing copy", () => {
+    const invalidCases: Array<[keyof ReturnType<typeof validTask>, string]> = [
+      ["id", "id"],
+      ["sourceKind", "source kind"],
+      ["sourceKey", "source key"],
+      ["taskType", "task type"],
+      ["title", "title"],
+      ["description", "description"],
+      ["href", "route"],
+    ];
+
+    for (const [field, label] of invalidCases) {
+      expect(() => mapOrganizerTasksV5([{ ...validTask(), [field]: "   " }])).toThrow(
+        `Invalid Organizer Task ${label} at index 0`,
+      );
+    }
+  });
+
+  it("rejects malformed authoritative task timestamps instead of sorting invalid evidence", () => {
+    expect(() => mapOrganizerTasksV5([
+      { ...validTask(), openedAt: "not-a-date" },
+    ])).toThrow("Invalid Organizer Task opened timestamp at index 0");
+    expect(() => mapOrganizerTasksV5([
+      { ...validTask(), lastEvaluatedAt: "yesterday-ish" },
+    ])).toThrow("Invalid Organizer Task evaluation timestamp at index 0");
+    expect(() => mapOrganizerTasksV5([
+      { ...validTask(), dueAt: "soon" },
+    ])).toThrow("Invalid Organizer Task due timestamp at index 0");
+    expect(() => mapOrganizerTasksV5([
+      { ...validTask(), resolvedAt: "eventually" },
+    ])).toThrow("Invalid Organizer Task resolved timestamp at index 0");
+  });
+
   it("rejects arrays and scalar values where a resolution predicate object is required", () => {
     expect(() => mapOrganizerTasksV5([
       { ...validTask(), resolutionPredicate: [] },
