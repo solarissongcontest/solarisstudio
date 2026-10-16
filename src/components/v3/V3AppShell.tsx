@@ -61,6 +61,10 @@ const V3_SHELL_DESTINATIONS: readonly V3ShellDestination[] = [
 export type V3TopLevelSwipePreviewSurface = {
   /** Canonical root represented by this live surface. */
   area: V3Area;
+  /** Exact remembered route/query this live DOM represents. */
+  href: string;
+  /** Authenticated viewer identity, or null for an explicitly anonymous surface. */
+  viewerKey: string | null;
   /** Live DOM content owned by the Public route layer. */
   surface: ReactNode;
 };
@@ -79,11 +83,12 @@ export type V3AppShellProps = {
   topActions?: ReactNode;
   className?: string;
   /**
-   * Live adjacent root surfaces supplied by the Public route owner. Each
-   * surface carries the canonical root it represents so stale cache/auth/route
-   * handoffs cannot briefly render the wrong adjacent page. The shell never
-   * fabricates or fetches these previews; invalid or missing identity keeps
-   * page swipe fail-closed while ordinary tab navigation remains available.
+   * Live adjacent root surfaces supplied by the Public route owner. Every
+   * preview is bound to top-level area + exact remembered href + viewer scope,
+   * so stale cache/auth/route handoffs cannot briefly render the wrong page.
+   * The shell never fabricates or fetches these previews; invalid or missing
+   * identity keeps page swipe fail-closed while ordinary tab navigation remains
+   * available.
    */
   swipePreviewSurfaces?: V3TopLevelSwipePreviewSurfaces;
 };
@@ -270,18 +275,34 @@ export function V3AppShell({
     activeIndex < liquidDestinations.length - 1
       ? (liquidDestinations[activeIndex + 1]?.id as V3Area | undefined)
       : undefined;
+  const expectedPreviousHref =
+    navigationIdentityReady && expectedPreviousArea
+      ? v3PublicEntryHref(
+          getV3PublicTabDestination(expectedPreviousArea, undefined, navigationScope),
+        )
+      : null;
+  const expectedNextHref =
+    navigationIdentityReady && expectedNextArea
+      ? v3PublicEntryHref(getV3PublicTabDestination(expectedNextArea, undefined, navigationScope))
+      : null;
   const previousPreview = swipePreviewSurfaces?.previous;
   const nextPreview = swipePreviewSurfaces?.next;
   const previousSurface =
     navigationIdentityReady &&
     expectedPreviousArea &&
-    previousPreview?.area === expectedPreviousArea
+    expectedPreviousHref &&
+    previousPreview?.area === expectedPreviousArea &&
+    previousPreview.href === expectedPreviousHref &&
+    previousPreview.viewerKey === navigationScope
       ? previousPreview.surface
       : null;
   const nextSurface =
     navigationIdentityReady &&
     expectedNextArea &&
-    nextPreview?.area === expectedNextArea
+    expectedNextHref &&
+    nextPreview?.area === expectedNextArea &&
+    nextPreview.href === expectedNextHref &&
+    nextPreview.viewerKey === navigationScope
       ? nextPreview.surface
       : null;
   const swipePreviewReady =
