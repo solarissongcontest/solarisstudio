@@ -154,6 +154,7 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "delegation-submission-rounds" ||
     id === "delegation-calendar" ||
     id === "delegation-access" ||
+    id === "delegation-submission-history" ||
     id === "workspace-community-moderation" ||
     id === "workspace-predictions" ||
     id === "workspace-fantasy" ||
