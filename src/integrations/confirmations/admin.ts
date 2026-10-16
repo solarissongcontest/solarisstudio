@@ -69,6 +69,15 @@ export type ConfirmationRoundChangeReceipt = {
   operationId: string;
 };
 
+type ConfirmationRoundApplyInput = {
+  roundId?: string | null;
+  kind: ConfirmationRoundChangeKind;
+  payload?: ConfirmationRoundChangePayload;
+  operationId: string;
+  idempotencyKey: string;
+  expectedVersion: number;
+};
+
 export type ConfirmationEdition = {
   id: string;
   name: string;
@@ -243,14 +252,66 @@ export async function previewConfirmationRoundChange(input: {
   return data as unknown as ConfirmationRoundChangePreview;
 }
 
-export async function applyConfirmationRoundChange(input: {
-  roundId?: string | null;
-  kind: ConfirmationRoundChangeKind;
-  payload?: ConfirmationRoundChangePayload;
-  operationId: string;
-  idempotencyKey: string;
-  expectedVersion: number;
-}): Promise<ConfirmationRoundChangeReceipt> {
+function isRoundStatus(value: unknown): value is ConfirmationRound["status"] {
+  return ["draft", "open", "closed", "auto_closed"].includes(String(value));
+}
+
+export function validateConfirmationRoundChangeReceipt(
+  value: unknown,
+  input: Pick<
+    ConfirmationRoundApplyInput,
+    "roundId" | "kind" | "operationId" | "expectedVersion"
+  >,
+): ConfirmationRoundChangeReceipt {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Confirmation round command returned an invalid receipt.");
+  }
+
+  const receipt = value as Partial<ConfirmationRoundChangeReceipt>;
+  const validShape =
+    receipt.ok === true &&
+    (receipt.riskClass === "R2" || receipt.riskClass === "R3") &&
+    ["create", "update", "status", "editing", "delete"].includes(receipt.changeKind ?? "") &&
+    typeof receipt.roundId === "string" &&
+    Boolean(receipt.roundId.trim()) &&
+    (receipt.status === null || isRoundStatus(receipt.status)) &&
+    (receipt.editingEnabled === null || typeof receipt.editingEnabled === "boolean") &&
+    Number.isInteger(receipt.affectedResponses) &&
+    Number(receipt.affectedResponses) >= 0 &&
+    Number.isInteger(receipt.requirementsCreated) &&
+    Number(receipt.requirementsCreated) >= 0 &&
+    Number.isInteger(receipt.previousVersion) &&
+    Number(receipt.previousVersion) >= 0 &&
+    Number.isInteger(receipt.version) &&
+    Number(receipt.version) >= 0 &&
+    typeof receipt.operationId === "string" &&
+    Boolean(receipt.operationId.trim());
+
+  if (!validShape) {
+    throw new Error("Confirmation round command returned an invalid receipt.");
+  }
+  if (receipt.operationId !== input.operationId) {
+    throw new Error("Confirmation round command returned a receipt for a different operation.");
+  }
+  if (receipt.changeKind !== input.kind) {
+    throw new Error("Confirmation round command returned a receipt for a different change kind.");
+  }
+  if (input.roundId && receipt.roundId !== input.roundId) {
+    throw new Error("Confirmation round command returned a receipt for a different round.");
+  }
+  if (receipt.previousVersion !== input.expectedVersion || receipt.version < receipt.previousVersion) {
+    throw new Error("Confirmation round command returned inconsistent version evidence.");
+  }
+  if (receipt.requirementsCreated !== 0) {
+    throw new Error("Confirmation round change unexpectedly created confirmation requirements.");
+  }
+
+  return receipt as ConfirmationRoundChangeReceipt;
+}
+
+export async function applyConfirmationRoundChange(
+  input: ConfirmationRoundApplyInput,
+): Promise<ConfirmationRoundChangeReceipt> {
   const { data, error } = await confirmationsSupabase.rpc(
     "studio2_apply_confirmation_round_change",
     {
@@ -263,7 +324,7 @@ export async function applyConfirmationRoundChange(input: {
     },
   );
   if (error) throw error;
-  return data as unknown as ConfirmationRoundChangeReceipt;
+  return validateConfirmationRoundChangeReceipt(data, input);
 }
 
 export async function loadConfirmationCalendar(
