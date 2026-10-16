@@ -63,6 +63,9 @@ describe("System V3 S1 registries", () => {
       "confirmation.window_changed",
       "entry.changes_requested",
       "entry.reviewed",
+      "jury.ballot_changed",
+      "jury.closed",
+      "jury.opened",
     ]);
 
     const migrated = new Set(eventBacked);
