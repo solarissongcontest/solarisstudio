@@ -86,7 +86,7 @@ function OrganizerControl() {
                     ? "The previously selected edition is no longer available to this Organizer context. Select an edition before operating contest systems."
                     : "Select an edition before entering an operational workspace. Solaris will not guess a different edition for you."}
               </p>
-              {projection ? (
+              {projection && !projectionQuery.error ? (
                 <p className="mt-2 text-[10px] uppercase tracking-[0.09em] text-muted-foreground">
                   Canonical state {projection.stateVersion} · server {formatServerTime(projection.serverTime)}
                 </p>
@@ -122,7 +122,7 @@ function OrganizerControl() {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">Operational summary could not be reconciled</p>
               <p className="mt-1 text-xs leading-relaxed text-amber-100/75">
-                Solaris is not inferring healthy states from missing projection data. The authoritative specialist workspaces remain available below.
+                Cached projection data is not presented as current after a failed refresh. Open an authoritative specialist workspace or retry reconciliation before relying on domain state.
               </p>
             </div>
             <button
@@ -166,7 +166,7 @@ function OrganizerControl() {
 
                 <div className="mt-3 divide-y divide-white/[0.07] border-t border-white/[0.07]">
                   {group.items.map((item) => {
-                    const href = activeEdition ? item.href : null;
+                    const href = item.editionScoped && !activeEdition ? null : item.href;
                     return href ? (
                       <Link key={item.key} to={href as any} className="admin-list-row group">
                         <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-sky-100">
@@ -242,8 +242,8 @@ function DomainStatus({
   summary?: V3OrganizerDomainSummary;
 }) {
   if (!activeEdition) return <AdminStatus tone="neutral">Context required</AdminStatus>;
+  if (failed) return <AdminStatus tone="attention">Unavailable</AdminStatus>;
   if (loading && !summary) return <AdminStatus tone="neutral">Checking</AdminStatus>;
-  if (failed && !summary) return <AdminStatus tone="attention">Unavailable</AdminStatus>;
   if (!summary) return <AdminStatus tone="neutral">No summary</AdminStatus>;
   return <AdminStatus tone={domainTone(summary.state)}>{domainLabel(summary.state)}</AdminStatus>;
 }
@@ -268,15 +268,15 @@ function DomainContext({
       </p>
     );
   }
-  if (loading && !summary) {
-    return <p className="mt-3 text-xs text-muted-foreground">Checking canonical operational state…</p>;
-  }
-  if (failed && !summary) {
+  if (failed) {
     return (
       <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-        Summary unavailable. No healthy state is inferred; open the authoritative workspace to inspect current state.
+        Summary unavailable after reconciliation failed. Cached domain state and actions are hidden until a current projection is confirmed.
       </p>
     );
+  }
+  if (loading && !summary) {
+    return <p className="mt-3 text-xs text-muted-foreground">Checking canonical operational state…</p>;
   }
   if (!summary) return null;
 
