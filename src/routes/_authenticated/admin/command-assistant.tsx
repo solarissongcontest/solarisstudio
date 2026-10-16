@@ -6,7 +6,6 @@ import { useMemo, useState } from "react";
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
-import { supabase } from "@/integrations/supabase/client";
 import { useEditions } from "@/lib/data";
 import { matchSolarisAssistantCommands } from "@/lib/solaris-command-assistant";
 import { buildCommandAssistantInsight } from "@/lib/solaris-command-assistant-insights";
@@ -23,13 +22,6 @@ export const Route = createFileRoute("/_authenticated/admin/command-assistant")(
   component: CommandAssistantPage,
 });
 
-type EditionSnapshot = {
-  participants: number;
-  missingSong: number;
-  unpublishedEntries: number;
-  openIncidents: number;
-};
-
 function CommandAssistantPage() {
   const { editionId } = useAdminContext();
   const editionsQuery = useEditions();
@@ -43,32 +35,6 @@ function CommandAssistantPage() {
   const selectedEdition = editionsQuery.data?.find((edition) => edition.id === editionId) ?? null;
   const resolvedEditionId = selectedEdition?.id ?? "";
   const projectionQuery = useV3OrganizerProjection(resolvedEditionId || null);
-
-  const snapshot = useQuery({
-    enabled: feature.data === true && Boolean(resolvedEditionId),
-    queryKey: ["command-assistant-snapshot", resolvedEditionId || "unscoped"],
-    queryFn: async (): Promise<EditionSnapshot> => {
-      if (!resolvedEditionId || resolvedEditionId !== editionId) {
-        throw new Error("Command Assistant requires an exact Organizer edition context.");
-      }
-
-      const [participants, missingSong, unpublishedEntries, incidents] = await Promise.all([
-        (supabase as any).from("participants").select("id", { count: "exact", head: true }).eq("edition_id", resolvedEditionId),
-        (supabase as any).from("participants").select("id", { count: "exact", head: true }).eq("edition_id", resolvedEditionId).is("song", null),
-        (supabase as any).from("participants").select("id", { count: "exact", head: true }).eq("edition_id", resolvedEditionId).neq("publication_status", "published"),
-        (supabase as any).from("studio2_incidents").select("id", { count: "exact", head: true }).eq("edition_id", resolvedEditionId).neq("status", "resolved"),
-      ]);
-      for (const response of [participants, missingSong, unpublishedEntries, incidents]) {
-        if (response.error) throw response.error;
-      }
-      return {
-        participants: participants.count ?? 0,
-        missingSong: missingSong.count ?? 0,
-        unpublishedEntries: unpublishedEntries.count ?? 0,
-        openIncidents: incidents.count ?? 0,
-      };
-    },
-  });
 
   const matches = useMemo(() => matchSolarisAssistantCommands(prompt), [prompt]);
   const insight = useMemo(
@@ -126,17 +92,17 @@ function CommandAssistantPage() {
           </AdminCard>
         ) : selectedEdition ? (
           <AdminCard>
-            <AdminCardHeader eyebrow="Current edition" title="Bounded live summary" description="A small read-only status projection, not model guesswork." />
-            {snapshot.isLoading ? (
-              <p className="text-sm text-muted-foreground">Reading canonical state…</p>
-            ) : snapshot.error ? (
-              <AdminStatus tone="blocked">{snapshot.error instanceof Error ? snapshot.error.message : "Could not load edition state"}</AdminStatus>
-            ) : snapshot.data ? (
+            <AdminCardHeader eyebrow="Current edition" title="Canonical operational summary" description="One projection shared with Control and readiness surfaces, rather than a second set of browser database queries." />
+            {projectionQuery.isLoading ? (
+              <p className="text-sm text-muted-foreground">Reading canonical Organizer projection…</p>
+            ) : projectionQuery.error ? (
+              <AdminStatus tone="blocked">{projectionQuery.error instanceof Error ? projectionQuery.error.message : "Could not load edition state"}</AdminStatus>
+            ) : projectionQuery.data ? (
               <div className="grid gap-3 sm:grid-cols-4">
-                <Metric label="Participants" value={snapshot.data.participants} />
-                <Metric label="Missing song" value={snapshot.data.missingSong} tone={snapshot.data.missingSong ? "attention" : "ready"} />
-                <Metric label="Unpublished entries" value={snapshot.data.unpublishedEntries} />
-                <Metric label="Open incidents" value={snapshot.data.openIncidents} tone={snapshot.data.openIncidents ? "attention" : "ready"} />
+                <Metric label="Readiness" value={projectionQuery.data.readiness.overall} suffix="%" />
+                <Metric label="Critical tasks" value={projectionQuery.data.tasks.critical} tone={projectionQuery.data.tasks.critical ? "attention" : "ready"} />
+                <Metric label="Attention items" value={projectionQuery.data.attention.length} tone={projectionQuery.data.attention.length ? "attention" : "ready"} />
+                <Metric label="System issues" value={projectionQuery.data.systemHealth.issueCount} tone={projectionQuery.data.systemHealth.issueCount ? "attention" : "ready"} />
               </div>
             ) : null}
           </AdminCard>
@@ -210,12 +176,12 @@ function CommandAssistantPage() {
   );
 }
 
-function Metric({ label, value, tone = "neutral" }: { label: string; value: number; tone?: "neutral" | "ready" | "attention" }) {
+function Metric({ label, value, tone = "neutral", suffix = "" }: { label: string; value: number; tone?: "neutral" | "ready" | "attention"; suffix?: string }) {
   return (
     <div className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
       <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
       <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="text-2xl font-bold tabular-nums">{value}</span>
+        <span className="text-2xl font-bold tabular-nums">{value}{suffix}</span>
         {tone !== "neutral" ? <AdminStatus tone={tone}>{tone === "ready" ? "Clear" : "Review"}</AdminStatus> : null}
       </div>
     </div>
