@@ -27,5 +27,21 @@ describe("V3 Organizer Confirmation rounds", () => {
     expect(rounds).toContain("No new confirmation requirements were created");
     expect(rounds).toContain("Existing correction access is unchanged");
     expect(rounds).toContain("zero new requirements");
+    expect(rounds).toContain("Existing responses can be corrected even if submissions stay closed.");
+    expect(rounds).toContain("Existing-response editing can stay open independently.");
+  });
+
+  it("reopens an expired round as a fresh submission window instead of immediately closing it again", () => {
+    expect(rounds).toContain("willMoveOpeningTimeToNow");
+    expect(rounds).toContain("willClearExpiredClosingTime");
+    expect(rounds).toContain("The expired closing timestamp will be cleared");
+    expect(rounds).toContain("Reopen submissions");
+  });
+
+  it("keeps correction controls usable independently from the round open/closed state", () => {
+    expect(rounds).toContain("Allow delegation corrections");
+    expect(rounds).toContain("Pause delegation corrections");
+    expect(rounds).toContain('kind: "editing"');
+    expect(rounds).toContain('kind: "status"');
   });
 });
