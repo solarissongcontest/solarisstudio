@@ -6,6 +6,7 @@ export const ORGANIZER_TASK_DOMAINS = [
   "integrity",
   "publication",
   "communications",
+  "production",
   "system",
 ] as const;
 
@@ -36,6 +37,7 @@ export function organizerTaskDomain(task: OrganizerTaskDomainInput): OrganizerTa
   }
 
   if (/media|asset|artwork|photo|video|audio/.test(semantic)) return "media";
+  if (/broadcast|rundown|reveal|design|theme|production/.test(semantic)) return "production";
   if (/integrity|investigation|appeal|evidence|anti[-_ ]?abuse|fraud|ruling|rule/.test(semantic)) {
     return "integrity";
   }
@@ -49,6 +51,7 @@ export function organizerTaskDomain(task: OrganizerTaskDomainInput): OrganizerTa
 
   const route = task.href.toLowerCase();
   if (/media|asset|artwork|photo|video|audio/.test(route)) return "media";
+  if (/broadcast|rundown|reveal|design|theme|production/.test(route)) return "production";
   if (/integrity|investigation|appeal|evidence|anti[-_ ]?abuse|fraud|ruling|rule/.test(route)) {
     return "integrity";
   }
