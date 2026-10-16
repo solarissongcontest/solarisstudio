@@ -77,6 +77,18 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
     "supabase/migrations/20261016040000_v3_s5_jury_consequences.sql",
     "src/lib/v3-s5-jury-consequences.test.ts",
   ],
+  "televote.opened": [
+    "supabase/migrations/20261016043000_v3_s5_televote_consequences.sql",
+    "src/lib/v3-s5-televote-consequences.test.ts",
+  ],
+  "televote.closed": [
+    "supabase/migrations/20261016043000_v3_s5_televote_consequences.sql",
+    "src/lib/v3-s5-televote-consequences.test.ts",
+  ],
+  "televote.ballot_submitted": [
+    "supabase/migrations/20261016043000_v3_s5_televote_consequences.sql",
+    "src/lib/v3-s5-televote-consequences.test.ts",
+  ],
 };
 
 const providerIds: ReadonlySet<string> = new Set(
