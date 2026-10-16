@@ -116,9 +116,17 @@ export function V3TopLevelSwipeSurface({
 
   const resetSurface = useCallback(() => {
     clearSettleTimer();
+    const drag = dragRef.current;
     dragRef.current = null;
     const surface = surfaceRef.current;
     if (surface) {
+      if (drag) {
+        try {
+          surface.releasePointerCapture?.(drag.pointerId);
+        } catch {
+          // Capture may already have been released by the browser interruption.
+        }
+      }
       surface.removeAttribute("data-v3-page-swiping");
       surface.removeAttribute("data-v3-page-settling");
     }
