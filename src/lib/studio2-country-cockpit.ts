@@ -31,6 +31,10 @@ export async function loadStudio2CountryCockpit(
   if (rows.some((row) => row.context.editionId !== normalizedEditionId)) {
     throw new Error('Country cockpit returned data outside the selected edition scope.');
   }
+  const countryIds = rows.map((row) => row.context.countryId);
+  if (new Set(countryIds).size !== countryIds.length) {
+    throw new Error('Country cockpit returned duplicate country rows for the selected edition.');
+  }
   return rows;
 }
 
