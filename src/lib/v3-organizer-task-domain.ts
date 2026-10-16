@@ -23,7 +23,16 @@ export type OrganizerTaskDomainInput = {
  * can be opened from a delegation/review workspace without changing ownership.
  */
 export function organizerTaskDomain(task: OrganizerTaskDomainInput): OrganizerTaskDomain {
-  const semantic = `${task.sourceKind} ${task.taskType}`.toLowerCase();
+  const sourceKind = task.sourceKind.toLowerCase();
+  const semantic = `${sourceKind} ${task.taskType}`.toLowerCase();
+
+  // Communications ownership must win when the authoritative task source is a
+  // notice/delivery source. Otherwise notice types such as rule_clarification
+  // are accidentally swallowed by the generic Integrity "rule" matcher.
+  if (/communication|notice|announcement|delivery|message|reminder/.test(sourceKind)) {
+    return "communications";
+  }
+
   if (/media|asset|artwork|photo|video|audio/.test(semantic)) return "media";
   if (/integrity|investigation|appeal|evidence|anti[-_ ]?abuse|fraud|ruling|rule/.test(semantic)) {
     return "integrity";
