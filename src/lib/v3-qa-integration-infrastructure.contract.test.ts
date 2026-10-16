@@ -85,6 +85,37 @@ describe("V3 QA integration infrastructure", () => {
     for (const marker of ["SYSTEM_CONCEPT_ORPHAN", "PHYSICAL_OWNER_PENDING", "CONSEQUENCE_ORPHAN", "WORKFLOW_ORPHAN", "API_OWNER_ORPHAN", "SEARCH_OWNER_ORPHAN", "NOTIFICATION_CATEGORY_OWNER_ORPHAN", "NOTIFICATION_PROVIDER_OWNER_ORPHAN", "PUBLIC_CUTOVER_UNRESOLVED", "ORGANIZER_CUTOVER_UNRESOLVED"]) expect(s15).toContain(marker);
   });
 
+  it("rescans every canonical S15 discovery surface in the final zero-orphan report", () => {
+    for (const marker of [
+      "SYSTEM_COMMAND_ORPHAN",
+      "SYSTEM_EVENT_ORPHAN",
+      "SYSTEM_PROJECTION_ORPHAN",
+      "SYSTEM_JOB_ORPHAN",
+      "PUBLIC_LEGACY_ALIAS_ORPHAN",
+      "ORGANIZER_LEGACY_ALIAS_ORPHAN",
+      "RUNTIME_API_ROUTE_ORPHAN",
+      "ORGANIZER_CONTROL_ROUTE_ORPHAN",
+      "PUBLIC_SURFACE_ROUTE_ORPHAN",
+      "FEATURE_FLAG_ORPHAN",
+      "ORGANIZER_CONTROL_ORPHAN",
+      "PUBLIC_SOURCE_SURFACE_ORPHAN",
+      "NOTIFICATION_DEEP_LINK_ORPHAN",
+      "NOTIFICATION_DYNAMIC_DEEP_LINK_ORPHAN",
+    ]) expect(s15).toContain(marker);
+    for (const inventoryKey of [
+      "runtimeRoutes",
+      "legacyAliases",
+      "v3FeatureFlags",
+      "organizerControls",
+      "publicSourceSurfaces",
+      "notificationDeepLinks",
+    ]) expect(s15).toContain(inventoryKey);
+    expect(s15).toContain("src/routes");
+    expect(s15).toContain("SOLARIS_FEATURE_FLAGS");
+    expect(s15).toContain("SOLARIS_V6_FEATURE_SURFACES");
+    expect(s15).toContain("V3_ORGANIZER_DISCOVERED_IDS");
+  });
+
   it("binds final release evidence to external runtime artifacts for one exact SHA", () => {
     expect(preflight).toContain("candidate_sha");
     expect(preflight).toContain("^[0-9a-fA-F]{40}$");
