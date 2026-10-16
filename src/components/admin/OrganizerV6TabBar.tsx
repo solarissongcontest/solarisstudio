@@ -19,7 +19,6 @@ import {
 } from "@/lib/interaction-physics";
 import {
   resolveV3LogicalHorizontalDelta,
-  resolveV3PhysicalInlineSign,
   type V3LayoutDirection,
 } from "@/lib/v3-navigation-gesture";
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
@@ -363,10 +362,17 @@ export function OrganizerV6TabBar({
   };
 
   const count = Math.max(1, items.length);
-  const inlineSign = resolveV3PhysicalInlineSign(layoutDirection);
+  // Organizer uses the same physical lens coordinate model as the public bar.
+  // Grid placement mirrors the tab items in RTL; the decorative lens itself is
+  // always left-anchored so browser directionality cannot mirror X twice.
+  const physicalLensIndex =
+    layoutDirection === "rtl" ? count - 1 - visualActiveIndex : visualActiveIndex;
   const indicatorStyle = {
     width: `calc((100% - .75rem - ${Math.max(0, count - 1) * 0.15}rem) / ${count})`,
-    transform: `translate3d(calc(${visualActiveIndex * inlineSign} * (100% + .15rem) + var(--organizer-tab-drag-x)), -50%, 0) scaleX(var(--organizer-tab-scale-x))`,
+    left: ".375rem",
+    right: "auto",
+    direction: "ltr",
+    transform: `translate3d(calc(${physicalLensIndex} * (100% + .15rem) + var(--organizer-tab-drag-x)), -50%, 0) scaleX(var(--organizer-tab-scale-x))`,
   } as CSSProperties;
 
   if (mode === "hidden") return null;
@@ -413,8 +419,7 @@ export function OrganizerV6TabBar({
         <span
           aria-hidden="true"
           className={cn(
-            "pointer-events-none absolute top-1/2 z-[1] rounded-[1rem] bg-white/[0.075]",
-            layoutDirection === "rtl" ? "right-[.375rem]" : "left-[.375rem]",
+            "pointer-events-none absolute left-[.375rem] top-1/2 z-[1] rounded-[1rem] bg-white/[0.075]",
             "transition-transform duration-200 ease-out motion-reduce:transition-none",
             compact ? "h-[2.55rem]" : "h-[3.7rem]",
             dragging && "transition-none",
