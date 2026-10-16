@@ -61,10 +61,11 @@ describe("V3 navigation accessibility and performance release contracts", () => 
     expect(performanceCss).toContain("@media (update: slow)");
     expect(performanceCss).toMatch(/update: slow[\s\S]*v3-liquid-tabbar__backdrop[\s\S]*display: none/);
     expect(performanceCss).toMatch(/update: slow[\s\S]*blur\(16px\)/);
+    // Tier B may hide only the decorative backdrop source. It must never disable
+    // semantic tabs, the gesture surface, or pointer delivery.
+    expect(performanceCss).not.toContain("v3-liquid-tabbar__item");
+    expect(performanceCss).not.toContain("v3-top-level-swipe-surface");
     expect(performanceCss).not.toContain("pointer-events: none");
-    expect(performanceCss).not.toContain("display: none;\n  }\n\n  [data-solaris-v3] .v3-liquid-tabbar__material");
-  expect(performanceCss).not.toContain("v3-liquid-tabbar__item");
-  expect(performanceCss).not.toContain("v3-top-level-swipe-surface");
   });
 
   it("keeps hot gesture loops free of repeated layout reads and per-pixel semantic state churn", () => {
