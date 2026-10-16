@@ -15,7 +15,6 @@ import { useAdminContext } from "@/components/admin/AdminContext";
 import {
   AdminActionItem,
   AdminCard,
-  AdminCardHeader,
   AdminConfirmSheet,
   AdminEmptyState,
   AdminMoreMenu,
@@ -79,6 +78,16 @@ function roundTone(status: ConfirmationRound["status"]) {
   return "neutral" as const;
 }
 
+export function resolveConfirmationRoundEditionId(
+  rows: readonly ConfirmationEdition[],
+  candidates: readonly (string | null | undefined)[],
+) {
+  for (const candidate of candidates) {
+    if (candidate && rows.some((item) => item.id === candidate)) return candidate;
+  }
+  return "";
+}
+
 function RoundsPage() {
   const { editionId: organizerEditionId, setEditionId: setOrganizerEditionId } = useAdminContext();
   const [editions, setEditions] = useState<ConfirmationEdition[]>([]);
@@ -95,12 +104,11 @@ function RoundsPage() {
     const rows = await loadConfirmationEditions();
     setEditions(rows);
     setEditionId((current) =>
-      preferredEditionId ??
-      current ??
-      rows.find((item) => item.id === organizerEditionId)?.id ??
-      rows.find((item) => item.status === "active")?.id ??
-      rows[0]?.id ??
-      "",
+      resolveConfirmationRoundEditionId(rows, [
+        preferredEditionId,
+        current,
+        organizerEditionId,
+      ]),
     );
   }
 
@@ -111,12 +119,7 @@ function RoundsPage() {
         const rows = await loadConfirmationEditions();
         if (!alive) return;
         setEditions(rows);
-        setEditionId(
-          rows.find((item) => item.id === organizerEditionId)?.id ??
-            rows.find((item) => item.status === "active")?.id ??
-            rows[0]?.id ??
-            "",
-        );
+        setEditionId(resolveConfirmationRoundEditionId(rows, [organizerEditionId]));
       } catch (caught) {
         if (alive) {
           setError(caught instanceof Error ? caught.message : "Could not load submission rounds.");
@@ -136,18 +139,18 @@ function RoundsPage() {
   );
 
   useEffect(() => {
-    if (
-      organizerEditionId &&
-      organizerEditionId !== editionId &&
-      editions.some((item) => item.id === organizerEditionId)
-    ) {
-      setEditionId(organizerEditionId);
+    const nextEditionId = resolveConfirmationRoundEditionId(editions, [organizerEditionId]);
+    if (nextEditionId !== editionId) {
+      setEditionId(nextEditionId);
       setForm(emptyForm);
+      setFormOpen(false);
+      setPendingChange(null);
     }
   }, [editionId, editions, organizerEditionId]);
   const rounds = edition?.rounds ?? [];
 
   function startCreate() {
+    if (!editionId) return;
     setForm(emptyForm);
     setError(null);
     setFormOpen(true);
@@ -229,7 +232,7 @@ function RoundsPage() {
 
   async function submit() {
     setError(null);
-    if (!editionId) return setError("Create an edition first.");
+    if (!editionId) return setError("Select an edition first.");
     if (!form.name.trim()) return setError("Round name is required.");
     if (form.response_limit && !/^\d+$/.test(form.response_limit)) {
       return setError("Response limit must be a whole number.");
@@ -343,13 +346,18 @@ function RoundsPage() {
   }
 
   return (
-    <div className="admin-page pb-5">
+    <div className="admin-page pb-5" data-v3-organizer-confirmation-rounds="">
       <AdminPageHeader
         eyebrow="Delegations"
         title="Submission rounds"
         description="Control when new confirmations are accepted. Reopening an expired wave starts it now and clears its old closing time; set a new deadline in Edit round if needed. Delegation corrections remain separate from submissions."
         actions={
-          <button type="button" onClick={startCreate} className="admin-action-primary">
+          <button
+            type="button"
+            disabled={!editionId || loading}
+            onClick={startCreate}
+            className="admin-action-primary disabled:opacity-45"
+          >
             <Plus className="size-4" /> New round
           </button>
         }
@@ -365,9 +373,12 @@ function RoundsPage() {
               setEditionId(nextEditionId);
               setOrganizerEditionId(nextEditionId);
               setForm(emptyForm);
+              setFormOpen(false);
+              setPendingChange(null);
             }}
             className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-[#07111f] px-3 text-sm text-foreground outline-none"
           >
+            <option value="">Select edition…</option>
             {editions.map((item) => (
               <option key={item.id} value={item.id}>
                 {`SSC ${item.edition_number} — ${item.name}`}
@@ -385,6 +396,14 @@ function RoundsPage() {
       ) : error && !formOpen ? (
         <AdminCard className="border-rose-200/20 bg-rose-200/[0.045] text-sm text-rose-100">
           {error}
+        </AdminCard>
+      ) : !editionId ? (
+        <AdminCard>
+          <AdminEmptyState
+            icon={CalendarClock}
+            title="Select an edition"
+            description="Submission rounds are edition-scoped operational state. Solaris will not substitute the globally active or newest edition when Organizer context is missing or stale."
+          />
         </AdminCard>
       ) : rounds.length ? (
         <section className="space-y-3">
@@ -609,7 +628,6 @@ function RoundsPage() {
     </div>
   );
 }
-
 
 function roundChangeTitle(pending: PendingRoundChange) {
   if (pending.kind === "create") return "Create submission round?";
