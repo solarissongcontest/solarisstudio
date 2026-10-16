@@ -2,10 +2,17 @@ import type { V3BootstrapProjection } from "./v3-bootstrap";
 import type { V3ActionProjection } from "./v3-experience";
 import type { V3JourneyStepProjection } from "./v3-journey";
 
+export type V3VotingOverviewProjection = {
+  jury: V3ActionProjection | null;
+  televote: V3ActionProjection | null;
+  currentCount: number;
+};
+
 export type V3ParticipateProjection = {
   journey: readonly V3JourneyStepProjection[];
   journeyCompleteCount: number;
   journeyTotalCount: number;
+  voting: V3VotingOverviewProjection;
   needsAttention: readonly V3ActionProjection[];
   next: readonly V3ActionProjection[];
   optionalNow: readonly V3ActionProjection[];
@@ -14,6 +21,17 @@ export type V3ParticipateProjection = {
 
 function isOptional(action: V3ActionProjection) {
   return action.deliveryClass === "optional";
+}
+
+function currentVotingAction(
+  actions: readonly V3ActionProjection[],
+  kind: "jury" | "televote",
+) {
+  return (
+    actions.find((action) => action.kind === kind && !action.completed) ??
+    actions.find((action) => action.kind === kind) ??
+    null
+  );
 }
 
 /**
@@ -52,10 +70,18 @@ export function projectV3Participate(
     next.push(action);
   }
 
+  const jury = currentVotingAction(bootstrap.actions, "jury");
+  const televote = currentVotingAction(bootstrap.actions, "televote");
+
   return {
     journey: bootstrap.journey,
     journeyCompleteCount: bootstrap.journey.filter((step) => step.state === "complete").length,
     journeyTotalCount: bootstrap.journey.length,
+    voting: {
+      jury,
+      televote,
+      currentCount: Number(Boolean(jury)) + Number(Boolean(televote)),
+    },
     needsAttention,
     next,
     optionalNow,
