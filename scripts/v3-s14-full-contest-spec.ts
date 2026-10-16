@@ -100,7 +100,7 @@ export const V3_S14_STAGES: readonly V3S14Stage[] = [
       "own-country violation",
       "multi-device conflict",
     ],
-    implementationState: "planned",
+    implementationState: "implemented",
     driverMarker: "S14_STAGE_6_JURY_COMPLETE",
     implementationAsset: ".github/scripts/v3-s14-stage-6-jury.sh",
   },
@@ -175,7 +175,7 @@ export const V3_S14_INVARIANTS: readonly V3S14Check[] = [
   {
     id: "jury-single-final-ballot",
     label: "no duplicate final jury ballot per delegation/round",
-    implementationState: "planned",
+    implementationState: "implemented",
     driverMarker: "S14_INVARIANT_JURY_COMPLETE",
     implementationAsset: ".github/scripts/v3-s14-stage-6-jury.sh",
   },
