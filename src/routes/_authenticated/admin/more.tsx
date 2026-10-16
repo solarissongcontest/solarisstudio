@@ -52,14 +52,13 @@ const groups = [
     title: "Editions & Archive",
     items: [
       { label: "Manage editions", description: "Create editions and manage their lifecycle and settings.", to: "/admin/editions", icon: Trophy },
-      { label: "Time Machine", description: "Inspect historical edition state without mutating production.", to: "/admin/time-machine", icon: History },
-      { label: "Simulation Lab", description: "Rehearse an edition safely without changing canonical state.", to: "/admin/edition-simulator", icon: ClipboardCheck },
       { label: "Edition dates", description: "Maintain historical main-event dates used by anniversary and archive features.", to: "/admin/anniversary-dates", icon: CalendarDays },
     ],
   },
   {
     title: "Engagement",
     items: [
+      { label: "Storytelling", description: "Manage editorial edition stories and archive narratives.", to: "/admin/storytelling", icon: BookOpen },
       { label: "Predictions", description: "Create and manage prediction rounds for visitors.", to: "/admin/predictions", icon: Sparkles },
       { label: "Fantasy SSC", description: "Manage roster costs, budget, lock windows and scoring.", to: "/admin/fantasy", icon: Trophy },
       { label: "Community moderation", description: "Moderate public fan display identities without changing scores.", to: "/admin/community-moderation", icon: ShieldCheck },
@@ -87,6 +86,15 @@ const groups = [
     ],
   },
   {
+    title: "Specialist labs",
+    items: [
+      { label: "Simulation Lab", description: "Rehearse an edition safely without changing canonical state.", to: "/admin/edition-simulator", icon: ClipboardCheck },
+      { label: "Time Machine", description: "Inspect historical edition state without mutating production.", to: "/admin/time-machine", icon: History },
+      { label: "Voting Lab", description: "Run voting experiments and diagnostics outside live contest operations.", to: "/admin/voting-lab", icon: BarChart3 },
+      { label: "Command Assistant", description: "Use the specialist organizer command assistant without mixing it into operational Control.", to: "/admin/command-assistant", icon: Sparkles },
+    ],
+  },
+  {
     title: "Help & Directory",
     items: [
       { label: "Organizer guide", description: "Plain-language instructions for the main Organizer workflows.", to: "/admin/guide", icon: BookOpen },
@@ -101,7 +109,7 @@ function MoreAdmin() {
       <AdminPageHeader
         eyebrow="Solaris Organizer"
         title="More"
-        description="Governance, people, archive, engagement, research, system and low-frequency Organizer tools."
+        description="Governance, people, archive, engagement, research, system, specialist labs and low-frequency Organizer tools."
       />
 
       <div className="space-y-4">
