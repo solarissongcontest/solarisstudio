@@ -99,8 +99,9 @@ describe("V3 navigation shell acceptance guardrails", () => {
     expect(swipe).toContain("lensStepWidth");
     expect(swipe).toContain('data-v3-swipe-preview="previous"');
     expect(swipe).toContain('data-v3-swipe-preview="next"');
-    expect(swipe).toMatch(/aria-hidden="true"\s+inert\s+data-v3-swipe-preview="previous"/);
-    expect(swipe).toMatch(/aria-hidden="true"\s+inert\s+data-v3-swipe-preview="next"/);
+    expect(swipe).toContain('inert={canonicalSlot !== "previous"}');
+    expect(swipe).toContain('inert={canonicalSlot !== "current"}');
+    expect(swipe).toContain('inert={canonicalSlot !== "next"}');
     expect(swipe).not.toMatch(/screenshot|canvas\.toDataURL|html2canvas/i);
     expect(shell).toContain("swipePreviewSurfaces?: V3TopLevelSwipePreviewSurfaces");
     expect(shell).toContain("previousSurface={swipePreviewSurfaces?.previous}");
@@ -111,6 +112,31 @@ describe("V3 navigation shell acceptance guardrails", () => {
     expect(css).toContain('data-v3-page-settling="true"');
     expect(css).toContain("--v3-tab-visual-opacity");
     expect(css).toContain("--v3-tab-visual-scale");
+  });
+
+  it("moves accessibility ownership to the canonical winning slot during frozen settle", () => {
+    const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
+
+    expect(swipe).toContain("function canonicalSwipeSlot");
+    expect(swipe).toContain('targetIndex < settlingComposition.originIndex) return "previous"');
+    expect(swipe).toContain('targetIndex > settlingComposition.originIndex) return "next"');
+    expect(swipe).toContain("const canonicalSlot = canonicalSwipeSlot(settlingComposition)");
+    expect(swipe).toContain(
+      'aria-hidden={canonicalSlot === "previous" ? undefined : true}',
+    );
+    expect(swipe).toContain(
+      'aria-hidden={canonicalSlot === "current" ? undefined : true}',
+    );
+    expect(swipe).toContain('aria-hidden={canonicalSlot === "next" ? undefined : true}');
+    expect(swipe).toContain(
+      'data-v3-swipe-canonical={canonicalSlot === "previous" ? "true" : undefined}',
+    );
+    expect(swipe).toContain(
+      'data-v3-swipe-canonical={canonicalSlot === "current" ? "true" : undefined}',
+    );
+    expect(swipe).toContain(
+      'data-v3-swipe-canonical={canonicalSlot === "next" ? "true" : undefined}',
+    );
   });
 
   it("cancels page manipulation when shell ownership or lifecycle changes", () => {
