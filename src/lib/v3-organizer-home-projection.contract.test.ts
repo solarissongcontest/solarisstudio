@@ -38,6 +38,8 @@ describe("V3 Organizer Overview projection", () => {
     expect(route).toContain('readinessVerified ? `${projection.readiness.overall}%` : "Unverified"');
     expect(route).toContain("Health unavailable");
     expect(route).toContain("will not convert missing evidence into ready factors");
+    expect(route).toContain("Readiness unverified");
+    expect(route).toContain('readinessVerified\n                        ? "ready"\n                        : "neutral"');
   });
 
   it("does not render unknown domain state or an empty legacy task queue as ready", () => {
