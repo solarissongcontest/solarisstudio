@@ -36,6 +36,7 @@ export type OrganizerV6TabItem = {
 
 type DragState = {
   pointerId: number;
+  captureTarget: HTMLAnchorElement;
   startX: number;
   originIndex: number;
   moved: boolean;
@@ -138,6 +139,17 @@ export function OrganizerV6TabBar({
   };
 
   const resetDragDom = useCallback(() => {
+    const drag = dragState.current;
+    if (drag) {
+      try {
+        if (drag.captureTarget.hasPointerCapture?.(drag.pointerId)) {
+          drag.captureTarget.releasePointerCapture?.(drag.pointerId);
+        }
+      } catch {
+        // Browser may already have released pointer capture.
+      }
+    }
+
     const material = materialRef.current;
     material?.style.setProperty("--organizer-tab-drag-x", "0px");
     material?.style.setProperty("--organizer-tab-scale-x", "1");
@@ -221,6 +233,7 @@ export function OrganizerV6TabBar({
 
     dragState.current = {
       pointerId: event.pointerId,
+      captureTarget: event.currentTarget,
       startX: event.clientX,
       originIndex: index,
       moved: false,
