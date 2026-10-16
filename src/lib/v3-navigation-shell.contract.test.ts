@@ -155,6 +155,17 @@ describe("V3 navigation shell acceptance guardrails", () => {
     expect(shell).toContain("interactionKey={navigationScope}");
   });
 
+  it("fails closed when a committed swipe is redirected during visual settle", () => {
+    const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
+
+    expect(swipe).toContain("type CommittedRouteSnapshot");
+    expect(swipe).toContain("committedRouteSnapshotRef");
+    expect(swipe).toContain("originRouteKey: routeSnapshotKey(pathname, searchStr)");
+    expect(swipe).toContain("if (routeSnapshot.targetRouteKey == null)");
+    expect(swipe).toContain("routeSnapshot.targetRouteKey = currentRouteKey");
+    expect(swipe).toContain("if (currentRouteKey !== routeSnapshot.targetRouteKey) resetSurface()");
+  });
+
   it("commits a winning swipe promptly while preserving one visual settle", () => {
     const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
     const shell = source("src/components/v3/V3AppShell.tsx");
