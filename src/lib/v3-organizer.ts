@@ -98,9 +98,8 @@ export type V3OrganizerControlGroup = {
  * Control deliberately groups existing authoritative workspaces into the
  * canonical Organizer operational domains. It never creates a second mutation
  * surface. Edition-scoped routes fail closed until an explicit edition slug is
- * supplied by OrganizerContext. Some legacy authorities do not carry the slug
- * in their URL; contextHref still locks entry into those workspaces to the
- * explicit Organizer edition context.
+ * supplied by OrganizerContext. Legacy tools that cannot yet prove exact
+ * edition scope stay outside Control until their System/read contract is ready.
  */
 export function buildV3OrganizerControlGroups(
   slug?: string | null,
@@ -133,13 +132,6 @@ export function buildV3OrganizerControlGroups(
           label: "Delegation access",
           description: "Recovery and access controls for delegation workflows",
           href: contextHref("/confirmations/admin/recovery-codes"),
-          editionScoped: true,
-        },
-        {
-          key: "submission-history",
-          label: "Submission history",
-          description: "Confirmation revisions and restoration history",
-          href: contextHref("/admin/submission-versions"),
           editionScoped: true,
         },
       ],
