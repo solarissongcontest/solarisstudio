@@ -10,6 +10,7 @@ const incidents = readFileSync("src/routes/_authenticated/admin/incidents.tsx", 
 const resultsReveal = readFileSync("src/routes/_authenticated/admin/results-reveal.tsx", "utf8");
 const broadcastRundown = readFileSync("src/routes/_authenticated/admin/broadcast-rundown.tsx", "utf8");
 const productionDesign = readFileSync("src/routes/_authenticated/admin/design.$slug.tsx", "utf8");
+const shows = readFileSync("src/routes/_authenticated/admin/shows/$slug.tsx", "utf8");
 const countries = readFileSync("src/routes/_authenticated/admin/countries.tsx", "utf8");
 const countryDetail = readFileSync("src/routes/_authenticated/admin/countries.$countryId.tsx", "utf8");
 const confirmations = readFileSync("src/routes/confirmations/admin/index.tsx", "utf8");
@@ -34,6 +35,7 @@ const protectedRoutes = [
   ["Results Reveal", resultsReveal],
   ["Broadcast Rundown", broadcastRundown],
   ["Production design", productionDesign],
+  ["Shows", shows],
   ["Delegations", countries],
   ["Delegation detail", countryDetail],
   ["Confirmations", confirmations],
@@ -188,6 +190,20 @@ describe("V3 Organizer explicit edition context", () => {
     expect(productionDesign).toContain("will not save into a different edition while context is changing");
   });
 
+  it("keeps Shows reads and legacy mutations bound to the selected edition", () => {
+    expect(shows).toContain("useAdminContext()");
+    expect(shows).toContain("editionId: organizerEditionId");
+    expect(shows).toContain("useShows(edition?.id)");
+    expect(shows).toContain("useParticipants(edition?.id)");
+    expect(shows).toContain("organizerEditionId !== edition.id");
+    expect(shows).toContain("target.edition_id !== edition.id");
+    expect(shows).toContain("assertEditionScope(showModeTarget)");
+    expect(shows).toContain("assertEditionScope(deleteTarget)");
+    expect(shows).toContain("Edition context changed before the show command");
+    expect(shows).toContain('title="Confirming edition context"');
+    expect(shows).toContain("will not create, edit or delete show state in a different edition while context is changing");
+  });
+
   it("keeps Official Communications fail-closed to the selected Organizer edition", () => {
     expect(communications).toContain("enabled: Boolean(editionId)");
     expect(communications).toContain("return loadStudio2Notices(editionId)");
@@ -214,6 +230,7 @@ describe("V3 Organizer explicit edition context", () => {
     expect(resultsReveal).toContain("will not infer another edition or load an unscoped Results Replay flag");
     expect(broadcastRundown).toContain("never substitutes another edition for live production work");
     expect(productionDesign).toContain("will not save into a different edition while context is changing");
+    expect(shows).toContain("will not create, edit or delete show state in a different edition while context is changing");
     expect(countries).toContain("will not substitute another edition");
     expect(countryDetail).toContain("will not substitute another edition");
     expect(confirmations).toContain("will not substitute the globally active confirmation edition");
