@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  validateConfirmationRoundChangePreview,
   validateConfirmationRoundChangeReceipt,
+  type ConfirmationRoundChangePreview,
   type ConfirmationRoundChangeReceipt,
 } from "@/integrations/confirmations/admin";
 
@@ -11,6 +13,33 @@ const operation = {
   operationId: "11111111-1111-4111-8111-111111111111",
   expectedVersion: 7,
 };
+
+function preview(
+  patch: Partial<ConfirmationRoundChangePreview> = {},
+): ConfirmationRoundChangePreview {
+  return {
+    riskClass: "R2",
+    changeKind: "status",
+    roundId: "round-22",
+    roundName: "First wave",
+    editionId: "edition-22",
+    expectedVersion: 7,
+    responseCount: 12,
+    affectedResponses: 0,
+    currentlyEditableResponses: 0,
+    unresolvedRequirementCount: 0,
+    currentStatus: "closed",
+    targetStatus: "open",
+    currentEditingEnabled: false,
+    targetEditingEnabled: false,
+    willMoveOpeningTimeToNow: true,
+    willClearExpiredClosingTime: true,
+    requirementsCreated: 0,
+    alreadyApplied: false,
+    blockers: [],
+    ...patch,
+  };
+}
 
 function receipt(
   patch: Partial<ConfirmationRoundChangeReceipt> = {},
@@ -30,6 +59,90 @@ function receipt(
     ...patch,
   };
 }
+
+describe("Organizer Confirmation round preview trust boundary", () => {
+  it("accepts exact round identity, edition and consequence evidence", () => {
+    expect(validateConfirmationRoundChangePreview(preview(), {
+      roundId: "round-22",
+      kind: "status",
+      payload: { status: "open" },
+    })).toMatchObject({
+      roundId: "round-22",
+      editionId: "edition-22",
+      changeKind: "status",
+      expectedVersion: 7,
+      requirementsCreated: 0,
+    });
+  });
+
+  it("rejects preview identity drift before it can authorize a confirmation sheet", () => {
+    expect(() => validateConfirmationRoundChangePreview(
+      preview({ changeKind: "editing" }),
+      { roundId: "round-22", kind: "status", payload: { status: "open" } },
+    )).toThrow("different change kind");
+    expect(() => validateConfirmationRoundChangePreview(
+      preview({ roundId: "round-21" }),
+      { roundId: "round-22", kind: "status", payload: { status: "open" } },
+    )).toThrow("different round");
+  });
+
+  it("binds create and update previews to the requested edition", () => {
+    const createInput = {
+      roundId: null,
+      kind: "create" as const,
+      payload: { editionId: "edition-22", name: "Second wave" },
+    };
+    expect(validateConfirmationRoundChangePreview(preview({
+      changeKind: "create",
+      roundId: null,
+      roundName: "Second wave",
+      expectedVersion: 0,
+      responseCount: 0,
+      currentStatus: undefined,
+      targetStatus: "draft",
+      willMoveOpeningTimeToNow: false,
+      willClearExpiredClosingTime: false,
+    }), createInput).editionId).toBe("edition-22");
+
+    expect(() => validateConfirmationRoundChangePreview(preview({
+      changeKind: "create",
+      roundId: null,
+      editionId: "edition-21",
+      expectedVersion: 0,
+      responseCount: 0,
+      currentStatus: undefined,
+      targetStatus: "draft",
+      willMoveOpeningTimeToNow: false,
+      willClearExpiredClosingTime: false,
+    }), createInput)).toThrow("outside the requested edition scope");
+  });
+
+  it("rejects a create preview that points at an existing round", () => {
+    expect(() => validateConfirmationRoundChangePreview(preview({
+      changeKind: "create",
+      roundId: "existing-round",
+      expectedVersion: 0,
+      responseCount: 0,
+      currentStatus: undefined,
+      targetStatus: "draft",
+    }), {
+      roundId: null,
+      kind: "create",
+      payload: { editionId: "edition-22" },
+    })).toThrow("unexpectedly returned an existing round");
+  });
+
+  it("rejects malformed consequence evidence and duplicate-obligation claims", () => {
+    expect(() => validateConfirmationRoundChangePreview(
+      { ...preview(), expectedVersion: -1 },
+      { roundId: "round-22", kind: "status" },
+    )).toThrow("invalid payload");
+    expect(() => validateConfirmationRoundChangePreview(
+      preview({ requirementsCreated: 1 }),
+      { roundId: "round-22", kind: "status" },
+    )).toThrow("unexpectedly creates confirmation requirements");
+  });
+});
 
 describe("Organizer Confirmation round receipt trust boundary", () => {
   it("accepts receipt identity and version evidence for the command that was sent", () => {
