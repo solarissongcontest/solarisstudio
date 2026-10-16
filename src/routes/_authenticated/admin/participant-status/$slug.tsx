@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Ban, ShieldX, UserCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -23,6 +24,8 @@ import {
   type ParticipationAwareParticipant,
   type ParticipationStatus,
 } from "@/lib/participation-status";
+import { toSystemError } from "@/lib/system-error";
+import { reconcileSystemOperation } from "@/lib/system-operation.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/participant-status/$slug")({
   head: () => ({ meta: [{ title: "Participation status — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
@@ -65,6 +68,7 @@ type PendingStatusChange = {
 function ParticipantStatusWorkspace() {
   const { slug } = Route.useParams();
   const qc = useQueryClient();
+  const reconcileOperation = useServerFn(reconcileSystemOperation);
   const { data: edition, isLoading } = useEdition(slug);
   const { data: participants = [] } = useParticipants(edition?.id);
   const { data: countries = [] } = useCountries();
@@ -108,6 +112,40 @@ function ParticipantStatusWorkspace() {
       });
   }, [participants, countryIds, displays]);
 
+  async function refreshCanonicalStatus() {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["participants"] }),
+      qc.invalidateQueries({ queryKey: ["public-participants"] }),
+      qc.invalidateQueries({ queryKey: ["results"] }),
+      qc.invalidateQueries({ queryKey: ["organizer-tasks-v5"] }),
+    ]);
+  }
+
+  async function recoverStatusChange(pending: PendingStatusChange) {
+    const reconciliation = await reconcileOperation({
+      data: { operationId: pending.operationId },
+    });
+    if (!reconciliation.ok) return false;
+
+    if (reconciliation.receipt.status === "succeeded") {
+      await refreshCanonicalStatus();
+      toast.success(
+        `${pending.displayName} marked ${participationStatusLabel(pending.preview.requestedStatus).toLowerCase()}`,
+      );
+      setPendingChange(null);
+      return true;
+    }
+
+    if (reconciliation.receipt.status === "failed") {
+      throw new Error(
+        reconciliation.receipt.error?.message ?? "Participation status change failed safely.",
+      );
+    }
+
+    toast.message("Checking participation change outcome. Do not submit a new operation yet.");
+    return true;
+  }
+
   async function requestStatusChange(group: StatusGroup, status: ParticipationStatus) {
     if (!edition || group.status === status) return;
     setBusyKey(group.key);
@@ -130,12 +168,13 @@ function ParticipantStatusWorkspace() {
         return;
       }
 
+      const operationId = crypto.randomUUID();
       setPendingChange({
         group,
         displayName,
         preview,
-        operationId: crypto.randomUUID(),
-        idempotencyKey: crypto.randomUUID(),
+        operationId,
+        idempotencyKey: operationId,
       });
     } catch (caught) {
       toast.error(caught instanceof Error ? caught.message : "Participation impact could not be loaded");
@@ -149,26 +188,32 @@ function ParticipantStatusWorkspace() {
     const pending = pendingChange;
     setBusyKey(pending.group.key);
     try {
-      const { error } = await (supabase as any).rpc(
-        "studio2_apply_participation_status",
-        {
-          p_edition_id: edition.id,
-          p_country_id: pending.group.countryId,
-          p_contest_entity_id: pending.group.contestEntityId,
-          p_status: pending.preview.requestedStatus,
-          p_operation_id: pending.operationId,
-          p_idempotency_key: pending.idempotencyKey,
-          p_expected_version: pending.preview.expectedVersion,
-        },
-      );
-      if (error) throw error;
+      let mutation: { error: unknown };
+      try {
+        mutation = await (supabase as any).rpc(
+          "studio2_apply_participation_status",
+          {
+            p_edition_id: edition.id,
+            p_country_id: pending.group.countryId,
+            p_contest_entity_id: pending.group.contestEntityId,
+            p_status: pending.preview.requestedStatus,
+            p_operation_id: pending.operationId,
+            p_idempotency_key: pending.idempotencyKey,
+            p_expected_version: pending.preview.expectedVersion,
+          },
+        );
+      } catch (transportError) {
+        if (await recoverStatusChange(pending)) return;
+        throw transportError;
+      }
 
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ["participants"] }),
-        qc.invalidateQueries({ queryKey: ["public-participants"] }),
-        qc.invalidateQueries({ queryKey: ["results"] }),
-        qc.invalidateQueries({ queryKey: ["organizer-tasks-v5"] }),
-      ]);
+      if (mutation.error) {
+        const systemError = toSystemError(mutation.error);
+        if (systemError.retryable && await recoverStatusChange(pending)) return;
+        throw new Error(systemError.message);
+      }
+
+      await refreshCanonicalStatus();
       toast.success(
         `${pending.displayName} marked ${participationStatusLabel(pending.preview.requestedStatus).toLowerCase()}`,
       );
