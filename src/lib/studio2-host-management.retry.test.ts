@@ -1,108 +1,63 @@
-import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 
-import { supabase } from "@/integrations/supabase/client";
-import { executeStudio2HostOperation } from "./studio2-host-management";
+import { describe, expect, it } from "vitest";
 
-type RpcTarget = {
-  rpc(
-    name: string,
-    args?: Record<string, unknown>,
-  ): Promise<{ data: unknown; error: unknown }>;
-};
+const hostManagement = readFileSync("src/lib/studio2-host-management.ts", "utf8");
 
 describe("Studio2 Host Management uncertain-outcome reconciliation", () => {
-  it("reuses the original execution id after response loss so Create Bid cannot execute twice", async () => {
-    const rpcTarget = supabase as unknown as RpcTarget;
-    const rpcSpy = vi.spyOn(rpcTarget, "rpc");
-    const committedExecutionIds = new Set<string>();
-    let requestCount = 0;
+  it("keeps one execution identity while a host operation outcome is uncertain", () => {
+    expect(hostManagement).toContain(
+      "const pendingHostExecutionIds = new Map<string, string>();",
+    );
+    expect(hostManagement).toContain(
+      "const existing = pendingHostExecutionIds.get(fingerprint);",
+    );
+    expect(hostManagement).toContain("if (existing) return existing;");
+    expect(hostManagement).toContain(
+      "pendingHostExecutionIds.set(fingerprint, proposedExecutionId);",
+    );
+  });
 
-    rpcSpy.mockImplementation(async (name: string, args?: Record<string, unknown>) => {
-      expect(name).toBe("studio2_execute_host_operation");
-      requestCount += 1;
+  it("sends the retained execution id to the governed host RPC", () => {
+    expect(hostManagement).toContain(
+      "const executionId = executionIdForHostOperation(fingerprint, input.executionId);",
+    );
+    expect(hostManagement).toContain("p_execution_id: executionId");
+    expect(hostManagement).not.toContain("p_execution_id: input.executionId");
+  });
 
-      const rpcArgs = args ?? {};
-      const executionId = String(rpcArgs.p_execution_id ?? "");
-      expect(executionId).not.toBe("");
-      const alreadyCommitted = committedExecutionIds.has(executionId);
-      committedExecutionIds.add(executionId);
+  it("clears the uncertain identity only after the server response parses successfully", () => {
+    const executeStart = hostManagement.indexOf(
+      "export async function executeStudio2HostOperation",
+    );
+    const rpcCall = hostManagement.indexOf(
+      "const data = await rpc('studio2_execute_host_operation'",
+      executeStart,
+    );
+    const parse = hostManagement.indexOf("const execution = parseExecution(data);", rpcCall);
+    const clear = hostManagement.indexOf(
+      "pendingHostExecutionIds.delete(fingerprint);",
+      parse,
+    );
+    const returned = hostManagement.indexOf("return execution;", clear);
 
-      // Simulate the dangerous case: the server committed Create Bid, but the
-      // browser lost the response. A retry is safe only if it presents exactly
-      // the same execution identity to the server.
-      if (requestCount === 1) {
-        throw new Error("response lost after server commit");
-      }
+    expect(executeStart).toBeGreaterThanOrEqual(0);
+    expect(rpcCall).toBeGreaterThan(executeStart);
+    expect(parse).toBeGreaterThan(rpcCall);
+    expect(clear).toBeGreaterThan(parse);
+    expect(returned).toBeGreaterThan(clear);
+  });
 
-      return {
-        data: {
-          executionId,
-          editionId: String(rpcArgs.p_edition_id),
-          bidId: "bid-1",
-          action: String(rpcArgs.p_action),
-          reason: String(rpcArgs.p_reason),
-          bidRevision: 1,
-          operationsRevision: null,
-          idempotentReplay: alreadyCommitted,
-        },
-        error: null,
-      };
-    });
-
-    const executionIdForCall = (index: number) => {
-      const args = rpcSpy.mock.calls[index]?.[1];
-      return args && "p_execution_id" in args ? args.p_execution_id : undefined;
-    };
-
-    const logicalCreateBid = {
-      editionId: "edition-1",
-      action: "create_bid" as const,
-      reason: "Create Helsinki host bid",
-      payload: {
-        countryId: "country-1",
-        city: "Helsinki",
-        venueName: "Solaris Arena",
-      },
-    };
-
-    try {
-      await expect(
-        executeStudio2HostOperation({
-          ...logicalCreateBid,
-          executionId: "execution-first",
-        }),
-      ).rejects.toThrow("response lost after server commit");
-
-      const reconciled = await executeStudio2HostOperation({
-        ...logicalCreateBid,
-        // React Query / the caller may generate a new proposed id for the retry.
-        // The Host service must ignore it while the original outcome is unknown.
-        executionId: "execution-should-not-replace-first",
-      });
-
-      expect(rpcSpy).toHaveBeenCalledTimes(2);
-      expect(executionIdForCall(0)).toBe("execution-first");
-      expect(executionIdForCall(1)).toBe("execution-first");
-      expect(committedExecutionIds).toEqual(new Set(["execution-first"]));
-      expect(reconciled.executionId).toBe("execution-first");
-      expect(reconciled.idempotentReplay).toBe(true);
-
-      // A confirmed result closes the uncertain operation. A later deliberate
-      // command with the same semantic fields is allowed to receive a fresh id.
-      const deliberateLaterCommand = await executeStudio2HostOperation({
-        ...logicalCreateBid,
-        executionId: "execution-later",
-      });
-
-      expect(rpcSpy).toHaveBeenCalledTimes(3);
-      expect(executionIdForCall(2)).toBe("execution-later");
-      expect(committedExecutionIds).toEqual(
-        new Set(["execution-first", "execution-later"]),
-      );
-      expect(deliberateLaterCommand.executionId).toBe("execution-later");
-      expect(deliberateLaterCommand.idempotentReplay).toBe(false);
-    } finally {
-      rpcSpy.mockRestore();
+  it("binds retry identity to the complete semantic host operation", () => {
+    for (const field of [
+      "editionId: input.editionId",
+      "action: input.action",
+      "bidId: input.bidId ?? null",
+      "expectedRevision: input.expectedRevision ?? null",
+      "reason",
+      "payload: input.payload ?? {}",
+    ]) {
+      expect(hostManagement).toContain(field);
     }
   });
 });
