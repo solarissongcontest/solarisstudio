@@ -14,6 +14,7 @@ export const CONTEST_EVENT_TYPES = [
   'jury.closed',
   'jury.ballot_submitted',
   'televote.opened',
+  'televote.extended',
   'televote.closed',
   'televote.ballot_submitted',
   'vote.flagged',
