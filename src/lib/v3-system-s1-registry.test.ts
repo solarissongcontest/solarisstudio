@@ -67,6 +67,8 @@ describe("System V3 S1 registries", () => {
       "jury.closed",
       "jury.opened",
       "media.reviewed",
+      "publication.changed",
+      "publication.failed",
       "results.calculated",
       "results.locked",
       "results.verified",
