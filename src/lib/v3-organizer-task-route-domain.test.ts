@@ -45,6 +45,18 @@ describe("V3 Organizer Tasks domain taxonomy", () => {
     ).toBe("communications");
   });
 
+  it("keeps rule-clarification notices in Communications instead of misclassifying them as Integrity", () => {
+    expect(
+      organizerTaskDomain(
+        task(
+          "/admin/communications",
+          "announcement_delivery",
+          "communication.rule_clarification.delivery_failed",
+        ),
+      ),
+    ).toBe("communications");
+  });
+
   it("falls back to System only when no canonical operational domain matches", () => {
     expect(
       organizerTaskDomain(task("/admin/system", "runtime_health", "system.health.review")),
