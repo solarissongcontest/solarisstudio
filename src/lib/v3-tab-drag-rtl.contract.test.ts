@@ -22,7 +22,7 @@ describe("V3 direct tab drag RTL and hot-loop contract", () => {
     }
   });
 
-  it("keeps Public and Organizer lenses on one physical flex axis", () => {
+  it("keeps Public and Organizer lenses physical while materials inherit RTL", () => {
     const publicTabs = source("src/components/v3/V3LiquidTabBar.tsx");
     const publicCss = source("src/styles/v3-liquid-tabbar.css");
     const fixedCss = source("src/styles/v3-navigation-fixed-geometry.css");
@@ -39,16 +39,11 @@ describe("V3 direct tab drag RTL and hot-loop contract", () => {
     expect(publicCss).toContain("inset-inline-end: -0.52rem");
 
     expect(fixedCss).toMatch(/v3-liquid-tabbar__material[\s\S]*display: flex;/);
-    expect(fixedCss).toMatch(/v3-liquid-tabbar__material[\s\S]*direction: ltr;/);
-    expect(fixedCss).toMatch(
-      /data-layout-direction="rtl"[\s\S]*\.v3-liquid-tabbar__material[\s\S]*flex-direction: row-reverse;/,
-    );
+    expect(fixedCss).not.toMatch(/v3-liquid-tabbar__material[\s\S]*direction: ltr;/);
+    expect(fixedCss).not.toContain("flex-direction: row-reverse");
     expect(fixedCss).toMatch(/v3-liquid-tabbar__lens[\s\S]*left: 6px !important;/);
     expect(fixedCss).toMatch(/v3-liquid-tabbar__lens[\s\S]*right: auto !important;/);
     expect(fixedCss).toMatch(/v3-liquid-tabbar__item[\s\S]*flex: 1 1 0;/);
-    expect(fixedCss).toMatch(
-      /data-layout-direction="rtl"[\s\S]*\.v3-liquid-tabbar__item[\s\S]*direction: rtl;/,
-    );
     expect(fixedCss).not.toContain("grid-column:");
 
     expect(organizerTabs).toContain("const physicalLensIndex =");
@@ -64,14 +59,9 @@ describe("V3 direct tab drag RTL and hot-loop contract", () => {
       'layoutDirection === "rtl" ? "-left-3" : "-right-3"',
     );
     expect(organizerCss).toMatch(/data-v6-organizer-tabbar\] > div[\s\S]*display: flex !important;/);
-    expect(organizerCss).toMatch(/data-v6-organizer-tabbar\] > div[\s\S]*direction: ltr;/);
-    expect(organizerCss).toMatch(
-      /data-layout-direction="rtl"[\s\S]*> div[\s\S]*flex-direction: row-reverse;/,
-    );
+    expect(organizerCss).not.toMatch(/data-v6-organizer-tabbar\] > div[\s\S]*direction: ltr;/);
+    expect(organizerCss).not.toContain("flex-direction: row-reverse");
     expect(organizerCss).toMatch(/data-organizer-tab-index[\s\S]*flex: 1 1 0;/);
-    expect(organizerCss).toMatch(
-      /data-layout-direction="rtl"[\s\S]*data-organizer-tab-index[\s\S]*direction: rtl;/,
-    );
   });
 
   it("does not dispatch preview React state on every pointer pixel", () => {
