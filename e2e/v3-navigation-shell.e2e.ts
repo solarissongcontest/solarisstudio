@@ -162,7 +162,7 @@ test("V3 installed navigation keeps Liquid Glass bounded and yields to the softw
   expect(initial).not.toBeNull();
   if (!initial) return;
 
-  expect(initial.collapsed).toBeFalse();
+  expect(initial.collapsed).toBe(false);
   expect(initial.overflow).toBeLessThanOrEqual(2);
   expect(initial.bar.left).toBeGreaterThanOrEqual(-1);
   expect(initial.bar.right).toBeLessThanOrEqual(initial.viewportWidth + 1);
@@ -192,7 +192,7 @@ test("V3 installed navigation keeps Liquid Glass bounded and yields to the softw
     spacer.style.height = "1600px";
     spacer.style.pointerEvents = "none";
     document.body.append(spacer);
-    window.scrollTo({ top: 420, behavior: "instant" });
+    window.scrollTo(0, 420);
   });
   await expect(page.locator("[data-v3-liquid-tabbar]")).toHaveAttribute("data-collapsed", "true");
   await expect
@@ -212,7 +212,7 @@ test("V3 installed navigation keeps Liquid Glass bounded and yields to the softw
   }
 
   await page.evaluate(() => {
-    window.scrollTo({ top: 0, behavior: "instant" });
+    window.scrollTo(0, 0);
     document.querySelector("[data-v3-nav-scroll-fixture]")?.remove();
   });
   await expect(page.locator("[data-v3-liquid-tabbar]")).toHaveAttribute("data-collapsed", "false");
