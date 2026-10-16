@@ -6,6 +6,7 @@ const tasks = readFileSync("src/routes/_authenticated/admin/tasks.tsx", "utf8");
 const tasksData = readFileSync("src/lib/admin-tasks-v5.ts", "utf8");
 const workflows = readFileSync("src/routes/_authenticated/admin/workflows.tsx", "utf8");
 const adminOps = readFileSync("src/lib/admin-ops.ts", "utf8");
+const incidents = readFileSync("src/routes/_authenticated/admin/incidents.tsx", "utf8");
 const countries = readFileSync("src/routes/_authenticated/admin/countries.tsx", "utf8");
 const countryDetail = readFileSync("src/routes/_authenticated/admin/countries.$countryId.tsx", "utf8");
 const confirmations = readFileSync("src/routes/confirmations/admin/index.tsx", "utf8");
@@ -26,6 +27,7 @@ const protectedRoutes = [
   ["Control", control],
   ["Tasks", tasks],
   ["Workflows", workflows],
+  ["Incidents", incidents],
   ["Delegations", countries],
   ["Delegation detail", countryDetail],
   ["Confirmations", confirmations],
@@ -48,6 +50,7 @@ describe("V3 Organizer explicit edition context", () => {
 
   it("uses exact-match Organizer edition selection in scoped specialist workspaces", () => {
     expect(workflows).toContain("selectOrganizerEdition(editions, editionId)");
+    expect(incidents).toContain("selectOrganizerEdition(editions, editionId)");
     expect(countries).toContain("selectOrganizerEdition(editions, editionId)");
     expect(countryDetail).toContain("selectOrganizerEdition(editions, editionId)");
     expect(eligibility).toContain("selectOrganizerEdition(editions, editionId)");
@@ -136,6 +139,17 @@ describe("V3 Organizer explicit edition context", () => {
     expect(adminOps).toContain('editionId ?? "all"');
   });
 
+  it("keeps Incident Command exact-scoped across reads, creates and detail mutations", () => {
+    expect(incidents).toContain("selectOrganizerEdition(editions, editionId)");
+    expect(incidents).not.toContain("edition_number ?? -1");
+    expect(incidents).toContain("enabled: Boolean(resolvedEditionId) && featureQuery.data === true");
+    expect(incidents).toContain("Choose an edition before opening an incident.");
+    expect(incidents).toContain('title="Choose an edition"');
+    expect(incidents).toContain("will not substitute the newest or globally active edition");
+    expect(incidents).toContain("incident.editionId !== editionId");
+    expect(incidents).toContain("Edition context changed before the incident command");
+  });
+
   it("keeps Official Communications fail-closed to the selected Organizer edition", () => {
     expect(communications).toContain("enabled: Boolean(editionId)");
     expect(communications).toContain("return loadStudio2Notices(editionId)");
@@ -158,6 +172,7 @@ describe("V3 Organizer explicit edition context", () => {
   it("explains why missing scope does not silently switch editions", () => {
     expect(tasks).toContain("never merges task truth across editions when Organizer scope is missing");
     expect(workflows).toContain("will not substitute the newest or globally active edition");
+    expect(incidents).toContain("will not substitute the newest or globally active edition");
     expect(countries).toContain("will not substitute another edition");
     expect(countryDetail).toContain("will not substitute another edition");
     expect(confirmations).toContain("will not substitute the globally active confirmation edition");
