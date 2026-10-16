@@ -49,8 +49,9 @@ function ResultsRevealPage() {
   const [strategy, setStrategy] = useState<RevealStrategy>('jury_order');
 
   const featureQuery = useQuery({
-    queryKey: ['studio2-feature', 'results_replay'],
-    queryFn: () => isStudio2FeatureEnabled('results_replay'),
+    queryKey: ['studio2-feature', 'results_replay', editionId ?? 'unscoped'],
+    enabled: Boolean(editionId),
+    queryFn: () => isStudio2FeatureEnabled('results_replay', editionId!),
     staleTime: 30_000,
   });
 
@@ -126,6 +127,21 @@ function ResultsRevealPage() {
         : <AdminStatus tone="info">Open</AdminStatus>,
     },
   ] satisfies readonly AdminDataColumn<(typeof simulation.steps)[number]>[];
+
+  if (!editionId) {
+    return (
+      <AdminPage>
+        <ResultsRevealHeader />
+        <AdminCard>
+          <AdminEmptyState
+            icon={Trophy}
+            title="Choose an edition"
+            description="Select the edition in the Organizer toolbar before planning a reveal. Solaris will not infer another edition or load an unscoped Results Replay flag."
+          />
+        </AdminCard>
+      </AdminPage>
+    );
+  }
 
   if (featureQuery.isLoading) {
     return (
