@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
+import { APP_RESUME_EVENT } from "@/lib/app-lifecycle";
 import {
   prefersReducedMotion,
   resolveElasticDrag,
@@ -213,16 +214,40 @@ export function V3LiquidTabBar({
     const resetWhenHidden = () => {
       if (document.visibilityState !== "visible") clearDrag();
     };
+    const root = document.documentElement;
+    const rootInterruptionObserver =
+      typeof MutationObserver !== "undefined"
+        ? new MutationObserver(() => {
+            if (
+              root.hasAttribute("data-solaris-feature-overlay-open") ||
+              root.hasAttribute("data-solaris-keyboard-open")
+            ) {
+              clearDrag();
+            }
+          })
+        : null;
 
+    rootInterruptionObserver?.observe(root, {
+      attributes: true,
+      attributeFilter: [
+        "data-solaris-feature-overlay-open",
+        "data-solaris-keyboard-open",
+      ],
+    });
     window.addEventListener("blur", resetInterruptedGesture);
     window.addEventListener("resize", resetInterruptedGesture);
     window.addEventListener("orientationchange", resetInterruptedGesture);
+    window.addEventListener("pagehide", resetInterruptedGesture);
+    window.addEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
     document.addEventListener("visibilitychange", resetWhenHidden);
 
     return () => {
+      rootInterruptionObserver?.disconnect();
       window.removeEventListener("blur", resetInterruptedGesture);
       window.removeEventListener("resize", resetInterruptedGesture);
       window.removeEventListener("orientationchange", resetInterruptedGesture);
+      window.removeEventListener("pagehide", resetInterruptedGesture);
+      window.removeEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
       document.removeEventListener("visibilitychange", resetWhenHidden);
       resetDragDom();
     };
