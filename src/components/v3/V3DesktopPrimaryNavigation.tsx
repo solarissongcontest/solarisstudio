@@ -3,6 +3,11 @@ import { Link } from "@tanstack/react-router";
 import type { V3LiquidTabDestination } from "./V3LiquidTabBar";
 import "@/styles/v3-responsive-shell.css";
 
+function navigationItemLabel(label: string, badge: number) {
+  if (badge <= 0) return label;
+  return `${label}, ${badge} item${badge === 1 ? "" : "s"}`;
+}
+
 /** Desktop adaptation of the same canonical five-area information architecture. */
 export function V3DesktopPrimaryNavigation({
   destinations,
@@ -22,6 +27,7 @@ export function V3DesktopPrimaryNavigation({
             to={destination.to as any}
             className="v3-desktop-primary-nav__item"
             aria-current={destination.active ? "page" : undefined}
+            aria-label={navigationItemLabel(destination.label, badge)}
             data-active={destination.active ? "true" : "false"}
             data-emphasis={destination.emphasis ? "true" : undefined}
             onClick={(event) => {
