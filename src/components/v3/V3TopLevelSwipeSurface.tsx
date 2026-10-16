@@ -66,8 +66,16 @@ function routeSnapshotKey(pathname: string, searchStr: string) {
   return `${pathname}\u0000${searchStr}`;
 }
 
-function canonicalSwipeSlot(settlingComposition: SettlingComposition | null): SwipeSlot {
-  if (settlingComposition == null) return "current";
+function canonicalSwipeSlot(
+  settlingComposition: SettlingComposition | null,
+  activeIndex: number,
+): SwipeSlot {
+  if (
+    settlingComposition == null ||
+    activeIndex !== settlingComposition.targetIndex
+  ) {
+    return "current";
+  }
   if (settlingComposition.targetIndex < settlingComposition.originIndex) return "previous";
   if (settlingComposition.targetIndex > settlingComposition.originIndex) return "next";
   return "current";
@@ -431,7 +439,7 @@ export function V3TopLevelSwipeSurface({
   const visualPreviousSurface = settlingComposition?.previousSurface ?? previousSurface;
   const visualCurrentSurface = settlingComposition?.currentSurface ?? children;
   const visualNextSurface = settlingComposition?.nextSurface ?? nextSurface;
-  const canonicalSlot = canonicalSwipeSlot(settlingComposition);
+  const canonicalSlot = canonicalSwipeSlot(settlingComposition, activeIndex);
 
   return (
     <div
