@@ -4,8 +4,14 @@
   overflow-y: visible;
 }
 
+/* Do not force pan-y on this ancestor. touch-action is intersected through the
+   ancestor chain before Pointer Events arbitrate, so a surface-level pan-y
+   would silently disable native horizontal scrolling in descendant carousels,
+   rails, tables and chips. The recognizer fails closed in JS and calls
+   preventDefault only after a non-edge, non-content-owned horizontal gesture
+   has actually won. */
 [data-solaris-v3] .v3-top-level-swipe-surface[data-v3-top-level-swipe-enabled="true"] {
-  touch-action: pan-y pinch-zoom;
+  touch-action: auto;
 }
 
 [data-solaris-v3] .v3-top-level-swipe-track {
