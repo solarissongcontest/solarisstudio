@@ -58,7 +58,8 @@ export const MY_SOLARIS_NAVIGATION: readonly MySolarisNavigationGroup[] = [
         id: "voting",
         label: "Voting",
         description: "Jury voting and public televoting",
-        to: NAV_TARGETS.mySolarisVoting,
+        to: NAV_TARGETS.participate,
+        activePaths: [NAV_TARGETS.participate, NAV_TARGETS.mySolarisVoting],
       },
       {
         id: "notices",

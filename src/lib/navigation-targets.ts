@@ -1,9 +1,9 @@
 /**
  * Canonical product destinations.
  *
- * Keep participant links on the MySolaris route family. Legacy Country Hub
- * paths remain compatibility entry points, but they should not be authored by
- * new UI code.
+ * Compatibility routes remain explicit while V3 ownership surfaces get their
+ * own targets. This lets existing deep links survive cutover without forcing
+ * new participant navigation back into a duplicate legacy workspace.
  */
 export const NAV_TARGETS = {
   mySolaris: "/my-solaris",
@@ -11,6 +11,7 @@ export const NAV_TARGETS = {
   mySolarisTasks: "/my-solaris/tasks",
   mySolarisEntry: "/my-solaris/entry",
   mySolarisVoting: "/my-solaris/voting",
+  participate: "/participate",
   mySolarisNotices: "/my-solaris/notices",
   mySolarisPageBuilder: "/my-solaris/page-builder",
   mySolarisTheme: "/my-solaris/theme",
