@@ -31,7 +31,7 @@ function missingParticipantActivityContract(error: RpcError | null) {
  *
  * Activity is derived from canonical domain events. Until System owns the
  * recipient-scoped projection, Public V3 must fail closed rather than reuse
- * content_events, notifications, browser history, or private infrastructure.
+ * alternate feeds, browser history, or private infrastructure.
  */
 export async function loadV3ParticipantActivity(): Promise<V3ParticipantActivityBundle> {
   const client = createSolarisAuthenticatedClientServer() as unknown as ActivityClient;
