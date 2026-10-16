@@ -27,21 +27,19 @@ describe("V3 navigation RTL integration contract", () => {
     expect(css).toMatch(/:dir\(rtl\)[\s\S]*page--next[\s\S]*translate3d\(-100%/);
   });
 
-  it("keeps the public selected lens on an explicit physical axis in RTL", () => {
+  it("keeps the public selected lens on the rendered physical slot axis in RTL", () => {
     const tabbar = source("src/components/v3/V3LiquidTabBar.tsx");
 
-    expect(tabbar).toContain("const physicalLensIndex =");
-    expect(tabbar).toContain(
-      'layoutDirection === "rtl" ? count - 1 - visualLensIndex : visualLensIndex',
-    );
+    expect(tabbar).toContain("const physicalLensIndex = visualLensIndex");
     expect(tabbar).toContain('left: "6px"');
     expect(tabbar).toContain('right: "auto"');
     expect(tabbar).toContain('direction: "ltr"');
     expect(tabbar).toContain("${physicalLensIndex} * (100% + 2px)");
     expect(tabbar).not.toContain("visualLensIndex * inlineSign");
+    expect(tabbar).not.toContain("count - 1 - visualLensIndex");
   });
 
-  it("keeps the Organizer selected lens on the same physical RTL axis", () => {
+  it("keeps the Organizer selected lens on its explicit physical RTL axis", () => {
     const tabbar = source("src/components/admin/OrganizerV6TabBar.tsx");
 
     expect(tabbar).toContain("const physicalLensIndex =");
