@@ -197,6 +197,8 @@ export interface ConfirmationFormProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   prefill?: any;
   availability?: AvailabilityReason;
+  /** Presentation-only starting point for an already-authorized edit flow. */
+  initialStep?: number;
   /** V3 recovery boundary for a submit whose database status cannot be proven yet. */
   onSubmissionUncertain?: (operationId?: string) => void;
 }
@@ -208,7 +210,14 @@ function sameWinner(
   return data.artist === entry.artist && data.song_title === entry.song_title && data.song_url === entry.song_url;
 }
 
-export function ConfirmationForm({ round, editToken, prefill, availability, onSubmissionUncertain }: ConfirmationFormProps) {
+export function ConfirmationForm({
+  round,
+  editToken,
+  prefill,
+  availability,
+  initialStep,
+  onSubmissionUncertain,
+}: ConfirmationFormProps) {
   const { connectivity } = useSolarisApp();
   const submissionConnectivityReady = connectivity.status === "online";
   const submit = useServerFn(submitConfirmation);
@@ -219,7 +228,9 @@ export function ConfirmationForm({ round, editToken, prefill, availability, onSu
   const findMine = useServerFn(findMySubmission);
   const checkAvailability = useServerFn(getRoundAvailability);
 
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() =>
+    Math.min(Math.max(initialStep ?? 0, 0), STEPS.length - 1),
+  );
   const [data, setData] = useState<ConfirmationPayload>(() =>
     prefill ? prefillFromSubmission(prefill, emptyPayload(round.id)) : emptyPayload(round.id),
   );
