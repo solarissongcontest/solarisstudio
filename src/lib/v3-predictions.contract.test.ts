@@ -22,7 +22,8 @@ describe("V3 Predictions architecture", () => {
     expect(detail).toContain("usePredictionConsensus(round?.id, canSeeConsensus)");
     expect(detail).toContain("savedPrediction ||");
     expect(data).toContain('.rpc("submit_prediction"');
-    expect(data).toContain('.from("prediction_entry_versions")').or.toBeDefined;
+    expect(data).toContain('.from("prediction_entries")');
+    expect(data).toContain('.from("prediction_scores")');
   });
 
   it("keeps installed-app V3 overview reversible and leaves legacy overview intact", () => {
