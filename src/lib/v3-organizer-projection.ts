@@ -189,19 +189,28 @@ function summarizeTask(task: OrganizerTaskV5): V3OrganizerTaskSummary {
   };
 }
 
-export function organizerTaskDomain(task: Pick<OrganizerTaskV5, "href" | "sourceKind" | "taskType">): V3OrganizerDomainKey {
+export function organizerTaskDomain(
+  task: Pick<OrganizerTaskV5, "href" | "sourceKind" | "taskType">,
+): V3OrganizerDomainKey {
   const text = `${task.href} ${task.sourceKind} ${task.taskType}`.toLowerCase();
   if (/confirm|delegat|country|participation/.test(text)) return "delegations";
   if (/entry|media|show|lineup|progress|eligib|submission/.test(text)) return "contest";
-  if (/jury|televote|voting|ballot|integrity/.test(text)) return "voting";
+  if (/jury|televote|voting|ballot/.test(text)) return "voting";
   if (/result|publication|publish/.test(text)) return "results";
   if (/communication|notice|announcement|delivery/.test(text)) return "communications";
   if (/broadcast|rundown|reveal|design|theme|production/.test(text)) return "production";
-  if (/rule|investigation|appeal|evidence|governance|identity/.test(text)) return "governance";
+  if (/integrity|rule|investigation|appeal|evidence|governance|identity/.test(text)) {
+    return "governance";
+  }
   return "system";
 }
 
-function factor(id: string, count: number, label: string, route: string): V3OrganizerReadinessFactor | null {
+function factor(
+  id: string,
+  count: number,
+  label: string,
+  route: string,
+): V3OrganizerReadinessFactor | null {
   if (count <= 0) return null;
   return { id, label, detail: `${count} ${count === 1 ? "issue" : "issues"}`, route };
 }
@@ -215,20 +224,38 @@ function buildReadiness(
   const progress = Math.max(0, Math.min(100, Number(health?.progress ?? 0)));
   const critical = Math.max(0, Number(health?.critical_count ?? 0));
   const incomplete = [
-    factor("entries", Number(health?.missing_songs ?? 0) + Number(health?.missing_artists ?? 0), "Entry review", "/confirmations/admin/responses"),
-    factor("running-order", Number(health?.running_issues ?? 0), "Running order", `/admin/entries/${edition.slug}`),
+    factor(
+      "entries",
+      Number(health?.missing_songs ?? 0) + Number(health?.missing_artists ?? 0),
+      "Entry review",
+      "/confirmations/admin/responses",
+    ),
+    factor(
+      "running-order",
+      Number(health?.running_issues ?? 0),
+      "Running order",
+      `/admin/entries/${edition.slug}`,
+    ),
     factor("jury", Number(health?.jury_issues ?? 0), "Jury", `/admin/jury/${edition.slug}`),
-    factor("televote", Number(health?.televote_issues ?? 0), "Televote", `/admin/televote/${edition.slug}`),
+    factor(
+      "televote",
+      Number(health?.televote_issues ?? 0),
+      "Televote",
+      `/admin/televote/${edition.slug}`,
+    ),
     factor("results", Number(health?.result_issues ?? 0), "Results", "/admin/results"),
   ].filter((item): item is V3OrganizerReadinessFactor => Boolean(item));
 
   const blocking = critical
-    ? [{
-        id: "critical-health",
-        label: critical === 1 ? "1 critical blocker" : `${critical} critical blockers`,
-        detail: "Critical edition health checks require intervention before high-consequence operations.",
-        route: "/admin/tasks?filter=all",
-      }]
+    ? [
+        {
+          id: "critical-health",
+          label: critical === 1 ? "1 critical blocker" : `${critical} critical blockers`,
+          detail:
+            "Critical edition health checks require intervention before high-consequence operations.",
+          route: "/admin/tasks?filter=all",
+        },
+      ]
     : [];
 
   const incompleteIds = new Set(incomplete.map((item) => item.id));
@@ -245,7 +272,9 @@ function buildReadiness(
   return { overall: progress, blocking, incomplete, ready, calculatedAt: serverTime, stateVersion };
 }
 
-function domainMeta(edition: V3OrganizerEditionProjection): Record<V3OrganizerDomainKey, { label: string; route: string }> {
+function domainMeta(
+  edition: V3OrganizerEditionProjection,
+): Record<V3OrganizerDomainKey, { label: string; route: string }> {
   return {
     delegations: { label: "Delegations", route: "/admin/countries" },
     contest: { label: "Contest", route: `/admin/shows/${edition.slug}` },
@@ -266,38 +295,53 @@ function buildDomains(
   const meta = domainMeta(edition);
   const keys = Object.keys(meta) as V3OrganizerDomainKey[];
 
-  return Object.fromEntries(keys.map((key) => {
-    const domainTasks = sortedUnresolved(tasks.filter((task) => organizerTaskDomain(task) === key));
-    const blocking = domainTasks.filter((task) => task.priority === "critical").length;
-    const first = domainTasks[0];
-    let state: V3OrganizerDomainState = blocking ? "blocked" : domainTasks.length ? "attention" : "ready";
+  return Object.fromEntries(
+    keys.map((key) => {
+      const domainTasks = sortedUnresolved(
+        tasks.filter((task) => organizerTaskDomain(task) === key),
+      );
+      const blocking = domainTasks.filter((task) => task.priority === "critical").length;
+      const first = domainTasks[0];
+      let state: V3OrganizerDomainState = blocking
+        ? "blocked"
+        : domainTasks.length
+          ? "attention"
+          : "ready";
 
-    if (key === "voting" && !domainTasks.length && [live.subsystems.juryVoting, live.subsystems.televoting].includes("open")) {
-      state = "active";
-    }
-    if (key === "results" && !domainTasks.length && live.subsystems.results === "published") {
-      state = "complete";
-    }
-    if (key === "production" && !domainTasks.length && live.editionState === "live_show") {
-      state = "active";
-    }
+      if (
+        key === "voting" &&
+        !domainTasks.length &&
+        [live.subsystems.juryVoting, live.subsystems.televoting].includes("open")
+      ) {
+        state = "active";
+      }
+      if (key === "results" && !domainTasks.length && live.subsystems.results === "published") {
+        state = "complete";
+      }
+      if (key === "production" && !domainTasks.length && live.editionState === "live_show") {
+        state = "active";
+      }
 
-    return [key, {
-      state,
-      label: meta[key].label,
-      detail: domainTasks.length
-        ? `${domainTasks.length} ${domainTasks.length === 1 ? "item needs" : "items need"} attention`
-        : state === "active"
-          ? "Active operational state"
-          : state === "complete"
-            ? "Complete"
-            : "No known action required",
-      issueCount: domainTasks.length,
-      blockingIssueCount: blocking,
-      primaryRoute: meta[key].route,
-      recommendedAction: first ? { label: first.title, route: first.href } : undefined,
-    } satisfies V3OrganizerDomainSummary];
-  })) as Record<V3OrganizerDomainKey, V3OrganizerDomainSummary>;
+      return [
+        key,
+        {
+          state,
+          label: meta[key].label,
+          detail: domainTasks.length
+            ? `${domainTasks.length} ${domainTasks.length === 1 ? "item needs" : "items need"} attention`
+            : state === "active"
+              ? "Active operational state"
+              : state === "complete"
+                ? "Complete"
+                : "No known action required",
+          issueCount: domainTasks.length,
+          blockingIssueCount: blocking,
+          primaryRoute: meta[key].route,
+          recommendedAction: first ? { label: first.title, route: first.href } : undefined,
+        } satisfies V3OrganizerDomainSummary,
+      ];
+    }),
+  ) as Record<V3OrganizerDomainKey, V3OrganizerDomainSummary>;
 }
 
 function buildStateVersion(input: {
@@ -362,9 +406,10 @@ export function buildV3OrganizerProjection(input: {
     recentChanges,
   });
 
-  const label = input.edition.editionNumber == null
-    ? input.edition.name
-    : `SSC ${input.edition.editionNumber}`;
+  const label =
+    input.edition.editionNumber == null
+      ? input.edition.name
+      : `SSC ${input.edition.editionNumber}`;
 
   return {
     context: {
