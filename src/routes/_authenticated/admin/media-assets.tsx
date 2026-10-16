@@ -51,8 +51,13 @@ export const Route = createFileRoute('/_authenticated/admin/media-assets')({
       { name: 'robots', content: 'noindex' },
     ],
   }),
-  component: MediaAssetsPage,
+  component: MediaAssetsRoute,
 });
+
+function MediaAssetsRoute() {
+  const { editionId } = useAdminContext();
+  return <MediaAssetsPage key={editionId || 'unscoped'} />;
+}
 
 function MediaAssetsPage() {
   const { editionId } = useAdminContext();
