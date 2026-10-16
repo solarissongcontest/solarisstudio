@@ -121,7 +121,7 @@ function targetDomainFor(id: string) {
   if (/confirmation|delegation|country|hod|next-in-line|submission/.test(id)) {
     return "delegations";
   }
-  if (/jury|voting|televote|result/.test(id)) return "voting-results";
+  if (/jury|voting|televote|result|publish/.test(id)) return "voting-results";
   if (/trust|integrity|rules/.test(id)) return "governance";
   if (/broadcast|reveal|control-room|incident/.test(id)) return "live-production";
   if (/communication/.test(id)) return "communications";
