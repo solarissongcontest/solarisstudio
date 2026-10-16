@@ -5,7 +5,6 @@ import {
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
 import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
 import type { Edition } from "@/lib/data";
-import type { V3EntryEditorSection } from "@/lib/v3-entry";
 
 const EDITION_COLUMNS =
   "id,edition_number,name,year,slug,description,host_country_id,host_city,logo,theme_id,status,published";
@@ -84,13 +83,10 @@ function normalizeEditFailure(value: unknown): V3EntryEditLinkResult {
 /**
  * Opens the canonical Confirmation editor for the signed-in delegation's
  * current-edition response. No browser-provided user, country, edition, round or
- * submission selector is accepted. The optional focus is presentation-only;
- * the existing Confirmation edit-token RPC remains the sole authorization
- * boundary for editing the canonical submission.
+ * submission selector is accepted. The existing Confirmation edit-token RPC
+ * remains the sole authorization boundary for editing the canonical submission.
  */
-export async function createCurrentV3EntryEditLink(
-  focus?: V3EntryEditorSection,
-): Promise<V3EntryEditLinkResult> {
+export async function createCurrentV3EntryEditLink(): Promise<V3EntryEditLinkResult> {
   const token = getSolarisAccessTokenServer();
   const client = createSolarisAuthenticatedClientServer() as unknown as AnyClient;
   const publicClient = createConfirmationPublicRuntimeClient() as unknown as AnyClient;
@@ -133,10 +129,9 @@ export async function createCurrentV3EntryEditLink(
   const editToken = stringOrNull(payload?.token);
   if (payload?.ok !== true || !editToken) return normalizeEditFailure(payload?.reason);
 
-  const focusSearch = focus ? `?focus=${encodeURIComponent(focus)}` : "";
   return {
     ok: true,
-    href: `/confirmations/edit/${encodeURIComponent(editToken)}${focusSearch}`,
+    href: `/confirmations/edit/${encodeURIComponent(editToken)}`,
     expiresAt: stringOrNull(payload.expires_at),
   };
 }
