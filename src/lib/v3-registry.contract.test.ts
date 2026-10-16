@@ -54,6 +54,16 @@ describe("Solaris V3 migration registries", () => {
     expect(unique(registered)).toEqual(registered);
   });
 
+  it("keeps canonical Organizer Control domains attached to their owning capabilities", () => {
+    const byId = new Map(V3_ORGANIZER_CAPABILITY_REGISTRY.map((item) => [item.legacyId, item]));
+    expect(byId.get("current-edition-delegations")?.targetDomain).toBe("delegations");
+    expect(byId.get("current-edition-contest")?.targetDomain).toBe("contest");
+    expect(byId.get("current-edition-voting")?.targetDomain).toBe("voting-results");
+    expect(byId.get("current-edition-results")?.targetDomain).toBe("voting-results");
+    expect(byId.get("current-edition-publish")?.targetDomain).toBe("voting-results");
+    expect(byId.get("operations-communications")?.targetDomain).toBe("communications");
+  });
+
   it("keeps Organizer detail-route ownership attached to a classified capability", () => {
     for (const alias of V3_ORGANIZER_ROUTE_OWNERSHIP) {
       expect(V3_ORGANIZER_DISCOVERED_IDS.has(alias.ownerLegacyId), alias.routePattern).toBe(true);
