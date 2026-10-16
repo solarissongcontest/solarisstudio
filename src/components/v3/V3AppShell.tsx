@@ -273,11 +273,15 @@ export function V3AppShell({
   const previousPreview = swipePreviewSurfaces?.previous;
   const nextPreview = swipePreviewSurfaces?.next;
   const previousSurface =
-    expectedPreviousArea && previousPreview?.area === expectedPreviousArea
+    navigationIdentityReady &&
+    expectedPreviousArea &&
+    previousPreview?.area === expectedPreviousArea
       ? previousPreview.surface
       : null;
   const nextSurface =
-    expectedNextArea && nextPreview?.area === expectedNextArea
+    navigationIdentityReady &&
+    expectedNextArea &&
+    nextPreview?.area === expectedNextArea
       ? nextPreview.surface
       : null;
   const swipePreviewReady =
