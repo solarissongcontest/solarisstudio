@@ -121,6 +121,7 @@ for rehearsal in \
   v3-operation-receipt-rehearsal.sh \
   v3-s2-entry-correction-rehearsal.sh \
   v3-confirmation-security-rehearsal.sh \
+  v3-entry-credits-rehearsal.sh \
   v3-s3-confirmation-invariants-rehearsal.sh \
   v3-s3-entry-invariants-rehearsal.sh \
   v3-s3-media-invariants-rehearsal.sh \
