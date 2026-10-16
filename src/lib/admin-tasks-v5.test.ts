@@ -3,21 +3,18 @@ import { describe, expect, it, vi } from "vitest";
 import { loadOrganizerTaskCountV5, loadOrganizerTasksV5 } from "./admin-tasks-v5";
 
 describe("Organizer Tasks edition RPC boundary", () => {
-  it("maps an unselected or whitespace-only edition to SQL null", async () => {
+  it("fails closed before RPC when Organizer edition scope is missing", async () => {
     const rpc = vi.fn(async () => ({ data: [], error: null }));
     const client = { rpc };
 
-    await loadOrganizerTasksV5("", "all", client);
-    await loadOrganizerTasksV5("   ", "mine", client);
+    await expect(loadOrganizerTasksV5("", "all", client)).rejects.toThrow(
+      "Organizer Tasks requires an explicit edition scope.",
+    );
+    await expect(loadOrganizerTasksV5("   ", "mine", client)).rejects.toThrow(
+      "Organizer Tasks requires an explicit edition scope.",
+    );
 
-    expect(rpc).toHaveBeenNthCalledWith(1, "admin_organizer_tasks", {
-      p_edition_id: null,
-      p_filter: "all",
-    });
-    expect(rpc).toHaveBeenNthCalledWith(2, "admin_organizer_tasks", {
-      p_edition_id: null,
-      p_filter: "mine",
-    });
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("preserves a selected UUID while trimming accidental surrounding whitespace", async () => {
@@ -33,14 +30,14 @@ describe("Organizer Tasks edition RPC boundary", () => {
     });
   });
 
-  it("applies the same null normalization to Organizer task counts", async () => {
+  it("fails closed before count RPC when Organizer edition scope is missing", async () => {
     const rpc = vi.fn(async () => ({ data: 0, error: null }));
     const client = { rpc };
 
-    await expect(loadOrganizerTaskCountV5("", client)).resolves.toBe(0);
+    await expect(loadOrganizerTaskCountV5("", client)).rejects.toThrow(
+      "Organizer Tasks requires an explicit edition scope.",
+    );
 
-    expect(rpc).toHaveBeenCalledWith("admin_organizer_task_count", {
-      p_edition_id: null,
-    });
+    expect(rpc).not.toHaveBeenCalled();
   });
 });
