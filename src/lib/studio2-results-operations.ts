@@ -290,12 +290,19 @@ export function availableStudio2ResultActions(row: Studio2ResultOperationRow): S
   // until Publication makes that layer private again.
   if (pre.publishedResults) return actions;
 
-  if (pre.calculationReady && row.lockedVersion !== version) actions.push('calculate');
+  const revealReady = version > 0 && row.revealReadyVersion === version;
+  const locked = version > 0 && row.lockedVersion === version;
+
+  if (pre.calculationReady && !locked) actions.push('calculate');
   if (version > 0 && pre.resultReady && row.reviewedVersion !== version) actions.push('review');
-  if (version > 0 && row.reviewedVersion === version && row.lockedVersion !== version) actions.push('lock');
-  if (version > 0 && row.lockedVersion === version) actions.push('unlock');
-  if (version > 0 && row.lockedVersion === version && row.revealReadyVersion !== version) actions.push('mark_reveal_ready');
-  if (version > 0 && row.revealReadyVersion === version) actions.push('clear_reveal_ready');
+  if (version > 0 && row.reviewedVersion === version && !locked) actions.push('lock');
+
+  // Rollback must unwind the strict lifecycle one stage at a time. A version
+  // that is still marked reveal-ready cannot also be unlocked from the client;
+  // clear reveal readiness first, then unlock the frozen result version.
+  if (locked && !revealReady) actions.push('unlock');
+  if (locked && !revealReady) actions.push('mark_reveal_ready');
+  if (revealReady) actions.push('clear_reveal_ready');
   return actions;
 }
 
