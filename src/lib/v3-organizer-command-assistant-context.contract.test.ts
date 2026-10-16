@@ -7,28 +7,24 @@ const source = readFileSync(
 );
 
 describe("V3 Organizer Command Assistant edition context", () => {
-  it("validates the selected Organizer edition before loading operational counts", () => {
+  it("validates the selected Organizer edition before loading operational context", () => {
     expect(source).toContain('import { useEditions } from "@/lib/data";');
     expect(source).toContain("const editionsQuery = useEditions();");
     expect(source).toContain(
       "const selectedEdition = editionsQuery.data?.find((edition) => edition.id === editionId) ?? null;",
     );
     expect(source).toContain('const resolvedEditionId = selectedEdition?.id ?? "";');
-    expect(source).toContain(
-      "enabled: feature.data === true && Boolean(resolvedEditionId)",
-    );
-    expect(source).toContain(
-      '["command-assistant-snapshot", resolvedEditionId || "unscoped"]',
-    );
+    expect(source).toContain("useV3OrganizerProjection(resolvedEditionId || null)");
   });
 
-  it("keeps every live snapshot query inside the exact resolved edition", () => {
-    expect(source).toContain("resolvedEditionId !== editionId");
-    expect(source).toContain(
-      'throw new Error("Command Assistant requires an exact Organizer edition context.")',
-    );
-    expect(source.match(/\.eq\("edition_id", resolvedEditionId\)/g)?.length).toBe(4);
-    expect(source).not.toContain('.eq("edition_id", editionId)');
+  it("uses the canonical Organizer projection instead of parallel browser database reads", () => {
+    expect(source).toContain("projectionQuery.data.readiness.overall");
+    expect(source).toContain("projectionQuery.data.tasks.critical");
+    expect(source).toContain("projectionQuery.data.attention.length");
+    expect(source).toContain("projectionQuery.data.systemHealth.issueCount");
+    expect(source).not.toContain("integrations/supabase");
+    expect(source).not.toContain('.from("participants")');
+    expect(source).not.toContain('.from("studio2_incidents")');
   });
 
   it("fails closed instead of presenting stale scope as an empty edition", () => {
@@ -37,5 +33,12 @@ describe("V3 Organizer Command Assistant edition context", () => {
       "Command Assistant will not turn a missing or stale edition into an all-editions query or a misleading zero-state summary.",
     );
     expect(source).toContain("Confirming edition context…");
+  });
+
+  it("explains blockers without executing a command", () => {
+    expect(source).toContain("buildCommandAssistantInsight");
+    expect(source).toContain('eyebrow="Canonical explanation"');
+    expect(source).toContain("Read-only explanation");
+    expect(source).toContain("cannot generate arbitrary SQL, bypass permissions or silently execute a write");
   });
 });
