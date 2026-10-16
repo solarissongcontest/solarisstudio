@@ -93,7 +93,11 @@ async function readGeometry(page: Page) {
     const bar = document.querySelector<HTMLElement>("[data-v3-liquid-tabbar]");
     const material = bar?.querySelector<HTMLElement>(".v3-liquid-tabbar__material") ?? null;
     const backdrop = bar?.querySelector<HTMLElement>(".v3-liquid-tabbar__backdrop") ?? null;
-    if (!bar || !material || !backdrop) return null;
+    const lens = bar?.querySelector<HTMLElement>(".v3-liquid-tabbar__lens") ?? null;
+    const items = bar
+      ? Array.from(bar.querySelectorAll<HTMLElement>("[data-v3-tab-index]"))
+      : [];
+    if (!bar || !material || !backdrop || !lens || items.length === 0) return null;
 
     const rect = (element: HTMLElement) => {
       const bounds = element.getBoundingClientRect();
@@ -116,6 +120,8 @@ async function readGeometry(page: Page) {
       bar: rect(bar),
       material: rect(material),
       backdrop: rect(backdrop),
+      lens: rect(lens),
+      items: items.map(rect),
       obstruction: Number.parseFloat(
         rootStyle.getPropertyValue("--v3-bottom-obstruction") || "0",
       ),
@@ -144,6 +150,12 @@ test("V3 installed navigation keeps Liquid Glass bounded and yields to the softw
   await page.goto(`${baseURL}/my-solaris/account`, { waitUntil: "domcontentloaded" });
   await expect(page.locator('[data-v3-account-settings-screen="account"]')).toBeVisible();
   await expect(page.locator("[data-v3-liquid-tabbar]")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Primary app navigation" })).toHaveCount(1);
+  await expect(page.locator('[data-v3-liquid-tabbar] [aria-current="page"]')).toHaveCount(1);
+
+  for (const label of ["Home", "Explore", "Participate", "Results", "Me"]) {
+    await expect(page.locator("[data-v3-liquid-tabbar]").getByRole("link", { name: label })).toHaveCount(1);
+  }
 
   const initial = await readGeometry(page);
   expect(initial).not.toBeNull();
@@ -159,6 +171,14 @@ test("V3 installed navigation keeps Liquid Glass bounded and yields to the softw
   expect(initial.backdrop.height).toBeLessThanOrEqual(initial.material.height + 2);
   expect(Math.abs(initial.backdrop.left - initial.material.left)).toBeLessThanOrEqual(1);
   expect(Math.abs(initial.backdrop.top - initial.material.top)).toBeLessThanOrEqual(1);
+  expect(initial.lens.left).toBeGreaterThanOrEqual(initial.material.left - 1);
+  expect(initial.lens.right).toBeLessThanOrEqual(initial.material.right + 1);
+  expect(initial.lens.top).toBeGreaterThanOrEqual(initial.material.top - 1);
+  expect(initial.lens.bottom).toBeLessThanOrEqual(initial.material.bottom + 1);
+  for (const item of initial.items) {
+    expect(item.width).toBeGreaterThanOrEqual(44);
+    expect(item.height).toBeGreaterThanOrEqual(44);
+  }
   expect(initial.obstruction).toBeGreaterThan(0);
   expect(initial.obstruction).toBeLessThanOrEqual(136);
 
@@ -171,9 +191,9 @@ test("V3 installed navigation keeps Liquid Glass bounded and yields to the softw
   await expect
     .poll(async () => (await readGeometry(page))?.pointerEvents ?? "")
     .toBe("none");
-
-  const keyboardOpen = await readGeometry(page);
-  expect(keyboardOpen?.opacity).toBe("0");
+  await expect
+    .poll(async () => (await readGeometry(page))?.opacity ?? "")
+    .toBe("0");
 
   await page.evaluate(() => {
     document.documentElement.removeAttribute("data-solaris-keyboard-open");
