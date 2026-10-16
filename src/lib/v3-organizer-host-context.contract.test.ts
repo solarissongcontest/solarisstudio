@@ -5,6 +5,7 @@ const source = readFileSync(
   "src/routes/_authenticated/admin/hosts.tsx",
   "utf8",
 );
+const service = readFileSync("src/lib/studio2-host-management.ts", "utf8");
 
 describe("V3 Organizer Host Management edition context", () => {
   it("requires the exact selected Organizer edition and never substitutes the newest edition", () => {
@@ -20,6 +21,22 @@ describe("V3 Organizer Host Management edition context", () => {
     expect(source).toContain(
       "Solaris will not substitute the newest or globally active edition when the saved context is missing or stale.",
     );
+  });
+
+  it("rejects Host snapshot data outside the requested edition before the UI can consume it", () => {
+    const loadStart = service.indexOf("export async function loadStudio2HostManagement");
+    const parse = service.indexOf("const snapshot = parseHostManagementSnapshot(data);", loadStart);
+    const rootScope = service.indexOf("snapshot.edition.id !== editionId", parse);
+    const bidScope = service.indexOf("snapshot.bids.some((bid) => bid.editionId !== editionId)", parse);
+    const operationsScope = service.indexOf("snapshot.operations.editionId !== editionId", parse);
+    const returned = service.indexOf("return snapshot;", operationsScope);
+
+    expect(loadStart).toBeGreaterThanOrEqual(0);
+    expect(parse).toBeGreaterThan(loadStart);
+    expect(rootScope).toBeGreaterThan(parse);
+    expect(bidScope).toBeGreaterThan(parse);
+    expect(operationsScope).toBeGreaterThan(parse);
+    expect(returned).toBeGreaterThan(operationsScope);
   });
 
   it("blocks commands if scope changes after the operator opens a Host action", () => {
