@@ -1,15 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { useServerFn } from '@tanstack/react-start';
 import { FlaskConical, ShieldCheck, SlidersHorizontal } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
-import { getVotingLabData } from '@/integrations/televoting/voting-lab.functions';
+import { useCountries, useParticipants } from '@/lib/data';
 import { isStudio2FeatureEnabled } from '@/lib/studio2-feature-flags';
+import {
+  buildSyntheticVotingLabBallots,
+  VOTING_LAB_SYNTHETIC_SCENARIOS,
+  type VotingLabSyntheticScenario,
+} from '@/lib/voting-lab-scenarios';
 import {
   compareVotingSystems,
   type VotingLabConfig,
@@ -35,8 +39,10 @@ const CURRENT_SYSTEM: VotingLabConfig = {
 
 function VotingLabPage() {
   const { editionId } = useAdminContext();
-  const getData = useServerFn(getVotingLabData);
-  const [roundId, setRoundId] = useState('');
+  const participantsQuery = useParticipants(editionId ?? undefined);
+  const countriesQuery = useCountries();
+  const [scenario, setScenario] = useState<VotingLabSyntheticScenario>('balanced');
+  const [ballotCount, setBallotCount] = useState(24);
   const [maxPerCountry, setMaxPerCountry] = useState(7);
   const [ballotBudget, setBallotBudget] = useState(20);
   const [minimumCountries, setMinimumCountries] = useState(5);
@@ -48,19 +54,20 @@ function VotingLabPage() {
     staleTime: 30_000,
   });
 
-  const dataQuery = useQuery({
-    queryKey: ['studio2-voting-lab-data', editionId ?? 'none', roundId || 'default'],
-    enabled: featureQuery.data === true && Boolean(editionId),
-    queryFn: () => getData({ data: { editionId: editionId!, roundId: roundId || null } }),
-  });
+  const entryIds = useMemo(
+    () => [...new Set((participantsQuery.data ?? []).map((participant) => participant.country_id).filter((id): id is string => Boolean(id)))],
+    [participantsQuery.data],
+  );
 
-  useEffect(() => {
-    setRoundId('');
-  }, [editionId]);
+  const displayMap = useMemo(
+    () => new Map((countriesQuery.data ?? []).map((country) => [country.id, country.name])),
+    [countriesQuery.data],
+  );
 
-  useEffect(() => {
-    if (!roundId && dataQuery.data?.selectedRoundId) setRoundId(dataQuery.data.selectedRoundId);
-  }, [dataQuery.data?.selectedRoundId, roundId]);
+  const syntheticBallots = useMemo(
+    () => buildSyntheticVotingLabBallots(entryIds, scenario, ballotCount),
+    [ballotCount, entryIds, scenario],
+  );
 
   const customConfig = useMemo<VotingLabConfig>(() => ({
     maxPerCountry,
@@ -70,36 +77,23 @@ function VotingLabPage() {
   }), [ballotBudget, invalidPolicy, maxPerCountry, minimumCountries]);
 
   const comparison = useMemo(() => {
-    const ballots = dataQuery.data?.ballots ?? [];
-    if (!ballots.length) return null;
+    if (!syntheticBallots.length) return null;
     try {
-      return compareVotingSystems(ballots, {
+      return compareVotingSystems(syntheticBallots, {
         current: CURRENT_SYSTEM,
         experiment: customConfig,
       }) as Record<'current' | 'experiment', VotingLabSimulation>;
     } catch {
       return null;
     }
-  }, [customConfig, dataQuery.data?.ballots]);
-
-  const displayMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const entry of dataQuery.data?.entries ?? []) {
-      map.set(entry.id, entry.name);
-      map.set(entry.code, entry.name);
-      map.set(entry.code.toUpperCase(), entry.name);
-    }
-    return map;
-  }, [dataQuery.data?.entries]);
+  }, [customConfig, syntheticBallots]);
 
   if (featureQuery.isLoading) {
     return (
       <AdminPage>
         <div className="mx-auto max-w-7xl space-y-4">
           <VotingLabPageHeader />
-          <AdminCard>
-            <p className="py-10 text-center text-sm text-muted-foreground">Loading Voting Laboratory…</p>
-          </AdminCard>
+          <AdminCard><p className="py-10 text-center text-sm text-muted-foreground">Loading Voting Laboratory…</p></AdminCard>
         </div>
       </AdminPage>
     );
@@ -113,7 +107,7 @@ function VotingLabPage() {
           <AdminEmptyState
             icon={FlaskConical}
             title="Voting Laboratory is disabled"
-            description="Enable the Voting Lab rollout flag before running ballot simulations."
+            description="Enable the Voting Lab rollout flag before running synthetic vote simulations."
           />
         </div>
       </AdminPage>
@@ -128,7 +122,33 @@ function VotingLabPage() {
           <AdminEmptyState
             icon={FlaskConical}
             title="Select an edition"
-            description="Voting Laboratory is edition-scoped. Select the exact Organizer edition first; Solaris will not load an all-editions ballot sample or substitute another edition."
+            description="Voting Laboratory uses only the exact selected Organizer edition as its entry pool. It will not load production ballots, an all-editions sample, or substitute another edition."
+          />
+        </div>
+      </AdminPage>
+    );
+  }
+
+  if (participantsQuery.isLoading || countriesQuery.isLoading) {
+    return (
+      <AdminPage>
+        <div className="mx-auto max-w-7xl space-y-4">
+          <VotingLabPageHeader />
+          <AdminCard><p className="py-10 text-center text-sm text-muted-foreground">Loading the selected edition entry pool…</p></AdminCard>
+        </div>
+      </AdminPage>
+    );
+  }
+
+  if (participantsQuery.error || countriesQuery.error) {
+    return (
+      <AdminPage>
+        <div className="mx-auto max-w-7xl space-y-4">
+          <VotingLabPageHeader />
+          <AdminEmptyState
+            icon={FlaskConical}
+            title="Voting Lab entry pool unavailable"
+            description={errorText(participantsQuery.error ?? countriesQuery.error)}
           />
         </div>
       </AdminPage>
@@ -179,6 +199,8 @@ function VotingLabPage() {
     },
   ] satisfies readonly AdminDataColumn<(typeof movementRows)[number]>[];
 
+  const selectedScenario = VOTING_LAB_SYNTHETIC_SCENARIOS.find((item) => item.id === scenario)!;
+
   return (
     <AdminPage>
       <div className="mx-auto max-w-7xl space-y-4">
@@ -190,40 +212,55 @@ function VotingLabPage() {
               <ShieldCheck className="size-5" />
             </span>
             <div>
-              <p className="font-semibold">Simulation only</p>
+              <p className="font-semibold">Synthetic scenarios only</p>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Voting Lab reads ballot shapes through an organizer-only server function. Usernames, voter countries, IP data, device identifiers, VPN state and integrity risk metadata are not returned to this page. Nothing here writes ballots or results.
+                Voting Lab uses the selected edition only to name the candidate entry pool. Every ballot is generated locally from deterministic synthetic scenarios. No submitted jury or televote ballot, voter identity, IP data, device data, VPN state or integrity metadata is queried or replayed, and nothing here can publish or finalize official results.
               </p>
             </div>
           </div>
         </AdminCard>
 
-        {dataQuery.isLoading ? (
-          <AdminCard><p className="py-10 text-center text-sm text-muted-foreground">Loading sanitized ballots…</p></AdminCard>
-        ) : dataQuery.error ? (
-          <AdminCard><AdminEmptyState icon={FlaskConical} title="Voting Lab unavailable" description={errorText(dataQuery.error)} /></AdminCard>
-        ) : !(dataQuery.data?.rounds.length) ? (
-          <AdminCard><AdminEmptyState icon={FlaskConical} title="No voting rounds" description="No linked televoting round is available for the selected edition." /></AdminCard>
+        {entryIds.length < 5 ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={FlaskConical}
+              title="At least five edition entries are required"
+              description="Voting Lab needs five distinct participating countries to construct a valid synthetic 20-point ballot. Production ballots are never used as a fallback."
+            />
+          </AdminCard>
         ) : (
           <>
             <AdminCard>
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_2fr] lg:items-end">
+              <AdminCardHeader
+                eyebrow="Synthetic source"
+                title={selectedScenario.label}
+                description={selectedScenario.description}
+              />
+              <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px_2fr] lg:items-end">
                 <label className="space-y-1.5 text-sm">
-                  <span className="font-semibold">Voting round</span>
+                  <span className="font-semibold">Scenario</span>
                   <select
-                    value={roundId || dataQuery.data.selectedRoundId || ''}
-                    onChange={(event) => setRoundId(event.target.value)}
+                    value={scenario}
+                    onChange={(event) => setScenario(event.target.value as VotingLabSyntheticScenario)}
                     className="min-h-11 w-full rounded-xl border border-white/[0.09] bg-background px-3"
                   >
-                    {dataQuery.data.rounds.map((round) => (
-                      <option key={round.id} value={round.id}>{round.name} · {round.status}</option>
+                    {VOTING_LAB_SYNTHETIC_SCENARIOS.map((item) => (
+                      <option key={item.id} value={item.id}>{item.label}</option>
                     ))}
                   </select>
                 </label>
+                <NumberControl
+                  label="Synthetic ballots"
+                  value={ballotCount}
+                  min={5}
+                  max={100}
+                  onChange={setBallotCount}
+                  help="Generated locally; no live votes are sampled."
+                />
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <SmallStat label="Sanitized ballots" value={`${dataQuery.data.ballots.length}`} />
-                  <SmallStat label="Award rows" value={`${dataQuery.data.ballots.reduce((sum, ballot) => sum + ballot.awards.length, 0)}`} />
-                  <SmallStat label="Entries" value={`${dataQuery.data.entries.length}`} />
+                  <SmallStat label="Synthetic ballots" value={`${syntheticBallots.length}`} />
+                  <SmallStat label="Synthetic awards" value={`${syntheticBallots.reduce((sum, ballot) => sum + ballot.awards.length, 0)}`} />
+                  <SmallStat label="Edition entries" value={`${entryIds.length}`} />
                 </div>
               </div>
             </AdminCard>
@@ -238,7 +275,7 @@ function VotingLabPage() {
                     min={1}
                     max={20}
                     onChange={setMaxPerCountry}
-                    help="Current system: 10. Lower values reduce how much one ballot can concentrate on one entry."
+                    help="Current system: 10. Lower values reduce how much one synthetic ballot can concentrate on one entry."
                   />
                   <NumberControl
                     label="Total ballot budget"
@@ -257,7 +294,7 @@ function VotingLabPage() {
                     help="Current system: at least 5 different entries."
                   />
                   <label className="block space-y-1.5 text-sm">
-                    <span className="font-semibold">If a historical ballot violates the experiment</span>
+                    <span className="font-semibold">If a synthetic ballot violates the experiment</span>
                     <select
                       value={invalidPolicy}
                       onChange={(event) => setInvalidPolicy(event.target.value as 'reject' | 'cap')}
@@ -300,7 +337,7 @@ function VotingLabPage() {
               <AdminCard>
                 <AdminCardHeader eyebrow="Impact" title="Current vs experiment" />
                 {!current || !experiment ? (
-                  <AdminEmptyState icon={SlidersHorizontal} title="No simulation yet" description="This round needs at least one recorded ballot before systems can be compared." />
+                  <AdminEmptyState icon={SlidersHorizontal} title="No simulation yet" description="Choose a synthetic scenario with at least five edition entries." />
                 ) : (
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <ComparisonMetric
@@ -346,13 +383,13 @@ function VotingLabPage() {
 
             {current && experiment ? (
               <AdminCard>
-                <AdminCardHeader eyebrow="Standings" title="Result movement" />
+                <AdminCardHeader eyebrow="Standings" title="Synthetic result movement" />
                 <AdminDataView
                   className="mt-4"
                   rows={movementRows}
                   columns={movementColumns}
                   rowKey={(row) => row.countryId}
-                  ariaLabel="Voting system result movement"
+                  ariaLabel="Synthetic voting system result movement"
                 />
               </AdminCard>
             ) : null}
@@ -360,9 +397,9 @@ function VotingLabPage() {
             <AdminCard>
               <AdminCardHeader eyebrow="Baseline" title="Current ballot contract" />
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <RuleCard value="20" label="Total points" description="Each submitted ballot must total exactly 20 points." />
-                <RuleCard value="5+" label="Different entries" description="A ballot must support at least five different entries." />
-                <RuleCard value="10" label="Per-entry maximum" description="One entry can receive at most 10 points from one ballot." />
+                <RuleCard value="20" label="Total points" description="Each synthetic baseline ballot totals exactly 20 points." />
+                <RuleCard value="5+" label="Different entries" description="A baseline ballot supports at least five different entries." />
+                <RuleCard value="10" label="Per-entry maximum" description="One entry receives at most 10 points from one baseline ballot." />
               </div>
             </AdminCard>
           </>
@@ -377,7 +414,7 @@ function VotingLabPageHeader() {
     <AdminPageHeader
       eyebrow="Solaris Studio 2"
       title="Voting Laboratory"
-      description="Replay real submitted ballots through alternative voting constraints without changing a single official vote. The browser receives only synthetic ballot identities and award rows."
+      description="Run deterministic synthetic vote scenarios through alternative voting constraints without reading, changing, publishing or finalizing any official vote or result."
     />
   );
 }
@@ -461,7 +498,7 @@ function comparisonRows(current: VotingLabSimulation, experiment: VotingLabSimul
 
 function nameOf(id: string | null, displayMap: Map<string, string>) {
   if (!id) return '—';
-  return displayMap.get(id) ?? displayMap.get(id.toUpperCase()) ?? id;
+  return displayMap.get(id) ?? id;
 }
 
 function formatPercent(value: number) {
@@ -469,5 +506,5 @@ function formatPercent(value: number) {
 }
 
 function errorText(error: unknown) {
-  return error instanceof Error && error.message ? error.message : 'Voting Lab could not load the selected ballot data.';
+  return error instanceof Error && error.message ? error.message : 'Voting Lab could not load the selected edition entry pool.';
 }
