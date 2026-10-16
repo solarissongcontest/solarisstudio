@@ -97,6 +97,7 @@ async function readGeometry(page: Page) {
     const items = bar
       ? Array.from(bar.querySelectorAll<HTMLElement>("[data-v3-tab-index]"))
       : [];
+    const activeItem = bar?.querySelector<HTMLElement>('[data-v3-tab-index][aria-current="page"]') ?? null;
     if (!bar || !material || !backdrop || !lens || items.length === 0) return null;
 
     const rect = (element: HTMLElement) => {
@@ -108,6 +109,7 @@ async function readGeometry(page: Page) {
         bottom: bounds.bottom,
         width: bounds.width,
         height: bounds.height,
+        centerX: bounds.left + bounds.width / 2,
       };
     };
 
@@ -118,10 +120,12 @@ async function readGeometry(page: Page) {
       overflow:
         Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
       collapsed: bar.getAttribute("data-collapsed") === "true",
+      layoutDirection: bar.getAttribute("data-layout-direction") ?? "ltr",
       bar: rect(bar),
       material: rect(material),
       backdrop: rect(backdrop),
       lens: rect(lens),
+      activeItem: activeItem ? rect(activeItem) : null,
       items: items.map(rect),
       obstruction: Number.parseFloat(
         rootStyle.getPropertyValue("--v3-bottom-obstruction") || "0",
@@ -130,6 +134,29 @@ async function readGeometry(page: Page) {
       pointerEvents: getComputedStyle(bar).pointerEvents,
     };
   });
+}
+
+function expectBoundedNavigation(
+  geometry: NonNullable<Awaited<ReturnType<typeof readGeometry>>>,
+) {
+  expect(geometry.overflow).toBeLessThanOrEqual(2);
+  expect(geometry.bar.left).toBeGreaterThanOrEqual(-1);
+  expect(geometry.bar.right).toBeLessThanOrEqual(geometry.viewportWidth + 1);
+  expect(geometry.bar.top).toBeGreaterThan(geometry.viewportHeight * 0.7);
+  expect(geometry.bar.bottom).toBeLessThanOrEqual(geometry.viewportHeight + 1);
+  expect(geometry.material.height).toBeLessThanOrEqual(90);
+  expect(geometry.backdrop.width).toBeLessThanOrEqual(geometry.material.width + 2);
+  expect(geometry.backdrop.height).toBeLessThanOrEqual(geometry.material.height + 2);
+  expect(Math.abs(geometry.backdrop.left - geometry.material.left)).toBeLessThanOrEqual(1);
+  expect(Math.abs(geometry.backdrop.top - geometry.material.top)).toBeLessThanOrEqual(1);
+  expect(geometry.lens.left).toBeGreaterThanOrEqual(geometry.material.left - 1);
+  expect(geometry.lens.right).toBeLessThanOrEqual(geometry.material.right + 1);
+  expect(geometry.lens.top).toBeGreaterThanOrEqual(geometry.material.top - 1);
+  expect(geometry.lens.bottom).toBeLessThanOrEqual(geometry.material.bottom + 1);
+  for (const item of geometry.items) {
+    expect(item.width).toBeGreaterThanOrEqual(44);
+    expect(item.height).toBeGreaterThanOrEqual(44);
+  }
 }
 
 test.describe.configure({ retries: 0 });
@@ -144,7 +171,10 @@ test("installed app shell survives representative navigation without duplicate c
 
   const session = await signInLocalCountry();
   const { baseURL } = requiredLocalConfig();
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    reducedMotion: "reduce",
+  });
   await installSession(context, session);
   const page = await context.newPage();
 
@@ -163,26 +193,48 @@ test("installed app shell survives representative navigation without duplicate c
   if (!initial) return;
 
   expect(initial.collapsed).toBe(false);
-  expect(initial.overflow).toBeLessThanOrEqual(2);
-  expect(initial.bar.left).toBeGreaterThanOrEqual(-1);
-  expect(initial.bar.right).toBeLessThanOrEqual(initial.viewportWidth + 1);
-  expect(initial.bar.top).toBeGreaterThan(initial.viewportHeight * 0.7);
-  expect(initial.bar.bottom).toBeLessThanOrEqual(initial.viewportHeight + 1);
-  expect(initial.material.height).toBeLessThanOrEqual(90);
-  expect(initial.backdrop.width).toBeLessThanOrEqual(initial.material.width + 2);
-  expect(initial.backdrop.height).toBeLessThanOrEqual(initial.material.height + 2);
-  expect(Math.abs(initial.backdrop.left - initial.material.left)).toBeLessThanOrEqual(1);
-  expect(Math.abs(initial.backdrop.top - initial.material.top)).toBeLessThanOrEqual(1);
-  expect(initial.lens.left).toBeGreaterThanOrEqual(initial.material.left - 1);
-  expect(initial.lens.right).toBeLessThanOrEqual(initial.material.right + 1);
-  expect(initial.lens.top).toBeGreaterThanOrEqual(initial.material.top - 1);
-  expect(initial.lens.bottom).toBeLessThanOrEqual(initial.material.bottom + 1);
-  for (const item of initial.items) {
-    expect(item.width).toBeGreaterThanOrEqual(44);
-    expect(item.height).toBeGreaterThanOrEqual(44);
-  }
+  expect(initial.layoutDirection).toBe("ltr");
+  expectBoundedNavigation(initial);
   expect(initial.obstruction).toBeGreaterThan(0);
   expect(initial.obstruction).toBeLessThanOrEqual(136);
+
+  // This representative project intentionally runs with Reduced Motion. Prove
+  // that CSS and the JS direct-manipulation guard both honor it.
+  expect(
+    await page.evaluate(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches),
+  ).toBe(true);
+  const activeLink = page.locator('[data-v3-liquid-tabbar] [aria-current="page"]');
+  const activeBounds = await activeLink.boundingBox();
+  expect(activeBounds).not.toBeNull();
+  if (activeBounds) {
+    const x = activeBounds.x + activeBounds.width / 2;
+    const y = activeBounds.y + activeBounds.height / 2;
+    await activeLink.dispatchEvent("pointerdown", {
+      pointerId: 71,
+      pointerType: "touch",
+      button: 0,
+      clientX: x,
+      clientY: y,
+    });
+    await activeLink.dispatchEvent("pointermove", {
+      pointerId: 71,
+      pointerType: "touch",
+      button: 0,
+      clientX: x - 90,
+      clientY: y,
+    });
+    await expect(page.locator(".v3-liquid-tabbar__material")).toHaveAttribute(
+      "data-dragging",
+      "false",
+    );
+    await activeLink.dispatchEvent("pointerup", {
+      pointerId: 71,
+      pointerType: "touch",
+      button: 0,
+      clientX: x - 90,
+      clientY: y,
+    });
+  }
 
   await page.evaluate(() => {
     const spacer = document.createElement("div");
@@ -238,6 +290,34 @@ test("installed app shell survives representative navigation without duplicate c
     .poll(async () => (await readGeometry(page))?.obstruction ?? 0)
     .toBeGreaterThan(0);
   await expect(page.locator("[data-v3-liquid-tabbar]")).toBeVisible();
+
+  // N12 explicitly requires RTL. Flip the document direction in-place so the
+  // same authenticated installed-app state proves the mirrored lens geometry
+  // without adding another backend fixture or any hosted Supabase traffic.
+  await page.evaluate(() => {
+    document.documentElement.dir = "rtl";
+  });
+  await expect(page.locator("[data-v3-liquid-tabbar]")).toHaveAttribute(
+    "data-layout-direction",
+    "rtl",
+  );
+  const rtl = await readGeometry(page);
+  expect(rtl).not.toBeNull();
+  if (!rtl) return;
+  expect(rtl.layoutDirection).toBe("rtl");
+  expectBoundedNavigation(rtl);
+  expect(rtl.activeItem).not.toBeNull();
+  if (rtl.activeItem) {
+    expect(Math.abs(rtl.lens.centerX - rtl.activeItem.centerX)).toBeLessThanOrEqual(3);
+  }
+
+  await page.evaluate(() => {
+    document.documentElement.dir = "ltr";
+  });
+  await expect(page.locator("[data-v3-liquid-tabbar]")).toHaveAttribute(
+    "data-layout-direction",
+    "ltr",
+  );
 
   await context.close();
 });
