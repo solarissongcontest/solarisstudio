@@ -291,6 +291,19 @@ test("installed app shell survives representative navigation without duplicate c
   await expect
     .poll(async () => (await readGeometry(page))?.obstruction ?? 0)
     .toBeGreaterThan(0);
+  await expect
+    .poll(async () => {
+      const geometry = await readGeometry(page);
+      if (!geometry) return Number.POSITIVE_INFINITY;
+      return Math.max(0, geometry.bar.bottom - geometry.viewportHeight);
+    })
+    .toBeLessThanOrEqual(1);
+  await expect
+    .poll(async () => (await readGeometry(page))?.pointerEvents ?? "")
+    .toBe("auto");
+  await expect
+    .poll(async () => Number((await readGeometry(page))?.opacity ?? 0))
+    .toBeGreaterThan(0.99);
   await expect(page.locator("[data-v3-liquid-tabbar]")).toBeVisible();
 
   // N12 explicitly requires RTL. Flip the document direction in-place so the
