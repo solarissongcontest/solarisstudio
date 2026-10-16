@@ -40,4 +40,18 @@ describe("V3 navigation RTL integration contract", () => {
     expect(tabbar).toContain("${physicalLensIndex} * (100% + 2px)");
     expect(tabbar).not.toContain("visualLensIndex * inlineSign");
   });
+
+  it("keeps the Organizer selected lens on the same physical RTL axis", () => {
+    const tabbar = source("src/components/admin/OrganizerV6TabBar.tsx");
+
+    expect(tabbar).toContain("const physicalLensIndex =");
+    expect(tabbar).toContain(
+      'layoutDirection === "rtl" ? count - 1 - visualActiveIndex : visualActiveIndex',
+    );
+    expect(tabbar).toContain('left: ".375rem"');
+    expect(tabbar).toContain('right: "auto"');
+    expect(tabbar).toContain('direction: "ltr"');
+    expect(tabbar).toContain("${physicalLensIndex} * (100% + .15rem)");
+    expect(tabbar).not.toContain("visualActiveIndex * inlineSign");
+  });
 });
