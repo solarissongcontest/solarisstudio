@@ -117,6 +117,7 @@ async function readGeometry(page: Page) {
       viewportHeight: window.innerHeight,
       overflow:
         Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+      collapsed: bar.getAttribute("data-collapsed") === "true",
       bar: rect(bar),
       material: rect(material),
       backdrop: rect(backdrop),
@@ -161,6 +162,7 @@ test("V3 installed navigation keeps Liquid Glass bounded and yields to the softw
   expect(initial).not.toBeNull();
   if (!initial) return;
 
+  expect(initial.collapsed).toBeFalse();
   expect(initial.overflow).toBeLessThanOrEqual(2);
   expect(initial.bar.left).toBeGreaterThanOrEqual(-1);
   expect(initial.bar.right).toBeLessThanOrEqual(initial.viewportWidth + 1);
@@ -181,6 +183,42 @@ test("V3 installed navigation keeps Liquid Glass bounded and yields to the softw
   }
   expect(initial.obstruction).toBeGreaterThan(0);
   expect(initial.obstruction).toBeLessThanOrEqual(136);
+
+  // Give the route enough scroll range to exercise the production hysteresis
+  // hook without depending on whatever account data happens to be seeded.
+  await page.evaluate(() => {
+    const spacer = document.createElement("div");
+    spacer.dataset.v3NavScrollFixture = "";
+    spacer.style.height = "1600px";
+    spacer.style.pointerEvents = "none";
+    document.body.append(spacer);
+    window.scrollTo({ top: 420, behavior: "instant" });
+  });
+  await expect(page.locator("[data-v3-liquid-tabbar]")).toHaveAttribute("data-collapsed", "true");
+  await expect
+    .poll(async () => (await readGeometry(page))?.material.height ?? initial.material.height)
+    .toBeLessThan(initial.material.height - 1);
+
+  const compact = await readGeometry(page);
+  expect(compact).not.toBeNull();
+  if (!compact) return;
+  expect(compact.material.height).toBeLessThan(initial.material.height);
+  expect(compact.material.width).toBeLessThanOrEqual(initial.material.width + 1);
+  expect(compact.obstruction).toBeGreaterThan(0);
+  expect(compact.obstruction).toBeLessThan(initial.obstruction);
+  for (const item of compact.items) {
+    expect(item.width).toBeGreaterThanOrEqual(44);
+    expect(item.height).toBeGreaterThanOrEqual(44);
+  }
+
+  await page.evaluate(() => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+    document.querySelector("[data-v3-nav-scroll-fixture]")?.remove();
+  });
+  await expect(page.locator("[data-v3-liquid-tabbar]")).toHaveAttribute("data-collapsed", "false");
+  await expect
+    .poll(async () => (await readGeometry(page))?.material.height ?? 0)
+    .toBeGreaterThan(compact.material.height + 1);
 
   await page.evaluate(() => {
     document.documentElement.setAttribute("data-solaris-keyboard-open", "true");
