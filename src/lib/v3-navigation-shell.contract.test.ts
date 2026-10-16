@@ -114,6 +114,20 @@ describe("V3 navigation shell acceptance guardrails", () => {
     expect(css).toContain("--v3-tab-visual-scale");
   });
 
+  it("preserves native nested horizontal ownership before JS gesture arbitration", () => {
+    const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
+    const gesture = source("src/lib/v3-navigation-gesture.ts");
+    const css = source("src/styles/v3-top-level-swipe.css");
+
+    expect(css).not.toContain("touch-action: pan-y pinch-zoom");
+    expect(css).toMatch(/data-v3-top-level-swipe-enabled="true"[\s\S]*touch-action: auto/);
+    expect(gesture).toContain("'.overflow-x-auto'");
+    expect(gesture).toContain("'.overflow-x-scroll'");
+    expect(gesture).toContain("'[data-carousel]'");
+    expect(swipe).toContain("elementBlocksV3TopLevelSwipe(event.target)");
+    expect(swipe).toContain("event.preventDefault()");
+  });
+
   it("moves accessibility ownership to the canonical winning slot during frozen settle", () => {
     const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
 
