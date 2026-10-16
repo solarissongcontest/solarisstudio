@@ -145,6 +145,12 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "operations-media-assets" ||
     id === "current-edition-publish" ||
     id === "operations-communications" ||
+    id === "current-edition-storytelling" ||
+    id === "workspace-predictions" ||
+    id === "workspace-fantasy" ||
+    id === "live-review-simulation-lab" ||
+    id === "live-review-time-machine" ||
+    id === "live-review-voting-lab" ||
     id === "workspace-command-assistant"
   ) {
     return "building";
