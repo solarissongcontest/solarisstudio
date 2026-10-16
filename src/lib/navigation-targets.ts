@@ -1,17 +1,17 @@
 /**
  * Canonical product destinations.
  *
- * Participant links should point at their V3 ownership surface. Legacy
- * MySolaris paths remain compatibility/deep-link entry points while cutover is
- * proven, but new participant navigation should converge on the canonical
- * destination instead of preserving duplicate workspaces forever.
+ * Compatibility routes remain explicit while V3 ownership surfaces get their
+ * own targets. This lets existing deep links survive cutover without forcing
+ * new participant navigation back into a duplicate legacy workspace.
  */
 export const NAV_TARGETS = {
   mySolaris: "/my-solaris",
   mySolarisCountry: "/my-solaris/country",
   mySolarisTasks: "/my-solaris/tasks",
   mySolarisEntry: "/my-solaris/entry",
-  mySolarisVoting: "/participate",
+  mySolarisVoting: "/my-solaris/voting",
+  participate: "/participate",
   mySolarisNotices: "/my-solaris/notices",
   mySolarisPageBuilder: "/my-solaris/page-builder",
   mySolarisTheme: "/my-solaris/theme",
