@@ -15,6 +15,7 @@ describe("V3 Organizer O4 capability registry", () => {
       "delegation-confirmation-overview",
       "delegation-confirmation-requirements",
       "delegation-confirmation-responses",
+      "delegation-next-in-line",
       "delegation-responses-by-country",
       "delegation-submission-rounds",
       "delegation-calendar",
@@ -28,7 +29,6 @@ describe("V3 Organizer O4 capability registry", () => {
   });
 
   it("keeps untouched O4 specialist surfaces planned", () => {
-    expect(capability("delegation-next-in-line").migrationStatus).toBe("planned");
     expect(capability("delegation-edition-links").migrationStatus).toBe("planned");
   });
 
