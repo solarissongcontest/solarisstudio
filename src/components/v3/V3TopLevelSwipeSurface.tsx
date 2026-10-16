@@ -27,7 +27,7 @@ type SwipeState = {
   velocityX: number;
   owner: V3SwipeIntent;
   viewportWidth: number;
-  lensSlotWidth: number;
+  lensStepWidth: number;
   tabItems: HTMLElement[];
 };
 
@@ -96,7 +96,11 @@ export function V3TopLevelSwipeSurface({
     material?.removeAttribute("data-v3-page-settling");
     material
       ?.querySelectorAll<HTMLElement>("[data-v3-tab-index]")
-      .forEach((item) => item.style.removeProperty("--v3-tab-visual-weight"));
+      .forEach((item) => {
+        item.style.removeProperty("--v3-tab-visual-weight");
+        item.style.removeProperty("--v3-tab-visual-opacity");
+        item.style.removeProperty("--v3-tab-visual-scale");
+      });
   }, [activeIndex]);
 
   const resetSurface = useCallback(() => {
@@ -128,17 +132,24 @@ export function V3TopLevelSwipeSurface({
 
       const material = navigationMaterial();
       if (material) {
-        const lensOffset = (boundedProgress - activeIndex) * state.lensSlotWidth;
+        const lensOffset = (boundedProgress - activeIndex) * state.lensStepWidth;
         material.style.setProperty("--v3-liquid-drag-x", `${lensOffset.toFixed(2)}px`);
         material.toggleAttribute("data-v3-page-swiping", phase === "drag");
         material.toggleAttribute("data-v3-page-settling", phase === "settle");
       }
 
       for (let index = 0; index < state.tabItems.length; index += 1) {
+        const item = state.tabItems[index];
+        if (!item) continue;
         const weight = Math.max(0, 1 - Math.abs(index - boundedProgress));
-        state.tabItems[index]?.style.setProperty(
-          "--v3-tab-visual-weight",
-          weight.toFixed(4),
+        item.style.setProperty("--v3-tab-visual-weight", weight.toFixed(4));
+        item.style.setProperty(
+          "--v3-tab-visual-opacity",
+          (0.78 + weight * 0.22).toFixed(4),
+        );
+        item.style.setProperty(
+          "--v3-tab-visual-scale",
+          (0.97 + weight * 0.05).toFixed(4),
         );
       }
     },
@@ -187,7 +198,15 @@ export function V3TopLevelSwipeSurface({
       ? Array.from(material.querySelectorAll<HTMLElement>("[data-v3-tab-index]"))
       : [];
     const activeTab = tabItems[activeIndex];
-    const lensSlotWidth = activeTab?.getBoundingClientRect().width ?? 0;
+    const adjacentTab = tabItems[activeIndex + 1] ?? tabItems[activeIndex - 1];
+    const activeRect = activeTab?.getBoundingClientRect();
+    const adjacentRect = adjacentTab?.getBoundingClientRect();
+    const activeCenter = activeRect ? activeRect.left + activeRect.width / 2 : 0;
+    const adjacentCenter = adjacentRect ? adjacentRect.left + adjacentRect.width / 2 : 0;
+    const lensStepWidth =
+      activeRect && adjacentRect
+        ? Math.abs(adjacentCenter - activeCenter)
+        : (activeRect?.width ?? 0);
 
     dragRef.current = {
       pointerId: event.pointerId,
@@ -198,7 +217,7 @@ export function V3TopLevelSwipeSurface({
       velocityX: 0,
       owner: "undecided",
       viewportWidth: Math.max(1, window.visualViewport?.width ?? window.innerWidth),
-      lensSlotWidth,
+      lensStepWidth,
       tabItems,
     };
   };
