@@ -10,6 +10,10 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { Input } from "@/components/ui/input";
+import {
+  loadConfirmationEditions,
+  type ConfirmationEdition,
+} from "@/integrations/confirmations/admin";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 
 export const Route = createFileRoute("/confirmations/admin/responses")({
@@ -155,16 +159,9 @@ function responseCardState(row: ResponseRow): CardState {
   if (row.selection_method === "national_final") {
     const entries = activeNfEntries(row);
     if (!entries.length || row.nf_entries_unknown) return "neutral";
-
-    // A declined NF song is a known problem and stays yellow until the HOD
-    // fixes/removes it. Otherwise pending songs take priority as work for admin.
     if (entries.some((entry) => entry.review_status === "declined")) return "issue";
     if (entries.some((entry) => !entry.review_status || entry.review_status === "pending")) return "review";
-
-    // All submitted NF songs can be perfectly reviewed while the delegation has
-    // not selected its winner yet. That is intentionally neutral, not an error.
     if (!row.national_finals?.winning_entry_id) return "neutral";
-
     return "ready";
   }
 
@@ -236,8 +233,22 @@ function matchesFilter(row: ResponseRow, filter: ResponseFilter) {
 
 function ConfirmationResponsesPage() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const { editionId } = useAdminContext();
 
   if (pathname.startsWith(`${Route.fullPath}/`)) {
+    if (!editionId) {
+      return (
+        <div className="admin-page pb-5">
+          <AdminCard>
+            <AdminEmptyState
+              icon={CircleAlert}
+              title="Select an edition"
+              description="Entry Review is edition-scoped operational work. Select the exact Organizer edition before opening a response detail."
+            />
+          </AdminCard>
+        </div>
+      );
+    }
     return <Outlet />;
   }
 
@@ -246,6 +257,7 @@ function ConfirmationResponsesPage() {
 
 function ConfirmationResponsesList() {
   const { editionId: organizerEditionId, setEditionId: setOrganizerEditionId } = useAdminContext();
+  const [editions, setEditions] = useState<ConfirmationEdition[]>([]);
   const [rows, setRows] = useState<ResponseRow[]>([]);
   const [nextRows, setNextRows] = useState<NextInLineRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -253,35 +265,32 @@ function ConfirmationResponsesList() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ResponseFilter>("all");
   const [mode, setMode] = useState<"confirmations" | "next_in_line">("confirmations");
-  const [editionId, setEditionId] = useState(organizerEditionId || "all");
+  const [editionId, setEditionId] = useState("");
   const [roundId, setRoundId] = useState("all");
 
   useEffect(() => {
     let alive = true;
 
     void (async () => {
-      const [responsesResult, nextResult] = await Promise.all([
-        confirmationsSupabase.rpc("admin_confirmation_responses"),
-        confirmationsSupabase.rpc("admin_confirmation_next_in_line", { _edition_id: null }),
-      ]);
+      try {
+        const [editionRows, responsesResult] = await Promise.all([
+          loadConfirmationEditions(),
+          confirmationsSupabase.rpc("admin_confirmation_responses"),
+        ]);
 
-      if (!alive) return;
+        if (!alive) return;
+        if (responsesResult.error) throw responsesResult.error;
 
-      if (responsesResult.error) {
-        setError(responsesResult.error.message);
-        setRows([]);
-      } else {
+        setEditions(editionRows);
+        setEditionId(editionRows.find((edition) => edition.id === organizerEditionId)?.id ?? "");
         setRows(Array.isArray(responsesResult.data) ? (responsesResult.data as unknown as ResponseRow[]) : []);
+      } catch (caught) {
+        if (!alive) return;
+        setError(caught instanceof Error ? caught.message : "Responses could not be loaded.");
+        setRows([]);
+      } finally {
+        if (alive) setLoading(false);
       }
-
-      if (nextResult.error) {
-        setError((current) => current ?? nextResult.error.message);
-        setNextRows([]);
-      } else {
-        setNextRows(Array.isArray(nextResult.data) ? (nextResult.data as unknown as NextInLineRow[]) : []);
-      }
-
-      setLoading(false);
     })();
 
     return () => {
@@ -289,34 +298,48 @@ function ConfirmationResponsesList() {
     };
   }, []);
 
-  const editions = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; edition_number: number }>();
-    rows.forEach((row) => {
-      if (row.editions) map.set(row.editions.id, row.editions);
-    });
-    nextRows.forEach((row) => {
-      if (row.edition) map.set(row.edition.id, row.edition);
-    });
-    return [...map.values()].sort((a, b) => b.edition_number - a.edition_number);
-  }, [nextRows, rows]);
-
   useEffect(() => {
-    if (
-      organizerEditionId &&
-      organizerEditionId !== editionId &&
-      editions.some((edition) => edition.id === organizerEditionId)
-    ) {
-      setEditionId(organizerEditionId);
+    const nextEditionId = editions.find((edition) => edition.id === organizerEditionId)?.id ?? "";
+    if (nextEditionId !== editionId) {
+      setEditionId(nextEditionId);
       setRoundId("all");
+      setMode("confirmations");
     }
   }, [editionId, editions, organizerEditionId]);
 
+  useEffect(() => {
+    let alive = true;
+    if (!editionId) {
+      setNextRows([]);
+      return () => {
+        alive = false;
+      };
+    }
+
+    void (async () => {
+      const result = await confirmationsSupabase.rpc("admin_confirmation_next_in_line", {
+        _edition_id: editionId,
+      });
+      if (!alive) return;
+      if (result.error) {
+        setError((current) => current ?? result.error.message);
+        setNextRows([]);
+      } else {
+        setNextRows(Array.isArray(result.data) ? (result.data as unknown as NextInLineRow[]) : []);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [editionId]);
+
   const rounds = useMemo(() => {
+    if (!editionId) return [];
     const map = new Map<string, { id: string; name: string; edition_id: string }>();
     rows.forEach((row) => {
       const round = row.submission_rounds;
-      if (!round) return;
-      if (editionId !== "all" && round.edition_id !== editionId) return;
+      if (!round || round.edition_id !== editionId) return;
       map.set(round.id, round);
     });
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
@@ -328,12 +351,16 @@ function ConfirmationResponsesList() {
     }
   }, [roundId, rounds]);
 
+  const scopedRows = useMemo(
+    () => (editionId ? rows.filter((row) => row.editions?.id === editionId) : []),
+    [editionId, rows],
+  );
+
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
 
-    return rows
+    return scopedRows
       .filter((row) => {
-        if (editionId !== "all" && row.editions?.id !== editionId) return false;
         if (roundId !== "all" && row.submission_rounds?.id !== roundId) return false;
         if (!matchesFilter(row, filter)) return false;
 
@@ -361,12 +388,12 @@ function ConfirmationResponsesList() {
         if (priority !== 0) return priority;
         return new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime();
       });
-  }, [editionId, filter, query, roundId, rows]);
+  }, [filter, query, roundId, scopedRows]);
 
   const filteredNext = useMemo(() => {
     const term = query.trim().toLowerCase();
     return nextRows.filter((row) => {
-      if (editionId !== "all" && row.edition_id !== editionId) return false;
+      if (row.edition_id !== editionId) return false;
       if (!term) return true;
       return [row.country, row.artist ?? "", row.song_title ?? "", row.selection_type]
         .join(" ")
@@ -375,16 +402,16 @@ function ConfirmationResponsesList() {
     });
   }, [editionId, nextRows, query]);
 
-  const reviewCount = rows.filter((row) => responseCardState(row) === "review").length;
-  const issueCount = rows.filter((row) => responseCardState(row) === "issue").length;
-  const readyCount = rows.filter((row) => responseCardState(row) === "ready").length;
+  const reviewCount = scopedRows.filter((row) => responseCardState(row) === "review").length;
+  const issueCount = scopedRows.filter((row) => responseCardState(row) === "issue").length;
+  const readyCount = scopedRows.filter((row) => responseCardState(row) === "ready").length;
 
   return (
-    <div className="admin-page pb-5">
+    <div className="admin-page pb-5" data-v3-organizer-entry-review="">
       <AdminPageHeader
-        eyebrow="Delegations"
+        eyebrow="Contest · Entry Review"
         title="Responses"
-        description="Review confirmations with the same organizer triage tools as the standalone Confirmations app."
+        description="Review confirmation and entry state for the exact edition selected in Solaris Organizer. Running Order remains a separate contest operation."
         actions={
           <Link to="/confirmations/admin" className="admin-action-secondary">
             Delegations overview
@@ -395,6 +422,7 @@ function ConfirmationResponsesList() {
       <div className="mb-4 grid grid-cols-2 gap-2">
         <button
           type="button"
+          disabled={!editionId}
           onClick={() => setMode("confirmations")}
           className={mode === "confirmations" ? "admin-action-primary" : "admin-action-secondary"}
         >
@@ -402,6 +430,7 @@ function ConfirmationResponsesList() {
         </button>
         <button
           type="button"
+          disabled={!editionId}
           onClick={() => {
             setMode("next_in_line");
             setRoundId("all");
@@ -412,7 +441,7 @@ function ConfirmationResponsesList() {
         </button>
       </div>
 
-      {mode === "confirmations" ? (
+      {editionId && mode === "confirmations" ? (
         <div className="mb-4 grid grid-cols-3 gap-2">
           <div className="rounded-xl border border-rose-300/20 bg-rose-300/[0.035] p-3 text-center">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-100/70">Review</p>
@@ -433,10 +462,16 @@ function ConfirmationResponsesList() {
         <div className="grid gap-2 md:grid-cols-[1fr_1fr_1fr_1.4fr]">
           <select
             value={editionId}
-            onChange={(event) => { const nextEditionId = event.target.value; setEditionId(nextEditionId); setRoundId("all"); if (nextEditionId !== "all") setOrganizerEditionId(nextEditionId); }}
+            onChange={(event) => {
+              const nextEditionId = event.target.value;
+              setEditionId(nextEditionId);
+              setOrganizerEditionId(nextEditionId);
+              setRoundId("all");
+              setMode("confirmations");
+            }}
             className="min-h-11 rounded-xl border border-white/[0.09] bg-background px-3 text-sm text-foreground [color-scheme:dark]"
           >
-            <option value="all">All editions</option>
+            <option value="">Select edition…</option>
             {editions.map((edition) => (
               <option key={edition.id} value={edition.id}>
                 SSC {edition.edition_number} · {edition.name}
@@ -446,9 +481,10 @@ function ConfirmationResponsesList() {
 
           {mode === "confirmations" ? (
             <select
+              disabled={!editionId}
               value={roundId}
               onChange={(event) => setRoundId(event.target.value)}
-              className="min-h-11 rounded-xl border border-white/[0.09] bg-background px-3 text-sm text-foreground [color-scheme:dark]"
+              className="min-h-11 rounded-xl border border-white/[0.09] bg-background px-3 text-sm text-foreground [color-scheme:dark] disabled:opacity-45"
             >
               <option value="all">All rounds</option>
               {rounds.map((round) => (
@@ -461,9 +497,10 @@ function ConfirmationResponsesList() {
 
           {mode === "confirmations" ? (
             <select
+              disabled={!editionId}
               value={filter}
               onChange={(event) => setFilter(event.target.value as ResponseFilter)}
-              className="min-h-11 rounded-xl border border-white/[0.09] bg-background px-3 text-sm text-foreground [color-scheme:dark]"
+              className="min-h-11 rounded-xl border border-white/[0.09] bg-background px-3 text-sm text-foreground [color-scheme:dark] disabled:opacity-45"
             >
               {FILTERS.map((item) => (
                 <option key={item.value} value={item.value}>{item.label}</option>
@@ -477,6 +514,7 @@ function ConfirmationResponsesList() {
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               aria-label="Search confirmation responses"
+              disabled={!editionId}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search country, username, artist or song…"
@@ -499,6 +537,14 @@ function ConfirmationResponsesList() {
               <p className="mt-1 text-sm text-muted-foreground">{error}</p>
             </div>
           </div>
+        </AdminCard>
+      ) : !editionId ? (
+        <AdminCard>
+          <AdminEmptyState
+            icon={CircleAlert}
+            title="Select an edition"
+            description="Entry Review is edition-scoped. Solaris will not combine historical response queues or substitute a globally active or newest edition."
+          />
         </AdminCard>
       ) : mode === "next_in_line" ? (
         filteredNext.length ? (
