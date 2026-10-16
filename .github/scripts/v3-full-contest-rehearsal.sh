@@ -13,14 +13,15 @@ source "$SCRIPT_DIR/v3-s14-stage-1-setup.sh"
 source "$SCRIPT_DIR/v3-s14-stage-2-onboarding.sh"
 source "$SCRIPT_DIR/v3-s14-stage-3-confirmations.sh"
 source "$SCRIPT_DIR/v3-s14-stage-4-entries.sh"
+source "$SCRIPT_DIR/v3-s14-stage-5-running-orders.sh"
 
 run_s14_stage_1_setup
 run_s14_stage_2_onboarding
 run_s14_stage_3_confirmations
 run_s14_stage_4_entries
+run_s14_stage_5_running_orders
 
 PENDING_STAGES=(
-  stage-5-running-orders
   stage-6-jury
   stage-7-public-voting
   stage-8-results
@@ -44,6 +45,7 @@ payload = {
         "stage-2-delegation-onboarding",
         "stage-3-confirmations",
         "stage-4-entries",
+        "stage-5-running-orders",
     ],
     "implementedInvariants": [
         "confirmation-no-effective-duplicates",
@@ -65,7 +67,7 @@ with open(path, "w", encoding="utf-8") as handle:
 PY
 
 if [[ "${V3_S14_ALLOW_PARTIAL:-0}" == "1" ]]; then
-  log "Partial S14 harness passed through Stage 4; release-grade S14 remains blocked by ${#PENDING_STAGES[@]} stages."
+  log "Partial S14 harness passed through Stage 5; release-grade S14 remains blocked by ${#PENDING_STAGES[@]} stages."
   exit 0
 fi
 
