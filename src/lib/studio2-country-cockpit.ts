@@ -28,6 +28,29 @@ export async function loadStudio2CountryCockpit(
   return mapStudio2CountryCockpit(data);
 }
 
+/**
+ * Delegation search is a view concern over the canonical country cockpit
+ * projection. It never broadens edition scope or performs a second data read.
+ */
+export function matchesStudio2CountryCockpitQuery(
+  row: Studio2CountryCockpitRow,
+  query: string,
+): boolean {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  if (!normalizedQuery) return true;
+
+  const searchableValues = [
+    row.context.countryName,
+    row.context.entry?.artist,
+    row.context.entry?.songTitle,
+    ...row.context.juryMembers.map((member) => member.displayName),
+  ];
+
+  return searchableValues.some(
+    (value) => typeof value === 'string' && value.toLocaleLowerCase().includes(normalizedQuery),
+  );
+}
+
 const operationalStateRank: Record<
   Studio2CountryCockpitRow['operationalReadiness']['state'],
   number
