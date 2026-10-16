@@ -113,7 +113,10 @@ describe("V3 Organizer explicit edition context", () => {
     expect(communications).toContain('title="Choose an edition"');
     expect(communications).toContain("never broadens a missing edition into an all-editions view");
 
-    expect(communicationsData).toContain("loadStudio2Notices");
+    expect(communicationsData).toContain("if (!editionId)");
+    expect(communicationsData).toContain("Official Communications requires an explicit edition scope.");
+    expect(communicationsData).toContain(".eq('edition_id', editionId)");
+    expect(communicationsData).not.toContain("if (editionId) noticeQuery = noticeQuery.eq('edition_id', editionId)");
   });
 
   it("explains why missing scope does not silently switch editions", () => {
