@@ -10,6 +10,7 @@ import {
   History,
   Network,
   PlayCircle,
+  Settings2,
   ShieldAlert,
   Trophy,
   Users,
@@ -196,6 +197,21 @@ function VotingAdminOverview() {
                   icon={Users}
                   title="Jury"
                   description="Jury operations become available after the selected edition identity has resolved. Solaris will not guess an edition slug."
+                />
+              )}
+              {editionSlug ? (
+                <WorkspaceRow
+                  to={`/admin/voting-system/${editionSlug}`}
+                  icon={Settings2}
+                  title="Voting rules"
+                  description="Review point scales, jury/public weighting, self-voting, qualifiers and tie-break rules for the selected edition's shows."
+                  detail="Review before changes"
+                />
+              ) : (
+                <WorkspaceUnavailableRow
+                  icon={Settings2}
+                  title="Voting rules"
+                  description="Voting rules become available after the selected edition identity has resolved. Solaris will not guess an edition slug."
                 />
               )}
               <WorkspaceRow
