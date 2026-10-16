@@ -22,7 +22,7 @@ describe("V3 Organizer Tasks domain organization", () => {
   it("keeps domain filtering presentation-only over canonical task objects", () => {
     expect(tasks).toContain('const tasks = tasksQuery.data ?? []');
     expect(tasks).toContain('tasks.filter((task) => taskDomain(task) === domain)');
-    expect(tasks).not.toContain("Mark resolved");
+    expect(tasks).toContain("There is intentionally no generic “Mark resolved” button.");
     expect(tasks).not.toContain("integrations/supabase/client");
     expect(tasks).not.toContain(".from(");
   });
