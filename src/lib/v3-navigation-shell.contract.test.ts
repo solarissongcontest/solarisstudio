@@ -51,6 +51,7 @@ describe("V3 navigation shell acceptance guardrails", () => {
   });
 
   it("announces navigation badge counts once on public and Organizer surfaces", () => {
+    const shell = source("src/components/v3/V3AppShell.tsx");
     const publicTabs = source("src/components/v3/V3LiquidTabBar.tsx");
     const desktop = source("src/components/v3/V3DesktopPrimaryNavigation.tsx");
     const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
@@ -60,6 +61,8 @@ describe("V3 navigation shell acceptance guardrails", () => {
     expect(organizerTabs).toContain("organizerItemLabel(item)");
     expect(organizerTabs).not.toContain("aria-label={`${item.badge} unresolved item");
     expect(organizerTabs).toMatch(/v6-organizer-tabbar[\s\S]*aria-hidden="true"/);
+    expect(shell).toContain("const notificationLabel =");
+    expect(shell).toContain("aria-label={notificationLabel}");
   });
 
   it("keeps Organizer glass bounded and removes mobile chrome when the keyboard opens", () => {
@@ -96,6 +99,8 @@ describe("V3 navigation shell acceptance guardrails", () => {
     expect(swipe).toContain("lensStepWidth");
     expect(swipe).toContain('data-v3-swipe-preview="previous"');
     expect(swipe).toContain('data-v3-swipe-preview="next"');
+    expect(swipe).toMatch(/aria-hidden="true"\s+inert\s+data-v3-swipe-preview="previous"/);
+    expect(swipe).toMatch(/aria-hidden="true"\s+inert\s+data-v3-swipe-preview="next"/);
     expect(swipe).not.toMatch(/screenshot|canvas\.toDataURL|html2canvas/i);
     expect(shell).toContain("swipePreviewSurfaces?: V3TopLevelSwipePreviewSurfaces");
     expect(shell).toContain("previousSurface={swipePreviewSurfaces?.previous}");
@@ -106,5 +111,29 @@ describe("V3 navigation shell acceptance guardrails", () => {
     expect(css).toContain('data-v3-page-settling="true"');
     expect(css).toContain("--v3-tab-visual-opacity");
     expect(css).toContain("--v3-tab-visual-scale");
+  });
+
+  it("cancels page manipulation when shell ownership or lifecycle changes", () => {
+    const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
+    const shell = source("src/components/v3/V3AppShell.tsx");
+
+    expect(swipe).toContain("APP_RESUME_EVENT");
+    expect(swipe).toContain('"data-solaris-feature-overlay-open"');
+    expect(swipe).toContain('"data-solaris-keyboard-open"');
+    expect(swipe).toContain('window.addEventListener("pagehide", interrupt)');
+    expect(swipe).toContain("rootInterruptionObserver.observe");
+    expect(swipe).toContain("shellInteractionBlocked()");
+    expect(swipe).toContain("interactionKey?: string | null");
+    expect(swipe).toContain("[interactionKey, pathname, resetSurface, searchStr]");
+    expect(shell).toContain("interactionKey={navigationScope}");
+  });
+
+  it("hands focus to canonical page content after a committed swipe", () => {
+    const shell = source("src/components/v3/V3AppShell.tsx");
+
+    expect(shell).toContain("function focusCurrentRouteAfterSwipe()");
+    expect(shell).toContain('target.setAttribute("tabindex", "-1")');
+    expect(shell).toContain("target.focus({ preventScroll: true })");
+    expect(shell).toContain("Promise.resolve(navigateToTarget()).then(focusCurrentRouteAfterSwipe)");
   });
 });
