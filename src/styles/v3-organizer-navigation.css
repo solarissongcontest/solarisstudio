@@ -1,0 +1,39 @@
+/* Keep the Organizer mobile navigation material physically bounded even though
+   legacy admin styles also target .admin-mobile-nav. The glass lives on the
+   inner material, never on a viewport-width fixed backdrop. */
+.admin-mobile-nav[data-v6-organizer-tabbar] {
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+/*
+ * Organizer shares the Public tab-bar physics but its material is authored with
+ * utility classes. Flex removes WebKit's absolute-child RTL grid ambiguity while
+ * preserving the inherited logical direction. A normal RTL flex row places later
+ * logical destinations toward physical left, matching the component's single
+ * mirrored lens index without an additional row-reversal transform.
+ */
+.admin-mobile-nav[data-v6-organizer-tabbar] > div {
+  display: flex !important;
+}
+
+.admin-mobile-nav[data-v6-organizer-tabbar] > div > [data-organizer-tab-index] {
+  flex: 1 1 0;
+}
+
+html[data-solaris-keyboard-open] .admin-mobile-nav[data-v6-organizer-tabbar] {
+  opacity: 0;
+  transform: translateY(calc(100% + env(safe-area-inset-bottom) + 2rem));
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-mobile-nav[data-v6-organizer-tabbar] {
+    transition: none;
+  }
+}

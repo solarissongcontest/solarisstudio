@@ -80,6 +80,22 @@ describe("Solaris Interaction Physics", () => {
     expect(response.growHeight).toBe(9);
     expect(response.growRadius).toBe(4);
     expect(response.direction).toBe("right");
+    expect(response.overscroll).toBe(0);
+  });
+
+  it("rubber-bands edge drag without exposing an unbounded fake destination", () => {
+    const response = resolveElasticDrag({
+      rawDelta: 500,
+      minDelta: -80,
+      maxDelta: 80,
+      slotWidth: 80,
+      rubberBand: true,
+    });
+
+    expect(response.delta).toBeGreaterThan(80);
+    expect(response.delta).toBeLessThan(160);
+    expect(response.overscroll).toBe(420);
+    expect(response.scaleX).toBeLessThanOrEqual(1 + SOLARIS_INTERACTION_TOKENS.stretch.max);
   });
 
   it("requires intentional horizontal travel before a tab drag commits", () => {
@@ -107,6 +123,32 @@ describe("Solaris Interaction Physics", () => {
         itemCount: 5,
       }),
     ).toBe(1);
+  });
+
+  it("projects release velocity but can constrain navigation to one adjacent destination", () => {
+    expect(
+      resolveTabDragTargetIndex({
+        rawDelta: 12,
+        velocityX: 0.7,
+        velocityProjectionMs: 110,
+        originIndex: 2,
+        slotWidth: 80,
+        itemCount: 5,
+        maxSteps: 1,
+      }),
+    ).toBe(3);
+
+    expect(
+      resolveTabDragTargetIndex({
+        rawDelta: -320,
+        velocityX: -1.5,
+        velocityProjectionMs: 110,
+        originIndex: 3,
+        slotWidth: 80,
+        itemCount: 5,
+        maxSteps: 1,
+      }),
+    ).toBe(2);
   });
 
   it("lets bottom sheets follow long pulls and distinguishes snap from dismiss", () => {

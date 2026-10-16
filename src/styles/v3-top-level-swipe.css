@@ -1,0 +1,95 @@
+@import "./v3-navigation-performance.css";
+
+[data-solaris-v3] .v3-top-level-swipe-surface {
+  min-width: 0;
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+/* Do not force pan-y on this ancestor. touch-action is intersected through the
+   ancestor chain before Pointer Events arbitrate, so a surface-level pan-y
+   would silently disable native horizontal scrolling in descendant carousels,
+   rails, tables and chips. The recognizer fails closed in JS and calls
+   preventDefault only after a non-edge, non-content-owned horizontal gesture
+   has actually won. */
+[data-solaris-v3] .v3-top-level-swipe-surface[data-v3-top-level-swipe-enabled="true"] {
+  touch-action: auto;
+}
+
+[data-solaris-v3] .v3-top-level-swipe-track {
+  --v3-page-swipe-x: 0%;
+  position: relative;
+  min-width: 0;
+  transform: translate3d(var(--v3-page-swipe-x), 0, 0);
+  transition: transform 180ms var(--v3-ease-spring);
+}
+
+[data-solaris-v3] .v3-top-level-swipe-track[data-v3-page-swiping="true"] {
+  transition: none;
+  will-change: transform;
+}
+
+[data-solaris-v3] .v3-top-level-swipe-track[data-v3-page-settling="true"] {
+  will-change: transform;
+}
+
+[data-solaris-v3] .v3-top-level-swipe-page {
+  min-width: 0;
+}
+
+[data-solaris-v3] .v3-top-level-swipe-page--previous,
+[data-solaris-v3] .v3-top-level-swipe-page--next {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  pointer-events: none;
+  contain: layout paint style;
+}
+
+[data-solaris-v3] .v3-top-level-swipe-page--previous {
+  transform: translate3d(-100%, 0, 0);
+}
+
+[data-solaris-v3] .v3-top-level-swipe-page--next {
+  transform: translate3d(100%, 0, 0);
+}
+
+/* Keep the same logical previous/current/next composition when the document is
+   right-to-left. The JS publishes logical progress and mirrors the physical
+   track/lens translation; the adjacent live DOM surfaces mirror here too. */
+[data-solaris-v3] .v3-top-level-swipe-surface:dir(rtl) .v3-top-level-swipe-page--previous {
+  transform: translate3d(100%, 0, 0);
+}
+
+[data-solaris-v3] .v3-top-level-swipe-surface:dir(rtl) .v3-top-level-swipe-page--next {
+  transform: translate3d(-100%, 0, 0);
+}
+
+/* Page swipe and the selected Liquid Glass lens are one gesture. The hot loop
+   sets one navigation progress and derives both transforms from it. */
+[data-solaris-v3]
+  .v3-liquid-tabbar__material[data-v3-page-swiping="true"]
+  .v3-liquid-tabbar__lens {
+  transition: none;
+}
+
+[data-solaris-v3]
+  .v3-liquid-tabbar__material[data-v3-page-swiping="true"]
+  .v3-liquid-tabbar__icon,
+[data-solaris-v3]
+  .v3-liquid-tabbar__material[data-v3-page-settling="true"]
+  .v3-liquid-tabbar__icon {
+  opacity: var(--v3-tab-visual-opacity, 0.78);
+  transform: scale(var(--v3-tab-visual-scale, 0.97));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-solaris-v3] .v3-top-level-swipe-track {
+    transform: none !important;
+    transition: none !important;
+  }
+
+  [data-solaris-v3] .v3-top-level-swipe-surface {
+    touch-action: auto;
+  }
+}
