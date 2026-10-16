@@ -26,6 +26,7 @@ import {
   AdminSheet,
   AdminStatus,
 } from '@/components/admin/AdminUI';
+import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useEditions } from '@/lib/data';
 import {
   INCIDENT_CATEGORIES,
@@ -85,9 +86,7 @@ function IncidentCommandPage() {
   const { editionId } = useAdminContext();
   const editionsQuery = useEditions();
   const editions = editionsQuery.data ?? [];
-  const edition = editions.find((candidate) => candidate.id === editionId)
-    ?? [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0]
-    ?? null;
+  const edition = selectOrganizerEdition(editions, editionId);
   const resolvedEditionId = edition?.id ?? '';
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -119,6 +118,7 @@ function IncidentCommandPage() {
   });
 
   const invalidate = async () => {
+    if (!resolvedEditionId) return;
     await Promise.all([
       qc.invalidateQueries({ queryKey: ['studio2-incidents-full', resolvedEditionId] }),
       qc.invalidateQueries({ queryKey: ['studio2-incident-events', resolvedEditionId] }),
@@ -127,14 +127,19 @@ function IncidentCommandPage() {
   };
 
   const createIncident = useMutation({
-    mutationFn: () => studio2Persistence.createIncidentFull({
-      editionId: resolvedEditionId,
-      title: title.trim(),
-      severity,
-      category,
-      description: description.trim(),
-      affectedSystems: parseSystems(systems),
-    }),
+    mutationFn: () => {
+      if (!resolvedEditionId) {
+        throw new Error('Choose an edition before opening an incident.');
+      }
+      return studio2Persistence.createIncidentFull({
+        editionId: resolvedEditionId,
+        title: title.trim(),
+        severity,
+        category,
+        description: description.trim(),
+        affectedSystems: parseSystems(systems),
+      });
+    },
     onSuccess: async (incident) => {
       setTitle(''); setDescription(''); setSystems(''); setSeverity('sev3'); setCategory('technical'); setCreateOpen(false);
       await invalidate();
@@ -164,7 +169,7 @@ function IncidentCommandPage() {
           eyebrow="Solaris Studio 2 · Operations"
           title="Incident Command"
           description="Open, acknowledge, command, escalate, document, resolve and reopen operational incidents with a persisted timeline and capability-checked server commands."
-          actions={<button type="button" onClick={() => setCreateOpen((value) => !value)} className="admin-action-primary"><Plus className="size-4" /> Open incident</button>}
+          actions={<button type="button" disabled={!edition} onClick={() => setCreateOpen((value) => !value)} className="admin-action-primary disabled:opacity-50"><Plus className="size-4" /> Open incident</button>}
         />
 
         {model.metrics.crisis > 0 ? (
@@ -180,7 +185,7 @@ function IncidentCommandPage() {
         ) : null}
 
         {!edition && !editionsQuery.isLoading ? (
-          <AdminCard><AdminEmptyState icon={Command} title="No edition selected" description="Select an edition before opening Incident Command." /></AdminCard>
+          <AdminCard><AdminEmptyState icon={Command} title="Choose an edition" description="Select the edition in the Organizer toolbar before opening Incident Command. Solaris will not substitute the newest or globally active edition." /></AdminCard>
         ) : featureQuery.data === false ? (
           <AdminCard><AdminEmptyState icon={ShieldAlert} title="Incident Command is disabled" description="Enable Incident Command in Feature Rollout for this edition." /></AdminCard>
         ) : loading ? (
@@ -271,6 +276,12 @@ function IncidentDetailSheet({ incident, events, editionId, onClose, onChanged }
   const mutate = useMutation({
     mutationFn: async (action: { kind: string; value?: string }) => {
       if (!incident) return;
+      if (!editionId || incident.editionId !== editionId) {
+        throw Object.assign(
+          new Error('Edition context changed before the incident command. Reload Incident Command before retrying.'),
+          { status: 409 },
+        );
+      }
       if (action.kind === 'ack') await studio2Persistence.acknowledgeIncident(incident.id);
       else if (action.kind === 'crisis') await studio2Persistence.declareIncidentCrisis(incident.id);
       else if (action.kind === 'transition') await studio2Persistence.transitionIncident(incident.id, action.value as IncidentStatus);
@@ -307,7 +318,7 @@ function IncidentDetailSheet({ incident, events, editionId, onClose, onChanged }
           <DetailMetric label="Opened" value={formatDateTime(incident.startedAt)} />
           <DetailMetric label="Acknowledged" value={incident.acknowledgedAt ? formatDateTime(incident.acknowledgedAt) : 'No'} />
           <DetailMetric label="Commander" value={incident.commanderId ?? 'Unassigned'} />
-          <DetailMetric label="Edition" value={editionId || 'Global'} />
+          <DetailMetric label="Edition" value={editionId || 'Unavailable'} />
         </div>
 
         <div className="grid grid-cols-2 gap-2">
