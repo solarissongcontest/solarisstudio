@@ -22,7 +22,7 @@ describe("V3 direct tab drag RTL and hot-loop contract", () => {
     }
   });
 
-  it("anchors the Public lens to an explicit grid area while keeping badges logical", () => {
+  it("keeps the Public lens on one physical flex axis while badges remain logical", () => {
     const publicTabs = source("src/components/v3/V3LiquidTabBar.tsx");
     const publicCss = source("src/styles/v3-liquid-tabbar.css");
     const fixedCss = source("src/styles/v3-navigation-fixed-geometry.css");
@@ -36,13 +36,19 @@ describe("V3 direct tab drag RTL and hot-loop contract", () => {
     expect(publicTabs).toContain("${physicalLensIndex} * (100% + 2px)");
     expect(publicTabs).not.toContain("visualLensIndex * inlineSign");
     expect(publicCss).toContain("inset-inline-end: -0.52rem");
-    expect(fixedCss).toMatch(/v3-liquid-tabbar__lens[\s\S]*grid-column: 1 \/ 2;/);
-    expect(fixedCss).toMatch(/v3-liquid-tabbar__lens[\s\S]*width: 100% !important;/);
-    expect(fixedCss).toMatch(/v3-liquid-tabbar__lens[\s\S]*left: 0 !important;/);
-    expect(fixedCss).toMatch(/v3-liquid-tabbar__lens[\s\S]*right: auto !important;/);
+
+    expect(fixedCss).toMatch(/v3-liquid-tabbar__material[\s\S]*display: flex;/);
+    expect(fixedCss).toMatch(/v3-liquid-tabbar__material[\s\S]*direction: ltr;/);
     expect(fixedCss).toMatch(
-      /data-layout-direction="rtl"[\s\S]*\.v3-liquid-tabbar__lens[\s\S]*grid-column: -2 \/ -1;/,
+      /data-layout-direction="rtl"[\s\S]*\.v3-liquid-tabbar__material[\s\S]*flex-direction: row-reverse;/,
     );
+    expect(fixedCss).toMatch(/v3-liquid-tabbar__lens[\s\S]*left: 6px !important;/);
+    expect(fixedCss).toMatch(/v3-liquid-tabbar__lens[\s\S]*right: auto !important;/);
+    expect(fixedCss).toMatch(/v3-liquid-tabbar__item[\s\S]*flex: 1 1 0;/);
+    expect(fixedCss).toMatch(
+      /data-layout-direction="rtl"[\s\S]*\.v3-liquid-tabbar__item[\s\S]*direction: rtl;/,
+    );
+    expect(fixedCss).not.toContain("grid-column:");
 
     expect(organizerTabs).toContain("const physicalLensIndex =");
     expect(organizerTabs).toContain(
