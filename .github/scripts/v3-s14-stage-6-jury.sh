@@ -129,14 +129,13 @@ from generate_series(1,66) i;
     # payload. The server must reject the ballot before any canonical vote row
     # exists, even though the integrity snapshot itself is internally coherent.
     if (( i == 2 )); then
-      own_ballot="$(python3 - "$country_id" <<'PY' <<< "$ballot_json"
-import json, sys
+      own_ballot="$(python3 -c '
+import json,sys
 country_id=sys.argv[1]
 rows=json.load(sys.stdin)
 rows[0]["target_country_id"]=country_id
-print(json.dumps(rows, separators=(",", ":")))
-PY
-)"
+print(json.dumps(rows,separators=(",",":")))
+' "$country_id" <<< "$ballot_json")"
       own_preflight="14000000-0000-4006-8100-$suffix"
       seed_jury_preflight "$own_preflight" "$show_id" "$hod_id" "$username" "$country_code" "$own_ballot"
       rpc_request "$hod_token" v3_submit_jury_ballot "{\"_show_id\":\"$show_id\",\"_entries\":$own_ballot,\"_preflight_id\":\"$own_preflight\",\"_operation_id\":\"14000000-0000-4006-8101-$suffix\",\"_request_hash\":\"caller-hash-is-not-authority\"}"
