@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { join, resolve } from "node:path";
 import {
   V3_DOMAIN_CONSEQUENCE_REGISTRY,
   V3_ORGANIZER_CAPABILITY_REGISTRY,
@@ -109,34 +110,39 @@ if (unfinishedOrganizer.length) blockers.push(`${unfinishedOrganizer.length} Org
 if (declarationOnly.length) blockers.push(`${declarationOnly.length} domain consequences not event-backed`);
 if (warnings.length) blockers.push(`${warnings.length} parity capabilities missing explicit migration evidence`);
 
+// Exact-candidate evidence is generated after checkout and must live outside the
+// candidate commit. Embedding a commit SHA in a file that contributes to that
+// same commit SHA is self-referential and cannot be a valid certification model.
+const releaseEvidenceDir = resolve(process.env.V3_RELEASE_EVIDENCE_DIR?.trim() || "v3-release-evidence");
 const releasePrerequisiteEvidence = [
-  "artifacts/v3-release/s14-full-contest.json",
-  "artifacts/v3-release/s15-zero-orphan.json",
-  "artifacts/v3-release/security-advisor-classification.json",
+  "s14-full-contest.json",
+  "s15-zero-orphan.json",
+  "security-advisor-classification.json",
 ] as const;
 const exactCandidateEvidence = finalCertification
-  ? [...releasePrerequisiteEvidence, "artifacts/v3-release/s16-certification.json"]
+  ? [...releasePrerequisiteEvidence, "s16-certification.json"]
   : [...releasePrerequisiteEvidence];
 
-for (const path of exactCandidateEvidence) {
+for (const filename of exactCandidateEvidence) {
+  const path = join(releaseEvidenceDir, filename);
   if (!existsSync(path)) {
-    blockers.push(`missing exact-candidate evidence: ${path}`);
+    blockers.push(`missing exact-candidate runtime evidence: ${filename}`);
     continue;
   }
   if (!evidenceCandidateSha) {
-    blockers.push(`cannot verify exact candidate SHA for evidence: ${path}`);
+    blockers.push(`cannot verify exact candidate SHA for evidence: ${filename}`);
     continue;
   }
   try {
     const evidence = JSON.parse(readFileSync(path, "utf8")) as { candidateSha?: unknown };
     const artifactSha = typeof evidence.candidateSha === "string" ? evidence.candidateSha.trim().toLowerCase() : "";
     if (!/^[0-9a-f]{40}$/.test(artifactSha)) {
-      blockers.push(`${path} is not bound by a valid 40-character candidateSha`);
+      blockers.push(`${filename} is not bound by a valid 40-character candidateSha`);
     } else if (artifactSha !== evidenceCandidateSha) {
-      blockers.push(`${path} certifies ${artifactSha}, not exact candidate ${evidenceCandidateSha}`);
+      blockers.push(`${filename} certifies ${artifactSha}, not exact candidate ${evidenceCandidateSha}`);
     }
   } catch {
-    blockers.push(`${path} is not valid JSON exact-candidate evidence`);
+    blockers.push(`${filename} is not valid JSON exact-candidate evidence`);
   }
 }
 
