@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -13,6 +14,8 @@ import {
   v3OrganizerTabForPath,
   v3OrganizerTabRoot,
 } from "./v3-organizer";
+
+const moreSource = readFileSync("src/routes/_authenticated/admin/more.tsx", "utf8");
 
 class MemoryStorage implements Storage {
   private values = new Map<string, string>();
@@ -129,6 +132,18 @@ describe("V3 Organizer information architecture", () => {
     expect(scopedItems.find((item) => item.key === "delivery-issues")).toBeUndefined();
     expect(scopedItems.find((item) => item.key === "rundown")).toBeUndefined();
     expect(scopedItems.find((item) => item.key === "reveal")).toBeUndefined();
+  });
+
+  it("surfaces the canonical Governance toolset directly in More", () => {
+    expect(moreSource).toContain('title: "Trust & Governance"');
+    expect(moreSource).toContain('to: "/admin/integrity-investigations"');
+    expect(moreSource).toContain('to: "/admin/integrity-preclearance"');
+    expect(moreSource).toContain('to: "/admin/integrity-appeals"');
+    expect(moreSource).toContain('to: "/admin/integrity-evidence"');
+    expect(moreSource).toContain('to: "/admin/integrity-disclosure"');
+    expect(moreSource).toContain('to: "/admin/integrity-identity"');
+    expect(moreSource).toContain('to: "/admin/rules-manager"');
+    expect(moreSource).toContain('to: "/admin/rule-interpretations"');
   });
 });
 
