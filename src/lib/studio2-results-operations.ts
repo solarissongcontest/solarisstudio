@@ -82,6 +82,12 @@ export type Studio2ResultExecution = {
   idempotentReplay: boolean;
 };
 
+export type Studio2ResultBlocker = {
+  id: 'jury' | 'televote' | 'calculation' | 'reconciliation';
+  label: string;
+  detail: string;
+};
+
 type RpcClient = {
   rpc(name: string, args?: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }>;
 };
@@ -279,6 +285,59 @@ export function resultActionLabel(action: Studio2ResultAction, version: number):
     case 'mark_reveal_ready': return 'Mark reveal ready';
     case 'clear_reveal_ready': return 'Clear reveal readiness';
   }
+}
+
+/**
+ * Human-facing blocker explanations derived only from the authoritative
+ * Results snapshot. These reasons never decide whether an operation is valid;
+ * the server remains the final preflight authority for every command.
+ */
+export function studio2ResultBlockers(row: Studio2ResultOperationRow): Studio2ResultBlocker[] {
+  const pre = row.preconditions;
+  if (pre.publishedResults) return [];
+
+  if (!pre.calculationReady) {
+    const blockers: Studio2ResultBlocker[] = [];
+    if (pre.juryEnabled && !pre.juryReady) {
+      blockers.push({
+        id: 'jury',
+        label: 'Jury input is not finalized',
+        detail: `${pre.juryIncompleteCount} incomplete · ${pre.juryConflictCount} conflicts · ${pre.juryDnvCount} did not vote`,
+      });
+    }
+    if (pre.televoteEnabled && !pre.televoteReady) {
+      blockers.push({
+        id: 'televote',
+        label: 'Public vote input is not finalized',
+        detail: `${pre.televoteVoteRows} canonical public-vote rows are currently available`,
+      });
+    }
+    if (!blockers.length) {
+      blockers.push({
+        id: 'calculation',
+        label: 'Calculation preflight is not ready',
+        detail: 'The canonical Results snapshot still reports an unmet calculation precondition.',
+      });
+    }
+    return blockers;
+  }
+
+  if (row.calculationVersion > 0 && (!pre.resultReady || pre.reconcileIssueCount > 0)) {
+    return [{
+      id: 'reconciliation',
+      label: 'Calculated result needs reconciliation',
+      detail: [
+        pre.entityCountMismatch
+          ? `${pre.entityCountMismatch} participant/result-row count mismatch${pre.entityCountMismatch === 1 ? '' : 'es'}`
+          : null,
+        pre.sourceReconcileIssueCount
+          ? `${pre.sourceReconcileIssueCount} total or weighting issue${pre.sourceReconcileIssueCount === 1 ? '' : 's'}`
+          : null,
+      ].filter(Boolean).join(' · ') || 'The canonical result snapshot is not yet ready for review.',
+    }];
+  }
+
+  return [];
 }
 
 export function availableStudio2ResultActions(row: Studio2ResultOperationRow): Studio2ResultAction[] {
