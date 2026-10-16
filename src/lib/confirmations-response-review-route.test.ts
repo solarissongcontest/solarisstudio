@@ -22,7 +22,7 @@ describe("confirmation response review routing", () => {
     expect(detailRoute).not.toContain("admin_review_confirmation_entry");
   });
 
-  it("restores the standalone response filters, edition scope and Next in Line admin view", () => {
+  it("keeps standalone response filters exact-scoped and preserves Next in Line", () => {
     const listRoute = source("src/routes/confirmations/admin/responses.tsx");
 
     expect(listRoute).toContain('value: "participating"');
@@ -30,7 +30,9 @@ describe("confirmation response review routing", () => {
     expect(listRoute).toContain('value: "song_submitted"');
     expect(listRoute).toContain('value: "unreviewed"');
     expect(listRoute).toContain('value: "nf_declined"');
-    expect(listRoute).toContain("All editions");
+    expect(listRoute).not.toContain("All editions");
+    expect(listRoute).toContain('title="Select an edition"');
+    expect(listRoute).toContain("exact edition selected in Solaris Organizer");
     expect(listRoute).toContain("All rounds");
     expect(listRoute).toContain("Next in Line");
     expect(listRoute).toContain("admin_confirmation_next_in_line");
