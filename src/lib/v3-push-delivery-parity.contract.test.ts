@@ -19,6 +19,15 @@ describe("V3 push delivery parity", () => {
     expect(code).not.toContain("subscribed: Boolean(subscription)");
   });
 
+  it("keeps the push-state reader compatible with React Query queryFn callers", () => {
+    const code = source();
+
+    expect(code).toContain("export async function getAppPushState(): Promise<AppPushState>");
+    expect(code).toContain("await currentPushUserId()");
+    expect(code).not.toContain("getAppPushState(userId?");
+    expect(code).not.toContain("currentPushUserId(explicitUserId?");
+  });
+
   it("rolls back a brand-new browser subscription when Solaris registration fails", () => {
     const code = source();
     const store = code.indexOf("await storeSubscription(userId, subscription)");
