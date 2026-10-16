@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { loadOrganizerMediaAssetReviews } from "./v3-organizer-media-review-scope";
@@ -47,5 +48,12 @@ describe("Organizer Media Review exact-edition read boundary", () => {
       }),
     ).rejects.toThrow("Media Review requires an explicit edition scope.");
     expect(called).toBe(false);
+  });
+
+  it("is used by the real Organizer Media Review route", () => {
+    const route = readFileSync("src/routes/_authenticated/admin/media-assets.tsx", "utf8");
+    expect(route).toContain("loadOrganizerMediaAssetReviews");
+    expect(route).toContain("queryFn: () => loadOrganizerMediaAssetReviews(resolvedEditionId)");
+    expect(route).not.toContain("queryFn: () => listStudio2MediaAssetReviews(resolvedEditionId)");
   });
 });
