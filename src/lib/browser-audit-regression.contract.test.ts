@@ -28,7 +28,7 @@ describe("Browser Audit regression boundaries", () => {
       "src/routes/_authenticated/admin/action-center.tsx",
       "src/routes/_authenticated/admin/action-centre.tsx",
     ]) {
-      expect(source(path)).toContain('search={{ filter: "all" }}');
+      expect(source(path)).toContain('search={{ filter: "all", domain: "all" }}');
     }
   });
 
@@ -37,10 +37,11 @@ describe("Browser Audit regression boundaries", () => {
     expect(storytelling).toContain('aria-label="Reason for editorial changes"');
   });
 
-  it("keeps Results Reveal page identity in every feature state", () => {
+  it("keeps Results Reveal page identity in every feature and edition-scope state", () => {
     const resultsReveal = source("src/routes/_authenticated/admin/results-reveal.tsx");
     expect(resultsReveal).toContain("function ResultsRevealHeader()");
-    expect(resultsReveal.match(/<ResultsRevealHeader \/>/g)).toHaveLength(3);
+    expect(resultsReveal.match(/<ResultsRevealHeader \/>/g)).toHaveLength(4);
+    expect(resultsReveal).toContain('title="Choose an edition"');
   });
 
   it("keeps Browser Audit controls and launch probes aligned with runtime contracts", () => {
