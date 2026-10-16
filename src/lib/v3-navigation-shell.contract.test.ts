@@ -51,6 +51,10 @@ describe("V3 navigation shell acceptance guardrails", () => {
         "window.addEventListener(APP_RESUME_EVENT, resetInterruptedGesture)",
       );
       expect(tabs).toContain("rootInterruptionObserver?.disconnect()");
+      expect(tabs).toContain("captureTarget: HTMLAnchorElement");
+      expect(tabs).toContain("captureTarget: event.currentTarget");
+      expect(tabs).toContain("drag.captureTarget.hasPointerCapture?.(drag.pointerId)");
+      expect(tabs).toContain("drag.captureTarget.releasePointerCapture?.(drag.pointerId)");
     }
   });
 
