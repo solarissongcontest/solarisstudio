@@ -151,7 +151,7 @@ describe("V3 QA integration infrastructure", () => {
     }
   });
 
-  it("binds all final release evidence to one exact SHA and deliberately does not claim S16 certification", () => {
+  it("binds final release evidence to runtime artifacts for one exact SHA without a self-referential commit", () => {
     expect(preflight).toContain("candidate_sha");
     expect(preflight).toContain("^[0-9a-fA-F]{40}$");
     expect(preflight).toContain("git rev-parse HEAD");
@@ -161,6 +161,9 @@ describe("V3 QA integration infrastructure", () => {
     expect(preflight).toContain("check-v3-release-integrity.ts --release");
     expect(preflight).toContain("not an S16 certificate");
     expect(integrity).toContain("V3_CANDIDATE_SHA");
+    expect(integrity).toContain("V3_RELEASE_EVIDENCE_DIR");
+    expect(integrity).toContain("self-referential");
+    expect(integrity).toContain("--certified");
     expect(integrity).toContain("candidateSha");
     expect(integrity).toContain("s14-full-contest.json");
     expect(integrity).toContain("s15-zero-orphan.json");
