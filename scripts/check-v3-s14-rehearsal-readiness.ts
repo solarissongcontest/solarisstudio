@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import {
   V3_DOMAIN_CONSEQUENCE_REGISTRY,
@@ -177,6 +178,27 @@ if (incompleteInvariants.length) blockers.push(`S14 invariant checks not impleme
 const incompleteFailures = V3_S14_FAILURE_INJECTIONS.filter((item) => item.implementationState !== "implemented");
 if (incompleteFailures.length) blockers.push(`S14 failure injections not implemented: ${incompleteFailures.map((item) => item.id).join(", ")}`);
 
+let archiveTransitionContract: {
+  ready: boolean;
+  blockers: string[];
+  requirements?: unknown;
+} = { ready: false, blockers: ["archive-contract-check-failed"] };
+try {
+  archiveTransitionContract = JSON.parse(
+    execFileSync("bun", ["run", "scripts/check-v3-s14-archive-contract.ts", "--json"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }),
+  ) as typeof archiveTransitionContract;
+} catch (error) {
+  blockers.push(`S14 Archive transition contract checker failed: ${String(error)}`);
+}
+if (!archiveTransitionContract.ready) {
+  blockers.push(
+    `S14 Archive transition is blocked until the System-owned edition command has reviewed-version, operation/idempotency and reconciliation semantics: ${archiveTransitionContract.blockers.join(", ")}`,
+  );
+}
+
 if (unifiedDriverPresent && runtimeLibraryPresent) {
   for (const safetyMarker of [
     "check-v3-production-isolation.ts",
@@ -192,7 +214,7 @@ if (unifiedDriverPresent && runtimeLibraryPresent) {
 
 const ready = blockers.length === 0;
 const report = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   ready,
   lifecycle,
   negativeCases,
@@ -200,6 +222,7 @@ const report = {
   stages: V3_S14_STAGES,
   invariants: V3_S14_INVARIANTS,
   failureInjections: V3_S14_FAILURE_INJECTIONS,
+  archiveTransitionContract,
   focusedLocalAssets: focusedLocalAssets.map((path) => ({ path, present: existsSync(path) })),
   criticalPublic: publicRequired.map((id) => ({ id, status: publicStatus.get(id) ?? "unregistered" })),
   criticalOrganizer: organizerRequired.map((id) => ({ id, status: organizerStatus.get(id) ?? "unregistered" })),
@@ -218,6 +241,7 @@ if (process.argv.includes("--json")) {
   process.stdout.write(`Lifecycle coverage required (${lifecycle.length}): ${lifecycle.join(" -> ")}\n`);
   process.stdout.write(`Negative cases required (${negativeCases.length}): ${negativeCases.join("; ")}\n`);
   process.stdout.write(`Canonical stages: ${V3_S14_STAGES.map((item) => `${item.id}=${item.implementationState}`).join(", ")}\n`);
+  process.stdout.write(`Archive transition contract: ${archiveTransitionContract.ready ? "READY" : `BLOCKED (${archiveTransitionContract.blockers.join(", ")})`}\n`);
   if (blockers.length) process.stdout.write(`Blockers:\n- ${blockers.join("\n- ")}\n`);
 }
 
