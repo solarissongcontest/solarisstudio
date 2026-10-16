@@ -79,6 +79,23 @@ export type V3AppShellProps = {
   swipePreviewSurfaces?: V3TopLevelSwipePreviewSurfaces;
 };
 
+function focusCurrentRouteAfterSwipe() {
+  if (typeof document === "undefined" || typeof window === "undefined") return;
+
+  window.requestAnimationFrame(() => {
+    const target = document.querySelector<HTMLElement>(
+      ".v3-top-level-swipe-page--current main, main.v3-screen, main",
+    );
+    if (!target) return;
+
+    const previousTabIndex = target.getAttribute("tabindex");
+    target.setAttribute("tabindex", "-1");
+    target.focus({ preventScroll: true });
+    if (previousTabIndex == null) target.removeAttribute("tabindex");
+    else target.setAttribute("tabindex", previousTabIndex);
+  });
+}
+
 /**
  * Migration-ready V3 chrome.
  *
@@ -111,6 +128,10 @@ export function V3AppShell({
   // Navigation memory is scoped to the authenticated viewer when known. An
   // anonymous/logout session therefore cannot resurrect another user's Me path.
   const navigationScope = rollout.data?.userId ?? null;
+  const notificationLabel =
+    attention.me > 0
+      ? `Notifications, ${attention.me} ${attention.me === 1 ? "item" : "items"} need attention`
+      : "Notifications";
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -200,7 +221,7 @@ export function V3AppShell({
           <Link
             to={"/notifications" as any}
             className="v3-icon-button"
-            aria-label="Notifications"
+            aria-label={notificationLabel}
             title="Notifications"
             data-v3-notifications-entry=""
           >
@@ -258,7 +279,7 @@ export function V3AppShell({
     const navigateToTarget = () => navigate({ to: v3PublicEntryHref(target) as any });
 
     if (navigationMode === "swipe") {
-      void navigateToTarget();
+      void Promise.resolve(navigateToTarget()).then(focusCurrentRouteAfterSwipe);
       return;
     }
 
@@ -281,6 +302,7 @@ export function V3AppShell({
           previousSurface={swipePreviewSurfaces?.previous}
           nextSurface={swipePreviewSurfaces?.next}
           previewReady={swipePreviewReady}
+          interactionKey={navigationScope}
           onCommit={(targetIndex) => {
             const target = liquidDestinations[targetIndex];
             if (target) openTab(target, "swipe");
