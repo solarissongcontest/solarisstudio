@@ -1,0 +1,152 @@
+name: V3 S14 full-contest rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/scripts/v3-full-contest-rehearsal.sh"
+      - ".github/workflows/v3-s14-full-contest-rehearsal.yml"
+      - "scripts/v3-s14-full-contest-spec.ts"
+      - "scripts/check-v3-s14-rehearsal-readiness.ts"
+      - "src/lib/v3-s14-full-contest-harness.contract.test.ts"
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact commit SHA to rehearse
+        required: true
+        type: string
+      require_complete:
+        description: Require all S14 stages and release-grade evidence
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s14-full-contest-${{ github.event.pull_request.number || inputs.candidate_sha || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full-contest:
+    name: Stateful local full-contest rehearsal
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+      E2E_SUPABASE_PROJECT_ID: local
+      E2E_SUPABASE_PROJECT_REF: local
+      VITE_SUPABASE_PROJECT_ID: local
+      VITE_SUPABASE_PROJECT_REF: local
+      V3_VERIFICATION_TARGET: local
+      V3_SEED_TARGET: local
+      V3_CLEANUP_TARGET: local
+      V3_SERVICE_ROLE_SCOPE: local
+      V3_RELEASE_EVIDENCE_DIR: v3-release-evidence
+    steps:
+      - name: Resolve exact candidate
+        id: candidate
+        shell: bash
+        env:
+          INPUT_SHA: ${{ inputs.candidate_sha }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          candidate="${INPUT_SHA:-${PR_SHA:-$EVENT_SHA}}"
+          [[ "$candidate" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "Invalid candidate SHA" >&2; exit 1; }
+          echo "sha=${candidate,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.candidate.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Verify checkout identity
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ steps.candidate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          [[ "$actual" == "$EXPECTED_SHA" ]] || { echo "Checkout mismatch: $actual != $EXPECTED_SHA" >&2; exit 1; }
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.4
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Ensure PostgreSQL client is available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Start isolated local Supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase db reset
+
+      - name: Prove isolation before destructive rehearsal
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          export SUPABASE_URL="$API_URL"
+          export E2E_SUPABASE_URL="$API_URL"
+          export VITE_SUPABASE_URL="$API_URL"
+          export CONFIRMATIONS_SUPABASE_URL="$API_URL"
+          export VITE_CONFIRMATIONS_SUPABASE_URL="$API_URL"
+          export DATABASE_URL="$DB_URL"
+          export V3_DESTRUCTIVE_VERIFICATION=1
+          bun run scripts/check-v3-production-isolation.ts
+
+      - name: Run one-state contest rehearsal
+        shell: bash
+        env:
+          V3_CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+          REQUIRE_COMPLETE: ${{ github.event_name == 'workflow_dispatch' && inputs.require_complete || false }}
+        run: |
+          set -euo pipefail
+          if [[ "$REQUIRE_COMPLETE" == "true" ]]; then
+            bash .github/scripts/v3-full-contest-rehearsal.sh
+          else
+            V3_S14_ALLOW_PARTIAL=1 bash .github/scripts/v3-full-contest-rehearsal.sh
+          fi
+
+      - name: Verify structural S14 readiness classification
+        shell: bash
+        env:
+          REQUIRE_COMPLETE: ${{ github.event_name == 'workflow_dispatch' && inputs.require_complete || false }}
+        run: |
+          set -euo pipefail
+          bun run scripts/check-v3-s14-rehearsal-readiness.ts --json > v3-release-evidence/s14-readiness.json
+          if [[ "$REQUIRE_COMPLETE" == "true" ]]; then
+            bun run scripts/check-v3-s14-rehearsal-readiness.ts --require-ready
+          fi
+
+      - name: Upload S14 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-s14-full-contest-${{ steps.candidate.outputs.sha }}
+          path: v3-release-evidence/
+          if-no-files-found: error
+          retention-days: 14
