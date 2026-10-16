@@ -95,7 +95,8 @@ export type V3OrganizerDomainState =
   | "blocked"
   | "active"
   | "not_configured"
-  | "complete";
+  | "complete"
+  | "unknown";
 
 export type V3OrganizerDomainSummary = {
   state: V3OrganizerDomainState;
@@ -227,29 +228,42 @@ function buildReadiness(
   serverTime: string,
   stateVersion: string,
 ): V3OrganizerReadiness {
-  const progress = Math.max(0, Math.min(100, Number(health?.progress ?? 0)));
-  const critical = Math.max(0, Number(health?.critical_count ?? 0));
+  // Missing health evidence is not a clean bill of health. Keep all readiness
+  // factors unverified until the canonical health projection is available.
+  if (!health) {
+    return {
+      overall: 0,
+      blocking: [],
+      incomplete: [],
+      ready: [],
+      calculatedAt: serverTime,
+      stateVersion,
+    };
+  }
+
+  const progress = Math.max(0, Math.min(100, Number(health.progress ?? 0)));
+  const critical = Math.max(0, Number(health.critical_count ?? 0));
   const incomplete = [
     factor(
       "entries",
-      Number(health?.missing_songs ?? 0) + Number(health?.missing_artists ?? 0),
+      Number(health.missing_songs ?? 0) + Number(health.missing_artists ?? 0),
       "Entry review",
       "/confirmations/admin/responses",
     ),
     factor(
       "running-order",
-      Number(health?.running_issues ?? 0),
+      Number(health.running_issues ?? 0),
       "Running order",
       `/admin/entries/${edition.slug}`,
     ),
-    factor("jury", Number(health?.jury_issues ?? 0), "Jury", `/admin/jury/${edition.slug}`),
+    factor("jury", Number(health.jury_issues ?? 0), "Jury", `/admin/jury/${edition.slug}`),
     factor(
       "televote",
-      Number(health?.televote_issues ?? 0),
+      Number(health.televote_issues ?? 0),
       "Televote",
       `/admin/televote/${edition.slug}`,
     ),
-    factor("results", Number(health?.result_issues ?? 0), "Results", "/admin/results"),
+    factor("results", Number(health.result_issues ?? 0), "Results", "/admin/results"),
   ].filter((item): item is V3OrganizerReadinessFactor => Boolean(item));
 
   const blocking = critical
@@ -308,11 +322,15 @@ function buildDomains(
       );
       const blocking = domainTasks.filter((task) => task.priority === "critical").length;
       const first = domainTasks[0];
+      // The current V5 task contract can prove the presence of work, but an
+      // empty legacy queue cannot prove the full V3 domain is ready. #575 owns
+      // the richer canonical task-state/action contract that will eventually
+      // allow positive readiness to be derived server-side.
       let state: V3OrganizerDomainState = blocking
         ? "blocked"
         : domainTasks.length
           ? "attention"
-          : "ready";
+          : "unknown";
 
       if (
         key === "voting" &&
@@ -339,7 +357,7 @@ function buildDomains(
               ? "Active operational state"
               : state === "complete"
                 ? "Complete"
-                : "No known action required",
+                : "No current task is known, but canonical V3 readiness is not yet proven",
           issueCount: domainTasks.length,
           blockingIssueCount: blocking,
           primaryRoute: meta[key].route,
@@ -460,7 +478,9 @@ export function buildV3OrganizerProjection(input: {
       detail:
         Number(input.health?.issues_count ?? 0) > 0
           ? `${Number(input.health?.issues_count ?? 0)} health ${Number(input.health?.issues_count ?? 0) === 1 ? "issue" : "issues"}`
-          : "No known edition health issue",
+          : input.health
+            ? "No known edition health issue"
+            : "Edition health projection unavailable",
       issueCount: Number(input.health?.issues_count ?? input.live.issues.total ?? 0),
       criticalIssueCount: Number(input.health?.critical_count ?? input.live.issues.critical ?? 0),
     },
