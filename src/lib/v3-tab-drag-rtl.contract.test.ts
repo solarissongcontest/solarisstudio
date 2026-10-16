@@ -22,11 +22,12 @@ describe("V3 direct tab drag RTL and hot-loop contract", () => {
     }
   });
 
-  it("keeps the Public lens on one physical flex axis while badges remain logical", () => {
+  it("keeps Public and Organizer lenses on one physical flex axis", () => {
     const publicTabs = source("src/components/v3/V3LiquidTabBar.tsx");
     const publicCss = source("src/styles/v3-liquid-tabbar.css");
     const fixedCss = source("src/styles/v3-navigation-fixed-geometry.css");
     const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
+    const organizerCss = source("src/styles/v3-organizer-navigation.css");
 
     expect(publicTabs).toContain("const physicalLensIndex =");
     expect(publicTabs).toContain(
@@ -61,6 +62,15 @@ describe("V3 direct tab drag RTL and hot-loop contract", () => {
     expect(organizerTabs).not.toContain("visualActiveIndex * inlineSign");
     expect(organizerTabs).toContain(
       'layoutDirection === "rtl" ? "-left-3" : "-right-3"',
+    );
+    expect(organizerCss).toMatch(/data-v6-organizer-tabbar\] > div[\s\S]*display: flex !important;/);
+    expect(organizerCss).toMatch(/data-v6-organizer-tabbar\] > div[\s\S]*direction: ltr;/);
+    expect(organizerCss).toMatch(
+      /data-layout-direction="rtl"[\s\S]*> div[\s\S]*flex-direction: row-reverse;/,
+    );
+    expect(organizerCss).toMatch(/data-organizer-tab-index[\s\S]*flex: 1 1 0;/);
+    expect(organizerCss).toMatch(
+      /data-layout-direction="rtl"[\s\S]*data-organizer-tab-index[\s\S]*direction: rtl;/,
     );
   });
 
