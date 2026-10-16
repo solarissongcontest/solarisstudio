@@ -39,10 +39,12 @@ function VotingAdminOverview() {
   const getOverview = useServerFn(getMergedTelevotingOverview);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["merged-televoting-admin-overview", editionId],
-    queryFn: () => getOverview({ data: { editionId } }),
+    queryKey: ["merged-televoting-admin-overview", editionId ?? "none"],
+    enabled: Boolean(editionId),
+    queryFn: () => getOverview({ data: { editionId: editionId! } }),
     staleTime: 10_000,
     refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
   });
 
   const nextAction =
@@ -89,11 +91,11 @@ function VotingAdminOverview() {
                 };
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-5xl" data-v3-organizer-voting="">
       <AdminPageHeader
         eyebrow="Current edition"
         title="Voting"
-        description="Jury, public voting, friend-voting intelligence, integrity and official results live under one organizer section."
+        description="Jury, public voting, integrity and official results are operated from the exact edition selected in Solaris Organizer."
         actions={
           <Link to="/televoting" target="_blank" className="admin-action-secondary">
             <Globe2 className="size-4" /> Public voting
@@ -101,7 +103,15 @@ function VotingAdminOverview() {
         }
       />
 
-      {isLoading ? (
+      {!editionId ? (
+        <AdminCard>
+          <AdminEmptyState
+            icon={Trophy}
+            title="Select an edition"
+            description="Voting is edition-scoped operational work. Select the exact Organizer edition before opening its voting state; Solaris will not substitute a globally active or newest edition."
+          />
+        </AdminCard>
+      ) : isLoading ? (
         <AdminCard>
           <p className="py-7 text-center text-sm text-muted-foreground">Loading voting status…</p>
         </AdminCard>
@@ -129,16 +139,18 @@ function VotingAdminOverview() {
                   <h2 className="truncate text-xl font-bold tracking-[-.025em]">
                     {data.activeEdition ?? "Voting workspace"}
                   </h2>
-                  <AdminStatus tone={data.openRounds > 0 ? "ready" : data.linked ? "neutral" : "attention"}>
-                    {!data.linked
-                      ? "Voting not linked"
-                      : data.openRounds > 0
-                        ? "Public voting live"
-                        : "Public voting closed"}
+                  <AdminStatus tone={data.blocked > 0 ? "blocked" : data.openRounds > 0 ? "ready" : data.linked ? "neutral" : "attention"}>
+                    {data.blocked > 0
+                      ? `${data.blocked} blocked`
+                      : !data.linked
+                        ? "Voting not linked"
+                        : data.openRounds > 0
+                          ? "Public voting live"
+                          : "Public voting closed"}
                   </AdminStatus>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Jury tools are available from the Jury tab above. This overview follows the edition selected in Solaris Organizer.
+                  This overview is a read projection. Opening, closing and correcting official voting remain in their authoritative workspaces.
                 </p>
               </div>
 
@@ -166,23 +178,16 @@ function VotingAdminOverview() {
           <AdminCard>
             <AdminCardHeader
               eyebrow="Voting workspace"
-              title="What do you need to do?"
-              description="Everyday voting operations and relationship intelligence are available directly here."
+              title="Operate the current voting state"
+              description="Core operations stay prominent; analytics and rehearsal tools remain deliberately secondary."
             />
             <div className="divide-y divide-white/[0.07]">
               <WorkspaceRow
                 to="/televoting/admin/rounds"
                 icon={PlayCircle}
                 title="Rounds & entries"
-                description="Choose eligible entries and countries, then open, close or schedule voting."
+                description="Choose eligible entries and countries, then operate the round lifecycle."
                 detail={data.openRounds ? `${data.openRounds} open now` : `${data.rounds} configured`}
-              />
-              <WorkspaceRow
-                to="/admin/friend-voting"
-                icon={Network}
-                title="Friend-voting intelligence"
-                description="Advanced historical relationships, reciprocity, repeated support, cross-channel signals and HOD-aware network analysis."
-                detail="Advanced analysis"
               />
               <WorkspaceRow
                 to="/televoting/admin/integrity"
@@ -195,7 +200,7 @@ function VotingAdminOverview() {
                 to="/televoting/admin/results"
                 icon={Trophy}
                 title="Public vote results"
-                description="Calculate and review the public vote before it becomes part of the official result."
+                description="Inspect the canonical public-vote result before it enters the official result lifecycle."
                 detail={`${data.submissions} ballots`}
               />
               <WorkspaceRow
@@ -214,6 +219,12 @@ function VotingAdminOverview() {
               <span className="text-xs transition group-open:rotate-90">›</span>
             </summary>
             <div className="border-t border-white/[0.07] px-1 pb-1">
+              <WorkspaceRow
+                to="/admin/friend-voting"
+                icon={Network}
+                title="Friend-voting intelligence"
+                description="Historical relationships, reciprocity and HOD-aware network analysis."
+              />
               <WorkspaceRow
                 to="/televoting/admin/analytics"
                 icon={BarChart3}
@@ -236,7 +247,7 @@ function VotingAdminOverview() {
                 to="/televoting/admin/integrity-declarations"
                 icon={ShieldAlert}
                 title="Integrity declarations"
-                description="Review declaration trails and organizer decisions attached to voting submissions."
+                description="Review declaration trails attached to voting submissions."
               />
               <WorkspaceRow
                 to="/televoting/admin/audit-log"
@@ -248,7 +259,7 @@ function VotingAdminOverview() {
                 to="/televoting/admin/backtest"
                 icon={FlaskConical}
                 title="Result backtest"
-                description="Rehearse historical result and integrity scenarios without changing live state."
+                description="Rehearse historical result and integrity scenarios without changing official state."
               />
               <WorkspaceRow
                 to="/televoting/admin/editions"
@@ -263,13 +274,8 @@ function VotingAdminOverview() {
         <AdminCard>
           <AdminEmptyState
             icon={PlayCircle}
-            title="No voting data yet"
-            description="Create a public voting round to begin."
-            action={
-              <Link to="/televoting/admin/rounds" className="admin-action-primary">
-                Set up round
-              </Link>
-            }
+            title="Voting state unavailable"
+            description="Solaris did not receive an authoritative voting overview for the selected edition. It will not infer zero rounds or a healthy state from missing data."
           />
         </AdminCard>
       )}
