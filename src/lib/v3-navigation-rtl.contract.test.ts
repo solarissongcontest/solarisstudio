@@ -27,7 +27,7 @@ describe("V3 navigation RTL integration contract", () => {
     expect(css).toMatch(/:dir\(rtl\)[\s\S]*page--next[\s\S]*translate3d\(-100%/);
   });
 
-  it("mirrors the public slot index exactly once on an LTR physical material axis", () => {
+  it("preserves logical Public direction while keeping the lens on a physical flex axis", () => {
     const tabbar = source("src/components/v3/V3LiquidTabBar.tsx");
     const fixedCss = source("src/styles/v3-navigation-fixed-geometry.css");
 
@@ -40,20 +40,15 @@ describe("V3 navigation RTL integration contract", () => {
     expect(tabbar).not.toContain("visualLensIndex * inlineSign");
 
     expect(fixedCss).toMatch(/v3-liquid-tabbar__material[\s\S]*display: flex;/);
-    expect(fixedCss).toMatch(/v3-liquid-tabbar__material[\s\S]*direction: ltr;/);
-    expect(fixedCss).toMatch(
-      /data-layout-direction="rtl"[\s\S]*\.v3-liquid-tabbar__material[\s\S]*flex-direction: row-reverse;/,
-    );
+    expect(fixedCss).not.toMatch(/v3-liquid-tabbar__material[\s\S]*direction: ltr;/);
+    expect(fixedCss).not.toContain("flex-direction: row-reverse");
     expect(fixedCss).toMatch(/v3-liquid-tabbar__lens[\s\S]*left: 6px !important;/);
     expect(fixedCss).toMatch(/v3-liquid-tabbar__lens[\s\S]*right: auto !important;/);
     expect(fixedCss).not.toContain("grid-column:");
     expect(fixedCss).toMatch(/v3-liquid-tabbar__item[\s\S]*flex: 1 1 0;/);
-    expect(fixedCss).toMatch(
-      /data-layout-direction="rtl"[\s\S]*\.v3-liquid-tabbar__item[\s\S]*direction: rtl;/,
-    );
   });
 
-  it("keeps the Organizer selected lens on the same physical-axis model", () => {
+  it("keeps Organizer on the same inherited-logical / physical-lens model", () => {
     const tabbar = source("src/components/admin/OrganizerV6TabBar.tsx");
     const organizerCss = source("src/styles/v3-organizer-navigation.css");
 
@@ -68,13 +63,8 @@ describe("V3 navigation RTL integration contract", () => {
     expect(tabbar).not.toContain("visualActiveIndex * inlineSign");
 
     expect(organizerCss).toMatch(/data-v6-organizer-tabbar\] > div[\s\S]*display: flex !important;/);
-    expect(organizerCss).toMatch(/data-v6-organizer-tabbar\] > div[\s\S]*direction: ltr;/);
-    expect(organizerCss).toMatch(
-      /data-layout-direction="rtl"[\s\S]*> div[\s\S]*flex-direction: row-reverse;/,
-    );
+    expect(organizerCss).not.toMatch(/data-v6-organizer-tabbar\] > div[\s\S]*direction: ltr;/);
+    expect(organizerCss).not.toContain("flex-direction: row-reverse");
     expect(organizerCss).toMatch(/data-organizer-tab-index[\s\S]*flex: 1 1 0;/);
-    expect(organizerCss).toMatch(
-      /data-layout-direction="rtl"[\s\S]*data-organizer-tab-index[\s\S]*direction: rtl;/,
-    );
   });
 });
