@@ -45,7 +45,7 @@ describe("canonical Entry review version evidence", () => {
     expect(pending).toContain("Awaiting review of this version");
     expect(pending).not.toContain("Your entry was accepted");
   });
-  it("shows the same exact-version evidence for National Final candidates", () => {
+  it("shows stale-version evidence for National Final candidates without presenting the current song as accepted", () => {
     const html = renderToStaticMarkup(
       <ConfirmationReviewStatus
         selectionMethod="national_final"
@@ -62,8 +62,10 @@ describe("canonical Entry review version evidence", () => {
         }}
       />,
     );
-    expect(html).toContain("Earlier review has no version binding");
-    expect(html).not.toContain("Review applies to this version");
+    expect(html).toContain("Entry changed after review");
+    expect(html).toContain("Review applies to an earlier version");
+    expect(html).toContain("waiting for review");
+    expect(html).not.toContain("All 1 song is accepted");
   });
 });
 
