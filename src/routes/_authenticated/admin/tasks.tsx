@@ -28,12 +28,13 @@ import {
 const FILTERS = ["all", "mine", "waiting", "resolved"] as const;
 const DOMAINS = [
   "all",
-  "participation",
+  "delegations",
   "entries",
-  "jury",
-  "televote",
+  "media",
+  "voting",
   "integrity",
   "publication",
+  "communications",
   "system",
 ] as const;
 
@@ -323,28 +324,33 @@ function Metric({
 export function taskDomain(
   task: Pick<OrganizerTaskV5, "href" | "sourceKind" | "taskType">,
 ): Exclude<OrganizerTaskDomainFilter, "all"> {
-  // Prefer the canonical task identity over its route. Entry review currently
-  // lives below a country URL, so URL-first classification silently hides real
-  // entry work inside Participation.
+  // Canonical task identity wins over the route. A domain-specific task may be
+  // opened from a delegation or review workspace without changing ownership.
   const semantic = `${task.sourceKind} ${task.taskType}`.toLowerCase();
-  if (/entry|media|submission|show|lineup|progress|eligib/.test(semantic)) return "entries";
-  if (/jury/.test(semantic)) return "jury";
-  if (/televote|public.?vote/.test(semantic)) return "televote";
+  if (/media|asset|artwork|photo|video|audio/.test(semantic)) return "media";
   if (/integrity|investigation|appeal|evidence|anti[-_ ]?abuse|fraud|ruling|rule/.test(semantic)) {
     return "integrity";
   }
+  if (/jury|televote|voting|ballot|public.?vote/.test(semantic)) return "voting";
+  if (/entry|submission|show|lineup|progress|eligib/.test(semantic)) return "entries";
   if (/result|publication|publish/.test(semantic)) return "publication";
-  if (/confirm|delegat|participation/.test(semantic)) return "participation";
+  if (/communication|notice|announcement|delivery|message|reminder/.test(semantic)) {
+    return "communications";
+  }
+  if (/confirm|delegat|participation/.test(semantic)) return "delegations";
 
   const route = task.href.toLowerCase();
-  if (/entry|media|submission|show|lineup|progress|eligib/.test(route)) return "entries";
-  if (/jury/.test(route)) return "jury";
-  if (/televote|public.?vote/.test(route)) return "televote";
+  if (/media|asset|artwork|photo|video|audio/.test(route)) return "media";
   if (/integrity|investigation|appeal|evidence|anti[-_ ]?abuse|fraud|ruling|rule/.test(route)) {
     return "integrity";
   }
+  if (/jury|televote|voting|ballot|public.?vote/.test(route)) return "voting";
+  if (/entry|submission|show|lineup|progress|eligib/.test(route)) return "entries";
   if (/result|publication|publish/.test(route)) return "publication";
-  if (/confirm|delegat|country|participation/.test(route)) return "participation";
+  if (/communication|notice|announcement|delivery|message|reminder/.test(route)) {
+    return "communications";
+  }
+  if (/confirm|delegat|country|participation/.test(route)) return "delegations";
   return "system";
 }
 
@@ -365,12 +371,13 @@ function filterLabel(filter: OrganizerTaskFilter) {
 
 function domainLabel(domain: OrganizerTaskDomainFilter) {
   if (domain === "all") return "All domains";
-  if (domain === "participation") return "Participation";
+  if (domain === "delegations") return "Delegations";
   if (domain === "entries") return "Entries";
-  if (domain === "jury") return "Jury";
-  if (domain === "televote") return "Televote";
+  if (domain === "media") return "Media";
+  if (domain === "voting") return "Voting";
   if (domain === "integrity") return "Integrity";
   if (domain === "publication") return "Publication";
+  if (domain === "communications") return "Communications";
   return "System";
 }
 
