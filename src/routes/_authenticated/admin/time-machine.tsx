@@ -52,6 +52,9 @@ type TimelineRow = {
   source: "Contest event" | "Audit marker";
 };
 
+const TIME_MACHINE_EVENT_LIMIT = 250;
+const TIME_MACHINE_AUDIT_LIMIT = 100;
+
 async function loadSnapshot(editionId: string, asOf: string) {
   const { data, error } = await (supabase as any).rpc("studio2_time_machine", {
     _edition_id: editionId,
@@ -79,6 +82,14 @@ function snapshotRows(snapshot: TimeMachineSnapshot | null | undefined): Timelin
       source: "Audit marker" as const,
     })),
   ];
+}
+
+function snapshotMayBeTruncated(snapshot: TimeMachineSnapshot | null | undefined) {
+  return Boolean(
+    snapshot &&
+      (snapshot.events.length >= TIME_MACHINE_EVENT_LIMIT ||
+        snapshot.audit.length >= TIME_MACHINE_AUDIT_LIMIT),
+  );
 }
 
 function TimeMachinePage() {
@@ -132,6 +143,7 @@ function TimeMachinePage() {
       changes,
       eventCount: changes.filter((row) => row.source === "Contest event").length,
       auditCount: changes.filter((row) => row.source === "Audit marker").length,
+      truncated: snapshotMayBeTruncated(first) || snapshotMayBeTruncated(second),
     };
   }, [compareEnabled, comparisonSnapshot.data, snapshot.data]);
 
@@ -196,14 +208,21 @@ function TimeMachinePage() {
           ) : comparison ? (
             <AdminCard strong>
               <AdminCardHeader
-                eyebrow="Authoritative diff"
-                title="Recorded changes between snapshots"
+                eyebrow={comparison.truncated ? "Bounded diff" : "Authoritative diff"}
+                title={comparison.truncated ? "Recorded changes within snapshot limits" : "Recorded changes between snapshots"}
                 description={`${new Date(comparison.from.asOf).toLocaleString()} → ${new Date(comparison.to.asOf).toLocaleString()}`}
               />
+              {comparison.truncated ? (
+                <div className="mt-4">
+                  <AdminStatus tone="attention">
+                    At least one snapshot reached the RPC evidence limit ({TIME_MACHINE_EVENT_LIMIT} events or {TIME_MACHINE_AUDIT_LIMIT} audit markers). Counts below are observed rows, not a complete authoritative diff. Narrow the time range before treating them as exhaustive.
+                  </AdminStatus>
+                </div>
+              ) : null}
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <SmallMetric label="Contest events" value={comparison.eventCount} />
-                <SmallMetric label="Audit markers" value={comparison.auditCount} />
-                <SmallMetric label="Recorded changes" value={comparison.changes.length} />
+                <SmallMetric label={comparison.truncated ? "Observed events" : "Contest events"} value={comparison.eventCount} />
+                <SmallMetric label={comparison.truncated ? "Observed audit" : "Audit markers"} value={comparison.auditCount} />
+                <SmallMetric label={comparison.truncated ? "Observed changes" : "Recorded changes"} value={comparison.changes.length} />
               </div>
               {!comparison.from.evidenceComplete || !comparison.to.evidenceComplete ? (
                 <div className="mt-4"><AdminStatus tone="attention">At least one snapshot predates complete recorded evidence. The diff contains recorded changes only.</AdminStatus></div>
@@ -231,6 +250,10 @@ function TimeMachinePage() {
               <Metric label="Audit markers" value={snapshot.data.audit.length.toString()} />
               <Metric label="Evidence start" value={snapshot.data.evidenceStart ? new Date(snapshot.data.evidenceStart).toLocaleDateString() : "Unknown"} />
             </section>
+
+            {snapshotMayBeTruncated(snapshot.data) ? (
+              <AdminCard><AdminStatus tone="attention">This snapshot reached the bounded evidence limit. The timeline is a partial recorded window, not proof that no older rows exist before this snapshot boundary.</AdminStatus></AdminCard>
+            ) : null}
 
             {!snapshot.data.evidenceComplete ? (
               <AdminCard><AdminStatus tone="attention">Historical evidence is incomplete before the first recorded event. This view therefore shows recorded history, not invented state.</AdminStatus></AdminCard>
