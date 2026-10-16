@@ -20,6 +20,7 @@ import {
   type V3LayoutDirection,
   type V3SwipeIntent,
 } from "@/lib/v3-navigation-gesture";
+import { resolveV3TabIconVisualState } from "@/lib/v3-navigation-visual-progress";
 import "@/styles/v3-top-level-swipe.css";
 
 type SwipeState = {
@@ -228,15 +229,15 @@ export function V3TopLevelSwipeSurface({
       for (let index = 0; index < state.tabItems.length; index += 1) {
         const item = state.tabItems[index];
         if (!item) continue;
-        const weight = Math.max(0, 1 - Math.abs(index - boundedProgress));
-        item.style.setProperty("--v3-tab-visual-weight", weight.toFixed(4));
+        const visualState = resolveV3TabIconVisualState(index, boundedProgress);
+        item.style.setProperty("--v3-tab-visual-weight", visualState.weight.toFixed(4));
         item.style.setProperty(
           "--v3-tab-visual-opacity",
-          (0.78 + weight * 0.22).toFixed(4),
+          visualState.opacity.toFixed(4),
         );
         item.style.setProperty(
           "--v3-tab-visual-scale",
-          (0.97 + weight * 0.05).toFixed(4),
+          visualState.scale.toFixed(4),
         );
       }
     },
