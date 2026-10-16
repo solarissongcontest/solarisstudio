@@ -211,13 +211,15 @@ const RECEIPT_COLUMNS = 'notice_id,recipient_user_id,delivered_at,opened_at,ackn
 
 export async function loadStudio2Notices(editionId?: string | null): Promise<Studio2NoticeSummary[]> {
   await requireEnabled();
+  if (!editionId) {
+    throw new Error('Official Communications requires an explicit edition scope.');
+  }
 
-  let noticeQuery = client
+  const noticeQuery = client
     .from('studio2_official_notices')
     .select(NOTICE_COLUMNS)
+    .eq('edition_id', editionId)
     .order('created_at', { ascending: false });
-
-  if (editionId) noticeQuery = noticeQuery.eq('edition_id', editionId);
 
   const { data: noticeData, error: noticeError } = await noticeQuery;
   if (noticeError) throw noticeError;
