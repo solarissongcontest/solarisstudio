@@ -4,6 +4,7 @@ import {
   loadOrganizerTaskCountV5,
   loadOrganizerTasksV5,
   mapOrganizerTasksV5,
+  parseOrganizerTaskCountV5,
 } from "./admin-tasks-v5";
 
 function validTask() {
@@ -66,6 +67,21 @@ describe("Organizer Tasks edition RPC boundary", () => {
     );
 
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("accepts only non-negative integer task counts, including bigint-style numeric strings", () => {
+    expect(parseOrganizerTaskCountV5(0)).toBe(0);
+    expect(parseOrganizerTaskCountV5(17)).toBe(17);
+    expect(parseOrganizerTaskCountV5("42")).toBe(42);
+    expect(parseOrganizerTaskCountV5(" 5 ")).toBe(5);
+  });
+
+  it("rejects missing or malformed count evidence instead of presenting it as zero", () => {
+    for (const value of [null, undefined, "", "nope", -1, 1.5, Number.NaN]) {
+      expect(() => parseOrganizerTaskCountV5(value)).toThrow(
+        "Invalid Organizer task count payload.",
+      );
+    }
   });
 
   it("keeps task evidence object-shaped and normalizes linked rule references", () => {
