@@ -46,6 +46,12 @@ type DragState = {
   slotWidth: number;
 };
 
+function organizerItemLabel(item: OrganizerV6TabItem) {
+  const badge = item.badge ?? 0;
+  if (badge <= 0) return item.label;
+  return `${item.label}, ${badge} unresolved item${badge === 1 ? "" : "s"}`;
+}
+
 export function OrganizerV6TabBar({
   pathname,
   items,
@@ -345,7 +351,7 @@ export function OrganizerV6TabBar({
                 {(item.badge ?? 0) > 0 ? (
                   <span
                     className="absolute -right-3 -top-2 min-w-4 rounded-full border border-[#06101f] bg-rose-500 px-1 text-center text-[8px] font-bold leading-4 text-white"
-                    aria-label={`${item.badge} unresolved item${item.badge === 1 ? "" : "s"}`}
+                    aria-hidden="true"
                   >
                     {(item.badge ?? 0) > 99 ? "99+" : item.badge}
                   </span>
@@ -368,7 +374,7 @@ export function OrganizerV6TabBar({
             <Link
               key={item.id}
               to={item.href as any}
-              aria-label={item.label}
+              aria-label={organizerItemLabel(item)}
               aria-current={item.active ? "page" : undefined}
               data-organizer-tab-index={index}
               onPointerDown={(event) => startDrag(event, index, item.active)}
@@ -394,7 +400,7 @@ export function OrganizerV6TabBar({
           ) : (
             <span
               key={item.id}
-              aria-label={item.label}
+              aria-label={organizerItemLabel(item)}
               aria-disabled="true"
               title={item.unavailableReason}
               data-organizer-tab-index={index}
