@@ -294,6 +294,35 @@ export function V3TopLevelSwipeSurface({
     };
   }, [resetSurface]);
 
+  useEffect(() => {
+    const surface = surfaceRef.current;
+    if (!surface) return;
+
+    const preventOwnedHorizontalTouchPan = (event: TouchEvent) => {
+      const drag = dragRef.current;
+      if (!drag || event.touches.length !== 1) return;
+
+      const touch = event.touches[0];
+      if (!touch) return;
+      const owner =
+        drag.owner === "undecided"
+          ? classifyV3SwipeIntent({
+              deltaX: touch.clientX - drag.startX,
+              deltaY: touch.clientY - drag.startY,
+            })
+          : drag.owner;
+
+      if (owner === "horizontal") event.preventDefault();
+    };
+
+    surface.addEventListener("touchmove", preventOwnedHorizontalTouchPan, {
+      passive: false,
+    });
+    return () => {
+      surface.removeEventListener("touchmove", preventOwnedHorizontalTouchPan);
+    };
+  }, []);
+
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (
       !enabled ||
