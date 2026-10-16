@@ -9,6 +9,7 @@ function status(legacyId: string) {
 describe("V3 Organizer core Voting migration status", () => {
   it("tracks the overview and core child workspaces as actively building", () => {
     expect(status("current-edition-voting")).toBe("building");
+    expect(status("current-edition-voting-declarations")).toBe("building");
     expect(status("voting-rounds-entries")).toBe("building");
     expect(status("voting-jury")).toBe("building");
     expect(status("voting-rules")).toBe("building");
@@ -21,6 +22,7 @@ describe("V3 Organizer core Voting migration status", () => {
   it("does not claim parity while canonical voting authority is still incomplete", () => {
     for (const id of [
       "current-edition-voting",
+      "current-edition-voting-declarations",
       "voting-rounds-entries",
       "voting-jury",
       "voting-rules",
