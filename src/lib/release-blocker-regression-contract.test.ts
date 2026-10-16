@@ -4,10 +4,13 @@ import { describe, expect, it } from "vitest";
 
 const source = (path: string) => readFileSync(path, "utf8");
 
-function layoutEffectCleanup(effectSource: string, dependencyMarker: string) {
+function firstLayoutEffectCleanup(effectSource: string) {
   const effectStart = effectSource.indexOf("useLayoutEffect(() => {");
-  const effectEnd = effectSource.indexOf(dependencyMarker, effectStart);
   expect(effectStart).toBeGreaterThanOrEqual(0);
+
+  // The exact dependency list legitimately changes as the tab bar gains shell
+  // state. This contract cares about cleanup semantics, not dependency spelling.
+  const effectEnd = effectSource.indexOf("\n  }, [", effectStart);
   expect(effectEnd).toBeGreaterThan(effectStart);
 
   const effect = effectSource.slice(effectStart, effectEnd);
@@ -43,11 +46,8 @@ describe("PR #450 release-blocker regression contracts", () => {
     expect(publicTabs).toContain("useLayoutEffect(() => {");
     expect(organizerTabs).toContain("useLayoutEffect(() => {");
 
-    const publicCleanup = layoutEffectCleanup(publicTabs, "}, [collapsed, pathname]);");
-    const organizerCleanup = layoutEffectCleanup(
-      organizerTabs,
-      "}, [collapsed, mode, pathname]);",
-    );
+    const publicCleanup = firstLayoutEffectCleanup(publicTabs);
+    const organizerCleanup = firstLayoutEffectCleanup(organizerTabs);
 
     expect(publicCleanup).not.toContain('setProperty("--solaris-bottom-obstruction", "0px")');
     expect(organizerCleanup).not.toContain('setProperty("--solaris-bottom-obstruction", "0px")');
