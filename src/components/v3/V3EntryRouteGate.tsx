@@ -1,12 +1,15 @@
 import type { ReactNode } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { resolveV3FocusedTaskChrome } from "@/lib/v3-focused-task-chrome";
 import { useV3EntryBundle } from "@/lib/v3-entry-runtime";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
-import { V3AppShell } from "./V3AppShell";
 import { V3EntryLifecyclePanel } from "./V3EntryLifecyclePanel";
 import { V3EntryResubmissionPanel } from "./V3EntryResubmissionPanel";
 import { V3EntryScreen } from "./V3EntryScreen";
+import { V3FocusedTaskShell } from "./V3FocusedTaskShell";
+
+const ENTRY_FOCUSED_CHROME = resolveV3FocusedTaskChrome("/my-solaris/entry");
 
 function ResolvingEntrySurface() {
   return (
@@ -36,7 +39,9 @@ function ResolvingEntrySurface() {
  * Installed-app participant Entry cutover. Organizer country inspection and
  * every disabled/error state preserve the canonical legacy module. The V3
  * private bundle is not requested until the server has authorized the slice and
- * identified an authenticated viewer.
+ * identified an authenticated viewer. Once authorized, Entry reuses the shared
+ * focused critical-task shell rather than carrying global app navigation into
+ * a submission workflow.
  */
 export function V3EntryRouteGate({
   legacy,
@@ -74,10 +79,10 @@ export function V3EntryRouteGate({
   if (bundle.isError || !bundle.data) return <>{legacy}</>;
 
   return (
-    <V3AppShell
+    <V3FocusedTaskShell
+      chrome={ENTRY_FOCUSED_CHROME}
       editionLabel={bundle.data.shell.editionLabel}
-      phaseLabel={bundle.data.shell.phaseLabel}
-      activeArea="participate"
+      statusLabel={bundle.data.shell.phaseLabel}
     >
       <V3EntryLifecyclePanel projection={bundle.data.projection} />
       <V3EntryResubmissionPanel projection={bundle.data.projection} />
@@ -85,6 +90,6 @@ export function V3EntryRouteGate({
         projection={bundle.data.projection}
         focusReadiness={focusReadiness}
       />
-    </V3AppShell>
+    </V3FocusedTaskShell>
   );
 }
