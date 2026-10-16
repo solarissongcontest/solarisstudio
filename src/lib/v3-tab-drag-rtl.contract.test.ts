@@ -23,6 +23,27 @@ describe("V3 direct tab drag RTL and hot-loop contract", () => {
     }
   });
 
+  it("anchors active lenses and badges on the physical inline end in RTL", () => {
+    const publicTabs = source("src/components/v3/V3LiquidTabBar.tsx");
+    const publicCss = source("src/styles/v3-liquid-tabbar.css");
+    const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
+
+    expect(publicTabs).toContain("visualLensIndex * inlineSign");
+    expect(publicCss).toContain(
+      '.v3-liquid-tabbar[data-layout-direction="rtl"] .v3-liquid-tabbar__lens',
+    );
+    expect(publicCss).toMatch(/data-layout-direction="rtl"[\s\S]*left: auto;[\s\S]*right: 0\.38rem/);
+    expect(publicCss).toContain("inset-inline-end: -0.52rem");
+
+    expect(organizerTabs).toContain("visualActiveIndex * inlineSign");
+    expect(organizerTabs).toContain(
+      'layoutDirection === "rtl" ? "right-[.375rem]" : "left-[.375rem]"',
+    );
+    expect(organizerTabs).toContain(
+      'layoutDirection === "rtl" ? "-left-3" : "-right-3"',
+    );
+  });
+
   it("does not dispatch preview React state on every pointer pixel", () => {
     const publicTabs = source("src/components/v3/V3LiquidTabBar.tsx");
     const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
