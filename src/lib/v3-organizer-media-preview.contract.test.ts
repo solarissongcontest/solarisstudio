@@ -12,8 +12,11 @@ describe("V3 Organizer Media Review preview integration", () => {
     );
   });
 
-  it("keeps the canonical source link as a fallback and evidence path", () => {
-    expect(mediaRoute).toContain("Open source");
+  it("keeps only a sanitized HTTP(S) source action as the fallback evidence path", () => {
+    expect(mediaRoute).toContain("safeMediaAssetSourceUrl");
+    expect(mediaRoute).toContain("const safeSourceUrl = safeMediaAssetSourceUrl(asset?.sourceUrl)");
+    expect(mediaRoute).toContain("{safeSourceUrl ? <a href={safeSourceUrl}");
+    expect(mediaRoute).not.toContain("<a href={asset.sourceUrl}");
     expect(mediaRoute).toContain('target="_blank"');
     expect(mediaRoute).toContain('rel="noreferrer"');
   });
