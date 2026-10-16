@@ -35,11 +35,12 @@ function HistoryPage() {
     isAppMode &&
     !rollout.isError &&
     rollout.data?.enabled === true &&
-    rollout.data.meEnabled === true
+    rollout.data.meEnabled === true &&
+    rollout.data.userId
   ) {
     return (
       <V3AppShell editionLabel="Solaris Studio" phaseLabel="History" activeArea="me">
-        <V3ParticipationHistoryScreen />
+        <V3ParticipationHistoryScreen viewerId={rollout.data.userId} />
       </V3AppShell>
     );
   }
