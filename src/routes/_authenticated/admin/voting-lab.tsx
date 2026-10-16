@@ -8,6 +8,7 @@ import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDat
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
 import { useCountries, useParticipants } from '@/lib/data';
+import { isCompetingParticipant } from '@/lib/participation-status';
 import { isStudio2FeatureEnabled } from '@/lib/studio2-feature-flags';
 import {
   buildSyntheticVotingLabBallots,
@@ -55,7 +56,14 @@ function VotingLabPage() {
   });
 
   const entryIds = useMemo(
-    () => [...new Set((participantsQuery.data ?? []).map((participant) => participant.country_id).filter((id): id is string => Boolean(id)))],
+    () => [
+      ...new Set(
+        (participantsQuery.data ?? [])
+          .filter(isCompetingParticipant)
+          .map((participant) => participant.country_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ],
     [participantsQuery.data],
   );
 
