@@ -34,6 +34,7 @@ export type V3LiquidTabDestination = {
 
 type DragState = {
   pointerId: number;
+  captureTarget: HTMLAnchorElement;
   startX: number;
   originIndex: number;
   moved: boolean;
@@ -182,6 +183,17 @@ export function V3LiquidTabBar({
   };
 
   const resetDragDom = useCallback(() => {
+    const drag = dragState.current;
+    if (drag) {
+      try {
+        if (drag.captureTarget.hasPointerCapture?.(drag.pointerId)) {
+          drag.captureTarget.releasePointerCapture?.(drag.pointerId);
+        }
+      } catch {
+        // Browser may already have released pointer capture.
+      }
+    }
+
     const material = materialRef.current;
     material?.style.setProperty("--v3-liquid-drag-x", "0px");
     material?.style.setProperty("--v3-liquid-scale-x", "1");
@@ -279,6 +291,7 @@ export function V3LiquidTabBar({
 
     dragState.current = {
       pointerId: event.pointerId,
+      captureTarget: event.currentTarget,
       startX: event.clientX,
       originIndex: index,
       moved: false,
