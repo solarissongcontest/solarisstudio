@@ -13,12 +13,14 @@ export type SolarisCommandAssistantInsight = {
 };
 
 const DOMAIN_PATTERNS: Array<[V3OrganizerDomainKey, RegExp]> = [
+  // Specific live-production language must win before generic "results" words.
+  // "results reveal" is a Production/Live surface, not publication operations.
+  ["production", /\b(production|broadcast|rundown|reveal|scoreboard|visual)\b/i],
   ["results", /\b(result|results|publish|publication|winner|score)\b/i],
   ["voting", /\b(vote|voting|jury|televote|ballot)\b/i],
   ["delegations", /\b(delegation|country|confirmation|participation|hod)\b/i],
   ["contest", /\b(entry|entries|song|artist|media|show|running order|progression|eligibility)\b/i],
   ["communications", /\b(communication|notice|announcement|message|delivery)\b/i],
-  ["production", /\b(production|broadcast|rundown|reveal|scoreboard|visual)\b/i],
   ["governance", /\b(governance|integrity|rule|ruling|appeal|evidence|investigation)\b/i],
   ["system", /\b(system|health|job|queue|sync|permission|access)\b/i],
 ];
@@ -36,17 +38,35 @@ export function buildCommandAssistantInsight(
   const domain = inferCommandAssistantDomain(prompt);
 
   if (domain) {
-    const summary = projection.domains[domain];
+    const domainSummary = projection.domains[domain];
     const readinessFactor = [...projection.readiness.blocking, ...projection.readiness.incomplete]
-      .find((factor) => factor.route === summary.primaryRoute || factor.route === summary.recommendedAction?.route);
+      .find(
+        (factor) =>
+          factor.route === domainSummary.primaryRoute ||
+          factor.route === domainSummary.recommendedAction?.route,
+      );
+    const readinessNeedsAttention = Boolean(readinessFactor);
+    const visibleState =
+      readinessNeedsAttention && ["ready", "complete"].includes(domainSummary.state)
+        ? "attention"
+        : domainSummary.state;
+    const visibleSummary = readinessFactor
+      ? `${domainSummary.detail}. ${readinessFactor.label}: ${readinessFactor.detail}.`
+      : domainSummary.blockingIssueCount
+        ? `${domainSummary.detail}. ${domainSummary.blockingIssueCount} critical ${domainSummary.blockingIssueCount === 1 ? "blocker requires" : "blockers require"} intervention.`
+        : domainSummary.detail;
+    const nextAction =
+      domainSummary.recommendedAction ??
+      (readinessFactor
+        ? { label: `Open ${readinessFactor.label}`, route: readinessFactor.route }
+        : { label: `Open ${domainSummary.label}`, route: domainSummary.primaryRoute });
+
     return {
       domain,
-      title: `${summary.label}: ${summary.state.replaceAll("_", " ")}`,
-      summary: summary.blockingIssueCount
-        ? `${summary.detail}. ${summary.blockingIssueCount} critical ${summary.blockingIssueCount === 1 ? "blocker requires" : "blockers require"} intervention.`
-        : summary.detail,
-      blockerCount: summary.blockingIssueCount,
-      nextAction: summary.recommendedAction ?? { label: `Open ${summary.label}`, route: summary.primaryRoute },
+      title: `${domainSummary.label}: ${visibleState.replaceAll("_", " ")}`,
+      summary: visibleSummary,
+      blockerCount: domainSummary.blockingIssueCount,
+      nextAction,
       readinessRoute: readinessFactor?.route ?? null,
     };
   }
@@ -59,8 +79,12 @@ export function buildCommandAssistantInsight(
     summary: topBlocker
       ? `${topBlocker.label}: ${topBlocker.detail}`
       : `${projection.readiness.overall}% readiness. ${projection.attention.length} attention ${projection.attention.length === 1 ? "item" : "items"} currently projected.`,
-    blockerCount: projection.readiness.blocking.length,
-    nextAction: topTask ? { label: topTask.title, route: topTask.href } : topBlocker ? { label: topBlocker.label, route: topBlocker.route } : null,
+    blockerCount: projection.systemHealth.criticalIssueCount,
+    nextAction: topTask
+      ? { label: topTask.title, route: topTask.href }
+      : topBlocker
+        ? { label: topBlocker.label, route: topBlocker.route }
+        : null,
     readinessRoute: topBlocker?.route ?? null,
   };
 }
