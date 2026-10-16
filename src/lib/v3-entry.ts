@@ -1,5 +1,16 @@
 export type V3EntryReviewStatus = "pending" | "accepted" | "declined" | "removed" | "unknown";
 
+export const V3_ENTRY_EDITOR_SECTIONS = [
+  "song",
+  "artist",
+  "credits",
+  "metadata",
+  "media",
+  "review",
+] as const;
+
+export type V3EntryEditorSection = (typeof V3_ENTRY_EDITOR_SECTIONS)[number];
+
 export type V3EntryCandidate = {
   id: string;
   artist: string | null;
@@ -27,6 +38,20 @@ export type V3EntryVersionEvidence = {
     reason: string | null;
     reviewedAt: string | null;
   }[];
+};
+
+export type V3EntryRevisionFieldDiff = {
+  field: "artist" | "songTitle";
+  label: string;
+  previousValue: string | null;
+  currentValue: string | null;
+  changed: boolean;
+};
+
+export type V3EntryResubmissionDiff = {
+  previousRevision: number;
+  currentRevision: number;
+  fields: readonly V3EntryRevisionFieldDiff[];
 };
 
 export type V3EntryReadinessCheck = {
@@ -117,6 +142,63 @@ export function reviewMatchesCurrentVersion(input: {
     Boolean(input.currentVersionId) &&
     input.reviewedVersionId === input.currentVersionId
   );
+}
+
+/**
+ * Best-effort presentation hint only. The organizer review reason remains the
+ * canonical issue text; this helper never creates workflow truth or changes
+ * authorization. It intentionally returns null when the reason is ambiguous.
+ */
+export function inferV3EntryCorrectionSection(issue: string | null): V3EntryEditorSection | null {
+  if (!issue) return null;
+  const value = issue.toLowerCase();
+
+  if (/\b(image|photo|artwork|audio|video|media|clip|file|upload)\b/.test(value)) return "media";
+  if (/\b(artist|performer)\b/.test(value)) return "artist";
+  if (/\b(credit|composer|lyric|writer|producer)\b/.test(value)) return "credits";
+  if (/\b(song|title|track)\b/.test(value)) return "song";
+  if (/\b(metadata|language|label|release|genre)\b/.test(value)) return "metadata";
+  if (/\b(review|eligib|rule|requirement)\b/.test(value)) return "review";
+  return null;
+}
+
+/**
+ * The immutable Entry-version projection currently exposes artist and song
+ * title. Show an honest resubmission diff for exactly those server-backed
+ * fields rather than pretending browser state can reconstruct unavailable
+ * credits/media metadata.
+ */
+export function deriveV3EntryResubmissionDiff(
+  history: readonly V3EntryVersionEvidence[],
+): V3EntryResubmissionDiff | null {
+  if (history.length < 2) return null;
+  const ordered = [...history].sort((left, right) => right.revision - left.revision);
+  const current = ordered[0];
+  const previous = ordered.find((version) => version.revision < current.revision);
+  if (!previous) return null;
+
+  const fields: V3EntryRevisionFieldDiff[] = [
+    {
+      field: "artist",
+      label: "Artist",
+      previousValue: previous.artist,
+      currentValue: current.artist,
+      changed: previous.artist !== current.artist,
+    },
+    {
+      field: "songTitle",
+      label: "Song",
+      previousValue: previous.songTitle,
+      currentValue: current.songTitle,
+      changed: previous.songTitle !== current.songTitle,
+    },
+  ];
+
+  return {
+    previousRevision: previous.revision,
+    currentRevision: current.revision,
+    fields,
+  };
 }
 
 function lifecycleCandidates(
