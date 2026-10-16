@@ -15,7 +15,9 @@ import {
   isV3BrowserEdgeGestureStart,
   resolveV3PageSwipeOffset,
   resolveV3PageSwipeTarget,
+  resolveV3PhysicalInlineSign,
   resolveV3TopLevelSwipePolicy,
+  type V3LayoutDirection,
   type V3SwipeIntent,
 } from "@/lib/v3-navigation-gesture";
 import "@/styles/v3-top-level-swipe.css";
@@ -30,6 +32,7 @@ type SwipeState = {
   owner: V3SwipeIntent;
   viewportWidth: number;
   lensStepWidth: number;
+  layoutDirection: V3LayoutDirection;
   tabItems: HTMLElement[];
 };
 
@@ -64,6 +67,10 @@ function shellInteractionBlocked() {
 
 function routeSnapshotKey(pathname: string, searchStr: string) {
   return `${pathname}\u0000${searchStr}`;
+}
+
+function layoutDirectionFor(element: Element): V3LayoutDirection {
+  return getComputedStyle(element).direction === "rtl" ? "rtl" : "ltr";
 }
 
 function canonicalSwipeSlot(
@@ -200,9 +207,10 @@ export function V3TopLevelSwipeSurface({
       root.style.setProperty("--v3-navigation-progress", boundedProgress.toFixed(4));
       root.setAttribute("data-v3-navigation-progress-owner", "page-swipe");
 
+      const physicalInlineSign = resolveV3PhysicalInlineSign(state.layoutDirection);
       const track = trackRef.current;
       if (track) {
-        const offsetRatio = activeIndex - boundedProgress;
+        const offsetRatio = (activeIndex - boundedProgress) * physicalInlineSign;
         track.style.setProperty("--v3-page-swipe-x", `${(offsetRatio * 100).toFixed(4)}%`);
         track.toggleAttribute("data-v3-page-swiping", phase === "drag");
         track.toggleAttribute("data-v3-page-settling", phase === "settle");
@@ -210,7 +218,8 @@ export function V3TopLevelSwipeSurface({
 
       const material = navigationMaterial();
       if (material) {
-        const lensOffset = (boundedProgress - activeIndex) * state.lensStepWidth;
+        const lensOffset =
+          (boundedProgress - activeIndex) * state.lensStepWidth * physicalInlineSign;
         material.style.setProperty("--v3-liquid-drag-x", `${lensOffset.toFixed(2)}px`);
         material.toggleAttribute("data-v3-page-swiping", phase === "drag");
         material.toggleAttribute("data-v3-page-settling", phase === "settle");
@@ -366,6 +375,7 @@ export function V3TopLevelSwipeSurface({
       owner: "undecided",
       viewportWidth: Math.max(1, window.visualViewport?.width ?? window.innerWidth),
       lensStepWidth,
+      layoutDirection: layoutDirectionFor(event.currentTarget),
       tabItems,
     };
   };
@@ -399,6 +409,7 @@ export function V3TopLevelSwipeSurface({
       activeIndex,
       itemCount,
       viewportWidth: drag.viewportWidth,
+      direction: drag.layoutDirection,
     });
     const progress = activeIndex - offset / drag.viewportWidth;
     publishVisualProgress(progress, drag, "drag");
@@ -429,6 +440,7 @@ export function V3TopLevelSwipeSurface({
       viewportWidth: drag.viewportWidth,
       activeIndex,
       itemCount,
+      direction: drag.layoutDirection,
     });
 
     surface.removeAttribute("data-v3-page-swiping");
