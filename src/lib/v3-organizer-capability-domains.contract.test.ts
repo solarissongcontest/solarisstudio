@@ -36,6 +36,26 @@ describe("V3 Organizer canonical capability domains", () => {
     expect(capability("delegation-confirmation-overview").targetDomain).toBe("delegations");
   });
 
+  it("marks implemented O4 delegation slices building without overstating parity", () => {
+    for (const id of [
+      "current-edition-delegations",
+      "delegation-confirmation-overview",
+      "delegation-confirmation-requirements",
+      "delegation-confirmation-responses",
+      "delegation-responses-by-country",
+      "delegation-submission-rounds",
+      "delegation-calendar",
+      "delegation-access",
+    ]) {
+      expect(capability(id).migrationStatus).toBe("building");
+    }
+
+    // Diagnostics and low-frequency legacy surfaces stay planned until their
+    // canonical System ownership exists. Building is progress, not cutover.
+    expect(capability("delegation-sync").migrationStatus).toBe("planned");
+    expect(capability("delegation-settings").migrationStatus).toBe("planned");
+  });
+
   it("marks implemented O15 and O17 slices building without overstating parity", () => {
     for (const id of [
       "current-edition-storytelling",
