@@ -26,7 +26,7 @@ describe("Studio2 Host Management uncertain-outcome reconciliation", () => {
     expect(hostManagement).not.toContain("p_execution_id: input.executionId");
   });
 
-  it("clears the uncertain identity only after the server response parses successfully", () => {
+  it("clears the uncertain identity only after the server receipt proves it belongs to the command", () => {
     const executeStart = hostManagement.indexOf(
       "export async function executeStudio2HostOperation",
     );
@@ -34,17 +34,20 @@ describe("Studio2 Host Management uncertain-outcome reconciliation", () => {
       "const data = await rpc('studio2_execute_host_operation'",
       executeStart,
     );
-    const parse = hostManagement.indexOf("const execution = parseExecution(data);", rpcCall);
+    const validate = hostManagement.indexOf(
+      "const execution = validateHostOperationExecution(parseExecution(data)",
+      rpcCall,
+    );
     const clear = hostManagement.indexOf(
       "pendingHostExecutionIds.delete(fingerprint);",
-      parse,
+      validate,
     );
     const returned = hostManagement.indexOf("return execution;", clear);
 
     expect(executeStart).toBeGreaterThanOrEqual(0);
     expect(rpcCall).toBeGreaterThan(executeStart);
-    expect(parse).toBeGreaterThan(rpcCall);
-    expect(clear).toBeGreaterThan(parse);
+    expect(validate).toBeGreaterThan(rpcCall);
+    expect(clear).toBeGreaterThan(validate);
     expect(returned).toBeGreaterThan(clear);
   });
 
