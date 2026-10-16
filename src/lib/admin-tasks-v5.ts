@@ -39,6 +39,14 @@ function normalizeOrganizerEditionId(editionId: string | null | undefined) {
   return normalized ? normalized : null;
 }
 
+function requireOrganizerEditionId(editionId: string | null | undefined) {
+  const normalizedEditionId = normalizeOrganizerEditionId(editionId);
+  if (!normalizedEditionId) {
+    throw new Error("Organizer Tasks requires an explicit edition scope.");
+  }
+  return normalizedEditionId;
+}
+
 export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
   if (!Array.isArray(value)) {
     throw new Error("Invalid Organizer Tasks payload: expected an array");
@@ -98,8 +106,9 @@ export async function loadOrganizerTasksV5(
   filter: OrganizerTaskFilter,
   client: RpcClient = supabase as unknown as RpcClient,
 ) {
+  const normalizedEditionId = requireOrganizerEditionId(editionId);
   const { data, error } = await client.rpc("admin_organizer_tasks", {
-    p_edition_id: normalizeOrganizerEditionId(editionId),
+    p_edition_id: normalizedEditionId,
     p_filter: filter,
   });
   if (error) throw new Error(error.message || "Organizer Tasks could not be loaded.");
@@ -110,8 +119,9 @@ export async function loadOrganizerTaskCountV5(
   editionId: string | null | undefined,
   client: RpcClient = supabase as unknown as RpcClient,
 ) {
+  const normalizedEditionId = requireOrganizerEditionId(editionId);
   const { data, error } = await client.rpc("admin_organizer_task_count", {
-    p_edition_id: normalizeOrganizerEditionId(editionId),
+    p_edition_id: normalizedEditionId,
   });
   if (error) throw new Error(error.message || "Organizer task count could not be loaded.");
   const value = Number(data ?? 0);
@@ -125,8 +135,8 @@ export function useOrganizerTasksV5(
 ) {
   const normalizedEditionId = normalizeOrganizerEditionId(editionId);
   return useQuery({
-    enabled,
-    queryKey: ["organizer-tasks-v5", normalizedEditionId ?? "all", filter],
+    enabled: enabled && Boolean(normalizedEditionId),
+    queryKey: ["organizer-tasks-v5", normalizedEditionId ?? "unscoped", filter],
     queryFn: () => loadOrganizerTasksV5(normalizedEditionId, filter),
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
@@ -139,8 +149,8 @@ export function useOrganizerTaskCountV5(
 ) {
   const normalizedEditionId = normalizeOrganizerEditionId(editionId);
   return useQuery({
-    enabled,
-    queryKey: ["organizer-task-count-v5", normalizedEditionId ?? "all"],
+    enabled: enabled && Boolean(normalizedEditionId),
+    queryKey: ["organizer-task-count-v5", normalizedEditionId ?? "unscoped"],
     queryFn: () => loadOrganizerTaskCountV5(normalizedEditionId),
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
