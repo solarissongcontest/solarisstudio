@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
-import { MediaAssetPreview } from '@/components/admin/MediaAssetPreview';
+import { MediaAssetPreview, safeMediaAssetSourceUrl } from '@/components/admin/MediaAssetPreview';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminEmptyState, AdminPageHeader, AdminSheet, AdminStatus } from '@/components/admin/AdminUI';
 import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
@@ -317,6 +317,7 @@ function MediaAssetsPage() {
 }
 
 function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAssetItem | null; reviews: Awaited<ReturnType<typeof listStudio2MediaAssetReviews>>; onClose: () => void }) {
+  const safeSourceUrl = safeMediaAssetSourceUrl(asset?.sourceUrl);
   return (
     <AdminSheet open={Boolean(asset)} onClose={onClose} title={asset?.title ?? 'Media asset'} description={asset ? `${assetTypeLabel(asset.assetType)} · ${stateLabel(asset.state)}` : undefined}>
       {asset ? (
@@ -329,7 +330,7 @@ function MediaAssetSheet({ asset, reviews, onClose }: { asset: Studio2MediaAsset
                 <MediaAssetPreview assetType={asset.assetType} sourceUrl={asset.sourceUrl} title={asset.title} />
               </div>
               <p className="mt-3 break-all text-sm">{asset.sourceUrl ?? 'No source supplied.'}</p>
-              {asset.sourceUrl ? <a href={asset.sourceUrl} target="_blank" rel="noreferrer" className="admin-action-secondary mt-3 inline-flex">Open source <ExternalLink className="size-4" /></a> : null}
+              {safeSourceUrl ? <a href={safeSourceUrl} target="_blank" rel="noreferrer" className="admin-action-secondary mt-3 inline-flex">Open source <ExternalLink className="size-4" /></a> : null}
               {asset.sourceUpdatedAt ? <p className="mt-3 text-xs text-muted-foreground">Canonical entry updated {formatTimestamp(asset.sourceUpdatedAt)}</p> : null}
             </div>
           </section>
