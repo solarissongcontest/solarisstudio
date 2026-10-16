@@ -113,6 +113,12 @@ export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
       throw new Error(`Invalid Organizer Task shape at index ${index}`);
     }
 
+    const state = task.state as OrganizerTaskState;
+    const resolvedAt = optionalTimestamp(task.resolvedAt, "resolved timestamp", index);
+    if ((state === "resolved") !== Boolean(resolvedAt)) {
+      throw new Error(`Invalid Organizer Task resolution state at index ${index}`);
+    }
+
     return {
       id: requiredString(task.id, "id", index),
       editionId: optionalString(task.editionId),
@@ -122,7 +128,7 @@ export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
       sourceKey: requiredString(task.sourceKey, "source key", index),
       taskType: requiredString(task.taskType, "task type", index),
       priority: task.priority as OrganizerTaskPriority,
-      state: task.state as OrganizerTaskState,
+      state,
       title: requiredString(task.title, "title", index),
       description: requiredString(task.description, "description", index),
       href: requiredString(task.href, "route", index),
@@ -130,7 +136,7 @@ export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
       resolutionPredicate: mapResolutionPredicate(task.resolutionPredicate, index),
       ruleReference: mapRuleReference(task.ruleReference, index),
       openedAt: requiredTimestamp(task.openedAt, "opened timestamp", index),
-      resolvedAt: optionalTimestamp(task.resolvedAt, "resolved timestamp", index),
+      resolvedAt,
       lastEvaluatedAt: requiredTimestamp(task.lastEvaluatedAt, "evaluation timestamp", index),
     };
   });
