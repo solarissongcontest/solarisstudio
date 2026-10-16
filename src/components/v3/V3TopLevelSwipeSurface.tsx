@@ -41,6 +41,8 @@ type SettlingComposition = {
   nextSurface: ReactNode;
 };
 
+type SwipeSlot = "previous" | "current" | "next";
+
 function navigationMaterial() {
   return document.querySelector<HTMLElement>(
     "[data-v3-liquid-tabbar] .v3-liquid-tabbar__material",
@@ -53,6 +55,13 @@ function shellInteractionBlocked() {
     root.hasAttribute("data-solaris-feature-overlay-open") ||
     root.hasAttribute("data-solaris-keyboard-open")
   );
+}
+
+function canonicalSwipeSlot(settlingComposition: SettlingComposition | null): SwipeSlot {
+  if (settlingComposition == null) return "current";
+  if (settlingComposition.targetIndex < settlingComposition.originIndex) return "previous";
+  if (settlingComposition.targetIndex > settlingComposition.originIndex) return "next";
+  return "current";
 }
 
 /**
@@ -391,6 +400,7 @@ export function V3TopLevelSwipeSurface({
   const visualPreviousSurface = settlingComposition?.previousSurface ?? previousSurface;
   const visualCurrentSurface = settlingComposition?.currentSurface ?? children;
   const visualNextSurface = settlingComposition?.nextSurface ?? nextSurface;
+  const canonicalSlot = canonicalSwipeSlot(settlingComposition);
 
   return (
     <div
@@ -413,22 +423,29 @@ export function V3TopLevelSwipeSurface({
         {visualPreviousSurface != null ? (
           <div
             className="v3-top-level-swipe-page v3-top-level-swipe-page--previous"
-            aria-hidden="true"
-            inert
+            aria-hidden={canonicalSlot === "previous" ? undefined : true}
+            inert={canonicalSlot !== "previous"}
             data-v3-swipe-preview="previous"
+            data-v3-swipe-canonical={canonicalSlot === "previous" ? "true" : undefined}
           >
             {visualPreviousSurface}
           </div>
         ) : null}
-        <div className="v3-top-level-swipe-page v3-top-level-swipe-page--current">
+        <div
+          className="v3-top-level-swipe-page v3-top-level-swipe-page--current"
+          aria-hidden={canonicalSlot === "current" ? undefined : true}
+          inert={canonicalSlot !== "current"}
+          data-v3-swipe-canonical={canonicalSlot === "current" ? "true" : undefined}
+        >
           {visualCurrentSurface}
         </div>
         {visualNextSurface != null ? (
           <div
             className="v3-top-level-swipe-page v3-top-level-swipe-page--next"
-            aria-hidden="true"
-            inert
+            aria-hidden={canonicalSlot === "next" ? undefined : true}
+            inert={canonicalSlot !== "next"}
             data-v3-swipe-preview="next"
+            data-v3-swipe-canonical={canonicalSlot === "next" ? "true" : undefined}
           >
             {visualNextSurface}
           </div>
