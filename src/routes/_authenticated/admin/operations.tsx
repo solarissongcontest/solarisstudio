@@ -45,6 +45,13 @@ function OrganizerOverview() {
   const { editionId } = useAdminContext();
   const projectionQuery = useV3OrganizerProjection(editionId || null);
   const projection = projectionQuery.data ?? null;
+  const readinessVerified = Boolean(
+    projection &&
+      projection.readiness.blocking.length +
+        projection.readiness.incomplete.length +
+        projection.readiness.ready.length >
+        0,
+  );
 
   return (
     <AdminPage>
@@ -124,12 +131,12 @@ function OrganizerOverview() {
                   title={
                     projection.attention.length
                       ? `${projection.tasks.total} ${projection.tasks.total === 1 ? "item needs" : "items need"} attention`
-                      : "No organizer action required"
+                      : "No current task is known"
                   }
                   description={
                     projection.attention.length
                       ? "Only the highest-priority unresolved canonical conditions are shown here."
-                      : "Solaris currently has no unresolved Organizer Task for this edition."
+                      : "The current Organizer task projection has no unresolved item. This does not prove every operational domain is ready."
                   }
                   action={
                     <Link
@@ -149,12 +156,12 @@ function OrganizerOverview() {
                     ))}
                   </div>
                 ) : (
-                  <div className="flex items-start gap-3 rounded-xl border border-emerald-200/10 bg-emerald-200/[0.045] p-4">
-                    <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-200" />
+                  <div className="flex items-start gap-3 rounded-xl border border-white/[0.08] bg-white/[0.025] p-4">
+                    <Clock3 className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-semibold text-foreground">Nothing is asking for intervention</p>
+                      <p className="text-sm font-semibold text-foreground">No current task is known</p>
                       <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                        Normal state stays quiet. The next scheduled operation is shown beside this card.
+                        Solaris keeps domain readiness unverified where the current task contract cannot prove that the underlying workflow is complete.
                       </p>
                     </div>
                   </div>
@@ -198,14 +205,20 @@ function OrganizerOverview() {
                   <div>
                     <p className="admin-section-label">Readiness</p>
                     <h2 className="mt-1 text-2xl font-bold tracking-[-.035em]">
-                      {projection.readiness.overall}%
+                      {readinessVerified ? `${projection.readiness.overall}%` : "Unverified"}
                     </h2>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      Deterministic edition health, calculated by server rules at {new Date(projection.readiness.calculatedAt).toLocaleTimeString()}.
+                      {readinessVerified
+                        ? `Deterministic edition health, calculated by server rules at ${new Date(projection.readiness.calculatedAt).toLocaleTimeString()}.`
+                        : "The edition health projection is unavailable. Solaris will not convert missing evidence into ready factors."}
                     </p>
                   </div>
                   <div className="min-w-44">
-                    <AdminProgress value={projection.readiness.overall} />
+                    {readinessVerified ? (
+                      <AdminProgress value={projection.readiness.overall} />
+                    ) : (
+                      <AdminStatus tone="neutral">Health unavailable</AdminStatus>
+                    )}
                     <p className="mt-2 text-[10px] text-muted-foreground">
                       State {projection.readiness.stateVersion}
                     </p>
@@ -359,7 +372,9 @@ function DomainCard({ domain }: { domain: V3OrganizerDomainSummary }) {
         ? "attention"
         : domain.state === "active"
           ? "info"
-          : "ready";
+          : domain.state === "ready" || domain.state === "complete"
+            ? "ready"
+            : "neutral";
 
   return (
     <Link
