@@ -1,9 +1,9 @@
 import "@/confirmations.css";
 
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, LockKeyhole } from "lucide-react";
+import { AlertTriangle, ArrowLeft, LockKeyhole } from "lucide-react";
 
 import { ConfirmationFormWithReceipt } from "@/components/ConfirmationFormWithReceipt";
 import { V3ConfirmationRouteShell } from "@/components/v3/V3ConfirmationRouteShell";
@@ -13,6 +13,7 @@ import {
 } from "@/components/ConfirmationReviewStatus";
 import { Button } from "@/components/ui/button";
 import { resolveEditToken } from "@/lib/confirmation-edit.functions";
+import { parseV3EntryEditorFocus } from "@/lib/v3-entry-editor-focus";
 
 export const Route = createFileRoute("/confirmations/edit/$token")({
   head: () => ({
@@ -36,8 +37,19 @@ type EditableSubmission = Record<string, unknown> & {
   } | null;
 };
 
+function focusLabel(value: string) {
+  if (value === "song") return "Song";
+  if (value === "artist") return "Artist";
+  if (value === "credits") return "Credits";
+  if (value === "metadata") return "Metadata";
+  if (value === "media") return "Media";
+  return "Review";
+}
+
 function EditConfirmationPage() {
   const { token } = Route.useParams();
+  const hash = useRouterState({ select: (state) => state.location.hash });
+  const entryFocus = parseV3EntryEditorFocus(hash);
   const resolve = useServerFn(resolveEditToken);
 
   const { data, isLoading } = useQuery({
@@ -121,7 +133,31 @@ function EditConfirmationPage() {
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
             Saving changes updates the same confirmation that was originally submitted.
           </p>
+          {entryFocus?.supported ? (
+            <p
+              className="mt-3 rounded-lg border border-primary/20 bg-primary/[0.06] px-3 py-2 text-xs font-medium text-primary"
+              data-v3-entry-correction-focus={entryFocus.section}
+            >
+              Opened at the {focusLabel(entryFocus.section)} section requested by the current Entry correction.
+            </p>
+          ) : null}
         </div>
+
+        {entryFocus && !entryFocus.supported ? (
+          <div
+            className="data-panel flex gap-3 border-amber-300/30 bg-amber-300/[0.06] p-4 text-sm"
+            role="alert"
+            data-v3-entry-correction-blocked={entryFocus.section}
+          >
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-300" aria-hidden="true" />
+            <div>
+              <p className="font-semibold">{focusLabel(entryFocus.section)} editing is not available in the canonical writer yet.</p>
+              <p className="mt-1 leading-6 text-muted-foreground">
+                Solaris has kept the Organizer correction intact instead of inventing browser-only data. The current Confirmation remains authoritative while the missing Credits contract is added.
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         <ConfirmationReviewStatus
           selectionMethod={result.submission.selection_method}
@@ -142,6 +178,7 @@ function EditConfirmationPage() {
           round={result.round}
           editToken={token}
           prefill={result.submission}
+          initialStep={entryFocus?.step ?? undefined}
         />
       </div>
     </V3ConfirmationRouteShell>

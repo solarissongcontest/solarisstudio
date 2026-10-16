@@ -12,10 +12,13 @@ import {
 import { useState } from "react";
 
 import { openCurrentV3EntryEditor } from "@/lib/v3-entry.actions";
-import type {
-  V3EntryCandidate,
-  V3EntryProjection,
-  V3EntryVersionEvidence,
+import { appendV3EntryEditorFocus } from "@/lib/v3-entry-editor-focus";
+import {
+  deriveV3EntryLifecycle,
+  inferV3EntryCorrectionSection,
+  type V3EntryCandidate,
+  type V3EntryProjection,
+  type V3EntryVersionEvidence,
 } from "@/lib/v3-entry";
 import { cn } from "@/lib/utils";
 import { V3Screen, V3ScreenHeader, V3Section, V3Surface } from "./V3Foundation";
@@ -111,6 +114,11 @@ export function V3EntryScreen({
   const openEntryEditor = useServerFn(openCurrentV3EntryEditor);
   const [openingEditor, setOpeningEditor] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const lifecycle = projection.lifecycle ?? deriveV3EntryLifecycle(projection.confirmation);
+  const correctionSection =
+    lifecycle.state === "changes-required"
+      ? inferV3EntryCorrectionSection(lifecycle.issue)
+      : null;
 
   const handleOpenEditor = async () => {
     if (openingEditor) return;
@@ -122,7 +130,7 @@ export function V3EntryScreen({
         setEditError(editFailureMessage(result.reason));
         return;
       }
-      window.location.assign(result.href);
+      window.location.assign(appendV3EntryEditorFocus(result.href, correctionSection));
     } catch (error) {
       console.error("[V3 Entry] Could not open canonical Confirmation editor", error);
       setEditError("Solaris could not open the canonical submission editor. Nothing was changed.");
