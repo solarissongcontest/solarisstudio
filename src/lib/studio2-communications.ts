@@ -201,6 +201,31 @@ async function requireEnabled() {
   }
 }
 
+function requireEditionId(editionId: string | null | undefined): string {
+  const normalized = editionId?.trim() ?? '';
+  if (!normalized) {
+    throw new Error('Official Communications requires an explicit edition scope.');
+  }
+  return normalized;
+}
+
+async function assertNoticeInEdition(noticeId: string, editionId: string): Promise<void> {
+  await requireEnabled();
+  const { data, error } = await client
+    .from('studio2_official_notices')
+    .select('id,edition_id')
+    .eq('id', noticeId)
+    .eq('edition_id', editionId);
+  if (error) throw error;
+  const matches = asRows<{ id: string; edition_id: string | null }>(data);
+  if (matches.length !== 1) {
+    throw Object.assign(
+      new Error('The selected communication is outside the current edition scope.'),
+      { status: 409 },
+    );
+  }
+}
+
 const NOTICE_COLUMNS = [
   'id', 'edition_id', 'notice_type', 'title', 'body', 'severity', 'audience',
   'audience_group', 'country_ids', 'acknowledgement_required', 'display_surfaces', 'status',
@@ -211,14 +236,12 @@ const RECEIPT_COLUMNS = 'notice_id,recipient_user_id,delivered_at,opened_at,ackn
 
 export async function loadStudio2Notices(editionId?: string | null): Promise<Studio2NoticeSummary[]> {
   await requireEnabled();
-  if (!editionId) {
-    throw new Error('Official Communications requires an explicit edition scope.');
-  }
+  const scopedEditionId = requireEditionId(editionId);
 
   const noticeQuery = client
     .from('studio2_official_notices')
     .select(NOTICE_COLUMNS)
-    .eq('edition_id', editionId)
+    .eq('edition_id', scopedEditionId)
     .order('created_at', { ascending: false });
 
   const { data: noticeData, error: noticeError } = await noticeQuery;
@@ -226,6 +249,9 @@ export async function loadStudio2Notices(editionId?: string | null): Promise<Stu
 
   const noticeRows = asRows<NoticeRow>(noticeData);
   if (!noticeRows.length) return [];
+  if (noticeRows.some((row) => row.edition_id !== scopedEditionId)) {
+    throw new Error('Official Communications returned data outside the selected edition scope.');
+  }
 
   const noticeIds = noticeRows.map((row) => row.id);
   const { data: receiptData, error: receiptError } = await client
@@ -285,10 +311,11 @@ function draftCandidate(input: SaveStudio2NoticeInput): OperationalNotice {
 }
 
 function saveArgs(input: SaveStudio2NoticeInput) {
-  const candidate = draftCandidate(input);
+  const editionId = requireEditionId(input.editionId);
+  const candidate = draftCandidate({ ...input, editionId });
   validateOperationalNotice(candidate);
   return {
-    p_edition_id: input.editionId,
+    p_edition_id: editionId,
     p_notice_type: input.noticeType,
     p_title: input.title.trim(),
     p_body: input.body.trim(),
@@ -322,8 +349,17 @@ export async function updateStudio2NoticeDraft(
   noticeId: string,
   input: SaveStudio2NoticeInput,
 ): Promise<OperationalNotice> {
-  const { p_edition_id: _editionId, ...args } = saveArgs(input);
-  return noticeRpc('studio2_update_notice_draft_v2', { p_notice_id: noticeId, ...args });
+  const { p_edition_id, ...args } = saveArgs(input);
+  const editionId = String(p_edition_id);
+  await assertNoticeInEdition(noticeId, editionId);
+  const notice = await noticeRpc('studio2_update_notice_draft_v2', {
+    p_notice_id: noticeId,
+    ...args,
+  });
+  if (notice.editionId !== editionId) {
+    throw new Error('Official Communications returned a draft outside the selected edition scope.');
+  }
+  return notice;
 }
 
 export async function scheduleStudio2Notice(noticeId: string, scheduledAt: string): Promise<OperationalNotice> {
