@@ -93,6 +93,7 @@ describe("V3 navigation shell acceptance guardrails", () => {
     expect(swipe).toContain('policy === "enabled" && previewReady && requiredAdjacentSurfacesReady');
     expect(swipe).toContain("--v3-navigation-progress");
     expect(swipe).toContain("const progress = activeIndex - offset / drag.viewportWidth");
+    expect(swipe).toContain("lensStepWidth");
     expect(swipe).toContain('data-v3-swipe-preview="previous"');
     expect(swipe).toContain('data-v3-swipe-preview="next"');
     expect(swipe).not.toMatch(/screenshot|canvas\.toDataURL|html2canvas/i);
@@ -102,5 +103,8 @@ describe("V3 navigation shell acceptance guardrails", () => {
     expect(shell).toContain("previewReady={swipePreviewReady}");
     expect(css).toContain(".v3-top-level-swipe-page--previous");
     expect(css).toContain(".v3-top-level-swipe-page--next");
+    expect(css).toContain('data-v3-page-settling="true"');
+    expect(css).toContain("--v3-tab-visual-opacity");
+    expect(css).toContain("--v3-tab-visual-scale");
   });
 });
