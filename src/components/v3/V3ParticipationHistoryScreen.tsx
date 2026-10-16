@@ -88,8 +88,11 @@ function HistoryItem({ item }: { item: V3ParticipationHistoryItem }) {
   );
 }
 
-export function V3ParticipationHistoryScreen() {
+export function V3ParticipationHistoryScreen({ viewerId }: { viewerId: string }) {
   const history = useV3ParticipationHistory(true);
+  const scopeMismatch = Boolean(
+    history.data?.schemaReady === true && history.data.viewerId !== viewerId,
+  );
 
   return (
     <V3Screen className="pb-8">
@@ -120,6 +123,15 @@ export function V3ParticipationHistoryScreen() {
                 <p className="text-sm font-semibold">Personal history is not available yet</p>
                 <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
                   The recipient-scoped System history projection is not available. Current-country HOD settings are kept separate because they cannot prove your full past participation.
+                </p>
+              </div>
+            </V3Surface>
+          ) : scopeMismatch ? (
+            <V3Surface>
+              <div data-v3-participation-history-state="scope-error">
+                <p role="alert" className="text-sm font-semibold">Solaris could not safely scope this history to your account.</p>
+                <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
+                  No participation history is shown until the recipient projection matches the signed-in viewer.
                 </p>
               </div>
             </V3Surface>
