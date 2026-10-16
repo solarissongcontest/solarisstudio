@@ -1,0 +1,47 @@
+name: V3 S7 Entry Object Authorization rehearsal
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+      - ".github/scripts/v3-s7-entry-object-authorization-rehearsal.sh"
+      - ".github/workflows/v3-s7-entry-object-authorization-rehearsal.yml"
+      - "src/lib/v3-s7-entry-object-authorization.contract.test.ts"
+  workflow_dispatch:
+permissions: { contents: read }
+concurrency:
+  group: v3-s7-entry-object-auth-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  clean-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with: { version: 2.113.0 }
+      - run: supabase start
+      - run: supabase db reset --local --no-seed
+      - run: bash .github/scripts/v3-s7-entry-object-authorization-rehearsal.sh
+      - if: always()
+        run: supabase stop --no-backup || true
+  upgrade-from-main:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: supabase/setup-cli@v1
+        with: { version: 2.113.0 }
+      - run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          git worktree add /tmp/solaris-s7-entry-main origin/main
+          cd /tmp/solaris-s7-entry-main
+          supabase start
+          supabase db reset --local --no-seed
+          rsync -a --delete "$GITHUB_WORKSPACE/supabase/migrations/" supabase/migrations/
+          supabase migration up --local --include-all
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s7-entry-object-authorization-rehearsal.sh"
+      - if: always()
+        run: cd /tmp/solaris-s7-entry-main 2>/dev/null && supabase stop --no-backup || true
