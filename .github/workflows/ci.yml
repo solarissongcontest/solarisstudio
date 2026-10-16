@@ -106,15 +106,19 @@ jobs:
       - name: Generate V3 integration evidence
         shell: bash
         env:
-          GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          V3_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
+          expected="$(printf '%s' "$V3_SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$expected" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Cannot resolve exact source SHA for V3 evidence"
+            exit 1
+          fi
           mkdir -p v3-integration-evidence
-          bun run scripts/generate-v3-completion-dashboard.ts > v3-integration-evidence/v3-completion-dashboard.md
-          bun run scripts/generate-v3-completion-dashboard.ts --json > v3-integration-evidence/v3-completion-dashboard.json
+          GITHUB_SHA="$expected" bun run scripts/generate-v3-completion-dashboard.ts > v3-integration-evidence/v3-completion-dashboard.md
+          GITHUB_SHA="$expected" bun run scripts/generate-v3-completion-dashboard.ts --json > v3-integration-evidence/v3-completion-dashboard.json
           bun run scripts/check-v3-s14-rehearsal-readiness.ts --json > v3-integration-evidence/v3-s14-rehearsal-readiness.json
           bun run scripts/check-v3-s15-zero-orphan-readiness.ts --json > v3-integration-evidence/v3-s15-zero-orphan-readiness.json
-          expected="$(printf '%s' "$GITHUB_SHA" | tr '[:upper:]' '[:lower:]')"
           actual="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync("v3-integration-evidence/v3-completion-dashboard.json","utf8")).candidateSha)')"
           if [ "$actual" != "$expected" ]; then
             echo "::error::V3 completion dashboard is bound to $actual, expected exact source SHA $expected"
