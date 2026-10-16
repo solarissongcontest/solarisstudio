@@ -125,6 +125,11 @@
   will-change: transform, border-radius;
 }
 
+[data-solaris-v3] .v3-liquid-tabbar[data-layout-direction="rtl"] .v3-liquid-tabbar__lens {
+  left: auto;
+  right: 0.38rem;
+}
+
 [data-solaris-v3] .v3-liquid-tabbar__material[data-dragging="true"] .v3-liquid-tabbar__lens {
   transition: none;
   box-shadow:
@@ -233,7 +238,7 @@
 
 [data-solaris-v3] .v3-liquid-tabbar__badge {
   position: absolute;
-  right: -0.52rem;
+  inset-inline-end: -0.52rem;
   top: -0.36rem;
   display: grid;
   min-width: 1rem;
