@@ -147,6 +147,7 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "current-edition-publish" ||
     id === "operations-communications" ||
     id === "current-edition-storytelling" ||
+    id === "workspace-community-moderation" ||
     id === "workspace-predictions" ||
     id === "workspace-fantasy" ||
     id === "live-review-simulation-lab" ||
