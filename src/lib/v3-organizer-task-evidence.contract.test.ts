@@ -9,7 +9,10 @@ describe("V3 Organizer Tasks evidence UI", () => {
     expect(tasks).toContain("task.ruleReference.length");
     expect(tasks).toContain("task.ruleReference.join(\", \")");
     expect(tasks).toContain("Rules:");
-    expect(tasks).not.toContain("Mark resolved");
+    expect(tasks).toContain("to={task.href as any}");
+    expect(tasks).not.toContain("useMutation(");
+    expect(tasks).not.toContain(".rpc(");
+    expect(tasks).not.toContain("resolveTask(");
   });
 
   it("explains which canonical predicate fields close the task", () => {
