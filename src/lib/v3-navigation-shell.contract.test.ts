@@ -50,6 +50,18 @@ describe("V3 navigation shell acceptance guardrails", () => {
     expect(responsive).toContain("width: min(100%, 76rem)");
   });
 
+  it("announces navigation badge counts once on public and Organizer surfaces", () => {
+    const publicTabs = source("src/components/v3/V3LiquidTabBar.tsx");
+    const desktop = source("src/components/v3/V3DesktopPrimaryNavigation.tsx");
+    const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
+
+    expect(publicTabs).toContain("navigationItemLabel(destination.label, badge)");
+    expect(desktop).toContain("navigationItemLabel(destination.label, badge)");
+    expect(organizerTabs).toContain("organizerItemLabel(item)");
+    expect(organizerTabs).not.toContain("aria-label={`${item.badge} unresolved item");
+    expect(organizerTabs).toMatch(/v6-organizer-tabbar[\s\S]*aria-hidden="true"/);
+  });
+
   it("keeps Organizer glass bounded and removes mobile chrome when the keyboard opens", () => {
     const organizer = source("src/components/admin/OrganizerV6TabBar.tsx");
     const css = source("src/styles/v3-organizer-navigation.css");
