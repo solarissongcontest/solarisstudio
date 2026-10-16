@@ -15,6 +15,7 @@ const stage1 = source(".github/scripts/v3-s14-stage-1-setup.sh");
 const stage2 = source(".github/scripts/v3-s14-stage-2-onboarding.sh");
 const stage3 = source(".github/scripts/v3-s14-stage-3-confirmations.sh");
 const stage4 = source(".github/scripts/v3-s14-stage-4-entries.sh");
+const stage5 = source(".github/scripts/v3-s14-stage-5-running-orders.sh");
 const readiness = source("scripts/check-v3-s14-rehearsal-readiness.ts");
 
 describe("S14 stateful full-contest harness", () => {
@@ -34,9 +35,11 @@ describe("S14 stateful full-contest harness", () => {
       "v3-s14-stage-2-onboarding.sh",
       "v3-s14-stage-3-confirmations.sh",
       "v3-s14-stage-4-entries.sh",
+      "v3-s14-stage-5-running-orders.sh",
     ]) expect(driver).toContain(`source "$SCRIPT_DIR/${path}"`);
     expect(driver).not.toContain("v3-confirmation-security-rehearsal.sh");
     expect(driver).not.toContain("v3-entry-receipt-security-rehearsal.sh");
+    expect(driver).not.toContain("v3-s5-publication-consequences-rehearsal.sh");
     expect(driver).not.toContain("supabase db reset");
   });
 
@@ -48,9 +51,9 @@ describe("S14 stateful full-contest harness", () => {
     expect(runtime).not.toContain("supabase.co");
   });
 
-  it("implements Confirmation and Entry lifecycle evidence without claiming later stages", () => {
-    expect(V3_S14_STAGES.slice(0, 4).every((item) => item.implementationState === "implemented")).toBe(true);
-    expect(V3_S14_STAGES.slice(4).every((item) => item.implementationState === "planned")).toBe(true);
+  it("implements Confirmation, Entry and Running Order lifecycle evidence without claiming later stages", () => {
+    expect(V3_S14_STAGES.slice(0, 5).every((item) => item.implementationState === "implemented")).toBe(true);
+    expect(V3_S14_STAGES.slice(5).every((item) => item.implementationState === "planned")).toBe(true);
     expect(stage3).toContain("seq 1 66");
     expect(stage3).toContain("v3_submit_confirmation");
     expect(stage3).toContain("v3_reconcile_confirmation");
@@ -70,6 +73,18 @@ describe("S14 stateful full-contest harness", () => {
     expect(stage4).toContain("private.v3_media_asset_is_currently_accepted");
     expect(stage4).toContain("media.reviewed");
     expect(stage4).toContain("S14_STAGE_4_ENTRIES_COMPLETE");
+  });
+
+  it("uses atomic Organizer running-order primitives and governed publication before anonymous verification", () => {
+    expect(stage5).toContain("admin_set_show_allocations");
+    expect(stage5).toContain("admin_set_show_running_order");
+    expect(stage5).toContain("studio2_apply_show_publication_change");
+    expect(stage5).toContain("publication.show.change");
+    expect(stage5).toContain("publication.changed");
+    expect(stage5).toContain("$API_URL/rest/v1/shows");
+    expect(stage5).toContain("$API_URL/rest/v1/participants");
+    expect(stage5).toContain("S14_STAGE_5_RUNNING_ORDERS_COMPLETE");
+    expect(stage5).not.toContain("v3-s5-publication-consequences-rehearsal.sh");
   });
 
   it("uses the real notification category vocabulary during onboarding", () => {
@@ -108,7 +123,7 @@ describe("S14 stateful full-contest harness", () => {
     ]) expect(stage4).toContain(marker);
   });
 
-  it("cannot emit release-grade evidence while Stages 5-10 remain pending", () => {
+  it("cannot emit release-grade evidence while Stages 6-10 remain pending", () => {
     expect(driver).toContain('"passed": False');
     expect(driver).toContain("s14-full-contest.partial.json");
     expect(driver).toContain("No release-grade s14-full-contest.json was written");
@@ -124,6 +139,7 @@ describe("S14 stateful full-contest harness", () => {
       ".github/scripts/v3-s14-stage-2-onboarding.sh",
       ".github/scripts/v3-s14-stage-3-confirmations.sh",
       ".github/scripts/v3-s14-stage-4-entries.sh",
+      ".github/scripts/v3-s14-stage-5-running-orders.sh",
     ]) {
       expect(() => execFileSync("bash", ["-n", path], { stdio: "pipe" })).not.toThrow();
     }
