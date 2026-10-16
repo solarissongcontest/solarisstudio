@@ -71,7 +71,7 @@ describe("V3 Organizer information architecture", () => {
     expect(v3OrganizerTabForPath("/admin/access-permissions")).toBe("more");
   });
 
-  it("groups Control by canonical operational domains and locks edition-scoped routes without context", () => {
+  it("groups Control by canonical operational domains, separates Entry Review from Running Order, and locks edition-scoped routes without context", () => {
     const withoutEdition = buildV3OrganizerControlGroups(null);
     expect(withoutEdition.map((group) => group.key)).toEqual([
       "delegations",
@@ -89,27 +89,31 @@ describe("V3 Organizer information architecture", () => {
       "Communications",
       "Production",
     ]);
-    expect(
-      withoutEdition.flatMap((group) => group.items).find((item) => item.key === "entries")?.href,
-    ).toBeNull();
-    expect(
-      withoutEdition.flatMap((group) => group.items).find((item) => item.key === "confirmations")?.href,
-    ).toBe("/confirmations/admin");
-    expect(
-      withoutEdition.flatMap((group) => group.items).find((item) => item.key === "publication")?.href,
-    ).toBeNull();
+    const unscopedItems = withoutEdition.flatMap((group) => group.items);
+    expect(unscopedItems.find((item) => item.key === "entry-review")?.href).toBe(
+      "/confirmations/admin/responses",
+    );
+    expect(unscopedItems.find((item) => item.key === "running-order")?.href).toBeNull();
+    expect(unscopedItems.find((item) => item.key === "confirmations")?.href).toBe(
+      "/confirmations/admin",
+    );
+    expect(unscopedItems.find((item) => item.key === "publication")?.href).toBeNull();
 
     const scoped = buildV3OrganizerControlGroups("ssc-22");
-    expect(scoped.flatMap((group) => group.items).find((item) => item.key === "entries")?.href).toBe(
-      "/admin/entries/ssc-22",
+    const scopedItems = scoped.flatMap((group) => group.items);
+    expect(scopedItems.find((item) => item.key === "entry-review")?.href).toBe(
+      "/confirmations/admin/responses",
     );
-    expect(scoped.flatMap((group) => group.items).find((item) => item.key === "jury")?.href).toBe(
+    expect(scopedItems.find((item) => item.key === "running-order")?.href).toBe(
+      "/admin/lineup-sync/ssc-22",
+    );
+    expect(scopedItems.find((item) => item.key === "jury")?.href).toBe(
       "/admin/jury/ssc-22",
     );
-    expect(scoped.flatMap((group) => group.items).find((item) => item.key === "publication")?.href).toBe(
+    expect(scopedItems.find((item) => item.key === "publication")?.href).toBe(
       "/admin/publication/ssc-22",
     );
-    expect(scoped.flatMap((group) => group.items).find((item) => item.key === "broadcast")?.href).toBe(
+    expect(scopedItems.find((item) => item.key === "broadcast")?.href).toBe(
       "/admin/design/ssc-22",
     );
   });

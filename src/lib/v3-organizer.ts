@@ -149,11 +149,11 @@ export function buildV3OrganizerControlGroups(
       description: "Entries, media, shows, running order and contest readiness.",
       items: [
         {
-          key: "entries",
-          label: "Entries",
-          description: "Entry state, review work and contest participation data",
-          href: editionHref("/admin/entries/:slug"),
-          editionScoped: true,
+          key: "entry-review",
+          label: "Entry review",
+          description: "Review submitted entry content, corrections and verification state",
+          href: "/confirmations/admin/responses",
+          editionScoped: false,
         },
         {
           key: "media",
