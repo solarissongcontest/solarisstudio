@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { APP_RESUME_EVENT } from "@/lib/app-lifecycle";
 import { prefersReducedMotion } from "@/lib/interaction-physics";
 import {
   classifyV3SwipeIntent,
@@ -37,6 +38,14 @@ function navigationMaterial() {
   );
 }
 
+function shellInteractionBlocked() {
+  const root = document.documentElement;
+  return (
+    root.hasAttribute("data-solaris-feature-overlay-open") ||
+    root.hasAttribute("data-solaris-keyboard-open")
+  );
+}
+
 /**
  * Shell-owned top-level swipe recognizer and three-surface viewport.
  *
@@ -54,6 +63,7 @@ export function V3TopLevelSwipeSurface({
   activeIndex,
   itemCount,
   previewReady = false,
+  interactionKey = null,
   onCommit,
 }: {
   children: ReactNode;
@@ -64,6 +74,7 @@ export function V3TopLevelSwipeSurface({
   activeIndex: number;
   itemCount: number;
   previewReady?: boolean;
+  interactionKey?: string | null;
   onCommit: (targetIndex: number) => void;
 }) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
@@ -106,6 +117,11 @@ export function V3TopLevelSwipeSurface({
   const resetSurface = useCallback(() => {
     clearSettleTimer();
     dragRef.current = null;
+    const surface = surfaceRef.current;
+    if (surface) {
+      surface.removeAttribute("data-v3-page-swiping");
+      surface.removeAttribute("data-v3-page-settling");
+    }
     const track = trackRef.current;
     if (track) {
       track.style.setProperty("--v3-page-swipe-x", "0px");
@@ -156,22 +172,41 @@ export function V3TopLevelSwipeSurface({
     [activeIndex, itemCount],
   );
 
-  useEffect(() => resetSurface(), [pathname, resetSurface]);
+  useEffect(
+    () => resetSurface(),
+    [interactionKey, pathname, resetSurface, searchStr],
+  );
 
   useEffect(() => {
     const interrupt = () => resetSurface();
     const hidden = () => {
       if (document.visibilityState !== "visible") resetSurface();
     };
+    const root = document.documentElement;
+    const rootInterruptionObserver = new MutationObserver(() => {
+      if (shellInteractionBlocked()) resetSurface();
+    });
 
+    rootInterruptionObserver.observe(root, {
+      attributes: true,
+      attributeFilter: [
+        "data-solaris-feature-overlay-open",
+        "data-solaris-keyboard-open",
+      ],
+    });
     window.addEventListener("blur", interrupt);
     window.addEventListener("resize", interrupt);
     window.addEventListener("orientationchange", interrupt);
+    window.addEventListener("pagehide", interrupt);
+    window.addEventListener(APP_RESUME_EVENT, interrupt);
     document.addEventListener("visibilitychange", hidden);
     return () => {
+      rootInterruptionObserver.disconnect();
       window.removeEventListener("blur", interrupt);
       window.removeEventListener("resize", interrupt);
       window.removeEventListener("orientationchange", interrupt);
+      window.removeEventListener("pagehide", interrupt);
+      window.removeEventListener(APP_RESUME_EVENT, interrupt);
       document.removeEventListener("visibilitychange", hidden);
       resetSurface();
     };
@@ -181,6 +216,7 @@ export function V3TopLevelSwipeSurface({
     if (
       !enabled ||
       prefersReducedMotion() ||
+      shellInteractionBlocked() ||
       event.pointerType === "mouse" ||
       event.button !== 0 ||
       elementBlocksV3TopLevelSwipe(event.target) ||
@@ -320,6 +356,7 @@ export function V3TopLevelSwipeSurface({
           <div
             className="v3-top-level-swipe-page v3-top-level-swipe-page--previous"
             aria-hidden="true"
+            inert
             data-v3-swipe-preview="previous"
           >
             {previousSurface}
@@ -332,6 +369,7 @@ export function V3TopLevelSwipeSurface({
           <div
             className="v3-top-level-swipe-page v3-top-level-swipe-page--next"
             aria-hidden="true"
+            inert
             data-v3-swipe-preview="next"
           >
             {nextSurface}
