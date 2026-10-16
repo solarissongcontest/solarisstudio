@@ -56,16 +56,6 @@
 
 [data-solaris-v3]
   .v3-liquid-tabbar__material[data-v3-page-swiping="true"]
-  .v3-liquid-tabbar__item {
-  color: color-mix(
-    in oklab,
-    var(--v3-text-tertiary) calc((1 - var(--v3-tab-visual-weight, 0)) * 100%),
-    var(--v3-text-primary)
-  );
-}
-
-[data-solaris-v3]
-  .v3-liquid-tabbar__material[data-v3-page-swiping="true"]
   .v3-liquid-tabbar__icon {
   opacity: calc(0.78 + (var(--v3-tab-visual-weight, 0) * 0.22));
   transform: scale(calc(0.97 + (var(--v3-tab-visual-weight, 0) * 0.05)));
