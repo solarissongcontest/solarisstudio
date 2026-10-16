@@ -145,6 +145,20 @@ describe("V3 Organizer information architecture", () => {
     expect(moreSource).toContain('to: "/admin/rules-manager"');
     expect(moreSource).toContain('to: "/admin/rule-interpretations"');
   });
+
+  it("surfaces Engagement and the four canonical specialist labs directly in More", () => {
+    expect(moreSource).toContain('title: "Engagement"');
+    expect(moreSource).toContain('to: "/admin/storytelling"');
+    expect(moreSource).toContain('to: "/admin/predictions"');
+    expect(moreSource).toContain('to: "/admin/fantasy"');
+    expect(moreSource).toContain('to: "/admin/community-moderation"');
+    expect(moreSource).toContain('to: "/admin/anniversary"');
+    expect(moreSource).toContain('title: "Specialist labs"');
+    expect(moreSource).toContain('to: "/admin/edition-simulator"');
+    expect(moreSource).toContain('to: "/admin/time-machine"');
+    expect(moreSource).toContain('to: "/admin/voting-lab"');
+    expect(moreSource).toContain('to: "/admin/command-assistant"');
+  });
 });
 
 describe("V3 Organizer tab continuity", () => {
