@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ImageIcon, MonitorPlay, Palette, RadioTower, RotateCcw, Save } from "lucide-react";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminCard,
@@ -22,12 +23,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { reportSupabaseError } from "@/lib/errors";
 import {
   editionLabel,
-  useAllParticipants,
-  useAllShows,
   useContestEntities,
   useCountries,
   useEditions,
   useIsOrganizer,
+  useParticipants,
+  useShows,
   useThemes,
 } from "@/lib/data";
 import { entityDisplayMap } from "@/lib/entities";
@@ -49,15 +50,16 @@ type DesignScope = "edition" | string;
 
 function EditionDesignPage() {
   const { slug } = Route.useParams();
+  const { editionId: organizerEditionId } = useAdminContext();
   const { data: editions = [], isLoading: editionsLoading } = useEditions();
-  const { data: shows = [] } = useAllShows();
-  const { data: participants = [] } = useAllParticipants();
+  const edition = useMemo(() => editions.find((item) => item.slug === slug) ?? null, [editions, slug]);
+  const { data: shows = [] } = useShows(edition?.id);
+  const { data: participants = [] } = useParticipants(edition?.id);
   const { data: countries = [] } = useCountries();
   const { data: themes = [] } = useThemes();
   const { data: isOrganizer } = useIsOrganizer();
   const qc = useQueryClient();
 
-  const edition = useMemo(() => editions.find((item) => item.slug === slug) ?? null, [editions, slug]);
   const editionShows = useMemo(
     () => shows.filter((show) => show.edition_id === edition?.id).sort((a, b) => a.sort_order - b.sort_order),
     [shows, edition?.id],
@@ -192,8 +194,16 @@ function EditionDesignPage() {
     await Promise.all(["editions", "edition", "shows", "show", "themes", "participants"].map((key) => qc.invalidateQueries({ queryKey: [key] })));
   }
 
+  function assertEditionScope() {
+    if (!edition || organizerEditionId !== edition.id) {
+      setError("Edition context changed before this Production save. Reload the selected edition before retrying.");
+      return false;
+    }
+    return true;
+  }
+
   async function saveEditionDefault() {
-    if (!edition || saving || !previewShow) return;
+    if (!edition || saving || !previewShow || !assertEditionScope()) return;
     setSaving(true);
     setError(null);
     setMsg(null);
@@ -249,7 +259,7 @@ function EditionDesignPage() {
   }
 
   async function saveRoundOverride() {
-    if (!edition || !selectedShow || saving) return;
+    if (!edition || !selectedShow || saving || !assertEditionScope()) return;
     setSaving(true);
     setError(null);
     setMsg(null);
@@ -296,7 +306,7 @@ function EditionDesignPage() {
   }
 
   async function resetRound() {
-    if (!edition || !selectedShow || !edition.theme_id || saving) return;
+    if (!edition || !selectedShow || !edition.theme_id || saving || !assertEditionScope()) return;
     setSaving(true);
     setError(null);
     setMsg(null);
@@ -320,6 +330,20 @@ function EditionDesignPage() {
 
   if (editionsLoading) return <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading design…</p></AdminCard>;
   if (!edition) return <AdminCard><AdminEmptyState icon={Palette} title="Edition not found" description="Choose another edition from the organizer workspace." action={<Link to="/admin" className="admin-action-secondary">Back to editions</Link>} /></AdminCard>;
+  if (!organizerEditionId || organizerEditionId !== edition.id) {
+    return (
+      <AdminPage>
+        <AdminCard>
+          <AdminEmptyState
+            icon={Palette}
+            title="Confirming edition context"
+            description="This Production editor only opens when its route edition matches the exact edition selected in Solaris Organizer. It will not save into a different edition while context is changing."
+            action={<Link to="/admin/control" className="admin-action-secondary">Back to Control</Link>}
+          />
+        </AdminCard>
+      </AdminPage>
+    );
+  }
 
   const roundHasOverride = !!selectedShow && !!selectedShow.theme_id && selectedShow.theme_id !== edition.theme_id;
 
@@ -408,7 +432,7 @@ function EditionDesignPage() {
       </AdminCard>
 
       <WorkspaceActionBar className="flex-col items-stretch rounded-2xl border border-white/[0.08] bg-[#081326]/95 p-2.5 backdrop-blur-xl">
-        <button type="button" disabled={saving || !previewShow} onClick={() => void (scope === "edition" ? saveEditionDefault() : saveRoundOverride())} className="admin-action-primary min-h-12 w-full">
+        <button type="button" disabled={saving || !previewShow || organizerEditionId !== edition.id} onClick={() => void (scope === "edition" ? saveEditionDefault() : saveRoundOverride())} className="admin-action-primary min-h-12 w-full">
           <Save className="size-4" /> {saving ? "Saving…" : scope === "edition" ? `Save default to all ${editionShows.length} show${editionShows.length === 1 ? "" : "s"}` : `Save ${selectedShow?.name ?? "show"} override`}
         </button>
         {scope === "edition" ? <p className="mt-2 px-2 text-center text-xs leading-relaxed text-muted-foreground">The theme is shared at edition level. Broadcast and scoreboard settings are normalized and copied to each show.</p> : null}
