@@ -4,6 +4,8 @@ import { useSolarisApp } from "@/components/app/AppRuntime";
 import { useV3EntryBundle } from "@/lib/v3-entry-runtime";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { V3AppShell } from "./V3AppShell";
+import { V3EntryLifecyclePanel } from "./V3EntryLifecyclePanel";
+import { V3EntryResubmissionPanel } from "./V3EntryResubmissionPanel";
 import { V3EntryScreen } from "./V3EntryScreen";
 
 function ResolvingEntrySurface() {
@@ -77,6 +79,8 @@ export function V3EntryRouteGate({
       phaseLabel={bundle.data.shell.phaseLabel}
       activeArea="participate"
     >
+      <V3EntryLifecyclePanel projection={bundle.data.projection} />
+      <V3EntryResubmissionPanel projection={bundle.data.projection} />
       <V3EntryScreen
         projection={bundle.data.projection}
         focusReadiness={focusReadiness}
