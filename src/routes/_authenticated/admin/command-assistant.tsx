@@ -90,6 +90,27 @@ function CommandAssistantPage() {
           <AdminCard>
             <AdminStatus tone="neutral">Confirming edition context…</AdminStatus>
           </AdminCard>
+        ) : editionId && editionsQuery.error ? (
+          <AdminCard>
+            <AdminCardHeader
+              eyebrow="Edition context"
+              title="Could not verify the selected edition"
+              description="Command Assistant will not treat an edition lookup failure as missing context or silently substitute another edition."
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <AdminStatus tone="blocked">
+                {editionsQuery.error instanceof Error ? editionsQuery.error.message : "Edition lookup failed"}
+              </AdminStatus>
+              <button
+                type="button"
+                onClick={() => void editionsQuery.refetch()}
+                disabled={editionsQuery.isFetching}
+                className="admin-action-secondary"
+              >
+                Retry edition lookup
+              </button>
+            </div>
+          </AdminCard>
         ) : selectedEdition ? (
           <AdminCard>
             <AdminCardHeader eyebrow="Current edition" title="Canonical operational summary" description="One projection shared with Control and readiness surfaces, rather than a second set of browser database queries." />
