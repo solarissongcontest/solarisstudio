@@ -21,8 +21,15 @@ describe('V3 Organizer Delegations context boundary', () => {
     expect(countriesRoute).toContain('return <Outlet />;');
   });
 
-  it('contains the legacy detail fallback behind the parent guard rather than treating it as V3 authority', () => {
-    expect(countryDetail).toContain("[...editions].sort");
+  it('keeps country detail itself exact-scoped instead of retaining a newest-edition fallback', () => {
+    expect(countryDetail).toContain('const { editionId } = useAdminContext();');
+    expect(countryDetail).toContain('selectOrganizerEdition(editions, editionId)');
+    expect(countryDetail).toContain('title="No edition selected"');
+    expect(countryDetail).toContain(
+      'Solaris will not substitute another edition for missing or stale Organizer context.',
+    );
+    expect(countryDetail).not.toContain('[...editions].sort');
+    expect(countryDetail).not.toContain('editions[0]');
     expect(countriesRoute).toContain(
       'Solaris will not substitute the newest edition for a missing or stale context.',
     );
