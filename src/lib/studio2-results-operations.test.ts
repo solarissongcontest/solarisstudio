@@ -7,6 +7,8 @@ import {
   resultLifecycleLabel,
   studio2ResultBlockers,
   summarizeStudio2ResultsOperations,
+  validateStudio2ResultExecution,
+  type Studio2ResultExecution,
   type Studio2ResultOperationRow,
 } from './studio2-results-operations';
 
@@ -54,6 +56,24 @@ function row(overrides: Partial<Studio2ResultOperationRow> = {}): Studio2ResultO
   };
 }
 
+function execution(overrides: Partial<Studio2ResultExecution> = {}): Studio2ResultExecution {
+  return {
+    executionId: 'execution-1',
+    showId: 'show-1',
+    editionId: 'edition-22',
+    action: 'lock',
+    reason: 'Lock reviewed result',
+    calculationVersion: 4,
+    previousVersion: 4,
+    materializedRows: 0,
+    updatedRows: 1,
+    preconditionsBefore: row().preconditions,
+    preconditionsAfter: row().preconditions,
+    idempotentReplay: false,
+    ...overrides,
+  };
+}
+
 describe('Studio 2 results operations model', () => {
   it('parses a valid snapshot row and rejects unknown lifecycle values', () => {
     const parsed = parseStudio2ResultOperationRow(row());
@@ -61,6 +81,25 @@ describe('Studio 2 results operations model', () => {
     expect(parsed.preconditions.juryReady).toBe(true);
 
     expect(() => parseStudio2ResultOperationRow({ ...row(), lifecycle: 'magic' })).toThrow('Invalid result lifecycle');
+  });
+
+  it('rejects a result receipt whose semantic command identity does not match the request', () => {
+    const receipt = execution();
+    const request = { executionId: 'execution-1', showId: 'show-1', action: 'lock' as const };
+
+    expect(validateStudio2ResultExecution(receipt, request)).toBe(receipt);
+    expect(() => validateStudio2ResultExecution(
+      execution({ executionId: 'execution-other' }),
+      request,
+    )).toThrow('executionId');
+    expect(() => validateStudio2ResultExecution(
+      execution({ showId: 'show-other' }),
+      request,
+    )).toThrow('showId');
+    expect(() => validateStudio2ResultExecution(
+      execution({ action: 'unlock' }),
+      request,
+    )).toThrow('action');
   });
 
   it('does not call unversioned legacy result rows calculated', () => {
