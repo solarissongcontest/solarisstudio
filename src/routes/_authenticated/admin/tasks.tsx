@@ -323,15 +323,28 @@ function Metric({
 export function taskDomain(
   task: Pick<OrganizerTaskV5, "href" | "sourceKind" | "taskType">,
 ): Exclude<OrganizerTaskDomainFilter, "all"> {
-  const text = `${task.href} ${task.sourceKind} ${task.taskType}`.toLowerCase();
-  if (/confirm|delegat|country|participation/.test(text)) return "participation";
-  if (/jury/.test(text)) return "jury";
-  if (/televote|public.?vote/.test(text)) return "televote";
-  if (/integrity|investigation|appeal|evidence|anti[-_ ]?abuse|fraud|ruling|rule/.test(text)) {
+  // Prefer the canonical task identity over its route. Entry review currently
+  // lives below a country URL, so URL-first classification silently hides real
+  // entry work inside Participation.
+  const semantic = `${task.sourceKind} ${task.taskType}`.toLowerCase();
+  if (/entry|media|submission|show|lineup|progress|eligib/.test(semantic)) return "entries";
+  if (/jury/.test(semantic)) return "jury";
+  if (/televote|public.?vote/.test(semantic)) return "televote";
+  if (/integrity|investigation|appeal|evidence|anti[-_ ]?abuse|fraud|ruling|rule/.test(semantic)) {
     return "integrity";
   }
-  if (/result|publication|publish/.test(text)) return "publication";
-  if (/entry|media|submission|show|lineup|progress|eligib/.test(text)) return "entries";
+  if (/result|publication|publish/.test(semantic)) return "publication";
+  if (/confirm|delegat|participation/.test(semantic)) return "participation";
+
+  const route = task.href.toLowerCase();
+  if (/entry|media|submission|show|lineup|progress|eligib/.test(route)) return "entries";
+  if (/jury/.test(route)) return "jury";
+  if (/televote|public.?vote/.test(route)) return "televote";
+  if (/integrity|investigation|appeal|evidence|anti[-_ ]?abuse|fraud|ruling|rule/.test(route)) {
+    return "integrity";
+  }
+  if (/result|publication|publish/.test(route)) return "publication";
+  if (/confirm|delegat|country|participation/.test(route)) return "participation";
   return "system";
 }
 
