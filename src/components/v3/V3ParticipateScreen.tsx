@@ -86,6 +86,68 @@ function ActionList({
   );
 }
 
+function votingStateLabel(action: V3ActionProjection) {
+  if (action.completed) return action.kind === "jury" ? "Submitted" : "Finished";
+  if (action.sourceState === "problem") return "Needs attention";
+  if (action.sourceState === "needs_attention" || action.sourceState === "available") return "Open";
+  if (action.sourceState === "upcoming") return "Upcoming";
+  if (action.sourceState === "waiting") return "Waiting";
+  return "Current";
+}
+
+function VotingOverviewCard({
+  label,
+  action,
+  optional,
+  delegationLabel,
+}: {
+  label: string;
+  action: V3ActionProjection | null;
+  optional: boolean;
+  delegationLabel?: string | null;
+}) {
+  if (!action) {
+    return (
+      <V3Surface className="p-4" data-v3-voting-overview-state="absent">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold">{label}</p>
+            <p className="mt-1 text-xs leading-5 text-white/48">
+              Solaris has no canonical {optional ? "public voting" : "jury responsibility"} action for this account and edition right now.
+            </p>
+          </div>
+          <V3StatusChip>{optional ? "Optional" : "Official"}</V3StatusChip>
+        </div>
+      </V3Surface>
+    );
+  }
+
+  return (
+    <V3Surface
+      level={action.actionRequired ? "raised" : "base"}
+      className="p-3"
+      data-v3-voting-overview-state={action.sourceState}
+    >
+      <div className="mb-2 flex items-center justify-between gap-3 px-1">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/48">{label}</p>
+        <V3StatusChip tone={toneForAction(action)}>{votingStateLabel(action)}</V3StatusChip>
+      </div>
+      <V3ActionCard
+        title={action.title}
+        description={action.description}
+        tone={toneForAction(action)}
+        to={action.route}
+        meta={timingMeta(action, delegationLabel)}
+      />
+      <p className="px-1 pb-1 pt-2 text-[11px] leading-5 text-white/38">
+        {optional
+          ? "Public voting stays optional even when it is time-sensitive."
+          : "Jury status comes from the official delegation voting projection and outranks optional fan participation when action is required."}
+      </p>
+    </V3Surface>
+  );
+}
+
 /**
  * V3 Participate composition.
  *
@@ -148,6 +210,26 @@ export function V3ParticipateScreen({
             </p>
           </V3Surface>
         )}
+      </V3Section>
+
+      <V3Section
+        title="Voting"
+        meta={participate.voting.currentCount ? `${participate.voting.currentCount} current` : "No current voting actions"}
+      >
+        <div className="grid gap-3 sm:grid-cols-2" data-v3-voting-overview="canonical-actions">
+          <VotingOverviewCard
+            label="Jury"
+            action={participate.voting.jury}
+            optional={false}
+            delegationLabel={delegationLabel}
+          />
+          <VotingOverviewCard
+            label="Public televote"
+            action={participate.voting.televote}
+            optional
+            delegationLabel={delegationLabel}
+          />
+        </div>
       </V3Section>
 
       <V3Section
