@@ -15,6 +15,8 @@ const confirmationAdmin = readFileSync("src/integrations/confirmations/admin.ts"
 const eligibility = readFileSync("src/routes/_authenticated/admin/eligibility.tsx", "utf8");
 const media = readFileSync("src/routes/_authenticated/admin/media-assets.tsx", "utf8");
 const results = readFileSync("src/routes/_authenticated/admin/results.tsx", "utf8");
+const communications = readFileSync("src/routes/_authenticated/admin/communications.tsx", "utf8");
+const communicationsData = readFileSync("src/lib/studio2-communications.ts", "utf8");
 
 const protectedRoutes = [
   ["Control", control],
@@ -29,6 +31,7 @@ const protectedRoutes = [
   ["Eligibility", eligibility],
   ["Media review", media],
   ["Results", results],
+  ["Communications", communications],
 ] as const;
 
 describe("V3 Organizer explicit edition context", () => {
@@ -97,6 +100,22 @@ describe("V3 Organizer explicit edition context", () => {
     expect(control).not.toContain("ordered[0]");
   });
 
+  it("keeps Official Communications fail-closed to the selected Organizer edition", () => {
+    expect(communications).toContain("enabled: Boolean(editionId)");
+    expect(communications).toContain("return loadStudio2Notices(editionId)");
+    expect(communications).toContain("editionId ?? 'unscoped'");
+    expect(communications).not.toContain("editionId ?? 'all'");
+    expect(communications).not.toContain("editionId: editionId ?? null");
+    expect(communications).toContain("if (!editionId) throw new Error('Choose an edition before creating Official Communications.')");
+    expect(communications).toContain("editionId,");
+    expect(communications).toContain("enabled: Boolean(editionId && selectedNotice)");
+    expect(communications).toContain("selectedNotice.editionId !== editionId");
+    expect(communications).toContain('title="Choose an edition"');
+    expect(communications).toContain("never broadens a missing edition into an all-editions view");
+
+    expect(communicationsData).toContain("loadStudio2Notices");
+  });
+
   it("explains why missing scope does not silently switch editions", () => {
     expect(countries).toContain("will not substitute another edition");
     expect(countryDetail).toContain("will not substitute another edition");
@@ -108,5 +127,6 @@ describe("V3 Organizer explicit edition context", () => {
     expect(confirmationSettings).toContain("will not substitute a globally active or first edition");
     expect(eligibility).toContain("will not substitute another edition");
     expect(media).toContain("will not substitute another edition");
+    expect(communications).toContain("never broadens a missing edition into an all-editions view");
   });
 });
