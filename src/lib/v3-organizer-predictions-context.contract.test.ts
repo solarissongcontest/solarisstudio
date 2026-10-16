@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const route = readFileSync("src/routes/_authenticated/admin/predictions.tsx", "utf8");
-const boundedReader = readFileSync("src/lib/v3-organizer-prediction-data.ts", "utf8");
+const v3Facade = readFileSync("src/lib/v3-organizer-prediction-data.ts", "utf8");
+const boundedReader = readFileSync("src/lib/organizer-prediction-data.ts", "utf8");
 const legacyData = readFileSync("src/lib/prediction-data.ts", "utf8");
 
 describe("V3 Organizer Prediction Arena context", () => {
@@ -13,6 +14,12 @@ describe("V3 Organizer Prediction Arena context", () => {
     expect(route).not.toContain("ordered[0]");
     expect(route).not.toContain("[...editions].sort");
     expect(route).toContain("will not substitute the newest or globally active edition");
+  });
+
+  it("keeps the V3 facade free of direct Supabase access", () => {
+    expect(v3Facade).toContain("@/lib/organizer-prediction-data");
+    expect(v3Facade).not.toContain("integrations/supabase");
+    expect(v3Facade).not.toContain('.from("');
   });
 
   it("bounds prediction-round reads to the selected edition's show ids", () => {
