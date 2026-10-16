@@ -265,6 +265,7 @@ function EligibilityPage() {
         )}
 
         <EligibilityDetailSheet
+          key={resolvedEditionId || 'unscoped'}
           country={selected}
           overrideHistory={(overridesQuery.data ?? []).filter((item) => item.countryId === selected?.countryId)}
           onClose={() => updateSearch({ country: undefined })}
@@ -517,7 +518,7 @@ function EligibilityOverrideImpactPreview({ pending }: { pending: PendingEligibi
       </p>
 
       <div className="grid grid-cols-2 gap-2">
-        <EligibilityImpactMetric label="Factual state" value={statusLabel(pending.rule.factualStatus)} />
+        <EligibilityImpactMetric label="Edition" value={preview.editionId} />
         <EligibilityImpactMetric label="Effective after change" value={nextEffective} />
         <EligibilityImpactMetric label="Rule" value={pending.rule.id} />
         <EligibilityImpactMetric label="Prior decisions" value={preview.historyCount} />
