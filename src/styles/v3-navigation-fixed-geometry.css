@@ -12,12 +12,12 @@
 }
 
 /*
- * Keep the decorative lens out of WebKit's RTL CSS-grid absolute-position
- * coordinate system. Flex preserves the inherited logical direction for route
- * and gesture semantics, while physical left/right continue to anchor the lens
- * in viewport coordinates. Under RTL a normal flex row naturally places later
+ * Keep the decorative lens out of WebKit's RTL flex/grid static-position
+ * coordinate systems. The material preserves inherited logical direction for
+ * route and gesture semantics; a fully constrained LTR overlay owns the lens'
+ * physical coordinates. Under RTL a normal flex row naturally places later
  * logical destinations toward physical left, matching the single mirrored lens
- * index in the component without a second row-reversal transform.
+ * index in the component without browser-dependent static positioning.
  */
 [data-solaris-v3] .v3-liquid-tabbar__material {
   --v3-liquid-gap: 2px;
@@ -26,6 +26,14 @@
   gap: 2px;
   padding: 6px;
   border-radius: 32px;
+}
+
+[data-solaris-v3] .v3-liquid-tabbar__lens-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  direction: ltr;
+  pointer-events: none;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__lens {

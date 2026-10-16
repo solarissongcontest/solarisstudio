@@ -22,8 +22,9 @@ describe("V3 shared navigation visual progress contract", () => {
     expect(pageSwipe).not.toContain("0.97 + weight * 0.05");
   });
 
-  it("keeps page, lens and icon optics driven by the same bounded page progress", () => {
+  it("keeps page, lens and all icon optics driven by the same bounded page progress", () => {
     const pageSwipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
+    const css = source("src/styles/v3-top-level-swipe.css");
 
     expect(pageSwipe).toContain("--v3-navigation-progress");
     expect(pageSwipe).toContain("const offsetRatio = (activeIndex - boundedProgress) * physicalInlineSign");
@@ -36,5 +37,9 @@ describe("V3 shared navigation visual progress contract", () => {
     expect(pageSwipe).toContain("visualState.opacity.toFixed(4)");
     expect(pageSwipe).toContain('"--v3-tab-visual-scale",');
     expect(pageSwipe).toContain("visualState.scale.toFixed(4)");
+    expect(pageSwipe).toContain('"--v3-tab-visual-stroke",');
+    expect(pageSwipe).toContain("visualState.strokeWidth.toFixed(4)");
+    expect(pageSwipe).toContain('item.style.removeProperty("--v3-tab-visual-stroke")');
+    expect(css).toContain("stroke-width: var(--v3-tab-visual-stroke, 1.9)");
   });
 });

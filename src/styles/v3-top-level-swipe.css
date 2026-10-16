@@ -81,6 +81,7 @@
   .v3-liquid-tabbar__icon {
   opacity: var(--v3-tab-visual-opacity, 0.78);
   transform: scale(var(--v3-tab-visual-scale, 0.97));
+  stroke-width: var(--v3-tab-visual-stroke, 1.9);
 }
 
 @media (prefers-reduced-motion: reduce) {

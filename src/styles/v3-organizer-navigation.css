@@ -13,13 +13,20 @@
 
 /*
  * Organizer shares the Public tab-bar physics but its material is authored with
- * utility classes. Flex removes WebKit's absolute-child RTL grid ambiguity while
- * preserving the inherited logical direction. A normal RTL flex row places later
- * logical destinations toward physical left, matching the component's single
- * mirrored lens index without an additional row-reversal transform.
+ * utility classes. Flex preserves inherited logical direction. The decorative
+ * lens lives inside a fully constrained LTR overlay so WebKit never gives the
+ * lens itself an RTL flex static position before its physical transform runs.
  */
 .admin-mobile-nav[data-v6-organizer-tabbar] > div {
   display: flex !important;
+}
+
+.admin-mobile-nav[data-v6-organizer-tabbar] .v6-organizer-tabbar__lens-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  direction: ltr;
+  pointer-events: none;
 }
 
 .admin-mobile-nav[data-v6-organizer-tabbar] > div > [data-organizer-tab-index] {

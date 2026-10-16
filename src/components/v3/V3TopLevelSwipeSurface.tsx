@@ -165,6 +165,7 @@ export function V3TopLevelSwipeSurface({
         item.style.removeProperty("--v3-tab-visual-weight");
         item.style.removeProperty("--v3-tab-visual-opacity");
         item.style.removeProperty("--v3-tab-visual-scale");
+        item.style.removeProperty("--v3-tab-visual-stroke");
       });
   }, []);
 
@@ -238,6 +239,10 @@ export function V3TopLevelSwipeSurface({
         item.style.setProperty(
           "--v3-tab-visual-scale",
           visualState.scale.toFixed(4),
+        );
+        item.style.setProperty(
+          "--v3-tab-visual-stroke",
+          visualState.strokeWidth.toFixed(4),
         );
       }
     },

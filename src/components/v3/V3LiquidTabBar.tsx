@@ -470,8 +470,8 @@ export function V3LiquidTabBar({
 
   // Keep the decorative lens in a physical left-to-right coordinate system.
   // Flex item placement mirrors naturally in RTL, while route/gesture selection
-  // stays logical. A physical left anchor prevents WebKit from applying a second
-  // directional transform to the absolutely positioned decorative lens.
+  // stays logical. The lens layer is fully constrained and LTR so WebKit never
+  // uses the lens itself as an absolutely-positioned RTL flex child.
   const physicalLensIndex =
     layoutDirection === "rtl" ? count - 1 - visualLensIndex : visualLensIndex;
   const totalGap = Math.max(0, count - 1) * 2;
@@ -516,11 +516,13 @@ export function V3LiquidTabBar({
           className="v3-liquid-tabbar__backdrop"
           sourceKey={`v3-tabbar:${pathname}`}
         />
-        <span
-          className="v3-liquid-tabbar__lens"
-          style={indicatorStyle}
-          aria-hidden="true"
-        />
+        <span className="v3-liquid-tabbar__lens-layer" aria-hidden="true">
+          <span
+            className="v3-liquid-tabbar__lens"
+            style={indicatorStyle}
+            aria-hidden="true"
+          />
+        </span>
 
         {destinations.map((destination, index) => {
           const Icon = destination.icon;

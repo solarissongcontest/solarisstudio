@@ -392,9 +392,9 @@ export function OrganizerV6TabBar({
   };
 
   const count = Math.max(1, items.length);
-  // Organizer uses the same physical lens coordinate model as the public bar.
-  // Flex placement mirrors tab items naturally in RTL; the decorative lens is
-  // always left-anchored so browser directionality cannot mirror X twice.
+  // Organizer shares Public's physical lens overlay model. The outer material
+  // keeps logical RTL for tab placement while the fully constrained LTR layer
+  // prevents WebKit from static-positioning the lens as an RTL flex child.
   const physicalLensIndex =
     layoutDirection === "rtl" ? count - 1 - visualActiveIndex : visualActiveIndex;
   const indicatorStyle = {
@@ -446,16 +446,18 @@ export function OrganizerV6TabBar({
           className="pointer-events-none absolute inset-0 size-full rounded-[inherit]"
           sourceKey={`organizer:${pathname}`}
         />
-        <span
-          aria-hidden="true"
-          className={cn(
-            "pointer-events-none absolute left-[.375rem] top-1/2 z-[1] rounded-[1rem] bg-white/[0.075]",
-            "transition-transform duration-200 ease-out motion-reduce:transition-none",
-            compact ? "h-[2.55rem]" : "h-[3.7rem]",
-            dragging && "transition-none",
-          )}
-          style={indicatorStyle}
-        />
+        <span className="v6-organizer-tabbar__lens-layer" aria-hidden="true">
+          <span
+            className={cn(
+              "v6-organizer-tabbar__lens pointer-events-none absolute left-[.375rem] top-1/2 z-[1] rounded-[1rem] bg-white/[0.075]",
+              "transition-transform duration-200 ease-out motion-reduce:transition-none",
+              compact ? "h-[2.55rem]" : "h-[3.7rem]",
+              dragging && "transition-none",
+            )}
+            style={indicatorStyle}
+            aria-hidden="true"
+          />
+        </span>
 
         {items.map((item, index) => {
           const Icon = item.icon;
