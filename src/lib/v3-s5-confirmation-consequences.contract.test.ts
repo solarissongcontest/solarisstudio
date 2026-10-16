@@ -91,7 +91,11 @@ describe("System V3 S5 Confirmation consequences", () => {
 
   it("marks only the migrated Confirmation facts as event-backed", () => {
     const eventBacked = V3_DOMAIN_CONSEQUENCE_REGISTRY
-      .filter((consequence) => consequence.implementationState === "event-backed")
+      .filter(
+        (consequence) =>
+          consequence.ownerDomain === "confirmation" &&
+          consequence.implementationState === "event-backed",
+      )
       .map((consequence) => consequence.eventType)
       .sort();
 

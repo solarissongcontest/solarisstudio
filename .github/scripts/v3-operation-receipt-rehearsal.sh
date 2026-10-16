@@ -102,7 +102,7 @@ claims_sql() {
 
 claim_sql() {
   local user_id="$1" operation_id="$2" key="$3" correlation_id="$4" request_json="$5"
-  printf "begin; %s select private.studio2_claim_operation('%s','%s','%s','entry.request_changes','R2',jsonb_build_object('editionId','00000000-0000-4000-8000-00000000e701'),'%s'::jsonb); commit;" \
+  printf "begin; %s select private.studio2_claim_operation('%s','%s','%s','system.operation_receipt.rehearse','R2',jsonb_build_object('fixture','s2-operation-receipt'),'%s'::jsonb); commit;" \
     "$(claims_sql "$user_id")" "$operation_id" "$key" "$correlation_id" "$request_json"
 }
 
@@ -111,7 +111,7 @@ RETRY_OPERATION='00000000-0000-4000-8000-00000000b702'
 FAIL_OPERATION='00000000-0000-4000-8000-00000000b703'
 UNCERTAIN_OPERATION='00000000-0000-4000-8000-00000000b704'
 CORRELATION_ID='00000000-0000-4000-8000-00000000c701'
-ENTRY_ID='00000000-0000-4000-8000-00000000e702'
+FIXTURE_ID='00000000-0000-4000-8000-00000000e702'
 IDEMPOTENCY_KEY='v3-s2-replay-key'
 
 log "Creating isolated operation actors"
@@ -121,31 +121,31 @@ sign_in v3-operation-a@solaris.invalid; USER_A_TOKEN="$LAST_TOKEN"
 sign_in v3-operation-b@solaris.invalid; USER_B_TOKEN="$LAST_TOKEN"
 
 log "Claiming and completing a canonical semantic request"
-FIRST_CLAIM="$(db_value "$(claim_sql "$USER_A_ID" "$ACTOR_OPERATION" "$IDEMPOTENCY_KEY" "$CORRELATION_ID" "{\"entryId\":\"$ENTRY_ID\",\"reason\":\"Fix artist credit\"}")")"
+FIRST_CLAIM="$(db_value "$(claim_sql "$USER_A_ID" "$ACTOR_OPERATION" "$IDEMPOTENCY_KEY" "$CORRELATION_ID" "{\"fixtureId\":\"$FIXTURE_ID\",\"reason\":\"Verify normalized request\"}")")"
 [[ "$(printf '%s' "$FIRST_CLAIM" | tail -n 1 | json_value replayed)" == 'false' ]] || fail "first claim was not new: $FIRST_CLAIM"
 
-COMPLETED="$(db_value "begin; $(claims_sql "$USER_A_ID") select private.studio2_complete_operation('$ACTOR_OPERATION',jsonb_build_object('entryId','$ENTRY_ID','reviewState','changes_requested')); commit;")"
-[[ "$(printf '%s' "$COMPLETED" | tail -n 1 | json_value reviewState)" == 'changes_requested' ]] || fail "completion did not persist canonical result: $COMPLETED"
+COMPLETED="$(db_value "begin; $(claims_sql "$USER_A_ID") select private.studio2_complete_operation('$ACTOR_OPERATION',jsonb_build_object('fixtureId','$FIXTURE_ID','state','completed')); commit;")"
+[[ "$(printf '%s' "$COMPLETED" | tail -n 1 | json_value state)" == 'completed' ]] || fail "completion did not persist canonical result: $COMPLETED"
 
 log "Replaying the same normalized request with a new operation id"
-REPLAY="$(db_value "$(claim_sql "$USER_A_ID" "$RETRY_OPERATION" "$IDEMPOTENCY_KEY" '00000000-0000-4000-8000-00000000c702' "{\"reason\":\"Fix artist credit\",\"entryId\":\"$ENTRY_ID\"}")")"
+REPLAY="$(db_value "$(claim_sql "$USER_A_ID" "$RETRY_OPERATION" "$IDEMPOTENCY_KEY" '00000000-0000-4000-8000-00000000c702' "{\"reason\":\"Verify normalized request\",\"fixtureId\":\"$FIXTURE_ID\"}")")"
 REPLAY_JSON="$(printf '%s' "$REPLAY" | tail -n 1)"
 [[ "$(printf '%s' "$REPLAY_JSON" | json_value replayed)" == 'true' ]] || fail "same semantic request did not replay: $REPLAY_JSON"
 [[ "$(printf '%s' "$REPLAY_JSON" | json_value operationId)" == "$ACTOR_OPERATION" ]] || fail "replay did not return original operation: $REPLAY_JSON"
-[[ "$(printf '%s' "$REPLAY_JSON" | json_value result.reviewState)" == 'changes_requested' ]] || fail "replay lost completed result: $REPLAY_JSON"
+[[ "$(printf '%s' "$REPLAY_JSON" | json_value result.state)" == 'completed' ]] || fail "replay lost completed result: $REPLAY_JSON"
 
 log "Rejecting an idempotency key reused for a changed semantic request"
 expect_db_failure \
   "changed semantic request" \
-  "$(claim_sql "$USER_A_ID" "$RETRY_OPERATION" "$IDEMPOTENCY_KEY" "$CORRELATION_ID" "{\"entryId\":\"$ENTRY_ID\",\"reason\":\"Replace the song\"}")" \
+  "$(claim_sql "$USER_A_ID" "$RETRY_OPERATION" "$IDEMPOTENCY_KEY" "$CORRELATION_ID" "{\"fixtureId\":\"$FIXTURE_ID\",\"reason\":\"Changed semantic request\"}")" \
   'IDEMPOTENCY_CONFLICT'
 
 log "Recording failed and uncertain terminal receipts"
-db_value "$(claim_sql "$USER_A_ID" "$FAIL_OPERATION" 'v3-s2-failed-key' "$CORRELATION_ID" "{\"entryId\":\"$ENTRY_ID\",\"reason\":\"Failure fixture\"}")" >/dev/null
+db_value "$(claim_sql "$USER_A_ID" "$FAIL_OPERATION" 'v3-s2-failed-key' "$CORRELATION_ID" "{\"fixtureId\":\"$FIXTURE_ID\",\"reason\":\"Failure fixture\"}")" >/dev/null
 FAILED="$(db_value "begin; $(claims_sql "$USER_A_ID") select private.studio2_fail_operation('$FAIL_OPERATION','VALIDATION',jsonb_build_object('field','artist')); commit;")"
 [[ "$(printf '%s' "$FAILED" | tail -n 1 | json_value status)" == 'failed' ]] || fail "failed receipt was not terminal: $FAILED"
 
-db_value "$(claim_sql "$USER_A_ID" "$UNCERTAIN_OPERATION" 'v3-s2-uncertain-key' "$CORRELATION_ID" "{\"entryId\":\"$ENTRY_ID\",\"reason\":\"Uncertain fixture\"}")" >/dev/null
+db_value "$(claim_sql "$USER_A_ID" "$UNCERTAIN_OPERATION" 'v3-s2-uncertain-key' "$CORRELATION_ID" "{\"fixtureId\":\"$FIXTURE_ID\",\"reason\":\"Uncertain fixture\"}")" >/dev/null
 UNCERTAIN="$(db_value "begin; $(claims_sql "$USER_A_ID") select private.studio2_mark_operation_uncertain('$UNCERTAIN_OPERATION','TIMEOUT',jsonb_build_object('dependency','participant-task')); commit;")"
 [[ "$(printf '%s' "$UNCERTAIN" | tail -n 1 | json_value status)" == 'uncertain' ]] || fail "uncertain receipt was not terminal: $UNCERTAIN"
 
@@ -153,7 +153,7 @@ log "Reconciling only through the authenticated actor boundary"
 request POST "$API_URL/rest/v1/rpc/studio2_reconcile_operation" "$USER_A_TOKEN" "$ANON_KEY" "{\"p_operation_id\":\"$ACTOR_OPERATION\"}"
 expect_success "own operation reconciliation"
 expect_json "reconciliation status" status succeeded
-expect_json "reconciliation result" result.reviewState changes_requested
+expect_json "reconciliation result" result.state completed
 expect_json "reconciliation correlation" correlationId "$CORRELATION_ID"
 
 request POST "$API_URL/rest/v1/rpc/studio2_reconcile_operation" "$USER_B_TOKEN" "$ANON_KEY" "{\"p_operation_id\":\"$ACTOR_OPERATION\"}"
@@ -161,7 +161,7 @@ expect_failure "foreign actor reconciliation"
 
 expect_db_failure \
   "browser role direct private claim" \
-  "begin; set local role authenticated; $(claims_sql "$USER_A_ID") select private.studio2_claim_operation('$RETRY_OPERATION','blocked-direct-call','$CORRELATION_ID','entry.request_changes','R2','{}'::jsonb,'{}'::jsonb); rollback;" \
+  "begin; set local role authenticated; $(claims_sql "$USER_A_ID") select private.studio2_claim_operation('$RETRY_OPERATION','blocked-direct-call','$CORRELATION_ID','system.operation_receipt.rehearse','R2','{}'::jsonb,'{}'::jsonb); rollback;" \
   'permission denied'
 
 log "System V3 S2 operation receipt rehearsal passed"
