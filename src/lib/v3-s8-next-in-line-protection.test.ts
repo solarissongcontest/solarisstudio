@@ -52,7 +52,7 @@ describe("System V3 S8 Next in Line protection", () => {
     expect(migration).toContain("'replayed', true");
     expect(migration).toContain("'submitted_at', v_existing.submitted_at");
     expect(rehearsal).toContain("replay rewrote submitted_at");
-    expect(rehearsal).toContain("changed semantic request intentionally updates the same canonical row");
+    expect(rehearsal).toContain("Changed semantic request intentionally updates the same canonical row");
   });
 
   it("backs browser validation with validated database constraints", () => {
