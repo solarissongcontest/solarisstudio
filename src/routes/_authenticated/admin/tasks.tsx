@@ -254,6 +254,7 @@ function OrganizerTasksPage() {
 function TaskRow({ task }: { task: OrganizerTaskV5 }) {
   const resolved = task.state === "resolved";
   const domain = organizerTaskDomain(task);
+  const resolutionConditions = Object.keys(task.resolutionPredicate).map(humanize);
   return (
     <Link
       to={task.href as any}
@@ -287,6 +288,22 @@ function TaskRow({ task }: { task: OrganizerTaskV5 }) {
           {task.dueAt ? <span>Due {formatWhen(task.dueAt)}</span> : null}
           {task.assignedTo ? <span>Assigned</span> : null}
         </span>
+        {task.ruleReference.length || resolutionConditions.length ? (
+          <span className="mt-2 block space-y-1 text-[11px] leading-5 text-muted-foreground">
+            {task.ruleReference.length ? (
+              <span className="block">
+                <strong className="font-semibold text-foreground/80">Rules:</strong>{" "}
+                {task.ruleReference.join(", ")}
+              </span>
+            ) : null}
+            {resolutionConditions.length ? (
+              <span className="block">
+                <strong className="font-semibold text-foreground/80">Closes when:</strong>{" "}
+                {resolutionConditions.join(", ")}
+              </span>
+            ) : null}
+          </span>
+        ) : null}
       </span>
 
       <ArrowRight className="mt-3 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
@@ -340,6 +357,7 @@ function domainLabel(domain: OrganizerTaskDomainFilter) {
   if (domain === "integrity") return "Integrity";
   if (domain === "publication") return "Publication";
   if (domain === "communications") return "Communications";
+  if (domain === "production") return "Production";
   return "System";
 }
 
