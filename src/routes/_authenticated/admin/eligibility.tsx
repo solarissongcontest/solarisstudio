@@ -16,6 +16,7 @@ import {
   AdminSheet,
   AdminStatus,
 } from '@/components/admin/AdminUI';
+import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useEditions } from '@/lib/data';
 import { loadStudio2CountryCockpit } from '@/lib/studio2-country-cockpit';
 import {
@@ -72,9 +73,7 @@ function EligibilityPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const editions = editionsQuery.data ?? [];
-  const selectedEdition = editions.find((edition) => edition.id === editionId)
-    ?? [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0]
-    ?? null;
+  const selectedEdition = selectOrganizerEdition(editions, editionId);
   const resolvedEditionId = selectedEdition?.id ?? '';
 
   const cockpitQuery = useQuery({
@@ -86,7 +85,13 @@ function EligibilityPage() {
   const overridesQuery = useQuery({
     queryKey: ['studio2-eligibility-overrides', resolvedEditionId || 'none', 'history'],
     enabled: Boolean(resolvedEditionId),
-    queryFn: () => listStudio2EligibilityOverrides(resolvedEditionId, { includeHistory: true }),
+    queryFn: async () => {
+      const overrides = await listStudio2EligibilityOverrides(resolvedEditionId, { includeHistory: true });
+      if (overrides.some((override) => override.editionId !== resolvedEditionId)) {
+        throw new Error('Eligibility returned override evidence for another edition.');
+      }
+      return overrides;
+    },
     staleTime: 10_000,
   });
 
@@ -100,7 +105,9 @@ function EligibilityPage() {
     if (statusFilter !== 'all' && row.overall !== statusFilter) return false;
     return !normalizedQuery || row.countryName.toLocaleLowerCase().includes(normalizedQuery);
   });
-  const selected = matrix.find((row) => row.countryId === search.country) ?? null;
+  const selected = matrix.find(
+    (row) => row.editionId === resolvedEditionId && row.countryId === search.country,
+  ) ?? null;
   const error = editionsQuery.error ?? cockpitQuery.error ?? overridesQuery.error;
   const eligibilityColumns = [
     {
@@ -183,7 +190,11 @@ function EligibilityPage() {
 
         {!selectedEdition && !editionsQuery.isLoading ? (
           <AdminCard>
-            <AdminEmptyState icon={ShieldCheck} title="No edition selected" description="Select an edition before reviewing eligibility." />
+            <AdminEmptyState
+              icon={ShieldCheck}
+              title="No edition selected"
+              description="Select the exact Organizer edition before reviewing eligibility. Solaris will not substitute the newest edition for missing or stale context."
+            />
           </AdminCard>
         ) : cockpitQuery.isLoading || overridesQuery.isLoading || editionsQuery.isLoading ? (
           <AdminCard><p className="py-12 text-center text-sm text-muted-foreground">Building eligibility matrix…</p></AdminCard>
@@ -262,8 +273,12 @@ function EligibilityPage() {
         )}
 
         <EligibilityDetailSheet
+          key={`${resolvedEditionId || 'none'}:${selected?.countryId ?? 'none'}`}
+          editionId={resolvedEditionId}
           country={selected}
-          overrideHistory={(overridesQuery.data ?? []).filter((item) => item.countryId === selected?.countryId)}
+          overrideHistory={(overridesQuery.data ?? []).filter(
+            (item) => item.editionId === resolvedEditionId && item.countryId === selected?.countryId,
+          )}
           onClose={() => updateSearch({ country: undefined })}
         />
       </div>
@@ -272,10 +287,12 @@ function EligibilityPage() {
 }
 
 function EligibilityDetailSheet({
+  editionId,
   country,
   overrideHistory,
   onClose,
 }: {
+  editionId: string;
   country: Studio2EligibilityCountry | null;
   overrideHistory: Studio2EligibilityOverride[];
   onClose: () => void;
@@ -287,21 +304,25 @@ function EligibilityDetailSheet({
 
   async function refresh() {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['studio2-eligibility-overrides'] }),
-      queryClient.invalidateQueries({ queryKey: ['studio2-country-cockpit'] }),
+      queryClient.invalidateQueries({ queryKey: ['studio2-eligibility-overrides', editionId] }),
+      queryClient.invalidateQueries({ queryKey: ['studio2-country-cockpit', editionId] }),
       queryClient.invalidateQueries({ queryKey: ['organizer-tasks-v5'] }),
     ]);
   }
 
   const createPreviewMutation = useMutation({
     mutationFn: async (input: { rule: Studio2EligibilityRule; reason: string; expiresAt: string | null }) => {
-      if (!country) throw new Error('Country is no longer selected.');
+      if (!editionId || !country || country.editionId !== editionId) {
+        throw new Error('Eligibility context changed. Reopen the current country before creating an override.');
+      }
+      const commandCountryId = country.countryId;
       const preview = await previewStudio2EligibilityOverrideChange({
         action: 'create',
-        editionId: country.editionId,
-        countryId: country.countryId,
+        editionId,
+        countryId: commandCountryId,
         affectedRule: input.rule.id,
       });
+      assertEligibilityPreviewScope(preview, editionId, commandCountryId, input.rule.id);
       return {
         action: 'create',
         rule: input.rule,
@@ -328,16 +349,25 @@ function EligibilityDetailSheet({
 
   const revokePreviewMutation = useMutation({
     mutationFn: async (input: { override: Studio2EligibilityOverride; reason: string }) => {
-      if (!country) throw new Error('Country is no longer selected.');
+      if (
+        !editionId ||
+        !country ||
+        country.editionId !== editionId ||
+        input.override.editionId !== editionId ||
+        input.override.countryId !== country.countryId
+      ) {
+        throw new Error('Eligibility context changed. Reopen the current country before revoking an override.');
+      }
       const rule = country.rules.find((item) => item.id === input.override.affectedRule);
       if (!rule) throw new Error('The affected factual eligibility rule is no longer available.');
       const preview = await previewStudio2EligibilityOverrideChange({
         action: 'revoke',
-        editionId: input.override.editionId,
-        countryId: input.override.countryId,
+        editionId,
+        countryId: country.countryId,
         affectedRule: input.override.affectedRule,
         overrideId: input.override.id,
       });
+      assertEligibilityPreviewScope(preview, editionId, country.countryId, input.override.affectedRule);
       return {
         action: 'revoke',
         rule,
@@ -363,10 +393,19 @@ function EligibilityDetailSheet({
   });
 
   const applyMutation = useMutation({
-    mutationFn: (pending: PendingEligibilityChange) =>
-      applyStudio2EligibilityOverrideChange({
+    mutationFn: async (pending: PendingEligibilityChange) => {
+      if (
+        !editionId ||
+        !country ||
+        pending.preview.editionId !== editionId ||
+        pending.preview.countryId !== country.countryId ||
+        pending.rule.id !== pending.preview.affectedRule
+      ) {
+        throw new Error('Eligibility context changed after this preview. Review the current country before applying the exception.');
+      }
+      const receipt = await applyStudio2EligibilityOverrideChange({
         action: pending.action,
-        editionId: pending.preview.editionId,
+        editionId,
         countryId: pending.preview.countryId,
         affectedRule: pending.preview.affectedRule,
         overrideId: pending.override?.id ?? null,
@@ -375,7 +414,17 @@ function EligibilityDetailSheet({
         operationId: pending.operationId,
         idempotencyKey: pending.idempotencyKey,
         expectedVersion: pending.preview.expectedVersion,
-      }),
+      });
+      if (
+        receipt.editionId !== editionId ||
+        receipt.countryId !== pending.preview.countryId ||
+        receipt.affectedRule !== pending.preview.affectedRule ||
+        receipt.operationId !== pending.operationId
+      ) {
+        throw new Error('Eligibility receipt did not match the previewed Organizer scope.');
+      }
+      return receipt;
+    },
     onSuccess: async (_receipt, pending) => {
       setPendingChange(null);
       toast.success(
@@ -500,6 +549,21 @@ function EligibilityDetailSheet({
       />
     </>
   );
+}
+
+function assertEligibilityPreviewScope(
+  preview: Studio2EligibilityOverridePreview,
+  editionId: string,
+  countryId: string,
+  affectedRule: string,
+) {
+  if (
+    preview.editionId !== editionId ||
+    preview.countryId !== countryId ||
+    preview.affectedRule !== affectedRule
+  ) {
+    throw new Error('Eligibility preview did not match the selected Organizer edition and country.');
+  }
 }
 
 function EligibilityOverrideImpactPreview({ pending }: { pending: PendingEligibilityChange }) {
