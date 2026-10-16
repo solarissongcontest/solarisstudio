@@ -11,6 +11,7 @@ import {
   V3Section,
   V3StatusChip,
   V3Surface,
+  type V3StatusTone,
 } from "./V3Foundation";
 
 export type V3TaskProgress = {
@@ -31,6 +32,14 @@ function toneForAction(action: V3ActionProjection) {
   if (action.actionRequired) return "required" as const;
   if (action.completed) return "complete" as const;
   return "neutral" as const;
+}
+
+function statusToneForAction(action: V3ActionProjection): V3StatusTone {
+  if (action.sourceState === "problem") return "danger";
+  if (action.completed) return "success";
+  if (action.actionRequired) return "required";
+  if (action.sourceState === "waiting") return "progress";
+  return "neutral";
 }
 
 function timingMeta(action: V3ActionProjection, delegationLabel?: string | null) {
@@ -89,9 +98,8 @@ function ActionList({
 function votingStateLabel(action: V3ActionProjection) {
   if (action.completed) return action.kind === "jury" ? "Submitted" : "Finished";
   if (action.sourceState === "problem") return "Needs attention";
-  if (action.sourceState === "needs_attention" || action.sourceState === "available") return "Open";
-  if (action.sourceState === "upcoming") return "Upcoming";
-  if (action.sourceState === "waiting") return "Waiting";
+  if (action.sourceState === "available") return "Open";
+  if (action.sourceState === "waiting") return action.opensAt ? "Upcoming" : "Waiting";
   return "Current";
 }
 
@@ -132,7 +140,7 @@ function VotingOverviewCard({
       <div data-v3-voting-overview-state={action.sourceState}>
         <div className="mb-2 flex items-center justify-between gap-3 px-1">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/48">{label}</p>
-          <V3StatusChip tone={toneForAction(action)}>{votingStateLabel(action)}</V3StatusChip>
+          <V3StatusChip tone={statusToneForAction(action)}>{votingStateLabel(action)}</V3StatusChip>
         </div>
         <V3ActionCard
           title={action.title}
