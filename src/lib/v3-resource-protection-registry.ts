@@ -93,6 +93,75 @@ export const V3_RESOURCE_PROTECTION_REGISTRY: readonly V3ResourceProtection[] = 
     ],
   },
   {
+    id: "prediction-canonical-submit-protection",
+    kind: "resource-limit",
+    state: "verified",
+    surface: "Prediction round/profile submission and immutable version history",
+    authority: "database",
+    externallyTriggerable: true,
+    bounds: {
+      configuredItemBudget: true,
+      canonicalPayloadOrdering: true,
+      oneRowPerRoundProfile: true,
+      semanticReplayNoVersionAmplification: true,
+      concurrentRetrySafe: true,
+    },
+    failureState: "VALIDATION",
+    replaySafe: true,
+    evidence: [
+      "supabase/migrations/20261016160000_v3_s8_prediction_replay_protection.sql",
+      "src/lib/v3-s8-prediction-replay-protection.test.ts",
+      ".github/scripts/v3-s8-prediction-replay-protection-rehearsal.sh",
+    ],
+  },
+  {
+    id: "next-in-line-canonical-submit-protection",
+    kind: "resource-limit",
+    state: "verified",
+    surface: "authenticated participant Next in Line submission + reconciliation",
+    authority: "database",
+    externallyTriggerable: true,
+    bounds: {
+      oneRowPerEditionSource: true,
+      maxCountryChars: 80,
+      maxArtistChars: 160,
+      maxSongChars: 160,
+      maxUrlChars: 500,
+      maxPreviewTokenChars: 10,
+      semanticIdempotency: true,
+      directBrowserWritesRevoked: true,
+      anonymousMutationRevoked: true,
+    },
+    failureState: "VALIDATION",
+    replaySafe: true,
+    evidence: [
+      "supabase/migrations/20261016150000_v3_s7_next_in_line_authorization.sql",
+      "src/lib/v3-s7-next-in-line-authorization.contract.test.ts",
+      "supabase/migrations/20261014194651_v3_s2_operation_receipt_idempotency.sql",
+    ],
+  },
+  {
+    id: "organizer-identity-set-bulk-bounds",
+    kind: "batch-bound",
+    state: "verified",
+    surface: "Organizer Confirmation requirement and official-notice identity-set waves",
+    authority: "database",
+    externallyTriggerable: true,
+    bounds: {
+      communicationDestinationUniverse: 3,
+      specificCountriesBoundByCanonicalUniverse: true,
+      confirmationCountriesBoundByCanonicalUniverse: true,
+      confirmationEditionSerialized: true,
+    },
+    failureState: "VALIDATION",
+    replaySafe: true,
+    evidence: [
+      "supabase/migrations/20261016153000_v3_s8_identity_set_bulk_protection.sql",
+      "src/lib/v3-s8-identity-set-bulk-protection.test.ts",
+      ".github/scripts/v3-s8-identity-set-bulk-protection-rehearsal.sh",
+    ],
+  },
+  {
     id: "domain-event-consumer-claim-batch",
     kind: "batch-bound",
     state: "verified",
@@ -162,30 +231,56 @@ export const V3_RESOURCE_PROTECTION_REGISTRY: readonly V3ResourceProtection[] = 
       "src/lib/organisation-v5-upload-safety.contract.test.ts",
     ],
   },
+  {
+    id: "country-font-finalization-limits",
+    kind: "resource-limit",
+    state: "verified",
+    surface: "country custom-font authorization, quarantine and WOFF2 finalization",
+    authority: "edge",
+    externallyTriggerable: true,
+    bounds: {
+      maxUploadBytes: 4 * 1024 * 1024,
+      maxDecompressedBytes: 16 * 1024 * 1024,
+      maxSfntTables: 128,
+      woff2Only: true,
+      signatureValidation: true,
+    },
+    failureState: "rejected",
+    replaySafe: false,
+    evidence: [
+      "supabase/migrations/20261003211000_organisation_os_v5_unified_upload_quarantine.sql",
+      "supabase/functions/solaris-upload-finalize/index.ts",
+      "src/lib/organisation-v5-upload-safety.contract.test.ts",
+    ],
+  },
+  {
+    id: "integrity-evidence-upload-limits",
+    kind: "resource-limit",
+    state: "verified",
+    surface: "Integrity evidence authorization, quarantine and finalization",
+    authority: "database",
+    externallyTriggerable: true,
+    bounds: {
+      maxUploadBytes: 15 * 1024 * 1024,
+      maxFilenameChars: 180,
+      signatureValidation: true,
+      activePdfMarkersRejected: true,
+      quarantineByteCeilingMatchesEvidenceCeiling: true,
+    },
+    failureState: "rejected",
+    replaySafe: false,
+    evidence: [
+      "supabase/migrations/20260910213300_integrity_evidence_vault.sql",
+      "supabase/migrations/20261003214000_organisation_os_v5_integrity_upload_quarantine.sql",
+      "supabase/functions/solaris-upload-finalize/index.ts",
+      "src/lib/organisation-v5-upload-safety.contract.test.ts",
+    ],
+  },
 ] as const;
 
-export const V3_RESOURCE_PROTECTION_GAPS = [
-  {
-    id: "prediction-submit-protection",
-    status: "audit-required" as const,
-    reason: "prediction submission still needs canonical idempotency/reconciliation evidence before S8 certification",
-  },
-  {
-    id: "next-in-line-submit-protection",
-    status: "audit-required" as const,
-    reason: "side-participation submission needs canonical replay/rate/resource protection evidence",
-  },
-  {
-    id: "organizer-bulk-mutation-bounds",
-    status: "audit-required" as const,
-    reason: "Organizer bulk operations require an explicit batch-size and concurrency audit",
-  },
-  {
-    id: "non-image-upload-resource-bounds",
-    status: "audit-required" as const,
-    reason: "S8 still needs one generated inventory for font/document/evidence upload resource ceilings",
-  },
-] as const;
+// Every explicit S8 protection gap from the canonical audit is now backed by
+// an implemented server/database boundary plus regression evidence.
+export const V3_RESOURCE_PROTECTION_GAPS = [] as const;
 
 export function v3ResourceProtection(id: string) {
   return V3_RESOURCE_PROTECTION_REGISTRY.find((item) => item.id === id) ?? null;
