@@ -124,17 +124,32 @@ describe("V3 navigation shell acceptance guardrails", () => {
     expect(swipe).toContain("rootInterruptionObserver.observe");
     expect(swipe).toContain("shellInteractionBlocked()");
     expect(swipe).toContain("interactionKey?: string | null");
-    expect(swipe).toContain("[interactionKey, pathname, resetSurface, searchStr]");
+    expect(swipe).toContain("committedInteractionKeyRef.current === interactionKey");
     expect(swipe).toContain("surface.releasePointerCapture?.(drag.pointerId)");
     expect(shell).toContain("interactionKey={navigationScope}");
   });
 
-  it("hands focus to canonical page content after a committed swipe", () => {
+  it("commits a winning swipe promptly while preserving one visual settle", () => {
+    const swipe = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
+    const shell = source("src/components/v3/V3AppShell.tsx");
+
+    expect(swipe).toContain("type SettlingComposition");
+    expect(swipe).toContain("currentSurface: children");
+    expect(swipe).toContain("committedTargetRef.current = targetIndex");
+    expect(swipe).toMatch(
+      /publishVisualProgress\(targetIndex, drag, "settle"\);\s+onCommit\(targetIndex\);\s+settleTimerRef\.current = window\.setTimeout/,
+    );
+    expect(swipe).toContain("visualCurrentSurface = settlingComposition?.currentSurface ?? children");
+    expect(shell).toContain("void navigateToTarget();");
+    expect(shell).not.toContain("Promise.resolve(navigateToTarget()).then");
+  });
+
+  it("hands focus to canonical page content after a committed swipe settles", () => {
     const shell = source("src/components/v3/V3AppShell.tsx");
 
     expect(shell).toContain("function focusCurrentRouteAfterSwipe()");
     expect(shell).toContain('target.setAttribute("tabindex", "-1")');
     expect(shell).toContain("target.focus({ preventScroll: true })");
-    expect(shell).toContain("Promise.resolve(navigateToTarget()).then(focusCurrentRouteAfterSwipe)");
+    expect(shell).toContain("onSettled={() => focusCurrentRouteAfterSwipe()}");
   });
 });
