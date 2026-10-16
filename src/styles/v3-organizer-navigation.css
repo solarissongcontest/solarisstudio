@@ -11,6 +11,32 @@
     transform 160ms ease;
 }
 
+/*
+ * Organizer shares the Public tab-bar physics but its material is authored with
+ * utility classes. Keep the material itself on one physical LTR flex axis so
+ * WebKit cannot reinterpret the absolute lens through RTL grid coordinates.
+ * RTL is represented only by reversing the tab items; each item restores RTL
+ * direction so logical badge placement remains correct.
+ */
+.admin-mobile-nav[data-v6-organizer-tabbar] > div {
+  display: flex !important;
+  direction: ltr;
+}
+
+.admin-mobile-nav[data-v6-organizer-tabbar][data-layout-direction="rtl"] > div {
+  flex-direction: row-reverse;
+}
+
+.admin-mobile-nav[data-v6-organizer-tabbar] > div > [data-organizer-tab-index] {
+  flex: 1 1 0;
+}
+
+.admin-mobile-nav[data-v6-organizer-tabbar][data-layout-direction="rtl"]
+  > div
+  > [data-organizer-tab-index] {
+  direction: rtl;
+}
+
 html[data-solaris-keyboard-open] .admin-mobile-nav[data-v6-organizer-tabbar] {
   opacity: 0;
   transform: translateY(calc(100% + env(safe-area-inset-bottom) + 2rem));
