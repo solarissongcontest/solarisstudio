@@ -2,17 +2,17 @@ import { describe, expect, it } from "vitest";
 
 import { loadStudio2CountryCockpit } from "./studio2-country-cockpit";
 
-function cockpitRow(editionId: string) {
+function cockpitRow(editionId: string, countryId = "country-oland", countryName = "Oland") {
   return {
     editionId,
     editionName: "SSC 22",
-    countryId: "country-oland",
-    countryName: "Oland",
+    countryId,
+    countryName,
     confirmationComplete: true,
     participantStatus: "confirmed",
     publicationStatus: "published",
     entry: {
-      id: "entry-1",
+      id: `entry-${countryId}`,
       artist: "Artist",
       songTitle: "Song",
       songUrl: "https://example.com/song",
@@ -26,9 +26,9 @@ function cockpitRow(editionId: string) {
     juryMembersAssigned: 1,
     juryMembers: [
       {
-        id: "hod-1",
-        displayName: "Oland HOD",
-        memberUserId: "user-1",
+        id: `hod-${countryId}`,
+        displayName: `${countryName} HOD`,
+        memberUserId: `user-${countryId}`,
         createdAt: "2026-10-16T09:00:00Z",
       },
     ],
@@ -64,6 +64,37 @@ describe("Studio 2 country cockpit exact-edition boundary", () => {
     await expect(loadStudio2CountryCockpit("edition-22", client)).rejects.toThrow(
       "Country cockpit returned data outside the selected edition scope.",
     );
+  });
+
+  it("rejects duplicate country rows instead of double-counting one delegation", async () => {
+    const client = {
+      rpc: async () => ({
+        data: [cockpitRow("edition-22"), cockpitRow("edition-22")],
+        error: null,
+      }),
+    };
+
+    await expect(loadStudio2CountryCockpit("edition-22", client)).rejects.toThrow(
+      "Country cockpit returned duplicate country rows for the selected edition.",
+    );
+  });
+
+  it("accepts distinct countries inside the exact selected edition", async () => {
+    const client = {
+      rpc: async () => ({
+        data: [
+          cockpitRow("edition-22"),
+          cockpitRow("edition-22", "country-vendia", "Vendia"),
+        ],
+        error: null,
+      }),
+    };
+
+    const rows = await loadStudio2CountryCockpit("edition-22", client);
+    expect(rows.map((row) => row.context.countryId)).toEqual([
+      "country-oland",
+      "country-vendia",
+    ]);
   });
 
   it("fails before the RPC when no Organizer edition is selected", async () => {
