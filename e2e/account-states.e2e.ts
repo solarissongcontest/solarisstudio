@@ -236,16 +236,19 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
   const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
   const email = process.env.E2E_ORGANIZER_B_EMAIL;
   const password = process.env.E2E_ORGANIZER_B_PASSWORD;
-  const missingConfig = !url || !publishableKey || !email || !password;
+  const countryEmail = process.env.E2E_COUNTRY_EMAIL;
+  const countryPassword = process.env.E2E_COUNTRY_PASSWORD;
+  const missingConfig =
+    !url || !publishableKey || !email || !password || !countryEmail || !countryPassword;
 
   if (missingConfig && process.env.CI) {
     throw new Error(
-      "Browser Audit must seed local Organizer B credentials for the V3 positive-path cutover proof.",
+      "Browser Audit must seed local Organizer B + country credentials for the V3 positive-path cutover proof.",
     );
   }
   test.skip(
     missingConfig,
-    "Organizer B browser credentials or E2E Supabase public config are not configured",
+    "Organizer B/country browser credentials or E2E Supabase public config are not configured",
   );
 
   expect(url).toMatch(/^http:\/\/(?:127\.0\.0\.1|localhost):\d+/);
@@ -256,7 +259,26 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     localStorage.setItem("solaris:app-first-run-complete:v1", "1");
   });
   const session = await addSession(context, url!, publishableKey!, email!, password!);
-  await setV3ForLocalUser(url!, publishableKey!, session, true);
+  const countrySession = await fetchSession(
+    url!,
+    publishableKey!,
+    countryEmail!,
+    countryPassword!,
+  );
+  // Feature flags are single authoritative rows. Preserve the country cohort
+  // seeded for the parallel installed-app NAV project while temporarily adding
+  // Organizer B to the same rollout. Otherwise this test can disable V3 under a
+  // different Playwright worker and make unrelated geometry tests fail.
+  const globalRolloutTargets = [countrySession.user.id, session.user.id];
+  await setV3FeatureForLocalUser(
+    url!,
+    publishableKey!,
+    session,
+    "solaris_app_v3",
+    true,
+    [],
+    globalRolloutTargets,
+  );
   await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_explore", true);
   await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_edition_hub", true);
   await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_delegation", true);
@@ -389,6 +411,16 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_delegation", false);
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_edition_hub", false);
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_explore", false);
-    await setV3ForLocalUser(url!, publishableKey!, session, false);
+    // Restore the exact country-only App V3 baseline seeded for the parallel
+    // installed-app project instead of globally disabling the one-row flag.
+    await setV3FeatureForLocalUser(
+      url!,
+      publishableKey!,
+      session,
+      "solaris_app_v3",
+      true,
+      [],
+      [countrySession.user.id],
+    );
   }
 });
