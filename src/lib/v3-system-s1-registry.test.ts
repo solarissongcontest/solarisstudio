@@ -69,6 +69,9 @@ describe("System V3 S1 registries", () => {
       "media.reviewed",
       "notice.published",
       "notice.superseded",
+      "notification.delivered",
+      "notification.failed",
+      "notification.queued",
       "publication.changed",
       "publication.failed",
       "results.calculated",
@@ -98,7 +101,7 @@ describe("System V3 S1 registries", () => {
     expect(v3DomainConsequence("results.calculated")?.notificationEffects).toEqual([]);
   });
 
-  it("keeps delivery-failure task ownership in Notification lifecycle events, not Notice", () => {
+  it("keeps failure-task re-evaluation inside Notification lifecycle events", () => {
     expect(v3DomainConsequence("notice.published")?.taskEffects).toEqual([]);
     expect(v3DomainConsequence("notice.superseded")?.taskEffects).toEqual([]);
     for (const eventType of [
