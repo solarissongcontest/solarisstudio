@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { History, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
+import { useAdminContext } from '@/components/admin/AdminContext';
 import { ConfirmationVersionHistory } from '@/components/admin/ConfirmationVersionHistory';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
@@ -81,7 +82,7 @@ type ResponseDetail = {
   } | null;
 };
 
-async function loadResponses(): Promise<VersionedResponseRow[]> {
+async function loadResponses(editionId: string): Promise<VersionedResponseRow[]> {
   const [responsesResult, summaryResult] = await Promise.all([
     confirmationsSupabase.rpc('admin_confirmation_responses'),
     confirmationsSupabase.rpc('admin_confirmation_version_summary'),
@@ -100,14 +101,16 @@ async function loadResponses(): Promise<VersionedResponseRow[]> {
     summaries.map((item) => [item.submission_id, item] as const),
   );
 
-  return responses.map((row) => {
-    const summary = bySubmission.get(row.id);
-    return {
-      ...row,
-      versionCount: Number(summary?.version_count ?? 0),
-      latestVersionAt: summary?.latest_created_at ?? null,
-    };
-  });
+  return responses
+    .filter((row) => row.editions?.id === editionId)
+    .map((row) => {
+      const summary = bySubmission.get(row.id);
+      return {
+        ...row,
+        versionCount: Number(summary?.version_count ?? 0),
+        latestVersionAt: summary?.latest_created_at ?? null,
+      };
+    });
 }
 
 async function loadResponse(id: string): Promise<ResponseDetail> {
@@ -148,12 +151,23 @@ function currentSnapshot(detail: ResponseDetail): SubmissionSnapshot {
 }
 
 function SubmissionVersionsPage() {
+  const { editionId } = useAdminContext();
   const [selectedId, setSelectedId] = useState('');
   const [query, setQuery] = useState('');
 
+  useEffect(() => {
+    setSelectedId('');
+  }, [editionId]);
+
   const responsesQuery = useQuery({
-    queryKey: ['confirmation-responses-for-version-history'],
-    queryFn: loadResponses,
+    queryKey: ['confirmation-responses-for-version-history', editionId ?? 'unscoped'],
+    enabled: Boolean(editionId),
+    queryFn: () => {
+      if (!editionId) {
+        throw new Error('Submission History requires an explicit Organizer edition scope.');
+      }
+      return loadResponses(editionId);
+    },
   });
 
   const rows = responsesQuery.data ?? [];
@@ -174,107 +188,121 @@ function SubmissionVersionsPage() {
       });
   }, [query, rows]);
 
-  const activeId = selectedId || filtered[0]?.id || '';
-  const selected = rows.find((row) => row.id === activeId) ?? null;
+  const activeId = filtered.some((row) => row.id === selectedId)
+    ? selectedId
+    : filtered[0]?.id ?? '';
+  const selected = filtered.find((row) => row.id === activeId) ?? null;
 
   const detailQuery = useQuery({
-    queryKey: ['confirmation-response-version-current', activeId],
-    enabled: Boolean(activeId),
+    queryKey: ['confirmation-response-version-current', editionId ?? 'unscoped', activeId],
+    enabled: Boolean(editionId && activeId),
     queryFn: () => loadResponse(activeId),
   });
 
   return (
     <AdminPage>
-      <div className="mx-auto max-w-7xl space-y-4">
+      <div className="mx-auto max-w-7xl space-y-4" data-v3-organizer-submission-history="">
         <AdminPageHeader
           eyebrow="Delegations · Audit"
           title="Submission history"
-          description="Inspect immutable pre-edit snapshots captured by Confirmations. Organizers can restore a historical delegation state without rewriting history: the current state is archived first, the restore reason is recorded, and restored entries require review again."
+          description="Inspect immutable pre-edit snapshots captured by Confirmations for the exact Organizer edition. Organizers can restore a historical delegation state without rewriting history: the current state is archived first, the restore reason is recorded, and restored entries require review again."
         />
 
-        <AdminCard strong>
-          <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search edited country, username, edition or round…"
-                className="min-h-11 w-full rounded-xl border border-white/[0.09] bg-background pl-9 pr-3 text-sm"
-              />
-            </div>
-            <AdminStatus tone="info">{filtered.length} edited responses</AdminStatus>
-          </div>
-        </AdminCard>
-
-        {responsesQuery.isLoading ? (
-          <AdminCard><p className="py-10 text-center text-sm text-muted-foreground">Loading edited submissions…</p></AdminCard>
-        ) : responsesQuery.error ? (
-          <AdminCard><AdminEmptyState icon={History} title="Submission history unavailable" description="The confirmation response index or version summary could not be loaded." /></AdminCard>
-        ) : !filtered.length ? (
-          <AdminCard><AdminEmptyState icon={History} title="No edited submissions" description={query ? 'No edited response matches this search.' : 'No confirmation response currently has captured edits.'} /></AdminCard>
+        {!editionId ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={History}
+              title="Choose an edition"
+              description="Submission History is edition-scoped audit work. Solaris will not load or retain another edition's confirmation history when Organizer context is missing or changes."
+            />
+          </AdminCard>
         ) : (
-          <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
-            <AdminCard className="xl:sticky xl:top-4 xl:self-start">
-              <p className="admin-section-label mb-3">Edited responses</p>
-              <div className="max-h-[70vh] space-y-2 overflow-y-auto pr-1">
-                {filtered.map((row) => {
-                  const active = row.id === activeId;
-                  return (
-                    <button
-                      key={row.id}
-                      type="button"
-                      onClick={() => setSelectedId(row.id)}
-                      className={`w-full rounded-xl border p-3 text-left transition-colors ${active ? 'border-sky-200/20 bg-sky-200/[0.08]' : 'border-white/[0.07] bg-black/10 hover:bg-white/[0.04]'}`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold">{row.country}</p>
-                          <p className="mt-1 truncate text-xs text-muted-foreground">
-                            {row.editions ? `SSC ${row.editions.edition_number}` : 'SSC'} · {row.submission_rounds?.name ?? 'Confirmation'}
-                          </p>
-                        </div>
-                        <AdminStatus tone={active ? 'info' : 'neutral'}>{row.versionCount} {row.versionCount === 1 ? 'edit' : 'edits'}</AdminStatus>
-                      </div>
-                    </button>
-                  );
-                })}
+          <>
+            <AdminCard strong>
+              <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-center">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search edited country, username or round…"
+                    className="min-h-11 w-full rounded-xl border border-white/[0.09] bg-background pl-9 pr-3 text-sm"
+                  />
+                </div>
+                <AdminStatus tone="info">{filtered.length} edited responses</AdminStatus>
               </div>
             </AdminCard>
 
-            <div className="space-y-4">
-              {selected ? (
-                <AdminCard strong>
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="admin-section-label">Selected response</p>
-                      <h2 className="mt-1 text-xl font-bold">{selected.country}</h2>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        @{selected.instagram_username.replace(/^@/, '')} · updated {new Date(selected.updated_at).toLocaleString()}
-                      </p>
-                    </div>
-                    <a
-                      href={`/confirmations/admin/responses/${selected.id}`}
-                      className="admin-action-secondary"
-                    >
-                      Open response
-                    </a>
+            {responsesQuery.isLoading ? (
+              <AdminCard><p className="py-10 text-center text-sm text-muted-foreground">Loading edited submissions…</p></AdminCard>
+            ) : responsesQuery.error ? (
+              <AdminCard><AdminEmptyState icon={History} title="Submission history unavailable" description="The confirmation response index or version summary could not be loaded for this edition." /></AdminCard>
+            ) : !filtered.length ? (
+              <AdminCard><AdminEmptyState icon={History} title="No edited submissions" description={query ? 'No edited response in this edition matches this search.' : 'No confirmation response in this edition currently has captured edits.'} /></AdminCard>
+            ) : (
+              <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+                <AdminCard className="xl:sticky xl:top-4 xl:self-start">
+                  <p className="admin-section-label mb-3">Edited responses</p>
+                  <div className="max-h-[70vh] space-y-2 overflow-y-auto pr-1">
+                    {filtered.map((row) => {
+                      const active = row.id === activeId;
+                      return (
+                        <button
+                          key={row.id}
+                          type="button"
+                          onClick={() => setSelectedId(row.id)}
+                          className={`w-full rounded-xl border p-3 text-left transition-colors ${active ? 'border-sky-200/20 bg-sky-200/[0.08]' : 'border-white/[0.07] bg-black/10 hover:bg-white/[0.04]'}`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold">{row.country}</p>
+                              <p className="mt-1 truncate text-xs text-muted-foreground">
+                                {row.editions ? `SSC ${row.editions.edition_number}` : 'SSC'} · {row.submission_rounds?.name ?? 'Confirmation'}
+                              </p>
+                            </div>
+                            <AdminStatus tone={active ? 'info' : 'neutral'}>{row.versionCount} {row.versionCount === 1 ? 'edit' : 'edits'}</AdminStatus>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </AdminCard>
-              ) : null}
 
-              {detailQuery.isLoading ? (
-                <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading current response…</p></AdminCard>
-              ) : detailQuery.error || !detailQuery.data ? (
-                <AdminCard><AdminEmptyState icon={History} title="Current response unavailable" description="Version history cannot be compared with the current response right now." /></AdminCard>
-              ) : (
-                <ConfirmationVersionHistory
-                  submissionId={detailQuery.data.id}
-                  currentSnapshot={currentSnapshot(detailQuery.data)}
-                />
-              )}
-            </div>
-          </div>
+                <div className="space-y-4">
+                  {selected ? (
+                    <AdminCard strong>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="admin-section-label">Selected response</p>
+                          <h2 className="mt-1 text-xl font-bold">{selected.country}</h2>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            @{selected.instagram_username.replace(/^@/, '')} · updated {new Date(selected.updated_at).toLocaleString()}
+                          </p>
+                        </div>
+                        <a
+                          href={`/confirmations/admin/responses/${selected.id}`}
+                          className="admin-action-secondary"
+                        >
+                          Open response
+                        </a>
+                      </div>
+                    </AdminCard>
+                  ) : null}
+
+                  {detailQuery.isLoading ? (
+                    <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading current response…</p></AdminCard>
+                  ) : detailQuery.error || !detailQuery.data ? (
+                    <AdminCard><AdminEmptyState icon={History} title="Current response unavailable" description="Version history cannot be compared with the current response right now." /></AdminCard>
+                  ) : (
+                    <ConfirmationVersionHistory
+                      submissionId={detailQuery.data.id}
+                      currentSnapshot={currentSnapshot(detailQuery.data)}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </AdminPage>
