@@ -26,4 +26,11 @@ describe("V3 Organizer Voting overview", () => {
     expect(votingOverview).toContain('/televoting/admin/integrity');
     expect(votingOverview).toContain('/admin/results');
   });
+
+  it("surfaces Voting rules as core work only for the exact resolved edition slug", () => {
+    expect(votingOverview).toContain('title="Voting rules"');
+    expect(votingOverview).toContain('to={`/admin/voting-system/${editionSlug}`}');
+    expect(votingOverview).toContain("Voting rules become available after the selected edition identity has resolved.");
+    expect(votingOverview).toContain("Solaris will not guess an edition slug.");
+  });
 });
