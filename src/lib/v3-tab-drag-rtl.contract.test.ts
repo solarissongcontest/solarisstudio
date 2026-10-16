@@ -38,9 +38,10 @@ describe("V3 direct tab drag RTL and hot-loop contract", () => {
     expect(publicTabs).not.toContain("visualLensIndex * inlineSign");
     expect(publicCss).toContain("inset-inline-end: -0.52rem");
 
-    expect(fixedCss).toMatch(/v3-liquid-tabbar__material[\s\S]*display: flex;/);
-    expect(fixedCss).not.toMatch(/v3-liquid-tabbar__material[\s\S]*direction: ltr;/);
+    expect(fixedCss).toMatch(/\.v3-liquid-tabbar__material\s*\{[^}]*display: flex;[^}]*\}/);
+    expect(fixedCss).not.toMatch(/\.v3-liquid-tabbar__material\s*\{[^}]*direction:\s*ltr;/);
     expect(fixedCss).not.toContain("flex-direction: row-reverse");
+    expect(fixedCss).toMatch(/\.v3-liquid-tabbar__lens-layer\s*\{[^}]*direction: ltr;[^}]*\}/);
     expect(fixedCss).toMatch(/v3-liquid-tabbar__lens[\s\S]*left: 6px !important;/);
     expect(fixedCss).toMatch(/v3-liquid-tabbar__lens[\s\S]*right: auto !important;/);
     expect(fixedCss).toMatch(/v3-liquid-tabbar__item[\s\S]*flex: 1 1 0;/);
@@ -58,9 +59,10 @@ describe("V3 direct tab drag RTL and hot-loop contract", () => {
     expect(organizerTabs).toContain(
       'layoutDirection === "rtl" ? "-left-3" : "-right-3"',
     );
-    expect(organizerCss).toMatch(/data-v6-organizer-tabbar\] > div[\s\S]*display: flex !important;/);
-    expect(organizerCss).not.toMatch(/data-v6-organizer-tabbar\] > div[\s\S]*direction: ltr;/);
+    expect(organizerCss).toMatch(/\.admin-mobile-nav\[data-v6-organizer-tabbar\] > div\s*\{[^}]*display: flex !important;[^}]*\}/);
+    expect(organizerCss).not.toMatch(/\.admin-mobile-nav\[data-v6-organizer-tabbar\] > div\s*\{[^}]*direction:\s*ltr;/);
     expect(organizerCss).not.toContain("flex-direction: row-reverse");
+    expect(organizerCss).toMatch(/\.v6-organizer-tabbar__lens-layer\s*\{[^}]*direction: ltr;[^}]*\}/);
     expect(organizerCss).toMatch(/data-organizer-tab-index[\s\S]*flex: 1 1 0;/);
   });
 
