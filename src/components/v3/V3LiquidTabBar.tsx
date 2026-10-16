@@ -51,6 +51,7 @@ type DragState = {
   maxDelta: number;
   slotWidth: number;
   layoutDirection: V3LayoutDirection;
+  tabIcons: SVGElement[];
 };
 
 function triggerSelectionHaptic(duration = 8) {
@@ -214,6 +215,11 @@ export function V3LiquidTabBar({
       } catch {
         // Browser may already have released pointer capture.
       }
+      for (const icon of drag.tabIcons) {
+        icon.style.removeProperty("opacity");
+        icon.style.removeProperty("transform");
+        icon.style.removeProperty("stroke-width");
+      }
     }
 
     const material = materialRef.current;
@@ -313,6 +319,9 @@ export function V3LiquidTabBar({
     const firstDelta = first.left + first.width / 2 - originCenter;
     const lastDelta = last.left + last.width / 2 - originCenter;
     const nextLayoutDirection = layoutDirectionFor(materialRef.current ?? event.currentTarget);
+    const tabIcons = materialRef.current
+      ? Array.from(materialRef.current.querySelectorAll<SVGElement>(".v3-liquid-tabbar__icon"))
+      : [];
     setLayoutDirection((current) =>
       current === nextLayoutDirection ? current : nextLayoutDirection,
     );
@@ -331,6 +340,7 @@ export function V3LiquidTabBar({
       maxDelta: Math.max(firstDelta, lastDelta),
       slotWidth: origin.width,
       layoutDirection: nextLayoutDirection,
+      tabIcons,
     };
     lastPreviewHaptic.current = index;
     event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -366,6 +376,23 @@ export function V3LiquidTabBar({
     material?.style.setProperty("--v3-liquid-pull-height", `${response.growHeight.toFixed(2)}px`);
     material?.style.setProperty("--v3-liquid-pull-radius", `${response.growRadius.toFixed(2)}px`);
     material?.setAttribute("data-drag-direction", response.direction);
+
+    const logicalVisualDelta = resolveV3LogicalHorizontalDelta(
+      response.delta,
+      drag.layoutDirection,
+    );
+    const visualProgress = Math.min(
+      Math.max(0, destinations.length - 1),
+      Math.max(0, drag.originIndex + logicalVisualDelta / Math.max(1, drag.slotWidth)),
+    );
+    for (let iconIndex = 0; iconIndex < drag.tabIcons.length; iconIndex += 1) {
+      const icon = drag.tabIcons[iconIndex];
+      if (!icon) continue;
+      const weight = Math.max(0, 1 - Math.abs(iconIndex - visualProgress));
+      icon.style.opacity = (0.78 + weight * 0.22).toFixed(4);
+      icon.style.transform = `scale(${(0.97 + weight * 0.05).toFixed(4)})`;
+      icon.style.setProperty("stroke-width", (1.9 + weight * 0.35).toFixed(4));
+    }
 
     const nextPreview = resolveTabDragTargetIndex({
       rawDelta: resolveV3LogicalHorizontalDelta(rawDelta, drag.layoutDirection),
@@ -439,9 +466,9 @@ export function V3LiquidTabBar({
   };
 
   // Keep the decorative lens in a physical left-to-right coordinate system.
-  // The grid itself mirrors in RTL, while route/gesture selection stays logical.
-  // Mixing an RTL right anchor with a negative percentage transform made WebKit
-  // mirror the translation twice and could throw the lens outside the material.
+  // Flex item placement mirrors naturally in RTL, while route/gesture selection
+  // stays logical. A physical left anchor prevents WebKit from applying a second
+  // directional transform to the absolutely positioned decorative lens.
   const physicalLensIndex =
     layoutDirection === "rtl" ? count - 1 - visualLensIndex : visualLensIndex;
   const totalGap = Math.max(0, count - 1) * 2;
