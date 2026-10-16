@@ -76,8 +76,13 @@ export const Route = createFileRoute('/_authenticated/admin/incidents')({
     q: typeof search.q === 'string' && search.q ? search.q : undefined,
     incident: typeof search.incident === 'string' && search.incident ? search.incident : undefined,
   }),
-  component: IncidentCommandPage,
+  component: IncidentCommandRoute,
 });
+
+function IncidentCommandRoute() {
+  const { editionId } = useAdminContext();
+  return <IncidentCommandPage key={editionId || 'unscoped'} />;
+}
 
 function IncidentCommandPage() {
   const search = Route.useSearch();
