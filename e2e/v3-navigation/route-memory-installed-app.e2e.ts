@@ -143,7 +143,13 @@ test("installed app shell survives representative navigation without duplicate c
   expect(afterTextScale.overflow).toBeLessThanOrEqual(2);
   for (const target of afterTextScale.targetMins) expect(target).toBeGreaterThanOrEqual(44);
 
-  await page.locator("[data-v3-liquid-tabbar]").getByRole("link", { name: "Home" }).click();
+  // Keyboard is a first-class navigation path, not a fallback hidden behind
+  // pointer gesture enhancement. Focus the semantic Home link and activate it
+  // with Enter so the same route-memory test proves keyboard routing too.
+  const homeLink = page.locator("[data-v3-liquid-tabbar]").getByRole("link", { name: "Home" });
+  await homeLink.focus();
+  await expect(homeLink).toBeFocused();
+  await homeLink.press("Enter");
   await expect.poll(() => new URL(page.url()).pathname).toBe("/");
   await expect(page.locator('[data-v3-liquid-tabbar] [aria-current="page"]')).toHaveAttribute(
     "aria-label",
