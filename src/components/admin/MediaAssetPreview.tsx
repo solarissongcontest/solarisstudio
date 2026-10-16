@@ -17,14 +17,19 @@ const DIRECT_VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov", "m4v", "ogv"]);
 
 export type MediaAssetPreviewKind = "image" | "audio" | "video" | "fallback";
 
-function safeHttpUrl(value: string | null | undefined): URL | null {
+export function safeMediaAssetSourceUrl(value: string | null | undefined): string | null {
   if (!value?.trim()) return null;
   try {
     const url = new URL(value.trim());
-    return url.protocol === "https:" || url.protocol === "http:" ? url : null;
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
   } catch {
     return null;
   }
+}
+
+function parsedSafeSourceUrl(value: string | null | undefined): URL | null {
+  const safe = safeMediaAssetSourceUrl(value);
+  return safe ? new URL(safe) : null;
 }
 
 function extension(url: URL): string | null {
@@ -36,7 +41,7 @@ export function mediaAssetPreviewKind(
   assetType: MediaAssetType,
   sourceUrl: string | null | undefined,
 ): MediaAssetPreviewKind {
-  const url = safeHttpUrl(sourceUrl);
+  const url = parsedSafeSourceUrl(sourceUrl);
   if (!url) return "fallback";
   if (IMAGE_ASSET_TYPES.has(assetType)) return "image";
 
@@ -56,7 +61,7 @@ export function MediaAssetPreview({
   title: string;
 }) {
   const kind = mediaAssetPreviewKind(assetType, sourceUrl);
-  const url = safeHttpUrl(sourceUrl)?.toString() ?? null;
+  const url = safeMediaAssetSourceUrl(sourceUrl);
 
   if (!url) {
     return (
