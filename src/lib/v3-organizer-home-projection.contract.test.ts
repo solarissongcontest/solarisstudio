@@ -31,10 +31,19 @@ describe("V3 Organizer Overview projection", () => {
     expect(route).toContain("projectionQuery.error");
   });
 
-  it("keeps readiness explainable rather than displaying an unexplained percentage", () => {
+  it("keeps readiness explainable and marks missing health evidence as unverified", () => {
     expect(route).toContain("projection.readiness.blocking");
     expect(route).toContain("projection.readiness.incomplete");
     expect(route).toContain("projection.readiness.ready");
-    expect(route).toContain("Deterministic edition health");
+    expect(route).toContain('readinessVerified ? `${projection.readiness.overall}%` : "Unverified"');
+    expect(route).toContain("Health unavailable");
+    expect(route).toContain("will not convert missing evidence into ready factors");
+  });
+
+  it("does not render unknown domain state or an empty legacy task queue as ready", () => {
+    expect(route).toContain('domain.state === "ready" || domain.state === "complete"');
+    expect(route).toContain(': "neutral";');
+    expect(route).toContain("No current task is known");
+    expect(route).not.toContain("No organizer action required");
   });
 });
