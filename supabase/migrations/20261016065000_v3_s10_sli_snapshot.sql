@@ -78,12 +78,18 @@ begin
     count(*) filter (where delivery.status = 'dead_letter'),
     count(*) filter (where delivery.attempt_count > 1),
     coalesce(sum(delivery.attempt_count), 0),
-    round(avg(extract(epoch from (delivery.completed_at - delivery.created_at)))
-      filter (where delivery.status = 'completed' and delivery.completed_at is not null)::numeric, 3),
-    round(max(extract(epoch from (delivery.completed_at - delivery.created_at)))
-      filter (where delivery.status = 'completed' and delivery.completed_at is not null)::numeric, 3),
-    round(max(extract(epoch from (now() - delivery.created_at)))
-      filter (where delivery.status in ('pending', 'processing'))::numeric, 3)
+    round((
+      avg(extract(epoch from (delivery.completed_at - delivery.created_at)))
+        filter (where delivery.status = 'completed' and delivery.completed_at is not null)
+    )::numeric, 3),
+    round((
+      max(extract(epoch from (delivery.completed_at - delivery.created_at)))
+        filter (where delivery.status = 'completed' and delivery.completed_at is not null)
+    )::numeric, 3),
+    round((
+      max(extract(epoch from (now() - delivery.created_at)))
+        filter (where delivery.status in ('pending', 'processing'))
+    )::numeric, 3)
   into
     v_delivery_total,
     v_delivery_pending,
