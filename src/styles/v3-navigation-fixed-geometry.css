@@ -19,22 +19,28 @@
   border-radius: 32px;
 }
 
+/*
+ * The lens is an absolutely positioned CSS-grid child. WebKit resolves its
+ * absolute-position containing block from the grid's inline direction, so a
+ * physical `left` alone still anchors against the RTL side. Bind the lens to an
+ * explicit grid track instead: column 1 is the physical-left source in LTR,
+ * while the final logical track (-2 / -1) is the physical-left source in RTL.
+ * The component's numeric transform then moves on one physical X axis.
+ */
 [data-solaris-v3] .v3-liquid-tabbar__lens {
-  left: 6px;
+  grid-column: 1 / 2;
+  width: 100% !important;
+  left: 0 !important;
+  right: auto !important;
   top: 6px;
   bottom: 6px;
   border-radius: calc(25px + var(--v3-liquid-pull-radius));
 }
 
-/*
- * The RTL grid mirrors its tab boxes, but the decorative lens intentionally
- * stays on one physical left-origin coordinate axis. The component mirrors the
- * slot index once; re-anchoring this element to the right mirrors it a second
- * time and sends the lens to the wrong tab in WebKit.
- */
 [data-solaris-v3] .v3-liquid-tabbar[data-layout-direction="rtl"] .v3-liquid-tabbar__lens {
-  left: 6px;
-  right: auto;
+  grid-column: -2 / -1;
+  left: 0 !important;
+  right: auto !important;
 }
 
 [data-solaris-v3] .v3-liquid-tabbar__item {
