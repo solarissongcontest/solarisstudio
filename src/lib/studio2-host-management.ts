@@ -151,6 +151,7 @@ export type HostBidInput = {
   venueCapacity?: number | null;
   venueAddress?: string | null;
   airportSummary?: string | null;
+  transportSummary?: string | null;
   accommodationBeds?: number | null;
   productionSummary?: string | null;
   sustainabilitySummary?: string | null;
