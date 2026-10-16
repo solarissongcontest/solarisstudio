@@ -2,6 +2,7 @@ export const V3_NAVIGATION_GEOMETRY = {
   shellMaxWidth: 544,
   shellHeightExpanded: 70,
   shellHeightCompact: 57,
+  compactHeight: 57,
   horizontalInset: 11,
   narrowHorizontalInset: 7,
   bottomInset: 7,
@@ -16,7 +17,9 @@ export const V3_NAVIGATION_GEOMETRY = {
   iconOpticalSize: 19,
   iconOpticalSizeCompact: 17,
   lensRadius: 25,
+  lensOvershootMax: 14,
   compactWidth: 324,
+  shadowSpreadBudget: 58,
   obstructionMax: 136,
   minimumTarget: 44,
 } as const;
@@ -24,8 +27,8 @@ export const V3_NAVIGATION_GEOMETRY = {
 /**
  * The values above describe the current Solaris implementation geometry only.
  * They are intentionally not labelled as Instagram parity measurements until
- * the approved N0 reference package exists. N14 comparison tooling can consume
- * the same named token set once the frozen reference values are supplied.
+ * the approved N0 reference package exists. Dynamic tokens such as shellWidth,
+ * slotWidth, iconCenterX and lens dimensions are emitted by Browser Audit.
  */
 export const V3_NAVIGATION_REFERENCE_STATUS = {
   status: "awaiting-approved-instagram-baseline",
