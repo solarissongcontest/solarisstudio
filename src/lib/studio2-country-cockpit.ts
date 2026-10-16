@@ -20,12 +20,18 @@ export async function loadStudio2CountryCockpit(
   editionId: string,
   client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
 ): Promise<Studio2CountryCockpitRow[]> {
-  if (!editionId) return [];
+  const normalizedEditionId = editionId.trim();
+  if (!normalizedEditionId) throw new Error('Country cockpit requires an explicit edition scope.');
   const { data, error } = await client.rpc('studio2_country_cockpit', {
-    p_edition_id: editionId,
+    p_edition_id: normalizedEditionId,
   });
   if (error) throw error;
-  return mapStudio2CountryCockpit(data);
+
+  const rows = mapStudio2CountryCockpit(data);
+  if (rows.some((row) => row.context.editionId !== normalizedEditionId)) {
+    throw new Error('Country cockpit returned data outside the selected edition scope.');
+  }
+  return rows;
 }
 
 /**
