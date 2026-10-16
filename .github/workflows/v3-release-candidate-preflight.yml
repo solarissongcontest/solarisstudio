@@ -95,6 +95,8 @@ jobs:
 
       - name: Generate exact-SHA preflight evidence
         shell: bash
+        env:
+          GITHUB_SHA: ${{ inputs.candidate_sha }}
         run: |
           set -euo pipefail
           mkdir -p v3-release-preflight
@@ -103,6 +105,13 @@ jobs:
           bun run scripts/check-v3-s14-rehearsal-readiness.ts --json > v3-release-preflight/s14-readiness.json
           bun run scripts/check-v3-s15-zero-orphan-readiness.ts --json > v3-release-preflight/s15-readiness.json
           git rev-parse HEAD > v3-release-preflight/exact-sha.txt
+          expected="$(printf '%s' "$V3_CANDIDATE_SHA" | tr '[:upper:]' '[:lower:]')"
+          dashboard_sha="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync("v3-release-preflight/completion-dashboard.json","utf8")).candidateSha)')"
+          checkout_sha="$(cat v3-release-preflight/exact-sha.txt)"
+          if [ "$dashboard_sha" != "$expected" ] || [ "$checkout_sha" != "$expected" ]; then
+            echo "::error::release evidence identity mismatch: dashboard=$dashboard_sha checkout=$checkout_sha expected=$expected"
+            exit 1
+          fi
 
       - name: Enforce release-strict preconditions
         run: bun run scripts/check-v3-release-integrity.ts --release
