@@ -60,7 +60,7 @@ describe("V3 Organizer information architecture", () => {
     ]);
   });
 
-  it("classifies deep operational routes under their V3 owner", () => {
+  it("classifies deep operational routes under their canonical V3 owner", () => {
     expect(v3OrganizerTabForPath("/admin/operations")).toBe("overview");
     expect(v3OrganizerTabForPath("/admin/inbox")).toBe("tasks");
     expect(v3OrganizerTabForPath("/admin/entries/ssc-22")).toBe("control");
@@ -68,10 +68,16 @@ describe("V3 Organizer information architecture", () => {
     expect(v3OrganizerTabForPath("/televoting/admin/results")).toBe("control");
     expect(v3OrganizerTabForPath("/admin/control-room")).toBe("live");
     expect(v3OrganizerTabForPath("/admin/broadcast-rundown")).toBe("live");
+    expect(v3OrganizerTabForPath("/admin/results-reveal")).toBe("live");
+    expect(v3OrganizerTabForPath("/admin/incidents")).toBe("live");
+    expect(v3OrganizerTabForPath("/admin/edition-simulator")).toBe("more");
+    expect(v3OrganizerTabForPath("/admin/time-machine")).toBe("more");
+    expect(v3OrganizerTabForPath("/admin/voting-lab")).toBe("more");
+    expect(v3OrganizerTabForPath("/admin/storytelling")).toBe("more");
     expect(v3OrganizerTabForPath("/admin/access-permissions")).toBe("more");
   });
 
-  it("groups Control by canonical domains, separates Entry Review from Running Order, and fails closed without edition context", () => {
+  it("groups Control by canonical domains, separates review/running-order/progression, and fails closed without edition context", () => {
     const withoutEdition = buildV3OrganizerControlGroups(null);
     expect(withoutEdition.map((group) => group.key)).toEqual([
       "delegations",
@@ -98,6 +104,9 @@ describe("V3 Organizer information architecture", () => {
       "/confirmations/admin/responses",
     );
     expect(scopedItems.find((item) => item.key === "running-order")?.href).toBe(
+      "/admin/entries/ssc-22",
+    );
+    expect(scopedItems.find((item) => item.key === "progression")?.href).toBe(
       "/admin/lineup-sync/ssc-22",
     );
     expect(scopedItems.find((item) => item.key === "jury")?.href).toBe(
@@ -109,6 +118,14 @@ describe("V3 Organizer information architecture", () => {
     expect(scopedItems.find((item) => item.key === "broadcast")?.href).toBe(
       "/admin/design/ssc-22",
     );
+    expect(scopedItems.find((item) => item.key === "theme")?.href).toBe(
+      "/admin/edition-theme/ssc-22",
+    );
+    expect(scopedItems.find((item) => item.key === "delivery-issues")?.href).toBe(
+      "/admin/system-operations",
+    );
+    expect(scopedItems.find((item) => item.key === "rundown")).toBeUndefined();
+    expect(scopedItems.find((item) => item.key === "reveal")).toBeUndefined();
   });
 });
 
