@@ -11,11 +11,21 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
-import { resolveElasticDrag, resolveTabDragTargetIndex } from "@/lib/interaction-physics";
+import { APP_RESUME_EVENT } from "@/lib/app-lifecycle";
+import {
+  prefersReducedMotion,
+  resolveElasticDrag,
+  resolveTabDragTargetIndex,
+} from "@/lib/interaction-physics";
+import {
+  resolveV3LogicalHorizontalDelta,
+  type V3LayoutDirection,
+} from "@/lib/v3-navigation-gesture";
 import { useScrollResponsiveBar } from "@/lib/use-scroll-responsive-bar";
 import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import type { SolarisTabbarMode } from "@/lib/solaris-screen-contract";
 import { cn } from "@/lib/utils";
+import "@/styles/v3-organizer-navigation.css";
 
 export type OrganizerV6TabItem = {
   id: string;
@@ -30,10 +40,29 @@ export type OrganizerV6TabItem = {
 
 type DragState = {
   pointerId: number;
+  captureTarget: HTMLAnchorElement;
   startX: number;
   originIndex: number;
+  previewIndex: number;
   moved: boolean;
+  lastX: number;
+  lastAt: number;
+  velocityX: number;
+  minDelta: number;
+  maxDelta: number;
+  slotWidth: number;
+  layoutDirection: V3LayoutDirection;
 };
+
+function organizerItemLabel(item: OrganizerV6TabItem) {
+  const badge = item.badge ?? 0;
+  if (badge <= 0) return item.label;
+  return `${item.label}, ${badge} unresolved item${badge === 1 ? "" : "s"}`;
+}
+
+function layoutDirectionFor(element: Element): V3LayoutDirection {
+  return getComputedStyle(element).direction === "rtl" ? "rtl" : "ltr";
+}
 
 export function OrganizerV6TabBar({
   pathname,
@@ -52,6 +81,7 @@ export function OrganizerV6TabBar({
   );
   const [dragPreviewIndex, setDragPreviewIndex] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [layoutDirection, setLayoutDirection] = useState<V3LayoutDirection>("ltr");
   const barRef = useRef<HTMLElement | null>(null);
   const materialRef = useRef<HTMLDivElement | null>(null);
   const dragState = useRef<DragState | null>(null);
@@ -68,9 +98,24 @@ export function OrganizerV6TabBar({
   useLayoutEffect(() => {
     const root = document.documentElement;
     const bar = barRef.current;
+    const material = materialRef.current;
+
+    const syncDirection = () => {
+      if (!material) return;
+      const nextDirection = layoutDirectionFor(material);
+      setLayoutDirection((current) =>
+        current === nextDirection ? current : nextDirection,
+      );
+    };
 
     const sync = () => {
-      if (!bar || window.innerWidth >= 720 || mode === "hidden") {
+      syncDirection();
+      if (
+        !bar ||
+        window.innerWidth >= 720 ||
+        mode === "hidden" ||
+        root.hasAttribute("data-solaris-keyboard-open")
+      ) {
         root.style.setProperty("--solaris-bottom-obstruction", "0px");
         return;
       }
@@ -82,16 +127,20 @@ export function OrganizerV6TabBar({
     sync();
     const observer = typeof ResizeObserver !== "undefined" && bar ? new ResizeObserver(sync) : null;
     if (observer && bar) observer.observe(bar);
+    const rootObserver =
+      typeof MutationObserver !== "undefined" ? new MutationObserver(sync) : null;
+    rootObserver?.observe(root, {
+      attributes: true,
+      attributeFilter: ["data-solaris-keyboard-open", "dir"],
+    });
     window.addEventListener("resize", sync);
     window.visualViewport?.addEventListener("resize", sync);
 
     return () => {
       observer?.disconnect();
+      rootObserver?.disconnect();
       window.removeEventListener("resize", sync);
       window.visualViewport?.removeEventListener("resize", sync);
-      // Preserve the last valid measurement across dependency replacement.
-      // The next layout effect publishes its value before paint; unmount reset
-      // is deliberately owned by the separate cleanup below.
     };
   }, [collapsed, mode, pathname]);
 
@@ -111,6 +160,17 @@ export function OrganizerV6TabBar({
   };
 
   const resetDragDom = useCallback(() => {
+    const drag = dragState.current;
+    if (drag) {
+      try {
+        if (drag.captureTarget.hasPointerCapture?.(drag.pointerId)) {
+          drag.captureTarget.releasePointerCapture?.(drag.pointerId);
+        }
+      } catch {
+        // Browser may already have released pointer capture.
+      }
+    }
+
     const material = materialRef.current;
     material?.style.setProperty("--organizer-tab-drag-x", "0px");
     material?.style.setProperty("--organizer-tab-scale-x", "1");
@@ -131,17 +191,41 @@ export function OrganizerV6TabBar({
     const resetWhenHidden = () => {
       if (document.visibilityState !== "visible") clearDrag();
     };
+    const root = document.documentElement;
+    const rootInterruptionObserver =
+      typeof MutationObserver !== "undefined"
+        ? new MutationObserver(() => {
+            if (
+              root.hasAttribute("data-solaris-feature-overlay-open") ||
+              root.hasAttribute("data-solaris-keyboard-open")
+            ) {
+              clearDrag();
+            }
+          })
+        : null;
 
+    rootInterruptionObserver?.observe(root, {
+      attributes: true,
+      attributeFilter: [
+        "data-solaris-feature-overlay-open",
+        "data-solaris-keyboard-open",
+      ],
+    });
     window.addEventListener("blur", resetInterruptedGesture);
+    window.addEventListener("resize", resetInterruptedGesture);
     window.addEventListener("orientationchange", resetInterruptedGesture);
+    window.addEventListener("pagehide", resetInterruptedGesture);
+    window.addEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
     document.addEventListener("visibilitychange", resetWhenHidden);
 
     return () => {
+      rootInterruptionObserver?.disconnect();
       window.removeEventListener("blur", resetInterruptedGesture);
+      window.removeEventListener("resize", resetInterruptedGesture);
       window.removeEventListener("orientationchange", resetInterruptedGesture);
+      window.removeEventListener("pagehide", resetInterruptedGesture);
+      window.removeEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
       document.removeEventListener("visibilitychange", resetWhenHidden);
-      // Effect cleanup is resource teardown, not a UI transition. React state
-      // disappears with the component, so never enqueue state updates here.
       resetDragDom();
     };
   }, [clearDrag, pathname, resetDragDom]);
@@ -151,15 +235,43 @@ export function OrganizerV6TabBar({
     index: number,
     active: boolean,
   ) => {
-    if (!active || collapsed || (event.pointerType === "mouse" && event.button !== 0)) {
+    if (
+      !active ||
+      collapsed ||
+      prefersReducedMotion() ||
+      document.documentElement.hasAttribute("data-solaris-keyboard-open") ||
+      (event.pointerType === "mouse" && event.button !== 0)
+    ) {
       return;
     }
 
+    const rects = tabRects();
+    const origin = rects[index];
+    if (!origin) return;
+    const first = rects[0] ?? origin;
+    const last = rects.at(-1) ?? origin;
+    const originCenter = origin.left + origin.width / 2;
+    const firstDelta = first.left + first.width / 2 - originCenter;
+    const lastDelta = last.left + last.width / 2 - originCenter;
+    const nextLayoutDirection = layoutDirectionFor(materialRef.current ?? event.currentTarget);
+    setLayoutDirection((current) =>
+      current === nextLayoutDirection ? current : nextLayoutDirection,
+    );
+
     dragState.current = {
       pointerId: event.pointerId,
+      captureTarget: event.currentTarget,
       startX: event.clientX,
       originIndex: index,
+      previewIndex: index,
       moved: false,
+      lastX: event.clientX,
+      lastAt: event.timeStamp,
+      velocityX: 0,
+      minDelta: Math.min(firstDelta, lastDelta),
+      maxDelta: Math.max(firstDelta, lastDelta),
+      slotWidth: origin.width,
+      layoutDirection: nextLayoutDirection,
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
     beginHold(event.pointerId, event.clientX, event.clientY);
@@ -171,17 +283,19 @@ export function OrganizerV6TabBar({
     if (!drag || drag.pointerId !== event.pointerId) return;
     moveHold(event.pointerId, event.clientX, event.clientY);
 
-    const rects = tabRects();
-    const origin = rects[drag.originIndex];
-    if (!origin) return;
-    const first = rects[0] ?? origin;
-    const last = rects.at(-1) ?? origin;
-    const originCenter = origin.left + origin.width / 2;
+    const rawDelta = event.clientX - drag.startX;
+    const elapsed = Math.max(1, event.timeStamp - drag.lastAt);
+    const instantVelocity = (event.clientX - drag.lastX) / elapsed;
+    drag.velocityX = drag.velocityX * 0.68 + instantVelocity * 0.32;
+    drag.lastX = event.clientX;
+    drag.lastAt = event.timeStamp;
+
     const response = resolveElasticDrag({
-      rawDelta: event.clientX - drag.startX,
-      minDelta: first.left + first.width / 2 - originCenter,
-      maxDelta: last.left + last.width / 2 - originCenter,
-      slotWidth: origin.width,
+      rawDelta,
+      minDelta: drag.minDelta,
+      maxDelta: drag.maxDelta,
+      slotWidth: drag.slotWidth,
+      rubberBand: true,
     });
 
     if (response.moved) drag.moved = true;
@@ -192,38 +306,50 @@ export function OrganizerV6TabBar({
     material?.setAttribute("data-drag-direction", response.direction);
 
     const previewIndex = resolveTabDragTargetIndex({
-      rawDelta: event.clientX - drag.startX,
+      rawDelta: resolveV3LogicalHorizontalDelta(rawDelta, drag.layoutDirection),
       originIndex: drag.originIndex,
-      slotWidth: origin.width,
+      slotWidth: drag.slotWidth,
       itemCount: items.length,
       activationRatio: 0.62,
+      maxSteps: 1,
     });
-    setDragPreviewIndex(previewIndex);
+    if (previewIndex !== drag.previewIndex) {
+      drag.previewIndex = previewIndex;
+      setDragPreviewIndex(previewIndex);
+    }
     if (drag.moved) event.preventDefault();
   };
 
   const finishDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    const rects = tabRects();
-    const origin = rects[drag.originIndex];
     const targetIndex = resolveTabDragTargetIndex({
-      rawDelta: event.clientX - drag.startX,
+      rawDelta: resolveV3LogicalHorizontalDelta(
+        event.clientX - drag.startX,
+        drag.layoutDirection,
+      ),
+      velocityX: resolveV3LogicalHorizontalDelta(
+        drag.velocityX,
+        drag.layoutDirection,
+      ),
+      velocityProjectionMs: 110,
       originIndex: drag.originIndex,
-      slotWidth: origin?.width ?? 1,
+      slotWidth: drag.slotWidth,
       itemCount: items.length,
       activationRatio: 0.72,
+      maxSteps: 1,
     });
-    suppressClick.current = drag.moved;
+    const longPressed = held;
+    suppressClick.current = drag.moved || longPressed;
 
     try {
       event.currentTarget.releasePointerCapture?.(event.pointerId);
     } catch {
-      // Browser may already have released pointer capture.
+      // Pointer capture may already have been released by the browser.
     }
 
     clearDrag();
-    if (!drag.moved || targetIndex === drag.originIndex) return;
+    if (longPressed || !drag.moved || targetIndex === drag.originIndex) return;
     const target = items[targetIndex];
     if (target) onSelect(target);
   };
@@ -231,14 +357,22 @@ export function OrganizerV6TabBar({
   const cancelDrag = (event: ReactPointerEvent<HTMLAnchorElement>) => {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    suppressClick.current = drag.moved;
+    suppressClick.current = drag.moved || held;
     clearDrag();
   };
 
   const count = Math.max(1, items.length);
+  // Organizer uses the same physical lens coordinate model as the public bar.
+  // Grid placement mirrors the tab items in RTL; the decorative lens itself is
+  // always left-anchored so browser directionality cannot mirror X twice.
+  const physicalLensIndex =
+    layoutDirection === "rtl" ? count - 1 - visualActiveIndex : visualActiveIndex;
   const indicatorStyle = {
     width: `calc((100% - .75rem - ${Math.max(0, count - 1) * 0.15}rem) / ${count})`,
-    transform: `translate3d(calc(${visualActiveIndex} * (100% + .15rem) + var(--organizer-tab-drag-x)), -50%, 0) scaleX(var(--organizer-tab-scale-x))`,
+    left: ".375rem",
+    right: "auto",
+    direction: "ltr",
+    transform: `translate3d(calc(${physicalLensIndex} * (100% + .15rem) + var(--organizer-tab-drag-x)), -50%, 0) scaleX(var(--organizer-tab-scale-x))`,
   } as CSSProperties;
 
   if (mode === "hidden") return null;
@@ -252,6 +386,7 @@ export function OrganizerV6TabBar({
       data-v6-organizer-tabbar=""
       data-mode={mode}
       data-collapsed={compact ? "true" : "false"}
+      data-layout-direction={layoutDirection}
       onPointerDown={() => {
         if (collapsed) expand();
       }}
@@ -300,8 +435,11 @@ export function OrganizerV6TabBar({
                 <Icon className="size-[1.08rem]" aria-hidden="true" />
                 {(item.badge ?? 0) > 0 ? (
                   <span
-                    className="absolute -right-3 -top-2 min-w-4 rounded-full border border-[#06101f] bg-rose-500 px-1 text-center text-[8px] font-bold leading-4 text-white"
-                    aria-label={`${item.badge} unresolved item${item.badge === 1 ? "" : "s"}`}
+                    className={cn(
+                      "absolute -top-2 min-w-4 rounded-full border border-[#06101f] bg-rose-500 px-1 text-center text-[8px] font-bold leading-4 text-white",
+                      layoutDirection === "rtl" ? "-left-3" : "-right-3",
+                    )}
+                    aria-hidden="true"
                   >
                     {(item.badge ?? 0) > 99 ? "99+" : item.badge}
                   </span>
@@ -324,7 +462,7 @@ export function OrganizerV6TabBar({
             <Link
               key={item.id}
               to={item.href as any}
-              aria-label={item.label}
+              aria-label={organizerItemLabel(item)}
               aria-current={item.active ? "page" : undefined}
               data-organizer-tab-index={index}
               onPointerDown={(event) => startDrag(event, index, item.active)}
@@ -350,7 +488,7 @@ export function OrganizerV6TabBar({
           ) : (
             <span
               key={item.id}
-              aria-label={item.label}
+              aria-label={organizerItemLabel(item)}
               aria-disabled="true"
               title={item.unavailableReason}
               data-organizer-tab-index={index}
