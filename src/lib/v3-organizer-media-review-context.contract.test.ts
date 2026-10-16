@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { V3_ORGANIZER_CAPABILITY_REGISTRY } from "./v3-organizer-capability-registry";
+
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const route = source("src/routes/_authenticated/admin/media-assets.tsx");
 const service = source("src/lib/studio2-media-assets.ts");
@@ -30,5 +32,13 @@ describe("V3 Organizer Media Review exact-edition safety", () => {
     expect(route).toContain("variables.commandEditionId");
     expect(route).toContain("if (editionId !== variables.commandEditionId) return;");
     expect(service).toContain("p_edition_id: input.editionId");
+  });
+
+  it("marks the implemented Media Review slice building without overstating parity", () => {
+    const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
+      (item) => item.legacyId === "operations-media-assets",
+    );
+    expect(capability?.targetDomain).toBe("contest");
+    expect(capability?.migrationStatus).toBe("building");
   });
 });
