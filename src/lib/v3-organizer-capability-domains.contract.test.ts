@@ -46,6 +46,7 @@ describe("V3 Organizer canonical capability domains", () => {
       "delegation-submission-rounds",
       "delegation-calendar",
       "delegation-access",
+      "delegation-submission-history",
     ]) {
       expect(capability(id).migrationStatus).toBe("building");
     }
