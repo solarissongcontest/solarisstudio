@@ -5,6 +5,7 @@ import {
   parseStudio2ResultOperationRow,
   resultActionLabel,
   resultLifecycleLabel,
+  studio2ResultBlockers,
   summarizeStudio2ResultsOperations,
   type Studio2ResultOperationRow,
 } from './studio2-results-operations';
@@ -84,6 +85,58 @@ describe('Studio 2 results operations model', () => {
     }))).not.toContain('calculate');
   });
 
+  it('explains Jury and Televote inputs that block calculation', () => {
+    const blocked = row({
+      lifecycle: 'votes_collected',
+      preconditions: {
+        ...row().preconditions,
+        juryReady: false,
+        juryIncompleteCount: 2,
+        juryConflictCount: 1,
+        televoteReady: false,
+        televoteVoteRows: 37,
+        calculationReady: false,
+      },
+    });
+
+    expect(studio2ResultBlockers(blocked)).toEqual([
+      {
+        id: 'jury',
+        label: 'Jury input is not finalized',
+        detail: '2 incomplete · 1 conflicts · 0 did not vote',
+      },
+      {
+        id: 'televote',
+        label: 'Public vote input is not finalized',
+        detail: '37 canonical public-vote rows are currently available',
+      },
+    ]);
+  });
+
+  it('explains reconciliation blockers only after a governed calculation version exists', () => {
+    const calculated = row({
+      lifecycle: 'validation',
+      calculationVersion: 5,
+      preconditions: {
+        ...row().preconditions,
+        resultRowCount: 9,
+        entityCountMismatch: 1,
+        sourceReconcileIssueCount: 2,
+        reconcileIssueCount: 3,
+        resultReady: false,
+      },
+    });
+
+    expect(studio2ResultBlockers(calculated)).toEqual([
+      {
+        id: 'reconciliation',
+        label: 'Calculated result needs reconciliation',
+        detail: '1 participant/result-row count mismatch · 2 total or weighting issues',
+      },
+    ]);
+    expect(studio2ResultBlockers(row())).toEqual([]);
+  });
+
   it('requires review before locking and lock before reveal readiness', () => {
     const calculated = row({
       lifecycle: 'calculated',
@@ -142,6 +195,7 @@ describe('Studio 2 results operations model', () => {
     });
 
     expect(availableStudio2ResultActions(published)).toEqual([]);
+    expect(studio2ResultBlockers(published)).toEqual([]);
   });
 
   it('restores normal lifecycle availability once Publication makes results private', () => {
