@@ -29,4 +29,10 @@ describe("V3 Organizer canonical capability domains", () => {
     expect(capability("workspace-acceptance-test").targetDomain).toBe("product-qa");
     expect(capability("workspace-beta-coverage").targetDomain).toBe("product-qa");
   });
+
+  it("keeps Eligibility and Media in Contest rather than Delegations", () => {
+    expect(capability("operations-eligibility").targetDomain).toBe("contest");
+    expect(capability("operations-media-assets").targetDomain).toBe("contest");
+    expect(capability("delegation-confirmation-overview").targetDomain).toBe("delegations");
+  });
 });
