@@ -56,4 +56,11 @@ describe("Organizer Media Review exact-edition read boundary", () => {
     expect(route).toContain("queryFn: () => loadOrganizerMediaAssetReviews(resolvedEditionId)");
     expect(route).not.toContain("queryFn: () => listStudio2MediaAssetReviews(resolvedEditionId)");
   });
+
+  it("remounts stateful review UI when the Organizer edition changes", () => {
+    const route = readFileSync("src/routes/_authenticated/admin/media-assets.tsx", "utf8");
+    expect(route).toContain("component: MediaAssetsRoute");
+    expect(route).toContain("function MediaAssetsRoute()");
+    expect(route).toContain("<MediaAssetsPage key={editionId || 'unscoped'} />");
+  });
 });
