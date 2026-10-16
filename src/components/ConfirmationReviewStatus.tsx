@@ -34,7 +34,7 @@ export function ConfirmationReviewStatus({
 }) {
   if (selectionMethod === "internal") {
     if (!internalEntry) return null;
-    const status = normalizeReviewStatus(internalEntry.review_status);
+    const status = reviewDisplayStatus(internalEntry);
 
     return (
       <section className={reviewPanelClass(status, compact)} aria-label="Entry review status">
@@ -71,7 +71,7 @@ export function ConfirmationReviewStatus({
     .sort((a, b) => (a.position ?? 999) - (b.position ?? 999));
   if (!entries.length) return null;
 
-  const statuses = entries.map((entry) => normalizeReviewStatus(entry.review_status));
+  const statuses = entries.map(reviewDisplayStatus);
   const pendingCount = statuses.filter((status) => status === "pending").length;
   const declinedCount = statuses.filter((status) => status === "declined").length;
   const acceptedCount = statuses.filter((status) => status === "accepted").length;
@@ -98,7 +98,7 @@ export function ConfirmationReviewStatus({
 
           <div className="mt-3 space-y-2">
             {entries.map((entry, index) => {
-              const status = normalizeReviewStatus(entry.review_status);
+              const status = reviewDisplayStatus(entry);
               const winner = Boolean(entry.id && nationalFinal.winning_entry_id === entry.id);
               return (
                 <div
@@ -144,6 +144,19 @@ export function normalizeReviewStatus(status?: string | null) {
 }
 
 type ReviewStatus = ReturnType<typeof normalizeReviewStatus>;
+
+export function reviewDisplayStatus(entry: ConfirmationReviewEntry): ReviewStatus {
+  const status = normalizeReviewStatus(entry.review_status);
+  const decision = status === "accepted" || status === "declined";
+  const knownStaleDecision = Boolean(
+    decision &&
+      entry.current_version_id &&
+      entry.reviewed_version_id &&
+      entry.current_version_id !== entry.reviewed_version_id,
+  );
+
+  return knownStaleDecision ? "pending" : status;
+}
 
 function reviewPanelClass(status: ReviewStatus, compact: boolean) {
   const size = compact ? "p-3" : "p-4";
