@@ -10,6 +10,7 @@ import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useEditions } from '@/lib/data';
 import {
   loadStudio2CountryCockpit,
+  matchesStudio2CountryCockpitQuery,
   sortStudio2CountryCockpitOperationally,
   summarizeCountryCockpit,
 } from '@/lib/studio2-country-cockpit';
@@ -119,12 +120,10 @@ function CountriesCockpitPage() {
   const rows = cockpitQuery.data ?? [];
   const queryValue = search.q ?? '';
   const stateFilter = search.state ?? 'all';
-  const normalizedQuery = queryValue.trim().toLocaleLowerCase();
   const filteredRows = sortStudio2CountryCockpitOperationally(
     rows.filter((row) => {
       if (stateFilter !== 'all' && row.operationalReadiness.state !== stateFilter) return false;
-      if (!normalizedQuery) return true;
-      return row.context.countryName.toLocaleLowerCase().includes(normalizedQuery);
+      return matchesStudio2CountryCockpitQuery(row, queryValue);
     }),
   );
   const attentionRows = sortStudio2CountryCockpitOperationally(rows)
@@ -356,12 +355,12 @@ function CountriesCockpitPage() {
             <AdminCard>
               <div className="grid gap-3 md:grid-cols-[1fr_220px]">
                 <label className="relative block">
-                  <span className="sr-only">Search countries</span>
+                  <span className="sr-only">Search delegations</span>
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <input
                     value={queryValue}
                     onChange={(event) => navigate({ search: (previous) => ({ ...previous, q: event.target.value }), replace: true })}
-                    placeholder="Search country…"
+                    placeholder="Search country, HOD, artist or song…"
                     className="min-h-11 w-full rounded-xl border border-white/[0.08] bg-white/[0.025] pl-10 pr-3 text-sm"
                   />
                 </label>
@@ -397,7 +396,7 @@ function CountriesCockpitPage() {
                 <AdminEmptyState
                   icon={Search}
                   title="No delegations match these filters"
-                  description="Change the country search or readiness filter."
+                  description="Change the delegation search or readiness filter."
                 />
               )}
             </AdminCard>
