@@ -1,3 +1,5 @@
+@import "./v3-navigation-performance.css";
+
 [data-solaris-v3] .v3-top-level-swipe-surface {
   min-width: 0;
   overflow-x: clip;
