@@ -1,5 +1,9 @@
 import type { OrganizerTaskV5 } from "@/lib/admin-tasks-v5";
 import type { ControlRoomModel } from "@/lib/control-room-model";
+import {
+  organizerTaskDomain as classifyOrganizerTaskDomain,
+  type OrganizerTaskDomain,
+} from "@/lib/v3-organizer-task-domain";
 
 export type V3OrganizerRisk = "normal" | "elevated" | "critical";
 
@@ -156,6 +160,18 @@ const priorityRank: Record<OrganizerTaskV5["priority"], number> = {
   normal: 2,
 };
 
+const projectionTaskDomain: Record<OrganizerTaskDomain, V3OrganizerDomainKey> = {
+  delegations: "delegations",
+  entries: "contest",
+  media: "contest",
+  voting: "voting",
+  integrity: "governance",
+  publication: "results",
+  communications: "communications",
+  production: "production",
+  system: "system",
+};
+
 function dueTime(value: string | null) {
   if (!value) return Number.POSITIVE_INFINITY;
   const parsed = Date.parse(value);
@@ -192,31 +208,7 @@ function summarizeTask(task: OrganizerTaskV5): V3OrganizerTaskSummary {
 export function organizerTaskDomain(
   task: Pick<OrganizerTaskV5, "href" | "sourceKind" | "taskType">,
 ): V3OrganizerDomainKey {
-  // Canonical source/task identity wins over a route. Entry approval is
-  // intentionally opened from a country workspace, but operationally belongs
-  // to Contest rather than Delegations.
-  const semantic = `${task.sourceKind} ${task.taskType}`.toLowerCase();
-  if (/entry|media|show|lineup|progress|eligib|submission/.test(semantic)) return "contest";
-  if (/jury|televote|voting|ballot/.test(semantic)) return "voting";
-  if (/result|publication|publish/.test(semantic)) return "results";
-  if (/communication|notice|announcement|delivery/.test(semantic)) return "communications";
-  if (/broadcast|rundown|reveal|design|theme|production/.test(semantic)) return "production";
-  if (/integrity|rule|investigation|appeal|evidence|governance|identity/.test(semantic)) {
-    return "governance";
-  }
-  if (/confirm|delegat|participation/.test(semantic)) return "delegations";
-
-  const route = task.href.toLowerCase();
-  if (/entry|media|show|lineup|progress|eligib|submission/.test(route)) return "contest";
-  if (/jury|televote|voting|ballot/.test(route)) return "voting";
-  if (/result|publication|publish/.test(route)) return "results";
-  if (/communication|notice|announcement|delivery/.test(route)) return "communications";
-  if (/broadcast|rundown|reveal|design|theme|production/.test(route)) return "production";
-  if (/integrity|rule|investigation|appeal|evidence|governance|identity/.test(route)) {
-    return "governance";
-  }
-  if (/confirm|delegat|country|participation/.test(route)) return "delegations";
-  return "system";
+  return projectionTaskDomain[classifyOrganizerTaskDomain(task)];
 }
 
 function factor(
