@@ -61,6 +61,7 @@ describe("projectV3Participate", () => {
       sourceState: "needs_attention",
     });
     const next = action("next-entry", {
+      kind: "entry",
       deliveryClass: "required",
       sourceState: "upcoming",
     });
@@ -91,6 +92,66 @@ describe("projectV3Participate", () => {
     expect(projection.journeyTotalCount).toBe(2);
   });
 
+  it("projects jury and public televote into one voting overview without changing their responsibility classes", () => {
+    const jury = action("jury-open", {
+      kind: "jury",
+      route: "/jury-voting",
+      actionRequired: true,
+      deliveryClass: "required",
+      impact: "blocking",
+      sourceState: "needs_attention",
+    });
+    const televote = action("televote-open", {
+      kind: "televote",
+      route: "/televoting",
+      actionRequired: false,
+      deliveryClass: "optional",
+      sourceState: "available",
+    });
+
+    const projection = projectV3Participate({ actions: [jury, televote], journey: [] });
+
+    expect(projection.voting.currentCount).toBe(2);
+    expect(projection.voting.jury?.id).toBe("jury-open");
+    expect(projection.voting.jury?.deliveryClass).toBe("required");
+    expect(projection.voting.televote?.id).toBe("televote-open");
+    expect(projection.voting.televote?.deliveryClass).toBe("optional");
+    expect(projection.needsAttention.map((item) => item.id)).toEqual(["jury-open"]);
+    expect(projection.optionalNow.map((item) => item.id)).toEqual(["televote-open"]);
+  });
+
+  it("prefers the current voting action over historical completion evidence", () => {
+    const completedJury = action("jury-old", {
+      kind: "jury",
+      completed: true,
+      sourceState: "completed",
+      deliveryClass: "required",
+    });
+    const currentJury = action("jury-current", {
+      kind: "jury",
+      sourceState: "upcoming",
+      deliveryClass: "required",
+    });
+
+    const projection = projectV3Participate({
+      actions: [completedJury, currentJury],
+      journey: [],
+    });
+
+    expect(projection.voting.jury?.id).toBe("jury-current");
+    expect(projection.voting.currentCount).toBe(1);
+  });
+
+  it("does not invent closed or unavailable voting truth when no canonical action exists", () => {
+    const projection = projectV3Participate({ actions: [], journey: [] });
+
+    expect(projection.voting).toEqual({
+      jury: null,
+      televote: null,
+      currentCount: 0,
+    });
+  });
+
   it("never promotes an optional action into required attention even when it is urgent", () => {
     const optionalUrgent = action("urgent-public-vote", {
       kind: "televote",
@@ -105,6 +166,7 @@ describe("projectV3Participate", () => {
 
     expect(projection.needsAttention).toEqual([]);
     expect(projection.optionalNow.map((item) => item.id)).toEqual(["urgent-public-vote"]);
+    expect(projection.voting.televote?.id).toBe("urgent-public-vote");
   });
 
   it("uses journey evidence as-is instead of inventing missing responsibilities", () => {
