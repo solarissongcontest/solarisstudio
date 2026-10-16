@@ -65,6 +65,18 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
     "supabase/migrations/20261015201221_v3_s5_entry_consequences.sql",
     ".github/scripts/v3-s5-entry-consequences-rehearsal.sh",
   ],
+  "jury.opened": [
+    "supabase/migrations/20261016040000_v3_s5_jury_consequences.sql",
+    "src/lib/v3-s5-jury-consequences.test.ts",
+  ],
+  "jury.closed": [
+    "supabase/migrations/20261016040000_v3_s5_jury_consequences.sql",
+    "src/lib/v3-s5-jury-consequences.test.ts",
+  ],
+  "jury.ballot_changed": [
+    "supabase/migrations/20261016040000_v3_s5_jury_consequences.sql",
+    "src/lib/v3-s5-jury-consequences.test.ts",
+  ],
 };
 
 const providerIds: ReadonlySet<string> = new Set(
