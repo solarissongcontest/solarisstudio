@@ -23,4 +23,11 @@ describe("V3 Organizer Voting overview Jury ownership", () => {
     expect(votingOverview).not.toContain("Jury ready");
     expect(votingOverview).not.toContain("Jury complete");
   });
+
+  it("labels Televote-derived recommendations as public-voting guidance", () => {
+    expect(votingOverview).toContain('eyebrow="Public voting next action"');
+    expect(votingOverview).toContain("blocked public");
+    expect(votingOverview).toContain("Public-vote integrity checks");
+    expect(votingOverview).not.toContain('eyebrow="Next action"');
+  });
 });
