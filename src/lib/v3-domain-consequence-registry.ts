@@ -81,6 +81,21 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
     "supabase/migrations/20261016040000_v3_s5_jury_consequences.sql",
     "src/lib/v3-s5-jury-consequences.test.ts",
   ],
+  "results.calculated": [
+    "supabase/migrations/20261016053000_v3_s5_results_consequences.sql",
+    "src/lib/v3-s5-results-consequences.test.ts",
+    ".github/scripts/v3-s5-results-consequences-rehearsal.sh",
+  ],
+  "results.verified": [
+    "supabase/migrations/20261016053000_v3_s5_results_consequences.sql",
+    "src/lib/v3-s5-results-consequences.test.ts",
+    ".github/scripts/v3-s5-results-consequences-rehearsal.sh",
+  ],
+  "results.locked": [
+    "supabase/migrations/20261016053000_v3_s5_results_consequences.sql",
+    "src/lib/v3-s5-results-consequences.test.ts",
+    ".github/scripts/v3-s5-results-consequences-rehearsal.sh",
+  ],
   "televote.opened": [
     "supabase/migrations/20261016043000_v3_s5_televote_consequences.sql",
     "src/lib/v3-s5-televote-consequences.test.ts",
