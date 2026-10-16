@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router';
-import { AlertTriangle, Flag, Search } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Flag, Search } from 'lucide-react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
@@ -10,6 +10,7 @@ import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useEditions } from '@/lib/data';
 import {
   loadStudio2CountryCockpit,
+  sortStudio2CountryCockpitOperationally,
   summarizeCountryCockpit,
 } from '@/lib/studio2-country-cockpit';
 
@@ -64,11 +65,16 @@ function CountriesCockpitPage() {
   const queryValue = search.q ?? '';
   const stateFilter = search.state ?? 'all';
   const normalizedQuery = queryValue.trim().toLocaleLowerCase();
-  const filteredRows = rows.filter((row) => {
-    if (stateFilter !== 'all' && row.operationalReadiness.state !== stateFilter) return false;
-    if (!normalizedQuery) return true;
-    return row.context.countryName.toLocaleLowerCase().includes(normalizedQuery);
-  });
+  const filteredRows = sortStudio2CountryCockpitOperationally(
+    rows.filter((row) => {
+      if (stateFilter !== 'all' && row.operationalReadiness.state !== stateFilter) return false;
+      if (!normalizedQuery) return true;
+      return row.context.countryName.toLocaleLowerCase().includes(normalizedQuery);
+    }),
+  );
+  const attentionRows = sortStudio2CountryCockpitOperationally(rows)
+    .filter((row) => row.operationalReadiness.state !== 'ready')
+    .slice(0, 4);
   const summary = summarizeCountryCockpit(rows);
   const error = editionsQuery.error ?? cockpitQuery.error;
   const countryColumns = [
@@ -167,11 +173,11 @@ function CountriesCockpitPage() {
 
   return (
     <AdminPage>
-      <div className="mx-auto max-w-7xl space-y-4">
+      <div className="mx-auto max-w-7xl space-y-4" data-v3-organizer-delegations="">
         <AdminPageHeader
           eyebrow="Solaris Studio 2 · Delegations"
           title="Country cockpit"
-          description="A single readiness matrix for every participating delegation in the selected edition. Scores use the same country operational-readiness model as the HOD workspace."
+          description="Exception-first delegation readiness for the selected edition. Canonical country workflow state remains authoritative; this workspace prioritizes the delegations that actually need intervention."
           actions={
             <div className="flex flex-wrap gap-2">
               <Link to="/admin/flag-audit" className="admin-action-secondary">Flag QA</Link>
@@ -235,6 +241,55 @@ function CountriesCockpitPage() {
           </AdminCard>
         ) : (
           <>
+            {attentionRows.length ? (
+              <AdminCard strong>
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <p className="admin-section-label">Needs attention</p>
+                    <h2 className="mt-1 text-base font-bold">Highest-priority delegation exceptions</h2>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      Blocked countries come first, followed by overdue and other attention-required delegation state.
+                    </p>
+                  </div>
+                  <AdminStatus tone={summary.blocked ? 'blocked' : 'attention'}>
+                    {summary.blocked ? `${summary.blocked} blocked` : `${summary.attention} attention`}
+                  </AdminStatus>
+                </div>
+                <div className="mt-3 divide-y divide-white/[0.07] border-t border-white/[0.07]">
+                  {attentionRows.map((row) => {
+                    const primaryIssue = row.operationalReadiness.signals.find(
+                      (signal) => signal.state === 'blocked' || signal.state === 'attention',
+                    );
+                    return (
+                      <Link
+                        key={row.context.countryId}
+                        to="/admin/countries/$countryId"
+                        params={{ countryId: row.context.countryId }}
+                        search={{ tab: 'overview' }}
+                        className="group flex min-h-16 items-center gap-3 py-3"
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-foreground">{row.context.countryName}</span>
+                            <ReadinessStatus state={row.operationalReadiness.state} />
+                          </span>
+                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                            {primaryIssue?.message ?? `${row.operationalReadiness.score}% operational readiness`}
+                          </span>
+                          {row.operationalReadiness.overdueDeadlines.length ? (
+                            <span className="mt-1 block text-[11px] font-semibold text-amber-100">
+                              {row.operationalReadiness.overdueDeadlines.length} overdue deadline{row.operationalReadiness.overdueDeadlines.length === 1 ? '' : 's'}
+                            </span>
+                          ) : null}
+                        </span>
+                        <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                      </Link>
+                    );
+                  })}
+                </div>
+              </AdminCard>
+            ) : null}
+
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <Metric label="Delegations" value={summary.total} tone="neutral" />
               <Metric label="Ready" value={summary.ready} tone="ready" />

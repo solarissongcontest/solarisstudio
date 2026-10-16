@@ -28,6 +28,42 @@ export async function loadStudio2CountryCockpit(
   return mapStudio2CountryCockpit(data);
 }
 
+const operationalStateRank: Record<
+  Studio2CountryCockpitRow['operationalReadiness']['state'],
+  number
+> = {
+  blocked: 0,
+  attention_required: 1,
+  ready: 2,
+};
+
+/**
+ * Organizer lists must surface exceptions before normality. This function only
+ * orders already-canonical country cockpit projections; it does not calculate
+ * readiness or invent a separate task state.
+ */
+export function sortStudio2CountryCockpitOperationally(
+  rows: readonly Studio2CountryCockpitRow[],
+): Studio2CountryCockpitRow[] {
+  return [...rows].sort((a, b) => {
+    const state = operationalStateRank[a.operationalReadiness.state] - operationalStateRank[b.operationalReadiness.state];
+    if (state) return state;
+
+    const overdue =
+      b.operationalReadiness.overdueDeadlines.length -
+      a.operationalReadiness.overdueDeadlines.length;
+    if (overdue) return overdue;
+
+    const issues = b.context.unresolvedOrganizerIssues - a.context.unresolvedOrganizerIssues;
+    if (issues) return issues;
+
+    const score = a.operationalReadiness.score - b.operationalReadiness.score;
+    if (score) return score;
+
+    return a.context.countryName.localeCompare(b.context.countryName);
+  });
+}
+
 export function summarizeCountryCockpit(rows: readonly Studio2CountryCockpitRow[]) {
   const ready = rows.filter((row) => row.operationalReadiness.state === 'ready').length;
   const attention = rows.filter(
