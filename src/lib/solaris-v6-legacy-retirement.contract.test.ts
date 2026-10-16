@@ -13,7 +13,7 @@ describe("Solaris V6 legacy authority retirement", () => {
       const route = source(path);
       expect(route, path).toContain("Navigate");
       expect(route, path).toContain('to="/admin/tasks"');
-      expect(route, path).toContain('search={{ filter: "all" }}');
+      expect(route, path).toContain('search={{ filter: "all", domain: "all" }}');
       expect(route, path).not.toContain("beforeLoad:");
       expect(route, path).not.toContain("throw redirect");
       expect(route, path).not.toContain("buildStudio2ActionCenter");
