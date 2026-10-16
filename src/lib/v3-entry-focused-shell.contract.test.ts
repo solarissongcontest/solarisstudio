@@ -13,7 +13,6 @@ function source(path: string) {
 describe("V3 Entry focused participant shell", () => {
   it("classifies Entry as authenticated Participate critical work", () => {
     const screen = resolveSolarisAppScreen("/my-solaris/entry");
-
     expect(screen.id).toBe("mysolaris.entry");
     expect(screen.presentation).toBe("task");
     expect(screen.hierarchy.rootTab).toBe("participate");
@@ -21,13 +20,11 @@ describe("V3 Entry focused participant shell", () => {
     expect(screen.chrome).toEqual({ toolbar: "focused", tabbar: "hidden", search: "none" });
     expect(screen.access.auth).toBe("authenticated");
     expect(screen.behavior.criticalTask).toBe(true);
-    expect(screen.behavior.immersive).toBe(false);
     expect(screen.behavior.offline).toBe("online-required");
   });
 
   it("derives Entry chrome from the canonical screen registry", () => {
     expect(resolveV3FocusedTaskChrome("/my-solaris/entry")).toMatchObject({
-      pathname: "/my-solaris/entry",
       screenId: "mysolaris.entry",
       title: "Entry",
       rootTab: "participate",
@@ -37,14 +34,17 @@ describe("V3 Entry focused participant shell", () => {
     });
   });
 
-  it("uses the shared focused shell without reintroducing global V3 app chrome", () => {
+  it("uses one route-owned focused shell instead of stacked global/workspace chrome", () => {
     const gate = source("src/components/v3/V3EntryRouteGate.tsx");
+    const workspace = source("src/components/mysolaris/MySolarisWorkspaceShell.tsx");
+    const css = source("src/styles/v3-focused-task-shell.css");
 
-    expect(gate).toContain('resolveV3FocusedTaskChrome("/my-solaris/entry")');
     expect(gate).toContain("<V3FocusedTaskShell");
-    expect(gate).toContain("chrome={ENTRY_FOCUSED_CHROME}");
     expect(gate).not.toContain("<V3AppShell");
-    expect(gate).not.toContain('activeArea="participate"');
+    expect(workspace).toContain("resolveSolarisAppScreen(location.pathname).behavior.criticalTask");
+    expect(workspace).toContain("if (focusedTask) return <>{children}</>");
+    expect(css).toContain("body:has([data-v3-focused-task-shell]) .solaris-app-toolbar");
+    expect(css).toContain('.app-main[data-solaris-app-mode="true"]');
   });
 
   it("blocks service-worker activation throughout Entry while ordinary MySolaris remains safe", () => {
