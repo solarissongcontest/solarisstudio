@@ -1,16 +1,17 @@
 /**
  * Canonical product destinations.
  *
- * Keep participant links on the MySolaris route family. Legacy Country Hub
- * paths remain compatibility entry points, but they should not be authored by
- * new UI code.
+ * Participant links should point at their V3 ownership surface. Legacy
+ * MySolaris paths remain compatibility/deep-link entry points while cutover is
+ * proven, but new participant navigation should converge on the canonical
+ * destination instead of preserving duplicate workspaces forever.
  */
 export const NAV_TARGETS = {
   mySolaris: "/my-solaris",
   mySolarisCountry: "/my-solaris/country",
   mySolarisTasks: "/my-solaris/tasks",
   mySolarisEntry: "/my-solaris/entry",
-  mySolarisVoting: "/my-solaris/voting",
+  mySolarisVoting: "/participate",
   mySolarisNotices: "/my-solaris/notices",
   mySolarisPageBuilder: "/my-solaris/page-builder",
   mySolarisTheme: "/my-solaris/theme",
