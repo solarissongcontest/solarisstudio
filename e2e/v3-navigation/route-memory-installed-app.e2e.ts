@@ -89,14 +89,26 @@ async function installSession(context: BrowserContext, session: E2ESession) {
 async function navGeometry(page: import("@playwright/test").Page) {
   return page.evaluate(() => {
     const material = document.querySelector<HTMLElement>(".v3-liquid-tabbar__material");
+    const lens = document.querySelector<HTMLElement>(".v3-liquid-tabbar__lens");
+    const activeItem = document.querySelector<HTMLElement>(
+      '[data-v3-liquid-tabbar] [data-v3-tab-index][aria-current="page"]',
+    );
+    const activeIcon = activeItem?.querySelector<HTMLElement>(".v3-liquid-tabbar__icon") ?? null;
     const items = Array.from(
       document.querySelectorAll<HTMLElement>("[data-v3-liquid-tabbar] [data-v3-tab-index]"),
     );
-    if (!material) return null;
+    if (!material || !lens || !activeItem || !activeIcon) return null;
     const rect = material.getBoundingClientRect();
+    const lensRect = lens.getBoundingClientRect();
+    const activeRect = activeItem.getBoundingClientRect();
+    const iconRect = activeIcon.getBoundingClientRect();
     return {
       width: rect.width,
       height: rect.height,
+      lensCenterX: lensRect.left + lensRect.width / 2,
+      activeCenterX: activeRect.left + activeRect.width / 2,
+      iconWidth: iconRect.width,
+      iconHeight: iconRect.height,
       overflow:
         Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
       targetMins: items.map((item) => {
@@ -131,15 +143,22 @@ test("installed app shell survives representative navigation without duplicate c
   const beforeTextScale = await navGeometry(page);
   expect(beforeTextScale).not.toBeNull();
   if (!beforeTextScale) return;
+  expect(Math.abs(beforeTextScale.lensCenterX - beforeTextScale.activeCenterX)).toBeLessThanOrEqual(3);
 
+  // N12 requires the icon-only navigation object itself not to inflate with
+  // user text size. Scale the ROOT font, not merely body text, so rem-coupled
+  // shell/lens geometry would fail this test.
   await page.evaluate(() => {
-    document.body.style.fontSize = "200%";
+    document.documentElement.style.fontSize = "200%";
   });
   const afterTextScale = await navGeometry(page);
   expect(afterTextScale).not.toBeNull();
   if (!afterTextScale) return;
   expect(Math.abs(afterTextScale.width - beforeTextScale.width)).toBeLessThanOrEqual(1);
   expect(Math.abs(afterTextScale.height - beforeTextScale.height)).toBeLessThanOrEqual(1);
+  expect(Math.abs(afterTextScale.iconWidth - beforeTextScale.iconWidth)).toBeLessThanOrEqual(1);
+  expect(Math.abs(afterTextScale.iconHeight - beforeTextScale.iconHeight)).toBeLessThanOrEqual(1);
+  expect(Math.abs(afterTextScale.lensCenterX - afterTextScale.activeCenterX)).toBeLessThanOrEqual(3);
   expect(afterTextScale.overflow).toBeLessThanOrEqual(2);
   for (const target of afterTextScale.targetMins) expect(target).toBeGreaterThanOrEqual(44);
 
