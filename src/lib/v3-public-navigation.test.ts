@@ -102,4 +102,46 @@ describe("V3 public navigation memory", () => {
       consumeV3PublicNavigationRestore("/countries/oland", "", session, "viewer-a"),
     ).toBeNull();
   });
+
+  it("invalidates stale restore intents after redirects so a later visit cannot resurrect them", () => {
+    const storage = memoryStorage();
+    const session = memoryStorage();
+    rememberV3PublicLocation("/countries/oland", "", 20, storage, "viewer-a");
+    updateV3PublicScrollPosition("/countries/oland", "", 777, storage, "viewer-a");
+    const target = getV3PublicTabDestination("explore", storage, "viewer-a");
+    markV3PublicNavigationRestore(target, session, "viewer-a");
+
+    expect(
+      consumeV3PublicNavigationRestore("/explore", "", session, "viewer-a"),
+    ).toBeNull();
+    expect(
+      consumeV3PublicNavigationRestore("/countries/oland", "", session, "viewer-a"),
+    ).toBeNull();
+  });
+
+  it("fails closed on incompatible persisted navigation versions", () => {
+    const storage = memoryStorage();
+    storage.setItem(
+      "solaris:public-v3-navigation:v1:viewer-a",
+      JSON.stringify({
+        version: 999,
+        activeTab: "me",
+        tabs: {
+          me: {
+            current: {
+              pathname: "/my-solaris/notifications",
+              searchStr: "",
+              scrollY: 123,
+              visitedAt: new Date().toISOString(),
+            },
+            history: [],
+          },
+        },
+      }),
+    );
+
+    const state = readV3PublicNavigationState(storage, "viewer-a");
+    expect(state.activeTab).toBe("home");
+    expect(state.tabs).toEqual({});
+  });
 });
