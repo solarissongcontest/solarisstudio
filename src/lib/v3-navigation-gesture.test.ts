@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   classifyV3SwipeIntent,
   isV3BrowserEdgeGestureStart,
+  resolveV3LogicalHorizontalDelta,
   resolveV3PageSwipeOffset,
   resolveV3PageSwipeTarget,
+  resolveV3PhysicalInlineSign,
   resolveV3TopLevelSwipePolicy,
 } from "@/lib/v3-navigation-gesture";
 
@@ -77,6 +79,63 @@ describe("V3 top-level navigation gesture policy", () => {
         viewportWidth: 390,
         activeIndex: 2,
         itemCount: 5,
+      }),
+    ).toBe(3);
+  });
+
+  it("normalizes RTL physics onto the same logical navigation axis", () => {
+    expect(resolveV3LogicalHorizontalDelta(42, "ltr")).toBe(42);
+    expect(resolveV3LogicalHorizontalDelta(42, "rtl")).toBe(-42);
+    expect(resolveV3PhysicalInlineSign("ltr")).toBe(1);
+    expect(resolveV3PhysicalInlineSign("rtl")).toBe(-1);
+
+    expect(
+      resolveV3PageSwipeOffset({
+        rawDelta: -300,
+        activeIndex: 0,
+        itemCount: 5,
+        viewportWidth: 390,
+        direction: "rtl",
+      }),
+    ).toBe(56);
+    expect(
+      resolveV3PageSwipeOffset({
+        rawDelta: 300,
+        activeIndex: 4,
+        itemCount: 5,
+        viewportWidth: 390,
+        direction: "rtl",
+      }),
+    ).toBe(-56);
+
+    expect(
+      resolveV3PageSwipeTarget({
+        deltaX: 120,
+        velocityX: 0.2,
+        viewportWidth: 390,
+        activeIndex: 1,
+        itemCount: 5,
+        direction: "rtl",
+      }),
+    ).toBe(2);
+    expect(
+      resolveV3PageSwipeTarget({
+        deltaX: -120,
+        velocityX: -0.2,
+        viewportWidth: 390,
+        activeIndex: 1,
+        itemCount: 5,
+        direction: "rtl",
+      }),
+    ).toBe(0);
+    expect(
+      resolveV3PageSwipeTarget({
+        deltaX: 10,
+        velocityX: 0.8,
+        viewportWidth: 390,
+        activeIndex: 2,
+        itemCount: 5,
+        direction: "rtl",
       }),
     ).toBe(3);
   });
