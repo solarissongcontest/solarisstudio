@@ -27,19 +27,28 @@ type SwipeState = {
   velocityX: number;
   owner: V3SwipeIntent;
   viewportWidth: number;
+  lensSlotWidth: number;
+  tabItems: HTMLElement[];
 };
 
+function navigationMaterial() {
+  return document.querySelector<HTMLElement>(
+    "[data-v3-liquid-tabbar] .v3-liquid-tabbar__material",
+  );
+}
+
 /**
- * Shell-owned top-level swipe recognizer.
+ * Shell-owned top-level swipe recognizer and three-surface viewport.
  *
- * Gesture arbitration is complete here, but the recognizer is intentionally
- * disabled until a caller supplies a live previous/current/next compositor.
- * Sliding a lone current page would expose empty space and violate the canonical
- * no-screenshot-fake requirement. Public/Organizer feature owners may provide
- * live adjacent surfaces later without changing the ownership classifier.
+ * The caller supplies live previous/current/next React surfaces. The gesture
+ * publishes one continuous navigation progress, and both page translation and
+ * the Liquid Glass lens derive from that value. Route content remains owned by
+ * Public/Organizer feature code; this shell never fabricates preview data.
  */
 export function V3TopLevelSwipeSurface({
   children,
+  previousSurface = null,
+  nextSurface = null,
   pathname,
   searchStr,
   activeIndex,
@@ -48,6 +57,8 @@ export function V3TopLevelSwipeSurface({
   onCommit,
 }: {
   children: ReactNode;
+  previousSurface?: ReactNode;
+  nextSurface?: ReactNode;
   pathname: string;
   searchStr: string;
   activeIndex: number;
@@ -56,12 +67,16 @@ export function V3TopLevelSwipeSurface({
   onCommit: (targetIndex: number) => void;
 }) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<SwipeState | null>(null);
   const settleTimerRef = useRef<number | null>(null);
   const policy = resolveV3TopLevelSwipePolicy(pathname, searchStr);
+  const requiredAdjacentSurfacesReady =
+    (activeIndex === 0 || previousSurface != null) &&
+    (activeIndex === itemCount - 1 || nextSurface != null);
   // Keep SSR/hydration deterministic. Reduced-motion preference is checked at
   // gesture start and CSS also disables the movement path.
-  const enabled = policy === "enabled" && previewReady;
+  const enabled = policy === "enabled" && previewReady && requiredAdjacentSurfacesReady;
 
   const clearSettleTimer = useCallback(() => {
     if (settleTimerRef.current == null) return;
@@ -69,15 +84,66 @@ export function V3TopLevelSwipeSurface({
     settleTimerRef.current = null;
   }, []);
 
+  const clearNavigationMaterial = useCallback(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    root.style.setProperty("--v3-navigation-progress", String(activeIndex));
+    root.removeAttribute("data-v3-navigation-progress-owner");
+
+    const material = navigationMaterial();
+    material?.style.setProperty("--v3-liquid-drag-x", "0px");
+    material?.removeAttribute("data-v3-page-swiping");
+    material?.removeAttribute("data-v3-page-settling");
+    material
+      ?.querySelectorAll<HTMLElement>("[data-v3-tab-index]")
+      .forEach((item) => item.style.removeProperty("--v3-tab-visual-weight"));
+  }, [activeIndex]);
+
   const resetSurface = useCallback(() => {
     clearSettleTimer();
     dragRef.current = null;
-    const surface = surfaceRef.current;
-    if (!surface) return;
-    surface.style.setProperty("--v3-page-swipe-x", "0px");
-    surface.removeAttribute("data-v3-page-swiping");
-    surface.removeAttribute("data-v3-page-settling");
-  }, [clearSettleTimer]);
+    const track = trackRef.current;
+    if (track) {
+      track.style.setProperty("--v3-page-swipe-x", "0px");
+      track.removeAttribute("data-v3-page-swiping");
+      track.removeAttribute("data-v3-page-settling");
+    }
+    clearNavigationMaterial();
+  }, [clearNavigationMaterial, clearSettleTimer]);
+
+  const publishVisualProgress = useCallback(
+    (progress: number, state: SwipeState, phase: "drag" | "settle") => {
+      const boundedProgress = Math.max(-0.18, Math.min(itemCount - 1 + 0.18, progress));
+      const root = document.documentElement;
+      root.style.setProperty("--v3-navigation-progress", boundedProgress.toFixed(4));
+      root.setAttribute("data-v3-navigation-progress-owner", "page-swipe");
+
+      const track = trackRef.current;
+      if (track) {
+        const offsetRatio = activeIndex - boundedProgress;
+        track.style.setProperty("--v3-page-swipe-x", `${(offsetRatio * 100).toFixed(4)}%`);
+        track.toggleAttribute("data-v3-page-swiping", phase === "drag");
+        track.toggleAttribute("data-v3-page-settling", phase === "settle");
+      }
+
+      const material = navigationMaterial();
+      if (material) {
+        const lensOffset = (boundedProgress - activeIndex) * state.lensSlotWidth;
+        material.style.setProperty("--v3-liquid-drag-x", `${lensOffset.toFixed(2)}px`);
+        material.toggleAttribute("data-v3-page-swiping", phase === "drag");
+        material.toggleAttribute("data-v3-page-settling", phase === "settle");
+      }
+
+      for (let index = 0; index < state.tabItems.length; index += 1) {
+        const weight = Math.max(0, 1 - Math.abs(index - boundedProgress));
+        state.tabItems[index]?.style.setProperty(
+          "--v3-tab-visual-weight",
+          weight.toFixed(4),
+        );
+      }
+    },
+    [activeIndex, itemCount],
+  );
 
   useEffect(() => resetSurface(), [pathname, resetSurface]);
 
@@ -116,6 +182,13 @@ export function V3TopLevelSwipeSurface({
     }
 
     clearSettleTimer();
+    const material = navigationMaterial();
+    const tabItems = material
+      ? Array.from(material.querySelectorAll<HTMLElement>("[data-v3-tab-index]"))
+      : [];
+    const activeTab = tabItems[activeIndex];
+    const lensSlotWidth = activeTab?.getBoundingClientRect().width ?? 0;
+
     dragRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -125,6 +198,8 @@ export function V3TopLevelSwipeSurface({
       velocityX: 0,
       owner: "undecided",
       viewportWidth: Math.max(1, window.visualViewport?.width ?? window.innerWidth),
+      lensSlotWidth,
+      tabItems,
     };
   };
 
@@ -158,7 +233,8 @@ export function V3TopLevelSwipeSurface({
       itemCount,
       viewportWidth: drag.viewportWidth,
     });
-    surfaceRef.current?.style.setProperty("--v3-page-swipe-x", `${offset.toFixed(2)}px`);
+    const progress = activeIndex - offset / drag.viewportWidth;
+    publishVisualProgress(progress, drag, "drag");
     event.preventDefault();
   };
 
@@ -192,20 +268,16 @@ export function V3TopLevelSwipeSurface({
     surface.setAttribute("data-v3-page-settling", "true");
 
     if (targetIndex === activeIndex) {
-      surface.style.setProperty("--v3-page-swipe-x", "0px");
+      publishVisualProgress(activeIndex, drag, "settle");
       settleTimerRef.current = window.setTimeout(resetSurface, 190);
       return;
     }
 
-    const direction = targetIndex > activeIndex ? -1 : 1;
-    surface.style.setProperty(
-      "--v3-page-swipe-x",
-      `${(direction * drag.viewportWidth).toFixed(2)}px`,
-    );
+    publishVisualProgress(targetIndex, drag, "settle");
     settleTimerRef.current = window.setTimeout(() => {
       settleTimerRef.current = null;
       onCommit(targetIndex);
-    }, 170);
+    }, 180);
   };
 
   return (
@@ -214,6 +286,7 @@ export function V3TopLevelSwipeSurface({
       className="v3-top-level-swipe-surface"
       data-v3-top-level-swipe-policy={policy}
       data-v3-top-level-swipe-preview-ready={previewReady ? "true" : "false"}
+      data-v3-top-level-swipe-adjacent-ready={requiredAdjacentSurfacesReady ? "true" : "false"}
       data-v3-top-level-swipe-enabled={enabled ? "true" : "false"}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -223,7 +296,29 @@ export function V3TopLevelSwipeSurface({
         if (dragRef.current?.pointerId === event.pointerId) finish(event, true);
       }}
     >
-      {children}
+      <div ref={trackRef} className="v3-top-level-swipe-track">
+        {previousSurface != null ? (
+          <div
+            className="v3-top-level-swipe-page v3-top-level-swipe-page--previous"
+            aria-hidden="true"
+            data-v3-swipe-preview="previous"
+          >
+            {previousSurface}
+          </div>
+        ) : null}
+        <div className="v3-top-level-swipe-page v3-top-level-swipe-page--current">
+          {children}
+        </div>
+        {nextSurface != null ? (
+          <div
+            className="v3-top-level-swipe-page v3-top-level-swipe-page--next"
+            aria-hidden="true"
+            data-v3-swipe-preview="next"
+          >
+            {nextSurface}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
