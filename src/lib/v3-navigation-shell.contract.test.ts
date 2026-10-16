@@ -127,8 +127,8 @@ describe("V3 navigation shell acceptance guardrails", () => {
     expect(swipe).toContain('inert={canonicalSlot !== "next"}');
     expect(swipe).not.toMatch(/screenshot|canvas\.toDataURL|html2canvas/i);
     expect(shell).toContain("swipePreviewSurfaces?: V3TopLevelSwipePreviewSurfaces");
-    expect(shell).toContain("previousSurface={swipePreviewSurfaces?.previous}");
-    expect(shell).toContain("nextSurface={swipePreviewSurfaces?.next}");
+    expect(shell).toContain("previousSurface={previousSurface}");
+    expect(shell).toContain("nextSurface={nextSurface}");
     expect(shell).toContain("previewReady={swipePreviewReady}");
     expect(css).toContain(".v3-top-level-swipe-page--previous");
     expect(css).toContain(".v3-top-level-swipe-page--next");
