@@ -19,6 +19,18 @@ const operationLedger = source(
 const confirmationLimits = source(
   "supabase/migrations/20261016063000_v3_s8_confirmation_resource_limits.sql",
 );
+const predictionProtection = source(
+  "supabase/migrations/20261016160000_v3_s8_prediction_replay_protection.sql",
+);
+const uploadQuarantine = source(
+  "supabase/migrations/20261003211000_organisation_os_v5_unified_upload_quarantine.sql",
+);
+const integrityVault = source(
+  "supabase/migrations/20260910213300_integrity_evidence_vault.sql",
+);
+const integrityQuarantine = source(
+  "supabase/migrations/20261003214000_organisation_os_v5_integrity_upload_quarantine.sql",
+);
 const outbox = source("supabase/migrations/20261015180000_v3_s4_domain_event_outbox.sql");
 const uploadFinalizer = source("supabase/functions/solaris-upload-finalize/index.ts");
 
@@ -84,6 +96,46 @@ describe("System V3 S8 resource protection registry", () => {
     ).toBe(2);
   });
 
+  it("records the round-derived Prediction item budget", () => {
+    const protection = v3ResourceProtection("prediction-round-derived-item-budget");
+    expect(protection).toMatchObject({
+      kind: "batch-bound",
+      authority: "database",
+      externallyTriggerable: true,
+      replaySafe: true,
+      bounds: {
+        roundRowLocked: true,
+        maxItemsDerivedFromPredictionTypes: true,
+        participantCountBound: true,
+        qualifierCountBound: true,
+      },
+    });
+    expect(predictionProtection).toContain("for update");
+    expect(predictionProtection).toContain("max_item_count :=");
+    expect(predictionProtection).toContain("jsonb_array_length(_payload) > max_item_count");
+    expect(predictionProtection).toContain("Prediction payload exceeds the configured round item budget");
+  });
+
+  it("records semantic Prediction replay as a concurrency-safe no-op", () => {
+    const protection = v3ResourceProtection("prediction-semantic-replay-noop");
+    expect(protection).toMatchObject({
+      kind: "idempotency",
+      authority: "database",
+      replaySafe: true,
+      bounds: {
+        canonicalFieldSet: true,
+        canonicalOrder: true,
+        oneEntryPerRoundProfile: true,
+        entryRowLocked: true,
+        semanticRetryIsNoop: true,
+      },
+    });
+    expect(predictionProtection).toContain("private.v3_prediction_payload_canonical");
+    expect(predictionProtection).toContain("previous_payload");
+    expect(predictionProtection).toContain("= private.v3_prediction_payload_canonical(_payload)");
+    expect(predictionProtection).toContain("return entry_row.id");
+  });
+
   it("bounds consumer batch/lease size and uses skip-locked concurrent claims", () => {
     expect(v3ResourceProtection("domain-event-consumer-claim-batch")?.bounds).toMatchObject({
       minBatch: 1,
@@ -127,14 +179,63 @@ describe("System V3 S8 resource protection registry", () => {
     expect(uploadFinalizer).toContain("const THUMBNAIL_MAX_EDGE = 512");
   });
 
-  it("keeps unaudited externally-triggerable surfaces visibly open", () => {
-    expect(V3_RESOURCE_PROTECTION_GAPS.map((gap) => gap.id)).toEqual(
-      expect.arrayContaining([
-        "prediction-submit-protection",
-        "next-in-line-submit-protection",
-        "organizer-bulk-mutation-bounds",
-        "non-image-upload-resource-bounds",
-      ]),
+  it("records the existing custom-font preparation byte/type budget at the database boundary", () => {
+    expect(v3ResourceProtection("custom-font-upload-preparation-budget")).toMatchObject({
+      authority: "database",
+      bounds: {
+        maxBytes: 4 * 1024 * 1024,
+        woff2Only: true,
+        quarantineRequired: true,
+      },
+    });
+    expect(uploadQuarantine).toContain("p_size > 4194304");
+    expect(uploadQuarantine).toContain("v_mime <> 'font/woff2'");
+    expect(uploadQuarantine).toContain("v_final_bucket := 'country-fonts'");
+    expect(uploadQuarantine).toContain("'solaris-upload-quarantine'");
+  });
+
+  it("records WOFF2 decompression/table ceilings at the Edge finalizer boundary", () => {
+    expect(v3ResourceProtection("custom-font-finalization-decompression-budget")).toMatchObject({
+      authority: "edge",
+      bounds: {
+        maxDecompressedBytes: 16 * 1024 * 1024,
+        maxSfntTables: 128,
+        signatureValidation: true,
+        normalizedRecompression: true,
+      },
+    });
+    expect(uploadFinalizer).toContain("totalSfntSize > 16 * 1024 * 1024");
+    expect(uploadFinalizer).toContain("numTables > 128");
+    expect(uploadFinalizer).toContain("decompressed.length !== totalSfntSize");
+    expect(uploadFinalizer).toContain("woff2.compress(decompressed)");
+  });
+
+  it("records the existing integrity-evidence byte/name budget", () => {
+    expect(v3ResourceProtection("integrity-evidence-upload-resource-budget")?.bounds).toMatchObject({
+      maxBytes: 15 * 1024 * 1024,
+      maxFilenameChars: 180,
+      pdfAllowed: true,
+      utf8TextAllowed: true,
+      quarantineRequired: true,
+    });
+    expect(integrityVault).toContain("char_length(_name) > 180");
+    expect(integrityVault).toContain("_size > 15728640");
+    expect(integrityVault).toContain("'application/pdf','text/plain'");
+    expect(integrityQuarantine).toContain("studio2_create_evidence_upload_authorization");
+    expect(integrityQuarantine).toContain("'solaris-upload-quarantine'");
+    expect(integrityQuarantine).toContain("'integrity-evidence'");
+  });
+
+  it("keeps only genuinely unmerged S8 externally-triggerable gaps open", () => {
+    expect(V3_RESOURCE_PROTECTION_GAPS.map((gap) => gap.id)).toEqual([
+      "next-in-line-submit-protection",
+      "organizer-bulk-mutation-bounds",
+    ]);
+    expect(V3_RESOURCE_PROTECTION_GAPS.map((gap) => gap.id)).not.toContain(
+      "prediction-submit-protection",
+    );
+    expect(V3_RESOURCE_PROTECTION_GAPS.map((gap) => gap.id)).not.toContain(
+      "non-image-upload-resource-bounds",
     );
     expect(V3_RESOURCE_PROTECTION_GAPS.every((gap) => gap.status === "audit-required")).toBe(true);
   });

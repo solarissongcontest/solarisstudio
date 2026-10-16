@@ -93,6 +93,50 @@ export const V3_RESOURCE_PROTECTION_REGISTRY: readonly V3ResourceProtection[] = 
     ],
   },
   {
+    id: "prediction-round-derived-item-budget",
+    kind: "batch-bound",
+    state: "verified",
+    surface: "authenticated Prediction Arena submission",
+    authority: "database",
+    externallyTriggerable: true,
+    bounds: {
+      roundRowLocked: true,
+      maxItemsDerivedFromPredictionTypes: true,
+      participantCountBound: true,
+      qualifierCountBound: true,
+      duplicateTypeCountryRejected: true,
+    },
+    failureState: "invalid_prediction_payload",
+    replaySafe: true,
+    evidence: [
+      "supabase/migrations/20261016160000_v3_s8_prediction_replay_protection.sql",
+      "src/lib/v3-s8-prediction-replay-protection.test.ts",
+      ".github/scripts/v3-s8-prediction-replay-protection-rehearsal.sh",
+    ],
+  },
+  {
+    id: "prediction-semantic-replay-noop",
+    kind: "idempotency",
+    state: "verified",
+    surface: "authenticated Prediction Arena retry path",
+    authority: "database",
+    externallyTriggerable: true,
+    bounds: {
+      canonicalFieldSet: true,
+      canonicalOrder: true,
+      oneEntryPerRoundProfile: true,
+      entryRowLocked: true,
+      semanticRetryIsNoop: true,
+    },
+    failureState: "validation_error",
+    replaySafe: true,
+    evidence: [
+      "supabase/migrations/20261016160000_v3_s8_prediction_replay_protection.sql",
+      "src/lib/v3-s8-prediction-replay-protection.test.ts",
+      ".github/scripts/v3-s8-prediction-replay-protection-rehearsal.sh",
+    ],
+  },
+  {
     id: "domain-event-consumer-claim-batch",
     kind: "batch-bound",
     state: "verified",
@@ -162,14 +206,70 @@ export const V3_RESOURCE_PROTECTION_REGISTRY: readonly V3ResourceProtection[] = 
       "src/lib/organisation-v5-upload-safety.contract.test.ts",
     ],
   },
+  {
+    id: "custom-font-upload-preparation-budget",
+    kind: "resource-limit",
+    state: "verified",
+    surface: "country custom-font upload authorization",
+    authority: "database",
+    externallyTriggerable: true,
+    bounds: {
+      maxBytes: 4 * 1024 * 1024,
+      woff2Only: true,
+      quarantineRequired: true,
+    },
+    failureState: "invalid_upload",
+    replaySafe: false,
+    evidence: [
+      "supabase/migrations/20261003211000_organisation_os_v5_unified_upload_quarantine.sql",
+      "src/lib/organisation-v5-upload-safety.contract.test.ts",
+    ],
+  },
+  {
+    id: "custom-font-finalization-decompression-budget",
+    kind: "resource-limit",
+    state: "verified",
+    surface: "country custom-font server-side WOFF2 finalization",
+    authority: "edge",
+    externallyTriggerable: true,
+    bounds: {
+      maxDecompressedBytes: 16 * 1024 * 1024,
+      maxSfntTables: 128,
+      signatureValidation: true,
+      normalizedRecompression: true,
+    },
+    failureState: "rejected",
+    replaySafe: false,
+    evidence: [
+      "supabase/functions/solaris-upload-finalize/index.ts",
+      "src/lib/organisation-v5-upload-safety.contract.test.ts",
+    ],
+  },
+  {
+    id: "integrity-evidence-upload-resource-budget",
+    kind: "resource-limit",
+    state: "verified",
+    surface: "anonymous + authenticated integrity evidence upload preparation",
+    authority: "database",
+    externallyTriggerable: true,
+    bounds: {
+      maxBytes: 15 * 1024 * 1024,
+      maxFilenameChars: 180,
+      pdfAllowed: true,
+      utf8TextAllowed: true,
+      quarantineRequired: true,
+    },
+    failureState: "invalid_evidence_file",
+    replaySafe: false,
+    evidence: [
+      "supabase/migrations/20260910213300_integrity_evidence_vault.sql",
+      "supabase/migrations/20261003214000_organisation_os_v5_integrity_upload_quarantine.sql",
+      "src/lib/organisation-v5-upload-safety.contract.test.ts",
+    ],
+  },
 ] as const;
 
 export const V3_RESOURCE_PROTECTION_GAPS = [
-  {
-    id: "prediction-submit-protection",
-    status: "audit-required" as const,
-    reason: "prediction submission still needs canonical idempotency/reconciliation evidence before S8 certification",
-  },
   {
     id: "next-in-line-submit-protection",
     status: "audit-required" as const,
@@ -179,11 +279,6 @@ export const V3_RESOURCE_PROTECTION_GAPS = [
     id: "organizer-bulk-mutation-bounds",
     status: "audit-required" as const,
     reason: "Organizer bulk operations require an explicit batch-size and concurrency audit",
-  },
-  {
-    id: "non-image-upload-resource-bounds",
-    status: "audit-required" as const,
-    reason: "S8 still needs one generated inventory for font/document/evidence upload resource ceilings",
   },
 ] as const;
 
