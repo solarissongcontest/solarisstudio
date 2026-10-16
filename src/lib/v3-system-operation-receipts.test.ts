@@ -6,6 +6,10 @@ const migration = readFileSync(
   join(process.cwd(), "supabase/migrations/20261014194651_v3_s2_operation_receipt_idempotency.sql"),
   "utf8",
 );
+const rehearsal = readFileSync(
+  join(process.cwd(), ".github/scripts/v3-operation-receipt-rehearsal.sh"),
+  "utf8",
+);
 
 describe("System V3 S2 operation receipts", () => {
   it("evolves the existing receipt instead of creating a parallel ledger", () => {
@@ -73,5 +77,10 @@ describe("System V3 S2 operation receipts", () => {
   it("does not trust a caller-supplied actor", () => {
     expect(migration).toContain("v_actor uuid := auth.uid()");
     expect(migration).not.toContain("p_actor_id");
+  });
+
+  it("keeps the shared infrastructure rehearsal domain-neutral", () => {
+    expect(rehearsal).toContain("system.operation_receipt.rehearse");
+    expect(rehearsal).not.toContain("entry.request_changes");
   });
 });
