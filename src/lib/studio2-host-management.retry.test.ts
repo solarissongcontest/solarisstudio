@@ -48,6 +48,11 @@ describe("Studio2 Host Management uncertain-outcome reconciliation", () => {
       } as never;
     });
 
+    const executionIdForCall = (index: number) => {
+      const args = rpcMock.mock.calls[index]?.[1];
+      return args && "p_execution_id" in args ? args.p_execution_id : undefined;
+    };
+
     const logicalCreateBid = {
       editionId: "edition-1",
       action: "create_bid" as const,
@@ -74,8 +79,8 @@ describe("Studio2 Host Management uncertain-outcome reconciliation", () => {
     });
 
     expect(rpcMock).toHaveBeenCalledTimes(2);
-    expect(rpcMock.mock.calls[0]?.[1]?.p_execution_id).toBe("execution-first");
-    expect(rpcMock.mock.calls[1]?.[1]?.p_execution_id).toBe("execution-first");
+    expect(executionIdForCall(0)).toBe("execution-first");
+    expect(executionIdForCall(1)).toBe("execution-first");
     expect(committedExecutionIds).toEqual(new Set(["execution-first"]));
     expect(reconciled.executionId).toBe("execution-first");
     expect(reconciled.idempotentReplay).toBe(true);
@@ -88,7 +93,7 @@ describe("Studio2 Host Management uncertain-outcome reconciliation", () => {
     });
 
     expect(rpcMock).toHaveBeenCalledTimes(3);
-    expect(rpcMock.mock.calls[2]?.[1]?.p_execution_id).toBe("execution-later");
+    expect(executionIdForCall(2)).toBe("execution-later");
     expect(committedExecutionIds).toEqual(
       new Set(["execution-first", "execution-later"]),
     );
