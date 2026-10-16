@@ -60,11 +60,19 @@ function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function hasUnsafeControlCharacter(value: string) {
+  for (let index = 0; index < value.length; index += 1) {
+    const codePoint = value.charCodeAt(index);
+    if (codePoint <= 0x1f || codePoint === 0x7f) return true;
+  }
+  return false;
+}
+
 function safeActivityRoute(value: unknown): string | null {
   const route = stringValue(value);
   if (!route || route.length > 512) return null;
   if (!route.startsWith("/") || route.startsWith("//")) return null;
-  if (route.includes("\\") || /[\u0000-\u001f\u007f]/.test(route)) return null;
+  if (route.includes("\\") || hasUnsafeControlCharacter(route)) return null;
   return route;
 }
 
