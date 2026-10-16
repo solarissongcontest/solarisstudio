@@ -23,6 +23,9 @@ describe("V3 Organizer Tasks domain taxonomy", () => {
     expect(
       organizerTaskDomain(task("/admin/countries/oland", "media_asset", "media.replacement")),
     ).toBe("media");
+    expect(
+      organizerTaskDomain(task("/admin/media", "media_delivery", "media.delivery.failed")),
+    ).toBe("media");
   });
 
   it("unifies jury and televote work under Voting while keeping integrity separate", () => {
