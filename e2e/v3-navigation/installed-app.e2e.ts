@@ -6,6 +6,9 @@ type E2ESession = {
   [key: string]: unknown;
 };
 
+type LayoutDirection = "ltr" | "rtl";
+type ProbeLabel = "Home" | "Participate" | "Me";
+
 function requiredLocalConfig() {
   const supabaseUrl = process.env.E2E_SUPABASE_URL;
   const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
@@ -159,6 +162,33 @@ function expectBoundedNavigation(
   }
 }
 
+function accessibleLabel(label: ProbeLabel) {
+  return new RegExp(`^${label}(?:,|$)`);
+}
+
+async function assertSelectedLensAlignment(
+  page: Page,
+  direction: LayoutDirection,
+  label: ProbeLabel,
+) {
+  const nav = page.locator("[data-v3-liquid-tabbar]");
+  const active = nav.locator('[data-v3-tab-index][aria-current="page"]');
+  const currentLabel = await active.getAttribute("aria-label");
+  if (!currentLabel?.startsWith(label)) {
+    await nav.getByRole("link", { name: accessibleLabel(label) }).click();
+  }
+
+  await expect(nav).toHaveAttribute("data-layout-direction", direction);
+  await expect(active).toHaveAttribute("aria-label", accessibleLabel(label));
+  await expect
+    .poll(async () => {
+      const geometry = await readGeometry(page);
+      if (!geometry?.activeItem) return Number.POSITIVE_INFINITY;
+      return Math.abs(geometry.lens.centerX - geometry.activeItem.centerX);
+    })
+    .toBeLessThanOrEqual(3);
+}
+
 test.describe.configure({ retries: 0 });
 
 test("installed app shell survives representative navigation without duplicate chrome: V3 Liquid Glass stays bounded, compact and keyboard-safe", async ({
@@ -199,6 +229,13 @@ test("installed app shell survives representative navigation without duplicate c
   expectBoundedNavigation(initial);
   expect(initial.obstruction).toBeGreaterThan(0);
   expect(initial.obstruction).toBeLessThanOrEqual(136);
+
+  // Pin the physical selected-lens origin at all representative logical
+  // positions. This catches WebKit RTL static-position regressions that a
+  // single active tab can miss.
+  for (const label of ["Home", "Participate", "Me"] as const) {
+    await assertSelectedLensAlignment(page, "ltr", label);
+  }
 
   // This representative project intentionally runs with Reduced Motion. Prove
   // that CSS and the JS direct-manipulation guard both honor it.
@@ -307,7 +344,7 @@ test("installed app shell survives representative navigation without duplicate c
   await expect(page.locator("[data-v3-liquid-tabbar]")).toBeVisible();
 
   // N12 explicitly requires RTL. Flip the document direction in-place so the
-  // same authenticated installed-app state proves the mirrored lens geometry
+  // same authenticated installed-app state proves mirrored physical geometry
   // without adding another backend fixture or any hosted Supabase traffic.
   await page.evaluate(() => {
     document.documentElement.dir = "rtl";
@@ -316,15 +353,16 @@ test("installed app shell survives representative navigation without duplicate c
     "data-layout-direction",
     "rtl",
   );
+
+  for (const label of ["Home", "Participate", "Me"] as const) {
+    await assertSelectedLensAlignment(page, "rtl", label);
+  }
+
   const rtl = await readGeometry(page);
   expect(rtl).not.toBeNull();
   if (!rtl) return;
   expect(rtl.layoutDirection).toBe("rtl");
   expectBoundedNavigation(rtl);
-  expect(rtl.activeItem).not.toBeNull();
-  if (rtl.activeItem) {
-    expect(Math.abs(rtl.lens.centerX - rtl.activeItem.centerX)).toBeLessThanOrEqual(3);
-  }
 
   await page.evaluate(() => {
     document.documentElement.dir = "ltr";
