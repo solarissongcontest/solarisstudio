@@ -159,7 +159,7 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "merge",
     targetArea: "me",
     targetRoute: "/my-solaris/activity",
-    specificationStatus: "mapped",
+    specificationStatus: "building",
     acceptanceScenarioId: "public.private-activity-feed",
   },
   {
