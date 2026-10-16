@@ -134,16 +134,20 @@ export function V3AppShell({
   const rulesGuidanceAvailable = rollout.data?.rulesGuidanceEnabled === true;
   const ruleContext = rulesGuidanceAvailable ? getRuleContext(pathname) : null;
   const ruleContextPath = sanitizeRuleContextPath(ruleContext?.sourcePath);
-  // Navigation memory is scoped to the authenticated viewer when known. An
-  // anonymous/logout session therefore cannot resurrect another user's Me path.
-  const navigationScope = rollout.data?.userId ?? null;
+  // Route memory is viewer-scoped, but the scope itself is not trustworthy
+  // until the server-owned rollout/bootstrap probe has resolved. Treating an
+  // unresolved authenticated session as "anonymous" would let a cold deep link
+  // briefly write that user's Me route into the anonymous storage bucket.
+  const navigationIdentityReady =
+    !rollout.isLoading && !rollout.isError && rollout.data != null;
+  const navigationScope = navigationIdentityReady ? (rollout.data.userId ?? null) : null;
   const notificationLabel =
     attention.me > 0
       ? `Notifications, ${attention.me} ${attention.me === 1 ? "item" : "items"} need attention`
       : "Notifications";
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !navigationIdentityReady) return;
 
     const restoreY = consumeV3PublicNavigationRestore(
       pathname,
@@ -203,7 +207,7 @@ export function V3AppShell({
         navigationScope,
       );
     };
-  }, [navigationScope, pathname, searchStr]);
+  }, [navigationIdentityReady, navigationScope, pathname, searchStr]);
 
   const shellActions =
     notificationsAvailable || searchAvailable || rulesGuidanceAvailable || topActions ? (
@@ -277,6 +281,7 @@ export function V3AppShell({
       ? nextPreview.surface
       : null;
   const swipePreviewReady =
+    navigationIdentityReady &&
     swipePreviewSurfaces != null &&
     (expectedPreviousArea == null || previousSurface != null) &&
     (expectedNextArea == null || nextSurface != null);
@@ -298,10 +303,16 @@ export function V3AppShell({
       return;
     }
 
+    // Until viewer identity resolves, semantic navigation still works but uses
+    // canonical roots only. Passing null storage avoids reading/writing the
+    // anonymous memory bucket with an identity we do not yet know is anonymous.
+    const navigationStorage = navigationIdentityReady ? undefined : null;
     const target = alreadyActive
-      ? resetV3PublicTabToRoot(id, undefined, navigationScope)
-      : getV3PublicTabDestination(id, undefined, navigationScope);
-    markV3PublicNavigationRestore(target, undefined, navigationScope);
+      ? resetV3PublicTabToRoot(id, navigationStorage, navigationScope)
+      : getV3PublicTabDestination(id, navigationStorage, navigationScope);
+    if (navigationIdentityReady) {
+      markV3PublicNavigationRestore(target, undefined, navigationScope);
+    }
     const navigateToTarget = () => navigate({ to: v3PublicEntryHref(target) as any });
 
     if (navigationMode === "swipe") {
