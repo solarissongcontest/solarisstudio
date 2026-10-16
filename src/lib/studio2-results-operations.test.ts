@@ -101,6 +101,31 @@ describe('Studio 2 results operations model', () => {
     expect(availableStudio2ResultActions(locked)).toContain('unlock');
   });
 
+  it('unwinds reveal readiness before allowing a locked version to be unlocked', () => {
+    const revealReady = row({
+      lifecycle: 'reveal_ready',
+      calculationVersion: 4,
+      reviewedVersion: 4,
+      lockedVersion: 4,
+      revealReadyVersion: 4,
+      preconditions: {
+        ...row().preconditions,
+        resultRowCount: 10,
+        resultReady: true,
+      },
+    });
+
+    expect(availableStudio2ResultActions(revealReady)).toEqual(['clear_reveal_ready']);
+
+    const cleared = row({
+      ...revealReady,
+      lifecycle: 'locked',
+      revealReadyVersion: null,
+    });
+    expect(availableStudio2ResultActions(cleared)).toContain('unlock');
+    expect(availableStudio2ResultActions(cleared)).toContain('mark_reveal_ready');
+  });
+
   it('makes published results fully read-only even if lifecycle metadata is stale', () => {
     const published = row({
       lifecycle: 'published',
