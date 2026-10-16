@@ -10,6 +10,7 @@ on:
       - ".github/workflows/v3-s5-notice-consequences-rehearsal.yml"
       - "src/lib/v3-s5-notice-consequences.test.ts"
       - "src/lib/v3-domain-consequence-registry.ts"
+      - "src/lib/v3-system-s1-registry.test.ts"
   workflow_dispatch:
 
 permissions:
@@ -76,11 +77,12 @@ jobs:
           supabase start
           supabase db reset --local --no-seed
 
-      - name: Apply feature migration delta
+      - name: Apply only the Notice feature migration locally
         shell: bash
         run: |
           set -euo pipefail
-          rsync -a --delete "$GITHUB_WORKSPACE/supabase/migrations/" /tmp/solaris-notice-main/supabase/migrations/
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261016062000_v3_s5_notice_consequences.sql" \
+            /tmp/solaris-notice-main/supabase/migrations/
           cd /tmp/solaris-notice-main
           supabase migration up --local --include-all
 
