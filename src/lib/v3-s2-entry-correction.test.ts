@@ -53,6 +53,9 @@ describe("System V3 S2 Entry correction vertical slice", () => {
     expect(tasks).toContain("id: `entry-declined:${response.submission_id}`");
     expect(tasks).toContain('title: "Your entry needs changes"');
     expect(tasks).toContain('reviewStatus(response.internal_entry.review_status) === "declined"');
-    expect(v3DomainConsequence("entry.changes_requested")?.implementationState).toBe("declared");
+    expect(v3DomainConsequence("entry.changes_requested")?.taskEffects).toContainEqual({
+      effect: "re-evaluate",
+      taskType: "entry.correction_required",
+    });
   });
 });

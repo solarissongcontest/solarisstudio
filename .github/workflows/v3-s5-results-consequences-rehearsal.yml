@@ -1,0 +1,99 @@
+name: V3 S5 Results consequence rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/**"
+      - ".github/scripts/v3-s5-results-consequences-rehearsal.sh"
+      - ".github/workflows/v3-s5-results-consequences-rehearsal.yml"
+      - "src/lib/v3-s5-results-consequences.test.ts"
+      - "src/lib/v3-domain-consequence-registry.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s5-results-consequences-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-replay:
+    name: Clean replay + Results consequences
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout feature head
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated local Supabase
+        run: supabase start
+
+      - name: Rebuild from complete migration chain
+        run: supabase db reset --local --no-seed
+
+      - name: Rehearse Results lifecycle consequences
+        run: bash .github/scripts/v3-s5-results-consequences-rehearsal.sh
+
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+  upgrade-from-main:
+    name: Current main upgrade + Results consequences
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout feature head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Prepare disposable current-main worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          git worktree add /tmp/solaris-results-main origin/main
+
+      - name: Build current main locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-results-main
+          supabase start
+          supabase db reset --local --no-seed
+
+      - name: Apply feature migration delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a --delete "$GITHUB_WORKSPACE/supabase/migrations/" /tmp/solaris-results-main/supabase/migrations/
+          cd /tmp/solaris-results-main
+          supabase migration up --local --include-all
+
+      - name: Rehearse Results consequences after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-results-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s5-results-consequences-rehearsal.sh"
+
+      - name: Stop isolated local Supabase
+        if: always()
+        shell: bash
+        run: |
+          cd /tmp/solaris-results-main 2>/dev/null || exit 0
+          supabase stop --no-backup || true

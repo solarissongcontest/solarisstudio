@@ -1,0 +1,140 @@
+name: V3 release candidate preflight
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact 40-character commit SHA to preflight
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-release-preflight-${{ inputs.candidate_sha }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Exact-SHA V3 release preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VITE_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_v3_release_local_only
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_PUBLISHABLE_KEY: sb_publishable_v3_release_local_only
+      SUPABASE_PROJECT_ID: local
+      SUPABASE_PROJECT_REF: local
+      VITE_SUPABASE_PROJECT_ID: local
+      VITE_SUPABASE_PROJECT_REF: local
+      V3_VERIFICATION_TARGET: local
+      V3_SEED_TARGET: local
+      V3_CLEANUP_TARGET: local
+      VITE_CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_v3_release_local_only
+      CONFIRMATIONS_SUPABASE_URL: http://127.0.0.1:54321
+      CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY: sb_publishable_v3_release_local_only
+
+    steps:
+      - name: Validate candidate SHA
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::candidate_sha must be one exact 40-character Git commit SHA"
+            exit 1
+          fi
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          fetch-depth: 1
+
+      - name: Verify checkout identity
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          expected="$(printf '%s' "$CANDIDATE_SHA" | tr '[:upper:]' '[:lower:]')"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::checked out $actual but certification preflight requested $expected"
+            exit 1
+          fi
+          echo "V3_CANDIDATE_SHA=$actual" >> "$GITHUB_ENV"
+          echo "Exact candidate verified: $actual"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify production isolation
+        run: bun run scripts/check-v3-production-isolation.ts
+
+      - name: Run canonical registry guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun run certify:v3-registry
+          bun run scripts/check-v3-non-route-capabilities.ts
+          bun run scripts/check-v3-system-s1-registries.ts
+          echo "V3_REGISTRY_GUARDS_PASSED=1" >> "$GITHUB_ENV"
+
+      - name: Run structural release-integrity guard
+        run: bun run scripts/check-v3-release-integrity.ts
+
+      - name: Generate exact-SHA preflight evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(printf '%s' "$V3_CANDIDATE_SHA" | tr '[:upper:]' '[:lower:]')"
+          mkdir -p v3-release-preflight
+          GITHUB_SHA="$expected" bun run scripts/generate-v3-completion-dashboard.ts > v3-release-preflight/completion-dashboard.md
+          GITHUB_SHA="$expected" bun run scripts/generate-v3-completion-dashboard.ts --json > v3-release-preflight/completion-dashboard.json
+          bun run scripts/check-v3-s14-rehearsal-readiness.ts --json > v3-release-preflight/s14-readiness.json
+          bun run scripts/check-v3-s15-zero-orphan-readiness.ts --json > v3-release-preflight/s15-readiness.json
+          git rev-parse HEAD > v3-release-preflight/exact-sha.txt
+          dashboard_sha="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync("v3-release-preflight/completion-dashboard.json","utf8")).candidateSha)')"
+          checkout_sha="$(cat v3-release-preflight/exact-sha.txt)"
+          if [ "$dashboard_sha" != "$expected" ] || [ "$checkout_sha" != "$expected" ]; then
+            echo "::error::release evidence identity mismatch: dashboard=$dashboard_sha checkout=$checkout_sha expected=$expected"
+            exit 1
+          fi
+
+      - name: Enforce release-strict preconditions
+        run: bun run scripts/check-v3-release-integrity.ts --release
+
+      - name: Upload exact-SHA preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-release-preflight-${{ inputs.candidate_sha }}
+          path: v3-release-preflight/
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Publish preflight summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## V3 exact-SHA release preflight"
+            echo
+            echo "Requested candidate: \`${{ inputs.candidate_sha }}\`"
+            echo
+            echo "This workflow is a fail-closed preflight, not an S16 certificate. It must remain red while S14, S15, cutover, security-classification, or other release prerequisites are incomplete."
+            if [ -s v3-release-preflight/completion-dashboard.md ]; then
+              echo
+              cat v3-release-preflight/completion-dashboard.md
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

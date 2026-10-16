@@ -52,9 +52,37 @@ describe("System V3 S1 registries", () => {
     expect(consequenceEvents).toEqual(declaredEvents);
   });
 
-  it("does not pretend S1 consequence declarations are already event-backed", () => {
-    expect(V3_DOMAIN_CONSEQUENCE_REGISTRY.length).toBeGreaterThan(0);
-    expect(V3_DOMAIN_CONSEQUENCE_REGISTRY.every((item) => item.implementationState === "declared")).toBe(true);
+  it("marks only consequences with concrete S5 evidence as event-backed", () => {
+    const eventBacked = V3_DOMAIN_CONSEQUENCE_REGISTRY
+      .filter((item) => item.implementationState === "event-backed")
+      .map((item) => item.eventType)
+      .sort();
+
+    expect(eventBacked).toEqual([
+      "confirmation.submitted",
+      "confirmation.window_changed",
+      "entry.changes_requested",
+      "entry.reviewed",
+      "jury.ballot_changed",
+      "jury.closed",
+      "jury.opened",
+      "media.reviewed",
+      "publication.changed",
+      "publication.failed",
+      "results.calculated",
+      "results.locked",
+      "results.verified",
+      "televote.ballot_submitted",
+      "televote.closed",
+      "televote.opened",
+    ]);
+
+    const migrated = new Set(eventBacked);
+    expect(
+      V3_DOMAIN_CONSEQUENCE_REGISTRY
+        .filter((item) => !migrated.has(item.eventType))
+        .every((item) => item.implementationState === "declared"),
+    ).toBe(true);
   });
 
   it("only connects notifications where a current producer is explicitly evidenced", () => {
