@@ -155,6 +155,7 @@ export function readV3PublicNavigationState(
     const raw = storage.getItem(storageKey(scopeKey));
     if (!raw) return emptyState();
     const parsed = JSON.parse(raw) as Partial<V3PublicNavigationState>;
+    if (parsed.version !== 1) return emptyState();
     const activeTab = VALID_TABS.includes(parsed.activeTab as V3PublicTabId)
       ? (parsed.activeTab as V3PublicTabId)
       : "home";
@@ -315,7 +316,12 @@ export function consumeV3PublicNavigationRestore(
     const raw = storage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { href?: string; scrollY?: number };
-    if (parsed.href !== pathname + normalizeSearch(searchStr)) return null;
+    if (parsed.href !== pathname + normalizeSearch(searchStr)) {
+      // Redirects, auth changes and stale PWA-resume intents must not leave a
+      // latent scroll restoration that can fire unexpectedly on a later visit.
+      storage.removeItem(key);
+      return null;
+    }
     storage.removeItem(key);
     return typeof parsed.scrollY === "number" && Number.isFinite(parsed.scrollY)
       ? Math.max(0, parsed.scrollY)
