@@ -27,9 +27,11 @@ export function organizerTaskDomain(task: OrganizerTaskDomainInput): OrganizerTa
   const semantic = `${sourceKind} ${task.taskType}`.toLowerCase();
 
   // Communications ownership must win when the authoritative task source is a
-  // notice/delivery source. Otherwise notice types such as rule_clarification
-  // are accidentally swallowed by the generic Integrity "rule" matcher.
-  if (/communication|notice|announcement|delivery|message|reminder/.test(sourceKind)) {
+  // notice/message source. Otherwise notice types such as rule_clarification
+  // are accidentally swallowed by the generic Integrity "rule" matcher. Keep
+  // this deliberately narrower than generic "delivery" so media-delivery work
+  // remains owned by Media.
+  if (/communication|notice|announcement|message|reminder|notification/.test(sourceKind)) {
     return "communications";
   }
 
