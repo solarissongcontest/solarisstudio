@@ -56,6 +56,30 @@ function CountriesRoute() {
       );
     }
 
+    if (editionsQuery.error) {
+      return (
+        <AdminPage>
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="Edition context could not be verified"
+              description={errorText(editionsQuery.error)}
+            />
+            <div className="mt-3 flex justify-center">
+              <button
+                type="button"
+                onClick={() => void editionsQuery.refetch()}
+                disabled={editionsQuery.isFetching}
+                className="admin-action-secondary"
+              >
+                Retry edition lookup
+              </button>
+            </div>
+          </AdminCard>
+        </AdminPage>
+      );
+    }
+
     if (!selectedEdition) {
       return (
         <AdminPage>
