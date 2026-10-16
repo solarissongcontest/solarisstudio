@@ -52,11 +52,12 @@ describe("Command Assistant projection insights", () => {
     expect(inferCommandAssistantDomain("Why can't I publish results?")).toBe("results");
   });
 
-  it("explains blockers and reuses the canonical recommended action", () => {
+  it("explains the canonical readiness factor and reuses the domain recommended action", () => {
     const insight = buildCommandAssistantInsight("Why can't I publish results?", projection());
     expect(insight.domain).toBe("results");
     expect(insight.blockerCount).toBe(1);
-    expect(insight.summary).toContain("1 critical blocker requires intervention");
+    expect(insight.summary).toBe("1 item needs attention. Results: 1 issue.");
+    expect(insight.readinessRoute).toBe("/admin/results");
     expect(insight.nextAction).toEqual({ label: "Resolve results blocker", route: "/admin/results" });
   });
 
