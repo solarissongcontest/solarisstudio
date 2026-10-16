@@ -2,6 +2,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+const columnPrerequisite = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20261017001900_v3_s14_televote_deadline_column.sql"),
+  "utf8",
+);
 const foundation = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20261017002000_v3_s14_televote_deadline_extension.sql"),
   "utf8",
@@ -14,7 +18,7 @@ const compatibility = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20261017002200_v3_s14_televote_deadline_open_compatibility.sql"),
   "utf8",
 );
-const migration = `${foundation}\n${replayFix}\n${compatibility}`;
+const migration = `${columnPrerequisite}\n${foundation}\n${replayFix}\n${compatibility}`;
 
 function latestFunctionBody(name: string) {
   const marker = `create or replace function ${name}`;
@@ -25,7 +29,15 @@ function latestFunctionBody(name: string) {
 }
 
 describe("System V3 S14 authoritative Televote deadline extension", () => {
-  it("uses existing closes_at as the authoritative persisted acceptance deadline", () => {
+  it("creates the persisted deadline column before any trigger or RPC depends on it", () => {
+    expect(columnPrerequisite).toContain("alter table televoting.rounds");
+    expect(columnPrerequisite).toContain("add column if not exists closes_at timestamptz");
+    expect(columnPrerequisite).toContain("Existing rows intentionally remain");
+    expect(columnPrerequisite).not.toContain("update televoting.rounds");
+    expect(foundation).toContain("before update of closes_at on televoting.rounds");
+  });
+
+  it("uses closes_at as the authoritative persisted acceptance deadline", () => {
     expect(foundation).toContain("new.closes_at is distinct from old.closes_at");
     expect(foundation).toContain("Televote deadline must use the governed deadline operation contract");
     expect(compatibility).toContain("NULL as the explicit legacy-unbounded state");
