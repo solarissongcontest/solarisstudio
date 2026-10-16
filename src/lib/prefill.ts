@@ -1,7 +1,30 @@
 import type {
   ConfirmationPayload,
   DateType,
+  EntryCredit,
+  EntryCreditRole,
 } from "@/lib/ssc";
+
+const CREDIT_ROLES = new Set<EntryCreditRole>([
+  "composer",
+  "lyricist",
+  "songwriter",
+  "producer",
+  "arranger",
+  "other",
+]);
+
+function asCredits(value: unknown): EntryCredit[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const record = item as { role?: unknown; name?: unknown };
+    const role = typeof record.role === "string" ? record.role.toLowerCase() : "";
+    const name = typeof record.name === "string" ? record.name.trim() : "";
+    if (!CREDIT_ROLES.has(role as EntryCreditRole) || !name) return [];
+    return [{ role: role as EntryCreditRole, name }];
+  });
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function prefillFromSubmission(
@@ -43,6 +66,7 @@ export function prefillFromSubmission(
     artist: mainSong?.artist ?? "",
     song_title: mainSong?.song_title ?? "",
     song_url: mainSong?.song_url ?? "",
+    credits: asCredits(mainSong?.credits),
     preview_start: mainSong?.preview_start ?? "",
     preview_end: mainSong?.preview_end ?? "",
     final_clip_start: mainSong?.final_clip_start ?? "",
@@ -55,10 +79,11 @@ export function prefillFromSubmission(
         ? String(nf.expected_entry_count)
         : "",
     nf_entries: editableNfEntries.map(
-      (entry: { artist?: string | null; song_title?: string | null; song_url?: string | null }) => ({
+      (entry: { artist?: string | null; song_title?: string | null; song_url?: string | null; credits?: unknown }) => ({
         artist: entry.artist ?? "",
         song_title: entry.song_title ?? "",
         song_url: entry.song_url ?? "",
+        credits: asCredits(entry.credits),
       }),
     ),
     nf_date_type: (s.nf_date_type ?? "") as DateType | "",
