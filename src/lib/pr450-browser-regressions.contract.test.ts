@@ -20,7 +20,7 @@ describe("PR 450 browser blocker regressions", () => {
     const selectors = source("src/components/admin/AdminSelectors.tsx");
     const countryPicker = source("src/components/CountryPicker.tsx");
 
-    expect(countries).toContain('<span className="sr-only">Search countries</span>');
+    expect(countries).toContain('<span className="sr-only">Search delegations</span>');
     expect(countries).toContain('aria-label="Filter countries by readiness"');
     expect(selectors).toContain('aria-label="Search editions"');
     expect(countryPicker).toContain('aria-label="Search country"');
