@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import { CheckCircle2, FileCheck2, Gamepad2, History, ReceiptText, Vote } from "lucide-react";
 
 import { formatEventDateTime } from "@/lib/public-time";
@@ -78,9 +77,9 @@ function ActivityItem({ item }: { item: V3ParticipantActivityItem }) {
 
   if (!item.route || unavailable) return body;
   return (
-    <Link to={item.route as never} className="block">
+    <a href={item.route} className="block">
       {body}
-    </Link>
+    </a>
   );
 }
 
