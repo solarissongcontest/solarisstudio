@@ -96,7 +96,14 @@ export function VotingResultsWorkspace() {
     return <ArchivedVotingResults edition={data.edition} />;
   }
 
-  return <VotingResultsView />;
+  return (
+    <VotingResultsView
+      key={editionId}
+      editionId={editionId}
+      editionName={data.edition.name}
+      rounds={data.edition.rounds}
+    />
+  );
 }
 
 function ArchivedVotingResults({ edition }: { edition: MergedAdminRoundsPageEdition }) {
