@@ -10,7 +10,11 @@ const replayFix = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20261017002100_v3_s14_televote_deadline_replay_fix.sql"),
   "utf8",
 );
-const migration = `${foundation}\n${replayFix}`;
+const compatibility = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20261017002200_v3_s14_televote_deadline_open_compatibility.sql"),
+  "utf8",
+);
+const migration = `${foundation}\n${replayFix}\n${compatibility}`;
 
 function latestFunctionBody(name: string) {
   const marker = `create or replace function ${name}`;
@@ -24,8 +28,8 @@ describe("System V3 S14 authoritative Televote deadline extension", () => {
   it("uses existing closes_at as the authoritative persisted acceptance deadline", () => {
     expect(foundation).toContain("new.closes_at is distinct from old.closes_at");
     expect(foundation).toContain("Televote deadline must use the governed deadline operation contract");
-    expect(foundation).toContain("new.status = 'open'");
-    expect(foundation).toContain("new.closes_at is null or new.closes_at <= now()");
+    expect(compatibility).toContain("NULL as the explicit legacy-unbounded state");
+    expect(compatibility).toContain("drop trigger if exists v3_require_televote_deadline_on_open");
   });
 
   it("enforces server time at the final canonical ballot write boundary", () => {
