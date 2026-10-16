@@ -11,7 +11,8 @@ import {
   validateV3WorkflowDependencyRegistry,
 } from "../src/lib/v3-capability-registry";
 
-const strictRelease = process.argv.includes("--release");
+const finalCertification = process.argv.includes("--certified");
+const strictRelease = process.argv.includes("--release") || finalCertification;
 const errors: string[] = [];
 const blockers: string[] = [];
 const warnings: string[] = [];
@@ -108,12 +109,14 @@ if (unfinishedOrganizer.length) blockers.push(`${unfinishedOrganizer.length} Org
 if (declarationOnly.length) blockers.push(`${declarationOnly.length} domain consequences not event-backed`);
 if (warnings.length) blockers.push(`${warnings.length} parity capabilities missing explicit migration evidence`);
 
-const exactCandidateEvidence = [
+const releasePrerequisiteEvidence = [
   "artifacts/v3-release/s14-full-contest.json",
   "artifacts/v3-release/s15-zero-orphan.json",
   "artifacts/v3-release/security-advisor-classification.json",
-  "artifacts/v3-release/s16-certification.json",
 ] as const;
+const exactCandidateEvidence = finalCertification
+  ? [...releasePrerequisiteEvidence, "artifacts/v3-release/s16-certification.json"]
+  : [...releasePrerequisiteEvidence];
 
 for (const path of exactCandidateEvidence) {
   if (!existsSync(path)) {
@@ -148,5 +151,5 @@ if (strictRelease && blockers.length) {
   process.exit(1);
 }
 
-process.stdout.write(`V3 release-integrity guard: PASS (${strictRelease ? "release-strict" : "structural"})\n`);
+process.stdout.write(`V3 release-integrity guard: PASS (${finalCertification ? "final-certification" : strictRelease ? "release-preflight" : "structural"})\n`);
 if (blockers.length) process.stdout.write(`Current release blockers:\n- ${blockers.join("\n- ")}\n`);
