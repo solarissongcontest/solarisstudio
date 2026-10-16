@@ -41,15 +41,26 @@ describe("S14 fail-closed archive certification boundary", () => {
     expect(transitionMigration).toContain("'edition.state_changed'");
   });
 
-  it("uses canonical task and notification reconcilers and forbids QA cleanup writes", () => {
+  it("tests the canonical dead-task invariant instead of demanding that every historical task disappear", () => {
     expect(taskHardening).toContain("private.studio2_reconcile_all_organizer_tasks");
     expect(taskHardening).toContain("private.studio2_prune_stale_task_notifications");
     expect(archive).toContain("private.studio2_reconcile_all_organizer_tasks");
-    expect(archive).toContain("studio2_organizer_tasks");
-    expect(archive).toContain("admin_notifications");
-    expect(archive).toContain("notification_deliveries");
+    expect(archive).toContain("dead_workflow_tasks");
+    expect(archive).toContain("impossible current-workflow Organizer tasks");
+    expect(archive).toContain("task.task_type ~");
+    expect(archive).toContain("confirmation|entry|media|participation|jury|televote|results|publication|show|broadcast");
+    expect(archive).toContain("governance/history work");
+    expect(archive).not.toContain("archived edition still has $open_tasks actionable Organizer tasks");
     expect(archive).not.toMatch(/delete\s+from\s+public\.studio2_organizer_tasks/i);
     expect(archive).not.toMatch(/update\s+public\.studio2_organizer_tasks/i);
+  });
+
+  it("requires notifications and queued deliveries to reconcile when their underlying task resolves", () => {
+    expect(archive).toContain("admin_notifications");
+    expect(archive).toContain("notification_deliveries");
+    expect(archive).toContain("task.state='resolved'");
+    expect(archive).toContain("resolved-task notifications still claiming action");
+    expect(archive).toContain("deliverable notifications for resolved Organizer tasks");
     expect(archive).not.toMatch(/update\s+public\.admin_notifications/i);
     expect(archive).not.toMatch(/delete\s+from\s+public\.notification_deliveries/i);
   });
