@@ -178,6 +178,13 @@ export function buildV3OrganizerControlGroups(
           editionScoped: true,
         },
         {
+          key: "participants",
+          label: "Participant status",
+          description: "Participation, qualification and show-status operations",
+          href: editionHref("/admin/participant-status/:slug"),
+          editionScoped: true,
+        },
+        {
           key: "progression",
           label: "Progression",
           description: "Heat progression and line-up synchronization",
