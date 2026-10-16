@@ -16,7 +16,7 @@ describe("Solaris V6 interaction primitives in real product flows", () => {
   it("uses morphing selection for Organizer task filtering without changing canonical task truth", () => {
     const tasks = source("src/routes/_authenticated/admin/tasks.tsx");
     expect(tasks).toContain("SolarisMorphingSelection");
-    expect(tasks).toContain('ariaLabel="Task filters"');
+    expect(tasks).toContain('ariaLabel="Task state filters"');
     expect(tasks).toContain("useOrganizerTasksV5");
     expect(tasks).toContain("There is intentionally no generic “Mark resolved” button.");
   });
