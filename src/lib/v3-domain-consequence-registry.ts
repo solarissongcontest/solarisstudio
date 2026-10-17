@@ -129,6 +129,21 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
     "src/lib/v3-s5-notice-consequences.test.ts",
     ".github/scripts/v3-s5-notice-consequences-rehearsal.sh",
   ],
+  "notification.queued": [
+    "supabase/migrations/20261016064100_v3_s5_notification_consequences.sql",
+    "src/lib/v3-s5-notification-consequences.test.ts",
+    ".github/scripts/v3-s5-notification-consequences-rehearsal.sh",
+  ],
+  "notification.delivered": [
+    "supabase/migrations/20261016064100_v3_s5_notification_consequences.sql",
+    "src/lib/v3-s5-notification-consequences.test.ts",
+    ".github/scripts/v3-s5-notification-consequences-rehearsal.sh",
+  ],
+  "notification.failed": [
+    "supabase/migrations/20261016064100_v3_s5_notification_consequences.sql",
+    "src/lib/v3-s5-notification-consequences.test.ts",
+    ".github/scripts/v3-s5-notification-consequences-rehearsal.sh",
+  ],
   "televote.opened": [
     "supabase/migrations/20261016043000_v3_s5_televote_consequences.sql",
     "src/lib/v3-s5-televote-consequences.test.ts",
