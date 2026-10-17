@@ -108,53 +108,39 @@ function CommunicationsCentre() {
   const inboxEnabled = displaySurfaces.includes('delegation_inbox');
 
   const noticesQuery = useQuery({
-    queryKey: ['studio2-official-notices', editionId ?? 'unscoped'],
-    enabled: Boolean(editionId),
-    queryFn: () => {
-      if (!editionId) throw new Error('Choose an edition before loading Official Communications.');
-      return loadStudio2Notices(editionId);
-    },
+    queryKey: ['studio2-official-notices', editionId ?? 'all'],
+    queryFn: () => loadStudio2Notices(editionId),
     refetchInterval: 120_000,
   });
 
   const notices = noticesQuery.data ?? [];
   const selectedNotice = notices.find((item) => item.notice.id === search.notice)?.notice ?? null;
   const revisionsQuery = useQuery({
-    queryKey: ['studio2-notice-revisions', editionId ?? 'unscoped', selectedNotice?.id ?? 'none'],
-    enabled: Boolean(editionId && selectedNotice),
-    queryFn: () => {
-      if (!editionId || !selectedNotice || selectedNotice.editionId !== editionId) {
-        throw new Error('The selected communication is outside the current edition scope.');
-      }
-      return loadStudio2NoticeRevisions(selectedNotice.id);
-    },
+    queryKey: ['studio2-notice-revisions', search.notice ?? 'none'],
+    enabled: Boolean(search.notice),
+    queryFn: () => loadStudio2NoticeRevisions(search.notice!),
   });
 
-  const currentInput = (): SaveStudio2NoticeInput => {
-    if (!editionId) throw new Error('Choose an edition before creating Official Communications.');
-    return {
-      editionId,
-      noticeType,
-      title,
-      body,
-      severity,
-      displaySurfaces,
-      audience: inboxEnabled ? audience : 'all_delegations',
-      audienceGroup: inboxEnabled && audience === 'edition_group' ? audienceGroup : null,
-      countryIds: inboxEnabled && audience === 'specific_countries' ? countryIds : [],
-      acknowledgementRequired: inboxEnabled ? acknowledgementRequired : false,
-    };
-  };
+  const currentInput = (): SaveStudio2NoticeInput => ({
+    editionId: editionId ?? null,
+    noticeType,
+    title,
+    body,
+    severity,
+    displaySurfaces,
+    audience: inboxEnabled ? audience : 'all_delegations',
+    audienceGroup: inboxEnabled && audience === 'edition_group' ? audienceGroup : null,
+    countryIds: inboxEnabled && audience === 'specific_countries' ? countryIds : [],
+    acknowledgementRequired: inboxEnabled ? acknowledgementRequired : false,
+  });
 
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['studio2-official-notices'] }),
       queryClient.invalidateQueries({ queryKey: ['official-announcements'] }),
     ]);
-    if (editionId && selectedNotice) {
-      await queryClient.invalidateQueries({
-        queryKey: ['studio2-notice-revisions', editionId, selectedNotice.id],
-      });
+    if (search.notice) {
+      await queryClient.invalidateQueries({ queryKey: ['studio2-notice-revisions', search.notice] });
     }
   };
 
@@ -339,27 +325,6 @@ function CommunicationsCentre() {
     inboxEnabled ? countryIds : [],
     inboxEnabled ? audienceGroup : null,
   );
-
-  if (!editionId) {
-    return (
-      <AdminPage>
-        <div className="mx-auto max-w-7xl space-y-4">
-          <AdminPageHeader
-            eyebrow="Operations · Communications"
-            title="Official Communications"
-            description="Communications are always operated inside one explicit edition context."
-          />
-          <AdminCard>
-            <AdminEmptyState
-              icon={Megaphone}
-              title="Choose an edition"
-              description="Select the edition in the Organizer toolbar before loading, drafting, scheduling or publishing communications. Solaris never broadens a missing edition into an all-editions view."
-            />
-          </AdminCard>
-        </div>
-      </AdminPage>
-    );
-  }
 
   return (
     <AdminPage>
