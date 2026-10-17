@@ -1,3 +1,7 @@
+import {
+  clearAppUpdateBlocker,
+  setAppUpdateBlocker,
+} from "@/lib/app-update-safety";
 import { prefersReducedMotion } from "@/lib/interaction-physics";
 
 export type AppViewTransitionKind = "push" | "pop" | "tab";
@@ -12,35 +16,51 @@ type ViewTransitionDocument = Document & {
   ) => ViewTransitionLike;
 };
 
+const APP_VIEW_TRANSITION_UPDATE_BLOCKER = "app-view-transition";
+
 export async function runAppViewTransition(
   kind: AppViewTransitionKind,
   update: () => void | Promise<void>,
 ) {
-  if (typeof document === "undefined" || prefersReducedMotion()) {
+  if (typeof document === "undefined") {
     await update();
     return;
   }
 
-  const transitionDocument = document as ViewTransitionDocument;
-  if (typeof transitionDocument.startViewTransition !== "function") {
-    await update();
-    return;
-  }
+  setAppUpdateBlocker(
+    APP_VIEW_TRANSITION_UPDATE_BLOCKER,
+    true,
+    "Finish the current navigation transition before updating.",
+  );
 
   const root = document.documentElement;
-  root.dataset.solarisViewTransition = kind;
-
-  let updateRan = false;
-
   try {
-    const transition = transitionDocument.startViewTransition(async () => {
-      updateRan = true;
+    if (prefersReducedMotion()) {
       await update();
-    });
-    await transition.finished;
-  } catch {
-    if (!updateRan) await update();
+      return;
+    }
+
+    const transitionDocument = document as ViewTransitionDocument;
+    if (typeof transitionDocument.startViewTransition !== "function") {
+      await update();
+      return;
+    }
+
+    root.dataset.solarisViewTransition = kind;
+    let updateRan = false;
+
+    try {
+      const transition = transitionDocument.startViewTransition(async () => {
+        updateRan = true;
+        await update();
+      });
+      await transition.finished;
+    } catch {
+      if (!updateRan) await update();
+    } finally {
+      delete root.dataset.solarisViewTransition;
+    }
   } finally {
-    delete root.dataset.solarisViewTransition;
+    clearAppUpdateBlocker(APP_VIEW_TRANSITION_UPDATE_BLOCKER);
   }
 }
