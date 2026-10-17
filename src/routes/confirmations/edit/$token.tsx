@@ -6,6 +6,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, ArrowLeft, LockKeyhole } from "lucide-react";
 
 import { ConfirmationFormWithReceipt } from "@/components/ConfirmationFormWithReceipt";
+import { MaintenanceConfirmationEditor } from "@/components/MaintenanceConfirmationEditor";
 import { V3ConfirmationRouteShell } from "@/components/v3/V3ConfirmationRouteShell";
 import {
   ConfirmationReviewStatus,
@@ -14,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { resolveEditToken } from "@/lib/confirmation-edit.functions";
 import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
+import { resolveMaintenanceEditToken } from "@/lib/maintenance-confirmation-editor";
 import { parseV3EntryEditorFocus } from "@/lib/v3-entry-editor-focus";
 
 export const Route = createFileRoute("/confirmations/edit/$token")({
@@ -80,14 +82,19 @@ function EditConfirmationPage() {
   const visibleEntryFocus = maintenanceReviewFocus ? null : entryFocus;
   const editorInitialStep = maintenanceReviewFocus ? 3 : entryFocus?.step ?? undefined;
   const resolve = useServerFn(resolveEditToken);
+  const browserReady = typeof window !== "undefined";
 
   const { data, isLoading } = useQuery({
-    queryKey: ["confirmation-edit-token", token],
-    queryFn: () => resolve({ data: { token } }),
+    queryKey: ["confirmation-edit-token", token, GLOBAL_MAINTENANCE_MODE ? "maintenance" : "normal"],
+    queryFn: () =>
+      GLOBAL_MAINTENANCE_MODE
+        ? resolveMaintenanceEditToken(token)
+        : resolve({ data: { token } }),
+    enabled: !GLOBAL_MAINTENANCE_MODE || browserReady,
     retry: false,
   });
 
-  if (isLoading) {
+  if (isLoading || (GLOBAL_MAINTENANCE_MODE && !browserReady)) {
     return (
       <V3ConfirmationRouteShell
         title="Edit confirmation"
@@ -132,7 +139,7 @@ function EditConfirmationPage() {
             {editingClosed
               ? "The original confirmation remains recorded. TSBC can reopen editing for this response without reopening the Confirmation round."
               : GLOBAL_MAINTENANCE_MODE
-                ? "Return to the maintenance page to check your current Confirmation status or request a fresh edit link when editing is available."
+                ? "Return to the maintenance page to check your current Confirmation status and request a fresh edit link if editing is still open."
                 : "Open Confirmations to find the active round or recover another saved response."}
           </p>
           <ReturnFromUnavailableEditor />
@@ -154,70 +161,78 @@ function EditConfirmationPage() {
       phaseLabel="Confirmation editing"
       maintenanceMode={GLOBAL_MAINTENANCE_MODE}
     >
-      <div className="confirmations-theme space-y-5">
-        <div className="data-panel border-primary/20 p-4 sm:p-5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
-            {result.round.edition_name}
-          </p>
-          <h2 className="mt-1 text-lg font-bold tracking-[-.02em]">Editing your existing response</h2>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Saving changes updates the same confirmation that was originally submitted. The Confirmation round may remain closed while TSBC allows this existing response to be edited.
-          </p>
-          {maintenanceReviewFocus ? (
-            <p
-              className="mt-3 rounded-lg border border-primary/20 bg-primary/[0.06] px-3 py-2 text-xs font-medium text-primary"
-              data-maintenance-entry-edit-focus="entry"
-            >
-              TSBC requested changes. Solaris opened the editable Entry section so you can update the saved submission before reviewing it again.
-            </p>
-          ) : visibleEntryFocus?.supported ? (
-            <p
-              className="mt-3 rounded-lg border border-primary/20 bg-primary/[0.06] px-3 py-2 text-xs font-medium text-primary"
-              data-v3-entry-correction-focus={visibleEntryFocus.section}
-            >
-              Opened at the {focusLabel(visibleEntryFocus.section)} section requested by the current Entry correction.
-            </p>
-          ) : null}
-        </div>
-
-        {visibleEntryFocus && !visibleEntryFocus.supported ? (
-          <div
-            className="data-panel flex gap-3 border border-amber-300/30 bg-amber-300/[0.06] p-4 text-sm"
-            role="alert"
-            data-v3-entry-correction-blocked={visibleEntryFocus.section}
-          >
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-300" aria-hidden="true" />
-            <div>
-              <p className="font-semibold">{focusLabel(visibleEntryFocus.section)} editing is not available in the canonical writer yet.</p>
-              <p className="mt-1 leading-6 text-muted-foreground">
-                Solaris has kept the Organizer correction intact instead of inventing browser-only data. The current Confirmation remains authoritative while the missing Credits contract is added.
-              </p>
-            </div>
-          </div>
-        ) : null}
-
-        <ConfirmationReviewStatus
-          selectionMethod={result.submission.selection_method}
-          internalEntry={result.submission.internal_entries}
-          nationalFinal={
-            nf
-              ? {
-                  id: nf.id,
-                  nf_name: nf.nf_name,
-                  winning_entry_id: nf.winning_entry_id,
-                  entries: nf.national_final_entries ?? [],
-                }
-              : null
-          }
-        />
-
-        <ConfirmationFormWithReceipt
+      {GLOBAL_MAINTENANCE_MODE ? (
+        <MaintenanceConfirmationEditor
           round={result.round}
+          submission={result.submission}
           editToken={token}
-          prefill={result.submission}
-          initialStep={editorInitialStep}
         />
-      </div>
+      ) : (
+        <div className="confirmations-theme space-y-5">
+          <div className="data-panel border-primary/20 p-4 sm:p-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
+              {result.round.edition_name}
+            </p>
+            <h2 className="mt-1 text-lg font-bold tracking-[-.02em]">Editing your existing response</h2>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              Saving changes updates the same confirmation that was originally submitted. The Confirmation round may remain closed while TSBC allows this existing response to be edited.
+            </p>
+            {maintenanceReviewFocus ? (
+              <p
+                className="mt-3 rounded-lg border border-primary/20 bg-primary/[0.06] px-3 py-2 text-xs font-medium text-primary"
+                data-maintenance-entry-edit-focus="entry"
+              >
+                TSBC requested changes. Solaris opened the editable Entry section so you can update the saved submission before reviewing it again.
+              </p>
+            ) : visibleEntryFocus?.supported ? (
+              <p
+                className="mt-3 rounded-lg border border-primary/20 bg-primary/[0.06] px-3 py-2 text-xs font-medium text-primary"
+                data-v3-entry-correction-focus={visibleEntryFocus.section}
+              >
+                Opened at the {focusLabel(visibleEntryFocus.section)} section requested by the current Entry correction.
+              </p>
+            ) : null}
+          </div>
+
+          {visibleEntryFocus && !visibleEntryFocus.supported ? (
+            <div
+              className="data-panel flex gap-3 border border-amber-300/30 bg-amber-300/[0.06] p-4 text-sm"
+              role="alert"
+              data-v3-entry-correction-blocked={visibleEntryFocus.section}
+            >
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-300" aria-hidden="true" />
+              <div>
+                <p className="font-semibold">{focusLabel(visibleEntryFocus.section)} editing is not available in the canonical writer yet.</p>
+                <p className="mt-1 leading-6 text-muted-foreground">
+                  Solaris has kept the Organizer correction intact instead of inventing browser-only data. The current Confirmation remains authoritative while the missing Credits contract is added.
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          <ConfirmationReviewStatus
+            selectionMethod={result.submission.selection_method}
+            internalEntry={result.submission.internal_entries}
+            nationalFinal={
+              nf
+                ? {
+                    id: nf.id,
+                    nf_name: nf.nf_name,
+                    winning_entry_id: nf.winning_entry_id,
+                    entries: nf.national_final_entries ?? [],
+                  }
+                : null
+            }
+          />
+
+          <ConfirmationFormWithReceipt
+            round={result.round}
+            editToken={token}
+            prefill={result.submission}
+            initialStep={editorInitialStep}
+          />
+        </div>
+      )}
     </V3ConfirmationRouteShell>
   );
 }

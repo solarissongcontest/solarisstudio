@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
+  MAINTENANCE_CONFIRMATION_API_PATH,
   isMaintenanceHodAppRouteAllowed,
   maintenanceHodAccessEnabled,
 } from "./maintenance";
@@ -10,6 +11,10 @@ import { renderMaintenancePage } from "./maintenance-page";
 
 const editRoute = readFileSync("src/routes/confirmations/edit/$token.tsx", "utf8");
 const confirmationShell = readFileSync("src/components/v3/V3ConfirmationRouteShell.tsx", "utf8");
+const participationChrome = readFileSync("src/components/ParticipationServiceShell.tsx", "utf8");
+const maintenanceEditor = readFileSync("src/components/MaintenanceConfirmationEditor.tsx", "utf8");
+const maintenanceEditorClient = readFileSync("src/lib/maintenance-confirmation-editor.ts", "utf8");
+const maintenanceEditorApi = readFileSync("src/routes/api/maintenance-confirmation.ts", "utf8");
 
 describe("maintenance HOD access flag", () => {
   it("fails closed unless explicitly enabled", () => {
@@ -36,6 +41,15 @@ describe("maintenance HOD route isolation", () => {
     expect(isMaintenanceHodAppRouteAllowed(pathname, "GET", true)).toBe(true);
     expect(isMaintenanceHodAppRouteAllowed(pathname, "HEAD", true)).toBe(true);
     expect(isMaintenanceHodAppRouteAllowed(pathname, "POST", true)).toBe(false);
+  });
+
+  it("opens exactly one maintenance POST transport without opening generic server functions", () => {
+    expect(MAINTENANCE_CONFIRMATION_API_PATH).toBe("/api/maintenance-confirmation");
+    expect(isMaintenanceHodAppRouteAllowed(MAINTENANCE_CONFIRMATION_API_PATH, "POST", true)).toBe(true);
+    expect(isMaintenanceHodAppRouteAllowed(MAINTENANCE_CONFIRMATION_API_PATH, "GET", true)).toBe(false);
+    expect(isMaintenanceHodAppRouteAllowed("/_serverFn/fake-id", "POST", true)).toBe(false);
+    expect(isMaintenanceHodAppRouteAllowed("/api/flag", "POST", true)).toBe(false);
+    expect(isMaintenanceHodAppRouteAllowed(MAINTENANCE_CONFIRMATION_API_PATH, "POST", false)).toBe(false);
   });
 
   it.each([
@@ -66,12 +80,17 @@ describe("maintenance HOD route isolation", () => {
     }
   });
 
-  it("renders the allowed edit-token route in an isolated maintenance shell", () => {
+  it("renders the edit-token route in an isolated maintenance shell without public app navigation", () => {
     expect(editRoute).toContain("maintenanceMode={GLOBAL_MAINTENANCE_MODE}");
     expect(editRoute).toContain('href="/"');
+    expect(editRoute).toContain("resolveMaintenanceEditToken(token)");
+    expect(editRoute).toContain("<MaintenanceConfirmationEditor");
     expect(confirmationShell).toContain('data-maintenance-confirmation-shell=""');
     expect(confirmationShell).toContain("Only this existing Confirmation editor is available");
-    expect(confirmationShell).toContain("<a");
+    expect(participationChrome).toContain(
+      'GLOBAL_MAINTENANCE_MODE && isMaintenanceHodAppRouteAllowed(pathname, "GET", true)',
+    );
+    expect(participationChrome).toContain("if (nested || maintenanceIsolated) return <>{children}</>;");
   });
 
   it("does not tell HODs that reopening an existing response requires reopening the round", () => {
@@ -79,6 +98,29 @@ describe("maintenance HOD route isolation", () => {
     expect(editRoute).toContain(
       "TSBC can reopen editing for this response without reopening the Confirmation round.",
     );
+  });
+
+  it("keeps the emergency editor on the exact canonical existing-response path", () => {
+    expect(maintenanceEditorClient).toContain("MAINTENANCE_CONFIRMATION_API_PATH");
+    expect(maintenanceEditorClient).toContain('action: "resolve"');
+    expect(maintenanceEditorClient).toContain('action: "submit"');
+    expect(maintenanceEditorClient).toContain('action: "reconcile"');
+    expect(maintenanceEditorClient).toContain("deterministicOperationId");
+    expect(maintenanceEditorClient).not.toContain("service_role");
+
+    expect(maintenanceEditorApi).toContain('createFileRoute("/api/maintenance-confirmation")');
+    expect(maintenanceEditorApi).toContain("if (!GLOBAL_MAINTENANCE_MODE)");
+    expect(maintenanceEditorApi).toContain("if (!sameOrigin(request))");
+    expect(maintenanceEditorApi).toContain("edit_token: z.string().trim().min(1).max(120)");
+    expect(maintenanceEditorApi).toContain('rpc<ConfirmationSubmitResult>("v3_submit_confirmation"');
+    expect(maintenanceEditorApi).toContain('rpc<ConfirmationSubmitResult>("v3_reconcile_confirmation"');
+    expect(maintenanceEditorApi).toContain('"public_resolve_edit_token"');
+    expect(maintenanceEditorApi).toContain("syncConfirmationSubmissionToSolarisInternal");
+    expect(maintenanceEditorApi).not.toContain('rpc<ConfirmationSubmitResult>("submit_confirmation"');
+
+    expect(maintenanceEditor).toContain('data-maintenance-confirmation-editor="true"');
+    expect(maintenanceEditor).toContain("Save changes to this Confirmation");
+    expect(maintenanceEditor).toContain("It cannot create a new Confirmation during maintenance.");
   });
 });
 
