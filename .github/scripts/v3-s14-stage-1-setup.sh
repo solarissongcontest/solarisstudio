@@ -26,10 +26,10 @@ on conflict (id) do update set
 insert into public.shows (id, edition_id, name, kind, sort_order, published, voting_config, publication_config)
 values
   ('$SEMI_ONE_ID', '$EDITION_ID', 'S14 Semi-final 1', 'semi-final', 1, false,
-   '{\"juryEnabled\":true,\"allowSelfVote\":false,\"juryPoints\":[12,10,8,7,6,5,4,3,2,1]}'::jsonb,
+   '{\"juryEnabled\":true,\"allowSelfVote\":false,\"qualifiers\":10,\"juryPoints\":[12,10,8,7,6,5,4,3,2,1]}'::jsonb,
    '{\"participants\":true,\"artists\":true,\"songs\":true,\"running_order\":true,\"results\":false}'::jsonb),
   ('$SEMI_TWO_ID', '$EDITION_ID', 'S14 Semi-final 2', 'semi-final', 2, false,
-   '{\"juryEnabled\":true,\"allowSelfVote\":false,\"juryPoints\":[12,10,8,7,6,5,4,3,2,1]}'::jsonb,
+   '{\"juryEnabled\":true,\"allowSelfVote\":false,\"qualifiers\":10,\"juryPoints\":[12,10,8,7,6,5,4,3,2,1]}'::jsonb,
    '{\"participants\":true,\"artists\":true,\"songs\":true,\"running_order\":true,\"results\":false}'::jsonb),
   ('$FINAL_ID', '$EDITION_ID', 'S14 Grand Final', 'grand-final', 3, false,
    '{\"juryEnabled\":true,\"allowSelfVote\":false,\"juryPoints\":[12,10,8,7,6,5,4,3,2,1]}'::jsonb,
@@ -110,6 +110,7 @@ on conflict (edition_id) do update set title=excluded.title, subtitle=excluded.s
 
   [[ "$(db_scalar "select count(*) from public.countries where region='S14';")" == "66" ]] || fail "S14 seed does not contain exactly 66 delegations"
   [[ "$(db_scalar "select count(*) from public.shows where edition_id='$EDITION_ID'::uuid;")" == "3" ]] || fail "S14 seed does not contain three shows"
+  [[ "$(db_scalar "select count(*) from public.shows where id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and voting_config->>'qualifiers'='10';")" == "2" ]] || fail "S14 semi-finals do not define the deterministic top-10 qualifier cutoff needed for a complete edition"
   [[ "$(db_scalar "select count(*) from public.participants where edition_id='$EDITION_ID'::uuid;")" == "66" ]] || fail "S14 seed does not contain 66 canonical participant rows"
   [[ "$(db_scalar "select status from public.editions where id='$EDITION_ID'::uuid;")" == "active" ]] || fail "S14 operational edition was demoted from active during setup"
   [[ "$(db_scalar "select published::text from public.editions where id='$EDITION_ID'::uuid;")" == "false" ]] || fail "S14 pre-publication fixture became public during setup"
