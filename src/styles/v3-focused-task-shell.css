@@ -1,8 +1,3 @@
-body:has([data-v3-focused-task-shell]) .solaris-app-toolbar,
-body:has([data-v3-entry-boot]) .solaris-app-toolbar {
-  display: none;
-}
-
 body:has([data-v3-focused-task-shell]) .app-main[data-solaris-app-mode="true"],
 body:has([data-v3-entry-boot]) .app-main[data-solaris-app-mode="true"] {
   width: 100%;
