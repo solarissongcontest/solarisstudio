@@ -88,9 +88,20 @@ describe("maintenance HOD portal contract", () => {
     publishableKey: "sb_publishable_test",
   });
 
-  it("preserves the maintenance page insertion point instead of replacing the page", () => {
+  it("preserves the maintenance page insertion point and visually promotes HOD access", () => {
     expect(renderMaintenancePage()).toContain("          <footer>");
     expect(renderMaintenancePage()).toContain("Solaris Studio is temporarily unavailable");
+    expect(renderMaintenancePage()).toContain("HOD Confirmations available");
+    expect(html).toContain(".hod-portal {\n    order: 2;");
+  });
+
+  it("makes the signed-out country-account action understandable", () => {
+    expect(html).toContain("Manage your current Confirmation");
+    expect(html).toContain("This is the participant area that remains available during maintenance.");
+    expect(html).toContain("Sign in to Confirmation access");
+    expect(html).toContain("Country account identifier");
+    expect(html).toContain("Use the same identifier you normally enter when signing in to Solaris Studio.");
+    expect(html).toContain("Sign in to Confirmations");
   });
 
   it("reuses the existing Solaris country auth/session system", () => {
@@ -111,11 +122,17 @@ describe("maintenance HOD portal contract", () => {
     expect(html).not.toContain("service_role");
   });
 
-  it("keeps status domains separate and focuses requested corrections", () => {
+  it("keeps status domains separate while explaining round-closed versus edit-open", () => {
     expect(html).toContain("Participation");
     expect(html).toContain("Confirmation");
     expect(html).toContain("Entry");
-    expect(html).toContain("Editing");
+    expect(html).toContain("New Confirmations");
+    expect(html).toContain("Existing submission editing");
+    expect(html).toContain("Closed to new Confirmations");
+    expect(html).toContain(
+      "The submission round is closed to new Confirmations, but TSBC has reopened editing for this existing response.",
+    );
+    expect(html).toContain("View status details");
     expect(html).toContain("#entry-section-review");
   });
 
