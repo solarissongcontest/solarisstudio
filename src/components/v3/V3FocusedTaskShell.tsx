@@ -24,6 +24,10 @@ export type V3FocusedTaskShellProps = {
  * keeps canonical exit/help destinations visible, and blocks service-worker
  * activation while the critical workflow is mounted. Feature code still owns
  * draft state, mutation authority, receipts and unsaved-exit confirmation.
+ *
+ * The toolbar title is deliberately not a document heading. The route-owned
+ * critical-task content owns the page's H1 so focused chrome cannot create a
+ * duplicate top-level heading above the feature's canonical screen title.
  */
 export function V3FocusedTaskShell({
   chrome,
@@ -63,7 +67,7 @@ export function V3FocusedTaskShell({
           </div>
 
           <div className="v3-focused-task-toolbar__title-wrap">
-            <h1 className="v3-focused-task-toolbar__title">{chrome.title}</h1>
+            <p className="v3-focused-task-toolbar__title">{chrome.title}</p>
             {context.length ? (
               <p className="v3-focused-task-toolbar__context" aria-label={context.join(", ")}>
                 {context.join(" · ")}
