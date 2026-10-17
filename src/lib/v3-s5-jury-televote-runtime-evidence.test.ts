@@ -10,6 +10,10 @@ const productionUpgrade = readFileSync(
   ".github/scripts/v3-production-head-upgrade-rehearsal.sh",
   "utf8",
 );
+const productionUpgradeWorkflow = readFileSync(
+  ".github/workflows/v3-production-head-upgrade.yml",
+  "utf8",
+);
 
 describe("System V3 S5 Media/Jury/Televote runtime evidence", () => {
   it("binds executable Media consequence proof to media.reviewed", () => {
@@ -46,5 +50,11 @@ describe("System V3 S5 Media/Jury/Televote runtime evidence", () => {
     expect(productionUpgrade).toContain("v3-s5-media-consequences-rehearsal.sh");
     expect(productionUpgrade).toContain("v3-s5-jury-consequences-rehearsal.sh");
     expect(productionUpgrade).toContain("v3-s5-televote-consequences-rehearsal.sh");
+  });
+
+  it("runs the production-head gate whenever an S5 consequence rehearsal changes", () => {
+    expect(productionUpgradeWorkflow).toContain(
+      '".github/scripts/v3-s5-*-consequences-rehearsal.sh"',
+    );
   });
 });
