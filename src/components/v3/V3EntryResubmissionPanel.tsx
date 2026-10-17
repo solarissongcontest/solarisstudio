@@ -59,9 +59,9 @@ function DiffField({ field }: { field: V3EntryRevisionFieldDiff }) {
 
 /**
  * Participant-facing resubmission comparison derived only from immutable
- * server Entry versions. The current version-history projection exposes artist
- * and song title, so the UI deliberately limits itself to those fields instead
- * of reconstructing missing credits/media state from the browser.
+ * server Entry versions. Artist, Song and structured Credits are all canonical
+ * version content; fields that still lack immutable projection evidence are
+ * deliberately not reconstructed from browser or draft state.
  */
 export function V3EntryResubmissionPanel({ projection }: { projection: V3EntryProjection }) {
   if (projection.state !== "ready") return null;
@@ -100,7 +100,7 @@ export function V3EntryResubmissionPanel({ projection }: { projection: V3EntryPr
         </ul>
 
         <p className="mt-3 text-xs leading-5 text-[var(--v3-text-tertiary)]">
-          This comparison uses immutable server Entry versions and currently covers Artist and Song. Other submission fields stay in the canonical Confirmation editor and are not guessed here.
+          This comparison uses immutable server Entry versions for Artist, Song and Credits. Other submission fields stay in the canonical Confirmation editor and are not guessed here.
         </p>
       </V3Surface>
     </div>

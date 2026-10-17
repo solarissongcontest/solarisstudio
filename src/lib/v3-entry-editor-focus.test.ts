@@ -14,17 +14,14 @@ describe("V3 Entry correction focus", () => {
       supported: true,
     });
     expect(parseV3EntryEditorFocus("#entry-section-artist")?.step).toBe(3);
+    expect(parseV3EntryEditorFocus("#entry-section-credits")).toEqual({
+      section: "credits",
+      step: 3,
+      supported: true,
+    });
     expect(parseV3EntryEditorFocus("#entry-section-media")?.step).toBe(3);
     expect(parseV3EntryEditorFocus("#entry-section-metadata")?.step).toBe(4);
     expect(parseV3EntryEditorFocus("#entry-section-review")?.step).toBe(5);
-  });
-
-  it("keeps Credits explicitly blocked until the canonical writer can persist it", () => {
-    expect(parseV3EntryEditorFocus("#entry-section-credits")).toEqual({
-      section: "credits",
-      step: null,
-      supported: false,
-    });
   });
 
   it("rejects unknown hashes and only appends allowlisted presentation focus", () => {
