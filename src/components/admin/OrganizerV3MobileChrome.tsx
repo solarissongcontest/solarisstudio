@@ -72,6 +72,7 @@ export function OrganizerV3MobileChrome() {
   const tasksSupported = backend.data?.capabilities.organizerTasks === true;
   const activeEdition = resolveAdminEditionContext(editions, editionId);
   const navigationScope = activeEdition?.id ?? null;
+  const navigationInteractionKey = navigationScope ?? "unscoped";
   const taskCount = useOrganizerTaskCountV5(activeEdition?.id ?? null, tasksSupported);
   const unresolvedTaskCount =
     tasksSupported && !taskCount.isError && typeof taskCount.data === "number"
@@ -184,6 +185,7 @@ export function OrganizerV3MobileChrome() {
       data-organizer-v3-tabbar-mode={screen.tabbar}
     >
       <V3LiquidTabBar
+        key={navigationInteractionKey}
         pathname={pathname}
         destinations={items}
         onSelect={(item) => openTab(item.id as V3OrganizerTabId)}
