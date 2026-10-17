@@ -9,7 +9,7 @@ import {
   Vote,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAppAttentionSummary } from "@/lib/app-attention";
@@ -146,11 +146,13 @@ export function V3AppShell({
   const navigationIdentityReady =
     !rollout.isLoading && !rollout.isError && rollout.data != null;
   const navigationScope = navigationIdentityReady ? (rollout.data.userId ?? null) : null;
+  const resolvedViewerKey = navigationScope ?? "anonymous";
+  const previousResolvedViewerKeyRef = useRef<string | undefined>(undefined);
   // Anonymous and unresolved identity must be different gesture generations.
   // Otherwise an anonymous whole-page swipe can survive into login/bootstrap
   // because both states previously collapsed to `interactionKey = null`.
   const swipeInteractionKey = navigationIdentityReady
-    ? `viewer:${navigationScope ?? "anonymous"}`
+    ? `viewer:${resolvedViewerKey}`
     : "viewer:unresolved";
   const notificationLabel =
     attention.me > 0
@@ -159,6 +161,16 @@ export function V3AppShell({
 
   useEffect(() => {
     if (typeof window === "undefined" || !navigationIdentityReady) return;
+
+    const previousViewerKey = previousResolvedViewerKeyRef.current;
+    previousResolvedViewerKeyRef.current = resolvedViewerKey;
+    if (previousViewerKey !== undefined && previousViewerKey !== resolvedViewerKey) {
+      // An auth handoff can resolve before its route redirect commits. Never
+      // sample the old viewer's still-mounted route into the new viewer's
+      // storage bucket. Memory resumes on the next route/query change or direct
+      // tab navigation, both of which are authoritative for the new identity.
+      return;
+    }
 
     const restoreY = consumeV3PublicNavigationRestore(
       pathname,
@@ -218,7 +230,13 @@ export function V3AppShell({
         navigationScope,
       );
     };
-  }, [navigationIdentityReady, navigationScope, pathname, searchStr]);
+  }, [
+    navigationIdentityReady,
+    navigationScope,
+    pathname,
+    resolvedViewerKey,
+    searchStr,
+  ]);
 
   const shellActions =
     notificationsAvailable || searchAvailable || rulesGuidanceAvailable || topActions ? (
