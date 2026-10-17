@@ -9,15 +9,29 @@ describe("Solaris Studio V3 focused critical-task chrome", () => {
     ["/televoting", "Televoting", "/televoting/how-to-vote"],
     ["/next-in-line", "Next in Line", "/guide"],
     ["/my-solaris/entry", "Entry", "/guide"],
-  ] as const)("reuses canonical task chrome for %s", (pathname, title, helpTo) => {
+  ] as const)("reuses canonical focused task chrome for %s", (pathname, title, helpTo) => {
     const chrome = resolveV3FocusedTaskChrome(pathname);
 
     expect(chrome.pathname).toBe(pathname);
     expect(chrome.title).toBe(title);
     expect(chrome.rootTab).toBe("participate");
+    expect(chrome.toolbarMode).toBe("focused");
     expect(chrome.backLabel).toBe("Participate");
     expect(chrome.backTo).toBe("/participate");
     expect(chrome.helpTo).toBe(helpTo);
+  });
+
+  it("supports critical tasks whose route content already owns exit/help controls", () => {
+    const chrome = resolveV3FocusedTaskChrome("/integrity/report/category");
+
+    expect(chrome.pathname).toBe("/integrity/report/category");
+    expect(chrome.screenId).toBe("integrity.report");
+    expect(chrome.title).toBe("Report a concern");
+    expect(chrome.rootTab).toBe("participate");
+    expect(chrome.toolbarMode).toBe("hidden");
+    expect(chrome.backLabel).toBe("Trust & Integrity");
+    expect(chrome.backTo).toBe("/integrity");
+    expect(chrome.helpTo).toBe("/integrity/process");
   });
 
   it("preserves task route ownership and does not rewrite the path", () => {
@@ -42,10 +56,7 @@ describe("Solaris Studio V3 focused critical-task chrome", () => {
     },
   );
 
-  it("rejects immersive experiences instead of forcing focused task chrome onto them", () => {
-    // The app-screen registry owns the exact immersive classification. This
-    // resolver's invariant is simply that such a route can never produce a
-    // focused critical-task shell, even if the registry later renames it.
+  it("rejects immersive experiences instead of forcing critical task chrome onto them", () => {
     expect(() => resolveV3FocusedTaskChrome("/show-mode")).toThrow();
   });
 
