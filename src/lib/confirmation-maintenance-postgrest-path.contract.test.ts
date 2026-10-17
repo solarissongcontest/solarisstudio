@@ -14,9 +14,15 @@ const priorGate = readFileSync(
 
 describe("Confirmation maintenance production PostgREST compatibility", () => {
   it("matches the real /rest/v1/rpc/<function> request path without broadening the RPC allowlist", () => {
-    expect(migration).toContain("position('/rpc/' in v_path) > 0");
+    // These snippets are replacement values inside a PL/pgSQL string literal,
+    // so embedded SQL quotes are doubled in the migration source. Assert the
+    // exact encoded rewrite rather than a runtime function body that does not
+    // exist literally in this file.
     expect(migration).toContain(
-      "split_part(split_part(v_path, '/rpc/', 2), '?', 1)",
+      "'if position(''/rpc/'' in v_path) > 0 then'",
+    );
+    expect(migration).toContain(
+      "'v_rpc_name := split_part(split_part(v_path, ''/rpc/'', 2), ''?'', 1);'",
     );
     expect(migration).not.toContain("v_rpc_name like 'confirmation%");
     expect(migration).not.toContain("v_rpc_name like 'public_%confirmation%");
@@ -46,7 +52,15 @@ describe("Confirmation maintenance production PostgREST compatibility", () => {
   it("keeps technical and recovery material behind confirmation.manage", () => {
     expect(migration).toContain("private.solaris_confirmation_response_manage_allowed");
     expect(migration).toContain("studio2_access_allowed('confirmation.manage', submission.edition_id, false)");
-    expect(migration).toContain("studio2_access_allowed('confirmation.manage', null, true)");
+    // Recovery authority is also injected via dynamic SQL, so the capability
+    // quotes are doubled in the migration source. Keep this assertion exact so
+    // changing it to confirmation.read cannot slip through the contract test.
+    expect(migration).toContain(
+      "'public.studio2_access_allowed(''confirmation.manage'', null, true)'",
+    );
+    expect(migration).not.toContain(
+      "'public.studio2_access_allowed(''confirmation.read'', null, true)'",
+    );
     expect(migration).toContain("Missing Solaris capability: confirmation.manage");
   });
 
