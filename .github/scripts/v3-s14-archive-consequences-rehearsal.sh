@@ -47,6 +47,11 @@ expect_success() {
   (( HTTP_STATUS >= 200 && HTTP_STATUS < 300 )) || fail "$label returned HTTP $HTTP_STATUS: $HTTP_BODY"
   log "PASS: $label"
 }
+expect_failure() {
+  local label="$1"
+  (( HTTP_STATUS < 200 || HTTP_STATUS >= 300 )) || fail "$label unexpectedly succeeded: $HTTP_BODY"
+  log "PASS: $label failed closed with HTTP $HTTP_STATUS"
+}
 json_value() {
   local path="$1"
   python3 -c '
@@ -67,6 +72,8 @@ SHOW_ID='18000000-0000-4000-8000-000000000002'
 COUNTRY_ID='18000000-0000-4000-8000-000000000003'
 TASK_ID='18000000-0000-4000-8000-000000000004'
 SENTINEL_RECEIPT='18000000-0000-4000-8000-000000000005'
+ARCHIVE_OPERATION='18000000-0000-4000-8000-000000000006'
+ARCHIVE_IDEMPOTENCY_KEY='s14-archive-command-1800'
 ORGANIZER_EMAIL='s14-archive-organizer@solaris.invalid'
 PASSWORD='S14-Archive-Local-Aa9!'
 
@@ -142,32 +149,52 @@ expect_success "sign in archive Organizer"
 ORGANIZER_TOKEN="$(printf '%s' "$HTTP_BODY" | json_value access_token)"
 [[ -n "$ORGANIZER_TOKEN" ]] || fail "archive Organizer access token missing"
 
-log "Move results → post-edition through the existing canonical lifecycle authority"
+log "Move results → post-edition through the existing lifecycle authority"
 rpc "$ORGANIZER_TOKEN" studio2_transition_edition_v2 "{\"p_edition_id\":\"$EDITION_ID\",\"p_to\":\"post_edition\",\"p_reason\":null,\"p_approval_request_id\":null}"
 expect_success "results to post-edition"
 [[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_ID'::uuid;")" == 'post_edition' ]] || fail "runtime did not reach post_edition"
+ARCHIVE_EXPECTED_VERSION="$(db_value "select version::text from public.studio2_edition_runtime where edition_id='$EDITION_ID'::uuid;")"
+[[ -n "$ARCHIVE_EXPECTED_VERSION" ]] || fail "archive expected runtime version missing"
 
-log "Archive using the same canonical lifecycle authority"
+log "Legacy v2 archive path is guarded against bypassing the V3 command"
 rpc "$ORGANIZER_TOKEN" studio2_transition_edition_v2 "{\"p_edition_id\":\"$EDITION_ID\",\"p_to\":\"archived\",\"p_reason\":null,\"p_approval_request_id\":null}"
+expect_failure "legacy v2 archive bypass"
+[[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_ID'::uuid;")" == 'post_edition' ]] || fail "legacy archive bypass changed canonical runtime"
+
+log "Archive through the governed V3 command"
+rpc "$ORGANIZER_TOKEN" studio2_archive_edition_v3 "{\"p_edition_id\":\"$EDITION_ID\",\"p_expected_version\":$ARCHIVE_EXPECTED_VERSION,\"p_operation_id\":\"$ARCHIVE_OPERATION\",\"p_idempotency_key\":\"$ARCHIVE_IDEMPOTENCY_KEY\",\"p_reason\":null}"
 expect_success "post-edition to archive"
 [[ "$(printf '%s' "$HTTP_BODY" | json_value state)" == 'archived' ]] || fail "archive RPC did not return archived runtime"
+[[ "$(printf '%s' "$HTTP_BODY" | json_value operationId)" == "$ARCHIVE_OPERATION" ]] || fail "archive RPC returned the wrong operation identity"
+[[ "$(printf '%s' "$HTTP_BODY" | json_value runtimeVersion)" == "$((ARCHIVE_EXPECTED_VERSION + 1))" ]] || fail "archive RPC returned the wrong runtime version"
 [[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_ID'::uuid;")" == 'archived' ]] || fail "runtime archive truth missing"
 [[ "$(db_value "select status from public.editions where id='$EDITION_ID'::uuid;")" == 'completed' ]] || fail "legacy edition status was incorrectly promoted into a second archive authority"
 
-ARCHIVE_OPERATION="$(db_value "select operation_id::text from public.studio2_operation_receipts where command='edition.transition.archived' and scope->>'editionId'='$EDITION_ID' order by created_at desc limit 1;")"
-[[ -n "$ARCHIVE_OPERATION" ]] || fail "archive operation receipt missing"
+[[ "$(db_value "select count(*) from public.studio2_operation_receipts where operation_id='$ARCHIVE_OPERATION'::uuid and command='edition.transition.archived' and status='succeeded';")" == '1' ]] || fail "archive operation receipt missing"
 ARCHIVE_EVENT="$(db_value "select id::text from private.v3_domain_events where operation_id='$ARCHIVE_OPERATION'::uuid and event_type='edition.archived' limit 1;")"
 [[ -n "$ARCHIVE_EVENT" ]] || fail "canonical edition.archived event missing"
 [[ "$(db_value "select count(*) from private.v3_domain_event_outbox where event_id='$ARCHIVE_EVENT'::uuid and consumer_key='edition.tasks';")" == '1' ]] || fail "archive consequence outbox missing"
 [[ "$(db_value "select payload->>'lifecycleAuthority' from private.v3_domain_events where id='$ARCHIVE_EVENT'::uuid;")" == 'studio2_edition_runtime' ]] || fail "archive event did not identify canonical lifecycle authority"
 
-log "A lost-response retry is idempotent and does not emit duplicate archive facts"
+log "Exact retry replays the original result without duplicate archive facts"
 EVENT_COUNT_BEFORE="$(db_value "select count(*) from private.v3_domain_events where operation_id='$ARCHIVE_OPERATION'::uuid and event_type='edition.archived';")"
 LEGACY_ARCHIVE_COUNT_BEFORE="$(db_value "select count(*) from public.studio2_contest_events where edition_id='$EDITION_ID'::uuid and type='edition.archived';")"
-rpc "$ORGANIZER_TOKEN" studio2_transition_edition_v2 "{\"p_edition_id\":\"$EDITION_ID\",\"p_to\":\"archived\",\"p_reason\":null,\"p_approval_request_id\":null}"
-expect_success "archive retry"
+rpc "$ORGANIZER_TOKEN" studio2_archive_edition_v3 "{\"p_edition_id\":\"$EDITION_ID\",\"p_expected_version\":$ARCHIVE_EXPECTED_VERSION,\"p_operation_id\":\"$ARCHIVE_OPERATION\",\"p_idempotency_key\":\"$ARCHIVE_IDEMPOTENCY_KEY\",\"p_reason\":null}"
+expect_success "archive exact retry"
+[[ "$(printf '%s' "$HTTP_BODY" | json_value operationId)" == "$ARCHIVE_OPERATION" ]] || fail "archive replay lost operation identity"
 [[ "$(db_value "select count(*) from private.v3_domain_events where operation_id='$ARCHIVE_OPERATION'::uuid and event_type='edition.archived';")" == "$EVENT_COUNT_BEFORE" ]] || fail "archive retry duplicated V3 event"
 [[ "$(db_value "select count(*) from public.studio2_contest_events where edition_id='$EDITION_ID'::uuid and type='edition.archived';")" == "$LEGACY_ARCHIVE_COUNT_BEFORE" ]] || fail "archive retry duplicated legacy fact"
+
+log "Same operation identity with changed semantics is rejected"
+rpc "$ORGANIZER_TOKEN" studio2_archive_edition_v3 "{\"p_edition_id\":\"$EDITION_ID\",\"p_expected_version\":$ARCHIVE_EXPECTED_VERSION,\"p_operation_id\":\"$ARCHIVE_OPERATION\",\"p_idempotency_key\":\"$ARCHIVE_IDEMPOTENCY_KEY\",\"p_reason\":\"changed semantic request\"}"
+expect_failure "archive idempotency conflict"
+
+log "Archive outcome can be reconciled by exact operation identity"
+rpc "$ORGANIZER_TOKEN" studio2_reconcile_operation "{\"p_operation_id\":\"$ARCHIVE_OPERATION\"}"
+expect_success "archive operation reconciliation"
+[[ "$(printf '%s' "$HTTP_BODY" | json_value status)" == 'succeeded' ]] || fail "archive reconciliation did not report succeeded"
+[[ "$(printf '%s' "$HTTP_BODY" | json_value result.state)" == 'archived' ]] || fail "archive reconciliation did not return archived result"
+[[ "$(printf '%s' "$HTTP_BODY" | json_value result.runtimeVersion)" == "$((ARCHIVE_EXPECTED_VERSION + 1))" ]] || fail "archive reconciliation returned the wrong runtime version"
 
 log "Consume archive consequences under a service lease"
 CLAIMED="$(service_value "select event_id::text from public.studio2_claim_domain_event_deliveries('edition.tasks','s14-archive-worker',100,60);")"
