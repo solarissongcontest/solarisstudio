@@ -89,11 +89,17 @@ function ControlRoomV2() {
   const transitionEdition = useMutation({
     mutationFn: ({ to, approvalRequestId }: { to: EditionState; approvalRequestId?: string | null }) => {
       if (!editionId) throw new Error('Choose an edition before changing its state.');
+      const expectedVersion = snapshotQuery.data?.runtime.version;
+      if (!expectedVersion) throw new Error('Refresh the Control Room before changing edition state.');
+      const operationId = crypto.randomUUID();
       return studio2ControlRoom.transitionEdition({
         editionId,
         to,
         reason: reason.trim() || null,
         approvalRequestId: approvalRequestId ?? null,
+        expectedVersion,
+        operationId,
+        idempotencyKey: `edition-transition:${operationId}`,
       });
     },
     onSuccess: async () => {
@@ -582,7 +588,6 @@ function transitionReadinessBlockers(
       (issue.severity === 'critical' || issue.severity === 'action'),
   );
 }
-
 
 function riskTone(risk: 'normal' | 'elevated' | 'critical') {
   return risk === 'critical'
