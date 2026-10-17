@@ -36,6 +36,10 @@ export function v3OfficialNoticeResolved(state: NoticeInboxState): boolean {
   return state === "acknowledged" || state === "archived" || state === "read";
 }
 
+function assertNever(value: never): never {
+  throw new Error(`Unsupported official-notice audience: ${String(value)}`);
+}
+
 function audienceReason(audience: NoticeAudience): string {
   switch (audience) {
     case "all_delegations":
@@ -56,6 +60,8 @@ function audienceReason(audience: NoticeAudience): string {
       return "This notice was sent to the official staff audience.";
     case "press":
       return "This notice was sent to the official press audience.";
+    default:
+      return assertNever(audience);
   }
 }
 
