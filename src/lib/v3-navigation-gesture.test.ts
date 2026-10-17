@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   classifyV3SwipeIntent,
   isV3BrowserEdgeGestureStart,
+  isV3ScrollableHorizontalOverflow,
   resolveV3LogicalHorizontalDelta,
   resolveV3PageSettleMotion,
   resolveV3PageSwipeOffset,
@@ -33,6 +34,37 @@ describe("V3 top-level navigation gesture policy", () => {
     expect(isV3BrowserEdgeGestureStart({ clientX: 12, viewportWidth: 390 })).toBe(true);
     expect(isV3BrowserEdgeGestureStart({ clientX: 378, viewportWidth: 390 })).toBe(true);
     expect(isV3BrowserEdgeGestureStart({ clientX: 120, viewportWidth: 390 })).toBe(false);
+  });
+
+  it("recognizes real horizontal overflow even when a feature owner omitted an annotation", () => {
+    expect(
+      isV3ScrollableHorizontalOverflow({
+        overflowX: "auto",
+        scrollWidth: 720,
+        clientWidth: 360,
+      }),
+    ).toBe(true);
+    expect(
+      isV3ScrollableHorizontalOverflow({
+        overflowX: "scroll",
+        scrollWidth: 361.5,
+        clientWidth: 360,
+      }),
+    ).toBe(true);
+    expect(
+      isV3ScrollableHorizontalOverflow({
+        overflowX: "hidden",
+        scrollWidth: 720,
+        clientWidth: 360,
+      }),
+    ).toBe(false);
+    expect(
+      isV3ScrollableHorizontalOverflow({
+        overflowX: "auto",
+        scrollWidth: 360.5,
+        clientWidth: 360,
+      }),
+    ).toBe(false);
   });
 
   it("rubber-bands the first and last tab instead of revealing fake destinations", () => {
