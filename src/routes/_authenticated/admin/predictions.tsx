@@ -12,14 +12,14 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { useAdminContext } from "@/components/admin/AdminContext";
-import { editionLabel, useAllShows, useEditions, useIsOrganizer } from "@/lib/data";
+import { editionLabel, useEditions, useIsOrganizer, useShows } from "@/lib/data";
 import {
   type PredictionRound,
   useDeletePredictionRound,
-  usePredictionRounds,
   useSavePredictionRound,
   useScorePredictionRound,
 } from "@/lib/prediction-data";
+import { useOrganizerPredictionRoundsForShows } from "@/lib/v3-organizer-prediction-data";
 import type { PredictionType } from "@/lib/predictions";
 
 export const Route = createFileRoute("/_authenticated/admin/predictions")({
@@ -65,9 +65,18 @@ function defaultForm(): FormState {
 function PredictionRoundAdmin() {
   const { editionId } = useAdminContext();
   const { data: isOrganizer } = useIsOrganizer();
-  const { data: shows = [] } = useAllShows();
-  const { data: editions = [] } = useEditions();
-  const { data: roundData, isLoading } = usePredictionRounds(undefined, true);
+  const { data: editions = [], isLoading: editionsLoading } = useEditions();
+  const activeEdition = useMemo(
+    () => editions.find((edition) => edition.id === editionId) ?? null,
+    [editions, editionId],
+  );
+  const { data: shows = [], isLoading: showsLoading } = useShows(activeEdition?.id);
+  const sortedShows = useMemo(
+    () => [...shows].sort((a, b) => a.sort_order - b.sort_order),
+    [shows],
+  );
+  const showIds = useMemo(() => sortedShows.map((show) => show.id), [sortedShows]);
+  const { data: roundData, isLoading: roundsLoading } = useOrganizerPredictionRoundsForShows(showIds, true);
   const saveRound = useSavePredictionRound();
   const deleteRound = useDeletePredictionRound();
   const scoreRound = useScorePredictionRound();
@@ -75,26 +84,27 @@ function PredictionRoundAdmin() {
   const [message, setMessage] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const activeEdition = useMemo(() => {
-    const ordered = [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1));
-    return ordered.find((edition) => edition.id === editionId) ?? ordered[0] ?? null;
-  }, [editions, editionId]);
-
-  const sortedShows = useMemo(
-    () => shows.filter((show) => show.edition_id === activeEdition?.id).sort((a, b) => a.sort_order - b.sort_order),
-    [shows, activeEdition?.id],
+  const roundByShow = useMemo(
+    () => new Map((roundData?.rounds ?? []).map((round) => [round.show_id, round])),
+    [roundData],
   );
-
-  const roundByShow = useMemo(() => new Map((roundData?.rounds ?? []).map((round) => [round.show_id, round])), [roundData]);
   const selectedShow = sortedShows.find((show) => show.id === form.showId) ?? null;
   const selectedRound = form.showId ? roundByShow.get(form.showId) ?? null : null;
+
+  useEffect(() => {
+    setForm(defaultForm());
+    setDeleteOpen(false);
+    setMessage(null);
+  }, [activeEdition?.id]);
 
   useEffect(() => {
     if (!sortedShows.length) {
       if (form.showId) setForm((current) => ({ ...current, showId: "" }));
       return;
     }
-    if (!sortedShows.some((show) => show.id === form.showId)) setForm((current) => ({ ...current, showId: sortedShows[0].id }));
+    if (!sortedShows.some((show) => show.id === form.showId)) {
+      setForm((current) => ({ ...current, showId: sortedShows[0].id }));
+    }
   }, [form.showId, sortedShows]);
 
   useEffect(() => {
@@ -124,9 +134,27 @@ function PredictionRoundAdmin() {
     });
   };
 
+  function assertExactSelection() {
+    if (!editionId || !activeEdition || activeEdition.id !== editionId) {
+      return "Edition context changed before the Prediction Arena command. Select the exact Organizer edition and review the change again.";
+    }
+    if (!selectedShow || selectedShow.edition_id !== activeEdition.id) {
+      return "The selected show no longer belongs to the active Organizer edition. Refresh the selection before continuing.";
+    }
+    if (selectedRound && selectedRound.show_id !== selectedShow.id) {
+      return "The selected prediction round no longer matches the visible show. Refresh before continuing.";
+    }
+    return null;
+  }
+
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     setMessage(null);
+    const scopeError = assertExactSelection();
+    if (scopeError) {
+      setMessage(scopeError);
+      return;
+    }
     if (!form.showId || !form.predictionTypes.length) {
       setMessage("Choose a show and at least one prediction type.");
       return;
@@ -157,6 +185,12 @@ function PredictionRoundAdmin() {
   const remove = async () => {
     if (!selectedRound) return;
     setMessage(null);
+    const scopeError = assertExactSelection();
+    if (scopeError) {
+      setDeleteOpen(false);
+      setMessage(scopeError);
+      return;
+    }
     try {
       await deleteRound.mutateAsync(selectedRound.id);
       setMessage("Draft prediction round deleted.");
@@ -169,6 +203,11 @@ function PredictionRoundAdmin() {
   const score = async () => {
     if (!selectedRound) return;
     setMessage(null);
+    const scopeError = assertExactSelection();
+    if (scopeError) {
+      setMessage(scopeError);
+      return;
+    }
     try {
       const count = await scoreRound.mutateAsync(selectedRound.id);
       setMessage(`${count} prediction${count === 1 ? "" : "s"} scored.`);
@@ -179,6 +218,7 @@ function PredictionRoundAdmin() {
 
   const configured = sortedShows.filter((show) => roundByShow.has(show.id)).length;
   const open = sortedShows.filter((show) => roundByShow.get(show.id)?.status === "open").length;
+  const loading = editionsLoading || Boolean(activeEdition && (showsLoading || roundsLoading));
 
   return (
     <AdminPage>
@@ -193,12 +233,12 @@ function PredictionRoundAdmin() {
 
       {isOrganizer === false ? (
         <AdminCard><AdminEmptyState icon={Sparkles} title="Organizer access required" description="This account can use fan features but cannot configure contest prediction rounds." /></AdminCard>
-      ) : isLoading ? (
+      ) : loading ? (
         <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading prediction rounds…</p></AdminCard>
+      ) : !activeEdition ? (
+        <AdminCard><AdminEmptyState icon={Trophy} title="No edition selected" description="Choose the exact Organizer edition before configuring prediction rounds. Solaris will not substitute the newest or globally active edition." action={<Link to="/admin/editions" className="admin-action-primary">Manage editions</Link>} /></AdminCard>
       ) : roundData?.schemaReady === false ? (
         <AdminCard><AdminEmptyState icon={Sparkles} title="Prediction storage unavailable" description="Prediction rounds are temporarily unavailable. Existing contest data is unaffected." /></AdminCard>
-      ) : !activeEdition ? (
-        <AdminCard><AdminEmptyState icon={Trophy} title="No edition selected" description="Choose an edition before configuring prediction rounds." action={<Link to="/admin/editions" className="admin-action-primary">Manage editions</Link>} /></AdminCard>
       ) : (
         <>
           <div className="grid grid-cols-3 gap-2">
