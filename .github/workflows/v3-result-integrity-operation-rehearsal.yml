@@ -7,8 +7,10 @@ on:
     paths:
       - "supabase/migrations/**"
       - "src/integrations/televoting/result-integrity.server.ts"
+      - "src/integrations/televoting/result-integrity-replay.server.ts"
       - "src/integrations/televoting/result-integrity.functions.ts"
       - "src/lib/v3-result-integrity-operation.contract.test.ts"
+      - "src/lib/v3-result-integrity-replay.contract.test.ts"
       - ".github/scripts/v3-result-integrity-operation-rehearsal.sh"
       - ".github/workflows/v3-result-integrity-operation-rehearsal.yml"
   workflow_dispatch:
@@ -68,11 +70,13 @@ jobs:
           cd /tmp/solaris-result-integrity-main
           supabase start
           supabase db reset --local --no-seed
-      - name: Apply only the Result Integrity feature migration locally
+      - name: Apply only the Result Integrity feature migrations locally
         shell: bash
         run: |
           set -euo pipefail
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261017104500_v3_result_integrity_recompute_operation.sql" \
+            /tmp/solaris-result-integrity-main/supabase/migrations/
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261017104600_v3_result_integrity_replay_lookup.sql" \
             /tmp/solaris-result-integrity-main/supabase/migrations/
           cd /tmp/solaris-result-integrity-main
           supabase migration up --local --include-all
