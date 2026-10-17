@@ -14,6 +14,7 @@ export type IntegrityDeclarationState =
 
 export type IntegrityDeclarationRow = {
   id: string;
+  canonical_edition_id: string;
   round_id: string;
   round_name: string;
   edition_name: string | null;
@@ -50,6 +51,7 @@ export type IntegrityDeclarationRow = {
 
 type PreflightDbRow = {
   id: string;
+  canonical_edition_id: string;
   round_id: string;
   username_normalized: string;
   country_code: string;
@@ -73,10 +75,11 @@ type PreflightDbRow = {
   created_at: string;
 };
 
-type RoundDbRow = { id: string; name: string | null; edition_id: string | null };
+type RoundDbRow = { id: string; name: string | null };
 type SubmissionDbRow = { id: string; status: string | null };
-type EditionDbRow = { id: string; name: string | null; edition_number: number | null };
-type RoundMeta = { name: string; editionId: string };
+type RoundBindingDbRow = { remote_round_id: string; edition_id: string };
+
+type RoundMeta = { name: string };
 
 function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
@@ -102,30 +105,41 @@ function asObject(value: unknown): Record<string, unknown> {
     : {};
 }
 
-export async function listIntegrityDeclarationsServer(input?: {
+export async function listIntegrityDeclarationsServer(input: {
+  editionId: string;
   limit?: number;
   signedOnly?: boolean;
 }) {
   await requireMergedTelevotingAdminServer();
 
-  const limit = Math.max(1, Math.min(1000, Number(input?.limit ?? 300)));
+  const scopedEditionId = String(input.editionId ?? "").trim();
+  if (!scopedEditionId) {
+    throw new Error("Voting integrity declarations require an explicit edition scope");
+  }
+
+  const limit = Math.max(1, Math.min(1000, Number(input.limit ?? 300)));
   const tv = (supabaseAdmin as any).schema("televoting");
 
   let query = tv
     .from("vote_preflight_checks")
     .select(
-      "id,round_id,username_normalized,country_code,hod_person_id,relationship_risk,risk_score,severity,findings,technical_signals,history_summary,statement_version,declaration_version,declaration_invalidated_at,declaration_invalidation_reason,attested_at,signed_name,attestation_text,submission_id,submitted_at,expires_at,created_at",
+      "id,canonical_edition_id,round_id,username_normalized,country_code,hod_person_id,relationship_risk,risk_score,severity,findings,technical_signals,history_summary,statement_version,declaration_version,declaration_invalidated_at,declaration_invalidation_reason,attested_at,signed_name,attestation_text,submission_id,submitted_at,expires_at,created_at",
     )
+    .eq("canonical_edition_id", scopedEditionId)
     .eq("requires_attestation", true)
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  if (input?.signedOnly) query = query.not("attested_at", "is", null);
+  if (input.signedOnly) query = query.not("attested_at", "is", null);
 
   const { data: preflights, error } = await query;
   if (error) throw new Error(error.message);
 
   const rows = (preflights ?? []) as PreflightDbRow[];
+  if (rows.some((row) => String(row.canonical_edition_id ?? "") !== scopedEditionId)) {
+    throw new Error("Voting integrity declarations returned data outside the selected edition scope");
+  }
+
   const policyDb = supabaseAdmin as unknown as {
     from: (table: string) => {
       select: (columns: string) => {
@@ -151,53 +165,71 @@ export async function listIntegrityDeclarationsServer(input?: {
   const roundIds = [...new Set(rows.map((row) => row.round_id).filter(Boolean))];
   const submissionIds = [...new Set(rows.map((row) => row.submission_id).filter((value): value is string => Boolean(value)))];
 
-  const [roundsResult, submissionsResult] = await Promise.all([
+  const [roundsResult, submissionsResult, bindingsResult, editionResult] = await Promise.all([
     roundIds.length
-      ? tv.from("rounds").select("id,name,edition_id").in("id", roundIds)
+      ? tv.from("rounds").select("id,name").in("id", roundIds)
       : Promise.resolve({ data: [] as RoundDbRow[], error: null }),
     submissionIds.length
       ? tv.from("vote_submissions").select("id,status").in("id", submissionIds)
       : Promise.resolve({ data: [] as SubmissionDbRow[], error: null }),
+    roundIds.length
+      ? (supabaseAdmin as any)
+          .from("televoting_round_bindings")
+          .select("remote_round_id,edition_id")
+          .in("remote_round_id", roundIds)
+      : Promise.resolve({ data: [] as RoundBindingDbRow[], error: null }),
+    (supabaseAdmin as any)
+      .from("editions")
+      .select("id,name,edition_number")
+      .eq("id", scopedEditionId)
+      .maybeSingle(),
   ]);
   if (roundsResult.error) throw new Error(roundsResult.error.message);
   if (submissionsResult.error) throw new Error(submissionsResult.error.message);
+  if (bindingsResult.error) throw new Error(bindingsResult.error.message);
+  if (editionResult.error) throw new Error(editionResult.error.message);
+  if (!editionResult.data) throw new Error("Voting integrity declaration edition could not be resolved");
 
   const roundRows = (roundsResult.data ?? []) as RoundDbRow[];
   const submissionRows = (submissionsResult.data ?? []) as SubmissionDbRow[];
+  const bindingRows = (bindingsResult.data ?? []) as RoundBindingDbRow[];
+  const bindingByRound = new Map(
+    bindingRows.map((binding) => [String(binding.remote_round_id), String(binding.edition_id)]),
+  );
+  const mismatchedRound = roundIds.find(
+    (roundId) => bindingByRound.get(roundId) !== scopedEditionId,
+  );
+  if (mismatchedRound) {
+    throw new Error("Voting integrity declaration references a round outside the selected edition scope");
+  }
+
   const rounds = new Map<string, RoundMeta>(
     roundRows.map((round) => [
       String(round.id),
-      { name: String(round.name ?? "Voting round"), editionId: String(round.edition_id ?? "") },
+      { name: String(round.name ?? "Voting round") },
     ]),
   );
+  const missingRound = roundIds.find((roundId) => !rounds.has(roundId));
+  if (missingRound) {
+    throw new Error("Voting integrity declaration references an unavailable round");
+  }
+
   const submissionStatus = new Map<string, string>(
     submissionRows.map((submission) => [String(submission.id), String(submission.status ?? "")]),
   );
-
-  const editionIds = [...new Set([...rounds.values()].map((round) => round.editionId).filter(Boolean))];
-  const editionsResult = editionIds.length
-    ? await tv.from("editions").select("id,name,edition_number").in("id", editionIds)
-    : { data: [] as EditionDbRow[], error: null };
-  if (editionsResult.error) throw new Error(editionsResult.error.message);
-
-  const editionRows = (editionsResult.data ?? []) as EditionDbRow[];
-  const editionNames = new Map<string, string>(
-    editionRows.map((edition) => [
-      String(edition.id),
-      edition.edition_number
-        ? `SSC ${edition.edition_number} · ${String(edition.name ?? "Edition")}`
-        : String(edition.name ?? "Edition"),
-    ]),
-  );
+  const editionName = editionResult.data.edition_number
+    ? `SSC ${Number(editionResult.data.edition_number)} · ${String(editionResult.data.name ?? "Edition")}`
+    : String(editionResult.data.name ?? "Edition");
 
   return rows.map((row): IntegrityDeclarationRow => {
     const round = rounds.get(row.round_id);
     const history = asObject(row.history_summary);
     return {
       id: row.id,
+      canonical_edition_id: scopedEditionId,
       round_id: row.round_id,
       round_name: round?.name ?? "Voting round",
-      edition_name: round?.editionId ? editionNames.get(round.editionId) ?? null : null,
+      edition_name: editionName,
       username: row.username_normalized,
       country_code: row.country_code,
       hod_person_id: row.hod_person_id,
