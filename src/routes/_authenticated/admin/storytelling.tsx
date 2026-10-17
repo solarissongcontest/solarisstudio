@@ -84,9 +84,7 @@ function StorytellingPage() {
   const [anniversaryDate, setAnniversaryDate] = useState(dateInParis);
 
   const editions = editionsQuery.data ?? [];
-  const edition = editions.find((item) => item.id === editionId)
-    ?? [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0]
-    ?? null;
+  const edition = editions.find((item) => item.id === editionId) ?? null;
   const resolvedEditionId = edition?.id ?? '';
 
   const storyQuery = useQuery({
@@ -101,10 +99,17 @@ function StorytellingPage() {
 
   const anniversaryQuery = useQuery({
     queryKey: ['studio2-anniversary-engine', anniversaryDate],
-    enabled: view === 'anniversary' && /^\d{4}-\d{2}-\d{2}$/.test(anniversaryDate),
+    enabled: Boolean(resolvedEditionId) && view === 'anniversary' && /^\d{4}-\d{2}-\d{2}$/.test(anniversaryDate),
     queryFn: () => loadAnniversaryEngine(anniversaryDate),
     staleTime: 30_000,
   });
+
+  useEffect(() => {
+    setItemTarget(null);
+    setManualOpen(false);
+    setConfirmAction(null);
+    setAuditReason('');
+  }, [resolvedEditionId]);
 
   useEffect(() => {
     if (!story) {
@@ -125,15 +130,23 @@ function StorytellingPage() {
       payload?: Record<string, unknown>;
       expectedRevision?: number | null;
       reason?: string;
-    }) => executeStudio2StoryOperation({
-      editionId: resolvedEditionId,
-      action: input.action,
-      reason: (input.reason ?? auditReason).trim(),
-      executionId: crypto.randomUUID(),
-      expectedRevision: input.expectedRevision ?? story?.revision ?? null,
-      itemId: input.itemId ?? null,
-      payload: input.payload ?? {},
-    }),
+    }) => {
+      if (!editionId || !resolvedEditionId || resolvedEditionId !== editionId) {
+        throw Object.assign(
+          new Error('Edition context changed before the Storytelling command. Reopen the selected edition and review the change again.'),
+          { status: 409 },
+        );
+      }
+      return executeStudio2StoryOperation({
+        editionId: resolvedEditionId,
+        action: input.action,
+        reason: (input.reason ?? auditReason).trim(),
+        executionId: crypto.randomUUID(),
+        expectedRevision: input.expectedRevision ?? story?.revision ?? null,
+        itemId: input.itemId ?? null,
+        payload: input.payload ?? {},
+      });
+    },
     onSuccess: async (execution) => {
       await queryClient.invalidateQueries({ queryKey: ['studio2-storytelling', resolvedEditionId] });
       await queryClient.invalidateQueries({ queryKey: ['studio2-anniversary-engine'] });
@@ -272,7 +285,7 @@ function StorytellingPage() {
         </div>
 
         {!edition && !editionsQuery.isLoading ? (
-          <AdminCard><AdminEmptyState icon={BookOpen} title="No edition selected" description="Select an edition before managing its storyline." /></AdminCard>
+          <AdminCard><AdminEmptyState icon={BookOpen} title="No edition selected" description="Select the exact Organizer edition before managing Storytelling. Solaris will not substitute the newest or globally active edition." /></AdminCard>
         ) : loading ? (
           <AdminCard><p className="py-12 text-center text-sm text-muted-foreground">Building the storytelling snapshot…</p></AdminCard>
         ) : error ? (
