@@ -180,6 +180,7 @@ function CommunityModerationPage() {
           eyebrow="Engagement · Moderation"
           title="Community identity"
           description="Moderate public fan display identity without altering predictions, scores or historical competitive data. Hidden profiles keep their private account and scoring history."
+          actions={<AdminStatus tone="info">Scope · global community identity</AdminStatus>}
         />
 
         <section className="grid gap-3 sm:grid-cols-3">
@@ -318,6 +319,7 @@ function CommunityModerationPage() {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <AdminStatus tone="attention">{MODERATION_RISK}</AdminStatus>
+              <AdminStatus tone="info">Global public identity</AdminStatus>
               <p className="text-xs font-semibold text-muted-foreground">
                 {requiresImpactPreview(MODERATION_RISK)
                   ? "Impact review required"
@@ -328,6 +330,7 @@ function CommunityModerationPage() {
             <div className="rounded-xl border border-amber-200/15 bg-amber-200/[0.05] p-3">
               <p className="text-sm font-semibold">{pendingModeration.profile.displayName}</p>
               <ul className="mt-2 space-y-1.5 text-xs leading-5 text-muted-foreground">
+                <li>Scope: public community identity across eligible surfaces, not an edition, show or competitive record.</li>
                 <li>
                   {pendingModeration.hidden
                     ? "The display identity will disappear from eligible public leaderboard surfaces."
