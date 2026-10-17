@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { AlertTriangle, Clock3, FlaskConical, RotateCcw, ShieldAlert } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminPage } from '@/components/admin/AdminShell';
@@ -13,7 +13,6 @@ import {
   SUBSYSTEM_STATES,
   canTransitionEdition,
   getEditionTransition,
-  type EditionState,
   type EditionSubsystem,
   type SubsystemState,
 } from '@/lib/edition-state';
@@ -28,11 +27,11 @@ import { isStudio2FeatureEnabled } from '@/lib/studio2-feature-flags';
 export const Route = createFileRoute('/_authenticated/admin/edition-simulator')({
   head: () => ({
     meta: [
-      { title: 'Edition Simulator — Solaris Organizer' },
+      { title: 'Simulation Lab — Solaris Organizer' },
       { name: 'robots', content: 'noindex' },
     ],
   }),
-  component: EditionSimulatorPage,
+  component: EditionSimulatorRoute,
 });
 
 const SUBSYSTEMS: EditionSubsystem[] = [
@@ -44,13 +43,56 @@ const SUBSYSTEMS: EditionSubsystem[] = [
   'predictions',
 ];
 
+const SIMULATION_SCOPE = [
+  { label: 'Confirmation', evidence: 'Confirmation subsystem state' },
+  { label: 'Entries', evidence: 'Submission subsystem state' },
+  { label: 'Voting', evidence: 'Jury and televote subsystem state' },
+  { label: 'Results', evidence: 'Results subsystem state' },
+  { label: 'Publication', evidence: 'Local results publication state' },
+  { label: 'Progression', evidence: 'Edition lifecycle transitions' },
+  { label: 'Live state', evidence: 'Rehearsal/live lifecycle and simulated incidents' },
+] as const;
+
+function EditionSimulatorRoute() {
+  const { editionId } = useAdminContext();
+  return <EditionSimulatorPage key={editionId ?? 'unscoped'} />;
+}
+
 function SimulatorPageHeader() {
   return (
     <AdminPageHeader
-      eyebrow="Solaris Studio 2"
-      title="Edition Simulator"
-      description="Clone the current Control Room lifecycle into an in-memory rehearsal, then test transitions, subsystem states, incidents and recovery without touching production."
+      eyebrow="Solaris Organizer · Isolated rehearsal"
+      title="Simulation Lab"
+      description="Clone one Control Room read snapshot into an in-memory rehearsal, then test transitions, subsystem states, incidents and recovery without touching production."
     />
+  );
+}
+
+function SimulationIsolationBanner() {
+  return (
+    <div
+      role="status"
+      aria-label="Simulation isolation status"
+      className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3"
+    >
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-100">SIMULATION</p>
+      <p className="mt-1 text-sm font-semibold text-foreground">No production data will be changed.</p>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+        Production is read only to seed this rehearsal. Every action after that stays inside the local simulation state until you explicitly refresh the source snapshot.
+      </p>
+    </div>
+  );
+}
+
+function SimulatorScaffold({ children }: { children: ReactNode }) {
+  return (
+    <AdminPage>
+      <div className="mx-auto max-w-7xl space-y-4">
+        <SimulatorPageHeader />
+        <SimulationIsolationBanner />
+        {children}
+      </div>
+    </AdminPage>
   );
 }
 
@@ -70,11 +112,20 @@ function EditionSimulatorPage() {
     queryKey: ['studio2-simulator-source', editionId ?? 'none'],
     enabled: featureQuery.data === true && Boolean(editionId),
     queryFn: () => getControlRoom({ data: { editionId: editionId! } }),
+    staleTime: Infinity,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
-  const resetSimulation = () => {
-    const model = controlRoomQuery.data;
-    if (!model) return;
+  const resetSimulation = async () => {
+    setSimulationError(null);
+    const refreshed = await controlRoomQuery.refetch();
+    const model = refreshed.data;
+    if (!model) {
+      setSimulationError('The current Control Room state could not be refreshed.');
+      return;
+    }
     setSimulation(createEditionSimulation({
       startsAt: new Date().toISOString(),
       runtime: {
@@ -82,7 +133,6 @@ function EditionSimulatorPage() {
         subsystems: model.subsystems,
       },
     }));
-    setSimulationError(null);
   };
 
   useEffect(() => {
@@ -118,217 +168,219 @@ function EditionSimulatorPage() {
 
   if (featureQuery.isLoading) {
     return (
-      <AdminPage>
-        <div className="mx-auto max-w-7xl space-y-4">
-          <SimulatorPageHeader />
-          <AdminCard>
-            <p className="py-8 text-center text-sm text-muted-foreground">Loading Edition Simulator…</p>
-          </AdminCard>
-        </div>
-      </AdminPage>
+      <SimulatorScaffold>
+        <AdminCard>
+          <p className="py-8 text-center text-sm text-muted-foreground">Loading Simulation Lab…</p>
+        </AdminCard>
+      </SimulatorScaffold>
     );
   }
 
   if (featureQuery.data !== true) {
     return (
-      <AdminPage>
-        <div className="mx-auto max-w-7xl space-y-4">
-          <SimulatorPageHeader />
-          <AdminEmptyState
-            icon={FlaskConical}
-            title="Edition Simulator is disabled"
-            description="Enable the Edition Simulator rollout flag before rehearsing edition operations."
-          />
-        </div>
-      </AdminPage>
+      <SimulatorScaffold>
+        <AdminEmptyState
+          icon={FlaskConical}
+          title="Simulation Lab is disabled"
+          description="Enable the Edition Simulator rollout flag before rehearsing edition operations."
+        />
+      </SimulatorScaffold>
     );
   }
 
   if (!editionId) {
     return (
-      <AdminPage>
-        <div className="mx-auto max-w-7xl space-y-4">
-          <SimulatorPageHeader />
-          <AdminEmptyState
-            icon={FlaskConical}
-            title="Select an edition"
-            description="Edition Simulator starts from the currently selected Organizer edition."
-          />
-        </div>
-      </AdminPage>
+      <SimulatorScaffold>
+        <AdminEmptyState
+          icon={FlaskConical}
+          title="Select an edition"
+          description="Simulation Lab starts from one explicitly selected Organizer edition and never substitutes another edition."
+        />
+      </SimulatorScaffold>
     );
   }
 
   return (
-    <AdminPage>
-      <div className="mx-auto max-w-7xl space-y-4">
-        <SimulatorPageHeader />
-
-        <AdminCard strong>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-emerald-300/15 bg-emerald-300/10 text-emerald-200">
-                <FlaskConical className="size-5" />
-              </span>
-              <div>
-                <p className="font-semibold">Nothing here writes production state</p>
-                <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-                  The simulator starts from the Control Room read model, then uses only the pure in-memory simulation engine. Reloading or resetting discards every simulated transition and incident.
-                </p>
-              </div>
+    <SimulatorScaffold>
+      <AdminCard strong>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-emerald-300/15 bg-emerald-300/10 text-emerald-200">
+              <FlaskConical className="size-5" />
+            </span>
+            <div>
+              <p className="font-semibold">One read snapshot, then isolated local state</p>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+                The lab seeds from the selected edition&apos;s Control Room read model. Automatic focus/reconnect refresh is disabled so production changes cannot silently replace a rehearsal in progress.
+              </p>
             </div>
-            <button
-              type="button"
-              onClick={resetSimulation}
-              disabled={!controlRoomQuery.data}
-              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[0.09] bg-white/[0.035] px-3 text-sm font-semibold hover:bg-white/[0.07] disabled:opacity-40"
-            >
-              <RotateCcw className="size-4" /> Reset from Control Room
-            </button>
           </div>
-        </AdminCard>
+          <button
+            type="button"
+            onClick={() => { void resetSimulation(); }}
+            disabled={controlRoomQuery.isFetching}
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/[0.09] bg-white/[0.035] px-3 text-sm font-semibold hover:bg-white/[0.07] disabled:opacity-40"
+          >
+            <RotateCcw className="size-4" /> {controlRoomQuery.isFetching ? 'Refreshing…' : 'Refresh source & reset'}
+          </button>
+        </div>
+      </AdminCard>
 
-        {controlRoomQuery.isLoading ? (
-          <AdminCard><p className="py-10 text-center text-sm text-muted-foreground">Cloning Control Room state…</p></AdminCard>
-        ) : controlRoomQuery.error ? (
-          <AdminCard><AdminEmptyState icon={FlaskConical} title="Simulator source unavailable" description={errorText(controlRoomQuery.error)} /></AdminCard>
-        ) : simulation ? (
-          <>
-            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <Metric label="Edition state" value={humanize(simulation.runtime.edition)} />
-              <Metric label="Simulation clock" value={formatClock(simulation.clock)} />
-              <Metric label="Active incidents" value={`${simulation.incidents.filter((incident) => incident.active).length}`} tone={simulation.incidents.some((incident) => incident.active) ? 'attention' : 'ready'} />
-              <Metric label="Actions rehearsed" value={`${simulation.log.length}`} />
-            </section>
-
-            {simulationError ? (
-              <div className="rounded-xl border border-red-300/25 bg-red-300/10 px-4 py-3 text-sm text-red-100">{simulationError}</div>
-            ) : null}
-
-            <div className="grid gap-4 xl:grid-cols-2">
-              <AdminCard strong>
-                <AdminCardHeader eyebrow="Lifecycle" title="Edition transitions" />
-                <p className="mt-2 text-sm text-muted-foreground">Only transitions allowed by the real Edition State Engine are offered.</p>
-                <div className="mt-4 space-y-2">
-                  {transitions.length ? transitions.map((transition) => (
-                    <button
-                      key={`${transition.from}-${transition.to}`}
-                      type="button"
-                      onClick={() => dispatch({ type: 'transition_edition', to: transition.to })}
-                      className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-black/10 px-3 text-left hover:bg-white/[0.04]"
-                    >
-                      <span>
-                        <span className="block text-sm font-semibold">{humanize(transition.from)} → {humanize(transition.to)}</span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">Rehearse this lifecycle change.</span>
-                      </span>
-                      <AdminStatus tone={riskTone(transition.risk)}>{transition.risk}</AdminStatus>
-                    </button>
-                  )) : (
-                    <AdminEmptyState icon={ShieldAlert} title="No legal transition" description="This simulated edition state has no onward transition." />
-                  )}
-                </div>
-              </AdminCard>
-
-              <AdminCard>
-                <AdminCardHeader eyebrow="Clock" title="Advance simulation time" />
-                <p className="mt-2 text-sm text-muted-foreground">Advance the rehearsal clock without waiting in the real world, a rare victory over linear time.</p>
-                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {[60, 300, 900, 3600].map((seconds) => (
-                    <button
-                      key={seconds}
-                      type="button"
-                      onClick={() => dispatch({ type: 'advance_time', seconds })}
-                      className="min-h-11 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 text-sm font-semibold hover:bg-white/[0.07]"
-                    >
-                      +{formatDuration(seconds)}
-                    </button>
-                  ))}
-                </div>
-              </AdminCard>
+      <AdminCard>
+        <AdminCardHeader eyebrow="O17 scope" title="Simulation coverage" />
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          These controls cover the canonical rehearsal domains without inventing a second production state model. Publication, progression and live behavior are exercised through the same local subsystem and lifecycle primitives used by the simulator.
+        </p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {SIMULATION_SCOPE.map((scope) => (
+            <div key={scope.label} className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
+              <p className="text-sm font-semibold">{scope.label}</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">{scope.evidence}</p>
             </div>
+          ))}
+        </div>
+      </AdminCard>
 
-            <AdminCard>
-              <AdminCardHeader eyebrow="Subsystems" title="Operational state rehearsal" />
-              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {SUBSYSTEMS.map((subsystem) => (
-                  <label key={subsystem} className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
-                    <span className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">{humanize(subsystem)}</span>
-                    <select
-                      value={simulation.runtime.subsystems[subsystem]}
-                      onChange={(event) => dispatch({ type: 'set_subsystem', subsystem, state: event.target.value as SubsystemState })}
-                      className="mt-2 min-h-10 w-full rounded-lg border border-white/[0.08] bg-background px-3 text-sm"
-                    >
-                      {SUBSYSTEM_STATES.map((state) => <option key={state} value={state}>{humanize(state)}</option>)}
-                    </select>
-                  </label>
-                ))}
+      {controlRoomQuery.isLoading ? (
+        <AdminCard><p className="py-10 text-center text-sm text-muted-foreground">Cloning Control Room state…</p></AdminCard>
+      ) : controlRoomQuery.error ? (
+        <AdminCard><AdminEmptyState icon={FlaskConical} title="Simulator source unavailable" description={errorText(controlRoomQuery.error)} /></AdminCard>
+      ) : simulation ? (
+        <>
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Metric label="Edition state" value={humanize(simulation.runtime.edition)} />
+            <Metric label="Simulation clock" value={formatClock(simulation.clock)} />
+            <Metric label="Active incidents" value={`${simulation.incidents.filter((incident) => incident.active).length}`} tone={simulation.incidents.some((incident) => incident.active) ? 'attention' : 'ready'} />
+            <Metric label="Actions rehearsed" value={`${simulation.log.length}`} />
+          </section>
+
+          {simulationError ? (
+            <div className="rounded-xl border border-red-300/25 bg-red-300/10 px-4 py-3 text-sm text-red-100">{simulationError}</div>
+          ) : null}
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <AdminCard strong>
+              <AdminCardHeader eyebrow="Lifecycle" title="Edition transitions" />
+              <p className="mt-2 text-sm text-muted-foreground">Only transitions allowed by the real Edition State Engine are offered.</p>
+              <div className="mt-4 space-y-2">
+                {transitions.length ? transitions.map((transition) => (
+                  <button
+                    key={`${transition.from}-${transition.to}`}
+                    type="button"
+                    onClick={() => dispatch({ type: 'transition_edition', to: transition.to })}
+                    className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-black/10 px-3 text-left hover:bg-white/[0.04]"
+                  >
+                    <span>
+                      <span className="block text-sm font-semibold">{humanize(transition.from)} → {humanize(transition.to)}</span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">Rehearse this lifecycle change.</span>
+                    </span>
+                    <AdminStatus tone={riskTone(transition.risk)}>{transition.risk}</AdminStatus>
+                  </button>
+                )) : (
+                  <AdminEmptyState icon={ShieldAlert} title="No legal transition" description="This simulated edition state has no onward transition." />
+                )}
               </div>
             </AdminCard>
 
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-              <AdminCard strong>
-                <AdminCardHeader eyebrow="Incident drill" title="Inject failure scenarios" />
-                <div className="mt-4 space-y-2">
-                  <ScenarioButton
-                    title="Televoting outage"
-                    severity="sev1"
-                    onClick={() => dispatch({ type: 'create_incident', id: `televote-outage-${simulation.log.length}`, title: 'Televoting outage', severity: 'sev1' })}
-                  />
-                  <ScenarioButton
-                    title="Broadcast graphics failure"
-                    severity="sev2"
-                    onClick={() => dispatch({ type: 'create_incident', id: `graphics-failure-${simulation.log.length}`, title: 'Broadcast graphics failure', severity: 'sev2' })}
-                  />
-                  <ScenarioButton
-                    title="Delegation data issue"
-                    severity="sev3"
-                    onClick={() => dispatch({ type: 'create_incident', id: `delegation-data-${simulation.log.length}`, title: 'Delegation data issue', severity: 'sev3' })}
-                  />
-                </div>
+            <AdminCard>
+              <AdminCardHeader eyebrow="Clock" title="Advance simulation time" />
+              <p className="mt-2 text-sm text-muted-foreground">Advance the rehearsal clock without waiting in the real world, a rare victory over linear time.</p>
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[60, 300, 900, 3600].map((seconds) => (
+                  <button
+                    key={seconds}
+                    type="button"
+                    onClick={() => dispatch({ type: 'advance_time', seconds })}
+                    className="min-h-11 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 text-sm font-semibold hover:bg-white/[0.07]"
+                  >
+                    +{formatDuration(seconds)}
+                  </button>
+                ))}
+              </div>
+            </AdminCard>
+          </div>
 
-                {simulation.incidents.some((incident) => incident.active) ? (
-                  <div className="mt-5 space-y-2 border-t border-white/[0.07] pt-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Active simulated incidents</p>
-                    {simulation.incidents.filter((incident) => incident.active).map((incident) => (
-                      <div key={incident.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-black/10 p-3">
-                        <div>
-                          <p className="text-sm font-semibold">{incident.title}</p>
-                          <p className="mt-1 text-xs uppercase text-muted-foreground">{incident.severity}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => dispatch({ type: 'resolve_incident', id: incident.id })}
-                          className="min-h-9 rounded-lg border border-emerald-300/20 bg-emerald-300/10 px-3 text-xs font-semibold text-emerald-100"
-                        >
-                          Resolve
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </AdminCard>
-
-              <AdminCard>
-                <AdminCardHeader eyebrow="Replay log" title="Simulation history" />
-                <div className="mt-4 max-h-[480px] space-y-2 overflow-y-auto">
-                  {simulation.log.length ? [...simulation.log].reverse().map((entry) => (
-                    <div key={entry.index} className="grid grid-cols-[70px_1fr] gap-3 rounded-xl border border-white/[0.07] bg-black/10 p-3">
-                      <span className="text-xs tabular-nums text-muted-foreground">{formatClock(entry.at)}</span>
-                      <div>
-                        <p className="text-sm font-semibold">{entry.summary}</p>
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.1em] text-muted-foreground">{entry.action.type.replace(/_/g, ' ')}</p>
-                      </div>
-                    </div>
-                  )) : (
-                    <AdminEmptyState icon={Clock3} title="No simulated actions yet" description="Transitions, time changes and incident drills will appear here." />
-                  )}
-                </div>
-              </AdminCard>
+          <AdminCard>
+            <AdminCardHeader eyebrow="Subsystems" title="Operational state rehearsal" />
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {SUBSYSTEMS.map((subsystem) => (
+                <label key={subsystem} className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
+                  <span className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">{humanize(subsystem)}</span>
+                  <select
+                    value={simulation.runtime.subsystems[subsystem]}
+                    onChange={(event) => dispatch({ type: 'set_subsystem', subsystem, state: event.target.value as SubsystemState })}
+                    className="mt-2 min-h-10 w-full rounded-lg border border-white/[0.08] bg-background px-3 text-sm"
+                  >
+                    {SUBSYSTEM_STATES.map((state) => <option key={state} value={state}>{humanize(state)}</option>)}
+                  </select>
+                </label>
+              ))}
             </div>
-          </>
-        ) : null}
-      </div>
-    </AdminPage>
+          </AdminCard>
+
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+            <AdminCard strong>
+              <AdminCardHeader eyebrow="Incident drill" title="Inject failure scenarios" />
+              <div className="mt-4 space-y-2">
+                <ScenarioButton
+                  title="Televoting outage"
+                  severity="sev1"
+                  onClick={() => dispatch({ type: 'create_incident', id: `televote-outage-${simulation.log.length}`, title: 'Televoting outage', severity: 'sev1' })}
+                />
+                <ScenarioButton
+                  title="Broadcast graphics failure"
+                  severity="sev2"
+                  onClick={() => dispatch({ type: 'create_incident', id: `graphics-failure-${simulation.log.length}`, title: 'Broadcast graphics failure', severity: 'sev2' })}
+                />
+                <ScenarioButton
+                  title="Delegation data issue"
+                  severity="sev3"
+                  onClick={() => dispatch({ type: 'create_incident', id: `delegation-data-${simulation.log.length}`, title: 'Delegation data issue', severity: 'sev3' })}
+                />
+              </div>
+
+              {simulation.incidents.some((incident) => incident.active) ? (
+                <div className="mt-5 space-y-2 border-t border-white/[0.07] pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">Active simulated incidents</p>
+                  {simulation.incidents.filter((incident) => incident.active).map((incident) => (
+                    <div key={incident.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-black/10 p-3">
+                      <div>
+                        <p className="text-sm font-semibold">{incident.title}</p>
+                        <p className="mt-1 text-xs uppercase text-muted-foreground">{incident.severity}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => dispatch({ type: 'resolve_incident', id: incident.id })}
+                        className="min-h-9 rounded-lg border border-emerald-300/20 bg-emerald-300/10 px-3 text-xs font-semibold text-emerald-100"
+                      >
+                        Resolve
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </AdminCard>
+
+            <AdminCard>
+              <AdminCardHeader eyebrow="Replay log" title="Simulation history" />
+              <div className="mt-4 max-h-[480px] space-y-2 overflow-y-auto">
+                {simulation.log.length ? [...simulation.log].reverse().map((entry) => (
+                  <div key={entry.index} className="grid grid-cols-[70px_1fr] gap-3 rounded-xl border border-white/[0.07] bg-black/10 p-3">
+                    <span className="text-xs tabular-nums text-muted-foreground">{formatClock(entry.at)}</span>
+                    <div>
+                      <p className="text-sm font-semibold">{entry.summary}</p>
+                      <p className="mt-1 text-[10px] uppercase tracking-[0.1em] text-muted-foreground">{entry.action.type.replace(/_/g, ' ')}</p>
+                    </div>
+                  </div>
+                )) : (
+                  <AdminEmptyState icon={Clock3} title="No simulated actions yet" description="Transitions, time changes and incident drills will appear here." />
+                )}
+              </div>
+            </AdminCard>
+          </div>
+        </>
+      ) : null}
+    </SimulatorScaffold>
   );
 }
 
