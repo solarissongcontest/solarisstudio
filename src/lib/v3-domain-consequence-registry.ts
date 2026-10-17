@@ -85,6 +85,7 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
   "media.reviewed": [
     "supabase/migrations/20261016050000_v3_s5_media_review_consequences.sql",
     "src/lib/v3-s5-media-consequences.test.ts",
+    ".github/scripts/v3-s5-media-consequences-rehearsal.sh",
   ],
   "jury.opened": [
     "supabase/migrations/20261016040000_v3_s5_jury_consequences.sql",
