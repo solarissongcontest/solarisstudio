@@ -32,11 +32,6 @@ export type V3DomainConsequence = {
   analyticsEffects: readonly string[];
   auditRequired: boolean;
   consumers: readonly string[];
-  /**
-   * S1 records intended consequence ownership. S4/S5 upgrades consequences to
-   * transactional event/outbox consumers; `declared` must not be mistaken for
-   * proof that an event bus already executes these effects.
-   */
   implementationState: "declared" | "event-backed";
   evidence: readonly string[];
 };
@@ -48,16 +43,12 @@ const NOTIFICATION_PROVIDER_BY_DOMAIN_EVENT: Readonly<Record<string, readonly st
   "notice.published": ["official-communications"],
 };
 
-/**
- * Domain-level task declarations describe ownership, not causality for every
- * event. Notice publication/supersession cannot fabricate a delivery-failure
- * task, and a queued/delivered notification is not itself a delivery failure.
- */
+/** Domain-level task declarations are inventories, not proof that every event causes every task. */
 const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = {
   "notice.published": [],
   "notice.superseded": [],
-  "notification.queued": [],
-  "notification.delivered": [],
+  "notification.queued": ["notification.delivery_failed"],
+  "notification.delivered": ["notification.delivery_failed"],
   "notification.failed": ["notification.delivery_failed"],
 };
 
@@ -129,6 +120,21 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
     "src/lib/v3-s5-notice-consequences.test.ts",
     ".github/scripts/v3-s5-notice-consequences-rehearsal.sh",
   ],
+  "notification.queued": [
+    "supabase/migrations/20261016063000_v3_s5_notification_consequences.sql",
+    "src/lib/v3-s5-notification-consequences.test.ts",
+    ".github/scripts/v3-s5-notification-consequences-rehearsal.sh",
+  ],
+  "notification.delivered": [
+    "supabase/migrations/20261016063000_v3_s5_notification_consequences.sql",
+    "src/lib/v3-s5-notification-consequences.test.ts",
+    ".github/scripts/v3-s5-notification-consequences-rehearsal.sh",
+  ],
+  "notification.failed": [
+    "supabase/migrations/20261016063000_v3_s5_notification_consequences.sql",
+    "src/lib/v3-s5-notification-consequences.test.ts",
+    ".github/scripts/v3-s5-notification-consequences-rehearsal.sh",
+  ],
   "televote.opened": [
     "supabase/migrations/20261016043000_v3_s5_televote_consequences.sql",
     "src/lib/v3-s5-televote-consequences.test.ts",
@@ -151,20 +157,6 @@ function unique(values: readonly string[]) {
   return [...new Set(values)];
 }
 
-/**
- * Machine-readable S1 consequence inventory.
- *
- * The registry is intentionally derived from the canonical domain registry so
- * a new declared domain event cannot exist without at least owning its affected
- * projections, task re-evaluation and consumers. Explicit notification
- * producers are mapped only where the current code has evidence for that event;
- * we do not pretend every domain mutation sends a notification.
- *
- * `implementationState: declared` means ownership is documented but the
- * owning command has not yet proven transactional S4 emission plus executable
- * consequence consumers. Only events with concrete migration/rehearsal evidence
- * may be marked `event-backed`.
- */
 export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
   V3_SYSTEM_DOMAIN_REGISTRY.flatMap((domain) =>
     domain.eventTypes.map((eventType) => {
