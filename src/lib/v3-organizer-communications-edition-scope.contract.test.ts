@@ -24,13 +24,19 @@ describe("V3 Organizer Communications exact-edition boundary", () => {
     expect(source).toContain("p_edition_id: editionId");
   });
 
-  it("proves notice ownership before an update RPC can mutate the draft", () => {
+  it("proves notice ownership before an update and validates returned identity + edition", () => {
     const update = functionBody("updateStudio2NoticeDraft");
     const guardIndex = update.indexOf("await assertNoticeInEdition(noticeId, editionId);");
     const mutationIndex = update.indexOf("studio2_update_notice_draft_v2");
+    const responseValidationIndex = update.indexOf(
+      "return validateStudio2NoticeResponse(notice, { noticeId, editionId });",
+    );
 
     expect(guardIndex).toBeGreaterThanOrEqual(0);
     expect(mutationIndex).toBeGreaterThan(guardIndex);
-    expect(update).toContain("notice.editionId !== editionId");
+    expect(responseValidationIndex).toBeGreaterThan(mutationIndex);
+
+    expect(source).toContain("if (expected.noticeId && notice.id !== expected.noticeId)");
+    expect(source).toContain("if (expected.editionId && notice.editionId !== expected.editionId)");
   });
 });
