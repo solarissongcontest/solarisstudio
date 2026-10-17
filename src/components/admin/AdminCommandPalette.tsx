@@ -6,6 +6,7 @@ import { editionLabel, useCountries, useEditions } from "@/lib/data";
 import { useAdminNotifications } from "@/lib/admin-ops";
 import { searchGovernanceLibrary } from "@/lib/public-library-governance";
 import { useAdminContext } from "./AdminContext";
+import { resolveAdminEditionContext } from "./admin-edition-context";
 import { buildAdminNavigation } from "./admin-navigation";
 
 type AdminCommand = {
@@ -26,10 +27,7 @@ export function AdminCommandPalette() {
   const { data: countries = [] } = useCountries();
   const { data: notifications = [] } = useAdminNotifications();
 
-  const activeEdition =
-    editions.find((edition) => edition.id === editionId) ??
-    [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
-    null;
+  const activeEdition = resolveAdminEditionContext(editions, editionId);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
