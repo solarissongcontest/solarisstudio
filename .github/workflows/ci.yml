@@ -25,8 +25,11 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: Checkout
+      - name: Checkout exact source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
 
       - name: Isolate Quality CI from hosted Supabase
         shell: bash
@@ -112,6 +115,11 @@ jobs:
           expected="$(printf '%s' "$V3_SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
           if [[ ! "$expected" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error::Cannot resolve exact source SHA for V3 evidence"
+            exit 1
+          fi
+          checkout_sha="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          if [ "$checkout_sha" != "$expected" ]; then
+            echo "::error::V3 evidence checkout is $checkout_sha, expected exact source SHA $expected"
             exit 1
           fi
           mkdir -p v3-integration-evidence
