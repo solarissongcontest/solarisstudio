@@ -62,6 +62,18 @@ describe("V3 Entry focused participant shell", () => {
     expect(foundation).toContain('<main className={cn("v3-screen"');
   });
 
+  it("uses shared keyboard metrics so sticky focused chrome cannot obscure focused controls", () => {
+    const css = source("src/styles/v3-focused-task-shell.css");
+    const metrics = source("src/components/app/AppChromeMetrics.tsx");
+
+    expect(metrics).toContain('--solaris-keyboard-inset');
+    expect(metrics).toContain("window.visualViewport");
+    expect(css).toContain("var(--solaris-keyboard-inset, 0px)");
+    expect(css).toContain("scroll-margin-block-start");
+    expect(css).toContain("scroll-margin-block-end");
+    expect(css).not.toContain("visualViewport");
+  });
+
   it("keeps every country-scoped Entry inspection in the canonical legacy workspace", () => {
     const gate = source("src/components/v3/V3EntryRouteGate.tsx");
     const workspace = source("src/components/mysolaris/MySolarisWorkspaceShell.tsx");
