@@ -5,65 +5,11 @@ set -euo pipefail
 # Deliberately local/operator-run: production credentials must never be exposed to CI.
 
 PRODUCTION_PROJECT_REF="dkxmnvekiopyesuzggeu"
-EXPECTED_REMOTE_HEAD="20261014020000"
-EXPECTED_REPO_HEAD="20261017143200"
-EXPECTED_PENDING_COUNT="55"
+EXPECTED_REMOTE_HEAD="20261017143200"
+EXPECTED_REPO_HEAD="20261017194000"
+EXPECTED_PENDING_COUNT="1"
 EXPECTED_PENDING_VERSIONS=(
-  20261014030000
-  20261014040000
-  20261014050000
-  20261014060000
-  20261014132819
-  20261014133955
-  20261014142000
-  20261014153000
-  20261014194651
-  20261015040000
-  20261015050000
-  20261015060000
-  20261015070000
-  20261015080000
-  20261015090000
-  20261015091000
-  20261015155722
-  20261015164100
-  20261015173000
-  20261015180000
-  20261015183000
-  20261015183100
-  20261015183200
-  20261015201221
-  20261016040000
-  20261016043000
-  20261016050000
-  20261016053000
-  20261016060000
-  20261016060500
-  20261016062000
-  20261016063000
-  20261016064000
-  20261016064100
-  20261016070000
-  20261016071000
-  20261016150000
-  20261016153000
-  20261016160000
-  20261016163000
-  20261016163100
-  20261016193700
-  20261017001900
-  20261017002000
-  20261017002100
-  20261017002200
-  20261017002300
-  20261017002400
-  20261017100000
-  20261017103000
-  20261017110000
-  20261017113000
-  20261017143000
-  20261017143100
-  20261017143200
+  20261017194000
 )
 
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -211,8 +157,8 @@ if (( ${#remote_only_versions[@]} > 0 )); then
 fi
 
 # Re-read parity through the temporary compatibility view. After reconciliation,
-# every unmatched local version must be part of the exact rehearsed 55-migration
-# production delta, and there must be no remote-only versions left.
+# every unmatched local version must be part of the exact pinned production
+# delta, and there must be no remote-only versions left.
 list_compatible="$(supabase migration list --linked)"
 mapfile -t remaining_remote_only < <(printf '%s\n' "$list_compatible" | remote_only_versions_from_list | sort)
 (( ${#remaining_remote_only[@]} == 0 )) || fail "remote-only migration history remains after compatibility preparation: ${remaining_remote_only[*]}"
