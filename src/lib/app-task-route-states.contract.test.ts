@@ -43,6 +43,19 @@ describe("App Experience v3 task and route-state foundation", () => {
     expect(router).not.toContain("alreadyInsideParticipationChrome");
   });
 
+  it("keeps critical error and not-found recovery out of generic app chrome", () => {
+    const frame = source("src/components/app/AppRouteStateFrame.tsx");
+    expect(frame).toContain('resolveSolarisAppScreen(pathname, searchStr).behavior.criticalTask');
+    expect(frame).toContain("shouldOwnCriticalRouteStateFrame(pathname, searchStr)");
+    expect(frame).toContain('data-v3-critical-route-state={screen.id}');
+    expect(frame).toContain('data-solaris-app-critical-task="true"');
+    expect(frame).toContain('pathname.startsWith("/confirmations/admin")');
+    expect(frame).toContain('pathname.startsWith("/televoting/admin")');
+    expect(frame.indexOf("if (shouldOwnCriticalRouteStateFrame")).toBeLessThan(
+      frame.indexOf("<AppShell>"),
+    );
+  });
+
   it("styles loading and recovery states inside the installed app shell", () => {
     const styles = source("src/styles/app-shell.css");
     expect(styles).toContain("[data-solaris-app-route-state]");
