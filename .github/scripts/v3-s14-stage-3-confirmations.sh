@@ -76,7 +76,7 @@ PY
   rpc_request "$ANON_KEY" v3_reconcile_confirmation "{\"_idempotency_key\":\"$FIRST_OPERATION_ID\",\"_browser_session_id\":\"$FIRST_SESSION\"}"
   expect_success "post-commit confirmation recovery"
   expect_json "post-commit confirmation recovery found operation" found true
-  expect_json "post-commit confirmation recovery is a replay" result.receipt.replayed true
+  expect_json "post-commit confirmation recovery is a replay" receipt.replayed true
   log "S14_FAILURE_NETWORK_AFTER_COMMIT_COMPLETE"
 
   # An exact retry must return the same receipt instead of manufacturing a

@@ -17,6 +17,8 @@ const stage3 = source(".github/scripts/v3-s14-stage-3-confirmations.sh");
 const stage4 = source(".github/scripts/v3-s14-stage-4-entries.sh");
 const stage5 = source(".github/scripts/v3-s14-stage-5-running-orders.sh");
 const stage6 = source(".github/scripts/v3-s14-stage-6-jury.sh");
+const stage7 = source(".github/scripts/v3-s14-stage-7-public-voting.sh");
+const stage7Deadline = source(".github/scripts/v3-s14-stage-7-genuine-deadline.sh");
 const readiness = source("scripts/check-v3-s14-rehearsal-readiness.ts");
 
 describe("S14 stateful full-contest harness", () => {
@@ -38,11 +40,14 @@ describe("S14 stateful full-contest harness", () => {
       "v3-s14-stage-4-entries.sh",
       "v3-s14-stage-5-running-orders.sh",
       "v3-s14-stage-6-jury.sh",
+      "v3-s14-stage-7-public-voting.sh",
+      "v3-s14-stage-7-genuine-deadline.sh",
     ]) expect(driver).toContain(`source "$SCRIPT_DIR/${path}"`);
     expect(driver).not.toContain("v3-confirmation-security-rehearsal.sh");
     expect(driver).not.toContain("v3-entry-receipt-security-rehearsal.sh");
     expect(driver).not.toContain("v3-s5-publication-consequences-rehearsal.sh");
     expect(driver).not.toContain("v3-jury-security-rehearsal.sh");
+    expect(driver).not.toContain("v3-s14-televote-deadline-extension-rehearsal.sh");
     expect(driver).not.toContain("supabase db reset");
   });
 
@@ -54,23 +59,30 @@ describe("S14 stateful full-contest harness", () => {
     expect(runtime).not.toContain("supabase.co");
   });
 
-  it("implements the contest lifecycle through Jury without claiming later stages", () => {
-    expect(V3_S14_STAGES.slice(0, 6).every((item) => item.implementationState === "implemented")).toBe(true);
-    expect(V3_S14_STAGES.slice(6).every((item) => item.implementationState === "planned")).toBe(true);
+  it("implements the connected contest lifecycle through Public Voting without claiming later stages", () => {
+    expect(V3_S14_STAGES.slice(0, 7).every((item) => item.implementationState === "implemented")).toBe(true);
+    expect(V3_S14_STAGES.slice(7).every((item) => item.implementationState === "planned")).toBe(true);
     expect(stage3).toContain("seq 1 66");
     expect(stage3).toContain("v3_submit_confirmation");
     expect(stage3).toContain("v3_reconcile_confirmation");
     expect(stage3).toContain("studio2_apply_confirmation_round_change");
     expect(stage3).toContain("submission_versions");
     expect(stage3).toContain("S14_STAGE_3_CONFIRMATIONS_COMPLETE");
+    expect(stage7Deadline).toContain("S14_STAGE_7_PUBLIC_VOTING_COMPLETE");
   });
 
-  it("keeps Public Voting pending while deadline extension remains a canonical requirement", () => {
+  it("makes the canonical persisted deadline extension part of the same Stage 7 contest", () => {
     const publicVoting = V3_S14_STAGES.find((item) => item.id === "stage-7-public-voting");
     expect(publicVoting).toBeDefined();
     expect(publicVoting?.requirements).toContain("deadline extension");
-    expect(publicVoting?.implementationState).toBe("planned");
-    expect(driver).toContain("stage-7-public-voting");
+    expect(publicVoting?.implementationState).toBe("implemented");
+    expect(publicVoting?.implementationAsset).toBe(".github/scripts/v3-s14-stage-7-genuine-deadline.sh");
+    expect(stage7Deadline).toContain("studio2_round_deadline_change_preview");
+    expect(stage7Deadline).toContain("studio2_apply_round_deadline_change");
+    expect(stage7Deadline).toContain("Voting deadline has passed");
+    expect(stage7Deadline).toContain("closes_at + interval '2 minutes'");
+    expect(stage7Deadline).toContain("televote.extended");
+    expect(stage7Deadline).not.toContain("extension-reopen");
   });
 
   it("drives Entry review, exact-version reconciliation and Media replacement through canonical authority", () => {
@@ -119,6 +131,16 @@ describe("S14 stateful full-contest harness", () => {
     expect(stage6).not.toContain("v3-jury-security-rehearsal.sh");
   });
 
+  it("drives Public Voting through canonical ballots, reconciliation, integrity and deadline authority", () => {
+    expect(stage7).toContain("submit_vote_checked");
+    expect(stage7).toContain("v3_reconcile_televote");
+    expect(stage7).toContain("pre_submit_integrity_check");
+    expect(stage7).toContain("duplicate public Televote");
+    expect(stage7Deadline).toContain("televote.deadline.change");
+    expect(stage7Deadline).toContain("studio2_process_televote_domain_event");
+    expect(stage7Deadline).toContain("S14_INVARIANT_TELEVOTE_COMPLETE");
+  });
+
   it("uses the real notification category vocabulary during onboarding", () => {
     expect(stage2).toContain("'televoting'");
     expect(stage2).not.toContain("'televote'");
@@ -142,6 +164,7 @@ describe("S14 stateful full-contest harness", () => {
       "entry-valid-revision",
       "media-accepted-revision",
       "jury-single-final-ballot",
+      "televote-canonical-ballot",
     ]);
     for (const marker of [
       "S14_FAILURE_NETWORK_AFTER_COMMIT_COMPLETE",
@@ -155,13 +178,17 @@ describe("S14 stateful full-contest harness", () => {
       "S14_INVARIANT_MEDIA_COMPLETE",
     ]) expect(stage4).toContain(marker);
     expect(stage6).toContain("S14_INVARIANT_JURY_COMPLETE");
+    expect(stage7Deadline).toContain("S14_INVARIANT_TELEVOTE_COMPLETE");
   });
 
-  it("cannot emit release-grade evidence while Stages 7-10 remain pending", () => {
+  it("cannot emit release-grade evidence while Stages 8-10 remain pending", () => {
     expect(driver).toContain('"passed": False');
     expect(driver).toContain("s14-full-contest.partial.json");
-    expect(driver).toContain("stage-7-public-voting");
+    expect(driver).toContain('"stage-7-public-voting",');
+    expect(driver).toContain("stage-8-results");
+    expect(driver).toContain("stage-9-publication");
     expect(driver).toContain("stage-10-archive");
+    expect(driver).toContain("passed through Stage 7");
     expect(driver).toContain("No release-grade s14-full-contest.json was written");
     expect(driver).not.toContain('"passed": True');
     expect(readiness).toContain("S14 lifecycle stages not implemented in the unified stateful driver");
@@ -177,6 +204,8 @@ describe("S14 stateful full-contest harness", () => {
       ".github/scripts/v3-s14-stage-4-entries.sh",
       ".github/scripts/v3-s14-stage-5-running-orders.sh",
       ".github/scripts/v3-s14-stage-6-jury.sh",
+      ".github/scripts/v3-s14-stage-7-public-voting.sh",
+      ".github/scripts/v3-s14-stage-7-genuine-deadline.sh",
     ]) {
       expect(() => execFileSync("bash", ["-n", path], { stdio: "pipe" })).not.toThrow();
     }

@@ -36,6 +36,15 @@ values
    '{\"participants\":true,\"artists\":true,\"songs\":true,\"running_order\":true,\"results\":true,\"jury_results\":true,\"televote_results\":true}'::jsonb)
 on conflict (id) do update set voting_config=excluded.voting_config, publication_config=excluded.publication_config, published=false;
 
+-- The legacy shows_sync_edition_publication trigger intentionally derives an
+-- unpublished edition back to draft whenever its show rows are seeded. S14 is
+-- rehearsing the live pre-publication participation lifecycle, so restore the
+-- fixture's explicit operational state only after all unpublished shows exist.
+-- Publication remains false until the later publication stage owns that change.
+update public.editions
+set status='active', published=false
+where id='$EDITION_ID'::uuid;
+
 insert into public.participants (id, edition_id, show_id, country_id, artist, song, running_order, participation_status)
 select
   $participant_uuid_sql,
@@ -102,6 +111,9 @@ on conflict (edition_id) do update set title=excluded.title, subtitle=excluded.s
   [[ "$(db_scalar "select count(*) from public.countries where region='S14';")" == "66" ]] || fail "S14 seed does not contain exactly 66 delegations"
   [[ "$(db_scalar "select count(*) from public.shows where edition_id='$EDITION_ID'::uuid;")" == "3" ]] || fail "S14 seed does not contain three shows"
   [[ "$(db_scalar "select count(*) from public.participants where edition_id='$EDITION_ID'::uuid;")" == "66" ]] || fail "S14 seed does not contain 66 canonical participant rows"
+  [[ "$(db_scalar "select status from public.editions where id='$EDITION_ID'::uuid;")" == "active" ]] || fail "S14 operational edition was demoted from active during setup"
+  [[ "$(db_scalar "select published::text from public.editions where id='$EDITION_ID'::uuid;")" == "false" ]] || fail "S14 pre-publication fixture became public during setup"
+  [[ "$(db_scalar "select public.round_availability('$CONFIRMATION_ROUND_ID'::uuid)->>'reason';")" == "OPEN" ]] || fail "S14 confirmation round is not accepting submissions after setup"
   [[ "$(db_scalar "select count(*) from televoting.round_entries where round_id='$TV_ROUND_ID'::uuid;")" == "66" ]] || fail "S14 televote configuration does not contain 66 entries"
   [[ "$(db_scalar "select count(*) from public.ssc_rulebook_releases where id='$RULEBOOK_ID'::uuid and status='published';")" == "1" ]] || fail "S14 rule configuration missing"
   [[ "$(db_scalar "select count(*) from public.studio2_storylines where edition_id='$EDITION_ID'::uuid;")" == "1" ]] || fail "S14 storyline seed missing"
