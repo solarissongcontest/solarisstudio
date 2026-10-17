@@ -56,8 +56,8 @@ describe("public beta archives and Beta 3 contract", () => {
   it("keeps Beta 2 questionnaire and dashboard frozen for comparison", () => {
     expect(beta2Round).toContain("...beta2DiscoverySections");
     expect(beta2Round).toContain("...beta2EvaluationSections");
-    expect((beta2Discovery.match(/title: "\\d+\\./g) ?? []).length).toBe(10);
-    expect((beta2Evaluation.match(/title: "\\d+\\./g) ?? []).length).toBe(10);
+    expect((beta2Discovery.match(/title: "\d+\./g) ?? []).length).toBe(10);
+    expect((beta2Evaluation.match(/title: "\d+\./g) ?? []).length).toBe(10);
     expect(beta2Dashboard).toContain("betaSectionsRound2 as betaSections");
     expect(beta2Dashboard).toContain('title="Beta 2.0 feedback"');
     expect(beta2Migration).toContain("create table if not exists public.beta2_test_submissions");
