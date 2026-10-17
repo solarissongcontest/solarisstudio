@@ -13,6 +13,7 @@ import {
   classifyV3SwipeIntent,
   elementBlocksV3TopLevelSwipe,
   isV3BrowserEdgeGestureStart,
+  resolveV3PageSettleMotion,
   resolveV3PageSwipeOffset,
   resolveV3PageSwipeTarget,
   resolveV3PhysicalInlineSign,
@@ -149,6 +150,12 @@ export function V3TopLevelSwipeSurface({
     settleTimerRef.current = null;
   }, []);
 
+  const applySettleMotion = useCallback((durationMs: number) => {
+    const duration = `${durationMs}ms`;
+    surfaceRef.current?.style.setProperty("--v3-page-settle-ms", duration);
+    navigationMaterial()?.style.setProperty("--v3-page-settle-ms", duration);
+  }, []);
+
   const clearNavigationMaterial = useCallback(() => {
     if (typeof document === "undefined") return;
     const root = document.documentElement;
@@ -157,6 +164,7 @@ export function V3TopLevelSwipeSurface({
 
     const material = navigationMaterial();
     material?.style.setProperty("--v3-liquid-drag-x", "0px");
+    material?.style.removeProperty("--v3-page-settle-ms");
     material?.removeAttribute("data-v3-page-swiping");
     material?.removeAttribute("data-v3-page-settling");
     material
@@ -190,6 +198,7 @@ export function V3TopLevelSwipeSurface({
           // Capture may already have been released by the browser interruption.
         }
       }
+      surface.style.removeProperty("--v3-page-settle-ms");
       surface.removeAttribute("data-v3-page-swiping");
       surface.removeAttribute("data-v3-page-settling");
     }
@@ -448,13 +457,23 @@ export function V3TopLevelSwipeSurface({
       itemCount,
       direction: drag.layoutDirection,
     });
+    const settleMotion = resolveV3PageSettleMotion({
+      deltaX,
+      velocityX: drag.velocityX,
+      viewportWidth: drag.viewportWidth,
+      activeIndex,
+      targetIndex,
+      direction: drag.layoutDirection,
+    });
+    const settleCleanupMs = settleMotion.durationMs + 32;
+    applySettleMotion(settleMotion.durationMs);
 
     surface.removeAttribute("data-v3-page-swiping");
     surface.setAttribute("data-v3-page-settling", "true");
 
     if (targetIndex === activeIndex) {
       publishVisualProgress(activeIndex, drag, "settle");
-      settleTimerRef.current = window.setTimeout(resetSurface, 190);
+      settleTimerRef.current = window.setTimeout(resetSurface, settleCleanupMs);
       return;
     }
 
@@ -480,7 +499,7 @@ export function V3TopLevelSwipeSurface({
       settleTimerRef.current = null;
       resetSurface();
       onSettled?.(targetIndex);
-    }, 180);
+    }, settleCleanupMs);
   };
 
   const visualPreviousSurface = settlingComposition?.previousSurface ?? previousSurface;
