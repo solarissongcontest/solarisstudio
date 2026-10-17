@@ -42,14 +42,16 @@ describe("V3 official delegation notices", () => {
     expect(source).not.toContain("optimistic");
   });
 
-  it("reconciles uncertain mutation outcomes before presenting an unresolved error", () => {
-    const source = content();
+  it("reconciles uncertain mutation outcomes against receipt evidence", () => {
+    const workflow = content();
+    const presentation = screen();
 
-    expect(source).toMatch(/acknowledge = useMutation\([\s\S]*onError: refresh/);
-    expect(source).toMatch(/archive = useMutation\([\s\S]*onError: refresh/);
-    expect(source).toContain('selected.inboxState !== "acknowledged"');
-    expect(source).toContain('selected.inboxState !== "archived"');
-    expect(source).toContain("The inbox still reflects the last confirmed server state");
+    expect(workflow).toMatch(/acknowledge = useMutation\([\s\S]*onError: \(\) => refresh\(\)/);
+    expect(workflow).toMatch(/archive = useMutation\([\s\S]*onError: \(\) => refresh\(\)/);
+    expect(workflow).toContain("!selected?.receipt?.acknowledgedAt");
+    expect(workflow).toContain("!selected.receipt?.archivedAt");
+    expect(workflow).toContain("!selected?.receipt?.openedAt");
+    expect(presentation).toContain("The inbox still reflects the last confirmed server state");
   });
 
   it("records opening from receipt evidence rather than treating acknowledgement-required as already read", () => {
