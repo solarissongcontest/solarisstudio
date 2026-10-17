@@ -3,6 +3,7 @@ import { ArrowLeft, BookOpen } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { RuleDetailV5 } from "@/components/rules/RuleDetailV5";
+import { V3RulesRouteGate } from "@/components/v3/V3RulesRouteGate";
 import { usePublishedRulebook } from "@/lib/rules-governance";
 import { getRuleById } from "@/lib/ssc-rules-v4";
 
@@ -33,40 +34,42 @@ function RulePage() {
   const published = usePublishedRulebook();
   const rule = getRuleById(ruleId);
 
-  if (!rule) {
-    return (
-      <AppShell>
-        <div className="mx-auto max-w-3xl py-10 sm:py-16">
-          <div className="rounded-[2rem] border border-white/[0.08] bg-[linear-gradient(150deg,rgba(20,44,74,.84),rgba(5,18,39,.95))] p-6 text-center sm:p-10">
-            <BookOpen className="mx-auto size-8 text-sky-200" />
-            <p className="mt-5 text-xs font-black uppercase tracking-[.16em] text-sky-200/75">
-              Official rules
-            </p>
-            <h1 className="mt-2 text-3xl font-black tracking-[-.04em]">
-              Rule {ruleId} was not found
-            </h1>
-            <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-muted-foreground">
-              It may have been mistyped, moved in a later rulebook version or never
-              existed in the first place. The complete current regulations are still
-              available from the Rules Hub.
-            </p>
-            <Link
-              to="/rules"
-              className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-sky-200 px-4 text-sm font-bold text-slate-950 transition hover:bg-sky-100"
-            >
-              <ArrowLeft className="size-4" /> Back to Rules
-            </Link>
-          </div>
-        </div>
-      </AppShell>
-    );
-  }
+  const content = rule ? (
+    <div key={published.version} data-v3-rule-detail="">
+      <RuleDetailV5 rule={rule} />
+    </div>
+  ) : (
+    <div className="mx-auto max-w-3xl py-10 sm:py-16" data-v3-rule-not-found="">
+      <div className="rounded-[2rem] border border-white/[0.08] bg-[linear-gradient(150deg,rgba(20,44,74,.84),rgba(5,18,39,.95))] p-6 text-center sm:p-10">
+        <BookOpen className="mx-auto size-8 text-sky-200" aria-hidden="true" />
+        <p className="mt-5 text-xs font-black uppercase tracking-[.16em] text-sky-200/75">
+          Official rules
+        </p>
+        <h1 className="mt-2 text-3xl font-black tracking-[-.04em]">
+          Rule {ruleId} was not found
+        </h1>
+        <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-muted-foreground">
+          It may have been mistyped, moved in a later rulebook version or never
+          existed in the first place. The complete current regulations are still
+          available from the Rules Hub.
+        </p>
+        <Link
+          to="/rules"
+          className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-sky-200 px-4 text-sm font-bold text-slate-950 transition hover:bg-sky-100"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" /> Back to Rules
+        </Link>
+      </div>
+    </div>
+  );
 
   return (
-    <AppShell>
-      <div key={published.version}>
-        <RuleDetailV5 rule={rule} />
-      </div>
-    </AppShell>
+    <V3RulesRouteGate
+      phaseLabel={rule ? `Rule ${rule.id}` : "Rules"}
+      resolvingTitle="Opening rule"
+      legacy={<AppShell>{content}</AppShell>}
+    >
+      {content}
+    </V3RulesRouteGate>
   );
 }
