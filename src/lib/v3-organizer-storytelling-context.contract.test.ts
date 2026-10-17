@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const storytelling = readFileSync("src/routes/_authenticated/admin/storytelling.tsx", "utf8");
+const registry = readFileSync("src/lib/v3-organizer-capability-registry.ts", "utf8");
 
 describe("V3 Organizer Storytelling edition context", () => {
   it("never substitutes the newest edition for missing Organizer scope", () => {
@@ -23,5 +24,9 @@ describe("V3 Organizer Storytelling edition context", () => {
 
   it("keeps Anniversary preview dormant when no exact edition is selected", () => {
     expect(storytelling).toContain("enabled: Boolean(resolvedEditionId) && view === 'anniversary'");
+  });
+
+  it("records Storytelling as building without claiming parity or cutover", () => {
+    expect(registry).toContain('id === "current-edition-storytelling"');
   });
 });
