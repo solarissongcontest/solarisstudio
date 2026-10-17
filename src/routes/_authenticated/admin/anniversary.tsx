@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { AdminPage } from "@/components/admin/AdminShell";
-import { AdminCard, AdminCardHeader, AdminPageHeader } from "@/components/admin/AdminUI";
+import { AdminCard, AdminCardHeader, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 
 export const Route = createFileRoute("/_authenticated/admin/anniversary")({
   head: () => ({
@@ -27,17 +27,39 @@ function AnniversaryPreviewPage() {
     <AdminPage>
       <div className="mx-auto max-w-5xl">
         <AdminPageHeader
-          eyebrow="17 September"
+          eyebrow="Storytelling · Anniversary"
           title="Anniversary Preview"
-          description="Test the Anniversary Day and pre-event countdown states without changing the system clock. Open previews in a new tab and use responsive device mode for phone layouts."
+          description="Preview deterministic Anniversary Day and countdown surfaces without changing the system clock. Storytelling is the canonical editorial parent; this route remains the low-frequency preview and historical-date companion until the governed milestone workflow reaches parity."
           actions={
-            <Link to="/admin/anniversary-dates" className="admin-action-primary">
-              Manage edition dates
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link to="/admin/storytelling" className="admin-action-primary">
+                Storytelling & Anniversary
+              </Link>
+              <Link to="/admin/anniversary-dates" className="admin-action-secondary">
+                Historical edition dates
+              </Link>
+            </div>
           }
         />
 
-        <AdminCard>
+        <AdminCard strong>
+          <AdminCardHeader
+            eyebrow="Canonical ownership"
+            title="Anniversary belongs to Storytelling"
+            description="Generated anniversary moments come from published historical story data. Manual milestones, scheduling and editorial publication must use governed Anniversary authority rather than inventing client-only state on this preview page."
+            action={<AdminStatus tone="attention">Editorial lifecycle building</AdminStatus>}
+          />
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link to="/admin/storytelling" className="admin-action-primary">
+              Open Storytelling → Anniversary
+            </Link>
+            <Link to="/admin/anniversary-dates" className="admin-action-secondary">
+              Maintain historical dates
+            </Link>
+          </div>
+        </AdminCard>
+
+        <AdminCard className="mt-4">
           <AdminCardHeader
             eyebrow="Historical accuracy"
             title="Exact edition dates power the anniversary year"
