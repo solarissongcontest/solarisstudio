@@ -67,6 +67,10 @@ describe("App Experience v3 completion contract", () => {
     expect(root).toContain("<AppTelemetryBridge />");
     expect(telemetry).toContain('"app_resumed"');
     expect(telemetry).toContain('"app_task_resumed"');
+    expect(telemetry).toContain("resolveSolarisAppScreen(pathname)");
+    expect(telemetry).toContain("screen.behavior.criticalTask");
+    expect(telemetry).toContain('screen.hierarchy.rootTab ?? "app"');
+    expect(telemetry).not.toContain("TASK_ROUTE");
     expect(migration).toContain("'app_tab_restored'");
     expect(migration).toContain("'app_push_opened'");
     expect(migration).toContain("'app_show_mode_state'");
