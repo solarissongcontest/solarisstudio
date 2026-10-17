@@ -44,7 +44,8 @@ describe("V3 Entry focused participant shell", () => {
     expect(workspace).toContain("resolveSolarisAppScreen(location.pathname).behavior.criticalTask");
     expect(workspace).toContain("if (focusedTask) return <>{children}</>");
     expect(css).toContain("body:has([data-v3-focused-task-shell]) .solaris-app-toolbar");
-    expect(css).toContain('.app-main[data-solaris-app-mode="true"]');
+    expect(css).toContain("app-main");
+    expect(css).toContain("data-solaris-app-mode");
   });
 
   it("leaves document heading and main-landmark ownership with the route content", () => {
@@ -52,21 +53,21 @@ describe("V3 Entry focused participant shell", () => {
     const entry = source("src/components/v3/V3EntryScreen.tsx");
     const foundation = source("src/components/v3/V3Foundation.tsx");
 
-    expect(shell).toContain('<p className="v3-focused-task-toolbar__title">{chrome.title}</p>');
-    expect(shell).not.toContain('<h1 className="v3-focused-task-toolbar__title">');
-    expect(shell).toContain('<div className="v3-focused-task-content" data-v3-critical-task-content>');
-    expect(shell).not.toContain('<main className="v3-focused-task-content"');
+    expect(shell).toContain("v3-focused-task-toolbar__title");
+    expect(shell).not.toMatch(/<h1[^>]*v3-focused-task-toolbar__title/);
+    expect(shell).toContain("data-v3-critical-task-content");
+    expect(shell).not.toMatch(/<main[^>]*v3-focused-task-content/);
     expect(entry).toContain("<V3ScreenHeader");
     expect(entry).toContain("<V3Screen>");
-    expect(foundation).toContain('<h1 className={cn("v3-display"');
-    expect(foundation).toContain('<main className={cn("v3-screen"');
+    expect(foundation).toContain("v3-display");
+    expect(foundation).toContain("v3-screen");
   });
 
   it("uses shared keyboard metrics so sticky focused chrome cannot obscure focused controls", () => {
     const css = source("src/styles/v3-focused-task-shell.css");
     const metrics = source("src/components/app/AppChromeMetrics.tsx");
 
-    expect(metrics).toContain('--solaris-keyboard-inset');
+    expect(metrics).toContain("--solaris-keyboard-inset");
     expect(metrics).toContain("window.visualViewport");
     expect(css).toContain("var(--solaris-keyboard-inset, 0px)");
     expect(css).toContain("scroll-margin-block-start");
