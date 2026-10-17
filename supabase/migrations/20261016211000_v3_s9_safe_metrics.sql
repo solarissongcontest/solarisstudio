@@ -4,6 +4,18 @@ begin;
 -- durability ledgers. This projection exposes counts and timing only. It never
 -- returns semantic requests, operation results, actor identities, event payloads,
 -- consumer result metadata or raw error metadata.
+--
+-- S9 windows filter these ledgers globally by time. Existing indexes lead with
+-- actor/command/correlation, scope or consumer/status, so add narrow time-leading
+-- indexes rather than making System Health increasingly full-scan historical
+-- ledgers as Solaris grows.
+
+create index if not exists studio2_operation_receipts_created_at_idx
+  on public.studio2_operation_receipts (created_at desc);
+create index if not exists v3_domain_events_occurred_at_idx
+  on private.v3_domain_events (occurred_at desc, id);
+create index if not exists v3_domain_event_outbox_created_at_idx
+  on private.v3_domain_event_outbox (created_at desc, event_id, consumer_key);
 
 create or replace function public.admin_system_observability_snapshot(
   p_lookback_minutes integer default 60
