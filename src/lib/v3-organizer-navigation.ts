@@ -69,11 +69,15 @@ function normalizeSearch(searchStr?: string | null) {
   return normalized.length <= 2048 ? normalized : "";
 }
 
+function pathAtOrBelow(pathname: string, root: string) {
+  return pathname === root || pathname.startsWith(`${root}/`);
+}
+
 function safeOrganizerPath(pathname: string) {
   return (
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/confirmations/admin") ||
-    pathname.startsWith("/televoting/admin")
+    pathAtOrBelow(pathname, "/admin") ||
+    pathAtOrBelow(pathname, "/confirmations/admin") ||
+    pathAtOrBelow(pathname, "/televoting/admin")
   );
 }
 
@@ -123,6 +127,7 @@ export function readV3OrganizerNavigationState(
     const raw = storage.getItem(storageKey(scopeKey));
     if (!raw) return emptyState();
     const parsed = JSON.parse(raw) as Partial<V3OrganizerNavigationState>;
+    if (parsed.version !== 1) return emptyState();
     const activeTab = VALID_TABS.includes(parsed.activeTab as V3OrganizerTabId)
       ? (parsed.activeTab as V3OrganizerTabId)
       : "overview";
@@ -268,17 +273,26 @@ export function consumeV3OrganizerNavigationRestore(
   scopeKey?: string | null,
 ): number | null {
   if (!storage) return null;
+  const key = restoreKey(scopeKey);
+
   try {
-    const key = restoreKey(scopeKey);
     const raw = storage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { href?: string; scrollY?: number };
-    if (parsed.href !== pathname + normalizeSearch(searchStr)) return null;
+    if (parsed.href !== pathname + normalizeSearch(searchStr)) {
+      storage.removeItem(key);
+      return null;
+    }
     storage.removeItem(key);
     return typeof parsed.scrollY === "number" && Number.isFinite(parsed.scrollY)
       ? Math.max(0, parsed.scrollY)
       : 0;
   } catch {
+    try {
+      storage.removeItem(key);
+    } catch {
+      // Session storage is progressive enhancement; malformed intent is dead.
+    }
     return null;
   }
 }
