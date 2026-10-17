@@ -1,8 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 
-export const getJuryIntegrityCases = createServerFn({ method: "GET" }).handler(async () => {
-  const { listJuryIntegrityCasesServer } = await import(
-    "@/integrations/jury-voting/jury-integrity-admin.server"
-  );
-  return listJuryIntegrityCasesServer();
-});
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export const getJuryIntegrityCases = createServerFn({ method: "POST" })
+  .inputValidator((data: { editionId: string }) => {
+    const editionId = String(data?.editionId ?? "").trim();
+    if (!UUID.test(editionId)) throw new Error("Jury Integrity requires a valid edition id");
+    return { editionId };
+  })
+  .handler(async ({ data }) => {
+    const { listJuryIntegrityCasesServer } = await import(
+      "@/integrations/jury-voting/jury-integrity-admin.server"
+    );
+    return listJuryIntegrityCasesServer(data.editionId);
+  });
