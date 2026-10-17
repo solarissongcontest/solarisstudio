@@ -24,6 +24,15 @@ export type VotingDeclarationInvalidationPreview = {
   alreadyApplied: boolean;
 };
 
+export type VotingDeclarationInvalidationReceipt = {
+  ok: true;
+  alreadyApplied: boolean;
+  id: string;
+  state: "invalidated";
+  version: number;
+  operationId: string | null;
+};
+
 type JsonRecord = Record<string, unknown>;
 
 function record(value: unknown, label: string): JsonRecord {
@@ -47,6 +56,14 @@ function nullableText(value: unknown): string | null {
 function numberValue(value: unknown, label: string): number {
   const parsed = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(parsed)) {
+    throw new Error(`Solaris returned an invalid ${label}.`);
+  }
+  return parsed;
+}
+
+function nonNegativeInteger(value: unknown, label: string): number {
+  const parsed = numberValue(value, label);
+  if (!Number.isInteger(parsed) || parsed < 0) {
     throw new Error(`Solaris returned an invalid ${label}.`);
   }
   return parsed;
@@ -94,12 +111,12 @@ export async function previewVotingDeclarationInvalidation(
     "voting declaration invalidation preview",
   );
 
-  return {
+  const preview: VotingDeclarationInvalidationPreview = {
     id: text(row.id, "declaration id"),
     state: stateValue(row.state),
-    declarationVersion: numberValue(row.declarationVersion, "declaration version"),
-    statementVersion: numberValue(row.statementVersion, "statement version"),
-    requiredStatementVersion: numberValue(
+    declarationVersion: nonNegativeInteger(row.declarationVersion, "declaration version"),
+    statementVersion: nonNegativeInteger(row.statementVersion, "statement version"),
+    requiredStatementVersion: nonNegativeInteger(
       row.requiredStatementVersion,
       "required statement version",
     ),
@@ -112,6 +129,11 @@ export async function previewVotingDeclarationInvalidation(
     riskClass: "R2",
     alreadyApplied: booleanValue(row.alreadyApplied, "declaration already-applied state"),
   };
+
+  if (preview.id !== preflightId) {
+    throw new Error("Voting declaration preview returned evidence for a different declaration.");
+  }
+  return preview;
 }
 
 export async function applyVotingDeclarationInvalidation(input: {
@@ -119,7 +141,7 @@ export async function applyVotingDeclarationInvalidation(input: {
   reason: string;
   operationId?: string;
   idempotencyKey?: string;
-}) {
+}): Promise<VotingDeclarationInvalidationReceipt> {
   const command = createOrganisationCommand({
     command: "integrity.declaration.invalidate",
     riskClass: "R2",
@@ -130,7 +152,7 @@ export async function applyVotingDeclarationInvalidation(input: {
     idempotencyKey: input.idempotencyKey,
   });
 
-  return record(
+  const row = record(
     await rpc("studio2_apply_voting_declaration_invalidation", {
       p_preflight_id: input.preview.id,
       p_reason: input.reason,
@@ -140,4 +162,37 @@ export async function applyVotingDeclarationInvalidation(input: {
     }),
     "voting declaration invalidation receipt",
   );
+
+  if (booleanValue(row.ok, "declaration receipt success") !== true) {
+    throw new Error("Voting declaration invalidation did not return successful receipt evidence.");
+  }
+  const alreadyApplied = booleanValue(
+    row.alreadyApplied,
+    "declaration receipt already-applied state",
+  );
+  const id = text(row.id, "declaration receipt id");
+  if (id !== input.preview.id) {
+    throw new Error("Voting declaration invalidation returned a receipt for a different declaration.");
+  }
+  const state = stateValue(row.state);
+  if (state !== "invalidated") {
+    throw new Error("Voting declaration invalidation returned an unexpected declaration state.");
+  }
+  const version = nonNegativeInteger(row.version, "declaration receipt version");
+  if (version < input.preview.declarationVersion) {
+    throw new Error("Voting declaration invalidation returned stale version evidence.");
+  }
+  const operationId = nullableText(row.operationId);
+  if (!alreadyApplied && operationId !== command.operationId) {
+    throw new Error("Voting declaration invalidation returned a receipt for a different operation.");
+  }
+
+  return {
+    ok: true,
+    alreadyApplied,
+    id,
+    state: "invalidated",
+    version,
+    operationId,
+  };
 }
