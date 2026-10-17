@@ -10,6 +10,10 @@ const guardHardening = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20261017001010_v3_s14_televote_projection_guard_hardening.sql"),
   "utf8",
 );
+const replayHardening = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20261017001020_v3_s14_televote_projection_replay_hardening.sql"),
+  "utf8",
+);
 const upgradeWorkflow = readFileSync(
   resolve(process.cwd(), ".github/workflows/v3-s14-televote-result-truth-rehearsal.yml"),
   "utf8",
@@ -18,10 +22,14 @@ const rehearsal = readFileSync(
   resolve(process.cwd(), ".github/scripts/v3-s14-televote-result-truth-rehearsal.sh"),
   "utf8",
 );
-const migration = `${foundation}\n${guardHardening}`;
+const replayRehearsal = readFileSync(
+  resolve(process.cwd(), ".github/scripts/v3-s14-televote-result-truth-replay-hardening-rehearsal.sh"),
+  "utf8",
+);
+const migration = `${foundation}\n${guardHardening}\n${replayHardening}`;
 
 function latestFunctionBody(name: string) {
-  const marker = `create or replace function ${name}`;
+  const marker = `create or replace function ${name}(`;
   const start = migration.lastIndexOf(marker);
   expect(start).toBeGreaterThanOrEqual(0);
   const next = migration.indexOf("create or replace function", start + marker.length);
@@ -48,6 +56,36 @@ describe("System V3 S14 published Televote result truth", () => {
     expect(body).toContain("delete from public.televote_votes");
     expect(body).toContain("insert into public.televote_votes");
     expect(body).toContain("perform public.sync_show_results_from_votes(p_show_id)");
+  });
+
+  it("makes healthy exact replay a no-op and repairs projection drift without revision churn", () => {
+    const body = latestFunctionBody("private.v3_apply_published_televote_projection");
+    expect(body).toContain("private.v3_televote_projection_snapshot(p_show_id)");
+    expect(body).toContain("v_current_fingerprint = v_existing.payload_fingerprint");
+    expect(body).toContain("v_current_row_count = v_existing.row_count");
+    expect(body).toContain("v_current_points_total = v_existing.points_total");
+    expect(body).toContain("v_revision := v_existing.projection_revision");
+    expect(body).toContain("v_repaired := true");
+    const healthyReplayReturn = body.indexOf("'repaired', false");
+    const bulkReplacement = body.indexOf("solaris.v3_televote_projection_bulk_replace");
+    expect(healthyReplayReturn).toBeGreaterThanOrEqual(0);
+    expect(bulkReplacement).toBeGreaterThan(healthyReplayReturn);
+  });
+
+  it("suppresses only canonical Televote bulk-replacement row triggers before one explicit result sync", () => {
+    const body = latestFunctionBody("public.sync_results_after_vote_change");
+    expect(body).toContain("tg_table_schema = 'public'");
+    expect(body).toContain("tg_table_name = 'televote_votes'");
+    expect(body).toContain("solaris.v3_televote_projection_write");
+    expect(body).toContain("solaris.v3_televote_projection_bulk_replace");
+    expect(body).toContain("perform public.sync_show_results_from_votes(coalesce(new.show_id, old.show_id))");
+
+    const apply = latestFunctionBody("private.v3_apply_published_televote_projection");
+    expect(apply).toContain("set_config('solaris.v3_televote_projection_bulk_replace', '1', true)");
+    expect(apply).toContain("set_config('solaris.v3_televote_projection_bulk_replace', '0', true)");
+    expect(apply.indexOf("set_config('solaris.v3_televote_projection_bulk_replace', '0', true)")).toBeLessThan(
+      apply.indexOf("perform public.sync_show_results_from_votes(p_show_id)"),
+    );
   });
 
   it("projects only the exact current published round calculation version", () => {
@@ -92,11 +130,23 @@ describe("System V3 S14 published Televote result truth", () => {
     expect(rehearsal).not.toContain("values ('$USER_ID','voting.manage','$EDITION_ID'),('$USER_ID','voting.read','$EDITION_ID')");
   });
 
-  it("replays guard hardening after the foundation in current-main upgrade proof", () => {
+  it("proves replay no-churn, drift repair, bounded bulk reconciliation and rollback locally", () => {
+    expect(replayRehearsal).toContain("Healthy exact replay must be an operational no-op");
+    expect(replayRehearsal).toContain("Privileged projection drift is repaired without semantic revision churn");
+    expect(replayRehearsal).toContain("bulk replacement amplified result reconciliation beyond one show sync");
+    expect(replayRehearsal).toContain("replacement whose final result sync fails");
+    expect(replayRehearsal).toContain("failed final sync left partial Televote projection writes");
+    expect(replayRehearsal).toContain("Refusing non-local database rehearsal");
+  });
+
+  it("replays every result-truth migration after the foundation in current-main upgrade proof", () => {
     const foundationCopy = upgradeWorkflow.indexOf("20261017001000_v3_s14_televote_result_truth.sql");
     const guardCopy = upgradeWorkflow.indexOf("20261017001010_v3_s14_televote_projection_guard_hardening.sql");
+    const replayCopy = upgradeWorkflow.indexOf("20261017001020_v3_s14_televote_projection_replay_hardening.sql");
     expect(foundationCopy).toBeGreaterThanOrEqual(0);
     expect(guardCopy).toBeGreaterThan(foundationCopy);
+    expect(replayCopy).toBeGreaterThan(guardCopy);
+    expect(upgradeWorkflow).toContain("v3-s14-televote-result-truth-replay-hardening-rehearsal.sh");
   });
 
   it("exposes safe provenance diagnostics without exposing raw ballots", () => {
