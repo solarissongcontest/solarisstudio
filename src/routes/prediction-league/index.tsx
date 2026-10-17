@@ -1,13 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { AppShell, Panel } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PredictionWorkspaceHeader } from "@/components/predictions/PredictionWorkspaceHeader";
 import { PublicResponsiveDataView, type PublicDataColumn } from "@/components/public/PublicResponsiveDataView";
 import { supabase } from "@/integrations/supabase/client";
 import { editionLabel, useEditions } from "@/lib/data";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
+import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
 export const Route = createFileRoute("/prediction-league/")({
   head: () => ({
@@ -27,7 +29,6 @@ type Standing = {
   position: number;
   lastScoredAt: string | null;
 };
-
 
 const standingColumns: readonly PublicDataColumn<Standing>[] = [
   {
@@ -57,6 +58,27 @@ const standingColumns: readonly PublicDataColumn<Standing>[] = [
 ];
 
 function PredictionLeaguePage() {
+  const { isAppMode, platformResolved } = useSolarisApp();
+  const rollout = useV3RolloutProbe(platformResolved && isAppMode);
+
+  if (!platformResolved || (isAppMode && rollout.isLoading)) {
+    return (
+      <main className="mx-auto w-full max-w-5xl px-4 py-10" data-v3-prediction-league-cutover="resolving">
+        <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
+          Opening Predictions…
+        </p>
+      </main>
+    );
+  }
+
+  if (isAppMode && !rollout.isError && rollout.data?.enabled === true) {
+    return <Navigate to="/predictions" replace />;
+  }
+
+  return <LegacyPredictionLeaguePage />;
+}
+
+function LegacyPredictionLeaguePage() {
   const { data: editions = [] } = useEditions();
   const published = editions.filter((edition) => edition.published);
   const [editionId, setEditionId] = useState<string>("all");
