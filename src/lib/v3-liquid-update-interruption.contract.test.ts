@@ -57,4 +57,18 @@ describe("V3 Liquid navigation update interruption safety", () => {
       /setAppUpdateBlocker\([\s\S]*try \{[\s\S]*prefersReducedMotion\(\)[\s\S]*finally \{[\s\S]*clearAppUpdateBlocker\(updateBlockerId\)/,
     );
   });
+
+  it("keeps push/pop/tab marker ownership correct when transitions overlap", () => {
+    const transitions = source("src/lib/app-view-transitions.ts");
+
+    expect(transitions).toContain(
+      "const activeViewTransitionMarkers = new Map<string, AppViewTransitionKind>()",
+    );
+    expect(transitions).toContain("activateViewTransitionMarker(root, updateBlockerId, kind)");
+    expect(transitions).toContain("activeViewTransitionMarkers.set(ownerId, kind)");
+    expect(transitions).toContain("activeViewTransitionMarkers.delete(ownerId)");
+    expect(transitions).toContain("const latestKind = remainingKinds.at(-1)");
+    expect(transitions).toContain("releaseViewTransitionMarker(root, updateBlockerId)");
+    expect(transitions).not.toContain("delete root.dataset.solarisViewTransition;\n    }\n  } finally");
+  });
 });
