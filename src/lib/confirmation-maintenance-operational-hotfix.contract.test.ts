@@ -9,7 +9,20 @@ const hotfix = readFileSync(
   ),
   "utf8",
 );
-
+const transport = readFileSync(
+  resolve(
+    process.cwd(),
+    "supabase/migrations/20261017121000_confirmation_country_account_edit_transport.sql",
+  ),
+  "utf8",
+);
+const creditsAuthority = readFileSync(
+  resolve(
+    process.cwd(),
+    "supabase/migrations/20261016193700_v3_entry_credits_contract.sql",
+  ),
+  "utf8",
+);
 const requirements = readFileSync(
   resolve(
     process.cwd(),
@@ -74,17 +87,54 @@ describe("Confirmation maintenance operational hotfix", () => {
     expect(controls).toContain("set active = false");
   });
 
-  it("revalidates current response editability under a row lock before an edit-token submit", () => {
-    const start = hotfix.indexOf("create or replace function public.v3_submit_confirmation");
-    const submit = hotfix.slice(start);
-    const lock = submit.indexOf("where submission.id = v_edit_token.submission_id\n      for update");
-    const editingCheck = submit.indexOf("not coalesce(v_edit_submission.editing_allowed, false)");
-    const legacyWrite = submit.indexOf("public.submit_confirmation(payload)");
+  it("keeps the canonical V3 writer owned by the latest Entry-credits contract", () => {
+    for (const required of [
+      "v_payload := private.v3_normalize_confirmation_credits_payload(payload)",
+      "public.submit_confirmation(v_payload)",
+      "solaris.v3_entry_credits_context",
+      "to anon, authenticated, service_role",
+    ]) {
+      expect(creditsAuthority).toContain(required);
+      expect(transport).toContain(required);
+    }
+  });
+
+  it("locks and revalidates the exact existing response in a country-account-only edit command", () => {
+    const start = transport.indexOf(
+      "create or replace function public.public_country_account_submit_confirmation_edit",
+    );
+    const submit = transport.slice(start);
+    const lock = submit.indexOf("where submission.id = v_token.submission_id\n  for update");
+    const countryCheck = submit.indexOf("lower(btrim(v_submission.country)) not in");
+    const editingCheck = submit.indexOf("not coalesce(v_submission.editing_allowed, false)");
+    const canonicalWrite = submit.indexOf("return public.v3_submit_confirmation(");
 
     expect(lock).toBeGreaterThan(-1);
-    expect(editingCheck).toBeGreaterThan(lock);
-    expect(legacyWrite).toBeGreaterThan(editingCheck);
-    expect(submit).toContain("not coalesce(v_edit_edition.editing_enabled, false)");
+    expect(countryCheck).toBeGreaterThan(lock);
+    expect(editingCheck).toBeGreaterThan(countryCheck);
+    expect(canonicalWrite).toBeGreaterThan(editingCheck);
+    expect(submit).toContain("token.token_type = 'country_account'");
+    expect(submit).not.toContain("round.editing_enabled");
+  });
+
+  it("returns an editor-safe country-account token projection without internal response metadata", () => {
+    const start = transport.indexOf(
+      "create or replace function public.public_country_account_resolve_edit_token",
+    );
+    const end = transport.indexOf(
+      "create or replace function public.public_country_account_submit_confirmation_edit",
+    );
+    const resolveToken = transport.slice(start, end);
+
+    expect(resolveToken).toContain("token.token_type = 'country_account'");
+    expect(resolveToken).toContain("account.user_id = v_actor");
+    expect(resolveToken).toContain("'review_reason', entry.review_reason");
+    expect(resolveToken).not.toContain("to_jsonb(v_submission)");
+    expect(resolveToken).not.toContain("'admin_notes'");
+    expect(resolveToken).not.toContain("'initial_ip'");
+    expect(resolveToken).not.toContain("'latest_ip'");
+    expect(resolveToken).not.toContain("'recovery_code'");
+    expect(resolveToken).not.toContain("'browser_session_id'");
   });
 
   it("exposes only a country-account scoped participant portal projection", () => {
