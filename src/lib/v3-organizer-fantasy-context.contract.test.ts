@@ -6,6 +6,10 @@ const fantasyMigration = readFileSync(
   "supabase/migrations/20260920105233_fantasy_entity_identity_fix.sql",
   "utf8",
 );
+const fantasyScoreMigration = readFileSync(
+  "supabase/migrations/20261017120000_v3_s5_fantasy_score_consequences.sql",
+  "utf8",
+);
 const registry = readFileSync("src/lib/v3-organizer-capability-registry.ts", "utf8");
 
 describe("V3 Organizer Fantasy SSC context", () => {
@@ -32,16 +36,20 @@ describe("V3 Organizer Fantasy SSC context", () => {
     expect(fantasy).toContain("existing.data.edition_id !== editionId");
   });
 
-  it("preserves the existing server-side scope checks while System upgrades the operation envelope", () => {
+  it("preserves server-side configuration scope checks and routes scoring through the V3 envelope", () => {
     expect(fantasyMigration).toContain("studio2_access_allowed('edition.manage', _edition_id, false)");
     expect(fantasyMigration).toContain("Fantasy game belongs to a different edition");
     expect(fantasyMigration).toContain("Fantasy show does not belong to the selected edition");
     expect(fantasyMigration).toContain("for update");
-    expect(fantasy).toContain('rpc("studio2_save_fantasy_game"');
-    expect(fantasy).toContain('rpc("score_fantasy_game"');
+    expect(fantasy).toMatch(/\.rpc\(\s*"studio2_save_fantasy_game"/);
+    expect(fantasy).toMatch(/\.rpc\(\s*"studio2_fantasy_score_preview"/);
+    expect(fantasy).toMatch(/\.rpc\(\s*"studio2_score_fantasy_game"/);
+    expect(fantasy).not.toMatch(/\.rpc\(\s*"score_fantasy_game"/);
+    expect(fantasyScoreMigration).toContain("'fantasy.score'");
+    expect(fantasyScoreMigration).toContain("revoke all on function public.score_fantasy_game(uuid)");
   });
 
-  it("records Fantasy SSC as building while System #630 owns the V3 operation envelope", () => {
+  it("records Fantasy SSC as building while the remaining config/change envelope is unfinished", () => {
     expect(registry).toContain('id === "workspace-fantasy"');
   });
 });
