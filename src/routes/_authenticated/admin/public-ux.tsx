@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Activity, Gauge, MousePointer2, Search, Smartphone } from "lucide-react";
 import { useState } from "react";
 
+import { PublicUxActionabilityPanel } from "@/components/admin/PublicUxActionability";
 import {
   AdminCard,
   AdminCardHeader,
@@ -89,6 +90,8 @@ function PublicUxDashboard() {
               }
             />
           </section>
+
+          <PublicUxActionabilityPanel metrics={metrics} vitalRows={vitals?.routes ?? []} />
 
           <AdminCard>
             <AdminCardHeader
