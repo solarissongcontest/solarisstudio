@@ -81,6 +81,9 @@ export type Studio2TransitionEditionRequest = {
   to: EditionState;
   reason?: string | null;
   approvalRequestId?: string | null;
+  operationId?: string | null;
+  idempotencyKey?: string | null;
+  expectedVersion?: number | null;
 };
 
 export type Studio2CreateIncidentRequest = {
@@ -227,6 +230,34 @@ export function mapStudio2RuntimeRow(value: unknown): Studio2RuntimeRecord {
   };
 }
 
+function mapArchiveTransitionResult(value: unknown, expectedEditionId: string): Studio2RuntimeRecord {
+  const result = expectObject(value, 'archive transition result');
+  const editionId = expectString(result.editionId, 'archive edition id');
+  const state = expectString(result.state, 'archive state');
+  const runtimeVersion = expectNumber(result.runtimeVersion, 'archive runtime version');
+  const runtime = mapStudio2RuntimeRow(result.runtime);
+
+  if (editionId !== expectedEditionId || runtime.editionId !== expectedEditionId) {
+    throw new Error('Archive operation returned a different edition than requested.');
+  }
+  if (state !== 'archived' || runtime.runtime.edition !== 'archived') {
+    throw new Error('Archive operation did not return archived canonical runtime state.');
+  }
+  if (runtime.version !== runtimeVersion) {
+    throw new Error('Archive operation receipt disagrees with canonical runtime version.');
+  }
+
+  return runtime;
+}
+
+function mapReconciledArchiveRuntime(value: unknown, expectedEditionId: string): Studio2RuntimeRecord | null {
+  const receipt = expectObject(value, 'operation reconciliation receipt');
+  if (receipt.status !== 'succeeded' || receipt.result === null || receipt.result === undefined) {
+    return null;
+  }
+  return mapArchiveTransitionResult(receipt.result, expectedEditionId);
+}
+
 export function mapStudio2EventRow(value: unknown): ContestEvent {
   const row = expectObject(value, 'Studio 2 event row');
   const type = expectString(row.type, 'event type');
@@ -330,14 +361,60 @@ export function createStudio2Persistence(client: Studio2SupabaseClient) {
     },
 
     async transitionEdition(request: Studio2TransitionEditionRequest): Promise<Studio2RuntimeRecord> {
-      const { data, error } = await client.rpc('studio2_transition_edition_v2', {
+      if (request.to !== 'archived') {
+        const { data, error } = await client.rpc('studio2_transition_edition_v2', {
+          p_edition_id: request.editionId,
+          p_to: request.to,
+          p_reason: request.reason ?? null,
+          p_approval_request_id: request.approvalRequestId ?? null,
+        });
+        throwIfError(error);
+        return mapStudio2RuntimeRow(data);
+      }
+
+      const operationId = request.operationId ?? crypto.randomUUID();
+      const idempotencyKey = request.idempotencyKey ?? operationId;
+      let expectedVersion = request.expectedVersion;
+
+      if (expectedVersion === null || expectedVersion === undefined) {
+        const { data: runtimeData, error: runtimeError } = await client
+          .from('studio2_edition_runtime')
+          .select('*')
+          .eq('edition_id', request.editionId)
+          .maybeSingle();
+        throwIfError(runtimeError);
+        if (!runtimeData) throw new Error(`Studio 2 runtime is unavailable for edition ${request.editionId}`);
+        expectedVersion = mapStudio2RuntimeRow(runtimeData).version;
+      }
+
+      if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
+        throw new Error('Archive requires a positive integer expected runtime version.');
+      }
+
+      const { data, error } = await client.rpc('studio2_archive_edition_v3', {
         p_edition_id: request.editionId,
-        p_to: request.to,
+        p_expected_version: request.expectedVersion ?? expectedVersion,
+        p_operation_id: request.operationId ?? operationId,
+        p_idempotency_key: request.idempotencyKey ?? idempotencyKey,
         p_reason: request.reason ?? null,
-        p_approval_request_id: request.approvalRequestId ?? null,
       });
-      throwIfError(error);
-      return mapStudio2RuntimeRow(data);
+      if (!error) return mapArchiveTransitionResult(data, request.editionId);
+
+      const { data: reconciliation, error: reconciliationError } = await client.rpc(
+        'studio2_reconcile_operation',
+        { p_operation_id: request.operationId ?? operationId },
+      );
+      if (!reconciliationError) {
+        try {
+          const reconciledRuntime = mapReconciledArchiveRuntime(reconciliation, request.editionId);
+          if (reconciledRuntime) return reconciledRuntime;
+        } catch {
+          // Keep the original mutation error authoritative if reconciliation
+          // returns malformed or contradictory receipt data.
+        }
+      }
+
+      throw error;
     },
 
     async listTransitionApprovals(editionId: string): Promise<Studio2TransitionApprovalRecord[]> {
