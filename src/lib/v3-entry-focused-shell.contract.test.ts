@@ -47,16 +47,28 @@ describe("V3 Entry focused participant shell", () => {
     expect(css).toContain('.app-main[data-solaris-app-mode="true"]');
   });
 
-  it("keeps country-scoped organizer inspection in the canonical legacy workspace", () => {
+  it("keeps only verified country-scoped Organizer inspection in the legacy workspace", () => {
     const gate = source("src/components/v3/V3EntryRouteGate.tsx");
     const workspace = source("src/components/mysolaris/MySolarisWorkspaceShell.tsx");
     const route = source("src/routes/_authenticated/my-solaris/entry.tsx");
 
     expect(route).toContain("organizerInspection={Boolean(search.country)}");
-    expect(gate).toContain("if (organizerInspection || !isAppMode) return <>{legacy}</>");
-    expect(workspace).toContain("const countryInspection = countryInspectionTarget(location.search)");
-    expect(workspace).toContain("!countryInspection &&");
+    expect(gate).toContain("const workspace = useMySolaris()");
+    expect(gate).toContain("workspace.isLoading || workspace.permissions.isOrganizer");
+    expect(gate).toContain("if (verifiedOrganizerInspection || !isAppMode) return <>{legacy}</>");
+    expect(workspace).toContain("const preserveLegacyEntryInspection = Boolean(");
+    expect(workspace).toContain("workspace.isLoading || workspace.permissions.isOrganizer");
+    expect(workspace).toContain("!preserveLegacyEntryInspection &&");
     expect(workspace).toContain("<MySolarisWorkspaceNav />");
+  });
+
+  it("does not let an unverified country query disable participant focused chrome", () => {
+    const gate = source("src/components/v3/V3EntryRouteGate.tsx");
+    const workspace = source("src/components/mysolaris/MySolarisWorkspaceShell.tsx");
+
+    expect(gate).not.toContain("if (organizerInspection || !isAppMode)");
+    expect(gate).toContain("!verifiedOrganizerInspection &&");
+    expect(workspace).not.toContain("!countryInspection &&");
   });
 
   it("blocks service-worker activation throughout Entry while ordinary MySolaris remains safe", () => {
