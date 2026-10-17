@@ -1,4 +1,4 @@
-import { expect, test, type BrowserContext } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
 type E2ESession = {
   access_token: string;
@@ -77,7 +77,7 @@ async function installCountrySession(context: BrowserContext) {
 }
 
 async function expectFocusedParticipationChrome(
-  page: Parameters<typeof test>[0] extends never ? never : any,
+  page: Page,
   pathname: "/televoting" | "/next-in-line",
   title: "Televoting" | "Next in Line",
 ) {
