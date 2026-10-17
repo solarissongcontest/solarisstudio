@@ -149,6 +149,8 @@ for rehearsal in \
   v3-s4-domain-event-outbox-rehearsal.sh \
   v3-s5-confirmation-consequences-rehearsal.sh \
   v3-s5-entry-consequences-rehearsal.sh \
+  v3-s5-jury-consequences-rehearsal.sh \
+  v3-s5-televote-consequences-rehearsal.sh \
   v3-s5-results-consequences-rehearsal.sh \
   v3-s5-publication-consequences-rehearsal.sh \
   v3-s5-notification-consequences-rehearsal.sh \
