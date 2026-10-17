@@ -9,9 +9,12 @@ import {
   buildStudio2HodWorkspaceSnapshot,
   mapStudio2HodContext,
 } from "@/lib/studio2-hod-workspace";
+import type { EntryCredit, EntryCreditRole } from "@/lib/ssc";
 import {
+  deriveV3EntryLifecycle,
   reviewMatchesCurrentVersion,
   type V3EntryCandidate,
+  type V3EntryConfirmationProjection,
   type V3EntryProjection,
   type V3EntryReviewStatus,
   type V3EntrySubmissionReceipt,
@@ -20,6 +23,15 @@ import {
 
 const EDITION_COLUMNS =
   "id,edition_number,name,year,slug,description,host_country_id,host_city,logo,theme_id,status,published";
+
+const ENTRY_CREDIT_ROLES = new Set<EntryCreditRole>([
+  "composer",
+  "lyricist",
+  "songwriter",
+  "producer",
+  "arranger",
+  "other",
+]);
 
 type RpcResult = { data: unknown; error: unknown };
 type AnyClient = {
@@ -37,6 +49,7 @@ type ConfirmationEntryRow = {
   id?: unknown;
   artist?: unknown;
   song_title?: unknown;
+  credits?: unknown;
   review_status?: unknown;
   review_reason?: unknown;
   content_revision?: unknown;
@@ -104,6 +117,17 @@ function objectOrNull(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
+function mapCredits(value: unknown): EntryCredit[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    const row = objectOrNull(item);
+    const role = stringOrNull(row?.role)?.toLowerCase() ?? "";
+    const name = stringOrNull(row?.name);
+    if (!name || !ENTRY_CREDIT_ROLES.has(role as EntryCreditRole)) return [];
+    return [{ role: role as EntryCreditRole, name }];
+  });
+}
+
 function reviewStatus(value: unknown): V3EntryReviewStatus {
   return value === "pending" || value === "accepted" || value === "declined" || value === "removed"
     ? value
@@ -121,6 +145,7 @@ function mapCandidate(value: unknown): V3EntryCandidate | null {
     id,
     artist: stringOrNull(row.artist),
     songTitle: stringOrNull(row.song_title),
+    credits: mapCredits(row.credits),
     reviewStatus: status,
     reviewReason: stringOrNull(row.review_reason),
     contentRevision: integerOrNull(row.content_revision),
@@ -164,6 +189,7 @@ function mapVersionHistory(value: unknown): V3EntryVersionEvidence[] {
       restoredFromSubmissionVersionId: stringOrNull(row.restored_from_submission_version_id),
       artist: stringOrNull(content.artist),
       songTitle: stringOrNull(content.song_title),
+      credits: mapCredits(content.credits),
       recordedAt: stringOrNull(row.recorded_at),
       reviews,
     }];
@@ -300,11 +326,47 @@ export async function loadCurrentV3EntryBundle(): Promise<V3EntryServerBundle> {
       })
     : [];
 
+  const confirmation: V3EntryConfirmationProjection | null = response && submissionId
+    ? {
+        submissionId,
+        roundId: stringOrNull(response.round_id),
+        roundName: stringOrNull(response.round_name),
+        submittedAt: stringOrNull(response.submitted_at),
+        updatedAt: stringOrNull(response.updated_at),
+        selectionMethod: stringOrNull(response.selection_method),
+        canEdit: response.can_edit === true,
+        editReason: stringOrNull(response.reason),
+        receipt: submissionReceipt,
+        internalEntry,
+        nationalFinal: nationalFinalRaw && stringOrNull(nationalFinalRaw.id)
+          ? {
+              id: stringOrNull(nationalFinalRaw.id)!,
+              name: stringOrNull(nationalFinalRaw.nf_name),
+              winnerEntryId: stringOrNull(nationalFinalRaw.winning_entry_id),
+              entries: nationalFinalEntries,
+            }
+          : null,
+      }
+    : null;
+  const lifecycle = deriveV3EntryLifecycle(confirmation);
+
   let versionHistory: V3EntryVersionEvidence[] = [];
+  let historyTarget: { targetType: "internal" | "national_final"; entryId: string } | null = null;
   if (internalEntry?.id) {
+    historyTarget = { targetType: "internal", entryId: internalEntry.id };
+  } else if (nationalFinalEntries.length) {
+    const affectedId = lifecycle.affectedCandidateIds.find((id) =>
+      nationalFinalEntries.some((entry) => entry.id === id),
+    );
+    const winnerId = stringOrNull(nationalFinalRaw?.winning_entry_id);
+    const entryId = affectedId ?? winnerId ?? nationalFinalEntries[0]?.id ?? null;
+    if (entryId) historyTarget = { targetType: "national_final", entryId };
+  }
+
+  if (historyTarget) {
     const historyResult = await client.rpc("v3_confirmation_entry_versions", {
-      p_target_type: "internal",
-      p_entry_id: internalEntry.id,
+      p_target_type: historyTarget.targetType,
+      p_entry_id: historyTarget.entryId,
       p_before_revision: null,
     });
     throwIfError(historyResult.error, "Could not load immutable Entry version history");
@@ -322,28 +384,8 @@ export async function loadCurrentV3EntryBundle(): Promise<V3EntryServerBundle> {
     state: "ready",
     edition: { id: edition.id, label: editionLabel(edition) },
     delegation: { id: countryId, name: countryName, code: countryCode.toUpperCase() },
-    confirmation: response && submissionId
-      ? {
-          submissionId,
-          roundId: stringOrNull(response.round_id),
-          roundName: stringOrNull(response.round_name),
-          submittedAt: stringOrNull(response.submitted_at),
-          updatedAt: stringOrNull(response.updated_at),
-          selectionMethod: stringOrNull(response.selection_method),
-          canEdit: response.can_edit === true,
-          editReason: stringOrNull(response.reason),
-          receipt: submissionReceipt,
-          internalEntry,
-          nationalFinal: nationalFinalRaw && stringOrNull(nationalFinalRaw.id)
-            ? {
-                id: stringOrNull(nationalFinalRaw.id)!,
-                name: stringOrNull(nationalFinalRaw.nf_name),
-                winnerEntryId: stringOrNull(nationalFinalRaw.winning_entry_id),
-                entries: nationalFinalEntries,
-              }
-            : null,
-        }
-      : null,
+    confirmation,
+    lifecycle,
     readiness: {
       score: workspace.model.readiness,
       state: workspace.model.readinessState,
