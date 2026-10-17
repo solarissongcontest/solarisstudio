@@ -5,12 +5,10 @@ set -euo pipefail
 # Deliberately local/operator-run: production credentials must never be exposed to CI.
 
 PRODUCTION_PROJECT_REF="dkxmnvekiopyesuzggeu"
-EXPECTED_REMOTE_HEAD="20261017201000"
-EXPECTED_REPO_HEAD="20261017210000"
-EXPECTED_PENDING_COUNT="1"
-EXPECTED_PENDING_VERSIONS=(
-  20261017210000
-)
+EXPECTED_REMOTE_HEAD="20261017212902"
+EXPECTED_REPO_HEAD="20261017212902"
+EXPECTED_PENDING_COUNT="0"
+EXPECTED_PENDING_VERSIONS=()
 
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
@@ -174,6 +172,12 @@ for i in "${!EXPECTED_PENDING_VERSIONS[@]}"; do
     || fail "canonical pending migration manifest differs at position $((i + 1)): found ${pending_versions[$i]}, expected ${EXPECTED_PENDING_VERSIONS[$i]}"
 done
 printf '\nCanonical pending migration manifest validated: %d migrations.\n' "${#pending_versions[@]}"
+
+if (( EXPECTED_PENDING_COUNT == 0 )); then
+  printf 'Production and repository migration heads are aligned; nothing to deploy.\n'
+  exit 0
+fi
+
 printf 'First pending: %s\n' "${pending_versions[0]}"
 printf 'Last pending: %s\n' "${pending_versions[$((${#pending_versions[@]} - 1))]}"
 
