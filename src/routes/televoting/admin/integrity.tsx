@@ -1,7 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ShieldAlert } from "lucide-react";
 
-import { IntegrityModerationHub } from "@/components/televoting/IntegrityModerationHub";
-import { IntegrityReviewView } from "@/components/televoting/IntegrityReviewView";
+import { useAdminContext } from "@/components/admin/AdminContext";
+import { AdminCard, AdminEmptyState } from "@/components/admin/AdminUI";
+import { V3ScopedIntegrityReview } from "@/components/televoting/V3ScopedIntegrityReview";
 
 export const Route = createFileRoute("/televoting/admin/integrity")({
   head: () => ({
@@ -10,14 +12,26 @@ export const Route = createFileRoute("/televoting/admin/integrity")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: IntegrityPage,
+  component: IntegrityRoute,
 });
 
-function IntegrityPage() {
-  return (
-    <div className="space-y-6">
-      <IntegrityReviewView />
-      <IntegrityModerationHub />
-    </div>
-  );
+function IntegrityRoute() {
+  const { editionId } = useAdminContext();
+
+  if (!editionId) {
+    return (
+      <div className="admin-page mx-auto max-w-6xl pb-5">
+        <AdminCard>
+          <AdminEmptyState
+            icon={ShieldAlert}
+            title="Choose an edition"
+            description="Voting integrity is edition-scoped Organizer work. Select the exact edition before Solaris loads voting rounds or ballot evidence."
+            action={<Link to="/televoting/admin" className="admin-action-secondary">Back to Voting</Link>}
+          />
+        </AdminCard>
+      </div>
+    );
+  }
+
+  return <V3ScopedIntegrityReview key={editionId} editionId={editionId} />;
 }
