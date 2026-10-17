@@ -43,21 +43,22 @@ function readString(value: unknown) {
 }
 
 function readDuration(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.round(value) : null;
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null;
 }
 
-function readNonNegativeInteger(value: unknown, fallback = 0) {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : fallback;
+function readRevision(value: unknown, legacyVersion: boolean) {
+  if (value == null && legacyVersion) return 0;
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null;
 }
 
-function parseSegment(value: unknown, index: number): RundownSegment | null {
+function parseSegment(value: unknown): RundownSegment | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
-  const id = readString(row.id) ?? `segment-${index + 1}`;
+  const id = readString(row.id)?.trim();
   const label = (readString(row.label) ?? readString(row.title))?.trim();
   const duration = readDuration(row.plannedDurationSeconds);
   const status = readString(row.status);
-  if (!label || duration == null || !status || !statusSet.has(status)) return null;
+  if (!id || !label || duration == null || !status || !statusSet.has(status)) return null;
 
   return {
     id,
@@ -72,17 +73,22 @@ function parseSegment(value: unknown, index: number): RundownSegment | null {
 function parseRundownValue(raw: unknown): Studio2BroadcastRundownConfig | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
   const value = raw as Record<string, unknown>;
+  const storedVersion = value.version;
+  if (storedVersion !== 1 && storedVersion !== 2) return null;
+  const revision = readRevision(value.revision, storedVersion === 1);
+  if (revision == null) return null;
+
   const startAt = readString(value.startAt);
-  const rawSegments = Array.isArray(value.segments) ? value.segments : [];
-  const segments = rawSegments
-    .map((segment, index) => parseSegment(segment, index))
-    .filter((segment): segment is RundownSegment => segment !== null);
+  if (!Array.isArray(value.segments)) return null;
+  const parsedSegments = value.segments.map((segment) => parseSegment(segment));
+  if (parsedSegments.some((segment) => segment === null)) return null;
+  const segments = parsedSegments as RundownSegment[];
 
   if (!startAt || !Number.isFinite(new Date(startAt).getTime())) return null;
 
-  return {
+  const parsed: Studio2BroadcastRundownConfig = {
     version: 2,
-    revision: readNonNegativeInteger(value.revision),
+    revision,
     startAt,
     segments,
     lockedAt: readString(value.lockedAt),
@@ -91,6 +97,13 @@ function parseRundownValue(raw: unknown): Studio2BroadcastRundownConfig | null {
     updatedAt: readString(value.updatedAt),
     updatedBy: readString(value.updatedBy),
   };
+
+  try {
+    validateStudio2BroadcastRundown(parsed);
+  } catch {
+    return null;
+  }
+  return parsed;
 }
 
 export function parseStudio2BroadcastRundown(
@@ -120,6 +133,7 @@ export function createDefaultBroadcastRundown(startAt = new Date().toISOString()
 }
 
 export function validateStudio2BroadcastRundown(config: Studio2BroadcastRundownConfig) {
+  if (!Number.isInteger(config.revision) || config.revision < 0) throw new Error('Rundown revision is invalid.');
   if (!Number.isFinite(new Date(config.startAt).getTime())) throw new Error('Rundown start time is invalid.');
   const ids = new Set<string>();
   let liveCount = 0;
@@ -128,7 +142,7 @@ export function validateStudio2BroadcastRundown(config: Studio2BroadcastRundownC
     if (ids.has(segment.id)) throw new Error(`Duplicate rundown segment id: ${segment.id}`);
     ids.add(segment.id);
     if (!segment.label.trim()) throw new Error('Every rundown segment needs a label.');
-    if (!Number.isFinite(segment.plannedDurationSeconds) || segment.plannedDurationSeconds <= 0) {
+    if (!Number.isInteger(segment.plannedDurationSeconds) || segment.plannedDurationSeconds <= 0) {
       throw new Error(`Invalid duration for ${segment.label}.`);
     }
     if (segment.status === 'live') liveCount += 1;
@@ -199,10 +213,46 @@ export function rehearseStudio2BroadcastTransition(
   };
 }
 
+export function validateStudio2BroadcastCommandResult(
+  value: unknown,
+  expectedRevision: number,
+  mode: 'increment' | 'same-or-increment',
+): Studio2BroadcastRundownConfig {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Broadcast rundown command returned an invalid payload.');
+  }
+  const raw = value as Record<string, unknown>;
+  if (raw.version !== 2 || typeof raw.revision !== 'number' || !Number.isInteger(raw.revision) || raw.revision < 0) {
+    throw new Error('Broadcast rundown command returned invalid version evidence.');
+  }
+  const parsed = parseRundownValue(value);
+  if (!parsed) throw new Error('Broadcast rundown command returned an invalid payload.');
+
+  const allowed = mode === 'increment'
+    ? parsed.revision === expectedRevision + 1
+    : parsed.revision === expectedRevision || parsed.revision === expectedRevision + 1;
+  if (!allowed) {
+    throw new Error('Broadcast rundown command returned inconsistent revision evidence.');
+  }
+  return parsed;
+}
+
 async function requireEnabled() {
   if (!(await isStudio2FeatureEnabled('broadcast_rundown'))) {
     throw new Error('Broadcast Rundown is disabled by the Studio 2 rollout flag.');
   }
+}
+
+function requireShowId(showId: string) {
+  const normalized = showId.trim();
+  if (!normalized) throw new Error('Show is required.');
+  return normalized;
+}
+
+function requireReason(reason: string, label = 'Broadcast rundown') {
+  const normalized = reason.trim();
+  if (normalized.length < 5) throw new Error(`${label} reason must be at least 5 characters.`);
+  return normalized;
 }
 
 async function rpc(name: string, args: Record<string, unknown>) {
@@ -213,7 +263,7 @@ async function rpc(name: string, args: Record<string, unknown>) {
 
 export async function loadStudio2BroadcastRundown(showId: string): Promise<Studio2BroadcastRundownConfig | null> {
   await requireEnabled();
-  const data = await rpc('studio2_broadcast_rundown', { p_show_id: showId });
+  const data = await rpc('studio2_broadcast_rundown', { p_show_id: requireShowId(showId) });
   return parseRundownValue(data);
 }
 
@@ -225,15 +275,13 @@ export async function saveStudio2BroadcastRundown(
   await requireEnabled();
   validateStudio2BroadcastRundown(config);
   const data = await rpc('studio2_save_broadcast_rundown', {
-    p_show_id: showId,
+    p_show_id: requireShowId(showId),
     p_expected_revision: config.revision,
     p_start_at: config.startAt,
     p_segments: config.segments,
-    p_reason: reason,
+    p_reason: requireReason(reason),
   });
-  const parsed = parseRundownValue(data);
-  if (!parsed) throw new Error('Broadcast rundown save returned an invalid payload.');
-  return parsed;
+  return validateStudio2BroadcastCommandResult(data, config.revision, 'increment');
 }
 
 export async function setStudio2BroadcastRundownLock(
@@ -243,15 +291,14 @@ export async function setStudio2BroadcastRundownLock(
   reason: string,
 ): Promise<Studio2BroadcastRundownConfig> {
   await requireEnabled();
+  validateStudio2BroadcastRundown(config);
   const data = await rpc('studio2_set_broadcast_rundown_lock', {
-    p_show_id: showId,
+    p_show_id: requireShowId(showId),
     p_expected_revision: config.revision,
     p_locked: locked,
-    p_reason: reason,
+    p_reason: requireReason(reason, 'Broadcast rundown lock'),
   });
-  const parsed = parseRundownValue(data);
-  if (!parsed) throw new Error('Broadcast rundown lock command returned an invalid payload.');
-  return parsed;
+  return validateStudio2BroadcastCommandResult(data, config.revision, 'same-or-increment');
 }
 
 export async function transitionStudio2BroadcastSegment(
@@ -264,14 +311,15 @@ export async function transitionStudio2BroadcastSegment(
 ): Promise<Studio2BroadcastRundownConfig> {
   if (mode === 'rehearsal') return rehearseStudio2BroadcastTransition(config, segmentId, nextStatus);
   await requireEnabled();
+  validateStudio2BroadcastRundown(config);
+  const normalizedSegmentId = segmentId.trim();
+  if (!normalizedSegmentId) throw new Error('Rundown segment is required.');
   const data = await rpc('studio2_transition_broadcast_segment', {
-    p_show_id: showId,
+    p_show_id: requireShowId(showId),
     p_expected_revision: config.revision,
-    p_segment_id: segmentId,
+    p_segment_id: normalizedSegmentId,
     p_to_status: nextStatus,
-    p_reason: reason,
+    p_reason: requireReason(reason, 'Broadcast segment transition'),
   });
-  const parsed = parseRundownValue(data);
-  if (!parsed) throw new Error('Broadcast segment transition returned an invalid payload.');
-  return parsed;
+  return validateStudio2BroadcastCommandResult(data, config.revision, 'increment');
 }

@@ -49,8 +49,13 @@ export const Route = createFileRoute('/_authenticated/admin/broadcast-rundown')(
       { name: 'robots', content: 'noindex' },
     ],
   }),
-  component: BroadcastRundownPage,
+  component: BroadcastRundownRoute,
 });
+
+function BroadcastRundownRoute() {
+  const { editionId } = useAdminContext();
+  return <BroadcastRundownPage key={editionId || 'unscoped'} />;
+}
 
 function BroadcastRundownPage() {
   const { editionId } = useAdminContext();
@@ -274,6 +279,27 @@ function BroadcastRundownPage() {
   };
 
   const mutationError = saveMutation.error ?? lockMutation.error ?? transitionMutation.error;
+
+  if (!editionId) {
+    return (
+      <AdminPage>
+        <div className="mx-auto max-w-[1500px] space-y-4">
+          <AdminPageHeader
+            eyebrow="Solaris Studio 2 · Broadcast operations"
+            title="Broadcast Rundown"
+            description="Plan, lock and execute the show against one canonical rundown. Production commands are revision-checked and audited; rehearsal transitions stay local and never write production state."
+          />
+          <AdminCard>
+            <AdminEmptyState
+              icon={Clock3}
+              title="Choose an edition"
+              description="Select the edition in the Organizer toolbar before loading or operating a broadcast rundown. Solaris never substitutes another edition for live production work."
+            />
+          </AdminCard>
+        </div>
+      </AdminPage>
+    );
+  }
 
   return (
     <AdminPage>
