@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Activity, AlertTriangle, Network, RefreshCw, ShieldCheck, Users } from "lucide-react";
-import { toast } from "sonner";
+import { Activity, AlertTriangle, Network, ShieldAlert, ShieldCheck, Users } from "lucide-react";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import {
   AdminCard,
   AdminCardHeader,
@@ -12,71 +12,103 @@ import {
   AdminPageHeader,
   AdminStatus,
 } from "@/components/admin/AdminUI";
-import { getResultIntegrity, recomputeResultIntegrity } from "@/integrations/televoting/result-integrity.functions";
-import { getMergedTelevotingRounds } from "@/integrations/televoting/rounds.functions";
+import { getEditionScopedResultIntegrity } from "@/integrations/televoting/result-integrity.functions";
+import { getMergedTelevotingRoundsPage } from "@/integrations/televoting/rounds.functions";
 
 export const Route = createFileRoute("/televoting/admin/result-integrity")({
+  head: () => ({
+    meta: [
+      { title: "Result Integrity — Solaris Organizer" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: ResultIntegrityPage,
 });
 
 function ResultIntegrityPage() {
-  const queryClient = useQueryClient();
-  const getRounds = useServerFn(getMergedTelevotingRounds);
-  const getIntegrity = useServerFn(getResultIntegrity);
-  const recompute = useServerFn(recomputeResultIntegrity);
+  const { editionId } = useAdminContext();
+
+  if (!editionId) {
+    return (
+      <div className="admin-page mx-auto max-w-6xl pb-8">
+        <AdminCard>
+          <AdminEmptyState
+            icon={ShieldAlert}
+            title="Choose an edition"
+            description="Result Integrity is edition-scoped Organizer work. Select the exact edition before Solaris loads voting rounds or forensic result evidence."
+            action={<Link to="/televoting/admin" className="admin-action-secondary">Back to Voting</Link>}
+          />
+        </AdminCard>
+      </div>
+    );
+  }
+
+  return <EditionScopedResultIntegrity key={editionId} editionId={editionId} />;
+}
+
+function EditionScopedResultIntegrity({ editionId }: { editionId: string }) {
+  const getRoundsPage = useServerFn(getMergedTelevotingRoundsPage);
+  const getIntegrity = useServerFn(getEditionScopedResultIntegrity);
   const [roundId, setRoundId] = useState("");
 
-  const { data: editions = [], isLoading: loadingRounds } = useQuery({
-    queryKey: ["merged-televoting-rounds"],
-    queryFn: () => getRounds(),
+  const roundsQuery = useQuery({
+    queryKey: ["v3-result-integrity-rounds", editionId],
+    queryFn: () => getRoundsPage({ data: { editionId } }),
+    staleTime: 10_000,
   });
-  const rounds = useMemo(
-    () => editions.flatMap((edition) => edition.rounds.map((round) => ({ ...round, editionName: edition.name }))),
-    [editions],
-  );
+  const linked = roundsQuery.data?.linked === true;
+  const rounds = roundsQuery.data?.edition?.rounds ?? [];
   const effectiveRoundId = roundId || rounds.find((round) => round.status === "closed")?.id || rounds[0]?.id || "";
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["televoting-result-integrity", effectiveRoundId],
-    queryFn: () => getIntegrity({ data: { roundId: effectiveRoundId } }),
-    enabled: Boolean(effectiveRoundId),
-  });
-
-  const recomputeMutation = useMutation({
-    mutationFn: () => recompute({ data: { roundId: effectiveRoundId } }),
-    onSuccess: async (result) => {
-      toast.success(`Integrity analysis refreshed · ${result.clustersAnalysed} current cluster${result.clustersAnalysed === 1 ? "" : "s"} analysed`);
-      await queryClient.invalidateQueries({ queryKey: ["televoting-result-integrity", effectiveRoundId] });
-    },
-    onError: (caught) => toast.error(caught instanceof Error ? caught.message : "Integrity analysis failed"),
+    queryKey: ["v3-result-integrity", editionId, effectiveRoundId],
+    queryFn: () => getIntegrity({ data: { editionId, roundId: effectiveRoundId } }),
+    enabled: Boolean(effectiveRoundId && linked),
+    staleTime: 10_000,
   });
 
   return (
-    <div className="admin-page mx-auto max-w-6xl pb-8">
+    <div className="admin-page mx-auto max-w-6xl pb-8" data-v3-result-integrity-edition={editionId}>
       <AdminPageHeader
-        eyebrow="Voting integrity"
+        eyebrow="Voting · Result integrity"
         title="Result integrity"
-        description="Separate suspicious-looking behaviour from evidence quality and actual result influence. Counterfactuals are review evidence only and never delete ballots automatically."
+        description="Inspect stored influence, concentration and pre-submit evidence for the exact edition selected in Solaris Organizer. This V3 surface is read-only until recompute has governed, replay-safe server authority."
         actions={
           <div className="flex flex-wrap gap-2">
             <Link to="/admin/friend-voting" className="admin-action-secondary"><Network className="size-4" /> Friend-voting intelligence</Link>
-            <button
-              type="button"
-              className="admin-action-primary"
-              disabled={!effectiveRoundId || recomputeMutation.isPending || data?.round.engineVersion !== "robust-televote-v2"}
-              onClick={() => recomputeMutation.mutate()}
-            >
-              <RefreshCw className={`size-4 ${recomputeMutation.isPending ? "animate-spin" : ""}`} />
-              {recomputeMutation.isPending ? "Analysing…" : "Refresh cluster influence"}
-            </button>
+            <AdminStatus tone="info">Read-only evidence</AdminStatus>
           </div>
         }
       />
 
-      {loadingRounds ? (
-        <AdminCard className="py-10 text-center text-sm text-muted-foreground">Loading rounds…</AdminCard>
+      <AdminCard className="mb-4 !border-amber-200/15">
+        <div className="flex items-start gap-3">
+          <ShieldAlert className="mt-0.5 size-4 shrink-0 text-amber-100" />
+          <div>
+            <p className="text-sm font-semibold">Recompute is intentionally unavailable here</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              Rebuilding cluster-influence evidence changes stored derived data. Solaris keeps that control disabled in the edition-scoped V3 workspace until the server can apply it atomically, version-check it and reconcile uncertain outcomes.
+            </p>
+          </div>
+        </div>
+      </AdminCard>
+
+      {roundsQuery.isLoading ? (
+        <AdminCard className="py-10 text-center text-sm text-muted-foreground">Loading edition-scoped rounds…</AdminCard>
+      ) : roundsQuery.error ? (
+        <AdminCard className="border-rose-200/15 bg-rose-200/[0.045] text-sm text-rose-100">
+          {roundsQuery.error instanceof Error ? roundsQuery.error.message : "Voting rounds could not be loaded for this edition."}
+        </AdminCard>
+      ) : roundsQuery.data && !linked ? (
+        <AdminCard>
+          <AdminEmptyState
+            icon={ShieldAlert}
+            title="Voting edition is not linked"
+            description="Result Integrity cannot resolve authoritative voting rounds for this Solaris edition yet. Link the edition from Voting before reviewing result evidence."
+          />
+        </AdminCard>
       ) : !rounds.length ? (
-        <AdminCard><AdminEmptyState icon={ShieldCheck} title="No televote rounds" description="Create a televoting round before result-integrity analysis can run." /></AdminCard>
+        <AdminCard><AdminEmptyState icon={ShieldCheck} title="No televote rounds in this edition" description="Create or link a televoting round before result-integrity evidence can be reviewed." /></AdminCard>
       ) : (
         <div className="space-y-4">
           <AdminCard className="!p-3">
@@ -87,7 +119,7 @@ function ResultIntegrityPage() {
                 onChange={(event) => setRoundId(event.target.value)}
                 className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-[#07111f] px-3 text-sm font-semibold"
               >
-                {rounds.map((round) => <option key={round.id} value={round.id}>{round.editionName} · {round.name} · {round.status}</option>)}
+                {rounds.map((round) => <option key={round.id} value={round.id}>{round.name} · {round.status}</option>)}
               </select>
             </label>
           </AdminCard>
@@ -101,7 +133,7 @@ function ResultIntegrityPage() {
               {data.round.engineVersion !== "robust-televote-v2" ? (
                 <AdminCard className="border-amber-200/15 bg-amber-200/[0.04]">
                   <AdminCardHeader eyebrow="Legacy engine" title="Counterfactual cluster analysis is unavailable" />
-                  <p className="text-sm leading-relaxed text-muted-foreground">This round uses {data.round.engineVersion}. Historical results remain reproducible, but the ballot-level breadth and leave-out analysis belongs to Robust Televote v2.</p>
+                  <p className="text-sm leading-relaxed text-muted-foreground">This round uses {data.round.engineVersion}. Historical results remain reproducible, but ballot-level breadth and leave-out analysis belongs to Robust Televote v2.</p>
                 </AdminCard>
               ) : null}
 
@@ -139,7 +171,7 @@ function ResultIntegrityPage() {
                     ))}
                   </div>
                 ) : (
-                  <AdminEmptyState icon={Activity} title="No influence snapshots yet" description="Calculate a Robust v2 result, then refresh cluster influence." />
+                  <AdminEmptyState icon={Activity} title="No stored influence snapshots" description="Stored influence evidence will appear here once a governed integrity analysis has produced it. This V3 view does not recompute evidence itself." />
                 )}
               </AdminCard>
 
