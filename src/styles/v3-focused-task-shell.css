@@ -5,6 +5,17 @@ body:has([data-v3-entry-boot]) .app-main[data-solaris-app-mode="true"] {
   padding: 0;
 }
 
+/*
+ * Some focused tasks still enter through the compatibility AppShell while V3
+ * cutover remains reversible. Once the canonical focused shell is mounted it
+ * owns task chrome, so the compatibility toolbar must disappear rather than
+ * producing two Back/Help regions. Entry already suppresses this in React;
+ * this selector protects every sibling critical task without route hacks.
+ */
+body:has([data-v3-focused-task-shell]) .solaris-app-toolbar {
+  display: none;
+}
+
 [data-solaris-v3] .v3-focused-task-shell {
   min-height: 100dvh;
 }
