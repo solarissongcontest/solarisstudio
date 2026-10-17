@@ -22,13 +22,14 @@ export type V3FocusedTaskShellProps = {
  * Shared focused chrome for critical participant workflows.
  *
  * The shell deliberately removes global navigation and page-swipe affordances,
- * keeps canonical exit/help destinations visible, and blocks service-worker
- * activation while the critical workflow is mounted. Feature code still owns
- * draft state, mutation authority, receipts and unsaved-exit confirmation.
+ * keeps canonical exit/help destinations visible when the screen contract asks
+ * for the focused toolbar, and blocks service-worker activation while the
+ * critical workflow is mounted. Hidden-toolbar tasks keep their route-owned
+ * exit/help UI without receiving a duplicate shell toolbar.
  *
- * The toolbar title and content wrapper deliberately do not claim document
- * heading or main-landmark ownership. The route-owned critical-task screen owns
- * the page's single H1 and main landmark, preventing duplicate/nested landmarks.
+ * Feature code still owns draft state, mutation authority, receipts and
+ * unsaved-exit confirmation. The shell toolbar title/content wrapper do not
+ * claim document heading or main-landmark ownership.
  */
 export function V3FocusedTaskShell({
   chrome,
@@ -54,41 +55,44 @@ export function V3FocusedTaskShell({
       <div
         className="v3-focused-task-shell"
         data-v3-focused-task-shell={chrome.screenId}
+        data-v3-focused-task-toolbar-mode={chrome.toolbarMode}
         data-v3-swipe-owner="content"
       >
-        <header className="v3-focused-task-toolbar">
-          <div className="v3-focused-task-toolbar__side v3-focused-task-toolbar__side--start">
-            <Link
-              to={chrome.backTo as any}
-              className="v3-focused-task-toolbar__button v3-focused-task-toolbar__back"
-              aria-label={`Back to ${chrome.backLabel}`}
-            >
-              <ChevronLeft className="size-5" aria-hidden="true" />
-              <span>{chrome.backLabel}</span>
-            </Link>
-          </div>
-
-          <div className="v3-focused-task-toolbar__title-wrap">
-            <p className="v3-focused-task-toolbar__title">{chrome.title}</p>
-            {context.length ? (
-              <p className="v3-focused-task-toolbar__context" aria-label={context.join(", ")}>
-                {context.join(" · ")}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="v3-focused-task-toolbar__side v3-focused-task-toolbar__side--end">
-            {chrome.helpTo ? (
+        {chrome.toolbarMode === "focused" ? (
+          <header className="v3-focused-task-toolbar">
+            <div className="v3-focused-task-toolbar__side v3-focused-task-toolbar__side--start">
               <Link
-                to={chrome.helpTo as any}
-                className="v3-focused-task-toolbar__button v3-focused-task-toolbar__icon"
-                aria-label={`Help for ${chrome.title}`}
+                to={chrome.backTo as any}
+                className="v3-focused-task-toolbar__button v3-focused-task-toolbar__back"
+                aria-label={`Back to ${chrome.backLabel}`}
               >
-                <CircleHelp className="size-5" aria-hidden="true" />
+                <ChevronLeft className="size-5" aria-hidden="true" />
+                <span>{chrome.backLabel}</span>
               </Link>
-            ) : null}
-          </div>
-        </header>
+            </div>
+
+            <div className="v3-focused-task-toolbar__title-wrap">
+              <p className="v3-focused-task-toolbar__title">{chrome.title}</p>
+              {context.length ? (
+                <p className="v3-focused-task-toolbar__context" aria-label={context.join(", ")}>
+                  {context.join(" · ")}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="v3-focused-task-toolbar__side v3-focused-task-toolbar__side--end">
+              {chrome.helpTo ? (
+                <Link
+                  to={chrome.helpTo as any}
+                  className="v3-focused-task-toolbar__button v3-focused-task-toolbar__icon"
+                  aria-label={`Help for ${chrome.title}`}
+                >
+                  <CircleHelp className="size-5" aria-hidden="true" />
+                </Link>
+              ) : null}
+            </div>
+          </header>
+        ) : null}
 
         <div
           className="v3-focused-task-content"
