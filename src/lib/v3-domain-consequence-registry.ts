@@ -104,6 +104,11 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
     "src/lib/v3-s5-access-consequences.test.ts",
     ".github/scripts/v3-s5-access-consequences-rehearsal.sh",
   ],
+  "preference.changed": [
+    "supabase/migrations/20261017103000_v3_s5_preference_consequences.sql",
+    "src/lib/v3-s5-preference-consequences.test.ts",
+    ".github/scripts/v3-s5-preference-consequences-rehearsal.sh",
+  ],
   "results.calculated": [
     "supabase/migrations/20261016053000_v3_s5_results_consequences.sql",
     "src/lib/v3-s5-results-consequences.test.ts",

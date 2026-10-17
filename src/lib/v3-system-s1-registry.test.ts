@@ -74,6 +74,7 @@ describe("System V3 S1 registries", () => {
       "notification.failed",
       "notification.queued",
       "permissions.changed",
+      "preference.changed",
       "publication.changed",
       "publication.failed",
       "results.calculated",
@@ -121,5 +122,12 @@ describe("System V3 S1 registries", () => {
     expect(v3DomainConsequence("permissions.changed")?.taskEffects).toEqual([
       { effect: "re-evaluate", taskType: "permissions.approval_required" },
     ]);
+  });
+
+  it("records private follow preference S5 ownership without fabricated task or notification effects", () => {
+    expect(v3DomainConsequence("preference.changed")?.implementationState).toBe("event-backed");
+    expect(v3DomainConsequence("preference.changed")?.ownerDomain).toBe("personal-preference");
+    expect(v3DomainConsequence("preference.changed")?.taskEffects).toEqual([]);
+    expect(v3DomainConsequence("preference.changed")?.notificationEffects).toEqual([]);
   });
 });
