@@ -99,8 +99,8 @@ describe("maintenance HOD portal contract", () => {
     expect(html).toContain("Manage your current Confirmation");
     expect(html).toContain("This is the participant area that remains available during maintenance.");
     expect(html).toContain("Sign in to Confirmation access");
-    expect(html).toContain("Country account identifier");
-    expect(html).toContain("Use the same identifier you normally enter when signing in to Solaris Studio.");
+    expect(html).toContain("Instagram username or recovery email");
+    expect(html).toContain("Use the Instagram username linked to your country account, or its recovery email.");
     expect(html).toContain("Sign in to Confirmations");
   });
 
