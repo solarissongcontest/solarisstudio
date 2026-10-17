@@ -16,92 +16,237 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
   return `
 <style>
   .hod-portal {
+    order: 2;
     margin-top: 1rem;
     padding: 1rem;
-    border: 1px solid rgba(157,223,242,.18);
-    border-radius: 1rem;
-    background: linear-gradient(155deg, rgba(10,27,52,.94), rgba(5,16,35,.96));
-    box-shadow: inset 0 1px 0 rgba(230,248,255,.07), 0 18px 42px rgba(0,4,18,.16);
+    border: 1px solid rgba(115,199,223,.22);
+    border-radius: .95rem;
+    background:
+      linear-gradient(180deg, rgba(18,43,72,.66), rgba(5,17,36,.94)),
+      rgba(6,18,39,.96);
+    box-shadow: inset 0 1px 0 rgba(230,248,255,.08), 0 14px 34px rgba(0,4,18,.14);
   }
-  .hod-portal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
-  .hod-portal-kicker { margin: 0; color: rgba(157,223,242,.76); font-size: .65rem; font-weight: 700; letter-spacing: .17em; text-transform: uppercase; }
-  .hod-portal h2 { margin: .42rem 0 0; font-size: clamp(1.15rem, 3vw, 1.5rem); letter-spacing: -.025em; }
-  .hod-portal-copy { margin: .55rem 0 0; max-width: 42rem; color: var(--muted); font-size: .84rem; line-height: 1.55; }
-  .hod-state { margin-top: 1rem; }
-  .hod-muted { color: var(--muted-soft); font-size: .78rem; line-height: 1.5; }
-  .hod-checking { display: flex; align-items: center; gap: .65rem; min-height: 3rem; color: var(--muted); font-size: .84rem; }
-  .hod-spinner { width: 1rem; height: 1rem; border: 2px solid rgba(157,223,242,.20); border-top-color: var(--primary); border-radius: 50%; animation: hod-spin .8s linear infinite; }
+  .hod-portal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .9rem;
+  }
+  .hod-portal-kicker {
+    margin: 0;
+    color: rgba(157,223,242,.80);
+    font-size: .64rem;
+    font-weight: 700;
+    letter-spacing: .17em;
+    text-transform: uppercase;
+  }
+  .hod-portal h2 {
+    margin: .32rem 0 0;
+    font-size: clamp(1.08rem, 3vw, 1.35rem);
+    letter-spacing: -.02em;
+  }
+  .hod-portal-copy {
+    margin: .38rem 0 0;
+    max-width: 42rem;
+    color: var(--muted);
+    font-size: .78rem;
+    line-height: 1.48;
+  }
+  .hod-state { margin-top: .8rem; }
+  .hod-muted { margin: 0; color: var(--muted-soft); font-size: .75rem; line-height: 1.45; }
+  .hod-checking { display: flex; align-items: center; gap: .58rem; min-height: 2.5rem; color: var(--muted); font-size: .78rem; }
+  .hod-spinner { width: .9rem; height: .9rem; border: 2px solid rgba(157,223,242,.20); border-top-color: var(--primary); border-radius: 50%; animation: hod-spin .8s linear infinite; }
   @keyframes hod-spin { to { transform: rotate(360deg); } }
-  .hod-form { display: grid; gap: .8rem; margin-top: .35rem; }
-  .hod-field { display: grid; gap: .42rem; }
-  .hod-field label { color: rgba(238,249,253,.9); font-size: .74rem; font-weight: 700; }
+
+  .hod-signin-intro {
+    display: grid;
+    gap: .24rem;
+    margin-bottom: .72rem;
+    padding: .7rem .74rem;
+    border: 1px solid rgba(157,223,242,.10);
+    border-radius: .72rem;
+    background: rgba(2,10,25,.28);
+  }
+  .hod-signin-intro strong { font-size: .82rem; }
+  .hod-signin-intro span { color: var(--muted-soft); font-size: .72rem; line-height: 1.42; }
+
+  .hod-form { display: grid; gap: .68rem; }
+  .hod-field { display: grid; gap: .34rem; }
+  .hod-field label { color: rgba(238,249,253,.92); font-size: .72rem; font-weight: 700; }
+  .hod-field-help { color: var(--muted-soft); font-size: .66rem; line-height: 1.35; }
   .hod-field input {
-    width: 100%; min-height: 2.75rem; padding: .7rem .8rem;
-    border: 1px solid rgba(188,220,240,.17); border-radius: .78rem;
-    background: rgba(3,12,28,.76); color: #fff; font: inherit; outline: none;
+    width: 100%;
+    min-height: 2.65rem;
+    padding: .66rem .75rem;
+    border: 1px solid rgba(188,220,240,.17);
+    border-radius: .72rem;
+    background: rgba(3,12,28,.74);
+    color: #fff;
+    font: inherit;
+    font-size: .84rem;
+    outline: none;
   }
-  .hod-field input:focus { border-color: rgba(157,223,242,.62); box-shadow: 0 0 0 3px rgba(157,223,242,.09); }
-  .hod-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+  .hod-field input:focus {
+    border-color: rgba(157,223,242,.62);
+    box-shadow: 0 0 0 3px rgba(157,223,242,.09);
+  }
+
+  .hod-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
   .hod-button {
-    min-height: 2.65rem; padding: .66rem .9rem; border: 1px solid rgba(157,223,242,.2);
-    border-radius: .78rem; background: rgba(157,223,242,.10); color: #eafbff;
-    font: inherit; font-size: .78rem; font-weight: 700; cursor: pointer;
+    min-height: 2.5rem;
+    padding: .62rem .84rem;
+    border: 1px solid rgba(157,223,242,.18);
+    border-radius: .72rem;
+    background: rgba(157,223,242,.09);
+    color: #eafbff;
+    font: inherit;
+    font-size: .75rem;
+    font-weight: 700;
+    cursor: pointer;
   }
-  .hod-button:hover { background: rgba(157,223,242,.15); }
+  .hod-button:hover { background: rgba(157,223,242,.14); }
   .hod-button:focus-visible { outline: 3px solid rgba(157,223,242,.24); outline-offset: 2px; }
   .hod-button[disabled] { opacity: .52; cursor: wait; }
   .hod-button-primary { background: #dff8ff; border-color: #dff8ff; color: #071425; }
   .hod-button-primary:hover { background: #fff; }
-  .hod-button-link { border-color: transparent; background: transparent; color: var(--primary); padding-inline: .3rem; }
+  .hod-button-link { border-color: transparent; background: transparent; color: var(--primary); padding-inline: .25rem; }
+
   .hod-error, .hod-success, .hod-note {
-    margin-top: .75rem; padding: .72rem .78rem; border-radius: .72rem; font-size: .76rem; line-height: 1.5;
+    margin-top: .65rem;
+    padding: .68rem .72rem;
+    border-radius: .68rem;
+    font-size: .72rem;
+    line-height: 1.45;
   }
   .hod-error { border: 1px solid rgba(255,126,126,.2); background: rgba(255,100,100,.08); color: #ffd2d2; }
   .hod-success { border: 1px solid rgba(138,236,188,.18); background: rgba(91,219,159,.08); color: #ccf8e2; }
-  .hod-note { border: 1px solid rgba(157,223,242,.14); background: rgba(157,223,242,.055); color: var(--muted); }
-  .hod-identity { display: flex; align-items: center; gap: .75rem; min-width: 0; }
-  .hod-flag { width: 3.1rem; aspect-ratio: 3 / 2; object-fit: cover; border-radius: .42rem; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); flex: 0 0 auto; }
-  .hod-flag-fallback { display: grid; place-items: center; color: var(--primary); font-size: .68rem; font-weight: 800; letter-spacing: .08em; }
-  .hod-country { margin: 0; font-size: 1rem; font-weight: 700; }
-  .hod-edition { margin: .18rem 0 0; color: var(--muted-soft); font-size: .72rem; }
-  .hod-summary { margin-top: .95rem; padding: .82rem; border: 1px solid rgba(255,255,255,.08); border-radius: .78rem; background: rgba(1,9,23,.34); }
-  .hod-summary strong { display: block; font-size: .92rem; }
-  .hod-summary span { display: block; margin-top: .28rem; color: var(--muted); font-size: .77rem; line-height: 1.45; }
-  .hod-entry { margin-top: .85rem; }
-  .hod-entry-label { margin: 0; color: var(--muted-soft); font-size: .65rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-  .hod-entry-title { margin: .32rem 0 0; font-size: 1rem; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
-  .hod-status-list { margin-top: .9rem; border-top: 1px solid rgba(255,255,255,.08); }
-  .hod-status-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; min-height: 2.55rem; border-bottom: 1px solid rgba(255,255,255,.07); font-size: .76rem; }
+  .hod-note { border: 1px solid rgba(157,223,242,.12); background: rgba(157,223,242,.045); color: var(--muted); }
+
+  .hod-identity { display: flex; align-items: center; gap: .68rem; min-width: 0; }
+  .hod-flag { width: 2.8rem; aspect-ratio: 3 / 2; object-fit: cover; border-radius: .4rem; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); flex: 0 0 auto; }
+  .hod-flag-fallback { display: grid; place-items: center; color: var(--primary); font-size: .66rem; font-weight: 800; letter-spacing: .08em; }
+  .hod-country { margin: 0; font-size: .96rem; font-weight: 700; }
+  .hod-edition { margin: .12rem 0 0; color: var(--muted-soft); font-size: .69rem; }
+  .hod-signout { margin-left: auto; }
+
+  .hod-summary {
+    margin-top: .72rem;
+    display: flex;
+    align-items: flex-start;
+    gap: .58rem;
+    padding: .7rem .74rem;
+    border: 1px solid rgba(255,255,255,.075);
+    border-radius: .72rem;
+    background: rgba(1,9,23,.31);
+  }
+  .hod-summary-dot {
+    width: .52rem;
+    height: .52rem;
+    flex: 0 0 .52rem;
+    margin-top: .28rem;
+    border-radius: 50%;
+    background: #9aa8b8;
+  }
+  .hod-summary[data-tone="good"] .hod-summary-dot { background: #8ee2b4; box-shadow: 0 0 10px rgba(142,226,180,.32); }
+  .hod-summary[data-tone="warn"] .hod-summary-dot { background: #f2d28a; }
+  .hod-summary[data-tone="action"] .hod-summary-dot { background: #f2a4a4; }
+  .hod-summary-copy { min-width: 0; }
+  .hod-summary strong { display: block; font-size: .84rem; }
+  .hod-summary span { display: block; margin-top: .18rem; color: var(--muted); font-size: .72rem; line-height: 1.4; }
+
+  .hod-entry {
+    margin-top: .7rem;
+    padding: .05rem 0;
+  }
+  .hod-entry-label { margin: 0; color: var(--muted-soft); font-size: .62rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  .hod-entry-title { margin: .24rem 0 0; font-size: .96rem; font-weight: 700; line-height: 1.32; overflow-wrap: anywhere; }
+
+  .hod-dashboard-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-top: .72rem;
+  }
+
+  .hod-status-details {
+    margin-top: .72rem;
+    border: 1px solid rgba(255,255,255,.075);
+    border-radius: .72rem;
+    background: rgba(1,9,23,.24);
+  }
+  .hod-status-details summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .7rem;
+    padding: .68rem .72rem;
+    color: rgba(238,247,251,.88);
+    font-size: .72rem;
+    font-weight: 700;
+  }
+  .hod-status-details summary::-webkit-details-marker { display: none; }
+  .hod-status-details summary::after { content: "+"; color: var(--primary); font-size: .95rem; }
+  .hod-status-details[open] summary::after { content: "–"; }
+  .hod-status-list { border-top: 1px solid rgba(255,255,255,.06); padding: 0 .72rem; }
+  .hod-status-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: .72rem;
+    min-height: 2.25rem;
+    border-bottom: 1px solid rgba(255,255,255,.055);
+    font-size: .71rem;
+  }
+  .hod-status-row:last-child { border-bottom: 0; }
   .hod-status-row span:first-child { color: var(--muted-soft); }
   .hod-status-value { text-align: right; color: #effaff; font-weight: 700; }
   .hod-status-value[data-tone="good"] { color: #bdf4d8; }
   .hod-status-value[data-tone="warn"] { color: #ffe19a; }
   .hod-status-value[data-tone="action"] { color: #ffc1c1; }
-  .hod-feedback { margin-top: .8rem; padding: .7rem .76rem; border-left: 2px solid #ffc1c1; background: rgba(255,100,100,.055); color: #f7d9d9; font-size: .76rem; line-height: 1.5; }
-  .hod-dashboard-actions { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: .9rem; }
-  .hod-last-update { margin-top: .75rem; color: var(--muted-soft); font-size: .68rem; }
-  .hod-signout { margin-left: auto; }
+
+  .hod-round-explainer {
+    margin-top: .55rem;
+    color: var(--muted-soft);
+    font-size: .68rem;
+    line-height: 1.4;
+  }
+  .hod-feedback {
+    margin-top: .65rem;
+    padding: .65rem .7rem;
+    border-left: 2px solid #ffc1c1;
+    background: rgba(255,100,100,.05);
+    color: #f7d9d9;
+    font-size: .72rem;
+    line-height: 1.45;
+  }
+  .hod-last-update { margin-top: .62rem; color: var(--muted-soft); font-size: .65rem; }
+
   @media (max-width: 640px) {
-    .hod-portal { padding: .85rem; border-radius: .9rem; }
-    .hod-portal-head { display: grid; }
-    .hod-signout { margin-left: 0; justify-self: start; }
+    .hod-portal { margin-top: .82rem; padding: .82rem; border-radius: .86rem; }
+    .hod-portal-head { gap: .65rem; }
+    .hod-portal-copy { font-size: .75rem; }
     .hod-actions, .hod-dashboard-actions { display: grid; grid-template-columns: 1fr; }
     .hod-button { width: 100%; }
+    .hod-signout { width: auto; margin-left: auto; }
   }
   @media (prefers-reduced-motion: reduce) { .hod-spinner { animation-duration: 1.4s; } }
 </style>
+
 <section class="hod-portal" aria-labelledby="hod-portal-title">
   <div class="hod-portal-head">
     <div>
-      <p class="hod-portal-kicker">Head of Delegation access</p>
-      <h2 id="hod-portal-title">Confirmation access remains available</h2>
-      <p class="hod-portal-copy">Solaris Studio is undergoing maintenance. Heads of Delegation can still review and, when TSBC has opened editing, update the current Confirmation below.</p>
+      <p class="hod-portal-kicker">Head of Delegation</p>
+      <h2 id="hod-portal-title">Manage your current Confirmation</h2>
+      <p class="hod-portal-copy">This is the participant area that remains available during maintenance. Sign in with the same country account you normally use for Solaris Studio.</p>
     </div>
   </div>
   <div id="maintenance-hod-root" class="hod-state" aria-live="polite">
     <div class="hod-checking"><span class="hod-spinner" aria-hidden="true"></span><span>Checking your Solaris account…</span></div>
   </div>
 </section>
+
 <script type="module">
   const MAINTENANCE_HOD_CONFIG = ${runtimeConfig};
   const hodRoot = document.getElementById("maintenance-hod-root");
@@ -146,24 +291,24 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
 
   function summaryFor(data) {
     if (data.confirmation_state === "required") {
-      return ["New Confirmation required", "TSBC has explicitly opened a new Confirmation requirement for this edition."];
+      return ["New Confirmation required", "TSBC has opened a new Confirmation requirement for this edition.", "warn"];
     }
     if (data.entry_state === "changes_requested") {
-      return ["Action required", "TSBC has requested changes to your current submission."];
+      return ["Action required", "TSBC has requested changes to your current submission.", "action"];
     }
     if (data.entry_state === "awaiting_review") {
-      return ["Awaiting review", "Your latest submission is saved and waiting for TSBC review."];
+      return ["Awaiting review", "Your latest submission is saved and waiting for TSBC review.", "warn"];
     }
     if (data.editing_open) {
-      return ["Editing is open", "You may update your existing submission. This does not create a new Confirmation."];
+      return ["Editing is open", "You can update this existing submission now. This does not create a new Confirmation.", "good"];
     }
     if (data.confirmation_state === "accepted" && data.entry_state === "accepted") {
-      return ["Everything accepted", "Your participation and current submission are complete. No action is required."];
+      return ["Everything accepted", "Your participation and current submission are complete. No action is required.", "good"];
     }
     if (data.response) {
-      return ["Editing closed", "Your current submission is saved. Editing is not currently available."];
+      return ["Editing is closed", "Your current submission is saved. TSBC has not opened editing for it right now.", "neutral"];
     }
-    return ["No current Confirmation action", "There is no active Confirmation response or requirement for this delegation."];
+    return ["No current Confirmation action", "There is no active Confirmation response or requirement for this delegation.", "neutral"];
   }
 
   async function browserErrorMessage(error) {
@@ -185,11 +330,11 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
 
   function renderSignedOut(message = "") {
     hodRoot.innerHTML =
-      '<p class="hod-muted">Sign in with your existing Solaris country account to view and manage your current Confirmation.</p>' +
+      '<div class="hod-signin-intro"><strong>Sign in to Confirmation access</strong><span>Use your existing Solaris country account. Normal Studio pages stay unavailable during maintenance.</span></div>' +
       '<form id="hod-signin-form" class="hod-form">' +
-        '<div class="hod-field"><label for="hod-identifier">Identifier</label><input id="hod-identifier" name="identifier" autocomplete="username" required /></div>' +
+        '<div class="hod-field"><label for="hod-identifier">Instagram username or recovery email</label><span id="hod-identifier-help" class="hod-field-help">Use the Instagram username linked to your country account, or its recovery email.</span><input id="hod-identifier" name="identifier" autocomplete="username" aria-describedby="hod-identifier-help" placeholder="@username or email@example.com" required /></div>' +
         '<div class="hod-field"><label for="hod-password">Password</label><input id="hod-password" name="password" type="password" autocomplete="current-password" required /></div>' +
-        '<div class="hod-actions"><button class="hod-button hod-button-primary" type="submit">Sign in</button><button id="hod-recovery" class="hod-button hod-button-link" type="button">Forgot password?</button></div>' +
+        '<div class="hod-actions"><button class="hod-button hod-button-primary" type="submit">Sign in to Confirmations</button><button id="hod-recovery" class="hod-button hod-button-link" type="button">Forgot password?</button></div>' +
         (message ? '<div class="hod-error" role="alert">' + escapeHtml(message) + '</div>' : '') +
       '</form>';
 
@@ -200,7 +345,7 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
 
   function renderWrongAccount() {
     hodRoot.innerHTML =
-      '<div class="hod-error" role="alert"><strong>This Solaris account is not an active country account.</strong><br />No delegation data has been exposed.</div>' +
+      '<div class="hod-error" role="alert"><strong>This account is not an active country account.</strong><br />No delegation data has been exposed.</div>' +
       '<div class="hod-dashboard-actions"><button id="hod-wrong-signout" class="hod-button" type="button">Sign out</button></div>';
     document.getElementById("hod-wrong-signout").addEventListener("click", onSignOut);
   }
@@ -227,26 +372,32 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
       : "";
     const canEdit = Boolean(data.editing_open && round && round.id);
     const actionLabel = data.entry_state === "changes_requested" ? "Update submission" : "Change submission";
+    const roundStatusLabel = round
+      ? (round.status === "closed" ? "Closed to new Confirmations" : humanize(round.status))
+      : "Not available";
 
     hodRoot.innerHTML =
       '<div class="hod-portal-head">' +
         '<div class="hod-identity">' + flag + '<div><p class="hod-country">' + escapeHtml(country.name || "Delegation") + '</p><p class="hod-edition">' + editionLabel + (edition.name ? " · " + escapeHtml(edition.name) : "") + '</p></div></div>' +
         '<button id="hod-signout" class="hod-button hod-button-link hod-signout" type="button">Sign out</button>' +
       '</div>' +
-      '<div class="hod-summary"><strong>' + escapeHtml(summary[0]) + '</strong><span>' + escapeHtml(summary[1]) + '</span></div>' +
+      '<div class="hod-summary" data-tone="' + escapeHtml(summary[2]) + '"><span class="hod-summary-dot" aria-hidden="true"></span><div class="hod-summary-copy"><strong>' + escapeHtml(summary[0]) + '</strong><span>' + escapeHtml(summary[1]) + '</span></div></div>' +
       '<div class="hod-entry"><p class="hod-entry-label">Current entry</p><p class="hod-entry-title">' + entryTitle + '</p></div>' +
-      '<div class="hod-status-list" aria-label="Confirmation status">' +
-        '<div class="hod-status-row"><span>Participation</span><span class="hod-status-value" data-tone="' + statusTone(data.participation_state) + '">' + escapeHtml(humanize(data.participation_state)) + '</span></div>' +
-        '<div class="hod-status-row"><span>Confirmation</span><span class="hod-status-value" data-tone="' + statusTone(data.confirmation_state) + '">' + escapeHtml(humanize(data.confirmation_state)) + '</span></div>' +
-        '<div class="hod-status-row"><span>Entry</span><span class="hod-status-value" data-tone="' + statusTone(data.entry_state) + '">' + escapeHtml(humanize(data.entry_state)) + '</span></div>' +
-        (round ? '<div class="hod-status-row"><span>Round</span><span class="hod-status-value">' + escapeHtml(round.name || "Confirmation") + ' · ' + escapeHtml(humanize(round.status)) + '</span></div>' : '') +
-        '<div class="hod-status-row"><span>Editing</span><span class="hod-status-value" data-tone="' + (data.editing_open ? "good" : "neutral") + '">' + escapeHtml(editingLabel(data.editing_reason, data.editing_open)) + '</span></div>' +
-      '</div>' +
-      feedback +
       '<div class="hod-dashboard-actions">' +
         (canEdit ? '<button id="hod-edit" class="hod-button hod-button-primary" type="button">' + escapeHtml(actionLabel) + '</button>' : '') +
         '<button id="hod-refresh" class="hod-button" type="button">Refresh status</button>' +
       '</div>' +
+      '<details class="hod-status-details"><summary>View status details</summary><div class="hod-status-list" aria-label="Confirmation status">' +
+        '<div class="hod-status-row"><span>Participation</span><span class="hod-status-value" data-tone="' + statusTone(data.participation_state) + '">' + escapeHtml(humanize(data.participation_state)) + '</span></div>' +
+        '<div class="hod-status-row"><span>Confirmation</span><span class="hod-status-value" data-tone="' + statusTone(data.confirmation_state) + '">' + escapeHtml(humanize(data.confirmation_state)) + '</span></div>' +
+        '<div class="hod-status-row"><span>Entry</span><span class="hod-status-value" data-tone="' + statusTone(data.entry_state) + '">' + escapeHtml(humanize(data.entry_state)) + '</span></div>' +
+        (round ? '<div class="hod-status-row"><span>New Confirmations</span><span class="hod-status-value">' + escapeHtml(roundStatusLabel) + '</span></div>' : '') +
+        '<div class="hod-status-row"><span>Existing submission editing</span><span class="hod-status-value" data-tone="' + (data.editing_open ? "good" : "neutral") + '">' + escapeHtml(editingLabel(data.editing_reason, data.editing_open)) + '</span></div>' +
+      '</div></details>' +
+      (round && round.status === "closed" && data.editing_open
+        ? '<p class="hod-round-explainer">The submission round is closed to new Confirmations, but TSBC has reopened editing for this existing response.</p>'
+        : '') +
+      feedback +
       (requirement && requirement.reason ? '<div class="hod-note">Requirement: ' + escapeHtml(requirement.reason) + '</div>' : '') +
       (lastUpdate ? '<div class="hod-last-update">Last meaningful update ' + escapeHtml(lastUpdate) + '</div>' : '');
 
@@ -269,8 +420,6 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
 
   function scheduleBoundedRefresh() {
     clearBoundedRefresh();
-    // Two bounded refreshes cover the common Organizer→HOD handoff without
-    // leaving a permanent production polling loop behind.
     for (const delay of [30000, 90000]) {
       boundedRefreshTimers.push(window.setTimeout(() => {
         if (signedIn && document.visibilityState === "visible") loadDashboard({ quiet: true });
@@ -383,8 +532,7 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
     try {
       await client.auth.signOut();
     } catch {
-      // The local delegation state is already cleared. The next protected RPC still
-      // validates server-side auth, so a network failure cannot expose data here.
+      // Local delegation state is already cleared. Protected RPCs still validate server-side auth.
     }
   }
 
