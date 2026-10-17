@@ -60,8 +60,7 @@ begin
         'studio2_apply_confirmation_round_change',
         'admin_update_confirmation_controls',
         'public_create_country_account_edit_token',
-        'v3_submit_confirmation_maintenance_edit',
-        'submit_confirmation_maintenance_edit'
+        'v3_submit_confirmation'
       ) then
         perform set_config('studio2.confirmation_maintenance_write', 'on', true);
         return;
@@ -143,10 +142,17 @@ begin
 end;
 $$;
 
--- Keep general v3_submit_confirmation blocked by read_only mode. The maintenance
--- wrapper requires an edit-token hash before delegating to the canonical V3
--- submit contract, so this exception cannot create a brand-new Confirmation.
-create or replace function public.v3_submit_confirmation_maintenance_edit(
+-- Preserve the canonical V3 submit implementation unchanged behind a new
+-- internal entry point. The public signature is recreated as a policy wrapper
+-- so normal/degraded behavior remains identical, while read_only accepts only
+-- an existing-response edit carrying a valid edit-token hash.
+alter function public.v3_submit_confirmation(jsonb, uuid, text, text)
+  rename to v3_submit_confirmation_core;
+
+revoke all on function public.v3_submit_confirmation_core(jsonb, uuid, text, text)
+  from public, anon, authenticated, service_role;
+
+create or replace function public.v3_submit_confirmation(
   payload jsonb,
   _idempotency_key uuid,
   _request_hash text,
@@ -157,18 +163,31 @@ language plpgsql
 security definer
 set search_path = pg_catalog, public, private
 as $$
+declare
+  v_mode text;
 begin
-  if payload is null or jsonb_typeof(payload) <> 'object' then
-    raise exception 'Confirmation payload must be a JSON object'
-      using errcode = '22023';
+  select state.mode
+  into v_mode
+  from public.studio2_platform_operational_state state
+  where state.singleton = true;
+
+  if v_mode is null then
+    raise exception 'Solaris platform operational state is unavailable'
+      using errcode = '25006';
   end if;
 
-  if nullif(btrim(coalesce(payload ->> 'edit_token_hash', '')), '') is null then
-    raise exception 'Maintenance Confirmation writes require an edit token'
-      using errcode = '42501';
+  if v_mode = 'maintenance' then
+    raise exception 'Solaris is currently maintenance, so Confirmation writes are unavailable'
+      using errcode = '25006';
   end if;
 
-  return public.v3_submit_confirmation(
+  if v_mode = 'read_only'
+     and nullif(btrim(coalesce(payload ->> 'edit_token_hash', '')), '') is null then
+    raise exception 'Read-only Confirmation writes require an existing-response edit token'
+      using errcode = '25006';
+  end if;
+
+  return public.v3_submit_confirmation_core(
     payload,
     _idempotency_key,
     _request_hash,
@@ -177,38 +196,9 @@ begin
 end;
 $$;
 
-revoke all on function public.v3_submit_confirmation_maintenance_edit(jsonb, uuid, text, text)
+revoke all on function public.v3_submit_confirmation(jsonb, uuid, text, text)
   from public;
-grant execute on function public.v3_submit_confirmation_maintenance_edit(jsonb, uuid, text, text)
-  to anon, authenticated, service_role;
-
--- Privacy/storage-restricted browsers can lack a browser_session_id. Preserve
--- the existing legacy fallback, but narrow it to the same edit-token-only
--- maintenance boundary.
-create or replace function public.submit_confirmation_maintenance_edit(payload jsonb)
-returns jsonb
-language plpgsql
-security definer
-set search_path = pg_catalog, public, private
-as $$
-begin
-  if payload is null or jsonb_typeof(payload) <> 'object' then
-    raise exception 'Confirmation payload must be a JSON object'
-      using errcode = '22023';
-  end if;
-
-  if nullif(btrim(coalesce(payload ->> 'edit_token_hash', '')), '') is null then
-    raise exception 'Maintenance Confirmation writes require an edit token'
-      using errcode = '42501';
-  end if;
-
-  return public.submit_confirmation(payload);
-end;
-$$;
-
-revoke all on function public.submit_confirmation_maintenance_edit(jsonb)
-  from public;
-grant execute on function public.submit_confirmation_maintenance_edit(jsonb)
+grant execute on function public.v3_submit_confirmation(jsonb, uuid, text, text)
   to anon, authenticated, service_role;
 
 notify pgrst, 'reload schema';
