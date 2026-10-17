@@ -70,6 +70,11 @@ type ParsedBudget = {
   unit: string;
 };
 
+type ParsedDimensionEvidence = {
+  validDimensions: Set<V3CapacityDimension>;
+  referencesByDimension: Map<V3CapacityDimension, Set<string>>;
+};
+
 const LOAD_SHAPE_SOURCES = new Set([
   "production-telemetry",
   "contest-participation-or-audience",
@@ -96,6 +101,10 @@ function finiteNumber(value: unknown): number | null {
 
 function positiveInteger(value: unknown): number | null {
   return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function nonNegativeInteger(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
 }
 
 function nonEmptyString(value: unknown): string | null {
@@ -185,11 +194,12 @@ function parseDimensionEvidence(
   raw: unknown,
   scenarioDimensions: readonly V3CapacityDimension[],
   errors: string[],
-) {
-  const valid = new Set<V3CapacityDimension>();
+): ParsedDimensionEvidence {
+  const validDimensions = new Set<V3CapacityDimension>();
+  const referencesByDimension = new Map<V3CapacityDimension, Set<string>>();
   if (!Array.isArray(raw)) {
     errors.push("dimensionEvidence must be an array");
-    return valid;
+    return { validDimensions, referencesByDimension };
   }
 
   const scenarioSet = new Set<string>(scenarioDimensions);
@@ -229,14 +239,21 @@ function parseDimensionEvidence(
       entryValid = false;
     }
 
-    if (entryValid && dimension) valid.add(dimension as V3CapacityDimension);
+    if (entryValid && dimension && reference) {
+      const typedDimension = dimension as V3CapacityDimension;
+      validDimensions.add(typedDimension);
+      const references = referencesByDimension.get(typedDimension) ?? new Set<string>();
+      references.add(reference);
+      referencesByDimension.set(typedDimension, references);
+    }
   }
-  return valid;
+  return { validDimensions, referencesByDimension };
 }
 
 function parseBudgets(
   raw: unknown,
   scenarioDimensions: readonly V3CapacityDimension[],
+  evidenceReferences: ReadonlyMap<V3CapacityDimension, Set<string>>,
   errors: string[],
 ) {
   const parsed = new Map<string, ParsedBudget>();
@@ -282,6 +299,15 @@ function parseBudgets(
     }
     if (!rationale) {
       errors.push(`budgets[${index}] rationale is required`);
+      entryValid = false;
+    }
+    if (
+      dimension &&
+      capacityDimensions.has(dimension) &&
+      evidenceRef &&
+      !evidenceReferences.get(dimension as V3CapacityDimension)?.has(evidenceRef)
+    ) {
+      errors.push(`budgets[${index}] evidenceRef does not reference evidence for ${dimension}`);
       entryValid = false;
     }
 
@@ -353,28 +379,55 @@ export function assessV3CapacityEvidence(
     errors.push("capacity report concurrency cannot exceed requests");
   }
 
+  const databaseActivity = readRecord(report, "databaseActivity");
+  if (databaseActivity && !positiveInteger(requestedLoad?.databaseSampleIntervalMs)) {
+    errors.push("capacity report databaseSampleIntervalMs must be positive when database activity is present");
+  }
+
   const duration = finiteNumber(report?.durationMs);
   if (duration === null || duration <= 0) errors.push("capacity report durationMs must be positive");
 
+  const startedAt = nonEmptyString(report?.startedAt);
+  const endedAt = nonEmptyString(report?.endedAt);
+  if (!validIsoTimestamp(startedAt)) errors.push("capacity report startedAt must be an ISO timestamp");
+  if (!validIsoTimestamp(endedAt)) errors.push("capacity report endedAt must be an ISO timestamp");
+  if (
+    validIsoTimestamp(startedAt) &&
+    validIsoTimestamp(endedAt) &&
+    Date.parse(endedAt as string) < Date.parse(startedAt as string)
+  ) {
+    errors.push("capacity report endedAt cannot be before startedAt");
+  }
+
   const latency = readRecord(report, "latencyMs");
+  const p50 = finiteNumber(latency?.p50);
   const p95 = finiteNumber(latency?.p95);
   const p99 = finiteNumber(latency?.p99);
-  if (p95 !== null && p99 !== null && p99 < p95) {
-    errors.push("capacity report p99 latency cannot be below p95 latency");
+  const max = finiteNumber(latency?.max);
+  if ([p50, p95, p99, max].some((value) => value === null || (value as number) < 0)) {
+    errors.push("capacity report latency values must be non-negative finite numbers");
+  } else if (!(p50! <= p95! && p95! <= p99! && p99! <= max!)) {
+    errors.push("capacity report latency percentiles/max must be nondecreasing");
   }
 
   const outcomes = readRecord(report, "outcomes");
-  const successes = finiteNumber(outcomes?.successes);
-  const httpErrors = finiteNumber(outcomes?.httpErrors);
-  const transportErrors = finiteNumber(outcomes?.transportErrors);
-  if (
-    requestCount &&
-    successes !== null &&
-    httpErrors !== null &&
-    transportErrors !== null &&
-    successes + httpErrors + transportErrors !== requestCount
-  ) {
+  const successes = nonNegativeInteger(outcomes?.successes);
+  const httpErrors = nonNegativeInteger(outcomes?.httpErrors);
+  const transportErrors = nonNegativeInteger(outcomes?.transportErrors);
+  if (successes === null || httpErrors === null || transportErrors === null) {
+    errors.push("capacity report outcome counters must be non-negative integers");
+  } else if (requestCount && successes + httpErrors + transportErrors !== requestCount) {
     errors.push("capacity report outcome totals do not equal requested requests");
+  }
+
+  const errorRate = finiteNumber(outcomes?.errorRate);
+  if (errorRate === null || errorRate < 0 || errorRate > 1) {
+    errors.push("capacity report errorRate must be between 0 and 1");
+  } else if (requestCount && httpErrors !== null && transportErrors !== null) {
+    const expectedErrorRate = (httpErrors + transportErrors) / requestCount;
+    if (Math.abs(errorRate - expectedErrorRate) > 1e-12) {
+      errors.push("capacity report errorRate does not match outcome counters");
+    }
   }
 
   const missingMeasurements = scenario && report
@@ -382,16 +435,21 @@ export function assessV3CapacityEvidence(
     : [];
 
   const scenarioDimensions = scenario?.capacityDimensions ?? [];
-  const validDimensionEvidence = parseDimensionEvidence(
+  const parsedEvidence = parseDimensionEvidence(
     context?.dimensionEvidence,
     scenarioDimensions,
     errors,
   );
   const missingExternalEvidenceDimensions = scenarioDimensions.filter(
-    (dimension) => !validDimensionEvidence.has(dimension),
+    (dimension) => !parsedEvidence.validDimensions.has(dimension),
   );
 
-  const parsedBudgets = parseBudgets(context?.budgets, scenarioDimensions, errors);
+  const parsedBudgets = parseBudgets(
+    context?.budgets,
+    scenarioDimensions,
+    parsedEvidence.referencesByDimension,
+    errors,
+  );
   const missingBudgetKeys: string[] = [];
   for (const dimension of scenarioDimensions) {
     const dimensionBudgets: ParsedBudget[] = [];
