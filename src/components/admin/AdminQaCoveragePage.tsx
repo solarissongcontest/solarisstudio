@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
   Bug,
-  CheckCircle2,
   Download,
   ExternalLink,
   GitCommit,
@@ -12,7 +11,6 @@ import {
   RefreshCw,
   ShieldCheck,
   Smartphone,
-  Star,
   Users,
   UsersRound,
 } from "lucide-react";
@@ -272,7 +270,7 @@ export function AdminQaCoveragePage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-sm font-semibold text-foreground">{row.capability}</h3>
                           {row.critical ? <AdminStatus tone="attention">Critical</AdminStatus> : null}
-                          <Link to={row.href} className="text-xs font-semibold text-sky-100 underline underline-offset-2">Open capability</Link>
+                          <a href={row.href} className="text-xs font-semibold text-sky-100 underline underline-offset-2">Open capability</a>
                         </div>
                         <p className="mt-1 text-xs font-semibold text-muted-foreground">Scenario: {row.scenario}</p>
                         {row.scenarioDetail ? <p className="mt-1 max-w-4xl text-xs leading-5 text-muted-foreground">{row.scenarioDetail}</p> : null}
@@ -402,7 +400,7 @@ function EvidenceTile({ icon: Icon, label, evidence }: { icon: typeof Smartphone
       ? "attention"
       : evidence.state === "not_tested"
         ? "blocked"
-        : "muted";
+        : "neutral";
 
   return (
     <div className="min-w-0 rounded-xl border border-white/[0.07] bg-black/10 p-3" title={evidence.detail}>
