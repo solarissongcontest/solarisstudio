@@ -36,15 +36,20 @@ import {
   setMergedResultsStatus,
   updateMergedConversionConfig,
 } from "@/integrations/televoting/conversion.functions";
-import { getMergedTelevotingRounds } from "@/integrations/televoting/rounds.functions";
+import type { MergedAdminRound } from "@/integrations/televoting/rounds.functions";
 
 type Engine = "rank-weighted-v1" | "robust-televote-v2";
 
-export function VotingResultsView() {
+type VotingResultsViewProps = {
+  editionId: string;
+  editionName: string;
+  rounds: readonly MergedAdminRound[];
+};
+
+export function VotingResultsView({ editionId, editionName, rounds }: VotingResultsViewProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const getAdmin = useServerFn(getMergedTelevotingAdmin);
-  const getRounds = useServerFn(getMergedTelevotingRounds);
   const getConversion = useServerFn(getMergedTelevoteConversion);
   const updateConfig = useServerFn(updateMergedConversionConfig);
   const recalculate = useServerFn(recalculateMergedConversion);
@@ -78,20 +83,17 @@ export function VotingResultsView() {
     if (!adminLoading && !admin) void navigate({ to: "/televoting/admin/sign-in" });
   }, [admin, adminLoading, navigate]);
 
-  const { data: editions = [], isLoading: roundsLoading } = useQuery({
-    queryKey: ["merged-televoting-rounds"],
-    queryFn: () => getRounds(),
-    enabled: Boolean(admin),
-  });
-
-  const allRounds = useMemo(
-    () => editions.flatMap((edition) => edition.rounds.map((round) => ({ ...round, editionName: edition.name }))),
-    [editions],
+  const scopedRounds = useMemo(
+    () => rounds.map((round) => ({ ...round, editionName })),
+    [editionName, rounds],
   );
-  const effectiveRoundId = roundId || allRounds.find((round) => round.status === "closed")?.id || allRounds[0]?.id || "";
+  const selectedRoundStillInEdition = scopedRounds.some((round) => round.id === roundId);
+  const effectiveRoundId = selectedRoundStillInEdition
+    ? roundId
+    : scopedRounds.find((round) => round.status === "closed")?.id ?? scopedRounds[0]?.id ?? "";
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["merged-televoting-conversion", effectiveRoundId],
+    queryKey: ["merged-televoting-conversion", editionId, effectiveRoundId],
     queryFn: () => getConversion({ data: { roundId: effectiveRoundId } }),
     enabled: Boolean(admin && effectiveRoundId),
   });
@@ -115,7 +117,7 @@ export function VotingResultsView() {
 
   const invalidate = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["merged-televoting-conversion", effectiveRoundId] }),
+      queryClient.invalidateQueries({ queryKey: ["merged-televoting-conversion", editionId, effectiveRoundId] }),
       queryClient.invalidateQueries({ queryKey: ["merged-televoting-published-results"] }),
       queryClient.invalidateQueries({ queryKey: ["merged-televoting-admin-overview"] }),
     ]);
@@ -205,11 +207,11 @@ export function VotingResultsView() {
   );
 
   return (
-    <div className="admin-page mx-auto max-w-5xl pb-5">
+    <div className="admin-page mx-auto max-w-5xl pb-5" data-v3-organizer-results-edition={editionId}>
       <AdminPageHeader
         eyebrow="Voting"
         title="Televote result"
-        description="Calculate, inspect and publish the official televote. Robust v2 reduces single-voter leverage while preserving a dramatic Eurovision-style point distribution."
+        description={`Calculate, inspect and publish the official televote for ${editionName}. Robust v2 reduces single-voter leverage while preserving a dramatic Eurovision-style point distribution.`}
         actions={
           <AdminMoreMenu label="Result actions" title="Result tools" description="Configuration, recalculation and public preview.">
             <div className="divide-y divide-white/[0.07]">
@@ -228,17 +230,17 @@ export function VotingResultsView() {
         }
       />
 
-      {adminLoading || roundsLoading ? (
+      {adminLoading ? (
         <AdminCard className="py-10 text-center text-sm text-muted-foreground">Loading result workspace…</AdminCard>
-      ) : !allRounds.length ? (
-        <AdminCard><AdminEmptyState icon={Calculator} title="No voting round yet" description="Create and run a voting round before calculating a televote result." action={<Link to="/televoting/admin/rounds" className="admin-action-primary">Go to voting rounds</Link>} /></AdminCard>
+      ) : !scopedRounds.length ? (
+        <AdminCard><AdminEmptyState icon={Calculator} title="No voting round yet" description={`Create and run a voting round for ${editionName} before calculating a televote result.`} action={<Link to="/televoting/admin/rounds" className="admin-action-primary">Go to voting rounds</Link>} /></AdminCard>
       ) : (
         <div className="space-y-4">
           <AdminCard className="!p-3">
             <label className="block">
               <span className="admin-section-label">Round</span>
               <select id="result-round" value={effectiveRoundId} onChange={(event) => setRoundId(event.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-[#07111f] px-3 text-sm font-semibold text-foreground outline-none focus:border-sky-200/30">
-                {allRounds.map((round) => <option key={round.id} value={round.id}>{round.editionName} · {round.name} · {round.status}</option>)}
+                {scopedRounds.map((round) => <option key={round.id} value={round.id}>{round.name} · {round.status}</option>)}
               </select>
             </label>
           </AdminCard>
