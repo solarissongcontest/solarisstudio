@@ -137,21 +137,21 @@ function V3OfficialNoticesBoundInbox({
 
   const markOpened = useMutation({
     mutationFn: (noticeId: string) => markStudio2NoticeOpened(noticeId),
-    onSuccess: refresh,
-    onError: refresh,
+    onSuccess: () => refresh(),
+    onError: () => refresh(),
   });
 
   const acknowledge = useMutation({
     mutationFn: (noticeId: string) => acknowledgeStudio2InboxNotice(noticeId),
-    onSuccess: refresh,
-    onError: refresh,
+    onSuccess: () => refresh(),
+    onError: () => refresh(),
   });
 
   const archive = useMutation({
     mutationFn: ({ noticeId, archived }: { noticeId: string; archived: boolean }) =>
       archiveStudio2Notice(noticeId, archived),
-    onSuccess: refresh,
-    onError: refresh,
+    onSuccess: () => refresh(),
+    onError: () => refresh(),
   });
 
   const items = inbox.data ?? [];
@@ -159,14 +159,16 @@ function V3OfficialNoticesBoundInbox({
     ? items.find((item) => item.notice.id === selectedId) ?? null
     : null;
   const acknowledgementUnresolved =
-    acknowledge.isError &&
-    (!selected || selected.inboxState !== "acknowledged");
+    acknowledge.isError && !selected?.receipt?.acknowledgedAt;
   const archiveUnresolved =
     archive.isError &&
     (!selected ||
-      (archive.variables?.archived === true && selected.inboxState !== "archived") ||
-      (archive.variables?.archived === false && selected.inboxState === "archived"));
-  const mutationError = acknowledgementUnresolved || archiveUnresolved || markOpened.isError;
+      (archive.variables?.archived === true && !selected.receipt?.archivedAt) ||
+      (archive.variables?.archived === false && Boolean(selected.receipt?.archivedAt)));
+  const markOpenedUnresolved =
+    markOpened.isError && !selected?.receipt?.openedAt;
+  const mutationError =
+    acknowledgementUnresolved || archiveUnresolved || markOpenedUnresolved;
   const busy = markOpened.isPending || acknowledge.isPending || archive.isPending;
 
   const selectNotice = (noticeId: string) => {
@@ -204,7 +206,9 @@ function V3OfficialNoticesBoundInbox({
         selectedId={selectedId}
         filter={filter}
         loading={feature.isLoading || (feature.data === true && inbox.isLoading)}
-        unavailable={!feature.isLoading && feature.data !== true}
+        unavailable={
+          !feature.isLoading && !feature.isError && feature.data !== true
+        }
         loadError={feature.isError || inbox.isError}
         busy={busy}
         mutationError={mutationError}
