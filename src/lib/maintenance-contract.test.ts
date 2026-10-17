@@ -44,7 +44,8 @@ describe("emergency global maintenance mode", () => {
     expect(server).toContain("MAINTENANCE_HOD_ACCESS");
     expect(server).toContain("SUPABASE_PUBLISHABLE_KEY");
     expect(server).toContain("renderMaintenanceHodPortal");
-    expect(server).toContain("if (includeHodPortal && hod.enabled && hod.supabaseUrl && hod.publishableKey)");
+    expect(server).toContain("if (request.method === \"GET\" && includeHodPortal)");
+    expect(server).toContain("if (hod.enabled && hod.supabaseUrl && hod.publishableKey)");
     expect(server).not.toContain("SUPABASE_SECRET_KEY");
     expect(server).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   });
