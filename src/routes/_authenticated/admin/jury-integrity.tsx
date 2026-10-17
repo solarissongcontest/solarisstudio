@@ -4,8 +4,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, CheckCircle2, Scale, ShieldAlert, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminDataView, type AdminDataColumn } from "@/components/admin/AdminDataView";
-import { AdminCard, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
+import { AdminCard, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { getJuryIntegrityCases } from "@/integrations/jury-voting/jury-integrity-admin.functions";
 import type { JuryIntegrityCase } from "@/integrations/jury-voting/jury-integrity-admin.server";
 
@@ -20,15 +21,21 @@ export const Route = createFileRoute("/_authenticated/admin/jury-integrity")({
 });
 
 function JuryIntegrityPage() {
+  const { editionId } = useAdminContext();
   const loadCases = useServerFn(getJuryIntegrityCases);
   const [minimumRisk, setMinimumRisk] = useState(0);
   const [search, setSearch] = useState("");
 
   const query = useQuery({
-    queryKey: ["jury-integrity-v5"],
+    queryKey: ["jury-integrity-v5", editionId ?? "unscoped"],
+    enabled: Boolean(editionId),
     queryFn: async () => {
-      const result = await loadCases();
+      if (!editionId) throw new Error("Jury Integrity requires an explicit Organizer edition scope");
+      const result = await loadCases({ data: { editionId } });
       if (!result) throw new Error("Jury integrity analysis returned no data");
+      if (result.editionId !== editionId || result.cases.some((row) => row.editionId !== editionId)) {
+        throw new Error("Jury Integrity returned evidence outside the selected edition scope");
+      }
       return result;
     },
     staleTime: 30_000,
@@ -42,12 +49,31 @@ function JuryIntegrityPage() {
       .sort((a, b) => b.risk - a.risk || b.confidence - a.confidence);
   }, [minimumRisk, query.data?.cases, search]);
 
+  if (!editionId) {
+    return (
+      <div className="mx-auto max-w-7xl space-y-4">
+        <AdminPageHeader
+          eyebrow="Jury integrity"
+          title="Jury Independence v5"
+          description="Jury integrity evidence is edition-scoped Organizer work."
+        />
+        <AdminCard>
+          <AdminEmptyState
+            icon={ShieldAlert}
+            title="Choose an edition"
+            description="Select the exact edition in the Organizer toolbar before loading jury integrity evidence. Solaris will not merge jury cases across editions."
+          />
+        </AdminCard>
+      </div>
+    );
+  }
+
   return (
-    <div className="mx-auto max-w-7xl space-y-4">
+    <div className="mx-auto max-w-7xl space-y-4" data-v3-organizer-jury-integrity-edition={editionId}>
       <AdminPageHeader
         eyebrow="Jury integrity"
         title="Jury Independence v5"
-        description="Producer-only review of jury independence, peer-score deviation, historical relationships and corroborating evidence. Statistical evidence is for review, not an automatic misconduct finding."
+        description="Producer-only review of jury independence, peer-score deviation, historical relationships and corroborating evidence for the exact selected edition. Statistical evidence is for review, not an automatic misconduct finding."
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -64,7 +90,7 @@ function JuryIntegrityPage() {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Country, show or edition"
+              placeholder="Country or show"
               className="min-h-11 w-full rounded-xl border border-white/10 bg-white/[0.025] px-3 text-sm outline-none focus:border-sky-300/30"
             />
           </label>
@@ -98,7 +124,7 @@ function JuryIntegrityPage() {
           <div className="py-10 text-center">
             <CheckCircle2 className="mx-auto size-6 text-emerald-200" />
             <p className="mt-3 text-sm font-semibold">No jury cases match this filter</p>
-            <p className="mt-1 text-xs text-muted-foreground">Jury Integrity v5 evidence appears here after country-account jury preflights run.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Jury Integrity v5 evidence appears here after country-account jury preflights run for this edition.</p>
           </div>
         </AdminCard>
       )}
