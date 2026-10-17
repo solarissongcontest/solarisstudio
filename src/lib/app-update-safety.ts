@@ -1,3 +1,5 @@
+import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
+
 export type AppUpdateBlocker = {
   id: string;
   reason: string;
@@ -41,16 +43,17 @@ export function readAppUpdateBlockers(): AppUpdateBlocker[] {
 }
 
 export function routeUpdateBlocker(pathname: string): AppUpdateBlocker | null {
-  if (
-    /^\/(confirmations|jury-voting|televoting|next-in-line)(\/|$)/.test(pathname) ||
-    /^\/my-solaris\/entry(\/|$)/.test(pathname)
-  ) {
+  if (resolveSolarisAppScreen(pathname).behavior.criticalTask) {
     return {
       id: "focused-participation-task",
       reason: "Finish or leave the current participation task before updating.",
     };
   }
-  if (pathname.startsWith("/admin/") || pathname.startsWith("/confirmations/admin") || pathname.startsWith("/televoting/admin")) {
+  if (
+    pathname.startsWith("/admin/") ||
+    pathname.startsWith("/confirmations/admin") ||
+    pathname.startsWith("/televoting/admin")
+  ) {
     return {
       id: "organizer-workspace",
       reason: "Leave the active Organizer workspace before updating.",
