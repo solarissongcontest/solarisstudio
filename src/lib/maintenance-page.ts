@@ -21,7 +21,7 @@ export function renderMaintenancePage(): string {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#071018" />
+    <meta name="theme-color" content="#06101f" />
     <meta name="color-scheme" content="dark" />
     <meta name="application-name" content="Solaris Studio" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -33,7 +33,7 @@ export function renderMaintenancePage(): string {
     <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=img2340-20260929" sizes="180x180" />
     <link rel="manifest" href="/site.webmanifest?v=img2340-20260929" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>Solaris Studio is temporarily unavailable</title>
+    <title>Solaris Studio maintenance</title>
     <style>
       @font-face {
         font-family: "Classica Crastao";
@@ -66,13 +66,16 @@ export function renderMaintenancePage(): string {
 
       :root {
         color-scheme: dark;
-        --background: #071023;
-        --foreground: #f5f9fc;
+        --background: #020817;
+        --surface: rgba(7, 18, 38, .91);
+        --surface-strong: rgba(9, 25, 48, .96);
+        --foreground: #f6f9fc;
         --muted: rgba(224, 236, 246, .72);
-        --muted-soft: rgba(205, 223, 236, .52);
+        --muted-soft: rgba(205, 223, 236, .54);
         --primary: #9ddff2;
-        --primary-strong: #6ebdd7;
-        --border: rgba(205, 232, 245, .20);
+        --primary-strong: #73c7df;
+        --good: #bdf4d8;
+        --border: rgba(205, 232, 245, .17);
         font-family: "Gotham", ui-sans-serif, system-ui, sans-serif;
         color: var(--foreground);
         background: var(--background);
@@ -80,22 +83,21 @@ export function renderMaintenancePage(): string {
 
       * { box-sizing: border-box; }
       html, body { min-height: 100%; }
-      html { background: #020817; }
+      html { background: var(--background); }
 
       body {
         margin: 0;
         min-height: 100svh;
         overflow-x: hidden;
-        background-color: #020817;
+        background-color: var(--background);
         background-image:
-          linear-gradient(180deg, rgba(1, 5, 20, .08), rgba(1, 5, 20, .32)),
+          linear-gradient(180deg, rgba(2, 8, 23, .16), rgba(2, 8, 23, .56)),
           url("/solaris-background.webp");
         background-size: cover, cover;
         background-position: center, center;
         background-repeat: no-repeat;
         background-attachment: fixed, fixed;
         font-family: "Gotham", ui-sans-serif, system-ui, sans-serif;
-        font-weight: 400;
         letter-spacing: -.012em;
         -webkit-font-smoothing: antialiased;
         text-rendering: optimizeLegibility;
@@ -112,57 +114,54 @@ export function renderMaintenancePage(): string {
       .ambient::after {
         content: "";
         position: absolute;
-        width: min(58vw, 760px);
+        width: min(58vw, 720px);
         aspect-ratio: 1;
         border-radius: 50%;
-        filter: blur(68px);
-        opacity: .18;
-        will-change: transform;
+        filter: blur(76px);
+        opacity: .13;
       }
       .ambient::before {
-        left: -18vw;
-        top: -24vw;
-        background: radial-gradient(circle, rgba(127, 213, 240, .78), rgba(69, 124, 196, .18) 52%, transparent 72%);
+        left: -20vw;
+        top: -22vw;
+        background: radial-gradient(circle, rgba(127,213,240,.74), transparent 68%);
       }
       .ambient::after {
-        right: -18vw;
-        bottom: -30vw;
-        background: radial-gradient(circle, rgba(95, 176, 220, .58), rgba(54, 94, 180, .13) 52%, transparent 72%);
+        right: -20vw;
+        bottom: -28vw;
+        background: radial-gradient(circle, rgba(88,155,218,.52), transparent 68%);
       }
 
       main {
         position: relative;
         z-index: 1;
-        width: min(calc(100% - 2rem), 980px);
+        width: min(calc(100% - 2rem), 900px);
         margin: 0 auto;
-        padding: max(1.25rem, env(safe-area-inset-top)) 0 max(1.25rem, env(safe-area-inset-bottom));
+        padding: max(1rem, env(safe-area-inset-top)) 0 max(1.4rem, env(safe-area-inset-bottom));
       }
 
       .site-nav {
-        min-height: 68px;
+        min-height: 64px;
         display: flex;
         align-items: center;
-        justify-content: flex-start;
-        gap: 1rem;
-        padding: .72rem 1rem;
+        padding: .72rem .9rem;
         border: 1px solid rgba(255,255,255,.10);
         border-radius: 1rem;
-        background: linear-gradient(180deg, rgba(7,15,37,.92), rgba(5,12,31,.88));
-        -webkit-backdrop-filter: blur(14px) saturate(150%);
-        backdrop-filter: blur(14px) saturate(150%);
-        box-shadow: 0 8px 28px rgba(0,0,20,.16);
+        background: rgba(5, 13, 31, .88);
+        -webkit-backdrop-filter: blur(14px) saturate(145%);
+        backdrop-filter: blur(14px) saturate(145%);
+        box-shadow: 0 12px 30px rgba(0,0,20,.14);
       }
 
       .brand {
         display: flex;
         min-width: 0;
         align-items: center;
-        gap: .75rem;
+        gap: .72rem;
       }
       .studio-mark-wrap {
-        width: 42px;
-        height: 42px;
-        flex: 0 0 42px;
+        width: 40px;
+        height: 40px;
+        flex: 0 0 40px;
         display: grid;
         place-items: center;
         overflow: hidden;
@@ -173,432 +172,257 @@ export function renderMaintenancePage(): string {
         height: 100%;
         object-fit: contain;
       }
-      .brand-copy { min-width: 0; line-height: 1.08; }
       .brand-name {
         display: block;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
         font-family: "Classica Crastao", Georgia, serif;
-        font-size: 1rem;
-        font-weight: 400;
+        font-size: .98rem;
         text-transform: uppercase;
-        letter-spacing: .04em;
+        letter-spacing: .045em;
       }
       .brand-sub {
         display: block;
-        margin-top: .22rem;
+        margin-top: .16rem;
         color: var(--muted-soft);
-        font-size: .68rem;
-        letter-spacing: .02em;
+        font-size: .66rem;
       }
 
       .panel {
-        position: relative;
-        isolation: isolate;
-        margin-top: 1rem;
+        margin-top: .8rem;
         overflow: hidden;
-        border: 1px solid rgba(205,232,245,.24);
-        border-radius: 1.25rem;
+        border: 1px solid rgba(205,232,245,.19);
+        border-radius: 1.15rem;
         background:
-          linear-gradient(145deg, rgba(225,242,250,.12) 0%, rgba(166,211,231,.06) 30%, rgba(65,133,177,.035) 64%, rgba(190,225,240,.06) 100%),
-          rgba(7,18,38,.88);
-        -webkit-backdrop-filter: blur(12px) saturate(155%);
-        backdrop-filter: blur(12px) saturate(155%);
-        box-shadow:
-          0 18px 46px rgba(0,3,20,.24),
-          inset 0 1px 0 rgba(235,248,253,.20);
-      }
-      .panel::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        z-index: 0;
-        pointer-events: none;
-        background:
-          radial-gradient(ellipse 85% 46% at 15% -8%, rgba(240,250,254,.16), transparent 64%),
-          radial-gradient(ellipse 42% 68% at 103% 34%, rgba(100,190,225,.10), transparent 70%);
-      }
-      .panel::after {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: -45%;
-        width: 34%;
-        height: 1px;
-        z-index: 2;
-        background: linear-gradient(90deg, transparent, rgba(196,238,251,.92), transparent);
-        box-shadow: 0 0 18px rgba(121,211,240,.38);
-      }
-      .content {
-        position: relative;
-        z-index: 1;
-        padding: clamp(1.6rem, 5vw, 3.6rem);
+          linear-gradient(145deg, rgba(224,242,250,.085), rgba(112,183,216,.025) 38%, rgba(4,14,32,.02)),
+          rgba(7,18,38,.90);
+        -webkit-backdrop-filter: blur(12px) saturate(150%);
+        backdrop-filter: blur(12px) saturate(150%);
+        box-shadow: 0 18px 48px rgba(0,3,20,.22), inset 0 1px 0 rgba(235,248,253,.12);
       }
 
+      .content {
+        padding: clamp(1.15rem, 3.8vw, 2.25rem);
+        display: flex;
+        flex-direction: column;
+      }
+
+      .maintenance-summary { order: 1; }
+      .service-status { order: 3; }
+      .maintenance-details { order: 4; }
+      .next-step { order: 5; }
+      footer { order: 6; }
+
       .eyebrow {
-        margin: 0 0 .8rem;
-        color: rgba(155,225,255,.78);
-        font-size: .68rem;
+        margin: 0 0 .62rem;
+        color: rgba(155,225,255,.80);
+        font-size: .67rem;
         font-weight: 700;
-        letter-spacing: .24em;
+        letter-spacing: .20em;
         text-transform: uppercase;
       }
+
       h1 {
         margin: 0;
-        max-width: 760px;
+        max-width: 720px;
         font-family: "Classica Crastao", Georgia, serif;
-        font-size: clamp(2.55rem, 8vw, 5.3rem);
+        font-size: clamp(2.2rem, 6.8vw, 4.25rem);
         font-weight: 400;
-        line-height: .92;
+        line-height: .96;
         letter-spacing: .025em;
         text-transform: uppercase;
         text-wrap: balance;
       }
+
       .lead {
-        max-width: 690px;
-        margin: 1.35rem 0 0;
+        max-width: 680px;
+        margin: .9rem 0 0;
         color: var(--muted);
-        font-size: clamp(.98rem, 2vw, 1.08rem);
-        line-height: 1.72;
+        font-size: clamp(.96rem, 2vw, 1.04rem);
+        line-height: 1.58;
       }
+      .lead strong { color: #edfaff; font-weight: 700; }
 
-
-      .recovery-visual {
-        position: relative;
-        margin-top: 1.7rem;
-        display: grid;
-        grid-template-columns: minmax(260px, .9fr) minmax(0, 1.1fr);
-        align-items: center;
-        gap: clamp(1.2rem, 4vw, 2.4rem);
-        overflow: hidden;
-        padding: clamp(1rem, 3vw, 1.5rem);
-        border: 1px solid rgba(188,220,240,.13);
-        border-radius: 1rem;
-        background:
-          radial-gradient(circle at 24% 46%, rgba(112,203,231,.10), transparent 34%),
-          linear-gradient(155deg, rgba(13,30,57,.93), rgba(5,17,36,.96));
-        box-shadow: 0 12px 32px rgba(0,3,20,.18), inset 0 1px 0 rgba(225,242,250,.07);
-      }
-      .recovery-visual::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        background:
-          linear-gradient(110deg, transparent 0 42%, rgba(194,238,251,.035) 50%, transparent 58%),
-          radial-gradient(circle at 25% 50%, rgba(140,221,246,.06), transparent 46%);
-      }
-
-      .recovery-stage {
-        position: relative;
-        z-index: 1;
-        width: min(100%, 300px);
-        aspect-ratio: 1;
-        margin-inline: auto;
-        display: grid;
-        place-items: center;
-        overflow: hidden;
-        border-radius: 1rem;
-        background:
-          radial-gradient(circle at 50% 48%, rgba(116,211,239,.11), rgba(5,16,34,.04) 44%, transparent 70%);
-      }
-
-      .soft-halo {
-        position: absolute;
-        width: 52%;
-        aspect-ratio: 1;
-        border-radius: 50%;
-        background: radial-gradient(circle, rgba(154,228,249,.18), rgba(91,176,211,.06) 46%, transparent 70%);
-        filter: blur(8px);
-      }
-
-      .tsbc-core {
-        position: relative;
-        z-index: 8;
-        width: 34%;
-        min-width: 92px;
-        aspect-ratio: 1;
-        display: grid;
-        place-items: center;
-        border-radius: 50%;
-        background: radial-gradient(circle, rgba(142,220,243,.10), rgba(5,18,37,.015) 62%, transparent 72%);
-        box-shadow:
-          0 0 0 8px rgba(122,215,242,.018),
-          0 0 34px rgba(104,203,234,.20);
-      }
-      .tsbc-core img {
-        width: 100%;
-        height: 100%;
-        display: block;
-        object-fit: contain;
-        border-radius: 50%;
-        filter:
-          drop-shadow(0 6px 18px rgba(0,0,0,.24))
-          drop-shadow(0 0 14px rgba(156,225,245,.16));
-      }
-
-      .orbit {
-        position: absolute;
-        z-index: 5;
-        left: 50%;
-        top: 50%;
-        border-radius: 50%;
-        border: 1px solid rgba(157,223,242,.21);
-        transform-origin: center;
-      }
-      .orbit::before,
-      .orbit::after {
-        content: "";
-        position: absolute;
-        top: 50%;
-        border-radius: 50%;
-      }
-      .orbit::before {
-        left: -4px;
-        width: 8px;
-        height: 8px;
-        transform: translateY(-50%);
-        background: #e1faff;
-        box-shadow: 0 0 8px rgba(225,250,255,.92), 0 0 18px rgba(112,211,242,.60);
-      }
-      .orbit::after {
-        right: 7%;
-        width: 5px;
-        height: 5px;
-        transform: translateY(-50%);
-        background: #78cee7;
-        box-shadow: 0 0 12px rgba(120,206,231,.68);
-      }
-      .orbit-one {
-        width: 82%;
-        height: 44%;
-        margin-left: -39.5%;
-        margin-top: -23%;
-        transform: rotate(-11deg);
-      }
-      .orbit-two {
-        width: 62%;
-        height: 64%;
-        margin-left: -30%;
-        margin-top: -34%;
-        transform: rotate(52deg);
-        border-color: rgba(157,223,242,.16);
-      }
-
-      .sweep {
-        position: absolute;
-        z-index: 3;
-        width: 72%;
-        aspect-ratio: 1;
-        border-radius: 50%;
-        background: conic-gradient(
-          from 0deg,
-          transparent 0 304deg,
-          rgba(123,215,243,.02) 320deg,
-          rgba(123,215,243,.15) 350deg,
-          rgba(229,250,255,.48) 359deg,
-          transparent 360deg
-        );
-        -webkit-mask-image: radial-gradient(circle, transparent 0 38%, black 43% 48%, transparent 53%);
-        mask-image: radial-gradient(circle, transparent 0 38%, black 43% 48%, transparent 53%);
-        mix-blend-mode: screen;
-      }
-
-      .pulse {
-        position: absolute;
-        z-index: 4;
-        width: 34%;
-        aspect-ratio: 1;
-        border-radius: 50%;
-        border: 1px solid rgba(157,223,242,.24);
-        opacity: 0;
-      }
-
-      .spark {
-        position: absolute;
-        z-index: 6;
-        width: 5px;
-        height: 5px;
-        border-radius: 50%;
-        background: rgba(217,247,255,.92);
-        box-shadow: 0 0 10px rgba(139,224,247,.72);
-      }
-      .spark-a { left: 23%; top: 27%; }
-      .spark-b { right: 20%; top: 36%; width: 4px; height: 4px; }
-      .spark-c { right: 28%; bottom: 24%; width: 3px; height: 3px; background: #78cee7; }
-
-      .recovery-copy {
-        position: relative;
-        z-index: 1;
-        min-width: 0;
-      }
-      .recovery-kicker {
-        margin: 0;
-        color: rgba(155,225,255,.76);
-        font-size: .65rem;
-        font-weight: 700;
-        letter-spacing: .19em;
-        text-transform: uppercase;
-      }
-      .recovery-copy h2 {
-        margin: .45rem 0 0;
-        color: var(--foreground);
-        font-family: "Gotham", ui-sans-serif, system-ui, sans-serif;
-        font-size: clamp(1.2rem, 3vw, 1.65rem);
-        line-height: 1.12;
-        letter-spacing: -.025em;
-      }
-      .recovery-copy > p:last-of-type {
-        margin: .65rem 0 0;
-        max-width: 34rem;
-        color: var(--muted);
-        font-size: .86rem;
-        line-height: 1.55;
-      }
-      .recovery-meta {
-        margin-top: 1rem;
-        display: grid;
-        gap: .55rem;
-      }
-      .recovery-meta-row {
-        display: flex;
-        min-width: 0;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        padding-top: .55rem;
-        border-top: 1px solid rgba(255,255,255,.07);
-        font-size: .72rem;
-      }
-      .recovery-meta-row span:first-child { color: var(--muted-soft); }
-      .recovery-meta-row span:last-child {
-        color: rgba(223,244,250,.90);
-        font-weight: 700;
-        text-align: right;
-      }
-
-      .status-row {
+      .status-chips {
         display: flex;
         flex-wrap: wrap;
-        align-items: center;
-        gap: .75rem;
-        margin-top: 1.75rem;
+        gap: .55rem;
+        margin-top: 1rem;
       }
-      .status {
+      .status-chip {
         display: inline-flex;
         align-items: center;
-        gap: .55rem;
+        gap: .45rem;
         min-height: 2rem;
         padding: .42rem .7rem;
-        border: 1px solid rgba(157,223,242,.18);
+        border: 1px solid rgba(205,232,245,.15);
         border-radius: 999px;
-        background: rgba(157,223,242,.065);
+        background: rgba(205,232,245,.05);
+        color: rgba(235,246,251,.86);
+        font-size: .72rem;
+        font-weight: 700;
+      }
+      .status-chip::before {
+        content: "";
+        width: .48rem;
+        height: .48rem;
+        flex: 0 0 .48rem;
+        border-radius: 50%;
+        background: #9aa8b8;
+      }
+      .status-chip.available {
+        color: #d8f8e7;
+        border-color: rgba(104,222,161,.19);
+        background: rgba(104,222,161,.065);
+      }
+      .status-chip.available::before {
+        background: #8ee2b4;
+        box-shadow: 0 0 12px rgba(142,226,180,.42);
+      }
+
+      .section {
+        margin-top: 1rem;
+        border-top: 1px solid rgba(255,255,255,.075);
+        padding-top: 1rem;
+      }
+      .section-title {
+        margin: 0;
+        font-size: 1rem;
+        letter-spacing: -.018em;
+      }
+      .section-copy {
+        margin: .32rem 0 0;
+        color: var(--muted-soft);
+        font-size: .78rem;
+        line-height: 1.5;
+      }
+
+      .service-grid {
+        margin-top: .72rem;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        overflow: hidden;
+        border: 1px solid rgba(205,232,245,.11);
+        border-radius: .88rem;
+        background: rgba(2,10,25,.26);
+      }
+      .service-row {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .8rem;
+        padding: .74rem .8rem;
+        border-bottom: 1px solid rgba(255,255,255,.055);
+        font-size: .76rem;
+      }
+      .service-row:nth-child(odd) { border-right: 1px solid rgba(255,255,255,.055); }
+      .service-row:nth-last-child(-n+2) { border-bottom: 0; }
+      .service-name { color: rgba(232,242,248,.82); }
+      .service-state { color: var(--muted-soft); font-weight: 700; text-align: right; }
+      .service-state.good { color: var(--good); }
+
+      details {
+        border: 1px solid rgba(205,232,245,.11);
+        border-radius: .88rem;
+        background: rgba(2,10,25,.24);
+      }
+      details summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .8rem;
+        padding: .82rem .88rem;
+        color: rgba(241,248,252,.92);
+        font-size: .8rem;
+        font-weight: 700;
+      }
+      details summary::-webkit-details-marker { display: none; }
+      details summary::after {
+        content: "+";
+        color: var(--primary);
+        font-size: 1.05rem;
+        font-weight: 500;
+      }
+      details[open] summary::after { content: "–"; }
+      .details-body {
+        display: grid;
+        gap: .7rem;
+        padding: 0 .88rem .88rem;
+      }
+      .detail-row {
+        display: grid;
+        grid-template-columns: 1.25rem minmax(0,1fr);
+        gap: .62rem;
+        color: var(--muted);
+        font-size: .77rem;
+        line-height: 1.48;
+      }
+      .detail-index {
+        color: var(--primary);
+        font-size: .69rem;
+        font-weight: 800;
+      }
+      .detail-row strong { color: rgba(245,250,253,.91); }
+
+      .next-card {
+        display: grid;
+        grid-template-columns: minmax(0,1fr) auto;
+        gap: .85rem;
+        align-items: center;
+        padding: .86rem .9rem;
+        border: 1px solid rgba(205,232,245,.11);
+        border-radius: .88rem;
+        background: rgba(2,10,25,.24);
+      }
+      .next-label {
+        margin: 0 0 .25rem;
+        color: rgba(155,225,255,.76);
+        font-size: .64rem;
+        font-weight: 700;
+        letter-spacing: .17em;
+        text-transform: uppercase;
+      }
+      .next-title {
+        margin: 0;
+        font-size: .91rem;
+        line-height: 1.35;
+      }
+      .next-copy {
+        margin: .28rem 0 0;
+        color: var(--muted-soft);
+        font-size: .75rem;
+        line-height: 1.45;
+      }
+      .next-status {
+        white-space: nowrap;
+        padding: .42rem .58rem;
+        border-radius: .65rem;
+        background: rgba(157,223,242,.07);
         color: var(--primary);
         font-size: .68rem;
         font-weight: 700;
-        letter-spacing: .12em;
-        text-transform: uppercase;
       }
-      .status-dot {
-        width: .48rem;
-        height: .48rem;
-        border-radius: 50%;
-        background: var(--primary);
-        box-shadow: 0 0 16px rgba(157,223,242,.72);
-      }
-      .updated {
-        color: var(--muted-soft);
-        font-size: .72rem;
-      }
-
-      .return {
-        margin-top: 1.7rem;
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: center;
-        gap: 1rem;
-        padding: 1rem 1.1rem;
-        border: 1px solid rgba(188,220,240,.13);
-        border-radius: .875rem;
-        background: linear-gradient(155deg, rgba(13,30,57,.93), rgba(5,17,36,.96));
-        box-shadow: 0 10px 28px rgba(0,3,20,.15), inset 0 1px 0 rgba(225,242,250,.07);
-      }
-      .return-label {
-        margin: 0 0 .25rem;
-        color: rgba(155,225,255,.74);
-        font-size: .65rem;
-        font-weight: 700;
-        letter-spacing: .18em;
-        text-transform: uppercase;
-      }
-      .return-date {
-        margin: 0;
-        font-size: clamp(1.25rem, 3vw, 1.65rem);
-        font-weight: 700;
-        letter-spacing: -.02em;
-      }
-      .return-icon {
-        width: 42px;
-        height: 42px;
-        display: grid;
-        place-items: center;
-        border-radius: .75rem;
-        border: 1px solid rgba(157,223,242,.13);
-        background: rgba(157,223,242,.06);
-        color: var(--primary);
-        font-size: 1.15rem;
-      }
-
-      .notice {
-        margin-top: 1rem;
-        display: grid;
-        gap: .7rem;
-      }
-      .notice-item {
-        display: grid;
-        grid-template-columns: 2.35rem minmax(0,1fr);
-        gap: .85rem;
-        align-items: start;
-        padding: .9rem 1rem;
-        border: 1px solid rgba(188,220,240,.10);
-        border-radius: .875rem;
-        background: rgba(7,18,38,.72);
-        color: var(--muted);
-        font-size: .88rem;
-        line-height: 1.55;
-        box-shadow: inset 0 1px 0 rgba(225,242,250,.04);
-      }
-      .notice-icon {
-        width: 2.35rem;
-        height: 2.35rem;
-        display: grid;
-        place-items: center;
-        border-radius: .75rem;
-        background: rgba(157,223,242,.075);
-        color: var(--primary);
-        font-size: .75rem;
-        font-weight: 700;
-      }
-      .notice-item strong { color: var(--foreground); font-weight: 700; }
-      .deadline { color: #fff; font-weight: 700; }
 
       footer {
-        margin-top: 1.35rem;
-        padding-top: 1.1rem;
-        border-top: 1px solid rgba(255,255,255,.09);
+        margin-top: 1rem;
+        padding-top: .92rem;
+        border-top: 1px solid rgba(255,255,255,.075);
         display: flex;
-        align-items: flex-end;
+        align-items: flex-start;
         justify-content: space-between;
-        gap: 1rem;
+        gap: .8rem;
         color: var(--muted-soft);
-        font-size: .72rem;
-        line-height: 1.5;
+        font-size: .68rem;
+        line-height: 1.45;
       }
       .signature strong {
         display: block;
-        margin-bottom: .15rem;
-        color: rgba(247,251,255,.86);
+        margin-bottom: .12rem;
+        color: rgba(247,251,255,.84);
         font-weight: 500;
       }
 
@@ -610,28 +434,30 @@ export function renderMaintenancePage(): string {
       @media (max-width: 640px) {
         body { background-attachment: scroll, scroll; }
         main {
-          width: min(calc(100% - 1rem), 980px);
+          width: min(calc(100% - 1rem), 900px);
           padding-top: max(.5rem, env(safe-area-inset-top));
         }
-        .site-nav { min-height: 60px; padding: .62rem .72rem; border-radius: .875rem; }
-        .studio-mark-wrap { width: 38px; height: 38px; flex-basis: 38px; }
+        .site-nav {
+          min-height: 58px;
+          padding: .56rem .68rem;
+          border-radius: .86rem;
+        }
+        .studio-mark-wrap { width: 37px; height: 37px; flex-basis: 37px; }
         .brand-name { font-size: .86rem; }
         .brand-sub { display: none; }
-        .panel { margin-top: .6rem; border-radius: 1rem; }
-        .content { padding: 1.35rem 1.1rem 1.2rem; }
-        h1 { font-size: clamp(2.25rem, 13vw, 3.7rem); }
-        .lead { margin-top: 1rem; line-height: 1.6; }
-        .recovery-visual {
-          grid-template-columns: 1fr;
-          gap: .55rem;
-          padding: .85rem .8rem 1rem;
-        }
-        .recovery-stage { width: min(72vw, 250px); }
-        .recovery-copy { padding: .15rem .2rem .1rem; }
-        .recovery-copy h2 { font-size: 1.18rem; }
-        .recovery-copy > p:last-of-type { font-size: .82rem; }
-        .notice-item { padding: .8rem; }
-        footer { align-items: flex-start; flex-direction: column; gap: .35rem; }
+        .panel { margin-top: .55rem; border-radius: 1rem; }
+        .content { padding: 1rem .95rem 1rem; }
+        h1 { font-size: clamp(2rem, 11.5vw, 3.15rem); }
+        .lead { margin-top: .75rem; font-size: .92rem; line-height: 1.52; }
+        .status-chips { margin-top: .82rem; }
+        .section { margin-top: .82rem; padding-top: .82rem; }
+        .service-grid { grid-template-columns: 1fr; }
+        .service-row:nth-child(odd) { border-right: 0; }
+        .service-row:nth-last-child(-n+2) { border-bottom: 1px solid rgba(255,255,255,.055); }
+        .service-row:last-child { border-bottom: 0; }
+        .next-card { grid-template-columns: 1fr; }
+        .next-status { justify-self: start; }
+        footer { flex-direction: column; gap: .2rem; }
       }
 
       @media (prefers-reduced-transparency: reduce) {
@@ -645,102 +471,29 @@ export function renderMaintenancePage(): string {
       @media (prefers-reduced-motion: no-preference) {
         .ambient::before { animation: aurora-one 18s ease-in-out infinite alternate; }
         .ambient::after { animation: aurora-two 22s ease-in-out infinite alternate; }
-        .site-nav { animation: reveal-nav .58s cubic-bezier(.23,1,.32,1) both; }
-        .panel { animation: reveal-panel .72s .08s cubic-bezier(.23,1,.32,1) both; }
-        .panel::after { animation: scan-line 5.8s 1s ease-in-out infinite; }
-        .eyebrow { animation: reveal-item .48s .22s cubic-bezier(.23,1,.32,1) both; }
-        h1 { animation: reveal-item .58s .28s cubic-bezier(.23,1,.32,1) both; }
-        .lead { animation: reveal-item .58s .36s cubic-bezier(.23,1,.32,1) both; }
-        .recovery-visual { animation: reveal-item .58s .42s cubic-bezier(.23,1,.32,1) both; }
-        .status-row { animation: reveal-item .5s .52s cubic-bezier(.23,1,.32,1) both; }
-        .orbit-one { animation: orbit-one-motion 15s linear infinite; }
-        .orbit-two { animation: orbit-two-motion 21s linear infinite reverse; }
-        .sweep { animation: recovery-scan 8s linear infinite; }
-        .pulse-one { animation: recovery-ping 4.2s ease-out infinite; }
-        .pulse-two { animation: recovery-ping 4.2s 2.1s ease-out infinite; }
-        .tsbc-core { animation: core-breathe 5.2s ease-in-out infinite; }
-        .spark-a { animation: spark-float-a 5.4s ease-in-out infinite alternate; }
-        .spark-b { animation: spark-float-b 6.2s .7s ease-in-out infinite alternate; }
-        .spark-c { animation: spark-float-c 4.8s 1.1s ease-in-out infinite alternate; }
-        .return { animation: reveal-item .5s .5s cubic-bezier(.23,1,.32,1) both; }
-        .notice-item:nth-child(1) { animation: reveal-item .48s .58s cubic-bezier(.23,1,.32,1) both; }
-        .notice-item:nth-child(2) { animation: reveal-item .48s .65s cubic-bezier(.23,1,.32,1) both; }
-        .notice-item:nth-child(3) { animation: reveal-item .48s .72s cubic-bezier(.23,1,.32,1) both; }
-        footer { animation: reveal-item .48s .79s cubic-bezier(.23,1,.32,1) both; }
-        .status-dot { animation: status-pulse 2.4s ease-in-out infinite; }
-        .studio-mark { animation: mark-float 5.2s ease-in-out infinite; }
+        .site-nav { animation: reveal-nav .45s cubic-bezier(.23,1,.32,1) both; }
+        .panel { animation: reveal-panel .58s .05s cubic-bezier(.23,1,.32,1) both; }
+        .maintenance-summary { animation: reveal-item .46s .14s cubic-bezier(.23,1,.32,1) both; }
 
-        @keyframes orbit-one-motion {
-          from { transform: rotate(-11deg); }
-          to { transform: rotate(349deg); }
-        }
-        @keyframes orbit-two-motion {
-          from { transform: rotate(52deg); }
-          to { transform: rotate(412deg); }
-        }
-        @keyframes recovery-scan {
-          to { transform: rotate(360deg); }
-        }
-        @keyframes recovery-ping {
-          0% { transform: scale(.98); opacity: 0; }
-          12% { opacity: .38; }
-          76%, 100% { transform: scale(2.55); opacity: 0; }
-        }
-        @keyframes core-breathe {
-          0%, 100% {
-            transform: scale(1);
-            box-shadow: 0 0 0 8px rgba(122,215,242,.025), 0 0 38px rgba(104,203,234,.24), inset 0 1px 0 rgba(247,253,255,.30);
-          }
-          50% {
-            transform: scale(1.045);
-            box-shadow: 0 0 0 10px rgba(122,215,242,.035), 0 0 52px rgba(104,203,234,.34), inset 0 1px 0 rgba(247,253,255,.34);
-          }
-        }
-        @keyframes spark-float-a {
-          from { transform: translate3d(0,0,0); opacity: .55; }
-          to { transform: translate3d(12px,-8px,0); opacity: 1; }
-        }
-        @keyframes spark-float-b {
-          from { transform: translate3d(0,0,0); opacity: .45; }
-          to { transform: translate3d(-9px,10px,0); opacity: .9; }
-        }
-        @keyframes spark-float-c {
-          from { transform: translate3d(0,0,0); opacity: .35; }
-          to { transform: translate3d(8px,6px,0); opacity: .85; }
-        }
         @keyframes reveal-nav {
-          from { opacity: 0; transform: translateY(-10px); }
+          from { opacity: 0; transform: translateY(-8px); }
           to { opacity: 1; transform: translateY(0); }
         }
         @keyframes reveal-panel {
-          from { opacity: 0; transform: translateY(18px) scale(.992); }
+          from { opacity: 0; transform: translateY(12px) scale(.994); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
         @keyframes reveal-item {
-          from { opacity: 0; transform: translateY(10px); }
+          from { opacity: 0; transform: translateY(7px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes status-pulse {
-          0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 12px rgba(157,223,242,.55); }
-          50% { opacity: .62; transform: scale(.82); box-shadow: 0 0 22px rgba(157,223,242,.9); }
-        }
-        @keyframes mark-float {
-          0%, 100% { transform: translateY(0) rotate(0deg); }
-          50% { transform: translateY(-3px) rotate(.8deg); }
-        }
-        @keyframes scan-line {
-          0%, 22% { left: -45%; opacity: 0; }
-          32% { opacity: .8; }
-          68% { opacity: .8; }
-          78%, 100% { left: 112%; opacity: 0; }
-        }
         @keyframes aurora-one {
-          from { transform: translate3d(-2%, -2%, 0) scale(.92); }
-          to { transform: translate3d(18%, 12%, 0) scale(1.08); }
+          from { transform: translate3d(-2%, -2%, 0) scale(.94); }
+          to { transform: translate3d(14%, 10%, 0) scale(1.05); }
         }
         @keyframes aurora-two {
-          from { transform: translate3d(4%, 0, 0) scale(.96); }
-          to { transform: translate3d(-16%, -12%, 0) scale(1.08); }
+          from { transform: translate3d(3%, 0, 0) scale(.96); }
+          to { transform: translate3d(-13%, -9%, 0) scale(1.05); }
         }
       }
 
@@ -751,7 +504,6 @@ export function renderMaintenancePage(): string {
           scroll-behavior: auto !important;
         }
       }
-
     </style>
   </head>
 
@@ -763,85 +515,78 @@ export function renderMaintenancePage(): string {
           <span class="studio-mark-wrap">
             <img class="studio-mark" src="/solaris-studio-mark.png" alt="" aria-hidden="true" width="256" height="256" />
           </span>
-          <span class="brand-copy">
+          <span>
             <span class="brand-name">Solaris Studio</span>
-            <span class="brand-sub">Terra Solaris · SSC</span>
+            <span class="brand-sub">Terra Solaris Broadcasting Coalition</span>
           </span>
         </div>
       </header>
 
       <section class="panel">
         <div class="content">
-          <p class="eyebrow">Service status · temporary interruption</p>
-          <h1 id="maintenance-title">Solaris Studio is temporarily offline</h1>
-          <p class="lead">
-            A database service error is currently preventing Solaris Studio from operating reliably.
-            We have taken the platform offline temporarily rather than leave submissions, voting,
-            results or account actions in an uncertain state.
-          </p>
-
-          <section class="recovery-visual" aria-labelledby="recovery-title">
-            <div class="recovery-stage" aria-hidden="true">
-              <div class="soft-halo"></div>
-              <div class="sweep"></div>
-              <div class="orbit orbit-one"></div>
-              <div class="orbit orbit-two"></div>
-              <div class="pulse pulse-one"></div>
-              <div class="pulse pulse-two"></div>
-              <div class="spark spark-a"></div>
-              <div class="spark spark-b"></div>
-              <div class="spark spark-c"></div>
-              <div class="tsbc-core"><img src="/solaris-studio-mark.png" alt="" width="256" height="256" /></div>
-            </div>
-            <div class="recovery-copy">
-              <p class="recovery-kicker">Recovery sequence</p>
-              <h2 id="recovery-title">Holding Solaris safely offline</h2>
-              <p>
-                Solaris Studio is keeping normal traffic and writes stopped while the database service is unavailable.
-                This visual represents the protected recovery state, not live database telemetry.
-              </p>
-              <div class="recovery-meta" aria-label="Recovery state">
-                <div class="recovery-meta-row"><span>Application traffic</span><span>Paused safely</span></div>
-                <div class="recovery-meta-row"><span>Database service</span><span>Awaiting restoration</span></div>
-                <div class="recovery-meta-row"><span>Deadlines</span><span>Protected</span></div>
-              </div>
+          <section class="maintenance-summary" aria-labelledby="maintenance-title">
+            <p class="eyebrow">Maintenance mode</p>
+            <h1 id="maintenance-title">Solaris Studio is temporarily unavailable</h1>
+            <p class="lead">
+              Most Studio services are paused while we prepare the new Solaris Studio experience.
+              <strong>Heads of Delegation can still access Confirmations on this page.</strong>
+            </p>
+            <div class="status-chips" aria-label="Maintenance availability">
+              <span class="status-chip">Most services paused</span>
+              <span class="status-chip available">HOD Confirmations available</span>
             </div>
           </section>
 
-          <div class="status-row">
-            <div class="status"><span class="status-dot" aria-hidden="true"></span>Maintenance mode active</div>
-            <span class="updated">Service notice updated ${updated}</span>
-          </div>
+          <section class="service-status section" aria-labelledby="service-status-title">
+            <h2 id="service-status-title" class="section-title">Service status</h2>
+            <p class="section-copy">The maintenance screen is intentional. Confirmation access below is the current exception.</p>
+            <div class="service-grid">
+              <div class="service-row"><span class="service-name">Public Studio</span><span class="service-state">Paused</span></div>
+              <div class="service-row"><span class="service-name">MySolaris</span><span class="service-state">Paused</span></div>
+              <div class="service-row"><span class="service-name">HOD Confirmations</span><span class="service-state good">Available</span></div>
+              <div class="service-row"><span class="service-name">Voting</span><span class="service-state">Paused</span></div>
+              <div class="service-row"><span class="service-name">Organizer tools</span><span class="service-state">Restricted</span></div>
+              <div class="service-row"><span class="service-name">Results & archive</span><span class="service-state">Paused</span></div>
+            </div>
+          </section>
 
-          <div class="return">
-            <div>
-              <p class="return-label">Expected return</p>
-              <p class="return-date">${returnDate}</p>
-            </div>
-            <div class="return-icon" aria-hidden="true">↻</div>
-          </div>
+          <section class="maintenance-details section">
+            <details>
+              <summary>What does maintenance affect?</summary>
+              <div class="details-body">
+                <div class="detail-row">
+                  <span class="detail-index">01</span>
+                  <span><strong>Deadlines are protected.</strong> Any deadline affected by this maintenance window will be reviewed and adjusted by TSBC where necessary.</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-index">02</span>
+                  <span><strong>Do not repeat actions from immediately before maintenance.</strong> If you are unsure whether a submission or vote completed, wait for TSBC guidance.</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-index">03</span>
+                  <span><strong>Normal Studio navigation remains unavailable.</strong> Public pages, MySolaris, voting and most Organizer surfaces stay behind maintenance while this limited Confirmation route is active.</span>
+                </div>
+              </div>
+            </details>
+          </section>
 
-          <div class="notice" aria-label="Outage information">
-            <div class="notice-item">
-              <span class="notice-icon" aria-hidden="true">01</span>
-              <span><strong>Deadlines are protected.</strong> <span class="deadline">All deadlines scheduled during this outage will be postponed.</span> Updated deadlines will be published after Solaris Studio is back online.</span>
+          <section class="next-step section" aria-labelledby="next-title">
+            <div class="next-card">
+              <div>
+                <p class="next-label">What happens next</p>
+                <h2 id="next-title" class="next-title">Solaris Studio will reopen with the new Studio experience when maintenance is complete.</h2>
+                <p class="next-copy">Service notice updated ${updated}.</p>
+              </div>
+              <span class="next-status">${returnDate}</span>
             </div>
-            <div class="notice-item">
-              <span class="notice-icon" aria-hidden="true">02</span>
-              <span><strong>Please do not repeat submissions or votes.</strong> If you attempted an action around the start of the outage, wait for TSBC guidance before trying again.</span>
-            </div>
-            <div class="notice-item">
-              <span class="notice-icon" aria-hidden="true">03</span>
-              <span><strong>All Solaris Studio services are temporarily unavailable.</strong> This includes public pages, MySolaris, Confirmations, Televoting and Organizer tools.</span>
-            </div>
-          </div>
+          </section>
 
           <footer>
             <div class="signature">
               <strong>Terra Solaris Broadcasting Coalition</strong>
               TSBC / Solaris Studio
             </div>
-            <div>HTTP 503 · Service temporarily unavailable</div>
+            <div>HTTP 503 · Maintenance mode</div>
           </footer>
         </div>
       </section>
