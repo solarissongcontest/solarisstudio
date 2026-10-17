@@ -67,11 +67,13 @@ describe("System V3 S1 registries", () => {
       "jury.closed",
       "jury.opened",
       "media.reviewed",
+      "membership.changed",
       "notice.published",
       "notice.superseded",
       "notification.delivered",
       "notification.failed",
       "notification.queued",
+      "permissions.changed",
       "publication.changed",
       "publication.failed",
       "results.calculated",
@@ -108,6 +110,16 @@ describe("System V3 S1 registries", () => {
     expect(v3DomainConsequence("notification.delivered")?.taskEffects).toEqual([]);
     expect(v3DomainConsequence("notification.failed")?.taskEffects).toEqual([
       { effect: "re-evaluate", taskType: "notification.delivery_failed" },
+    ]);
+  });
+
+  it("records canonical membership/access S5 ownership", () => {
+    expect(v3DomainConsequence("membership.changed")?.implementationState).toBe("event-backed");
+    expect(v3DomainConsequence("membership.changed")?.ownerDomain).toBe("membership");
+    expect(v3DomainConsequence("permissions.changed")?.implementationState).toBe("event-backed");
+    expect(v3DomainConsequence("permissions.changed")?.ownerDomain).toBe("permissions");
+    expect(v3DomainConsequence("permissions.changed")?.taskEffects).toEqual([
+      { effect: "re-evaluate", taskType: "permissions.approval_required" },
     ]);
   });
 });
