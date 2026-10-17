@@ -7,10 +7,10 @@ on:
     paths:
       - "supabase/migrations/**"
       - ".github/scripts/v3-s14-archive-command-rehearsal.sh"
+      - ".github/scripts/v3-s14-archive-consequences-rehearsal.sh"
       - ".github/workflows/v3-s14-archive-consequences-rehearsal.yml"
       - "src/lib/v3-s14-archive-consequences.contract.test.ts"
-      - "src/lib/v3-archive-command.contract.test.ts"
-      - "src/lib/v3-archive-command.ts"
+      - "src/lib/studio2-persistence.ts"
       - "src/lib/studio2-control-room.ts"
       - "src/routes/_authenticated/admin/control-room.tsx"
   workflow_dispatch:
@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   clean-replay:
-    name: Clean replay + archive command/consequences
+    name: Clean replay + Archive command/consequences
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -46,6 +46,8 @@ jobs:
         run: supabase db reset --local --no-seed
       - name: Rehearse canonical Archive command
         run: bash .github/scripts/v3-s14-archive-command-rehearsal.sh
+      - name: Rehearse Archive consequences and reconciliation
+        run: bash .github/scripts/v3-s14-archive-consequences-rehearsal.sh
       - name: Stop isolated local Supabase
         if: always()
         run: supabase stop --no-backup || true
@@ -94,13 +96,20 @@ jobs:
             /tmp/solaris-s14-archive-main/supabase/migrations/
           cd /tmp/solaris-s14-archive-main
           supabase migration up --local --include-all
-      - name: Rehearse Archive after current-main upgrade
+      - name: Rehearse Archive command after current-main upgrade
         shell: bash
         run: |
           set -euo pipefail
           cd /tmp/solaris-s14-archive-main
           export PATH="$GITHUB_WORKSPACE/node_modules/.bin:$PATH"
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-archive-command-rehearsal.sh"
+      - name: Rehearse Archive consequences after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-s14-archive-main
+          export PATH="$GITHUB_WORKSPACE/node_modules/.bin:$PATH"
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-archive-consequences-rehearsal.sh"
       - name: Stop isolated local Supabase
         if: always()
         shell: bash
