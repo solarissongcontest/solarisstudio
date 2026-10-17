@@ -13,6 +13,7 @@ describe("V3 navigation release-blocker invariants", () => {
     expect(resolveV3TopLevelSwipePolicy("/jury-voting")).toBe("critical-flow");
     expect(resolveV3TopLevelSwipePolicy("/televoting")).toBe("critical-flow");
     expect(resolveV3TopLevelSwipePolicy("/confirmations")).toBe("critical-flow");
+    expect(resolveV3TopLevelSwipePolicy("/integrity/report/category")).toBe("critical-flow");
     expect(resolveV3TopLevelSwipePolicy("/show-mode")).toBe("disabled");
   });
 
@@ -46,6 +47,20 @@ describe("V3 navigation release-blocker invariants", () => {
       expect(tabs).toContain('data-solaris-feature-overlay-open');
       expect(tabs).toContain('data-solaris-keyboard-open');
     }
+  });
+
+  it("invalidates Public gesture ownership when viewer identity changes", () => {
+    const shell = source("src/components/v3/V3AppShell.tsx");
+    const cacheIsolation = source("src/lib/account-cache-isolation.ts");
+
+    expect(shell).toContain("const navigationInteractionKey = navigationIdentityReady");
+    expect(shell).toContain('(navigationScope ?? "anonymous")');
+    expect(shell).toContain(': "resolving"');
+    expect(shell).toContain("interactionKey={navigationInteractionKey}");
+    expect(shell).toContain("key={navigationInteractionKey}");
+    expect(cacheIsolation).toContain("previousUserId !== nextUserId");
+    expect(cacheIsolation).toContain("clearPrivateAccountQueries(client)");
+    expect(cacheIsolation).toContain("v3-rollout-probe");
   });
 
   it("keeps browser certification hard-wired to loopback Supabase", () => {
