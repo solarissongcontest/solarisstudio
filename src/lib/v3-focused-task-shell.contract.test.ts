@@ -10,7 +10,7 @@ describe("Solaris Studio V3 focused critical-task shell architecture", () => {
 
     expect(model).toContain("resolveSolarisAppScreen");
     expect(model).toContain("screen.behavior.criticalTask");
-    expect(model).toContain('screen.chrome.toolbar !== "focused"');
+    expect(model).toContain('screen.chrome.toolbar !== "focused" && screen.chrome.toolbar !== "hidden"');
     expect(model).toContain('screen.chrome.tabbar !== "hidden"');
     expect(model).toContain("screen.hierarchy.parent");
   });
@@ -36,9 +36,11 @@ describe("Solaris Studio V3 focused critical-task shell architecture", () => {
     expect(css).not.toContain("v3-bottom-nav");
   });
 
-  it("preserves accessible Back and Help controls without stealing route heading or main ownership", () => {
+  it("renders shared Back and Help only when the canonical toolbar mode is focused", () => {
     const component = read("src/components/v3/V3FocusedTaskShell.tsx");
 
+    expect(component).toContain('data-v3-focused-task-toolbar-mode={chrome.toolbarMode}');
+    expect(component).toContain('chrome.toolbarMode === "focused"');
     expect(component).toContain('aria-label={`Back to ${chrome.backLabel}`}');
     expect(component).toContain('aria-label={`Help for ${chrome.title}`}');
     expect(component).toContain("v3-focused-task-toolbar__title");
