@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -103,7 +104,11 @@ export function AppRuntime({ children }: { children: ReactNode }) {
     HYDRATION_SAFE_VIEWPORT,
   );
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
+  const [controllerReloadPending, setControllerReloadPending] = useState(false);
   const [, setUpdateSafetyRevision] = useState(0);
+  const updateSafety = appUpdateSafety(pathname);
+  const updateSafetyRef = useRef(updateSafety);
+  updateSafetyRef.current = updateSafety;
 
   useEffect(() => {
     const refresh = () => setPlatform(detectSolarisPlatform());
@@ -230,6 +235,15 @@ export function AppRuntime({ children }: { children: ReactNode }) {
       // already-controlled page receives a replacement worker.
       if (!pageWasAlreadyControlled || controllerReloadStarted) return;
       controllerReloadStarted = true;
+
+      // Another Solaris tab can activate a waiting worker. The controller has
+      // already changed at this point, but this page can safely keep running its
+      // current bundle until critical work or a direct navigation gesture ends.
+      if (!updateSafetyRef.current.safe) {
+        setControllerReloadPending(true);
+        return;
+      }
+
       window.location.reload();
     };
     const onResume = () => {
@@ -247,13 +261,18 @@ export function AppRuntime({ children }: { children: ReactNode }) {
     };
   }, [platform.canInstallServiceWorker]);
 
-  const updateSafety = appUpdateSafety(pathname);
+  useEffect(() => {
+    if (!controllerReloadPending || !updateSafety.safe) return;
+    setControllerReloadPending(false);
+    window.location.reload();
+  }, [controllerReloadPending, updateSafety.safe]);
 
   const applyUpdate = useCallback(() => {
     if (!waitingWorker || !updateSafety.safe) return;
     waitingWorker.postMessage({ type: "SKIP_WAITING" });
   }, [updateSafety.safe, waitingWorker]);
 
+  const updateAvailable = Boolean(waitingWorker) || controllerReloadPending;
   const value = useMemo<AppRuntimeValue>(
     () => ({
       ...platform,
@@ -261,8 +280,8 @@ export function AppRuntime({ children }: { children: ReactNode }) {
       connectivity,
       lifecycle,
       viewport,
-      updateAvailable: Boolean(waitingWorker),
-      updateDeferred: Boolean(waitingWorker) && !updateSafety.safe,
+      updateAvailable,
+      updateDeferred: updateAvailable && !updateSafety.safe,
       updateBlockedReason: updateSafety.reason,
       applyUpdate,
     }),
@@ -272,10 +291,10 @@ export function AppRuntime({ children }: { children: ReactNode }) {
       lifecycle,
       platform,
       platformResolved,
+      updateAvailable,
       updateSafety.reason,
       updateSafety.safe,
       viewport,
-      waitingWorker,
     ],
   );
 
@@ -286,7 +305,7 @@ export function AppRuntime({ children }: { children: ReactNode }) {
         isAppMode={platform.isAppMode}
         pathname={pathname}
         connectivity={connectivity}
-        updateAvailable={Boolean(waitingWorker)}
+        updateAvailable={updateAvailable}
         updateSafe={updateSafety.safe}
         onUpdate={applyUpdate}
       />
