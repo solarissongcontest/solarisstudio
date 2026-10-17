@@ -70,6 +70,9 @@ describe("V3 QA integration infrastructure", () => {
     expect(quality).toContain("v3-s14-rehearsal-readiness.json");
     expect(quality).toContain("v3-s15-zero-orphan-readiness.json");
     expect(quality).toContain("V3_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}");
+    expect(quality).toContain("ref: ${{ github.event.pull_request.head.sha || github.sha }}");
+    expect(quality).toContain('checkout_sha="$(git rev-parse HEAD');
+    expect(quality).toContain("V3 evidence checkout is $checkout_sha, expected exact source SHA $expected");
     expect(quality).toContain('GITHUB_SHA="$expected" bun run scripts/generate-v3-completion-dashboard.ts');
     expect(quality).toContain("expected exact source SHA");
   });
