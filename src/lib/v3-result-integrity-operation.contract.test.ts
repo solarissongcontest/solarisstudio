@@ -116,7 +116,7 @@ describe("System V3 governed Result Integrity recompute", () => {
     ]) {
       expect(functions).toContain(field);
     }
-    expect(functions).toContain("recomputeResultIntegrityOperationServer(data)");
+    expect(functions).toContain("recomputeResultIntegrityOperationWithReplayServer(data)");
     expect(functions).toContain("export const recomputeResultIntegrity =");
     expect(server).toContain("Compatibility adapter for the pre-V3 specialist route");
     expect(server).toContain("return recomputeWithOperation({");
