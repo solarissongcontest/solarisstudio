@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const route = readFileSync("src/routes/_authenticated/admin/time-machine.tsx", "utf8");
+const registry = readFileSync("src/lib/v3-organizer-capability-registry.ts", "utf8");
 
 describe("V3 Organizer Time Machine", () => {
   it("fails closed without an exact Organizer edition", () => {
@@ -27,5 +28,9 @@ describe("V3 Organizer Time Machine", () => {
     expect(route).not.toContain(".insert(");
     expect(route).not.toContain(".update(");
     expect(route).not.toContain(".delete(");
+  });
+
+  it("records Time Machine as building without claiming historical completeness", () => {
+    expect(registry).toContain('id === "live-review-time-machine"');
   });
 });
