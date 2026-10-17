@@ -134,8 +134,21 @@ body:has([data-v3-focused-task-shell]) .app-main[data-solaris-app-mode="true"] {
   padding:
     1rem
     max(1rem, env(safe-area-inset-right))
-    calc(2.25rem + env(safe-area-inset-bottom))
+    calc(2.25rem + env(safe-area-inset-bottom) + var(--solaris-keyboard-inset, 0px))
     max(1rem, env(safe-area-inset-left));
+}
+
+[data-solaris-v3] .v3-focused-task-content :where(
+  a[href],
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  [tabindex]:not([tabindex="-1"])
+) {
+  scroll-margin-block-start: calc(4.75rem + env(safe-area-inset-top));
+  scroll-margin-block-end: calc(1.5rem + var(--solaris-keyboard-inset, 0px));
 }
 
 @media (max-width: 390px) {
