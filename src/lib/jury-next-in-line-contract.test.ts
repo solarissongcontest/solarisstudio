@@ -5,10 +5,10 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("Next in Line competition contract", () => {
-  it("has its own route and keeps the old confirmation URL as a redirect only", () => {
-    const route = source("src/routes/next-in-line.tsx");
+  it("has its own authenticated route and keeps the old confirmation URL as a redirect only", () => {
+    const route = source("src/routes/_authenticated/next-in-line.tsx");
     const legacy = source("src/routes/confirmations/next-in-line.tsx");
-    expect(route).toContain('createFileRoute("/next-in-line")');
+    expect(route).toContain('createFileRoute("/_authenticated/next-in-line")');
     expect(route).toContain("NextInLineCompetition");
     expect(legacy).toContain('redirect({ to: "/next-in-line" })');
     expect(legacy).not.toContain("offered a remaining place");
