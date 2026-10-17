@@ -6,6 +6,7 @@ const source = readFileSync(
   "utf8",
 );
 const service = readFileSync("src/lib/studio2-host-management.ts", "utf8");
+const registry = readFileSync("src/lib/v3-organizer-capability-registry.ts", "utf8");
 
 describe("V3 Organizer Host Management edition context", () => {
   it("requires the exact selected Organizer edition and never substitutes the newest edition", () => {
@@ -60,5 +61,9 @@ describe("V3 Organizer Host Management edition context", () => {
     expect(source).toContain("open={Boolean(edition && bidSheet)}");
     expect(source).toContain("open={Boolean(edition && evaluationTarget)}");
     expect(source).toContain("open={Boolean(edition && showTarget)}");
+  });
+
+  it("records Host Management as building without claiming parity or cutover", () => {
+    expect(registry).toContain('id === "current-edition-host"');
   });
 });
