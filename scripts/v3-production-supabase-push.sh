@@ -12,8 +12,14 @@ fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
 remote_head_from_list() {
   awk -F'|' '
-    /^[[:space:]]*[0-9]{14}[[:space:]]*\|[[:space:]]*[0-9]{14}[[:space:]]*\|/ {
-      gsub(/[[:space:]]/, "", $2); print $2
+    {
+      local_version = $1
+      remote_version = $2
+      gsub(/[`[:space:]]/, "", local_version)
+      gsub(/[`[:space:]]/, "", remote_version)
+      if (local_version ~ /^[0-9]{14}$/ && remote_version ~ /^[0-9]{14}$/) {
+        print remote_version
+      }
     }
   ' | tail -n 1
 }
