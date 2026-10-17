@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
-import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
 import { resolveV3FocusedTaskChrome } from "@/lib/v3-focused-task-chrome";
 import { useV3EntryBundle } from "@/lib/v3-entry-runtime";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
@@ -37,13 +36,12 @@ function ResolvingEntrySurface() {
 }
 
 /**
- * Installed-app participant Entry cutover. A country-scoped inspection request
- * preserves the canonical legacy module only while organizer authority is
- * resolving or after that authority is actually verified. A participant cannot
- * force the legacy shell merely by inventing a ?country= query parameter.
- * Every disabled/error state still fails back to the canonical legacy module.
- * Once authorized, Entry reuses the shared focused critical-task shell rather
- * than carrying global app navigation into a submission workflow.
+ * Installed-app participant Entry cutover. Organizer country inspection and
+ * every disabled/error state preserve the canonical legacy module. The V3
+ * private bundle is not requested until the server has authorized the slice and
+ * identified an authenticated viewer. Once authorized, Entry reuses the shared
+ * focused critical-task shell rather than carrying global app navigation into
+ * a submission workflow.
  */
 export function V3EntryRouteGate({
   legacy,
@@ -55,22 +53,19 @@ export function V3EntryRouteGate({
   focusReadiness: boolean;
 }) {
   const { isAppMode, platformResolved } = useSolarisApp();
-  const workspace = useMySolaris();
-  const verifiedOrganizerInspection =
-    organizerInspection && (workspace.isLoading || workspace.permissions.isOrganizer);
   const rollout = useV3RolloutProbe(
-    platformResolved && isAppMode && !verifiedOrganizerInspection,
+    platformResolved && isAppMode && !organizerInspection,
   );
   const shouldLoadBundle =
     platformResolved &&
     isAppMode &&
-    !verifiedOrganizerInspection &&
+    !organizerInspection &&
     rollout.data?.enabled === true &&
     rollout.data?.entryEnabled === true &&
     Boolean(rollout.data?.userId);
   const bundle = useV3EntryBundle(shouldLoadBundle, rollout.data?.userId);
 
-  if (verifiedOrganizerInspection || !isAppMode) return <>{legacy}</>;
+  if (organizerInspection || !isAppMode) return <>{legacy}</>;
   if (!platformResolved || rollout.isLoading) return <ResolvingEntrySurface />;
   if (
     rollout.isError ||
