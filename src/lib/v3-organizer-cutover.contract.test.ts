@@ -49,6 +49,16 @@ describe("V3 Organizer reversible cutover", () => {
     expect(liquidTabBar).toContain("resolveV3LogicalHorizontalDelta");
   });
 
+  it("loads canonical V3 navigation tokens without turning the nav wrapper into a V3 page", () => {
+    expect(mobile).toContain('import "@/styles/v3-foundations.css"');
+    expect(mobile).toContain('data-solaris-v3=""');
+    expect(mobileCss).toContain('[data-organizer-v3-liquid-nav][data-solaris-v3]');
+    expect(mobileCss).toContain("min-height: 0");
+    expect(mobileCss).toContain("background: transparent");
+    expect(mobileCss).toContain("font-family: inherit");
+    expect(mobileCss).toContain("color-scheme: inherit");
+  });
+
   it("preserves Organizer compact/detail and desktop visibility policy around the shared bar", () => {
     expect(mobile).toContain('if (screen.tabbar === "hidden") return null');
     expect(mobile).toContain("data-organizer-v3-tabbar-mode={screen.tabbar}");
