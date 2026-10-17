@@ -1,32 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
-import {
-  MySolarisNoticesModule,
-  type NoticesSearch,
-} from "@/components/mysolaris/modules/MySolarisNoticesModule";
+import { MySolarisNoticesModule } from "@/components/mysolaris/modules/MySolarisNoticesModule";
 import { OrganizerPublicNoticesModule } from "@/components/mysolaris/modules/OrganizerPublicNoticesModule";
 import { OrganizerRecipientNoticesModule } from "@/components/mysolaris/modules/OrganizerRecipientNoticesModule";
 import { V3OfficialNoticesRouteContent } from "@/components/v3/V3OfficialNoticesRouteContent";
 import { useMyCountryAccount } from "@/lib/country-account";
-import type { NoticeInboxState } from "@/lib/official-communications";
+import { parseV3OfficialNoticeFilter } from "@/lib/v3-official-notices";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
-const INBOX_STATES = new Set([
-  "unread",
-  "read",
-  "acknowledgement_required",
-  "acknowledged",
-  "archived",
-]);
-
 export const Route = createFileRoute("/_authenticated/my-solaris/notices")({
-  validateSearch: (search: Record<string, unknown>): NoticesSearch => ({
+  validateSearch: (search: Record<string, unknown>) => ({
     notice: typeof search.notice === "string" && search.notice ? search.notice : undefined,
-    state:
-      typeof search.state === "string" && INBOX_STATES.has(search.state)
-        ? (search.state as NoticeInboxState)
-        : undefined,
+    state: parseV3OfficialNoticeFilter(search.state),
   }),
   head: () => ({
     meta: [
