@@ -30,4 +30,16 @@ export const V3_API_CAPABILITY_REGISTRY = [
     purpose: "Allowlisted cached proxy for canonical Solaris flag image assets.",
     source: "src/routes/api/flag.ts",
   },
+  {
+    route: "/api/maintenance-confirmation",
+    methods: ["POST"],
+    ownerDomain: "confirmation",
+    audience: "public",
+    mutation: true,
+    requiredCapability: null,
+    riskTier: 3,
+    purpose:
+      "Maintenance-only transport for resolving an existing Confirmation edit token, updating that same response through the canonical V3 writer, and reconciling the exact operation without opening generic server functions.",
+    source: "src/routes/api/maintenance-confirmation.ts",
+  },
 ] as const satisfies readonly V3ApiCapability[];

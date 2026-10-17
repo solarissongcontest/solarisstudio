@@ -7,6 +7,7 @@ on:
     paths:
       - "supabase/migrations/**"
       - ".github/scripts/v3-confirmation-maintenance-edit-rehearsal.sh"
+      - ".github/scripts/v3-confirmation-maintenance-round-operation-claim-rehearsal.sh"
       - ".github/workflows/v3-confirmation-maintenance-edit-rehearsal.yml"
   workflow_dispatch:
 
@@ -49,6 +50,10 @@ jobs:
       - name: Rehearse maintenance Confirmation correction
         shell: bash
         run: bash .github/scripts/v3-confirmation-maintenance-edit-rehearsal.sh
+
+      - name: Rehearse maintenance Confirmation round operation claim
+        shell: bash
+        run: bash .github/scripts/v3-confirmation-maintenance-round-operation-claim-rehearsal.sh
 
       - name: Stop local Supabase stack
         if: always()
