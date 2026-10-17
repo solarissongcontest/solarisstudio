@@ -20,22 +20,40 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import {
+  resolveOrganizerTaskOperationalState,
   useOrganizerTasksV5,
   type OrganizerTaskFilter,
+  type OrganizerTaskOperationalState,
   type OrganizerTaskPriority,
   type OrganizerTaskV5,
 } from "@/lib/admin-tasks-v5";
 
-const FILTERS = ["all", "mine", "waiting", "resolved"] as const;
+const FILTERS = [
+  "all",
+  "actionable",
+  "blocked",
+  "waiting",
+  "failed",
+  "overdue",
+  "mine",
+  "resolved",
+] as const;
+
+type OrganizerTaskViewFilter = (typeof FILTERS)[number];
 
 type TasksSearch = {
-  filter: OrganizerTaskFilter;
+  filter: OrganizerTaskViewFilter;
+};
+
+type ClassifiedTask = {
+  task: OrganizerTaskV5;
+  operationalState: OrganizerTaskOperationalState;
 };
 
 export const Route = createFileRoute("/_authenticated/admin/tasks")({
   validateSearch: (search: Record<string, unknown>): TasksSearch => ({
-    filter: FILTERS.includes(search.filter as OrganizerTaskFilter)
-      ? (search.filter as OrganizerTaskFilter)
+    filter: FILTERS.includes(search.filter as OrganizerTaskViewFilter)
+      ? (search.filter as OrganizerTaskViewFilter)
       : "all",
   }),
   head: () => ({
@@ -53,23 +71,41 @@ function OrganizerTasksPage() {
   const navigate = Route.useNavigate();
   const backend = useOrganisationBackendContract();
   const tasksSupported = backend.data?.capabilities.organizerTasks === true;
-  const tasksQuery = useOrganizerTasksV5(editionId, filter, tasksSupported);
-  const tasks = tasksQuery.data ?? [];
+  const backendFilter = backendFilterForView(filter);
+  const tasksQuery = useOrganizerTasksV5(editionId, backendFilter, tasksSupported);
+  const rawTasks = tasksQuery.data ?? [];
+  const evaluatedAt = tasksQuery.dataUpdatedAt || Date.now();
+  const classifiedTasks: ClassifiedTask[] = rawTasks.map((task) => ({
+    task,
+    operationalState: resolveOrganizerTaskOperationalState(task, evaluatedAt),
+  }));
+  const tasks = classifiedTasks.filter((item) => matchesViewFilter(item, filter));
+  const explicitOperationalEvidence = rawTasks.some((task) => task.operationalState !== null);
 
   const metricsAvailable =
     backend.isSuccess &&
     tasksSupported &&
     !tasksQuery.isLoading &&
     !tasksQuery.error;
-  const critical = metricsAvailable
-    ? tasks.filter((task) => task.priority === "critical").length
+  const actionable = metricsAvailable
+    ? countOperationalState(classifiedTasks, "actionable")
     : null;
-  const high = metricsAvailable
-    ? tasks.filter((task) => task.priority === "high").length
+  const blocked = metricsAvailable && explicitOperationalEvidence
+    ? countOperationalState(classifiedTasks, "blocked")
     : null;
   const waiting = metricsAvailable
-    ? tasks.filter((task) => task.state === "waiting").length
+    ? countOperationalState(classifiedTasks, "waiting")
     : null;
+  const failed = metricsAvailable && explicitOperationalEvidence
+    ? countOperationalState(classifiedTasks, "failed")
+    : null;
+  const overdue = metricsAvailable
+    ? countOperationalState(classifiedTasks, "overdue")
+    : null;
+  const classificationUnavailable =
+    (filter === "blocked" || filter === "failed") &&
+    metricsAvailable &&
+    !explicitOperationalEvidence;
 
   return (
     <AdminPage>
@@ -96,9 +132,9 @@ function OrganizerTasksPage() {
             label: filterLabel(value),
           }))}
           onChange={(next) => {
-            if (!FILTERS.includes(next as OrganizerTaskFilter)) return;
+            if (!FILTERS.includes(next as OrganizerTaskViewFilter)) return;
             void navigate({
-              search: { filter: next as OrganizerTaskFilter },
+              search: { filter: next as OrganizerTaskViewFilter },
               replace: true,
             });
           }}
@@ -106,22 +142,12 @@ function OrganizerTasksPage() {
         />
 
         {filter !== "resolved" ? (
-          <section className="grid grid-cols-3 gap-2 sm:gap-3">
-            <Metric
-              label="Critical"
-              value={critical}
-              tone={critical == null ? "neutral" : critical ? "blocked" : "ready"}
-            />
-            <Metric
-              label="High"
-              value={high}
-              tone={high == null ? "neutral" : high ? "attention" : "ready"}
-            />
-            <Metric
-              label="Waiting"
-              value={waiting}
-              tone={waiting == null ? "neutral" : waiting ? "info" : "neutral"}
-            />
+          <section className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5 sm:gap-3">
+            <Metric label="Actionable" value={actionable} tone="info" />
+            <Metric label="Blocked" value={blocked} tone="blocked" />
+            <Metric label="Waiting" value={waiting} tone="info" />
+            <Metric label="Failed" value={failed} tone="blocked" />
+            <Metric label="Overdue" value={overdue} tone="attention" />
           </section>
         ) : null}
 
@@ -157,23 +183,35 @@ function OrganizerTasksPage() {
               }
             />
           </AdminCard>
+        ) : classificationUnavailable ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title={`${filterLabel(filter)} classification is not available yet`}
+              description="The current Organizer Task payload does not expose explicit blocked/failed evidence. Solaris will not infer workflow state from priority, title text or notification severity."
+            />
+          </AdminCard>
         ) : tasks.length ? (
           <AdminCard strong className="!p-0 overflow-hidden">
             <div className="p-4 sm:p-5">
               <AdminCardHeader
-              eyebrow={filter === "resolved" ? "History" : "Canonical queue"}
-              title={filterTitle(filter)}
-              description={
-                filter === "resolved"
-                  ? "Recently resolved task objects remain visible as operational history."
-                  : "Tasks are deduplicated by source condition and disappear only when domain truth resolves them."
-              }
-              action={<AdminStatus tone="neutral">{tasks.length}</AdminStatus>}
+                eyebrow={filter === "resolved" ? "History" : "Canonical queue"}
+                title={filterTitle(filter)}
+                description={
+                  filter === "resolved"
+                    ? "Recently resolved task objects remain visible as operational history."
+                    : "Tasks are deduplicated by source condition and disappear only when domain truth resolves them."
+                }
+                action={<AdminStatus tone="neutral">{tasks.length}</AdminStatus>}
               />
             </div>
             <div className="divide-y divide-white/[0.07] border-t border-white/[0.07]">
-              {tasks.map((task) => (
-                <TaskRow key={task.id} task={task} />
+              {tasks.map(({ task, operationalState }) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  operationalState={operationalState}
+                />
               ))}
             </div>
           </AdminCard>
@@ -188,25 +226,34 @@ function OrganizerTasksPage() {
         )}
 
         <p className="px-1 text-[11px] leading-5 text-muted-foreground">
-          Task state is recalculated from confirmation requirements and reviews, entries, required media, voting, results, integrations, incidents, governed approvals, Integrity work and paused edition subsystems. There is intentionally no generic “Mark resolved” button.
+          Task state is recalculated from confirmation requirements and reviews, entries, required media, voting, results, integrations, incidents, governed approvals, Integrity work and paused edition subsystems. Blocked and failed are shown only when canonical task evidence explicitly reports them; priority is severity, not workflow state. There is intentionally no generic “Mark resolved” button.
         </p>
       </div>
     </AdminPage>
   );
 }
 
-function TaskRow({ task }: { task: OrganizerTaskV5 }) {
-  const resolved = task.state === "resolved";
+function TaskRow({
+  task,
+  operationalState,
+}: {
+  task: OrganizerTaskV5;
+  operationalState: OrganizerTaskOperationalState;
+}) {
   return (
     <Link
       to={task.href as any}
       className="group flex min-h-20 items-start gap-3 p-4 transition-colors hover:bg-white/[0.025] sm:p-5"
     >
       <span className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03]">
-        {task.state === "waiting" ? (
+        {operationalState === "waiting" ? (
           <Clock3 className="size-4 text-sky-100" />
-        ) : resolved ? (
+        ) : operationalState === "resolved" ? (
           <CheckCircle2 className="size-4 text-emerald-200" />
+        ) : operationalState === "blocked" ||
+          operationalState === "failed" ||
+          operationalState === "overdue" ? (
+          <AlertTriangle className="size-4 text-amber-100" />
         ) : task.assignedTo ? (
           <UserRound className="size-4 text-muted-foreground" />
         ) : (
@@ -217,9 +264,14 @@ function TaskRow({ task }: { task: OrganizerTaskV5 }) {
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-semibold text-foreground">{task.title}</span>
-          <AdminStatus tone={taskTone(task)}>
-            {resolved ? "Resolved" : task.state === "waiting" ? "Waiting" : task.priority}
+          <AdminStatus tone={taskTone(operationalState, task.priority)}>
+            {operationalStateLabel(operationalState)}
           </AdminStatus>
+          {operationalState !== "resolved" ? (
+            <AdminStatus tone={priorityTone(task.priority)}>
+              {humanize(task.priority)} priority
+            </AdminStatus>
+          ) : null}
         </span>
         <span className="mt-1 block text-xs leading-5 text-muted-foreground">
           {task.description}
@@ -250,46 +302,93 @@ function Metric({
       <p className="admin-section-label">{label}</p>
       <div className="mt-2 flex items-center justify-between gap-2">
         <p className="text-2xl font-bold tabular-nums">{value == null ? "—" : value}</p>
-        <AdminStatus tone={tone}>
-          {value == null ? "Unavailable" : value ? "Active" : "Clear"}
+        <AdminStatus tone={value == null ? "neutral" : value ? tone : "ready"}>
+          {value == null ? "Unknown" : value ? "Active" : "Clear"}
         </AdminStatus>
       </div>
     </AdminCard>
   );
 }
 
-function taskTone(task: OrganizerTaskV5) {
-  if (task.state === "resolved") return "ready" as const;
-  if (task.priority === "critical") return "blocked" as const;
-  if (task.priority === "high") return "attention" as const;
-  if (task.state === "waiting") return "info" as const;
+function backendFilterForView(filter: OrganizerTaskViewFilter): OrganizerTaskFilter {
+  if (filter === "resolved") return "resolved";
+  if (filter === "mine") return "mine";
+  return "all";
+}
+
+function matchesViewFilter(item: ClassifiedTask, filter: OrganizerTaskViewFilter) {
+  if (filter === "all" || filter === "mine" || filter === "resolved") return true;
+  return item.operationalState === filter;
+}
+
+function countOperationalState(
+  tasks: ClassifiedTask[],
+  operationalState: OrganizerTaskOperationalState,
+) {
+  return tasks.filter((item) => item.operationalState === operationalState).length;
+}
+
+function taskTone(
+  operationalState: OrganizerTaskOperationalState,
+  priority: OrganizerTaskPriority,
+) {
+  if (operationalState === "resolved") return "ready" as const;
+  if (operationalState === "blocked" || operationalState === "failed") {
+    return "blocked" as const;
+  }
+  if (operationalState === "overdue") return "attention" as const;
+  if (operationalState === "waiting") return "info" as const;
+  if (priority === "critical" || priority === "high") return "attention" as const;
   return "neutral" as const;
 }
 
-function filterLabel(filter: OrganizerTaskFilter) {
-  if (filter === "all") return "All";
-  if (filter === "mine") return "Mine";
-  if (filter === "waiting") return "Waiting";
-  return "Resolved";
+function priorityTone(priority: OrganizerTaskPriority) {
+  if (priority === "critical") return "attention" as const;
+  if (priority === "high") return "info" as const;
+  return "neutral" as const;
 }
 
-function filterTitle(filter: OrganizerTaskFilter) {
+function operationalStateLabel(state: OrganizerTaskOperationalState) {
+  if (state === "overdue") return "Overdue / expired";
+  return humanize(state);
+}
+
+function filterLabel(filter: OrganizerTaskViewFilter) {
+  if (filter === "all") return "All";
+  if (filter === "mine") return "Mine";
+  if (filter === "overdue") return "Overdue";
+  return humanize(filter);
+}
+
+function filterTitle(filter: OrganizerTaskViewFilter) {
   if (filter === "mine") return "Assigned to me";
-  if (filter === "waiting") return "Waiting";
+  if (filter === "actionable") return "Ready for action";
+  if (filter === "blocked") return "Blocked tasks";
+  if (filter === "waiting") return "Waiting tasks";
+  if (filter === "failed") return "Failed tasks";
+  if (filter === "overdue") return "Overdue or expired tasks";
   if (filter === "resolved") return "Resolved tasks";
   return "Unresolved tasks";
 }
 
-function emptyTitle(filter: OrganizerTaskFilter) {
+function emptyTitle(filter: OrganizerTaskViewFilter) {
   if (filter === "mine") return "Nothing is assigned to you";
+  if (filter === "actionable") return "Nothing is ready for action";
+  if (filter === "blocked") return "Nothing is blocked";
   if (filter === "waiting") return "Nothing is waiting";
+  if (filter === "failed") return "No task is failed";
+  if (filter === "overdue") return "Nothing is overdue";
   if (filter === "resolved") return "No resolved tasks yet";
   return "No unresolved task needs attention";
 }
 
-function emptyDescription(filter: OrganizerTaskFilter) {
+function emptyDescription(filter: OrganizerTaskViewFilter) {
   if (filter === "mine") return "Unassigned and team tasks remain available under All.";
+  if (filter === "actionable") return "No canonical task is currently ready for an organizer action.";
+  if (filter === "blocked") return "No canonical task is explicitly blocked.";
   if (filter === "waiting") return "No governed approval or dependency is currently waiting.";
+  if (filter === "failed") return "No canonical task is explicitly in a failed operational state.";
+  if (filter === "overdue") return "No unresolved task has passed its authoritative due time.";
   if (filter === "resolved") return "Resolved task history will appear here after domain conditions close.";
   return "The canonical task sources currently evaluate as resolved.";
 }

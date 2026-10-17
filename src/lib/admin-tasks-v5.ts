@@ -5,6 +5,22 @@ import { supabase } from "@/integrations/supabase/client";
 export type OrganizerTaskPriority = "critical" | "high" | "normal";
 export type OrganizerTaskState = "open" | "waiting" | "resolved";
 export type OrganizerTaskFilter = "all" | "mine" | "waiting" | "resolved";
+export type OrganizerTaskOperationalState =
+  | "actionable"
+  | "blocked"
+  | "waiting"
+  | "failed"
+  | "overdue"
+  | "resolved";
+
+const ORGANIZER_TASK_OPERATIONAL_STATES = new Set<OrganizerTaskOperationalState>([
+  "actionable",
+  "blocked",
+  "waiting",
+  "failed",
+  "overdue",
+  "resolved",
+]);
 
 export type OrganizerTaskV5 = {
   id: string;
@@ -16,6 +32,7 @@ export type OrganizerTaskV5 = {
   taskType: string;
   priority: OrganizerTaskPriority;
   state: OrganizerTaskState;
+  operationalState?: OrganizerTaskOperationalState | null;
   title: string;
   description: string;
   href: string;
@@ -39,6 +56,17 @@ function normalizeOrganizerEditionId(editionId: string | null | undefined) {
   return normalized ? normalized : null;
 }
 
+function parseOperationalState(value: unknown, index: number) {
+  if (value == null) return null;
+  if (
+    typeof value !== "string" ||
+    !ORGANIZER_TASK_OPERATIONAL_STATES.has(value as OrganizerTaskOperationalState)
+  ) {
+    throw new Error(`Invalid Organizer Task operational state at index ${index}`);
+  }
+  return value as OrganizerTaskOperationalState;
+}
+
 export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
   if (!Array.isArray(value)) {
     throw new Error("Invalid Organizer Tasks payload: expected an array");
@@ -49,6 +77,7 @@ export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
       throw new Error(`Invalid Organizer Task at index ${index}`);
     }
     const task = row as Partial<OrganizerTaskV5>;
+    const raw = row as Record<string, unknown>;
     if (
       typeof task.id !== "string" ||
       typeof task.sourceKind !== "string" ||
@@ -75,6 +104,7 @@ export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
       taskType: task.taskType,
       priority: task.priority as OrganizerTaskPriority,
       state: task.state as OrganizerTaskState,
+      operationalState: parseOperationalState(raw.operationalState, index),
       title: task.title,
       description: task.description,
       href: task.href,
@@ -91,6 +121,25 @@ export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
       lastEvaluatedAt: task.lastEvaluatedAt,
     };
   });
+}
+
+export function resolveOrganizerTaskOperationalState(
+  task: OrganizerTaskV5,
+  nowMs = Date.now(),
+): OrganizerTaskOperationalState {
+  if (task.state === "resolved") return "resolved";
+  if (task.state === "waiting") return "waiting";
+
+  if (task.operationalState && task.operationalState !== "resolved") {
+    return task.operationalState;
+  }
+
+  if (task.dueAt) {
+    const dueMs = Date.parse(task.dueAt);
+    if (Number.isFinite(dueMs) && dueMs <= nowMs) return "overdue";
+  }
+
+  return "actionable";
 }
 
 export async function loadOrganizerTasksV5(
