@@ -13,6 +13,7 @@ export type JuryIntegrityTargetEvidence = {
 
 export type JuryIntegrityCase = {
   id: string;
+  editionId: string;
   showId: string;
   showName: string;
   editionLabel: string;
@@ -47,14 +48,18 @@ function numberValue(value: unknown) {
   return Number.isFinite(number) ? number : 0;
 }
 
-export async function listJuryIntegrityCasesServer() {
+export async function listJuryIntegrityCasesServer(editionId: string) {
   await requireMergedTelevotingAdminServer();
+  const scopedEditionId = String(editionId ?? "").trim();
+  if (!scopedEditionId) throw new Error("Jury Integrity requires an explicit edition scope");
+
   const db = supabaseAdmin as any;
   const tv = db.schema("televoting");
 
   const { data: rows, error } = await tv
     .from("vote_preflight_checks")
     .select("id,show_id,canonical_edition_id,country_code,hod_person_id,relationship_risk,risk_score,confidence,intervention_level,model_version,admin_evidence,attested_at,submitted_at,created_at")
+    .eq("canonical_edition_id", scopedEditionId)
     .not("show_id", "is", null)
     .eq("model_version", "jury-integrity-model-v5")
     .order("created_at", { ascending: false })
@@ -62,19 +67,32 @@ export async function listJuryIntegrityCasesServer() {
   if (error) throw new Error(error.message);
 
   const preflights = rows ?? [];
-  const showIds = [...new Set(preflights.map((row: any) => String(row.show_id ?? "")).filter(Boolean))];
-  const editionIds = [...new Set(preflights.map((row: any) => String(row.canonical_edition_id ?? "")).filter(Boolean))];
+  const mismatchedPreflight = preflights.find(
+    (row: any) => String(row.canonical_edition_id ?? "") !== scopedEditionId,
+  );
+  if (mismatchedPreflight) {
+    throw new Error("Jury Integrity returned evidence outside the selected edition scope");
+  }
 
-  const [showsResult, editionsResult] = await Promise.all([
+  const showIds = [...new Set(preflights.map((row: any) => String(row.show_id ?? "")).filter(Boolean))];
+
+  const [showsResult, editionResult] = await Promise.all([
     showIds.length
-      ? db.from("shows").select("id,name").in("id", showIds)
+      ? db.from("shows").select("id,name,edition_id").eq("edition_id", scopedEditionId).in("id", showIds)
       : Promise.resolve({ data: [], error: null }),
-    editionIds.length
-      ? db.from("editions").select("id,name,edition_number").in("id", editionIds)
-      : Promise.resolve({ data: [], error: null }),
+    db.from("editions").select("id,name,edition_number").eq("id", scopedEditionId).maybeSingle(),
   ]);
   if (showsResult.error) throw new Error(showsResult.error.message);
-  if (editionsResult.error) throw new Error(editionsResult.error.message);
+  if (editionResult.error) throw new Error(editionResult.error.message);
+  if (!editionResult.data) throw new Error("Jury Integrity edition could not be resolved");
+
+  const returnedShowIds = new Set(
+    (showsResult.data ?? []).map((row: any) => String(row.id ?? "")).filter(Boolean),
+  );
+  const missingShow = showIds.find((showId) => !returnedShowIds.has(showId));
+  if (missingShow) {
+    throw new Error("Jury Integrity evidence references a show outside the selected edition scope");
+  }
 
   const shows = new Map<string, string>(
     (showsResult.data ?? []).map((row: any): [string, string] => [
@@ -82,14 +100,9 @@ export async function listJuryIntegrityCasesServer() {
       String(row.name ?? "Jury show"),
     ]),
   );
-  const editions = new Map<string, string>(
-    (editionsResult.data ?? []).map((row: any): [string, string] => [
-      String(row.id),
-      row.edition_number
-        ? `SSC ${Number(row.edition_number)} · ${String(row.name ?? "Edition")}`
-        : String(row.name ?? "Edition"),
-    ]),
-  );
+  const editionLabel = editionResult.data.edition_number
+    ? `SSC ${Number(editionResult.data.edition_number)} · ${String(editionResult.data.name ?? "Edition")}`
+    : String(editionResult.data.name ?? "Edition");
 
   const targetIds = new Set<string>();
   for (const row of preflights) {
@@ -127,9 +140,10 @@ export async function listJuryIntegrityCasesServer() {
     });
     return {
       id: String(row.id),
+      editionId: scopedEditionId,
       showId: String(row.show_id ?? ""),
       showName: shows.get(String(row.show_id ?? "")) ?? "Jury show",
-      editionLabel: editions.get(String(row.canonical_edition_id ?? "")) ?? "Edition",
+      editionLabel,
       countryCode: String(row.country_code ?? ""),
       hodPersonId: row.hod_person_id ? String(row.hod_person_id) : null,
       risk: numberValue(row.risk_score),
@@ -148,6 +162,7 @@ export async function listJuryIntegrityCasesServer() {
   });
 
   return {
+    editionId: scopedEditionId,
     cases,
     stats: {
       total: cases.length,

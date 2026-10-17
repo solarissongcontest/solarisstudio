@@ -1,0 +1,55 @@
+name: V3 Confirmation maintenance edit rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/**"
+      - ".github/scripts/v3-confirmation-maintenance-edit-rehearsal.sh"
+      - ".github/workflows/v3-confirmation-maintenance-edit-rehearsal.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: confirmation-maintenance-edit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  closed-round-existing-response-edit:
+    name: Closed round existing-response edit
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout feature head
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Ensure PostgreSQL client is available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Start isolated local Supabase stack
+        run: supabase start
+
+      - name: Rebuild clean local database from migrations
+        run: supabase db reset --local --no-seed
+
+      - name: Rehearse maintenance Confirmation correction
+        shell: bash
+        run: bash .github/scripts/v3-confirmation-maintenance-edit-rehearsal.sh
+
+      - name: Stop local Supabase stack
+        if: always()
+        run: supabase stop --no-backup || true

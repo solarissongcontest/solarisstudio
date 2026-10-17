@@ -3,10 +3,26 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { FlagChip } from "@/components/FlagChip";
+import { V3AppShell } from "@/components/v3/V3AppShell";
+import { V3FantasyScreen } from "@/components/v3/V3FantasyScreen";
+import { V3Screen, V3Surface } from "@/components/v3/V3Foundation";
 import { supabase } from "@/integrations/supabase/client";
 import { useCountries } from "@/lib/data";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
+import {
+  canEditV3FantasyRoster,
+  fantasyBudgetUsed,
+  resolveV3FantasyState,
+  restoreV3FantasyRoster,
+  type V3FantasyChoice,
+  type V3FantasyGame,
+  type V3FantasyStanding,
+  type V3FantasyTeam,
+  type V3FantasyTeamEntry,
+} from "@/lib/v3-fantasy";
+import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
 export const Route = createFileRoute("/fantasy/")({
   head: () => ({
@@ -18,39 +34,9 @@ export const Route = createFileRoute("/fantasy/")({
   component: FantasyPage,
 });
 
-type FantasyGame = {
-  id: string;
-  edition_id: string;
-  show_id: string;
-  name: string;
-  opens_at: string;
-  locks_at: string;
-  status: string;
-  roster_size: number;
-  budget: number;
-  captain_multiplier: number;
-  scoring_version: string;
-};
-
-type FantasyChoice = {
-  game_id: string;
-  country_id: string;
-  cost: number;
-  eligible: boolean;
-};
-
-type Team = {
-  id: string;
-  game_id: string;
-  profile_id: string;
-  state: string;
-  captain_country_id: string | null;
-  score: number | null;
-};
-
-type Standing = { position: number; displayName: string; score: number; profileId: string };
-
 function FantasyPage() {
+  const { isAppMode, platformResolved } = useSolarisApp();
+  const rollout = useV3RolloutProbe(platformResolved && isAppMode);
   const feature = useQuery({
     queryKey: ["studio2-feature", "fantasy_ssc"],
     queryFn: () => isStudio2FeatureEnabled("fantasy_ssc"),
@@ -75,7 +61,7 @@ function FantasyPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("fantasy_games").select("*").neq("status", "cancelled").order("locks_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as FantasyGame[];
+      return (data ?? []) as V3FantasyGame[];
     },
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
@@ -88,7 +74,7 @@ function FantasyPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("fantasy_game_entries").select("game_id,country_id,cost,eligible").eq("game_id", activeGame!.id).eq("eligible", true).order("cost", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as FantasyChoice[];
+      return (data ?? []) as V3FantasyChoice[];
     },
   });
 
@@ -100,9 +86,30 @@ function FantasyPage() {
       if (!user) return null;
       const { data, error } = await (supabase as any).from("fantasy_teams").select("*").eq("game_id", activeGame!.id).eq("profile_id", user.id).maybeSingle();
       if (error) throw error;
-      return data as Team | null;
+      return data as V3FantasyTeam | null;
     },
   });
+
+  const myTeamEntries = useQuery({
+    enabled: Boolean(myTeam.data?.id),
+    queryKey: ["fantasy-my-team-entries", myTeam.data?.id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("fantasy_team_entries")
+        .select("team_id,country_id,cost_locked")
+        .eq("team_id", myTeam.data!.id)
+        .order("country_id", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as V3FantasyTeamEntry[];
+    },
+  });
+
+  useEffect(() => {
+    if (myTeam.isLoading || myTeamEntries.isLoading) return;
+    const restored = restoreV3FantasyRoster(myTeam.data, myTeamEntries.data);
+    setSelected(restored.selected);
+    setCaptain(restored.captain);
+  }, [activeGame?.id, myTeam.data, myTeam.isLoading, myTeamEntries.data, myTeamEntries.isLoading]);
 
   const leaderboard = useQuery({
     enabled: Boolean(activeGame),
@@ -110,7 +117,7 @@ function FantasyPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("fantasy_leaderboard", { _game_id: activeGame!.id });
       if (error) throw error;
-      return (data ?? []) as Standing[];
+      return (data ?? []) as V3FantasyStanding[];
     },
   });
 
@@ -126,29 +133,26 @@ function FantasyPage() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["fantasy-my-team", activeGame?.id] });
+      await queryClient.invalidateQueries({ queryKey: ["fantasy-my-team-entries"] });
     },
   });
 
-  const cost = selected.reduce(
-    (sum, id) =>
-      sum + (choices.data?.find((choice) => choice.country_id === id)?.cost ?? 0),
-    0,
-  );
-  const opensAtMs = activeGame ? Date.parse(activeGame.opens_at) : Number.NaN;
-  const locksAtMs = activeGame ? Date.parse(activeGame.locks_at) : Number.NaN;
-  const notStarted = activeGame ? nowMs < opensAtMs : false;
-  const locked = activeGame
-    ? notStarted ||
-      nowMs >= locksAtMs ||
-      ["locked", "scoring", "scored", "cancelled"].includes(activeGame.status)
-    : true;
+  const cost = fantasyBudgetUsed(selected, choices.data ?? []);
+  const fantasyState = resolveV3FantasyState({ game: activeGame, team: myTeam.data ?? null, nowMs });
+  const editable = canEditV3FantasyRoster(fantasyState);
+  const locked = !editable;
   const windowDescription = !activeGame
     ? ""
-    : notStarted
+    : fantasyState === "upcoming"
       ? `Opens ${new Date(activeGame.opens_at).toLocaleString()}`
       : locked
         ? "Roster locked"
         : `Locks ${new Date(activeGame.locks_at).toLocaleString()}`;
+  const v3Enabled =
+    isAppMode &&
+    !rollout.isError &&
+    rollout.data?.enabled === true &&
+    feature.data === true;
 
   const toggle = (id: string) => {
     if (locked) return;
@@ -161,6 +165,48 @@ function FantasyPage() {
       return [...current, id];
     });
   };
+
+  if (!platformResolved || (isAppMode && rollout.isLoading)) {
+    return <main className="mx-auto max-w-3xl px-4 py-10"><h1 className="text-3xl font-bold">Fantasy SSC</h1><p role="status" className="mt-3">Opening Fantasy…</p></main>;
+  }
+
+  if (v3Enabled) {
+    if (games.isLoading || choices.isLoading || myTeam.isLoading || myTeamEntries.isLoading) {
+      return (
+        <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
+          <V3Screen><V3Surface className="p-5"><p role="status">Loading Fantasy game…</p></V3Surface></V3Screen>
+        </V3AppShell>
+      );
+    }
+    if (!activeGame) {
+      return (
+        <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
+          <V3Screen><V3Surface className="p-5"><h1 className="text-xl font-semibold">No Fantasy game is available</h1><p className="mt-2 text-sm text-[var(--v3-text-secondary)]">An Organizer has not published an eligible Fantasy roster window.</p></V3Surface></V3Screen>
+        </V3AppShell>
+      );
+    }
+    return (
+      <V3AppShell editionLabel="Solaris Studio" phaseLabel="Fantasy">
+        <V3FantasyScreen
+          game={activeGame}
+          choices={choices.data ?? []}
+          countries={countryMap}
+          selected={selected}
+          captain={captain}
+          cost={cost}
+          state={fantasyState}
+          team={myTeam.data ?? null}
+          standings={leaderboard.data ?? []}
+          viewerId={rollout.data?.userId ?? null}
+          submitting={submit.isPending}
+          submitError={submit.isError ? (submit.error instanceof Error ? submit.error.message : "Roster could not be saved.") : null}
+          onToggle={toggle}
+          onCaptain={setCaptain}
+          onSubmit={() => submit.mutate()}
+        />
+      </V3AppShell>
+    );
+  }
 
   return (
     <AppShell>

@@ -46,4 +46,14 @@ describe("Solaris V6 Broadcast edition isolation", () => {
       "Rehearsal mode never calls a production mutation",
     );
   });
+
+  it("remounts both production and rehearsal drafts when Organizer edition context changes", () => {
+    const route = source(
+      "src/routes/_authenticated/admin/broadcast-rundown.tsx",
+    );
+
+    expect(route).toContain("component: BroadcastRundownRoute");
+    expect(route).toContain("function BroadcastRundownRoute()");
+    expect(route).toContain("<BroadcastRundownPage key={editionId || 'unscoped'} />");
+  });
 });
