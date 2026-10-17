@@ -165,10 +165,13 @@ export async function recomputeResultIntegrityServer(roundId: string) {
   };
 }
 
-export async function getResultIntegrityServer(roundId: string) {
+export async function getResultIntegrityServer(roundId: string, expectedEditionId?: string) {
   await requireMergedTelevotingAdminServer();
   const round = await loadMergedConversionRound(roundId);
   const identity = await currentSubmissionIdentity(roundId);
+  if (expectedEditionId && identity.editionId !== expectedEditionId) {
+    throw new Error("Result Integrity round does not belong to the selected Organizer edition.");
+  }
 
   const [influenceResult, resultRows, preflightResult] = await Promise.all([
     televotingAdmin
