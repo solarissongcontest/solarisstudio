@@ -139,6 +139,7 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "operations-media-assets" ||
     id === "operations-communications" ||
     id === "live-review-broadcast-rundown" ||
+    id === "live-review-simulation-lab" ||
     id === "live-review-time-machine" ||
     id === "live-review-voting-lab" ||
     id === "delegation-confirmation-overview" ||
