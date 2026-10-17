@@ -58,4 +58,19 @@ describe("App Experience v3 lifecycle foundation", () => {
     expect(manager).toContain("updatePromptAvailable && updateSafe");
     expect(manager).not.toContain("updateAvailable && updateSafe");
   });
+
+  it("clears stale waiting-worker actionability as soon as controller ownership changes", () => {
+    const runtime = source("src/components/app/AppRuntime.tsx");
+    const controllerStart = runtime.indexOf("const onControllerChange =");
+    const resumeStart = runtime.indexOf("const onResume =", controllerStart);
+    const controllerBlock = runtime.slice(controllerStart, resumeStart);
+
+    expect(controllerBlock).toContain("setWaitingWorker(null)");
+    expect(controllerBlock.indexOf("setWaitingWorker(null)")).toBeLessThan(
+      controllerBlock.indexOf("setControllerReloadPending(true)"),
+    );
+    expect(controllerBlock.indexOf("setWaitingWorker(null)")).toBeLessThan(
+      controllerBlock.indexOf("window.location.reload()"),
+    );
+  });
 });
