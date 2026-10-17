@@ -23,15 +23,18 @@ describe("V3 Confirmation route cutover", () => {
     expect(source).not.toContain("localStorage");
   });
 
-  it("uses the canonical V3 app shell instead of nesting the legacy app shell", () => {
+  it("uses the canonical focused critical-task shell in the installed V3 app", () => {
     const source = shell();
 
-    expect(source).toContain("<V3AppShell");
+    expect(source).toContain('resolveV3FocusedTaskChrome("/confirmations")');
+    expect(source).toContain("<V3FocusedTaskShell");
+    expect(source).toContain("chrome={CONFIRMATION_FOCUSED_CHROME}");
     expect(source).toContain("<V3Screen");
     expect(source).toContain('data-v3-confirmation-route-content=""');
     expect(source).toContain("<V3ConfirmationPresentation>{children}</V3ConfirmationPresentation>");
-    expect(source).toContain('to="/participate"');
-    expect(source).toContain('to="/guide"');
+    expect(source).not.toContain("<V3AppShell");
+    expect(source).not.toContain("Back to Participate");
+    expect(source).not.toContain('to="/guide"');
   });
 
   it("keeps V3 presentation separate from the canonical confirmation engine", () => {
