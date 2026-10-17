@@ -11,6 +11,26 @@ type SupabaseRpcClient = {
   rpc(name: string, args?: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }>;
 };
 
+type SupabaseRpcErrorLike = {
+  code?: unknown;
+  message?: unknown;
+};
+
+export function countryCockpitError(error: unknown): Error {
+  if (error instanceof Error) return error;
+  if (error && typeof error === 'object') {
+    const candidate = error as SupabaseRpcErrorLike;
+    const message = typeof candidate.message === 'string' ? candidate.message.trim() : '';
+    const code = typeof candidate.code === 'string' ? candidate.code.trim() : '';
+    if (message) {
+      return new Error(
+        `Country cockpit request failed${code ? ` (${code})` : ''}: ${message}`,
+      );
+    }
+  }
+  return new Error('The country cockpit could not complete that request.');
+}
+
 export function mapStudio2CountryCockpit(value: unknown): Studio2CountryCockpitRow[] {
   if (!Array.isArray(value)) throw new Error('Invalid country cockpit payload: expected an array');
   return value.map((row) => buildStudio2HodWorkspaceSnapshot(mapStudio2HodContext(row)));
@@ -25,7 +45,7 @@ export async function loadStudio2CountryCockpit(
   const { data, error } = await client.rpc('studio2_country_cockpit', {
     p_edition_id: normalizedEditionId,
   });
-  if (error) throw error;
+  if (error) throw countryCockpitError(error);
 
   const rows = mapStudio2CountryCockpit(data);
   if (rows.some((row) => row.context.editionId !== normalizedEditionId)) {
