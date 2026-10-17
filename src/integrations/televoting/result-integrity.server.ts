@@ -155,14 +155,15 @@ async function loadRecomputeAuthority(
   }
 
   const identity = await currentSubmissionIdentity(roundId);
-  if (!identity.editionId) {
+  const editionId = identity.editionId;
+  if (!editionId) {
     throw new Error("Voting round is not bound to a Solaris edition");
   }
-  if (expectedEditionId && identity.editionId !== expectedEditionId) {
+  if (expectedEditionId && editionId !== expectedEditionId) {
     throw new Error("Voting round is outside the requested Solaris edition");
   }
 
-  return { round, identity };
+  return { round, identity: { ...identity, editionId } };
 }
 
 async function applyIntegrityEvidence(
