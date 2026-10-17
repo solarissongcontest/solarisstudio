@@ -9,16 +9,24 @@ type E2ESession = {
 function requiredLocalConfig() {
   const supabaseUrl = process.env.E2E_SUPABASE_URL;
   const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
-  const email = process.env.E2E_COUNTRY_EMAIL;
-  const password = process.env.E2E_COUNTRY_PASSWORD;
+  const countryEmail = process.env.E2E_COUNTRY_EMAIL;
+  const countryPassword = process.env.E2E_COUNTRY_PASSWORD;
+  const organizerEmail = process.env.E2E_ORGANIZER_EMAIL;
+  const organizerPassword = process.env.E2E_ORGANIZER_PASSWORD;
 
-  const missing = !supabaseUrl || !publishableKey || !email || !password;
+  const missing =
+    !supabaseUrl ||
+    !publishableKey ||
+    !countryEmail ||
+    !countryPassword ||
+    !organizerEmail ||
+    !organizerPassword;
   if (missing && process.env.CI) {
     throw new Error(
-      "Browser Audit must seed local country credentials for focused participation chrome coverage.",
+      "Browser Audit must seed local country + Organizer credentials for focused participation chrome coverage.",
     );
   }
-  test.skip(missing, "Local country browser credentials are unavailable");
+  test.skip(missing, "Local country/Organizer browser credentials are unavailable");
 
   const url = new URL(supabaseUrl!);
   if (url.hostname !== "127.0.0.1" && url.hostname !== "localhost") {
@@ -28,13 +36,19 @@ function requiredLocalConfig() {
   return {
     supabaseUrl: supabaseUrl!,
     publishableKey: publishableKey!,
-    email: email!,
-    password: password!,
+    countryEmail: countryEmail!,
+    countryPassword: countryPassword!,
+    organizerEmail: organizerEmail!,
+    organizerPassword: organizerPassword!,
   };
 }
 
-async function installCountrySession(context: BrowserContext) {
-  const { supabaseUrl, publishableKey, email, password } = requiredLocalConfig();
+async function fetchSession(
+  supabaseUrl: string,
+  publishableKey: string,
+  email: string,
+  password: string,
+) {
   const response = await fetch(
     `${supabaseUrl.replace(/\/$/, "")}/auth/v1/token?grant_type=password`,
     {
@@ -43,8 +57,18 @@ async function installCountrySession(context: BrowserContext) {
       body: JSON.stringify({ email, password }),
     },
   );
-  expect(response.ok, "The isolated local country account must sign in").toBeTruthy();
-  const session = (await response.json()) as E2ESession;
+  expect(response.ok, `The isolated local account ${email} must sign in`).toBeTruthy();
+  return (await response.json()) as E2ESession;
+}
+
+async function installCountrySession(context: BrowserContext) {
+  const { supabaseUrl, publishableKey, countryEmail, countryPassword } = requiredLocalConfig();
+  const session = await fetchSession(
+    supabaseUrl,
+    publishableKey,
+    countryEmail,
+    countryPassword,
+  );
   const projectRef = new URL(supabaseUrl).hostname.split(".")[0];
 
   await context.addInitScript(
@@ -74,12 +98,43 @@ async function installCountrySession(context: BrowserContext) {
     },
     { key: `sb-${projectRef}-auth-token`, value: session },
   );
+
+  return session;
+}
+
+async function setFeatureForCountry(
+  organizer: E2ESession,
+  key: "solaris_app_v3_confirmation" | "solaris_app_v3_jury",
+  enabled: boolean,
+  countryUserId: string,
+) {
+  const { supabaseUrl, publishableKey } = requiredLocalConfig();
+  const response = await fetch(
+    `${supabaseUrl.replace(/\/$/, "")}/rest/v1/rpc/studio2_set_feature_flag`,
+    {
+      method: "POST",
+      headers: {
+        apikey: publishableKey,
+        Authorization: `Bearer ${organizer.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        p_key: key,
+        p_enabled: enabled,
+        p_admins_only: false,
+        p_user_ids: enabled ? [countryUserId] : [],
+        p_edition_ids: [],
+      }),
+    },
+  );
+  const body = await response.text();
+  expect(response.ok, `Local ${key} rollout mutation must succeed: ${body}`).toBeTruthy();
 }
 
 async function expectFocusedParticipationChrome(
   page: Page,
-  pathname: "/televoting" | "/next-in-line",
-  title: "Televoting" | "Next in Line",
+  pathname: "/confirmations" | "/jury-voting" | "/televoting" | "/next-in-line",
+  title: "Confirmations" | "Jury voting" | "Televoting" | "Next in Line",
 ) {
   await page.goto(pathname, { waitUntil: "domcontentloaded" });
 
@@ -95,21 +150,38 @@ async function expectFocusedParticipationChrome(
 
 test.describe.configure({ retries: 0 });
 
-test("global V3 participation tasks own focused chrome while non-critical siblings keep normal app chrome", async ({
+test("critical participation tasks own focused chrome while non-critical siblings keep normal app chrome", async ({
   page,
   context,
 }) => {
-  requiredLocalConfig();
-  await installCountrySession(context);
+  const config = requiredLocalConfig();
+  const country = await installCountrySession(context);
+  const organizer = await fetchSession(
+    config.supabaseUrl,
+    config.publishableKey,
+    config.organizerEmail,
+    config.organizerPassword,
+  );
 
-  // Browser Audit seeds the country account into the global V3 cohort. This
-  // proof is intentionally read-only: it must not mutate the shared one-row
-  // rollout flags and race the serialized account-state suite.
-  await expectFocusedParticipationChrome(page, "/televoting", "Televoting");
-  await expectFocusedParticipationChrome(page, "/next-in-line", "Next in Line");
+  // Browser Audit seeds the country account into the global V3 cohort. Keep
+  // that shared one-row flag read-only here. Confirmation and Jury have their
+  // own independently reversible flags, canonically seeded disabled, and no
+  // other browser test mutates them.
+  await setFeatureForCountry(organizer, "solaris_app_v3_confirmation", true, country.user.id);
+  await setFeatureForCountry(organizer, "solaris_app_v3_jury", true, country.user.id);
 
-  await page.goto("/televoting/how-to-vote", { waitUntil: "domcontentloaded" });
-  await expect(page.locator('[data-v3-focused-task-shell="participation.task"]')).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "How the televote works", exact: true })).toBeVisible();
-  await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
+  try {
+    await expectFocusedParticipationChrome(page, "/confirmations", "Confirmations");
+    await expectFocusedParticipationChrome(page, "/jury-voting", "Jury voting");
+    await expectFocusedParticipationChrome(page, "/televoting", "Televoting");
+    await expectFocusedParticipationChrome(page, "/next-in-line", "Next in Line");
+
+    await page.goto("/televoting/how-to-vote", { waitUntil: "domcontentloaded" });
+    await expect(page.locator('[data-v3-focused-task-shell="participation.task"]')).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "How the televote works", exact: true })).toBeVisible();
+    await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
+  } finally {
+    await setFeatureForCountry(organizer, "solaris_app_v3_jury", false, country.user.id);
+    await setFeatureForCountry(organizer, "solaris_app_v3_confirmation", false, country.user.id);
+  }
 });
