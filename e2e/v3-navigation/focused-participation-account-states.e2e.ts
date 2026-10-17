@@ -178,7 +178,9 @@ test("critical participation tasks own focused chrome while non-critical sibling
 
     await page.goto("/televoting/how-to-vote", { waitUntil: "domcontentloaded" });
     await expect(page.locator('[data-v3-focused-task-shell="participation.task"]')).toHaveCount(0);
-    await expect(page.getByRole("heading", { name: "How the televote works", exact: true })).toBeVisible();
+    await expect(page.locator(".solaris-app-toolbar")).toBeVisible();
+    await expect(page.locator(".solaris-app-tabbar")).toBeVisible();
+    await expect(page.locator("[data-v3-liquid-tabbar]")).toHaveCount(0);
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
   } finally {
     await setFeatureForCountry(organizer, "solaris_app_v3_jury", false, country.user.id);
