@@ -63,6 +63,7 @@ describe("System V3 S1 registries", () => {
       "confirmation.window_changed",
       "entry.changes_requested",
       "entry.reviewed",
+      "fantasy.scored",
       "jury.ballot_changed",
       "jury.closed",
       "jury.opened",
@@ -140,5 +141,12 @@ describe("System V3 S1 registries", () => {
     expect(v3DomainConsequence("prediction.scored")?.implementationState).toBe("event-backed");
     expect(v3DomainConsequence("prediction.scored")?.ownerDomain).toBe("prediction");
     expect(v3DomainConsequence("prediction.scored")?.taskEffects).toEqual([]);
+  });
+
+  it("records Fantasy scoring only after the score boundary is event-backed", () => {
+    expect(v3DomainConsequence("fantasy.scored")?.implementationState).toBe("event-backed");
+    expect(v3DomainConsequence("fantasy.scored")?.ownerDomain).toBe("fantasy");
+    expect(v3DomainConsequence("fantasy.scored")?.taskEffects).toEqual([]);
+    expect(v3DomainConsequence("fantasy.changed")?.implementationState).toBe("declared");
   });
 });

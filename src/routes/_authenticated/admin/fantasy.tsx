@@ -171,9 +171,24 @@ function FantasyAdminPage() {
     mutationFn: async () => {
       assertExactScope();
       if (!existing.data?.id || existing.data.edition_id !== editionId) throw new Error("Save the game in the selected edition first.");
-      const { data, error } = await (supabase as any).rpc("score_fantasy_game", { _game_id: existing.data.id });
+
+      const { data: previewData, error: previewError } = await (supabase as any).rpc(
+        "studio2_fantasy_score_preview",
+        { p_game_id: existing.data.id },
+      );
+      if (previewError) throw previewError;
+
+      const preview = previewData as { scoreRevision: number };
+      const operationId = crypto.randomUUID();
+      const idempotencyKey = `fantasy-score:${operationId}`;
+      const { data, error } = await (supabase as any).rpc("studio2_score_fantasy_game", {
+        p_game_id: existing.data.id,
+        p_operation_id: operationId,
+        p_idempotency_key: idempotencyKey,
+        p_expected_score_revision: preview.scoreRevision,
+      });
       if (error) throw error;
-      return Number(data ?? 0);
+      return Number((data as { scoredTeamCount?: number } | null)?.scoredTeamCount ?? 0);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["fantasy-admin-game", editionId ?? "none"] });
