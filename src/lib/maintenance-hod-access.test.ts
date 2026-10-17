@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -6,6 +7,9 @@ import {
 } from "./maintenance";
 import { renderMaintenanceHodPortal } from "./maintenance-hod-portal";
 import { renderMaintenancePage } from "./maintenance-page";
+
+const editRoute = readFileSync("src/routes/confirmations/edit/$token.tsx", "utf8");
+const confirmationShell = readFileSync("src/components/v3/V3ConfirmationRouteShell.tsx", "utf8");
 
 describe("maintenance HOD access flag", () => {
   it("fails closed unless explicitly enabled", () => {
@@ -60,6 +64,21 @@ describe("maintenance HOD route isolation", () => {
     for (const pathname of allowedGets) {
       expect(isMaintenanceHodAppRouteAllowed(pathname, "GET", false)).toBe(false);
     }
+  });
+
+  it("renders the allowed edit-token route in an isolated maintenance shell", () => {
+    expect(editRoute).toContain("maintenanceMode={GLOBAL_MAINTENANCE_MODE}");
+    expect(editRoute).toContain('href="/"');
+    expect(confirmationShell).toContain('data-maintenance-confirmation-shell=""');
+    expect(confirmationShell).toContain("Only this existing Confirmation editor is available");
+    expect(confirmationShell).toContain("<a");
+  });
+
+  it("does not tell HODs that reopening an existing response requires reopening the round", () => {
+    expect(editRoute).not.toContain("only if the round is reopened");
+    expect(editRoute).toContain(
+      "TSBC can reopen editing for this response without reopening the Confirmation round.",
+    );
   });
 });
 
