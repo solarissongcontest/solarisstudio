@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
-import { MySolarisNoticesModule } from "@/components/mysolaris/modules/MySolarisNoticesModule";
+import {
+  MySolarisNoticesModule,
+  type NoticesSearch,
+} from "@/components/mysolaris/modules/MySolarisNoticesModule";
 import { OrganizerPublicNoticesModule } from "@/components/mysolaris/modules/OrganizerPublicNoticesModule";
 import { OrganizerRecipientNoticesModule } from "@/components/mysolaris/modules/OrganizerRecipientNoticesModule";
 import { V3OfficialNoticesRouteContent } from "@/components/v3/V3OfficialNoticesRouteContent";
@@ -10,7 +13,7 @@ import { parseV3OfficialNoticeFilter } from "@/lib/v3-official-notices";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
 export const Route = createFileRoute("/_authenticated/my-solaris/notices")({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): NoticesSearch => ({
     notice: typeof search.notice === "string" && search.notice ? search.notice : undefined,
     state: parseV3OfficialNoticeFilter(search.state),
   }),
