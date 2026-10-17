@@ -5,6 +5,7 @@ import {
   maintenanceHodAccessEnabled,
 } from "./maintenance";
 import { renderMaintenanceHodPortal } from "./maintenance-hod-portal";
+import { renderMaintenancePage } from "./maintenance-page";
 
 describe("maintenance HOD access flag", () => {
   it("fails closed unless explicitly enabled", () => {
@@ -66,6 +67,11 @@ describe("maintenance HOD portal contract", () => {
   const html = renderMaintenanceHodPortal({
     supabaseUrl: "https://example.supabase.co",
     publishableKey: "sb_publishable_test",
+  });
+
+  it("preserves the maintenance page insertion point instead of replacing the page", () => {
+    expect(renderMaintenancePage()).toContain("          <footer>");
+    expect(renderMaintenancePage()).toContain("Solaris Studio is temporarily unavailable");
   });
 
   it("reuses the existing Solaris country auth/session system", () => {
