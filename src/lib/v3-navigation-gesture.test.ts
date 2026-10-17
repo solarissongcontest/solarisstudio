@@ -4,6 +4,7 @@ import {
   classifyV3SwipeIntent,
   isV3BrowserEdgeGestureStart,
   resolveV3LogicalHorizontalDelta,
+  resolveV3PageSettleMotion,
   resolveV3PageSwipeOffset,
   resolveV3PageSwipeTarget,
   resolveV3PhysicalInlineSign,
@@ -81,6 +82,78 @@ describe("V3 top-level navigation gesture policy", () => {
         itemCount: 5,
       }),
     ).toBe(3);
+  });
+
+  it("keeps release velocity in the settle instead of discarding it after target selection", () => {
+    const slow = resolveV3PageSettleMotion({
+      deltaX: -100,
+      velocityX: -0.15,
+      viewportWidth: 390,
+      activeIndex: 1,
+      targetIndex: 2,
+    });
+    const fast = resolveV3PageSettleMotion({
+      deltaX: -100,
+      velocityX: -1.4,
+      viewportWidth: 390,
+      activeIndex: 1,
+      targetIndex: 2,
+    });
+
+    expect(fast.durationMs).toBeLessThan(slow.durationMs);
+    expect(fast.releaseSpeed).toBeGreaterThan(slow.releaseSpeed);
+  });
+
+  it("gives longer settle ownership to releases with more travel remaining", () => {
+    const nearlyComplete = resolveV3PageSettleMotion({
+      deltaX: -340,
+      velocityX: -0.2,
+      viewportWidth: 390,
+      activeIndex: 1,
+      targetIndex: 2,
+    });
+    const earlyRelease = resolveV3PageSettleMotion({
+      deltaX: -110,
+      velocityX: -0.2,
+      viewportWidth: 390,
+      activeIndex: 1,
+      targetIndex: 2,
+    });
+
+    expect(nearlyComplete.remainingRatio).toBeLessThan(earlyRelease.remainingRatio);
+    expect(nearlyComplete.durationMs).toBeLessThan(earlyRelease.durationMs);
+  });
+
+  it("bounds settle timing and mirrors release physics in RTL", () => {
+    const ltr = resolveV3PageSettleMotion({
+      deltaX: -125,
+      velocityX: -0.9,
+      viewportWidth: 390,
+      activeIndex: 1,
+      targetIndex: 2,
+      direction: "ltr",
+    });
+    const rtl = resolveV3PageSettleMotion({
+      deltaX: 125,
+      velocityX: 0.9,
+      viewportWidth: 390,
+      activeIndex: 1,
+      targetIndex: 2,
+      direction: "rtl",
+    });
+    const extreme = resolveV3PageSettleMotion({
+      deltaX: 5_000,
+      velocityX: 50,
+      viewportWidth: 390,
+      activeIndex: 2,
+      targetIndex: 2,
+    });
+
+    expect(rtl).toEqual(ltr);
+    expect(ltr.durationMs).toBeGreaterThanOrEqual(120);
+    expect(ltr.durationMs).toBeLessThanOrEqual(260);
+    expect(extreme.durationMs).toBeGreaterThanOrEqual(120);
+    expect(extreme.durationMs).toBeLessThanOrEqual(260);
   });
 
   it("normalizes RTL physics onto the same logical navigation axis", () => {
