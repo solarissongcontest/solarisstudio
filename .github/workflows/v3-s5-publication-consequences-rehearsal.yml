@@ -76,11 +76,11 @@ jobs:
           supabase start
           supabase db reset --local --no-seed
 
-      - name: Apply feature migration delta
+      - name: Apply additive feature migration delta
         shell: bash
         run: |
           set -euo pipefail
-          rsync -a --delete "$GITHUB_WORKSPACE/supabase/migrations/" /tmp/solaris-publication-main/supabase/migrations/
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" "$GITHUB_WORKSPACE" /tmp/solaris-publication-main
           cd /tmp/solaris-publication-main
           supabase migration up --local --include-all
 

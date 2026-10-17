@@ -62,11 +62,11 @@ jobs:
           cd /tmp/solaris-account-session-main
           supabase start
           supabase db reset --local --no-seed
-      - name: Apply feature migration delta
+      - name: Apply additive feature migration delta
         shell: bash
         run: |
           set -euo pipefail
-          rsync -a --delete "$GITHUB_WORKSPACE/supabase/migrations/" /tmp/solaris-account-session-main/supabase/migrations/
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" "$GITHUB_WORKSPACE" /tmp/solaris-account-session-main
           cd /tmp/solaris-account-session-main
           supabase migration up --local --include-all
       - name: Rehearse contract after current-main upgrade
