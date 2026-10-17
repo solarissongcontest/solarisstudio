@@ -41,19 +41,20 @@ function FantasyAdminPage() {
   const queryClient = useQueryClient();
 
   const feature = useQuery({
+    enabled: Boolean(editionId),
     queryKey: ["studio2-feature", "fantasy_ssc", editionId ?? "none"],
-    queryFn: () => isStudio2FeatureEnabled("fantasy_ssc", editionId),
+    queryFn: () => isStudio2FeatureEnabled("fantasy_ssc", editionId!),
     staleTime: 30_000,
   });
 
   const existing = useQuery({
     enabled: Boolean(editionId),
-    queryKey: ["fantasy-admin-game", editionId],
+    queryKey: ["fantasy-admin-game", editionId ?? "none"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("fantasy_games")
         .select("*")
-        .eq("edition_id", editionId)
+        .eq("edition_id", editionId!)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -63,13 +64,16 @@ function FantasyAdminPage() {
   });
 
   const choices = useQuery({
-    enabled: Boolean(existing.data?.id),
-    queryKey: ["fantasy-admin-choices", existing.data?.id],
+    enabled: Boolean(editionId && existing.data?.id && existing.data.edition_id === editionId),
+    queryKey: ["fantasy-admin-choices", editionId ?? "none", existing.data?.id ?? "none"],
     queryFn: async () => {
+      if (!editionId || !existing.data?.id || existing.data.edition_id !== editionId) {
+        throw new Error("Fantasy game context changed before choices were loaded.");
+      }
       const { data, error } = await (supabase as any)
         .from("fantasy_game_entries")
         .select("country_id,cost,eligible")
-        .eq("game_id", existing.data!.id);
+        .eq("game_id", existing.data.id);
       if (error) throw error;
       return (data ?? []) as Array<{ country_id: string; cost: number; eligible: boolean }>;
     },
@@ -85,7 +89,18 @@ function FantasyAdminPage() {
   const [costs, setCosts] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    if (!existing.data) return;
+    setShowId("");
+    setName("Fantasy SSC");
+    setOpensAt("");
+    setLocksAt("");
+    setRosterSize(5);
+    setBudget(50);
+    setCaptainMultiplier(2);
+    setCosts({});
+  }, [editionId]);
+
+  useEffect(() => {
+    if (!existing.data || existing.data.edition_id !== editionId) return;
     setShowId(existing.data.show_id);
     setName(existing.data.name);
     setOpensAt(toLocal(existing.data.opens_at));
@@ -93,9 +108,10 @@ function FantasyAdminPage() {
     setRosterSize(existing.data.roster_size);
     setBudget(Number(existing.data.budget));
     setCaptainMultiplier(Number(existing.data.captain_multiplier));
-  }, [existing.data]);
+  }, [editionId, existing.data]);
 
   const selectedShowId = showId || shows[0]?.id || "";
+  const selectedShow = shows.find((show) => show.id === selectedShowId) ?? null;
   const showParticipants = useMemo(
     () => participants.filter((participant) => participant.show_id === selectedShowId),
     [participants, selectedShowId],
@@ -112,8 +128,19 @@ function FantasyAdminPage() {
 
   const countryMap = useMemo(() => new Map(countries.map((country) => [country.id, country])), [countries]);
 
+  function assertExactScope() {
+    if (!editionId) throw new Error("Select the exact Organizer edition before changing Fantasy SSC.");
+    if (!selectedShow || selectedShow.edition_id !== editionId) {
+      throw Object.assign(new Error("Edition context changed before the Fantasy SSC command. Review the show again before continuing."), { status: 409 });
+    }
+    if (existing.data && existing.data.edition_id !== editionId) {
+      throw Object.assign(new Error("The loaded Fantasy game belongs to a different edition. Refresh canonical state before continuing."), { status: 409 });
+    }
+  }
+
   const save = useMutation({
     mutationFn: async () => {
+      assertExactScope();
       if (!editionId || !selectedShowId || !opensAt || !locksAt) throw new Error("Complete the game window first.");
       const entries = showParticipants.map((participant) => ({
         countryId: participant.country_id,
@@ -135,25 +162,26 @@ function FantasyAdminPage() {
       if (error) throw error;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["fantasy-admin-game", editionId] });
+      await queryClient.invalidateQueries({ queryKey: ["fantasy-admin-game", editionId ?? "none"] });
       await queryClient.invalidateQueries({ queryKey: ["fantasy-admin-choices"] });
     },
   });
 
   const score = useMutation({
     mutationFn: async () => {
-      if (!existing.data?.id) throw new Error("Save the game first.");
+      assertExactScope();
+      if (!existing.data?.id || existing.data.edition_id !== editionId) throw new Error("Save the game in the selected edition first.");
       const { data, error } = await (supabase as any).rpc("score_fantasy_game", { _game_id: existing.data.id });
       if (error) throw error;
       return Number(data ?? 0);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["fantasy-admin-game", editionId] });
+      await queryClient.invalidateQueries({ queryKey: ["fantasy-admin-game", editionId ?? "none"] });
     },
   });
 
   if (!editionId) {
-    return <AdminPage><AdminEmptyState icon={Trophy} title="Select an edition" description="Fantasy SSC configuration is edition-scoped." /></AdminPage>;
+    return <AdminPage><AdminEmptyState icon={Trophy} title="Select an edition" description="Fantasy SSC configuration is edition-scoped. Solaris will not substitute a globally active or newest edition." /></AdminPage>;
   }
 
   return (
