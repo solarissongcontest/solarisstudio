@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AppShell } from "@/components/AppShell";
 import { IntegrityDetailsStep } from "@/components/integrity/IntegrityReportV5";
+import { V3IntegrityReportRouteShell } from "@/components/v3/V3IntegrityReportRouteShell";
 
 export const Route = createFileRoute("/integrity/report/details")({
   head: () => ({
@@ -10,5 +10,9 @@ export const Route = createFileRoute("/integrity/report/details")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: () => <AppShell><IntegrityDetailsStep /></AppShell>,
+  component: () => (
+    <V3IntegrityReportRouteShell>
+      <IntegrityDetailsStep />
+    </V3IntegrityReportRouteShell>
+  ),
 });
