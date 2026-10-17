@@ -6,7 +6,7 @@
   "main": ".output/server/index.mjs",
   "vars": {
     "NODE_ENV": "production",
-    "MAINTENANCE_HOD_ACCESS": "true"
+    "MAINTENANCE_HOD_ACCESS": "false"
   },
   "assets": {
     "directory": ".output/public"
