@@ -6,6 +6,7 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 
 const participationShell = () => read("src/components/ParticipationServiceShell.tsx");
 const appToolbar = () => read("src/components/app/AppToolbar.tsx");
+const focusedChrome = () => read("src/lib/v3-focused-task-chrome.ts");
 const focusedShell = () => read("src/components/v3/V3FocusedTaskShell.tsx");
 const focusedCss = () => read("src/styles/v3-focused-task-shell.css");
 const registry = () => read("src/lib/app-screen-registry.ts");
@@ -24,11 +25,13 @@ describe("V3 focused participation shell adoption", () => {
 
   it("keeps the rollout fail-closed while preserving the legacy shell", () => {
     const source = participationShell();
+    const rolloutAuthority = focusedChrome();
 
     expect(source).toContain("useV3RolloutProbe(platformResolved && focusedTaskCandidate)");
-    expect(source).toContain("rollout.data?.enabled === true");
-    expect(source).toContain("rollout.data.confirmationEnabled === true");
-    expect(source).toContain("rollout.data.juryEnabled === true");
+    expect(source).toContain("v3FocusedParticipationRouteEnabled(pathname, rollout.data)");
+    expect(rolloutAuthority).toContain("rollout?.enabled !== true");
+    expect(rolloutAuthority).toContain("rollout.confirmationEnabled === true");
+    expect(rolloutAuthority).toContain("rollout.juryEnabled === true");
     expect(source).toContain('aria-label="Participation task navigation"');
     expect(source).toContain('className="participation-service-nav');
     expect(source).toContain("<PageHeader");
@@ -55,15 +58,15 @@ describe("V3 focused participation shell adoption", () => {
     expect(source).not.toMatch(/<main[^>]*v3-participation-task-route-screen/);
   });
 
-  it("removes duplicate global toolbar chrome through the canonical AppToolbar owner", () => {
+  it("removes duplicate global toolbar chrome through the same rollout authority", () => {
     const toolbar = appToolbar();
+    const shell = participationShell();
     const css = focusedCss();
 
     expect(toolbar).toContain('screen.id === "participation.task" && screen.chrome.toolbar === "focused"');
     expect(toolbar).toContain("useV3RolloutProbe(participationFocusedTask)");
-    expect(toolbar).toContain("focusedRollout.data?.enabled === true");
-    expect(toolbar).toContain("focusedRollout.data.confirmationEnabled === true");
-    expect(toolbar).toContain("focusedRollout.data.juryEnabled === true");
+    expect(toolbar).toContain("v3FocusedParticipationRouteEnabled(");
+    expect(shell).toContain("v3FocusedParticipationRouteEnabled(pathname, rollout.data)");
     expect(toolbar).toContain("participationRouteOwnsFocusedToolbar");
     expect(toolbar).toContain("if (routeOwnsFocusedToolbar) return null");
     expect(css).not.toContain(".solaris-app-toolbar");
@@ -93,7 +96,7 @@ describe("V3 focused participation shell adoption", () => {
   });
 
   it("does not add a hosted Supabase endpoint to navigation presentation", () => {
-    const combined = `${participationShell()}\n${appToolbar()}\n${focusedShell()}\n${focusedCss()}`;
+    const combined = `${participationShell()}\n${appToolbar()}\n${focusedChrome()}\n${focusedShell()}\n${focusedCss()}`;
     expect(combined).not.toMatch(/https:\/\/[^\s"']+\.supabase\.co/i);
   });
 });

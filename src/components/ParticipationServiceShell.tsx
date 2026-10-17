@@ -9,7 +9,10 @@ import { V3ScreenHeader } from "@/components/v3/V3Foundation";
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
-import { resolveV3FocusedTaskChrome } from "@/lib/v3-focused-task-chrome";
+import {
+  resolveV3FocusedTaskChrome,
+  v3FocusedParticipationRouteEnabled,
+} from "@/lib/v3-focused-task-chrome";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
 type ParticipationService = "confirmations" | "jury" | "televoting" | "next-in-line";
@@ -133,13 +136,7 @@ export function ParticipationServiceShell({
     const appActions = visibleActions.filter(
       (action) => !(service === "televoting" && action.to === "/televoting/how-to-vote"),
     );
-    const focusedFeatureEnabled =
-      rollout.data?.enabled === true &&
-      (service === "confirmations"
-        ? rollout.data.confirmationEnabled === true
-        : service === "jury"
-          ? rollout.data.juryEnabled === true
-          : true);
+    const focusedFeatureEnabled = v3FocusedParticipationRouteEnabled(pathname, rollout.data);
 
     if (screen.behavior.criticalTask && rollout.isLoading) {
       return (
