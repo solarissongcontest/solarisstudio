@@ -75,8 +75,8 @@ export const recomputeResultIntegrity = createServerFn({ method: "POST" })
 export const recomputeResultIntegrityOperation = createServerFn({ method: "POST" })
   .inputValidator(validateOperation)
   .handler(async ({ data }) => {
-    const { recomputeResultIntegrityOperationServer } = await import(
-      "@/integrations/televoting/result-integrity.server"
+    const { recomputeResultIntegrityOperationWithReplayServer } = await import(
+      "@/integrations/televoting/result-integrity-replay.server"
     );
-    return recomputeResultIntegrityOperationServer(data);
+    return recomputeResultIntegrityOperationWithReplayServer(data);
   });
