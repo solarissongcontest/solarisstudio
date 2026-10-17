@@ -64,7 +64,10 @@ function PredictionLeaguePage() {
   if (!platformResolved || (isAppMode && rollout.isLoading)) {
     return (
       <main className="mx-auto w-full max-w-5xl px-4 py-10" data-v3-prediction-league-cutover="resolving">
-        <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
+        <h1 className="text-xl font-semibold tracking-[-0.02em] text-foreground">
+          Prediction League
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground" role="status" aria-live="polite">
           Opening Predictions…
         </p>
       </main>
