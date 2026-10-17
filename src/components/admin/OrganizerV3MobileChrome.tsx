@@ -35,6 +35,7 @@ import {
   v3OrganizerTabRoot,
   type V3OrganizerTabId,
 } from "@/lib/v3-organizer";
+import { scheduleV3ScrollRestoration } from "@/lib/v3-scroll-restoration";
 import "@/styles/v3-foundations.css";
 import "@/styles/v3-organizer-liquid-tabbar.css";
 import { useAdminContext } from "./AdminContext";
@@ -103,11 +104,8 @@ export function OrganizerV3MobileChrome() {
       undefined,
       navigationScope,
     );
-    if (restoreY != null) {
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => window.scrollTo({ top: restoreY, behavior: "auto" }));
-      });
-    }
+    const cancelScrollRestore =
+      restoreY != null ? scheduleV3ScrollRestoration(restoreY) : null;
 
     let frame: number | null = null;
     const persistScroll = () => {
@@ -136,6 +134,7 @@ export function OrganizerV3MobileChrome() {
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("pagehide", onPageHide);
     return () => {
+      cancelScrollRestore?.();
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("pagehide", onPageHide);
       if (frame != null) window.cancelAnimationFrame(frame);
