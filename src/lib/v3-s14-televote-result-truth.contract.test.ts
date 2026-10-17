@@ -133,7 +133,7 @@ describe("System V3 S14 published Televote result truth", () => {
   it("proves replay no-churn, drift repair, bounded bulk reconciliation and rollback locally", () => {
     expect(replayRehearsal).toContain("Healthy exact replay must be an operational no-op");
     expect(replayRehearsal).toContain("Privileged projection drift is repaired without semantic revision churn");
-    expect(replayRehearsal).toContain("bulk replacement amplified result reconciliation beyond one show sync");
+    expect(replayRehearsal).toContain("bulk replacement amplified result reconciliation beyond one canonical show sync");
     expect(replayRehearsal).toContain("replacement whose final result sync fails");
     expect(replayRehearsal).toContain("failed final sync left partial Televote projection writes");
     expect(replayRehearsal).toContain("Refusing non-local database rehearsal");
