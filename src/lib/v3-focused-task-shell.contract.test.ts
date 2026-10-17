@@ -36,13 +36,15 @@ describe("Solaris Studio V3 focused critical-task shell architecture", () => {
     expect(css).not.toContain("v3-bottom-nav");
   });
 
-  it("preserves accessible Back and Help controls and one task heading", () => {
+  it("preserves accessible Back and Help controls without stealing route heading or main ownership", () => {
     const component = read("src/components/v3/V3FocusedTaskShell.tsx");
 
     expect(component).toContain('aria-label={`Back to ${chrome.backLabel}`}');
     expect(component).toContain('aria-label={`Help for ${chrome.title}`}');
-    expect(component).toContain('<h1 className="v3-focused-task-toolbar__title">');
+    expect(component).toContain("v3-focused-task-toolbar__title");
+    expect(component).not.toMatch(/<h1[^>]*v3-focused-task-toolbar__title/);
     expect(component).toContain("data-v3-critical-task-content");
+    expect(component).not.toMatch(/<main[^>]*v3-focused-task-content/);
   });
 
   it("keeps touch targets, safe areas and reduced-transparency fallback explicit", () => {
