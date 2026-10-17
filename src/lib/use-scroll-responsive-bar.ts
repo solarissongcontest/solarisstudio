@@ -4,6 +4,7 @@ import {
   resolveScrollResponsiveBar,
   type ScrollResponsiveBarConfig,
 } from "@/lib/interaction-physics";
+import { V3_SCROLL_RESTORED_EVENT } from "@/lib/v3-scroll-restoration";
 
 export function useScrollResponsiveBar({
   enabled = true,
@@ -79,9 +80,22 @@ export function useScrollResponsiveBar({
       frame.current = window.requestAnimationFrame(evaluate);
     };
 
+    const rebaseAfterRestoration = () => {
+      if (frame.current != null) {
+        window.cancelAnimationFrame(frame.current);
+        frame.current = null;
+      }
+      lastY.current = Math.max(0, window.scrollY);
+      downTravel.current = 0;
+      upTravel.current = 0;
+      setCollapsedState(false);
+    };
+
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener(V3_SCROLL_RESTORED_EVENT, rebaseAfterRestoration);
     return () => {
       window.removeEventListener("scroll", onScroll);
+      window.removeEventListener(V3_SCROLL_RESTORED_EVENT, rebaseAfterRestoration);
       if (frame.current != null) window.cancelAnimationFrame(frame.current);
       frame.current = null;
     };
