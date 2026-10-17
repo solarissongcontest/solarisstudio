@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { resolveAppRouteChrome } from "./app-route-chrome";
 import { resolveSolarisAppScreen } from "./app-screen-registry";
 import { routeUpdateBlocker } from "./app-update-safety";
 import { resolveV3FocusedTaskChrome } from "./v3-focused-task-chrome";
@@ -21,6 +22,7 @@ describe("V3 Entry focused participant shell", () => {
     expect(screen.access.auth).toBe("authenticated");
     expect(screen.behavior.criticalTask).toBe(true);
     expect(screen.behavior.offline).toBe("online-required");
+    expect(resolveAppRouteChrome("/my-solaris/entry").tabBar).toBe("hidden");
   });
 
   it("derives Entry chrome from the canonical screen registry", () => {
@@ -46,6 +48,17 @@ describe("V3 Entry focused participant shell", () => {
     expect(css).toContain("body:has([data-v3-focused-task-shell]) .solaris-app-toolbar");
     expect(css).toContain("app-main");
     expect(css).toContain("data-solaris-app-mode");
+  });
+
+  it("keeps the resolving cutover inside focused presentation from the first render", () => {
+    const gate = source("src/components/v3/V3EntryRouteGate.tsx");
+    const css = source("src/styles/v3-focused-task-shell.css");
+
+    expect(gate).toContain("data-v3-entry-boot");
+    expect(gate).toContain("<div");
+    expect(gate).not.toMatch(/function ResolvingEntrySurface\(\)[\s\S]*?return \(\s*<main/);
+    expect(css).toContain("body:has([data-v3-entry-boot]) .solaris-app-toolbar");
+    expect(css).toContain('body:has([data-v3-entry-boot]) .app-main[data-solaris-app-mode="true"]');
   });
 
   it("leaves document heading and main-landmark ownership with the route content", () => {
