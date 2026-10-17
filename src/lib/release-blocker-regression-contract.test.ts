@@ -4,6 +4,21 @@ import { describe, expect, it } from "vitest";
 
 const source = (path: string) => readFileSync(path, "utf8");
 
+function firstLayoutEffectCleanup(effectSource: string) {
+  const effectStart = effectSource.indexOf("useLayoutEffect(() => {");
+  expect(effectStart).toBeGreaterThanOrEqual(0);
+
+  // The exact dependency list legitimately changes as the tab bar gains shell
+  // state. This contract cares about cleanup semantics, not dependency spelling.
+  const effectEnd = effectSource.indexOf("\n  }, [", effectStart);
+  expect(effectEnd).toBeGreaterThan(effectStart);
+
+  const effect = effectSource.slice(effectStart, effectEnd);
+  const cleanupStart = effect.lastIndexOf("return () => {");
+  expect(cleanupStart).toBeGreaterThanOrEqual(0);
+  return effect.slice(cleanupStart);
+}
+
 describe("PR #450 release-blocker regression contracts", () => {
   it("keeps Organizer native form controls at the WCAG 2.2 minimum width", () => {
     const admin = source("src/admin.css");
@@ -30,8 +45,17 @@ describe("PR #450 release-blocker regression contracts", () => {
 
     expect(publicTabs).toContain("useLayoutEffect(() => {");
     expect(organizerTabs).toContain("useLayoutEffect(() => {");
-    expect(publicTabs).toContain("True unmount cleanup below owns the reset");
-    expect(organizerTabs).toContain("unmount reset");
+
+    const publicCleanup = firstLayoutEffectCleanup(publicTabs);
+    const organizerCleanup = firstLayoutEffectCleanup(organizerTabs);
+
+    expect(publicCleanup).not.toContain('setProperty("--solaris-bottom-obstruction", "0px")');
+    expect(organizerCleanup).not.toContain('setProperty("--solaris-bottom-obstruction", "0px")');
+
+    // True unmount cleanup remains separate, so replacement layout effects keep
+    // the last valid obstruction until the next pre-paint measurement lands.
+    expect(publicTabs).toMatch(/useEffect\([\s\S]*--solaris-bottom-obstruction[\s\S]*\[\],\s*\);/);
+    expect(organizerTabs).toMatch(/useEffect\([\s\S]*--solaris-bottom-obstruction[\s\S]*\[\],\s*\);/);
   });
 
   it("keeps visual reference capture in a real reduced-motion browser context", () => {
