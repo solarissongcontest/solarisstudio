@@ -65,11 +65,11 @@ describe("System V3 S5 Prediction score consequences", () => {
   });
 
   it("cuts the Organizer client over to preview then canonical apply", () => {
-    expect(client).toContain('rpc("studio2_prediction_score_preview"');
-    expect(client).toContain('rpc("studio2_score_prediction_round"');
+    expect(client).toMatch(/\.rpc\(\s*"studio2_prediction_score_preview"/);
+    expect(client).toMatch(/\.rpc\(\s*"studio2_score_prediction_round"/);
     expect(client).toContain("p_expected_score_revision: preview.scoreRevision");
     expect(client).toContain("operationId = crypto.randomUUID()");
-    expect(client).not.toContain('rpc("score_prediction_round"');
+    expect(client).not.toMatch(/\.rpc\(\s*"score_prediction_round"/);
   });
 
   it("rehearses first score, replay, stale conflict and a second semantic score revision locally", () => {
