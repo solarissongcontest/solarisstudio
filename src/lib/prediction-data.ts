@@ -340,8 +340,20 @@ export function useScorePredictionRound() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (roundId: string) => {
-      const { data, error } = await supabase.rpc("score_prediction_round", {
-        _round_id: roundId,
+      const { data: previewData, error: previewError } = await (supabase as any).rpc(
+        "studio2_prediction_score_preview",
+        { p_round_id: roundId },
+      );
+      if (previewError) throw previewError;
+
+      const preview = previewData as { scoreRevision: number };
+      const operationId = crypto.randomUUID();
+      const idempotencyKey = `prediction-score:${operationId}`;
+      const { data, error } = await (supabase as any).rpc("studio2_score_prediction_round", {
+        p_round_id: roundId,
+        p_operation_id: operationId,
+        p_idempotency_key: idempotencyKey,
+        p_expected_score_revision: preview.scoreRevision,
       });
       if (error) throw error;
       return data;

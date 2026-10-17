@@ -74,6 +74,7 @@ describe("System V3 S1 registries", () => {
       "notification.failed",
       "notification.queued",
       "permissions.changed",
+      "prediction.scored",
       "preference.changed",
       "publication.changed",
       "publication.failed",
@@ -129,5 +130,12 @@ describe("System V3 S1 registries", () => {
     expect(v3DomainConsequence("preference.changed")?.ownerDomain).toBe("personal-preference");
     expect(v3DomainConsequence("preference.changed")?.taskEffects).toEqual([]);
     expect(v3DomainConsequence("preference.changed")?.notificationEffects).toEqual([]);
+  });
+
+  it("records Prediction scoring S5 ownership without claiming an undeployed task reconciler", () => {
+    expect(v3DomainConsequence("prediction.scored")?.implementationState).toBe("event-backed");
+    expect(v3DomainConsequence("prediction.scored")?.ownerDomain).toBe("prediction");
+    expect(v3DomainConsequence("prediction.scored")?.taskEffects).toEqual([]);
+    expect(v3DomainConsequence("prediction.changed")?.implementationState).toBe("declared");
   });
 });
