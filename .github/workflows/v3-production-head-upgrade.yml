@@ -7,6 +7,8 @@ on:
     paths:
       - "supabase/migrations/**"
       - ".github/scripts/v3-production-head-upgrade-rehearsal.sh"
+      - ".github/scripts/v3-s5-*-consequences-rehearsal.sh"
+      - ".github/scripts/v3-confirmation-maintenance-edit-rehearsal.sh"
       - ".github/workflows/v3-production-head-upgrade.yml"
   workflow_dispatch:
 

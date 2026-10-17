@@ -85,18 +85,22 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
   "media.reviewed": [
     "supabase/migrations/20261016050000_v3_s5_media_review_consequences.sql",
     "src/lib/v3-s5-media-consequences.test.ts",
+    ".github/scripts/v3-s5-media-consequences-rehearsal.sh",
   ],
   "jury.opened": [
     "supabase/migrations/20261016040000_v3_s5_jury_consequences.sql",
     "src/lib/v3-s5-jury-consequences.test.ts",
+    ".github/scripts/v3-s5-jury-consequences-rehearsal.sh",
   ],
   "jury.closed": [
     "supabase/migrations/20261016040000_v3_s5_jury_consequences.sql",
     "src/lib/v3-s5-jury-consequences.test.ts",
+    ".github/scripts/v3-s5-jury-consequences-rehearsal.sh",
   ],
   "jury.ballot_changed": [
     "supabase/migrations/20261016040000_v3_s5_jury_consequences.sql",
     "src/lib/v3-s5-jury-consequences.test.ts",
+    ".github/scripts/v3-s5-jury-consequences-rehearsal.sh",
   ],
   "membership.changed": [
     "supabase/migrations/20261017100000_v3_s5_access_consequences.sql",
@@ -176,14 +180,17 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
   "televote.opened": [
     "supabase/migrations/20261016043000_v3_s5_televote_consequences.sql",
     "src/lib/v3-s5-televote-consequences.test.ts",
+    ".github/scripts/v3-s5-televote-consequences-rehearsal.sh",
   ],
   "televote.closed": [
     "supabase/migrations/20261016043000_v3_s5_televote_consequences.sql",
     "src/lib/v3-s5-televote-consequences.test.ts",
+    ".github/scripts/v3-s5-televote-consequences-rehearsal.sh",
   ],
   "televote.ballot_submitted": [
     "supabase/migrations/20261016043000_v3_s5_televote_consequences.sql",
     "src/lib/v3-s5-televote-consequences.test.ts",
+    ".github/scripts/v3-s5-televote-consequences-rehearsal.sh",
   ],
 };
 
