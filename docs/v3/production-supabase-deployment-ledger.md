@@ -5,28 +5,31 @@ This ledger records production database synchronization evidence. It must never 
 ## 2026-10-17 Confirmation-maintenance refresh
 
 - Production-state inspection source main SHA: `96ccdfbfcc63b6b61d6e233f008cef3c4b44204c`
+- Production deployment operator source main SHA: `bc663383be1da372ef74e2b1efc1c07a48989dd6`
 - Production project ref: `dkxmnvekiopyesuzggeu`
 - Production project name: `Solaris Studio`
-- Production migration head verified read-only: `20261014020000_v3_me_cutover`
+- Production migration head before deployment: `20261014020000_v3_me_cutover`
+- Production migration head after deployment: `20261017143200_confirmation_maintenance_read_authority`
 - Repository migration head: `20261017143200_confirmation_maintenance_read_authority`
-- Canonical production lag: **55 migrations**
-- Production database DDL performed by this refresh so far: **none**
+- Canonical production lag after deployment: **0 migrations**
+- Canonical migrations applied by this refresh: **55**
+- Production database deployment completed: `2026-10-17T18:22:55Z` UTC
 
 ### Why the connected migration action is not used for this backlog
 
 The connected Supabase migration action generates its own migration version rather than preserving the repository timestamps. Applying the Confirmation hotfix migrations through that path would make `supabase_migrations.schema_migrations` diverge further from version control and would cause the canonical CLI deployment to attempt the repository migrations again later. This deployment lane therefore preserves history and uses `supabase db push --linked` from an explicitly approved local operator checkout.
 
-### Confirmation production mismatch verified
+### Confirmation production mismatch verified before deployment
 
-Bounded read-only production inspection found the exact failure the October 17 hotfix is designed to repair:
+Bounded read-only production inspection found the exact failure the October 17 hotfix was designed to repair:
 
-- `studio2_country_cockpit(...)` still requires mutation-level `confirmation.manage` for a read projection;
-- legacy Confirmation admin reads still use old delegation/admin authorization;
-- `admin_update_confirmation_controls(...)` is still the old legacy-authority implementation;
-- `public_country_account_confirmation_dashboard()` is absent;
-- production migration history stops at `20261014020000`.
+- `studio2_country_cockpit(...)` still required mutation-level `confirmation.manage` for a read projection;
+- legacy Confirmation admin reads still used old delegation/admin authorization;
+- `admin_update_confirmation_controls(...)` was still the old legacy-authority implementation;
+- `public_country_account_confirmation_dashboard()` was absent;
+- production migration history stopped at `20261014020000`.
 
-Therefore the merged maintenance HOD portal and Organizer Confirmation authority cannot be considered production-operational until the canonical migration chain reaches `20261017143200`.
+The canonical migration deployment below removed that backend blocker and brought production to `20261017143200`.
 
 ### Production migration-history shape
 
@@ -44,7 +47,7 @@ Neither side is evidence that the current database schema should be replayed or 
 
 This leaves the hosted migration-history table unchanged while allowing the CLI to see only the actual post-production canonical delta.
 
-### Canonical pending migration chain
+### Canonical deployed migration chain
 
 1. `20261014030000_v3_entry_review_binding`
 2. `20261014040000_v3_entry_restore_provenance`
@@ -127,39 +130,73 @@ The dedicated Confirmation maintenance rehearsal also passed the exact emergency
 
 All automated verification above used local/isolated Supabase only. It did not generate automated workflow traffic against production.
 
+### Production deployment and bounded verification evidence
+
+The production operator executed the guarded deployment script from exact main SHA `bc663383be1da372ef74e2b1efc1c07a48989dd6` using Supabase CLI 2.121.0. The script:
+
+- validated the exact ordered 55-version manifest;
+- completed the canonical `supabase db push --linked --dry-run` first;
+- applied the same 55 migrations only after the explicit commit gate;
+- verified local/remote parity through `20261017143200` after the push;
+- completed at `2026-10-17T18:22:55Z` UTC.
+
+Independent bounded production inspection after the push confirmed:
+
+- `supabase_migrations.schema_migrations` head is `20261017143200`;
+- `public_country_account_confirmation_dashboard()` exists and is not executable anonymously;
+- the maintenance HOD dashboard requires an authenticated active country account;
+- `public_create_country_account_edit_token(...)` requires an authenticated active country account and the response/round/edition editing gates;
+- Organizer mutation remains gated by exact-edition `confirmation.manage`;
+- Organizer Confirmation cockpit reads use `confirmation.read`;
+- the legacy requirements helper returns an empty result when `auth.uid()` is null even though its older execute grant remains present.
+
+A single bounded rollback-only production authorization smoke used existing authorized Organizer/HOD identities against one existing Confirmation response. The smoke asserted that Organizer could open response editing while the round stayed closed, the HOD dashboard remained accepted and immediately exposed editing open, one country-account edit token could be minted, response/requirement counts stayed exactly one, Organizer could close editing, and the newly minted token was revoked. The smoke deliberately raised a terminal exception after all assertions so its writes were rolled back. A follow-up read confirmed the response controls were restored and no smoke token survived.
+
+The rollback smoke intentionally did **not** submit a real song/artist content change. The final user-facing human browser smoke remains required after the Cloudflare maintenance HOD portal switch is deployed.
+
+Post-deploy Supabase advisor comparison found no `ERROR` or `CRITICAL` finding. The INFO/WARN inventory changed as expected after adding V3 tables/functions:
+
+- security `rls_enabled_no_policy`: `66 -> 70`;
+- security `anon_security_definer_function_executable`: `57 -> 55`;
+- security `authenticated_security_definer_function_executable`: `301 -> 320`;
+- security `extension_in_public`: unchanged at `1`;
+- leaked-password protection warning: unchanged at `1`;
+- performance `unindexed_foreign_keys`: `128 -> 150`;
+- performance `unused_index`: `157 -> 164`;
+- performance `multiple_permissive_policies`: unchanged at `1`.
+
+These advisor items remain tracked technical debt; none is a new release-blocking Confirmation-maintenance failure. Production egress verification remained deliberately bounded and no CI/browser automation was pointed at hosted Supabase.
+
 ### Feature rollout state
 
-`GLOBAL_MAINTENANCE_MODE` remains enabled. `MAINTENANCE_HOD_ACCESS` remains disabled while the production database is behind the required Confirmation contracts. It must not be enabled until the canonical migration deployment succeeds and the bounded authorized Organizer/HOD production smoke path passes.
+`GLOBAL_MAINTENANCE_MODE` remains enabled. The canonical Confirmation backend is now deployed and the bounded pre-enable production authorization smoke passed. The rollout change enables only the independent `MAINTENANCE_HOD_ACCESS` Worker runtime switch; all other public application routes remain under global maintenance. The Cloudflare Worker deployment and final user-facing human Organizer/HOD smoke are still pending and must be recorded before this emergency rollout is declared complete.
 
 ### Canonical database deployment procedure
 
-Use `scripts/v3-production-supabase-push.sh` from a clean, locally authenticated operator checkout of the exact current `main` after reviewing this deployment candidate.
+Use `scripts/v3-production-supabase-push.sh` from a clean, locally authenticated operator checkout of the exact deployment candidate.
 
 The script deliberately:
 
 - refuses CI and GitHub Actions;
 - targets only production project `dkxmnvekiopyesuzggeu`;
 - requires `SOLARIS_PRODUCTION_DEPLOY_APPROVED=YES`;
-- requires the pre-push remote head to equal `20261014020000`;
-- requires the repository migration head to equal `20261017143200`;
+- requires the pre-push remote head to equal the deployment candidate's expected production head;
+- requires the repository migration head to equal the deployment candidate's expected repository head;
 - reconciles only the known pre-head local/remote history representation in a temporary local view and restores it on exit;
-- requires the unmatched post-head migration set to equal the exact ordered 55-version manifest that passed the production-head rehearsal;
+- requires the unmatched post-head migration set to equal the exact ordered manifest that passed the production-head rehearsal;
 - never uses `--include-all` for the hosted production push;
 - runs `supabase db push --linked --dry-run` before any write;
 - requires a second `SOLARIS_PRODUCTION_COMMIT=YES` gate for the real push;
-- verifies the post-deployment migration head is exactly `20261017143200`.
+- verifies the post-deployment migration head exactly.
 
-### Required bounded post-deploy verification
+### Remaining bounded rollout verification
 
-After a successful push, perform only bounded production checks:
+Before declaring the emergency Confirmation-access rollout complete:
 
-- migration ledger head is `20261017143200`;
-- `public_country_account_confirmation_dashboard()` exists with authenticated-only execution;
-- `studio2_country_cockpit(...)` and HOD inspection use read authority;
-- `admin_update_confirmation_controls(...)` uses exact-edition Confirmation management authority;
-- open-editing leaves round state and Confirmation requirement unchanged;
-- close-editing revokes active edit tokens;
-- Supabase security and performance advisors show no new release-blocking issue;
-- one authorized human smoke path verifies Organizer open editing -> HOD dashboard/edit -> Organizer close editing without automated production crawling.
-
-Append the deployment UTC timestamp, exact deployed Git SHA, migration head before/after, advisor comparison, and bounded smoke result after the operator push completes.
+- deploy the exact merged HOD-switch commit to the production Cloudflare Worker;
+- verify the normal maintenance page still renders while `GLOBAL_MAINTENANCE_MODE=true`;
+- verify unrelated application routes remain maintenance-blocked;
+- verify only the intended HOD recovery/edit/reset routes bypass maintenance for GET/HEAD when the HOD switch is enabled;
+- perform one authorized human Organizer open-edit -> HOD dashboard/edit -> Organizer close-edit browser smoke;
+- confirm the user-facing smoke does not create duplicate Confirmation requirements/responses and that closing editing revokes the active token;
+- record the Cloudflare deployment SHA/time and final smoke result here.
