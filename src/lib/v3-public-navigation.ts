@@ -310,9 +310,9 @@ export function consumeV3PublicNavigationRestore(
   scopeKey?: string | null,
 ): number | null {
   if (!storage) return null;
+  const key = restoreKey(scopeKey);
 
   try {
-    const key = restoreKey(scopeKey);
     const raw = storage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { href?: string; scrollY?: number };
@@ -327,6 +327,11 @@ export function consumeV3PublicNavigationRestore(
       ? Math.max(0, parsed.scrollY)
       : 0;
   } catch {
+    try {
+      storage.removeItem(key);
+    } catch {
+      // Session storage is progressive enhancement; malformed intent is dead.
+    }
     return null;
   }
 }
