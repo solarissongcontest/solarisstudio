@@ -10,6 +10,9 @@ import { renderMaintenancePage } from "./maintenance-page";
 
 const editRoute = readFileSync("src/routes/confirmations/edit/$token.tsx", "utf8");
 const confirmationShell = readFileSync("src/components/v3/V3ConfirmationRouteShell.tsx", "utf8");
+const participationShell = readFileSync("src/components/ParticipationServiceShell.tsx", "utf8");
+const maintenanceEditor = readFileSync("src/components/MaintenanceConfirmationEditor.tsx", "utf8");
+const maintenanceClient = readFileSync("src/lib/maintenance-confirmation-client.ts", "utf8");
 
 describe("maintenance HOD access flag", () => {
   it("fails closed unless explicitly enabled", () => {
@@ -56,6 +59,7 @@ describe("maintenance HOD route isolation", () => {
     "/televoting",
     "/admin",
     "/admin/operations",
+    "/_serverFn/example",
   ])("keeps unrelated route maintenance-blocked: %s", (pathname) => {
     expect(isMaintenanceHodAppRouteAllowed(pathname, "GET", true)).toBe(false);
   });
@@ -72,6 +76,35 @@ describe("maintenance HOD route isolation", () => {
     expect(confirmationShell).toContain('data-maintenance-confirmation-shell=""');
     expect(confirmationShell).toContain("Only this existing Confirmation editor is available");
     expect(confirmationShell).toContain("<a");
+  });
+
+  it("does not wrap the maintenance editor in normal website or app navigation", () => {
+    expect(participationShell).toContain("isolatedMaintenanceConfirmationEditor");
+    expect(participationShell).toContain("GLOBAL_MAINTENANCE_MODE");
+    expect(participationShell).toContain("/confirmations\\/edit\\/");
+    expect(participationShell).toContain(
+      "if (nested || isolatedMaintenanceConfirmationEditor) return <>{children}</>;",
+    );
+    expect(participationShell).toContain("<AppShell>{children}</AppShell>");
+  });
+
+  it("uses direct token-authorized RPCs instead of opening the generic server-function surface", () => {
+    expect(editRoute).toContain("resolveMaintenanceConfirmationEditToken(token)");
+    expect(editRoute).toContain("<MaintenanceConfirmationEditor");
+    expect(editRoute).toContain("resolve({ data: { token } })");
+    expect(maintenanceClient).toContain('supabase.rpc("public_resolve_edit_token"');
+    expect(maintenanceClient).toContain('supabase.rpc("v3_submit_confirmation"');
+    expect(maintenanceClient).toContain("edit_token_hash: editTokenHash");
+    expect(maintenanceClient).not.toContain("service_role");
+    expect(maintenanceEditor).toContain("submitMaintenanceConfirmationEdit");
+    expect(isMaintenanceHodAppRouteAllowed("/_serverFn/anything", "POST", true)).toBe(false);
+  });
+
+  it("distinguishes a resolver transport failure from an actually invalid edit token", () => {
+    expect(editRoute).toContain("isError");
+    expect(editRoute).toContain("Confirmation editor unavailable");
+    expect(editRoute).toContain("Solaris will not label a transport failure as an expired link.");
+    expect(editRoute).toContain("Edit link unavailable");
   });
 
   it("does not tell HODs that reopening an existing response requires reopening the round", () => {
