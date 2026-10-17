@@ -54,24 +54,40 @@ function missingSchema(error: unknown) {
   );
 }
 
+async function loadAdminDeadlines(editionId?: string | null) {
+  let query = adminDb
+    .from("admin_deadlines")
+    .select("*")
+    .order("due_at", { ascending: true });
+
+  if (editionId) query = query.eq("edition_id", editionId);
+
+  const { data, error } = await query;
+  if (error) {
+    if (missingSchema(error)) return [] as AdminDeadline[];
+    throw error;
+  }
+
+  return (data ?? []) as AdminDeadline[];
+}
+
 export function useAdminDeadlines(editionId?: string | null) {
   return useQuery({
     queryKey: ["admin-deadlines", editionId ?? "all"],
-    queryFn: async () => {
-      let query = adminDb
-        .from("admin_deadlines")
-        .select("*")
-        .order("due_at", { ascending: true });
+    queryFn: () => loadAdminDeadlines(editionId),
+  });
+}
 
-      if (editionId) query = query.eq("edition_id", editionId);
-
-      const { data, error } = await query;
-      if (error) {
-        if (missingSchema(error)) return [] as AdminDeadline[];
-        throw error;
+export function useEditionAdminDeadlines(editionId?: string | null) {
+  const normalizedEditionId = editionId?.trim() || null;
+  return useQuery({
+    enabled: Boolean(normalizedEditionId),
+    queryKey: ["admin-deadlines", normalizedEditionId ?? "unscoped"],
+    queryFn: () => {
+      if (!normalizedEditionId) {
+        throw new Error("Edition deadlines require an explicit Organizer edition scope.");
       }
-
-      return (data ?? []) as AdminDeadline[];
+      return loadAdminDeadlines(normalizedEditionId);
     },
   });
 }
