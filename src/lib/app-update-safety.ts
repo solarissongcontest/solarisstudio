@@ -44,6 +44,7 @@ export function readAppUpdateBlockers(): AppUpdateBlocker[] {
 
 function organizerRouteUpdateBlocker(pathname: string): AppUpdateBlocker | null {
   if (
+    pathname === "/admin" ||
     pathname.startsWith("/admin/") ||
     pathname.startsWith("/confirmations/admin") ||
     pathname.startsWith("/televoting/admin")
