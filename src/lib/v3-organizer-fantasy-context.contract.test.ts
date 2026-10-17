@@ -41,10 +41,10 @@ describe("V3 Organizer Fantasy SSC context", () => {
     expect(fantasyMigration).toContain("Fantasy game belongs to a different edition");
     expect(fantasyMigration).toContain("Fantasy show does not belong to the selected edition");
     expect(fantasyMigration).toContain("for update");
-    expect(fantasy).toContain('rpc("studio2_save_fantasy_game"');
-    expect(fantasy).toContain('rpc("studio2_fantasy_score_preview"');
-    expect(fantasy).toContain('rpc("studio2_score_fantasy_game"');
-    expect(fantasy).not.toContain('rpc("score_fantasy_game"');
+    expect(fantasy).toMatch(/\.rpc\(\s*"studio2_save_fantasy_game"/);
+    expect(fantasy).toMatch(/\.rpc\(\s*"studio2_fantasy_score_preview"/);
+    expect(fantasy).toMatch(/\.rpc\(\s*"studio2_score_fantasy_game"/);
+    expect(fantasy).not.toMatch(/\.rpc\(\s*"score_fantasy_game"/);
     expect(fantasyScoreMigration).toContain("'fantasy.score'");
     expect(fantasyScoreMigration).toContain("revoke all on function public.score_fantasy_game(uuid)");
   });

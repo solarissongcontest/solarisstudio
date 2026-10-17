@@ -60,11 +60,11 @@ describe("System V3 S5 Fantasy score consequences", () => {
   });
 
   it("cuts the Organizer scoring action over to preview then canonical apply", () => {
-    expect(organizer).toContain('rpc("studio2_fantasy_score_preview"');
-    expect(organizer).toContain('rpc("studio2_score_fantasy_game"');
+    expect(organizer).toMatch(/\.rpc\(\s*"studio2_fantasy_score_preview"/);
+    expect(organizer).toMatch(/\.rpc\(\s*"studio2_score_fantasy_game"/);
     expect(organizer).toContain("p_expected_score_revision: preview.scoreRevision");
     expect(organizer).toContain("operationId = crypto.randomUUID()");
-    expect(organizer).not.toContain('rpc("score_fantasy_game"');
+    expect(organizer).not.toMatch(/\.rpc\(\s*"score_fantasy_game"/);
   });
 
   it("marks only fantasy.scored event-backed until all fantasy.changed mutation paths are migrated", () => {
