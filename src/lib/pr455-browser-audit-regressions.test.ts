@@ -73,7 +73,7 @@ describe("PR455 Browser Audit regression contracts", () => {
   it("keeps Organizer directory keys unique before an edition has resolved", () => {
     const menu = source("src/routes/_authenticated/admin/menu.tsx");
 
-    expect(menu).toContain('key={`${item.to}:${item.label}`}');
+    expect(menu).toContain('key={`${item.id}:${item.label}`}');
     expect(menu).not.toContain("<DirectoryItem key={item.to}");
   });
 

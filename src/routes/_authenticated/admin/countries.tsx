@@ -1,14 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router';
-import { AlertTriangle, Flag, Search } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Flag, Search } from 'lucide-react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
 import { AdminPage } from '@/components/admin/AdminShell';
 import { AdminCard, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
+import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useEditions } from '@/lib/data';
 import {
   loadStudio2CountryCockpit,
+  matchesStudio2CountryCockpitQuery,
+  sortStudio2CountryCockpitOperationally,
   summarizeCountryCockpit,
 } from '@/lib/studio2-country-cockpit';
 
@@ -39,7 +42,62 @@ export const Route = createFileRoute('/_authenticated/admin/countries')({
 
 function CountriesRoute() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  if (pathname.startsWith('/admin/countries/')) return <Outlet />;
+  const { editionId } = useAdminContext();
+  const editionsQuery = useEditions();
+  const selectedEdition = selectOrganizerEdition(editionsQuery.data ?? [], editionId);
+
+  if (pathname.startsWith('/admin/countries/')) {
+    if (editionsQuery.isLoading) {
+      return (
+        <AdminPage>
+          <AdminCard>
+            <p className="py-12 text-center text-sm text-muted-foreground">Verifying edition context…</p>
+          </AdminCard>
+        </AdminPage>
+      );
+    }
+
+    if (editionsQuery.error) {
+      return (
+        <AdminPage>
+          <AdminCard>
+            <AdminEmptyState
+              icon={AlertTriangle}
+              title="Edition context could not be verified"
+              description={errorText(editionsQuery.error)}
+            />
+            <div className="mt-3 flex justify-center">
+              <button
+                type="button"
+                onClick={() => void editionsQuery.refetch()}
+                disabled={editionsQuery.isFetching}
+                className="admin-action-secondary"
+              >
+                Retry edition lookup
+              </button>
+            </div>
+          </AdminCard>
+        </AdminPage>
+      );
+    }
+
+    if (!selectedEdition) {
+      return (
+        <AdminPage>
+          <AdminCard>
+            <AdminEmptyState
+              icon={Flag}
+              title="Edition context required"
+              description="Select the exact Organizer edition before opening delegation details. Solaris will not substitute the newest edition for a missing or stale context."
+            />
+          </AdminCard>
+        </AdminPage>
+      );
+    }
+
+    return <Outlet />;
+  }
+
   return <CountriesCockpitPage />;
 }
 
@@ -49,9 +107,7 @@ function CountriesCockpitPage() {
   const navigate = Route.useNavigate();
   const editionsQuery = useEditions();
   const editions = editionsQuery.data ?? [];
-  const selectedEdition = editions.find((edition) => edition.id === editionId)
-    ?? [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0]
-    ?? null;
+  const selectedEdition = selectOrganizerEdition(editions, editionId);
   const resolvedEditionId = selectedEdition?.id ?? '';
 
   const cockpitQuery = useQuery({
@@ -64,12 +120,15 @@ function CountriesCockpitPage() {
   const rows = cockpitQuery.data ?? [];
   const queryValue = search.q ?? '';
   const stateFilter = search.state ?? 'all';
-  const normalizedQuery = queryValue.trim().toLocaleLowerCase();
-  const filteredRows = rows.filter((row) => {
-    if (stateFilter !== 'all' && row.operationalReadiness.state !== stateFilter) return false;
-    if (!normalizedQuery) return true;
-    return row.context.countryName.toLocaleLowerCase().includes(normalizedQuery);
-  });
+  const filteredRows = sortStudio2CountryCockpitOperationally(
+    rows.filter((row) => {
+      if (stateFilter !== 'all' && row.operationalReadiness.state !== stateFilter) return false;
+      return matchesStudio2CountryCockpitQuery(row, queryValue);
+    }),
+  );
+  const attentionRows = sortStudio2CountryCockpitOperationally(rows)
+    .filter((row) => row.operationalReadiness.state !== 'ready')
+    .slice(0, 4);
   const summary = summarizeCountryCockpit(rows);
   const error = editionsQuery.error ?? cockpitQuery.error;
   const countryColumns = [
@@ -168,11 +227,11 @@ function CountriesCockpitPage() {
 
   return (
     <AdminPage>
-      <div className="mx-auto max-w-7xl space-y-4">
+      <div className="mx-auto max-w-7xl space-y-4" data-v3-organizer-delegations="">
         <AdminPageHeader
           eyebrow="Solaris Studio 2 · Delegations"
           title="Country cockpit"
-          description="A single readiness matrix for every participating delegation in the selected edition. Scores use the same country operational-readiness model as the HOD workspace."
+          description="Exception-first delegation readiness for the selected edition. Canonical country workflow state remains authoritative; this workspace prioritizes the delegations that actually need intervention."
           actions={
             <div className="flex flex-wrap gap-2">
               <Link to="/admin/flag-audit" className="admin-action-secondary">Flag QA</Link>
@@ -219,7 +278,7 @@ function CountriesCockpitPage() {
             <AdminEmptyState
               icon={Flag}
               title="No edition selected"
-              description="Select an edition before the country cockpit can build its readiness matrix."
+              description="Select an edition before the country cockpit can build its readiness matrix. Solaris will not substitute another edition for missing or stale Organizer context."
             />
           </AdminCard>
         ) : cockpitQuery.isLoading || editionsQuery.isLoading ? (
@@ -236,6 +295,55 @@ function CountriesCockpitPage() {
           </AdminCard>
         ) : (
           <>
+            {attentionRows.length ? (
+              <AdminCard strong>
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <p className="admin-section-label">Needs attention</p>
+                    <h2 className="mt-1 text-base font-bold">Highest-priority delegation exceptions</h2>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      Blocked countries come first, followed by overdue and other attention-required delegation state.
+                    </p>
+                  </div>
+                  <AdminStatus tone={summary.blocked ? 'blocked' : 'attention'}>
+                    {summary.blocked ? `${summary.blocked} blocked` : `${summary.attention} attention`}
+                  </AdminStatus>
+                </div>
+                <div className="mt-3 divide-y divide-white/[0.07] border-t border-white/[0.07]">
+                  {attentionRows.map((row) => {
+                    const primaryIssue = row.operationalReadiness.signals.find(
+                      (signal) => signal.state === 'blocked' || signal.state === 'attention',
+                    );
+                    return (
+                      <Link
+                        key={row.context.countryId}
+                        to="/admin/countries/$countryId"
+                        params={{ countryId: row.context.countryId }}
+                        search={{ tab: 'overview' }}
+                        className="group flex min-h-16 items-center gap-3 py-3"
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-foreground">{row.context.countryName}</span>
+                            <ReadinessStatus state={row.operationalReadiness.state} />
+                          </span>
+                          <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                            {primaryIssue?.message ?? `${row.operationalReadiness.score}% operational readiness`}
+                          </span>
+                          {row.operationalReadiness.overdueDeadlines.length ? (
+                            <span className="mt-1 block text-[11px] font-semibold text-amber-100">
+                              {row.operationalReadiness.overdueDeadlines.length} overdue deadline{row.operationalReadiness.overdueDeadlines.length === 1 ? '' : 's'}
+                            </span>
+                          ) : null}
+                        </span>
+                        <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                      </Link>
+                    );
+                  })}
+                </div>
+              </AdminCard>
+            ) : null}
+
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <Metric label="Delegations" value={summary.total} tone="neutral" />
               <Metric label="Ready" value={summary.ready} tone="ready" />
@@ -247,12 +355,12 @@ function CountriesCockpitPage() {
             <AdminCard>
               <div className="grid gap-3 md:grid-cols-[1fr_220px]">
                 <label className="relative block">
-                  <span className="sr-only">Search countries</span>
+                  <span className="sr-only">Search delegations</span>
                   <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <input
                     value={queryValue}
                     onChange={(event) => navigate({ search: (previous) => ({ ...previous, q: event.target.value }), replace: true })}
-                    placeholder="Search country…"
+                    placeholder="Search country, HOD, artist or song…"
                     className="min-h-11 w-full rounded-xl border border-white/[0.08] bg-white/[0.025] pl-10 pr-3 text-sm"
                   />
                 </label>
@@ -281,14 +389,14 @@ function CountriesCockpitPage() {
                 <AdminDataView
                   rows={filteredRows}
                   columns={countryColumns}
-                  rowKey={(row) => row.context.countryId}
+                  rowKey={(item) => item.context.countryId}
                   ariaLabel="Delegation readiness matrix"
                 />
               ) : (
                 <AdminEmptyState
                   icon={Search}
                   title="No delegations match these filters"
-                  description="Change the country search or readiness filter."
+                  description="Change the delegation search or readiness filter."
                 />
               )}
             </AdminCard>

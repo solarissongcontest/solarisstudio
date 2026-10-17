@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import { syncConfirmationSubmissionToSolaris } from "@/integrations/confirmations/sync-submission.functions";
@@ -47,6 +48,7 @@ type ResponseRow = {
 type RoundOption = {
   id: string;
   name: string;
+  editionId: string;
   editionNumber: number;
   editionName: string;
   count: number;
@@ -58,11 +60,12 @@ export const Route = createFileRoute("/confirmations/admin/sync")({
 });
 
 function ConfirmationSyncPage() {
+  const { editionId: organizerEditionId } = useAdminContext();
   const syncSubmission = useServerFn(syncConfirmationSubmissionToSolaris);
   const getTargets = useServerFn(getSolarisEditionSyncTargets);
   const addToShow = useServerFn(addCountriesToShow);
   const [rows, setRows] = useState<ResponseRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [roundId, setRoundId] = useState("");
@@ -71,49 +74,67 @@ function ConfirmationSyncPage() {
 
   useEffect(() => {
     let alive = true;
+    setError(null);
+    setTargets(null);
+    setShowId("");
+    setRoundId("");
+
+    if (!organizerEditionId) {
+      setRows([]);
+      setLoading(false);
+      return () => { alive = false; };
+    }
+
+    setLoading(true);
     void (async () => {
       const { data, error: loadError } = await confirmationsSupabase.rpc("admin_confirmation_responses");
       if (!alive) return;
       if (loadError) {
         setError(loadError.message);
+        setRows([]);
       } else {
-        setRows(Array.isArray(data) ? (data as unknown as ResponseRow[]) : []);
+        const responseRows = Array.isArray(data) ? (data as unknown as ResponseRow[]) : [];
+        setRows(responseRows.filter((row) => row.editions?.id === organizerEditionId));
       }
       setLoading(false);
     })();
     return () => { alive = false; };
-  }, []);
+  }, [organizerEditionId]);
 
   const rounds = useMemo<RoundOption[]>(() => {
+    if (!organizerEditionId) return [];
     const map = new Map<string, RoundOption>();
     for (const row of rows) {
-      if (!row.submission_rounds || !row.editions) continue;
+      if (!row.submission_rounds || !row.editions || row.editions.id !== organizerEditionId) continue;
       const existing = map.get(row.submission_rounds.id);
       if (existing) existing.count += row.participating ? 1 : 0;
       else map.set(row.submission_rounds.id, {
         id: row.submission_rounds.id,
         name: row.submission_rounds.name,
+        editionId: row.editions.id,
         editionNumber: row.editions.edition_number,
         editionName: row.editions.name,
         count: row.participating ? 1 : 0,
       });
     }
-    return [...map.values()].sort((a, b) => b.editionNumber - a.editionNumber || a.name.localeCompare(b.name));
-  }, [rows]);
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [organizerEditionId, rows]);
 
   useEffect(() => {
-    if (!roundId && rounds[0]) setRoundId(rounds[0].id);
+    if (!rounds.some((round) => round.id === roundId)) {
+      setRoundId(rounds[0]?.id ?? "");
+    }
   }, [roundId, rounds]);
 
   const selectedRound = rounds.find((round) => round.id === roundId) ?? null;
   const selectedRows = useMemo(
-    () => rows.filter((row) => row.participating && row.submission_rounds?.id === roundId),
-    [roundId, rows],
+    () => rows.filter((row) => row.participating && row.submission_rounds?.id === roundId && row.editions?.id === organizerEditionId),
+    [organizerEditionId, roundId, rows],
   );
 
   useEffect(() => {
     let alive = true;
-    if (!selectedRound) {
+    if (!organizerEditionId || !selectedRound || selectedRound.editionId !== organizerEditionId) {
       setTargets(null);
       setShowId("");
       return () => { alive = false; };
@@ -122,20 +143,37 @@ function ConfirmationSyncPage() {
       try {
         const result = await getTargets({ data: { editionNumber: selectedRound.editionNumber } });
         if (!alive) return;
+        if (result.editionId !== organizerEditionId) {
+          throw Object.assign(
+            new Error("Edition context changed before Solaris sync targets were resolved. Nothing was selected."),
+            { status: 409 },
+          );
+        }
         setTargets(result);
         const preferred = /pre[- ]?confirm/i.test(selectedRound.name)
           ? result.shows.find((show) => show.kind === "grand-final" || show.kind === "final")
           : null;
         setShowId(preferred?.id ?? result.shows[0]?.id ?? "");
       } catch (caught) {
-        if (alive) setError(caught instanceof Error ? caught.message : "Could not load Solaris shows.");
+        if (alive) {
+          setTargets(null);
+          setShowId("");
+          setError(caught instanceof Error ? caught.message : "Could not load Solaris shows.");
+        }
       }
     })();
     return () => { alive = false; };
-  }, [getTargets, selectedRound]);
+  }, [getTargets, organizerEditionId, selectedRound]);
 
   async function runSync() {
-    if (!selectedRound || !targets || !showId || !selectedRows.length) return;
+    if (!organizerEditionId || !selectedRound || !targets || !showId || !selectedRows.length) return;
+    if (selectedRound.editionId !== organizerEditionId || targets.editionId !== organizerEditionId) {
+      const message = "Edition context changed before the line-up sync. Refresh the selected edition and review the target again; nothing was applied.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
     setBusy(true);
     setError(null);
     try {
@@ -143,6 +181,10 @@ function ConfirmationSyncPage() {
       const failures: string[] = [];
 
       for (const row of selectedRows) {
+        if (row.editions?.id !== organizerEditionId) {
+          failures.push(`${row.country}: response no longer belongs to the selected Organizer edition`);
+          continue;
+        }
         try {
           const result = await syncSubmission({ data: { submissionId: row.id } });
           if (result.ok && result.countryId) countryIds.push(result.countryId);
@@ -153,7 +195,7 @@ function ConfirmationSyncPage() {
       }
 
       if (!countryIds.length) throw new Error(failures[0] ?? "No countries could be synced.");
-      const showResult = await addToShow({ data: { editionId: targets.editionId, showId, countryIds } });
+      const showResult = await addToShow({ data: { editionId: organizerEditionId, showId, countryIds } });
       toast.success(
         `${countryIds.length} countries synced · ${showResult.added} added to ${showResult.showName}${showResult.refreshed ? ` · ${showResult.refreshed} refreshed` : ""}`,
       );
@@ -172,13 +214,20 @@ function ConfirmationSyncPage() {
       <AdminPageHeader
         eyebrow="Confirmations → Solaris"
         title="Sync line-ups"
-        description="Import a whole confirmation wave into the edition and place those same canonical entries into a show in one operation."
+        description="Import a confirmation wave from the exact Organizer edition and place those same canonical entries into one of that edition's shows."
         actions={<Link to="/confirmations/admin" className="admin-action-secondary"><ArrowLeft className="size-4" /> Delegations</Link>}
       />
 
-      {loading ? <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading confirmation rounds…</p></AdminCard>
+      {!organizerEditionId ? (
+        <AdminCard>
+          <AdminEmptyState
+            title="Select an edition"
+            description="Line-up sync is edition-scoped operational work. Select the exact Organizer edition first; Solaris will not choose the newest confirmation round or another edition automatically."
+          />
+        </AdminCard>
+      ) : loading ? <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Loading confirmation rounds…</p></AdminCard>
       : error && !rows.length ? <AdminCard><AdminEmptyState title="Sync data unavailable" description={error} /></AdminCard>
-      : !rounds.length ? <AdminCard><AdminEmptyState title="No confirmation rounds to sync" description="There are no submitted participating delegations yet." /></AdminCard>
+      : !rounds.length ? <AdminCard><AdminEmptyState title="No confirmation rounds to sync" description="There are no submitted participating delegations in the selected Organizer edition yet." /></AdminCard>
       : (
         <>
           <AdminCard strong className="mb-4">

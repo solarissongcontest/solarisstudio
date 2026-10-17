@@ -189,8 +189,9 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
     classification: "redesign",
     targetArea: "me",
     targetRoute: "/my-solaris/saved",
-    specificationStatus: "mapped",
+    specificationStatus: "building",
     acceptanceScenarioId: "public.saved-and-followed-entities",
+    migrationEvidence: "V3 Following & Saved projection, caller-scoped preference writer, reversible installed-app route and focused regression coverage",
   },
   {
     id: "country-account",

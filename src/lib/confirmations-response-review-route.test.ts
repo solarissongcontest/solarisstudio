@@ -22,7 +22,7 @@ describe("confirmation response review routing", () => {
     expect(detailRoute).not.toContain("admin_review_confirmation_entry");
   });
 
-  it("restores the standalone response filters, edition scope and Next in Line admin view", () => {
+  it("keeps standalone response filters, exact edition scope and Next in Line admin view", () => {
     const listRoute = source("src/routes/confirmations/admin/responses.tsx");
 
     expect(listRoute).toContain('value: "participating"');
@@ -30,10 +30,18 @@ describe("confirmation response review routing", () => {
     expect(listRoute).toContain('value: "song_submitted"');
     expect(listRoute).toContain('value: "unreviewed"');
     expect(listRoute).toContain('value: "nf_declined"');
-    expect(listRoute).toContain("All editions");
+    expect(listRoute).not.toContain("All editions");
+    expect(listRoute).toContain('<option value="">Select edition…</option>');
     expect(listRoute).toContain("All rounds");
     expect(listRoute).toContain("Next in Line");
     expect(listRoute).toContain("admin_confirmation_next_in_line");
+    expect(listRoute).toContain("_edition_id: editionId");
+    expect(listRoute).toContain(
+      'editionId ? rows.filter((row) => row.editions?.id === editionId) : []',
+    );
+    expect(listRoute).toContain(
+      "Solaris will not combine historical response queues or substitute a globally active or newest edition.",
+    );
   });
 
   it("keeps the response-card triage glow contract", () => {

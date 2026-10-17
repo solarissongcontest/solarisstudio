@@ -400,6 +400,15 @@ function mapReview(value: unknown): Studio2MediaAssetReview {
   };
 }
 
+function mapReviewsForEdition(data: unknown, editionId: string): Studio2MediaAssetReview[] {
+  if (!Array.isArray(data)) return [];
+  const reviews = data.map(mapReview);
+  if (reviews.some((review) => review.editionId !== editionId)) {
+    throw new Error('Media Review returned evidence for another edition.');
+  }
+  return reviews;
+}
+
 async function rpc(name: string, args: Record<string, unknown>) {
   const { data, error } = await rpcClient.rpc(name, args);
   if (error) throw error;
@@ -409,8 +418,7 @@ async function rpc(name: string, args: Record<string, unknown>) {
 export async function listStudio2MediaAssetReviews(editionId: string): Promise<Studio2MediaAssetReview[]> {
   if (!editionId) return [];
   const data = await rpc('studio2_media_asset_reviews', { p_edition_id: editionId });
-  if (!Array.isArray(data)) return [];
-  return data.map(mapReview);
+  return mapReviewsForEdition(data, editionId);
 }
 
 export async function reviewStudio2MediaAssets(input: {
@@ -431,8 +439,7 @@ export async function reviewStudio2MediaAssets(input: {
     p_reviews: input.reviews,
     p_reason: reason,
   });
-  if (!Array.isArray(data)) return [];
-  return data.map(mapReview);
+  return mapReviewsForEdition(data, input.editionId);
 }
 
 export function summarizeStudio2MediaAssets(items: readonly Studio2MediaAssetItem[]) {
