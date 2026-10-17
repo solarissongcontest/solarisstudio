@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, CircleHelp } from "lucide-react";
 import type { ReactNode } from "react";
 
 import {
@@ -7,9 +6,10 @@ import {
   ParticipationServiceShell,
 } from "@/components/ParticipationServiceShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { resolveV3FocusedTaskChrome } from "@/lib/v3-focused-task-chrome";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
-import { V3AppShell } from "./V3AppShell";
 import { V3ConfirmationPresentation } from "./V3ConfirmationPresentation";
+import { V3FocusedTaskShell } from "./V3FocusedTaskShell";
 import { V3Screen, V3ScreenHeader } from "./V3Foundation";
 
 type ConfirmationRouteAction = {
@@ -27,6 +27,8 @@ type V3ConfirmationRouteShellProps = {
   phaseLabel?: string | null;
 };
 
+const CONFIRMATION_FOCUSED_CHROME = resolveV3FocusedTaskChrome("/confirmations");
+
 function ResolvingConfirmationRoute({
   title,
   description,
@@ -35,6 +37,7 @@ function ResolvingConfirmationRoute({
     <main
       className="relative z-10 mx-auto w-full max-w-3xl px-4 py-10 sm:py-14"
       data-v3-confirmation-route-boot=""
+      data-v3-critical-task-content=""
     >
       <header className="border-b border-border/70 pb-5">
         <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">
@@ -60,9 +63,10 @@ function ResolvingConfirmationRoute({
  * Reversible route-level cutover for the complete Confirmation workflow.
  *
  * Public web and a disabled/unavailable Confirmation rollout keep the proven
- * participation shell. Installed-app users only receive the V3 app chrome when
- * both the global V3 flag and the independent Confirmation slice flag have been
- * evaluated server-side as enabled. No browser override can force this branch.
+ * participation shell. Installed-app users only receive the V3 focused critical
+ * task chrome when both the global V3 flag and the independent Confirmation
+ * slice flag have been evaluated server-side as enabled. The Confirmation
+ * feature still owns draft state, submission authority and reconciliation.
  */
 export function V3ConfirmationRouteShell({
   title,
@@ -104,29 +108,13 @@ export function V3ConfirmationRouteShell({
   );
 
   return (
-    <V3AppShell
+    <V3FocusedTaskShell
+      chrome={CONFIRMATION_FOCUSED_CHROME}
       editionLabel={editionLabel?.trim() || "Solaris Song Contest"}
-      phaseLabel={phaseLabel}
-      topActions={
-        <Link
-          to="/guide"
-          className="v3-icon-button"
-          aria-label="Open Solaris guide"
-          title="Guide"
-        >
-          <CircleHelp className="size-4" />
-        </Link>
-      }
+      statusLabel={phaseLabel}
     >
       <V3Screen className="v3-confirmation-route-screen">
         <div data-v3-confirmation-route="">
-          <Link
-            to="/participate"
-            className="mb-5 inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--v3-border-subtle)] bg-white/[0.025] px-3 text-xs font-semibold text-[var(--v3-text-secondary)] transition hover:border-[var(--v3-border)] hover:bg-white/[0.045] hover:text-[var(--v3-text-primary)]"
-          >
-            <ArrowLeft className="size-3.5" aria-hidden="true" /> Back to Participate
-          </Link>
-
           <V3ScreenHeader
             kicker="Participate · Confirmation"
             title={title}
@@ -155,6 +143,6 @@ export function V3ConfirmationRouteShell({
           </div>
         </div>
       </V3Screen>
-    </V3AppShell>
+    </V3FocusedTaskShell>
   );
 }
