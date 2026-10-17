@@ -52,8 +52,8 @@ const NOTIFICATION_PROVIDER_BY_DOMAIN_EVENT: Readonly<Record<string, readonly st
  * Domain-level task declarations describe ownership, not causality for every
  * event. Notice publication/supersession cannot fabricate a delivery-failure
  * task, a queued/delivered notification is not itself a delivery failure, and
- * Prediction changes cannot claim an operation-required task until that task
- * has an actual canonical reconciler.
+ * Prediction/Fantasy scoring cannot claim operation-required tasks until those
+ * tasks have actual canonical reconcilers.
  */
 const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = {
   "notice.published": [],
@@ -63,6 +63,7 @@ const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = 
   "notification.failed": ["notification.delivery_failed"],
   "prediction.changed": [],
   "prediction.scored": [],
+  "fantasy.scored": [],
 };
 
 const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
@@ -81,6 +82,11 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
   "entry.changes_requested": [
     "supabase/migrations/20261015201221_v3_s5_entry_consequences.sql",
     ".github/scripts/v3-s5-entry-consequences-rehearsal.sh",
+  ],
+  "fantasy.scored": [
+    "supabase/migrations/20261017120000_v3_s5_fantasy_score_consequences.sql",
+    "src/lib/v3-s5-fantasy-score-consequences.test.ts",
+    ".github/scripts/v3-s5-fantasy-score-consequences-rehearsal.sh",
   ],
   "media.reviewed": [
     "supabase/migrations/20261016050000_v3_s5_media_review_consequences.sql",
