@@ -40,9 +40,18 @@ describe("Confirmation maintenance operation-claim gate", () => {
   });
 
   it("keeps full maintenance mode closed to Confirmation commands", () => {
-    const maintenanceBranch = migration.split("when 'maintenance' then")[1];
-    expect(maintenanceBranch).toBeTruthy();
+    const afterMaintenance = migration.split("when 'maintenance' then")[1];
+    expect(afterMaintenance).toBeTruthy();
+
+    // Bound this assertion to the SQL CASE branch itself. Text after `else false`
+    // includes explanatory comments about read_only Confirmation commands and is
+    // not part of the maintenance-mode policy.
+    const maintenanceBranch = afterMaintenance?.split("else false")[0] ?? "";
+
+    expect(maintenanceBranch).toContain("'system.platform_mode.change'");
+    expect(maintenanceBranch).toContain("'account.session.revoke'");
     expect(maintenanceBranch).not.toContain("confirmation.round.");
+    expect(maintenanceBranch).not.toContain("studio2.confirmation_maintenance_write");
   });
 
   it("matches the command emitted by the canonical round operation", () => {
