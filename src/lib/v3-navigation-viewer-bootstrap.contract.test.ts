@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const shell = () =>
-  readFileSync(resolve(process.cwd(), "src/components/v3/V3AppShell.tsx"), "utf8");
+const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
+const shell = () => source("src/components/v3/V3AppShell.tsx");
 
 describe("V3 navigation viewer bootstrap", () => {
   it("does not treat unresolved viewer identity as anonymous route-memory authority", () => {
@@ -36,5 +36,22 @@ describe("V3 navigation viewer bootstrap", () => {
     expect(surfaceBlock).toMatch(/const nextSurface =\s+navigationIdentityReady &&/);
     expect(readyBlock).toContain("navigationIdentityReady &&");
     expect(readyBlock).toContain("swipePreviewSurfaces != null");
+  });
+
+  it("invalidates every gesture owner across resolving, anonymous and authenticated identity generations", () => {
+    const code = shell();
+    const cache = source("src/lib/account-cache-isolation.ts");
+
+    expect(code).toContain("const navigationInteractionKey = navigationIdentityReady");
+    expect(code).toContain('(navigationScope ?? "anonymous")');
+    expect(code).toContain(': "resolving"');
+    expect(code).toContain("interactionKey={navigationInteractionKey}");
+    expect(code).toContain("key={navigationInteractionKey}");
+
+    // Account changes remove the private rollout probe before the next viewer is
+    // published, forcing the shell through the resolving interaction generation.
+    expect(cache).toContain("v3-rollout-probe");
+    expect(cache).toContain("clearPrivateAccountQueries(client)");
+    expect(cache).toContain("previousUserId !== nextUserId");
   });
 });

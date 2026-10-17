@@ -146,6 +146,15 @@ export function V3AppShell({
   const navigationIdentityReady =
     !rollout.isLoading && !rollout.isError && rollout.data != null;
   const navigationScope = navigationIdentityReady ? (rollout.data.userId ?? null) : null;
+  // Keep gesture ownership stricter than storage scope: unresolved identity and
+  // explicitly anonymous identity are different interaction generations. Auth
+  // cache isolation removes the rollout probe on account changes, so this key
+  // changes immediately to "resolving" before a new viewer is trusted. That
+  // invalidates both page swipe and direct lens drag without exposing account
+  // identity outside the shell or teaching gesture primitives about Supabase.
+  const navigationInteractionKey = navigationIdentityReady
+    ? (navigationScope ?? "anonymous")
+    : "resolving";
   const notificationLabel =
     attention.me > 0
       ? `Notifications, ${attention.me} ${attention.me === 1 ? "item" : "items"} need attention`
@@ -366,7 +375,7 @@ export function V3AppShell({
           previousSurface={previousSurface}
           nextSurface={nextSurface}
           previewReady={swipePreviewReady}
-          interactionKey={navigationScope}
+          interactionKey={navigationInteractionKey}
           onCommit={(targetIndex) => {
             const target = liquidDestinations[targetIndex];
             if (target) openTab(target, "swipe");
@@ -378,6 +387,7 @@ export function V3AppShell({
       </div>
 
       <V3LiquidTabBar
+        key={navigationInteractionKey}
         pathname={pathname}
         destinations={liquidDestinations}
         onSelect={openTab}

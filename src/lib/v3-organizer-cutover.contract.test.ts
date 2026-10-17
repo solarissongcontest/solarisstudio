@@ -70,6 +70,8 @@ describe("V3 Organizer reversible cutover", () => {
 
   it("locks navigation and active workflow UI to the selected edition context", () => {
     expect(mobile).toContain("const navigationScope = activeEdition?.id ?? null");
+    expect(mobile).toContain('const navigationInteractionKey = navigationScope ?? "unscoped"');
+    expect(mobile).toContain("key={navigationInteractionKey}");
     expect(mobile).toContain("navigationScope,");
     expect(navigation).toContain('return `${STORAGE_PREFIX}:${scopeToken(scopeKey)}`');
     expect(navigation).toContain('return `${RESTORE_PREFIX}:${scopeToken(scopeKey)}`');
