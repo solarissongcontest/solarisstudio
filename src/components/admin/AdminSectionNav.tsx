@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { editionLabel, useEditions } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { useAdminContext } from "./AdminContext";
+import { resolveAdminEditionContext } from "./admin-edition-context";
 import {
   buildAdminContextualSection,
   type AdminContextualTab,
@@ -14,12 +15,8 @@ export function AdminSectionNav() {
   const { editionId } = useAdminContext();
   const { data: editions = [] } = useEditions();
 
-  const activeEdition =
-    editions.find((edition) => edition.id === editionId) ??
-    [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
-    null;
-
-  const activeEditionLabel = activeEdition ? editionLabel(activeEdition) : "Current edition";
+  const activeEdition = resolveAdminEditionContext(editions, editionId);
+  const activeEditionLabel = activeEdition ? editionLabel(activeEdition) : "Edition";
   const section = useMemo(
     () => buildAdminContextualSection(pathname, activeEdition?.slug, activeEditionLabel),
     [activeEdition?.slug, activeEditionLabel, pathname],
