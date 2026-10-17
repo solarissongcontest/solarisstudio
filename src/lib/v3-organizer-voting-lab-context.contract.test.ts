@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const votingLab = readFileSync("src/routes/_authenticated/admin/voting-lab.tsx", "utf8");
 const scenarios = readFileSync("src/lib/voting-lab-scenarios.ts", "utf8");
+const registry = readFileSync("src/lib/v3-organizer-capability-registry.ts", "utf8");
 
 describe("V3 Organizer Voting Lab scope", () => {
   it("fails closed without an exact Organizer edition", () => {
@@ -30,5 +31,9 @@ describe("V3 Organizer Voting Lab scope", () => {
     expect(votingLab).not.toContain(".insert(");
     expect(votingLab).not.toContain(".update(");
     expect(votingLab).not.toContain(".delete(");
+  });
+
+  it("records Voting Lab as building without turning synthetic output into official state", () => {
+    expect(registry).toContain('id === "live-review-voting-lab"');
   });
 });
