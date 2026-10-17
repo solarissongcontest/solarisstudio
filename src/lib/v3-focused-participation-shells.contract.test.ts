@@ -28,7 +28,8 @@ describe("V3 focused participation shell adoption", () => {
     expect(source).toContain("rollout.data?.enabled === true");
     expect(source).toContain("rollout.data.confirmationEnabled === true");
     expect(source).toContain("rollout.data.juryEnabled === true");
-    expect(source).toContain("<ParticipationRouteChrome>");
+    expect(source).toContain('aria-label="Participation task navigation"');
+    expect(source).toContain('className="participation-service-nav');
     expect(source).toContain("<PageHeader");
   });
 
