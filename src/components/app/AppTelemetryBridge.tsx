@@ -1,14 +1,14 @@
 import { useEffect, useRef } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
-
-const TASK_ROUTE = /^\/(confirmations|jury-voting|televoting|next-in-line)(\/|$)/;
 
 export function AppTelemetryBridge() {
   const { pathname } = useHydrationSafeRouterLocation();
   const { isAppMode, lifecycle, connectivity } = useSolarisApp();
+  const screen = resolveSolarisAppScreen(pathname);
   const lastResume = useRef<string | null>(null);
   const previousConnectivity = useRef(connectivity.status);
   const pushTracked = useRef(false);
@@ -27,11 +27,11 @@ export function AppTelemetryBridge() {
       },
     });
 
-    if (TASK_ROUTE.test(pathname)) {
+    if (screen.behavior.criticalTask) {
       trackPublicUxEvent("app_task_resumed", {
         target: pathname,
         metadata: {
-          area: "participate",
+          area: screen.hierarchy.rootTab ?? "app",
           source: "resume",
           elapsed_ms: lifecycle.backgroundDurationMs,
         },
@@ -42,6 +42,8 @@ export function AppTelemetryBridge() {
     lifecycle.backgroundDurationMs,
     lifecycle.lastResumeAt,
     pathname,
+    screen.behavior.criticalTask,
+    screen.hierarchy.rootTab,
   ]);
 
   useEffect(() => {
