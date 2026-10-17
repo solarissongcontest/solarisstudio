@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -19,7 +20,26 @@ describe("public route archetypes", () => {
     expect(publicRouteArchetype("/scorecharts")).toBe("data-explorer");
     expect(publicRouteArchetype("/compare")).toBe("workspace");
     expect(publicRouteArchetype("/rules/6-2")).toBe("reading");
-    expect(publicRouteArchetype("/confirmations")).toBe("focused-task");
+  });
+
+  it("classifies every canonical critical participant route as a focused task", () => {
+    for (const pathname of [
+      "/confirmations",
+      "/jury-voting",
+      "/televoting",
+      "/next-in-line",
+      "/my-solaris/entry",
+      "/integrity/report/category",
+    ]) {
+      expect(publicRouteArchetype(pathname), pathname).toBe("focused-task");
+    }
+  });
+
+  it("takes critical-task truth from the canonical screen registry", () => {
+    const source = readFileSync("src/lib/public-route-archetypes.ts", "utf8");
+    expect(source).toContain('resolveSolarisAppScreen(pathname).behavior.criticalTask');
+    expect(source).not.toContain("confirmations|jury-voting|televoting|next-in-line");
+    expect(source).not.toContain("integrity\\/report");
   });
 
   it("keeps stable CSS layout tokens separate from product archetypes", () => {

@@ -117,6 +117,7 @@ describe("installed app navigation state", () => {
     const state = readAppNavigationState(storage);
     expect(state.tabs.explore).toBeUndefined();
   });
+
   it("restores the active safe screen on a true app cold launch", () => {
     const storage = new MemoryStorage();
     rememberAppLocation("/explore", "", 0, storage);
@@ -153,13 +154,33 @@ describe("installed app navigation state", () => {
     });
   });
 
-  it("falls back to the tab root instead of cold-launching a critical submission flow", () => {
+  it("falls back to the tab root instead of cold-launching any canonical critical task", () => {
+    for (const pathname of [
+      "/televoting",
+      "/jury-voting",
+      "/confirmations/edit/demo-token",
+      "/next-in-line",
+      "/my-solaris/entry",
+      "/integrity/report/category",
+    ]) {
+      const storage = new MemoryStorage();
+      rememberAppLocation("/participate", "", 0, storage);
+      rememberAppLocation(pathname, "", 240, storage);
+
+      expect(getAppLaunchDestination(true, storage), pathname).toMatchObject({
+        pathname: "/participate",
+        scrollY: 0,
+      });
+    }
+  });
+
+  it("falls back to the Home root instead of cold-launching immersive app surfaces", () => {
     const storage = new MemoryStorage();
-    rememberAppLocation("/participate", "", 0, storage);
-    rememberAppLocation("/televoting", "", 240, storage);
+    rememberAppLocation("/", "", 0, storage);
+    rememberAppLocation("/show-mode", "", 0, storage);
 
     expect(getAppLaunchDestination(true, storage)).toMatchObject({
-      pathname: "/participate",
+      pathname: "/",
       scrollY: 0,
     });
   });

@@ -252,14 +252,10 @@ export function getAppTabDestination(
 }
 
 function coldLaunchDestinationAllowed(entry: AppHistoryEntry) {
-  if (
-    /^\/(app-launch|auth|reset|recover)(\/|$)/.test(entry.pathname) ||
-    /^\/(confirmations|jury-voting|televoting|next-in-line)(\/|$)/.test(entry.pathname) ||
-    /^\/broadcast(\/|$)/.test(entry.pathname) ||
-    /^\/show-mode(\/|$)/.test(entry.pathname)
-  ) {
-    return false;
-  }
+  if (/^\/(app-launch|auth|reset|recover)(\/|$)/.test(entry.pathname)) return false;
+
+  const screen = resolveSolarisAppScreen(entry.pathname, entry.searchStr);
+  if (screen.behavior.criticalTask || screen.behavior.immersive) return false;
 
   const visitedAt = new Date(entry.visitedAt).getTime();
   return (
