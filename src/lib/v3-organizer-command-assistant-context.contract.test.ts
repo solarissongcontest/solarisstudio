@@ -5,6 +5,10 @@ const source = readFileSync(
   "src/routes/_authenticated/admin/command-assistant.tsx",
   "utf8",
 );
+const registry = readFileSync(
+  "src/lib/v3-organizer-capability-registry.ts",
+  "utf8",
+);
 
 describe("V3 Organizer Command Assistant edition context", () => {
   it("validates the selected Organizer edition before loading operational context", () => {
@@ -40,5 +44,9 @@ describe("V3 Organizer Command Assistant edition context", () => {
     expect(source).toContain('eyebrow="Canonical explanation"');
     expect(source).toContain("Read-only explanation");
     expect(source).toContain("cannot generate arbitrary SQL, bypass permissions or silently execute a write");
+  });
+
+  it("records Command Assistant as building without granting write authority", () => {
+    expect(registry).toContain('id === "workspace-command-assistant"');
   });
 });
