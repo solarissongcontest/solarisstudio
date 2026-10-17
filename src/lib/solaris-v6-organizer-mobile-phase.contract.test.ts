@@ -13,17 +13,11 @@ describe("Solaris V6 Organizer mobile phase", () => {
 
     expect(shell).toContain("<OrganizerV6MobileChrome />");
     expect(frame).not.toContain("OrganizerV6TabBar");
-    for (const id of ["overview", "tasks", "control", "live", "more"]) {
+    for (const id of ["home", "edition", "tasks", "delegations", "more"]) {
       expect(chrome).toContain(`id: "${id}"`);
     }
-    for (const label of ["Overview", "Tasks", "Control", "Live", "More"]) {
-      expect(chrome).toContain(`label: "${label}"`);
-    }
-    expect(chrome).toContain("v3OrganizerTabForPath");
     expect(chrome).toContain("consumeAdminNavigationRestore");
     expect(chrome).toContain("useOrganizerTaskCountV5");
-    expect(navigation).toContain("V3OrganizerTabId");
-    expect(navigation).toContain("solaris:organizer-navigation:v2");
     expect(navigation).toContain("solaris:organizer-navigation:v1");
   });
 

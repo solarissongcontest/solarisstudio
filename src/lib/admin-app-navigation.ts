@@ -1,20 +1,4 @@
-import {
-  V3_ORGANIZER_TAB_ORDER,
-  v3OrganizerTabForPath,
-  v3OrganizerTabRoot,
-  type V3OrganizerTabId,
-} from "@/lib/v3-organizer";
-
-export type AdminAppTabId = V3OrganizerTabId;
-
-type LegacyAdminAppTabId =
-  | "home"
-  | "edition"
-  | "tasks"
-  | "delegations"
-  | "more"
-  | "inbox"
-  | "cases";
+export type AdminAppTabId = "home" | "edition" | "tasks" | "delegations" | "more";
 
 export type AdminHistoryEntry = {
   pathname: string;
@@ -29,13 +13,12 @@ export type AdminTabState = {
 };
 
 export type AdminNavigationState = {
-  version: 2;
+  version: 1;
   activeTab: AdminAppTabId;
   tabs: Partial<Record<AdminAppTabId, AdminTabState>>;
 };
 
-const STORAGE_KEY = "solaris:organizer-navigation:v2";
-const LEGACY_STORAGE_KEY = "solaris:organizer-navigation:v1";
+const STORAGE_KEY = "solaris:organizer-navigation:v1";
 const RESTORE_INTENT_KEY = "solaris:organizer-navigation-restore:v1";
 const MAX_HISTORY_PER_TAB = 20;
 
@@ -76,7 +59,6 @@ function safeAdminPath(pathname: string) {
   );
 }
 
-/** Legacy route-family helper retained for callers that still need delegation semantics. */
 export function adminDelegationRoute(path: string) {
   return (
     path.startsWith("/admin/countries") ||
@@ -86,7 +68,6 @@ export function adminDelegationRoute(path: string) {
   );
 }
 
-/** Legacy route-family helper retained for edition-workspace callers outside global navigation. */
 export function adminEditionRoute(path: string, slug?: string | null) {
   return (
     (slug ? path === "/admin/" + slug : false) ||
@@ -129,16 +110,26 @@ export function adminCasesRoute(path: string) {
   );
 }
 
-export function adminAppTabRoot(tab: AdminAppTabId, _slug?: string | null) {
-  return v3OrganizerTabRoot(tab);
+export function adminAppTabRoot(tab: AdminAppTabId, slug?: string | null) {
+  if (tab === "home") return "/admin/operations";
+  if (tab === "edition") return slug ? "/admin/" + slug : "/admin";
+  if (tab === "tasks") return "/admin/tasks";
+  if (tab === "delegations") return "/admin/countries";
+  return "/admin/more";
 }
 
-export function adminAppTabForPath(
-  pathname: string,
-  _slug?: string | null,
-): AdminAppTabId | null {
+export function adminAppTabForPath(pathname: string, slug?: string | null): AdminAppTabId | null {
   if (!safeAdminPath(pathname)) return null;
-  return v3OrganizerTabForPath(pathname);
+  if (pathname.startsWith("/admin/operations")) return "home";
+  if (
+    pathname.startsWith("/admin/tasks") ||
+    pathname.startsWith("/admin/action-center") ||
+    pathname.startsWith("/admin/action-centre") ||
+    pathname.startsWith("/admin/inbox")
+  ) return "tasks";
+  if (adminDelegationRoute(pathname)) return "delegations";
+  if (adminEditionRoute(pathname, slug)) return "edition";
+  return "more";
 }
 
 function defaultEntry(tab: AdminAppTabId, slug?: string | null): AdminHistoryEntry {
@@ -169,62 +160,59 @@ function sanitizeEntry(value: unknown): AdminHistoryEntry | null {
 }
 
 function emptyState(): AdminNavigationState {
-  return { version: 2, activeTab: "overview", tabs: {} };
+  return { version: 1, activeTab: "home", tabs: {} };
 }
 
 export function adminEntryHref(entry: Pick<AdminHistoryEntry, "pathname" | "searchStr">) {
   return entry.pathname + normalizeSearch(entry.searchStr);
 }
 
-function legacyActiveFallback(value: unknown): AdminAppTabId {
-  const legacy = value as LegacyAdminAppTabId | undefined;
-  if (legacy === "tasks" || legacy === "inbox") return "tasks";
-  if (legacy === "edition" || legacy === "delegations") return "control";
-  if (legacy === "more" || legacy === "cases") return "more";
-  if (V3_ORGANIZER_TAB_ORDER.includes(value as V3OrganizerTabId)) {
-    return value as V3OrganizerTabId;
-  }
-  return "overview";
-}
-
-/**
- * Reads both canonical V2 memory and legacy V1 memory. Legacy Home/Edition/
- * Delegations stacks are redistributed by the *current canonical route owner*,
- * so old Control Room history correctly migrates to Live rather than being
- * trapped under the former Edition tab.
- */
 export function readAdminNavigationState(
   slug?: string | null,
   storage: StorageReader | null = browserStorage(),
 ): AdminNavigationState {
   if (!storage) return emptyState();
   try {
-    const raw = storage.getItem(STORAGE_KEY) ?? storage.getItem(LEGACY_STORAGE_KEY);
+    const raw = storage.getItem(STORAGE_KEY);
     if (!raw) return emptyState();
-    const parsed = JSON.parse(raw) as {
-      version?: 1 | 2;
-      activeTab?: AdminAppTabId | LegacyAdminAppTabId;
+    const parsed = JSON.parse(raw) as Partial<AdminNavigationState> & {
+      activeTab?: AdminAppTabId | "inbox" | "cases";
       tabs?: Record<string, AdminTabState | undefined>;
     };
-    const sourceStates = Object.values(parsed.tabs ?? {}).filter(
-      (candidate): candidate is AdminTabState => Boolean(candidate),
-    );
-    const allHistory = sourceStates
-      .flatMap((candidate) => (Array.isArray(candidate.history) ? candidate.history : []))
-      .map(sanitizeEntry)
-      .filter((entry): entry is AdminHistoryEntry => Boolean(entry));
-    const allCurrent = sourceStates
-      .map((candidate) => sanitizeEntry(candidate.current))
-      .filter((entry): entry is AdminHistoryEntry => Boolean(entry));
+    const validTabs: AdminAppTabId[] = ["home", "edition", "tasks", "delegations", "more"];
+    const migrateTab = (value: unknown): AdminAppTabId => {
+      if (value === "inbox") return "tasks";
+      if (value === "cases") return "more";
+      return validTabs.includes(value as AdminAppTabId) ? (value as AdminAppTabId) : "home";
+    };
+    const activeTab = migrateTab(parsed.activeTab);
     const tabs: Partial<Record<AdminAppTabId, AdminTabState>> = {};
+    const sourceNames: Record<AdminAppTabId, string[]> = {
+      home: ["home"],
+      edition: ["edition"],
+      tasks: ["tasks", "inbox"],
+      delegations: ["delegations"],
+      more: ["more", "cases"],
+    };
 
-    for (const tab of V3_ORGANIZER_TAB_ORDER) {
-      const history = allHistory
+    for (const tab of validTabs) {
+      const candidates = sourceNames[tab]
+        .map((name) => parsed.tabs?.[name])
+        .filter((candidate): candidate is AdminTabState => Boolean(candidate));
+      if (!candidates.length) continue;
+
+      const history = candidates
+        .flatMap((candidate) => (Array.isArray(candidate.history) ? candidate.history : []))
+        .map(sanitizeEntry)
+        .filter((entry): entry is AdminHistoryEntry => Boolean(entry))
         .filter((entry) => adminAppTabForPath(entry.pathname, slug) === tab)
         .sort((a, b) => a.visitedAt.localeCompare(b.visitedAt))
         .slice(-MAX_HISTORY_PER_TAB);
+
       const current =
-        allCurrent
+        candidates
+          .map((candidate) => sanitizeEntry(candidate.current))
+          .filter((entry): entry is AdminHistoryEntry => Boolean(entry))
           .filter((entry) => adminAppTabForPath(entry.pathname, slug) === tab)
           .sort((a, b) => a.visitedAt.localeCompare(b.visitedAt))
           .at(-1) ??
@@ -234,15 +222,7 @@ export function readAdminNavigationState(
       if (!current) continue;
       tabs[tab] = { current, history: history.length ? history : [current] };
     }
-
-    const activeSourceName = String(parsed.activeTab ?? "");
-    const activeSourceCurrent = sanitizeEntry(parsed.tabs?.[activeSourceName]?.current);
-    const activeFromRoute = activeSourceCurrent
-      ? adminAppTabForPath(activeSourceCurrent.pathname, slug)
-      : null;
-    const activeTab = activeFromRoute ?? legacyActiveFallback(parsed.activeTab);
-
-    return { version: 2, activeTab, tabs };
+    return { version: 1, activeTab, tabs };
   } catch {
     return emptyState();
   }

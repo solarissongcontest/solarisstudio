@@ -12,6 +12,8 @@ import { useEffect } from "react";
 import { OrganizerV6TabBar, type OrganizerV6TabItem } from "@/components/admin/OrganizerV6TabBar";
 import {
   adminAppTabRoot,
+  adminDelegationRoute,
+  adminEditionRoute,
   adminEntryHref,
   consumeAdminNavigationRestore,
   getAdminAppTabDestination,
@@ -27,26 +29,19 @@ import { useEditions } from "@/lib/data";
 import { prefersReducedMotion } from "@/lib/interaction-physics";
 import { useOrganisationBackendContract } from "@/lib/organisation-backend-contract";
 import { resolveOrganizerV6Screen } from "@/lib/organizer-v6-screen-registry";
-import { v3OrganizerTabForPath } from "@/lib/v3-organizer";
 import { useAdminContext } from "./AdminContext";
 import { resolveAdminEditionContext } from "./admin-edition-context";
 
 type MobileItem = {
   id: AdminAppTabId;
   label: string;
-  href: string;
-  availability: "ready";
+  href: string | null;
+  availability: "ready" | "requires-edition";
   icon: LucideIcon;
   active: (pathname: string) => boolean;
 };
 
-/**
- * Canonical Organizer V3 mobile chrome owner.
- *
- * Domain content remains Organizer-owned; this component only maps the five
- * canonical operational roots onto shared mobile navigation mechanics and
- * per-root route/scroll memory.
- */
+/** Canonical Organizer V6 mobile chrome owner. */
 export function OrganizerV6MobileChrome() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
@@ -58,6 +53,7 @@ export function OrganizerV6MobileChrome() {
   const tasksSupported = backend.data?.capabilities.organizerTasks === true;
   const activeEdition = resolveAdminEditionContext(editions, editionId);
   const slug = activeEdition?.slug;
+  const editionHref = slug ? `/admin/${slug}` : null;
   const taskCount = useOrganizerTaskCountV5(
     activeEdition?.id ?? null,
     tasksSupported,
@@ -69,12 +65,20 @@ export function OrganizerV6MobileChrome() {
 
   const mobileItems: MobileItem[] = [
     {
-      id: "overview",
-      label: "Overview",
+      id: "home",
+      label: "Home",
       href: "/admin/operations",
       availability: "ready",
       icon: LayoutDashboard,
-      active: (path) => v3OrganizerTabForPath(path) === "overview",
+      active: (path) => path.startsWith("/admin/operations"),
+    },
+    {
+      id: "edition",
+      label: "Edition",
+      href: editionHref,
+      availability: slug ? "ready" : "requires-edition",
+      icon: Layers3,
+      active: (path) => adminEditionRoute(path, slug),
     },
     {
       id: "tasks",
@@ -82,23 +86,19 @@ export function OrganizerV6MobileChrome() {
       href: "/admin/tasks",
       availability: "ready",
       icon: BellRing,
-      active: (path) => v3OrganizerTabForPath(path) === "tasks",
+      active: (path) =>
+        path.startsWith("/admin/tasks") ||
+        path.startsWith("/admin/action-center") ||
+        path.startsWith("/admin/action-centre") ||
+        path.startsWith("/admin/inbox"),
     },
     {
-      id: "control",
-      label: "Control",
-      href: "/admin/control",
-      availability: "ready",
-      icon: Layers3,
-      active: (path) => v3OrganizerTabForPath(path) === "control",
-    },
-    {
-      id: "live",
-      label: "Live",
-      href: "/admin/control-room",
+      id: "delegations",
+      label: "Delegations",
+      href: "/admin/countries",
       availability: "ready",
       icon: Flag,
-      active: (path) => v3OrganizerTabForPath(path) === "live",
+      active: adminDelegationRoute,
     },
     {
       id: "more",
@@ -106,7 +106,14 @@ export function OrganizerV6MobileChrome() {
       href: "/admin/more",
       availability: "ready",
       icon: MoreHorizontal,
-      active: (path) => v3OrganizerTabForPath(path) === "more",
+      active: (path) =>
+        !path.startsWith("/admin/operations") &&
+        !path.startsWith("/admin/tasks") &&
+        !path.startsWith("/admin/action-center") &&
+        !path.startsWith("/admin/action-centre") &&
+        !path.startsWith("/admin/inbox") &&
+        !adminDelegationRoute(path) &&
+        !adminEditionRoute(path, slug),
     },
   ];
 
@@ -144,6 +151,7 @@ export function OrganizerV6MobileChrome() {
   }, [pathname, searchStr, slug]);
 
   const openMobileItem = (item: MobileItem) => {
+    if (item.availability !== "ready" || !item.href) return;
     if (typeof window === "undefined" || window.innerWidth >= 900) return;
     const active = item.active(pathname);
     const root = adminAppTabRoot(item.id, slug);
@@ -174,6 +182,8 @@ export function OrganizerV6MobileChrome() {
         label: item.label,
         href: item.href,
         availability: item.availability,
+        unavailableReason:
+          item.availability === "requires-edition" ? "Select an edition first" : undefined,
         icon: item.icon,
         active: item.active(pathname),
         badge: item.id === "tasks" ? unresolvedTaskCount : undefined,
