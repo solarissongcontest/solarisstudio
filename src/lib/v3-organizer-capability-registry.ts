@@ -138,6 +138,7 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "operations-eligibility" ||
     id === "operations-media-assets" ||
     id === "live-review-time-machine" ||
+    id === "live-review-voting-lab" ||
     id === "delegation-confirmation-overview" ||
     id === "delegation-confirmation-requirements" ||
     id === "delegation-confirmation-responses" ||
