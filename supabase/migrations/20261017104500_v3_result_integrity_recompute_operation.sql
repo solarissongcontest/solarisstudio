@@ -90,6 +90,15 @@ begin
       raise exception 'Result Integrity members must be a bounded JSON array'
         using errcode = '22023';
     end if;
+    if exists (
+      select 1
+      from jsonb_array_elements(v_members) member
+      where jsonb_typeof(member) <> 'string'
+         or length(member #>> '{}') > 240
+    ) then
+      raise exception 'Result Integrity member identities are invalid'
+        using errcode = '22023';
+    end if;
     if jsonb_typeof(v_item -> 'winnerChanged') <> 'boolean'
        or jsonb_typeof(v_item -> 'topThreeChanged') <> 'boolean'
        or jsonb_typeof(v_item -> 'qualifierChanged') <> 'boolean' then
@@ -146,6 +155,9 @@ begin
     'hex'
   );
 
+  -- Claim before checking the mutable calculation version. Exact replay must
+  -- return the original durable result even if the round has advanced since
+  -- the first successful request.
   v_claim := private.studio2_claim_operation(
     p_operation_id,
     p_idempotency_key,
@@ -272,25 +284,10 @@ begin
     'rowCount', v_evidence_count
   );
 
-  perform private.v3_emit_domain_event(
-    'televote.result_integrity_recomputed',
-    'televote_result_integrity',
-    p_round_id::text || ':' || p_expected_calculation_version::text,
-    v_next_revision,
-    v_canonical_operation_id,
-    p_solaris_edition_id,
-    null,
-    jsonb_build_object(
-      'roundId', p_round_id,
-      'calculationVersion', p_expected_calculation_version,
-      'evidenceRevision', v_next_revision,
-      'rowCount', v_evidence_count,
-      'evidenceFingerprint', v_evidence_fingerprint
-    ),
-    1,
-    array[]::text[]
-  );
-
+  -- The durable S2 receipt is the canonical audit/reconciliation evidence for
+  -- this derived-analysis refresh. There are intentionally no downstream task,
+  -- notification, publication or result consequences, so no orphan DomainEvent
+  -- is emitted merely to decorate the write.
   return private.studio2_complete_operation(v_canonical_operation_id, v_result);
 end
 $apply$;
