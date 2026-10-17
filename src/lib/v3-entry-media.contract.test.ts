@@ -59,6 +59,16 @@ describe("Public V3 P14 Entry media authority contract", () => {
     expect(contract).toContain("participant-safe read projection is missing");
   });
 
+  it("renders a percentage only when measured progress exists", () => {
+    const component = source("src/components/v3/V3EntryMediaPipelineStatus.tsx");
+
+    expect(component).toContain('view.progressPercent !== null');
+    expect(component).toContain('aria-valuenow={view.progressPercent}');
+    expect(component).toContain('style={{ width: `${view.progressPercent}%` }}');
+    expect(component).not.toContain("setInterval");
+    expect(component).not.toContain("Math.random");
+  });
+
   it("pins P14 as building until participant upload and read authority exist", () => {
     const contract = source("docs/architecture/v3-public-p14-entry-media-contract.md");
 
