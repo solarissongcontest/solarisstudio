@@ -1,0 +1,127 @@
+[data-solaris-v3] .v3-desktop-primary-nav {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  [data-solaris-v3] .v3-desktop-primary-nav {
+    position: sticky;
+    top: calc(3.25rem + env(safe-area-inset-top));
+    z-index: 25;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.35rem;
+    width: min(calc(100% - 3rem), 72rem);
+    margin: 0.45rem auto 0;
+    padding: 0.38rem;
+    border: 1px solid var(--v3-border-subtle);
+    border-radius: 1.2rem;
+    background: color-mix(in oklab, var(--v3-bg-subtle) 92%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(135%);
+    backdrop-filter: blur(18px) saturate(135%);
+    box-shadow: 0 12px 34px rgba(0, 3, 20, 0.14);
+  }
+
+  [data-solaris-v3] .v3-desktop-primary-nav__item {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.9rem;
+    color: var(--v3-text-secondary);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition:
+      color var(--v3-motion-fast) var(--v3-ease-enter),
+      background-color var(--v3-motion-fast) var(--v3-ease-enter),
+      transform var(--v3-motion-instant) var(--v3-ease-enter);
+  }
+
+  [data-solaris-v3] .v3-desktop-primary-nav__item:hover,
+  [data-solaris-v3] .v3-desktop-primary-nav__item[data-active="true"] {
+    color: var(--v3-text-primary);
+    background: rgba(255,255,255,0.055);
+  }
+
+  [data-solaris-v3] .v3-desktop-primary-nav__item[data-emphasis="true"]:not([data-active="true"]) {
+    color: var(--v3-accent-strong);
+  }
+
+  [data-solaris-v3] .v3-desktop-primary-nav__item:active {
+    transform: scale(0.985);
+  }
+
+  [data-solaris-v3] .v3-desktop-primary-nav__item:focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--v3-accent-strong) 82%, white);
+    outline-offset: 2px;
+  }
+
+  [data-solaris-v3] .v3-desktop-primary-nav__icon {
+    position: relative;
+    display: grid;
+    width: 1.3rem;
+    height: 1.3rem;
+    flex: 0 0 auto;
+    place-items: center;
+  }
+
+  [data-solaris-v3] .v3-desktop-primary-nav__icon > svg {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  [data-solaris-v3] .v3-desktop-primary-nav__badge {
+    position: absolute;
+    right: -0.62rem;
+    top: -0.5rem;
+    display: grid;
+    min-width: 1rem;
+    height: 1rem;
+    place-items: center;
+    padding: 0 0.2rem;
+    border-radius: 999px;
+    color: white;
+    background: var(--v3-danger);
+    font-size: 0.5rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar {
+    display: none !important;
+  }
+
+  [data-solaris-v3] .v3-screen {
+    width: min(100%, 72rem);
+    padding-bottom: 4rem;
+  }
+}
+
+@media (min-width: 1440px) {
+  [data-solaris-v3] .v3-desktop-primary-nav,
+  [data-solaris-v3] .v3-screen {
+    width: min(100%, 76rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-solaris-v3] .v3-desktop-primary-nav__item {
+    transition: none;
+  }
+
+  [data-solaris-v3] .v3-desktop-primary-nav__item:active {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  [data-solaris-v3] .v3-desktop-primary-nav {
+    background: var(--v3-bg-subtle);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
