@@ -5,11 +5,11 @@ set -euo pipefail
 # Deliberately local/operator-run: production credentials must never be exposed to CI.
 
 PRODUCTION_PROJECT_REF="dkxmnvekiopyesuzggeu"
-EXPECTED_REMOTE_HEAD="20261017143200"
-EXPECTED_REPO_HEAD="20261017194000"
+EXPECTED_REMOTE_HEAD="20261017194000"
+EXPECTED_REPO_HEAD="20261017201000"
 EXPECTED_PENDING_COUNT="1"
 EXPECTED_PENDING_VERSIONS=(
-  20261017194000
+  20261017201000
 )
 
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
