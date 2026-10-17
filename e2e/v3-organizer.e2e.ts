@@ -87,15 +87,18 @@ test("V3 Organizer owns canonical operational navigation and fails back independ
 
     await page.goto("/admin/operations", { waitUntil: "domcontentloaded" });
     await expect(page.locator('[data-organizer-generation="v3"]')).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Organizer navigation" })).toBeVisible();
+
+    const v3Nav = page.getByRole("navigation", { name: "Primary app navigation" });
+    await expect(v3Nav).toBeVisible();
+    await expect(page.locator("[data-organizer-v3-liquid-nav]")).toHaveCSS("min-height", "0px");
+    await expect(page.locator("[data-v3-liquid-tabbar]")).toHaveCount(1);
+    await expect(v3Nav.locator('[aria-current="page"]')).toHaveCount(1);
 
     for (const label of ["Overview", "Tasks", "Control", "Live", "More"]) {
-      await expect(
-        page.getByRole("navigation", { name: "Organizer navigation" }).getByText(label, { exact: true }),
-      ).toBeVisible();
+      await expect(v3Nav.getByRole("link", { name: new RegExp(`^${label}(?:,|$)`) })).toHaveCount(1);
     }
 
-    await page.getByRole("navigation", { name: "Organizer navigation" }).getByText("Control", { exact: true }).click();
+    await v3Nav.getByRole("link", { name: /^Control(?:,|$)/ }).click();
     await expect(page).toHaveURL(/\/admin\/control(?:$|[?#])/);
     await expect(page.locator('[data-v3-organizer-control=""]')).toBeVisible();
     await expect(page.getByRole("heading", { name: "Contest systems", exact: true })).toBeVisible();
@@ -104,6 +107,12 @@ test("V3 Organizer owns canonical operational navigation and fails back independ
     await expect(page.getByRole("heading", { name: "Contest", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Voting", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Publication", exact: true })).toBeVisible();
+    await expect(page.locator('[data-organizer-v3-tabbar-mode="compact"]')).toBeVisible();
+    const compactHeight = await page
+      .locator(".v3-liquid-tabbar__material")
+      .evaluate((element) => element.getBoundingClientRect().height);
+    expect(compactHeight).toBeGreaterThanOrEqual(54);
+    expect(compactHeight).toBeLessThanOrEqual(58);
 
     await setFeature(url!, publishableKey!, session, "solaris_app_v3_organizer", false, true);
     await page.goto("/admin/operations", { waitUntil: "domcontentloaded" });

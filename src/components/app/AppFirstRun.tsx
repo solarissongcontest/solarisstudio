@@ -8,20 +8,22 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 
 export const APP_FIRST_RUN_COMPLETE_KEY = "solaris:app-first-run-complete:v1";
 
-function allowedOnPath(pathname: string) {
-  return !(
+export function appFirstRunAllowedOnPath(pathname: string) {
+  if (
     pathname === "/app-launch" ||
-    pathname.startsWith("/auth") ||
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/confirmations") ||
-    pathname.startsWith("/jury-voting") ||
-    pathname.startsWith("/televoting") ||
-    pathname.startsWith("/next-in-line") ||
-    pathname.startsWith("/broadcast/")
-  );
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/") ||
+    /^\/(auth|reset|recover)(\/|$)/.test(pathname)
+  ) {
+    return false;
+  }
+
+  const screen = resolveSolarisAppScreen(pathname);
+  return !screen.behavior.criticalTask && !screen.behavior.immersive;
 }
 
 export function appFirstRunComplete() {
@@ -41,7 +43,10 @@ export function AppFirstRun({
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!isAppMode || !allowedOnPath(pathname)) return;
+    if (!isAppMode || !appFirstRunAllowedOnPath(pathname)) {
+      setOpen(false);
+      return;
+    }
     if (window.localStorage.getItem(APP_FIRST_RUN_COMPLETE_KEY) === "1") return;
     setOpen(true);
   }, [isAppMode, pathname]);

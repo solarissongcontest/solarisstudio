@@ -34,11 +34,26 @@ describe("App Experience v3 task and route-state foundation", () => {
     expect(root).not.toContain("<AppRuntime>\n        <SolarisAnniversaryCelebration");
   });
 
-  it("keeps installed navigation visible while ordinary routes are pending", () => {
+  it("keeps ordinary installed navigation during pending routes but lets critical tasks own focused pending chrome", () => {
     const router = source("src/router.tsx");
+    expect(router).toContain("resolveSolarisAppScreen(pathname).behavior.criticalTask");
+    expect(router).toContain("if (isAppMode && criticalTask)");
     expect(router).toContain("AppRouteStateFrame");
     expect(router).toContain("AppRouteSkeleton");
-    expect(router).toContain("alreadyInsideParticipationChrome");
+    expect(router).not.toContain("alreadyInsideParticipationChrome");
+  });
+
+  it("keeps critical error and not-found recovery out of generic app chrome", () => {
+    const frame = source("src/components/app/AppRouteStateFrame.tsx");
+    expect(frame).toContain('resolveSolarisAppScreen(pathname, searchStr).behavior.criticalTask');
+    expect(frame).toContain("shouldOwnCriticalRouteStateFrame(pathname, searchStr)");
+    expect(frame).toContain('data-v3-critical-route-state={screen.id}');
+    expect(frame).toContain('data-solaris-app-critical-task="true"');
+    expect(frame).toContain('pathname.startsWith("/confirmations/admin")');
+    expect(frame).toContain('pathname.startsWith("/televoting/admin")');
+    expect(frame.indexOf("if (shouldOwnCriticalRouteStateFrame")).toBeLessThan(
+      frame.indexOf("<AppShell>"),
+    );
   });
 
   it("styles loading and recovery states inside the installed app shell", () => {

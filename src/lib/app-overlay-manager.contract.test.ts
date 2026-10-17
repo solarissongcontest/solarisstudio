@@ -35,4 +35,16 @@ describe("app overlay manager", () => {
     expect(firstRun).toContain("onComplete?.()");
     expect(firstRun).toContain("APP_FIRST_RUN_COMPLETE_KEY");
   });
+
+  it("closes first-run onboarding when navigation enters critical or immersive work", () => {
+    const firstRun = source("src/components/app/AppFirstRun.tsx");
+    expect(firstRun).toContain("resolveSolarisAppScreen(pathname)");
+    expect(firstRun).toContain("!screen.behavior.criticalTask && !screen.behavior.immersive");
+    expect(firstRun).toContain("if (!isAppMode || !appFirstRunAllowedOnPath(pathname)) {");
+    expect(firstRun).toContain("setOpen(false)");
+    expect(firstRun).not.toContain('pathname.startsWith("/confirmations")');
+    expect(firstRun).not.toContain('pathname.startsWith("/jury-voting")');
+    expect(firstRun).not.toContain('pathname.startsWith("/televoting")');
+    expect(firstRun).not.toContain('pathname.startsWith("/next-in-line")');
+  });
 });

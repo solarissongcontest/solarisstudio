@@ -6,6 +6,8 @@ const surfaces = readFileSync("src/lib/studio2-product-surfaces.ts", "utf8");
 const rollout = readFileSync("src/integrations/v3/rollout-probe.server.ts", "utf8");
 const shell = readFileSync("src/components/admin/AdminShell.tsx", "utf8");
 const mobile = readFileSync("src/components/admin/OrganizerV3MobileChrome.tsx", "utf8");
+const mobileCss = readFileSync("src/styles/v3-organizer-liquid-tabbar.css", "utf8");
+const liquidTabBar = readFileSync("src/components/v3/V3LiquidTabBar.tsx", "utf8");
 const navigation = readFileSync("src/lib/v3-organizer-navigation.ts", "utf8");
 const control = readFileSync("src/routes/_authenticated/admin/control.tsx", "utf8");
 const migration = readFileSync(
@@ -33,18 +35,43 @@ describe("V3 Organizer reversible cutover", () => {
     expect(shell).toContain("organizerV3Enabled ? <OrganizerV3MobileChrome /> : <OrganizerV6MobileChrome />");
   });
 
-  it("uses the canonical five Organizer areas without creating a second tab bar primitive", () => {
+  it("uses the canonical five Organizer areas through the shared V3 Liquid tab primitive", () => {
     for (const label of ["Overview", "Tasks", "Control", "Live", "More"]) {
       expect(mobile).toContain(`label: "${label}"`);
     }
-    expect(mobile).toContain("OrganizerV6TabBar");
+    expect(mobile).toContain("V3LiquidTabBar");
+    expect(mobile).not.toContain("OrganizerV6TabBar");
     expect(mobile).toContain("V3_ORGANIZER_TAB_ORDER.map");
     expect(mobile).toContain("getV3OrganizerTabDestination");
     expect(mobile).toContain("consumeV3OrganizerNavigationRestore");
+    expect(liquidTabBar).toContain('data-v3-liquid-tabbar=""');
+    expect(liquidTabBar).toContain("resolveV3NavigationVisualProgress");
+    expect(liquidTabBar).toContain("resolveV3LogicalHorizontalDelta");
+  });
+
+  it("loads canonical V3 navigation tokens without turning the nav wrapper into a V3 page", () => {
+    expect(mobile).toContain('import "@/styles/v3-foundations.css"');
+    expect(mobile).toContain('data-solaris-v3=""');
+    expect(mobileCss).toContain('[data-organizer-v3-liquid-nav][data-solaris-v3]');
+    expect(mobileCss).toContain("min-height: 0");
+    expect(mobileCss).toContain("background: transparent");
+    expect(mobileCss).toContain("font-family: inherit");
+    expect(mobileCss).toContain("color-scheme: inherit");
+  });
+
+  it("preserves Organizer compact/detail and desktop visibility policy around the shared bar", () => {
+    expect(mobile).toContain('if (screen.tabbar === "hidden") return null');
+    expect(mobile).toContain("data-organizer-v3-tabbar-mode={screen.tabbar}");
+    expect(mobileCss).toContain('[data-organizer-v3-tabbar-mode="compact"] .v3-liquid-tabbar__material');
+    expect(mobileCss).toContain("height: 3.55rem");
+    expect(mobileCss).toContain("@media (min-width: 900px)");
+    expect(mobileCss).toContain("display: none");
   });
 
   it("locks navigation and active workflow UI to the selected edition context", () => {
     expect(mobile).toContain("const navigationScope = activeEdition?.id ?? null");
+    expect(mobile).toContain('const navigationInteractionKey = navigationScope ?? "unscoped"');
+    expect(mobile).toContain("key={navigationInteractionKey}");
     expect(mobile).toContain("navigationScope,");
     expect(navigation).toContain('return `${STORAGE_PREFIX}:${scopeToken(scopeKey)}`');
     expect(navigation).toContain('return `${RESTORE_PREFIX}:${scopeToken(scopeKey)}`');

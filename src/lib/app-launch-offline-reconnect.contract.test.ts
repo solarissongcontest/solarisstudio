@@ -61,12 +61,13 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     expect(runtime).toContain("createAppConnectivityController(setConnectivity)");
   });
 
-  it("never cold-launches directly into critical official submission routes", () => {
+  it("never cold-launches directly into canonical critical or immersive screens", () => {
     const navigation = source("src/lib/app-navigation.ts");
     expect(navigation).toContain("coldLaunchDestinationAllowed");
-    expect(navigation).toContain("confirmations|jury-voting|televoting|next-in-line");
+    expect(navigation).toContain("resolveSolarisAppScreen(entry.pathname, entry.searchStr)");
+    expect(navigation).toContain("screen.behavior.criticalTask || screen.behavior.immersive");
     expect(navigation).toContain("app-launch|auth|reset|recover");
-    expect(navigation).toContain("show-mode");
+    expect(navigation).not.toContain("confirmations|jury-voting|televoting|next-in-line");
     expect(navigation).toContain("APP_LAUNCH_RESTORE_MAX_AGE_MS");
     expect(navigation).toContain("defaultEntry(tab, signedIn)");
   });
