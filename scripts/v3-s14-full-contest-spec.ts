@@ -122,7 +122,7 @@ export const V3_S14_STAGES: readonly V3S14Stage[] = [
     id: "stage-8-results",
     label: "results",
     requirements: ["calculate", "validate", "resolve integrity", "finalize"],
-    implementationState: "planned",
+    implementationState: "implemented",
     driverMarker: "S14_STAGE_8_RESULTS_COMPLETE",
     implementationAsset: ".github/scripts/v3-s14-stage-8-results.sh",
   },
@@ -189,7 +189,7 @@ export const V3_S14_INVARIANTS: readonly V3S14Check[] = [
   {
     id: "result-reproducible",
     label: "recalculation from referenced inputs equals finalized output",
-    implementationState: "planned",
+    implementationState: "implemented",
     driverMarker: "S14_INVARIANT_RESULT_COMPLETE",
     implementationAsset: ".github/scripts/v3-s14-stage-8-results.sh",
   },
@@ -227,7 +227,7 @@ export const V3_S14_FAILURE_INJECTIONS: readonly V3S14Check[] = [
   {
     id: "db-timeout-before-commit",
     label: "database timeout before commit",
-    implementationState: "planned",
+    implementationState: "implemented",
     driverMarker: "S14_FAILURE_DB_TIMEOUT_COMPLETE",
     implementationAsset: ".github/scripts/v3-s14-stage-8-results.sh",
   },
@@ -241,7 +241,7 @@ export const V3_S14_FAILURE_INJECTIONS: readonly V3S14Check[] = [
   {
     id: "worker-crash",
     label: "worker crash leaves outbox recoverable",
-    implementationState: "planned",
+    implementationState: "implemented",
     driverMarker: "S14_FAILURE_WORKER_CRASH_COMPLETE",
     implementationAsset: ".github/scripts/v3-s14-stage-8-results.sh",
   },
