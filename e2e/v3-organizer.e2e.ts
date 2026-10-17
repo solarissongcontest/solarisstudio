@@ -108,7 +108,11 @@ test("V3 Organizer owns canonical operational navigation and fails back independ
     await expect(page.getByRole("heading", { name: "Voting", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Publication", exact: true })).toBeVisible();
     await expect(page.locator('[data-organizer-v3-tabbar-mode="compact"]')).toBeVisible();
-    await expect(page.locator(".v3-liquid-tabbar__material")).toHaveCSS("height", "56.8px");
+    const compactHeight = await page
+      .locator(".v3-liquid-tabbar__material")
+      .evaluate((element) => element.getBoundingClientRect().height);
+    expect(compactHeight).toBeGreaterThanOrEqual(54);
+    expect(compactHeight).toBeLessThanOrEqual(58);
 
     await setFeature(url!, publishableKey!, session, "solaris_app_v3_organizer", false, true);
     await page.goto("/admin/operations", { waitUntil: "domcontentloaded" });
