@@ -12,18 +12,21 @@ describe("installed app safe updates", () => {
     clearAppUpdateBlocker("test");
   });
 
-  it("defers service-worker updates during participation workflows", () => {
+  it("defers service-worker updates for every registry-critical participant route", () => {
     expect(routeUpdateBlocker("/confirmations")?.id).toBe("focused-participation-task");
     expect(routeUpdateBlocker("/jury-voting")?.id).toBe("focused-participation-task");
     expect(routeUpdateBlocker("/televoting")?.id).toBe("focused-participation-task");
     expect(routeUpdateBlocker("/next-in-line")?.id).toBe("focused-participation-task");
     expect(routeUpdateBlocker("/my-solaris/entry")?.id).toBe("focused-participation-task");
     expect(routeUpdateBlocker("/my-solaris/entry/")?.id).toBe("focused-participation-task");
+    expect(routeUpdateBlocker("/integrity/report")?.id).toBe("focused-participation-task");
     expect(appUpdateSafety("/participate").safe).toBe(true);
     expect(appUpdateSafety("/my-solaris/activity").safe).toBe(true);
+    expect(appUpdateSafety("/televoting/how-to-vote").safe).toBe(true);
+    expect(appUpdateSafety("/televoting/results").safe).toBe(true);
   });
 
-  it("supports dynamic blockers for critical mutations outside route rules", () => {
+  it("supports dynamic blockers for critical mutations and direct interactions", () => {
     setAppUpdateBlocker("test", true, "Saving critical work.");
     expect(appUpdateSafety("/results").safe).toBe(false);
     expect(appUpdateSafety("/results").reason).toBe("Saving critical work.");
