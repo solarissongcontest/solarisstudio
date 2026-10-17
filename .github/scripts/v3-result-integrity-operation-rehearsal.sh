@@ -139,12 +139,35 @@ log "Wrong-edition requests fail before any operation can be claimed"
 db_expect_failure "foreign edition recompute" "set role authenticated; set request.jwt.claim.sub='$USER_ID'; set request.jwt.claim.role='authenticated'; select televoting.studio2_apply_result_integrity_recompute('$WRONG_EDITION','$ROUND_ID',1,'$EVIDENCE_V2'::jsonb,'$OP_WRONG_EDITION','wrong-edition','$OP_WRONG_EDITION');"
 [[ "$(db_scalar "select count(*) from public.studio2_operation_receipts where operation_id='$OP_WRONG_EDITION'::uuid;")" == "0" ]] || fail "wrong-edition request created an operation receipt"
 
-log "Advancing the canonical calculation makes stale recompute requests reject"
+log "Advancing the canonical calculation makes new stale recompute requests reject"
 db_exec "update televoting.rounds set calculation_version=2 where id='$ROUND_ID'::uuid;"
 db_expect_failure "stale calculation version" "set role authenticated; set request.jwt.claim.sub='$USER_ID'; set request.jwt.claim.role='authenticated'; select televoting.studio2_apply_result_integrity_recompute('$EDITION_ID','$ROUND_ID',1,'$EVIDENCE_V2'::jsonb,'$OP_STALE','stale-calculation','$OP_STALE');"
 [[ "$(db_scalar "select count(*) from public.studio2_operation_receipts where operation_id='$OP_STALE'::uuid;")" == "0" ]] || fail "stale calculation request left a processing receipt"
 [[ "$(db_scalar "select evidence_revision from televoting.round_integrity_evidence_versions where round_id='$ROUND_ID'::uuid and calculation_version=1;")" == "2" ]] || fail "stale request changed prior evidence provenance"
 [[ "$(db_scalar "select count(*) from televoting.round_influence_results where round_id='$ROUND_ID'::uuid and calculation_version=1 and subject_type='cluster';")" == "1" ]] || fail "stale request damaged prior evidence"
+
+log "Lost-response replay lookup survives mutable calculation advance"
+POST_ADVANCE_REPLAY="$(auth_sql "select televoting.studio2_replay_result_integrity_recompute('$EDITION_ID','$ROUND_ID',1,'$OP_CONFLICT','result-integrity-op-1')::text;")"
+python3 - "$POST_ADVANCE_REPLAY" "$OP1" "$EDITION_ID" "$ROUND_ID" <<'PY'
+import json,sys
+r=json.loads(sys.argv[1])
+assert r['found'] is True
+assert r['operationId']==sys.argv[2]
+assert r['status']=='succeeded'
+assert r['result']['solarisEditionId']==sys.argv[3]
+assert r['result']['roundId']==sys.argv[4]
+assert r['result']['calculationVersion']==1
+assert r['result']['rowCount']==2
+PY
+
+db_expect_failure "same receipt changed calculation identity" "set role authenticated; set request.jwt.claim.sub='$USER_ID'; set request.jwt.claim.role='authenticated'; select televoting.studio2_replay_result_integrity_recompute('$EDITION_ID','$ROUND_ID',2,'$OP1','result-integrity-op-1');"
+
+MISSING_REPLAY="$(auth_sql "select televoting.studio2_replay_result_integrity_recompute('$EDITION_ID','$ROUND_ID',1,'$OP_STALE','stale-calculation')::text;")"
+python3 - "$MISSING_REPLAY" <<'PY'
+import json,sys
+r=json.loads(sys.argv[1])
+assert r == {'found': False}
+PY
 
 log "Browser/authenticated direct evidence writes remain unavailable"
 db_expect_failure "direct authenticated evidence insert" "set role authenticated; set request.jwt.claim.sub='$USER_ID'; set request.jwt.claim.role='authenticated'; insert into televoting.round_influence_results(round_id,calculation_version,subject_type,subject_key,members) values ('$ROUND_ID',2,'cluster','direct-bypass','[]'::jsonb);"
