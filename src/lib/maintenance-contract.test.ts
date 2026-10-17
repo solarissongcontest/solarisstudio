@@ -7,6 +7,7 @@ const start = readFileSync("src/start.ts", "utf8");
 const page = readFileSync("src/lib/maintenance-page.ts", "utf8");
 const config = readFileSync("src/lib/maintenance.ts", "utf8");
 const envExample = readFileSync(".env.example", "utf8");
+const confirmationEditRoute = readFileSync("src/routes/confirmations/edit/$token.tsx", "utf8");
 
 describe("emergency global maintenance mode", () => {
   it("is explicitly enabled and runs at the Worker entry before normal request middleware", () => {
@@ -48,6 +49,17 @@ describe("emergency global maintenance mode", () => {
     expect(server).toContain("if (hod.enabled && hod.supabaseUrl && hod.publishableKey)");
     expect(server).not.toContain("SUPABASE_SECRET_KEY");
     expect(server).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
+  });
+
+  it("opens maintenance change requests on an editable entry step instead of the review-only summary", () => {
+    expect(confirmationEditRoute).toContain(
+      'GLOBAL_MAINTENANCE_MODE && entryFocus?.section === "review"',
+    );
+    expect(confirmationEditRoute).toContain(
+      "const editorInitialStep = maintenanceReviewFocus ? 3 : entryFocus?.step ?? undefined;",
+    );
+    expect(confirmationEditRoute).toContain('data-maintenance-entry-edit-focus="entry"');
+    expect(confirmationEditRoute).toContain("initialStep={editorInitialStep}");
   });
 
   it("keeps the E2E bypass impossible on a production hostname", () => {
