@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, ArrowLeft, LockKeyhole } from "lucide-react";
 
+import { ConfirmationForm } from "@/components/ConfirmationForm";
 import { ConfirmationFormWithReceipt } from "@/components/ConfirmationFormWithReceipt";
 import { V3ConfirmationRouteShell } from "@/components/v3/V3ConfirmationRouteShell";
 import {
@@ -81,7 +82,7 @@ function EditConfirmationPage() {
   const editorInitialStep = maintenanceReviewFocus ? 3 : entryFocus?.step ?? undefined;
   const resolve = useServerFn(resolveEditToken);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["confirmation-edit-token", token],
     queryFn: () => resolve({ data: { token } }),
     retry: false,
@@ -97,6 +98,26 @@ function EditConfirmationPage() {
       >
         <div className="data-panel p-6 text-center text-sm text-muted-foreground">
           Loading your confirmation…
+        </div>
+      </V3ConfirmationRouteShell>
+    );
+  }
+
+  if (isError) {
+    return (
+      <V3ConfirmationRouteShell
+        title="Editor temporarily unavailable"
+        description="Solaris could not verify this edit link right now. The saved Confirmation has not been changed."
+        actions={returnAction}
+        maxWidth="max-w-3xl"
+        maintenanceMode={GLOBAL_MAINTENANCE_MODE}
+      >
+        <div className="data-panel p-6 text-center sm:p-8" role="alert">
+          <AlertTriangle className="mx-auto size-7 text-amber-300" />
+          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
+            Return to the maintenance page and refresh your Confirmation status before trying again. Solaris will not label a transport failure as an expired or revoked edit link.
+          </p>
+          <ReturnFromUnavailableEditor />
         </div>
       </V3ConfirmationRouteShell>
     );
@@ -144,6 +165,22 @@ function EditConfirmationPage() {
   const country = typeof result.submission.country === "string" ? result.submission.country : "Your country";
   const nf = result.submission.national_finals;
 
+  const form = GLOBAL_MAINTENANCE_MODE ? (
+    <ConfirmationForm
+      round={result.round}
+      editToken={token}
+      prefill={result.submission}
+      initialStep={editorInitialStep}
+    />
+  ) : (
+    <ConfirmationFormWithReceipt
+      round={result.round}
+      editToken={token}
+      prefill={result.submission}
+      initialStep={editorInitialStep}
+    />
+  );
+
   return (
     <V3ConfirmationRouteShell
       title="Edit confirmation"
@@ -163,6 +200,11 @@ function EditConfirmationPage() {
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
             Saving changes updates the same confirmation that was originally submitted. The Confirmation round may remain closed while TSBC allows this existing response to be edited.
           </p>
+          {GLOBAL_MAINTENANCE_MODE ? (
+            <p className="mt-3 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-xs leading-5 text-muted-foreground" data-maintenance-editor-isolation="">
+              This temporary editor is the only participant workflow available during maintenance. Other Solaris Studio pages remain unavailable.
+            </p>
+          ) : null}
           {maintenanceReviewFocus ? (
             <p
               className="mt-3 rounded-lg border border-primary/20 bg-primary/[0.06] px-3 py-2 text-xs font-medium text-primary"
@@ -211,12 +253,7 @@ function EditConfirmationPage() {
           }
         />
 
-        <ConfirmationFormWithReceipt
-          round={result.round}
-          editToken={token}
-          prefill={result.submission}
-          initialStep={editorInitialStep}
-        />
+        {form}
       </div>
     </V3ConfirmationRouteShell>
   );
