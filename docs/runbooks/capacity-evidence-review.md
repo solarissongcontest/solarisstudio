@@ -26,7 +26,11 @@ Generate this with the merged S12 local harness. The evidence assessor requires:
 - explicit load-shape source and rationale;
 - loopback/local target only;
 - explicit request count and concurrency;
-- positive duration and coherent outcome totals;
+- positive duration and coherent start/end timestamps;
+- non-negative, ordered p50/p95/p99/max latency measurements;
+- non-negative integer success/HTTP-error/transport-error counters whose total equals the requested request count;
+- an error ratio that agrees with those counters;
+- an explicit positive database sampling interval whenever database activity is attached;
 - no embedded thresholds;
 - every measurement required by the scenario registry.
 
@@ -65,7 +69,7 @@ Accepted external/runtime evidence source types are `provider-constraint`, `prod
 
 Every capacity dimension used by the chosen scenario must have external/runtime evidence before the assessment can become `ready_for_qa_review`. Every scenario dimension must also have all four canonical budget bands: `normal`, `contest-day`, `peak`, and `hard-safety-limit`.
 
-Within one dimension, all four bands must use the same unit and limits must be nondecreasing from normal through hard safety limit. The assessor supplies no default values.
+A budget's `evidenceRef` must reference a declared evidence record for that same capacity dimension. This prevents, for example, a database-row budget from borrowing an unrelated egress-limit citation merely because both happen to contain numbers. Within one dimension, all four bands must use the same unit and limits must be nondecreasing from normal through hard safety limit. The assessor supplies no default values.
 
 ## Generate an assessment
 
