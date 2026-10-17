@@ -7,7 +7,7 @@ case "${DB_URL:?}" in postgres://postgres:postgres@127.0.0.1:*|postgresql://post
 psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
 begin;
 insert into televoting.editions(id,name) values ('00000000-0000-4000-8000-00000000f401','V3 receipt rehearsal');
-insert into televoting.rounds(id,edition_id,name,status) values ('00000000-0000-4000-8000-00000000f402','00000000-0000-4000-8000-00000000f401','Closed receipt round','closed');
+insert into televoting.rounds(id,edition_id,name,status) values ('00000000-0000-4000-8000-00000000f402','00000000-0000-4000-8000-00000000f401','Receipt round','open');
 insert into televoting.countries(code,name) values ('R3H','V3 Televote receipt home f401');
 insert into televoting.round_entries(round_id,entry_type,entry_key,custom_name,display_order)
 select '00000000-0000-4000-8000-00000000f402'::uuid,'custom',key,'Receipt target ' || key,ord::int
@@ -20,6 +20,13 @@ insert into televoting.vote_preflight_checks(id,round_id,username_normalized,cou
 values ('00000000-0000-4000-8000-00000000f404','00000000-0000-4000-8000-00000000f402','receipt voter','R3H','{"A":4,"B":4,"C":4,"D":4,"E":4}','00000000-0000-4000-8000-00000000f403',now()-interval '1 day',now()-interval '1 hour');
 insert into televoting.vote_preflight_checks(id,round_id,username_normalized,country_code,ballot_map)
 values ('00000000-0000-4000-8000-00000000f405','00000000-0000-4000-8000-00000000f402','receipt voter','R3H','{"A":4,"B":4,"C":4,"D":4,"E":4}');
+
+-- A recoverable receipt represents a ballot that was accepted while the round
+-- was open, then reconciled after the lifecycle later closed. Seed in that
+-- real order so the authoritative submission guard remains part of the proof.
+update televoting.rounds
+set status='closed'
+where id='00000000-0000-4000-8000-00000000f402'::uuid;
 
 -- Existing exact-ballot capability remains available to the unprivileged client,
 -- but only for the exact preflight/round/identity/ballot tuple.
