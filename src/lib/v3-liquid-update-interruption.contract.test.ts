@@ -42,13 +42,19 @@ describe("V3 Liquid navigation update interruption safety", () => {
     expect(transitions).toContain(
       'const APP_VIEW_TRANSITION_UPDATE_BLOCKER = "app-view-transition"',
     );
+    expect(transitions).toContain("let appViewTransitionSequence = 0");
+    expect(transitions).toContain("function nextViewTransitionBlockerId()");
+    expect(transitions).toContain(
+      "const updateBlockerId = nextViewTransitionBlockerId()",
+    );
     expect(transitions).toContain("setAppUpdateBlocker(");
     expect(transitions).toContain("await transition.finished");
-    expect(transitions).toContain(
+    expect(transitions).toContain("clearAppUpdateBlocker(updateBlockerId)");
+    expect(transitions).not.toContain(
       "clearAppUpdateBlocker(APP_VIEW_TRANSITION_UPDATE_BLOCKER)",
     );
     expect(transitions).toMatch(
-      /setAppUpdateBlocker\([\s\S]*try \{[\s\S]*prefersReducedMotion\(\)[\s\S]*finally \{[\s\S]*clearAppUpdateBlocker/,
+      /setAppUpdateBlocker\([\s\S]*try \{[\s\S]*prefersReducedMotion\(\)[\s\S]*finally \{[\s\S]*clearAppUpdateBlocker\(updateBlockerId\)/,
     );
   });
 });
