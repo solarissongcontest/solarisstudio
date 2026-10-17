@@ -34,6 +34,7 @@ import {
   v3OrganizerTabRoot,
   type V3OrganizerTabId,
 } from "@/lib/v3-organizer";
+import "@/styles/v3-foundations.css";
 import "@/styles/v3-organizer-liquid-tabbar.css";
 import { useAdminContext } from "./AdminContext";
 import { resolveAdminEditionContext } from "./admin-edition-context";
