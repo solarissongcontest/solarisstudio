@@ -115,7 +115,7 @@ export async function loadShowPublicationControls(
     p_edition_id: editionId,
   });
   if (!Array.isArray(rows)) throw new Error("Solaris returned an invalid publication snapshot.");
-  return rows.map((value) => {
+  const controls = rows.map((value) => {
     const row = object(value, "show publication control");
     const scheduledFrom = nullableText(row.scheduledFromState);
     return {
@@ -133,8 +133,12 @@ export async function loadShowPublicationControls(
       lastFailure: nullableText(row.lastFailure),
       lastFailureAt: nullableText(row.lastFailureAt),
       updatedAt: text(row.updatedAt, "publication updated time"),
-    };
+    } satisfies ShowPublicationControl;
   });
+  if (controls.some((control) => control.editionId !== editionId)) {
+    throw new Error("Solaris returned publication controls outside the requested edition scope.");
+  }
+  return controls;
 }
 
 export async function previewShowPublicationChange(input: {
@@ -154,7 +158,7 @@ export async function previewShowPublicationChange(input: {
   );
   const risk = text(row.riskClass, "publication risk class");
   if (risk !== "R2" && risk !== "R3") throw new Error("Solaris returned an invalid publication risk class.");
-  return {
+  const preview: ShowPublicationPreview = {
     showId: text(row.showId, "publication show id"),
     editionId: text(row.editionId, "publication edition id"),
     currentState: state(row.currentState),
@@ -170,6 +174,10 @@ export async function previewShowPublicationChange(input: {
     resultReleaseReady: row.resultReleaseReady !== false,
     integrityClear: row.integrityClear !== false,
   };
+  if (preview.showId !== input.showId || preview.targetState !== input.targetState) {
+    throw new Error("Solaris returned a publication preview for a different requested operation.");
+  }
+  return preview;
 }
 
 export async function reauthenticateShowPublicationR3(password: string) {
@@ -222,9 +230,13 @@ export async function applyShowPublicationChange(input: {
     }),
     "publication receipt",
   );
-  return {
+  const receipt = {
     state: state(row.state),
     version: numberValue(row.version, "publication receipt version"),
     scheduledFor: nullableText(row.scheduledFor),
   };
+  if (receipt.state !== input.preview.targetState) {
+    throw new Error("Solaris returned a publication receipt for a different target state.");
+  }
+  return receipt;
 }
