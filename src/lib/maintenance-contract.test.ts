@@ -11,27 +11,43 @@ const envExample = readFileSync(".env.example", "utf8");
 describe("emergency global maintenance mode", () => {
   it("is explicitly enabled and runs at the Worker entry before normal request middleware", () => {
     expect(config).toContain("GLOBAL_MAINTENANCE_MODE = true");
-    expect(server).toContain("return maintenanceResponse(request)");
+    expect(server).toContain("return maintenanceResponse(request, env, url.pathname === \"/\")");
     expect(server).toContain("status: 503");
     expect(start).toContain("requestMiddleware: [errorMiddleware, csrfMiddleware]");
     expect(start).not.toContain("maintenanceMiddleware");
   });
 
-  it("keeps a Supabase-independent, server-only maintenance bypass for administrators", () => {
+  it("keeps a server-only maintenance bypass for administrators without coupling it to HOD auth", () => {
     expect(server).toContain("MAINTENANCE_ADMIN_SECRET");
     expect(server).toContain('const MAINTENANCE_ADMIN_PATH = "/__maintenance-admin"');
     expect(server).toContain("await hasValidMaintenanceBypass(request, secret)");
     expect(server).toContain("HttpOnly; Secure; SameSite=Strict");
     expect(server).toContain("It does not grant Solaris account or Organizer permissions.");
+    expect(server).toContain("function maintenanceSecret(env: unknown)");
+    expect(server).toContain(
+      "async function handleMaintenanceAdminRequest(request: Request, secret: string)",
+    );
     expect(server).not.toContain("x-solaris-maintenance-bypass");
     expect(server).not.toContain("maintenanceDatabaseIsReadOnly");
     expect(server).not.toContain("solaris_maintenance_read_only_probe");
-    expect(server).not.toContain("SUPABASE_PUBLISHABLE_KEY");
+    expect(server).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
+    expect(server).not.toContain("service_role");
     expect(server).not.toContain(
       "Maintenance inspection stays locked until the Solaris database is explicitly Read-only or in Maintenance.",
     );
     expect(envExample).toContain("MAINTENANCE_ADMIN_SECRET=");
     expect(envExample).not.toContain("VITE_MAINTENANCE_ADMIN_SECRET");
+  });
+
+  it("limits public Supabase runtime configuration to the separately flagged HOD portal", () => {
+    expect(server).toContain("function maintenanceHodRuntime(env: unknown)");
+    expect(server).toContain("MAINTENANCE_HOD_ACCESS");
+    expect(server).toContain("SUPABASE_PUBLISHABLE_KEY");
+    expect(server).toContain("renderMaintenanceHodPortal");
+    expect(server).toContain("if (request.method === \"GET\" && includeHodPortal)");
+    expect(server).toContain("if (hod.enabled && hod.supabaseUrl && hod.publishableKey)");
+    expect(server).not.toContain("SUPABASE_SECRET_KEY");
+    expect(server).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   });
 
   it("keeps the E2E bypass impossible on a production hostname", () => {

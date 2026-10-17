@@ -13,6 +13,7 @@ import {
 } from "@/components/ConfirmationReviewStatus";
 import { Button } from "@/components/ui/button";
 import { resolveEditToken } from "@/lib/confirmation-edit.functions";
+import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import { parseV3EntryEditorFocus } from "@/lib/v3-entry-editor-focus";
 
 export const Route = createFileRoute("/confirmations/edit/$token")({
@@ -37,6 +38,10 @@ type EditableSubmission = Record<string, unknown> & {
   } | null;
 };
 
+const returnAction = GLOBAL_MAINTENANCE_MODE
+  ? [{ to: "/", label: "Back to maintenance page" }]
+  : [{ to: "/confirmations", label: "Back to confirmations" }];
+
 function focusLabel(value: string) {
   if (value === "song") return "Song";
   if (value === "artist") return "Artist";
@@ -44,6 +49,26 @@ function focusLabel(value: string) {
   if (value === "metadata") return "Metadata";
   if (value === "media") return "Media";
   return "Review";
+}
+
+function ReturnFromUnavailableEditor() {
+  if (GLOBAL_MAINTENANCE_MODE) {
+    return (
+      <Button asChild variant="outline" className="mt-5">
+        <a href="/">
+          <ArrowLeft className="size-4" /> Return to maintenance page
+        </a>
+      </Button>
+    );
+  }
+
+  return (
+    <Button asChild variant="outline" className="mt-5">
+      <Link to="/confirmations">
+        <ArrowLeft className="size-4" /> Return to confirmations
+      </Link>
+    </Button>
+  );
 }
 
 function EditConfirmationPage() {
@@ -64,6 +89,7 @@ function EditConfirmationPage() {
         title="Edit confirmation"
         description="Loading your saved response…"
         maxWidth="max-w-3xl"
+        maintenanceMode={GLOBAL_MAINTENANCE_MODE}
       >
         <div className="data-panel p-6 text-center text-sm text-muted-foreground">
           Loading your confirmation…
@@ -89,24 +115,23 @@ function EditConfirmationPage() {
         title={editingClosed ? "Editing is closed" : "Edit link unavailable"}
         description={
           editingClosed
-            ? "Your response is still saved, but editing is currently disabled for this round."
+            ? "Your response is still saved, but editing is currently disabled for this existing response."
             : "This edit link may have expired, been revoked or already been replaced."
         }
-        actions={[{ to: "/confirmations", label: "Back to confirmations" }]}
+        actions={returnAction}
         maxWidth="max-w-3xl"
+        maintenanceMode={GLOBAL_MAINTENANCE_MODE}
       >
         <div className="data-panel p-6 text-center sm:p-8">
           <LockKeyhole className="mx-auto size-7 text-muted-foreground" />
           <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
             {editingClosed
-              ? "The original confirmation remains recorded. Editing can resume only if the round is reopened."
-              : "Open Confirmations to find the active round or recover another saved response."}
+              ? "The original confirmation remains recorded. TSBC can reopen editing for this response without reopening the Confirmation round."
+              : GLOBAL_MAINTENANCE_MODE
+                ? "Return to the maintenance page to check your current Confirmation status or request a fresh edit link when editing is available."
+                : "Open Confirmations to find the active round or recover another saved response."}
           </p>
-          <Button asChild variant="outline" className="mt-5">
-            <Link to="/confirmations">
-              <ArrowLeft className="size-4" /> Return to confirmations
-            </Link>
-          </Button>
+          <ReturnFromUnavailableEditor />
         </div>
       </V3ConfirmationRouteShell>
     );
@@ -119,10 +144,11 @@ function EditConfirmationPage() {
     <V3ConfirmationRouteShell
       title="Edit confirmation"
       description={`${country} · ${result.round.name}. Update the same saved response without creating a duplicate.`}
-      actions={[{ to: "/confirmations", label: "Back to confirmations" }]}
+      actions={returnAction}
       maxWidth="max-w-3xl"
       editionLabel={result.round.edition_name}
       phaseLabel="Confirmation editing"
+      maintenanceMode={GLOBAL_MAINTENANCE_MODE}
     >
       <div className="confirmations-theme space-y-5">
         <div className="data-panel border-primary/20 p-4 sm:p-5">
@@ -131,7 +157,7 @@ function EditConfirmationPage() {
           </p>
           <h2 className="mt-1 text-lg font-bold tracking-[-.02em]">Editing your existing response</h2>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Saving changes updates the same confirmation that was originally submitted.
+            Saving changes updates the same confirmation that was originally submitted. The Confirmation round may remain closed while TSBC allows this existing response to be edited.
           </p>
           {entryFocus?.supported ? (
             <p
@@ -145,7 +171,7 @@ function EditConfirmationPage() {
 
         {entryFocus && !entryFocus.supported ? (
           <div
-            className="data-panel flex gap-3 border-amber-300/30 bg-amber-300/[0.06] p-4 text-sm"
+            className="data-panel flex gap-3 border border-amber-300/30 bg-amber-300/[0.06] p-4 text-sm"
             role="alert"
             data-v3-entry-correction-blocked={entryFocus.section}
           >
