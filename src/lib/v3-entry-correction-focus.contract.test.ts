@@ -16,7 +16,14 @@ describe("V3 Entry correction focus contract", () => {
 
   it("treats the URL fragment as presentation-only and never as edit authorization", () => {
     expect(editRoute).toContain("parseV3EntryEditorFocus(hash)");
-    expect(editRoute).toContain("initialStep={entryFocus?.step ?? undefined}");
+    expect(editRoute).toContain("const maintenanceReviewFocus =");
+    expect(editRoute).toContain(
+      'GLOBAL_MAINTENANCE_MODE && entryFocus?.section === "review"',
+    );
+    expect(editRoute).toContain(
+      "const editorInitialStep = maintenanceReviewFocus ? 3 : entryFocus?.step ?? undefined;",
+    );
+    expect(editRoute).toContain("initialStep={editorInitialStep}");
     expect(editRoute).toContain("data-v3-entry-correction-blocked");
     expect(confirmationForm).toContain("initialStep?: number");
     expect(confirmationForm).toContain("Presentation-only starting point");
