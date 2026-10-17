@@ -11,6 +11,47 @@ type SupabaseRpcClient = {
   rpc(name: string, args?: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }>;
 };
 
+type PostgrestLikeError = {
+  code?: unknown;
+  message?: unknown;
+  details?: unknown;
+  hint?: unknown;
+};
+
+function normalizeCountryCockpitRpcError(error: unknown): Error {
+  if (error instanceof Error) return error;
+  if (!error || typeof error !== 'object') {
+    return new Error('Country cockpit request failed before Solaris returned a diagnostic.');
+  }
+
+  const candidate = error as PostgrestLikeError;
+  const code = typeof candidate.code === 'string' ? candidate.code : '';
+  const message = typeof candidate.message === 'string' ? candidate.message : '';
+  const lowerMessage = message.toLowerCase();
+
+  if (code === '42501' || lowerMessage.includes('capability required')) {
+    return new Error(
+      'Country cockpit access was denied for this edition. Check the Organizer Confirmation capability and current platform operating mode.',
+    );
+  }
+
+  if (code === 'PGRST202' || code === '42883' || lowerMessage.includes('function')) {
+    return new Error(
+      'The Country cockpit backend contract is unavailable on this deployment. Check Supabase migration parity before retrying.',
+    );
+  }
+
+  if (code === 'P0002' || lowerMessage.includes('edition not found')) {
+    return new Error('The selected edition no longer exists or is outside the current Organizer scope.');
+  }
+
+  if (code === '22023') {
+    return new Error('The Country cockpit request used an invalid edition context. Reselect the edition and retry.');
+  }
+
+  return new Error(message || 'Country cockpit request failed. Retry or inspect the backend operation log.');
+}
+
 export function mapStudio2CountryCockpit(value: unknown): Studio2CountryCockpitRow[] {
   if (!Array.isArray(value)) throw new Error('Invalid country cockpit payload: expected an array');
   return value.map((row) => buildStudio2HodWorkspaceSnapshot(mapStudio2HodContext(row)));
@@ -25,7 +66,7 @@ export async function loadStudio2CountryCockpit(
   const { data, error } = await client.rpc('studio2_country_cockpit', {
     p_edition_id: normalizedEditionId,
   });
-  if (error) throw error;
+  if (error) throw normalizeCountryCockpitRpcError(error);
 
   const rows = mapStudio2CountryCockpit(data);
   if (rows.some((row) => row.context.editionId !== normalizedEditionId)) {
