@@ -74,10 +74,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cp "$GITHUB_WORKSPACE/supabase/migrations/20261017104500_v3_result_integrity_recompute_operation.sql" \
-            /tmp/solaris-result-integrity-main/supabase/migrations/
-          cp "$GITHUB_WORKSPACE/supabase/migrations/20261017104600_v3_result_integrity_replay_lookup.sql" \
-            /tmp/solaris-result-integrity-main/supabase/migrations/
+          target_dir=/tmp/solaris-result-integrity-main/supabase/migrations
+          for migration in \
+            20261017104500_v3_result_integrity_recompute_operation.sql \
+            20261017104600_v3_result_integrity_replay_lookup.sql
+          do
+            source_path="$GITHUB_WORKSPACE/supabase/migrations/$migration"
+            target_path="$target_dir/$migration"
+            if [[ -f "$target_path" ]] && ! cmp -s "$source_path" "$target_path"; then
+              echo "Conflicting current-main migration: $migration" >&2
+              exit 1
+            fi
+            cp "$source_path" "$target_path"
+          done
           cd /tmp/solaris-result-integrity-main
           supabase migration up --local --include-all
       - name: Rehearse governed Result Integrity operation after upgrade
