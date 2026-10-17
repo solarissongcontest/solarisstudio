@@ -11,6 +11,11 @@ const scenarios = readFileSync(
   "utf8",
 );
 
+const registry = readFileSync(
+  "src/lib/v3-organizer-capability-registry.ts",
+  "utf8",
+);
+
 describe("V3 Organizer Acceptance Test", () => {
   it("requires the exact selected edition instead of substituting the newest edition", () => {
     expect(source).toContain(
@@ -54,5 +59,9 @@ describe("V3 Organizer Acceptance Test", () => {
     expect(scenarios).toContain("Two-admin concurrent editing");
     expect(scenarios).toContain("Mobile layout & touch behavior");
     expect(scenarios).toContain("End-to-end contest rehearsal");
+  });
+
+  it("records only the acceptance-test capability as building", () => {
+    expect(registry).toContain('id === "workspace-acceptance-test"');
   });
 });
