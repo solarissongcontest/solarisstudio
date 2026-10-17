@@ -67,6 +67,8 @@ describe("System V3 S1 registries", () => {
       "jury.closed",
       "jury.opened",
       "media.reviewed",
+      "notice.published",
+      "notice.superseded",
       "publication.changed",
       "publication.failed",
       "results.calculated",
@@ -89,6 +91,20 @@ describe("System V3 S1 registries", () => {
     expect(v3DomainConsequence("jury.opened")?.notificationEffects).toEqual([
       { effect: "evaluate-provider", providerId: "jury-open" },
     ]);
+    expect(v3DomainConsequence("notice.published")?.notificationEffects).toEqual([
+      { effect: "evaluate-provider", providerId: "official-communications" },
+    ]);
+    expect(v3DomainConsequence("notice.superseded")?.notificationEffects).toEqual([]);
     expect(v3DomainConsequence("results.calculated")?.notificationEffects).toEqual([]);
+  });
+
+  it("assigns delivery-failure task causality only to notification.failed", () => {
+    expect(v3DomainConsequence("notice.published")?.taskEffects).toEqual([]);
+    expect(v3DomainConsequence("notice.superseded")?.taskEffects).toEqual([]);
+    expect(v3DomainConsequence("notification.queued")?.taskEffects).toEqual([]);
+    expect(v3DomainConsequence("notification.delivered")?.taskEffects).toEqual([]);
+    expect(v3DomainConsequence("notification.failed")?.taskEffects).toEqual([
+      { effect: "re-evaluate", taskType: "notification.delivery_failed" },
+    ]);
   });
 });
