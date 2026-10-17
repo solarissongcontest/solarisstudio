@@ -49,7 +49,8 @@ describe("V3 Entry focused participant shell", () => {
     expect(toolbar).toContain("resolveSolarisAppScreen(pathname, searchStr)");
     expect(toolbar).toContain('screen.id === "mysolaris.entry" && screen.chrome.toolbar === "focused"');
     expect(toolbar).toContain("if (routeOwnsFocusedToolbar) return null");
-    expect(css).not.toContain(".solaris-app-toolbar");
+    expect(css).toContain('body:has([data-v3-focused-task-shell]) .solaris-app-toolbar');
+    expect(css).not.toContain('body:has([data-v3-entry-boot]) .solaris-app-toolbar');
     expect(css).toContain("app-main");
     expect(css).toContain("data-solaris-app-mode");
   });
@@ -62,7 +63,7 @@ describe("V3 Entry focused participant shell", () => {
     expect(gate).toContain("data-v3-entry-boot");
     expect(gate).not.toMatch(/function ResolvingEntrySurface\(\)[\s\S]*?return \(\s*<main/);
     expect(toolbar).toContain("routeOwnsFocusedToolbar");
-    expect(css).not.toContain(".solaris-app-toolbar");
+    expect(css).not.toContain('body:has([data-v3-entry-boot]) .solaris-app-toolbar');
     expect(css).toContain('body:has([data-v3-entry-boot]) .app-main[data-solaris-app-mode="true"]');
   });
 
