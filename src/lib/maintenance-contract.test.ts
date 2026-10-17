@@ -59,6 +59,33 @@ describe("emergency global maintenance mode", () => {
     expect(confirmationEditRoute).toContain("initialStep={editorInitialStep}");
   });
 
+  it("lets the maintenance editor use only its exact server-function surface", () => {
+    expect(config).toContain('import { resolveEditToken } from "@/lib/confirmation-edit.functions"');
+    expect(config).toContain(
+      'import { checkEntryDuplicate, submitConfirmation } from "@/lib/public.functions"',
+    );
+    expect(config).toContain(
+      "[resolveEditToken.url, checkEntryDuplicate.url, submitConfirmation.url]",
+    );
+    expect(config).toContain(
+      'if (method === "POST" && MAINTENANCE_HOD_SERVER_FN_PATHS.has(pathname))',
+    );
+    expect(config).not.toContain('pathname.startsWith("/_serverFn/")');
+    expect(config).not.toContain('/^\\/_serverFn\\//');
+  });
+
+  it("keeps maintenance editing out of the normal app shell and V3 receipt RPC fan-out", () => {
+    expect(confirmationEditRoute).toContain('import { ConfirmationForm } from "@/components/ConfirmationForm"');
+    expect(confirmationEditRoute).toContain("const form = GLOBAL_MAINTENANCE_MODE ? (");
+    expect(confirmationEditRoute).toContain("<ConfirmationForm");
+    expect(confirmationEditRoute).toContain("<ConfirmationFormWithReceipt");
+    expect(confirmationEditRoute).toContain('data-maintenance-editor-isolation=""');
+    expect(confirmationEditRoute).toContain('title="Editor temporarily unavailable"');
+    expect(confirmationEditRoute).toContain(
+      "Solaris will not label a transport failure as an expired or revoked edit link.",
+    );
+  });
+
   it("keeps the E2E bypass impossible on a production hostname", () => {
     expect(server).toContain('url.hostname === "127.0.0.1" || url.hostname === "localhost"');
     expect(server).toContain('readCookie(request, E2E_MAINTENANCE_BYPASS_COOKIE) === "1"');
@@ -100,8 +127,9 @@ describe("emergency global maintenance mode", () => {
     expect(page).toContain("Terra Solaris Broadcasting Coalition");
   });
 
-  it("blocks writes while still allowing the maintenance branding assets", () => {
+  it("blocks unrelated writes while still allowing the maintenance branding assets", () => {
     expect(server).toContain('request.method === "GET" || request.method === "HEAD"');
+    expect(config).toContain("MAINTENANCE_HOD_SERVER_FN_PATHS.has(pathname)");
     expect(server).toContain('"solaris_studio_maintenance"');
     expect(server).toContain('expected_return: "coming_soon"');
     expect(server).toContain('"/tsbc-maintenance-mark.svg"');
