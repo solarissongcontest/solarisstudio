@@ -17,6 +17,12 @@ type ViewTransitionDocument = Document & {
 };
 
 const APP_VIEW_TRANSITION_UPDATE_BLOCKER = "app-view-transition";
+let appViewTransitionSequence = 0;
+
+function nextViewTransitionBlockerId() {
+  appViewTransitionSequence += 1;
+  return `${APP_VIEW_TRANSITION_UPDATE_BLOCKER}:${appViewTransitionSequence}`;
+}
 
 export async function runAppViewTransition(
   kind: AppViewTransitionKind,
@@ -27,8 +33,9 @@ export async function runAppViewTransition(
     return;
   }
 
+  const updateBlockerId = nextViewTransitionBlockerId();
   setAppUpdateBlocker(
-    APP_VIEW_TRANSITION_UPDATE_BLOCKER,
+    updateBlockerId,
     true,
     "Finish the current navigation transition before updating.",
   );
@@ -61,6 +68,6 @@ export async function runAppViewTransition(
       delete root.dataset.solarisViewTransition;
     }
   } finally {
-    clearAppUpdateBlocker(APP_VIEW_TRANSITION_UPDATE_BLOCKER);
+    clearAppUpdateBlocker(updateBlockerId);
   }
 }
