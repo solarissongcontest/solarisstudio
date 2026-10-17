@@ -45,11 +45,17 @@ describe("App Experience v3 lifecycle foundation", () => {
     expect(styles).toContain('html[data-solaris-keyboard-open] .solaris-app-update');
   });
 
-  it("never offers a service-worker reload while a route is safety-blocked", () => {
+  it("never offers a service-worker action while a route is safety-blocked or only a reload is pending", () => {
     const runtime = source("src/components/app/AppRuntime.tsx");
     const manager = source("src/components/app/AppOverlayManager.tsx");
     expect(runtime).toContain("if (!waitingWorker || !updateSafety.safe) return");
+    expect(runtime).toContain("const updatePromptAvailable = Boolean(waitingWorker)");
+    expect(runtime).toContain(
+      "const updateAvailable = updatePromptAvailable || controllerReloadPending",
+    );
+    expect(runtime).toContain("updatePromptAvailable={updatePromptAvailable}");
     expect(runtime).toContain("updateSafe={updateSafety.safe}");
-    expect(manager).toContain("updateAvailable && updateSafe");
+    expect(manager).toContain("updatePromptAvailable && updateSafe");
+    expect(manager).not.toContain("updateAvailable && updateSafe");
   });
 });
