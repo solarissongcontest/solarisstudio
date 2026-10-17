@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { requireMergedTelevotingAdminServer } from "@/integrations/televoting/admin-session.server";
 import {
   canonicalEditionForRound,
@@ -17,6 +19,7 @@ import {
   ROBUST_TELEVOTE_ENGINE_VERSION,
   type RobustTelevoteConfig,
 } from "@/integrations/televoting/robust-televote-math";
+import { reconcileSystemOperationServer } from "@/lib/system-operation-reconciliation.server";
 
 type Submission = {
   id: string;
@@ -25,6 +28,27 @@ type Submission = {
   username_normalized: string;
   status: string | null;
   risk_score: number;
+};
+
+export type ResultIntegrityRecomputeOperationInput = {
+  editionId: string;
+  roundId: string;
+  expectedCalculationVersion: number;
+  operationId: string;
+  idempotencyKey: string;
+  correlationId: string;
+};
+
+type ResultIntegrityOperationResult = {
+  ok: true;
+  operationId: string;
+  correlationId: string;
+  solarisEditionId: string;
+  roundId: string;
+  calculationVersion: number;
+  evidenceRevision: number;
+  evidenceFingerprint: string;
+  rowCount: number;
 };
 
 function configForRound(round: Awaited<ReturnType<typeof loadMergedConversionRound>>): RobustTelevoteConfig {
@@ -50,6 +74,29 @@ function influenceSeverity(row: {
   if (row.qualifier_changed) return 90;
   if (row.top_three_changed) return 75;
   return Math.min(70, Math.round(row.max_rank_movement * 10 + Math.min(30, row.max_point_movement)));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseOperationResult(value: unknown): ResultIntegrityOperationResult | null {
+  if (!isRecord(value)) return null;
+  const result = value;
+  if (
+    result.ok !== true
+    || typeof result.operationId !== "string"
+    || typeof result.correlationId !== "string"
+    || typeof result.solarisEditionId !== "string"
+    || typeof result.roundId !== "string"
+    || typeof result.calculationVersion !== "number"
+    || typeof result.evidenceRevision !== "number"
+    || typeof result.evidenceFingerprint !== "string"
+    || typeof result.rowCount !== "number"
+  ) {
+    return null;
+  }
+  return result as ResultIntegrityOperationResult;
 }
 
 async function currentSubmissionIdentity(roundId: string) {
@@ -90,17 +137,93 @@ async function currentSubmissionIdentity(roundId: string) {
   return { editionId, submissions, hodBySubmission, labelBySubmission, submissionIdsByHod };
 }
 
-export async function recomputeResultIntegrityServer(roundId: string) {
-  await requireMergedTelevotingAdminServer();
+async function loadRecomputeAuthority(
+  roundId: string,
+  expectedEditionId?: string,
+  expectedCalculationVersion?: number,
+) {
   const round = await loadMergedConversionRound(roundId);
   if (round.televote_engine_version !== ROBUST_TELEVOTE_ENGINE_VERSION) {
     throw new Error("Cluster influence analysis requires Robust Televote v2");
   }
   if (round.calculation_version <= 0) throw new Error("Calculate the televote result first");
+  if (
+    expectedCalculationVersion !== undefined
+    && round.calculation_version !== expectedCalculationVersion
+  ) {
+    throw new Error("Result Integrity calculation version changed; refresh before recomputing");
+  }
 
-  const participants = await loadMergedConversionParticipants(roundId);
-  const ballots = await loadMergedRobustBallots(roundId, participants);
   const identity = await currentSubmissionIdentity(roundId);
+  if (!identity.editionId) {
+    throw new Error("Voting round is not bound to a Solaris edition");
+  }
+  if (expectedEditionId && identity.editionId !== expectedEditionId) {
+    throw new Error("Voting round is outside the requested Solaris edition");
+  }
+
+  return { round, identity };
+}
+
+async function applyIntegrityEvidence(
+  command: ResultIntegrityRecomputeOperationInput,
+  evidence: Array<{
+    subjectKey: string;
+    members: string[];
+    winnerChanged: boolean;
+    topThreeChanged: boolean;
+    qualifierChanged: boolean;
+    maxRankMovement: number;
+    maxPointMovement: number;
+    mostAffectedEntry: string | null;
+  }>,
+) {
+  const { data, error } = await televotingAdmin.rpc(
+    "studio2_apply_result_integrity_recompute",
+    {
+      p_solaris_edition_id: command.editionId,
+      p_round_id: command.roundId,
+      p_expected_calculation_version: command.expectedCalculationVersion,
+      p_evidence: evidence,
+      p_operation_id: command.operationId,
+      p_idempotency_key: command.idempotencyKey,
+      p_correlation_id: command.correlationId,
+    },
+  );
+
+  if (!error) {
+    const result = parseOperationResult(data);
+    if (!result) throw new Error("Result Integrity operation returned an invalid receipt result");
+    return { result, reconciled: false };
+  }
+
+  // One bounded read-after-write reconciliation handles the only ambiguous case:
+  // the database may have committed successfully while the transport response was
+  // lost. Validation/state failures normally have no receipt and fall through to
+  // the original RPC error.
+  const reconciliation = await reconcileSystemOperationServer(command.operationId);
+  if (reconciliation.ok && reconciliation.receipt.status === "succeeded") {
+    const result = parseOperationResult(reconciliation.receipt.result);
+    if (result) return { result, reconciled: true };
+  }
+  if (reconciliation.ok && reconciliation.receipt.status !== "succeeded") {
+    throw new Error(
+      reconciliation.receipt.error?.message
+        ?? `Result Integrity operation is ${reconciliation.receipt.status}`,
+    );
+  }
+  throw new Error(error.message);
+}
+
+async function recomputeWithOperation(command: ResultIntegrityRecomputeOperationInput) {
+  const { round, identity } = await loadRecomputeAuthority(
+    command.roundId,
+    command.editionId,
+    command.expectedCalculationVersion,
+  );
+
+  const participants = await loadMergedConversionParticipants(command.roundId);
+  const ballots = await loadMergedRobustBallots(command.roundId, participants);
   const settings = await loadFriendVotingSettingsServer();
   const coordination = await getCoordinationGroupsServer(
     { lens: "hod", channel: "combined", editionId: identity.editionId },
@@ -124,35 +247,22 @@ export async function recomputeResultIntegrityServer(roundId: string) {
     clusters: clusters.map((group) => ({ id: group.id, members: group.members })),
   });
 
-  const { error: deleteError } = await televotingAdmin
-    .from("round_influence_results")
-    .delete()
-    .eq("round_id", roundId)
-    .eq("calculation_version", round.calculation_version)
-    .eq("subject_type", "cluster");
-  if (deleteError) throw new Error(deleteError.message);
-
-  const clusterMeta = new Map(clusters.map((group) => [group.id, group]));
-  const rows = influence.clusters.map((row) => ({
-    round_id: roundId,
-    calculation_version: round.calculation_version,
-    subject_type: "cluster",
-    subject_key: row.clusterId,
+  const evidence = influence.clusters.map((row) => ({
+    subjectKey: row.clusterId,
     members: row.members,
-    winner_changed: row.winnerChanged,
-    top_three_changed: row.topThreeChanged,
-    qualifier_changed: row.qualifierChanged,
-    max_rank_movement: row.maxRankMovement,
-    max_point_movement: row.maxPointMovement,
-    most_affected_entry: row.mostAffectedEntry,
+    winnerChanged: row.winnerChanged,
+    topThreeChanged: row.topThreeChanged,
+    qualifierChanged: row.qualifierChanged,
+    maxRankMovement: row.maxRankMovement,
+    maxPointMovement: row.maxPointMovement,
+    mostAffectedEntry: row.mostAffectedEntry ?? null,
   }));
-  if (rows.length) {
-    const { error: insertError } = await televotingAdmin.from("round_influence_results").insert(rows);
-    if (insertError) throw new Error(insertError.message);
-  }
+
+  const operation = await applyIntegrityEvidence(command, evidence);
+  const clusterMeta = new Map(clusters.map((group) => [group.id, group]));
 
   return {
-    clustersAnalysed: rows.length,
+    clustersAnalysed: evidence.length,
     detectedGroups: coordination.groups.length,
     currentGroups: clusters.map((group) => ({
       id: group.id,
@@ -162,13 +272,48 @@ export async function recomputeResultIntegrityServer(roundId: string) {
       influence: influence.clusters.find((row) => row.clusterId === group.id) ?? null,
       metadata: clusterMeta.get(group.id) ?? null,
     })),
+    operation: operation.result,
+    reconciled: operation.reconciled,
   };
 }
 
-export async function getResultIntegrityServer(roundId: string) {
+/**
+ * Canonical V3 mutation boundary. The caller owns stable operation identity and
+ * binds the request to the exact Solaris edition + calculation version it saw.
+ */
+export async function recomputeResultIntegrityOperationServer(
+  command: ResultIntegrityRecomputeOperationInput,
+) {
+  await requireMergedTelevotingAdminServer();
+  return recomputeWithOperation(command);
+}
+
+/**
+ * Compatibility adapter for the pre-V3 specialist route. It no longer owns a
+ * direct delete/insert path: the server derives exact scope/version and creates
+ * a one-shot operation envelope before calling the same canonical RPC.
+ */
+export async function recomputeResultIntegrityServer(roundId: string) {
+  await requireMergedTelevotingAdminServer();
+  const { round, identity } = await loadRecomputeAuthority(roundId);
+  const operationId = randomUUID();
+  return recomputeWithOperation({
+    editionId: identity.editionId,
+    roundId,
+    expectedCalculationVersion: round.calculation_version,
+    operationId,
+    idempotencyKey: operationId,
+    correlationId: operationId,
+  });
+}
+
+export async function getResultIntegrityServer(roundId: string, expectedEditionId?: string) {
   await requireMergedTelevotingAdminServer();
   const round = await loadMergedConversionRound(roundId);
   const identity = await currentSubmissionIdentity(roundId);
+  if (expectedEditionId && identity.editionId !== expectedEditionId) {
+    throw new Error("Voting round is outside the requested Solaris edition");
+  }
 
   const [influenceResult, resultRows, preflightResult] = await Promise.all([
     televotingAdmin
@@ -235,6 +380,7 @@ export async function getResultIntegrityServer(roundId: string) {
     round: {
       id: round.id,
       name: round.name,
+      solarisEditionId: identity.editionId,
       engineVersion: round.televote_engine_version,
       calculationVersion: round.calculation_version,
       resultsStatus: round.results_status,
