@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { V3_ORGANIZER_CAPABILITY_REGISTRY } from "./v3-organizer-capability-registry";
 
+function capability(id: string) {
+  const entry = V3_ORGANIZER_CAPABILITY_REGISTRY.find((item) => item.legacyId === id);
+  if (!entry) throw new Error(`Missing Organizer capability ${id}`);
+  return entry;
+}
+
 function domain(id: string) {
-  const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find((item) => item.legacyId === id);
-  if (!capability) throw new Error(`Missing Organizer capability ${id}`);
-  return capability.targetDomain;
+  return capability(id).targetDomain;
 }
 
 describe("V3 Organizer canonical domain ownership", () => {
@@ -33,6 +37,13 @@ describe("V3 Organizer canonical domain ownership", () => {
     expect(domain("workspace-beta-3-feedback")).toBe("product-qa");
     expect(domain("workspace-beta-2-feedback")).toBe("product-qa");
     expect(domain("workspace-beta-1-archive")).toBe("product-qa");
+  });
+
+  it("preserves current Product QA capability ownership and migration evidence", () => {
+    const coverage = capability("workspace-beta-coverage");
+
+    expect(coverage.ownerCapability).toBe("rollout.manage");
+    expect(coverage.migrationStatus).toBe("building");
   });
 
   it("keeps publication with voting/results and production configuration separate from live review", () => {
