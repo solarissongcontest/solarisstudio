@@ -56,7 +56,7 @@ async function setFeature(
 
 test.describe.configure({ retries: 0 });
 
-test("V3 Organizer owns canonical operational navigation and fails back independently", async ({
+test("V3 Organizer owns canonical operational navigation, remembers deep roots and fails back independently", async ({
   page,
   context,
 }, testInfo) => {
@@ -97,6 +97,31 @@ test("V3 Organizer owns canonical operational navigation and fails back independ
     for (const label of ["Overview", "Tasks", "Control", "Live", "More"]) {
       await expect(v3Nav.getByRole("link", { name: new RegExp(`^${label}(?:,|$)`) })).toHaveCount(1);
     }
+
+    // Deep-route memory is root-scoped. Visiting Inbox should bind that exact
+    // Tasks destination, switching away must not erase it, and tapping Tasks
+    // should restore Inbox rather than flattening the operator back to /tasks.
+    await page.goto("/admin/inbox", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "What needs attention", exact: true })).toBeVisible();
+    await expect(v3Nav.getByRole("link", { name: /^Tasks(?:,|$)/ })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+
+    await v3Nav.getByRole("link", { name: /^Overview(?:,|$)/ }).click();
+    await expect(page).toHaveURL(/\/admin\/operations(?:$|[?#])/);
+    await expect(v3Nav.getByRole("link", { name: /^Overview(?:,|$)/ })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+
+    await v3Nav.getByRole("link", { name: /^Tasks(?:,|$)/ }).click();
+    await expect(page).toHaveURL(/\/admin\/inbox(?:$|[?#])/);
+    await expect(page.getByRole("heading", { name: "What needs attention", exact: true })).toBeVisible();
+    await expect(v3Nav.getByRole("link", { name: /^Tasks(?:,|$)/ })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
 
     await v3Nav.getByRole("link", { name: /^Control(?:,|$)/ }).click();
     await expect(page).toHaveURL(/\/admin\/control(?:$|[?#])/);
