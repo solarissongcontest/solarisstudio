@@ -71,7 +71,7 @@ export function PublicUxActionabilityPanel({
             >
               <AlertTriangle className="size-3.5 shrink-0 text-amber-100" aria-hidden="true" />
               <span className="text-xs font-semibold">{label}</span>
-              <AdminStatus tone="neutral" className="ml-auto">Server gap</AdminStatus>
+              <span className="ml-auto"><AdminStatus tone="neutral">Server gap</AdminStatus></span>
             </div>
           ))}
         </div>
