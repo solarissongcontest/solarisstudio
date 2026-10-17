@@ -146,6 +146,12 @@ export function V3AppShell({
   const navigationIdentityReady =
     !rollout.isLoading && !rollout.isError && rollout.data != null;
   const navigationScope = navigationIdentityReady ? (rollout.data.userId ?? null) : null;
+  // Anonymous and unresolved identity must be different gesture generations.
+  // Otherwise an anonymous whole-page swipe can survive into login/bootstrap
+  // because both states previously collapsed to `interactionKey = null`.
+  const swipeInteractionKey = navigationIdentityReady
+    ? `viewer:${navigationScope ?? "anonymous"}`
+    : "viewer:unresolved";
   const notificationLabel =
     attention.me > 0
       ? `Notifications, ${attention.me} ${attention.me === 1 ? "item" : "items"} need attention`
@@ -366,7 +372,7 @@ export function V3AppShell({
           previousSurface={previousSurface}
           nextSurface={nextSurface}
           previewReady={swipePreviewReady}
-          interactionKey={navigationScope}
+          interactionKey={swipeInteractionKey}
           onCommit={(targetIndex) => {
             const target = liquidDestinations[targetIndex];
             if (target) openTab(target, "swipe");
