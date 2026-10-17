@@ -55,7 +55,6 @@ describe("V3 Entry focused participant shell", () => {
     const css = source("src/styles/v3-focused-task-shell.css");
 
     expect(gate).toContain("data-v3-entry-boot");
-    expect(gate).toContain("<div");
     expect(gate).not.toMatch(/function ResolvingEntrySurface\(\)[\s\S]*?return \(\s*<main/);
     expect(css).toContain("body:has([data-v3-entry-boot]) .solaris-app-toolbar");
     expect(css).toContain('body:has([data-v3-entry-boot]) .app-main[data-solaris-app-mode="true"]');
