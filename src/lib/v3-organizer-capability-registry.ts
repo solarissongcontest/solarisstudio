@@ -128,6 +128,7 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "current-edition-tasks" ||
     id === "operations-control-room" ||
     id === "operations-workflows" ||
+    id === "operations-incidents" ||
     id === "current-edition-delegations" ||
     id === "current-edition-contest" ||
     id === "current-edition-host" ||
