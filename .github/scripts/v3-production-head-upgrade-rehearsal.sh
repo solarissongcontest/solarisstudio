@@ -121,6 +121,7 @@ for rehearsal in \
   v3-operation-receipt-rehearsal.sh \
   v3-s2-entry-correction-rehearsal.sh \
   v3-confirmation-security-rehearsal.sh \
+  v3-confirmation-maintenance-edit-rehearsal.sh \
   v3-entry-credits-rehearsal.sh \
   v3-s3-confirmation-invariants-rehearsal.sh \
   v3-s3-entry-invariants-rehearsal.sh \
@@ -136,7 +137,15 @@ for rehearsal in \
   v3-s3-identity-access-invariants-rehearsal.sh \
   v3-s4-domain-event-outbox-rehearsal.sh \
   v3-s5-confirmation-consequences-rehearsal.sh \
-  v3-s5-entry-consequences-rehearsal.sh
+  v3-s5-entry-consequences-rehearsal.sh \
+  v3-s5-results-consequences-rehearsal.sh \
+  v3-s5-publication-consequences-rehearsal.sh \
+  v3-s5-notification-consequences-rehearsal.sh \
+  v3-s5-notice-consequences-rehearsal.sh \
+  v3-s5-access-consequences-rehearsal.sh \
+  v3-s5-preference-consequences-rehearsal.sh \
+  v3-s5-prediction-round-consequences-rehearsal.sh \
+  v3-s5-prediction-score-consequences-rehearsal.sh
   do
     log "Running $rehearsal"
     bash "$ROOT/.github/scripts/$rehearsal"
