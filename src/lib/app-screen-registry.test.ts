@@ -12,7 +12,14 @@ describe("Solaris app screen registry", () => {
   });
 
   it("keeps focused participation tasks out of global tab navigation", () => {
-    for (const path of ["/confirmations", "/jury-voting", "/televoting", "/next-in-line", "/integrity/report"]) {
+    for (const path of [
+      "/confirmations",
+      "/jury-voting",
+      "/televoting",
+      "/next-in-line",
+      "/my-solaris/entry",
+      "/integrity/report",
+    ]) {
       const screen = resolveSolarisAppScreen(path);
       expect(screen.presentation).toBe("task");
       expect(screen.chrome.tabbar).toBe("hidden");
@@ -20,6 +27,24 @@ describe("Solaris app screen registry", () => {
       expect(screen.behavior.criticalTask).toBe(true);
       expect(screen.behavior.offline).toBe("online-required");
     }
+  });
+
+  it("treats Entry as authenticated Participate work rather than a generic Me workspace", () => {
+    for (const path of ["/my-solaris/entry", "/my-solaris/entry/"]) {
+      const screen = resolveSolarisAppScreen(path);
+      expect(screen.id).toBe("mysolaris.entry");
+      expect(screen.title).toBe("Entry");
+      expect(screen.hierarchy.rootTab).toBe("participate");
+      expect(screen.hierarchy.parent).toEqual({ label: "Participate", href: "/participate" });
+      expect(screen.chrome.toolbar).toBe("focused");
+      expect(screen.access.auth).toBe("authenticated");
+      expect(screen.helpTo).toBe("/guide");
+    }
+
+    const ordinaryMySolaris = resolveSolarisAppScreen("/my-solaris/activity");
+    expect(ordinaryMySolaris.id).toBe("mysolaris.child");
+    expect(ordinaryMySolaris.hierarchy.rootTab).toBe("me");
+    expect(ordinaryMySolaris.behavior.criticalTask).toBe(false);
   });
 
   it("keeps rule reading discoverable and offline-ready", () => {

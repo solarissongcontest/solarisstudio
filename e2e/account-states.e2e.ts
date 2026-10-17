@@ -162,7 +162,7 @@ for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies rea
   });
 }
 
-test("country participant Entry cuts over to V3 without taking Organizer inspection ownership", async ({ page, context }) => {
+test("country participant Entry cuts over to focused V3 without taking Organizer inspection ownership", async ({ page, context }) => {
   const url = process.env.E2E_SUPABASE_URL;
   const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
   const countryEmail = process.env.E2E_COUNTRY_EMAIL;
@@ -212,19 +212,25 @@ test("country participant Entry cuts over to V3 without taking Organizer inspect
   try {
     await page.goto("/my-solaris/entry", { waitUntil: "domcontentloaded" });
     const entryRoot = page.locator("[data-v3-entry-root]");
+    const focusedShell = page.locator('[data-v3-focused-task-shell="mysolaris.entry"]');
     await expect(entryRoot).toBeVisible();
     await expect(entryRoot).toHaveAttribute("data-v3-entry-state", "ready");
+    await expect(focusedShell).toBeVisible();
     await expect(page.getByRole("heading", { name: "Your entry", exact: true })).toBeVisible();
     await expect(page.locator("[data-v3-entry-readiness]")).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Primary app navigation" })
-      .getByRole("link", { name: "Participate", exact: true }))
-      .toHaveAttribute("aria-current", "page");
+    await expect(focusedShell.getByRole("link", { name: "Back to Participate", exact: true })).toBeVisible();
+    await expect(focusedShell.getByRole("link", { name: "Help for Entry", exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Primary app navigation" })).toHaveCount(0);
+    await expect(page.locator(".solaris-mysolaris-workspace")).toHaveCount(0);
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
 
     // A country selector is an Organizer inspection contract. It must never be
-    // silently reinterpreted as the participant V3 Entry workspace.
+    // silently reinterpreted as the participant V3 Entry workspace, even if a
+    // country participant manually supplies the query string.
     await page.goto("/my-solaris/entry?country=BRW", { waitUntil: "domcontentloaded" });
     await expect(entryRoot).toHaveCount(0);
+    await expect(focusedShell).toHaveCount(0);
+    await expect(page.locator(".solaris-mysolaris-workspace")).toBeVisible();
   } finally {
     await setV3FeatureForLocalUser(url!, publishableKey!, organizer, "solaris_app_v3_entry", false);
     await setV3FeatureForLocalUser(url!, publishableKey!, organizer, "hod_workspace_v2", false);
@@ -236,16 +242,19 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
   const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
   const email = process.env.E2E_ORGANIZER_B_EMAIL;
   const password = process.env.E2E_ORGANIZER_B_PASSWORD;
-  const missingConfig = !url || !publishableKey || !email || !password;
+  const countryEmail = process.env.E2E_COUNTRY_EMAIL;
+  const countryPassword = process.env.E2E_COUNTRY_PASSWORD;
+  const missingConfig =
+    !url || !publishableKey || !email || !password || !countryEmail || !countryPassword;
 
   if (missingConfig && process.env.CI) {
     throw new Error(
-      "Browser Audit must seed local Organizer B credentials for the V3 positive-path cutover proof.",
+      "Browser Audit must seed local Organizer B + country credentials for the V3 positive-path cutover proof.",
     );
   }
   test.skip(
     missingConfig,
-    "Organizer B browser credentials or E2E Supabase public config are not configured",
+    "Organizer B/country browser credentials or E2E Supabase public config are not configured",
   );
 
   expect(url).toMatch(/^http:\/\/(?:127\.0\.0\.1|localhost):\d+/);
@@ -256,7 +265,26 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     localStorage.setItem("solaris:app-first-run-complete:v1", "1");
   });
   const session = await addSession(context, url!, publishableKey!, email!, password!);
-  await setV3ForLocalUser(url!, publishableKey!, session, true);
+  const countrySession = await fetchSession(
+    url!,
+    publishableKey!,
+    countryEmail!,
+    countryPassword!,
+  );
+  // Feature flags are single authoritative rows. Preserve the country cohort
+  // seeded for the parallel installed-app NAV project while temporarily adding
+  // Organizer B to the same rollout. Otherwise this test can disable V3 under a
+  // different Playwright worker and make unrelated geometry tests fail.
+  const globalRolloutTargets = [countrySession.user.id, session.user.id];
+  await setV3FeatureForLocalUser(
+    url!,
+    publishableKey!,
+    session,
+    "solaris_app_v3",
+    true,
+    [],
+    globalRolloutTargets,
+  );
   await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_explore", true);
   await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_edition_hub", true);
   await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_delegation", true);
@@ -389,6 +417,16 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_delegation", false);
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_edition_hub", false);
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_explore", false);
-    await setV3ForLocalUser(url!, publishableKey!, session, false);
+    // Restore the exact country-only App V3 baseline seeded for the parallel
+    // installed-app project instead of globally disabling the one-row flag.
+    await setV3FeatureForLocalUser(
+      url!,
+      publishableKey!,
+      session,
+      "solaris_app_v3",
+      true,
+      [],
+      [countrySession.user.id],
+    );
   }
 });

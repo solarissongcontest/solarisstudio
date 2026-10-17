@@ -35,6 +35,7 @@ import {
   type V3OrganizerTabId,
 } from "@/lib/v3-organizer";
 import { useAdminContext } from "./AdminContext";
+import { resolveAdminEditionContext } from "./admin-edition-context";
 
 type TabDefinition = {
   id: V3OrganizerTabId;
@@ -61,10 +62,7 @@ export function OrganizerV3MobileChrome() {
   const { data: editions = [] } = useEditions();
   const backend = useOrganisationBackendContract();
   const tasksSupported = backend.data?.capabilities.organizerTasks === true;
-  const activeEdition =
-    editions.find((edition) => edition.id === editionId) ??
-    [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
-    null;
+  const activeEdition = resolveAdminEditionContext(editions, editionId);
   const navigationScope = activeEdition?.id ?? null;
   const taskCount = useOrganizerTaskCountV5(activeEdition?.id ?? null, tasksSupported);
   const unresolvedTaskCount =
