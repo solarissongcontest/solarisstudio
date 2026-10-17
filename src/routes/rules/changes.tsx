@@ -3,6 +3,7 @@ import { BookOpen, CalendarClock, FileClock } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { GovernanceDepthLayout } from "@/components/SolarisDepth";
+import { V3RulesRouteGate } from "@/components/v3/V3RulesRouteGate";
 import { rulebookReleaseAnchor } from "@/lib/public-library-governance";
 import {
   useRulebookReleaseHistory,
@@ -27,43 +28,51 @@ function RulebookChangesPage() {
   const history = useRulebookReleaseHistory();
   const releases = history.data ?? [];
 
+  const content = (
+    <GovernanceDepthLayout tone="rules" context="rules" className="mx-auto max-w-4xl pb-20" data-v3-rulebook-history="">
+      <header className="border-b border-border/65 pb-5">
+        <p className="text-xs font-black uppercase tracking-[0.12em] text-primary/80">
+          Rules
+        </p>
+        <h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">
+          Rule changes & history
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          Every published version stays visible. Each change records what moved, when it became effective and why TSBC changed it.
+        </p>
+      </header>
+
+      {history.isLoading ? <LoadingState /> : null}
+      {history.isError ? <ErrorState /> : null}
+      {!history.isLoading && !history.isError && releases.length === 0 ? <EmptyState /> : null}
+
+      {releases.length ? (
+        <ol className="mt-6 border-l border-border/70 pl-5">
+          {releases.map((release) => (
+            <li key={release.id ?? release.version} className="relative pb-9 last:pb-0">
+              <span
+                className={
+                  release.is_current
+                    ? "absolute -left-[1.55rem] top-1.5 size-3 rounded-full border-2 border-background bg-emerald-300"
+                    : "absolute -left-[1.48rem] top-1.5 size-2.5 rounded-full border-2 border-background bg-muted-foreground"
+                }
+              />
+              <ReleaseSection release={release} />
+            </li>
+          ))}
+        </ol>
+      ) : null}
+    </GovernanceDepthLayout>
+  );
+
   return (
-    <AppShell>
-      <GovernanceDepthLayout tone="rules" context="rules" className="mx-auto max-w-4xl pb-20">
-        <header className="border-b border-border/65 pb-5">
-          <p className="text-xs font-black uppercase tracking-[0.12em] text-primary/80">
-            Rules
-          </p>
-          <h1 className="mt-2 text-3xl font-black tracking-[-0.04em]">
-            Rule changes & history
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Every published version stays visible. Each change records what moved, when it became effective and why TSBC changed it.
-          </p>
-        </header>
-
-        {history.isLoading ? <LoadingState /> : null}
-        {history.isError ? <ErrorState /> : null}
-        {!history.isLoading && !history.isError && releases.length === 0 ? <EmptyState /> : null}
-
-        {releases.length ? (
-          <ol className="mt-6 border-l border-border/70 pl-5">
-            {releases.map((release) => (
-              <li key={release.id ?? release.version} className="relative pb-9 last:pb-0">
-                <span
-                  className={
-                    release.is_current
-                      ? "absolute -left-[1.55rem] top-1.5 size-3 rounded-full border-2 border-background bg-emerald-300"
-                      : "absolute -left-[1.48rem] top-1.5 size-2.5 rounded-full border-2 border-background bg-muted-foreground"
-                  }
-                />
-                <ReleaseSection release={release} />
-              </li>
-            ))}
-          </ol>
-        ) : null}
-      </GovernanceDepthLayout>
-    </AppShell>
+    <V3RulesRouteGate
+      phaseLabel="Rules history"
+      resolvingTitle="Opening rulebook history"
+      legacy={<AppShell>{content}</AppShell>}
+    >
+      {content}
+    </V3RulesRouteGate>
   );
 }
 
@@ -144,15 +153,15 @@ function ChangeRow({ change }: { change: RulebookChange }) {
 
 function LoadingState() {
   return (
-    <div className="mt-6 flex items-center gap-2 border-y border-border/60 py-5 text-sm text-muted-foreground">
-      <CalendarClock className="size-4" /> Loading rulebook history…
+    <div className="mt-6 flex items-center gap-2 border-y border-border/60 py-5 text-sm text-muted-foreground" role="status" aria-live="polite">
+      <CalendarClock className="size-4" aria-hidden="true" /> Loading rulebook history…
     </div>
   );
 }
 
 function ErrorState() {
   return (
-    <div className="mt-6 border-l-2 border-rose-300/45 px-4 py-2">
+    <div className="mt-6 border-l-2 border-rose-300/45 px-4 py-2" role="alert">
       <p className="text-sm font-semibold">Rulebook history is temporarily unavailable.</p>
       <p className="mt-1 text-xs text-muted-foreground">
         The current rulebook is still available.
@@ -164,10 +173,10 @@ function ErrorState() {
 function EmptyState() {
   return (
     <div className="mt-6 border-y border-border/60 py-7 text-center">
-      <FileClock className="mx-auto size-6 text-primary" />
+      <FileClock className="mx-auto size-6 text-primary" aria-hidden="true" />
       <p className="mt-2 text-sm font-semibold">No published history yet</p>
       <Link to="/rules" className="mt-3 inline-flex min-h-10 items-center gap-2 text-sm font-bold text-primary">
-        <BookOpen className="size-4" /> Open current rules
+        <BookOpen className="size-4" aria-hidden="true" /> Open current rules
       </Link>
     </div>
   );
