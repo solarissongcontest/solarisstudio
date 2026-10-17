@@ -41,10 +41,37 @@ describe("V3 navigation viewer bootstrap", () => {
   it("uses distinct gesture generations for anonymous and unresolved auth state", () => {
     const code = shell();
 
+    expect(code).toContain("const resolvedViewerKey = navigationScope ?? \"anonymous\"");
     expect(code).toContain("const swipeInteractionKey = navigationIdentityReady");
-    expect(code).toContain('`viewer:${navigationScope ?? "anonymous"}`');
+    expect(code).toContain("`viewer:${resolvedViewerKey}`");
     expect(code).toContain('"viewer:unresolved"');
     expect(code).toContain("interactionKey={swipeInteractionKey}");
     expect(code).not.toContain("interactionKey={navigationScope}");
+  });
+
+  it("does not sample the old route into a newly resolved viewer bucket during auth handoff", () => {
+    const code = shell();
+    const effectStart = code.indexOf("useEffect(() => {");
+    const shellActionsStart = code.indexOf("const shellActions =", effectStart);
+    const memoryEffect = code.slice(effectStart, shellActionsStart);
+
+    expect(code).toContain(
+      "const previousResolvedViewerKeyRef = useRef<string | undefined>(undefined)",
+    );
+    expect(memoryEffect).toContain(
+      "const previousViewerKey = previousResolvedViewerKeyRef.current",
+    );
+    expect(memoryEffect).toContain(
+      "previousResolvedViewerKeyRef.current = resolvedViewerKey",
+    );
+    expect(memoryEffect).toContain(
+      "previousViewerKey !== undefined && previousViewerKey !== resolvedViewerKey",
+    );
+    expect(memoryEffect.indexOf("previousViewerKey !== undefined")).toBeLessThan(
+      memoryEffect.indexOf("consumeV3PublicNavigationRestore("),
+    );
+    expect(memoryEffect.indexOf("previousViewerKey !== undefined")).toBeLessThan(
+      memoryEffect.indexOf("rememberV3PublicLocation("),
+    );
   });
 });
