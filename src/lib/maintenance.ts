@@ -1,7 +1,7 @@
 export const GLOBAL_MAINTENANCE_MODE = true;
 
-export const MAINTENANCE_RETURN_DATE = "Coming soon — a new Solaris Studio app experience is on the way";
-export const MAINTENANCE_LAST_UPDATED = "11 October 2026";
+export const MAINTENANCE_RETURN_DATE = "To be announced";
+export const MAINTENANCE_LAST_UPDATED = "18 October 2026";
 
 export function maintenanceHodAccessEnabled(rawValue: string | null | undefined) {
   return rawValue?.trim().toLowerCase() === "true";
