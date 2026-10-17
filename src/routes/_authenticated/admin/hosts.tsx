@@ -169,9 +169,7 @@ function HostManagementPage() {
 
   const editions = editionsQuery.data ?? [];
   const countries = countriesQuery.data ?? [];
-  const edition = editions.find((item) => item.id === editionId)
-    ?? [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0]
-    ?? null;
+  const edition = editions.find((item) => item.id === editionId) ?? null;
   const resolvedEditionId = edition?.id ?? '';
 
   const hostQuery = useQuery({
@@ -183,6 +181,23 @@ function HostManagementPage() {
   const snapshot = hostQuery.data ?? null;
   const summary = useMemo(() => snapshot ? summarizeStudio2HostManagement(snapshot) : null, [snapshot]);
   const selectedBid = summary?.selected ?? null;
+
+  useEffect(() => {
+    setPending(null);
+    setPendingReason('');
+    setBidSheet(null);
+    setBidDraft(emptyBidDraft);
+    setBidReason('');
+    setEvaluationTarget(null);
+    setEvaluationScore('');
+    setEvaluationComment('');
+    setEvaluationReason('');
+    setShowTarget(null);
+    setShowCountryId('');
+    setShowCity('');
+    setShowReason('');
+    setOperationsReason('');
+  }, [resolvedEditionId]);
 
   useEffect(() => {
     if (!snapshot?.operations) {
@@ -201,15 +216,37 @@ function HostManagementPage() {
       bidId?: string | null;
       expectedRevision?: number | null;
       payload?: Record<string, unknown>;
-    }) => executeStudio2HostOperation({
-      editionId: resolvedEditionId,
-      action: input.action,
-      reason: input.reason,
-      executionId: crypto.randomUUID(),
-      bidId: input.bidId,
-      expectedRevision: input.expectedRevision,
-      payload: input.payload,
-    }),
+    }) => {
+      if (
+        !editionId ||
+        !resolvedEditionId ||
+        resolvedEditionId !== editionId ||
+        snapshot?.edition.id !== resolvedEditionId
+      ) {
+        throw Object.assign(
+          new Error('Edition context changed before the Host Management command. Reopen the selected edition and review the change again.'),
+          { status: 409 },
+        );
+      }
+      if (
+        input.bidId &&
+        !snapshot.bids.some((bid) => bid.id === input.bidId && bid.editionId === resolvedEditionId)
+      ) {
+        throw Object.assign(
+          new Error('The selected host bid does not belong to the current Organizer edition.'),
+          { status: 409 },
+        );
+      }
+      return executeStudio2HostOperation({
+        editionId: resolvedEditionId,
+        action: input.action,
+        reason: input.reason,
+        executionId: crypto.randomUUID(),
+        bidId: input.bidId,
+        expectedRevision: input.expectedRevision,
+        payload: input.payload,
+      });
+    },
     onSuccess: async (execution) => {
       await queryClient.invalidateQueries({ queryKey: ['studio2-host-management', resolvedEditionId] });
       await Promise.all([
@@ -393,10 +430,10 @@ function HostManagementPage() {
           ) : undefined}
         />
 
-        <HostTabs view={view} onChange={setView} />
+        {edition ? <HostTabs view={view} onChange={setView} /> : null}
 
         {!edition && !editionsQuery.isLoading ? (
-          <AdminCard><AdminEmptyState icon={MapPinned} title="No edition selected" description="Select an edition before managing the host process." /></AdminCard>
+          <AdminCard><AdminEmptyState icon={MapPinned} title="Choose an edition" description="Select the exact Organizer edition before managing hosts. Solaris will not substitute the newest or globally active edition when the saved context is missing or stale." /></AdminCard>
         ) : loading ? (
           <AdminCard><p className="py-12 text-center text-sm text-muted-foreground">Building the host management snapshot…</p></AdminCard>
         ) : error ? (
@@ -442,7 +479,7 @@ function HostManagementPage() {
         ) : null}
 
         <AdminSheet
-          open={Boolean(bidSheet)}
+          open={Boolean(edition && bidSheet)}
           onClose={() => !mutation.isPending && setBidSheet(null)}
           title={bidSheet?.mode === 'edit' ? 'Edit host bid' : 'Create host bid'}
           description="Bid details are internal operational data until a host is selected. Supporting links may point to bid documents, venue plans or media."
@@ -451,7 +488,7 @@ function HostManagementPage() {
         </AdminSheet>
 
         <AdminSheet
-          open={Boolean(evaluationTarget)}
+          open={Boolean(edition && evaluationTarget)}
           onClose={() => !mutation.isPending && setEvaluationTarget(null)}
           title={evaluationTarget ? `Evaluate ${evaluationTarget.city}` : 'Evaluate host bid'}
           description="Scores are evidence for comparison, not an automatic host-selection engine. The final selection is always an explicit organizer decision."
@@ -480,7 +517,7 @@ function HostManagementPage() {
         </AdminSheet>
 
         <AdminSheet
-          open={Boolean(showTarget)}
+          open={Boolean(edition && showTarget)}
           onClose={() => !mutation.isPending && setShowTarget(null)}
           title={showTarget ? `${showTarget.showName} host` : 'Show host'}
           description="Leave both fields empty to inherit the edition-level selected host. Set them to preserve a split-host show."
@@ -506,7 +543,7 @@ function HostManagementPage() {
         </AdminSheet>
 
         <AdminConfirmSheet
-          open={Boolean(pending)}
+          open={Boolean(edition && pending)}
           onClose={() => !mutation.isPending && setPending(null)}
           onConfirm={confirmPending}
           title={pending?.title ?? 'Host operation'}

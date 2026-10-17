@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, Check, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ClipboardCheck, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { AdminPage } from "@/components/admin/AdminShell";
-import { AdminCard } from "@/components/admin/AdminUI";
+import { AdminCard, AdminEmptyState, AdminStatus } from "@/components/admin/AdminUI";
 import { useAdminContext } from "@/components/admin/AdminContext";
 import {
   BetaBugReports,
@@ -24,14 +24,14 @@ import {
 } from "@/features/admin-beta-test/sections";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadBetaFeedbackScreenshot } from "@/lib/beta-feedback-upload";
-import { useEditions } from "@/lib/data";
+import { editionLabel, useEditions } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/beta-test")({
   head: () => ({
     meta: [
-      { title: "Admin Beta Test — Solaris Studio" },
-      { name: "description", content: "Task-based beta test for the Solaris Studio organizer workspace." },
+      { title: "Organizer Acceptance Test — Solaris Studio" },
+      { name: "description", content: "Scenario-based acceptance testing for the Solaris Studio organizer workspace." },
       { name: "robots", content: "noindex,nofollow" },
     ],
   }),
@@ -40,12 +40,12 @@ export const Route = createFileRoute("/_authenticated/admin/beta-test")({
 
 function AdminBetaTestPage() {
   const { editionId } = useAdminContext();
-  const { data: editions = [] } = useEditions();
-  const activeEdition =
-    editions.find((edition) => edition.id === editionId) ??
-    [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
-    null;
+  const editionsQuery = useEditions();
+  const editions = editionsQuery.data ?? [];
+  const activeEdition = editions.find((edition) => edition.id === editionId) ?? null;
   const sections = useMemo(() => buildAdminBetaSections(activeEdition?.slug), [activeEdition?.slug]);
+  const draftKey = activeEdition ? `${ADMIN_BETA_DRAFT_KEY}:${activeEdition.id}` : null;
+  const submittedKey = activeEdition ? `${ADMIN_BETA_SUBMITTED_KEY}:${activeEdition.id}` : null;
 
   const [answers, setAnswers] = useState<BetaAnswers>({});
   const [bugs, setBugs] = useState<BetaBugReport[]>([]);
@@ -57,8 +57,21 @@ function AdminBetaTestPage() {
   const [sectionError, setSectionError] = useState<string | null>(null);
 
   useEffect(() => {
+    setHydrated(false);
+    setAnswers({});
+    setBugs([]);
+    setStep(0);
+    setSubmitted(false);
+    setError(null);
+    setSectionError(null);
+
+    if (!draftKey || !submittedKey) {
+      if (!editionsQuery.isLoading) setHydrated(true);
+      return;
+    }
+
     try {
-      const saved = window.localStorage.getItem(ADMIN_BETA_DRAFT_KEY);
+      const saved = window.localStorage.getItem(draftKey);
       if (saved) {
         const parsed = JSON.parse(saved) as {
           answers?: BetaAnswers;
@@ -69,22 +82,22 @@ function AdminBetaTestPage() {
         if (parsed.bugs) setBugs(parsed.bugs.map((bug) => ({ ...bug })));
         if (typeof parsed.step === "number") setStep(Math.min(Math.max(parsed.step, 0), sections.length));
       }
-      setSubmitted(window.localStorage.getItem(ADMIN_BETA_SUBMITTED_KEY) === "true");
+      setSubmitted(window.localStorage.getItem(submittedKey) === "true");
     } catch {
       // A damaged draft should not block testing.
     } finally {
       setHydrated(true);
     }
-  }, [sections.length]);
+  }, [draftKey, editionsQuery.isLoading, sections.length, submittedKey]);
 
   useEffect(() => {
-    if (!hydrated || submitted) return;
+    if (!hydrated || submitted || !draftKey) return;
     const serializableBugs = bugs.map(({ file: _file, ...bug }) => bug);
     window.localStorage.setItem(
-      ADMIN_BETA_DRAFT_KEY,
+      draftKey,
       JSON.stringify({ answers, bugs: serializableBugs, step }),
     );
-  }, [answers, bugs, step, hydrated, submitted]);
+  }, [answers, bugs, draftKey, step, hydrated, submitted]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -137,6 +150,17 @@ function AdminBetaTestPage() {
   }
 
   async function submit() {
+    if (
+      !activeEdition ||
+      !editionId ||
+      activeEdition.id !== editionId ||
+      !draftKey ||
+      !submittedKey
+    ) {
+      setError("Edition context changed before submission. Reopen the selected edition and review this acceptance pass again.");
+      return;
+    }
+
     const testerName = String(answers.testerName ?? "").trim();
     const device = String(answers.device ?? "").trim();
     const priorityOne = String(answers.priorityOne ?? "").trim();
@@ -172,13 +196,19 @@ function AdminBetaTestPage() {
         preparedBugs.push({ ...bugData, screenshotPath });
       }
 
+      const scopedAnswers: BetaAnswers = {
+        ...answers,
+        organizerEditionId: activeEdition.id,
+        organizerEditionSlug: activeEdition.slug,
+        organizerEditionLabel: editionLabel(activeEdition),
+      };
       const payload = {
         id: submissionId,
         tester_name: testerName,
         device,
         browser: answers.browser || null,
         familiarity: answers.familiarity || null,
-        answers,
+        answers: scopedAnswers,
         bug_reports: preparedBugs,
         screenshot_paths: uploadedPaths,
         user_agent: navigator.userAgent,
@@ -190,15 +220,15 @@ function AdminBetaTestPage() {
         .insert(payload as never);
       if (insertError) throw insertError;
 
-      window.localStorage.removeItem(ADMIN_BETA_DRAFT_KEY);
-      window.localStorage.setItem(ADMIN_BETA_SUBMITTED_KEY, "true");
+      window.localStorage.removeItem(draftKey);
+      window.localStorage.setItem(submittedKey, "true");
       setSubmitted(true);
     } catch (submissionError) {
-      console.error("Admin beta feedback submission failed", submissionError);
+      console.error("Organizer acceptance evidence submission failed", submissionError);
       setError(
         submissionError instanceof Error
-          ? `Your feedback was not submitted yet: ${submissionError.message}`
-          : "Your feedback was not submitted yet. Please try again.",
+          ? `Your acceptance evidence was not submitted yet: ${submissionError.message}`
+          : "Your acceptance evidence was not submitted yet. Please try again.",
       );
     } finally {
       setSubmitting(false);
@@ -206,8 +236,8 @@ function AdminBetaTestPage() {
   }
 
   function restart() {
-    window.localStorage.removeItem(ADMIN_BETA_DRAFT_KEY);
-    window.localStorage.removeItem(ADMIN_BETA_SUBMITTED_KEY);
+    if (draftKey) window.localStorage.removeItem(draftKey);
+    if (submittedKey) window.localStorage.removeItem(submittedKey);
     setAnswers({});
     setBugs([]);
     setStep(0);
@@ -215,7 +245,31 @@ function AdminBetaTestPage() {
     setError(null);
   }
 
-  if (!hydrated) return null;
+  if (editionsQuery.isLoading || !hydrated) {
+    return (
+      <AdminPage>
+        <div className="mx-auto max-w-4xl py-10">
+          <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Confirming Organizer edition context…</p></AdminCard>
+        </div>
+      </AdminPage>
+    );
+  }
+
+  if (!activeEdition) {
+    return (
+      <AdminPage>
+        <div className="mx-auto max-w-4xl py-10">
+          <AdminCard>
+            <AdminEmptyState
+              icon={ClipboardCheck}
+              title="Choose an edition"
+              description="Select the exact Organizer edition before starting an acceptance pass. Solaris will not substitute the newest edition or mix acceptance drafts across editions."
+            />
+          </AdminCard>
+        </div>
+      </AdminPage>
+    );
+  }
 
   if (submitted) {
     return (
@@ -225,13 +279,14 @@ function AdminBetaTestPage() {
             <div className="mx-auto mb-5 grid size-14 place-items-center rounded-2xl border border-emerald-200/20 bg-emerald-200/10 text-emerald-100">
               <Check className="size-7" />
             </div>
-            <p className="admin-section-label">Admin beta</p>
-            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Feedback submitted</h1>
+            <p className="admin-section-label">Organizer Acceptance Test</p>
+            <div className="mt-3 flex justify-center"><AdminStatus tone="info">{editionLabel(activeEdition)}</AdminStatus></div>
+            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Acceptance evidence submitted</h1>
             <p className="mx-auto mt-5 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-              Thank you. The useful bits here are not only bugs: confusion, risky controls, slow workflows and anything that made you hesitate during normal organizer work all matter.
+              This pass is bound to {editionLabel(activeEdition)}. Bugs, confusion, risky controls, slow workflows and anything that caused hesitation during normal organizer work all count as release evidence.
             </p>
             <button type="button" onClick={restart} className="admin-action-secondary mt-8">
-              Submit another response on this device
+              Start another pass for this edition
             </button>
           </AdminCard>
         </div>
@@ -245,10 +300,13 @@ function AdminBetaTestPage() {
         <header className="mb-6 sm:mb-8">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <p className="admin-section-label">Solaris Studio · Admin beta</p>
-              <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-4xl">
-                {isReview ? "Review your feedback" : current.title}
-              </h1>
+              <p className="admin-section-label">Solaris Studio · Organizer Acceptance Test</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-black tracking-tight sm:text-4xl">
+                  {isReview ? "Review acceptance evidence" : current.title}
+                </h1>
+                <AdminStatus tone="info">{editionLabel(activeEdition)}</AdminStatus>
+              </div>
               {!isReview && current.description ? <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{current.description}</p> : null}
             </div>
             <p className="shrink-0 text-xs font-semibold text-muted-foreground">
@@ -260,7 +318,7 @@ function AdminBetaTestPage() {
             <div className="h-full rounded-full bg-sky-200 transition-[width] duration-300" style={{ width: `${isReview ? 100 : Math.max(progress, 4)}%` }} />
           </div>
           <div className="mt-2 flex justify-between text-[10px] font-semibold text-muted-foreground">
-            <span>{isReview ? "Ready to submit" : "Your answers save on this device as you go."}</span>
+            <span>{isReview ? "Ready to submit" : "This edition-scoped draft saves on this device as you go."}</span>
             <span>{isReview ? "100%" : `${progress}%`}</span>
           </div>
         </header>
@@ -270,11 +328,11 @@ function AdminBetaTestPage() {
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 size-5 shrink-0 text-amber-100" />
               <div>
-                <p className="font-semibold text-foreground">Test the workflow, not the integrity of the official archive.</p>
-                <p className="mt-1">Do not change official results, jury points, televote totals, point scales or published data just to prove a button works. Use a designated test edition/show where available, or inspect the flow and stop before confirming a destructive or publishing action.</p>
+                <p className="font-semibold text-foreground">Test scenarios, not page availability.</p>
+                <p className="mt-1">For each area, perform the described organizer workflow and record the outcome. Merely opening a route is not acceptance evidence. Do not change official results, jury points, televote totals, point scales or published data just to prove a button works. Use designated test data where available, or inspect the flow and stop before confirming a destructive or publishing action.</p>
               </div>
             </div>
-            <p>You do not have to test every area. Short answers are completely fine. “Nothing”, “No” and “Didn't test” are valid answers when they are true.</p>
+            <p>You do not have to test every area in one pass. “Didn't test” is valid when true; “Tested properly” means the scenario itself was exercised.</p>
           </div>
         ) : null}
 
@@ -309,11 +367,11 @@ function AdminBetaTestPage() {
           </button>
           {isReview ? (
             <button type="button" onClick={() => void submit()} disabled={submitting} className="admin-action-primary flex-[2] sm:ml-auto sm:flex-none">
-              {submitting ? "Submitting…" : "Submit admin feedback"} <Check className="size-4" />
+              {submitting ? "Submitting…" : "Submit acceptance evidence"} <Check className="size-4" />
             </button>
           ) : (
             <button type="button" onClick={next} className="admin-action-primary flex-[2] sm:ml-auto sm:flex-none">
-              {step === sections.length - 1 ? "Review answers" : "Continue"} <ArrowRight className="size-4" />
+              {step === sections.length - 1 ? "Review evidence" : "Continue"} <ArrowRight className="size-4" />
             </button>
           )}
         </div>
@@ -336,7 +394,7 @@ function AdminBetaReviewScreen({
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 text-sm text-muted-foreground">
-        Check the important bits before submitting. Optional unanswered questions stay optional. Civilization survives.
+        Check the scenario evidence before submitting. Optional unanswered questions stay optional. Civilization survives.
       </div>
       {sections.map((section, index) => {
         const visible = section.questions.filter((question) => isBetaQuestionVisible(question, answers));
