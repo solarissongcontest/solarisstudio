@@ -7,11 +7,12 @@ const start = readFileSync("src/start.ts", "utf8");
 const page = readFileSync("src/lib/maintenance-page.ts", "utf8");
 const config = readFileSync("src/lib/maintenance.ts", "utf8");
 const envExample = readFileSync(".env.example", "utf8");
+const confirmationEditRoute = readFileSync("src/routes/confirmations/edit/$token.tsx", "utf8");
 
 describe("emergency global maintenance mode", () => {
   it("is explicitly enabled and runs at the Worker entry before normal request middleware", () => {
     expect(config).toContain("GLOBAL_MAINTENANCE_MODE = true");
-    expect(server).toContain("return maintenanceResponse(request, env, url.pathname === \"/\")");
+    expect(server).toContain('return maintenanceResponse(request, env, url.pathname === "/")');
     expect(server).toContain("status: 503");
     expect(start).toContain("requestMiddleware: [errorMiddleware, csrfMiddleware]");
     expect(start).not.toContain("maintenanceMiddleware");
@@ -32,9 +33,6 @@ describe("emergency global maintenance mode", () => {
     expect(server).not.toContain("solaris_maintenance_read_only_probe");
     expect(server).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
     expect(server).not.toContain("service_role");
-    expect(server).not.toContain(
-      "Maintenance inspection stays locked until the Solaris database is explicitly Read-only or in Maintenance.",
-    );
     expect(envExample).toContain("MAINTENANCE_ADMIN_SECRET=");
     expect(envExample).not.toContain("VITE_MAINTENANCE_ADMIN_SECRET");
   });
@@ -44,49 +42,62 @@ describe("emergency global maintenance mode", () => {
     expect(server).toContain("MAINTENANCE_HOD_ACCESS");
     expect(server).toContain("SUPABASE_PUBLISHABLE_KEY");
     expect(server).toContain("renderMaintenanceHodPortal");
-    expect(server).toContain("if (request.method === \"GET\" && includeHodPortal)");
+    expect(server).toContain('if (request.method === "GET" && includeHodPortal)');
     expect(server).toContain("if (hod.enabled && hod.supabaseUrl && hod.publishableKey)");
     expect(server).not.toContain("SUPABASE_SECRET_KEY");
     expect(server).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   });
 
+  it("opens maintenance change requests on an editable entry step instead of the review-only summary", () => {
+    expect(confirmationEditRoute).toContain(
+      'GLOBAL_MAINTENANCE_MODE && entryFocus?.section === "review"',
+    );
+    expect(confirmationEditRoute).toContain(
+      "const editorInitialStep = maintenanceReviewFocus ? 3 : entryFocus?.step ?? undefined;",
+    );
+    expect(confirmationEditRoute).toContain('data-maintenance-entry-edit-focus="entry"');
+    expect(confirmationEditRoute).toContain("initialStep={editorInitialStep}");
+  });
+
   it("keeps the E2E bypass impossible on a production hostname", () => {
     expect(server).toContain('url.hostname === "127.0.0.1" || url.hostname === "localhost"');
-    expect(server).toContain("readCookie(request, E2E_MAINTENANCE_BYPASS_COOKIE) === \"1\"");
+    expect(server).toContain('readCookie(request, E2E_MAINTENANCE_BYPASS_COOKIE) === "1"');
     expect(server).not.toContain('process.env.SOLARIS_E2E_BYPASS_MAINTENANCE !== "1"');
   });
 
-  it("uses the canonical Solaris visual system and reduced-motion-safe animation", () => {
+  it("renders a compact routing page instead of an outage incident report", () => {
     expect(page).toContain('font-family: "Classica Crastao"');
     expect(page).toContain('font-family: "Gotham"');
     expect(page).toContain('url("/solaris-background.webp")');
+    expect(page).toContain('class="maintenance-summary"');
+    expect(page).toContain("Most services paused");
+    expect(page).toContain("HOD Confirmations available");
+    expect(page).toContain('class="service-grid"');
+    expect(page).toContain("HOD Confirmations");
+    expect(page).toContain("Restricted");
+    expect(page).toContain("<details>");
+    expect(page).toContain("What does maintenance affect?");
+    expect(page).toContain("What happens next");
     expect(page).toContain("@media (prefers-reduced-motion: no-preference)");
+    expect(page).toContain("@media (prefers-reduced-motion: reduce)");
     expect(page).toContain("@keyframes reveal-panel");
     expect(page).toContain("@keyframes aurora-one");
-    expect(page).toContain('class="recovery-visual"');
-    expect(page).toContain('class="recovery-stage"');
-    expect(page).toContain('class="tsbc-core"');
-    expect(page).toContain('<div class="tsbc-core"><img src="/solaris-studio-mark.png"');
-    expect(page.match(/src="\/solaris-studio-mark\.png"/g)?.length).toBe(2);
-    expect(page).toContain("@keyframes orbit-one-motion");
-    expect(page).toContain("@keyframes recovery-scan");
-    expect(page).toContain("@keyframes recovery-ping");
-    expect(page).toContain("@keyframes core-breathe");
-    expect(page).toContain("@keyframes spark-float-a");
-    expect(page).not.toContain('class="core-star"');
-    expect(page).not.toContain('class="grid-plane"');
-    expect(page).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(page).not.toContain('class="recovery-visual"');
+    expect(page).not.toContain('class="recovery-stage"');
+    expect(page).not.toContain("Awaiting restoration");
   });
 
-  it("publishes an open-ended return status and teases the new app experience", () => {
-    expect(config).toContain('"Coming soon — a new Solaris Studio app experience is on the way"');
-    expect(config).toContain('"11 October 2026"');
-    expect(config).not.toContain('"10 October 2026"');
+  it("uses truthful maintenance copy while keeping HOD Confirmation availability explicit", () => {
+    expect(config).toContain('"To be announced"');
+    expect(config).toContain('"18 October 2026"');
     expect(page).toContain(
-      "All deadlines scheduled during this outage will be postponed.",
+      "Heads of Delegation can still access Confirmations on this page.",
     );
+    expect(page).toContain("Most Studio services are paused");
+    expect(page).not.toContain("A database service error is currently preventing Solaris Studio");
+    expect(page).not.toContain("All Solaris Studio services are temporarily unavailable.");
+    expect(page).not.toContain("Confirmations, Televoting and Organizer tools");
     expect(page).toContain("Terra Solaris Broadcasting Coalition");
-    expect(page).not.toContain('<img class="tsbc-mark"');
   });
 
   it("blocks writes while still allowing the maintenance branding assets", () => {

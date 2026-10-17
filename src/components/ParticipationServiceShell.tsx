@@ -4,6 +4,10 @@ import { createContext, useContext, useEffect, type ReactNode } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import {
+  GLOBAL_MAINTENANCE_MODE,
+  isMaintenanceHodAppRouteAllowed,
+} from "@/lib/maintenance";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
@@ -20,8 +24,15 @@ const ParticipationChromeContext = createContext(false);
 
 export function ParticipationRouteChrome({ children }: { children: ReactNode }) {
   const nested = useContext(ParticipationChromeContext);
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const maintenanceIsolated =
+    GLOBAL_MAINTENANCE_MODE && isMaintenanceHodAppRouteAllowed(pathname, "GET", true);
 
-  if (nested) return <>{children}</>;
+  // The Worker is the authority for whether HOD access is enabled. If one of
+  // those exact routes reaches React during global maintenance, keep it outside
+  // AppShell so no header, hamburger, bottom nav or public-site navigation leaks
+  // into the isolated Confirmation workflow.
+  if (nested || maintenanceIsolated) return <>{children}</>;
 
   return (
     <ParticipationChromeContext.Provider value>
