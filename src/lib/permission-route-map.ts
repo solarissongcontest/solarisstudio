@@ -11,6 +11,18 @@ const ROUTE_CAPABILITY_RULES: RouteCapabilityRule[] = [
   rule(["/televoting/admin"], "voting.read"),
   rule(["/admin/access-permissions"], "permissions.read"),
   rule(["/admin/feature-rollout"], "rollout.read"),
+  rule(
+    [
+      "/admin/feedback-studies",
+      "/admin/beta-test",
+      "/admin/admin-beta-feedback",
+      "/admin/beta-feedback",
+      "/admin/beta1-feedback",
+      "/admin/beta2-feedback",
+      "/admin/beta3-feedback",
+    ],
+    "rollout.manage",
+  ),
   rule(["/admin/system-operations", "/admin/system", "/admin/sync-health"], "system.read"),
   rule(["/admin/communications"], "communications.read"),
   rule(["/admin/community-moderation"], "community.read"),
