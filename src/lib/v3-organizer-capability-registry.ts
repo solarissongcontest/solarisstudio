@@ -148,7 +148,8 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "delegation-submission-history" ||
     id === "delegation-sync" ||
     id === "delegation-settings" ||
-    id === "workspace-acceptance-test"
+    id === "workspace-acceptance-test" ||
+    id === "workspace-fantasy"
   ) {
     return "building";
   }
