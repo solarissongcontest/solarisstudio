@@ -62,12 +62,7 @@ async function fetchSession(
 }
 
 async function installCountrySession(context: BrowserContext) {
-  const {
-    supabaseUrl,
-    publishableKey,
-    countryEmail,
-    countryPassword,
-  } = requiredLocalConfig();
+  const { supabaseUrl, publishableKey, countryEmail, countryPassword } = requiredLocalConfig();
   const session = await fetchSession(
     supabaseUrl,
     publishableKey,
@@ -108,22 +103,12 @@ async function installCountrySession(context: BrowserContext) {
 }
 
 async function setFeatureForCountry(
+  organizer: E2ESession,
   key: "solaris_app_v3_confirmation" | "solaris_app_v3_jury",
   enabled: boolean,
   countryUserId: string,
 ) {
-  const {
-    supabaseUrl,
-    publishableKey,
-    organizerEmail,
-    organizerPassword,
-  } = requiredLocalConfig();
-  const organizer = await fetchSession(
-    supabaseUrl,
-    publishableKey,
-    organizerEmail,
-    organizerPassword,
-  );
+  const { supabaseUrl, publishableKey } = requiredLocalConfig();
   const response = await fetch(
     `${supabaseUrl.replace(/\/$/, "")}/rest/v1/rpc/studio2_set_feature_flag`,
     {
@@ -169,15 +154,21 @@ test("critical participation tasks own focused chrome while non-critical sibling
   page,
   context,
 }) => {
-  requiredLocalConfig();
+  const config = requiredLocalConfig();
   const country = await installCountrySession(context);
+  const organizer = await fetchSession(
+    config.supabaseUrl,
+    config.publishableKey,
+    config.organizerEmail,
+    config.organizerPassword,
+  );
 
   // Browser Audit seeds the country account into the global V3 cohort. Keep
   // that shared one-row flag read-only here. Confirmation and Jury have their
   // own independently reversible flags, canonically seeded disabled, and no
   // other browser test mutates them.
-  await setFeatureForCountry("solaris_app_v3_confirmation", true, country.user.id);
-  await setFeatureForCountry("solaris_app_v3_jury", true, country.user.id);
+  await setFeatureForCountry(organizer, "solaris_app_v3_confirmation", true, country.user.id);
+  await setFeatureForCountry(organizer, "solaris_app_v3_jury", true, country.user.id);
 
   try {
     await expectFocusedParticipationChrome(page, "/confirmations", "Confirmations");
@@ -190,7 +181,7 @@ test("critical participation tasks own focused chrome while non-critical sibling
     await expect(page.getByRole("heading", { name: "How the televote works", exact: true })).toBeVisible();
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
   } finally {
-    await setFeatureForCountry("solaris_app_v3_jury", false, country.user.id);
-    await setFeatureForCountry("solaris_app_v3_confirmation", false, country.user.id);
+    await setFeatureForCountry(organizer, "solaris_app_v3_jury", false, country.user.id);
+    await setFeatureForCountry(organizer, "solaris_app_v3_confirmation", false, country.user.id);
   }
 });
