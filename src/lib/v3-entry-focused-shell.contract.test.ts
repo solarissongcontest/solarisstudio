@@ -39,24 +39,30 @@ describe("V3 Entry focused participant shell", () => {
   it("uses one route-owned focused shell instead of stacked global/workspace chrome", () => {
     const gate = source("src/components/v3/V3EntryRouteGate.tsx");
     const workspace = source("src/components/mysolaris/MySolarisWorkspaceShell.tsx");
+    const toolbar = source("src/components/app/AppToolbar.tsx");
     const css = source("src/styles/v3-focused-task-shell.css");
 
     expect(gate).toContain("<V3FocusedTaskShell");
     expect(gate).not.toContain("<V3AppShell");
     expect(workspace).toContain("resolveSolarisAppScreen(location.pathname).behavior.criticalTask");
     expect(workspace).toContain("if (focusedTask) return <>{children}</>");
-    expect(css).toContain("body:has([data-v3-focused-task-shell]) .solaris-app-toolbar");
+    expect(toolbar).toContain("resolveSolarisAppScreen(pathname, searchStr)");
+    expect(toolbar).toContain('screen.id === "mysolaris.entry" && screen.chrome.toolbar === "focused"');
+    expect(toolbar).toContain("if (routeOwnsFocusedToolbar) return null");
+    expect(css).not.toContain(".solaris-app-toolbar");
     expect(css).toContain("app-main");
     expect(css).toContain("data-solaris-app-mode");
   });
 
   it("keeps the resolving cutover inside focused presentation from the first render", () => {
     const gate = source("src/components/v3/V3EntryRouteGate.tsx");
+    const toolbar = source("src/components/app/AppToolbar.tsx");
     const css = source("src/styles/v3-focused-task-shell.css");
 
     expect(gate).toContain("data-v3-entry-boot");
     expect(gate).not.toMatch(/function ResolvingEntrySurface\(\)[\s\S]*?return \(\s*<main/);
-    expect(css).toContain("body:has([data-v3-entry-boot]) .solaris-app-toolbar");
+    expect(toolbar).toContain("routeOwnsFocusedToolbar");
+    expect(css).not.toContain(".solaris-app-toolbar");
     expect(css).toContain('body:has([data-v3-entry-boot]) .app-main[data-solaris-app-mode="true"]');
   });
 
