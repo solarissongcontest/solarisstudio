@@ -272,7 +272,8 @@ export function AppRuntime({ children }: { children: ReactNode }) {
     waitingWorker.postMessage({ type: "SKIP_WAITING" });
   }, [updateSafety.safe, waitingWorker]);
 
-  const updateAvailable = Boolean(waitingWorker) || controllerReloadPending;
+  const updatePromptAvailable = Boolean(waitingWorker);
+  const updateAvailable = updatePromptAvailable || controllerReloadPending;
   const value = useMemo<AppRuntimeValue>(
     () => ({
       ...platform,
@@ -305,7 +306,7 @@ export function AppRuntime({ children }: { children: ReactNode }) {
         isAppMode={platform.isAppMode}
         pathname={pathname}
         connectivity={connectivity}
-        updateAvailable={updateAvailable}
+        updatePromptAvailable={updatePromptAvailable}
         updateSafe={updateSafety.safe}
         onUpdate={applyUpdate}
       />
