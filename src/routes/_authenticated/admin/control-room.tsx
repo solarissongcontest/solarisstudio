@@ -12,9 +12,7 @@ import {
   AdminPageHeader,
   AdminStatus,
 } from '@/components/admin/AdminUI';
-import { buildEditionReadiness, type EditionReadiness } from '@/lib/admin-readiness';
-import { useAdminReadinessData } from '@/lib/admin-readiness-data';
-import { useAllShows, useEditions } from '@/lib/data';
+import { useEditions } from '@/lib/data';
 import { EDITION_STATES, getEditionTransition, type EditionState } from '@/lib/edition-state';
 import {
   INCIDENT_SEVERITIES,
@@ -24,6 +22,8 @@ import {
   type IncidentStatus,
 } from '@/lib/incident-command';
 import { studio2ControlRoom } from '@/lib/studio2-control-room';
+import type { V3OrganizerReadiness } from '@/lib/v3-organizer-projection';
+import { useV3OrganizerProjection } from '@/lib/v3-organizer-projection.query';
 
 export const Route = createFileRoute('/_authenticated/admin/control-room')({
   head: () => ({
@@ -39,58 +39,55 @@ function ControlRoomV2() {
   const { editionId } = useAdminContext();
   const queryClient = useQueryClient();
   const { data: editions = [] } = useEditions();
-  const { data: shows = [] } = useAllShows();
   const selectedEdition = useMemo(
     () => editions.find((edition) => edition.id === editionId) ?? null,
     [editionId, editions],
   );
-  const readinessDataQuery = useAdminReadinessData(editionId || undefined);
-  const readiness = useMemo(
-    () =>
-      selectedEdition && readinessDataQuery.data
-        ? buildEditionReadiness({
-            edition: selectedEdition,
-            shows,
-            participants: readinessDataQuery.data.participants,
-            voters: readinessDataQuery.data.voters,
-            juryVotes: readinessDataQuery.data.juryVotes,
-            juryBallotStatuses: readinessDataQuery.data.juryBallotStatuses,
-            televotes: readinessDataQuery.data.televotes,
-            results: readinessDataQuery.data.results,
-          })
-        : null,
-    [readinessDataQuery.data, selectedEdition, shows],
-  );
+  const resolvedEditionId = selectedEdition?.id ?? '';
+  const projectionQuery = useV3OrganizerProjection(resolvedEditionId || null);
+  const projection = projectionQuery.data ?? null;
   const [reason, setReason] = useState('');
   const [incidentTitle, setIncidentTitle] = useState('');
   const [incidentSeverity, setIncidentSeverity] = useState<IncidentSeverity>('sev3');
 
+  function requireExactEdition() {
+    if (!editionId || !selectedEdition || selectedEdition.id !== editionId) {
+      throw Object.assign(
+        new Error('Edition context changed before the Control Room command. Reopen the selected edition and review the action again.'),
+        { status: 409 },
+      );
+    }
+    return selectedEdition.id;
+  }
+
   const snapshotQuery = useQuery({
-    queryKey: ['studio2-control-room', editionId ?? 'none'],
-    enabled: Boolean(editionId),
-    queryFn: () => studio2ControlRoom.loadSnapshot(editionId!),
+    queryKey: ['studio2-control-room', resolvedEditionId || 'none'],
+    enabled: Boolean(resolvedEditionId),
+    queryFn: () => studio2ControlRoom.loadSnapshot(resolvedEditionId),
     refetchInterval: 60_000,
   });
 
   const approvalsQuery = useQuery({
-    queryKey: ['studio2-transition-approvals', editionId ?? 'none'],
-    enabled: Boolean(editionId),
-    queryFn: () => studio2ControlRoom.listTransitionApprovals(editionId!),
+    queryKey: ['studio2-transition-approvals', resolvedEditionId || 'none'],
+    enabled: Boolean(resolvedEditionId),
+    queryFn: () => studio2ControlRoom.listTransitionApprovals(resolvedEditionId),
     refetchInterval: 60_000,
   });
 
   const refresh = async () => {
+    if (!resolvedEditionId) return;
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['studio2-control-room', editionId ?? 'none'] }),
-      queryClient.invalidateQueries({ queryKey: ['studio2-transition-approvals', editionId ?? 'none'] }),
+      queryClient.invalidateQueries({ queryKey: ['studio2-control-room', resolvedEditionId] }),
+      queryClient.invalidateQueries({ queryKey: ['studio2-transition-approvals', resolvedEditionId] }),
+      queryClient.invalidateQueries({ queryKey: ['v3-organizer-projection', resolvedEditionId] }),
     ]);
   };
 
   const transitionEdition = useMutation({
     mutationFn: ({ to, approvalRequestId }: { to: EditionState; approvalRequestId?: string | null }) => {
-      if (!editionId) throw new Error('Choose an edition before changing its state.');
+      const commandEditionId = requireExactEdition();
       return studio2ControlRoom.transitionEdition({
-        editionId,
+        editionId: commandEditionId,
         to,
         reason: reason.trim() || null,
         approvalRequestId: approvalRequestId ?? null,
@@ -104,24 +101,27 @@ function ControlRoomV2() {
 
   const requestApproval = useMutation({
     mutationFn: (to: EditionState) => {
-      if (!editionId) throw new Error('Choose an edition before requesting approval.');
+      const commandEditionId = requireExactEdition();
       const requestReason = reason.trim();
       if (!requestReason) throw new Error('A reason is required before requesting second approval.');
-      return studio2ControlRoom.requestTransitionApproval(editionId, to, requestReason);
+      return studio2ControlRoom.requestTransitionApproval(commandEditionId, to, requestReason);
     },
     onSuccess: refresh,
   });
 
   const approveTransition = useMutation({
-    mutationFn: (requestId: string) => studio2ControlRoom.approveTransition(requestId),
+    mutationFn: (requestId: string) => {
+      requireExactEdition();
+      return studio2ControlRoom.approveTransition(requestId);
+    },
     onSuccess: refresh,
   });
 
   const createIncident = useMutation({
     mutationFn: () => {
-      if (!editionId) throw new Error('Choose an edition before creating an incident.');
+      const commandEditionId = requireExactEdition();
       return studio2ControlRoom.createIncident({
-        editionId,
+        editionId: commandEditionId,
         title: incidentTitle.trim(),
         severity: incidentSeverity,
       });
@@ -134,8 +134,10 @@ function ControlRoomV2() {
   });
 
   const transitionIncident = useMutation({
-    mutationFn: ({ id, to }: { id: string; to: IncidentStatus }) =>
-      studio2ControlRoom.transitionIncident(id, to),
+    mutationFn: ({ id, to }: { id: string; to: IncidentStatus }) => {
+      requireExactEdition();
+      return studio2ControlRoom.transitionIncident(id, to);
+    },
     onSuccess: refresh,
   });
 
@@ -159,7 +161,8 @@ function ControlRoomV2() {
     approveTransition.error ??
     createIncident.error ??
     transitionIncident.error ??
-    approvalsQuery.error;
+    approvalsQuery.error ??
+    projectionQuery.error;
 
   return (
     <AdminPage>
@@ -167,15 +170,15 @@ function ControlRoomV2() {
         <AdminPageHeader
           eyebrow="Solaris Studio 2"
           title="Live Control Room"
-          description="Run the current contest phase, incidents and live operations. Solaris checks the edition setup before forward lifecycle changes."
+          description="Run the current contest phase, incidents and live operations. Solaris checks the canonical Organizer readiness projection before forward lifecycle changes."
         />
 
-        {!editionId ? (
+        {!selectedEdition ? (
           <AdminCard>
             <AdminEmptyState
               icon={RadioTower}
               title="Choose an edition"
-              description="The Control Room follows the edition selected in Solaris Organizer."
+              description="The Control Room requires the exact edition selected in Solaris Organizer. It will not substitute the newest or globally active edition."
             />
           </AdminCard>
         ) : snapshotQuery.isLoading ? (
@@ -237,9 +240,14 @@ function ControlRoomV2() {
               </AdminCard>
 
               <AdminCard>
-                <AdminCardHeader eyebrow="Operational history" title={`${snapshot.recentEvents.length} recent events`} />
+                <AdminCardHeader
+                  eyebrow="Canonical readiness"
+                  title={projection ? `${projection.readiness.overall}% ready` : 'Checking readiness'}
+                />
                 <p className="mt-3 text-sm text-muted-foreground">
-                  Canonical state, incident, voting and communications events for this edition.
+                  {projection
+                    ? `${projection.readiness.blocking.length} blocking · ${projection.readiness.incomplete.length} incomplete · state ${projection.stateVersion}`
+                    : 'Forward lifecycle commands stay disabled until Organizer readiness is available.'}
                 </p>
               </AdminCard>
             </section>
@@ -249,7 +257,7 @@ function ControlRoomV2() {
                 <AdminCardHeader
                   eyebrow="Edition command"
                   title={transitions.length ? 'Available state transitions' : 'No further transitions'}
-                  description="Elevated transitions require a reason. Critical rollbacks require a short-lived approval from a different authorized operator."
+                  description="Elevated transitions require a reason. Critical rollbacks require a short-lived approval from a different authorized operator. Forward lifecycle gates use the canonical Organizer readiness projection."
                 />
 
                 {approvals.length ? (
@@ -324,11 +332,15 @@ function ControlRoomV2() {
                         );
                         const busy = transitionEdition.isPending || requestApproval.isPending;
                         const forward = isForwardTransition(transition.from, transition.to);
-                        const blockers = transitionReadinessBlockers(transition.from, transition.to, readiness);
+                        const blockers = transitionReadinessBlockers(
+                          transition.from,
+                          transition.to,
+                          projection?.readiness ?? null,
+                        );
                         const readinessUnavailable =
                           forward &&
                           EDITION_STATES.indexOf(transition.to) >= EDITION_STATES.indexOf('pre_show') &&
-                          (readinessDataQuery.isLoading || !readiness);
+                          (projectionQuery.isLoading || projectionQuery.isError || !projection);
                         const blockedByReadiness = blockers.length > 0 || readinessUnavailable;
 
                         return (
@@ -352,7 +364,7 @@ function ControlRoomV2() {
                               </p>
                               {readinessUnavailable ? (
                                 <p className="mt-2 text-xs font-semibold text-amber-100">
-                                  Readiness is still loading. Solaris will not advance the edition until it can verify the required setup.
+                                  Canonical Organizer readiness is unavailable. Solaris will not advance the edition until it can verify the required setup.
                                 </p>
                               ) : blockers.length ? (
                                 <div className="mt-2 rounded-lg border border-rose-200/15 bg-rose-200/[0.05] p-2.5">
@@ -360,12 +372,12 @@ function ControlRoomV2() {
                                     Complete {blockers.length} prerequisite{blockers.length === 1 ? '' : 's'} before this phase.
                                   </p>
                                   <ul className="mt-1 space-y-1 text-[11px] leading-4 text-rose-100/75">
-                                    {blockers.slice(0, 4).map((issue) => <li key={issue.id}>• {issue.title}</li>)}
+                                    {blockers.slice(0, 4).map((issue) => <li key={issue.id}>• {issue.label}</li>)}
                                   </ul>
                                 </div>
                               ) : forward && EDITION_STATES.indexOf(transition.to) >= EDITION_STATES.indexOf('pre_show') ? (
                                 <p className="mt-2 text-xs font-semibold text-emerald-100">
-                                  Required setup checks pass for this transition.
+                                  Canonical Organizer readiness passes for this transition.
                                 </p>
                               ) : null}
                             </div>
@@ -565,24 +577,22 @@ function isForwardTransition(from: EditionState, to: EditionState) {
 function transitionReadinessBlockers(
   from: EditionState,
   to: EditionState,
-  readiness: EditionReadiness | null,
+  readiness: V3OrganizerReadiness | null,
 ) {
   if (!readiness || !isForwardTransition(from, to)) return [];
   const targetIndex = EDITION_STATES.indexOf(to);
   if (targetIndex < EDITION_STATES.indexOf('pre_show')) return [];
 
-  const blockedAreas = new Set<string>(['setup', 'entries']);
-  if (targetIndex >= EDITION_STATES.indexOf('jury_voting')) blockedAreas.add('jury');
-  if (targetIndex >= EDITION_STATES.indexOf('vote_verification')) blockedAreas.add('televote');
-  if (targetIndex >= EDITION_STATES.indexOf('results')) blockedAreas.add('results');
+  const requiredFactorIds = new Set<string>(['entries', 'running-order']);
+  if (targetIndex >= EDITION_STATES.indexOf('jury_voting')) requiredFactorIds.add('jury');
+  if (targetIndex >= EDITION_STATES.indexOf('vote_verification')) requiredFactorIds.add('televote');
+  if (targetIndex >= EDITION_STATES.indexOf('results')) requiredFactorIds.add('results');
 
-  return readiness.issues.filter(
-    (issue) =>
-      blockedAreas.has(issue.area) &&
-      (issue.severity === 'critical' || issue.severity === 'action'),
-  );
+  return [
+    ...readiness.blocking,
+    ...readiness.incomplete.filter((factor) => requiredFactorIds.has(factor.id)),
+  ];
 }
-
 
 function riskTone(risk: 'normal' | 'elevated' | 'critical') {
   return risk === 'critical'
