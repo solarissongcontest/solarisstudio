@@ -171,6 +171,7 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "workspace-fantasy" ||
     id === "workspace-command-assistant" ||
     id === "workspace-anniversary-settings" ||
+    id === "workspace-public-ux" ||
     id === "workspace-beta-3-feedback" ||
     id === "workspace-beta-2-feedback" ||
     id === "workspace-beta-1-archive"
