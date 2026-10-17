@@ -59,6 +59,7 @@ describe("System V3 S1 registries", () => {
       .sort();
 
     expect(eventBacked).toEqual([
+      "acknowledgement.recorded",
       "confirmation.submitted",
       "confirmation.window_changed",
       "entry.changes_requested",
@@ -114,6 +115,13 @@ describe("System V3 S1 registries", () => {
     expect(v3DomainConsequence("notification.failed")?.taskEffects).toEqual([
       { effect: "re-evaluate", taskType: "notification.delivery_failed" },
     ]);
+  });
+
+  it("records acknowledgement S5 ownership without inventing a separate task worker", () => {
+    expect(v3DomainConsequence("acknowledgement.recorded")?.implementationState).toBe("event-backed");
+    expect(v3DomainConsequence("acknowledgement.recorded")?.ownerDomain).toBe("acknowledgement");
+    expect(v3DomainConsequence("acknowledgement.recorded")?.taskEffects).toEqual([]);
+    expect(v3DomainConsequence("acknowledgement.recorded")?.notificationEffects).toEqual([]);
   });
 
   it("records canonical membership/access S5 ownership", () => {
