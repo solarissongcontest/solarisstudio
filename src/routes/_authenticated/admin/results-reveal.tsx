@@ -32,10 +32,30 @@ const STRATEGY_LABELS: Record<RevealStrategy, string> = {
 function ResultsRevealHeader() {
   return (
     <AdminPageHeader
-      eyebrow="Solaris Studio 2"
+      eyebrow="Live · Reveal"
       title="Results Reveal Director"
-      description="Compare reveal orders against the actual jury and televote result rows and see exactly when the winner becomes mathematically certain. Dramatic television, but with arithmetic supervising it."
+      description="Plan and rehearse reveal orders against the selected show's actual jury and televote result rows. Armed and Live authority stays unavailable until Solaris has a governed reveal lifecycle; this planner never arms or executes the public reveal."
     />
+  );
+}
+
+function RevealAuthorityBoundary() {
+  return (
+    <AdminCard strong>
+      <AdminCardHeader
+        eyebrow="Execution boundary"
+        title="Planning / Rehearsal only"
+        description="This surface may compare and rehearse reveal sequences, but it cannot enter Armed, Live or Complete state. Armed must lock the reveal sequence and require explicit governed disarm before editing; those production commands are intentionally unavailable until server authority exists."
+        action={<AdminStatus tone="attention">Live authority unavailable</AdminStatus>}
+      />
+      <div className="mt-3 flex flex-wrap gap-2">
+        <AdminStatus tone="ready">Planning</AdminStatus>
+        <AdminStatus tone="info">Rehearsal</AdminStatus>
+        <AdminStatus tone="neutral">Armed · server authority required</AdminStatus>
+        <AdminStatus tone="neutral">Live · server authority required</AdminStatus>
+        <AdminStatus tone="neutral">Complete · server authority required</AdminStatus>
+      </div>
+    </AdminCard>
   );
 }
 
@@ -49,8 +69,9 @@ function ResultsRevealPage() {
   const [strategy, setStrategy] = useState<RevealStrategy>('jury_order');
 
   const featureQuery = useQuery({
-    queryKey: ['studio2-feature', 'results_replay'],
-    queryFn: () => isStudio2FeatureEnabled('results_replay'),
+    queryKey: ['studio2-feature', 'results_replay', editionId ?? 'unscoped'],
+    enabled: Boolean(editionId),
+    queryFn: () => isStudio2FeatureEnabled('results_replay', editionId!),
     staleTime: 30_000,
   });
 
@@ -127,6 +148,21 @@ function ResultsRevealPage() {
     },
   ] satisfies readonly AdminDataColumn<(typeof simulation.steps)[number]>[];
 
+  if (!editionId) {
+    return (
+      <AdminPage>
+        <ResultsRevealHeader />
+        <AdminCard>
+          <AdminEmptyState
+            icon={Trophy}
+            title="Choose an edition"
+            description="Select the edition in the Organizer toolbar before planning a reveal. Solaris will not infer another edition or load an unscoped Results Replay flag."
+          />
+        </AdminCard>
+      </AdminPage>
+    );
+  }
+
   if (featureQuery.isLoading) {
     return (
       <AdminPage>
@@ -157,6 +193,7 @@ function ResultsRevealPage() {
     <AdminPage>
       <ObjectPage className="max-w-7xl">
         <ResultsRevealHeader />
+        <RevealAuthorityBoundary />
 
         <AdminCard strong>
           <div className="grid gap-4 lg:grid-cols-2">
