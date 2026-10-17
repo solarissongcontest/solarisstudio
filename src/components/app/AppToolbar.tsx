@@ -18,6 +18,7 @@ import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { readAppSearchReturn } from "@/lib/app-search-state";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { useScrollMorphProgress } from "@/lib/use-scroll-morph-progress";
+import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
 export function AppToolbar({
   pathname,
@@ -31,8 +32,20 @@ export function AppToolbar({
   const navigate = useNavigate();
   const chrome = resolveAppRouteChrome(pathname, searchStr);
   const screen = resolveSolarisAppScreen(pathname, searchStr);
+  const participationFocusedTask =
+    screen.id === "participation.task" && screen.chrome.toolbar === "focused";
+  const focusedRollout = useV3RolloutProbe(participationFocusedTask);
+  const participationRouteOwnsFocusedToolbar =
+    participationFocusedTask &&
+    focusedRollout.data?.enabled === true &&
+    (pathname.startsWith("/confirmations")
+      ? focusedRollout.data.confirmationEnabled === true
+      : pathname.startsWith("/jury-voting")
+        ? focusedRollout.data.juryEnabled === true
+        : pathname.startsWith("/televoting") || pathname.startsWith("/next-in-line"));
   const routeOwnsFocusedToolbar =
-    screen.id === "mysolaris.entry" && screen.chrome.toolbar === "focused";
+    (screen.id === "mysolaris.entry" && screen.chrome.toolbar === "focused") ||
+    participationRouteOwnsFocusedToolbar;
   const morphProgress = useScrollMorphProgress({
     resetKey: `${pathname}|${searchStr}`,
   });
