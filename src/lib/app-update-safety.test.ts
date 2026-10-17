@@ -56,6 +56,7 @@ describe("installed app safe updates", () => {
   });
 
   it("keeps service-admin and Organizer workspaces on the Organizer blocker", () => {
+    expect(routeUpdateBlocker("/admin")?.id).toBe("organizer-workspace");
     expect(routeUpdateBlocker("/admin/action-center")?.id).toBe("organizer-workspace");
     expect(routeUpdateBlocker("/confirmations/admin")?.id).toBe("organizer-workspace");
     expect(routeUpdateBlocker("/televoting/admin/rounds")?.id).toBe("organizer-workspace");
