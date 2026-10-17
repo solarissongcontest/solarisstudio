@@ -2,14 +2,24 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
 import { AppShell, Panel } from "@/components/AppShell";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PredictionWorkspaceHeader } from "@/components/predictions/PredictionWorkspaceHeader";
+import { V3AppShell } from "@/components/v3/V3AppShell";
+import { V3PredictionsScreen } from "@/components/v3/V3PredictionsScreen";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { usePredictionRounds } from "@/lib/prediction-data";
 import { formatEventDateTime } from "@/lib/public-time";
+import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
 export const Route = createFileRoute("/predictions/")({
   head: () => ({
-    meta: [{ title: "Prediction Arena — Solaris Studio" }],
+    meta: [
+      { title: "Predictions — Solaris Studio" },
+      {
+        name: "description",
+        content: "Make Solaris predictions, follow scoring and view privacy-safe Prediction League standings.",
+      },
+    ],
   }),
   component: PredictionArenaPage,
 });
@@ -28,6 +38,32 @@ function useHydratedNow() {
 }
 
 function PredictionArenaPage() {
+  const { isAppMode, platformResolved } = useSolarisApp();
+  const rollout = useV3RolloutProbe(platformResolved && isAppMode);
+
+  if (!platformResolved || (isAppMode && rollout.isLoading)) {
+    return (
+      <main className="relative z-10 mx-auto w-full max-w-5xl px-4 py-10" data-v3-predictions-route-boot="">
+        <h1 className="text-3xl font-bold">Predictions</h1>
+        <p className="mt-2 text-sm text-muted-foreground" role="status" aria-live="polite">
+          Checking the current predictions experience…
+        </p>
+      </main>
+    );
+  }
+
+  if (isAppMode && !rollout.isError && rollout.data?.enabled === true) {
+    return (
+      <V3AppShell editionLabel="Solaris Studio" phaseLabel="Predictions" activeArea="explore">
+        <V3PredictionsScreen />
+      </V3AppShell>
+    );
+  }
+
+  return <LegacyPredictionArenaPage />;
+}
+
+function LegacyPredictionArenaPage() {
   const { data: roundData, isLoading } = usePredictionRounds();
   const { data: shows } = useAllShows();
   const { data: editions } = useEditions();
