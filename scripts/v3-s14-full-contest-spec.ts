@@ -130,7 +130,7 @@ export const V3_S14_STAGES: readonly V3S14Stage[] = [
     id: "stage-9-publication",
     label: "publication",
     requirements: ["publish", "public surfaces reference exact finalized result version"],
-    implementationState: "planned",
+    implementationState: "implemented",
     driverMarker: "S14_STAGE_9_PUBLICATION_COMPLETE",
     implementationAsset: ".github/scripts/v3-s14-stage-9-publication.sh",
   },
@@ -196,7 +196,7 @@ export const V3_S14_INVARIANTS: readonly V3S14Check[] = [
   {
     id: "publication-final-version",
     label: "public result pointer equals finalized version",
-    implementationState: "planned",
+    implementationState: "implemented",
     driverMarker: "S14_INVARIANT_PUBLICATION_COMPLETE",
     implementationAsset: ".github/scripts/v3-s14-stage-9-publication.sh",
   },
@@ -248,7 +248,7 @@ export const V3_S14_FAILURE_INJECTIONS: readonly V3S14Check[] = [
   {
     id: "realtime-disconnect",
     label: "realtime disconnect recovers through authoritative refresh",
-    implementationState: "planned",
+    implementationState: "implemented",
     driverMarker: "S14_FAILURE_REALTIME_DISCONNECT_COMPLETE",
     implementationAsset: ".github/scripts/v3-s14-stage-9-publication.sh",
   },
