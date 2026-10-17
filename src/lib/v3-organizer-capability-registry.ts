@@ -128,6 +128,7 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "current-edition-tasks" ||
     id === "operations-control-room" ||
     id === "operations-workflows" ||
+    id === "operations-incidents" ||
     id === "current-edition-delegations" ||
     id === "current-edition-contest" ||
     id === "current-edition-host" ||
@@ -146,7 +147,8 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "delegation-access" ||
     id === "delegation-submission-history" ||
     id === "delegation-sync" ||
-    id === "delegation-settings"
+    id === "delegation-settings" ||
+    id === "workspace-acceptance-test"
   ) {
     return "building";
   }
