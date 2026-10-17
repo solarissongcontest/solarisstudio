@@ -69,10 +69,10 @@ describe("System V3 S5 Prediction round consequences", () => {
     expect(migration).toContain(
       "revoke insert, update, delete on table public.prediction_rounds from authenticated",
     );
-    expect(client).toContain('rpc("studio2_prediction_round_config_preview"');
-    expect(client).toContain('rpc("studio2_save_prediction_round"');
-    expect(client).toContain('rpc("studio2_prediction_round_delete_preview"');
-    expect(client).toContain('rpc("studio2_delete_prediction_round"');
+    expect(client).toMatch(/\.rpc\(\s*"studio2_prediction_round_config_preview"/);
+    expect(client).toMatch(/\.rpc\(\s*"studio2_save_prediction_round"/);
+    expect(client).toMatch(/\.rpc\(\s*"studio2_prediction_round_delete_preview"/);
+    expect(client).toMatch(/\.rpc\(\s*"studio2_delete_prediction_round"/);
     expect(client).toContain("p_expected_round_version: preview.roundVersion");
     expect(client).not.toContain('.from("prediction_rounds")\n        .upsert(');
     expect(client).not.toContain('.from("prediction_rounds").delete()');
