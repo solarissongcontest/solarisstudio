@@ -47,6 +47,18 @@ describe("V3 Entry focused participant shell", () => {
     expect(css).toContain('.app-main[data-solaris-app-mode="true"]');
   });
 
+  it("keeps country-scoped organizer inspection in the canonical legacy workspace", () => {
+    const gate = source("src/components/v3/V3EntryRouteGate.tsx");
+    const workspace = source("src/components/mysolaris/MySolarisWorkspaceShell.tsx");
+    const route = source("src/routes/_authenticated/my-solaris/entry.tsx");
+
+    expect(route).toContain("organizerInspection={Boolean(search.country)}");
+    expect(gate).toContain("if (organizerInspection || !isAppMode) return <>{legacy}</>");
+    expect(workspace).toContain("const countryInspection = countryInspectionTarget(location.search)");
+    expect(workspace).toContain("!countryInspection &&");
+    expect(workspace).toContain("<MySolarisWorkspaceNav />");
+  });
+
   it("blocks service-worker activation throughout Entry while ordinary MySolaris remains safe", () => {
     expect(routeUpdateBlocker("/my-solaris/entry")?.id).toBe("focused-participation-task");
     expect(routeUpdateBlocker("/my-solaris/entry/")?.id).toBe("focused-participation-task");
