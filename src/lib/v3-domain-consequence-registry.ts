@@ -48,6 +48,19 @@ const NOTIFICATION_PROVIDER_BY_DOMAIN_EVENT: Readonly<Record<string, readonly st
   "notice.published": ["official-communications"],
 };
 
+/**
+ * Domain-level task declarations describe ownership, not causality for every
+ * event. Notice publication/supersession cannot fabricate a delivery-failure
+ * task, and a queued/delivered notification is not itself a delivery failure.
+ */
+const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = {
+  "notice.published": [],
+  "notice.superseded": [],
+  "notification.queued": [],
+  "notification.delivered": [],
+  "notification.failed": ["notification.delivery_failed"],
+};
+
 const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
   "confirmation.submitted": [
     "supabase/migrations/20261015183000_v3_s5_confirmation_consequences.sql",
@@ -106,6 +119,16 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
     "src/lib/v3-s5-publication-consequences.test.ts",
     ".github/scripts/v3-s5-publication-consequences-rehearsal.sh",
   ],
+  "notice.published": [
+    "supabase/migrations/20261016062000_v3_s5_notice_consequences.sql",
+    "src/lib/v3-s5-notice-consequences.test.ts",
+    ".github/scripts/v3-s5-notice-consequences-rehearsal.sh",
+  ],
+  "notice.superseded": [
+    "supabase/migrations/20261016062000_v3_s5_notice_consequences.sql",
+    "src/lib/v3-s5-notice-consequences.test.ts",
+    ".github/scripts/v3-s5-notice-consequences-rehearsal.sh",
+  ],
   "televote.opened": [
     "supabase/migrations/20261016043000_v3_s5_televote_consequences.sql",
     "src/lib/v3-s5-televote-consequences.test.ts",
@@ -145,15 +168,20 @@ function unique(values: readonly string[]) {
 export const V3_DOMAIN_CONSEQUENCE_REGISTRY: readonly V3DomainConsequence[] =
   V3_SYSTEM_DOMAIN_REGISTRY.flatMap((domain) =>
     domain.eventTypes.map((eventType) => {
-      const taskTypes = domain.backgroundConsumers
+      const domainTaskTypes = domain.backgroundConsumers
         .filter((consumer) => consumer.startsWith("task:"))
         .map((consumer) => consumer.slice("task:".length));
+      const taskTypes = TASK_TYPES_BY_DOMAIN_EVENT[eventType] ?? domainTaskTypes;
+      const nonTaskBackgroundConsumers = domain.backgroundConsumers.filter(
+        (consumer) => !consumer.startsWith("task:"),
+      );
       const notificationProviders = NOTIFICATION_PROVIDER_BY_DOMAIN_EVENT[eventType] ?? [];
       const publicProjections = domain.publicConsumers.filter(Boolean);
       const consumers = unique([
         ...domain.publicConsumers,
         ...domain.organizerConsumers,
-        ...domain.backgroundConsumers,
+        ...nonTaskBackgroundConsumers,
+        ...taskTypes.map((taskType) => `task:${taskType}`),
       ]);
       const eventBackedEvidence = EVENT_BACKED_CONSEQUENCES[eventType];
 
@@ -195,12 +223,27 @@ export function validateV3DomainConsequenceRegistry() {
   const errors: string[] = [];
   const seen = new Set<string>();
   const expected = new Set(V3_SYSTEM_DOMAIN_REGISTRY.flatMap((domain) => domain.eventTypes));
+  const declaredTasksByDomain = new Map(
+    V3_SYSTEM_DOMAIN_REGISTRY.map((domain) => [
+      domain.domain,
+      new Set(
+        domain.backgroundConsumers
+          .filter((consumer) => consumer.startsWith("task:"))
+          .map((consumer) => consumer.slice("task:".length)),
+      ),
+    ]),
+  );
 
   for (const consequence of V3_DOMAIN_CONSEQUENCE_REGISTRY) {
     if (seen.has(consequence.eventType)) errors.push(`duplicate event ${consequence.eventType}`);
     seen.add(consequence.eventType);
     if (!v3SystemDomain(consequence.ownerDomain)) {
       errors.push(`${consequence.eventType} has unknown owner domain ${consequence.ownerDomain}`);
+    }
+    for (const task of consequence.taskEffects) {
+      if (!declaredTasksByDomain.get(consequence.ownerDomain)?.has(task.taskType)) {
+        errors.push(`${consequence.eventType} references unknown task ${task.taskType}`);
+      }
     }
     for (const notification of consequence.notificationEffects) {
       if (!providerIds.has(notification.providerId)) {

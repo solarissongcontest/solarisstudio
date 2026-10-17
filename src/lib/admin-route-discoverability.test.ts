@@ -49,6 +49,10 @@ const navigationCorpus = [
   source("src/lib/v3-organizer.ts"),
   source("src/routes/_authenticated/admin/operations.tsx"),
   source("src/routes/_authenticated/admin/menu.tsx"),
+  // More is the canonical visible owner for low-frequency Organizer tools.
+  // Routes linked from it are discoverable even when they intentionally do not
+  // get a second entry in the specialist directory or primary navigation.
+  source("src/routes/_authenticated/admin/more.tsx"),
 ].join("\n");
 
 const roots = [
