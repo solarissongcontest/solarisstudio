@@ -19,14 +19,16 @@ describe("App Experience v3 completion contract", () => {
     );
   });
 
-  it("gives Organizer mobile navigation five independently remembered stacks", () => {
+  it("gives Organizer mobile navigation five canonical independently remembered stacks", () => {
     const chrome = source("src/components/admin/OrganizerV6MobileChrome.tsx");
     const navigation = source("src/lib/admin-app-navigation.ts");
 
     expect(chrome).toContain("getAdminAppTabDestination");
     expect(chrome).toContain("resetAdminAppTabToRoot");
     expect(chrome).toContain("consumeAdminNavigationRestore");
-    expect(navigation).toContain('"home" | "edition" | "tasks" | "delegations" | "more"');
+    expect(navigation).toContain("type AdminAppTabId = V3OrganizerTabId");
+    expect(navigation).toContain("V3_ORGANIZER_TAB_ORDER");
+    expect(navigation).toContain("solaris:organizer-navigation:v2");
     expect(navigation).toContain("solaris:organizer-navigation:v1");
   });
 
