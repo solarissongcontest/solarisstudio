@@ -1,6 +1,7 @@
 import type { ContestEvent } from './contest-events';
 import type { EditionState } from './edition-state';
 import { summarizeIncidents, type IncidentStatus } from './incident-command';
+import { transitionEditionV3 } from './v3-edition-transition-client';
 import { isStudio2FeatureEnabled } from './studio2-feature-flags';
 import {
   studio2Persistence,
@@ -75,6 +76,9 @@ export function createStudio2ControlRoom(
 
     async transitionEdition(request: Studio2TransitionEditionRequest) {
       await requireEnabled(request.editionId);
+      // Production Control Room traffic uses the single governed V3 command.
+      // Injected data sources remain supported for isolated unit tests.
+      if (source === studio2Persistence) return transitionEditionV3(request);
       return source.transitionEdition(request);
     },
 
