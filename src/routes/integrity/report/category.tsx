@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AppShell } from "@/components/AppShell";
 import { IntegrityCategoryStep } from "@/components/integrity/IntegrityReportV5";
+import { V3IntegrityReportRouteShell } from "@/components/v3/V3IntegrityReportRouteShell";
 
 export const Route = createFileRoute("/integrity/report/category")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -19,8 +19,8 @@ export const Route = createFileRoute("/integrity/report/category")({
 function CategoryPage() {
   const { category } = Route.useSearch();
   return (
-    <AppShell>
+    <V3IntegrityReportRouteShell>
       <IntegrityCategoryStep initialCategory={category} />
-    </AppShell>
+    </V3IntegrityReportRouteShell>
   );
 }
