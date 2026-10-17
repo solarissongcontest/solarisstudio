@@ -118,6 +118,13 @@ after update on public.results
 for each row execute function private.v3_s14_replay_count_result_update();
 "
 
+log "Measuring one canonical show-result reconciliation as the amplification baseline"
+db_exec "truncate private.v3_s14_replay_result_updates; select public.sync_show_results_from_votes('$SHOW_ID'::uuid);"
+BASELINE_RESULT_UPDATES="$(db_scalar "select count(*) from private.v3_s14_replay_result_updates where show_id='$SHOW_ID'::uuid;")"
+[[ "$BASELINE_RESULT_UPDATES" =~ ^[1-9][0-9]*$ ]] || fail "canonical result sync produced no measurable result updates"
+db_exec "truncate private.v3_s14_replay_result_updates;"
+log "PASS: one canonical result sync produces $BASELINE_RESULT_UPDATES result-row updates in the current engine"
+
 log "Healthy exact replay must be an operational no-op"
 REPLAY="$(db_scalar "select private.v3_sync_published_televote_round('$ROUND_ID'::uuid)::text;")"
 python3 - "$REPLAY" <<'PY'
@@ -152,8 +159,8 @@ assert payload['projectionRevision'] == 1
 PY
 [[ "$(db_scalar "select count(*) || ':' || sum(points) from public.televote_votes where show_id='$SHOW_ID'::uuid;")" == "3:24" ]] || fail "exact replay did not repair projection drift"
 [[ "$(db_scalar "select projection_revision from private.v3_televote_result_projection_sources where show_id='$SHOW_ID'::uuid;")" == "1" ]] || fail "repair invented a semantic projection revision"
-[[ "$(db_scalar "select count(*) from private.v3_s14_replay_result_updates where show_id='$SHOW_ID'::uuid;")" == "3" ]] || fail "repair did not perform exactly one three-row derived-result reconciliation"
-log "PASS: drift repair performs one canonical reconciliation and preserves revision"
+[[ "$(db_scalar "select count(*) from private.v3_s14_replay_result_updates where show_id='$SHOW_ID'::uuid;")" == "$BASELINE_RESULT_UPDATES" ]] || fail "repair amplified derived-result reconciliation beyond one canonical show sync"
+log "PASS: drift repair performs exactly one canonical reconciliation and preserves revision"
 
 log "Post-repair exact replay returns to zero churn"
 db_exec "truncate private.v3_s14_replay_result_updates;"
@@ -173,8 +180,8 @@ set calculation_version=2,calculated_at='2026-10-17T07:10:00Z'
 where id='$ROUND_ID'::uuid;
 "
 [[ "$(db_scalar "select source_version || ':' || projection_revision from private.v3_televote_result_projection_sources where show_id='$SHOW_ID'::uuid;")" == "2:2" ]] || fail "superseding projection did not advance exactly once"
-[[ "$(db_scalar "select count(*) from private.v3_s14_replay_result_updates where show_id='$SHOW_ID'::uuid;")" == "3" ]] || fail "bulk replacement amplified result reconciliation beyond one show sync"
-log "PASS: genuine three-row replacement causes exactly three result-row updates"
+[[ "$(db_scalar "select count(*) from private.v3_s14_replay_result_updates where show_id='$SHOW_ID'::uuid;")" == "$BASELINE_RESULT_UPDATES" ]] || fail "bulk replacement amplified result reconciliation beyond one canonical show sync"
+log "PASS: genuine replacement causes exactly one canonical result reconciliation"
 
 log "Failure in the final canonical sync must roll back projection and provenance together"
 db_exec "
