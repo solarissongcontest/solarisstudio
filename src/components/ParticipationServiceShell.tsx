@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, type ReactNode } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
 
@@ -20,8 +21,16 @@ const ParticipationChromeContext = createContext(false);
 
 export function ParticipationRouteChrome({ children }: { children: ReactNode }) {
   const nested = useContext(ParticipationChromeContext);
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const isolatedMaintenanceConfirmationEditor =
+    GLOBAL_MAINTENANCE_MODE && /^\/confirmations\/edit\/[^/]+\/?$/.test(pathname);
 
-  if (nested) return <>{children}</>;
+  // The emergency HOD editor is intentionally the only application-shaped
+  // participant route exposed during global maintenance. Do not wrap it in the
+  // normal AppShell because that would reintroduce the site header, menu and
+  // bottom navigation, turning one allowed editor into a client-side doorway to
+  // the hidden application.
+  if (nested || isolatedMaintenanceConfirmationEditor) return <>{children}</>;
 
   return (
     <ParticipationChromeContext.Provider value>
