@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-log() { printf '\n[v3-s5-notification] %s\n' "$*"; }
+log() { printf '\n[v3-s5-notification] %s\n' "$*" >&2; }
 fail() { printf '\n[v3-s5-notification] FAIL: %s\n' "$*" >&2; exit 1; }
 
 eval "$(supabase status -o env)"
