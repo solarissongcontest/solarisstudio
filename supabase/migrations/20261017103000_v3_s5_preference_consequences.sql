@@ -171,7 +171,15 @@ begin
   end if;
 
   v_actor_id := auth.uid();
-  if v_actor_id is not null and v_actor_id is distinct from v_profile_id then
+  -- The existing set_fan_follow authority is authenticated-user owned and
+  -- already rejects a null auth.uid(). Mirror that boundary here so direct
+  -- service-role/table maintenance cannot create ownerless S2 receipts or fail
+  -- later via an opaque NOT NULL constraint on receipt.actor_id.
+  if v_actor_id is null then
+    raise exception 'Authentication required'
+      using errcode = '42501';
+  end if;
+  if v_actor_id is distinct from v_profile_id then
     raise exception 'Preference actor does not own follow state'
       using errcode = '42501';
   end if;
