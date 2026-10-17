@@ -301,20 +301,28 @@ export function useSavePredictionRound() {
         | "consensus_minimum"
       >,
     ) => {
-      const { data, error } = await supabase
-        .from("prediction_rounds")
-        .upsert(
-          {
-            ...round,
-            scoring_version: "v1",
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "show_id" },
-        )
-        .select("*")
-        .single();
+      const { data: previewData, error: previewError } = await (supabase as any).rpc(
+        "studio2_prediction_round_config_preview",
+        { p_show_id: round.show_id },
+      );
+      if (previewError) throw previewError;
+
+      const preview = previewData as { roundVersion: number };
+      const operationId = crypto.randomUUID();
+      const idempotencyKey = `prediction-round-save:${operationId}`;
+      const { data, error } = await (supabase as any).rpc("studio2_save_prediction_round", {
+        p_show_id: round.show_id,
+        p_opens_at: round.opens_at,
+        p_locks_at: round.locks_at,
+        p_status: round.status,
+        p_prediction_types: round.prediction_types,
+        p_consensus_minimum: round.consensus_minimum,
+        p_operation_id: operationId,
+        p_idempotency_key: idempotencyKey,
+        p_expected_round_version: preview.roundVersion,
+      });
       if (error) throw error;
-      return asPredictionRound(data);
+      return data;
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["prediction-rounds"] });
@@ -326,7 +334,21 @@ export function useDeletePredictionRound() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (roundId: string) => {
-      const { error } = await supabase.from("prediction_rounds").delete().eq("id", roundId);
+      const { data: previewData, error: previewError } = await (supabase as any).rpc(
+        "studio2_prediction_round_delete_preview",
+        { p_round_id: roundId },
+      );
+      if (previewError) throw previewError;
+
+      const preview = previewData as { roundVersion: number };
+      const operationId = crypto.randomUUID();
+      const idempotencyKey = `prediction-round-delete:${operationId}`;
+      const { error } = await (supabase as any).rpc("studio2_delete_prediction_round", {
+        p_round_id: roundId,
+        p_operation_id: operationId,
+        p_idempotency_key: idempotencyKey,
+        p_expected_round_version: preview.roundVersion,
+      });
       if (error) throw error;
       return roundId;
     },
