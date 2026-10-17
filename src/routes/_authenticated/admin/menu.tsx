@@ -9,6 +9,7 @@ import {
   type AdminNavigationGroup,
 } from "@/components/admin/admin-navigation";
 import { AdminCard, AdminPageHeader } from "@/components/admin/AdminUI";
+import { selectOrganizerEdition } from "@/lib/admin-edition-selection";
 import { editionLabel, useEditions } from "@/lib/data";
 
 export const Route = createFileRoute("/_authenticated/admin/menu")({
@@ -18,13 +19,13 @@ export const Route = createFileRoute("/_authenticated/admin/menu")({
 
 function OrganizerMenu() {
   const { editionId } = useAdminContext();
-  const { data: editions = [] } = useEditions();
+  const { data: editions = [], isLoading: editionsLoading } = useEditions();
   const [query, setQuery] = useState("");
-  const activeEdition =
-    editions.find((edition) => edition.id === editionId) ??
-    [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
-    null;
-  const domains = buildAdminDomainNavigation(activeEdition?.slug, activeEdition ? editionLabel(activeEdition) : "Current edition");
+  const activeEdition = selectOrganizerEdition(editions, editionId);
+  const domains = buildAdminDomainNavigation(
+    activeEdition?.slug,
+    activeEdition ? editionLabel(activeEdition) : "Current edition",
+  );
   const groups = useMemo(
     () => filterGroups(buildAdminNavigation(activeEdition?.slug), query),
     [activeEdition?.slug, query],
@@ -43,6 +44,15 @@ function OrganizerMenu() {
         }
       />
 
+      {!activeEdition && !editionsLoading ? (
+        <AdminCard className="mb-4 border-amber-200/15 bg-amber-200/[0.035]">
+          <p className="text-sm font-semibold text-amber-50">Select an Organizer edition</p>
+          <p className="mt-1 text-xs leading-5 text-amber-100/80">
+            Edition-scoped specialist destinations stay unavailable until the exact Organizer edition is selected. Solaris will not substitute the newest edition.
+          </p>
+        </AdminCard>
+      ) : null}
+
       <AdminCard className="mb-4 !p-3 sm:!p-4">
         <div className="mb-3 px-1">
           <h2 className="text-sm font-bold text-foreground">Work domains</h2>
@@ -53,6 +63,28 @@ function OrganizerMenu() {
         <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
           {domains.map((domain) => {
             const Icon = domain.icon;
+            if (domain.availability === "requires-edition") {
+              return (
+                <div
+                  key={domain.id}
+                  aria-disabled="true"
+                  className="admin-list-row !rounded-xl !border-0 !px-2.5 opacity-55"
+                >
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-sky-200/10 bg-sky-200/[0.055] text-sky-100">
+                    <Icon className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-foreground">{domain.label}</span>
+                    <span className="mt-0.5 block line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+                      {domain.unavailableReason}
+                    </span>
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    Locked
+                  </span>
+                </div>
+              );
+            }
             return (
               <Link
                 key={domain.id}
@@ -117,7 +149,7 @@ function OrganizerMenu() {
                 </summary>
                 <div className="grid gap-1 border-t border-white/[0.07] p-3 sm:grid-cols-2">
                   {group.items.map((item) => (
-                    <DirectoryItem key={`${item.to}:${item.label}`} item={item} />
+                    <DirectoryItem key={`${item.id}:${item.label}`} item={item} />
                   ))}
                 </div>
               </details>
@@ -134,7 +166,7 @@ function OrganizerMenu() {
                 </div>
                 <div className="grid gap-1 sm:grid-cols-2">
                   {group.items.map((item) => (
-                    <DirectoryItem key={`${item.to}:${item.label}`} item={item} />
+                    <DirectoryItem key={`${item.id}:${item.label}`} item={item} />
                   ))}
                 </div>
               </AdminCard>
@@ -169,6 +201,27 @@ function filterGroups(groups: AdminNavigationGroup[], query: string) {
 
 function DirectoryItem({ item }: { item: ReturnType<typeof buildAdminNavigation>[number]["items"][number] }) {
   const Icon = item.icon;
+  if (item.availability === "requires-edition") {
+    return (
+      <div
+        aria-disabled="true"
+        className="admin-list-row !rounded-xl !border-0 !px-2.5 opacity-55"
+      >
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-sky-100">
+          <Icon className="size-4" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold text-foreground">{item.label}</span>
+          <span className="mt-0.5 block text-[11px] leading-4 text-muted-foreground">
+            {item.unavailableReason}
+          </span>
+        </span>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          Locked
+        </span>
+      </div>
+    );
+  }
   return (
     <Link
       to={item.to as any}

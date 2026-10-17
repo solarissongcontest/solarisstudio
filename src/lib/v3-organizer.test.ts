@@ -71,28 +71,28 @@ describe("V3 Organizer information architecture", () => {
     expect(v3OrganizerTabForPath("/admin/access-permissions")).toBe("more");
   });
 
-  it("builds Control from existing canonical routes and locks edition-scoped items without context", () => {
+  it("builds Control from canonical operational domains and fails closed without edition context", () => {
     const withoutEdition = buildV3OrganizerControlGroups(null);
     expect(withoutEdition.map((group) => group.label)).toEqual([
-      "Participation",
+      "Delegations",
       "Contest",
       "Voting",
-      "Publication",
+      "Results & publication",
+      "Communications",
+      "Production",
     ]);
-    expect(
-      withoutEdition.flatMap((group) => group.items).find((item) => item.key === "entries")?.href,
-    ).toBeNull();
-    expect(
-      withoutEdition.flatMap((group) => group.items).find((item) => item.key === "confirmations")?.href,
-    ).toBe("/confirmations/admin");
+    expect(withoutEdition.flatMap((group) => group.items).every((item) => item.href === null)).toBe(true);
 
     const scoped = buildV3OrganizerControlGroups("ssc-22");
-    expect(scoped.flatMap((group) => group.items).find((item) => item.key === "entries")?.href).toBe(
+    const items = scoped.flatMap((group) => group.items);
+    expect(items.find((item) => item.key === "confirmations")?.href).toBe("/confirmations/admin");
+    expect(items.find((item) => item.key === "entry-review")?.href).toBe(
+      "/confirmations/admin/responses",
+    );
+    expect(items.find((item) => item.key === "running-order")?.href).toBe(
       "/admin/entries/ssc-22",
     );
-    expect(scoped.flatMap((group) => group.items).find((item) => item.key === "jury")?.href).toBe(
-      "/admin/jury/ssc-22",
-    );
+    expect(items.find((item) => item.key === "jury")?.href).toBe("/admin/jury/ssc-22");
   });
 });
 

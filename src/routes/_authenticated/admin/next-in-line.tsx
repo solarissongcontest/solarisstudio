@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Clock3, ExternalLink, Music2, RefreshCw, Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
@@ -63,6 +63,7 @@ type NextInLineWindowPreview = {
 };
 
 type PendingWindowChange = {
+  editionId: string;
   preview: NextInLineWindowPreview;
   operationId: string;
   idempotencyKey: string;
@@ -97,6 +98,7 @@ export const Route = createFileRoute("/_authenticated/admin/next-in-line")({
 
 function NextInLineAdminPage() {
   const { editionId } = useAdminContext();
+  const editionIdRef = useRef(editionId);
   const search = Route.useSearch();
   const [rows, setRows] = useState<NextInLineRow[]>([]);
   const [query, setQuery] = useState(search.country ?? "");
@@ -113,45 +115,69 @@ function NextInLineAdminPage() {
   const [windowBusy, setWindowBusy] = useState(false);
 
   useEffect(() => {
+    editionIdRef.current = editionId;
+    setPendingWindowChange(null);
+    setChangeReason("");
+  }, [editionId]);
+
+  useEffect(() => {
     let alive = true;
-    setLoading(true);
+    setRows([]);
+    setWindowState(null);
+    setOpensAt("");
+    setClosesAt("");
     setError(null);
-    setWindowLoading(true);
     setWindowError(null);
 
+    if (!editionId) {
+      setLoading(false);
+      setWindowLoading(false);
+      return () => {
+        alive = false;
+      };
+    }
+
+    setLoading(true);
+    setWindowLoading(true);
+
     void confirmationsSupabase
-      .rpc("admin_confirmation_next_in_line", { _edition_id: editionId || null })
+      .rpc("admin_confirmation_next_in_line", { _edition_id: editionId })
       .then((result: { data: unknown; error: { message: string } | null }) => {
         if (!alive) return;
         if (result.error) {
           setRows([]);
           setError(result.error.message);
         } else {
-          setRows(Array.isArray(result.data) ? (result.data as unknown as NextInLineRow[]) : []);
+          try {
+            setRows(nextInLineRowsForEdition(result.data, editionId));
+          } catch (caught) {
+            setRows([]);
+            setError(errorText(caught));
+          }
         }
         setLoading(false);
       });
 
-    if (!editionId) {
-      setWindowState(null);
-      setWindowLoading(false);
-    } else {
-      void nextInLineRpc("studio2_next_in_line_admin_snapshot", {
-        p_edition_id: editionId,
-      }).then((result) => {
-        if (!alive) return;
-        if (result.error) {
-          setWindowState(null);
-          setWindowError(result.error.message);
-        } else {
-          const snapshot = result.data as NextInLineWindowSnapshot;
+    void nextInLineRpc("studio2_next_in_line_admin_snapshot", {
+      p_edition_id: editionId,
+    }).then((result) => {
+      if (!alive) return;
+      if (result.error) {
+        setWindowState(null);
+        setWindowError(result.error.message);
+      } else {
+        try {
+          const snapshot = nextInLineSnapshotForEdition(result.data, editionId);
           setWindowState(snapshot);
           setOpensAt(toLocalDateTimeInput(snapshot.opensAt));
           setClosesAt(toLocalDateTimeInput(snapshot.closesAt));
+        } catch (caught) {
+          setWindowState(null);
+          setWindowError(errorText(caught));
         }
-        setWindowLoading(false);
-      });
-    }
+      }
+      setWindowLoading(false);
+    });
 
     return () => {
       alive = false;
@@ -160,6 +186,7 @@ function NextInLineAdminPage() {
 
   async function prepareWindowChange(targetStatus: NextInLineWindowStatus) {
     if (!editionId || windowBusy) return;
+    const operationEditionId = editionId;
     setWindowBusy(true);
     setWindowError(null);
     try {
@@ -169,15 +196,16 @@ function NextInLineAdminPage() {
       const requestedClosesAt = fromLocalDateTimeInput(closesAt);
 
       const previewResult = await nextInLineRpc("studio2_next_in_line_window_change_preview", {
-        p_edition_id: editionId,
+        p_edition_id: operationEditionId,
         p_target_status: targetStatus,
         p_enabled: enabled,
         p_opens_at: requestedOpensAt,
         p_closes_at: requestedClosesAt,
       });
       if (previewResult.error) throw new Error(previewResult.error.message);
+      if (editionIdRef.current !== operationEditionId) return;
 
-      const preview = previewResult.data as NextInLineWindowPreview;
+      const preview = nextInLinePreviewForEdition(previewResult.data, operationEditionId);
       const operation = createOrganisationCommand({
         command: `next_in_line.window.${targetStatus}`,
         payload: {
@@ -187,18 +215,21 @@ function NextInLineAdminPage() {
           closesAt: requestedClosesAt,
         },
         riskClass: preview.riskClass,
-        scope: { editionId },
+        scope: { editionId: operationEditionId },
         expectedVersion: preview.expectedVersion,
       });
 
       setChangeReason("");
       setPendingWindowChange({
+        editionId: operationEditionId,
         preview,
         operationId: operation.operationId,
         idempotencyKey: operation.idempotencyKey,
       });
     } catch (caught) {
-      setWindowError(errorText(caught));
+      if (editionIdRef.current === operationEditionId) {
+        setWindowError(errorText(caught));
+      }
     } finally {
       setWindowBusy(false);
     }
@@ -206,12 +237,23 @@ function NextInLineAdminPage() {
 
   async function applyWindowChange() {
     if (!editionId || !pendingWindowChange || !changeReason.trim() || windowBusy) return;
+    const operationEditionId = editionId;
+    if (
+      pendingWindowChange.editionId !== operationEditionId ||
+      pendingWindowChange.preview.editionId !== operationEditionId
+    ) {
+      setPendingWindowChange(null);
+      setChangeReason("");
+      setWindowError("Organizer edition changed after this preview. Review the current edition before applying a window change.");
+      return;
+    }
+
     setWindowBusy(true);
     setWindowError(null);
     try {
       const preview = pendingWindowChange.preview;
       const result = await nextInLineRpc("studio2_apply_next_in_line_window_change", {
-        p_edition_id: editionId,
+        p_edition_id: operationEditionId,
         p_target_status: preview.targetStatus,
         p_enabled: preview.enabled,
         p_opens_at: preview.opensAt,
@@ -222,11 +264,14 @@ function NextInLineAdminPage() {
         p_expected_version: preview.expectedVersion,
       });
       if (result.error) throw new Error(result.error.message);
+      if (editionIdRef.current !== operationEditionId) return;
       setPendingWindowChange(null);
       setChangeReason("");
       setRefreshNonce((value) => value + 1);
     } catch (caught) {
-      setWindowError(errorText(caught));
+      if (editionIdRef.current === operationEditionId) {
+        setWindowError(errorText(caught));
+      }
     } finally {
       setWindowBusy(false);
     }
@@ -275,7 +320,7 @@ function NextInLineAdminPage() {
                 type="button"
                 className="admin-action-secondary"
                 onClick={() => setRefreshNonce((value) => value + 1)}
-                disabled={loading}
+                disabled={!editionId || loading}
               >
                 <RefreshCw className={loading ? "size-4 animate-spin" : "size-4"} />
                 Refresh
@@ -324,7 +369,8 @@ function NextInLineAdminPage() {
                   type="datetime-local"
                   value={opensAt}
                   onChange={(event) => setOpensAt(event.target.value)}
-                  className="admin-input mt-2"
+                  disabled={!editionId || windowBusy}
+                  className="admin-input mt-2 disabled:opacity-45"
                 />
               </div>
               <div className="rounded-xl border border-white/[0.07] bg-white/[0.022] p-3">
@@ -336,7 +382,8 @@ function NextInLineAdminPage() {
                   type="datetime-local"
                   value={closesAt}
                   onChange={(event) => setClosesAt(event.target.value)}
-                  className="admin-input mt-2"
+                  disabled={!editionId || windowBusy}
+                  className="admin-input mt-2 disabled:opacity-45"
                 />
               </div>
             </div>
@@ -405,6 +452,7 @@ function NextInLineAdminPage() {
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               aria-label="Search Next in Line responses"
+              disabled={!editionId}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search country, artist or song…"
@@ -413,7 +461,15 @@ function NextInLineAdminPage() {
           </div>
         </AdminCard>
 
-        {loading ? (
+        {!editionId ? (
+          <AdminCard>
+            <AdminEmptyState
+              icon={Music2}
+              title="Select an edition"
+              description="Next in Line is edition-scoped operational work. Solaris will not fetch or combine responses until an exact Organizer edition is selected."
+            />
+          </AdminCard>
+        ) : loading ? (
           <AdminCard>
             <p className="py-12 text-center text-sm text-muted-foreground">
               Loading Next in Line responses…
@@ -487,7 +543,12 @@ function NextInLineAdminPage() {
           </AdminCard>
         )}
         <AdminConfirmSheet
-          open={Boolean(pendingWindowChange)}
+          open={Boolean(
+            editionId &&
+              pendingWindowChange &&
+              pendingWindowChange.editionId === editionId &&
+              pendingWindowChange.preview.editionId === editionId,
+          )}
           onClose={() => {
             if (!windowBusy) {
               setPendingWindowChange(null);
@@ -539,7 +600,12 @@ function NextInLineAdminPage() {
               : undefined
           }
           busy={windowBusy}
-          confirmDisabled={changeReason.trim().length < 5}
+          confirmDisabled={
+            changeReason.trim().length < 5 ||
+            !editionId ||
+            pendingWindowChange?.editionId !== editionId ||
+            pendingWindowChange?.preview.editionId !== editionId
+          }
           danger={
             pendingWindowChange?.preview.targetStatus === "cancelled" ||
             pendingWindowChange?.preview.targetStatus === "closed"
@@ -548,6 +614,33 @@ function NextInLineAdminPage() {
       </div>
     </AdminPage>
   );
+}
+
+function nextInLineRowsForEdition(data: unknown, editionId: string) {
+  const nextRows = Array.isArray(data) ? (data as NextInLineRow[]) : [];
+  const mismatched = nextRows.find(
+    (row) => row.edition_id !== editionId || (row.edition?.id && row.edition.id !== editionId),
+  );
+  if (mismatched) {
+    throw new Error("Next in Line returned response data for a different edition. No rows were shown.");
+  }
+  return nextRows;
+}
+
+function nextInLineSnapshotForEdition(data: unknown, editionId: string) {
+  const snapshot = data as NextInLineWindowSnapshot | null;
+  if (!snapshot || snapshot.editionId !== editionId) {
+    throw new Error("Next in Line runtime state did not match the selected Organizer edition.");
+  }
+  return snapshot;
+}
+
+function nextInLinePreviewForEdition(data: unknown, editionId: string) {
+  const preview = data as NextInLineWindowPreview | null;
+  if (!preview || preview.editionId !== editionId) {
+    throw new Error("Next in Line preview did not match the selected Organizer edition.");
+  }
+  return preview;
 }
 
 function Metric({ label, value }: { label: string; value: number }) {

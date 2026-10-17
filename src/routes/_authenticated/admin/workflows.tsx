@@ -25,7 +25,8 @@ import {
   AdminSheet,
   AdminStatus,
 } from '@/components/admin/AdminUI';
-import { useAdminDeadlines } from '@/lib/admin-ops';
+import { useEditionAdminDeadlines } from '@/lib/admin-ops';
+import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useCountries, useEditions, useParticipants, useShows } from '@/lib/data';
 import { defaultSubsystemStatesForEdition, normalizeLegacyEditionStatus } from '@/lib/edition-state';
 import { studio2ControlRoom } from '@/lib/studio2-control-room';
@@ -88,14 +89,12 @@ function WorkflowsPage() {
   const editionsQuery = useEditions();
   const countriesQuery = useCountries();
   const editions = editionsQuery.data ?? [];
-  const selectedEdition = editions.find((edition) => edition.id === editionId)
-    ?? [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0]
-    ?? null;
+  const selectedEdition = selectOrganizerEdition(editions, editionId);
   const resolvedEditionId = selectedEdition?.id ?? '';
 
   const participantsQuery = useParticipants(resolvedEditionId || undefined);
   const showsQuery = useShows(resolvedEditionId || undefined);
-  const deadlinesQuery = useAdminDeadlines(resolvedEditionId || null);
+  const deadlinesQuery = useEditionAdminDeadlines(resolvedEditionId || null);
 
   const featureQuery = useQuery({
     queryKey: ['studio2-workflow-flags', resolvedEditionId || 'none'],
@@ -205,8 +204,8 @@ function WorkflowsPage() {
           <AdminCard>
             <AdminEmptyState
               icon={GitBranch}
-              title="No edition selected"
-              description="Select an edition before Studio 2 can derive operational workflows."
+              title="Choose an edition"
+              description="Select the edition in the Organizer toolbar before Studio 2 derives operational workflows. Solaris will not substitute the newest or globally active edition."
             />
           </AdminCard>
         ) : featureQuery.data && !featureQuery.data.workflowEngine ? (

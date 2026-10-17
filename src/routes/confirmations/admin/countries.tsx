@@ -155,7 +155,7 @@ function CountriesPage() {
     void (async () => {
       try {
         const editionRows = await loadConfirmationEditions();
-        const selected = editionRows.find((item) => item.id === organizerEditionId)?.id ?? editionRows.find((item) => item.status === "active")?.id ?? editionRows[0]?.id ?? "";
+        const selected = editionRows.find((item) => item.id === organizerEditionId)?.id ?? "";
         const { data, error: loadError } = await confirmationsSupabase.rpc("admin_confirmation_responses");
         if (loadError) throw loadError;
         if (!alive) return;
@@ -174,17 +174,14 @@ function CountriesPage() {
   }, []);
 
   const scopedRows = useMemo(
-    () => rows.filter((row) => !editionId || row.editions?.id === editionId),
+    () => (editionId ? rows.filter((row) => row.editions?.id === editionId) : []),
     [rows, editionId],
   );
 
   useEffect(() => {
-    if (
-      organizerEditionId &&
-      organizerEditionId !== editionId &&
-      editions.some((item) => item.id === organizerEditionId)
-    ) {
-      setEditionId(organizerEditionId);
+    const nextEditionId = editions.find((item) => item.id === organizerEditionId)?.id ?? "";
+    if (nextEditionId !== editionId) {
+      setEditionId(nextEditionId);
     }
   }, [editionId, editions, organizerEditionId]);
 
@@ -292,11 +289,11 @@ function CountriesPage() {
   }
 
   return (
-    <div className="admin-page pb-5">
+    <div className="admin-page pb-5" data-v3-organizer-confirmation-countries="">
       <AdminPageHeader
         eyebrow="Delegations"
         title="Countries"
-        description="Current submission state plus real Solaris contest history, so the delegation view is useful without opening three archive tabs beside it."
+        description="Current submission state plus real Solaris contest history for the exact edition selected in Organizer."
         actions={
           <AdminMoreMenu
             label="Export delegation lists"
@@ -331,6 +328,7 @@ function CountriesPage() {
             onChange={(event) => { const nextEditionId = event.target.value; setEditionId(nextEditionId); setOrganizerEditionId(nextEditionId); }}
             className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-[#07111f] px-3 text-sm text-foreground outline-none"
           >
+            <option value="">Select edition…</option>
             {editions.map((edition) => (
               <option key={edition.id} value={edition.id}>
                 {`SSC ${edition.edition_number} — ${edition.name}`}
@@ -344,6 +342,14 @@ function CountriesPage() {
         <AdminCard className="py-8 text-center text-sm text-muted-foreground">Loading delegations…</AdminCard>
       ) : error ? (
         <AdminCard className="border-rose-200/20 bg-rose-200/[0.045] text-sm text-rose-100">{error}</AdminCard>
+      ) : !editionId ? (
+        <AdminCard>
+          <AdminEmptyState
+            icon={Flag}
+            title="Select an edition"
+            description="Responses by country is edition-scoped operational state. Solaris will not merge responses across editions or substitute a globally active or first edition."
+          />
+        </AdminCard>
       ) : countries.length ? (
         <div className="space-y-3">
           <div className="flex items-center justify-between px-1 text-xs text-muted-foreground">
