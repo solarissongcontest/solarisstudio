@@ -2,7 +2,12 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
-import { GLOBAL_MAINTENANCE_MODE } from "./lib/maintenance";
+import {
+  GLOBAL_MAINTENANCE_MODE,
+  isMaintenanceHodAppRouteAllowed,
+  maintenanceHodAccessEnabled,
+} from "./lib/maintenance";
+import { renderMaintenanceHodPortal } from "./lib/maintenance-hod-portal";
 import { renderMaintenancePage } from "./lib/maintenance-page";
 
 type ServerEntry = {
@@ -11,7 +16,11 @@ type ServerEntry = {
 
 type ServerEnv = {
   MAINTENANCE_ADMIN_SECRET?: string;
+  MAINTENANCE_HOD_ACCESS?: string;
   SUPABASE_URL?: string;
+  SUPABASE_PUBLISHABLE_KEY?: string;
+  VITE_SUPABASE_URL?: string;
+  VITE_SUPABASE_PUBLISHABLE_KEY?: string;
   SOLARIS_PUSH_DISPATCH_SECRET?: string;
 };
 
@@ -62,9 +71,34 @@ function errorResponse() {
   });
 }
 
+function serverEnv(env: unknown) {
+  return env && typeof env === "object" ? (env as ServerEnv) : undefined;
+}
+
 function maintenanceSecret(env: unknown) {
-  const workerEnv = env && typeof env === "object" ? (env as ServerEnv) : undefined;
+  const workerEnv = serverEnv(env);
   return workerEnv?.MAINTENANCE_ADMIN_SECRET ?? process.env.MAINTENANCE_ADMIN_SECRET ?? "";
+}
+
+function maintenanceHodRuntime(env: unknown) {
+  const workerEnv = serverEnv(env);
+  const enabled = maintenanceHodAccessEnabled(
+    workerEnv?.MAINTENANCE_HOD_ACCESS ?? process.env.MAINTENANCE_HOD_ACCESS,
+  );
+  const supabaseUrl =
+    workerEnv?.SUPABASE_URL ??
+    workerEnv?.VITE_SUPABASE_URL ??
+    process.env.SUPABASE_URL ??
+    process.env.VITE_SUPABASE_URL ??
+    "";
+  const publishableKey =
+    workerEnv?.SUPABASE_PUBLISHABLE_KEY ??
+    workerEnv?.VITE_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.SUPABASE_PUBLISHABLE_KEY ??
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+    "";
+
+  return { enabled, supabaseUrl, publishableKey };
 }
 
 function hasLocalE2EMaintenanceBypass(request: Request) {
@@ -264,7 +298,7 @@ function handleMaintenanceAdminLogout(request: Request) {
   });
 }
 
-function maintenanceResponse(request: Request) {
+function maintenanceResponse(request: Request, env: unknown, includeHodPortal: boolean) {
   const headers = {
     "cache-control": "no-store, max-age=0",
     "content-language": "en",
@@ -272,7 +306,19 @@ function maintenanceResponse(request: Request) {
   };
 
   if (request.method === "GET" || request.method === "HEAD") {
-    return new Response(request.method === "HEAD" ? null : renderMaintenancePage(), {
+    let html = renderMaintenancePage();
+    if (request.method === "GET" && includeHodPortal) {
+      const hod = maintenanceHodRuntime(env);
+      if (hod.enabled && hod.supabaseUrl && hod.publishableKey) {
+        const portal = renderMaintenanceHodPortal({
+          supabaseUrl: hod.supabaseUrl,
+          publishableKey: hod.publishableKey,
+        });
+        html = html.replace("          <footer>", `${portal}\n          <footer>`);
+      }
+    }
+
+    return new Response(request.method === "HEAD" ? null : html, {
       status: 503,
       headers: {
         ...headers,
@@ -322,7 +368,7 @@ function isH3SwallowedErrorBody(body: string): boolean {
 }
 
 async function dispatchScheduledNotifications(env: unknown) {
-  const workerEnv = env && typeof env === "object" ? (env as ServerEnv) : undefined;
+  const workerEnv = serverEnv(env);
   const supabaseUrl =
     workerEnv?.SUPABASE_URL ??
     process.env.SUPABASE_URL ??
@@ -363,6 +409,7 @@ export default {
     try {
       const url = new URL(request.url);
       const secret = maintenanceSecret(env);
+      const hod = maintenanceHodRuntime(env);
 
       if (url.pathname === MAINTENANCE_ADMIN_PATH) {
         return await handleMaintenanceAdminRequest(request, secret);
@@ -372,16 +419,23 @@ export default {
         return handleMaintenanceAdminLogout(request);
       }
 
+      const hodAppRouteAllowed = isMaintenanceHodAppRouteAllowed(
+        url.pathname,
+        request.method,
+        hod.enabled,
+      );
+
       if (
         GLOBAL_MAINTENANCE_MODE &&
-        !MAINTENANCE_ASSET_PATHS.has(url.pathname)
+        !MAINTENANCE_ASSET_PATHS.has(url.pathname) &&
+        !hodAppRouteAllowed
       ) {
         const localE2EBypass = hasLocalE2EMaintenanceBypass(request);
         const maintenanceAdminBypass =
           !localE2EBypass && (await hasValidMaintenanceBypass(request, secret));
 
         if (!localE2EBypass && !maintenanceAdminBypass) {
-          return maintenanceResponse(request);
+          return maintenanceResponse(request, env, url.pathname === "/");
         }
 
         // Production maintenance bypass is deliberately inspection-only.
