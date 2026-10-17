@@ -2,6 +2,7 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { handleMaintenanceHodConfirmationRequest } from "./lib/maintenance-hod-api";
 import {
   isMaintenanceHodAllowedAppPath,
   maintenanceHodConfig,
@@ -30,6 +31,7 @@ type WorkerExecutionContext = {
 
 const MAINTENANCE_ADMIN_PATH = "/__maintenance-admin";
 const MAINTENANCE_ADMIN_LOGOUT_PATH = "/__maintenance-admin/logout";
+const MAINTENANCE_HOD_CONFIRMATION_PATH = "/__maintenance-hod/confirmation-edit";
 const MAINTENANCE_BYPASS_COOKIE = "solaris_maintenance_admin";
 const MAINTENANCE_BYPASS_VERSION = "v1";
 const MAINTENANCE_BYPASS_MAX_AGE_SECONDS = 12 * 60 * 60;
@@ -77,10 +79,11 @@ function maintenanceSecret(env: unknown) {
   return workerEnv?.MAINTENANCE_ADMIN_SECRET ?? process.env.MAINTENANCE_ADMIN_SECRET ?? "";
 }
 
-function isMaintenanceAssetPath(pathname: string) {
+function isMaintenanceAssetPath(pathname: string, allowAppAssets: boolean) {
   return (
     MAINTENANCE_ASSET_PATHS.has(pathname) ||
-    MAINTENANCE_APP_ASSET_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+    (allowAppAssets &&
+      MAINTENANCE_APP_ASSET_PREFIXES.some((prefix) => pathname.startsWith(prefix)))
   );
 }
 
@@ -320,8 +323,6 @@ function maintenanceResponse(request: Request, env: unknown) {
   );
 }
 
-// h3 swallows in-handler throws into a normal 500 Response with body
-// {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
 async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
   if (response.status < 500) return response;
   const contentType = response.headers.get("content-type") ?? "";
@@ -395,10 +396,18 @@ export default {
         return handleMaintenanceAdminLogout(request);
       }
 
+      if (
+        GLOBAL_MAINTENANCE_MODE &&
+        hodConfig &&
+        url.pathname === MAINTENANCE_HOD_CONFIRMATION_PATH
+      ) {
+        return handleMaintenanceHodConfirmationRequest(request, hodConfig);
+      }
+
       const hodAppPathAllowed = Boolean(hodConfig) && isMaintenanceHodAllowedAppPath(url.pathname);
       if (
         GLOBAL_MAINTENANCE_MODE &&
-        !isMaintenanceAssetPath(url.pathname) &&
+        !isMaintenanceAssetPath(url.pathname, Boolean(hodConfig)) &&
         !hodAppPathAllowed
       ) {
         const localE2EBypass = hasLocalE2EMaintenanceBypass(request);
@@ -409,10 +418,6 @@ export default {
           return maintenanceResponse(request, env);
         }
 
-        // Production maintenance bypass is deliberately inspection-only.
-        // It lets authorized administrators verify the hidden application, but
-        // cannot turn an outage into an undocumented mutation channel. Local
-        // E2E may exercise writes because its Supabase stack is isolated.
         if (
           maintenanceAdminBypass &&
           request.method !== "GET" &&
