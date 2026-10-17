@@ -18,10 +18,31 @@ type ViewTransitionDocument = Document & {
 
 const APP_VIEW_TRANSITION_UPDATE_BLOCKER = "app-view-transition";
 let appViewTransitionSequence = 0;
+const activeViewTransitionMarkers = new Map<string, AppViewTransitionKind>();
 
 function nextViewTransitionBlockerId() {
   appViewTransitionSequence += 1;
   return `${APP_VIEW_TRANSITION_UPDATE_BLOCKER}:${appViewTransitionSequence}`;
+}
+
+function activateViewTransitionMarker(
+  root: HTMLElement,
+  ownerId: string,
+  kind: AppViewTransitionKind,
+) {
+  activeViewTransitionMarkers.set(ownerId, kind);
+  root.dataset.solarisViewTransition = kind;
+}
+
+function releaseViewTransitionMarker(root: HTMLElement, ownerId: string) {
+  activeViewTransitionMarkers.delete(ownerId);
+  const remainingKinds = [...activeViewTransitionMarkers.values()];
+  const latestKind = remainingKinds.at(-1);
+  if (latestKind) {
+    root.dataset.solarisViewTransition = latestKind;
+    return;
+  }
+  delete root.dataset.solarisViewTransition;
 }
 
 export async function runAppViewTransition(
@@ -53,7 +74,7 @@ export async function runAppViewTransition(
       return;
     }
 
-    root.dataset.solarisViewTransition = kind;
+    activateViewTransitionMarker(root, updateBlockerId, kind);
     let updateRan = false;
 
     try {
@@ -65,7 +86,7 @@ export async function runAppViewTransition(
     } catch {
       if (!updateRan) await update();
     } finally {
-      delete root.dataset.solarisViewTransition;
+      releaseViewTransitionMarker(root, updateBlockerId);
     }
   } finally {
     clearAppUpdateBlocker(updateBlockerId);
