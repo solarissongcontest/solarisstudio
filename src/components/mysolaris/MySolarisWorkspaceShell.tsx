@@ -27,11 +27,14 @@ function MySolarisWorkspaceContent({ children }: { children: ReactNode }) {
   const workspace = useMySolaris();
   const location = useRouterState({ select: (state) => state.location });
   const votingOverview = location.pathname === "/my-solaris/voting";
+  const countryInspection = countryInspectionTarget(location.search);
   const focusedTask =
-    isAppMode && resolveSolarisAppScreen(location.pathname).behavior.criticalTask;
+    isAppMode &&
+    !countryInspection &&
+    resolveSolarisAppScreen(location.pathname).behavior.criticalTask;
   const organizerInspection = Boolean(
     votingOverview &&
-      countryInspectionTarget(location.search) &&
+      countryInspection &&
       workspace.countryAccount?.access.isOrganizer === true,
   );
   const rollout = useV3RolloutProbe(
@@ -64,9 +67,10 @@ function MySolarisWorkspaceContent({ children }: { children: ReactNode }) {
     return <Navigate to="/participate" replace />;
   }
 
-  // Critical participant work keeps MySolarisProvider authority but must not
+  // Participant critical work keeps MySolarisProvider authority but must not
   // inherit the generic MySolaris sidebar, recap or account-status chrome.
-  // The route-owned V3 focused shell supplies the only task navigation.
+  // Country-scoped Organizer inspection deliberately remains in the canonical
+  // legacy workspace because the route gate also fails back to legacy there.
   if (focusedTask) return <>{children}</>;
 
   return (
