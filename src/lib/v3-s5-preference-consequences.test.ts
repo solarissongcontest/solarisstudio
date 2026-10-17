@@ -31,6 +31,14 @@ describe("System V3 S5 personal preference consequences", () => {
     expect(migration).toContain("v_revision := old.revision + 1");
   });
 
+  it("fails closed unless the authenticated actor owns the follow state", () => {
+    expect(migration).toContain("v_actor_id := auth.uid()");
+    expect(migration).toContain("if v_actor_id is null then");
+    expect(migration).toContain("raise exception 'Authentication required'");
+    expect(migration).toContain("if v_actor_id is distinct from v_profile_id then");
+    expect(migration).toContain("Preference actor does not own follow state");
+  });
+
   it("binds each change to an R0 operation receipt and keeps user identity out of event payloads", () => {
     expect(migration).toContain("private.studio2_request_fingerprint(");
     expect(migration).toContain("'R0'");
