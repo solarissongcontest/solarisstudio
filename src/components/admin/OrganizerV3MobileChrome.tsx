@@ -28,6 +28,7 @@ import {
   updateV3OrganizerScrollPosition,
   v3OrganizerEntryHref,
 } from "@/lib/v3-organizer-navigation";
+import { resolveV3OrganizerTabbarMode } from "@/lib/v3-organizer-navigation-policy";
 import {
   V3_ORGANIZER_TAB_ORDER,
   v3OrganizerTabForPath,
@@ -64,7 +65,8 @@ export function OrganizerV3MobileChrome() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const navigate = useNavigate();
-  const screen = resolveOrganizerV6Screen(pathname);
+  const legacyScreen = resolveOrganizerV6Screen(pathname);
+  const tabbarMode = resolveV3OrganizerTabbarMode(pathname, legacyScreen.tabbar);
   const activeTab = v3OrganizerTabForPath(pathname);
   const { editionId } = useAdminContext();
   const { data: editions = [] } = useEditions();
@@ -175,13 +177,13 @@ export function OrganizerV3MobileChrome() {
     );
   };
 
-  if (screen.tabbar === "hidden") return null;
+  if (tabbarMode === "hidden") return null;
 
   return (
     <div
       data-solaris-v3=""
       data-organizer-v3-liquid-nav=""
-      data-organizer-v3-tabbar-mode={screen.tabbar}
+      data-organizer-v3-tabbar-mode={tabbarMode}
     >
       <V3LiquidTabBar
         pathname={pathname}
