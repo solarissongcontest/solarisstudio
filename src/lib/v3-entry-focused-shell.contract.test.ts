@@ -1,0 +1,114 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+import { resolveAppRouteChrome } from "./app-route-chrome";
+import { resolveSolarisAppScreen } from "./app-screen-registry";
+import { routeUpdateBlocker } from "./app-update-safety";
+import { resolveV3FocusedTaskChrome } from "./v3-focused-task-chrome";
+
+function source(path: string) {
+  return readFileSync(resolve(process.cwd(), path), "utf8");
+}
+
+describe("V3 Entry focused participant shell", () => {
+  it("classifies Entry as authenticated Participate critical work", () => {
+    const screen = resolveSolarisAppScreen("/my-solaris/entry");
+    expect(screen.id).toBe("mysolaris.entry");
+    expect(screen.presentation).toBe("task");
+    expect(screen.hierarchy.rootTab).toBe("participate");
+    expect(screen.hierarchy.parent).toEqual({ label: "Participate", href: "/participate" });
+    expect(screen.chrome).toEqual({ toolbar: "focused", tabbar: "hidden", search: "none" });
+    expect(screen.access.auth).toBe("authenticated");
+    expect(screen.behavior.criticalTask).toBe(true);
+    expect(screen.behavior.offline).toBe("online-required");
+    expect(resolveAppRouteChrome("/my-solaris/entry").tabBar).toBe("hidden");
+  });
+
+  it("derives Entry chrome from the canonical screen registry", () => {
+    expect(resolveV3FocusedTaskChrome("/my-solaris/entry")).toMatchObject({
+      screenId: "mysolaris.entry",
+      title: "Entry",
+      rootTab: "participate",
+      backLabel: "Participate",
+      backTo: "/participate",
+      helpTo: "/guide",
+    });
+  });
+
+  it("uses one route-owned focused shell instead of stacked global/workspace chrome", () => {
+    const gate = source("src/components/v3/V3EntryRouteGate.tsx");
+    const workspace = source("src/components/mysolaris/MySolarisWorkspaceShell.tsx");
+    const toolbar = source("src/components/app/AppToolbar.tsx");
+    const css = source("src/styles/v3-focused-task-shell.css");
+
+    expect(gate).toContain("<V3FocusedTaskShell");
+    expect(gate).not.toContain("<V3AppShell");
+    expect(workspace).toContain("resolveSolarisAppScreen(location.pathname).behavior.criticalTask");
+    expect(workspace).toContain("if (focusedTask) return <>{children}</>");
+    expect(toolbar).toContain("resolveSolarisAppScreen(pathname, searchStr)");
+    expect(toolbar).toContain('screen.id === "mysolaris.entry" && screen.chrome.toolbar === "focused"');
+    expect(toolbar).toContain("if (routeOwnsFocusedToolbar) return null");
+    expect(css).not.toContain(".solaris-app-toolbar");
+    expect(css).toContain("app-main");
+    expect(css).toContain("data-solaris-app-mode");
+  });
+
+  it("keeps the resolving cutover inside focused presentation from the first render", () => {
+    const gate = source("src/components/v3/V3EntryRouteGate.tsx");
+    const toolbar = source("src/components/app/AppToolbar.tsx");
+    const css = source("src/styles/v3-focused-task-shell.css");
+
+    expect(gate).toContain("data-v3-entry-boot");
+    expect(gate).not.toMatch(/function ResolvingEntrySurface\(\)[\s\S]*?return \(\s*<main/);
+    expect(toolbar).toContain("routeOwnsFocusedToolbar");
+    expect(css).not.toContain(".solaris-app-toolbar");
+    expect(css).toContain('body:has([data-v3-entry-boot]) .app-main[data-solaris-app-mode="true"]');
+  });
+
+  it("leaves document heading and main-landmark ownership with the route content", () => {
+    const shell = source("src/components/v3/V3FocusedTaskShell.tsx");
+    const entry = source("src/components/v3/V3EntryScreen.tsx");
+    const foundation = source("src/components/v3/V3Foundation.tsx");
+
+    expect(shell).toContain("v3-focused-task-toolbar__title");
+    expect(shell).not.toMatch(/<h1[^>]*v3-focused-task-toolbar__title/);
+    expect(shell).toContain("data-v3-critical-task-content");
+    expect(shell).not.toMatch(/<main[^>]*v3-focused-task-content/);
+    expect(entry).toContain("<V3ScreenHeader");
+    expect(entry).toContain("<V3Screen>");
+    expect(foundation).toContain("v3-display");
+    expect(foundation).toContain("v3-screen");
+  });
+
+  it("uses shared keyboard metrics so sticky focused chrome cannot obscure focused controls", () => {
+    const css = source("src/styles/v3-focused-task-shell.css");
+    const metrics = source("src/components/app/AppChromeMetrics.tsx");
+
+    expect(metrics).toContain("--solaris-keyboard-inset");
+    expect(metrics).toContain("window.visualViewport");
+    expect(css).toContain("var(--solaris-keyboard-inset, 0px)");
+    expect(css).toContain("scroll-margin-block-start");
+    expect(css).toContain("scroll-margin-block-end");
+    expect(css).not.toContain("visualViewport");
+  });
+
+  it("keeps every country-scoped Entry inspection in the canonical legacy workspace", () => {
+    const gate = source("src/components/v3/V3EntryRouteGate.tsx");
+    const workspace = source("src/components/mysolaris/MySolarisWorkspaceShell.tsx");
+    const route = source("src/routes/_authenticated/my-solaris/entry.tsx");
+
+    expect(route).toContain("organizerInspection={Boolean(search.country)}");
+    expect(gate).toContain("if (organizerInspection || !isAppMode) return <>{legacy}</>");
+    expect(gate).toContain("platformResolved && isAppMode && !organizerInspection");
+    expect(workspace).toContain("const countryInspection = countryInspectionTarget(location.search)");
+    expect(workspace).toContain("!countryInspection &&");
+    expect(workspace).toContain("<MySolarisWorkspaceNav />");
+  });
+
+  it("blocks service-worker activation throughout Entry while ordinary MySolaris remains safe", () => {
+    expect(routeUpdateBlocker("/my-solaris/entry")?.id).toBe("focused-participation-task");
+    expect(routeUpdateBlocker("/my-solaris/entry/")?.id).toBe("focused-participation-task");
+    expect(routeUpdateBlocker("/my-solaris/activity")).toBeNull();
+  });
+});
