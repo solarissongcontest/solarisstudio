@@ -332,7 +332,7 @@ export function renderMaintenanceHodPortal(config: MaintenanceHodPortalConfig) {
     hodRoot.innerHTML =
       '<div class="hod-signin-intro"><strong>Sign in to Confirmation access</strong><span>Use your existing Solaris country account. Normal Studio pages stay unavailable during maintenance.</span></div>' +
       '<form id="hod-signin-form" class="hod-form">' +
-        '<div class="hod-field"><label for="hod-identifier">Country account identifier</label><span id="hod-identifier-help" class="hod-field-help">Use the same identifier you normally enter when signing in to Solaris Studio.</span><input id="hod-identifier" name="identifier" autocomplete="username" aria-describedby="hod-identifier-help" required /></div>' +
+        '<div class="hod-field"><label for="hod-identifier">Instagram username or recovery email</label><span id="hod-identifier-help" class="hod-field-help">Use the Instagram username linked to your country account, or its recovery email.</span><input id="hod-identifier" name="identifier" autocomplete="username" aria-describedby="hod-identifier-help" placeholder="@username or email@example.com" required /></div>' +
         '<div class="hod-field"><label for="hod-password">Password</label><input id="hod-password" name="password" type="password" autocomplete="current-password" required /></div>' +
         '<div class="hod-actions"><button class="hod-button hod-button-primary" type="submit">Sign in to Confirmations</button><button id="hod-recovery" class="hod-button hod-button-link" type="button">Forgot password?</button></div>' +
         (message ? '<div class="hod-error" role="alert">' + escapeHtml(message) + '</div>' : '') +
