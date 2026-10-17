@@ -44,9 +44,59 @@ type TimeMachineSnapshot = {
   evidenceComplete: boolean;
 };
 
+type TimelineRow = {
+  id: string;
+  at: string;
+  title: string;
+  detail: string;
+  source: "Contest event" | "Audit marker";
+};
+
+const TIME_MACHINE_EVENT_LIMIT = 250;
+const TIME_MACHINE_AUDIT_LIMIT = 100;
+
+async function loadSnapshot(editionId: string, asOf: string) {
+  const { data, error } = await (supabase as any).rpc("studio2_time_machine", {
+    _edition_id: editionId,
+    _as_of: asOf,
+  });
+  if (error) throw error;
+  return data as TimeMachineSnapshot;
+}
+
+function snapshotRows(snapshot: TimeMachineSnapshot | null | undefined): TimelineRow[] {
+  if (!snapshot) return [];
+  return [
+    ...snapshot.events.map((event) => ({
+      id: `event:${event.id}`,
+      at: event.occurredAt,
+      title: event.type,
+      detail: [event.entityType, event.entityId].filter(Boolean).join(" · "),
+      source: "Contest event" as const,
+    })),
+    ...snapshot.audit.map((audit) => ({
+      id: `audit:${audit.id}`,
+      at: audit.createdAt,
+      title: audit.action,
+      detail: [audit.tableName, audit.recordId].filter(Boolean).join(" · "),
+      source: "Audit marker" as const,
+    })),
+  ];
+}
+
+function snapshotMayBeTruncated(snapshot: TimeMachineSnapshot | null | undefined) {
+  return Boolean(
+    snapshot &&
+      (snapshot.events.length >= TIME_MACHINE_EVENT_LIMIT ||
+        snapshot.audit.length >= TIME_MACHINE_AUDIT_LIMIT),
+  );
+}
+
 function TimeMachinePage() {
   const { editionId } = useAdminContext();
   const [asOf, setAsOf] = useState(() => new Date().toISOString());
+  const [compareEnabled, setCompareEnabled] = useState(false);
+  const [compareAsOf, setCompareAsOf] = useState(() => new Date(Date.now() - 60 * 60 * 1000).toISOString());
   const feature = useQuery({
     queryKey: ["studio2-feature", "time_machine"],
     queryFn: () => isStudio2FeatureEnabled("time_machine"),
@@ -54,29 +104,48 @@ function TimeMachinePage() {
   });
 
   useEffect(() => {
-    setAsOf(new Date().toISOString());
+    const now = Date.now();
+    setAsOf(new Date(now).toISOString());
+    setCompareAsOf(new Date(now - 60 * 60 * 1000).toISOString());
+    setCompareEnabled(false);
   }, [editionId]);
 
   const snapshot = useQuery({
     enabled: feature.data === true && Boolean(editionId),
-    queryKey: ["time-machine", editionId, asOf],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("studio2_time_machine", {
-        _edition_id: editionId,
-        _as_of: asOf,
-      });
-      if (error) throw error;
-      return data as TimeMachineSnapshot;
-    },
+    queryKey: ["time-machine", editionId ?? "none", asOf],
+    queryFn: () => loadSnapshot(editionId!, asOf),
   });
 
-  const timeline = useMemo(() => {
-    const rows = [
-      ...(snapshot.data?.events ?? []).map((event) => ({ id: `event:${event.id}`, at: event.occurredAt, title: event.type, detail: [event.entityType, event.entityId].filter(Boolean).join(" · "), source: "Contest event" })),
-      ...(snapshot.data?.audit ?? []).map((audit) => ({ id: `audit:${audit.id}`, at: audit.createdAt, title: audit.action, detail: [audit.tableName, audit.recordId].filter(Boolean).join(" · "), source: "Audit marker" })),
-    ];
-    return rows.sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 300);
-  }, [snapshot.data]);
+  const comparisonSnapshot = useQuery({
+    enabled: feature.data === true && Boolean(editionId) && compareEnabled,
+    queryKey: ["time-machine-compare", editionId ?? "none", compareAsOf],
+    queryFn: () => loadSnapshot(editionId!, compareAsOf),
+  });
+
+  const timeline = useMemo(
+    () => snapshotRows(snapshot.data).sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 300),
+    [snapshot.data],
+  );
+
+  const comparison = useMemo(() => {
+    if (!compareEnabled || !snapshot.data || !comparisonSnapshot.data) return null;
+    const first = Date.parse(snapshot.data.asOf) <= Date.parse(comparisonSnapshot.data.asOf)
+      ? snapshot.data
+      : comparisonSnapshot.data;
+    const second = first === snapshot.data ? comparisonSnapshot.data : snapshot.data;
+    const firstIds = new Set(snapshotRows(first).map((row) => row.id));
+    const changes = snapshotRows(second)
+      .filter((row) => !firstIds.has(row.id))
+      .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+    return {
+      from: first,
+      to: second,
+      changes,
+      eventCount: changes.filter((row) => row.source === "Contest event").length,
+      auditCount: changes.filter((row) => row.source === "Audit marker").length,
+      truncated: snapshotMayBeTruncated(first) || snapshotMayBeTruncated(second),
+    };
+  }, [compareEnabled, comparisonSnapshot.data, snapshot.data]);
 
   if (feature.isLoading) return <AdminPage><p className="text-sm text-muted-foreground">Loading Time Machine…</p></AdminPage>;
   if (feature.data !== true) {
@@ -96,7 +165,7 @@ function TimeMachinePage() {
         />
 
         <AdminCard strong>
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end">
             <label className="text-xs font-semibold text-muted-foreground">
               Reconstruct at
               <input
@@ -106,11 +175,68 @@ function TimeMachinePage() {
                 className="mt-1.5 min-h-11 w-full rounded-xl border border-white/[0.09] bg-black/15 px-3 text-sm text-foreground"
               />
             </label>
-            <button type="button" onClick={() => setAsOf(new Date().toISOString())} className="min-h-11 rounded-xl border border-white/[0.09] bg-white/[0.035] px-4 text-sm font-semibold hover:bg-white/[0.07]">
-              Current time
-            </button>
+            {compareEnabled ? (
+              <label className="text-xs font-semibold text-muted-foreground">
+                Compare with
+                <input
+                  type="datetime-local"
+                  value={toLocalInput(compareAsOf)}
+                  onChange={(event) => setCompareAsOf(new Date(event.target.value).toISOString())}
+                  className="mt-1.5 min-h-11 w-full rounded-xl border border-white/[0.09] bg-black/15 px-3 text-sm text-foreground"
+                />
+              </label>
+            ) : <div />}
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setCompareEnabled((value) => !value)} className="min-h-11 rounded-xl border border-white/[0.09] bg-white/[0.035] px-4 text-sm font-semibold hover:bg-white/[0.07]">
+                {compareEnabled ? "Close diff" : "Compare snapshots"}
+              </button>
+              <button type="button" onClick={() => setAsOf(new Date().toISOString())} className="min-h-11 rounded-xl border border-white/[0.09] bg-white/[0.035] px-4 text-sm font-semibold hover:bg-white/[0.07]">
+                Now
+              </button>
+            </div>
           </div>
+          <p className="mt-3 text-xs leading-5 text-muted-foreground">
+            Comparison reads the same authoritative edition evidence twice and shows only recorded events and audit markers introduced between the two timestamps. It never writes or reconstructs missing history by inference.
+          </p>
         </AdminCard>
+
+        {compareEnabled ? (
+          comparisonSnapshot.isLoading ? (
+            <AdminCard><p className="py-8 text-center text-sm text-muted-foreground">Reconstructing comparison snapshot…</p></AdminCard>
+          ) : comparisonSnapshot.error ? (
+            <AdminCard><AdminStatus tone="blocked">{comparisonSnapshot.error instanceof Error ? comparisonSnapshot.error.message : "Comparison snapshot failed"}</AdminStatus></AdminCard>
+          ) : comparison ? (
+            <AdminCard strong>
+              <AdminCardHeader
+                eyebrow={comparison.truncated ? "Bounded diff" : "Authoritative diff"}
+                title={comparison.truncated ? "Recorded changes within snapshot limits" : "Recorded changes between snapshots"}
+                description={`${new Date(comparison.from.asOf).toLocaleString()} → ${new Date(comparison.to.asOf).toLocaleString()}`}
+              />
+              {comparison.truncated ? (
+                <div className="mt-4">
+                  <AdminStatus tone="attention">
+                    At least one snapshot reached the RPC evidence limit ({TIME_MACHINE_EVENT_LIMIT} events or {TIME_MACHINE_AUDIT_LIMIT} audit markers). Counts below are observed rows, not a complete authoritative diff. Narrow the time range before treating them as exhaustive.
+                  </AdminStatus>
+                </div>
+              ) : null}
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <SmallMetric label={comparison.truncated ? "Observed events" : "Contest events"} value={comparison.eventCount} />
+                <SmallMetric label={comparison.truncated ? "Observed audit" : "Audit markers"} value={comparison.auditCount} />
+                <SmallMetric label={comparison.truncated ? "Observed changes" : "Recorded changes"} value={comparison.changes.length} />
+              </div>
+              {!comparison.from.evidenceComplete || !comparison.to.evidenceComplete ? (
+                <div className="mt-4"><AdminStatus tone="attention">At least one snapshot predates complete recorded evidence. The diff contains recorded changes only.</AdminStatus></div>
+              ) : null}
+              <div className="mt-4 space-y-2">
+                {comparison.changes.length ? comparison.changes.slice(0, 300).map((row) => (
+                  <TimelineItem key={row.id} row={row} />
+                )) : (
+                  <AdminEmptyState icon={Clock3} title="No recorded changes" description="No contest events or audit markers were recorded between these two timestamps." />
+                )}
+              </div>
+            </AdminCard>
+          ) : null
+        ) : null}
 
         {snapshot.isLoading ? (
           <AdminCard><p className="py-10 text-center text-sm text-muted-foreground">Reconstructing recorded evidence…</p></AdminCard>
@@ -125,6 +251,10 @@ function TimeMachinePage() {
               <Metric label="Evidence start" value={snapshot.data.evidenceStart ? new Date(snapshot.data.evidenceStart).toLocaleDateString() : "Unknown"} />
             </section>
 
+            {snapshotMayBeTruncated(snapshot.data) ? (
+              <AdminCard><AdminStatus tone="attention">This snapshot reached the bounded evidence limit. The timeline is a partial recorded window, not proof that no older rows exist before this snapshot boundary.</AdminStatus></AdminCard>
+            ) : null}
+
             {!snapshot.data.evidenceComplete ? (
               <AdminCard><AdminStatus tone="attention">Historical evidence is incomplete before the first recorded event. This view therefore shows recorded history, not invented state.</AdminStatus></AdminCard>
             ) : null}
@@ -132,16 +262,7 @@ function TimeMachinePage() {
             <AdminCard>
               <AdminCardHeader eyebrow="Read-only timeline" title="Recorded state changes" description={`Evidence at or before ${new Date(snapshot.data.asOf).toLocaleString()}.`} />
               <div className="mt-4 space-y-2">
-                {timeline.length ? timeline.map((row) => (
-                  <div key={row.id} className="grid gap-2 rounded-xl border border-white/[0.07] bg-black/10 p-3 sm:grid-cols-[160px_minmax(0,1fr)_auto] sm:items-center">
-                    <span className="text-xs tabular-nums text-muted-foreground">{new Date(row.at).toLocaleString()}</span>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold">{row.title}</p>
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">{row.detail || "No entity metadata recorded"}</p>
-                    </div>
-                    <AdminStatus tone="neutral">{row.source}</AdminStatus>
-                  </div>
-                )) : <AdminEmptyState icon={Clock3} title="No recorded evidence yet" description="No contest events or audit markers exist at or before this timestamp." />}
+                {timeline.length ? timeline.map((row) => <TimelineItem key={row.id} row={row} />) : <AdminEmptyState icon={Clock3} title="No recorded evidence yet" description="No contest events or audit markers exist at or before this timestamp." />}
               </div>
             </AdminCard>
           </>
@@ -151,8 +272,25 @@ function TimeMachinePage() {
   );
 }
 
+function TimelineItem({ row }: { row: TimelineRow }) {
+  return (
+    <div className="grid gap-2 rounded-xl border border-white/[0.07] bg-black/10 p-3 sm:grid-cols-[160px_minmax(0,1fr)_auto] sm:items-center">
+      <span className="text-xs tabular-nums text-muted-foreground">{new Date(row.at).toLocaleString()}</span>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-semibold">{row.title}</p>
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">{row.detail || "No entity metadata recorded"}</p>
+      </div>
+      <AdminStatus tone="neutral">{row.source}</AdminStatus>
+    </div>
+  );
+}
+
 function Metric({ label, value }: { label: string; value: string }) {
   return <AdminCard><p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{label}</p><p className="mt-2 text-lg font-bold">{value}</p></AdminCard>;
+}
+
+function SmallMetric({ label, value }: { label: string; value: number }) {
+  return <div className="rounded-xl border border-white/[0.07] bg-black/10 p-3"><p className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">{label}</p><p className="mt-2 text-xl font-bold tabular-nums">{value}</p></div>;
 }
 
 function toLocalInput(iso: string) {
