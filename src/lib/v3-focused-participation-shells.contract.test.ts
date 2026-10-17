@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 const participationShell = () => read("src/components/ParticipationServiceShell.tsx");
+const appToolbar = () => read("src/components/app/AppToolbar.tsx");
 const focusedShell = () => read("src/components/v3/V3FocusedTaskShell.tsx");
 const focusedCss = () => read("src/styles/v3-focused-task-shell.css");
 const registry = () => read("src/lib/app-screen-registry.ts");
@@ -54,12 +55,18 @@ describe("V3 focused participation shell adoption", () => {
     expect(source).not.toMatch(/<main[^>]*v3-participation-task-route-screen/);
   });
 
-  it("removes duplicate global toolbar chrome only after focused chrome mounts", () => {
+  it("removes duplicate global toolbar chrome through the canonical AppToolbar owner", () => {
+    const toolbar = appToolbar();
     const css = focusedCss();
 
-    expect(css).toContain('body:has([data-v3-focused-task-shell]) .solaris-app-toolbar');
-    expect(css).toContain("display: none");
-    expect(css).not.toContain('body:has([data-v3-focused-task-boot]) .solaris-app-toolbar');
+    expect(toolbar).toContain('screen.id === "participation.task" && screen.chrome.toolbar === "focused"');
+    expect(toolbar).toContain("useV3RolloutProbe(participationFocusedTask)");
+    expect(toolbar).toContain("focusedRollout.data?.enabled === true");
+    expect(toolbar).toContain("focusedRollout.data.confirmationEnabled === true");
+    expect(toolbar).toContain("focusedRollout.data.juryEnabled === true");
+    expect(toolbar).toContain("participationRouteOwnsFocusedToolbar");
+    expect(toolbar).toContain("if (routeOwnsFocusedToolbar) return null");
+    expect(css).not.toContain(".solaris-app-toolbar");
   });
 
   it("preserves wide operational layouts while Entry can remain compact", () => {
@@ -86,7 +93,7 @@ describe("V3 focused participation shell adoption", () => {
   });
 
   it("does not add a hosted Supabase endpoint to navigation presentation", () => {
-    const combined = `${participationShell()}\n${focusedShell()}\n${focusedCss()}`;
+    const combined = `${participationShell()}\n${appToolbar()}\n${focusedShell()}\n${focusedCss()}`;
     expect(combined).not.toMatch(/https:\/\/[^\s"']+\.supabase\.co/i);
   });
 });
