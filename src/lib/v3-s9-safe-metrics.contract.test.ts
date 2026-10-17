@@ -23,6 +23,18 @@ describe("System V3 S9 privacy-safe operational metrics", () => {
     expect(body).toContain("make_interval(mins => p_lookback_minutes)");
   });
 
+  it("indexes each global time window used by the observability projection", () => {
+    expect(migration).toContain(
+      "studio2_operation_receipts_created_at_idx\n  on public.studio2_operation_receipts (created_at desc)",
+    );
+    expect(migration).toContain(
+      "v3_domain_events_occurred_at_idx\n  on private.v3_domain_events (occurred_at desc, id)",
+    );
+    expect(migration).toContain(
+      "v3_domain_event_outbox_created_at_idx\n  on private.v3_domain_event_outbox (created_at desc, event_id, consumer_key)",
+    );
+  });
+
   it("measures S2 operation outcomes and success over completed operations", () => {
     const body = functionBody("public.admin_system_observability_snapshot");
     for (const status of ["processing", "succeeded", "failed", "uncertain"]) {
