@@ -6,6 +6,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, ArrowLeft, LockKeyhole } from "lucide-react";
 
 import { ConfirmationFormWithReceipt } from "@/components/ConfirmationFormWithReceipt";
+import { MaintenanceConfirmationEditor } from "@/components/MaintenanceConfirmationEditor";
 import { V3ConfirmationRouteShell } from "@/components/v3/V3ConfirmationRouteShell";
 import {
   ConfirmationReviewStatus,
@@ -14,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { resolveEditToken } from "@/lib/confirmation-edit.functions";
 import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
+import { resolveMaintenanceConfirmationEditToken } from "@/lib/maintenance-confirmation-client";
 import { parseV3EntryEditorFocus } from "@/lib/v3-entry-editor-focus";
 
 export const Route = createFileRoute("/confirmations/edit/$token")({
@@ -81,9 +83,12 @@ function EditConfirmationPage() {
   const editorInitialStep = maintenanceReviewFocus ? 3 : entryFocus?.step ?? undefined;
   const resolve = useServerFn(resolveEditToken);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["confirmation-edit-token", token],
-    queryFn: () => resolve({ data: { token } }),
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["confirmation-edit-token", token, GLOBAL_MAINTENANCE_MODE ? "maintenance" : "normal"],
+    queryFn: () =>
+      GLOBAL_MAINTENANCE_MODE
+        ? resolveMaintenanceConfirmationEditToken(token)
+        : resolve({ data: { token } }),
     retry: false,
   });
 
@@ -97,6 +102,26 @@ function EditConfirmationPage() {
       >
         <div className="data-panel p-6 text-center text-sm text-muted-foreground">
           Loading your confirmation…
+        </div>
+      </V3ConfirmationRouteShell>
+    );
+  }
+
+  if (isError) {
+    return (
+      <V3ConfirmationRouteShell
+        title="Confirmation editor unavailable"
+        description="Solaris could not verify this edit link with the Confirmation service."
+        actions={returnAction}
+        maxWidth="max-w-3xl"
+        maintenanceMode={GLOBAL_MAINTENANCE_MODE}
+      >
+        <div className="data-panel p-6 text-center sm:p-8" role="alert">
+          <AlertTriangle className="mx-auto size-7 text-amber-300" />
+          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">
+            Your existing Confirmation has not been changed. Return to the maintenance page and open the current edit action again. Solaris will not label a transport failure as an expired link.
+          </p>
+          <ReturnFromUnavailableEditor />
         </div>
       </V3ConfirmationRouteShell>
     );
@@ -211,12 +236,20 @@ function EditConfirmationPage() {
           }
         />
 
-        <ConfirmationFormWithReceipt
-          round={result.round}
-          editToken={token}
-          prefill={result.submission}
-          initialStep={editorInitialStep}
-        />
+        {GLOBAL_MAINTENANCE_MODE ? (
+          <MaintenanceConfirmationEditor
+            round={result.round}
+            editToken={token}
+            prefill={result.submission}
+          />
+        ) : (
+          <ConfirmationFormWithReceipt
+            round={result.round}
+            editToken={token}
+            prefill={result.submission}
+            initialStep={editorInitialStep}
+          />
+        )}
       </div>
     </V3ConfirmationRouteShell>
   );
