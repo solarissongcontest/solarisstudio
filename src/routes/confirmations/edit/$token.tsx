@@ -82,6 +82,7 @@ function EditConfirmationPage() {
   const visibleEntryFocus = maintenanceReviewFocus ? null : entryFocus;
   const editorInitialStep = maintenanceReviewFocus ? 3 : entryFocus?.step ?? undefined;
   const resolve = useServerFn(resolveEditToken);
+  const browserReady = typeof window !== "undefined";
 
   const { data, isLoading } = useQuery({
     queryKey: ["confirmation-edit-token", token, GLOBAL_MAINTENANCE_MODE ? "maintenance" : "normal"],
@@ -89,10 +90,11 @@ function EditConfirmationPage() {
       GLOBAL_MAINTENANCE_MODE
         ? resolveMaintenanceEditToken(token)
         : resolve({ data: { token } }),
+    enabled: !GLOBAL_MAINTENANCE_MODE || browserReady,
     retry: false,
   });
 
-  if (isLoading) {
+  if (isLoading || (GLOBAL_MAINTENANCE_MODE && !browserReady)) {
     return (
       <V3ConfirmationRouteShell
         title="Edit confirmation"
