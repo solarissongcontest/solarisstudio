@@ -47,15 +47,19 @@ describe("V3 Entry focused participant shell", () => {
     expect(css).toContain('.app-main[data-solaris-app-mode="true"]');
   });
 
-  it("leaves document heading ownership with the route content, not the focused toolbar", () => {
+  it("leaves document heading and main-landmark ownership with the route content", () => {
     const shell = source("src/components/v3/V3FocusedTaskShell.tsx");
     const entry = source("src/components/v3/V3EntryScreen.tsx");
     const foundation = source("src/components/v3/V3Foundation.tsx");
 
     expect(shell).toContain('<p className="v3-focused-task-toolbar__title">{chrome.title}</p>');
     expect(shell).not.toContain('<h1 className="v3-focused-task-toolbar__title">');
+    expect(shell).toContain('<div className="v3-focused-task-content" data-v3-critical-task-content>');
+    expect(shell).not.toContain('<main className="v3-focused-task-content"');
     expect(entry).toContain("<V3ScreenHeader");
+    expect(entry).toContain("<V3Screen>");
     expect(foundation).toContain('<h1 className={cn("v3-display"');
+    expect(foundation).toContain('<main className={cn("v3-screen"');
   });
 
   it("keeps every country-scoped Entry inspection in the canonical legacy workspace", () => {
