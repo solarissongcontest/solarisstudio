@@ -6,6 +6,7 @@ const fantasyMigration = readFileSync(
   "supabase/migrations/20260920105233_fantasy_entity_identity_fix.sql",
   "utf8",
 );
+const registry = readFileSync("src/lib/v3-organizer-capability-registry.ts", "utf8");
 
 describe("V3 Organizer Fantasy SSC context", () => {
   it("never evaluates edition-scoped feature state without an edition", () => {
@@ -38,5 +39,9 @@ describe("V3 Organizer Fantasy SSC context", () => {
     expect(fantasyMigration).toContain("for update");
     expect(fantasy).toContain('rpc("studio2_save_fantasy_game"');
     expect(fantasy).toContain('rpc("score_fantasy_game"');
+  });
+
+  it("records Fantasy SSC as building while System #630 owns the V3 operation envelope", () => {
+    expect(registry).toContain('id === "workspace-fantasy"');
   });
 });
