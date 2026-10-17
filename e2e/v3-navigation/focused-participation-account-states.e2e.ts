@@ -179,7 +179,15 @@ test("critical participation tasks own focused chrome while non-critical sibling
     await page.goto("/televoting/how-to-vote", { waitUntil: "domcontentloaded" });
     await expect(page.locator('[data-v3-focused-task-shell="participation.task"]')).toHaveCount(0);
     await expect(page.locator(".solaris-app-toolbar")).toBeVisible();
-    await expect(page.locator(".solaris-app-tabbar")).toBeVisible();
+
+    // This project uses Desktop Chromium and simulates installed-app state in
+    // JavaScript. That drives AppShell ownership correctly, but it cannot make
+    // Chromium's CSS `@media (display-mode: standalone)` query true. Assert the
+    // compatibility tabbar is mounted and semantically enabled here; actual
+    // visible installed-app geometry is covered by the WebKit PWA projects.
+    const compatibilityTabbar = page.locator(".solaris-app-tabbar");
+    await expect(compatibilityTabbar).toHaveCount(1);
+    await expect(compatibilityTabbar).toHaveAttribute("data-mode", "visible");
     await expect(page.locator("[data-v3-liquid-tabbar]")).toHaveCount(0);
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
   } finally {
