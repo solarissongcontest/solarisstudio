@@ -6,9 +6,13 @@ on:
       - main
     paths:
       - "supabase/migrations/**"
-      - ".github/scripts/v3-s14-archive-consequences-rehearsal.sh"
+      - ".github/scripts/v3-s14-archive-command-rehearsal.sh"
       - ".github/workflows/v3-s14-archive-consequences-rehearsal.yml"
       - "src/lib/v3-s14-archive-consequences.contract.test.ts"
+      - "src/lib/v3-archive-command.contract.test.ts"
+      - "src/lib/v3-archive-command.ts"
+      - "src/lib/studio2-control-room.ts"
+      - "src/routes/_authenticated/admin/control-room.tsx"
   workflow_dispatch:
 
 permissions:
@@ -20,7 +24,7 @@ concurrency:
 
 jobs:
   clean-replay:
-    name: Clean replay + archive consequences
+    name: Clean replay + archive command/consequences
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -40,14 +44,14 @@ jobs:
         run: supabase start
       - name: Rebuild complete migration chain locally
         run: supabase db reset --local --no-seed
-      - name: Rehearse canonical archive and consequences
-        run: bash .github/scripts/v3-s14-archive-consequences-rehearsal.sh
+      - name: Rehearse canonical Archive command
+        run: bash .github/scripts/v3-s14-archive-command-rehearsal.sh
       - name: Stop isolated local Supabase
         if: always()
         run: supabase stop --no-backup || true
 
   upgrade-from-main:
-    name: Current main upgrade + archive consequences
+    name: Current main upgrade + Archive command/consequences
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -78,7 +82,7 @@ jobs:
           cd /tmp/solaris-s14-archive-main
           supabase start
           supabase db reset --local --no-seed
-      - name: Apply only archive feature migrations locally
+      - name: Apply only Archive feature migrations locally
         shell: bash
         run: |
           set -euo pipefail
@@ -86,15 +90,17 @@ jobs:
             /tmp/solaris-s14-archive-main/supabase/migrations/
           cp "$GITHUB_WORKSPACE/supabase/migrations/20261017003100_v3_resolved_task_notification_reconciliation.sql" \
             /tmp/solaris-s14-archive-main/supabase/migrations/
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261017003200_v3_s14_archive_command_integrity.sql" \
+            /tmp/solaris-s14-archive-main/supabase/migrations/
           cd /tmp/solaris-s14-archive-main
           supabase migration up --local --include-all
-      - name: Rehearse archive after current-main upgrade
+      - name: Rehearse Archive after current-main upgrade
         shell: bash
         run: |
           set -euo pipefail
           cd /tmp/solaris-s14-archive-main
           export PATH="$GITHUB_WORKSPACE/node_modules/.bin:$PATH"
-          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-archive-consequences-rehearsal.sh"
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-archive-command-rehearsal.sh"
       - name: Stop isolated local Supabase
         if: always()
         shell: bash
