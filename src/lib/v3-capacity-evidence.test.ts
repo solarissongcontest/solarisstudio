@@ -138,6 +138,21 @@ describe("System V3 S12 capacity evidence assessment", () => {
     ]);
   });
 
+  it("requires an explicit database sampling interval whenever database activity is attached", () => {
+    const report = completeReport();
+    const assessment = assessV3CapacityEvidence(
+      {
+        ...report,
+        requestedLoad: { ...report.requestedLoad, databaseSampleIntervalMs: null },
+      },
+      completeContext(),
+    );
+    expect(assessment.status).toBe("invalid");
+    expect(assessment.errors).toContain(
+      "capacity report databaseSampleIntervalMs must be positive when database activity is present",
+    );
+  });
+
   it("keeps external/runtime evidence and capacity budgets mandatory for review readiness", () => {
     const assessment = assessV3CapacityEvidence(completeReport(), {
       expectedCommitSha: SHA,
@@ -152,13 +167,32 @@ describe("System V3 S12 capacity evidence assessment", () => {
     );
   });
 
+  it("requires each budget to cite evidence for its own capacity dimension", () => {
+    const context = completeContext();
+    const firstDimension = context.dimensionEvidence[0].dimension;
+    const secondDimension = context.dimensionEvidence[1].dimension;
+    const budgets = context.budgets.map((budget) =>
+      budget.dimension === firstDimension && budget.band === "normal"
+        ? { ...budget, evidenceRef: `runtime:${secondDimension}` }
+        : budget,
+    );
+    const assessment = assessV3CapacityEvidence(completeReport(), { ...context, budgets });
+    expect(assessment.status).toBe("invalid");
+    expect(assessment.errors).toContain(
+      `budgets[0] evidenceRef does not reference evidence for ${firstDimension}`,
+    );
+  });
+
   it("fails closed on wrong SHA, non-local target, embedded thresholds or inconsistent outcomes", () => {
     const report = completeReport();
     const assessment = assessV3CapacityEvidence(
       {
         ...report,
         target: "https://example.supabase.co/rehearsal",
-        evidenceIdentity: { ...report.evidenceIdentity, commitSha: "3333333333333333333333333333333333333333" },
+        evidenceIdentity: {
+          ...report.evidenceIdentity,
+          commitSha: "3333333333333333333333333333333333333333",
+        },
         outcomes: { ...report.outcomes, successes: 65 },
         thresholds: { p95: 100 },
       },
@@ -169,6 +203,52 @@ describe("System V3 S12 capacity evidence assessment", () => {
     expect(assessment.errors).toContain("capacity report target must be loopback/local");
     expect(assessment.errors).toContain("capacity report must not embed pass/fail thresholds");
     expect(assessment.errors).toContain("capacity report outcome totals do not equal requested requests");
+  });
+
+  it("rejects negative counters and an error rate that disagrees with the counters", () => {
+    const report = completeReport();
+    const negative = assessV3CapacityEvidence(
+      { ...report, outcomes: { ...report.outcomes, httpErrors: -1 } },
+      completeContext(),
+    );
+    expect(negative.status).toBe("invalid");
+    expect(negative.errors).toContain(
+      "capacity report outcome counters must be non-negative integers",
+    );
+
+    const inconsistent = assessV3CapacityEvidence(
+      {
+        ...report,
+        outcomes: {
+          ...report.outcomes,
+          successes: 65,
+          httpErrors: 1,
+          errorRate: 0,
+        },
+      },
+      completeContext(),
+    );
+    expect(inconsistent.status).toBe("invalid");
+    expect(inconsistent.errors).toContain(
+      "capacity report errorRate does not match outcome counters",
+    );
+  });
+
+  it("rejects impossible timing and latency ordering", () => {
+    const report = completeReport();
+    const assessment = assessV3CapacityEvidence(
+      {
+        ...report,
+        endedAt: "2026-10-17T09:59:59.000Z",
+        latencyMs: { p50: 90, p95: 250, p99: 200, max: 300 },
+      },
+      completeContext(),
+    );
+    expect(assessment.status).toBe("invalid");
+    expect(assessment.errors).toContain("capacity report endedAt cannot be before startedAt");
+    expect(assessment.errors).toContain(
+      "capacity report latency percentiles/max must be nondecreasing",
+    );
   });
 
   it("rejects decreasing or unit-inconsistent budget bands", () => {
