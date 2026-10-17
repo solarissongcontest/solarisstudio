@@ -1,0 +1,101 @@
+name: V3 S14 Televote result truth rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/**"
+      - ".github/scripts/v3-s14-televote-result-truth-rehearsal.sh"
+      - ".github/scripts/v3-s14-televote-result-truth-replay-hardening-rehearsal.sh"
+      - ".github/workflows/v3-s14-televote-result-truth-rehearsal.yml"
+      - "src/lib/v3-s14-televote-result-truth.contract.test.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s14-televote-result-truth-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-replay:
+    name: Clean replay + published Televote truth
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout feature head
+        uses: actions/checkout@v4
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Start isolated local Supabase
+        run: supabase start
+      - name: Rebuild complete migration chain locally
+        run: supabase db reset --local --no-seed
+      - name: Rehearse published Televote truth
+        run: bash .github/scripts/v3-s14-televote-result-truth-rehearsal.sh
+      - name: Rehearse replay and bulk-sync hardening
+        run: bash .github/scripts/v3-s14-televote-result-truth-replay-hardening-rehearsal.sh
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+  upgrade-from-main:
+    name: Current main upgrade + published Televote truth
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout feature head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+      - name: Prepare disposable current-main worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          git worktree add /tmp/solaris-s14-tv-truth-main origin/main
+      - name: Build current main locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-s14-tv-truth-main
+          supabase start
+          supabase db reset --local --no-seed
+      - name: Apply only the feature migrations locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261017001000_v3_s14_televote_result_truth.sql" \
+            /tmp/solaris-s14-tv-truth-main/supabase/migrations/
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261017001010_v3_s14_televote_projection_guard_hardening.sql" \
+            /tmp/solaris-s14-tv-truth-main/supabase/migrations/
+          cp "$GITHUB_WORKSPACE/supabase/migrations/20261017001020_v3_s14_televote_projection_replay_hardening.sql" \
+            /tmp/solaris-s14-tv-truth-main/supabase/migrations/
+          cd /tmp/solaris-s14-tv-truth-main
+          supabase migration up --local --include-all
+      - name: Rehearse published Televote truth after upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-s14-tv-truth-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-televote-result-truth-rehearsal.sh"
+      - name: Rehearse replay hardening after upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-s14-tv-truth-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-televote-result-truth-replay-hardening-rehearsal.sh"
+      - name: Stop isolated local Supabase
+        if: always()
+        shell: bash
+        run: |
+          cd /tmp/solaris-s14-tv-truth-main 2>/dev/null || exit 0
+          supabase stop --no-backup || true
