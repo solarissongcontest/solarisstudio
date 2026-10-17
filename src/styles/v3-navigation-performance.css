@@ -1,0 +1,33 @@
+/*
+ * V3 navigation quality degradation.
+ *
+ * Tier A is the default full Liquid Glass treatment in v3-liquid-tabbar.css.
+ * Tier B below trims optical cost on slow-update displays while preserving the
+ * exact navigation geometry and every interaction/semantic contract.
+ * Tier C is the existing prefers-reduced-transparency opaque raised surface.
+ */
+@media (update: slow) {
+  [data-solaris-v3] .v3-liquid-tabbar__backdrop {
+    display: none;
+  }
+
+  [data-solaris-v3] .v3-liquid-tabbar__material {
+    -webkit-backdrop-filter: blur(16px) saturate(132%);
+    backdrop-filter: blur(16px) saturate(132%);
+    box-shadow:
+      0 12px 28px rgba(0, 3, 20, 0.24),
+      inset 0 1px 0 rgba(249, 253, 255, 0.18);
+  }
+
+  [data-solaris-v3] .v3-liquid-tabbar__material::before {
+    opacity: 0.48;
+  }
+
+  [data-solaris-v3] .v3-liquid-tabbar__lens {
+    -webkit-backdrop-filter: blur(6px) saturate(115%);
+    backdrop-filter: blur(6px) saturate(115%);
+    box-shadow:
+      0 5px 12px rgba(0, 3, 18, 0.10),
+      inset 0 1px 0 rgba(255,255,255,0.12);
+  }
+}

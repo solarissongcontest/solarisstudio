@@ -41,7 +41,10 @@ export function readAppUpdateBlockers(): AppUpdateBlocker[] {
 }
 
 export function routeUpdateBlocker(pathname: string): AppUpdateBlocker | null {
-  if (/^\/(confirmations|jury-voting|televoting|next-in-line)(\/|$)/.test(pathname)) {
+  if (
+    /^\/(confirmations|jury-voting|televoting|next-in-line)(\/|$)/.test(pathname) ||
+    /^\/my-solaris\/entry(\/|$)/.test(pathname)
+  ) {
     return {
       id: "focused-participation-task",
       reason: "Finish or leave the current participation task before updating.",
