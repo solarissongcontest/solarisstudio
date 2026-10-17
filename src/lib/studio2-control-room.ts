@@ -9,7 +9,6 @@ import {
   type Studio2RuntimeRecord,
   type Studio2TransitionEditionRequest,
 } from './studio2-persistence';
-import { archiveEditionV3, type V3ArchiveEditionRequest } from './v3-archive-command';
 
 export type Studio2ControlRoomSnapshot = {
   editionId: string;
@@ -17,12 +16,6 @@ export type Studio2ControlRoomSnapshot = {
   recentEvents: ContestEvent[];
   incidents: Studio2IncidentRecord[];
   incidentSummary: ReturnType<typeof summarizeIncidents>;
-};
-
-export type Studio2ControlRoomTransitionRequest = Studio2TransitionEditionRequest & {
-  expectedVersion?: number;
-  operationId?: string;
-  idempotencyKey?: string;
 };
 
 export type Studio2ControlRoomDataSource = Pick<
@@ -63,12 +56,10 @@ export async function loadStudio2ControlRoomSnapshot(
 }
 
 type Studio2FeatureGate = (key: 'live_control_room', editionId?: string | null) => Promise<boolean>;
-type ArchiveCommand = (request: V3ArchiveEditionRequest) => Promise<Studio2RuntimeRecord>;
 
 export function createStudio2ControlRoom(
   source: Studio2ControlRoomDataSource = studio2Persistence,
   featureGate: Studio2FeatureGate = isStudio2FeatureEnabled,
-  archiveCommand: ArchiveCommand = archiveEditionV3,
 ) {
   async function requireEnabled(editionId: string) {
     if (!(await featureGate('live_control_room', editionId))) {
@@ -82,24 +73,8 @@ export function createStudio2ControlRoom(
       return loadStudio2ControlRoomSnapshot(editionId, source, eventLimit);
     },
 
-    async transitionEdition(request: Studio2ControlRoomTransitionRequest) {
+    async transitionEdition(request: Studio2TransitionEditionRequest) {
       await requireEnabled(request.editionId);
-      if (request.to === 'archived') {
-        if (
-          request.expectedVersion === undefined ||
-          !request.operationId ||
-          !request.idempotencyKey
-        ) {
-          throw new Error('Archive requires current version and stable operation identity.');
-        }
-        return archiveCommand({
-          editionId: request.editionId,
-          expectedVersion: request.expectedVersion,
-          operationId: request.operationId,
-          idempotencyKey: request.idempotencyKey,
-          reason: request.reason ?? null,
-        });
-      }
       return source.transitionEdition(request);
     },
 
