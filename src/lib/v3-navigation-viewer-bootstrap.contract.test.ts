@@ -37,4 +37,14 @@ describe("V3 navigation viewer bootstrap", () => {
     expect(readyBlock).toContain("navigationIdentityReady &&");
     expect(readyBlock).toContain("swipePreviewSurfaces != null");
   });
+
+  it("uses distinct gesture generations for anonymous and unresolved auth state", () => {
+    const code = shell();
+
+    expect(code).toContain("const swipeInteractionKey = navigationIdentityReady");
+    expect(code).toContain('`viewer:${navigationScope ?? "anonymous"}`');
+    expect(code).toContain('"viewer:unresolved"');
+    expect(code).toContain("interactionKey={swipeInteractionKey}");
+    expect(code).not.toContain("interactionKey={navigationScope}");
+  });
 });
