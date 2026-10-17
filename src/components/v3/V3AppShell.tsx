@@ -15,7 +15,8 @@ import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAppAttentionSummary } from "@/lib/app-attention";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { prefersReducedMotion } from "@/lib/interaction-physics";
-import { resolveV3ShellActiveArea } from "@/lib/v3-shell-active-area";
+import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
+import { cn } from "@/lib/utils";
 import {
   consumeV3PublicNavigationRestore,
   getV3PublicTabDestination,
@@ -26,9 +27,9 @@ import {
   v3PublicEntryHref,
   type V3PublicTabId,
 } from "@/lib/v3-public-navigation";
-import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
-import { cn } from "@/lib/utils";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
+import { scheduleV3ScrollRestoration } from "@/lib/v3-scroll-restoration";
+import { resolveV3ShellActiveArea } from "@/lib/v3-shell-active-area";
 import { V3DesktopPrimaryNavigation } from "./V3DesktopPrimaryNavigation";
 import { V3FoundationShell, V3TopContext } from "./V3Foundation";
 import {
@@ -186,11 +187,8 @@ export function V3AppShell({
       navigationScope,
     );
 
-    if (restoreY != null) {
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => window.scrollTo({ top: restoreY, behavior: "auto" }));
-      });
-    }
+    const cancelScrollRestore =
+      restoreY != null ? scheduleV3ScrollRestoration(restoreY) : null;
 
     let frame: number | null = null;
     const persistScroll = () => {
@@ -219,6 +217,7 @@ export function V3AppShell({
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("pagehide", onPageHide);
     return () => {
+      cancelScrollRestore?.();
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("pagehide", onPageHide);
       if (frame != null) window.cancelAnimationFrame(frame);
