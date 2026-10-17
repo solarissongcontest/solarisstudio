@@ -21,7 +21,7 @@
   position: relative;
   min-width: 0;
   transform: translate3d(var(--v3-page-swipe-x), 0, 0);
-  transition: transform 180ms var(--v3-ease-spring);
+  transition: transform var(--v3-page-settle-ms, 180ms) var(--v3-ease-spring);
 }
 
 [data-solaris-v3] .v3-top-level-swipe-track[data-v3-page-swiping="true"] {
@@ -73,6 +73,18 @@
   transition: none;
 }
 
+/* Release is still one gesture. JS publishes one bounded duration from the
+   sampled release state and both the page compositor and Liquid material
+   consume it, rather than letting unrelated default transitions race. */
+[data-solaris-v3]
+  .v3-liquid-tabbar__material[data-v3-page-settling="true"]
+  .v3-liquid-tabbar__lens {
+  transition:
+    transform var(--v3-page-settle-ms, 180ms) var(--v3-ease-spring),
+    border-radius var(--v3-page-settle-ms, 180ms) var(--v3-ease-enter),
+    box-shadow var(--v3-page-settle-ms, 180ms) var(--v3-ease-enter);
+}
+
 [data-solaris-v3]
   .v3-liquid-tabbar__material[data-v3-page-swiping="true"]
   .v3-liquid-tabbar__icon,
@@ -82,6 +94,15 @@
   opacity: var(--v3-tab-visual-opacity, 0.78);
   transform: scale(var(--v3-tab-visual-scale, 0.97));
   stroke-width: var(--v3-tab-visual-stroke, 1.9);
+}
+
+[data-solaris-v3]
+  .v3-liquid-tabbar__material[data-v3-page-settling="true"]
+  .v3-liquid-tabbar__icon {
+  transition:
+    opacity var(--v3-page-settle-ms, 180ms) var(--v3-ease-enter),
+    transform var(--v3-page-settle-ms, 180ms) var(--v3-ease-spring),
+    stroke-width var(--v3-page-settle-ms, 180ms) var(--v3-ease-enter);
 }
 
 @media (prefers-reduced-motion: reduce) {
