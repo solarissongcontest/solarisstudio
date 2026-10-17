@@ -10,7 +10,7 @@ const organizerAliases = [
   ["src/routes/_authenticated/admin/action-centre.tsx", "/admin/tasks"],
   ["src/routes/_authenticated/admin/status.tsx", "/admin/sync-health"],
   ["src/routes/_authenticated/admin/integrity.tsx", "/admin/integrity-investigations"],
-  ["src/routes/_authenticated/admin/beta-feedback.tsx", "/admin/beta1-feedback"],
+  ["src/routes/_authenticated/admin/beta-feedback.tsx", "/admin/feedback-studies"],
   ["src/routes/_authenticated/admin/control-room-v2.tsx", "/admin/control-room"],
 ] as const;
 
