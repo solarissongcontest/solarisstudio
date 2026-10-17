@@ -49,6 +49,13 @@ request() {
 
 db_exec() { psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "$1" >/dev/null; }
 db_value() { psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "$1" | head -n1 | tr -d '\r'; }
+db_expect_failure() {
+  local label="$1" query="$2"
+  if psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "$query" >/dev/null 2>&1; then
+    fail "$label unexpectedly succeeded"
+  fi
+  log "PASS: $label rejected"
+}
 
 USER_ID="81000000-0000-4000-8000-000000000501"
 EDITION_ID="81000000-0000-4000-8000-000000000502"
@@ -86,6 +93,11 @@ FOLLOW_ID="$(db_value "select id::text from public.fan_follows where profile_id=
 [[ "$(db_value "select revision::text from public.fan_follows where id='$FOLLOW_ID'::uuid;")" == "1" ]] || fail "follow insert did not start at revision 1"
 [[ "$(db_value "select count(*)::text from private.v3_domain_events where event_type='preference.changed' and aggregate_id='$FOLLOW_ID' and aggregate_version=1;")" == "1" ]] || fail "follow insert did not emit preference.changed"
 [[ "$(db_value "select count(*)::text from private.v3_domain_events where aggregate_id='$FOLLOW_ID' and payload ? 'profileId';")" == "0" ]] || fail "preference event leaked profile identity into payload"
+
+log "Ownerless direct maintenance writes fail closed rather than creating ownerless receipts"
+db_expect_failure "ownerless direct follow update" "update public.fan_follows set notification_level='all' where id='$FOLLOW_ID'::uuid;"
+[[ "$(db_value "select revision::text from public.fan_follows where id='$FOLLOW_ID'::uuid;")" == "1" ]] || fail "ownerless rejected update changed follow revision"
+[[ "$(db_value "select notification_level from public.fan_follows where id='$FOLLOW_ID'::uuid;")" == "important" ]] || fail "ownerless rejected update changed canonical follow state"
 
 log "Changing notification level advances the semantic revision"
 rpc_follow true all
