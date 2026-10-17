@@ -6,5 +6,5 @@ export const Route = createFileRoute("/_authenticated/admin/beta-feedback")({
 });
 
 function AdminBetaFeedbackRedirect() {
-  return <Navigate to="/admin/beta1-feedback" replace />;
+  return <Navigate to="/admin/feedback-studies" replace />;
 }

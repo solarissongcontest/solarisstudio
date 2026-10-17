@@ -62,14 +62,12 @@ const groups = [
     ],
   },
   {
-    title: "Research & Quality",
+    title: "Product QA",
     items: [
-      { label: "Public UX", description: "Review public navigation, search and task-completion telemetry.", to: "/admin/public-ux", icon: BarChart3 },
-      { label: "Beta 3 feedback", description: "Review navigation and findability study results.", to: "/admin/beta3-feedback", icon: BarChart3 },
-      { label: "Beta 2 feedback", description: "See current public-site usability results and comparisons.", to: "/admin/beta2-feedback", icon: BarChart3 },
-      { label: "Beta 1 archive", description: "Read the original closed Beta 1 responses and benchmarks.", to: "/admin/beta1-feedback", icon: History },
-      { label: "Organizer acceptance test", description: "Run through the main organizer tasks and record what worked.", to: "/admin/beta-test", icon: ClipboardCheck },
-      { label: "Organizer beta coverage", description: "Compare organizer tests, missing checks and reported bugs.", to: "/admin/admin-beta-feedback", icon: BarChart3 },
+      { label: "Feedback Studies", description: "Open Beta 1, Beta 2 and Beta 3 as distinct historical study datasets from one canonical QA workspace.", to: "/admin/feedback-studies", icon: BarChart3 },
+      { label: "Organizer Acceptance Test", description: "Run the canonical organizer scenarios and record whether each workflow passes.", to: "/admin/beta-test", icon: ClipboardCheck },
+      { label: "QA Coverage", description: "Compare capability scenarios, device coverage, missing checks and reported defects.", to: "/admin/admin-beta-feedback", icon: BarChart3 },
+      { label: "Public UX", description: "Review privacy-respecting public navigation, search and task-completion telemetry.", to: "/admin/public-ux", icon: BarChart3 },
     ],
   },
   {
@@ -96,7 +94,7 @@ function MoreAdmin() {
       <AdminPageHeader
         eyebrow="Solaris Organizer"
         title="More"
-        description="Governance, people, archive, engagement, research, system and low-frequency Organizer tools."
+        description="Governance, people, archive, engagement, Product QA, system and low-frequency Organizer tools."
       />
 
       <div className="space-y-4">
