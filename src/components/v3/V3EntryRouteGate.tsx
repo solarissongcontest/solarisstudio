@@ -13,9 +13,10 @@ const ENTRY_FOCUSED_CHROME = resolveV3FocusedTaskChrome("/my-solaris/entry");
 
 function ResolvingEntrySurface() {
   return (
-    <main
+    <div
       className="relative z-10 mx-auto w-full max-w-3xl px-4 py-10 sm:py-14"
       data-v3-entry-boot=""
+      data-v3-critical-task-content=""
     >
       <header className="border-b border-border/70 pb-5">
         <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">
@@ -31,7 +32,7 @@ function ResolvingEntrySurface() {
       <p className="sr-only" role="status" aria-live="polite">
         Opening your Entry workspace.
       </p>
-    </main>
+    </div>
   );
 }
 
@@ -41,7 +42,9 @@ function ResolvingEntrySurface() {
  * private bundle is not requested until the server has authorized the slice and
  * identified an authenticated viewer. Once authorized, Entry reuses the shared
  * focused critical-task shell rather than carrying global app navigation into
- * a submission workflow.
+ * a submission workflow. The resolving surface already opts into focused
+ * presentation so legacy app chrome cannot flash while authorization/bundle
+ * state is settling.
  */
 export function V3EntryRouteGate({
   legacy,
