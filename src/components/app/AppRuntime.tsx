@@ -225,6 +225,11 @@ export function AppRuntime({ children }: { children: ReactNode }) {
     const onControllerChange = () => {
       if (!active) return;
 
+      // Whatever triggered controllerchange is no longer a waiting worker in
+      // this client. Clear stale actionability before deciding whether reload
+      // can happen now or must remain deferred behind app-update safety.
+      setWaitingWorker(null);
+
       const pageWasAlreadyControlled = hasEverHadController;
       hasEverHadController =
         hasEverHadController || Boolean(navigator.serviceWorker.controller);
