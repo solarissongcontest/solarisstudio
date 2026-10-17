@@ -39,17 +39,16 @@ revoke all on function private.solaris_confirmation_admin_allowed()
 grant execute on function private.solaris_confirmation_admin_allowed()
   to service_role;
 
--- studio2_country_cockpit is a read projection. Its legacy HOD projection still
--- performs confirmation.manage/delegation.manage checks internally, so a
--- transaction-local read context maps only those nested READ checks to their
--- read capability equivalents. No browser caller can use this to broaden a
--- separate mutation: the setting exists only inside this RPC transaction.
-create or replace function public.studio2_access_allowed(
-  p_capability text,
-  p_edition_id uuid default null,
-  p_strict_before_cutover boolean default false
+-- The HOD context is a READ projection. The previous implementation required
+-- confirmation.manage merely to inspect another delegation. In read_only mode
+-- that operate-level capability is denied, which made the Organizer country
+-- cockpit fail even for a real Organizer. Read inspection now uses read-level
+-- capability while country owners keep their existing self-service access.
+create or replace function public.studio2_hod_context_legacy_roster(
+  p_edition_id uuid,
+  p_country_id uuid
 )
-returns boolean
+returns jsonb
 language plpgsql
 stable
 security definer
@@ -57,61 +56,245 @@ set search_path = pg_catalog, public, private
 as $$
 declare
   v_actor uuid := auth.uid();
-  v_has_capability boolean := false;
-  v_access_level text;
-  v_mode text := 'normal';
-  v_read_context text := current_setting('solaris.confirmation_read_context', true);
+  v_is_service boolean := coalesce(auth.jwt() ->> 'role', '') = 'service_role';
+  v_can_manage_country boolean := false;
+  v_edition_name text;
+  v_country_name text;
+  v_participant_status text;
+  v_publication_status text;
+  v_entry jsonb;
+  v_jury_required integer := 5;
+  v_jury_assigned integer := 0;
+  v_jury_members jsonb := '[]'::jsonb;
+  v_jury_ballot_submitted boolean := false;
+  v_notices jsonb := '[]'::jsonb;
+  v_deadlines jsonb := '[]'::jsonb;
+  v_review_history jsonb := '[]'::jsonb;
+  v_unresolved_organizer_issues integer := 0;
 begin
-  if private.studio2_request_is_service_role() then
-    return true;
+  if p_edition_id is null or p_country_id is null then
+    raise exception 'Edition id and country id are required' using errcode = '22023';
   end if;
 
-  if v_actor is null then
-    return false;
-  end if;
-
-  if v_read_context = 'on' and p_capability in ('confirmation.manage', 'delegation.manage') then
-    v_has_capability := private.studio2_user_has_capability(
-      v_actor,
-      case
-        when p_capability = 'confirmation.manage' then 'confirmation.read'
-        else 'delegation.read'
-      end,
-      p_edition_id
-    );
-    if v_has_capability then
-      return true;
-    end if;
-  end if;
-
-  v_has_capability := private.studio2_user_has_capability(
-    v_actor,
-    p_capability,
-    p_edition_id
+  v_can_manage_country := coalesce(
+    public.studio2_access_allowed('confirmation.read', p_edition_id, false)
+    or public.studio2_access_allowed('delegation.read', p_edition_id, false),
+    false
   );
 
-  if not v_has_capability then
-    return false;
+  if not v_is_service
+     and not v_can_manage_country
+     and not public.owns_country(v_actor, p_country_id) then
+    raise exception 'Country ownership or country-read capability required' using errcode = '42501';
   end if;
 
-  select capability.access_level
-  into v_access_level
-  from public.studio2_capabilities capability
-  where capability.key = p_capability;
+  select e.name
+  into v_edition_name
+  from public.editions e
+  where e.id = p_edition_id;
 
-  if v_access_level is null then
-    return false;
+  if not found then
+    raise exception 'Edition not found: %', p_edition_id using errcode = 'P0002';
   end if;
 
-  select state.mode
-  into v_mode
-  from public.studio2_platform_operational_state state
-  where state.singleton = true;
+  select c.name
+  into v_country_name
+  from public.countries c
+  where c.id = p_country_id;
 
-  return private.studio2_capability_allowed_in_platform_mode(
-    p_capability,
-    v_access_level,
-    coalesce(v_mode, 'normal')
+  if not found then
+    raise exception 'Country not found: %', p_country_id using errcode = 'P0002';
+  end if;
+
+  select p.participation_status, p.publication_status
+  into v_participant_status, v_publication_status
+  from public.participants p
+  where p.edition_id = p_edition_id
+    and p.country_id = p_country_id
+    and p.show_id is null
+  order by p.updated_at desc, p.created_at desc
+  limit 1;
+
+  select jsonb_build_object(
+      'id', e.id,
+      'artist', e.artist,
+      'songTitle', e.song_title,
+      'songUrl', e.song_url,
+      'status', e.status,
+      'source', e.source,
+      'metadata', e.metadata,
+      'createdAt', e.created_at,
+      'updatedAt', e.updated_at
+    )
+  into v_entry
+  from public.entries e
+  where e.edition_id = p_edition_id
+    and e.country_id = p_country_id
+  order by e.updated_at desc, e.created_at desc
+  limit 1;
+
+  select s.jury_members_required
+  into v_jury_required
+  from public.studio2_delegation_settings s
+  where s.edition_id = p_edition_id
+    and s.country_id = p_country_id;
+
+  v_jury_required := coalesce(v_jury_required, 5);
+
+  select
+    count(*)::integer,
+    coalesce(
+      jsonb_agg(
+        jsonb_build_object(
+          'id', jm.id,
+          'displayName', jm.display_name,
+          'memberUserId', jm.member_user_id,
+          'createdAt', jm.created_at
+        ) order by jm.created_at, jm.id
+      ),
+      '[]'::jsonb
+    )
+  into v_jury_assigned, v_jury_members
+  from public.studio2_jury_members jm
+  where jm.edition_id = p_edition_id
+    and jm.country_id = p_country_id
+    and jm.status = 'assigned';
+
+  select exists (
+    select 1
+    from public.jury_ballot_submissions jbs
+    where jbs.edition_id = p_edition_id
+      and jbs.voter_country_id = p_country_id
+      and jbs.status = 'submitted'
+  )
+  into v_jury_ballot_submitted;
+
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'id', n.id,
+        'title', n.title,
+        'severity', n.severity,
+        'acknowledgementRequired', n.acknowledgement_required,
+        'acknowledged', case
+          when v_is_service or v_can_manage_country then exists (
+            select 1
+            from public.studio2_notice_receipts r
+            join public.country_accounts ca on ca.user_id = r.recipient_user_id
+            where r.notice_id = n.id
+              and ca.country_id = p_country_id
+              and ca.status = 'active'
+              and r.acknowledged_at is not null
+          )
+          else exists (
+            select 1
+            from public.studio2_notice_receipts r
+            where r.notice_id = n.id
+              and r.recipient_user_id = v_actor
+              and r.acknowledged_at is not null
+          )
+        end
+      ) order by n.sent_at desc, n.created_at desc
+    ),
+    '[]'::jsonb
+  )
+  into v_notices
+  from public.studio2_official_notices n
+  where n.status = 'published'
+    and n.sent_at is not null
+    and (n.edition_id is null or n.edition_id = p_edition_id)
+    and n.audience in ('all_delegations', 'participating_countries', 'specific_countries', 'hods')
+    and (
+      n.audience in ('all_delegations', 'hods')
+      or (
+        n.audience = 'participating_countries'
+        and exists (
+          select 1
+          from public.participants p
+          left join public.contest_entities ce on ce.id = p.contest_entity_id
+          where p.edition_id = p_edition_id
+            and coalesce(p.country_id, ce.country_id) = p_country_id
+        )
+      )
+      or (
+        n.audience = 'specific_countries'
+        and p_country_id = any(coalesce(n.country_ids, '{}'::uuid[]))
+      )
+    );
+
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'id', d.id,
+        'kind', d.kind,
+        'label', d.label,
+        'dueAt', d.due_at,
+        'completedAt', d.completed_at,
+        'notes', d.notes
+      ) order by d.completed_at nulls first, d.due_at, d.label
+    ),
+    '[]'::jsonb
+  )
+  into v_deadlines
+  from public.admin_deadlines d
+  where d.edition_id = p_edition_id
+    and d.kind in ('entry', 'jury', 'publication');
+
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'id', history.id,
+        'action', history.action,
+        'targetType', history.target_type,
+        'artist', history.artist_snapshot,
+        'songTitle', history.song_title_snapshot,
+        'reason', history.reason,
+        'createdAt', history.created_at
+      ) order by history.created_at desc
+    ),
+    '[]'::jsonb
+  )
+  into v_review_history
+  from (
+    select h.*
+    from public.submission_review_history h
+    join public.submissions s on s.id = h.submission_id
+    where s.edition_id = p_edition_id
+      and lower(btrim(s.country)) = lower(btrim(v_country_name))
+    order by h.created_at desc
+    limit 30
+  ) history;
+
+  select count(*)::integer
+  into v_unresolved_organizer_issues
+  from public.studio2_incidents i
+  where i.edition_id = p_edition_id
+    and i.status <> 'resolved'
+    and i.category in ('delegation', 'publication')
+    and exists (
+      select 1
+      from unnest(i.affected_systems) affected(value)
+      where lower(affected.value) = lower('country:' || p_country_id::text)
+         or lower(affected.value) = lower('country:' || v_country_name)
+    );
+
+  return jsonb_build_object(
+    'editionId', p_edition_id,
+    'editionName', v_edition_name,
+    'countryId', p_country_id,
+    'countryName', v_country_name,
+    'confirmationComplete', coalesce(v_participant_status = 'confirmed', false),
+    'participantStatus', v_participant_status,
+    'publicationStatus', v_publication_status,
+    'entry', v_entry,
+    'juryMembersRequired', v_jury_required,
+    'juryMembersAssigned', v_jury_assigned,
+    'juryMembers', v_jury_members,
+    'juryBallotSubmitted', v_jury_ballot_submitted,
+    'notices', v_notices,
+    'deadlines', v_deadlines,
+    'reviewHistory', v_review_history,
+    'unresolvedOrganizerIssues', v_unresolved_organizer_issues
   );
 end
 $$;
@@ -140,8 +323,6 @@ begin
   if not exists (select 1 from public.editions e where e.id = p_edition_id) then
     raise exception 'Edition not found: %', p_edition_id using errcode = 'P0002';
   end if;
-
-  perform set_config('solaris.confirmation_read_context', 'on', true);
 
   with participating_countries as (
     select distinct p.country_id
@@ -173,12 +354,7 @@ begin
   from participating_countries pc
   join public.countries c on c.id = pc.country_id;
 
-  perform set_config('solaris.confirmation_read_context', 'off', true);
   return v_rows;
-exception
-  when others then
-    perform set_config('solaris.confirmation_read_context', 'off', true);
-    raise;
 end
 $$;
 
@@ -234,6 +410,7 @@ begin
         'edition_number', e.edition_number,
         'country', s.country,
         'participating', s.participating,
+        'reviewed', coalesce(s.reviewed, false),
         'submitted_at', s.submitted_at,
         'updated_at', s.updated_at,
         'selection_method', s.selection_method,
@@ -255,7 +432,9 @@ begin
             'song_title', i.song_title,
             'review_status', coalesce(i.review_status, 'pending'),
             'review_reason', i.review_reason,
-            'reviewed_at', i.reviewed_at
+            'reviewed_at', i.reviewed_at,
+            'replacement_video_required', coalesce(i.replacement_video_required, false),
+            'replacement_video_url', i.replacement_video_url
           )
           from public.internal_entries i
           where i.submission_id = s.id
@@ -276,7 +455,9 @@ begin
                   'review_status', coalesce(nfe.review_status, 'pending'),
                   'review_reason', nfe.review_reason,
                   'reviewed_at', nfe.reviewed_at,
-                  'removed', coalesce(nfe.removed, false)
+                  'removed', coalesce(nfe.removed, false),
+                  'replacement_video_required', coalesce(nfe.replacement_video_required, false),
+                  'replacement_video_url', nfe.replacement_video_url
                 )
                 order by nfe.position, nfe.id
               )
@@ -314,12 +495,141 @@ begin
     'country', jsonb_build_object(
       'country_id', country_row.id,
       'name', country_row.name,
-      'short_code', country_row.short_code
+      'short_code', country_row.short_code,
+      'flag_image', country_row.flag_image
     ),
     'responses', responses
   );
 end
 $$;
+
+-- One participant-safe projection for the temporary maintenance card. It only
+-- exposes the authenticated country account's own delegation, current relevant
+-- edition, canonical requirement and participant-safe response/review fields.
+create or replace function public.public_country_account_confirmation_portal()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_access jsonb;
+  v_country_id uuid;
+  v_edition public.editions;
+  v_requirement public.studio2_confirmation_requirements;
+  v_response jsonb;
+  v_participation_status text;
+begin
+  v_access := public.public_country_account_confirmation_access();
+
+  if coalesce((v_access ->> 'authenticated')::boolean, false) is not true then
+    return jsonb_build_object(
+      'authenticated', false,
+      'country', null,
+      'edition', null,
+      'participation_status', null,
+      'requirement', null,
+      'response', null
+    );
+  end if;
+
+  v_country_id := nullif(v_access -> 'country' ->> 'country_id', '')::uuid;
+
+  select edition.*
+  into v_edition
+  from public.editions edition
+  where exists (
+    select 1
+    from public.studio2_confirmation_requirements requirement
+    where requirement.edition_id = edition.id
+      and requirement.country_id = v_country_id
+      and requirement.superseded_at is null
+  )
+  or exists (
+    select 1
+    from public.submissions submission
+    join public.countries country on country.id = v_country_id
+    where submission.edition_id = edition.id
+      and lower(btrim(submission.country)) in (
+        lower(btrim(country.name)),
+        lower(btrim(country.short_code))
+      )
+  )
+  order by
+    case when edition.status = 'active' then 0 else 1 end,
+    edition.edition_number desc nulls last,
+    edition.created_at desc
+  limit 1;
+
+  if v_edition.id is null then
+    return jsonb_build_object(
+      'authenticated', true,
+      'country', v_access -> 'country',
+      'edition', null,
+      'participation_status', null,
+      'requirement', null,
+      'response', null
+    );
+  end if;
+
+  select requirement.*
+  into v_requirement
+  from public.studio2_confirmation_requirements requirement
+  where requirement.edition_id = v_edition.id
+    and requirement.country_id = v_country_id
+    and requirement.superseded_at is null
+  limit 1;
+
+  select response.value
+  into v_response
+  from jsonb_array_elements(coalesce(v_access -> 'responses', '[]'::jsonb)) response(value)
+  where response.value ->> 'edition_id' = v_edition.id::text
+  order by coalesce(
+    nullif(response.value ->> 'updated_at', '')::timestamptz,
+    nullif(response.value ->> 'submitted_at', '')::timestamptz
+  ) desc nulls last
+  limit 1;
+
+  select participant.participation_status
+  into v_participation_status
+  from public.participants participant
+  where participant.edition_id = v_edition.id
+    and participant.country_id = v_country_id
+    and participant.show_id is null
+  order by participant.updated_at desc, participant.created_at desc
+  limit 1;
+
+  return jsonb_build_object(
+    'authenticated', true,
+    'country', v_access -> 'country',
+    'edition', jsonb_build_object(
+      'id', v_edition.id,
+      'name', v_edition.name,
+      'edition_number', v_edition.edition_number,
+      'status', v_edition.status
+    ),
+    'participation_status', v_participation_status,
+    'requirement', case
+      when v_requirement.id is null then null
+      else jsonb_build_object(
+        'id', v_requirement.id,
+        'generation', v_requirement.generation,
+        'status', v_requirement.status,
+        'valid_from', v_requirement.valid_from,
+        'resolved_by_submission_id', v_requirement.resolved_by_submission_id,
+        'resolved_at', v_requirement.resolved_at
+      )
+    end,
+    'response', v_response
+  );
+end
+$$;
+
+revoke all on function public.public_country_account_confirmation_portal()
+  from public, anon;
+grant execute on function public.public_country_account_confirmation_portal()
+  to authenticated, service_role;
 
 create or replace function public.public_create_country_account_edit_token(_round_id uuid)
 returns jsonb
@@ -580,6 +890,184 @@ $$;
 revoke all on function public.admin_update_confirmation_controls(uuid, boolean, boolean, text)
   from public, anon;
 grant execute on function public.admin_update_confirmation_controls(uuid, boolean, boolean, text)
+  to authenticated, service_role;
+
+-- The authoritative V3 submit wrapper now locks and revalidates an edit-token
+-- response before handing it to the legacy writer. This closes the race where
+-- an Organizer could close editing while a previously-issued token was already
+-- in flight. Whichever operation obtains the response row first wins; the later
+-- operation sees the resulting canonical state.
+create or replace function public.v3_submit_confirmation(
+  payload jsonb,
+  _idempotency_key uuid,
+  _request_hash text,
+  _browser_session_id text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private, extensions
+as $$
+declare
+  v_round_id uuid;
+  v_request_hash text;
+  v_payload_session text;
+  v_existing private.v3_confirmation_operations%rowtype;
+  v_result jsonb;
+  v_receipt_id uuid;
+  v_accepted_at timestamptz;
+  v_edit_token_hash text;
+  v_edit_token public.edit_tokens;
+  v_edit_submission public.submissions;
+  v_edit_edition public.editions;
+begin
+  if payload is null or jsonb_typeof(payload) <> 'object' then
+    raise exception 'Confirmation payload must be a JSON object' using errcode = '22023';
+  end if;
+  if _idempotency_key is null then
+    raise exception 'Confirmation idempotency key is required' using errcode = '22023';
+  end if;
+  if nullif(btrim(coalesce(_browser_session_id, '')), '') is null
+     or length(_browser_session_id) > 80 then
+    raise exception 'Confirmation browser session is invalid' using errcode = '22023';
+  end if;
+
+  v_payload_session := nullif(btrim(coalesce(payload ->> 'browser_session_id', '')), '');
+  if v_payload_session is null or v_payload_session <> _browser_session_id then
+    raise exception 'Confirmation browser-session scope does not match payload'
+      using errcode = '22023';
+  end if;
+
+  begin
+    v_round_id := nullif(payload ->> 'round_id', '')::uuid;
+  exception when invalid_text_representation then
+    raise exception 'Confirmation round id is invalid' using errcode = '22023';
+  end;
+  if v_round_id is null then
+    raise exception 'Confirmation round id is required' using errcode = '22023';
+  end if;
+
+  v_request_hash := encode(
+    extensions.digest(
+      convert_to((payload - 'client_ip')::text, 'UTF8'),
+      'sha256'
+    ),
+    'hex'
+  );
+
+  perform _request_hash;
+
+  perform pg_advisory_xact_lock(
+    hashtextextended('v3-confirmation:' || _idempotency_key::text, 0)
+  );
+
+  select operation.*
+  into v_existing
+  from private.v3_confirmation_operations operation
+  where operation.idempotency_key = _idempotency_key;
+
+  if found then
+    if v_existing.request_hash <> v_request_hash
+       or v_existing.round_id <> v_round_id
+       or v_existing.browser_session_id <> _browser_session_id then
+      raise exception 'Confirmation idempotency key was already used for a different request'
+        using errcode = '22023';
+    end if;
+
+    return v_existing.result || jsonb_build_object(
+      'receipt', jsonb_build_object(
+        'authority', 'authoritative_server',
+        'receipt_id', v_existing.receipt_id,
+        'idempotency_key', v_existing.idempotency_key,
+        'request_hash', v_existing.request_hash,
+        'round_id', v_existing.round_id,
+        'accepted_at', v_existing.accepted_at,
+        'replayed', true
+      )
+    );
+  end if;
+
+  v_edit_token_hash := nullif(payload ->> 'edit_token_hash', '');
+  if v_edit_token_hash is not null then
+    select token.*
+    into v_edit_token
+    from public.edit_tokens token
+    where token.token_hash = v_edit_token_hash
+      and token.active = true
+      and (token.expires_at is null or token.expires_at > now())
+    order by token.created_at desc
+    limit 1;
+
+    if v_edit_token.id is null then
+      v_result := jsonb_build_object('ok', false, 'error', 'invalid_token');
+    else
+      select submission.*
+      into v_edit_submission
+      from public.submissions submission
+      where submission.id = v_edit_token.submission_id
+      for update;
+
+      select edition.*
+      into v_edit_edition
+      from public.editions edition
+      where edition.id = v_edit_submission.edition_id;
+
+      if v_edit_submission.id is null
+         or v_edit_submission.round_id <> v_round_id
+         or coalesce(v_edit_submission.locked, false)
+         or not coalesce(v_edit_submission.editing_allowed, false)
+         or not coalesce(v_edit_edition.editing_enabled, false) then
+        v_result := jsonb_build_object('ok', false, 'error', 'invalid_token');
+      else
+        select to_jsonb(public.submit_confirmation(payload)) into v_result;
+      end if;
+    end if;
+  else
+    select to_jsonb(public.submit_confirmation(payload)) into v_result;
+  end if;
+
+  if v_result is null then
+    raise exception 'Confirmation submit returned no result' using errcode = '55000';
+  end if;
+
+  v_receipt_id := gen_random_uuid();
+  v_accepted_at := now();
+
+  insert into private.v3_confirmation_operations (
+    idempotency_key,
+    request_hash,
+    round_id,
+    browser_session_id,
+    result,
+    receipt_id,
+    accepted_at
+  ) values (
+    _idempotency_key,
+    v_request_hash,
+    v_round_id,
+    _browser_session_id,
+    v_result,
+    v_receipt_id,
+    v_accepted_at
+  );
+
+  return v_result || jsonb_build_object(
+    'receipt', jsonb_build_object(
+      'authority', 'authoritative_server',
+      'receipt_id', v_receipt_id,
+      'idempotency_key', _idempotency_key,
+      'request_hash', v_request_hash,
+      'round_id', v_round_id,
+      'accepted_at', v_accepted_at,
+      'replayed', false
+    )
+  );
+end
+$$;
+
+revoke all on function public.v3_submit_confirmation(jsonb, uuid, text, text)
+  from public, anon;
+grant execute on function public.v3_submit_confirmation(jsonb, uuid, text, text)
   to authenticated, service_role;
 
 notify pgrst, 'reload schema';
