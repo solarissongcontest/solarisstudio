@@ -27,16 +27,10 @@ function MySolarisWorkspaceContent({ children }: { children: ReactNode }) {
   const workspace = useMySolaris();
   const location = useRouterState({ select: (state) => state.location });
   const votingOverview = location.pathname === "/my-solaris/voting";
-  const entryWorkspace = location.pathname === "/my-solaris/entry";
   const countryInspection = countryInspectionTarget(location.search);
-  const preserveLegacyEntryInspection = Boolean(
-    entryWorkspace &&
-      countryInspection &&
-      (workspace.isLoading || workspace.permissions.isOrganizer),
-  );
   const focusedTask =
     isAppMode &&
-    !preserveLegacyEntryInspection &&
+    !countryInspection &&
     resolveSolarisAppScreen(location.pathname).behavior.criticalTask;
   const organizerInspection = Boolean(
     votingOverview &&
@@ -75,8 +69,8 @@ function MySolarisWorkspaceContent({ children }: { children: ReactNode }) {
 
   // Participant critical work keeps MySolarisProvider authority but must not
   // inherit the generic MySolaris sidebar, recap or account-status chrome.
-  // A requested Entry inspection keeps that legacy workspace only while
-  // authority is resolving or when Organizer access is actually verified.
+  // Country-scoped Organizer inspection deliberately remains in the canonical
+  // legacy workspace because the route gate also fails back to legacy there.
   if (focusedTask) return <>{children}</>;
 
   return (
