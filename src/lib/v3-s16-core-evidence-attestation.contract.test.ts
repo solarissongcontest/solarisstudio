@@ -3,11 +3,11 @@ import { describe, expect, it } from "vitest";
 
 const workflow = readFileSync(".github/workflows/v3-s16-core-evidence-attestation.yml", "utf8");
 
-describe("S16 canonical workflow attestation", () => {
-  it("attests the actual canonical Quality and migration rehearsal workflows", () => {
+describe("S16 canonical Quality workflow attestation", () => {
+  it("attests only the actual canonical Quality workflow", () => {
     expect(workflow).toContain("workflow_run:");
     expect(workflow).toContain("- Quality");
-    expect(workflow).toContain("- Rules + Integrity migration rehearsal");
+    expect(workflow).not.toContain("- Rules + Integrity migration rehearsal");
     expect(workflow).toContain("types:\n      - completed");
   });
 
@@ -25,15 +25,17 @@ describe("S16 canonical workflow attestation", () => {
     );
   });
 
-  it("derives pass state only from the canonical workflow conclusion", () => {
+  it("derives pass state only from the canonical Quality workflow conclusion", () => {
+    expect(workflow).toContain('SOURCE_WORKFLOW" != "Quality"');
     expect(workflow).toContain('passed = conclusion == "success"');
+    expect(workflow).toContain('"workflow": "Quality"');
     expect(workflow).toContain('"conclusion": conclusion');
   });
 
-  it("produces canonical CI, production isolation and migration rehearsal category files", () => {
+  it("produces only the canonical CI and production-isolation category files", () => {
     expect(workflow).toContain('"s16-canonical-ci.json"');
     expect(workflow).toContain('"s16-production-isolation.json"');
-    expect(workflow).toContain('"s16-migration-rehearsal.json"');
+    expect(workflow).not.toContain('"s16-migration-rehearsal.json"');
   });
 
   it("does not execute the attested branch or access hosted Supabase", () => {
