@@ -11,6 +11,7 @@ import {
   buildV3ExploreRootProjection,
   type V3EditionExperience,
   type V3ExploreEditionInput,
+  type V3ExploreNextEvent,
   type V3ExploreRootProjection,
 } from "@/lib/v3-explore";
 
@@ -20,6 +21,25 @@ const SHOW_COLUMNS =
   "id,edition_id,name,kind,sort_order,status,published,publication_config";
 const RESULT_COLUMNS =
   "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank";
+
+const LIVE_SHOW_STATUSES = new Set([
+  "live",
+  "on_air",
+  "on-air",
+  "in_progress",
+  "in-progress",
+]);
+const UPCOMING_SHOW_STATUSES = new Set([
+  "scheduled",
+  "upcoming",
+  "planned",
+  "planning",
+  "announced",
+  "ready",
+  "preparing",
+  "rehearsal",
+  "rehearsals",
+]);
 
 type ExploreEdition = Edition & { artwork_url?: string | null };
 
@@ -130,6 +150,49 @@ function finalResultsPublished(shows: readonly Show[], results: readonly ResultR
   );
 }
 
+function normalizedShowStatus(show: Show) {
+  return show.status.trim().toLowerCase();
+}
+
+function showHasPublishedResult(show: Show, results: readonly ResultRow[]) {
+  if (!resolveShowPublication(show).results) return false;
+  return results.some(
+    (result) => result.show_id === show.id && result.final_rank != null,
+  );
+}
+
+export function resolveV3ExploreNextEvent(
+  shows: readonly Show[],
+  results: readonly ResultRow[],
+): V3ExploreNextEvent | null {
+  const live = shows.find((show) => LIVE_SHOW_STATUSES.has(normalizedShowStatus(show)));
+  if (live) {
+    return {
+      id: live.id,
+      title: `${live.name} is live`,
+      startsAt: null,
+      href: `/shows/${live.id}`,
+    };
+  }
+
+  const upcoming = [...shows]
+    .filter(
+      (show) =>
+        UPCOMING_SHOW_STATUSES.has(normalizedShowStatus(show)) &&
+        !showHasPublishedResult(show, results),
+    )
+    .sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id))[0] ?? null;
+
+  return upcoming
+    ? {
+        id: upcoming.id,
+        title: upcoming.name,
+        startsAt: null,
+        href: `/shows/${upcoming.id}`,
+      }
+    : null;
+}
+
 function editionLabel(edition: ExploreEdition | null) {
   if (!edition) return "Solaris Song Contest";
   return edition.edition_number == null
@@ -142,8 +205,15 @@ function makeEditionInput(input: {
   currentEditionId: string | null;
   currentExperience: V3EditionExperience | null;
   currentResultsPublished: boolean;
+  currentNextEvent: V3ExploreNextEvent | null;
 }): V3ExploreEditionInput {
-  const { edition, currentEditionId, currentExperience, currentResultsPublished } = input;
+  const {
+    edition,
+    currentEditionId,
+    currentExperience,
+    currentResultsPublished,
+    currentNextEvent,
+  } = input;
   const isCurrent = edition.id === currentEditionId;
   const lifecycle = normalizeLegacyEditionStatus(edition.status);
   const archiveEligible = lifecycle === "post_edition" || lifecycle === "archived";
@@ -163,7 +233,7 @@ function makeEditionInput(input: {
       isCurrent && currentResultsPublished ? "published" : "hidden",
     href: `/editions/${edition.slug}`,
     liveHref: isCurrent && currentExperience === "live" ? "/show-mode" : null,
-    nextEvent: null,
+    nextEvent: isCurrent ? currentNextEvent : null,
     archiveEligible,
   };
 }
@@ -198,6 +268,7 @@ export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundl
   let phaseLabel: string | null = null;
   let currentExperience: V3EditionExperience | null = null;
   let currentResultsPublished = false;
+  let currentNextEvent: V3ExploreNextEvent | null = null;
 
   if (currentEdition) {
     const [showsResult, resultsResult] = await Promise.all([
@@ -225,6 +296,7 @@ export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundl
     phaseLabel = state.statusLabel;
     currentExperience = experienceFromPhase(state.phase, currentEdition);
     currentResultsPublished = finalResultsPublished(currentShows, currentResults);
+    currentNextEvent = resolveV3ExploreNextEvent(currentShows, currentResults);
   }
 
   const projected = buildV3ExploreRootProjection({
@@ -235,6 +307,7 @@ export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundl
         currentEditionId: currentEdition?.id ?? null,
         currentExperience,
         currentResultsPublished,
+        currentNextEvent,
       }),
     ),
     countries: [],
