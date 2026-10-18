@@ -1,11 +1,17 @@
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
+import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
 import type { CountryIdentityModel } from "@/lib/country-semantic-model";
+import type { Edition } from "@/lib/data";
+import { normalizeLegacyEditionStatus } from "@/lib/edition-state";
 import {
   buildV3CountryExploreProjection,
   type V3CountryExploreProjection,
 } from "@/lib/v3-explore-entities";
 
+const EDITION_COLUMNS = "id,edition_number,status,published";
+
 type DelegationSourceClient = {
+  from(table: string): any;
   rpc(name: string, args?: Record<string, unknown>): PromiseLike<{
     data: unknown;
     error: unknown;
@@ -75,7 +81,22 @@ function editionLabel(entry: EntryPayload): string {
   return name ?? "Solaris edition";
 }
 
-function parseProfile(value: unknown): CountryIdentityModel | null {
+function currentParticipationEditionId(editions: readonly Edition[]): string | null {
+  const current = resolveCurrentPublicEdition(editions);
+  if (!current) return null;
+
+  const lifecycle = normalizeLegacyEditionStatus(current.status);
+  if (lifecycle === "post_edition" || lifecycle === "archived") {
+    return null;
+  }
+
+  return current.id;
+}
+
+function parseProfile(
+  value: unknown,
+  currentEditionId: string | null,
+): CountryIdentityModel | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const profile = value as ProfilePayload;
   if (!profile.country || typeof profile.country !== "object" || Array.isArray(profile.country)) {
@@ -100,6 +121,9 @@ function parseProfile(value: unknown): CountryIdentityModel | null {
         }];
       })
     : [];
+  const currentEntry = currentEditionId
+    ? entries.find((entry) => entry.editionId === currentEditionId) ?? null
+    : null;
 
   return {
     code,
@@ -118,7 +142,7 @@ function parseProfile(value: unknown): CountryIdentityModel | null {
     },
     facts: [],
     statistics: [],
-    currentEntry: entries[0] ?? null,
+    currentEntry,
     history: entries,
     geography: null,
     actions: {
@@ -131,6 +155,9 @@ function parseProfile(value: unknown): CountryIdentityModel | null {
 /**
  * Publication-safe and bounded V3 Delegation source. The database RPC delegates
  * entry disclosure to public_safe_participants and returns one country only.
+ * The current-entry label is resolved independently from the canonical public
+ * current-edition lifecycle, so the newest historical participation can never
+ * be promoted to current merely because it sorts first in the archive.
  * This server adapter owns no result, voting, ranking or participant mutation
  * logic and therefore cannot become a second archive authority.
  */
@@ -141,10 +168,21 @@ export async function loadV3DelegationBundle(input: {
   if (!code) return null;
 
   const client = createConfirmationPublicRuntimeClient() as unknown as DelegationSourceClient;
-  const result = await client.rpc("v3_public_country_profile", { p_code: code });
-  throwIfError(result.error, "Could not load public Solaris delegation");
+  const [profileResult, editionsResult] = await Promise.all([
+    client.rpc("v3_public_country_profile", { p_code: code }),
+    client
+      .from("editions")
+      .select(EDITION_COLUMNS)
+      .eq("published", true)
+      .order("edition_number", { ascending: false }),
+  ]);
+  throwIfError(profileResult.error, "Could not load public Solaris delegation");
+  throwIfError(editionsResult.error, "Could not resolve the current public Solaris edition");
 
-  const identity = parseProfile(result.data);
+  const currentEditionId = currentParticipationEditionId(
+    (editionsResult.data ?? []) as Edition[],
+  );
+  const identity = parseProfile(profileResult.data, currentEditionId);
   if (!identity) return null;
 
   return {
