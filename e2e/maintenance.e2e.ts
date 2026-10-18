@@ -10,6 +10,8 @@ const ROUTES = [
   "/admin",
 ] as const;
 
+const SUPABASE_API_PATH = /\/(?:auth|rest|functions|storage|realtime|graphql)\/v1\//;
+
 test("Solaris Studio serves the TerraOS 3 maintenance teaser across the app", async ({ page }) => {
   for (const route of ROUTES) {
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
@@ -48,9 +50,11 @@ test("Solaris Studio serves the TerraOS 3 maintenance teaser across the app", as
 });
 
 test("TerraOS teaser preview route renders the production V3 screen components during maintenance", async ({ page }) => {
-  const authRequests: string[] = [];
+  const supabaseRequests: string[] = [];
   page.on("request", (request) => {
-    if (request.url().includes("/auth/v1/")) authRequests.push(request.url());
+    if (SUPABASE_API_PATH.test(new URL(request.url()).pathname)) {
+      supabaseRequests.push(request.url());
+    }
   });
 
   const home = await page.goto("/terraos-teaser-preview?screen=home", {
@@ -93,7 +97,10 @@ test("TerraOS teaser preview route renders the production V3 screen components d
   await expect(tabbar).toBeVisible();
   await expect(tabbar.locator('[aria-current="page"]')).toContainText("Participate");
 
-  expect(authRequests, "fixture-only preview must not read the visitor auth session").toEqual([]);
+  expect(
+    supabaseRequests,
+    "fixture-only preview must not make auth, Data API, Edge Function, Storage, Realtime, or GraphQL requests",
+  ).toEqual([]);
 });
 
 test("TerraOS first-look device keeps a complete phone aspect on short desktop viewports", async ({ page }) => {
