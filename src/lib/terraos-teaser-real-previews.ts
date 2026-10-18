@@ -53,7 +53,8 @@ html[data-terraos-release-choreography="v2"] [data-terra-first-look="true"] .pre
   isolation: isolate;
 }
 .results-story .results-ui[data-terraos-real-results-preview="true"] > :not(.terraos-v3-results-reveal-preview):not(.results-mask) {
-  visibility: hidden;
+  opacity: 0 !important;
+  pointer-events: none;
 }
 .results-story .terraos-v3-results-reveal-preview {
   position: absolute;
@@ -63,7 +64,11 @@ html[data-terraos-release-choreography="v2"] [data-terra-first-look="true"] .pre
   height: 100%;
   border: 0;
   background: #02050a;
+  opacity: 0;
   pointer-events: none;
+}
+.results-story .results-ui[data-terraos-real-results-preview="true"] .terraos-v3-results-reveal-preview {
+  opacity: 1;
 }
 .results-story .results-ui[data-terraos-real-results-preview="true"] .results-mask {
   z-index: 3;
@@ -112,7 +117,9 @@ function createFixturePreview(
  * When the Results reveal phase exists, the same fixture-only Results renderer
  * also fills the staged result card. The host scroll controller still owns the
  * reveal timing; this enhancer only swaps the card's visual payload from the
- * static fallback rows to the production V3 Results surface.
+ * static fallback rows to the production V3 Results surface after that frame
+ * has loaded. The fallback stays semantically available for assistive tech and
+ * stays visible if the nested preview ever fails to load.
  */
 export function installTerraOsTeaserRealHostPreviews(frame: HTMLElement) {
   const hostDocument = frame.ownerDocument;
@@ -154,16 +161,23 @@ export function installTerraOsTeaserRealHostPreviews(frame: HTMLElement) {
 
     const resultsUi = root.querySelector<HTMLElement>(".results-story .results-ui");
     if (resultsUi) {
-      resultsUi.dataset.terraosRealResultsPreview = "true";
-      resultsUi.appendChild(
-        createFixturePreview(
-          hostDocument,
-          "results",
-          RESULTS_REVEAL_PREVIEW_CLASS,
-          "TerraOS Results reveal preview",
-          "lazy",
-        ),
+      const resultsPreview = createFixturePreview(
+        hostDocument,
+        "results",
+        RESULTS_REVEAL_PREVIEW_CLASS,
+        "TerraOS Results reveal preview",
+        "lazy",
       );
+      resultsPreview.addEventListener(
+        "load",
+        () => {
+          if (resultsPreview.isConnected) {
+            resultsUi.dataset.terraosRealResultsPreview = "true";
+          }
+        },
+        { once: true },
+      );
+      resultsUi.appendChild(resultsPreview);
     }
   }
 

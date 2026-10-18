@@ -98,9 +98,11 @@ describe("TerraOS release-page choreography", () => {
 
     expect(enhancer).toContain("RESULTS_REVEAL_PREVIEW_CLASS");
     expect(enhancer).toContain('root.querySelector<HTMLElement>(".results-story .results-ui")');
-    expect(enhancer).toContain('"results",\n          RESULTS_REVEAL_PREVIEW_CLASS');
+    expect(enhancer).toContain('"results",\n        RESULTS_REVEAL_PREVIEW_CLASS');
+    expect(enhancer).toContain('resultsPreview.addEventListener(\n        "load"');
+    expect(enhancer).toContain("resultsPreview.isConnected");
     expect(enhancer).toContain('data-terraos-real-results-preview="true"');
-    expect(enhancer).toContain("visibility: hidden");
-    expect(enhancer).toContain("The host scroll controller still owns the");
+    expect(enhancer).toContain("opacity: 0 !important");
+    expect(enhancer).toContain("stays visible if the nested preview ever fails to load");
   });
 });
