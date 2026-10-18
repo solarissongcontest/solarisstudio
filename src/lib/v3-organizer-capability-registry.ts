@@ -150,6 +150,7 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "operations-eligibility" ||
     id === "operations-media-assets" ||
     id === "operations-communications" ||
+    id === "live-review-reveal-director" ||
     id === "live-review-broadcast-rundown" ||
     id === "live-review-simulation-lab" ||
     id === "live-review-time-machine" ||
@@ -166,8 +167,14 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "delegation-sync" ||
     id === "delegation-settings" ||
     id === "voting-rounds-entries" ||
+    id === "voting-jury" ||
+    id === "voting-rules" ||
     id === "voting-jury-integrity" ||
+    id === "voting-televote-totals" ||
     id === "voting-integrity-review" ||
+    id === "voting-public-results" ||
+    id === "voting-result-integrity" ||
+    id === "voting-edition-links" ||
     id === "workspace-acceptance-test" ||
     id === "workspace-beta-coverage" ||
     id === "workspace-public-ux" ||
