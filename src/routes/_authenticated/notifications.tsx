@@ -11,7 +11,7 @@ import { V3Screen, V3ScreenHeader, V3Surface } from "@/components/v3/V3Foundatio
 import {
   describeAppPushDelivery,
   getAppPushState,
-  type AppPushState,
+  UNKNOWN_APP_PUSH_DELIVERY,
 } from "@/lib/app-notifications";
 import {
   DEFAULT_SOLARIS_NOTIFICATION_CATEGORIES,
@@ -34,15 +34,6 @@ export const Route = createFileRoute("/_authenticated/notifications")({
   }),
   component: NotificationsRoute,
 });
-
-const EMPTY_PUSH: AppPushState = {
-  supported: false,
-  configured: false,
-  permission: "unsupported",
-  subscribed: false,
-  browserSubscribed: false,
-  serverRegistered: false,
-};
 
 function NotificationsRoute() {
   const { isAppMode, platformResolved } = useSolarisApp();
@@ -140,7 +131,10 @@ function V3NotificationsRouteContent({
     : [...DEFAULT_SOLARIS_NOTIFICATION_CATEGORIES];
   const quietStart = (preferenceRow?.quiet_hours_start ?? "23:00").slice(0, 5);
   const quietEnd = (preferenceRow?.quiet_hours_end ?? "08:00").slice(0, 5);
-  const deliveryStatus = describeAppPushDelivery(push.data ?? EMPTY_PUSH);
+  const deliveryStatus =
+    push.isError || !push.data
+      ? UNKNOWN_APP_PUSH_DELIVERY
+      : describeAppPushDelivery(push.data);
   const inboxItems: V3NotificationInboxItem[] = (inbox.data ?? []).map((item) => ({
     id: item.notice.id,
     title: item.notice.title,
