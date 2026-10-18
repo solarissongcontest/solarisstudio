@@ -14,7 +14,8 @@ describe("V3 Organizer Result Integrity edition scope", () => {
     expect(route).toContain("getMergedTelevotingRoundsPage");
     expect(route).toContain("getRoundsPage({ data: { editionId } })");
     expect(route).toContain('["v3-organizer-result-integrity-rounds", editionId]');
-    expect(route).not.toContain("getMergedTelevotingRounds");
+    expect(route).not.toContain("useServerFn(getMergedTelevotingRounds);");
+    expect(route).not.toContain('queryKey: ["merged-televoting-rounds"]');
   });
 
   it("rejects result evidence and recompute attempts outside the scoped round projection", () => {
