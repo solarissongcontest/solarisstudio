@@ -32,6 +32,7 @@ jobs:
       V3_DESTRUCTIVE_VERIFICATION: "1"
       V3_SERVICE_ROLE_SCOPE: local
       V3_RELEASE_EVIDENCE_DIR: v3-release-evidence
+      LOCAL_SUPABASE_URL: http://127.0.0.1:54321
 
     steps:
       - name: Validate requested SHA and rehearsal mode
@@ -104,6 +105,10 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(supabase status -o env)"
+          if [[ "$API_URL" != "$LOCAL_SUPABASE_URL" ]]; then
+            echo "::error::Refusing audit server with hosted Supabase URL: $API_URL"
+            exit 1
+          fi
           export VITE_SUPABASE_URL="$API_URL"
           export SUPABASE_URL="$API_URL"
           export E2E_SUPABASE_URL="$API_URL"
