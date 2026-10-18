@@ -25,7 +25,7 @@ describe("V3 Organizer Public UX actionability", () => {
       "Workflow abandonment",
       "Error classes",
     ]) {
-      expect(findings).toContain(`\"${signal}\"`);
+      expect(findings).toContain(`"${signal}"`);
     }
     expect(panel).toContain("Canonical signals still unavailable");
     expect(panel).toContain("Missing server signals are still unknown, not zero");
