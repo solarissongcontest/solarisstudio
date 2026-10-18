@@ -11,7 +11,11 @@ import {
   validateV3DomainConsequenceRegistry,
   validateV3WorkflowDependencyRegistry,
 } from "../src/lib/v3-capability-registry";
-import { validateV3S16CertificationEvidence } from "../src/lib/v3-s16-certification-contract";
+import {
+  V3_S16_CERTIFICATION_CATEGORIES,
+  validateV3S16CertificationEvidence,
+} from "../src/lib/v3-s16-certification-contract";
+import { validateV3S16CategorySourceEvidence } from "../src/lib/v3-s16-evidence-validation";
 
 const finalCertification = process.argv.includes("--certified");
 const strictRelease = process.argv.includes("--release") || finalCertification;
@@ -121,6 +125,28 @@ for (const filename of exactCandidateEvidence) {
     }
   } catch {
     blockers.push(`${filename} is not valid JSON exact-candidate evidence`);
+  }
+}
+
+if (finalCertification && evidenceCandidateSha) {
+  for (const category of V3_S16_CERTIFICATION_CATEGORIES) {
+    const path = join(releaseEvidenceDir, category.evidenceFilename);
+    if (!existsSync(path)) {
+      blockers.push(`S16 ${category.id}: missing source evidence ${category.evidenceFilename}`);
+      continue;
+    }
+    try {
+      const evidence = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+      for (const issue of validateV3S16CategorySourceEvidence(
+        category.id,
+        evidence,
+        evidenceCandidateSha,
+      )) {
+        blockers.push(`S16 source evidence: ${issue}`);
+      }
+    } catch {
+      blockers.push(`S16 ${category.id}: ${category.evidenceFilename} is not valid JSON`);
+    }
   }
 }
 
