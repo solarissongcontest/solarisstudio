@@ -1,15 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { AlertTriangle, Inbox, UserRound } from "lucide-react";
+import { useRef } from "react";
 
 import { useMyCountryAccount } from "@/lib/country-account";
-import {
-  acknowledgeStudio2InboxNotice,
-  archiveStudio2Notice,
-  markStudio2NoticeOpened,
-} from "@/lib/studio2-communications";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import { loadStudio2RecipientNoticeInbox } from "@/lib/studio2-recipient-inbox";
+import {
+  acknowledgeV3OfficialNotice,
+  archiveV3OfficialNotice,
+  markV3OfficialNoticeOpened,
+} from "@/lib/v3-official-notice-actions";
 import { parseV3OfficialNoticeFilter } from "@/lib/v3-official-notices";
 import { V3AppShell } from "./V3AppShell";
 import {
@@ -99,6 +100,7 @@ function V3OfficialNoticesBoundInbox({
 }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const openingIdsRef = useRef(new Set<string>());
   const locationSearch = useRouterState({ select: (state) => state.location.search }) as RouteSearch;
   const selectedId =
     typeof locationSearch.notice === "string" && locationSearch.notice
@@ -136,20 +138,20 @@ function V3OfficialNoticesBoundInbox({
   };
 
   const markOpened = useMutation({
-    mutationFn: (noticeId: string) => markStudio2NoticeOpened(noticeId),
+    mutationFn: (noticeId: string) => markV3OfficialNoticeOpened(noticeId, editionId),
     onSuccess: () => refresh(),
     onError: () => refresh(),
   });
 
   const acknowledge = useMutation({
-    mutationFn: (noticeId: string) => acknowledgeStudio2InboxNotice(noticeId),
+    mutationFn: (noticeId: string) => acknowledgeV3OfficialNotice(noticeId, editionId),
     onSuccess: () => refresh(),
     onError: () => refresh(),
   });
 
   const archive = useMutation({
     mutationFn: ({ noticeId, archived }: { noticeId: string; archived: boolean }) =>
-      archiveStudio2Notice(noticeId, archived),
+      archiveV3OfficialNotice(noticeId, archived, editionId),
     onSuccess: () => refresh(),
     onError: () => refresh(),
   });
@@ -182,8 +184,11 @@ function V3OfficialNoticesBoundInbox({
       replace: true,
     });
 
-    if (item && !item.receipt?.openedAt && !markOpened.isPending) {
-      markOpened.mutate(noticeId);
+    if (item && !item.receipt?.openedAt && !openingIdsRef.current.has(noticeId)) {
+      openingIdsRef.current.add(noticeId);
+      void markOpened.mutateAsync(noticeId).finally(() => {
+        openingIdsRef.current.delete(noticeId);
+      });
     }
   };
 
