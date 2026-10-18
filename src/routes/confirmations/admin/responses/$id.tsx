@@ -24,6 +24,7 @@ import {
   AdminActionItem,
   AdminCard,
   AdminCardHeader,
+  AdminConfirmSheet,
   AdminEmptyState,
   AdminMoreMenu,
   AdminPageHeader,
@@ -241,7 +242,7 @@ function TechnicalRows({ entry }: { entry: ReviewEntry }) {
               rel="noreferrer"
               className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-sky-100/80 underline"
             >
-              Open video <ExternalLink className="size-3" />
+              Open video <ExternalLink className="size-3.5" />
             </a>
           ) : (
             <p className="mt-1 text-xs font-semibold text-amber-100">Required · URL missing</p>
@@ -620,6 +621,7 @@ function ResponseDetailPage() {
   const [locked, setLocked] = useState(false);
   const [notes, setNotes] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [deleteReviewOpen, setDeleteReviewOpen] = useState(false);
   const [savingControls, setSavingControls] = useState(false);
   const [solarisSync, setSolarisSync] = useState<ConfirmationSolarisSyncResult | null>(null);
   const [solarisSyncError, setSolarisSyncError] = useState<string | null>(null);
@@ -865,10 +867,6 @@ function ResponseDetailPage() {
 
   async function deleteResponse() {
     if (!data || deleting) return;
-    if (
-      !window.confirm(`Delete ${data.country}'s confirmation permanently? This cannot be undone.`)
-    )
-      return;
 
     setDeleting(true);
     try {
@@ -879,6 +877,7 @@ function ResponseDetailPage() {
         },
       );
       if (rpcError) throw rpcError;
+      setDeleteReviewOpen(false);
       toast.success("Confirmation deleted");
       await navigate({ to: "/confirmations/admin/responses" });
     } catch (caught) {
@@ -1321,10 +1320,10 @@ function ResponseDetailPage() {
           <button
             type="button"
             disabled={deleting}
-            onClick={() => void deleteResponse()}
+            onClick={() => setDeleteReviewOpen(true)}
             className="admin-action-danger w-full"
           >
-            <Trash2 className="size-4" /> {deleting ? "Deleting…" : "Delete response permanently"}
+            <Trash2 className="size-4" /> {deleting ? "Deleting…" : "Review permanent deletion"}
           </button>
         </AdminCard>
       </div>
@@ -1387,6 +1386,37 @@ function ResponseDetailPage() {
           </div>
         </div>
       </AdminSheet>
+
+      <AdminConfirmSheet
+        open={deleteReviewOpen}
+        onClose={() => setDeleteReviewOpen(false)}
+        onConfirm={deleteResponse}
+        title={`Delete ${data.country}'s confirmation?`}
+        description={
+          <div className="space-y-2">
+            <p>
+              This permanently deletes <strong className="text-foreground">{data.country}</strong>&apos;s
+              Confirmation response and the related Confirmation-side data handled by the existing delete
+              authority. Organizer cannot undo this action.
+            </p>
+            <p>
+              Context: {data.edition ? `SSC ${data.edition.edition_number} · ${data.edition.name}` : "edition unavailable"}
+              {" · "}{data.round?.name ?? "Confirmation"}{" · submitted "}
+              {new Date(data.submitted_at).toLocaleString()}.
+            </p>
+            <p>
+              This is still the legacy Confirmation delete authority, not a versioned rollback operation. If
+              canonical Solaris state needs recovery afterward, that must be handled separately rather than by
+              repeating this deletion.
+            </p>
+          </div>
+        }
+        confirmLabel="Delete response permanently"
+        confirmationText={data.country}
+        confirmationHint={`Type ${data.country} exactly to confirm permanent deletion`}
+        busy={deleting}
+        danger
+      />
     </div>
   );
 }
