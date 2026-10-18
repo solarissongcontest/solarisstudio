@@ -145,25 +145,45 @@ test("TerraOS first-look preview fills its phone and keeps copy below mobile top
   await firstLook.scrollIntoViewIfNeeded();
   await expect(previewFrame).toBeVisible();
 
+  // The visible 1px device border belongs to the phone frame, not to the
+  // embedded viewport. Measure the iframe against the frame's inner box so a
+  // correct edge-to-edge preview is not reported as a 2px width regression.
   await expect
     .poll(async () => {
-      const [deviceBox, frameBox] = await Promise.all([
-        device.boundingBox(),
-        previewFrame.boundingBox(),
-      ]);
-      if (!deviceBox || !frameBox) return Number.POSITIVE_INFINITY;
-      return Math.max(
-        Math.abs(deviceBox.x - frameBox.x),
-        Math.abs(deviceBox.width - frameBox.width),
-      );
-    })
-    .toBeLessThan(2);
+      return device.evaluate((element) => {
+        const frame = element.querySelector<HTMLIFrameElement>("iframe.preview-page");
+        if (!frame) return Number.POSITIVE_INFINITY;
 
-  await firstLook.evaluate((element) => element.scrollIntoView({ block: "start" }));
-  const copyBox = await firstLook.locator(".first-look-copy h3").boundingBox();
-  expect(copyBox).not.toBeNull();
-  if (!copyBox) return;
-  expect(copyBox.y).toBeGreaterThanOrEqual(72);
+        const deviceBox = element.getBoundingClientRect();
+        const frameBox = frame.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        const borderLeft = Number.parseFloat(style.borderLeftWidth) || 0;
+        const borderRight = Number.parseFloat(style.borderRightWidth) || 0;
+        const innerLeft = deviceBox.left + borderLeft;
+        const innerWidth = deviceBox.width - borderLeft - borderRight;
+
+        return Math.max(
+          Math.abs(innerLeft - frameBox.left),
+          Math.abs(innerWidth - frameBox.width),
+        );
+      });
+    })
+    .toBeLessThan(1);
+
+  // Compare internal geometry instead of absolute viewport Y. The maintenance
+  // page intentionally uses smooth scrolling, so sampling immediately after a
+  // scrollIntoView() call can catch the card mid-animation even though its
+  // safe-area padding is already applied.
+  await expect
+    .poll(async () => {
+      const [cardBox, copyBox] = await Promise.all([
+        firstLook.boundingBox(),
+        firstLook.locator(".first-look-copy h3").boundingBox(),
+      ]);
+      if (!cardBox || !copyBox) return Number.NEGATIVE_INFINITY;
+      return copyBox.y - cardBox.y;
+    })
+    .toBeGreaterThanOrEqual(72);
 });
 
 test("TerraOS hero stays visually centered on a narrow phone viewport", async ({ page }) => {
