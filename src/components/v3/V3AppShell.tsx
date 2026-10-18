@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { V3FoundationShell, V3TopContext } from "./V3Foundation";
 
-type V3Area = "home" | "explore" | "participate" | "results" | "me";
+export type V3Area = "home" | "explore" | "participate" | "results" | "me";
 
 type V3ShellDestination = {
   id: V3Area;
@@ -39,6 +39,47 @@ const V3_SHELL_DESTINATIONS: readonly V3ShellDestination[] = [
   // breaking saved links or inventing a second account surface.
   { id: "me", label: "Me", to: "/my-solaris", icon: UserRound },
 ];
+
+export type V3BottomNavigationProps = {
+  activeArea: V3Area;
+  participateAttentionCount?: number;
+};
+
+/** Shared canonical V3 five-destination navigation. */
+export function V3BottomNavigation({
+  activeArea,
+  participateAttentionCount = 0,
+}: V3BottomNavigationProps) {
+  return (
+    <nav className="v3-bottom-nav" aria-label="Primary app navigation">
+      {V3_SHELL_DESTINATIONS.map(({ id, label, to, icon: Icon, emphasis }) => {
+        const active = activeArea === id;
+        const attentionCount = id === "participate" ? participateAttentionCount : 0;
+
+        return (
+          <Link
+            key={id}
+            to={to as any}
+            className="v3-bottom-nav__item"
+            aria-current={active ? "page" : undefined}
+            data-emphasis={emphasis ? "true" : undefined}
+            data-active={active ? "true" : undefined}
+          >
+            <span className="relative grid place-items-center" aria-hidden="true">
+              <Icon className="size-[19px]" strokeWidth={active ? 2.3 : 1.9} />
+              {attentionCount > 0 ? (
+                <span className="absolute -right-2 -top-2 grid min-h-4 min-w-4 place-items-center rounded-full bg-[var(--v3-danger)] px-1 text-[0.58rem] font-extrabold leading-none text-white shadow-[0_0_0_2px_var(--v3-bg-base)]">
+                  {attentionCount > 9 ? "9+" : attentionCount}
+                </span>
+              ) : null}
+            </span>
+            <span className="v3-bottom-nav__label">{label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
 
 export type V3AppShellProps = {
   children: ReactNode;
@@ -135,33 +176,10 @@ export function V3AppShell({
         {children}
       </div>
 
-      <nav className="v3-bottom-nav" aria-label="Primary app navigation">
-        {V3_SHELL_DESTINATIONS.map(({ id, label, to, icon: Icon, emphasis }) => {
-          const active = publicArea === id;
-          const attentionCount = id === "participate" ? participateAttentionCount : 0;
-
-          return (
-            <Link
-              key={id}
-              to={to as any}
-              className="v3-bottom-nav__item"
-              aria-current={active ? "page" : undefined}
-              data-emphasis={emphasis ? "true" : undefined}
-              data-active={active ? "true" : undefined}
-            >
-              <span className="relative grid place-items-center" aria-hidden="true">
-                <Icon className="size-[19px]" strokeWidth={active ? 2.3 : 1.9} />
-                {attentionCount > 0 ? (
-                  <span className="absolute -right-2 -top-2 grid min-h-4 min-w-4 place-items-center rounded-full bg-[var(--v3-danger)] px-1 text-[0.58rem] font-extrabold leading-none text-white shadow-[0_0_0_2px_var(--v3-bg-base)]">
-                    {attentionCount > 9 ? "9+" : attentionCount}
-                  </span>
-                ) : null}
-              </span>
-              <span className="v3-bottom-nav__label">{label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+      <V3BottomNavigation
+        activeArea={publicArea}
+        participateAttentionCount={participateAttentionCount}
+      />
     </V3FoundationShell>
   );
 }
