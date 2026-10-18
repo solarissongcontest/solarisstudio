@@ -48,6 +48,12 @@ export type JuryShareVote = {
   rank: number;
 };
 
+export type JuryShareThemeAvailability = {
+  id: JuryShareThemeId;
+  state: JuryShareThemeState;
+  reason?: string;
+};
+
 export type JuryShareProjection = {
   schemaVersion: 1;
   ballotId: string;
@@ -76,15 +82,10 @@ export type JuryShareProjection = {
     resultVersionId: string;
     publishedAt: string;
   };
+  themes: readonly JuryShareThemeAvailability[];
   publication: JuryShareAvailability;
   stateVersion: string;
   serverTime: string;
-};
-
-export type JuryShareThemeAvailability = {
-  id: JuryShareThemeId;
-  state: JuryShareThemeState;
-  reason?: string;
 };
 
 export const JURY_SHARE_TARGETS = Object.freeze({
