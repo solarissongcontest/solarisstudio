@@ -91,6 +91,9 @@ begin
       using errcode = '22023';
   end if;
 
+  -- The physical table intentionally omits zero rows. Canonicalize explicit
+  -- zeroes to absence before fingerprinting/comparison so a new operation that
+  -- repeats the same effective values is an operational no-op as well.
   select coalesce(
     jsonb_object_agg(normalized.code, normalized.value order by normalized.code),
     '{}'::jsonb
@@ -101,6 +104,7 @@ begin
       upper(btrim(item.key)) as code,
       (item.value #>> '{}')::numeric as value
     from jsonb_each(p_values) item(key, value)
+    where (item.value #>> '{}')::numeric <> 0
   ) normalized;
 
   if not public.studio2_access_allowed('voting.manage', p_edition_id, false) then
@@ -267,19 +271,11 @@ begin
   if v_changed then
     select count(*)::integer
     into v_changed_count
-    from (
-      select code
-      from (
-        select key as code, (value #>> '{}')::numeric as value
-        from jsonb_each(v_current)
-        union
-        select key as code, (value #>> '{}')::numeric as value
-        from jsonb_each(v_normalized)
-      ) all_codes
-      group by code
-      having max(value) is distinct from min(value)
-         or count(*) = 1
-    ) changes;
+    from jsonb_each(v_current) old_item(key, value)
+    full join jsonb_each(v_normalized) new_item(key, value)
+      on new_item.key = old_item.key
+    where (old_item.value #>> '{}')::numeric
+      is distinct from (new_item.value #>> '{}')::numeric;
 
     insert into televoting.external_score_entry_log (
       source_id,
@@ -334,8 +330,7 @@ begin
       v_source.input_mode,
       v_reason,
       v_actor
-    from jsonb_each(v_normalized) item(key, value)
-    where (item.value #>> '{}')::numeric <> 0;
+    from jsonb_each(v_normalized) item(key, value);
 
     perform set_config('solaris.v3_combined_config_batch', '0', true);
     perform private.v3_touch_combined_configuration(p_aggregation_id);
@@ -361,7 +356,8 @@ begin
       ),
       jsonb_build_object(
         'sourceId', p_source_id,
-        'valueCount', v_value_count,
+        'submittedValueCount', v_value_count,
+        'storedValueCount', (select count(*) from jsonb_each(v_normalized)),
         'changedValueCount', v_changed_count
       ),
       v_reason
@@ -370,8 +366,7 @@ begin
 
   select count(*)::integer
   into v_nonzero_count
-  from jsonb_each(v_normalized) item(key, value)
-  where (item.value #>> '{}')::numeric <> 0;
+  from jsonb_each(v_normalized);
 
   select
     aggregation.config_version,
@@ -394,8 +389,8 @@ begin
         'aggregationId', p_aggregation_id,
         'change', 'manual_source_values_replaced',
         'sourceId', p_source_id,
-        'valueCount', v_value_count,
-        'nonzeroValueCount', v_nonzero_count,
+        'submittedValueCount', v_value_count,
+        'storedValueCount', v_nonzero_count,
         'changedValueCount', v_changed_count,
         'configVersion', v_next_config,
         'stateVersion', v_next_state,
@@ -414,8 +409,8 @@ begin
     'editionId', p_edition_id,
     'aggregationId', p_aggregation_id,
     'sourceId', p_source_id,
-    'valueCount', v_value_count,
-    'nonzeroValueCount', v_nonzero_count,
+    'submittedValueCount', v_value_count,
+    'storedValueCount', v_nonzero_count,
     'changedValueCount', v_changed_count,
     'operationId', v_operation_id,
     'versions', jsonb_build_object(
