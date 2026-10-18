@@ -13,6 +13,7 @@ import { PublicPrimaryAction } from "@/components/public/PublicPrimaryAction";
 import { PublicSecondaryLinks } from "@/components/public/PublicSecondaryLinks";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
+import { V3ResultsRootGate } from "@/components/v3/V3ResultsRootGate";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import {
   editionLabel,
@@ -50,6 +51,25 @@ export const Route = createFileRoute("/results/")({
 });
 
 function ResultsOverviewPage() {
+  const { isAppMode, platformResolved } = useSolarisApp();
+
+  if (!platformResolved) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-10" data-v3-results-boot="">
+        <h1 className="text-3xl font-bold">Results</h1>
+        <p role="status" className="mt-3">Opening published results…</p>
+      </main>
+    );
+  }
+
+  if (isAppMode) {
+    return <V3ResultsRootGate fallback={<LegacyResultsOverviewPage />} />;
+  }
+
+  return <LegacyResultsOverviewPage />;
+}
+
+function LegacyResultsOverviewPage() {
   const { isAppMode, platformResolved } = useSolarisApp();
   const { preferences } = useAppExperiencePreferences();
   const editionsQuery = useEditions();
