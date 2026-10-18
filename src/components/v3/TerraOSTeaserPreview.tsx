@@ -138,7 +138,6 @@ export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }
     <div
       className="relative h-dvh min-h-dvh overflow-hidden bg-[var(--v3-bg-base)]"
       data-terraos-teaser-preview={screen}
-      aria-hidden="true"
     >
       <div className="pointer-events-none h-full select-none overflow-hidden">
         <V3FoundationShell>
