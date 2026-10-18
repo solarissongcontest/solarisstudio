@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import {
   buildDefaultJuryShareModel,
   type JuryShareProjection,
+  type JuryShareThemeAvailability,
   type JuryShareThemeId,
 } from "@/lib/v3-jury-share-card-foundation";
 import {
@@ -25,6 +26,20 @@ const THEME_LABELS: Record<JuryShareThemeId, string> = {
   edition: "Edition",
   liquid_glass: "Liquid Glass",
 };
+
+const FALLBACK_THEMES = Object.freeze([
+  { id: "default", state: "available" },
+  {
+    id: "edition",
+    state: "unconfigured",
+    reason: "Edition share theme is not configured",
+  },
+  {
+    id: "liquid_glass",
+    state: "unsupported",
+    reason: "Liquid Glass renderer unavailable",
+  },
+] satisfies JuryShareThemeAvailability[]);
 
 function unavailableCopy(code: string) {
   switch (code) {
@@ -182,7 +197,8 @@ export function V3JuryShareComposer({ showId, countryId }: V3JuryShareComposerPr
   }
 
   const projection = query.data.projection;
-  const selectedTheme = projection.themes.find((item) => item.id === theme);
+  const themes = projection.themes ?? FALLBACK_THEMES;
+  const selectedTheme = themes.find((item) => item.id === theme);
   const exportEnabled = theme === "default" && selectedTheme?.state === "available";
 
   async function freshProjection() {
@@ -214,14 +230,18 @@ export function V3JuryShareComposer({ showId, countryId }: V3JuryShareComposerPr
       const image = await renderDefaultJuryShareImage(fresh, action === "jpeg" ? "jpeg" : "png");
       if (action === "share") {
         const outcome = await shareJuryShareImage(image);
-        setMessage(outcome === "shared" ? "Share sheet opened." : "Image saved because file sharing is unavailable.");
+        setMessage(
+          outcome === "shared"
+            ? "Share sheet opened."
+            : "Image saved because file sharing is unavailable.",
+        );
       } else {
         downloadJuryShareImage(image);
         setMessage(action === "png" ? "PNG saved." : "JPEG saved.");
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
-      setMessage(error instanceof Error ? error.message : "Couldn&apos;t create the image.");
+      setMessage(error instanceof Error ? error.message : "Couldn't create the image.");
     } finally {
       setBusy(false);
     }
@@ -231,7 +251,7 @@ export function V3JuryShareComposer({ showId, countryId }: V3JuryShareComposerPr
     <div className="space-y-5" data-v3-jury-share-composer="">
       <V3Section title="Choose design" meta={`${projection.edition.name} · ${projection.show.name}`}>
         <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Jury share design">
-          {projection.themes.map((option) => {
+          {themes.map((option) => {
             const available = option.state === "available" && option.id === "default";
             const selected = theme === option.id;
             return (
