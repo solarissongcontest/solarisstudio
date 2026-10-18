@@ -2,13 +2,21 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const migration = readFileSync(
+const foundationMigration = readFileSync(
   resolve(
     process.cwd(),
     "supabase/migrations/20261018111500_v3_confirmation_sync_service_role_privileges.sql",
   ),
   "utf8",
 );
+const publicationEventFollowUp = readFileSync(
+  resolve(
+    process.cwd(),
+    "supabase/migrations/20261019000500_v3_confirmation_sync_publication_event_service_role.sql",
+  ),
+  "utf8",
+);
+const migration = `${foundationMigration}\n${publicationEventFollowUp}`;
 const syncSource = readFileSync(
   resolve(process.cwd(), "src/integrations/confirmations/sync.functions.ts"),
   "utf8",
@@ -51,21 +59,51 @@ const requiredPrivileges = [
   ["public.integration_events", "UPDATE"],
 ] as const;
 
+function extractDirectTables(source: string) {
+  return Array.from(
+    new Set(
+      [...source.matchAll(/\.from\(\s*["']([^"']+)["']\s*\)/g)].map(
+        (match) => match[1],
+      ),
+    ),
+  ).sort();
+}
+
 describe("System V3 canonical Confirmation sync service-role privileges", () => {
-  it("covers every table directly accessed by the server synchronization path", () => {
+  it("covers the complete table inventory directly accessed by the server synchronization path", () => {
+    expect(extractDirectTables(syncSource)).toEqual([...directTables].sort());
     for (const table of directTables) {
-      expect(syncSource).toContain(`.from("${table}")`);
-      expect(migration).toContain(`public.${table}`);
+      expect(foundationMigration).toContain(`public.${table}`);
     }
   });
 
-  it("asserts every restored privilege during migration replay", () => {
-    expect(migration).toContain("has_table_privilege(");
+  it("asserts every restored table privilege during migration replay", () => {
+    expect(foundationMigration).toContain("has_table_privilege(");
     for (const [table, privilege] of requiredPrivileges) {
-      expect(migration).toContain(`('${table}', '${privilege}')`);
+      expect(foundationMigration).toContain(`('${table}', '${privilege}')`);
     }
-    expect(migration).toContain(
+    expect(foundationMigration).toContain(
       "Canonical Confirmation sync requires service_role % on %",
+    );
+  });
+
+  it("restores and asserts the server-only publication event boundary", () => {
+    expect(syncSource).toContain('db.rpc("emit_entry_published_event"');
+    expect(publicationEventFollowUp).toContain(
+      "grant execute on function public.emit_entry_published_event(uuid, uuid)",
+    );
+    expect(publicationEventFollowUp).toContain("has_function_privilege(");
+    expect(publicationEventFollowUp).toContain(
+      "'public.emit_entry_published_event(uuid,uuid)'",
+    );
+    expect(publicationEventFollowUp).toContain(
+      "Canonical Confirmation sync requires service_role EXECUTE on public.emit_entry_published_event(uuid,uuid)",
+    );
+    expect(publicationEventFollowUp).toContain(
+      "Confirmation publication event boundary must not be executable by anon",
+    );
+    expect(publicationEventFollowUp).toContain(
+      "Confirmation publication event boundary must not be executable by authenticated",
     );
   });
 
@@ -83,8 +121,10 @@ describe("System V3 canonical Confirmation sync service-role privileges", () => 
     );
   });
 
-  it("is transactional so a failed privilege assertion cannot partially land", () => {
-    expect(migration.trimStart().toLowerCase().startsWith("begin;")).toBe(true);
-    expect(migration.trimEnd().toLowerCase().endsWith("commit;")).toBe(true);
+  it("keeps both ACL migrations transactional", () => {
+    for (const sql of [foundationMigration, publicationEventFollowUp]) {
+      expect(sql.trimStart().toLowerCase().startsWith("begin;")).toBe(true);
+      expect(sql.trimEnd().toLowerCase().endsWith("commit;")).toBe(true);
+    }
   });
 });
