@@ -2,15 +2,16 @@
 
 ## Purpose
 
-Keep S11 recovery evidence honest by distinguishing a failure that has actually been injected and recovered in isolated infrastructure from one that merely has a declared recovery contract.
+Keep S11 recovery evidence honest by distinguishing retained executed rehearsals from executable recovery tooling that still awaits exact-SHA run evidence.
 
-The machine-readable registry is `src/lib/v3-failure-injection-coverage.ts`. It points to existing deterministic local rehearsals rather than duplicating them. The report is evidence for Chat 5, not release certification.
+The machine-readable registry is `src/lib/v3-failure-injection-coverage.ts`. It points to deterministic local rehearsals rather than duplicating them. The report is evidence for Chat 5, not release certification.
 
 ## Coverage states
 
-- `rehearsed` — an existing local rehearsal injects the failure/replay condition and verifies the expected convergence or recovery behavior.
-- `partial` — relevant failure and recovery primitives are exercised, but the requested end-to-end failure sequence is not fully rehearsed.
-- `contract_only` — canonical recovery/measurement contracts exist, but no dedicated local failure-injection rehearsal proves the complete path.
+- `rehearsed` — a deterministic local rehearsal has actually run and retained evidence proves the expected convergence/recovery behavior.
+- `rehearsal_ready` — the deterministic local injection/recovery path and regression proof are implemented, but retained exact-SHA execution evidence is still pending.
+- `partial` — relevant failure and recovery primitives are exercised, but the requested end-to-end failure sequence is incomplete.
+- `contract_only` — canonical recovery/measurement contracts exist, but no dedicated local failure-injection rehearsal is implemented yet.
 - `missing` — no adequate canonical contract/evidence exists yet.
 
 No state requires production traffic.
@@ -19,19 +20,24 @@ No state requires production traffic.
 
 ### Rehearsed
 
-- **Event consumer failure / unavailable dependency:** the S4 DomainEvent rehearsal claims a delivery, injects `DEPENDENCY_FAILURE`, proves retry, reaches the attempt ceiling/dead-letter state, explicitly requeues the dead letter, reclaims it and completes it.
-- **Duplicate delivery:** the same S4 rehearsal proves semantic event replay reuses the immutable event/delivery rows and duplicate completion converges on one immutable consumer receipt.
-- **Stale projection:** the S11 stale-projection rehearsal creates an inactive Solaris scheduler job as canonical source truth, deletes only its derived Organizer Task, invokes the declared edition-bounded task rebuild, and proves the restored task semantically matches the pre-corruption projection.
-- **Reconciliation retry:** that rehearsal deliberately makes the first projection write fail, verifies the failed repair leaves no partial task and does not alter scheduler truth, then retries the same canonical rebuild path and proves one exact projection plus idempotent replay.
+- **Event consumer failure / unavailable dependency:** the existing S4 DomainEvent rehearsal injects `DEPENDENCY_FAILURE`, proves retry, dead-letter and explicit requeue recovery.
+- **Duplicate delivery:** retained S4 evidence proves semantic replay and duplicate completion converge on one immutable consumer receipt.
+
+### Rehearsal-ready
+
+- **Stale projection:** `.github/scripts/v3-s11-stale-projection-rehearsal.sh` creates an inactive Solaris scheduler job as canonical source truth, deletes only its derived Organizer Task, invokes the declared edition-bounded rebuild, and asserts semantic convergence.
+- **Reconciliation retry:** that same script deliberately makes the first projection write fail, asserts no partial task and unchanged scheduler truth, then retries the same canonical rebuild path and asserts single-row idempotent convergence.
+
+These two remain `rehearsal_ready` until Chat 5 (or another release-evidence runner) executes the script against isolated local Supabase and retains exact-SHA run evidence.
 
 ### Partial
 
-- **Lost response after commit:** S2 proves the underlying committed-operation replay semantics by completing an operation and then replaying the same normalized semantic request, but the rehearsal does not actually discard or interrupt the original client response after commit. This remains partial until a dedicated local transport-loss injection proves recovery from that real failure sequence.
-- **Transient RPC failure:** S2 rehearses a `TIMEOUT` uncertain receipt and actor-scoped reconciliation, but it does not yet sever/lose one real workflow RPC response around a committed mutation and prove end-to-end recovery.
+- **Lost response after commit:** S2 proves committed-operation replay semantics, but this branch does not yet include retained execution evidence for a real discarded post-commit workflow response.
+- **Transient RPC failure:** S2 proves `TIMEOUT` uncertainty and reconciliation primitives, but this branch does not yet include retained execution evidence for a real workflow transport failure.
 
 ### Contract-only
 
-- **Queue backlog:** S12 defines `reconciliation-backlog-drain` and measures queue/retry pressure, but representative backlog-drain evidence has not yet been executed and retained.
+- **Queue backlog:** S12 defines `reconciliation-backlog-drain` and queue/retry measurements, but a deterministic backlog-drain rehearsal still needs implementation and execution.
 
 ## Stale projection / retry rehearsal
 
@@ -41,7 +47,9 @@ Run only against local Supabase:
 bash .github/scripts/v3-s11-stale-projection-rehearsal.sh
 ```
 
-The rehearsal hard-refuses hosted/non-loopback database targets. It wraps the entire fixture in a transaction and rolls it back, so the synthetic edition, cron job, corrupted projection and injected trigger never persist. It intentionally modifies only derived Organizer Task state; the inactive `cron.job` row remains authoritative throughout the failure and retry sequence.
+The rehearsal hard-refuses hosted/non-loopback database targets. It wraps the fixture in a transaction and rolls it back, so the synthetic edition, cron job, corrupted projection and injected trigger never persist. It modifies only derived Organizer Task state; the inactive `cron.job` row remains authoritative throughout the failure and retry sequence.
+
+A successful run is necessary before these scenarios may move from `rehearsal_ready` to `rehearsed`.
 
 ## Generate exact-SHA evidence
 
@@ -52,15 +60,14 @@ V3_FAILURE_COVERAGE_OUTPUT=./artifacts/v3-failure-injection-coverage.json \
 npx tsx scripts/generate-v3-failure-injection-coverage.ts
 ```
 
-The generator is offline. It does not connect to Supabase or create traffic. It verifies that `V3_FAILURE_COVERAGE_SHA` exactly matches the checked-out `git rev-parse HEAD` before emitting evidence, and it creates the requested output directory recursively so the documented `./artifacts/...` path works on a clean checkout.
+The generator is offline. It verifies that `V3_FAILURE_COVERAGE_SHA` exactly matches `git rev-parse HEAD`, creates requested output directories recursively, and makes no certification claim.
 
-`V3_FAILURE_COVERAGE_REQUIRE_ALL_REHEARSED=1` may be used by a deliberate release-evidence review to fail when unresolved scenarios remain. Chat 7 does not wire this into broad CI; Chat 5 owns release certification and broad workflow policy.
+`V3_FAILURE_COVERAGE_REQUIRE_ALL_REHEARSED=1` can be used in a deliberate release-evidence review. Chat 7 does not wire this into broad CI; Chat 5 owns release certification and broad workflow policy.
 
-## Next recovery rehearsals
+## Next reliability work
 
-The remaining highest-value executable evidence is:
+1. Execute and retain exact-SHA evidence for the stale-projection/retry rehearsal.
+2. Rehearse a real post-commit response loss / transport failure through a governed R2/R3 operation.
+3. Implement and execute a bounded reconciliation-backlog drain rehearsal with queue/retry and ordinary-workload measurements.
 
-1. **transient/lost workflow response** — run one real R2/R3 mutation locally, discard/interrupt the client response after commit, retry the same semantic request and verify the durable receipt/result is returned;
-2. **reconciliation backlog drain** — generate a bounded local backlog with an evidence-backed load shape, drain it through normal consumers/reconciliation, and retain queue/retry plus normal-workload latency evidence.
-
-These rehearsals must remain local/isolated. Deliberately breaking production to prove that recovery works would be a remarkably literal interpretation of reliability engineering.
+All rehearsals remain local/isolated. Production is not a chaos-testing playground, despite software's occasional attempts to become one on its own.
