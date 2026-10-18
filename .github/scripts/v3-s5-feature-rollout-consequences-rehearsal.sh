@@ -165,8 +165,8 @@ select public.studio2_feature_flag_change_preview(
 "
 
 log "Anonymous service-role writer paths are closed"
-[[ "$(db_value "select has_function_privilege('service_role','public.studio2_set_feature_flag(text,boolean,boolean,uuid[],uuid[])','EXECUTE')::text;")" == 'false' ]] || fail "service_role still executes compatibility rollout writer"
-[[ "$(db_value "select has_function_privilege('service_role','public.studio2_apply_feature_flag_change(text,boolean,boolean,uuid[],uuid[],uuid,text,bigint,uuid)','EXECUTE')::text;")" == 'false' ]] || fail "service_role still executes canonical rollout writer"
-[[ "$(db_value "select has_table_privilege('service_role','public.studio2_feature_flags','UPDATE')::text;")" == 'false' ]] || fail "service_role still has direct rollout UPDATE authority"
+[[ "$(db_value "select has_function_privilege('service_role','public.studio2_set_feature_flag(text,boolean,boolean,uuid[],uuid[])','EXECUTE')::text;")" == 'f' ]] || fail "service_role still executes compatibility rollout writer"
+[[ "$(db_value "select has_function_privilege('service_role','public.studio2_apply_feature_flag_change(text,boolean,boolean,uuid[],uuid[],uuid,text,bigint,uuid)','EXECUTE')::text;")" == 'f' ]] || fail "service_role still executes canonical rollout writer"
+[[ "$(db_value "select has_table_privilege('service_role','public.studio2_feature_flags','UPDATE')::text;")" == 'f' ]] || fail "service_role still has direct rollout UPDATE authority"
 
 log "System V3 S5 Feature Rollout authority/consequence rehearsal passed"
