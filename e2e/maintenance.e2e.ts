@@ -114,7 +114,7 @@ test("TerraOS first-look device keeps a complete phone aspect on short desktop v
 
   // The real V3 preview iframe is intentionally lazy-loaded below the fold.
   // Bring it into the viewport before checking its fitted phone geometry so the
-  // child preview can run the same sizing handshake a user gets while scrolling.
+  // child preview can render at the same responsive dimensions as its host.
   await device.scrollIntoViewIfNeeded();
   await expect(device).toBeVisible();
   await expect(previewFrame).toBeVisible();
@@ -131,6 +131,39 @@ test("TerraOS first-look device keeps a complete phone aspect on short desktop v
   expect(box).not.toBeNull();
   if (!box) return;
   expect(box.height).toBeLessThanOrEqual(viewport.height * 0.8);
+});
+
+test("TerraOS first-look preview fills its phone and keeps copy below mobile top chrome", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(503);
+
+  const firstLook = page.locator(".first-look");
+  const device = firstLook.locator(".preview-device");
+  const previewFrame = device.locator("iframe.preview-page");
+
+  await firstLook.scrollIntoViewIfNeeded();
+  await expect(previewFrame).toBeVisible();
+
+  await expect
+    .poll(async () => {
+      const [deviceBox, frameBox] = await Promise.all([
+        device.boundingBox(),
+        previewFrame.boundingBox(),
+      ]);
+      if (!deviceBox || !frameBox) return Number.POSITIVE_INFINITY;
+      return Math.max(
+        Math.abs(deviceBox.x - frameBox.x),
+        Math.abs(deviceBox.width - frameBox.width),
+      );
+    })
+    .toBeLessThan(2);
+
+  await firstLook.evaluate((element) => element.scrollIntoView({ block: "start" }));
+  const copyBox = await firstLook.locator(".first-look-copy h3").boundingBox();
+  expect(copyBox).not.toBeNull();
+  if (!copyBox) return;
+  expect(copyBox.y).toBeGreaterThanOrEqual(72);
 });
 
 test("TerraOS hero stays visually centered on a narrow phone viewport", async ({ page }) => {
