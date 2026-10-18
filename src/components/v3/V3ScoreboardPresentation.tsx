@@ -107,8 +107,7 @@ export function V3ScoreboardPresentation({
             <div data-v3-scoreboard-empty="" role="status">
               <p className="text-sm font-semibold">No published ranking yet</p>
               <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-[var(--v3-text-secondary)]">
-                The canonical scoreboard does not currently contain any published
-                entries.
+                The canonical scoreboard does not currently contain any published entries.
               </p>
             </div>
           </V3Surface>
