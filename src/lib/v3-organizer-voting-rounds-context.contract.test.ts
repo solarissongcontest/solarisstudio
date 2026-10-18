@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
+import { V3_ORGANIZER_CAPABILITY_REGISTRY } from "./v3-organizer-capability-registry";
+
 const route = readFileSync("src/routes/televoting/admin/rounds.tsx", "utf8");
 const view = readFileSync("src/components/televoting/VotingRoundsView.tsx", "utf8");
 const functions = readFileSync("src/integrations/televoting/rounds.functions.ts", "utf8");
@@ -26,5 +28,13 @@ describe("V3 Organizer Voting Rounds edition boundary", () => {
     for (const state of ["createOpen", "editing", "deleteTarget", "pendingStatus"]) {
       expect(view).toContain(state);
     }
+  });
+
+  it("advances rounds and entries only to building", () => {
+    const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
+      (item) => item.legacyId === "voting-rounds-entries",
+    );
+    expect(capability?.targetDomain).toBe("voting-results");
+    expect(capability?.migrationStatus).toBe("building");
   });
 });
