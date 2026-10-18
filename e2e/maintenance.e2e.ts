@@ -77,7 +77,7 @@ test("TerraOS teaser preview route renders the production V3 screen components d
   expect(participate?.status()).toBe(200);
   await expect(page.locator('[data-terraos-teaser-preview="participate"]')).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your participation", exact: true })).toBeVisible();
-  await expect(page.getByText("Country confirmed", { exact: true })).toBeVisible();
+  await expect(page.getByText("Country confirmed", { exact: true }).first()).toBeVisible();
   tabbar = page.locator(".v3-bottom-nav");
   await expect(tabbar).toBeVisible();
   await expect(tabbar.locator('[aria-current="page"]')).toContainText("Participate");
