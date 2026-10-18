@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { MySolarisProvider } from "@/components/mysolaris/MySolarisContext";
 import { signOutSolarisAccount } from "@/lib/account-session";
 import { useFanSession } from "@/lib/prediction-data";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
@@ -79,6 +80,14 @@ export function V3AccountSettingsRouteShell({
     window.location.href = "/";
   };
 
+  // The legacy MySolaris presentation receives this provider from AppShell's
+  // MySolarisWorkspaceShell. The V3 Account cutover deliberately bypasses that
+  // legacy shell, so it must preserve the same context boundary here. Settings
+  // does not consume MySolaris context and stays outside the provider to avoid
+  // duplicating its account/task query fan-out.
+  const routeContent =
+    section === "account" ? <MySolarisProvider>{children}</MySolarisProvider> : children;
+
   return (
     <V3AppShell
       editionLabel="Solaris Studio"
@@ -143,7 +152,7 @@ export function V3AccountSettingsRouteShell({
             </Link>
           </nav>
 
-          <div data-v3-account-settings-content="">{children}</div>
+          <div data-v3-account-settings-content="">{routeContent}</div>
         </div>
       </V3Screen>
     </V3AppShell>
