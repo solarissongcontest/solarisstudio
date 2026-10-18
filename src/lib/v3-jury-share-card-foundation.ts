@@ -82,7 +82,8 @@ export type JuryShareProjection = {
     resultVersionId: string;
     publishedAt: string;
   };
-  themes: readonly JuryShareThemeAvailability[];
+  /** Added by the System projection; optional here so older pure-model fixtures remain source-compatible. */
+  themes?: readonly JuryShareThemeAvailability[];
   publication: JuryShareAvailability;
   stateVersion: string;
   serverTime: string;
