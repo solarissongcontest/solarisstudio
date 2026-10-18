@@ -9,7 +9,7 @@ import {
   Vote,
   type LucideIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAppAttentionSummary } from "@/lib/app-attention";
@@ -40,6 +40,12 @@ const V3_SHELL_DESTINATIONS: readonly V3ShellDestination[] = [
   { id: "me", label: "Me", to: "/my-solaris", icon: UserRound },
 ];
 
+const ACTIVE_NAV_STYLE: CSSProperties = {
+  color: "var(--v3-text-primary)",
+  background: "rgba(206, 235, 249, 0.10)",
+  boxShadow: "inset 0 1px 0 rgba(245,252,255,0.10)",
+};
+
 export type V3BottomNavigationProps = {
   activeArea: V3Area | null;
   participateAttentionCount?: number;
@@ -64,6 +70,7 @@ export function V3BottomNavigation({
             aria-current={active ? "page" : undefined}
             data-emphasis={emphasis ? "true" : undefined}
             data-active={active ? "true" : undefined}
+            style={active ? ACTIVE_NAV_STYLE : undefined}
           >
             <span className="relative grid place-items-center" aria-hidden="true">
               <Icon className="size-[19px]" strokeWidth={active ? 2.3 : 1.9} />
