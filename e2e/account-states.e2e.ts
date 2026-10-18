@@ -216,9 +216,12 @@ test("country participant Entry cuts over to V3 without taking Organizer inspect
     await expect(entryRoot).toHaveAttribute("data-v3-entry-state", "ready");
     await expect(page.getByRole("heading", { name: "Your entry", exact: true })).toBeVisible();
     await expect(page.locator("[data-v3-entry-readiness]")).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Primary app navigation" })
-      .getByRole("link", { name: "Participate", exact: true }))
-      .toHaveAttribute("aria-current", "page");
+
+    const focusedShell = page.locator('[data-v3-focused-task-shell="mysolaris.entry"]');
+    await expect(focusedShell).toBeVisible();
+    await expect(focusedShell.getByRole("link", { name: "Back to Participate", exact: true })).toBeVisible();
+    await expect(focusedShell.getByRole("link", { name: "Help for Entry", exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Primary app navigation" })).toHaveCount(0);
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
 
     // A country selector is an Organizer inspection contract. It must never be
