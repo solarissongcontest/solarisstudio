@@ -89,6 +89,59 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
+function pushBaseOrigin() {
+  try {
+    if (typeof self.location?.origin === "string" && self.location.origin) {
+      return self.location.origin;
+    }
+    if (
+      typeof URL === "function" &&
+      typeof self.location?.href === "string" &&
+      self.location.href
+    ) {
+      return new URL(self.location.href).origin;
+    }
+  } catch {
+    // The real ServiceWorkerGlobalScope always has location. The inert fallback
+    // keeps pure/unit evaluation deterministic without weakening the lexical
+    // external-route rejection below.
+  }
+  return "https://solaris.invalid";
+}
+
+function normalizePushRoute(candidate) {
+  // Push destinations are internal deep links. A leading slash alone is not a
+  // sufficient origin boundary because protocol-relative URLs (`//host/path`)
+  // also begin with `/`, and backslashes can be normalized as URL separators by
+  // browsers. Fail closed unless the candidate is unambiguously root-relative.
+  if (
+    typeof candidate !== "string" ||
+    !candidate.startsWith("/") ||
+    candidate.startsWith("//") ||
+    candidate.includes("\\")
+  ) {
+    return "/";
+  }
+
+  // Root-relative + non-protocol-relative + no backslash is already sufficient
+  // to prevent cross-origin navigation. Strip payload-owned fragments before
+  // persisting the notification. This lexical path also keeps the service-worker
+  // contract testable in deliberately tiny VM harnesses that omit the URL global.
+  const hashIndex = candidate.indexOf("#");
+  const withoutHash = hashIndex >= 0 ? candidate.slice(0, hashIndex) : candidate;
+  const safeCandidate = withoutHash || "/";
+
+  if (typeof URL !== "function") return safeCandidate;
+
+  try {
+    const origin = pushBaseOrigin();
+    const target = new URL(safeCandidate, origin);
+    if (target.origin !== origin) return "/";
+    return `${target.pathname}${target.search}`;
+  } catch {
+    return "/";
+  }
+}
 
 async function reportPushReceipt(data, stage) {
   const deliveryId =
@@ -132,10 +185,7 @@ self.addEventListener("push", (event) => {
   }
 
   const title = typeof payload.title === "string" ? payload.title : "Solaris Studio";
-  const route =
-    typeof payload.route === "string" && payload.route.startsWith("/")
-      ? payload.route
-      : "/";
+  const route = normalizePushRoute(payload.route);
   const options = {
     body: typeof payload.body === "string" ? payload.body : "",
     icon: "/icon-192.png?v=img2340-20260929",
@@ -163,11 +213,10 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const route =
-    typeof event.notification.data?.route === "string"
-      ? event.notification.data.route
-      : "/";
-  const targetUrl = new URL(route, self.location.origin);
+  // Revalidate persisted notification data at click time as well. A notification
+  // may outlive the worker instance that originally displayed it.
+  const route = normalizePushRoute(event.notification.data?.route);
+  const targetUrl = new URL(route, pushBaseOrigin());
   targetUrl.hash = "solaris-push-open";
   const target = targetUrl.href;
 
