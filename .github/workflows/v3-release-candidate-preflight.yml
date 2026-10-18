@@ -103,15 +103,19 @@ jobs:
           GITHUB_SHA="$expected" bun run scripts/generate-v3-completion-dashboard.ts --json > v3-release-preflight/completion-dashboard.json
           bun run scripts/check-v3-s14-rehearsal-readiness.ts --json > v3-release-preflight/s14-readiness.json
           bun run scripts/check-v3-s15-zero-orphan-readiness.ts --json > v3-release-preflight/s15-readiness.json
+          V3_RELEASE_EVIDENCE_DIR=v3-release-preflight bun run scripts/build-v3-s15-zero-orphan-evidence.ts
           git rev-parse HEAD > v3-release-preflight/exact-sha.txt
           dashboard_sha="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync("v3-release-preflight/completion-dashboard.json","utf8")).candidateSha)')"
+          s15_sha="$(node -e 'const fs=require("fs"); process.stdout.write(JSON.parse(fs.readFileSync("v3-release-preflight/s15-zero-orphan.json","utf8")).candidateSha)')"
           checkout_sha="$(cat v3-release-preflight/exact-sha.txt)"
-          if [ "$dashboard_sha" != "$expected" ] || [ "$checkout_sha" != "$expected" ]; then
-            echo "::error::release evidence identity mismatch: dashboard=$dashboard_sha checkout=$checkout_sha expected=$expected"
+          if [ "$dashboard_sha" != "$expected" ] || [ "$s15_sha" != "$expected" ] || [ "$checkout_sha" != "$expected" ]; then
+            echo "::error::release evidence identity mismatch: dashboard=$dashboard_sha s15=$s15_sha checkout=$checkout_sha expected=$expected"
             exit 1
           fi
 
       - name: Enforce release-strict preconditions
+        env:
+          V3_RELEASE_EVIDENCE_DIR: v3-release-preflight
         run: bun run scripts/check-v3-release-integrity.ts --release
 
       - name: Upload exact-SHA preflight evidence
