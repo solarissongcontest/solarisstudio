@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const route = () => read("src/routes/_authenticated/my-solaris/notices.tsx");
 const content = () => read("src/components/v3/V3OfficialNoticesRouteContent.tsx");
+const actions = () => read("src/lib/v3-official-notice-actions.ts");
 const screen = () => read("src/components/v3/V3OfficialNoticesScreen.tsx");
 const notifications = () => read("src/components/v3/V3NotificationsScreen.tsx");
 
@@ -32,14 +33,29 @@ describe("V3 official delegation notices", () => {
     expect(source).not.toContain("from(\"");
   });
 
-  it("keeps mark-open, acknowledgement and archive on existing authoritative mutations", () => {
+  it("keeps mark-open, acknowledgement and archive on authoritative receipt RPCs with the active edition scope", () => {
+    const workflow = content();
+    const adapter = actions();
+
+    expect(workflow).toContain("markV3OfficialNoticeOpened(noticeId, editionId)");
+    expect(workflow).toContain("acknowledgeV3OfficialNotice(noticeId, editionId)");
+    expect(workflow).toContain("archiveV3OfficialNotice(noticeId, archived, editionId)");
+    expect(adapter).toContain('isStudio2FeatureEnabled("official_communications", editionId)');
+    expect(adapter).toContain('"studio2_mark_notice_opened"');
+    expect(adapter).toContain('"studio2_acknowledge_notice"');
+    expect(adapter).toContain('"studio2_archive_notice"');
+    expect(workflow).not.toContain("onMutate:");
+    expect(workflow).not.toContain("optimistic");
+  });
+
+  it("does not drop an unread receipt when another notice is still being marked open", () => {
     const source = content();
 
-    expect(source).toContain("markStudio2NoticeOpened(noticeId)");
-    expect(source).toContain("acknowledgeStudio2InboxNotice(noticeId)");
-    expect(source).toContain("archiveStudio2Notice(noticeId, archived)");
-    expect(source).not.toContain("onMutate:");
-    expect(source).not.toContain("optimistic");
+    expect(source).toContain("openingIdsRef = useRef(new Set<string>())");
+    expect(source).toContain("!openingIdsRef.current.has(noticeId)");
+    expect(source).toContain("markOpened.mutateAsync(noticeId)");
+    expect(source).toContain("openingIdsRef.current.delete(noticeId)");
+    expect(source).not.toContain("!markOpened.isPending");
   });
 
   it("reconciles uncertain mutation outcomes against receipt evidence", () => {
@@ -58,7 +74,7 @@ describe("V3 official delegation notices", () => {
     const source = content();
 
     expect(source).toContain("!item.receipt?.openedAt");
-    expect(source).toContain("markOpened.mutate(noticeId)");
+    expect(source).toContain("markOpened.mutateAsync(noticeId)");
     expect(source).not.toContain('item.inboxState === "unread"');
   });
 
