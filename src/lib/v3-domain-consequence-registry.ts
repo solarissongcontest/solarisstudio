@@ -53,10 +53,12 @@ const NOTIFICATION_PROVIDER_BY_DOMAIN_EVENT: Readonly<Record<string, readonly st
  * event. Notice publication/supersession cannot fabricate a delivery-failure
  * task, a queued/delivered notification is not itself a delivery failure, and
  * private/participant projections must not claim a canonical task worker until
- * that worker actually exists.
+ * that worker actually exists. Successful byte verification also does not, by
+ * itself, mean a review is required or that processing failed.
  */
 const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = {
   "acknowledgement.recorded": [],
+  "media.verified": [],
   "notice.published": [],
   "notice.superseded": [],
   "notification.queued": [],
@@ -97,6 +99,11 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
   "entry.changes_requested": [
     "supabase/migrations/20261015201221_v3_s5_entry_consequences.sql",
     ".github/scripts/v3-s5-entry-consequences-rehearsal.sh",
+  ],
+  "media.verified": [
+    "supabase/migrations/20261018083000_v3_s5_media_verification_consequences.sql",
+    "src/lib/v3-s5-media-verification-consequences.test.ts",
+    ".github/scripts/v3-s5-media-verification-consequences-rehearsal.sh",
   ],
   "media.reviewed": [
     "supabase/migrations/20261016050000_v3_s5_media_review_consequences.sql",
