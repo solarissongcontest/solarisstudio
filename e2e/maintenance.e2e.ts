@@ -25,9 +25,9 @@ test("Solaris Studio serves the TerraOS 3 maintenance teaser across the app", as
     await expect(page.getByText("22 October 2026", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Take a closer look." })).toBeVisible();
     await expect(page.getByText("Five places.", { exact: false }).first()).toBeVisible();
-    await expect(page.getByText("Solaris now", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("Discover the contest", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("Your participation", { exact: true }).first()).toBeVisible();
+    await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=home"]')).toHaveCount(2);
+    await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=explore"]')).toHaveCount(1);
+    await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=participate"]')).toHaveCount(1);
     await expect(page.getByText("Solaris Studio", { exact: true }).first()).toBeVisible();
     await expect(page.locator('.mark[src="/solaris-studio-mark.png"]')).toBeVisible();
 
@@ -45,6 +45,33 @@ test("Solaris Studio serves the TerraOS 3 maintenance teaser across the app", as
     );
     expect(overflow, `${route} should not overflow horizontally`).toBeLessThanOrEqual(1);
   }
+});
+
+test("TerraOS teaser preview route renders the production V3 screen components during maintenance", async ({ page }) => {
+  const home = await page.goto("/terraos-teaser-preview?screen=home", {
+    waitUntil: "domcontentloaded",
+  });
+  expect(home?.status()).toBe(200);
+  await expect(page.locator('[data-terraos-teaser-preview="home"]')).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Solaris now", exact: true })).toBeVisible();
+  await expect(page.getByText("You’re all caught up", { exact: true })).toBeVisible();
+  await expect(page.getByText("SSC 22 is the current Solaris edition", { exact: true })).toBeVisible();
+
+  const explore = await page.goto("/terraos-teaser-preview?screen=explore", {
+    waitUntil: "domcontentloaded",
+  });
+  expect(explore?.status()).toBe(200);
+  await expect(page.locator('[data-terraos-teaser-preview="explore"]')).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Discover the contest", exact: true })).toBeVisible();
+  await expect(page.getByText("Search Solaris", { exact: true })).toBeVisible();
+
+  const participate = await page.goto("/terraos-teaser-preview?screen=participate", {
+    waitUntil: "domcontentloaded",
+  });
+  expect(participate?.status()).toBe(200);
+  await expect(page.locator('[data-terraos-teaser-preview="participate"]')).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your participation", exact: true })).toBeVisible();
+  await expect(page.getByText("Country confirmed", { exact: true })).toBeVisible();
 });
 
 test("TerraOS hero stays visually centered on a narrow phone viewport", async ({ page }) => {
