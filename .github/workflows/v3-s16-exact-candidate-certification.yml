@@ -1,0 +1,217 @@
+name: V3 S16 exact-candidate certification
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Frozen current-main 40-character candidate SHA
+        required: true
+        type: string
+      quality_attestation_run_id:
+        description: Run ID for successful V3 S16 core evidence attestation
+        required: true
+        type: string
+      migration_run_id:
+        description: Run ID for successful Rules + Integrity migration rehearsal
+        required: true
+        type: string
+      s14_run_id:
+        description: Run ID for successful complete V3 S14 stateful contest rehearsal
+        required: true
+        type: string
+      supplemental_run_id:
+        description: Run ID for successful V3 S16 supplemental evidence
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: v3-s16-certification-${{ inputs.candidate_sha }}
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    name: Assemble and certify frozen candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      V3_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      V3_RELEASE_EVIDENCE_DIR: v3-release-evidence
+      V3_S16_SOURCE_ROOT: ${{ runner.temp }}/v3-s16-sources
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Validate frozen candidate identity
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate="$(printf '%s' "$V3_CANDIDATE_SHA" | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$candidate" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::candidate_sha must be one exact 40-character Git commit SHA"
+            exit 1
+          fi
+          echo "sha=$candidate" >> "$GITHUB_OUTPUT"
+          echo "V3_CANDIDATE_SHA=$candidate" >> "$GITHUB_ENV"
+
+      - name: Checkout exact frozen candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.identity.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Require frozen candidate to equal current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          if [ "$actual" != "$V3_CANDIDATE_SHA" ]; then
+            echo "::error::Certification checkout is $actual, requested $V3_CANDIDATE_SHA"
+            exit 1
+          fi
+          git fetch origin main --no-tags
+          main_sha="$(git rev-parse origin/main | tr '[:upper:]' '[:lower:]')"
+          if [ "$main_sha" != "$V3_CANDIDATE_SHA" ]; then
+            echo "::error::S16 may certify only frozen current main: candidate=$V3_CANDIDATE_SHA main=$main_sha"
+            exit 1
+          fi
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Validate explicit source workflow runs
+        shell: bash
+        env:
+          QUALITY_RUN_ID: ${{ inputs.quality_attestation_run_id }}
+          MIGRATION_RUN_ID: ${{ inputs.migration_run_id }}
+          S14_RUN_ID: ${{ inputs.s14_run_id }}
+          SUPPLEMENTAL_RUN_ID: ${{ inputs.supplemental_run_id }}
+        run: |
+          set -euo pipefail
+          validate_run() {
+            local id="$1" expected_name="$2"
+            if [[ ! "$id" =~ ^[0-9]+$ ]]; then
+              echo "::error::run id must be numeric: $id"
+              exit 1
+            fi
+            payload="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${id}")"
+            name="$(node -e 'const x=JSON.parse(process.argv[1]); process.stdout.write(x.name || "")' "$payload")"
+            conclusion="$(node -e 'const x=JSON.parse(process.argv[1]); process.stdout.write(x.conclusion || "")' "$payload")"
+            repo="$(node -e 'const x=JSON.parse(process.argv[1]); process.stdout.write(x.head_repository?.full_name || "")' "$payload")"
+            if [ "$repo" != "$GITHUB_REPOSITORY" ]; then
+              echo "::error::run $id belongs to $repo, not $GITHUB_REPOSITORY"
+              exit 1
+            fi
+            if [ "$name" != "$expected_name" ]; then
+              echo "::error::run $id is '$name', expected '$expected_name'"
+              exit 1
+            fi
+            if [ "$conclusion" != "success" ]; then
+              echo "::error::run $id conclusion is '$conclusion', expected success"
+              exit 1
+            fi
+          }
+          validate_run "$QUALITY_RUN_ID" "V3 S16 core evidence attestation"
+          validate_run "$MIGRATION_RUN_ID" "Rules + Integrity migration rehearsal"
+          validate_run "$S14_RUN_ID" "V3 S14 stateful contest rehearsal"
+          validate_run "$SUPPLEMENTAL_RUN_ID" "V3 S16 supplemental evidence"
+
+      - name: Download exact Quality attestation artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: v3-s16-quality-${{ steps.identity.outputs.sha }}
+          path: ${{ runner.temp }}/v3-s16-sources/quality
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.quality_attestation_run_id }}
+
+      - name: Download exact migration rehearsal artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: v3-s16-migration-rehearsal-${{ steps.identity.outputs.sha }}
+          path: ${{ runner.temp }}/v3-s16-sources/migration
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.migration_run_id }}
+
+      - name: Download exact complete S14 artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: v3-s14-stateful-${{ steps.identity.outputs.sha }}-complete
+          path: ${{ runner.temp }}/v3-s16-sources/s14
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.s14_run_id }}
+
+      - name: Download exact supplemental security and surface evidence
+        uses: actions/download-artifact@v5
+        with:
+          name: v3-s16-supplemental-${{ steps.identity.outputs.sha }}
+          path: ${{ runner.temp }}/v3-s16-sources/supplemental
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.supplemental_run_id }}
+
+      - name: Assemble immutable source evidence
+        run: bun run scripts/assemble-v3-s16-evidence.ts
+
+      - name: Build exact-SHA S15 evidence on frozen checkout
+        run: bun run scripts/build-v3-s15-zero-orphan-evidence.ts
+
+      - name: Build authorization and security evidence on frozen checkout
+        run: bun run scripts/build-v3-s16-authorization-security-evidence.ts
+
+      - name: Build diagnostic S16 readiness report
+        shell: bash
+        run: bun run scripts/check-v3-s16-readiness.ts --json > v3-release-evidence/s16-readiness.json
+
+      - name: Build diagnostic S16 certificate
+        run: bun run scripts/build-v3-s16-certification.ts
+
+      - name: Enforce all exact-SHA source evidence
+        run: bun run scripts/check-v3-s16-readiness.ts --require-ready
+
+      - name: Enforce S16 certificate
+        run: bun run scripts/build-v3-s16-certification.ts --require-certified
+
+      - name: Enforce final release integrity independently
+        run: bun run scripts/check-v3-release-integrity.ts --certified
+
+      - name: Upload complete S16 evidence bundle
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: v3-s16-certification-${{ steps.identity.outputs.sha }}
+          path: v3-release-evidence/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish certification summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## V3 S16 exact-candidate certification"
+            echo
+            echo "Candidate: \`${{ steps.identity.outputs.sha }}\`"
+            echo
+            if [ -s v3-release-evidence/s16-certification.json ]; then
+              node - <<'NODE'
+          const fs = require('fs');
+          const value = JSON.parse(fs.readFileSync('v3-release-evidence/s16-certification.json', 'utf8'));
+          console.log(`Certified: **${value.certified === true ? 'YES' : 'NO'}**`);
+          for (const category of value.categories || []) {
+            console.log(`- ${category.id}: ${category.passed ? 'PASS' : 'BLOCKED'}${category.reason ? ` — ${category.reason}` : ''}`);
+          }
+          NODE
+            else
+              echo "Certificate was not produced; inspect the exact-SHA evidence artifact and failed step."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
