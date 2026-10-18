@@ -191,7 +191,12 @@ export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundl
 
   const editions = (editionResult.data ?? []) as ExploreEdition[];
   const counts = parseCounts(countsResult.data);
-  const currentEdition = resolveCurrentPublicEdition(editions);
+  const resolvedCurrentEdition = resolveCurrentPublicEdition(editions);
+  const currentEdition =
+    resolvedCurrentEdition &&
+    normalizeLegacyEditionStatus(resolvedCurrentEdition.status) !== "archived"
+      ? resolvedCurrentEdition
+      : null;
 
   let currentShows: Show[] = [];
   let currentResults: ResultRow[] = [];
