@@ -9,11 +9,23 @@ import {
   Vote,
   type LucideIcon,
 } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, type CSSProperties, type ReactNode } from "react";
 
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAppAttentionSummary } from "@/lib/app-attention";
+import { runAppViewTransition } from "@/lib/app-view-transitions";
+import { prefersReducedMotion } from "@/lib/interaction-physics";
 import { resolveV3ShellActiveArea } from "@/lib/v3-shell-active-area";
+import {
+  consumeV3PublicNavigationRestore,
+  getV3PublicTabDestination,
+  markV3PublicNavigationRestore,
+  rememberV3PublicLocation,
+  resetV3PublicTabToRoot,
+  updateV3PublicScrollPosition,
+  v3PublicEntryHref,
+  type V3PublicTabId,
+} from "@/lib/v3-public-navigation";
 import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
 import { cn } from "@/lib/utils";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
@@ -113,9 +125,10 @@ export type V3AppShellProps = {
  * Canonical route ownership stays in TanStack Router and the screen registry.
  * The Liquid bar provides direct manipulation as progressive enhancement, but
  * every destination remains a semantic link and this shell never invents a
- * second URL/state model. Whole-page swipe is deliberately not enabled here;
- * that remains fail-closed until route owners provide safe live adjacent DOM
- * surfaces rather than screenshots or duplicate data graphs.
+ * second URL/state model. Per-tab memory is viewer-scoped and rejects focused,
+ * immersive and critical-task routes. Whole-page swipe remains deliberately
+ * disabled until route owners provide safe live adjacent DOM surfaces rather
+ * than screenshots or duplicate data graphs.
  *
  * Notifications, Search and Rules guidance are server-gated. Search reuses the
  * existing installed-app PublicCommandPalette. Rules guidance links into the
@@ -144,6 +157,80 @@ export function V3AppShell({
   const rulesGuidanceAvailable = rollout.data?.rulesGuidanceEnabled === true;
   const ruleContext = rulesGuidanceAvailable ? getRuleContext(pathname) : null;
   const ruleContextPath = sanitizeRuleContextPath(ruleContext?.sourcePath);
+  // Route memory is viewer-scoped, but the scope itself is not trustworthy
+  // until the server-owned rollout/bootstrap probe has resolved. Treating an
+  // unresolved authenticated session as anonymous could leak that user's Me
+  // route into the anonymous storage bucket.
+  const navigationIdentityReady =
+    !rollout.isLoading && !rollout.isError && rollout.data != null;
+  const navigationScope = navigationIdentityReady ? (rollout.data.userId ?? null) : null;
+  const notificationLabel =
+    attention.me > 0
+      ? `Notifications, ${attention.me} ${attention.me === 1 ? "item" : "items"} need attention`
+      : "Notifications";
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !navigationIdentityReady) return;
+
+    const restoreY = consumeV3PublicNavigationRestore(
+      pathname,
+      searchStr,
+      undefined,
+      navigationScope,
+    );
+    rememberV3PublicLocation(
+      pathname,
+      searchStr,
+      restoreY ?? undefined,
+      undefined,
+      navigationScope,
+    );
+
+    if (restoreY != null) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => window.scrollTo({ top: restoreY, behavior: "auto" }));
+      });
+    }
+
+    let frame: number | null = null;
+    const persistScroll = () => {
+      frame = null;
+      updateV3PublicScrollPosition(
+        pathname,
+        searchStr,
+        window.scrollY,
+        undefined,
+        navigationScope,
+      );
+    };
+    const onScroll = () => {
+      if (frame != null) return;
+      frame = window.requestAnimationFrame(persistScroll);
+    };
+    const onPageHide = () =>
+      updateV3PublicScrollPosition(
+        pathname,
+        searchStr,
+        window.scrollY,
+        undefined,
+        navigationScope,
+      );
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("pagehide", onPageHide);
+      if (frame != null) window.cancelAnimationFrame(frame);
+      updateV3PublicScrollPosition(
+        pathname,
+        searchStr,
+        window.scrollY,
+        undefined,
+        navigationScope,
+      );
+    };
+  }, [navigationIdentityReady, navigationScope, pathname, searchStr]);
 
   const navigationDestinations: V3LiquidTabDestination[] = V3_SHELL_DESTINATIONS.map(
     ({ id, label, to, icon, emphasis }) => ({
@@ -158,7 +245,34 @@ export function V3AppShell({
   );
 
   const selectDestination = (destination: V3LiquidTabDestination) => {
-    void navigate({ to: destination.to as any });
+    const id = destination.id as V3PublicTabId;
+    const alreadyActive = publicArea === id;
+    const normalizedPath =
+      pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+    const normalizedRoot =
+      destination.to.endsWith("/") && destination.to !== "/"
+        ? destination.to.slice(0, -1)
+        : destination.to;
+
+    if (alreadyActive && normalizedPath === normalizedRoot) {
+      window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+      return;
+    }
+
+    // Until viewer identity resolves, semantic navigation still works but uses
+    // canonical roots only. Passing null storage avoids reading/writing the
+    // anonymous memory bucket with an identity we do not yet know is anonymous.
+    const navigationStorage = navigationIdentityReady ? undefined : null;
+    const target = alreadyActive
+      ? resetV3PublicTabToRoot(id, navigationStorage, navigationScope)
+      : getV3PublicTabDestination(id, navigationStorage, navigationScope);
+    if (navigationIdentityReady) {
+      markV3PublicNavigationRestore(target, undefined, navigationScope);
+    }
+
+    void runAppViewTransition(alreadyActive ? "pop" : "tab", () =>
+      navigate({ to: v3PublicEntryHref(target) as any }),
+    );
   };
 
   const shellActions =
@@ -186,7 +300,7 @@ export function V3AppShell({
           <Link
             to={"/notifications" as any}
             className="v3-icon-button"
-            aria-label="Notifications"
+            aria-label={notificationLabel}
             title="Notifications"
             data-v3-notifications-entry=""
           >
