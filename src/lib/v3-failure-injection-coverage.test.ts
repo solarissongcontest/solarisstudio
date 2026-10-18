@@ -14,6 +14,7 @@ function source(path: string) {
 
 const s2Rehearsal = source(".github/scripts/v3-operation-receipt-rehearsal.sh");
 const s4Rehearsal = source(".github/scripts/v3-s4-domain-event-outbox-rehearsal.sh");
+const staleProjectionRehearsal = source(".github/scripts/v3-s11-stale-projection-rehearsal.sh");
 const capacityHarness = source(".github/scripts/v3-s12-local-capacity-rehearsal.mjs");
 const evidenceGenerator = source("scripts/generate-v3-failure-injection-coverage.ts");
 
@@ -60,13 +61,15 @@ describe("System V3 S11 deterministic failure-injection coverage", () => {
     ).toBe("partial");
   });
 
-  it("keeps stale projection and reconciliation retry non-green until dedicated local recovery rehearsals exist", () => {
+  it("marks stale projection and reconciliation retry rehearsed only with dedicated local recovery evidence", () => {
+    expect(staleProjectionRehearsal).toContain("V3_S11_SYNTHETIC_PROJECTION_WRITE_FAILURE");
+    expect(staleProjectionRehearsal).toContain("Retry did not restore exactly one fixture task");
     expect(
       V3_FAILURE_INJECTION_COVERAGE.find((entry) => entry.scenario === "stale_projection")?.state,
-    ).toBe("contract_only");
+    ).toBe("rehearsed");
     expect(
       V3_FAILURE_INJECTION_COVERAGE.find((entry) => entry.scenario === "reconciliation_retry")?.state,
-    ).toBe("partial");
+    ).toBe("rehearsed");
   });
 
   it("keeps backlog drain as an evidence gap even though the capacity harness can measure it", () => {
@@ -85,15 +88,13 @@ describe("System V3 S11 deterministic failure-injection coverage", () => {
 
   it("emits a release-evidence report without making a certification claim", () => {
     const report = buildV3FailureInjectionCoverageReport();
-    expect(report.counts.rehearsed).toBe(3);
-    expect(report.counts.partial).toBe(3);
-    expect(report.counts.contract_only).toBe(2);
+    expect(report.counts.rehearsed).toBe(5);
+    expect(report.counts.partial).toBe(2);
+    expect(report.counts.contract_only).toBe(1);
     expect(report.counts.missing).toBe(0);
     expect(report.unresolved.map((item) => item.scenario).sort()).toEqual([
       "lost_response_after_commit",
       "queue_backlog",
-      "reconciliation_retry",
-      "stale_projection",
       "transient_rpc_failure",
     ]);
     expect(report.productionTrafficRequired).toBe(false);
