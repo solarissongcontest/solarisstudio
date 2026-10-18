@@ -15,8 +15,8 @@ function source(path: string) {
 const s4Rehearsal = source(".github/scripts/v3-s4-domain-event-outbox-rehearsal.sh");
 const staleProjectionRehearsal = source(".github/scripts/v3-s11-stale-projection-rehearsal.sh");
 const lostResponseRehearsal = source(".github/scripts/v3-s11-lost-response-rehearsal.sh");
+const backlogRehearsal = source(".github/scripts/v3-s11-backlog-drain-rehearsal.sh");
 const responseDropProxy = source("scripts/v3-drop-upstream-response-proxy.mjs");
-const capacityHarness = source(".github/scripts/v3-s12-local-capacity-rehearsal.mjs");
 const evidenceGenerator = source("scripts/generate-v3-failure-injection-coverage.ts");
 
 describe("System V3 S11 deterministic failure-injection coverage", () => {
@@ -59,12 +59,14 @@ describe("System V3 S11 deterministic failure-injection coverage", () => {
     ).toBe("rehearsal_ready");
   });
 
-  it("keeps backlog drain as the only contract-only gap", () => {
-    expect(capacityHarness).toContain("peakObservedQueueDepth");
-    expect(capacityHarness).toContain("retryPressure");
-    const backlog = V3_FAILURE_INJECTION_COVERAGE.find((entry) => entry.scenario === "queue_backlog");
-    expect(backlog?.state).toBe("contract_only");
-    expect(backlog?.remainingGap).toContain("still needs to be implemented");
+  it("marks bounded queue backlog drain rehearsal-ready only with the canonical consumer path", () => {
+    expect(backlogRehearsal).toContain("studio2_claim_domain_event_deliveries(");
+    expect(backlogRehearsal).toContain("studio2_process_jury_domain_event(");
+    expect(backlogRehearsal).toContain("ordinary read sampling observed");
+    expect(backlogRehearsal).toContain("'thresholds':None");
+    expect(
+      V3_FAILURE_INJECTION_COVERAGE.find((entry) => entry.scenario === "queue_backlog")?.state,
+    ).toBe("rehearsal_ready");
   });
 
   it("binds generated evidence to the checked-out SHA and creates output directories", () => {
@@ -73,13 +75,13 @@ describe("System V3 S11 deterministic failure-injection coverage", () => {
     expect(evidenceGenerator).toContain("mkdirSync(dirname(absoluteOutputPath), { recursive: true })");
   });
 
-  it("reports implemented-but-unexecuted rehearsals separately from retained rehearsed evidence", () => {
+  it("reports all newly implemented recovery paths as rehearsal-ready until exact-SHA runs are retained", () => {
     const report = buildV3FailureInjectionCoverageReport();
     expect(report.schemaVersion).toBe(2);
     expect(report.counts.rehearsed).toBe(3);
-    expect(report.counts.rehearsal_ready).toBe(4);
+    expect(report.counts.rehearsal_ready).toBe(5);
     expect(report.counts.partial).toBe(0);
-    expect(report.counts.contract_only).toBe(1);
+    expect(report.counts.contract_only).toBe(0);
     expect(report.counts.missing).toBe(0);
     expect(report.unresolved.map((item) => item.scenario).sort()).toEqual([
       "lost_response_after_commit",
