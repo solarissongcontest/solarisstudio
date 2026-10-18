@@ -22,10 +22,13 @@ describe("S14 stateful runtime workflow", () => {
     expect(workflow).toContain("complete S14 was required but the candidate emitted only partial evidence");
   });
 
-  it("uses only disposable local Supabase for the destructive rehearsal", () => {
+  it("uses only disposable loopback Supabase for the destructive rehearsal", () => {
     expect(workflow).toContain("supabase start");
     expect(workflow).toContain("supabase db reset --local --no-seed");
     expect(workflow).toContain("supabase status -o env");
+    expect(workflow).toContain("LOCAL_SUPABASE_URL: http://127.0.0.1:54321");
+    expect(workflow).toContain('[[ "$API_URL" != "$LOCAL_SUPABASE_URL" ]]');
+    expect(workflow).toContain("Refusing audit server with hosted Supabase URL");
     expect(workflow).toContain('export VITE_SUPABASE_URL="$API_URL"');
     expect(workflow).toContain('export DATABASE_URL="$DB_URL"');
     expect(workflow).toContain("SUPABASE_PROJECT_ID=local");
