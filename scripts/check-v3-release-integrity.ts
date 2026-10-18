@@ -11,6 +11,7 @@ import {
   validateV3DomainConsequenceRegistry,
   validateV3WorkflowDependencyRegistry,
 } from "../src/lib/v3-capability-registry";
+import { validateV3S16CertificationEvidence } from "../src/lib/v3-s16-certification-contract";
 
 const finalCertification = process.argv.includes("--certified");
 const strictRelease = process.argv.includes("--release") || finalCertification;
@@ -88,12 +89,16 @@ const releaseEvidenceDir = resolve(process.env.V3_RELEASE_EVIDENCE_DIR?.trim() |
 const releasePrerequisiteEvidence = ["s14-full-contest.json", "s15-zero-orphan.json", "security-advisor-classification.json"] as const;
 const exactCandidateEvidence = finalCertification ? [...releasePrerequisiteEvidence, "s16-certification.json"] : [...releasePrerequisiteEvidence];
 
-function semanticEvidenceFailure(filename: string, evidence: Record<string, unknown>): string | null {
-  if (filename === "s14-full-contest.json" && evidence.passed !== true) return "s14-full-contest.json does not prove passed=true";
-  if (filename === "s15-zero-orphan.json" && evidence.zeroOrphans !== true) return "s15-zero-orphan.json does not prove zeroOrphans=true";
-  if (filename === "security-advisor-classification.json" && evidence.releaseReady !== true) return "security-advisor-classification.json does not prove releaseReady=true";
-  if (filename === "s16-certification.json" && evidence.certified !== true) return "s16-certification.json does not prove certified=true";
-  return null;
+function semanticEvidenceFailures(
+  filename: string,
+  evidence: Record<string, unknown>,
+  expectedCandidateSha: string,
+): string[] {
+  if (filename === "s14-full-contest.json" && evidence.passed !== true) return ["s14-full-contest.json does not prove passed=true"];
+  if (filename === "s15-zero-orphan.json" && evidence.zeroOrphans !== true) return ["s15-zero-orphan.json does not prove zeroOrphans=true"];
+  if (filename === "security-advisor-classification.json" && evidence.releaseReady !== true) return ["security-advisor-classification.json does not prove releaseReady=true"];
+  if (filename === "s16-certification.json") return validateV3S16CertificationEvidence(evidence, expectedCandidateSha);
+  return [];
 }
 
 for (const filename of exactCandidateEvidence) {
@@ -111,8 +116,9 @@ for (const filename of exactCandidateEvidence) {
     const artifactSha = typeof evidence.candidateSha === "string" ? evidence.candidateSha.trim().toLowerCase() : "";
     if (!/^[0-9a-f]{40}$/.test(artifactSha)) blockers.push(`${filename} is not bound by a valid 40-character candidateSha`);
     else if (artifactSha !== evidenceCandidateSha) blockers.push(`${filename} certifies ${artifactSha}, not exact candidate ${evidenceCandidateSha}`);
-    const semanticFailure = semanticEvidenceFailure(filename, evidence);
-    if (semanticFailure) blockers.push(semanticFailure);
+    for (const semanticFailure of semanticEvidenceFailures(filename, evidence, evidenceCandidateSha)) {
+      blockers.push(semanticFailure);
+    }
   } catch {
     blockers.push(`${filename} is not valid JSON exact-candidate evidence`);
   }
