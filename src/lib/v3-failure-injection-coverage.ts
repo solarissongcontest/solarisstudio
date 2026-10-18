@@ -39,15 +39,17 @@ export type V3FailureCoverageEntry = {
 export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = [
   {
     scenario: "transient_rpc_failure",
-    state: "partial",
-    injection: "Mark a canonical operation uncertain with TIMEOUT after claiming it.",
-    expectedRecovery: "Reconcile the actor-owned operation receipt; retry only through canonical idempotency semantics.",
+    state: "rehearsal_ready",
+    injection: "Forward a real governed R2 Jury-window RPC through a loopback proxy, fully consume the successful upstream response, then destroy the client socket so the caller observes a transport failure.",
+    expectedRecovery: "Verify the durable succeeded receipt and canonical mutation, then retry the exact semantic operation through the canonical idempotency contract without re-execution.",
     evidence: [
       ".github/scripts/v3-operation-receipt-rehearsal.sh",
-      "src/lib/v3-system-operation-receipts.test.ts",
+      ".github/scripts/v3-s11-lost-response-rehearsal.sh",
+      "scripts/v3-drop-upstream-response-proxy.mjs",
+      "src/lib/v3-s11-lost-response-rehearsal.test.ts",
     ],
     remainingGap:
-      "The local rehearsal proves TIMEOUT uncertainty and operation reconciliation separately, but does not yet inject a transport failure around one real workflow RPC and retain evidence that the same committed operation is recovered end-to-end.",
+      "The deterministic real-RPC transport-loss rehearsal is implemented, but exact-SHA local execution evidence still needs to be retained by the QA/release evidence lane.",
     productionTrafficRequired: false,
   },
   {
@@ -76,16 +78,18 @@ export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = 
   },
   {
     scenario: "lost_response_after_commit",
-    state: "partial",
-    injection: "Replay a normalized semantic operation after its original receipt has already committed successfully.",
-    expectedRecovery: "Return the original operation id and committed result instead of executing the mutation again.",
+    state: "rehearsal_ready",
+    injection: "Execute a real governed R2 Jury-window mutation through a loopback proxy that fully consumes the upstream 200 response but forwards no response bytes to the client.",
+    expectedRecovery: "Prove the operation receipt, Jury state/version and DomainEvent committed exactly once, then replay the original durable result on an exact retry.",
     evidence: [
       ".github/scripts/v3-operation-receipt-rehearsal.sh",
-      "src/lib/v3-system-operation-receipts.test.ts",
+      ".github/scripts/v3-s11-lost-response-rehearsal.sh",
+      "scripts/v3-drop-upstream-response-proxy.mjs",
+      "src/lib/v3-s11-lost-response-rehearsal.test.ts",
       "src/lib/v3-reliability-slo.ts",
     ],
     remainingGap:
-      "Committed-operation replay is proven, but no retained run evidence yet shows a real workflow response being discarded after commit and recovered through exact retry.",
+      "The deterministic post-commit response-loss rehearsal is implemented, but exact-SHA local execution evidence still needs to be retained by the QA/release evidence lane.",
     productionTrafficRequired: false,
   },
   {
