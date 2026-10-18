@@ -29,6 +29,13 @@ describe("public Core Web Vitals telemetry contract", () => {
     expect(root).toContain("useEffect(() => startPublicWebVitals(), [])");
   });
 
+  it("does not record fixture-only TerraOS teaser iframe measurements", () => {
+    expect(telemetry).toContain('TERRAOS_TEASER_PREVIEW_PATH = "/terraos-teaser-preview"');
+    expect(telemetry).toContain(
+      "window.location.pathname === TERRAOS_TEASER_PREVIEW_PATH",
+    );
+  });
+
   it("keeps public writes insert-only and organizer reads capability-gated", () => {
     expect(migration).toContain(
       "grant insert on table public.public_web_vitals to anon, authenticated",
