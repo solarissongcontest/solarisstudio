@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
+import { useAppExperiencePreferences } from "@/lib/app-experience";
+import { useNotificationPreferences } from "@/lib/engagement-data";
 import {
   useV3EditionRolloutProbe,
   useV3RolloutProbe,
 } from "@/lib/v3-primary-runtime";
+import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
 import {
   useV3StoriesIndexBundle,
   useV3StoryDetailBundle,
@@ -28,9 +31,26 @@ function LoadingStories({ title }: { title: string }) {
   );
 }
 
+function useSharedSpoilerProtection(
+  rollout: ReturnType<typeof useV3RolloutProbe> | ReturnType<typeof useV3EditionRolloutProbe>,
+) {
+  const { preferences } = useAppExperiencePreferences();
+  const serverPreferences = useNotificationPreferences(rollout.data?.userId ?? undefined);
+
+  return resolveV3ResultsSpoilerProtection({
+    localSpoilerFree: preferences.spoilerFree,
+    viewerResolved: Boolean(rollout.data),
+    viewerId: rollout.data?.userId ?? null,
+    serverPending: serverPreferences.isPending,
+    serverError: serverPreferences.isError,
+    serverSpoilerFree: serverPreferences.data?.spoiler_free ?? null,
+  });
+}
+
 export function V3StoriesIndexGate({ fallback }: { fallback: ReactNode }) {
   const bundle = useV3StoriesIndexBundle(true);
   const rollout = useV3RolloutProbe(bundle.isSuccess);
+  const hideSpoilers = useSharedSpoilerProtection(rollout);
 
   if (bundle.isLoading || (bundle.isSuccess && rollout.isLoading)) {
     return <LoadingStories title="Stories" />;
@@ -50,7 +70,11 @@ export function V3StoriesIndexGate({ fallback }: { fallback: ReactNode }) {
       phaseLabel={bundle.data.shell.phaseLabel}
       activeArea="explore"
     >
-      <V3StoriesIndexScreen bundle={bundle.data} />
+      <V3StoriesIndexScreen
+        key={`${rollout.data.userId ?? "anonymous"}:${hideSpoilers}`}
+        bundle={bundle.data}
+        hideSpoilers={hideSpoilers}
+      />
     </V3AppShell>
   );
 }
@@ -64,6 +88,7 @@ export function V3StoryDetailGate({
 }) {
   const bundle = useV3StoryDetailBundle(editionSlug, true);
   const rollout = useV3EditionRolloutProbe(editionSlug, Boolean(editionSlug));
+  const hideSpoilers = useSharedSpoilerProtection(rollout);
 
   if (bundle.isLoading || rollout.isLoading) {
     return <LoadingStories title="Edition Story" />;
@@ -83,7 +108,11 @@ export function V3StoryDetailGate({
       phaseLabel={bundle.data.shell.phaseLabel}
       activeArea="explore"
     >
-      <V3StoryDetailScreen bundle={bundle.data} />
+      <V3StoryDetailScreen
+        key={`${rollout.data.userId ?? "anonymous"}:${editionSlug}:${hideSpoilers}`}
+        bundle={bundle.data}
+        hideSpoilers={hideSpoilers}
+      />
     </V3AppShell>
   );
 }
