@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const server = readFileSync("src/server.ts", "utf8");
 const start = readFileSync("src/start.ts", "utf8");
 const page = readFileSync("src/lib/maintenance-page.ts", "utf8");
+const hodPortal = readFileSync("src/lib/maintenance-hod-portal.ts", "utf8");
 const config = readFileSync("src/lib/maintenance.ts", "utf8");
 const envExample = readFileSync(".env.example", "utf8");
 const confirmationEditRoute = readFileSync("src/routes/confirmations/edit/$token.tsx", "utf8");
@@ -65,38 +66,51 @@ describe("emergency global maintenance mode", () => {
     expect(server).not.toContain('process.env.SOLARIS_E2E_BYPASS_MAINTENANCE !== "1"');
   });
 
-  it("renders a compact routing page instead of an outage incident report", () => {
-    expect(page).toContain('font-family: "Classica Crastao"');
-    expect(page).toContain('font-family: "Gotham"');
-    expect(page).toContain('url("/solaris-background.webp")');
-    expect(page).toContain('class="maintenance-summary"');
-    expect(page).toContain("Most services paused");
-    expect(page).toContain("HOD Confirmations available");
-    expect(page).toContain('class="service-grid"');
-    expect(page).toContain("HOD Confirmations");
-    expect(page).toContain("Restricted");
-    expect(page).toContain("<details>");
-    expect(page).toContain("What does maintenance affect?");
-    expect(page).toContain("What happens next");
-    expect(page).toContain("@media (prefers-reduced-motion: no-preference)");
-    expect(page).toContain("@media (prefers-reduced-motion: reduce)");
-    expect(page).toContain("@keyframes reveal-panel");
-    expect(page).toContain("@keyframes aurora-one");
+  it("renders the TerraOS 3 launch teaser instead of an outage incident report", () => {
+    expect(page).toContain('font-family:"Classica Crastao"');
+    expect(page).toContain('font-family:"Gotham"');
+    expect(page).toContain("<title>TerraOS 3 — Solaris Studio</title>");
+    expect(page).toContain('<h1 id="maintenance-title">TerraOS 3</h1>');
+    expect(page).toContain("Solaris Studio, rebuilt.");
+    expect(page).toContain("Estimated arrival");
+    expect(page).toContain("Take a closer look.");
+    expect(page).toContain("Five places.<br />One Solaris.");
+    expect(page).toContain('inert data-reveal-at="2026-10-19T00:00:00+03:00"');
+    expect(page).toContain('inert data-reveal-at="2026-10-20T00:00:00+03:00"');
+    expect(page).toContain('inert data-reveal-at="2026-10-21T00:00:00+03:00"');
+    expect(page).toContain("@media (prefers-reduced-motion:no-preference)");
+    expect(page).toContain("@media (prefers-reduced-motion:reduce)");
+    expect(page).toContain("@media (prefers-reduced-transparency:reduce)");
+    expect(page).not.toContain('class="maintenance-summary"');
+    expect(page).not.toContain('class="service-grid"');
+    expect(page).not.toContain("Most services paused");
+    expect(page).not.toContain("What does maintenance affect?");
     expect(page).not.toContain('class="recovery-visual"');
     expect(page).not.toContain('class="recovery-stage"');
     expect(page).not.toContain("Awaiting restoration");
   });
 
-  it("uses truthful maintenance copy while keeping HOD Confirmation availability explicit", () => {
-    expect(config).toContain('"To be announced"');
-    expect(config).toContain('"18 October 2026"');
-    expect(page).toContain(
-      "Heads of Delegation can still access Confirmations on this page.",
+  it("uses truthful launch copy while keeping HOD Confirmation availability explicit", () => {
+    expect(config).toContain('MAINTENANCE_RETURN_DATE = "22 October 2026"');
+    expect(config).toContain('MAINTENANCE_LAST_UPDATED = "18 October 2026"');
+    expect(config).toContain(
+      'TERRAOS3_ESTIMATED_LAUNCH_AT = "2026-10-22T20:00:00+03:00"',
     );
-    expect(page).toContain("Most Studio services are paused");
+    expect(config).toContain("Public estimate only. The maintenance/release gate remains authoritative.");
+    expect(page).toContain("Maintenance in progress");
+    expect(page).toContain("Estimated arrival");
+    expect(page).toContain("root.insertBefore(portal,story)");
+    expect(hodPortal).toContain("Manage your current Confirmation");
+    expect(hodPortal).toContain(
+      "This is the participant area that remains available during maintenance.",
+    );
+    expect(hodPortal).toContain(
+      "Sign in with the same country account you normally use for Solaris Studio.",
+    );
     expect(page).not.toContain("A database service error is currently preventing Solaris Studio");
     expect(page).not.toContain("All Solaris Studio services are temporarily unavailable.");
     expect(page).not.toContain("Confirmations, Televoting and Organizer tools");
+    expect(page).not.toContain("Organizer tools");
     expect(page).toContain("Terra Solaris Broadcasting Coalition");
   });
 
