@@ -30,6 +30,15 @@ describe("V3 Organizer N13 context safety", () => {
     );
   });
 
+  it("invalidates Organizer lens interaction when exact edition context changes", () => {
+    const chrome = source("src/components/admin/OrganizerV3MobileChrome.tsx");
+    expect(chrome).toContain(
+      'const navigationInteractionKey = navigationScope ?? "unscoped"',
+    );
+    expect(chrome).toContain("key={navigationInteractionKey}");
+    expect(chrome).not.toContain("key={editionId}");
+  });
+
   it("lets V3 root morphology override legacy compact classification only at roots", () => {
     const chrome = source("src/components/admin/OrganizerV3MobileChrome.tsx");
     expect(chrome).toContain(
