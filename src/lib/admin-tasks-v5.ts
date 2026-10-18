@@ -94,6 +94,14 @@ export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
       throw new Error(`Invalid Organizer Task shape at index ${index}`);
     }
 
+    const hasOperationalState = Object.prototype.hasOwnProperty.call(
+      raw,
+      "operationalState",
+    );
+    const operationalState = hasOperationalState
+      ? parseOperationalState(raw.operationalState, index)
+      : undefined;
+
     return {
       id: task.id,
       editionId: typeof task.editionId === "string" ? task.editionId : null,
@@ -104,7 +112,7 @@ export function mapOrganizerTasksV5(value: unknown): OrganizerTaskV5[] {
       taskType: task.taskType,
       priority: task.priority as OrganizerTaskPriority,
       state: task.state as OrganizerTaskState,
-      operationalState: parseOperationalState(raw.operationalState, index),
+      ...(hasOperationalState ? { operationalState } : {}),
       title: task.title,
       description: task.description,
       href: task.href,
