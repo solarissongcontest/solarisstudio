@@ -190,9 +190,31 @@ export function AppRuntime({ children }: { children: ReactNode }) {
     let registration: ServiceWorkerRegistration | null = null;
     let hasEverHadController = Boolean(navigator.serviceWorker.controller);
     let controllerReloadStarted = false;
+    const waitingWorkerListeners = new Map<ServiceWorker, () => void>();
+
+    const observeWaitingWorker = (worker: ServiceWorker | null) => {
+      if (!active || !worker || worker.state !== "installed") return;
+
+      setWaitingWorker(worker);
+      if (waitingWorkerListeners.has(worker)) return;
+
+      const onWaitingWorkerStateChange = () => {
+        if (!active || worker.state === "installed") return;
+
+        // A worker that has started activating or became redundant is no longer
+        // an actionable waiting update. Clear only this exact worker so an older
+        // listener can never erase a newer waiting candidate.
+        setWaitingWorker((current) => (current === worker ? null : current));
+        worker.removeEventListener("statechange", onWaitingWorkerStateChange);
+        waitingWorkerListeners.delete(worker);
+      };
+
+      waitingWorkerListeners.set(worker, onWaitingWorkerStateChange);
+      worker.addEventListener("statechange", onWaitingWorkerStateChange);
+    };
 
     const inspectWaiting = (next: ServiceWorkerRegistration) => {
-      if (active && next.waiting) setWaitingWorker(next.waiting);
+      observeWaitingWorker(next.waiting);
     };
 
     navigator.serviceWorker
@@ -211,7 +233,7 @@ export function AppRuntime({ children }: { children: ReactNode }) {
               navigator.serviceWorker.controller &&
               active
             ) {
-              setWaitingWorker(next.waiting ?? installing);
+              observeWaitingWorker(next.waiting ?? installing);
             }
           });
         });
@@ -261,6 +283,10 @@ export function AppRuntime({ children }: { children: ReactNode }) {
     return () => {
       active = false;
       registration = null;
+      waitingWorkerListeners.forEach((listener, worker) => {
+        worker.removeEventListener("statechange", listener);
+      });
+      waitingWorkerListeners.clear();
       navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
       window.removeEventListener(APP_RESUME_EVENT, onResume);
     };
