@@ -36,13 +36,6 @@ function icon(name: "home" | "explore" | "participate" | "results" | "me") {
   return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${body}</svg>`;
 }
 
-function miniNav(active: "home" | "explore" | "participate" | "results" | "me") {
-  const items = ["home", "explore", "participate", "results", "me"] as const;
-  return `<div class="mini-nav" aria-hidden="true">${items
-    .map((item) => `<span class="mini-nav-item${item === active ? " active" : ""}">${icon(item)}</span>`)
-    .join("")}</div>`;
-}
-
 function nextRevealMarkup(phase: number) {
   if (phase === 0) {
     return '<section class="next-reveal" data-next-reveal="2026-10-19"><span>More on 19.10</span></section>';
@@ -228,11 +221,12 @@ export function renderMaintenancePage(now: Date = new Date()): string {
     .colon { flex:0 0 auto; margin-top:clamp(.3rem,1.2vw,.72rem); color:rgba(245,245,247,.24); font-size:clamp(1.6rem,5.4vw,3.25rem); line-height:1; }
 
     .hero-stage { position:relative; justify-self:center; width:min(1100px,116vw); height:clamp(310px,43vw,520px); margin-top:clamp(1.8rem,4vw,3.2rem); perspective:1400px; pointer-events:none; transform:translate3d(0,var(--hero-stage-y),0) scale(var(--hero-stage-scale)); transform-origin:50% 18%; opacity:var(--hero-stage-opacity); will-change:transform,opacity; }
-    .phone { position:absolute; left:50%; top:50%; width:clamp(190px,23vw,285px); aspect-ratio:.49; overflow:hidden; border:1px solid rgba(255,255,255,.17); border-radius:clamp(28px,4vw,43px); background:#070a10; box-shadow:0 45px 120px rgba(0,0,0,.64),inset 0 0 0 1px rgba(255,255,255,.03); }
-    .phone::before { content:""; position:absolute; z-index:8; top:10px; left:50%; width:31%; height:18px; transform:translateX(-50%); border-radius:999px; background:#020203; }
+    .phone { position:absolute; left:50%; top:50%; width:285px; height:616px; overflow:hidden; border:1px solid rgba(255,255,255,.17); border-radius:43px; background:#070a10; box-shadow:0 45px 120px rgba(0,0,0,.64),inset 0 0 0 1px rgba(255,255,255,.03); }
+    .phone::before { content:""; position:absolute; z-index:8; top:10px; left:50%; width:31%; height:18px; transform:translateX(-50%); border-radius:999px; background:#020203; pointer-events:none; }
     .phone.center { z-index:3; transform:translate(-50%,-46%); }
     .phone.left { z-index:1; transform:translate(calc(-145% - var(--hero-side-spread)),-36%) rotateY(18deg) rotateZ(-4deg) scale(.88); opacity:.72; }
     .phone.right { z-index:2; transform:translate(calc(45% + var(--hero-side-spread)),-36%) rotateY(-18deg) rotateZ(4deg) scale(.88); opacity:.72; }
+    .phone-preview { position:absolute; inset:0 auto auto 0; width:390px; height:844px; border:0; background:#02050a; transform:scale(.73077); transform-origin:0 0; pointer-events:none; }
     .screen { position:absolute; inset:0; padding:2.75rem .82rem 3.7rem; background:radial-gradient(circle at 55% 3%,rgba(55,112,210,.19),transparent 33%),linear-gradient(180deg,#07101f,#02050a 78%); }
     .screen-context { display:flex; align-items:center; gap:.3rem; color:rgba(255,255,255,.54); font-size:.43rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; white-space:nowrap; }
     .screen-context::before { content:""; width:.32rem; height:.32rem; border-radius:50%; background:#62d4ff; box-shadow:0 0 .4rem rgba(98,212,255,.55); }
@@ -272,8 +266,9 @@ export function renderMaintenancePage(now: Date = new Date()): string {
     .first-look { min-height:min(760px,84svh); margin-top:clamp(2.4rem,5vw,4rem); display:grid; grid-template-columns:minmax(0,.78fr) minmax(0,1.22fr); align-items:center; gap:clamp(1.5rem,5vw,5rem); overflow:hidden; padding:clamp(1.4rem,4vw,3rem); border:1px solid var(--line); border-radius:clamp(1.7rem,3.4vw,2.8rem); background:radial-gradient(circle at 72% 35%,rgba(52,123,205,.2),transparent 35%),linear-gradient(145deg,#0c121d,#08090d 68%); }
     .first-look-copy h3 { margin:0; font-size:clamp(2rem,4.5vw,4.2rem); line-height:.98; letter-spacing:-.06em; }
     .first-look-copy p { margin:1rem 0 0; color:var(--muted); font-size:clamp(.9rem,1.7vw,1.08rem); line-height:1.5; }
-    .preview-device { position:relative; justify-self:center; width:min(360px,72vw); aspect-ratio:.51; overflow:hidden; border:1px solid rgba(255,255,255,.16); border-radius:2.6rem; background:#06101e; box-shadow:0 35px 100px rgba(0,0,0,.5); }
-    .preview-device::before { content:""; position:absolute; z-index:8; top:.72rem; left:50%; width:29%; height:1.2rem; transform:translateX(-50%); border-radius:999px; background:#010205; }
+    .preview-device { position:relative; justify-self:center; width:min(360px,72vw); height:min(720px,78svh); overflow:hidden; border:1px solid rgba(255,255,255,.16); border-radius:2.6rem; background:#06101e; box-shadow:0 35px 100px rgba(0,0,0,.5); }
+    .preview-device::before { content:""; position:absolute; z-index:8; top:.72rem; left:50%; width:29%; height:1.2rem; transform:translateX(-50%); border-radius:999px; background:#010205; pointer-events:none; }
+    .preview-page { position:absolute; top:0; left:50%; width:390px; height:844px; border:0; background:#02050a; transform:translateX(-50%) scale(.88); transform-origin:50% 0; pointer-events:none; }
     .preview-screen { position:absolute; inset:0; padding:3.1rem 1.15rem 5.4rem; background:radial-gradient(circle at 70% 0%,rgba(56,105,204,.19),transparent 34%),#030914; }
     .preview-screen .screen-title { font-size:2rem; }
     .preview-screen .phone-card { margin-top:1rem; padding:1rem; border-radius:1.15rem; }
@@ -376,7 +371,8 @@ export function renderMaintenancePage(now: Date = new Date()): string {
       .maintenance-pill,.brand-sub { display:none; }
       .hero { min-height:900px; }
       .hero-stage { width:120vw; height:385px; }
-      .phone { width:clamp(170px,43vw,230px); }
+      .phone { width:230px; height:497px; border-radius:36px; }
+      .phone-preview { transform:scale(.58974); }
       .phone.left { transform:translate(calc(-140% - var(--hero-side-spread)),-35%) rotateY(17deg) rotateZ(-5deg) scale(.83); }
       .phone.right { transform:translate(calc(40% + var(--hero-side-spread)),-35%) rotateY(-17deg) rotateZ(5deg) scale(.83); }
       .story-grid,.first-look { grid-template-columns:1fr; }
@@ -396,17 +392,18 @@ export function renderMaintenancePage(now: Date = new Date()): string {
       .hero-copy { max-width:calc(100vw - 1.4rem); }
       .hero h1 { font-size:clamp(3rem,14.7vw,4rem); }
       .hero-stage { width:126vw; height:320px; margin-top:1.7rem; }
-      .phone { width:178px; border-radius:30px; }
+      .phone { width:178px; height:385px; border-radius:30px; }
+      .phone-preview { transform:scale(.45641); }
       .phone.left { transform:translate(calc(-135% - var(--hero-side-spread)),-32%) rotateY(15deg) rotateZ(-5deg) scale(.78); }
       .phone.right { transform:translate(calc(35% + var(--hero-side-spread)),-32%) rotateY(-15deg) rotateZ(5deg) scale(.78); }
-      .screen { padding-inline:.72rem; }
       .countdown { gap:.08rem; padding-inline:.05rem; }
       .colon { margin-inline:-.08rem; }
       .story { width:min(calc(100% - 1.25rem),var(--wide)); padding:4.8rem 0; }
       .story h2 { font-size:clamp(2.8rem,15vw,4.25rem); }
       .first-look { margin-top:2rem; padding:1.15rem; border-radius:1.8rem; }
       .first-look-copy h3 { font-size:2.35rem; }
-      .preview-device { width:min(330px,84vw); }
+      .preview-device { width:min(330px,84vw); height:660px; }
+      .preview-page { transform:translateX(-50%) scale(.78); }
       .next-reveal { width:min(calc(100% - 1.25rem),var(--wide)); min-height:24svh; }
       .interactive-device { padding:.55rem; border-radius:1.8rem; }
       .interactive-screen { min-height:560px; padding:1.5rem .9rem 5.7rem; border-radius:1.4rem; }
@@ -456,9 +453,9 @@ export function renderMaintenancePage(now: Date = new Date()): string {
     </div>
 
     <div class="hero-stage" aria-label="TerraOS preview" role="img">
-      <div class="phone left" aria-hidden="true"><div class="screen"><div class="screen-context">SSC 22 · Current edition</div><span class="screen-kicker">SSC 22</span><strong class="screen-title">Your participation</strong><span class="screen-section-title">Your responsibilities</span><div class="phone-card"><div class="phone-row"><span class="state">✓</span><span><b>Country confirmed</b><small>Current edition confirmation</small></span><em>Done</em></div><div class="phone-row"><span class="state">✓</span><span><b>Entry ready</b><small>Current workflow complete</small></span><em>Done</em></div></div><span class="screen-section-title">Voting</span><div class="phone-card"><small>Jury · Official</small><b>No current voting actions</b></div>${miniNav("participate")}</div></div>
-      <div class="phone center" aria-hidden="true"><div class="screen"><div class="screen-context">SSC 22 · Current edition</div><strong class="screen-title" style="margin-top:1rem">Solaris now</strong><p class="screen-copy">What matters now, followed by the current contest and what comes next.</p><div class="phone-card"><small>Right now</small><b class="big">You’re all caught up</b><span class="check">✓</span></div><span class="screen-section-title">Current contest</span><div class="phone-card"><small>Solaris Song Contest 22</small><b>SSC 22 is the current Solaris edition</b></div>${miniNav("home")}</div></div>
-      <div class="phone right" aria-hidden="true"><div class="screen"><div class="screen-context">SSC 22 · Current edition</div><span class="screen-kicker">Explore Solaris</span><strong class="screen-title">Discover the contest</strong><p class="screen-copy">Browse editions, delegations, songs, shows and stories.</p><span class="screen-section-title">Search</span><div class="search-card"><span class="search-icon">⌕</span><span><b>Search Solaris</b><small>Find public editions, countries, entries and shows</small></span></div><span class="screen-section-title">Current edition</span><div class="phone-card"><small>Current edition</small><b>Solaris Song Contest 22</b></div>${miniNav("explore")}</div></div>
+      <div class="phone left" aria-hidden="true"><iframe class="phone-preview" src="/terraos-teaser-preview?screen=participate" title="TerraOS Participate preview" tabindex="-1" loading="lazy" scrolling="no" sandbox="allow-scripts allow-same-origin"></iframe></div>
+      <div class="phone center" aria-hidden="true"><iframe class="phone-preview" src="/terraos-teaser-preview?screen=home" title="TerraOS Home preview" tabindex="-1" loading="eager" scrolling="no" sandbox="allow-scripts allow-same-origin"></iframe></div>
+      <div class="phone right" aria-hidden="true"><iframe class="phone-preview" src="/terraos-teaser-preview?screen=explore" title="TerraOS Explore preview" tabindex="-1" loading="lazy" scrolling="no" sandbox="allow-scripts allow-same-origin"></iframe></div>
     </div>
   </section>
 
@@ -468,7 +465,7 @@ export function renderMaintenancePage(now: Date = new Date()): string {
       <div class="first-look">
         <div class="first-look-copy"><h3>Five places.<br />One Solaris.</h3><p>Home. Explore. Participate. Results. Me.</p></div>
         <div class="preview-device" aria-label="TerraOS Home preview">
-          <div class="preview-screen"><div class="screen-context">SSC 22 · Current edition</div><strong class="screen-title" style="margin-top:1.1rem">Solaris now</strong><div class="phone-card"><small>Right now</small><b class="big">You’re all caught up</b><span class="check">✓</span></div><span class="screen-section-title">Current contest</span><div class="phone-card"><small>Solaris Song Contest 22</small><b>SSC 22 is the current Solaris edition</b></div>${miniNav("home")}</div>
+          <iframe class="preview-page" src="/terraos-teaser-preview?screen=home" title="TerraOS Home page preview" tabindex="-1" loading="lazy" scrolling="no" sandbox="allow-scripts allow-same-origin"></iframe>
         </div>
       </div>
     </section>
