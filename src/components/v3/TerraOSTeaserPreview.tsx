@@ -1,10 +1,10 @@
-import { AppTabBar } from "@/components/app/AppTabBar";
 import type { SolarisTask } from "@/lib/participation-os";
 import {
   projectV3Bootstrap,
   type V3BootstrapSource,
 } from "@/lib/v3-bootstrap";
 import type { V3ExploreRootProjection } from "@/lib/v3-explore";
+import { V3BottomNavigation } from "./V3AppShell";
 import { V3ExploreScreen } from "./V3ExploreScreen";
 import {
   V3FoundationShell,
@@ -124,24 +124,16 @@ const EXPLORE_PROJECTION: V3ExploreRootProjection = {
   more: [],
 };
 
-function previewPath(screen: TerraOSTeaserScreen) {
-  if (screen === "explore") return "/explore";
-  if (screen === "participate") return "/participate";
-  return "/";
-}
-
 /**
  * Public, fixture-only renderer used by the maintenance teaser.
  *
  * The teaser deliberately renders the production V3 screen components and the
- * real AppTabBar rather than maintaining a second hand-built imitation. It
- * never loads live account data, performs no mutations and disables pointer
- * interaction. The iframe is therefore an accurate visual preview without
- * becoming a maintenance bypass.
+ * shared canonical V3 bottom navigation rather than maintaining a second
+ * hand-built imitation. It never loads live account data, performs no
+ * mutations and disables pointer interaction. The iframe is therefore an
+ * accurate visual preview without becoming a maintenance bypass.
  */
 export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }) {
-  const pathname = previewPath(screen);
-
   return (
     <div
       className="relative h-dvh min-h-dvh overflow-hidden bg-[var(--v3-bg-base)]"
@@ -186,10 +178,7 @@ export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }
             <V3ExploreScreen projection={EXPLORE_PROJECTION} onOpenSearch={() => undefined} />
           ) : null}
 
-          <AppTabBar
-            pathname={pathname}
-            signedIn={screen === "participate"}
-          />
+          <V3BottomNavigation activeArea={screen} />
         </V3FoundationShell>
       </div>
     </div>
