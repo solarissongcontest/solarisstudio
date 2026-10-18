@@ -82,31 +82,33 @@ export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = 
   },
   {
     scenario: "stale_projection",
-    state: "contract_only",
-    injection: "Deliberately make a rebuildable derived projection stale while preserving canonical domain truth.",
-    expectedRecovery: "Run only the bounded rebuild path declared by the S6 registry and verify against canonical sources.",
+    state: "rehearsed",
+    injection: "Delete one derived Organizer Task while preserving its canonical inactive Solaris scheduler-job source.",
+    expectedRecovery: "Run the edition-bounded Organizer Task rebuild and verify semantic convergence against the pre-corruption projection.",
     evidence: [
       "src/lib/v3-projection-reconciliation-registry.ts",
       "src/lib/v3-recovery-guardrails.ts",
       "docs/runbooks/projection-outbox-recovery.md",
       "supabase/migrations/20261004230000_organizer_task_runtime_reconciliation.sql",
+      ".github/scripts/v3-s11-stale-projection-rehearsal.sh",
+      "src/lib/v3-s11-stale-projection-rehearsal.test.ts",
     ],
-    remainingGap:
-      "A dedicated local rehearsal still needs to corrupt/delete one derived Organizer Task projection, invoke the bounded edition rebuild, and prove exact convergence without mutating canonical workflow truth.",
+    remainingGap: null,
     productionTrafficRequired: false,
   },
   {
     scenario: "reconciliation_retry",
-    state: "partial",
-    injection: "Retry reconciliation after an operation or derived-state recovery attempt is inconclusive.",
-    expectedRecovery: "Idempotently converge through the existing operation receipt or bounded projection rebuild contract.",
+    state: "rehearsed",
+    injection: "Force the first Organizer Task projection rebuild to fail at the projection write boundary, then retry the same canonical rebuild path.",
+    expectedRecovery: "Rollback the failed repair subtransaction, retain canonical source truth, then converge exactly once on retry without duplicate task state.",
     evidence: [
       ".github/scripts/v3-operation-receipt-rehearsal.sh",
       "src/lib/v3-recovery-guardrails.ts",
       "src/lib/v3-projection-reconciliation-registry.ts",
+      ".github/scripts/v3-s11-stale-projection-rehearsal.sh",
+      "src/lib/v3-s11-stale-projection-rehearsal.test.ts",
     ],
-    remainingGap:
-      "There is no isolated rehearsal that deliberately fails a projection rebuild/verification step and then proves a second reconciliation attempt converges without duplicate side effects.",
+    remainingGap: null,
     productionTrafficRequired: false,
   },
   {
