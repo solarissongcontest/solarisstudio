@@ -24,7 +24,7 @@ test("Solaris Studio serves the TerraOS 3 maintenance teaser across the app", as
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("TerraOS 3");
     await expect(page.getByText("Solaris Studio, rebuilt.", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Estimated arrival", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("22 October 2026", { exact: true })).toBeVisible();
+    await expect(page.getByText("23 October 2026", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Take a closer look." })).toBeVisible();
     await expect(page.getByText("Five places.", { exact: false }).first()).toBeVisible();
     await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=home"]')).toHaveCount(2);
