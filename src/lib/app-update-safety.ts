@@ -1,3 +1,5 @@
+import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
+
 export type AppUpdateBlocker = {
   id: string;
   reason: string;
@@ -8,6 +10,18 @@ const listeners = new Set<() => void>();
 
 function emit() {
   for (const listener of listeners) listener();
+}
+
+function pathAtOrBelow(pathname: string, root: string) {
+  return pathname === root || pathname.startsWith(`${root}/`);
+}
+
+export function isOrganizerUpdateWorkspacePath(pathname: string) {
+  return (
+    pathAtOrBelow(pathname, "/admin") ||
+    pathAtOrBelow(pathname, "/confirmations/admin") ||
+    pathAtOrBelow(pathname, "/televoting/admin")
+  );
 }
 
 export function setAppUpdateBlocker(
@@ -41,16 +55,20 @@ export function readAppUpdateBlockers(): AppUpdateBlocker[] {
 }
 
 export function routeUpdateBlocker(pathname: string): AppUpdateBlocker | null {
-  if (/^\/(confirmations|jury-voting|televoting|next-in-line)(\/|$)/.test(pathname)) {
-    return {
-      id: "focused-participation-task",
-      reason: "Finish or leave the current participation task before updating.",
-    };
-  }
-  if (pathname.startsWith("/admin/") || pathname.startsWith("/confirmations/admin") || pathname.startsWith("/televoting/admin")) {
+  // Organizer routes such as /confirmations/admin intentionally overlap the
+  // Public participation namespace. Give the operational workspace ownership
+  // first so update messaging and future route-specific policy cannot drift
+  // into the participant task branch.
+  if (isOrganizerUpdateWorkspacePath(pathname)) {
     return {
       id: "organizer-workspace",
       reason: "Leave the active Organizer workspace before updating.",
+    };
+  }
+  if (resolveSolarisAppScreen(pathname).behavior.criticalTask) {
+    return {
+      id: "focused-participation-task",
+      reason: "Finish or leave the current participation task before updating.",
     };
   }
   return null;

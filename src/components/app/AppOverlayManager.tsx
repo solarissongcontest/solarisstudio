@@ -11,14 +11,15 @@ export function AppOverlayManager({
   isAppMode,
   pathname,
   connectivity,
-  updateAvailable,
+  updatePromptAvailable,
   updateSafe,
   onUpdate,
 }: {
   isAppMode: boolean;
   pathname: string;
   connectivity: AppConnectivitySnapshot;
-  updateAvailable: boolean;
+  /** True only when there is still a waiting worker the user can activate. */
+  updatePromptAvailable: boolean;
   updateSafe: boolean;
   onUpdate: () => void;
 }) {
@@ -79,7 +80,7 @@ export function AppOverlayManager({
         onComplete={() => setFirstRunComplete(true)}
       />
     );
-  } else if (updateAvailable && updateSafe) {
+  } else if (updatePromptAvailable && updateSafe) {
     overlay = <AppUpdatePrompt onUpdate={onUpdate} />;
   }
 
