@@ -164,6 +164,33 @@ export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }
     };
   }, [screen]);
 
+  useEffect(() => {
+    // The preview is a same-origin iframe hosted by the maintenance teaser.
+    // Keep the host card's first line clear of iPhone status/Dynamic Island
+    // chrome without changing the production V3 page itself.
+    const frame = window.frameElement as HTMLElement | null;
+    const hostWindow = frame?.ownerDocument.defaultView ?? null;
+    const firstLook = frame?.closest<HTMLElement>(".first-look") ?? null;
+    if (!frame || !hostWindow || !firstLook) return;
+
+    const applyHostSafeArea = () => {
+      if (hostWindow.innerWidth <= 560) {
+        firstLook.style.paddingTop =
+          "max(5.5rem, calc(env(safe-area-inset-top) + 3.75rem))";
+      } else {
+        firstLook.style.removeProperty("padding-top");
+      }
+    };
+
+    applyHostSafeArea();
+    hostWindow.addEventListener("resize", applyHostSafeArea);
+
+    return () => {
+      hostWindow.removeEventListener("resize", applyHostSafeArea);
+      firstLook.style.removeProperty("padding-top");
+    };
+  }, []);
+
   return (
     <div
       ref={previewRootRef}
