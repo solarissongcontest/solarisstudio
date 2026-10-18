@@ -142,6 +142,43 @@ describe("V3 Results projection", () => {
     });
   });
 
+  it("matches a viewer's canonical delegation to an edition-scoped historical identity", () => {
+    const projection = buildV3ResultsProjection(
+      input({
+        userDelegationCountryId: "oland",
+        rows: [
+          {
+            countryId: "entity-oland-19",
+            canonicalCountryId: "oland",
+            countryName: "Historical Oland",
+            flagUrl: "/flags/oland-19.webp",
+            rank: 3,
+            points: 201,
+            juryPoints: 90,
+            televotePoints: 111,
+          },
+          {
+            countryId: "entity-vendia-19",
+            canonicalCountryId: "vendia",
+            countryName: "Historical Vendia",
+            flagUrl: "/flags/vendia-19.webp",
+            rank: 1,
+            points: 310,
+            juryPoints: 150,
+            televotePoints: 160,
+          },
+        ],
+      }),
+    );
+
+    expect(projection.yourResult).toMatchObject({
+      countryId: "entity-oland-19",
+      canonicalCountryId: "oland",
+      rank: 3,
+      points: 201,
+    });
+  });
+
   it("does not invent a winner when published rows contain no canonical rank one", () => {
     const projection = buildV3ResultsProjection(
       input({

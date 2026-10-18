@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
 import { V3Screen, V3Surface } from "@/components/v3/V3Foundation";
 import { V3ResultsScreen } from "@/components/v3/V3ResultsScreen";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
+import { useMyCountryAccount } from "@/lib/country-account";
 import { useNotificationPreferences } from "@/lib/engagement-data";
 import { useV3EditionRolloutProbe, useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
@@ -12,7 +13,9 @@ import { useV3ResultsBundle } from "@/lib/v3-results-runtime";
 
 export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
   const { preferences } = useAppExperiencePreferences();
-  const bundle = useV3ResultsBundle(true);
+  const [selectedShowId, setSelectedShowId] = useState<string | null>(null);
+  const bundle = useV3ResultsBundle(selectedShowId, true);
+  const countryAccount = useMyCountryAccount();
   const editionSlug = bundle.data?.editionSlug ?? "";
   const editionProbe = useV3EditionRolloutProbe(
     editionSlug,
@@ -62,6 +65,14 @@ export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
     serverSpoilerFree: serverPreferences.data?.spoiler_free ?? null,
   });
 
+  const viewerCountryId =
+    rollout.data.userId &&
+    !countryAccount.isPending &&
+    !countryAccount.isError &&
+    countryAccount.data?.access.userId === rollout.data.userId
+      ? countryAccount.data.access.countryId
+      : null;
+
   return (
     <V3AppShell
       editionLabel={bundle.data.shell.editionLabel}
@@ -72,7 +83,13 @@ export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
         key={`${rollout.data.userId ?? "anonymous"}:${bundle.data.input.showId || "none"}:${hideSpoilers}`}
         countries={countries}
         hideSpoilers={hideSpoilers}
-        input={bundle.data.input}
+        input={{
+          ...bundle.data.input,
+          userDelegationCountryId: viewerCountryId,
+        }}
+        options={bundle.data.options}
+        changingResult={bundle.isFetching}
+        onResultChange={setSelectedShowId}
       />
     </V3AppShell>
   );

@@ -21,8 +21,21 @@ export function resolveV3ResultsSpoilerProtection(input: {
   );
 }
 
+export type V3ResultShowOption = {
+  id: string;
+  name: string;
+  kind: string;
+  editionId: string;
+  editionName: string;
+  editionSlug: string;
+  editionNumber: number | null;
+};
+
 export type V3ResultEntryInput = {
+  /** Edition-scoped display identity used by result surfaces and historical flags. */
   countryId: string;
+  /** Stable canonical country identity used only for caller/delegation matching. */
+  canonicalCountryId?: string | null;
   countryName: string;
   flagUrl: string | null;
   rank: number;
@@ -56,6 +69,7 @@ export type V3ResultProjectionInput = {
 
 export type V3ResultRow = {
   countryId: string;
+  canonicalCountryId: string | null;
   countryName: string;
   flagUrl: string | null;
   rank: number;
@@ -87,6 +101,7 @@ export type V3ResultsProjection = {
 function projectRow(row: V3ResultEntryInput): V3ResultRow {
   return {
     countryId: row.countryId,
+    canonicalCountryId: row.canonicalCountryId ?? null,
     countryName: row.countryName,
     flagUrl: row.flagUrl,
     rank: row.rank,
@@ -148,7 +163,11 @@ export function buildV3ResultsProjection(input: V3ResultProjectionInput): V3Resu
     .sort((a, b) => a.rank - b.rank);
   const winner = rows.find((row) => row.rank === 1) ?? null;
   const yourResult = input.userDelegationCountryId
-    ? (rows.find((row) => row.countryId === input.userDelegationCountryId) ?? null)
+    ? (rows.find(
+        (row) =>
+          row.canonicalCountryId === input.userDelegationCountryId ||
+          row.countryId === input.userDelegationCountryId,
+      ) ?? null)
     : null;
 
   return {
