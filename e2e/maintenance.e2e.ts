@@ -47,6 +47,33 @@ test("Solaris Studio serves the TerraOS 3 maintenance teaser across the app", as
   }
 });
 
+test("TerraOS hero stays visually centered on a narrow phone viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(503);
+
+  const geometry = await page.locator("#maintenance-title").evaluate((element) => {
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    const text = range.getBoundingClientRect();
+    const countdown = document.querySelector("#terraos-countdown")?.getBoundingClientRect();
+    return {
+      textLeft: text.left,
+      textRight: text.right,
+      textCenter: text.left + text.width / 2,
+      countdownLeft: countdown?.left ?? -1,
+      countdownRight: countdown?.right ?? -1,
+      viewport: window.innerWidth,
+    };
+  });
+
+  expect(geometry.textLeft).toBeGreaterThanOrEqual(0);
+  expect(geometry.textRight).toBeLessThanOrEqual(geometry.viewport);
+  expect(Math.abs(geometry.textCenter - geometry.viewport / 2)).toBeLessThanOrEqual(2);
+  expect(geometry.countdownLeft).toBeGreaterThanOrEqual(0);
+  expect(geometry.countdownRight).toBeLessThanOrEqual(geometry.viewport);
+});
+
 test("maintenance mode blocks writes instead of forwarding them to app services", async ({ request }) => {
   const response = await request.post("/", {
     data: { probe: "maintenance-write-block" },
