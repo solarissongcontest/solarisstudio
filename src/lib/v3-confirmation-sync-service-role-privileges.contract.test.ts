@@ -51,21 +51,45 @@ const requiredPrivileges = [
   ["public.integration_events", "UPDATE"],
 ] as const;
 
+function extractDirectTables(source: string) {
+  return Array.from(
+    new Set(
+      [...source.matchAll(/\.from\(\s*["']([^"']+)["']\s*\)/g)].map(
+        (match) => match[1],
+      ),
+    ),
+  ).sort();
+}
+
 describe("System V3 canonical Confirmation sync service-role privileges", () => {
-  it("covers every table directly accessed by the server synchronization path", () => {
+  it("covers the complete table inventory directly accessed by the server synchronization path", () => {
+    expect(extractDirectTables(syncSource)).toEqual([...directTables].sort());
     for (const table of directTables) {
-      expect(syncSource).toContain(`.from("${table}")`);
       expect(migration).toContain(`public.${table}`);
     }
   });
 
-  it("asserts every restored privilege during migration replay", () => {
+  it("asserts every restored table privilege during migration replay", () => {
     expect(migration).toContain("has_table_privilege(");
     for (const [table, privilege] of requiredPrivileges) {
       expect(migration).toContain(`('${table}', '${privilege}')`);
     }
     expect(migration).toContain(
       "Canonical Confirmation sync requires service_role % on %",
+    );
+  });
+
+  it("restores and asserts the server-only publication event boundary", () => {
+    expect(syncSource).toContain('db.rpc("emit_entry_published_event"');
+    expect(migration).toContain(
+      "grant execute on function public.emit_entry_published_event(uuid, uuid)",
+    );
+    expect(migration).toContain("has_function_privilege(");
+    expect(migration).toContain(
+      "'public.emit_entry_published_event(uuid,uuid)'",
+    );
+    expect(migration).toContain(
+      "Canonical Confirmation sync requires service_role EXECUTE on public.emit_entry_published_event(uuid,uuid)",
     );
   });
 
