@@ -175,9 +175,11 @@ jobs:
         run: supabase stop --no-backup || true
 
   upgrade-from-main:
-    name: Upgrade current main database
+    name: Upgrade prior candidate baseline
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      baseline_sha: ${{ steps.prepare-baseline.outputs.sha }}
     steps:
       - name: Checkout exact feature/candidate head
         uses: actions/checkout@v4
@@ -209,14 +211,25 @@ jobs:
         with:
           version: 2.113.0
 
-      - name: Prepare current main worktree
+      - name: Prepare upgrade baseline worktree
+        id: prepare-baseline
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin main --no-tags
-          git worktree add /tmp/solaris-main origin/main
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            baseline_sha="$(git rev-parse "${V3_MIGRATION_SOURCE_SHA}^1" | tr '[:upper:]' '[:lower:]')"
+          else
+            baseline_sha="$(git rev-parse origin/main | tr '[:upper:]' '[:lower:]')"
+          fi
+          if [ "$baseline_sha" = "$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')" ]; then
+            echo "::error::Upgrade rehearsal baseline cannot equal the candidate"
+            exit 1
+          fi
+          git worktree add /tmp/solaris-main "$baseline_sha"
+          echo "sha=$baseline_sha" >> "$GITHUB_OUTPUT"
 
-      - name: Verify current main is an unmodified baseline
+      - name: Verify upgrade baseline is unmodified
         shell: bash
         run: |
           set -euo pipefail
@@ -224,7 +237,7 @@ jobs:
           test -f "/tmp/solaris-main/supabase/migrations/20260822204600_result_driven_qualifier_sync.sql"
           test ! -e "/tmp/solaris-main/supabase/migrations/20260822204500_result_driven_qualifier_sync.sql"
 
-      - name: Build current main database locally
+      - name: Build upgrade baseline database locally
         shell: bash
         run: |
           set -euo pipefail
@@ -241,7 +254,7 @@ jobs:
             touch /tmp/v3-entry-legacy-seeded
           fi
 
-      - name: Apply feature migration set as an upgrade
+      - name: Apply candidate migration set as an upgrade
         shell: bash
         run: |
           set -euo pipefail
@@ -312,7 +325,9 @@ jobs:
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-entry-restore-provenance-assert.sh"
 
       - name: Verify Televote receipt authority after upgrade
-        run: bash .github/scripts/v3-televote-reconciliation-rehearsal.sh
+        run: |
+          cd /tmp/solaris-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-televote-reconciliation-rehearsal.sh"
 
       - name: Run hostile V3 Jury reliability rehearsal after upgrade
         shell: bash
@@ -371,6 +386,7 @@ jobs:
         env:
           CLEAN_REPLAY_RESULT: ${{ needs.clean-replay.result }}
           UPGRADE_RESULT: ${{ needs.upgrade-from-main.result }}
+          BASELINE_SHA: ${{ needs.upgrade-from-main.outputs.baseline_sha }}
         run: |
           set -euo pipefail
           expected="$(printf '%s' "$V3_MIGRATION_SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
@@ -388,6 +404,7 @@ jobs:
           clean = os.environ["CLEAN_REPLAY_RESULT"]
           upgrade = os.environ["UPGRADE_RESULT"]
           sha = os.environ["V3_MIGRATION_SOURCE_SHA"].lower()
+          baseline = os.environ.get("BASELINE_SHA", "").lower()
           passed = clean == "success" and upgrade == "success"
           payload = {
               "schemaVersion": 1,
@@ -398,17 +415,18 @@ jobs:
                   "local-migration-history",
                   "hostile-security-rehearsals",
                   "system-invariant-rehearsals",
-                  "upgrade-from-current-main",
+                  "upgrade-from-prior-baseline",
               ],
               "jobs": {
                   "cleanReplay": clean,
-                  "upgradeFromMain": upgrade,
+                  "upgradeFromBaseline": upgrade,
               },
               "provenance": {
                   "workflow": "Rules + Integrity migration rehearsal",
                   "runId": int(os.environ["GITHUB_RUN_ID"]),
                   "runAttempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
                   "event": os.environ["GITHUB_EVENT_NAME"],
+                  "baselineSha": baseline or None,
                   "conclusion": "success" if passed else "failure",
               },
           }
