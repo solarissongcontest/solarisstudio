@@ -10,7 +10,12 @@ export const V3_FAILURE_INJECTION_SCENARIOS = [
 ] as const;
 
 export type V3FailureInjectionScenario = (typeof V3_FAILURE_INJECTION_SCENARIOS)[number];
-export type V3FailureCoverageState = "rehearsed" | "partial" | "contract_only" | "missing";
+export type V3FailureCoverageState =
+  | "rehearsed"
+  | "rehearsal_ready"
+  | "partial"
+  | "contract_only"
+  | "missing";
 
 export type V3FailureCoverageEntry = {
   scenario: V3FailureInjectionScenario;
@@ -24,9 +29,12 @@ export type V3FailureCoverageEntry = {
 
 /**
  * Reliability evidence inventory for the failure classes explicitly required by
- * the System V3 plan. This registry never upgrades a contract/test to
- * `rehearsed` unless a deterministic local rehearsal actually injects the
- * failure and verifies recovery or replay semantics.
+ * the System V3 plan.
+ *
+ * `rehearsed` requires retained evidence that the deterministic local rehearsal
+ * actually ran. `rehearsal_ready` means an executable local injection/recovery
+ * path and source-level regression proof exist, but Chat 5 still needs to run
+ * and retain exact-SHA rehearsal evidence before it may be promoted.
  */
 export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = [
   {
@@ -39,7 +47,7 @@ export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = 
       "src/lib/v3-system-operation-receipts.test.ts",
     ],
     remainingGap:
-      "The local rehearsal proves TIMEOUT uncertainty and operation reconciliation separately, but does not yet inject a transport failure around one real workflow RPC and prove the same committed operation is recovered end-to-end.",
+      "The local rehearsal proves TIMEOUT uncertainty and operation reconciliation separately, but does not yet inject a transport failure around one real workflow RPC and retain evidence that the same committed operation is recovered end-to-end.",
     productionTrafficRequired: false,
   },
   {
@@ -77,12 +85,12 @@ export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = 
       "src/lib/v3-reliability-slo.ts",
     ],
     remainingGap:
-      "Committed-operation replay is proven, but the rehearsal does not actually discard or interrupt a real workflow response after commit. A dedicated local transport-loss injection must prove that the client recovers the same durable receipt/result before this scenario can be marked rehearsed.",
+      "Committed-operation replay is proven, but no retained run evidence yet shows a real workflow response being discarded after commit and recovered through exact retry.",
     productionTrafficRequired: false,
   },
   {
     scenario: "stale_projection",
-    state: "rehearsed",
+    state: "rehearsal_ready",
     injection: "Delete one derived Organizer Task while preserving its canonical inactive Solaris scheduler-job source.",
     expectedRecovery: "Run the edition-bounded Organizer Task rebuild and verify semantic convergence against the pre-corruption projection.",
     evidence: [
@@ -93,12 +101,13 @@ export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = 
       ".github/scripts/v3-s11-stale-projection-rehearsal.sh",
       "src/lib/v3-s11-stale-projection-rehearsal.test.ts",
     ],
-    remainingGap: null,
+    remainingGap:
+      "The deterministic local stale-projection rehearsal is implemented, but exact-SHA execution evidence still needs to be retained by the QA/release evidence lane.",
     productionTrafficRequired: false,
   },
   {
     scenario: "reconciliation_retry",
-    state: "rehearsed",
+    state: "rehearsal_ready",
     injection: "Force the first Organizer Task projection rebuild to fail at the projection write boundary, then retry the same canonical rebuild path.",
     expectedRecovery: "Rollback the failed repair subtransaction, retain canonical source truth, then converge exactly once on retry without duplicate task state.",
     evidence: [
@@ -108,7 +117,8 @@ export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = 
       ".github/scripts/v3-s11-stale-projection-rehearsal.sh",
       "src/lib/v3-s11-stale-projection-rehearsal.test.ts",
     ],
-    remainingGap: null,
+    remainingGap:
+      "The deterministic local reconciliation-retry rehearsal is implemented, but exact-SHA execution evidence still needs to be retained by the QA/release evidence lane.",
     productionTrafficRequired: false,
   },
   {
@@ -122,7 +132,7 @@ export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = 
       "src/lib/v3-capacity-evidence.ts",
     ],
     remainingGap:
-      "The scenario and measurements exist, but representative reconciliation-backlog-drain evidence has not yet been executed and retained with an evidence-backed load shape.",
+      "The scenario and measurements exist, but a deterministic backlog-drain rehearsal still needs to be implemented and then executed with retained exact-SHA evidence.",
     productionTrafficRequired: false,
   },
   {
@@ -173,6 +183,7 @@ export function validateV3FailureInjectionCoverage() {
 export function buildV3FailureInjectionCoverageReport() {
   const counts: Record<V3FailureCoverageState, number> = {
     rehearsed: 0,
+    rehearsal_ready: 0,
     partial: 0,
     contract_only: 0,
     missing: 0,
@@ -180,7 +191,7 @@ export function buildV3FailureInjectionCoverageReport() {
   for (const entry of V3_FAILURE_INJECTION_COVERAGE) counts[entry.state] += 1;
 
   return {
-    schemaVersion: 1 as const,
+    schemaVersion: 2 as const,
     counts,
     scenarios: V3_FAILURE_INJECTION_COVERAGE,
     unresolved: V3_FAILURE_INJECTION_COVERAGE
