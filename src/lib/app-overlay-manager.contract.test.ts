@@ -18,7 +18,7 @@ describe("app overlay manager", () => {
     const manager = source("src/components/app/AppOverlayManager.tsx");
     const connectivity = manager.indexOf('connectivity.status !== "online"');
     const firstRun = manager.indexOf("!firstRunComplete");
-    const update = manager.indexOf("updateAvailable && updateSafe");
+    const update = manager.indexOf("updatePromptAvailable && updateSafe");
 
     expect(connectivity).toBeGreaterThan(-1);
     expect(firstRun).toBeGreaterThan(connectivity);
@@ -27,6 +27,7 @@ describe("app overlay manager", () => {
     expect(manager).toContain("<AppOfflineBanner");
     expect(manager).toContain("<AppFirstRun");
     expect(manager).toContain("<AppUpdatePrompt");
+    expect(manager).not.toContain("updateAvailable && updateSafe");
   });
 
   it("does not let first-run completion get lost behind later overlays", () => {

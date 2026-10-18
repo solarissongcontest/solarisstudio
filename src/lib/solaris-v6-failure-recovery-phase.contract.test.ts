@@ -67,6 +67,7 @@ describe("Solaris V6 failure recovery phase", () => {
   it("keeps offline reconnect update edition and gesture recovery fail-safe", () => {
     const offline = source("src/lib/app-launch-offline-reconnect.contract.test.ts");
     const update = source("src/lib/app-update-safety.ts");
+    const registry = source("src/lib/app-screen-registry.ts");
     const edition = source("src/lib/solaris-v6-edition-context.ts");
     const publicTabs = source("src/components/app/AppTabBar.tsx");
     const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
@@ -74,10 +75,20 @@ describe("Solaris V6 failure recovery phase", () => {
     expect(offline).toContain("official mutations");
     expect(update).toContain('id: "focused-participation-task"');
     expect(update).toContain('id: "organizer-workspace"');
-    for (const route of ["confirmations", "jury-voting", "televoting", "next-in-line"]) {
-      expect(update).toContain(route);
+    expect(update).toContain(
+      "resolveSolarisAppScreen(pathname).behavior.criticalTask",
+    );
+    for (const route of [
+      "confirmations",
+      "jury-voting",
+      "televoting",
+      "next-in-line",
+      "my-solaris\\/entry",
+    ]) {
+      expect(registry).toContain(route);
     }
-    expect(update).toContain('pathname.startsWith("/admin/")');
+    expect(update).toContain("isOrganizerUpdateWorkspacePath(pathname)");
+    expect(update).toContain('pathAtOrBelow(pathname, "/admin")');
     expect(edition).toContain("validateEditionCommandScope");
     expect(publicTabs).toContain("onPointerCancel");
     expect(organizerTabs).toContain("onPointerCancel");

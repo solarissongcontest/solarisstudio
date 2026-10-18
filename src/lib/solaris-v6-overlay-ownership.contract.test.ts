@@ -28,7 +28,8 @@ describe("Solaris V6 unified overlay and chrome ownership", () => {
     const manager = source("src/components/app/AppOverlayManager.tsx");
     expect(manager).toContain('connectivity.status !== "online"');
     expect(manager).toContain("!firstRunComplete");
-    expect(manager).toContain("updateAvailable && updateSafe");
+    expect(manager).toContain("updatePromptAvailable && updateSafe");
+    expect(manager).not.toContain("updateAvailable && updateSafe");
     expect(manager).toContain("else if");
   });
 

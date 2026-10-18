@@ -45,11 +45,69 @@ describe("App Experience v3 lifecycle foundation", () => {
     expect(styles).toContain('html[data-solaris-keyboard-open] .solaris-app-update');
   });
 
-  it("never offers a service-worker reload while a route is safety-blocked", () => {
+  it("never offers a service-worker action while a route is safety-blocked or only a reload is pending", () => {
     const runtime = source("src/components/app/AppRuntime.tsx");
     const manager = source("src/components/app/AppOverlayManager.tsx");
     expect(runtime).toContain("if (!waitingWorker || !updateSafety.safe) return");
+    expect(runtime).toContain("const updatePromptAvailable = Boolean(waitingWorker)");
+    expect(runtime).toContain(
+      "const updateAvailable = updatePromptAvailable || controllerReloadPending",
+    );
+    expect(runtime).toContain("updatePromptAvailable={updatePromptAvailable}");
     expect(runtime).toContain("updateSafe={updateSafety.safe}");
-    expect(manager).toContain("updateAvailable && updateSafe");
+    expect(manager).toContain("updatePromptAvailable && updateSafe");
+    expect(manager).not.toContain("updateAvailable && updateSafe");
+  });
+
+  it("defers replacement-worker reloads until route and dynamic update blockers clear", () => {
+    const runtime = source("src/components/app/AppRuntime.tsx");
+    const controllerStart = runtime.indexOf("const onControllerChange =");
+    const resumeStart = runtime.indexOf("const onResume =", controllerStart);
+    const controllerBlock = runtime.slice(controllerStart, resumeStart);
+
+    expect(runtime).toContain("const updateSafetyRef = useRef(updateSafety)");
+    expect(controllerBlock).toContain("if (!updateSafetyRef.current.safe)");
+    expect(controllerBlock).toContain("setControllerReloadPending(true)");
+    expect(runtime).toContain(
+      "if (!controllerReloadPending || !updateSafety.safe) return",
+    );
+    expect(runtime).toContain("setControllerReloadPending(false)");
+  });
+
+  it("retires exact waiting-worker actionability when that worker stops waiting", () => {
+    const runtime = source("src/components/app/AppRuntime.tsx");
+    const observeStart = runtime.indexOf("const observeWaitingWorker =");
+    const inspectStart = runtime.indexOf("const inspectWaiting =", observeStart);
+    const observeBlock = runtime.slice(observeStart, inspectStart);
+
+    expect(runtime).toContain(
+      "const waitingWorkerListeners = new Map<ServiceWorker, () => void>()",
+    );
+    expect(observeBlock).toContain('worker.state !== "installed"');
+    expect(observeBlock).toContain("setWaitingWorker(worker)");
+    expect(observeBlock).toContain('worker.state === "installed"');
+    expect(observeBlock).toContain(
+      "setWaitingWorker((current) => (current === worker ? null : current))",
+    );
+    expect(observeBlock).toContain(
+      'worker.removeEventListener("statechange", onWaitingWorkerStateChange)',
+    );
+    expect(observeBlock).toContain("waitingWorkerListeners.delete(worker)");
+    expect(runtime).toContain("waitingWorkerListeners.clear()");
+  });
+
+  it("clears stale waiting-worker actionability as soon as controller ownership changes", () => {
+    const runtime = source("src/components/app/AppRuntime.tsx");
+    const controllerStart = runtime.indexOf("const onControllerChange =");
+    const resumeStart = runtime.indexOf("const onResume =", controllerStart);
+    const controllerBlock = runtime.slice(controllerStart, resumeStart);
+
+    expect(controllerBlock).toContain("setWaitingWorker(null)");
+    expect(controllerBlock.indexOf("setWaitingWorker(null)")).toBeLessThan(
+      controllerBlock.indexOf("setControllerReloadPending(true)"),
+    );
+    expect(controllerBlock.indexOf("setWaitingWorker(null)")).toBeLessThan(
+      controllerBlock.indexOf("window.location.reload()"),
+    );
   });
 });
