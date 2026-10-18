@@ -4,10 +4,10 @@ export type AppPushState = {
   supported: boolean;
   configured: boolean;
   permission: NotificationPermission | "unsupported";
-  /** Effective delivery registration: browser subscription + active server row. */
+  /** Effective delivery registration. V3 callers verify browser + server agreement. */
   subscribed: boolean;
-  browserSubscribed: boolean;
-  serverRegistered: boolean;
+  browserSubscribed?: boolean;
+  serverRegistered?: boolean;
 };
 
 export type AppPushDeliveryMode =
@@ -65,7 +65,7 @@ export function describeAppPushDelivery(
     };
   }
 
-  if (state.browserSubscribed && !state.serverRegistered) {
+  if (state.browserSubscribed === true && state.serverRegistered === false) {
     return {
       mode: "registration-missing",
       title: "Push needs repair",
@@ -144,9 +144,10 @@ async function serverHasPushSubscription(userId: string, endpoint: string) {
 }
 
 /**
- * Delivery is considered active only when the browser subscription and the
- * caller-owned server registration agree. A local PushSubscription by itself
- * cannot receive Solaris dispatches if the server row was lost or removed.
+ * Callers that provide the authenticated user get an end-to-end delivery
+ * health check: browser subscription plus caller-owned active server row.
+ * Legacy callers that omit userId retain their previous browser-only fallback
+ * until they migrate to the V3 delivery-health contract.
  */
 export async function getAppPushState(userId?: string): Promise<AppPushState> {
   const key = await vapidPublicKey();
@@ -157,22 +158,25 @@ export async function getAppPushState(userId?: string): Promise<AppPushState> {
       permission: "unsupported",
       subscribed: false,
       browserSubscribed: false,
-      serverRegistered: false,
+      serverRegistered: userId ? false : undefined,
     };
   }
+
   const registration = await navigator.serviceWorker.getRegistration("/");
   const subscription = await registration?.pushManager.getSubscription();
   const browserSubscribed = Boolean(subscription);
-  const serverRegistered = Boolean(
+  const serverRegistered =
     userId && subscription?.endpoint
       ? await serverHasPushSubscription(userId, subscription.endpoint)
-      : false,
-  );
+      : undefined;
+
   return {
     supported: true,
     configured: Boolean(key),
     permission: Notification.permission,
-    subscribed: browserSubscribed && serverRegistered,
+    subscribed: userId
+      ? browserSubscribed && serverRegistered === true
+      : browserSubscribed,
     browserSubscribed,
     serverRegistered,
   };
