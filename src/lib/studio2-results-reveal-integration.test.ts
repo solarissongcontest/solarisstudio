@@ -23,8 +23,9 @@ describe('Studio 2 Results Reveal Director integration', () => {
     expect(model).toContain('simulateResultsReveal');
   });
 
-  it('is rollout-gated by Results Replay rather than inventing a new flag', () => {
-    expect(route).toContain("isStudio2FeatureEnabled('results_replay')");
+  it('scopes the Results Replay rollout gate to the exact Organizer edition', () => {
+    expect(route).toContain("queryKey: ['studio2-feature', 'results_replay', editionId ?? 'unscoped']");
+    expect(route).toContain("isStudio2FeatureEnabled('results_replay', editionId!)");
   });
 
   it('compares operational and forensic reveal strategies', () => {

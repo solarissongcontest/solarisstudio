@@ -37,10 +37,12 @@ describe("Browser Audit regression boundaries", () => {
     expect(storytelling).toContain('aria-label="Reason for editorial changes"');
   });
 
-  it("keeps Results Reveal page identity in every feature state", () => {
+  it("keeps Results Reveal page identity in every scope and feature state", () => {
     const resultsReveal = source("src/routes/_authenticated/admin/results-reveal.tsx");
     expect(resultsReveal).toContain("function ResultsRevealHeader()");
-    expect(resultsReveal.match(/<ResultsRevealHeader \/>/g)).toHaveLength(3);
+    expect(resultsReveal).toContain('title="Choose an edition"');
+    expect(resultsReveal).toContain("enabled: Boolean(editionId)");
+    expect(resultsReveal.match(/<ResultsRevealHeader \/>/g)).toHaveLength(4);
   });
 
   it("keeps Browser Audit controls and launch probes aligned with runtime contracts", () => {
