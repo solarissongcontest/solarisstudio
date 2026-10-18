@@ -17,7 +17,9 @@ import {
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 
 import { FlagChip } from "@/components/FlagChip";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { DataStoryPage, ResponsiveHistory, type PublicDataColumn } from "@/components/public/PublicDataStory";
+import { V3BroadcastIntelligenceGate } from "@/components/v3/V3BroadcastIntelligenceGate";
 
 import {
   broadcastEntriesFromResults,
@@ -73,6 +75,34 @@ const MOMENT_LABELS: Record<
 };
 
 function BroadcastIntelligencePage() {
+  const { isAppMode, platformResolved } = useSolarisApp();
+
+  if (!platformResolved) {
+    return (
+      <main
+        className="mx-auto max-w-3xl px-4 py-10"
+        data-v3-broadcast-intelligence-boot=""
+      >
+        <h1 className="text-3xl font-bold">Replay the voting</h1>
+        <p role="status" className="mt-3">
+          Opening published Broadcast Intelligence…
+        </p>
+      </main>
+    );
+  }
+
+  if (isAppMode) {
+    return (
+      <V3BroadcastIntelligenceGate
+        fallback={<LegacyBroadcastIntelligencePage />}
+      />
+    );
+  }
+
+  return <LegacyBroadcastIntelligencePage />;
+}
+
+function LegacyBroadcastIntelligencePage() {
   const editionsQuery = useEditions();
   const { data: editions } = editionsQuery;
 
