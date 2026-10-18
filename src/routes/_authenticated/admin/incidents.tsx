@@ -21,6 +21,7 @@ import { AdminPage } from '@/components/admin/AdminShell';
 import {
   AdminCard,
   AdminCardHeader,
+  AdminConfirmSheet,
   AdminEmptyState,
   AdminPageHeader,
   AdminSheet,
@@ -58,6 +59,11 @@ type IncidentSearch = {
   ack?: 'yes' | 'no';
   q?: string;
   incident?: string;
+};
+
+type PendingIncidentReview = {
+  kind: 'crisis' | 'severity' | 'transition' | 'resolve';
+  value?: string;
 };
 
 export const Route = createFileRoute('/_authenticated/admin/incidents')({
@@ -269,6 +275,7 @@ function IncidentDetailSheet({ incident, events, editionId, onClose, onChanged }
   const [resolution, setResolution] = useState('');
   const [postmortem, setPostmortem] = useState('');
   const [note, setNote] = useState('');
+  const [pendingReview, setPendingReview] = useState<PendingIncidentReview | null>(null);
 
   useEffect(() => {
     setDescription(incident?.description ?? '');
@@ -276,6 +283,7 @@ function IncidentDetailSheet({ incident, events, editionId, onClose, onChanged }
     setResolution(incident?.resolution ?? '');
     setPostmortem(incident?.postmortem ?? '');
     setNote('');
+    setPendingReview(null);
   }, [incident?.id, incident?.updatedAt]);
 
   const mutate = useMutation({
@@ -307,64 +315,134 @@ function IncidentDetailSheet({ incident, events, editionId, onClose, onChanged }
         await studio2Persistence.transitionIncident(incident.id, 'resolved');
       }
     },
-    onSuccess: onChanged,
+    onSuccess: async () => {
+      setPendingReview(null);
+      await onChanged();
+    },
   });
 
   const timeline = incident ? incidentTimeline(events, incident.id) : [];
   const transitions = incident ? availableIncidentTransitions(incident.status) : [];
   const escalation = incident ? previousSeverity(incident.severity) : null;
 
+  const applyReviewedCommand = async () => {
+    if (!pendingReview || !incident) return;
+    await mutate.mutateAsync(pendingReview);
+  };
+
+  const reviewTitle = pendingReview
+    ? pendingReview.kind === 'crisis'
+      ? `Enter crisis mode for “${incident?.title ?? 'incident'}”?`
+      : pendingReview.kind === 'severity'
+        ? `Escalate “${incident?.title ?? 'incident'}” to ${pendingReview.value?.toUpperCase() ?? 'a higher severity'}?`
+        : pendingReview.kind === 'resolve'
+          ? `Resolve “${incident?.title ?? 'incident'}”?`
+          : `${incident?.status === 'resolved' ? 'Reopen' : 'Move'} “${incident?.title ?? 'incident'}” to ${humanize(pendingReview.value ?? '')}?`
+    : 'Review incident command';
+
   return (
-    <AdminSheet open={Boolean(incident)} onClose={onClose} title={incident?.title ?? 'Incident'} description={incident ? `${incidentSeverityLabel(incident.severity)} · ${humanize(incident.category)} · ${humanize(incident.status)}` : undefined}>
-      {incident ? <div className="space-y-4">
-        {incident.severity === 'sev1' || incident.crisisDeclaredAt ? <div className="rounded-xl border border-rose-300/25 bg-rose-300/[0.07] p-3"><div className="flex gap-2"><Siren className="size-5 text-rose-200" /><div><p className="text-sm font-bold text-rose-50">Crisis incident</p><p className="mt-1 text-xs text-rose-100/70">This incident remains prominent in Control Room until resolved.</p></div></div></div> : null}
+    <>
+      <AdminSheet open={Boolean(incident)} onClose={onClose} title={incident?.title ?? 'Incident'} description={incident ? `${incidentSeverityLabel(incident.severity)} · ${humanize(incident.category)} · ${humanize(incident.status)}` : undefined}>
+        {incident ? <div className="space-y-4">
+          {incident.severity === 'sev1' || incident.crisisDeclaredAt ? <div className="rounded-xl border border-rose-300/25 bg-rose-300/[0.07] p-3"><div className="flex gap-2"><Siren className="size-5 text-rose-200" /><div><p className="text-sm font-bold text-rose-50">Crisis incident</p><p className="mt-1 text-xs text-rose-100/70">This incident remains prominent in Control Room until resolved.</p></div></div></div> : null}
 
-        <div className="grid grid-cols-2 gap-2">
-          <DetailMetric label="Opened" value={formatDateTime(incident.startedAt)} />
-          <DetailMetric label="Acknowledged" value={incident.acknowledgedAt ? formatDateTime(incident.acknowledgedAt) : 'No'} />
-          <DetailMetric label="Commander" value={incident.commanderId ?? 'Unassigned'} />
-          <DetailMetric label="Edition" value={editionId || 'Unavailable'} />
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          {!incident.acknowledgedAt ? <button type="button" disabled={mutate.isPending} onClick={() => mutate.mutate({ kind: 'ack' })} className="admin-action-secondary"><UserRoundCheck className="size-4" /> Acknowledge</button> : null}
-          <button type="button" disabled={mutate.isPending} onClick={() => mutate.mutate({ kind: incident.commanderId ? 'clear-commander' : 'assign-me' })} className="admin-action-secondary">{incident.commanderId ? 'Clear commander' : 'Assign me commander'}</button>
-          {!incident.crisisDeclaredAt && incident.status !== 'resolved' ? <button type="button" disabled={mutate.isPending} onClick={() => mutate.mutate({ kind: 'crisis' })} className="admin-action-secondary text-rose-100"><Siren className="size-4" /> Enter crisis mode</button> : null}
-          {escalation && incident.status !== 'resolved' ? <button type="button" disabled={mutate.isPending} onClick={() => mutate.mutate({ kind: 'severity', value: escalation })} className="admin-action-secondary"><CircleAlert className="size-4" /> Escalate to {escalation.toUpperCase()}</button> : null}
-        </div>
-
-        <AdminCard>
-          <AdminCardHeader eyebrow="Incident record" title="Scope and command notes" />
-          <div className="space-y-3">
-            <Field label="Description"><textarea value={description} onChange={(e) => setDescription(e.target.value)} className="admin-input min-h-28" /></Field>
-            <Field label="Affected systems"><input value={systems} onChange={(e) => setSystems(e.target.value)} className="admin-input" /></Field>
-            <Field label="Resolution"><textarea value={resolution} onChange={(e) => setResolution(e.target.value)} className="admin-input min-h-20" placeholder="Required before resolving" /></Field>
-            <Field label="Postmortem"><textarea value={postmortem} onChange={(e) => setPostmortem(e.target.value)} className="admin-input min-h-24" placeholder="Root cause, lessons and follow-up" /></Field>
-            <button type="button" disabled={mutate.isPending} onClick={() => mutate.mutate({ kind: 'save' })} className="admin-action-primary">Save incident record</button>
+          <div className="grid grid-cols-2 gap-2">
+            <DetailMetric label="Opened" value={formatDateTime(incident.startedAt)} />
+            <DetailMetric label="Acknowledged" value={incident.acknowledgedAt ? formatDateTime(incident.acknowledgedAt) : 'No'} />
+            <DetailMetric label="Commander" value={incident.commanderId ?? 'Unassigned'} />
+            <DetailMetric label="Edition" value={editionId || 'Unavailable'} />
           </div>
-        </AdminCard>
 
-        <AdminCard>
-          <AdminCardHeader eyebrow="Lifecycle" title="Incident state" />
-          <div className="flex flex-wrap gap-2">
-            {transitions.filter((status) => status !== 'resolved').map((status) => <button key={status} type="button" disabled={mutate.isPending} onClick={() => mutate.mutate({ kind: 'transition', value: status })} className="admin-action-secondary">{incident.status === 'resolved' && status === 'monitoring' ? 'Reopen to monitoring' : `Move to ${humanize(status)}`}</button>)}
-            {transitions.includes('resolved') ? <button type="button" disabled={mutate.isPending || !resolution.trim()} onClick={() => mutate.mutate({ kind: 'resolve' })} className="admin-action-primary">Resolve incident</button> : null}
+          <div className="grid grid-cols-2 gap-2">
+            {!incident.acknowledgedAt ? <button type="button" disabled={mutate.isPending} onClick={() => mutate.mutate({ kind: 'ack' })} className="admin-action-secondary"><UserRoundCheck className="size-4" /> Acknowledge</button> : null}
+            <button type="button" disabled={mutate.isPending} onClick={() => mutate.mutate({ kind: incident.commanderId ? 'clear-commander' : 'assign-me' })} className="admin-action-secondary">{incident.commanderId ? 'Clear commander' : 'Assign me commander'}</button>
+            {!incident.crisisDeclaredAt && incident.status !== 'resolved' ? <button type="button" disabled={mutate.isPending} onClick={() => setPendingReview({ kind: 'crisis' })} className="admin-action-secondary text-rose-100"><Siren className="size-4" /> Review crisis mode</button> : null}
+            {escalation && incident.status !== 'resolved' ? <button type="button" disabled={mutate.isPending} onClick={() => setPendingReview({ kind: 'severity', value: escalation })} className="admin-action-secondary"><CircleAlert className="size-4" /> Review escalation to {escalation.toUpperCase()}</button> : null}
           </div>
-        </AdminCard>
 
-        <AdminCard>
-          <AdminCardHeader eyebrow="Timeline" title="Operational history" description="Timeline notes become immutable contest events rather than being buried inside an editable description." />
-          <div className="flex gap-2"><input value={note} onChange={(e) => setNote(e.target.value)} className="admin-input flex-1" placeholder="Add timeline update…" /><button type="button" disabled={!note.trim() || mutate.isPending} onClick={() => mutate.mutate({ kind: 'note' })} className="admin-action-secondary">Add</button></div>
-          <div className="mt-3 space-y-2">
-            {timeline.map((item) => <div key={item.id} className="flex gap-3 rounded-xl border border-white/[0.07] p-3"><Clock3 className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0"><p className="text-sm font-semibold">{item.message ?? humanize(item.action ?? item.type.replace('.', ' '))}</p><p className="mt-1 text-xs text-muted-foreground">{formatDateTime(item.occurredAt)}{item.actorUserId ? ` · ${item.actorUserId}` : ''}</p></div></div>)}
-            {!timeline.length ? <p className="py-3 text-center text-xs text-muted-foreground">No incident events recorded yet.</p> : null}
+          <AdminCard>
+            <AdminCardHeader eyebrow="Incident record" title="Scope and command notes" />
+            <div className="space-y-3">
+              <Field label="Description"><textarea value={description} onChange={(e) => setDescription(e.target.value)} className="admin-input min-h-28" /></Field>
+              <Field label="Affected systems"><input value={systems} onChange={(e) => setSystems(e.target.value)} className="admin-input" /></Field>
+              <Field label="Resolution"><textarea value={resolution} onChange={(e) => setResolution(e.target.value)} className="admin-input min-h-20" placeholder="Required before resolving" /></Field>
+              <Field label="Postmortem"><textarea value={postmortem} onChange={(e) => setPostmortem(e.target.value)} className="admin-input min-h-24" placeholder="Root cause, lessons and follow-up" /></Field>
+              <button type="button" disabled={mutate.isPending} onClick={() => mutate.mutate({ kind: 'save' })} className="admin-action-primary">Save incident record</button>
+            </div>
+          </AdminCard>
+
+          <AdminCard>
+            <AdminCardHeader eyebrow="Lifecycle" title="Incident state" description="State transitions are reviewed before they change the operational incident truth." />
+            <div className="flex flex-wrap gap-2">
+              {transitions.filter((status) => status !== 'resolved').map((status) => <button key={status} type="button" disabled={mutate.isPending} onClick={() => setPendingReview({ kind: 'transition', value: status })} className="admin-action-secondary">{incident.status === 'resolved' && status === 'monitoring' ? 'Review reopen to monitoring' : `Review move to ${humanize(status)}`}</button>)}
+              {transitions.includes('resolved') ? <button type="button" disabled={mutate.isPending || !resolution.trim()} onClick={() => setPendingReview({ kind: 'resolve' })} className="admin-action-primary">Review resolution</button> : null}
+            </div>
+          </AdminCard>
+
+          <AdminCard>
+            <AdminCardHeader eyebrow="Timeline" title="Operational history" description="Timeline notes become immutable contest events rather than being buried inside an editable description." />
+            <div className="flex gap-2"><input value={note} onChange={(e) => setNote(e.target.value)} className="admin-input flex-1" placeholder="Add timeline update…" /><button type="button" disabled={!note.trim() || mutate.isPending} onClick={() => mutate.mutate({ kind: 'note' })} className="admin-action-secondary">Add</button></div>
+            <div className="mt-3 space-y-2">
+              {timeline.map((item) => <div key={item.id} className="flex gap-3 rounded-xl border border-white/[0.07] p-3"><Clock3 className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0"><p className="text-sm font-semibold">{item.message ?? humanize(item.action ?? item.type.replace('.', ' '))}</p><p className="mt-1 text-xs text-muted-foreground">{formatDateTime(item.occurredAt)}{item.actorUserId ? ` · ${item.actorUserId}` : ''}</p></div></div>)}
+              {!timeline.length ? <p className="py-3 text-center text-xs text-muted-foreground">No incident events recorded yet.</p> : null}
+            </div>
+          </AdminCard>
+
+          {mutate.error ? <p className="text-sm text-rose-200">{errorText(mutate.error)}</p> : null}
+          <a href="/admin/control-room" className="admin-action-secondary flex w-full items-center justify-center gap-2">Open Control Room <ChevronRight className="size-4" /></a>
+        </div> : null}
+      </AdminSheet>
+
+      <AdminConfirmSheet
+        open={Boolean(incident && pendingReview)}
+        onClose={() => {
+          if (!mutate.isPending) setPendingReview(null);
+        }}
+        onConfirm={applyReviewedCommand}
+        title={reviewTitle}
+        description={incident && pendingReview ? (
+          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+              <p className="font-semibold text-foreground">{incident.title}</p>
+              <p className="mt-1">Edition {editionId} · {incidentSeverityLabel(incident.severity)} · {humanize(incident.status)}</p>
+              <p className="mt-1">Incident ID: <span className="font-mono text-foreground">{incident.id}</span></p>
+            </div>
+            {pendingReview.kind === 'crisis' ? (
+              <p>Declaring crisis mode makes this incident persist as a prominent crisis warning in Control Room until the incident is resolved. This should represent an actual operational crisis, not routine escalation.</p>
+            ) : pendingReview.kind === 'severity' ? (
+              <p>Severity changes from <strong className="text-foreground">{incident.severity.toUpperCase()}</strong> to <strong className="text-foreground">{pendingReview.value?.toUpperCase()}</strong>. This changes prioritization and can activate crisis treatment when the target is SEV-1.</p>
+            ) : pendingReview.kind === 'resolve' ? (
+              <>
+                <p>Resolving closes the active incident lifecycle and removes its unresolved crisis state from operational attention.</p>
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                  <p className="font-semibold text-foreground">Resolution being recorded</p>
+                  <p className="mt-2 whitespace-pre-wrap">{resolution.trim()}</p>
+                </div>
+                <p>The current implementation saves the resolution text immediately before the existing server-authorized resolved transition. This review does not invent atomic rollback semantics that the server contract does not provide.</p>
+              </>
+            ) : (
+              <p>Status changes from <strong className="text-foreground">{humanize(incident.status)}</strong> to <strong className="text-foreground">{humanize(pendingReview.value ?? '')}</strong>. {incident.status === 'resolved' ? 'This reopens the incident into active operational monitoring.' : 'The incident remains active unless the reviewed target is resolved.'}</p>
+            )}
           </div>
-        </AdminCard>
-
-        {mutate.error ? <p className="text-sm text-rose-200">{errorText(mutate.error)}</p> : null}
-        <a href="/admin/control-room" className="admin-action-secondary flex w-full items-center justify-center gap-2">Open Control Room <ChevronRight className="size-4" /></a>
-      </div> : null}
-    </AdminSheet>
+        ) : null}
+        confirmLabel={pendingReview
+          ? pendingReview.kind === 'crisis'
+            ? 'Enter crisis mode'
+            : pendingReview.kind === 'severity'
+              ? `Escalate to ${pendingReview.value?.toUpperCase() ?? 'higher severity'}`
+              : pendingReview.kind === 'resolve'
+                ? 'Resolve incident'
+                : incident?.status === 'resolved'
+                  ? 'Reopen incident'
+                  : `Move to ${humanize(pendingReview.value ?? '')}`
+          : 'Confirm incident command'}
+        confirmationText={pendingReview && (pendingReview.kind === 'crisis' || pendingReview.kind === 'resolve') ? incident?.title : undefined}
+        confirmationHint={pendingReview && (pendingReview.kind === 'crisis' || pendingReview.kind === 'resolve') && incident ? `Type ${incident.title} exactly to confirm this incident command` : undefined}
+        busy={mutate.isPending}
+        confirmDisabled={pendingReview?.kind === 'resolve' && !resolution.trim()}
+        danger={pendingReview?.kind === 'crisis' || pendingReview?.kind === 'resolve'}
+      />
+    </>
   );
 }
 
