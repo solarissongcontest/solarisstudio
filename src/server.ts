@@ -30,6 +30,7 @@ type WorkerExecutionContext = {
 
 const MAINTENANCE_ADMIN_PATH = "/__maintenance-admin";
 const MAINTENANCE_ADMIN_LOGOUT_PATH = "/__maintenance-admin/logout";
+const TERRAOS_TEASER_PREVIEW_PATH = "/terraos-teaser-preview";
 const MAINTENANCE_BYPASS_COOKIE = "solaris_maintenance_admin";
 const MAINTENANCE_BYPASS_VERSION = "v1";
 const MAINTENANCE_BYPASS_MAX_AGE_SECONDS = 12 * 60 * 60;
@@ -48,6 +49,7 @@ const MAINTENANCE_ASSET_PATHS = new Set([
   "/sw.js",
   "/offline.html",
 ]);
+const MAINTENANCE_APP_ASSET_PREFIXES = ["/_build/", "/assets/", "/build/", "/fonts/"] as const;
 
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
@@ -107,6 +109,17 @@ function hasLocalE2EMaintenanceBypass(request: Request) {
   if (!localHost) return false;
 
   return readCookie(request, E2E_MAINTENANCE_BYPASS_COOKIE) === "1";
+}
+
+function isMaintenanceAppAssetPath(pathname: string) {
+  return MAINTENANCE_APP_ASSET_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+function isTerraOsTeaserPreviewRequest(url: URL, method: string) {
+  if (method !== "GET" && method !== "HEAD") return false;
+  if (url.pathname !== TERRAOS_TEASER_PREVIEW_PATH) return false;
+  const screen = url.searchParams.get("screen");
+  return screen === "home" || screen === "explore" || screen === "participate";
 }
 
 function bytesToHex(bytes: ArrayBuffer) {
@@ -424,10 +437,14 @@ export default {
         request.method,
         hod.enabled,
       );
+      const teaserPreviewAllowed = isTerraOsTeaserPreviewRequest(url, request.method);
+      const maintenanceAppAssetAllowed = isMaintenanceAppAssetPath(url.pathname);
 
       if (
         GLOBAL_MAINTENANCE_MODE &&
         !MAINTENANCE_ASSET_PATHS.has(url.pathname) &&
+        !maintenanceAppAssetAllowed &&
+        !teaserPreviewAllowed &&
         !hodAppRouteAllowed
       ) {
         const localE2EBypass = hasLocalE2EMaintenanceBypass(request);
