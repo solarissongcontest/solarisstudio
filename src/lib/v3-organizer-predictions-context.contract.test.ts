@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 const route = readFileSync("src/routes/_authenticated/admin/predictions.tsx", "utf8");
 const v3Facade = readFileSync("src/lib/v3-organizer-prediction-data.ts", "utf8");
 const boundedReader = readFileSync("src/lib/organizer-prediction-data.ts", "utf8");
-const legacyData = readFileSync("src/lib/prediction-data.ts", "utf8");
+const mutationData = readFileSync("src/lib/prediction-data.ts", "utf8");
 
 describe("V3 Organizer Prediction Arena context", () => {
   it("uses only the explicitly selected Organizer edition", () => {
@@ -40,10 +40,16 @@ describe("V3 Organizer Prediction Arena context", () => {
     expect(route).toContain("assertExactSelection()");
   });
 
-  it("keeps legacy mutation authority visible until System replaces it", () => {
-    expect(legacyData).toContain('.from("prediction_rounds")');
-    expect(legacyData).toContain(".upsert(");
-    expect(legacyData).toContain(".delete().eq(\"id\", roundId)");
-    expect(legacyData).toContain('rpc("score_prediction_round"');
+  it("keeps current governed round mutation authority visible while Organizer owns exact-edition UX safety", () => {
+    expect(mutationData).toContain('rpc(\n        "studio2_prediction_round_config_preview"');
+    expect(mutationData).toContain('rpc("studio2_save_prediction_round"');
+    expect(mutationData).toContain('rpc(\n        "studio2_prediction_round_delete_preview"');
+    expect(mutationData).toContain('rpc("studio2_delete_prediction_round"');
+    expect(mutationData).toContain('rpc(\n        "studio2_prediction_score_preview"');
+    expect(mutationData).toContain('rpc("studio2_score_prediction_round"');
+    expect(mutationData).toContain("p_expected_round_version");
+    expect(mutationData).toContain("p_expected_score_revision");
+    expect(mutationData).toContain("p_operation_id");
+    expect(mutationData).toContain("p_idempotency_key");
   });
 });
