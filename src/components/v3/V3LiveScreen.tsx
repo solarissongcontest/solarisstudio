@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import {
   ExternalLink,
   ListOrdered,
@@ -123,7 +122,10 @@ export function V3LiveScreen({
               {experience.currentPerformance.countryName}
             </p>
             <p className="mt-1 text-sm text-white/55">
-              {[experience.currentPerformance.artist, experience.currentPerformance.song]
+              {[
+                experience.currentPerformance.artist,
+                experience.currentPerformance.song,
+              ]
                 .filter(Boolean)
                 .join(" · ") || "Performance in progress"}
             </p>
@@ -144,7 +146,9 @@ export function V3LiveScreen({
         <div className="mt-4 flex flex-wrap items-center gap-2 text-[0.7rem] text-white/42">
           <span>{freshnessLabel(experience.freshness.updatedAt)}</span>
           <span aria-hidden="true">·</span>
-          <span className="font-mono">{experience.freshness.stateVersion}</span>
+          <span className="break-all font-mono">
+            {experience.freshness.stateVersion}
+          </span>
           {onRefresh ? (
             <button
               type="button"
@@ -153,7 +157,7 @@ export function V3LiveScreen({
               className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs font-semibold text-white/70 transition hover:bg-white/[0.05] disabled:cursor-wait disabled:opacity-50"
             >
               <RefreshCcw
-                className={`size-4 ${refreshing ? "animate-spin" : ""}`}
+                className={`size-4 ${refreshing ? "motion-safe:animate-spin" : ""}`}
                 aria-hidden="true"
               />
               {refreshing ? "Refreshing…" : "Refresh"}
@@ -162,7 +166,9 @@ export function V3LiveScreen({
         </div>
       </V3Surface>
 
-      {experience.broadcast || experience.voting.state === "open" || experience.resultsPublished ? (
+      {experience.broadcast ||
+      experience.voting.state === "open" ||
+      experience.resultsPublished ? (
         <V3Section title="Do now">
           <div className="grid gap-3 sm:grid-cols-2">
             {experience.broadcast ? (
@@ -172,7 +178,10 @@ export function V3LiveScreen({
                 rel="noreferrer"
                 className="block rounded-[var(--v3-radius-xl)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
               >
-                <V3Surface level="raised" className="flex min-h-24 items-center gap-4 p-4">
+                <V3Surface
+                  level="raised"
+                  className="flex min-h-24 items-center gap-4 p-4"
+                >
                   <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.055]">
                     <Radio className="size-5" aria-hidden="true" />
                   </span>
@@ -184,7 +193,10 @@ export function V3LiveScreen({
                       Opens the official external broadcast
                     </span>
                   </span>
-                  <ExternalLink className="size-4 shrink-0 text-white/35" aria-hidden="true" />
+                  <ExternalLink
+                    className="size-4 shrink-0 text-white/35"
+                    aria-hidden="true"
+                  />
                 </V3Surface>
               </a>
             ) : null}
@@ -214,7 +226,9 @@ export function V3LiveScreen({
 
       <V3Section
         title="Running order"
-        meta={`${experience.runningOrder.length} ${experience.runningOrder.length === 1 ? "entry" : "entries"}`}
+        meta={`${experience.runningOrder.length} ${
+          experience.runningOrder.length === 1 ? "entry" : "entries"
+        }`}
       >
         {experience.runningOrder.length ? (
           <ol className="grid gap-2" aria-label="Published running order">
@@ -253,8 +267,8 @@ export function V3LiveScreen({
           <V3Surface className="p-5">
             <p className="text-sm font-semibold">Running order not public</p>
             <p className="mt-1 text-xs leading-5 text-white/48">
-              Solaris will show the order here only after the existing running-order
-              publication gate opens.
+              Solaris will show the order here only after the existing
+              running-order publication gate opens.
             </p>
           </V3Surface>
         )}
@@ -267,7 +281,10 @@ export function V3LiveScreen({
               {experience.nextPerformance.countryName}
             </p>
             <p className="mt-1 text-xs text-white/48">
-              {[experience.nextPerformance.artist, experience.nextPerformance.song]
+              {[
+                experience.nextPerformance.artist,
+                experience.nextPerformance.song,
+              ]
                 .filter(Boolean)
                 .join(" · ")}
             </p>
