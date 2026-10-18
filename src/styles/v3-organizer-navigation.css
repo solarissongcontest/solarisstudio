@@ -1,0 +1,58 @@
+/* Keep the Organizer mobile navigation material physically bounded even though
+   legacy admin styles also target .admin-mobile-nav. The glass lives on the
+   inner material, never on a viewport-width fixed backdrop. */
+.admin-mobile-nav[data-v6-organizer-tabbar] {
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+/*
+ * Organizer shares the Public tab-bar physics but its material is authored with
+ * utility classes. Flex preserves inherited logical direction. The decorative
+ * lens layer is fully constrained and LTR, and the lens is absolutely anchored
+ * to physical coordinates inside that layer. It therefore never inherits an
+ * RTL flex static position while the shared mirrored slot math stays unchanged.
+ */
+.admin-mobile-nav[data-v6-organizer-tabbar] > div {
+  display: flex !important;
+}
+
+.admin-mobile-nav[data-v6-organizer-tabbar] .v6-organizer-tabbar__lens-layer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  display: block;
+  direction: ltr;
+  pointer-events: none;
+}
+
+.admin-mobile-nav[data-v6-organizer-tabbar] .v6-organizer-tabbar__lens {
+  position: absolute !important;
+  display: block;
+  left: .375rem !important;
+  right: auto !important;
+}
+
+.admin-mobile-nav[data-v6-organizer-tabbar] > div > [data-organizer-tab-index] {
+  flex: 1 1 0;
+}
+
+html[data-solaris-keyboard-open] .admin-mobile-nav[data-v6-organizer-tabbar] {
+  opacity: 0;
+  transform: translateY(calc(100% + env(safe-area-inset-bottom) + 2rem));
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-mobile-nav[data-v6-organizer-tabbar] {
+    transition: none;
+  }
+}
