@@ -106,6 +106,29 @@ const VERIFIED: Readonly<Record<string, VerifiedAuthorization>> = {
       "src/lib/v3-s7-confirmation-round-authorization.contract.test.ts",
     ],
   },
+  "participation.override": {
+    authorizationModel: CAPABILITY_MODEL,
+    requiredCapability: "entry.approve",
+    scope: "edition",
+    objectResolution:
+      "caller edition + exactly one country or contest entity subject; preview/apply and primitive writes remain constrained to that edition",
+    serverBoundary: "public.studio2_apply_participation_status",
+    serviceRoleAllowed: true,
+    negativePaths: [
+      "missing capability",
+      "missing or invalid edition",
+      "zero or two participation subjects",
+      "unknown participation record",
+      "stale participation version",
+      "invalid target status",
+    ],
+    evidence: [
+      "supabase/migrations/20261003015000_organisation_os_v5_participation_status_operations.sql",
+      "supabase/migrations/20260916035015_permission_engine_v2_operational_admin_rpc_cutover.sql",
+      ".github/scripts/v3-s14-stage-4-entries.sh",
+      "src/lib/v3-s7-participation-authorization.contract.test.ts",
+    ],
+  },
   "entry.review": {
     authorizationModel: CAPABILITY_MODEL,
     requiredCapability: "confirmation.manage",
