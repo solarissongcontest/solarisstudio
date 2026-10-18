@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { v3DomainConsequence } from "./v3-domain-consequence-registry";
 
 function source(path: string) {
   return readFileSync(resolve(process.cwd(), path), "utf8");
@@ -14,6 +15,9 @@ const ownerCutover = source(
 );
 const completeWinnerAuthority = source(
   "supabase/migrations/20261018084700_v3_selection_complete_winner_authority.sql",
+);
+const noopGuard = source(
+  "supabase/migrations/20261018084800_v3_selection_submit_noop_guard.sql",
 );
 const rehearsal = source(
   ".github/scripts/v3-s5-selection-consequences-rehearsal.sh",
@@ -119,6 +123,24 @@ describe("System V3 S5 National Selection consequences", () => {
     expect(completeWinnerAuthority).toContain("array[]::text[]");
   });
 
+  it("keeps non-Selection Confirmation submits outside Selection provenance", () => {
+    expect(noopGuard).toContain("v_winner_changed boolean := false");
+    expect(noopGuard).toContain("if not v_winner_changed then");
+    expect(noopGuard).toContain("return new;");
+    expect(noopGuard).toContain(
+      "Confirmation winner change lacks canonical Selection review version",
+    );
+    expect(secondaryRehearsal).toContain(
+      "Confirmation submit without a winner transition stays outside Selection",
+    );
+    expect(secondaryRehearsal).toContain(
+      "non-Selection submit fabricated Selection review state",
+    );
+    expect(secondaryRehearsal).toContain(
+      "non-Selection submit fabricated a Selection event",
+    );
+  });
+
   it("uses one monotonic Confirmation review version axis across Selection winner mutations", () => {
     expect(completeWinnerAuthority).toContain("studio2_confirmation_review_versions");
     expect(completeWinnerAuthority).toContain("v_review_version");
@@ -134,6 +156,29 @@ describe("System V3 S5 National Selection consequences", () => {
     expect(migration).toContain("private.studio2_reconcile_all_organizer_tasks");
     expect(migration).toContain("private.v3_domain_event_consumer_receipts");
     expect(migration).toContain("private.studio2_request_is_service_role()");
+  });
+
+  it("promotes both Selection facts with event-specific task causality", () => {
+    const reviewed = v3DomainConsequence("selection.reviewed");
+    expect(reviewed?.implementationState).toBe("event-backed");
+    expect(reviewed?.ownerDomain).toBe("national-selection");
+    expect(reviewed?.taskEffects).toEqual([
+      { effect: "re-evaluate", taskType: "selection.review_required" },
+    ]);
+    expect(reviewed?.evidence).toContain(
+      "supabase/migrations/20261018084500_v3_s5_selection_consequences.sql",
+    );
+
+    const winnerChanged = v3DomainConsequence("selection.winner_changed");
+    expect(winnerChanged?.implementationState).toBe("event-backed");
+    expect(winnerChanged?.ownerDomain).toBe("national-selection");
+    expect(winnerChanged?.taskEffects).toEqual([]);
+    expect(winnerChanged?.evidence).toContain(
+      "supabase/migrations/20261018084800_v3_selection_submit_noop_guard.sql",
+    );
+    expect(winnerChanged?.evidence).toContain(
+      ".github/scripts/v3-s5-selection-winner-secondary-rehearsal.sh",
+    );
   });
 
   it("keeps Selection DomainEvent payloads free of Organizer reasons and content snapshots", () => {
