@@ -1,4 +1,5 @@
 import type { SolarisTask } from "@/lib/participation-os";
+import { installTerraOsTeaserHostChoreography } from "@/lib/terraos-teaser-host-choreography";
 import {
   projectV3Bootstrap,
   type V3BootstrapSource,
@@ -162,6 +163,17 @@ export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }
         else element.setAttribute("tabindex", previous);
       }
     };
+  }, [screen]);
+
+  useEffect(() => {
+    // The eager Home preview is also the safe same-origin bridge to the outer
+    // maintenance teaser. It only adds presentation choreography around the
+    // already-rendered fixture previews; it does not fetch product data or
+    // alter the maintenance access boundary.
+    if (screen !== "home") return;
+    const frame = window.frameElement as HTMLElement | null;
+    if (!frame) return;
+    return installTerraOsTeaserHostChoreography(frame);
   }, [screen]);
 
   useEffect(() => {
