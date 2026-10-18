@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { AlertTriangle, CheckCircle2, RadioTower, ShieldAlert } from 'lucide-react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
@@ -9,6 +9,7 @@ import { AdminPage } from '@/components/admin/AdminShell';
 import {
   AdminCard,
   AdminCardHeader,
+  AdminConfirmSheet,
   AdminEmptyState,
   AdminPageHeader,
   AdminStatus,
@@ -25,6 +26,36 @@ import {
   type IncidentStatus,
 } from '@/lib/incident-command';
 import { studio2ControlRoom } from '@/lib/studio2-control-room';
+
+type TransitionRisk = 'normal' | 'elevated' | 'critical';
+
+type PendingControlReview =
+  | {
+      kind: 'edition-transition';
+      from: EditionState;
+      to: EditionState;
+      risk: TransitionRisk;
+      commandReason: string;
+      runtimeVersion: number;
+      approvalRequestId?: string | null;
+    }
+  | {
+      kind: 'approve-transition';
+      requestId: string;
+      from: EditionState;
+      to: EditionState;
+      requestReason: string;
+      expiresAt: string;
+      runtimeVersion: number;
+    }
+  | {
+      kind: 'incident-transition';
+      incidentId: string;
+      title: string;
+      from: IncidentStatus;
+      to: IncidentStatus;
+      severity: IncidentSeverity;
+    };
 
 export const Route = createFileRoute('/_authenticated/admin/control-room')({
   head: () => ({
@@ -65,6 +96,13 @@ function ControlRoomV2() {
   const [reason, setReason] = useState('');
   const [incidentTitle, setIncidentTitle] = useState('');
   const [incidentSeverity, setIncidentSeverity] = useState<IncidentSeverity>('sev3');
+  const [pendingReview, setPendingReview] = useState<PendingControlReview | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPendingReview(null);
+    setReviewError(null);
+  }, [editionId]);
 
   const snapshotQuery = useQuery({
     queryKey: ['studio2-control-room', editionId ?? 'none'],
@@ -88,17 +126,26 @@ function ControlRoomV2() {
   };
 
   const transitionEdition = useMutation({
-    mutationFn: ({ to, approvalRequestId }: { to: EditionState; approvalRequestId?: string | null }) => {
+    mutationFn: ({
+      to,
+      approvalRequestId,
+      commandReason,
+    }: {
+      to: EditionState;
+      approvalRequestId?: string | null;
+      commandReason: string;
+    }) => {
       if (!editionId) throw new Error('Choose an edition before changing its state.');
       return studio2ControlRoom.transitionEdition({
         editionId,
         to,
-        reason: reason.trim() || null,
+        reason: commandReason || null,
         approvalRequestId: approvalRequestId ?? null,
       });
     },
     onSuccess: async () => {
       setReason('');
+      setPendingReview(null);
       await refresh();
     },
   });
@@ -115,7 +162,10 @@ function ControlRoomV2() {
 
   const approveTransition = useMutation({
     mutationFn: (requestId: string) => studio2ControlRoom.approveTransition(requestId),
-    onSuccess: refresh,
+    onSuccess: async () => {
+      setPendingReview(null);
+      await refresh();
+    },
   });
 
   const createIncident = useMutation({
@@ -137,7 +187,10 @@ function ControlRoomV2() {
   const transitionIncident = useMutation({
     mutationFn: ({ id, to }: { id: string; to: IncidentStatus }) =>
       studio2ControlRoom.transitionIncident(id, to),
-    onSuccess: refresh,
+    onSuccess: async () => {
+      setPendingReview(null);
+      await refresh();
+    },
   });
 
   const submitIncident = (event: FormEvent<HTMLFormElement>) => {
@@ -161,6 +214,114 @@ function ControlRoomV2() {
     createIncident.error ??
     transitionIncident.error ??
     approvalsQuery.error;
+  const reviewBusy = transitionEdition.isPending || approveTransition.isPending || transitionIncident.isPending;
+
+  const openEditionReview = (
+    transition: NonNullable<ReturnType<typeof getEditionTransition>>,
+    approvalRequestId?: string | null,
+  ) => {
+    if (!snapshot) return;
+    setReviewError(null);
+    setPendingReview({
+      kind: 'edition-transition',
+      from: transition.from,
+      to: transition.to,
+      risk: transition.risk,
+      commandReason: reason.trim(),
+      runtimeVersion: snapshot.runtime.version,
+      approvalRequestId: approvalRequestId ?? null,
+    });
+  };
+
+  const openApprovalReview = (approval: (typeof approvals)[number]) => {
+    if (!snapshot) return;
+    setReviewError(null);
+    setPendingReview({
+      kind: 'approve-transition',
+      requestId: approval.id,
+      from: approval.from,
+      to: approval.to,
+      requestReason: approval.reason,
+      expiresAt: approval.expiresAt,
+      runtimeVersion: snapshot.runtime.version,
+    });
+  };
+
+  const openIncidentReview = (
+    incident: (typeof snapshot.incidents)[number],
+    to: IncidentStatus,
+  ) => {
+    setReviewError(null);
+    setPendingReview({
+      kind: 'incident-transition',
+      incidentId: incident.id,
+      title: incident.title,
+      from: incident.status,
+      to,
+      severity: incident.severity,
+    });
+  };
+
+  const applyReviewedCommand = async () => {
+    if (!pendingReview || !snapshot) return;
+    setReviewError(null);
+    try {
+      if (pendingReview.kind === 'edition-transition') {
+        if (
+          snapshot.runtime.version !== pendingReview.runtimeVersion ||
+          snapshot.runtime.runtime.edition !== pendingReview.from
+        ) {
+          throw new Error(
+            'Edition state changed after this review opened. Reload the current Control Room state before applying the transition.',
+          );
+        }
+        await transitionEdition.mutateAsync({
+          to: pendingReview.to,
+          approvalRequestId: pendingReview.approvalRequestId,
+          commandReason: pendingReview.commandReason,
+        });
+        return;
+      }
+
+      if (pendingReview.kind === 'approve-transition') {
+        if (
+          snapshot.runtime.version !== pendingReview.runtimeVersion ||
+          snapshot.runtime.runtime.edition !== pendingReview.from
+        ) {
+          throw new Error(
+            'Edition state changed after this approval review opened. Reload the approval before approving it.',
+          );
+        }
+        const liveApproval = approvals.find((approval) => approval.id === pendingReview.requestId);
+        if (
+          !liveApproval ||
+          !liveApproval.canApprove ||
+          liveApproval.from !== pendingReview.from ||
+          liveApproval.to !== pendingReview.to ||
+          liveApproval.reason !== pendingReview.requestReason
+        ) {
+          throw new Error('This approval request changed or is no longer approvable. Reload before acting.');
+        }
+        await approveTransition.mutateAsync(pendingReview.requestId);
+        return;
+      }
+
+      if (pendingReview.to === 'resolved') {
+        throw new Error('Resolve incidents from Incident Command so a resolution record is reviewed with the transition.');
+      }
+      const liveIncident = snapshot.incidents.find((incident) => incident.id === pendingReview.incidentId);
+      if (
+        !liveIncident ||
+        liveIncident.status !== pendingReview.from ||
+        liveIncident.severity !== pendingReview.severity
+      ) {
+        throw new Error('Incident state changed after this review opened. Reload before applying the transition.');
+      }
+      await transitionIncident.mutateAsync({ id: pendingReview.incidentId, to: pendingReview.to });
+    } catch (caught) {
+      setReviewError(errorMessage(caught, 'The reviewed Control Room command could not be applied.'));
+    }
+  };
 
   return (
     <AdminPage>
@@ -257,7 +418,7 @@ function ControlRoomV2() {
                 <AdminCardHeader
                   eyebrow="Edition command"
                   title={transitions.length ? 'Available state transitions' : 'No further transitions'}
-                  description="Elevated transitions require a reason. Critical rollbacks require a short-lived approval from a different authorized operator."
+                  description="Elevated transitions require a reason. Critical rollbacks require a short-lived approval from a different authorized operator. Final approval and apply steps are reviewed against the displayed runtime snapshot."
                 />
 
                 {approvals.length ? (
@@ -288,10 +449,10 @@ function ControlRoomV2() {
                           <button
                             type="button"
                             disabled={approveTransition.isPending}
-                            onClick={() => approveTransition.mutate(approval.id)}
+                            onClick={() => openApprovalReview(approval)}
                             className="min-h-10 shrink-0 rounded-xl border border-amber-200/25 bg-amber-200/10 px-3 text-xs font-semibold text-amber-50 disabled:opacity-45"
                           >
-                            {approveTransition.isPending ? 'Approving…' : 'Approve as second operator'}
+                            Review second-operator approval
                           </button>
                         ) : approval.canApply ? (
                           <AdminStatus tone="ready">ready for requester to apply</AdminStatus>
@@ -387,15 +548,10 @@ function ControlRoomV2() {
                                 <button
                                   type="button"
                                   disabled={busy}
-                                  onClick={() =>
-                                    transitionEdition.mutate({
-                                      to: transition.to,
-                                      approvalRequestId: approvedForRequester.id,
-                                    })
-                                  }
+                                  onClick={() => openEditionReview(transition, approvedForRequester.id)}
                                   className="min-h-10 shrink-0 rounded-xl border border-emerald-200/25 bg-emerald-200/10 px-3 text-xs font-semibold text-emerald-50 disabled:opacity-45"
                                 >
-                                  {transitionEdition.isPending ? 'Applying…' : 'Apply approved rollback'}
+                                  Review approved rollback
                                 </button>
                               ) : (
                                 <button
@@ -415,10 +571,10 @@ function ControlRoomV2() {
                               <button
                                 type="button"
                                 disabled={busy || missingReason || blockedByReadiness}
-                                onClick={() => transitionEdition.mutate({ to: transition.to })}
+                                onClick={() => openEditionReview(transition)}
                                 className="min-h-10 shrink-0 rounded-xl border border-border bg-surface px-3 text-xs font-semibold text-foreground disabled:opacity-45"
                               >
-                                {transitionEdition.isPending ? 'Applying…' : `Move to ${humanize(transition.to)}`}
+                                Review move to {humanize(transition.to)}
                               </button>
                             )}
                           </div>
@@ -454,7 +610,7 @@ function ControlRoomV2() {
                 <AdminCardHeader
                   eyebrow="Incident command"
                   title="Active operational incidents"
-                  description="SEV-1 automatically puts Control Room into crisis mode."
+                  description="SEV-1 automatically puts Control Room into crisis mode. Compact transitions are reviewed here; resolution belongs in Incident Command so its resolution record is reviewed too."
                 />
 
                 <form onSubmit={submitIncident} className="mb-4 grid gap-2 sm:grid-cols-[1fr_110px_auto]">
@@ -491,6 +647,8 @@ function ControlRoomV2() {
                       const nextStatuses = INCIDENT_STATUSES.filter((status) =>
                         canTransitionIncident(incident.status, status),
                       );
+                      const compactStatuses = nextStatuses.filter((status) => status !== 'resolved');
+                      const canResolve = nextStatuses.includes('resolved');
                       return (
                         <div key={incident.id} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
                           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -502,19 +660,27 @@ function ControlRoomV2() {
                             </div>
                             <AdminStatus tone="neutral">{humanize(incident.status)}</AdminStatus>
                           </div>
-                          {nextStatuses.length ? (
+                          {compactStatuses.length || canResolve ? (
                             <div className="mt-3 flex flex-wrap gap-2">
-                              {nextStatuses.map((status) => (
+                              {compactStatuses.map((status) => (
                                 <button
                                   key={status}
                                   type="button"
                                   disabled={transitionIncident.isPending}
-                                  onClick={() => transitionIncident.mutate({ id: incident.id, to: status })}
+                                  onClick={() => openIncidentReview(incident, status)}
                                   className="rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-45"
                                 >
-                                  {humanize(status)}
+                                  Review {humanize(status)}
                                 </button>
                               ))}
+                              {canResolve ? (
+                                <a
+                                  href={`/admin/incidents?incident=${encodeURIComponent(incident.id)}`}
+                                  className="rounded-lg border border-emerald-200/20 bg-emerald-200/[0.05] px-2.5 py-1.5 text-[11px] font-semibold text-emerald-100"
+                                >
+                                  Resolve in Incident Command
+                                </a>
+                              ) : null}
                             </div>
                           ) : null}
                         </div>
@@ -553,8 +719,80 @@ function ControlRoomV2() {
           </div>
         )}
       </div>
+
+      <AdminConfirmSheet
+        open={Boolean(pendingReview)}
+        onClose={() => {
+          if (!reviewBusy) {
+            setPendingReview(null);
+            setReviewError(null);
+          }
+        }}
+        onConfirm={applyReviewedCommand}
+        title={controlReviewTitle(pendingReview)}
+        description={pendingReview ? (
+          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+            {pendingReview.kind === 'edition-transition' ? (
+              <>
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                  <p className="font-semibold text-foreground">Edition lifecycle transition</p>
+                  <p className="mt-1">{humanize(pendingReview.from)} → {humanize(pendingReview.to)}</p>
+                  <p className="mt-1">Risk: {pendingReview.risk} · displayed runtime version {pendingReview.runtimeVersion}</p>
+                  <p className="mt-1">Reason: {pendingReview.commandReason || 'No reason required for this normal transition.'}</p>
+                  {pendingReview.approvalRequestId ? <p className="mt-1 break-all font-mono">Approval: {pendingReview.approvalRequestId}</p> : null}
+                </div>
+                <p>Control Room will refuse this reviewed action if the displayed edition state or runtime version changes before apply.</p>
+                <p>System #587 still owns server-side expected-version/CAS, stable idempotency and canonical operation-receipt semantics. This client review does not pretend to replace that authority.</p>
+              </>
+            ) : pendingReview.kind === 'approve-transition' ? (
+              <>
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                  <p className="font-semibold text-foreground">Second-operator approval</p>
+                  <p className="mt-1">{humanize(pendingReview.from)} → {humanize(pendingReview.to)}</p>
+                  <p className="mt-1">Reason: {pendingReview.requestReason}</p>
+                  <p className="mt-1">Expires {formatTimestamp(pendingReview.expiresAt)} · runtime version {pendingReview.runtimeVersion}</p>
+                </div>
+                <p>Approving does not execute the rollback itself. It authorizes the original requester to perform the separately reviewed critical transition while this approval remains valid.</p>
+                <p>The request is rechecked immediately before approval and fails closed if its state, reason, edition phase or approvability changed.</p>
+              </>
+            ) : (
+              <>
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                  <p className="font-semibold text-foreground">{pendingReview.title}</p>
+                  <p className="mt-1">{pendingReview.severity.toUpperCase()} · {humanize(pendingReview.from)} → {humanize(pendingReview.to)}</p>
+                  <p className="mt-1 break-all font-mono">{pendingReview.incidentId}</p>
+                </div>
+                <p>This compact Control Room transition is rechecked against the live incident state before apply.</p>
+                <p>Resolution is intentionally unavailable here because Incident Command reviews the resolution record together with the lifecycle decision.</p>
+              </>
+            )}
+            {reviewError ? (
+              <p className="rounded-xl border border-rose-200/20 bg-rose-200/[0.05] p-3 font-semibold text-rose-100">{reviewError}</p>
+            ) : null}
+          </div>
+        ) : null}
+        confirmLabel={controlReviewConfirmLabel(pendingReview)}
+        confirmationText={pendingReview?.kind === 'edition-transition' && pendingReview.risk === 'critical' ? humanize(pendingReview.to) : undefined}
+        confirmationHint={pendingReview?.kind === 'edition-transition' && pendingReview.risk === 'critical' ? `Type ${humanize(pendingReview.to)} exactly to apply this critical rollback` : undefined}
+        busy={reviewBusy}
+        danger={pendingReview?.kind === 'edition-transition' && pendingReview.risk === 'critical'}
+      />
     </AdminPage>
   );
+}
+
+function controlReviewTitle(review: PendingControlReview | null) {
+  if (!review) return 'Review Control Room command';
+  if (review.kind === 'edition-transition') return `Review move to ${humanize(review.to)}`;
+  if (review.kind === 'approve-transition') return `Approve ${humanize(review.from)} → ${humanize(review.to)}?`;
+  return `Review ${review.title}: ${humanize(review.from)} → ${humanize(review.to)}`;
+}
+
+function controlReviewConfirmLabel(review: PendingControlReview | null) {
+  if (!review) return 'Confirm command';
+  if (review.kind === 'edition-transition') return review.risk === 'critical' ? 'Apply approved critical rollback' : `Move to ${humanize(review.to)}`;
+  if (review.kind === 'approve-transition') return 'Approve as second operator';
+  return `Move incident to ${humanize(review.to)}`;
 }
 
 function humanize(value: string) {
@@ -595,7 +833,7 @@ function transitionReadinessBlockers(
   );
 }
 
-function riskTone(risk: 'normal' | 'elevated' | 'critical') {
+function riskTone(risk: TransitionRisk) {
   return risk === 'critical'
     ? ('blocked' as const)
     : risk === 'elevated'
