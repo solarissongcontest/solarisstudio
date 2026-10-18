@@ -16,6 +16,7 @@ describe("Organizer permission shadow routing", () => {
     ["/admin/media-assets", "publishing.read"],
     ["/admin/hosts", "host.read"],
     ["/admin/entries/ssc-21", "entry.read_private"],
+    ["/admin/delegations", "confirmation.read"],
     ["/admin/countries", "delegation.read"],
     ["/admin/operations", "edition.read"],
     ["/confirmations/admin/responses", "confirmation.read"],
