@@ -25,7 +25,7 @@ export function IntegritySanctionDecisionReview({
   findingSummary: string;
   typicalLevel: number | null;
   finalLevel: number;
-  finalLabel: string;
+  finalLabel: string | undefined;
   targetType: string;
   targetReference: string | null;
   aggravatingFactors: string[];
@@ -45,7 +45,7 @@ export function IntegritySanctionDecisionReview({
           <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
             <p className="font-semibold text-foreground">Confirmed finding</p>
             <p className="mt-1 text-slate-200/85">{findingSummary}</p>
-            <p className="mt-3 text-sm font-black text-rose-100">Level {finalLevel} · {finalLabel}</p>
+            <p className="mt-3 text-sm font-black text-rose-100">Level {finalLevel} · {finalLabel ?? "Sanction"}</p>
             <p className="mt-1">Typical starting level: {typicalLevel ?? "not specified"}</p>
             <p className="mt-1">Target: {targetType}{targetReference ? ` · ${targetReference}` : ""}</p>
             <p className="mt-3"><span className="font-semibold text-foreground">Aggravating:</span> {aggravatingFactors.length ? aggravatingFactors.join(" · ") : "None recorded"}</p>
@@ -87,7 +87,7 @@ export function IntegrityAppealDecisionReview({
   grounds: string;
   outcome: string;
   replacementLevel: number | null;
-  replacementLabel: string | null;
+  replacementLabel: string | null | undefined;
   aggravatingFactors: string[];
   mitigatingFactors: string[];
   rationale: string;
