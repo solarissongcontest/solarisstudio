@@ -21,17 +21,27 @@ No state requires production traffic.
 
 - **Event consumer failure / unavailable dependency:** the S4 DomainEvent rehearsal claims a delivery, injects `DEPENDENCY_FAILURE`, proves retry, reaches the attempt ceiling/dead-letter state, explicitly requeues the dead letter, reclaims it and completes it.
 - **Duplicate delivery:** the same S4 rehearsal proves semantic event replay reuses the immutable event/delivery rows and duplicate completion converges on one immutable consumer receipt.
+- **Stale projection:** the S11 stale-projection rehearsal creates an inactive Solaris scheduler job as canonical source truth, deletes only its derived Organizer Task, invokes the declared edition-bounded task rebuild, and proves the restored task semantically matches the pre-corruption projection.
+- **Reconciliation retry:** that rehearsal deliberately makes the first projection write fail, verifies the failed repair leaves no partial task and does not alter scheduler truth, then retries the same canonical rebuild path and proves one exact projection plus idempotent replay.
 
 ### Partial
 
 - **Lost response after commit:** S2 proves the underlying committed-operation replay semantics by completing an operation and then replaying the same normalized semantic request, but the rehearsal does not actually discard or interrupt the original client response after commit. This remains partial until a dedicated local transport-loss injection proves recovery from that real failure sequence.
 - **Transient RPC failure:** S2 rehearses a `TIMEOUT` uncertain receipt and actor-scoped reconciliation, but it does not yet sever/lose one real workflow RPC response around a committed mutation and prove end-to-end recovery.
-- **Reconciliation retry:** operation reconciliation and bounded projection-recovery contracts exist, but a projection rebuild/verification failure followed by a second convergent attempt is not yet deliberately injected.
 
 ### Contract-only
 
-- **Stale projection:** the S6 registry and S11 guardrails declare bounded rebuild/verification for rebuildable projections, including Organizer Tasks, but there is no dedicated rehearsal that intentionally damages one derived projection and proves a bounded rebuild restores exact truth.
 - **Queue backlog:** S12 defines `reconciliation-backlog-drain` and measures queue/retry pressure, but representative backlog-drain evidence has not yet been executed and retained.
+
+## Stale projection / retry rehearsal
+
+Run only against local Supabase:
+
+```bash
+bash .github/scripts/v3-s11-stale-projection-rehearsal.sh
+```
+
+The rehearsal hard-refuses hosted/non-loopback database targets. It wraps the entire fixture in a transaction and rolls it back, so the synthetic edition, cron job, corrupted projection and injected trigger never persist. It intentionally modifies only derived Organizer Task state; the inactive `cron.job` row remains authoritative throughout the failure and retry sequence.
 
 ## Generate exact-SHA evidence
 
@@ -48,11 +58,9 @@ The generator is offline. It does not connect to Supabase or create traffic. It 
 
 ## Next recovery rehearsals
 
-The highest-value missing executable evidence is:
+The remaining highest-value executable evidence is:
 
-1. **stale Organizer Task projection rebuild** — in local Supabase, create canonical source truth, deliberately remove/corrupt only the derived task projection, run the existing edition-bounded reconciler, and verify exact convergence;
-2. **reconciliation retry** — force the first rebuild/verification attempt to fail without altering canonical truth, then prove a repeated canonical reconciliation converges without duplicate side effects;
-3. **transient/lost workflow response** — run one real R2/R3 mutation locally, discard/interrupt the client response after commit, retry the same semantic request and verify the durable receipt/result is returned;
-4. **reconciliation backlog drain** — generate a bounded local backlog with an evidence-backed load shape, drain it through normal consumers/reconciliation, and retain queue/retry plus normal-workload latency evidence.
+1. **transient/lost workflow response** — run one real R2/R3 mutation locally, discard/interrupt the client response after commit, retry the same semantic request and verify the durable receipt/result is returned;
+2. **reconciliation backlog drain** — generate a bounded local backlog with an evidence-backed load shape, drain it through normal consumers/reconciliation, and retain queue/retry plus normal-workload latency evidence.
 
 These rehearsals must remain local/isolated. Deliberately breaking production to prove that recovery works would be a remarkably literal interpretation of reliability engineering.
