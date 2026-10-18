@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import type { EditionReadiness, ReadinessIssue } from "@/lib/admin-readiness";
+import type { AdminIssue, EditionReadiness } from "@/lib/admin-readiness";
 import type { Studio2IncidentRecord } from "@/lib/studio2-persistence";
 import { buildControlRoomAttention } from "./v3-organizer-control-room-attention";
 
 function readiness(issues: EditionReadiness["issues"]): EditionReadiness {
   return {
     status: issues.some((issue) => issue.severity === "critical")
-      ? "not_ready"
+      ? "blocked"
       : issues.length
-        ? "warning"
+        ? "needs-attention"
         : "ready",
     progress: issues.length ? 50 : 100,
     issues,
@@ -17,12 +17,10 @@ function readiness(issues: EditionReadiness["issues"]): EditionReadiness {
   };
 }
 
-function issue(input: Pick<ReadinessIssue, "code" | "severity" | "title" | "detail">): ReadinessIssue {
+function issue(input: Pick<AdminIssue, "id" | "severity" | "title" | "detail">): AdminIssue {
   return {
     ...input,
-    area: "live",
-    actionLabel: "Open workspace",
-    actionHref: "/admin/control-room",
+    area: "setup",
   };
 }
 
@@ -51,7 +49,7 @@ describe("V3 Organizer Control Room attention model", () => {
     const items = buildControlRoomAttention(
       readiness([
         issue({
-          code: "broken-results",
+          id: "broken-results",
           severity: "critical",
           title: "Results do not reconcile",
           detail: "Totals are inconsistent.",
@@ -70,11 +68,30 @@ describe("V3 Organizer Control Room attention model", () => {
     ]);
   });
 
+  it("promotes action readiness after critical exceptions but before warnings", () => {
+    const items = buildControlRoomAttention(
+      readiness([
+        issue({
+          id: "running-order",
+          severity: "action",
+          title: "Running order incomplete",
+          detail: "Place every entry before the show.",
+        }),
+      ]),
+      [incident("incident-3", "sev3", "Minor display issue")],
+    );
+
+    expect(items.map((item) => item.id)).toEqual([
+      "readiness:running-order",
+      "incident:incident-3",
+    ]);
+  });
+
   it("does not promote warning-only readiness observations into immediate attention", () => {
     const items = buildControlRoomAttention(
       readiness([
         issue({
-          code: "tele-warning",
+          id: "tele-warning",
           severity: "warning",
           title: "No televote data yet",
           detail: "No voting activity has started.",
@@ -98,7 +115,7 @@ describe("V3 Organizer Control Room attention model", () => {
   it("keeps the model read-only and deterministic", () => {
     const source = readiness([
       issue({
-        code: "no-shows",
+        id: "no-shows",
         severity: "critical",
         title: "No shows created",
         detail: "Create a show before operating the edition.",
