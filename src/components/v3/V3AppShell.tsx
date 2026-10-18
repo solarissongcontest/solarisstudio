@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
   BookOpen,
@@ -17,7 +17,12 @@ import { resolveV3ShellActiveArea } from "@/lib/v3-shell-active-area";
 import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
 import { cn } from "@/lib/utils";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
+import { V3DesktopPrimaryNavigation } from "./V3DesktopPrimaryNavigation";
 import { V3FoundationShell, V3TopContext } from "./V3Foundation";
+import {
+  V3LiquidTabBar,
+  type V3LiquidTabDestination,
+} from "./V3LiquidTabBar";
 
 type V3Area = "home" | "explore" | "participate" | "results" | "me";
 
@@ -53,16 +58,18 @@ export type V3AppShellProps = {
 /**
  * Migration-ready V3 chrome.
  *
- * This component deliberately routes to existing canonical Solaris
- * destinations. It can therefore be rolled out independently from page
- * migrations and does not require duplicate routes, duplicate state or a
- * simultaneous rewrite of Home/Explore/Participate/Results/Me.
+ * Canonical route ownership stays in TanStack Router and the screen registry.
+ * The Liquid bar provides direct manipulation as progressive enhancement, but
+ * every destination remains a semantic link and this shell never invents a
+ * second URL/state model. Whole-page swipe is deliberately not enabled here;
+ * that remains fail-closed until route owners provide safe live adjacent DOM
+ * surfaces rather than screenshots or duplicate data graphs.
  *
- * Notifications, Search and Rules guidance are also server-gated. Search
- * reuses the existing installed-app PublicCommandPalette. Rules guidance links
- * into the existing versioned Rules domain and its coarse workflow contexts,
- * so V3 does not acquire another query index, rule corpus, recents store or
- * guidance state model. Browser-local state cannot enable these capabilities.
+ * Notifications, Search and Rules guidance are server-gated. Search reuses the
+ * existing installed-app PublicCommandPalette. Rules guidance links into the
+ * existing versioned Rules domain and its coarse workflow contexts, so V3 does
+ * not acquire another query index, rule corpus, recents store or guidance state
+ * model. Browser-local state cannot enable these capabilities.
  */
 export function V3AppShell({
   children,
@@ -75,6 +82,7 @@ export function V3AppShell({
 }: V3AppShellProps) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
+  const navigate = useNavigate();
   const publicArea = activeArea ?? resolveV3ShellActiveArea(pathname, searchStr);
   const attention = useAppAttentionSummary();
   const rollout = useV3RolloutProbe(true);
@@ -84,6 +92,22 @@ export function V3AppShell({
   const rulesGuidanceAvailable = rollout.data?.rulesGuidanceEnabled === true;
   const ruleContext = rulesGuidanceAvailable ? getRuleContext(pathname) : null;
   const ruleContextPath = sanitizeRuleContextPath(ruleContext?.sourcePath);
+
+  const navigationDestinations: V3LiquidTabDestination[] = V3_SHELL_DESTINATIONS.map(
+    ({ id, label, to, icon, emphasis }) => ({
+      id,
+      label,
+      to,
+      icon,
+      emphasis,
+      active: publicArea === id,
+      badge: id === "participate" ? participateAttentionCount : 0,
+    }),
+  );
+
+  const selectDestination = (destination: V3LiquidTabDestination) => {
+    void navigate({ to: destination.to as any });
+  };
 
   const shellActions =
     notificationsAvailable || searchAvailable || rulesGuidanceAvailable || topActions ? (
@@ -132,36 +156,18 @@ export function V3AppShell({
     <V3FoundationShell>
       <div className={cn("min-h-dvh", className)}>
         <V3TopContext edition={editionLabel} phase={phaseLabel} actions={shellActions} />
+        <V3DesktopPrimaryNavigation
+          destinations={navigationDestinations}
+          onSelect={selectDestination}
+        />
         {children}
       </div>
 
-      <nav className="v3-bottom-nav" aria-label="Primary app navigation">
-        {V3_SHELL_DESTINATIONS.map(({ id, label, to, icon: Icon, emphasis }) => {
-          const active = publicArea === id;
-          const attentionCount = id === "participate" ? participateAttentionCount : 0;
-
-          return (
-            <Link
-              key={id}
-              to={to as any}
-              className="v3-bottom-nav__item"
-              aria-current={active ? "page" : undefined}
-              data-emphasis={emphasis ? "true" : undefined}
-              data-active={active ? "true" : undefined}
-            >
-              <span className="relative grid place-items-center" aria-hidden="true">
-                <Icon className="size-[19px]" strokeWidth={active ? 2.3 : 1.9} />
-                {attentionCount > 0 ? (
-                  <span className="absolute -right-2 -top-2 grid min-h-4 min-w-4 place-items-center rounded-full bg-[var(--v3-danger)] px-1 text-[0.58rem] font-extrabold leading-none text-white shadow-[0_0_0_2px_var(--v3-bg-base)]">
-                    {attentionCount > 9 ? "9+" : attentionCount}
-                  </span>
-                ) : null}
-              </span>
-              <span className="v3-bottom-nav__label">{label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+      <V3LiquidTabBar
+        pathname={pathname}
+        destinations={navigationDestinations}
+        onSelect={selectDestination}
+      />
     </V3FoundationShell>
   );
 }
