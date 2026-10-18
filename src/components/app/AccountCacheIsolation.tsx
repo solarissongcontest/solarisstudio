@@ -10,6 +10,10 @@ export function AccountCacheIsolation() {
   const client = useQueryClient();
   const authGenerationRef = useRef(0);
   useEffect(() => {
+    // The public TerraOS teaser preview is fixture-only. In particular, a
+    // same-origin iframe must not subscribe to the visitor's real auth state.
+    if (window.location.pathname === "/terraos-teaser-preview") return;
+
     const lifecycle = beginLifecycleGeneration(authGenerationRef);
     const applySession = createAccountCacheIsolationHandler(
       client,

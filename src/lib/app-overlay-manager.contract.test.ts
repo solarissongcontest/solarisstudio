@@ -30,6 +30,12 @@ describe("app overlay manager", () => {
     expect(manager).not.toContain("updateAvailable && updateSafe");
   });
 
+  it("never mounts app overlays inside fixture-only TerraOS teaser frames", () => {
+    const manager = source("src/components/app/AppOverlayManager.tsx");
+    expect(manager).toContain('TERRAOS_TEASER_PREVIEW_PATH = "/terraos-teaser-preview"');
+    expect(manager).toContain("if (teaserPreview) return null");
+  });
+
   it("does not let first-run completion get lost behind later overlays", () => {
     const firstRun = source("src/components/app/AppFirstRun.tsx");
     expect(firstRun).toContain("appFirstRunComplete");

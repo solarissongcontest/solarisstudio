@@ -8,6 +8,7 @@ import { usePublishedRulebook } from "@/lib/rules-governance";
 
 export const RULE_CONTEXT_STORAGE_KEY = "solaris:rule-context-path";
 export const GOVERNANCE_ACTION_STORAGE_KEY = "solaris:governance-action";
+const TERRAOS_TEASER_PREVIEW_PATH = "/terraos-teaser-preview";
 
 /**
  * Keeps the active published rulebook overlay available to Rules consumers and
@@ -20,6 +21,17 @@ export const GOVERNANCE_ACTION_STORAGE_KEY = "solaris:governance-action";
  * search state while React is still hydrating the page.
  */
 export function RulesGovernanceContext() {
+  const { pathname } = useHydrationSafeRouterLocation();
+
+  // The maintenance teaser preview is a fixture renderer. It deliberately uses
+  // real V3 components, but it must not turn their shared root environment into
+  // a live Supabase reader. Keep the published-rulebook query out of this route.
+  if (pathname === TERRAOS_TEASER_PREVIEW_PATH) return null;
+
+  return <ActiveRulesGovernanceContext />;
+}
+
+function ActiveRulesGovernanceContext() {
   usePublishedRulebook();
   const { pathname, searchStr } = useHydrationSafeRouterLocation();
 

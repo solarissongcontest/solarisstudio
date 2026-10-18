@@ -25,6 +25,8 @@ type CapacitorWindow = Window & {
   };
 };
 
+const TERRAOS_TEASER_PREVIEW_PATH = "/terraos-teaser-preview";
+
 export function hydrationSafeSolarisPlatformSnapshot(): SolarisPlatformSnapshot {
   return {
     mode: "web",
@@ -57,6 +59,17 @@ export function isNativeSolarisRuntime() {
 export function detectSolarisPlatform(): SolarisPlatformSnapshot {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
     return hydrationSafeSolarisPlatformSnapshot();
+  }
+
+  // This maintenance-only route is a fixture renderer, not an app runtime.
+  // Force the inert web capability set even if it is opened from an installed
+  // PWA so AppRuntime cannot register workers, refresh push state or perform
+  // session-backed app work from inside the teaser iframe.
+  if (window.location.pathname === TERRAOS_TEASER_PREVIEW_PATH) {
+    return {
+      ...hydrationSafeSolarisPlatformSnapshot(),
+      isOnline: navigator.onLine,
+    };
   }
 
   const isNative = isNativeSolarisRuntime();

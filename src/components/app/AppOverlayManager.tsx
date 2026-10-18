@@ -7,6 +7,8 @@ import { AppOfflineBanner } from "@/components/app/AppOfflineBanner";
 import { AppUpdatePrompt } from "@/components/app/AppUpdatePrompt";
 import type { AppConnectivitySnapshot } from "@/lib/app-connectivity";
 
+const TERRAOS_TEASER_PREVIEW_PATH = "/terraos-teaser-preview";
+
 export function AppOverlayManager({
   isAppMode,
   pathname,
@@ -23,14 +25,16 @@ export function AppOverlayManager({
   updateSafe: boolean;
   onUpdate: () => void;
 }) {
+  const teaserPreview = pathname === TERRAOS_TEASER_PREVIEW_PATH;
   const [firstRunComplete, setFirstRunComplete] = useState(() => !isAppMode || appFirstRunComplete());
 
   useEffect(() => {
+    if (teaserPreview) return;
     setFirstRunComplete(!isAppMode || appFirstRunComplete());
-  }, [isAppMode, pathname]);
+  }, [isAppMode, pathname, teaserPreview]);
 
   useEffect(() => {
-    if (typeof document === "undefined") return;
+    if (teaserPreview || typeof document === "undefined") return;
 
     const root = document.documentElement;
     root.dataset.solarisChromeOwner = "overlay-manager";
@@ -64,7 +68,9 @@ export function AppOverlayManager({
       delete root.dataset.solarisOverlayKind;
       delete root.dataset.solarisChromeOwner;
     };
-  }, []);
+  }, [teaserPreview]);
+
+  if (teaserPreview) return null;
 
   let overlay = null;
 

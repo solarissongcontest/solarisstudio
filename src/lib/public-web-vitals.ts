@@ -24,6 +24,7 @@ type EventTimingEntry = PerformanceEntry & {
 };
 
 const client = supabase as unknown as WebVitalsInsertClient;
+const TERRAOS_TEASER_PREVIEW_PATH = "/terraos-teaser-preview";
 
 export function ratePublicWebVital(
   metric: PublicWebVitalName,
@@ -52,6 +53,11 @@ export function startPublicWebVitals() {
   }
   if (window.navigator.webdriver) return () => undefined;
   if (window.location.pathname.startsWith("/admin")) return () => undefined;
+  // Maintenance teaser iframes render real V3 components with fixture data.
+  // They are not real page visits and must never write scaled iframe metrics.
+  if (window.location.pathname === TERRAOS_TEASER_PREVIEW_PATH) {
+    return () => undefined;
+  }
 
   const pathname = safePathname(window.location.pathname);
   const supported = new Set(PerformanceObserver.supportedEntryTypes ?? []);
