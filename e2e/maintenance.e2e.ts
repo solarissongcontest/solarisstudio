@@ -25,20 +25,16 @@ test("Solaris Studio serves the TerraOS 3 maintenance teaser across the app", as
     await expect(page.getByText("22 October 2026", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Take a closer look." })).toBeVisible();
     await expect(page.getByText("Five places.", { exact: false }).first()).toBeVisible();
-    await expect(page.locator('[data-locked-copy="More on 19.10"]')).toHaveAttribute(
-      "data-reveal-at",
-      "2026-10-19T00:00:00+03:00",
-    );
-    await expect(page.locator('[data-locked-copy="More on 20.10"]')).toHaveAttribute(
-      "data-reveal-at",
-      "2026-10-20T00:00:00+03:00",
-    );
-    await expect(page.locator('[data-locked-copy="More on 21.10"]')).toHaveAttribute(
-      "data-reveal-at",
-      "2026-10-21T00:00:00+03:00",
-    );
+    await expect(page.getByText("Solaris now", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Discover the contest", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Your participation", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Solaris Studio", { exact: true }).first()).toBeVisible();
     await expect(page.locator('.mark[src="/solaris-studio-mark.png"]')).toBeVisible();
+
+    await expect(page.locator('[data-locked-copy]')).toHaveCount(0);
+    await expect(page.locator('.orbit')).toHaveCount(0);
+    const nextRevealCount = await page.locator('[data-next-reveal]').count();
+    expect(nextRevealCount, `${route} should expose at most one next reveal`).toBeLessThanOrEqual(1);
 
     await expect(page.getByText(/Solaris Studio is temporarily unavailable/i)).toHaveCount(0);
     await expect(page.getByText(/database service error/i)).toHaveCount(0);

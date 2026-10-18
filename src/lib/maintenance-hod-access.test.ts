@@ -127,7 +127,7 @@ describe("maintenance HOD route isolation", () => {
 });
 
 describe("TerraOS 3 maintenance teaser contract", () => {
-  const teaser = renderMaintenancePage();
+  const teaser = renderMaintenancePage(new Date("2026-10-18T13:00:00+03:00"));
 
   it("preserves the HOD insertion point while making TerraOS 3 the public hero", () => {
     expect(teaser).toContain("          <footer>");
@@ -137,6 +137,7 @@ describe("TerraOS 3 maintenance teaser contract", () => {
     expect(teaser).toContain(MAINTENANCE_RETURN_DATE);
     expect(teaser).toContain(`data-terraos-launch-at="${TERRAOS3_ESTIMATED_LAUNCH_AT}"`);
     expect(teaser).toContain('role="timer"');
+    expect(teaser).toContain('aria-live="off"');
     expect(teaser).not.toContain("Solaris Studio is temporarily unavailable");
     expect(teaser).not.toContain("Organizer tools");
   });
@@ -152,36 +153,49 @@ describe("TerraOS 3 maintenance teaser contract", () => {
     expect(teaser).toContain("root.insertBefore(portal,story)");
   });
 
-  it("uses sparse product copy instead of generic launch language", () => {
-    expect(teaser).toContain("Take a closer look.");
-    expect(teaser).toContain("Five places.<br />One Solaris.");
-    expect(teaser).toContain("Touch it.");
-    expect(teaser).toContain("What’s next,<br />at a glance.");
-    expect(teaser).toContain("Results,<br />live.");
-    expect(teaser).not.toMatch(/next-generation|revolutionary|reimagined|seamless|effortless/i);
+  it("uses real V3-flavoured Home, Explore and Participate previews instead of placeholder Results art", () => {
+    expect(teaser).toContain("Solaris now");
+    expect(teaser).toContain("Discover the contest");
+    expect(teaser).toContain("Your participation");
+    expect(teaser).toContain("You’re all caught up");
+    expect(teaser).toContain("Solaris Song Contest 22");
+    expect(teaser).not.toContain('class="orbit"');
+    expect(teaser).not.toContain("Final results");
   });
 
-  it("keeps progressive reveals date-bound, inert while locked and free of network polling", () => {
-    expect(teaser).toContain('inert data-reveal-at="2026-10-19T00:00:00+03:00"');
-    expect(teaser).toContain('inert data-reveal-at="2026-10-20T00:00:00+03:00"');
-    expect(teaser).toContain('inert data-reveal-at="2026-10-21T00:00:00+03:00"');
+  it("renders only the current reveal phase instead of giant future placeholders", () => {
+    expect(teaser).toContain('data-terraos-teaser-phase="0"');
+    expect(teaser).toContain('data-next-reveal="2026-10-19"');
     expect(teaser).toContain("More on 19.10");
-    expect(teaser).toContain("More on 20.10");
-    expect(teaser).toContain("More on 21.10");
-    expect(teaser).toMatch(/toggleAttribute\(['"]inert['"],\s*!open\)/);
-    expect(teaser).toMatch(/removeAttribute\(['"]inert['"]\)/);
+    expect(teaser).not.toContain("data-locked-copy");
+    expect(teaser).not.toContain('id="liquid-demo"');
+    expect(teaser).not.toContain("More on 20.10");
+    expect(teaser).not.toContain("More on 21.10");
     expect(teaser).not.toContain("fetch(");
     expect(teaser).not.toContain("XMLHttpRequest");
   });
 
-  it("provides direct-manipulation navigation with accessibility fallbacks", () => {
-    expect(teaser).toContain('id="liquid-demo"');
-    expect(teaser).toContain('aria-selected="true"');
-    expect(teaser).toContain("demo.addEventListener('pointerdown'");
-    expect(teaser).toContain("demo.addEventListener('pointermove'");
-    expect(teaser).toContain("demo.addEventListener('pointerup'");
-    expect(teaser).toContain("prefers-reduced-motion:reduce");
-    expect(teaser).toContain("prefers-reduced-transparency:reduce");
+  it("provides direct-manipulation navigation with accessibility fallbacks when the 19 October reveal is active", () => {
+    const navigation = renderMaintenancePage(new Date("2026-10-19T00:01:00+03:00"));
+    expect(navigation).toContain('id="liquid-demo"');
+    expect(navigation).toContain('role="tablist"');
+    expect(navigation).toContain('aria-selected="true"');
+    expect(navigation).toContain("demo.addEventListener('pointerdown'");
+    expect(navigation).toContain("demo.addEventListener('pointermove'");
+    expect(navigation).toContain("demo.addEventListener('pointerup'");
+    expect(navigation).toContain("velocity");
+    expect(navigation).toContain("prefers-reduced-motion:reduce");
+    expect(navigation).toContain("prefers-reduced-transparency:reduce");
+  });
+
+  it("keeps sparse launch copy instead of generic technology language", () => {
+    const full = renderMaintenancePage(new Date("2026-10-21T00:01:00+03:00"));
+    expect(full).toContain("Take a closer look.");
+    expect(full).toContain("Five places.<br />One Solaris.");
+    expect(full).toContain("Touch it.");
+    expect(full).toContain("What’s next,<br />at a glance.");
+    expect(full).toContain("Results, live.");
+    expect(full).not.toMatch(/next-generation|revolutionary|reimagined|seamless|effortless/i);
   });
 });
 
