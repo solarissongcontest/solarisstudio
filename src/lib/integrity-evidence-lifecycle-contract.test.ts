@@ -194,8 +194,10 @@ describe("Integrity evidence lifecycle", () => {
   });
 
   it("requires explicit confirmation before destructive evidence lifecycle actions", () => {
-    expect(adminRoute).toContain("window.confirm");
-    expect(adminRoute).toContain("Permanently delete this private evidence item");
+    expect(adminRoute).toContain("AdminConfirmSheet");
+    expect(adminRoute).toContain("Review permanent deletion");
+    expect(adminRoute).toContain("confirmationText={item.case_code}");
+    expect(adminRoute).toContain("Delete private evidence permanently");
     expect(adminRoute).toContain("Clean this expired unfinished upload");
   });
 });

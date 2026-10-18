@@ -9,10 +9,11 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
-import { AdminCard, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
+import { AdminCard, AdminConfirmSheet, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import {
   cleanExpiredEvidenceUpload,
   deleteDueEvidence,
@@ -122,19 +123,16 @@ function IntegrityEvidenceLifecycle() {
 }
 
 function DueEvidenceCard({ item, onChanged }: { item: DueEvidenceDeletion; onChanged: () => Promise<unknown> }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const mutation = useMutation({
     mutationFn: () => deleteDueEvidence(item),
     onSuccess: async () => {
+      setConfirmOpen(false);
       await onChanged();
       toast.success("Evidence deletion completed");
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not delete evidence"),
   });
-
-  const confirmDeletion = () => {
-    if (!window.confirm(`Permanently delete this private evidence item for ${item.case_code}? The audit record will remain, but the stored file cannot be recovered.`)) return;
-    mutation.mutate();
-  };
 
   return (
     <article className="rounded-xl border border-rose-200/10 bg-rose-200/[0.025] p-4">
@@ -149,8 +147,36 @@ function DueEvidenceCard({ item, onChanged }: { item: DueEvidenceDeletion; onCha
       <p className="mt-3 text-xs leading-5 text-muted-foreground">{item.deletion_reason}</p>
       <div className="mt-4 flex flex-wrap gap-2">
         <Link to="/admin/integrity-case/$caseId" params={{ caseId: item.case_id }} className="admin-action-secondary">Open case <ArrowRight className="size-3.5" /></Link>
-        <button type="button" disabled={mutation.isPending} onClick={confirmDeletion} className="admin-action-secondary text-rose-100"><Trash2 className="size-3.5" />{mutation.isPending ? "Deleting…" : "Delete private evidence"}</button>
+        <button type="button" disabled={mutation.isPending} onClick={() => setConfirmOpen(true)} className="admin-action-secondary text-rose-100"><Trash2 className="size-3.5" />Review permanent deletion</button>
       </div>
+
+      <AdminConfirmSheet
+        open={confirmOpen}
+        onClose={() => {
+          if (!mutation.isPending) setConfirmOpen(false);
+        }}
+        onConfirm={async () => {
+          await mutation.mutateAsync();
+        }}
+        title={`Permanently delete evidence for ${item.case_code}?`}
+        description={
+          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+            <p>This is a Tier 4 irreversible evidence action. Any stored private file is permanently removed and cannot be recovered from Solaris.</p>
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+              <p className="font-semibold text-foreground">{item.title}</p>
+              <p className="mt-1">{item.original_name ?? "Non-file evidence"}{item.mime_type ? ` · ${item.mime_type}` : ""}</p>
+              <p className="mt-2"><span className="font-semibold text-foreground">Scheduled reason:</span> {item.deletion_reason}</p>
+              <p className="mt-2"><span className="font-semibold text-foreground">Retention ended:</span> {new Date(item.retention_until).toLocaleString()}</p>
+            </div>
+            <p>The audit trail remains after deletion. Verify the case and retention decision before continuing.</p>
+          </div>
+        }
+        confirmLabel="Delete private evidence permanently"
+        confirmationText={item.case_code}
+        confirmationHint={`Type ${item.case_code} to confirm permanent deletion for this case.`}
+        busy={mutation.isPending}
+        danger
+      />
     </article>
   );
 }
