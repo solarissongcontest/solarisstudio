@@ -16,12 +16,13 @@ describe("Voting organizer overview runtime contract", () => {
     expect(loader).not.toContain("maybeSingle()");
   });
 
-  it("follows the Organizer edition context without a separate backend probe", () => {
+  it("follows the exact Organizer edition context without a separate backend probe", () => {
     const page = source("routes/televoting/admin/index.tsx");
 
     expect(page).toContain("useAdminContext");
-    expect(page).toContain('["merged-televoting-admin-overview", editionId]');
-    expect(page).toContain("getOverview({ data: { editionId } })");
+    expect(page).toContain('["merged-televoting-admin-overview", editionId ?? "none"]');
+    expect(page).toContain("enabled: Boolean(editionId)");
+    expect(page).toContain("getOverview({ data: { editionId: editionId! } })");
     expect(page).not.toContain("getMergedTelevotingServerStatus");
   });
 
