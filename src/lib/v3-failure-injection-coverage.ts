@@ -66,14 +66,16 @@ export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = 
   },
   {
     scenario: "duplicate_delivery",
-    state: "rehearsed",
-    injection: "Replay the same semantic event and repeat consumer completion.",
-    expectedRecovery: "Reuse the immutable event/outbox state and converge on exactly one immutable consumer receipt.",
+    state: "rehearsal_ready",
+    injection: "Invoke the real Jury consequence consumer twice for the same completed jury.closed event: once under its claimed lease and once again after the immutable consumer receipt exists.",
+    expectedRecovery: "The second consumer invocation must return receipt-backed replay without re-running task reconciliation, changing consequence state, creating another receipt, or fabricating another queue claim.",
     evidence: [
-      ".github/scripts/v3-s4-domain-event-outbox-rehearsal.sh",
-      "src/lib/v3-s4-domain-event-outbox.contract.test.ts",
+      ".github/scripts/v3-s11-consumer-edge-rehearsal.sh",
+      "src/lib/v3-s11-consumer-edge-rehearsal.test.ts",
+      "supabase/migrations/20261016040000_v3_s5_jury_consequences.sql",
     ],
-    remainingGap: null,
+    remainingGap:
+      "The deterministic duplicate-consumer-delivery rehearsal is implemented, but exact-SHA local execution evidence still needs to be retained by the QA/release evidence lane.",
     productionTrafficRequired: false,
   },
   {
@@ -143,14 +145,16 @@ export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = 
   },
   {
     scenario: "unavailable_dependency",
-    state: "rehearsed",
-    injection: "Record DEPENDENCY_FAILURE for a claimed event consumer delivery.",
-    expectedRecovery: "Schedule retry, preserve attempt evidence, dead-letter repeated poison work, and requeue only through the explicit operator path.",
+    state: "rehearsal_ready",
+    injection: "Temporarily remove the Jury consumer's real Organizer Task reconciler name inside an isolated local transaction, invoke the real consumer and observe undefined_function, restore the dependency, record DEPENDENCY_FAILURE through S4, then reclaim and complete.",
+    expectedRecovery: "The failed consumer attempt must commit no receipt, the delivery must retain canonical DEPENDENCY_FAILURE evidence, and the restored dependency must allow bounded retry to converge on one completed delivery and one immutable consumer receipt.",
     evidence: [
-      ".github/scripts/v3-s4-domain-event-outbox-rehearsal.sh",
-      "src/lib/v3-s4-domain-event-outbox.contract.test.ts",
+      ".github/scripts/v3-s11-consumer-edge-rehearsal.sh",
+      "src/lib/v3-s11-consumer-edge-rehearsal.test.ts",
+      "supabase/migrations/20261016040000_v3_s5_jury_consequences.sql",
     ],
-    remainingGap: null,
+    remainingGap:
+      "The deterministic real dependency-outage rehearsal is implemented, but exact-SHA local execution evidence still needs to be retained by the QA/release evidence lane.",
     productionTrafficRequired: false,
   },
 ] as const;
