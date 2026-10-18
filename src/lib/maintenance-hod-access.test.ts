@@ -172,7 +172,7 @@ describe("TerraOS 3 maintenance teaser contract", () => {
     expect(teaserPreview).toContain("V3ParticipateScreen");
     expect(teaserPreview).toContain("V3FoundationShell");
     expect(teaserPreview).toContain("V3TopContext");
-    expect(teaserPreview).toContain("AppTabBar");
+    expect(teaserPreview).toContain("V3BottomNavigation");
     expect(teaserPreview).not.toContain("TeaserBottomNav");
     expect(teaserPreview).not.toContain("useQuery");
     expect(teaserPreview).not.toContain("supabase");
