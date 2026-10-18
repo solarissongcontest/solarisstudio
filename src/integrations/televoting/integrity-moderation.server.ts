@@ -49,9 +49,13 @@ function ensureReason(value: string, minimum = 5) {
   return reason;
 }
 
-export async function loadIntegrityModerationServer() {
+export async function loadIntegrityModerationServer(input?: { editionId?: string }) {
   await requireMergedTelevotingAdminServer();
-  const declarations = await listIntegrityDeclarationsServer({ limit: 750, signedOnly: false });
+  const editionId = String(input?.editionId ?? "").trim();
+  if (!editionId) {
+    throw new Error("Choose an edition before loading integrity moderation.");
+  }
+  const declarations = await listIntegrityDeclarationsServer({ editionId, limit: 750, signedOnly: false });
   const tv = (supabaseAdmin as any).schema("televoting");
 
   const [decisionsResult, sanctionsResult] = await Promise.all([
