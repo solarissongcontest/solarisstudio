@@ -173,7 +173,42 @@ export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }
     if (screen !== "home") return;
     const frame = window.frameElement as HTMLElement | null;
     if (!frame) return;
-    return installTerraOsTeaserHostChoreography(frame);
+
+    const hostDocument = frame.ownerDocument;
+    const hostWindow = hostDocument.defaultView;
+    const cleanupChoreography = installTerraOsTeaserHostChoreography(frame);
+    if (!hostWindow) return cleanupChoreography;
+
+    // The injected host stylesheet intentionally owns the material, while the
+    // iframe bridge owns scroll progress. Mirror the progress onto the local
+    // TerraOS product bar itself so the body's safe default cannot shadow the
+    // root custom property.
+    let localNavFrame = 0;
+    const syncLocalNavigation = () => {
+      localNavFrame = 0;
+      const localNavigation = hostDocument.getElementById("terraos-release-local-nav");
+      if (!localNavigation) return;
+      const progress = Math.max(
+        0,
+        Math.min(1, hostWindow.scrollY / Math.max(1, hostWindow.innerHeight * 1.04)),
+      );
+      const visible = Math.max(0, Math.min(1, (progress - 0.38) / 0.24));
+      localNavigation.style.setProperty("--terraos-local-nav-opacity", visible.toFixed(4));
+    };
+    const requestLocalNavigationSync = () => {
+      if (!localNavFrame) localNavFrame = hostWindow.requestAnimationFrame(syncLocalNavigation);
+    };
+
+    syncLocalNavigation();
+    hostWindow.addEventListener("scroll", requestLocalNavigationSync, { passive: true });
+    hostWindow.addEventListener("resize", requestLocalNavigationSync, { passive: true });
+
+    return () => {
+      if (localNavFrame) hostWindow.cancelAnimationFrame(localNavFrame);
+      hostWindow.removeEventListener("scroll", requestLocalNavigationSync);
+      hostWindow.removeEventListener("resize", requestLocalNavigationSync);
+      cleanupChoreography();
+    };
   }, [screen]);
 
   useEffect(() => {
