@@ -10,6 +10,7 @@ export type TerraOsRealPreviewScreen = (typeof TERRAOS_REAL_PREVIEW_SCREENS)[num
 
 const REAL_PREVIEW_STYLE_ID = "terraos-real-v3-preview-style";
 const REAL_PREVIEW_CLASS = "terraos-v3-nav-preview";
+const RESULTS_REVEAL_PREVIEW_CLASS = "terraos-v3-results-reveal-preview";
 
 const SCREEN_LABELS: Record<TerraOsRealPreviewScreen, string> = {
   home: "Home",
@@ -48,6 +49,25 @@ html[data-terraos-release-choreography="v2"] [data-terra-first-look="true"] .pre
   background: #02050a;
   pointer-events: none;
 }
+.results-story .results-ui[data-terraos-real-results-preview="true"] {
+  isolation: isolate;
+}
+.results-story .results-ui[data-terraos-real-results-preview="true"] > :not(.terraos-v3-results-reveal-preview):not(.results-mask) {
+  visibility: hidden;
+}
+.results-story .terraos-v3-results-reveal-preview {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #02050a;
+  pointer-events: none;
+}
+.results-story .results-ui[data-terraos-real-results-preview="true"] .results-mask {
+  z-index: 3;
+}
 @media (max-width:560px) {
   .story-touch .nav-pane[data-terraos-real-preview] {
     inset: 3.2rem .65rem 5.15rem;
@@ -61,6 +81,25 @@ function readOwnerCount(root: HTMLElement) {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
+function createFixturePreview(
+  hostDocument: Document,
+  screen: TerraOsRealPreviewScreen,
+  className: string,
+  title: string,
+  loading: "eager" | "lazy",
+) {
+  const preview = hostDocument.createElement("iframe");
+  preview.className = className;
+  preview.src = `/terraos-teaser-preview?screen=${screen}&chrome=content`;
+  preview.title = title;
+  preview.tabIndex = -1;
+  preview.loading = loading;
+  preview.setAttribute("scrolling", "no");
+  preview.setAttribute("sandbox", "allow-scripts allow-same-origin");
+  preview.setAttribute("aria-hidden", "true");
+  return preview;
+}
+
 /**
  * Replaces the maintenance page's static Five Places pane artwork with
  * same-origin, fixture-only renders of the actual production V3 screens.
@@ -69,6 +108,11 @@ function readOwnerCount(root: HTMLElement) {
  * enhancer performs no product reads or mutations and leaves the host-owned
  * liquid navigation in place, so the NAV lane keeps sole ownership of the
  * production app shell/tab implementation.
+ *
+ * When the Results reveal phase exists, the same fixture-only Results renderer
+ * also fills the staged result card. The host scroll controller still owns the
+ * reveal timing; this enhancer only swaps the card's visual payload from the
+ * static fallback rows to the production V3 Results surface.
  */
 export function installTerraOsTeaserRealHostPreviews(frame: HTMLElement) {
   const hostDocument = frame.ownerDocument;
@@ -97,16 +141,29 @@ export function installTerraOsTeaserRealHostPreviews(frame: HTMLElement) {
       if (!pane) continue;
 
       pane.dataset.terraosRealPreview = screen;
-      const preview = hostDocument.createElement("iframe");
-      preview.className = REAL_PREVIEW_CLASS;
-      preview.src = `/terraos-teaser-preview?screen=${screen}&chrome=content`;
-      preview.title = `TerraOS ${SCREEN_LABELS[screen]} page preview`;
-      preview.tabIndex = -1;
-      preview.loading = index === 0 ? "eager" : "lazy";
-      preview.setAttribute("scrolling", "no");
-      preview.setAttribute("sandbox", "allow-scripts allow-same-origin");
-      preview.setAttribute("aria-hidden", "true");
-      pane.appendChild(preview);
+      pane.appendChild(
+        createFixturePreview(
+          hostDocument,
+          screen,
+          REAL_PREVIEW_CLASS,
+          `TerraOS ${SCREEN_LABELS[screen]} page preview`,
+          index === 0 ? "eager" : "lazy",
+        ),
+      );
+    }
+
+    const resultsUi = root.querySelector<HTMLElement>(".results-story .results-ui");
+    if (resultsUi) {
+      resultsUi.dataset.terraosRealResultsPreview = "true";
+      resultsUi.appendChild(
+        createFixturePreview(
+          hostDocument,
+          "results",
+          RESULTS_REVEAL_PREVIEW_CLASS,
+          "TerraOS Results reveal preview",
+          "lazy",
+        ),
+      );
     }
   }
 
@@ -124,6 +181,14 @@ export function installTerraOsTeaserRealHostPreviews(frame: HTMLElement) {
       pane.querySelectorAll(`.${REAL_PREVIEW_CLASS}`).forEach((preview) => preview.remove());
       delete pane.dataset.terraosRealPreview;
     }
+
+    root
+      .querySelectorAll(`.${RESULTS_REVEAL_PREVIEW_CLASS}`)
+      .forEach((preview) => preview.remove());
+    root
+      .querySelectorAll<HTMLElement>('[data-terraos-real-results-preview="true"]')
+      .forEach((resultsUi) => delete resultsUi.dataset.terraosRealResultsPreview);
+
     hostDocument.getElementById(REAL_PREVIEW_STYLE_ID)?.remove();
   };
 }

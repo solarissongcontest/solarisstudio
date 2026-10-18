@@ -92,4 +92,15 @@ describe("TerraOS release-page choreography", () => {
     expect(enhancer).not.toContain("supabase");
     expect(enhancer).not.toContain("fetch(");
   });
+
+  it("resolves the dedicated Results reveal into the real fixture-only V3 Results surface", () => {
+    const enhancer = realPreviewSource();
+
+    expect(enhancer).toContain("RESULTS_REVEAL_PREVIEW_CLASS");
+    expect(enhancer).toContain('root.querySelector<HTMLElement>(".results-story .results-ui")');
+    expect(enhancer).toContain('"results",\n          RESULTS_REVEAL_PREVIEW_CLASS');
+    expect(enhancer).toContain('data-terraos-real-results-preview="true"');
+    expect(enhancer).toContain("visibility: hidden");
+    expect(enhancer).toContain("The host scroll controller still owns the");
+  });
 });
