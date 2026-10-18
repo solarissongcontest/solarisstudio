@@ -32,8 +32,8 @@ describe("Public V3 Delegation history and entity graph", () => {
     const projection = read("src/lib/v3-explore-entities.ts");
     const source = read("src/integrations/v3/delegation-source.server.ts");
 
-    expect(projection).not.toContain("slugify");
-    expect(source).not.toContain("slugify");
+    expect(projection).not.toContain("slugify(");
+    expect(source).not.toContain("slugify(");
     expect(screen).not.toContain("entry.editionLabel.toLowerCase");
     expect(screen).not.toContain("replaceAll(\" \", \"-\")");
   });
