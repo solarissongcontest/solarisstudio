@@ -40,4 +40,13 @@ describe("V3 public navigation viewer handoff", () => {
     );
     expect(code).not.toContain("previousViewerKey !== resolvedViewerKey) return;");
   });
+
+  it("invalidates direct Liquid interaction when viewer authority changes", () => {
+    const code = shell();
+    expect(code).toContain("const navigationInteractionKey = navigationIdentityReady");
+    expect(code).toContain('(navigationScope ?? "anonymous")');
+    expect(code).toContain(': "resolving"');
+    expect(code).toContain("key={navigationInteractionKey}");
+    expect(code).not.toContain("key={navigationScope}");
+  });
 });
