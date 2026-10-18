@@ -20,6 +20,7 @@ const maintenanceEditorApi = readFileSync("src/routes/api/maintenance-confirmati
 const teaserPreview = readFileSync("src/components/v3/TerraOSTeaserPreview.tsx", "utf8");
 const teaserPreviewRoute = readFileSync("src/routes/terraos-teaser-preview.tsx", "utf8");
 const preferenceSync = readFileSync("src/components/app/AppExperiencePreferenceSync.tsx", "utf8");
+const launchRestore = readFileSync("src/components/app/AppLaunchRestoreCoordinator.tsx", "utf8");
 const serverEntry = readFileSync("src/server.ts", "utf8");
 
 describe("maintenance HOD access flag", () => {
@@ -177,6 +178,7 @@ describe("TerraOS 3 maintenance teaser contract", () => {
     expect(teaserPreview).not.toContain("supabase");
     expect(teaserPreviewRoute).toContain('createFileRoute("/terraos-teaser-preview")');
     expect(preferenceSync).toContain('window.location.pathname === "/terraos-teaser-preview"');
+    expect(launchRestore).toContain('pathname === "/terraos-teaser-preview"');
     expect(serverEntry).toContain('const TERRAOS_TEASER_PREVIEW_PATH = "/terraos-teaser-preview"');
     expect(serverEntry).toContain("isTerraOsTeaserPreviewRequest");
   });
