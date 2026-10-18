@@ -21,6 +21,7 @@ const PREVIEW_FOCUSABLE_SELECTOR =
   'a[href], button, input, select, textarea, [tabindex]';
 const PREVIEW_PHONE_WIDTH = 390;
 const PREVIEW_PHONE_HEIGHT = 844;
+const PREVIEW_MAX_VIEWPORT_HEIGHT_RATIO = 0.78;
 
 function completedTask(
   id: string,
@@ -176,21 +177,34 @@ export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }
     if (!(device instanceof HTMLElement)) return;
 
     const fitPreview = () => {
-      const deviceWidth = device.getBoundingClientRect().width;
-      if (!deviceWidth) return;
-      const scale = Math.min(1, deviceWidth / PREVIEW_PHONE_WIDTH);
+      // Measure the width offered by the maintenance-page CSS before applying
+      // an inline fitted size. This lets the device grow again after a resize.
+      device.style.removeProperty("width");
+      device.style.removeProperty("height");
+      const availableWidth = device.getBoundingClientRect().width;
+      if (!availableWidth) return;
+
+      const parentViewportHeight =
+        frame.ownerDocument.defaultView?.innerHeight ?? window.innerHeight;
+      const maxHeight = parentViewportHeight * PREVIEW_MAX_VIEWPORT_HEIGHT_RATIO;
+      const scale = Math.min(
+        1,
+        availableWidth / PREVIEW_PHONE_WIDTH,
+        maxHeight / PREVIEW_PHONE_HEIGHT,
+      );
+
+      device.style.width = `${PREVIEW_PHONE_WIDTH * scale}px`;
       device.style.height = `${PREVIEW_PHONE_HEIGHT * scale}px`;
       frame.style.transform = `translateX(-50%) scale(${scale})`;
     };
 
     fitPreview();
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(fitPreview);
-    observer?.observe(device);
-    window.addEventListener("resize", fitPreview);
+    const parentWindow = frame.ownerDocument.defaultView;
+    parentWindow?.addEventListener("resize", fitPreview);
 
     return () => {
-      observer?.disconnect();
-      window.removeEventListener("resize", fitPreview);
+      parentWindow?.removeEventListener("resize", fitPreview);
+      device.style.removeProperty("width");
       device.style.removeProperty("height");
       frame.style.removeProperty("transform");
     };
