@@ -74,12 +74,15 @@ describe("Public V3 Stories contract", () => {
     expect(detail).toContain("if (hideSpoilers && !revealed)");
   });
 
-  it("keeps route metadata generic so spoiler content does not enter document metadata", () => {
+  it("keeps route-head metadata generic so spoiler content does not enter document metadata", () => {
     const indexRoute = read("src/routes/stories/index.tsx");
     const detailRoute = read("src/routes/stories/$editionSlug.tsx");
+    const detailHead = detailRoute.split("function EditionStoryPage")[0] ?? detailRoute;
 
     expect(indexRoute).toContain("Stories — Solaris Studio");
-    expect(detailRoute).toContain("Edition Story — Solaris Studio");
-    expect(detailRoute).not.toContain("story.title");
+    expect(detailHead).toContain("Edition Story — Solaris Studio");
+    expect(detailHead).not.toContain("story.title");
+    expect(detailHead).not.toContain("story.subtitle");
+    expect(detailHead).not.toContain("story.introduction");
   });
 });
