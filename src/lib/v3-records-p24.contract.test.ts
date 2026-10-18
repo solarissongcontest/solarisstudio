@@ -33,6 +33,7 @@ describe("Public V3 P24 Records", () => {
 
     expect(runtime).toContain("getV3RecordsBundle");
     expect(contract).toContain("records: FanRecord[]");
+    expect(contract).toContain("spoilerSafeRecords: FanRecord[]");
     expect(contract).not.toContain("participants:");
     expect(contract).not.toContain("results:");
     expect(contract).not.toContain("jury:");
@@ -66,6 +67,46 @@ describe("Public V3 P24 Records", () => {
     expect(route).toContain("isAppMode");
     expect(route).toContain("<V3RecordsGate fallback={<LegacyRecordsPage />} />");
     expect(route).toContain("return <LegacyRecordsPage />");
+  });
+
+  it("derives a second canonical archive with the current public edition removed", () => {
+    const source = read("src/integrations/v3/records-source.server.ts");
+
+    expect(source).toContain("resolveCurrentPublicEdition(editions)");
+    expect(source).toContain("spoilerSafeEditions");
+    expect(source).toContain("edition.id !== currentEditionId");
+    expect(source).toContain("show.edition_id !== currentEditionId");
+    expect(source).toContain("row.edition_id !== currentEditionId");
+    expect(source).toContain("const spoilerSafeRecords = currentEditionAffectsRecords");
+    expect(source).toContain("buildCanonicalFanRecords({");
+    expect(source).toContain("spoilerSafeArchivedFinalEditions");
+  });
+
+  it("uses the shared Results spoiler authority and requires deliberate current-edition reveal", () => {
+    const gate = read("src/components/v3/V3RecordsGate.tsx");
+    const screen = read("src/components/v3/V3RecordsScreen.tsx");
+
+    expect(gate).toContain("useAppExperiencePreferences");
+    expect(gate).toContain("useNotificationPreferences");
+    expect(gate).toContain("resolveV3ResultsSpoilerProtection");
+    expect(gate).toContain("localSpoilerFree: preferences.spoilerFree");
+    expect(gate).toContain("serverSpoilerFree: serverPreferences.data?.spoiler_free ?? null");
+    expect(gate).toContain("bundle.data.currentEditionAffectsRecords");
+    expect(gate).toContain("bundle.data.spoilerSafeRecords");
+    expect(gate).toContain("setCurrentEditionRevealed(true)");
+    expect(gate).toContain("setCurrentEditionRevealed(false)");
+    expect(screen).toContain('data-v3-records-spoilers="protected"');
+    expect(screen).toContain("Reveal current-edition records");
+  });
+
+  it("does not collect participant notes for derived public Records", () => {
+    const source = read("src/integrations/v3/records-source.server.ts");
+    const participantColumns = source.slice(
+      source.indexOf("const PARTICIPANT_COLUMNS"),
+      source.indexOf("const RESULT_COLUMNS"),
+    );
+
+    expect(participantColumns).not.toContain("notes");
   });
 
   it("preserves record categories, ties and canonical country drill-downs", () => {
