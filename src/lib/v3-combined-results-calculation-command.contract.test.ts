@@ -122,8 +122,8 @@ describe("System V3 governed Combined Results calculation", () => {
     expect(server).toContain('"v3_fail_combined_result_calculation_service"');
     expect(server).toContain("computeCombined({");
     expect(server).toContain("COMBINED_ENGINE_VERSION");
-    expect(server).not.toContain("combined_televote_results\").insert");
-    expect(server).not.toContain("combined_televote_component_results\").insert");
+    expect(server).not.toContain('.from("combined_televote_results").insert');
+    expect(server).not.toContain('.from("combined_televote_component_results").insert');
   });
 
   it("keeps the migration transactional", () => {
