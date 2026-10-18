@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { DataStoryPage, ResponsiveHistory, type PublicDataColumn } from "@/components/public/PublicDataStory";
+import { V3ResultLabGate } from "@/components/v3/V3ResultLabGate";
 import {
   editionLabel,
   matchVoterKey,
@@ -49,6 +51,27 @@ function downloadText(filename: string, text: string) {
 }
 
 function ResultLabPage() {
+  const { isAppMode, platformResolved } = useSolarisApp();
+
+  if (!platformResolved) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-10" data-v3-result-lab-boot="">
+        <h1 className="text-3xl font-bold">Result Lab</h1>
+        <p role="status" className="mt-3">
+          Opening published Result Lab inputs…
+        </p>
+      </main>
+    );
+  }
+
+  if (isAppMode) {
+    return <V3ResultLabGate fallback={<LegacyResultLabPage />} />;
+  }
+
+  return <LegacyResultLabPage />;
+}
+
+function LegacyResultLabPage() {
   const editionsQuery = useEditions();
   const { data: editions } = editionsQuery;
   const [editionId, setEditionId] = useState<string>("");
