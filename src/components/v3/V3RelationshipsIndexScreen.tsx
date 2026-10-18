@@ -165,9 +165,9 @@ export function V3RelationshipsIndexScreen({
                     <Metric label="Support" value={`${row.friendshipScore.toFixed(0)}%`} />
                     <Metric
                       label={tab === "one-sided" ? "Gap" : "Rivalry"}
-                      value={`${
+                      value={`${(
                         tab === "one-sided" ? row.oneSidedGap : row.rivalryScore
-                      }.toFixed(0)%`}
+                      ).toFixed(0)}%`}
                     />
                   </div>
                 </V3Surface>
