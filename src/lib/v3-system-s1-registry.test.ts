@@ -86,6 +86,8 @@ describe("System V3 S1 registries", () => {
       "results.calculated",
       "results.locked",
       "results.verified",
+      "selection.reviewed",
+      "selection.winner_changed",
       "televote.ballot_submitted",
       "televote.closed",
       "televote.opened",
@@ -144,6 +146,18 @@ describe("System V3 S1 registries", () => {
     expect(v3DomainConsequence("media.verified")?.ownerDomain).toBe("media");
     expect(v3DomainConsequence("media.verified")?.taskEffects).toEqual([]);
     expect(v3DomainConsequence("media.reviewed")?.implementationState).toBe("event-backed");
+  });
+
+  it("records complete Selection S5 ownership without fabricating winner-review work", () => {
+    expect(v3DomainConsequence("selection.reviewed")?.implementationState).toBe("event-backed");
+    expect(v3DomainConsequence("selection.reviewed")?.ownerDomain).toBe("national-selection");
+    expect(v3DomainConsequence("selection.reviewed")?.taskEffects).toEqual([
+      { effect: "re-evaluate", taskType: "selection.review_required" },
+    ]);
+
+    expect(v3DomainConsequence("selection.winner_changed")?.implementationState).toBe("event-backed");
+    expect(v3DomainConsequence("selection.winner_changed")?.ownerDomain).toBe("national-selection");
+    expect(v3DomainConsequence("selection.winner_changed")?.taskEffects).toEqual([]);
   });
 
   it("records canonical membership/access S5 ownership", () => {
