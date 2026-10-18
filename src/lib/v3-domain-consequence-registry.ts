@@ -52,10 +52,11 @@ const NOTIFICATION_PROVIDER_BY_DOMAIN_EVENT: Readonly<Record<string, readonly st
  * Domain-level task declarations describe ownership, not causality for every
  * event. Notice publication/supersession cannot fabricate a delivery-failure
  * task, a queued/delivered notification is not itself a delivery failure, and
- * Prediction changes cannot claim an operation-required task until that task
- * has an actual canonical reconciler.
+ * private/participant projections must not claim a canonical task worker until
+ * that worker actually exists.
  */
 const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = {
+  "acknowledgement.recorded": [],
   "notice.published": [],
   "notice.superseded": [],
   "notification.queued": [],
@@ -66,6 +67,11 @@ const TASK_TYPES_BY_DOMAIN_EVENT: Readonly<Record<string, readonly string[]>> = 
 };
 
 const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
+  "acknowledgement.recorded": [
+    "supabase/migrations/20261017123000_v3_s5_acknowledgement_consequences.sql",
+    "src/lib/v3-s5-acknowledgement-consequences.test.ts",
+    ".github/scripts/v3-s5-acknowledgement-consequences-rehearsal.sh",
+  ],
   "confirmation.submitted": [
     "supabase/migrations/20261015183000_v3_s5_confirmation_consequences.sql",
     ".github/scripts/v3-s5-confirmation-consequences-rehearsal.sh",
