@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, BarChart3, Calculator, Clock3, ExternalLink, Globe2, ListChecks, ListOrdered, MoreHorizontal, Plus, RadioTower, Scale, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminActionItem,
@@ -78,6 +79,7 @@ function localInputToIso(value: string) {
 
 function ShowsWorkspace() {
   const { slug } = Route.useParams();
+  const { editionId: organizerEditionId } = useAdminContext();
   const qc = useQueryClient();
   const getRoundsPage = useServerFn(getMergedTelevotingRoundsPage);
   const { data: edition, isLoading: loadingEdition } = useEdition(slug);
@@ -117,6 +119,14 @@ function ShowsWorkspace() {
     ]);
   }
 
+  function assertEditionScope(target?: Show | null) {
+    if (!edition || organizerEditionId !== edition.id || (target && target.edition_id !== edition.id)) {
+      toast.error("Edition context changed before the show command. Reload Shows before retrying.");
+      return false;
+    }
+    return true;
+  }
+
   function openCreate() {
     setDraft({ ...emptyDraft, sort_order: (orderedShows.at(-1)?.sort_order ?? 0) + 1 });
     setSheetOpen(true);
@@ -139,7 +149,7 @@ function ShowsWorkspace() {
   }
 
   async function saveShowMode() {
-    if (!showModeTarget) return;
+    if (!showModeTarget || !assertEditionScope(showModeTarget)) return;
 
     const youtubeUrl = showModeDraft.youtubeUrl.trim();
     const safeYoutube = youtubeUrl ? safeShowModeYoutubeUrl(youtubeUrl) : null;
@@ -191,10 +201,12 @@ function ShowsWorkspace() {
   }
 
   async function saveShow() {
-    if (!edition || !draft.name.trim()) return;
+    if (!edition || !draft.name.trim() || !assertEditionScope()) return;
     setBusy(true);
     try {
       if (draft.id) {
+        const target = shows.find((show) => show.id === draft.id) ?? null;
+        if (!target || !assertEditionScope(target)) return;
         const { error } = await (supabase.from("shows") as any)
           .update({ name: draft.name.trim(), kind: draft.kind, sort_order: draft.sort_order })
           .eq("id", draft.id);
@@ -222,7 +234,7 @@ function ShowsWorkspace() {
   }
 
   async function deleteShow() {
-    if (!deleteTarget) return;
+    if (!deleteTarget || !assertEditionScope(deleteTarget)) return;
     setBusy(true);
     try {
       const { error } = await supabase.from("shows").delete().eq("id", deleteTarget.id);
@@ -243,6 +255,21 @@ function ShowsWorkspace() {
 
   if (!edition) {
     return <AdminCard><AdminEmptyState icon={ListChecks} title="Edition not found" description="Return to the edition workspace and choose another edition." action={<Link to="/admin" className="admin-action-secondary">Back to editions</Link>} /></AdminCard>;
+  }
+
+  if (!organizerEditionId || organizerEditionId !== edition.id) {
+    return (
+      <AdminPage>
+        <AdminCard>
+          <AdminEmptyState
+            icon={ListChecks}
+            title="Confirming edition context"
+            description="Shows only operates when this route matches the exact edition selected in Solaris Organizer. It will not create, edit or delete show state in a different edition while context is changing."
+            action={<Link to="/admin/control" className="admin-action-secondary">Back to Control</Link>}
+          />
+        </AdminCard>
+      </AdminPage>
+    );
   }
 
   return (
