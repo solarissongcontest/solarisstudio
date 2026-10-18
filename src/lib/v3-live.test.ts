@@ -13,7 +13,18 @@ function show(overrides: Partial<Show> = {}): Show {
     status: "scheduled",
     published: true,
     broadcast_config: {},
-    publication_config: {},
+    publication_config: {
+      participants: true,
+      artists: true,
+      songs: true,
+      semi_split: true,
+      running_order: true,
+      qualifiers: false,
+      results: false,
+      jury_results: false,
+      televote_results: false,
+      detailed_voting: false,
+    },
     ...overrides,
   } as Show;
 }
