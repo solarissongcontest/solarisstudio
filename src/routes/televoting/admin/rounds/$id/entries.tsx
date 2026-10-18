@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowDown, ArrowUp, Globe, Link2, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { AdminPageHeader } from "@/components/admin/AdminUI";
+import { AdminConfirmSheet, AdminPageHeader } from "@/components/admin/AdminUI";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,6 +72,8 @@ function RoundEntriesPage() {
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [customForm, setCustomForm] = useState<CustomForm>(emptyCustom);
   const [sourceSelection, setSourceSelection] = useState("edition");
+  const [deleteTarget, setDeleteTarget] = useState<MergedRoundEntry | null>(null);
+  const [deletingCustom, setDeletingCustom] = useState(false);
 
   const { data: admin, isLoading: adminLoading } = useQuery({
     queryKey: ["merged-televoting-admin"],
@@ -112,6 +114,10 @@ function RoundEntriesPage() {
       setSourceSelection("edition");
     }
   }, [solarisSource?.binding]);
+
+  useEffect(() => {
+    setDeleteTarget(null);
+  }, [roundId]);
 
   const refresh = async () => {
     await Promise.all([
@@ -202,6 +208,21 @@ function RoundEntriesPage() {
       await refresh();
     } catch (caught) {
       toast.error(caught instanceof Error ? caught.message : "Entries could not be reordered");
+    }
+  }
+
+  async function confirmCustomDeletion() {
+    if (!deleteTarget || deleteTarget.entry_type !== "custom" || !editable || deletingCustom) return;
+    setDeletingCustom(true);
+    try {
+      await deleteCustom({ data: { roundId, entryId: deleteTarget.id } });
+      toast.success("Custom entry deleted");
+      setDeleteTarget(null);
+      await refresh();
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "Entry could not be deleted");
+    } finally {
+      setDeletingCustom(false);
     }
   }
 
@@ -454,17 +475,9 @@ function RoundEntriesPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          disabled={!editable}
-                          onClick={async () => {
-                            if (!confirm(`Delete ${displayName(entry)}?`)) return;
-                            try {
-                              await deleteCustom({ data: { roundId, entryId: entry.id } });
-                              toast.success("Custom entry deleted");
-                              await refresh();
-                            } catch (caught) {
-                              toast.error(caught instanceof Error ? caught.message : "Entry could not be deleted");
-                            }
-                          }}
+                          disabled={!editable || deletingCustom}
+                          aria-label={`Review deletion of ${displayName(entry)}`}
+                          onClick={() => setDeleteTarget(entry)}
                         >
                           <Trash2 className="size-3.5" />
                         </Button>
@@ -480,6 +493,36 @@ function RoundEntriesPage() {
           </section>
         </div>
       )}
+
+      <AdminConfirmSheet
+        open={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmCustomDeletion}
+        title={deleteTarget ? `Delete ${displayName(deleteTarget)}?` : "Delete custom entry?"}
+        description={
+          deleteTarget ? (
+            <div className="space-y-2">
+              <p>
+                This removes the custom entry <strong className="text-foreground">{displayName(deleteTarget)}</strong> from
+                <strong className="text-foreground"> {data?.round.name ?? "this round"}</strong>.
+              </p>
+              <p>
+                Entry key: <span className="font-mono text-foreground">{deleteTarget.entry_key}</span>. The round must still be
+                closed/editable when the server applies the deletion.
+              </p>
+              <p>
+                This review does not bypass the existing server authority and does not delete country-backed Solaris participants.
+              </p>
+            </div>
+          ) : null
+        }
+        confirmLabel="Delete custom entry"
+        confirmationText={deleteTarget ? displayName(deleteTarget) : undefined}
+        confirmationHint={deleteTarget ? `Type ${displayName(deleteTarget)} exactly to confirm deletion` : undefined}
+        busy={deletingCustom}
+        confirmDisabled={!editable || deleteTarget?.entry_type !== "custom"}
+        danger
+      />
     </div>
   );
 }
