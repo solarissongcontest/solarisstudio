@@ -7,6 +7,7 @@ import {
   type V3NotificationInboxItem,
 } from "@/components/v3/V3NotificationsScreen";
 import { V3AppShell } from "@/components/v3/V3AppShell";
+import { V3Screen, V3ScreenHeader, V3Surface } from "@/components/v3/V3Foundation";
 import {
   describeAppPushDelivery,
   getAppPushState,
@@ -103,6 +104,33 @@ function V3NotificationsRouteContent({
     refetchOnWindowFocus: true,
     retry: false,
   });
+
+  // These three reads directly drive user-facing claims such as unread count,
+  // quiet hours and current-device push delivery. Do not substitute empty/default
+  // values while an authoritative read is merely still in flight.
+  if (preferences.isLoading || push.isLoading || inbox.isLoading) {
+    return (
+      <V3AppShell editionLabel="Solaris Studio" phaseLabel="Notifications" activeArea="me">
+        <V3Screen className="pb-8">
+          <V3ScreenHeader
+            kicker="Me"
+            title="Notifications"
+            description="Official updates, attention state and delivery health in one place."
+          />
+          <V3Surface>
+            <p
+              data-v3-notifications-authority-state="loading"
+              role="status"
+              aria-live="polite"
+              className="text-sm text-[var(--v3-text-secondary)]"
+            >
+              Loading your notification state…
+            </p>
+          </V3Surface>
+        </V3Screen>
+      </V3AppShell>
+    );
+  }
 
   const preferenceRow = preferences.data;
   const categories = preferenceRow?.categories?.length
