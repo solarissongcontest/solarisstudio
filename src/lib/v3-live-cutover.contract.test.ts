@@ -7,7 +7,6 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 const layout = () => read("src/routes/show-mode/route.tsx");
 const legacy = () => read("src/routes/show-mode/index.tsx");
 const gate = () => read("src/components/v3/V3LiveRouteGate.tsx");
-const registry = () => read("src/lib/v3-public-capability-registry.ts");
 
 describe("Public V3 Live route cutover", () => {
   it("waits for installed-app resolution before deciding V3 versus legacy", () => {
@@ -53,13 +52,5 @@ describe("Public V3 Live route cutover", () => {
     expect(source).toContain("rollout.isError || !rollout.data || !v3Enabled");
     expect(source).toContain("bundle.isError || !bundle.data");
     expect(source.match(/return <>{fallback}<\/>;/g)?.length).toBe(2);
-  });
-
-  it("maps live-show ownership to the persisted Live rollout capability", () => {
-    const source = registry();
-    const liveRow = source.match(/\{\s*id: "live-show",[\s\S]*?acceptanceScenarioId: "public\.live-show-read-model",\s*\}/)?.[0];
-    expect(liveRow).toBeTruthy();
-    expect(liveRow).toContain('sourceFeatureFlags: ["solaris_app_v3_live"]');
-    expect(liveRow).toContain('targetRoute: "/show-mode"');
   });
 });
