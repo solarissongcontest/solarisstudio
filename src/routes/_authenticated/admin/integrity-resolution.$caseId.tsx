@@ -15,6 +15,10 @@ import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
+import {
+  IntegrityAppealDecisionReview,
+  IntegritySanctionDecisionReview,
+} from "@/components/admin/IntegrityResolutionDecisionReview";
 import { RuleDecisionStrip } from "@/components/rules/RuleDecisionStrip";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -144,7 +148,7 @@ function IntegrityResolution() {
         <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(380px,.9fr)]">
           <div className="space-y-4">
             <ExistingSanctions sanctions={resolution.sanctions} />
-            <NewSanctionPanel caseId={caseId} findings={detail.findings} onSaved={refresh} />
+            <NewSanctionPanel caseId={caseId} caseCode={detail.case.public_code} findings={detail.findings} onSaved={refresh} />
           </div>
           <div className="space-y-4">
             <AppealsPanel
@@ -185,7 +189,7 @@ function ExistingSanctions({ sanctions }: { sanctions: Sanction[] }) {
   );
 }
 
-function NewSanctionPanel({ caseId, findings, onSaved }: { caseId: string; findings: CaseDetail["findings"]; onSaved: () => Promise<void> }) {
+function NewSanctionPanel({ caseId, caseCode, findings, onSaved }: { caseId: string; caseCode: string; findings: CaseDetail["findings"]; onSaved: () => Promise<void> }) {
   const violationFindings = findings.filter((finding) => finding.outcome === "violation");
   const [findingId, setFindingId] = useState(violationFindings[0]?.id ?? "");
   const [typicalLevel, setTypicalLevel] = useState("");
@@ -196,6 +200,7 @@ function NewSanctionPanel({ caseId, findings, onSaved }: { caseId: string; findi
   const [mitigating, setMitigating] = useState("");
   const [rationale, setRationale] = useState("");
   const [visible, setVisible] = useState(true);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   const mutation = useMutation({
     mutationFn: () => rpc("admin_record_integrity_sanction", {
@@ -211,6 +216,7 @@ function NewSanctionPanel({ caseId, findings, onSaved }: { caseId: string; findi
       _visible_to_reporter: visible,
     }),
     onSuccess: async () => {
+      setReviewOpen(false);
       setRationale(""); setAggravating(""); setMitigating("");
       await onSaved();
       toast.success("Structured sanction recorded");
@@ -219,6 +225,8 @@ function NewSanctionPanel({ caseId, findings, onSaved }: { caseId: string; findi
   });
 
   const level = Number(finalLevel);
+  const selectedFinding = violationFindings.find((finding) => finding.id === findingId) ?? null;
+  const sanctionValid = Boolean(findingId && rationale.trim().length >= 20);
   return (
     <AdminCard>
       <SectionTitle icon={Gavel} eyebrow="New sanction" title="Apply the ten-level scale" />
@@ -234,9 +242,31 @@ function NewSanctionPanel({ caseId, findings, onSaved }: { caseId: string; findi
           <label className="block"><FieldLabel>Aggravating factors</FieldLabel><input value={aggravating} onChange={(event) => setAggravating(event.target.value)} placeholder="Comma-separated, optional" className="mt-1 min-h-10 w-full rounded-lg border px-3 text-xs" /></label>
           <label className="block"><FieldLabel>Mitigating factors</FieldLabel><input value={mitigating} onChange={(event) => setMitigating(event.target.value)} placeholder="Early self-report, cooperation…" className="mt-1 min-h-10 w-full rounded-lg border px-3 text-xs" /></label>
           <label className="block"><FieldLabel>Decision rationale</FieldLabel><textarea value={rationale} onChange={(event) => setRationale(event.target.value)} rows={5} placeholder="Explain the rule breach, normal starting level, relevant factors and why the final level is proportionate." className="mt-1 w-full rounded-lg border p-3 text-xs" /></label>
-          <div className="flex flex-wrap items-center justify-between gap-2"><label className="flex items-center gap-2 text-[10px] text-muted-foreground"><input type="checkbox" checked={visible} onChange={(event) => setVisible(event.target.checked)} />Share decision with reporter</label><button type="button" disabled={!findingId || rationale.trim().length < 20 || mutation.isPending} onClick={() => mutation.mutate()} className="admin-action-primary"><Scale className="size-4" />Record Level {level}</button></div>
+          <div className="flex flex-wrap items-center justify-between gap-2"><label className="flex items-center gap-2 text-[10px] text-muted-foreground"><input type="checkbox" checked={visible} onChange={(event) => setVisible(event.target.checked)} />Share decision with reporter</label><button type="button" disabled={!sanctionValid || mutation.isPending} onClick={() => setReviewOpen(true)} className="admin-action-primary"><Scale className="size-4" />Review Level {level}</button></div>
         </div>
       )}
+
+      <IntegritySanctionDecisionReview
+        open={reviewOpen}
+        onClose={() => {
+          if (!mutation.isPending) setReviewOpen(false);
+        }}
+        onConfirm={async () => {
+          await mutation.mutateAsync();
+        }}
+        busy={mutation.isPending}
+        caseCode={caseCode}
+        findingSummary={selectedFinding?.summary ?? "Confirmed violation"}
+        typicalLevel={typicalLevel ? Number(typicalLevel) : null}
+        finalLevel={level}
+        finalLabel={SANCTION_LABELS[level - 1]}
+        targetType={targetType}
+        targetReference={targetReference.trim() || null}
+        aggravatingFactors={csv(aggravating)}
+        mitigatingFactors={csv(mitigating)}
+        rationale={rationale.trim()}
+        visibleToReporter={visible}
+      />
     </AdminCard>
   );
 }
@@ -251,6 +281,7 @@ function AppealsPanel({ appeals, sanctions, organizers, onChanged }: { appeals: 
   const [rationale, setRationale] = useState("");
   const [aggravating, setAggravating] = useState("");
   const [mitigating, setMitigating] = useState("");
+  const [decisionReviewOpen, setDecisionReviewOpen] = useState(false);
 
   const assign = useMutation({
     mutationFn: () => rpc("admin_assign_integrity_appeal_reviewer", { _appeal_id: selected?.id, _user_id: reviewer }),
@@ -266,17 +297,19 @@ function AppealsPanel({ appeals, sanctions, organizers, onChanged }: { appeals: 
       _aggravating_factors: csv(aggravating),
       _mitigating_factors: csv(mitigating),
     }),
-    onSuccess: async () => { setRationale(""); setReplacementLevel(""); await onChanged(); toast.success("Appeal decision recorded"); },
+    onSuccess: async () => { setDecisionReviewOpen(false); setRationale(""); setReplacementLevel(""); await onChanged(); toast.success("Appeal decision recorded"); },
     onError: errorToast,
   });
 
   const sanction = selected ? sanctions.find((item) => item.id === selected.sanction_id) : null;
   const replacementRequired = ["reduced", "increased"].includes(outcome);
+  const decisionValid = rationale.trim().length >= 20 && (!replacementRequired || Boolean(replacementLevel));
+  const replacementLevelNumber = replacementRequired && replacementLevel ? Number(replacementLevel) : null;
 
   return (
     <AdminCard>
       <SectionTitle icon={ShieldCheck} eyebrow="Fresh review" title="Appeals" />
-      <div className="mt-4 space-y-2">{appeals.map((appeal) => <button key={appeal.id} type="button" onClick={() => setSelectedId(appeal.id)} className={cn("w-full rounded-xl border p-3 text-left", selected?.id === appeal.id ? "border-amber-200/20 bg-amber-200/[0.05]" : "border-white/[0.07] bg-white/[0.02]")}><div className="flex justify-between gap-2"><span className="text-xs font-black capitalize">{appeal.status.replaceAll("_", " ")}</span><span className={cn("text-[9px] font-black uppercase", appeal.was_timely ? "text-emerald-200" : "text-rose-200")}>{appeal.was_timely ? "Within 48h" : "Late"}</span></div><p className="mt-1 line-clamp-2 text-[10px] leading-4 text-muted-foreground">{appeal.grounds}</p></button>)}</div>
+      <div className="mt-4 space-y-2">{appeals.map((appeal) => <button key={appeal.id} type="button" onClick={() => { setSelectedId(appeal.id); setDecisionReviewOpen(false); }} className={cn("w-full rounded-xl border p-3 text-left", selected?.id === appeal.id ? "border-amber-200/20 bg-amber-200/[0.05]" : "border-white/[0.07] bg-white/[0.02]")}><div className="flex justify-between gap-2"><span className="text-xs font-black capitalize">{appeal.status.replaceAll("_", " ")}</span><span className={cn("text-[9px] font-black uppercase", appeal.was_timely ? "text-emerald-200" : "text-rose-200")}>{appeal.was_timely ? "Within 48h" : "Late"}</span></div><p className="mt-1 line-clamp-2 text-[10px] leading-4 text-muted-foreground">{appeal.grounds}</p></button>)}</div>
       {!appeals.length ? <Empty text="No appeals have been submitted." /> : null}
 
       {selected ? <div className="mt-4 border-t border-white/[0.07] pt-4">
@@ -284,10 +317,32 @@ function AppealsPanel({ appeals, sanctions, organizers, onChanged }: { appeals: 
 
         {selected.status === "submitted" ? <div className="mt-3"><FieldLabel>Fresh appeal reviewer</FieldLabel><div className="mt-1 flex gap-2"><select value={reviewer} onChange={(event) => setReviewer(event.target.value)} className="min-h-10 min-w-0 flex-1 rounded-lg border px-2 text-xs"><option value="">Choose organizer</option>{organizers.map((item) => <option key={item.user_id} value={item.user_id}>{item.email ?? item.user_id}</option>)}</select><button type="button" disabled={!reviewer || assign.isPending} onClick={() => assign.mutate()} className="admin-action-secondary"><UserCheck className="size-4"/>Assign</button></div><p className="mt-1 text-[9px] text-muted-foreground">The database rejects the original finding author and original sanction decision-maker.</p></div> : null}
 
-        {selected.status === "under_review" ? <div className="mt-3 space-y-3"><label className="block"><FieldLabel>Appeal outcome</FieldLabel><select value={outcome} onChange={(event) => setOutcome(event.target.value)} className="mt-1 min-h-10 w-full rounded-lg border px-2 text-xs"><option value="upheld">Uphold sanction</option><option value="reduced">Reduce sanction</option><option value="increased">Increase sanction</option><option value="overturned">Overturn sanction</option><option value="rejected_ineligible">Reject as ineligible</option></select></label>{replacementRequired ? <label className="block"><FieldLabel>Replacement level</FieldLabel><select value={replacementLevel} onChange={(event) => setReplacementLevel(event.target.value)} className="mt-1 min-h-10 w-full rounded-lg border px-2 text-xs"><option value="">Choose level</option>{SANCTION_LABELS.map((label, index) => <option key={label} value={index + 1}>{index + 1} · {label}</option>)}</select></label> : null}<label className="block"><FieldLabel>Decision rationale</FieldLabel><textarea value={rationale} onChange={(event) => setRationale(event.target.value)} rows={5} placeholder="Reconsider the evidence and explain the fresh-review outcome." className="mt-1 w-full rounded-lg border p-3 text-xs" /></label>{replacementRequired ? <><label className="block"><FieldLabel>Aggravating factors</FieldLabel><input value={aggravating} onChange={(event) => setAggravating(event.target.value)} className="mt-1 min-h-10 w-full rounded-lg border px-3 text-xs" /></label><label className="block"><FieldLabel>Mitigating factors</FieldLabel><input value={mitigating} onChange={(event) => setMitigating(event.target.value)} className="mt-1 min-h-10 w-full rounded-lg border px-3 text-xs" /></label></> : null}<button type="button" disabled={rationale.trim().length < 20 || (replacementRequired && !replacementLevel) || decide.isPending} onClick={() => decide.mutate()} className="admin-action-primary w-full justify-center"><Gavel className="size-4"/>Record appeal outcome</button></div> : null}
+        {selected.status === "under_review" ? <div className="mt-3 space-y-3"><label className="block"><FieldLabel>Appeal outcome</FieldLabel><select value={outcome} onChange={(event) => { setOutcome(event.target.value); setDecisionReviewOpen(false); }} className="mt-1 min-h-10 w-full rounded-lg border px-2 text-xs"><option value="upheld">Uphold sanction</option><option value="reduced">Reduce sanction</option><option value="increased">Increase sanction</option><option value="overturned">Overturn sanction</option><option value="rejected_ineligible">Reject as ineligible</option></select></label>{replacementRequired ? <label className="block"><FieldLabel>Replacement level</FieldLabel><select value={replacementLevel} onChange={(event) => setReplacementLevel(event.target.value)} className="mt-1 min-h-10 w-full rounded-lg border px-2 text-xs"><option value="">Choose level</option>{SANCTION_LABELS.map((label, index) => <option key={label} value={index + 1}>{index + 1} · {label}</option>)}</select></label> : null}<label className="block"><FieldLabel>Decision rationale</FieldLabel><textarea value={rationale} onChange={(event) => setRationale(event.target.value)} rows={5} placeholder="Reconsider the evidence and explain the fresh-review outcome." className="mt-1 w-full rounded-lg border p-3 text-xs" /></label>{replacementRequired ? <><label className="block"><FieldLabel>Aggravating factors</FieldLabel><input value={aggravating} onChange={(event) => setAggravating(event.target.value)} className="mt-1 min-h-10 w-full rounded-lg border px-3 text-xs" /></label><label className="block"><FieldLabel>Mitigating factors</FieldLabel><input value={mitigating} onChange={(event) => setMitigating(event.target.value)} className="mt-1 min-h-10 w-full rounded-lg border px-3 text-xs" /></label></> : null}<button type="button" disabled={!decisionValid || decide.isPending} onClick={() => setDecisionReviewOpen(true)} className="admin-action-primary w-full justify-center"><Gavel className="size-4"/>Review appeal outcome</button></div> : null}
 
         {!["submitted", "under_review"].includes(selected.status) && selected.decision_rationale ? <div className="mt-3 rounded-xl border border-emerald-200/12 bg-emerald-200/[0.035] p-3"><div className="flex items-center gap-2 text-emerald-100"><CheckCircle2 className="size-4"/><span className="text-xs font-black capitalize">{selected.status.replaceAll("_", " ")}</span></div><p className="mt-2 text-xs leading-5 text-muted-foreground">{selected.decision_rationale}</p></div> : null}
       </div> : null}
+
+      {selected ? (
+        <IntegrityAppealDecisionReview
+          open={decisionReviewOpen}
+          onClose={() => {
+            if (!decide.isPending) setDecisionReviewOpen(false);
+          }}
+          onConfirm={async () => {
+            await decide.mutateAsync();
+          }}
+          busy={decide.isPending}
+          currentLevel={sanction?.final_level ?? null}
+          currentLabel={sanction?.sanction_label ?? null}
+          grounds={selected.grounds}
+          outcome={outcome}
+          replacementLevel={replacementLevelNumber}
+          replacementLabel={replacementLevelNumber ? SANCTION_LABELS[replacementLevelNumber - 1] : null}
+          aggravatingFactors={csv(aggravating)}
+          mitigatingFactors={csv(mitigating)}
+          rationale={rationale.trim()}
+        />
+      ) : null}
     </AdminCard>
   );
 }
