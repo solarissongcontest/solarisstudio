@@ -8,6 +8,9 @@ const source = () =>
     "utf8",
   );
 
+const route = () =>
+  readFileSync(resolve(process.cwd(), "src/routes/next-in-line.tsx"), "utf8");
+
 const systemMigration = () =>
   readFileSync(
     resolve(
@@ -28,6 +31,17 @@ describe("V3 Public Next in Line runtime", () => {
     expect(runtime).toContain('throw new Error("AUTHENTICATION")');
     expect(runtime).toContain('"v3_submit_next_in_line"');
     expect(runtime).not.toContain('rpc<{ ok: boolean; error?: string }>("submit_next_in_line"');
+  });
+
+  it("keeps signed-out visitors at an explicit authentication boundary instead of reporting an inactive competition", () => {
+    const page = route();
+
+    expect(page).toContain("useFanSession()");
+    expect(page).toContain("if (!session.data)");
+    expect(page).toContain('search={{ redirect: "/next-in-line" }}');
+    expect(page).toContain("Sign in to enter Next in Line");
+    expect(page).toContain("eligible delegation and source entry from your authenticated account");
+    expect(page).toContain("return <NextInLineCompetition />");
   });
 
   it("uses the caller-scoped V3 projection as the participant read authority", () => {
