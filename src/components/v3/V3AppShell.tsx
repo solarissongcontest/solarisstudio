@@ -165,6 +165,13 @@ export function V3AppShell({
     !rollout.isLoading && !rollout.isError && rollout.data != null;
   const navigationScope = navigationIdentityReady ? (rollout.data.userId ?? null) : null;
   const resolvedViewerKey = navigationScope ?? "anonymous";
+  // Interaction ownership is stricter than storage scope. An unresolved viewer
+  // is not the same generation as an explicitly anonymous viewer. Remounting
+  // the Liquid primitive on these transitions guarantees pointer capture,
+  // long-press and drag state cannot cross login/logout identity handoffs.
+  const navigationInteractionKey = navigationIdentityReady
+    ? (navigationScope ?? "anonymous")
+    : "resolving";
   const previousResolvedViewerKeyRef = useRef<string | undefined>(undefined);
   const notificationLabel =
     attention.me > 0
@@ -347,6 +354,7 @@ export function V3AppShell({
       </div>
 
       <V3LiquidTabBar
+        key={navigationInteractionKey}
         pathname={pathname}
         destinations={navigationDestinations}
         onSelect={selectDestination}
