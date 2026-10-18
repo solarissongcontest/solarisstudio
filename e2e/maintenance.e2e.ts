@@ -104,7 +104,8 @@ test("TerraOS teaser preview route renders the production V3 screen components d
 });
 
 test("TerraOS first-look device keeps a complete phone aspect on short desktop viewports", async ({ page }) => {
-  await page.setViewportSize({ width: 1366, height: 768 });
+  const viewport = { width: 1366, height: 768 };
+  await page.setViewportSize(viewport);
   const response = await page.goto("/", { waitUntil: "networkidle" });
   expect(response?.status()).toBe(503);
 
@@ -115,6 +116,7 @@ test("TerraOS first-look device keeps a complete phone aspect on short desktop v
   if (!box) return;
 
   expect(Math.abs(box.height / box.width - 844 / 390)).toBeLessThan(0.05);
+  expect(box.height).toBeLessThanOrEqual(viewport.height * 0.8);
 });
 
 test("TerraOS hero stays visually centered on a narrow phone viewport", async ({ page }) => {
