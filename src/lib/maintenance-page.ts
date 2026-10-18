@@ -266,9 +266,9 @@ export function renderMaintenancePage(now: Date = new Date()): string {
     .first-look { min-height:min(760px,84svh); margin-top:clamp(2.4rem,5vw,4rem); display:grid; grid-template-columns:minmax(0,.78fr) minmax(0,1.22fr); align-items:center; gap:clamp(1.5rem,5vw,5rem); overflow:hidden; padding:clamp(1.4rem,4vw,3rem); border:1px solid var(--line); border-radius:clamp(1.7rem,3.4vw,2.8rem); background:radial-gradient(circle at 72% 35%,rgba(52,123,205,.2),transparent 35%),linear-gradient(145deg,#0c121d,#08090d 68%); }
     .first-look-copy h3 { margin:0; font-size:clamp(2rem,4.5vw,4.2rem); line-height:.98; letter-spacing:-.06em; }
     .first-look-copy p { margin:1rem 0 0; color:var(--muted); font-size:clamp(.9rem,1.7vw,1.08rem); line-height:1.5; }
-    .preview-device { position:relative; justify-self:center; width:min(360px,72vw); height:min(720px,78svh); overflow:hidden; border:1px solid rgba(255,255,255,.16); border-radius:2.6rem; background:#06101e; box-shadow:0 35px 100px rgba(0,0,0,.5); }
+    .preview-device { position:relative; justify-self:center; width:min(360px,72vw,36.05svh); aspect-ratio:390 / 844; overflow:hidden; border:1px solid rgba(255,255,255,.16); border-radius:2.6rem; background:#06101e; box-shadow:0 35px 100px rgba(0,0,0,.5); }
     .preview-device::before { content:""; position:absolute; z-index:8; top:.72rem; left:50%; width:29%; height:1.2rem; transform:translateX(-50%); border-radius:999px; background:#010205; pointer-events:none; }
-    .preview-page { position:absolute; top:0; left:50%; width:390px; height:844px; border:0; background:#02050a; transform:translateX(-50%) scale(.88); transform-origin:50% 0; pointer-events:none; }
+    .preview-page { position:absolute; inset:0; width:100%; height:100%; border:0; background:#02050a; pointer-events:none; }
     .preview-screen { position:absolute; inset:0; padding:3.1rem 1.15rem 5.4rem; background:radial-gradient(circle at 70% 0%,rgba(56,105,204,.19),transparent 34%),#030914; }
     .preview-screen .screen-title { font-size:2rem; }
     .preview-screen .phone-card { margin-top:1rem; padding:1rem; border-radius:1.15rem; }
@@ -402,8 +402,8 @@ export function renderMaintenancePage(now: Date = new Date()): string {
       .story h2 { font-size:clamp(2.8rem,15vw,4.25rem); }
       .first-look { margin-top:2rem; padding:1.15rem; border-radius:1.8rem; }
       .first-look-copy h3 { font-size:2.35rem; }
-      .preview-device { width:min(330px,84vw); height:660px; }
-      .preview-page { transform:translateX(-50%) scale(.78); }
+      .preview-device { width:min(330px,84vw,36.05svh); }
+      .preview-page { transform:none; }
       .next-reveal { width:min(calc(100% - 1.25rem),var(--wide)); min-height:24svh; }
       .interactive-device { padding:.55rem; border-radius:1.8rem; }
       .interactive-screen { min-height:560px; padding:1.5rem .9rem 5.7rem; border-radius:1.4rem; }
