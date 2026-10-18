@@ -2,11 +2,13 @@ import { V3_SYSTEM_DOMAIN_REGISTRY } from "./v3-system-domain-registry";
 
 export type V3AuthorizationScope = "global" | "edition" | "show" | "object";
 export type V3AuthorizationState = "declared" | "verified";
+export type V3AuthorizationModel = "capability" | "participant-boundary";
 
 export type V3AuthorizationRequirement = {
   command: string;
   ownerDomain: string;
   state: V3AuthorizationState;
+  authorizationModel: V3AuthorizationModel | null;
   requiredCapability: string | null;
   scope: V3AuthorizationScope | null;
   objectResolution: string | null;
@@ -19,10 +21,93 @@ export type V3AuthorizationRequirement = {
 type VerifiedAuthorization = Omit<
   V3AuthorizationRequirement,
   "command" | "ownerDomain" | "state"
->;
+> & { authorizationModel: V3AuthorizationModel };
+
+const CAPABILITY_MODEL = "capability" as const;
 
 const VERIFIED: Readonly<Record<string, VerifiedAuthorization>> = {
+  "confirmation.submit": {
+    authorizationModel: "participant-boundary",
+    requiredCapability: null,
+    scope: "object",
+    objectResolution:
+      "payload round_id -> round; edit token -> submission -> same round; browser session + idempotency key -> one operation",
+    serverBoundary: "public.v3_submit_confirmation",
+    serviceRoleAllowed: true,
+    negativePaths: [
+      "missing or unknown round",
+      "closed or full round",
+      "invalid or expired edit token",
+      "edit token submission belongs to another round",
+      "locked or non-editable existing response",
+      "browser-session mismatch or idempotency collision",
+    ],
+    evidence: [
+      "supabase/migrations/20261016193700_v3_entry_credits_contract.sql",
+      "supabase/migrations/20261015183100_v3_confirmation_submit_runtime_replay_restore.sql",
+      ".github/scripts/v3-s14-stage-3-confirmations.sh",
+      "src/lib/v3-s7-confirmation-round-authorization.contract.test.ts",
+    ],
+  },
+  "confirmation.open": {
+    authorizationModel: CAPABILITY_MODEL,
+    requiredCapability: "confirmation.manage",
+    scope: "object",
+    objectResolution: "round -> edition",
+    serverBoundary: "public.studio2_apply_confirmation_round_change",
+    serviceRoleAllowed: true,
+    negativePaths: [
+      "missing capability",
+      "round outside authorized edition",
+      "unknown round",
+      "stale round version",
+    ],
+    evidence: [
+      "supabase/migrations/20261003018000_organisation_os_v5_confirmation_round_operations.sql",
+      ".github/scripts/v3-s14-stage-3-confirmations.sh",
+      "src/lib/v3-s7-confirmation-round-authorization.contract.test.ts",
+    ],
+  },
+  "confirmation.close": {
+    authorizationModel: CAPABILITY_MODEL,
+    requiredCapability: "confirmation.manage",
+    scope: "object",
+    objectResolution: "round -> edition",
+    serverBoundary: "public.studio2_apply_confirmation_round_change",
+    serviceRoleAllowed: true,
+    negativePaths: [
+      "missing capability",
+      "round outside authorized edition",
+      "unknown round",
+      "stale round version",
+    ],
+    evidence: [
+      "supabase/migrations/20261003018000_organisation_os_v5_confirmation_round_operations.sql",
+      ".github/scripts/v3-s14-stage-3-confirmations.sh",
+      "src/lib/v3-s7-confirmation-round-authorization.contract.test.ts",
+    ],
+  },
+  "confirmation.grant_edit": {
+    authorizationModel: CAPABILITY_MODEL,
+    requiredCapability: "confirmation.manage",
+    scope: "object",
+    objectResolution: "round -> edition",
+    serverBoundary: "public.studio2_apply_confirmation_round_change",
+    serviceRoleAllowed: true,
+    negativePaths: [
+      "missing capability",
+      "round outside authorized edition",
+      "unknown round",
+      "stale round version",
+    ],
+    evidence: [
+      "supabase/migrations/20261003018000_organisation_os_v5_confirmation_round_operations.sql",
+      ".github/scripts/v3-s14-stage-3-confirmations.sh",
+      "src/lib/v3-s7-confirmation-round-authorization.contract.test.ts",
+    ],
+  },
   "entry.review": {
+    authorizationModel: CAPABILITY_MODEL,
     requiredCapability: "confirmation.manage",
     scope: "object",
     objectResolution: "entry -> submission -> edition",
@@ -40,6 +125,7 @@ const VERIFIED: Readonly<Record<string, VerifiedAuthorization>> = {
     ],
   },
   "entry.request_changes": {
+    authorizationModel: CAPABILITY_MODEL,
     requiredCapability: "confirmation.manage",
     scope: "object",
     objectResolution: "entry -> submission -> edition",
@@ -57,6 +143,7 @@ const VERIFIED: Readonly<Record<string, VerifiedAuthorization>> = {
     ],
   },
   "jury.open": {
+    authorizationModel: CAPABILITY_MODEL,
     requiredCapability: "voting.manage",
     scope: "show",
     objectResolution: "show -> edition",
@@ -74,6 +161,7 @@ const VERIFIED: Readonly<Record<string, VerifiedAuthorization>> = {
     ],
   },
   "jury.close": {
+    authorizationModel: CAPABILITY_MODEL,
     requiredCapability: "voting.manage",
     scope: "show",
     objectResolution: "show -> edition",
@@ -91,6 +179,7 @@ const VERIFIED: Readonly<Record<string, VerifiedAuthorization>> = {
     ],
   },
   "results.calculate": {
+    authorizationModel: CAPABILITY_MODEL,
     requiredCapability: "results.verify",
     scope: "show",
     objectResolution: "show -> edition",
@@ -105,6 +194,7 @@ const VERIFIED: Readonly<Record<string, VerifiedAuthorization>> = {
     evidence: ["public.studio2_execute_result_operation live function inspection"],
   },
   "results.verify": {
+    authorizationModel: CAPABILITY_MODEL,
     requiredCapability: "results.verify",
     scope: "show",
     objectResolution: "show -> edition",
@@ -119,6 +209,7 @@ const VERIFIED: Readonly<Record<string, VerifiedAuthorization>> = {
     evidence: ["public.studio2_execute_result_operation live function inspection"],
   },
   "results.lock": {
+    authorizationModel: CAPABILITY_MODEL,
     requiredCapability: "results.verify",
     scope: "show",
     objectResolution: "show -> edition",
@@ -133,6 +224,7 @@ const VERIFIED: Readonly<Record<string, VerifiedAuthorization>> = {
     evidence: ["public.studio2_execute_result_operation live function inspection"],
   },
   "results.unlock": {
+    authorizationModel: CAPABILITY_MODEL,
     requiredCapability: "results.verify",
     scope: "show",
     objectResolution: "show -> edition",
@@ -165,6 +257,7 @@ export const V3_AUTHORIZATION_REQUIREMENT_REGISTRY: readonly V3AuthorizationRequ
         command,
         ownerDomain: owners[0] ?? "unknown",
         state: verified ? "verified" : "declared",
+        authorizationModel: verified?.authorizationModel ?? null,
         requiredCapability: verified?.requiredCapability ?? null,
         scope: verified?.scope ?? null,
         objectResolution: verified?.objectResolution ?? null,
@@ -225,7 +318,18 @@ export function validateV3AuthorizationRequirementRegistry() {
       errors.push(`${requirement.command} has unknown owner domain ${requirement.ownerDomain}`);
     }
     if (requirement.state === "verified") {
-      if (!requirement.requiredCapability) errors.push(`${requirement.command} is verified without a capability`);
+      if (!requirement.authorizationModel) {
+        errors.push(`${requirement.command} is verified without an authorization model`);
+      }
+      if (requirement.authorizationModel === "capability" && !requirement.requiredCapability) {
+        errors.push(`${requirement.command} uses capability authorization without a capability`);
+      }
+      if (
+        requirement.authorizationModel === "participant-boundary" &&
+        requirement.requiredCapability !== null
+      ) {
+        errors.push(`${requirement.command} participant authorization must not impersonate an Organizer capability`);
+      }
       if (!requirement.scope) errors.push(`${requirement.command} is verified without an authorization scope`);
       if (!requirement.objectResolution) errors.push(`${requirement.command} is verified without object resolution`);
       if (!requirement.serverBoundary) errors.push(`${requirement.command} is verified without a server boundary`);
