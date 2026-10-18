@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   fetchAccountSessionProjection,
-  reauthenticateAccountWithPassword,
   revokeAccountSessionRpc,
+  revokeAccountSessionWithPasswordRpc,
 } from "./account-session-management";
 
 export type V3AccountFreshAuth = {
@@ -62,8 +62,12 @@ type ErrorLike = {
   details?: string;
 };
 
-const SESSION_QUERY_KEY = ["v3-account-sessions"] as const;
+const SESSION_QUERY_PREFIX = "v3-account-sessions";
 const HANDLE_PATTERN = /^[0-9a-f]{64}$/;
+
+function sessionQueryKey(viewerId: string) {
+  return [SESSION_QUERY_PREFIX, viewerId] as const;
+}
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -194,7 +198,10 @@ export function createV3SessionRevocationAttempt(sessionHandle: string): V3Sessi
   };
 }
 
-function parseRevocationResult(value: unknown, attempt: V3SessionRevocationAttempt): V3SessionRevocationResult {
+function parseRevocationResult(
+  value: unknown,
+  attempt: V3SessionRevocationAttempt,
+): V3SessionRevocationResult {
   const row = record(value);
   const returnedHandle = text(row.sessionHandle)?.toLowerCase() ?? attempt.sessionHandle;
   if (returnedHandle !== attempt.sessionHandle) {
@@ -219,26 +226,33 @@ export async function revokeV3AccountSession(
   return parseRevocationResult(data, attempt);
 }
 
-export async function reauthenticateV3AccountSession(password: string): Promise<void> {
-  await reauthenticateAccountWithPassword(password);
+export async function revokeV3AccountSessionWithPassword(
+  attempt: V3SessionRevocationAttempt,
+  password: string,
+): Promise<V3SessionRevocationResult> {
+  const { data, error } = await revokeAccountSessionWithPasswordRpc(attempt, password);
+  if (error) throw error;
+  return parseRevocationResult(data, attempt);
 }
 
-export function useV3AccountSessions(enabled = true) {
+export function useV3AccountSessions(viewerId: string | null | undefined, enabled = true) {
+  const key = sessionQueryKey(viewerId ?? "signed-out");
   return useQuery({
-    enabled,
-    queryKey: SESSION_QUERY_KEY,
+    enabled: Boolean(enabled && viewerId),
+    queryKey: key,
     queryFn: loadV3AccountSessions,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
 }
 
-export function useRevokeV3AccountSession() {
+export function useRevokeV3AccountSession(viewerId: string | null | undefined) {
   const queryClient = useQueryClient();
+  const key = sessionQueryKey(viewerId ?? "signed-out");
   return useMutation({
     mutationFn: revokeV3AccountSession,
     onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: SESSION_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: key });
     },
   });
 }
