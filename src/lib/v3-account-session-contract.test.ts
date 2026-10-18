@@ -9,6 +9,7 @@ describe("P42 devices and sessions authority boundary", () => {
   const transport = () => read("src/lib/account-session-management.ts");
   const panel = () => read("src/components/v3/V3AccountSessionsPanel.tsx");
   const account = () => read("src/components/v3/V3AccountSections.tsx");
+  const cacheIsolation = () => read("src/lib/account-cache-isolation.ts");
   const migration = () => read("supabase/migrations/20261016163000_v3_account_session_management.sql");
 
   it("uses the caller-bound System projection through the non-V3 data boundary", () => {
@@ -23,6 +24,14 @@ describe("P42 devices and sessions authority boundary", () => {
     expect(panel()).toContain("Raw session IDs, IP addresses and tokens are never shown here.");
   });
 
+  it("scopes private device/session cache state to the authenticated viewer and auth lifecycle", () => {
+    expect(client()).toContain('return [SESSION_QUERY_PREFIX, viewerId] as const');
+    expect(client()).toContain("useV3AccountSessions(viewerId");
+    expect(client()).toContain("useRevokeV3AccountSession(viewerId");
+    expect(panel()).toContain("const viewerId = workspace.user?.id ?? null");
+    expect(cacheIsolation()).toContain("v3-account-");
+  });
+
   it("revokes only an opaque server session handle with idempotent operation identity", () => {
     expect(migration()).toContain("create or replace function public.v3_revoke_session(");
     expect(client()).toContain("revokeAccountSessionRpc(attempt)");
@@ -34,10 +43,14 @@ describe("P42 devices and sessions authority boundary", () => {
     expect(transport()).not.toMatch(/v3_revoke_session[\s\S]{0,500}(user_id|userId|profile_id)/);
   });
 
-  it("preserves the same reviewed operation through fresh-auth retry and reconciles ambiguity", () => {
-    expect(transport()).toContain("typedSupabase.auth.signInWithPassword");
-    expect(panel()).toContain("await reauthenticateV3AccountSession(password)");
-    expect(panel()).toContain("await executeRevocation(attempt)");
+  it("preserves the reviewed operation through fresh-auth retry without replacing the browser session", () => {
+    expect(transport()).toContain("createPasswordVerificationClient");
+    expect(transport()).toContain("persistSession: false");
+    expect(transport()).toContain("autoRefreshToken: false");
+    expect(transport()).toContain("verifier.auth.signInWithPassword");
+    expect(transport()).toContain('verifier.auth.signOut({ scope: "local" })');
+    expect(transport()).not.toContain("typedSupabase.auth.signInWithPassword");
+    expect(panel()).toContain("revokeV3AccountSessionWithPassword(attempt, password)");
     expect(panel()).toContain("const refreshed = await sessionsQuery.refetch()");
     expect(panel()).toContain("session.sessionHandle === pending.sessionHandle");
     expect(panel()).toContain("same reviewed revocation operation");
