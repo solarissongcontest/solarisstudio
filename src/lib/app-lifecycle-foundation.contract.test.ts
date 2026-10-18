@@ -59,6 +59,28 @@ describe("App Experience v3 lifecycle foundation", () => {
     expect(manager).not.toContain("updateAvailable && updateSafe");
   });
 
+  it("retires exact waiting-worker actionability when that worker stops waiting", () => {
+    const runtime = source("src/components/app/AppRuntime.tsx");
+    const observeStart = runtime.indexOf("const observeWaitingWorker =");
+    const inspectStart = runtime.indexOf("const inspectWaiting =", observeStart);
+    const observeBlock = runtime.slice(observeStart, inspectStart);
+
+    expect(runtime).toContain(
+      "const waitingWorkerListeners = new Map<ServiceWorker, () => void>()",
+    );
+    expect(observeBlock).toContain('worker.state !== "installed"');
+    expect(observeBlock).toContain("setWaitingWorker(worker)");
+    expect(observeBlock).toContain('worker.state === "installed"');
+    expect(observeBlock).toContain(
+      "setWaitingWorker((current) => (current === worker ? null : current))",
+    );
+    expect(observeBlock).toContain(
+      'worker.removeEventListener("statechange", onWaitingWorkerStateChange)',
+    );
+    expect(observeBlock).toContain("waitingWorkerListeners.delete(worker)");
+    expect(runtime).toContain("waitingWorkerListeners.clear()");
+  });
+
   it("clears stale waiting-worker actionability as soon as controller ownership changes", () => {
     const runtime = source("src/components/app/AppRuntime.tsx");
     const controllerStart = runtime.indexOf("const onControllerChange =");
