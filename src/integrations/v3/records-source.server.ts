@@ -1,5 +1,6 @@
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
 import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
+import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
 import type {
   Country,
   Edition,
@@ -19,7 +20,7 @@ const SHOW_COLUMNS =
 const COUNTRY_COLUMNS =
   "id,name,native_name,short_code,flag_image,region,accent_color,description,first_participation";
 const PARTICIPANT_COLUMNS =
-  "id,edition_id,show_id,country_id,contest_entity_id,artist,song,running_order,semi_final,qualified,notes,participation_status";
+  "id,edition_id,show_id,country_id,contest_entity_id,artist,song,running_order,semi_final,qualified,participation_status";
 const RESULT_COLUMNS =
   "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank";
 const JURY_COLUMNS =
@@ -93,6 +94,21 @@ function editionLabel(edition: Pick<Edition, "edition_number" | "name"> | null) 
     : `SSC ${edition.edition_number} · ${edition.name}`;
 }
 
+function countFinalEditions(
+  results: readonly ResultRow[],
+  publicShows: readonly Show[],
+) {
+  const showById = new Map(publicShows.map((show) => [show.id, show]));
+  return new Set(
+    results
+      .filter((row) => {
+        const kind = row.show_id ? showById.get(row.show_id)?.kind : null;
+        return kind === "grand-final" || kind === "final";
+      })
+      .map((row) => row.edition_id),
+  ).size;
+}
+
 /**
  * Server-owned archive projection for Public V3 Records.
  *
@@ -101,6 +117,11 @@ function editionLabel(edition: Pick<Edition, "edition_number" | "name"> | null) 
  * is public, then delegates the actual record semantics to
  * buildCanonicalFanRecords, which applies the canonical public archive filter
  * again before calculating records.
+ *
+ * A second derived projection excludes the canonical current public edition.
+ * Spoiler-free clients can therefore render career totals, streaks and record
+ * holders without letting a freshly published result leak indirectly through
+ * an aggregate record. No client receives raw archive rows.
  */
 export async function loadV3RecordsBundle(): Promise<V3RecordsBundle> {
   const client = createConfirmationPublicRuntimeClient() as unknown as RecordsSourceClient;
@@ -118,12 +139,17 @@ export async function loadV3RecordsBundle(): Promise<V3RecordsBundle> {
   );
 
   const latestEdition = editions[0] ?? null;
+  const currentEdition = resolveCurrentPublicEdition(editions);
   if (!editions.length) {
     return {
       rolloutEditionSlug: null,
+      currentEditionId: null,
       shell: { editionLabel: "Solaris Studio", phaseLabel: "Records" },
       records: [],
+      spoilerSafeRecords: [],
       archivedFinalEditions: 0,
+      spoilerSafeArchivedFinalEditions: 0,
+      currentEditionAffectsRecords: false,
       generatedAt: new Date().toISOString(),
     };
   }
@@ -179,24 +205,53 @@ export async function loadV3RecordsBundle(): Promise<V3RecordsBundle> {
     jury: canonicalJury,
   });
 
-  const showById = new Map(publicShows.map((show) => [show.id, show]));
-  const archivedFinalEditions = new Set(
-    canonicalResults
-      .filter((row) => {
-        const kind = row.show_id ? showById.get(row.show_id)?.kind : null;
-        return kind === "grand-final" || kind === "final";
+  const currentEditionId = currentEdition?.id ?? null;
+  const currentEditionAffectsRecords = Boolean(
+    currentEditionId &&
+      (canonicalResults.some((row) => row.edition_id === currentEditionId) ||
+        canonicalJury.some((row) => row.edition_id === currentEditionId)),
+  );
+  const spoilerSafeEditions = currentEditionId
+    ? editions.filter((edition) => edition.id !== currentEditionId)
+    : editions;
+  const spoilerSafeShows = currentEditionId
+    ? publicShows.filter((show) => show.edition_id !== currentEditionId)
+    : publicShows;
+  const spoilerSafeParticipants = currentEditionId
+    ? canonicalParticipants.filter((row) => row.edition_id !== currentEditionId)
+    : canonicalParticipants;
+  const spoilerSafeResults = currentEditionId
+    ? canonicalResults.filter((row) => row.edition_id !== currentEditionId)
+    : canonicalResults;
+  const spoilerSafeJury = currentEditionId
+    ? canonicalJury.filter((row) => row.edition_id !== currentEditionId)
+    : canonicalJury;
+  const spoilerSafeRecords = currentEditionAffectsRecords
+    ? buildCanonicalFanRecords({
+        countries,
+        editions: spoilerSafeEditions,
+        shows: spoilerSafeShows,
+        participants: spoilerSafeParticipants,
+        results: spoilerSafeResults,
+        jury: spoilerSafeJury,
       })
-      .map((row) => row.edition_id),
-  ).size;
+    : records;
 
   return {
-    rolloutEditionSlug: latestEdition.slug || null,
+    rolloutEditionSlug: latestEdition?.slug || null,
+    currentEditionId,
     shell: {
       editionLabel: editionLabel(latestEdition),
       phaseLabel: "Records",
     },
     records,
-    archivedFinalEditions,
+    spoilerSafeRecords,
+    archivedFinalEditions: countFinalEditions(canonicalResults, publicShows),
+    spoilerSafeArchivedFinalEditions: countFinalEditions(
+      spoilerSafeResults,
+      spoilerSafeShows,
+    ),
+    currentEditionAffectsRecords,
     generatedAt: new Date().toISOString(),
   };
 }
