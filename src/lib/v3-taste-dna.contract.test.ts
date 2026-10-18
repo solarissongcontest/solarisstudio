@@ -50,6 +50,19 @@ describe("Public V3 Taste DNA contract", () => {
     expect(projection).not.toContain(".from(");
   });
 
+  it("blocks V3 editing until a signed-in viewer's private ranking history is authoritative", () => {
+    const route = source("src/routes/taste-dna.tsx");
+
+    expect(route).toContain("const privateHistory = useTasteBallots(session.data?.id)");
+    expect(route).toContain("privateHistory.isLoading");
+    expect(route).toContain("privateHistory.isError");
+    expect(route).toContain('data-v3-taste-dna-private-history="error"');
+    expect(route).toContain("Editing stays unavailable so Solaris cannot overwrite a saved ranking that was not loaded.");
+    expect(route.indexOf("privateHistoryLoading || privateHistoryFailed")).toBeLessThan(
+      route.indexOf("<V3TasteDnaScreen />"),
+    );
+  });
+
   it("cuts over only the installed-app V3 rollout and preserves the legacy route as fallback", () => {
     const route = source("src/routes/taste-dna.tsx");
     const legacy = source("src/routes/taste-dna/index.tsx");
