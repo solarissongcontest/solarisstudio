@@ -1,9 +1,31 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
+import { useAppExperiencePreferences } from "@/lib/app-experience";
+import type { V3PublicShowState } from "@/lib/v3-live";
 import { useV3LiveBundle } from "@/lib/v3-live-runtime";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { V3FoundationShell, V3Screen, V3Surface } from "./V3Foundation";
 import { V3LiveScreen } from "./V3LiveScreen";
+
+type WakeLockSentinelLike = {
+  released?: boolean;
+  release: () => Promise<void>;
+  addEventListener?: (type: "release", listener: () => void) => void;
+};
+
+type NavigatorWithWakeLock = Navigator & {
+  wakeLock?: {
+    request: (type: "screen") => Promise<WakeLockSentinelLike>;
+  };
+};
+
+const WAKE_STATES = new Set<V3PublicShowState>([
+  "live",
+  "paused",
+  "delayed",
+  "voting",
+  "results_pending",
+]);
 
 function LiveBootSurface({ message }: { message: string }) {
   return (
@@ -31,11 +53,75 @@ function LiveBootSurface({ message }: { message: string }) {
  */
 export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
   const rollout = useV3RolloutProbe(true);
+  const { preferences, update } = useAppExperiencePreferences();
+  const [wakeActive, setWakeActive] = useState(false);
   const v3Enabled =
     rollout.isSuccess &&
     rollout.data?.enabled === true &&
     rollout.data.liveEnabled === true;
   const bundle = useV3LiveBundle(v3Enabled);
+  const liveState = bundle.data?.experience?.state ?? null;
+  const wakeLockSupported =
+    typeof navigator !== "undefined" &&
+    Boolean((navigator as NavigatorWithWakeLock).wakeLock);
+  const shouldWake = Boolean(
+    v3Enabled &&
+      wakeLockSupported &&
+      preferences.keepScreenAwake &&
+      liveState &&
+      WAKE_STATES.has(liveState),
+  );
+
+  useEffect(() => {
+    if (!shouldWake || typeof document === "undefined" || typeof navigator === "undefined") {
+      setWakeActive(false);
+      return;
+    }
+
+    let sentinel: WakeLockSentinelLike | null = null;
+    let cancelled = false;
+
+    const release = async () => {
+      const current = sentinel;
+      sentinel = null;
+      if (current && !current.released) {
+        await current.release().catch(() => undefined);
+      }
+      if (!cancelled) setWakeActive(false);
+    };
+
+    const request = async () => {
+      if (cancelled || document.visibilityState !== "visible") return;
+      try {
+        const wakeLock = (navigator as NavigatorWithWakeLock).wakeLock;
+        if (!wakeLock) return;
+        sentinel = await wakeLock.request("screen");
+        if (cancelled) {
+          await sentinel.release().catch(() => undefined);
+          return;
+        }
+        setWakeActive(true);
+        sentinel.addEventListener?.("release", () => {
+          if (!cancelled) setWakeActive(false);
+        });
+      } catch {
+        if (!cancelled) setWakeActive(false);
+      }
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void request();
+      else void release();
+    };
+
+    void request();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      void release();
+    };
+  }, [shouldWake]);
 
   if (rollout.isLoading) {
     return <LiveBootSurface message="Checking the live experience…" />;
@@ -60,6 +146,10 @@ export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
       <V3LiveScreen
         experience={bundle.data.experience}
         refreshing={bundle.isFetching}
+        keepScreenAwake={preferences.keepScreenAwake}
+        wakeLockSupported={wakeLockSupported}
+        wakeLockActive={wakeActive}
+        onKeepScreenAwakeChange={(checked) => update({ keepScreenAwake: checked })}
         onRefresh={() => {
           void bundle.refetch();
         }}
