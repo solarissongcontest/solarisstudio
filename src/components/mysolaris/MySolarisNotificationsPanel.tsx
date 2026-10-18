@@ -44,6 +44,8 @@ const EMPTY_PUSH: AppPushState = {
   configured: false,
   permission: "unsupported",
   subscribed: false,
+  browserSubscribed: false,
+  serverRegistered: false,
 };
 
 export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { includeSpoilerFree?: boolean } = {}) {
@@ -57,7 +59,7 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
   const push = useQuery({
     enabled: Boolean(userId),
     queryKey: ["solaris-app-push-state", userId],
-    queryFn: getAppPushState,
+    queryFn: () => getAppPushState(userId),
   });
 
   const [selected, setSelected] = useState<string[]>(DEFAULT_CATEGORIES);
@@ -130,8 +132,8 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
     if (!userId) return;
     const promise = enableAppPush(userId);
     toast.promise(promise, {
-      loading: "Enabling notifications…",
-      success: "Push notifications enabled.",
+      loading: pushState.browserSubscribed ? "Repairing notification delivery…" : "Enabling notifications…",
+      success: pushState.browserSubscribed ? "Push notification delivery repaired." : "Push notifications enabled.",
       error: (error) =>
         error instanceof Error ? error.message : "Push notifications could not be enabled.",
     });
@@ -244,7 +246,7 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
                     </button>
                   ) : (
                     <button type="button" onClick={() => void enablePush()} className="min-h-11 shrink-0 rounded-xl bg-primary px-3 text-xs font-semibold text-primary-foreground">
-                      Enable
+                      {pushState.browserSubscribed ? "Repair" : "Enable"}
                     </button>
                   )
                 ) : null}
@@ -277,207 +279,3 @@ export function MySolarisNotificationsPanel({ includeSpoilerFree = true }: { inc
                 </label>
               </div>
             </div>
-
-            <div className="solaris-app-notification-row border-t border-border/60">
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold">Urgent deadline reminders</span>
-                <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-                  Allow 3-hour and 1-hour required-task reminders during quiet hours.
-                </span>
-              </span>
-              <Switch checked={urgent} onCheckedChange={setUrgent} aria-label="Urgent deadline reminders during quiet hours" />
-            </div>
-
-            {includeSpoilerFree ? (
-              <div className="solaris-app-notification-row border-t border-border/60">
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold">Spoiler-free results</span>
-                  <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-                    Result alerts never reveal the winner in notification text.
-                  </span>
-                </span>
-                <Switch
-                  checked={spoilerFree}
-                  onCheckedChange={(checked) => updateAppExperience({ spoilerFree: checked })}
-                  aria-label="Hide result spoilers"
-                />
-              </div>
-            ) : null}
-          </div>
-          <RequiredWorkFallback status={deliveryStatus} />
-        </section>
-
-        <button
-          type="button"
-          disabled={!dirty || save.isPending}
-          onClick={() => void savePreferences()}
-          className="min-h-12 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-45"
-        >
-          {save.isPending ? "Saving…" : "Save notification settings"}
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <Panel
-      title="Notifications"
-      description="Choose what Solaris may interrupt you for. Completed tasks stop deadline reminders automatically."
-    >
-      <div className="space-y-4">
-        <div className="grid gap-2 sm:grid-cols-2">
-          {CATEGORIES.map(([key, label, description]) => {
-            const enabled = selected.includes(key);
-            return (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={enabled}
-                onClick={() => toggleCategory(key)}
-                className="flex min-h-16 items-start gap-3 rounded-2xl border border-border/70 bg-background/35 p-3 text-left"
-              >
-                <span className={`mt-0.5 grid size-8 shrink-0 place-items-center rounded-xl ${enabled ? "bg-primary/15 text-primary" : "bg-surface text-muted-foreground"}`}>
-                  {enabled ? <BellRing className="size-4" /> : <BellOff className="size-4" />}
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold">{label}</span>
-                  <span className="mt-1 block text-[11px] leading-5 text-muted-foreground">
-                    {description}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="grid gap-3 lg:grid-cols-2">
-          <div className="rounded-2xl border border-border/70 bg-background/35 p-4">
-            <p className="text-sm font-semibold">Quiet hours</p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              Routine notifications wait until quiet hours end. Urgent deadline reminders can be allowed separately.
-            </p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <label className="text-[11px] font-semibold text-muted-foreground">
-                From
-                <input
-                  type="time"
-                  value={quietStart}
-                  onChange={(event) => setQuietStart(event.target.value)}
-                  className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
-                />
-              </label>
-              <label className="text-[11px] font-semibold text-muted-foreground">
-                Until
-                <input
-                  type="time"
-                  value={quietEnd}
-                  onChange={(event) => setQuietEnd(event.target.value)}
-                  className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
-                />
-              </label>
-            </div>
-            <label className="mt-3 flex min-h-11 items-center justify-between gap-3 rounded-xl border border-border/70 px-3 text-xs font-semibold">
-              Urgent deadline reminders during quiet hours
-              <input
-                type="checkbox"
-                checked={urgent}
-                onChange={(event) => setUrgent(event.target.checked)}
-                className="size-5"
-              />
-            </label>
-          </div>
-
-          {includeSpoilerFree ? (
-            <div className="rounded-2xl border border-border/70 bg-background/35 p-4">
-              <p className="text-sm font-semibold">Spoiler-free mode</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Result notifications say that results are available without revealing the winner in notification text.
-              </p>
-              <label className="mt-3 flex min-h-11 items-center justify-between gap-3 rounded-xl border border-border/70 px-3 text-xs font-semibold">
-                Hide result spoilers
-                <input
-                  type="checkbox"
-                  checked={spoilerFree}
-                  onChange={(event) =>
-                    updateAppExperience({ spoilerFree: event.target.checked })
-                  }
-                  className="size-5"
-                />
-              </label>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="rounded-2xl border border-border/70 bg-background/35 p-4">
-          <div className="flex items-start gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-              <Smartphone className="size-4" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">Push notifications</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                {deliveryStatus.description}
-              </p>
-            </div>
-            {pushState.configured && pushState.supported ? (
-              pushState.subscribed ? (
-                <button type="button" onClick={() => void disablePush()} className="min-h-11 rounded-xl border border-border px-3 text-xs font-semibold">
-                  Disable
-                </button>
-              ) : (
-                <button type="button" onClick={() => void enablePush()} className="min-h-11 rounded-xl bg-primary px-3 text-xs font-semibold text-primary-foreground">
-                  Enable
-                </button>
-              )
-            ) : null}
-          </div>
-        </div>
-
-        <RequiredWorkFallback status={deliveryStatus} />
-
-        <div className="flex justify-end">
-          <button
-            type="button"
-            disabled={!dirty || save.isPending}
-            onClick={() => void savePreferences()}
-            className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-45"
-          >
-            {save.isPending ? "Saving…" : "Save preferences"}
-          </button>
-        </div>
-      </div>
-    </Panel>
-  );
-}
-
-function RequiredWorkFallback({
-  status,
-}: {
-  status: AppPushDeliveryStatus;
-}) {
-  return (
-    <div
-      data-solaris-required-work-fallback=""
-      className="mt-3 rounded-2xl border border-sky-300/20 bg-sky-300/[0.055] p-3"
-    >
-      <p className="text-sm font-semibold">{status.title}</p>
-      <p className="mt-1 text-xs leading-5 text-muted-foreground">
-        {status.description}
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Link
-          to="/my-solaris/tasks"
-          className="inline-flex min-h-10 items-center rounded-xl border border-border bg-surface px-3 text-xs font-semibold"
-        >
-          Open Tasks
-        </Link>
-        <Link
-          to="/my-solaris/notices"
-          className="inline-flex min-h-10 items-center rounded-xl border border-border bg-surface px-3 text-xs font-semibold"
-        >
-          Open Notices
-        </Link>
-      </div>
-    </div>
-  );
-}
