@@ -54,7 +54,7 @@ test("TerraOS teaser preview route renders the production V3 screen components d
   expect(home?.status()).toBe(200);
   await expect(page.locator('[data-terraos-teaser-preview="home"]')).toBeVisible();
   await expect(page.getByRole("heading", { name: "Solaris now", exact: true })).toBeVisible();
-  await expect(page.getByText("You’re all caught up", { exact: true })).toBeVisible();
+  await expect(page.getByText("You're all caught up", { exact: true })).toBeVisible();
   await expect(page.getByText("SSC 22 is the current Solaris edition", { exact: true })).toBeVisible();
   let tabbar = page.locator(".v3-bottom-nav");
   await expect(tabbar).toBeVisible();
