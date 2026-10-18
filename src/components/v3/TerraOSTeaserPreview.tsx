@@ -19,9 +19,6 @@ export type TerraOSTeaserScreen = "home" | "explore" | "participate";
 const PREVIEW_NOW = "2026-10-18T11:00:00.000Z";
 const PREVIEW_FOCUSABLE_SELECTOR =
   'a[href], button, input, select, textarea, [tabindex]';
-const PREVIEW_PHONE_WIDTH = 390;
-const PREVIEW_PHONE_HEIGHT = 844;
-const PREVIEW_MAX_VIEWPORT_HEIGHT_RATIO = 0.78;
 
 function completedTask(
   id: string,
@@ -166,51 +163,6 @@ export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }
       }
     };
   }, [screen]);
-
-  useEffect(() => {
-    // `window.frameElement` belongs to the parent document's JS realm. Using
-    // the iframe realm's `instanceof HTMLElement` therefore rejects the real
-    // iframe even though it is an HTMLElement. Treat the known frame element
-    // structurally instead so fitting works in actual browsers as well as SSR.
-    const frame = window.frameElement as HTMLElement | null;
-    if (!frame || !frame.classList.contains("preview-page")) return;
-
-    const device = frame.parentElement;
-    if (!device) return;
-
-    const fitPreview = () => {
-      // Measure the width offered by the maintenance-page CSS before applying
-      // an inline fitted size. This lets the device grow again after a resize.
-      device.style.removeProperty("width");
-      device.style.removeProperty("height");
-      const availableWidth = device.getBoundingClientRect().width;
-      if (!availableWidth) return;
-
-      const parentViewportHeight =
-        frame.ownerDocument.defaultView?.innerHeight ?? window.innerHeight;
-      const maxHeight = parentViewportHeight * PREVIEW_MAX_VIEWPORT_HEIGHT_RATIO;
-      const scale = Math.min(
-        1,
-        availableWidth / PREVIEW_PHONE_WIDTH,
-        maxHeight / PREVIEW_PHONE_HEIGHT,
-      );
-
-      device.style.width = `${PREVIEW_PHONE_WIDTH * scale}px`;
-      device.style.height = `${PREVIEW_PHONE_HEIGHT * scale}px`;
-      frame.style.transform = `translateX(-50%) scale(${scale})`;
-    };
-
-    fitPreview();
-    const parentWindow = frame.ownerDocument.defaultView;
-    parentWindow?.addEventListener("resize", fitPreview);
-
-    return () => {
-      parentWindow?.removeEventListener("resize", fitPreview);
-      device.style.removeProperty("width");
-      device.style.removeProperty("height");
-      frame.style.removeProperty("transform");
-    };
-  }, []);
 
   return (
     <div
