@@ -22,15 +22,27 @@ if (!/^[0-9a-f]{40}$/.test(commitSha)) {
 }
 
 let checkoutSha: string;
+let worktreeStatus: string;
 try {
   checkoutSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim().toLowerCase();
+  worktreeStatus = execFileSync(
+    "git",
+    ["status", "--porcelain=v1", "--untracked-files=all"],
+    { encoding: "utf8" },
+  ).trim();
 } catch (error) {
-  console.error(`[v3-failure-coverage] could not resolve checked-out commit: ${error instanceof Error ? error.message : String(error)}`);
+  console.error(`[v3-failure-coverage] could not inspect checked-out commit/worktree: ${error instanceof Error ? error.message : String(error)}`);
   process.exit(2);
 }
 if (checkoutSha !== commitSha) {
   console.error(
     `[v3-failure-coverage] evidence SHA ${commitSha} does not match checked-out commit ${checkoutSha}`,
+  );
+  process.exit(2);
+}
+if (worktreeStatus.length > 0) {
+  console.error(
+    "[v3-failure-coverage] exact-SHA evidence requires a clean index and worktree; commit/stash/remove local changes before generation",
   );
   process.exit(2);
 }
