@@ -9,7 +9,7 @@ import {
   Vote,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAppAttentionSummary } from "@/lib/app-attention";
@@ -164,6 +164,8 @@ export function V3AppShell({
   const navigationIdentityReady =
     !rollout.isLoading && !rollout.isError && rollout.data != null;
   const navigationScope = navigationIdentityReady ? (rollout.data.userId ?? null) : null;
+  const resolvedViewerKey = navigationScope ?? "anonymous";
+  const previousResolvedViewerKeyRef = useRef<string | undefined>(undefined);
   const notificationLabel =
     attention.me > 0
       ? `Notifications, ${attention.me} ${attention.me === 1 ? "item" : "items"} need attention`
@@ -171,6 +173,15 @@ export function V3AppShell({
 
   useEffect(() => {
     if (typeof window === "undefined" || !navigationIdentityReady) return;
+
+    const previousViewerKey = previousResolvedViewerKeyRef.current;
+    previousResolvedViewerKeyRef.current = resolvedViewerKey;
+    if (previousViewerKey !== undefined && previousViewerKey !== resolvedViewerKey) {
+      // Auth can resolve before its redirect commits. Do not sample the old
+      // viewer's still-mounted route into the newly resolved viewer bucket.
+      // Memory resumes after the authoritative route/query changes.
+      return;
+    }
 
     const restoreY = consumeV3PublicNavigationRestore(
       pathname,
@@ -230,7 +241,13 @@ export function V3AppShell({
         navigationScope,
       );
     };
-  }, [navigationIdentityReady, navigationScope, pathname, searchStr]);
+  }, [
+    navigationIdentityReady,
+    navigationScope,
+    pathname,
+    resolvedViewerKey,
+    searchStr,
+  ]);
 
   const navigationDestinations: V3LiquidTabDestination[] = V3_SHELL_DESTINATIONS.map(
     ({ id, label, to, icon, emphasis }) => ({
