@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Search } from "lucide-react";
 
-import { AppShell } from "@/components/AppShell";
+import { RulesRouteShell } from "@/components/rules/RulesRouteShell";
 import {
   GovernanceStatusStrip,
   SolarisDepthEyebrow,
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/rules/chapters/")({
 
 function RuleChaptersPage() {
   return (
-    <AppShell>
+    <RulesRouteShell resolvingTitle="Opening Rulebook chapters">
       <SolarisDepthPage tone="rules">
         <SolarisDepthSafeZone>
           <header>
@@ -84,6 +84,6 @@ function RuleChaptersPage() {
           </SolarisDepthSurface>
         </SolarisDepthSafeZone>
       </SolarisDepthPage>
-    </AppShell>
+    </RulesRouteShell>
   );
 }
