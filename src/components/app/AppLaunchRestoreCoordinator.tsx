@@ -23,6 +23,10 @@ export function AppLaunchRestoreCoordinator() {
   const generationRef = useRef(0);
 
   useEffect(() => {
+    // The maintenance teaser preview is a fixture-only visual renderer. It must
+    // never consume or mutate a pending installed-app launch transaction.
+    if (pathname === "/terraos-teaser-preview") return;
+
     // The parsing-time trampoline owns /app-launch. Never interfere while its
     // replacement navigation is committing.
     if (pathname === "/app-launch") return;
