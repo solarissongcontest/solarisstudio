@@ -1,3 +1,4 @@
+import { AppTabBar } from "@/components/app/AppTabBar";
 import type { SolarisTask } from "@/lib/participation-os";
 import {
   projectV3Bootstrap,
@@ -11,7 +12,6 @@ import {
 } from "./V3Foundation";
 import { V3HomeScreen } from "./V3HomeScreen";
 import { V3ParticipateScreen } from "./V3ParticipateScreen";
-import { V3_SHELL_DESTINATIONS } from "./V3AppShell";
 
 export type TerraOSTeaserScreen = "home" | "explore" | "participate";
 
@@ -124,39 +124,24 @@ const EXPLORE_PROJECTION: V3ExploreRootProjection = {
   more: [],
 };
 
-function TeaserBottomNav({ activeArea }: { activeArea: TerraOSTeaserScreen }) {
-  return (
-    <nav className="v3-bottom-nav" aria-label="Primary app navigation">
-      {V3_SHELL_DESTINATIONS.map(({ id, label, icon: Icon, emphasis }) => {
-        const active = id === activeArea;
-        return (
-          <span
-            key={id}
-            className="v3-bottom-nav__item"
-            data-emphasis={emphasis ? "true" : undefined}
-            data-active={active ? "true" : undefined}
-            aria-current={active ? "page" : undefined}
-          >
-            <span className="relative grid place-items-center" aria-hidden="true">
-              <Icon className="size-[19px]" strokeWidth={active ? 2.3 : 1.9} />
-            </span>
-            <span className="v3-bottom-nav__label">{label}</span>
-          </span>
-        );
-      })}
-    </nav>
-  );
+function previewPath(screen: TerraOSTeaserScreen) {
+  if (screen === "explore") return "/explore";
+  if (screen === "participate") return "/participate";
+  return "/";
 }
 
 /**
  * Public, fixture-only renderer used by the maintenance teaser.
  *
- * The teaser deliberately renders the production V3 screen components rather
- * than maintaining a second hand-built imitation. It never loads live account
- * data, performs no mutations and disables pointer interaction. The iframe is
- * therefore an accurate visual preview without becoming a maintenance bypass.
+ * The teaser deliberately renders the production V3 screen components and the
+ * real AppTabBar rather than maintaining a second hand-built imitation. It
+ * never loads live account data, performs no mutations and disables pointer
+ * interaction. The iframe is therefore an accurate visual preview without
+ * becoming a maintenance bypass.
  */
 export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }) {
+  const pathname = previewPath(screen);
+
   return (
     <div
       className="relative h-dvh min-h-dvh overflow-hidden bg-[var(--v3-bg-base)]"
@@ -201,7 +186,10 @@ export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }
             <V3ExploreScreen projection={EXPLORE_PROJECTION} onOpenSearch={() => undefined} />
           ) : null}
 
-          <TeaserBottomNav activeArea={screen} />
+          <AppTabBar
+            pathname={pathname}
+            signedIn={screen === "participate"}
+          />
         </V3FoundationShell>
       </div>
     </div>
