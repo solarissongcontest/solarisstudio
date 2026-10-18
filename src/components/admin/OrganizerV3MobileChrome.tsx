@@ -67,6 +67,7 @@ export function OrganizerV3MobileChrome() {
   const activeEdition = resolveAdminEditionContext(editions, editionId);
   const navigationScope = activeEdition?.id ?? null;
   const navigationMemoryReady = navigationScope != null;
+  const navigationInteractionKey = navigationScope ?? "unscoped";
   const taskCount = useOrganizerTaskCountV5(activeEdition?.id ?? null, tasksSupported);
   const unresolvedTaskCount =
     tasksSupported && !taskCount.isError && typeof taskCount.data === "number"
@@ -182,6 +183,7 @@ export function OrganizerV3MobileChrome() {
 
   return (
     <OrganizerV6TabBar
+      key={navigationInteractionKey}
       pathname={pathname}
       mode={tabbarMode}
       items={items}
