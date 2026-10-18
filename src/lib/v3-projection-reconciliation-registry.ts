@@ -73,14 +73,19 @@ const DOMAIN_REPAIR_CONTRACTS: Readonly<Record<string, V3ProjectionRepairContrac
     ],
   },
   entry: {
-    state: "foundation",
+    state: "rebuildable",
     scope: "edition",
     incrementalPath: "Canonical Entry commands and S5 events invalidate Entry consumers.",
-    rebuildPath: null,
-    verificationPath: "Compare canonical Entry projection with accepted immutable Entry source evidence.",
-    boundedBy: "edition-scoped repair required before S6 certification",
+    rebuildPath: "reconcileConfirmationEditionToSolarisInternal(editionId,{offset,limit})",
+    verificationPath: "verifyConfirmationEditionProjectionInternal(editionId)",
+    boundedBy:
+      "one edition per wave; at most 50 Confirmation submissions per repair invocation and 500 rows per full verification",
     explicitFailureState: "reconciliation_required",
-    evidence: ["supabase/migrations/20261011161500_reconcile_confirmation_entry_projection.sql"],
+    evidence: [
+      "supabase/migrations/20261011161500_reconcile_confirmation_entry_projection.sql",
+      "src/integrations/confirmations/reconcile.server.ts",
+      "src/lib/v3-s6-confirmation-entry-reconciliation.test.ts",
+    ],
   },
   confirmation: {
     state: "foundation",
