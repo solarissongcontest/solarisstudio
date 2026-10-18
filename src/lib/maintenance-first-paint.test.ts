@@ -21,6 +21,18 @@ describe("TerraOS 3 progressive reveal rendering", () => {
     expect(teaser).not.toContain("data-locked-copy");
   });
 
+  it("keeps the hero centered and gives it scroll-linked product choreography", () => {
+    const teaser = renderMaintenancePage(new Date("2026-10-18T13:00:00+03:00"));
+
+    expect(teaser).toContain("grid-template-columns:minmax(0,1fr)");
+    expect(teaser).toContain("max-width:calc(100vw - 2rem)");
+    expect(teaser).toContain("--hero-stage-scale:.96");
+    expect(teaser).toContain("requestAnimationFrame(updateHeroMotion)");
+    expect(teaser).toContain("window.addEventListener('scroll',requestHeroMotion,{passive:true})");
+    expect(teaser).toContain("prefers-reduced-motion:reduce");
+    expect(teaser).toContain('class="hero-copy-inner"');
+  });
+
   it("adds navigation on 19 October without rendering later-day placeholders", () => {
     const teaser = renderMaintenancePage(new Date("2026-10-19T00:01:00+03:00"));
 
