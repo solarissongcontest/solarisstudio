@@ -28,6 +28,7 @@ import {
   updateV3OrganizerScrollPosition,
   v3OrganizerEntryHref,
 } from "@/lib/v3-organizer-navigation";
+import { resolveV3OrganizerTabbarMode } from "@/lib/v3-organizer-navigation-policy";
 import {
   V3_ORGANIZER_TAB_ORDER,
   v3OrganizerTabForPath,
@@ -55,7 +56,8 @@ export function OrganizerV3MobileChrome() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const navigate = useNavigate();
-  const screen = resolveOrganizerV6Screen(pathname);
+  const legacyScreen = resolveOrganizerV6Screen(pathname);
+  const tabbarMode = resolveV3OrganizerTabbarMode(pathname, legacyScreen.tabbar);
   const activeTab = v3OrganizerTabForPath(pathname);
   const { editionId } = useAdminContext();
   const { data: editions = [] } = useEditions();
@@ -173,7 +175,7 @@ export function OrganizerV3MobileChrome() {
   return (
     <OrganizerV6TabBar
       pathname={pathname}
-      mode={screen.tabbar}
+      mode={tabbarMode}
       items={items}
       onSelect={(item) => openTab(item.id as V3OrganizerTabId)}
     />
