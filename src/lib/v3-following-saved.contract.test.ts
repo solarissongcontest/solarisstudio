@@ -7,6 +7,7 @@ const route = () => read("src/routes/_authenticated/my-solaris/saved.tsx");
 const screen = () => read("src/components/v3/V3FollowingSavedScreen.tsx");
 const projection = () => read("src/lib/v3-following-saved.ts");
 const projectionData = () => read("src/lib/v3-following-saved-data.ts");
+const integrationData = () => read("src/integrations/v3/following-saved-data.ts");
 const engagement = () => read("src/lib/engagement-data.ts");
 
 describe("V3 Following & Saved architecture", () => {
@@ -22,9 +23,16 @@ describe("V3 Following & Saved architecture", () => {
     expect(engagement()).toContain('.from("fan_follows")');
     expect(engagement()).toContain('.eq("profile_id", profileId!)');
     expect(projection()).toContain("scoped: false");
-    expect(projectionData()).toContain("follow.profile_id === profileId");
+    expect(integrationData()).toContain("follow.profile_id === profileId");
     expect(screen()).toContain("projection && !projection.scoped");
     expect(screen()).not.toContain("localStorage");
+  });
+
+  it("keeps database IO in the integration layer", () => {
+    expect(projectionData()).toContain('@/integrations/v3/following-saved-data');
+    expect(projectionData()).not.toContain("integrations/supabase");
+    expect(projectionData()).not.toContain('.from("');
+    expect(integrationData()).toContain('@/integrations/supabase/client');
   });
 
   it("resolves only followed entity IDs instead of loading public catalogues", () => {
@@ -32,13 +40,13 @@ describe("V3 Following & Saved architecture", () => {
     expect(screen()).not.toContain("useCountries");
     expect(screen()).not.toContain("useEditions");
     expect(screen()).not.toContain("useAllShows");
-    expect(projectionData()).toContain('.from("countries")');
-    expect(projectionData()).toContain('.from("shows")');
-    expect(projectionData()).toContain('.from("editions")');
-    expect(projectionData()).toContain('.in("id", countryIds)');
-    expect(projectionData()).toContain('.in("id", showIds)');
-    expect(projectionData()).toContain('.in("id", editionIds)');
-    expect(projectionData()).toContain('.eq("published", true)');
+    expect(integrationData()).toContain('.from("countries")');
+    expect(integrationData()).toContain('.from("shows")');
+    expect(integrationData()).toContain('.from("editions")');
+    expect(integrationData()).toContain('.in("id", countryIds)');
+    expect(integrationData()).toContain('.in("id", showIds)');
+    expect(integrationData()).toContain('.in("id", editionIds)');
+    expect(integrationData()).toContain('.eq("published", true)');
   });
 
   it("uses the existing authenticated follow writer without caller-selected profile authority", () => {
