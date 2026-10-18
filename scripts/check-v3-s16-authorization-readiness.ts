@@ -1,62 +1,33 @@
-import {
-  V3_AUTHORIZATION_KNOWN_GAPS,
-  V3_AUTHORIZATION_REQUIREMENT_REGISTRY,
-  validateV3AuthorizationRequirementRegistry,
-} from "../src/lib/v3-authorization-requirement-registry";
+import { assessV3S16AuthorizationReadiness } from "../src/lib/v3-s16-authorization-readiness";
 
 const json = process.argv.includes("--json");
-const registryErrors = validateV3AuthorizationRequirementRegistry();
-const declared = V3_AUTHORIZATION_REQUIREMENT_REGISTRY.filter((item) => item.state !== "verified");
-const verified = V3_AUTHORIZATION_REQUIREMENT_REGISTRY.filter((item) => item.state === "verified");
-const incompleteVerified = verified.filter(
-  (item) =>
-    !item.requiredCapability ||
-    !item.scope ||
-    !item.objectResolution ||
-    !item.serverBoundary ||
-    item.serviceRoleAllowed === null ||
-    item.negativePaths.length < 3 ||
-    item.evidence.length === 0,
-);
-
-const ready =
-  registryErrors.length === 0 &&
-  V3_AUTHORIZATION_KNOWN_GAPS.length === 0 &&
-  declared.length === 0 &&
-  incompleteVerified.length === 0;
-
-const result = {
-  ready,
-  commandCount: V3_AUTHORIZATION_REQUIREMENT_REGISTRY.length,
-  verifiedCount: verified.length,
-  declaredCount: declared.length,
-  knownGapCount: V3_AUTHORIZATION_KNOWN_GAPS.length,
-  registryErrors,
-  declaredCommands: declared.map((item) => ({ command: item.command, ownerDomain: item.ownerDomain })),
-  incompleteVerifiedCommands: incompleteVerified.map((item) => item.command),
-};
+const result = assessV3S16AuthorizationReadiness();
 
 if (json) {
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-} else if (ready) {
+} else if (result.ready) {
   process.stdout.write(
-    `S16 authorization readiness: READY (${verified.length}/${V3_AUTHORIZATION_REQUIREMENT_REGISTRY.length} canonical mutation commands verified)\n`,
+    `S16 authorization readiness: READY (${result.verifiedCount}/${result.commandCount} canonical mutation commands verified)\n`,
   );
 } else {
   process.stdout.write("S16 authorization readiness: BLOCKED\n");
-  if (registryErrors.length) {
-    for (const error of registryErrors) process.stdout.write(`- registry: ${error}\n`);
+  for (const error of result.registryErrors) process.stdout.write(`- registry: ${error}\n`);
+  if (result.knownGapCount) {
+    process.stdout.write(`- ${result.knownGapCount} known authorization gaps remain open\n`);
   }
-  if (V3_AUTHORIZATION_KNOWN_GAPS.length) {
-    process.stdout.write(`- ${V3_AUTHORIZATION_KNOWN_GAPS.length} known authorization gaps remain open\n`);
+  if (result.declaredCount) {
+    process.stdout.write(
+      `- ${result.declaredCount} canonical mutation commands are declared but not verified\n`,
+    );
+    for (const item of result.declaredCommands) {
+      process.stdout.write(`  - ${item.command} (${item.ownerDomain})\n`);
+    }
   }
-  if (declared.length) {
-    process.stdout.write(`- ${declared.length} canonical mutation commands are declared but not verified\n`);
-    for (const item of declared) process.stdout.write(`  - ${item.command} (${item.ownerDomain})\n`);
-  }
-  if (incompleteVerified.length) {
-    process.stdout.write(`- ${incompleteVerified.length} verified commands have incomplete hostile-path evidence\n`);
+  if (result.incompleteVerifiedCommands.length) {
+    process.stdout.write(
+      `- ${result.incompleteVerifiedCommands.length} verified commands have incomplete hostile-path evidence\n`,
+    );
   }
 }
 
-if (!ready) process.exitCode = 1;
+if (!result.ready) process.exitCode = 1;
