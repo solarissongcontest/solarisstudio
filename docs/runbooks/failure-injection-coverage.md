@@ -29,12 +29,9 @@ No state requires production traffic.
 - **Reconciliation retry:** the same script deliberately makes the first projection write fail, proves no partial task and unchanged canonical scheduler truth, retries the same rebuild path and asserts single-row idempotent convergence.
 - **Lost response after commit:** `.github/scripts/v3-s11-lost-response-rehearsal.sh` sends a real governed Jury-window R2 mutation through a loopback proxy. The proxy fully consumes the upstream HTTP 200 response and then destroys the downstream socket without forwarding response bytes. The script verifies the operation receipt, Jury state/version and `jury.closed` DomainEvent committed exactly once before exact retry.
 - **Transient RPC failure:** the same response-drop path gives the caller a real transport failure around a real governed RPC, after which exact canonical retry must return the durable committed result without re-executing the mutation.
+- **Queue backlog:** `.github/scripts/v3-s11-backlog-drain-rehearsal.sh` generates a bounded backlog through real `jury.closed` R2 operations, deliberately leaves their `jury.tasks` consequences pending, samples ordinary PostgREST reads concurrently, and drains only through the canonical S4 claim plus Jury consumer path.
 
-These four remain `rehearsal_ready` until isolated local runs are retained against the exact candidate SHA.
-
-### Contract-only
-
-- **Queue backlog:** S12 defines `reconciliation-backlog-drain` and queue/retry measurements, but a deterministic backlog-drain rehearsal still needs implementation and execution.
+All five remain `rehearsal_ready` until isolated local runs are retained against the exact candidate SHA. The already-retained S4 evidence remains separately `rehearsed`; existence of a shell script is not retroactively a successful test run, because paperwork has caused enough damage already.
 
 ## Stale projection / retry rehearsal
 
@@ -54,7 +51,42 @@ The script creates an isolated draft edition/show and uses the real `studio2_app
 
 Before retry, the script verifies the durable succeeded receipt, `closed` Jury state, version `1` and exactly one `jury.closed` DomainEvent. It then retries the exact operation with the original `operation_id`, idempotency key and stale `expectedVersion=0`; the replay must return `previousVersion=0` / `version=1` while receipt/event counts and version stay unchanged. Any true second execution would hit mutable version 1 and/or advance it again.
 
-## Generate exact-SHA evidence
+The script uses run-unique fixture identities and intentionally does not delete immutable S4 event/receipt history. Run it against disposable local Supabase and reset that local database after evidence is retained.
+
+## Bounded backlog-drain rehearsal
+
+The backlog rehearsal has **no built-in load number or latency threshold**. The caller must supply an explicit load shape and its provenance:
+
+```bash
+V3_S11_BACKLOG_EVENTS=<evidence-backed-event-count> \
+V3_S11_DRAIN_BATCH=<bounded-batch-size-1-to-100> \
+V3_S11_READ_REQUESTS=<ordinary-read-sample-count> \
+V3_S11_BACKLOG_SHA=$(git rev-parse HEAD) \
+V3_S11_BACKLOG_LOAD_SOURCE=<documented-source> \
+V3_S11_BACKLOG_LOAD_RATIONALE='<why-this-load-shape>' \
+V3_S11_BACKLOG_OUTPUT=./artifacts/v3-s11-backlog-drain.json \
+bash .github/scripts/v3-s11-backlog-drain-rehearsal.sh
+```
+
+Allowed load sources match the S12 evidence vocabulary: `production-telemetry`, `contest-participation-or-audience`, `provider-constraint`, `historical-peak`, `approved-forecast`, `explicit-rehearsal-plan`, or `exploratory`.
+
+Safety and correctness boundaries:
+
+- hosted API/database targets are refused;
+- the supplied SHA must exactly equal `git rev-parse HEAD`;
+- the script refuses to start when the isolated local database already has actionable `jury.tasks` work, because the canonical claim is consumer-wide rather than edition-scoped;
+- backlog is created by real `studio2_apply_jury_voting_status` operations, never direct outbox insertion;
+- drain batches use `studio2_claim_domain_event_deliveries` and are bounded to the S4 maximum of 100;
+- each claimed event is processed by `studio2_process_jury_domain_event`;
+- claims are rejected if they escape the synthetic edition;
+- completion requires exactly one immutable consumer receipt per fixture event, zero fixture dead letters, zero retry attempts and backlog depth zero;
+- ordinary local reads run in parallel and must all succeed;
+- output records drain duration/throughput, per-batch backlog reduction, ordinary-read p50/p95/p99/max, retries/dead letters and exact evidence identity;
+- output carries `thresholds: null` and `certificationClaim: false`.
+
+The rehearsal deliberately leaves immutable S4 ledger rows in the disposable local database. Reset local Supabase after retaining the report. Do not add cleanup code that defeats the immutability contract merely because test data has become aesthetically inconvenient.
+
+## Generate static exact-SHA coverage evidence
 
 ```bash
 V3_FAILURE_COVERAGE_SHA=$(git rev-parse HEAD) \
@@ -69,7 +101,11 @@ The generator is offline. It verifies that `V3_FAILURE_COVERAGE_SHA` exactly mat
 
 ## Remaining reliability work
 
-1. Execute and retain exact-SHA evidence for the four `rehearsal_ready` scenarios.
-2. Implement and execute a bounded reconciliation-backlog drain rehearsal with queue/retry and ordinary-workload measurements.
+The explicit S11 failure-injection **implementation** inventory is now complete: 3 scenarios have retained rehearsed evidence and the other 5 have deterministic rehearsal tooling ready. The remaining work is execution/evidence, not inventing more recovery mechanisms:
+
+1. run each `rehearsal_ready` path against isolated local Supabase on the exact candidate SHA;
+2. retain the backlog JSON report and corresponding local/runtime evidence;
+3. promote a scenario to `rehearsed` only after that run is objectively retained;
+4. let Chat 5 decide whether the resulting evidence is sufficient for release certification.
 
 All rehearsals remain local/isolated. Production is not a chaos-testing playground, despite software's occasional attempts to become one on its own.
