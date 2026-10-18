@@ -29,9 +29,10 @@ describe("V3 P42 Account parity boundary", () => {
     expect(code).toContain("<V3AccountSecurityPanel />");
   });
 
-  it("keeps current-device logout authoritative and failure-visible", () => {
+  it("keeps current-device logout authoritative, local-scoped and failure-visible", () => {
     expect(sections()).toContain("await signOutSolarisAccount()");
-    expect(sessionAuthority()).toContain("supabase.auth.signOut()");
+    expect(sessionAuthority()).toContain('supabase.auth.signOut({ scope: "local" })');
+    expect(sessionAuthority()).not.toContain("supabase.auth.signOut();");
     expect(sections()).toContain("will not pretend the session was revoked");
   });
 
