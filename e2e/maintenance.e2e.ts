@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { MAINTENANCE_RETURN_DATE } from "../src/lib/maintenance";
+
 const ROUTES = [
   "/",
   "/countries/ABE",
@@ -24,7 +26,7 @@ test("Solaris Studio serves the TerraOS 3 maintenance teaser across the app", as
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("TerraOS 3");
     await expect(page.getByText("Solaris Studio, rebuilt.", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Estimated arrival", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("22 October 2026", { exact: true })).toBeVisible();
+    await expect(page.getByText(MAINTENANCE_RETURN_DATE, { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Take a closer look." })).toBeVisible();
     await expect(page.getByText("Five places.", { exact: false }).first()).toBeVisible();
     await expect(page.locator('iframe[src="/terraos-teaser-preview?screen=home"]')).toHaveCount(2);
@@ -106,7 +108,7 @@ test("TerraOS teaser preview route renders the production V3 screen components d
 test("TerraOS first-look device keeps a complete phone aspect on short desktop viewports", async ({ page }) => {
   const viewport = { width: 1366, height: 768 };
   await page.setViewportSize(viewport);
-  const response = await page.goto("/", { waitUntil: "networkidle" });
+  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(503);
 
   const device = page.locator(".preview-device");
