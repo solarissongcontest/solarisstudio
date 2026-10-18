@@ -25,7 +25,7 @@ import {
   type IncidentSeverity,
   type IncidentStatus,
 } from '@/lib/incident-command';
-import { studio2ControlRoom } from '@/lib/studio2-control-room';
+import { studio2ControlRoom, type Studio2ControlRoomSnapshot } from '@/lib/studio2-control-room';
 
 type TransitionRisk = 'normal' | 'elevated' | 'critical';
 
@@ -248,7 +248,7 @@ function ControlRoomV2() {
   };
 
   const openIncidentReview = (
-    incident: (typeof snapshot.incidents)[number],
+    incident: Studio2ControlRoomSnapshot['incidents'][number],
     to: IncidentStatus,
   ) => {
     setReviewError(null);
