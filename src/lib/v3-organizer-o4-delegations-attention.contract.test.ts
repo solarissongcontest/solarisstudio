@@ -8,6 +8,7 @@ const model = readFileSync(
   "utf8",
 );
 const permissionMap = readFileSync("src/lib/permission-route-map.ts", "utf8");
+const adminDomains = readFileSync("src/components/admin/admin-domains.ts", "utf8");
 
 describe("Organizer O4 Delegations attention boundary", () => {
   it("fails closed without explicit Organizer edition context", () => {
@@ -43,6 +44,13 @@ describe("Organizer O4 Delegations attention boundary", () => {
     expect(permissionMap).toContain(
       'rule(["/admin/delegations", "/confirmations/admin"], "confirmation.read")',
     );
+  });
+
+  it("makes the canonical O4 workspace the permanent Delegations root", () => {
+    expect(adminDomains).toContain('path.startsWith("/admin/delegations")');
+    expect(adminDomains).toContain('to: "/admin/delegations"');
+    expect(adminDomains).toContain('path.startsWith("/admin/countries")');
+    expect(adminDomains).toContain('path.startsWith("/confirmations/admin")');
   });
 
   it("keeps sync/settings diagnostics out of the canonical O4 workspace", () => {
