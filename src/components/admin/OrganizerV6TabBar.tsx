@@ -13,6 +13,10 @@ import type { LucideIcon } from "lucide-react";
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
 import { APP_RESUME_EVENT } from "@/lib/app-lifecycle";
 import {
+  clearAppUpdateBlocker,
+  setAppUpdateBlocker,
+} from "@/lib/app-update-safety";
+import {
   prefersReducedMotion,
   resolveElasticDrag,
   resolveTabDragTargetIndex,
@@ -30,6 +34,8 @@ import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import type { SolarisTabbarMode } from "@/lib/solaris-screen-contract";
 import { cn } from "@/lib/utils";
 import "@/styles/v3-organizer-navigation.css";
+
+const V3_ORGANIZER_LENS_UPDATE_BLOCKER = "v3-organizer-lens-drag";
 
 export type OrganizerV6TabItem = {
   id: string;
@@ -165,6 +171,7 @@ export function OrganizerV6TabBar({
   };
 
   const resetDragDom = useCallback(() => {
+    clearAppUpdateBlocker(V3_ORGANIZER_LENS_UPDATE_BLOCKER);
     const drag = dragState.current;
     if (drag) {
       try {
@@ -288,6 +295,11 @@ export function OrganizerV6TabBar({
       tabIcons,
     };
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    setAppUpdateBlocker(
+      V3_ORGANIZER_LENS_UPDATE_BLOCKER,
+      true,
+      "Finish the current Organizer navigation gesture before updating.",
+    );
     beginHold(event.pointerId, event.clientX, event.clientY);
     setDragging(true);
   };
