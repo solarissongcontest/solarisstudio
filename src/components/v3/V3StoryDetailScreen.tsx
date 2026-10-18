@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { BookOpen, CalendarDays } from "lucide-react";
 
 import type { V3StoryDetailBundle } from "@/lib/v3-stories";
@@ -12,9 +13,12 @@ import {
 
 export function V3StoryDetailScreen({
   bundle,
+  hideSpoilers,
 }: {
   bundle: V3StoryDetailBundle;
+  hideSpoilers: boolean;
 }) {
+  const [revealed, setRevealed] = useState(false);
   const story = bundle.story;
 
   if (!story) {
@@ -31,6 +35,33 @@ export function V3StoryDetailScreen({
               The edition may not have a reviewed storyline yet, or its storyline has been returned to draft for editing.
             </p>
           </div>
+        </V3Surface>
+      </V3Screen>
+    );
+  }
+
+  if (hideSpoilers && !revealed) {
+    return (
+      <V3Screen>
+        <Link to="/stories" className="text-xs font-semibold text-primary hover:underline">
+          ← Story archive
+        </Link>
+        <V3Surface level="raised" className="mt-5 p-5" data-v3-story-spoiler-protected="">
+          <div className="flex flex-wrap items-center gap-2">
+            <V3StatusChip tone="warning">Spoiler-free</V3StatusChip>
+            <V3StatusChip tone="neutral">Story content hidden</V3StatusChip>
+          </div>
+          <h1 className="mt-4 text-xl font-bold">A published edition story is available</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-white/52">
+            The title, introduction and timeline moments stay hidden because spoiler-free mode is on.
+          </p>
+          <button
+            type="button"
+            onClick={() => setRevealed(true)}
+            className="mt-4 min-h-11 rounded-xl bg-[var(--v3-accent)] px-4 font-semibold text-[var(--v3-bg-base)]"
+          >
+            Reveal edition story
+          </button>
         </V3Surface>
       </V3Screen>
     );
