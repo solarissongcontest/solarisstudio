@@ -26,7 +26,7 @@ export type V3FailureCoverageEntry = {
  * Reliability evidence inventory for the failure classes explicitly required by
  * the System V3 plan. This registry never upgrades a contract/test to
  * `rehearsed` unless a deterministic local rehearsal actually injects the
- * failure and verifies recovery or replay semantics.
+ * requested failure condition and verifies recovery or replay semantics.
  */
 export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = [
   {
@@ -56,14 +56,15 @@ export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = 
   },
   {
     scenario: "duplicate_delivery",
-    state: "rehearsed",
+    state: "partial",
     injection: "Replay the same semantic event and repeat consumer completion.",
-    expectedRecovery: "Reuse the immutable event/outbox state and converge on exactly one immutable consumer receipt.",
+    expectedRecovery: "A true duplicate consumer delivery must converge without duplicating consequence state or consumer receipts.",
     evidence: [
       ".github/scripts/v3-s4-domain-event-outbox-rehearsal.sh",
       "src/lib/v3-s4-domain-event-outbox.contract.test.ts",
     ],
-    remainingGap: null,
+    remainingGap:
+      "Current S4 evidence suppresses duplicate outbox creation and replays completion after a delivery is already complete; it does not inject the same event into consequence processing twice. A dedicated local duplicate-delivery rehearsal is still required.",
     productionTrafficRequired: false,
   },
   {
@@ -125,14 +126,15 @@ export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = 
   },
   {
     scenario: "unavailable_dependency",
-    state: "rehearsed",
+    state: "partial",
     injection: "Record DEPENDENCY_FAILURE for a claimed event consumer delivery.",
-    expectedRecovery: "Schedule retry, preserve attempt evidence, dead-letter repeated poison work, and requeue only through the explicit operator path.",
+    expectedRecovery: "An actual unavailable dependency must surface through the consumer failure path, preserve attempt evidence, and recover through bounded retry/dead-letter semantics.",
     evidence: [
       ".github/scripts/v3-s4-domain-event-outbox-rehearsal.sh",
       "src/lib/v3-s4-domain-event-outbox.contract.test.ts",
     ],
-    remainingGap: null,
+    remainingGap:
+      "Current S4 evidence directly records DEPENDENCY_FAILURE; it does not make a real consumer dependency unavailable. A dedicated isolated dependency-outage injection is still required.",
     productionTrafficRequired: false,
   },
 ] as const;
