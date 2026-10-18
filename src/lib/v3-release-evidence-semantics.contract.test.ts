@@ -16,8 +16,17 @@ describe("V3 exact-candidate release evidence semantics", () => {
     expect(source).toContain('filename === "security-advisor-classification.json" && evidence.releaseReady !== true');
   });
 
-  it("requires an affirmative S16 certificate only in final certification mode", () => {
-    expect(source).toContain('filename === "s16-certification.json" && evidence.certified !== true');
+  it("requires a semantically valid S16 certificate only in final certification mode", () => {
+    expect(source).toContain("validateV3S16CertificationEvidence");
     expect(source).toContain('finalCertification ? [...releasePrerequisiteEvidence, "s16-certification.json"]');
+    expect(source).not.toContain(
+      'filename === "s16-certification.json" && evidence.certified !== true',
+    );
+  });
+
+  it("re-validates every canonical S16 source artifact during final certification", () => {
+    expect(source).toContain("for (const category of V3_S16_CERTIFICATION_CATEGORIES)");
+    expect(source).toContain("validateV3S16CategorySourceEvidence");
+    expect(source).toContain("S16 source evidence:");
   });
 });
