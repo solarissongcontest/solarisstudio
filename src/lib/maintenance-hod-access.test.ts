@@ -17,6 +17,9 @@ const participationChrome = readFileSync("src/components/ParticipationServiceShe
 const maintenanceEditor = readFileSync("src/components/MaintenanceConfirmationEditor.tsx", "utf8");
 const maintenanceEditorClient = readFileSync("src/lib/maintenance-confirmation-editor.ts", "utf8");
 const maintenanceEditorApi = readFileSync("src/routes/api/maintenance-confirmation.ts", "utf8");
+const teaserPreview = readFileSync("src/components/v3/TerraOSTeaserPreview.tsx", "utf8");
+const teaserPreviewRoute = readFileSync("src/routes/terraos-teaser-preview.tsx", "utf8");
+const serverEntry = readFileSync("src/server.ts", "utf8");
 
 describe("maintenance HOD access flag", () => {
   it("fails closed unless explicitly enabled", () => {
@@ -153,14 +156,26 @@ describe("TerraOS 3 maintenance teaser contract", () => {
     expect(teaser).toContain("root.insertBefore(portal,story)");
   });
 
-  it("uses real V3-flavoured Home, Explore and Participate previews instead of placeholder Results art", () => {
-    expect(teaser).toContain("Solaris now");
-    expect(teaser).toContain("Discover the contest");
-    expect(teaser).toContain("Your participation");
-    expect(teaser).toContain("You’re all caught up");
-    expect(teaser).toContain("Solaris Song Contest 22");
+  it("renders the production V3 page components inside the teaser devices instead of hand-built miniatures", () => {
+    expect(teaser).toContain('/terraos-teaser-preview?screen=home');
+    expect(teaser).toContain('/terraos-teaser-preview?screen=explore');
+    expect(teaser).toContain('/terraos-teaser-preview?screen=participate');
+    expect(teaser).toContain('class="phone-preview"');
+    expect(teaser).toContain('class="preview-page"');
     expect(teaser).not.toContain('class="orbit"');
     expect(teaser).not.toContain("Final results");
+
+    expect(teaserPreview).toContain("V3HomeScreen");
+    expect(teaserPreview).toContain("V3ExploreScreen");
+    expect(teaserPreview).toContain("V3ParticipateScreen");
+    expect(teaserPreview).toContain("V3FoundationShell");
+    expect(teaserPreview).toContain("V3TopContext");
+    expect(teaserPreview).toContain("V3_SHELL_DESTINATIONS");
+    expect(teaserPreview).not.toContain("useQuery");
+    expect(teaserPreview).not.toContain("supabase");
+    expect(teaserPreviewRoute).toContain('createFileRoute("/terraos-teaser-preview")');
+    expect(serverEntry).toContain('const TERRAOS_TEASER_PREVIEW_PATH = "/terraos-teaser-preview"');
+    expect(serverEntry).toContain("isTerraOsTeaserPreviewRequest");
   });
 
   it("renders only the current reveal phase instead of giant future placeholders", () => {
