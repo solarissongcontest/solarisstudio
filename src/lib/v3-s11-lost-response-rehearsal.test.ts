@@ -45,13 +45,13 @@ describe("System V3 S11 lost-response recovery rehearsal", () => {
     expect(rehearsal).toContain("exact retry duplicated the canonical Jury DomainEvent");
   });
 
-  it("upgrades the real transport-failure and lost-response scenarios without touching backlog evidence", () => {
+  it("marks the new real transport-failure and lost-response paths rehearsal-ready pending retained run evidence", () => {
     expect(
       V3_FAILURE_INJECTION_COVERAGE.find((entry) => entry.scenario === "lost_response_after_commit")?.state,
-    ).toBe("rehearsed");
+    ).toBe("rehearsal_ready");
     expect(
       V3_FAILURE_INJECTION_COVERAGE.find((entry) => entry.scenario === "transient_rpc_failure")?.state,
-    ).toBe("rehearsed");
+    ).toBe("rehearsal_ready");
     expect(
       V3_FAILURE_INJECTION_COVERAGE.find((entry) => entry.scenario === "queue_backlog")?.state,
     ).toBe("contract_only");
