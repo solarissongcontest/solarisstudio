@@ -61,15 +61,15 @@ describe("System V3 S11 stale projection recovery rehearsal", () => {
     expect(rehearsal).toContain("v_actual is distinct from v_expected");
   });
 
-  it("upgrades only the failure classes that this rehearsal actually proves", () => {
+  it("marks only the implemented failure paths rehearsal-ready until retained execution evidence exists", () => {
     expect(
       V3_FAILURE_INJECTION_COVERAGE.find((entry) => entry.scenario === "stale_projection")?.state,
-    ).toBe("rehearsed");
+    ).toBe("rehearsal_ready");
     expect(
       V3_FAILURE_INJECTION_COVERAGE.find((entry) => entry.scenario === "reconciliation_retry")?.state,
-    ).toBe("rehearsed");
+    ).toBe("rehearsal_ready");
     expect(
       V3_FAILURE_INJECTION_COVERAGE.find((entry) => entry.scenario === "queue_backlog")?.state,
-    ).not.toBe("rehearsed");
+    ).toBe("contract_only");
   });
 });
