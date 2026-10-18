@@ -19,7 +19,7 @@ import cardTypographyCss from "../card-typography.css?url";
 import solarisMotionCss from "../solaris-motion.css?url";
 import flagMediaCss from "../flag-media.css?url";
 import appShellCss from "../styles/app-shell.css?url";
-import solarisDepthCss from "../styles/solaris-depth.css?url";
+import solarisDepthCss from "../solaris-depth.css?url";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
 import { AppRuntime, useSolarisApp } from "../components/app/AppRuntime";
 import { AppExperiencePreferenceSync } from "../components/app/AppExperiencePreferenceSync";
