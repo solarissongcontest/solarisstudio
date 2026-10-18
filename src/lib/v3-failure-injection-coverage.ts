@@ -127,16 +127,18 @@ export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = 
   },
   {
     scenario: "queue_backlog",
-    state: "contract_only",
-    injection: "Create a bounded DomainEvent/reconciliation backlog while retaining ordinary workload traffic.",
-    expectedRecovery: "Drain through canonical bounded consumers/reconciliation while observing queue depth, retry pressure and normal-workload latency.",
+    state: "rehearsal_ready",
+    injection: "Generate a bounded backlog through real jury.closed R2 operations, leave their jury.tasks consequences pending, then drain them through the canonical S4 claim and Jury consumer contracts while ordinary reads continue.",
+    expectedRecovery: "Drain the isolated fixture backlog to zero in bounded batches with exactly one immutable consumer receipt per event, no retries/dead letters, and retained ordinary-read latency/error measurements.",
     evidence: [
       "src/lib/v3-capacity-scenarios.ts",
       ".github/scripts/v3-s12-local-capacity-rehearsal.mjs",
       "src/lib/v3-capacity-evidence.ts",
+      ".github/scripts/v3-s11-backlog-drain-rehearsal.sh",
+      "src/lib/v3-s11-backlog-drain-rehearsal.test.ts",
     ],
     remainingGap:
-      "The scenario and measurements exist, but a deterministic backlog-drain rehearsal still needs to be implemented and then executed with retained exact-SHA evidence.",
+      "The deterministic bounded backlog-drain rehearsal is implemented, but exact-SHA local execution evidence with an evidence-backed load shape still needs to be retained by the QA/release evidence lane.",
     productionTrafficRequired: false,
   },
   {
