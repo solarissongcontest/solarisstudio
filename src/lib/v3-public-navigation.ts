@@ -83,7 +83,13 @@ function normalizeSearch(searchStr?: string | null) {
 }
 
 function rememberedTab(pathname: string, searchStr = ""): V3PublicTabId | null {
-  if (!pathname.startsWith("/") || pathname.startsWith("/admin") || pathname.startsWith("/organizer")) {
+  if (
+    !pathname.startsWith("/") ||
+    pathname.startsWith("//") ||
+    pathname.includes("\\") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/organizer")
+  ) {
     return null;
   }
 
