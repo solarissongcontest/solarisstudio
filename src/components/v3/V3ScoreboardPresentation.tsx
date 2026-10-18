@@ -103,17 +103,14 @@ export function V3ScoreboardPresentation({
         className="mt-5"
       >
         {rows.length === 0 ? (
-          <V3Surface
-            level="raised"
-            data-v3-scoreboard-empty=""
-            className="p-5 text-center"
-            role="status"
-          >
-            <p className="text-sm font-semibold">No published ranking yet</p>
-            <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-[var(--v3-text-secondary)]">
-              The canonical scoreboard does not currently contain any published
-              entries.
-            </p>
+          <V3Surface level="raised" className="p-5 text-center">
+            <div data-v3-scoreboard-empty="" role="status">
+              <p className="text-sm font-semibold">No published ranking yet</p>
+              <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-[var(--v3-text-secondary)]">
+                The canonical scoreboard does not currently contain any published
+                entries.
+              </p>
+            </div>
           </V3Surface>
         ) : (
           <ol className="grid gap-2" aria-label="Final ranking">
