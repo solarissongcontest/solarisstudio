@@ -158,7 +158,7 @@ test("Five Places upgrades its static fallback panes to the real V3 screen previ
 test("TerraOS first-look device keeps a complete phone aspect on short desktop viewports", async ({ page }) => {
   const viewport = { width: 1366, height: 768 };
   await page.setViewportSize(viewport);
-  const response = await page.goto("/", { waitUntil: "networkidle" });
+  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(503);
 
   const device = page.locator(".preview-device");
