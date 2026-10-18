@@ -38,11 +38,11 @@ export function buildControlRoomAttention(
     }));
 
   const readinessItems = (readiness?.issues ?? [])
-    .filter((issue) => issue.severity === "critical" || issue.severity === "action")
+    .filter((issue) => issue.severity === "critical")
     .map<ControlRoomAttentionItem>((issue) => ({
-      id: `readiness:${issue.id}`,
+      id: `readiness:${issue.code}`,
       kind: "readiness",
-      severity: issue.severity,
+      severity: "critical",
       title: issue.title,
       detail: issue.detail,
     }));
