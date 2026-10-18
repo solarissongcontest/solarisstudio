@@ -22,7 +22,8 @@ describe("Public V3 UX diagnostics instrumentation", () => {
 
     expect(events).toContain("elapsed_ms?: number");
     expect(events).toContain('"interaction"');
-    expect(events).toContain('"elapsed_ms"');
+    expect(events).toContain("Number.isFinite(metadata.elapsed_ms)");
+    expect(events).toContain("Math.min(86_400_000");
     expect(migration).toContain("'interaction'");
     expect(migration).toContain("'elapsed_ms'");
     expect(migration).toContain("between 0 and 86400000");
