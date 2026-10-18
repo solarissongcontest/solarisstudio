@@ -80,6 +80,16 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
     "supabase/migrations/20261015183000_v3_s5_confirmation_consequences.sql",
     ".github/scripts/v3-s5-confirmation-consequences-rehearsal.sh",
   ],
+  "entry.submitted": [
+    "supabase/migrations/20261018081500_v3_s5_entry_lifecycle_consequences.sql",
+    "src/lib/v3-s5-entry-lifecycle-consequences.test.ts",
+    ".github/scripts/v3-s5-entry-lifecycle-consequences-rehearsal.sh",
+  ],
+  "entry.version_changed": [
+    "supabase/migrations/20261018081500_v3_s5_entry_lifecycle_consequences.sql",
+    "src/lib/v3-s5-entry-lifecycle-consequences.test.ts",
+    ".github/scripts/v3-s5-entry-lifecycle-consequences-rehearsal.sh",
+  ],
   "entry.reviewed": [
     "supabase/migrations/20261015201221_v3_s5_entry_consequences.sql",
     ".github/scripts/v3-s5-entry-consequences-rehearsal.sh",

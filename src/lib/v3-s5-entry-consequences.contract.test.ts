@@ -42,7 +42,7 @@ describe("System V3 S5 Entry consequences", () => {
     expect(migration).toContain("public.studio2_complete_domain_event_delivery");
   });
 
-  it("marks only the migrated Entry review facts as event-backed", () => {
+  it("keeps the complete Entry lifecycle consequence inventory event-backed", () => {
     const eventBacked = V3_DOMAIN_CONSEQUENCE_REGISTRY
       .filter(
         (consequence) =>
@@ -55,6 +55,8 @@ describe("System V3 S5 Entry consequences", () => {
     expect(eventBacked).toEqual([
       "entry.changes_requested",
       "entry.reviewed",
+      "entry.submitted",
+      "entry.version_changed",
     ]);
   });
 

@@ -64,6 +64,8 @@ describe("System V3 S1 registries", () => {
       "confirmation.window_changed",
       "entry.changes_requested",
       "entry.reviewed",
+      "entry.submitted",
+      "entry.version_changed",
       "jury.ballot_changed",
       "jury.closed",
       "jury.opened",
@@ -122,6 +124,18 @@ describe("System V3 S1 registries", () => {
     expect(v3DomainConsequence("acknowledgement.recorded")?.ownerDomain).toBe("acknowledgement");
     expect(v3DomainConsequence("acknowledgement.recorded")?.taskEffects).toEqual([]);
     expect(v3DomainConsequence("acknowledgement.recorded")?.notificationEffects).toEqual([]);
+  });
+
+  it("records the complete Entry lifecycle S5 ownership", () => {
+    for (const eventType of [
+      "entry.submitted",
+      "entry.version_changed",
+      "entry.reviewed",
+      "entry.changes_requested",
+    ]) {
+      expect(v3DomainConsequence(eventType)?.implementationState).toBe("event-backed");
+      expect(v3DomainConsequence(eventType)?.ownerDomain).toBe("entry");
+    }
   });
 
   it("records canonical membership/access S5 ownership", () => {
