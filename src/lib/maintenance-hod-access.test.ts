@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   MAINTENANCE_CONFIRMATION_API_PATH,
+  MAINTENANCE_RETURN_DATE,
+  TERRAOS3_ESTIMATED_LAUNCH_AT,
   isMaintenanceHodAppRouteAllowed,
   maintenanceHodAccessEnabled,
 } from "./maintenance";
@@ -124,17 +126,75 @@ describe("maintenance HOD route isolation", () => {
   });
 });
 
+describe("TerraOS 3 maintenance teaser contract", () => {
+  const teaser = renderMaintenancePage();
+
+  it("preserves the HOD insertion point while making TerraOS 3 the public hero", () => {
+    expect(teaser).toContain("          <footer>");
+    expect(teaser).toContain("TerraOS 3");
+    expect(teaser).toContain("Solaris Studio, rebuilt.");
+    expect(teaser).toContain("Estimated arrival");
+    expect(teaser).toContain(MAINTENANCE_RETURN_DATE);
+    expect(teaser).toContain(`data-terraos-launch-at="${TERRAOS3_ESTIMATED_LAUNCH_AT}"`);
+    expect(teaser).toContain('role="timer"');
+    expect(teaser).not.toContain("Solaris Studio is temporarily unavailable");
+    expect(teaser).not.toContain("Organizer tools");
+  });
+
+  it("keeps the existing Confirmation portal theme tokens available", () => {
+    expect(teaser).toContain("--muted-soft:var(--soft)");
+    expect(teaser).toContain("--primary:var(--blue)");
+  });
+
+  it("moves the injected Confirmation portal ahead of the product story in DOM order", () => {
+    expect(teaser).toContain("var portal=document.querySelector('.hod-portal')");
+    expect(teaser).toContain("var story=document.querySelector('.product-story')");
+    expect(teaser).toContain("root.insertBefore(portal,story)");
+  });
+
+  it("uses sparse product copy instead of generic launch language", () => {
+    expect(teaser).toContain("Take a closer look.");
+    expect(teaser).toContain("Five places.<br />One Solaris.");
+    expect(teaser).toContain("Touch it.");
+    expect(teaser).toContain("What’s next,<br />at a glance.");
+    expect(teaser).toContain("Results,<br />live.");
+    expect(teaser).not.toMatch(/next-generation|revolutionary|reimagined|seamless|effortless/i);
+  });
+
+  it("keeps progressive reveals date-bound, inert while locked and free of network polling", () => {
+    expect(teaser).toContain('inert data-reveal-at="2026-10-19T00:00:00+03:00"');
+    expect(teaser).toContain('inert data-reveal-at="2026-10-20T00:00:00+03:00"');
+    expect(teaser).toContain('inert data-reveal-at="2026-10-21T00:00:00+03:00"');
+    expect(teaser).toContain("More on 19.10");
+    expect(teaser).toContain("More on 20.10");
+    expect(teaser).toContain("More on 21.10");
+    expect(teaser).toMatch(/toggleAttribute\(['"]inert['"],\s*!open\)/);
+    expect(teaser).toMatch(/removeAttribute\(['"]inert['"]\)/);
+    expect(teaser).not.toContain("fetch(");
+    expect(teaser).not.toContain("XMLHttpRequest");
+  });
+
+  it("provides direct-manipulation navigation with accessibility fallbacks", () => {
+    expect(teaser).toContain('id="liquid-demo"');
+    expect(teaser).toContain('aria-selected="true"');
+    expect(teaser).toContain("demo.addEventListener('pointerdown'");
+    expect(teaser).toContain("demo.addEventListener('pointermove'");
+    expect(teaser).toContain("demo.addEventListener('pointerup'");
+    expect(teaser).toContain("prefers-reduced-motion:reduce");
+    expect(teaser).toContain("prefers-reduced-transparency:reduce");
+  });
+});
+
 describe("maintenance HOD portal contract", () => {
   const html = renderMaintenanceHodPortal({
     supabaseUrl: "https://example.supabase.co",
     publishableKey: "sb_publishable_test",
   });
 
-  it("preserves the maintenance page insertion point and visually promotes HOD access", () => {
-    expect(renderMaintenancePage()).toContain("          <footer>");
-    expect(renderMaintenancePage()).toContain("Solaris Studio is temporarily unavailable");
-    expect(renderMaintenancePage()).toContain("HOD Confirmations available");
+  it("keeps Confirmation as the operational section immediately after the hero", () => {
     expect(html).toContain(".hod-portal {\n    order: 2;");
+    expect(html).toContain("Manage your current Confirmation");
+    expect(html).toContain("This is the participant area that remains available during maintenance.");
   });
 
   it("makes the signed-out country-account action understandable", () => {

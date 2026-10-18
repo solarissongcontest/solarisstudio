@@ -10,7 +10,7 @@ const ROUTES = [
   "/admin",
 ] as const;
 
-test("Solaris Studio serves the compact maintenance routing page across the app", async ({ page }) => {
+test("Solaris Studio serves the TerraOS 3 maintenance teaser across the app", async ({ page }) => {
   for (const route of ROUTES) {
     const response = await page.goto(route, { waitUntil: "domcontentloaded" });
     expect(response?.status(), `${route} should be deliberately unavailable`).toBe(503);
@@ -19,20 +19,28 @@ test("Solaris Studio serves the compact maintenance routing page across the app"
 
     const main = page.locator('[data-solaris-maintenance="true"]');
     await expect(main).toBeVisible();
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Solaris Studio is temporarily unavailable",
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("TerraOS 3");
+    await expect(page.getByText("Solaris Studio, rebuilt.", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Estimated arrival", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("22 October 2026", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Take a closer look." })).toBeVisible();
+    await expect(page.getByText("Five places.", { exact: false }).first()).toBeVisible();
+    await expect(page.locator('[data-locked-copy="More on 19.10"]')).toHaveAttribute(
+      "data-reveal-at",
+      "2026-10-19T00:00:00+03:00",
     );
-    await expect(page.getByText("Most services paused", { exact: true })).toBeVisible();
-    await expect(page.getByText("HOD Confirmations available", { exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Service status" })).toBeVisible();
-    await expect(page.getByText("HOD Confirmations", { exact: true })).toBeVisible();
-    await expect(page.getByText("Available", { exact: true })).toBeVisible();
-    await expect(page.getByText("What does maintenance affect?")).toBeVisible();
-    await expect(page.getByText("What happens next")).toBeVisible();
-    await expect(page.getByText("To be announced", { exact: true })).toBeVisible();
+    await expect(page.locator('[data-locked-copy="More on 20.10"]')).toHaveAttribute(
+      "data-reveal-at",
+      "2026-10-20T00:00:00+03:00",
+    );
+    await expect(page.locator('[data-locked-copy="More on 21.10"]')).toHaveAttribute(
+      "data-reveal-at",
+      "2026-10-21T00:00:00+03:00",
+    );
     await expect(page.getByText("Solaris Studio", { exact: true }).first()).toBeVisible();
-    await expect(page.locator('.studio-mark[src="/solaris-studio-mark.png"]')).toBeVisible();
+    await expect(page.locator('.mark[src="/solaris-studio-mark.png"]')).toBeVisible();
 
+    await expect(page.getByText(/Solaris Studio is temporarily unavailable/i)).toHaveCount(0);
     await expect(page.getByText(/database service error/i)).toHaveCount(0);
     await expect(page.getByText(/All Solaris Studio services are temporarily unavailable/i)).toHaveCount(0);
 
