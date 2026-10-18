@@ -1,6 +1,7 @@
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
 import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
 import type { Country, Edition, Participant, Show } from "@/lib/data";
+import { normalizeLegacyEditionStatus } from "@/lib/edition-state";
 import {
   entityDisplayMap,
   entityKeyOf,
@@ -77,6 +78,13 @@ function publicParticipantRows(value: unknown): PublicParticipantRow[] {
     (candidate): candidate is PublicParticipantRow =>
       Boolean(candidate && typeof candidate === "object"),
   );
+}
+
+function activeLiveEdition(editions: readonly Edition[]) {
+  const edition = resolveCurrentPublicEdition(editions);
+  if (!edition) return null;
+  const lifecycle = normalizeLegacyEditionStatus(edition.status);
+  return lifecycle === "post_edition" || lifecycle === "archived" ? null : edition;
 }
 
 async function loadLinkedTelevoteRound(
@@ -175,8 +183,8 @@ async function loadRunningOrder(input: {
  *
  * Unlike the legacy Show Mode route this source does not fan out browser queries
  * across every edition/show/participant/country/entity. It resolves the current
- * published edition first, then reads only its public shows and the selected
- * show's already-redacted participant projection.
+ * non-terminal published edition first, then reads only its public shows and the
+ * selected show's already-redacted participant projection.
  */
 export async function loadV3LiveBundle(): Promise<V3LiveServerBundle> {
   const client =
@@ -192,7 +200,7 @@ export async function loadV3LiveBundle(): Promise<V3LiveServerBundle> {
   throwIfError(editionResult.error, "Could not load public Live edition");
 
   const editions = (editionResult.data ?? []) as Edition[];
-  const edition = resolveCurrentPublicEdition(editions);
+  const edition = activeLiveEdition(editions);
   if (!edition) {
     return {
       edition: null,
