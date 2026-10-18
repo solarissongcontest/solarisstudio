@@ -4,6 +4,11 @@ import { describe, expect, it } from "vitest";
 
 const boundary = readFileSync("src/routes/_authenticated/admin/jury.tsx", "utf8");
 const workspace = readFileSync("src/routes/_authenticated/admin/jury/$slug.tsx", "utf8");
+const shell = readFileSync("src/components/admin/AdminShell.tsx", "utf8");
+const windowControl = readFileSync(
+  "src/components/admin/JuryVotingWindowControl.tsx",
+  "utf8",
+);
 
 describe("V3 Organizer Jury parent edition boundary", () => {
   it("verifies the exact Organizer edition before mounting the legacy Jury workspace", () => {
@@ -21,20 +26,21 @@ describe("V3 Organizer Jury parent edition boundary", () => {
     expect(boundary).toContain("Ballot and roster operations stay blocked");
   });
 
-  it("protects the existing ballot and roster mutation surface behind one parent gate", () => {
-    for (const authority of [
-      'rpc("assign_jury_vote"',
-      'rpc("clear_jury_point"',
-      "studio2_apply_jury_voting_status",
-    ]) {
-      expect(workspace).toContain(authority);
-    }
+  it("protects the existing ballot and roster surfaces behind one parent gate while preserving governed window authority", () => {
+    expect(workspace).toContain('rpc("assign_jury_vote"');
+    expect(workspace).toContain('rpc("clear_jury_point"');
+    expect(shell).toContain("JuryVotingWindowControl");
+    expect(windowControl).toContain('rpc("studio2_jury_window_change_preview"');
+    expect(windowControl).toContain('rpc("studio2_apply_jury_voting_status"');
+    expect(windowControl).toContain("p_expected_version");
+    expect(windowControl).toContain("p_operation_id");
+    expect(windowControl).toContain("p_idempotency_key");
     expect(boundary).not.toContain("integrations/supabase/client");
     expect(boundary).not.toContain(".rpc(");
     expect(boundary).not.toContain(".from(");
   });
 
-  it("does not claim that the legacy Jury correction and roster paths are final V3 authority", () => {
+  it("does not claim that legacy Jury correction and roster paths are final V3 authority", () => {
     expect(workspace).toContain('rpc("assign_jury_vote"');
     expect(workspace).toContain('rpc("clear_jury_point"');
     expect(workspace).not.toContain("executeGovernedJuryCorrectionCommand");
