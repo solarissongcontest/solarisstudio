@@ -20,6 +20,13 @@ const SCREEN_LABELS: Record<TerraOsRealPreviewScreen, string> = {
 };
 
 const REAL_PREVIEW_STYLE = `
+/* Keep the full first-look phone inside short desktop viewports. The base
+ * maintenance page already uses this cap; the choreography's larger visual
+ * treatment must not make the complete device taller than the viewport-safe
+ * contract exercised by Browser Audit. */
+html[data-terraos-release-choreography="v2"] [data-terra-first-look="true"] .preview-device {
+  width: min(390px, 76vw, 36.05svh) !important;
+}
 .story-touch .nav-pane[data-terraos-real-preview] {
   position: absolute;
   inset: 3.45rem clamp(.7rem, 2vw, 1.2rem) 5.55rem;

@@ -119,7 +119,13 @@ function isTerraOsTeaserPreviewRequest(url: URL, method: string) {
   if (method !== "GET" && method !== "HEAD") return false;
   if (url.pathname !== TERRAOS_TEASER_PREVIEW_PATH) return false;
   const screen = url.searchParams.get("screen");
-  return screen === "home" || screen === "explore" || screen === "participate";
+  return (
+    screen === "home" ||
+    screen === "explore" ||
+    screen === "participate" ||
+    screen === "results" ||
+    screen === "me"
+  );
 }
 
 function bytesToHex(bytes: ArrayBuffer) {
