@@ -22,6 +22,11 @@ export function AppExperiencePreferenceSync() {
   const savePreference = save.mutateAsync;
 
   useEffect(() => {
+    // The maintenance teaser preview is deliberately fixture-only. Do not
+    // perform account/session reads just because the real V3 screen components
+    // are being rendered inside its isolated iframe.
+    if (window.location.pathname === "/terraos-teaser-preview") return;
+
     const lifecycle = beginLifecycleGeneration(authGenerationRef);
 
     void supabase.auth.getUser().then(({ data }) => {
