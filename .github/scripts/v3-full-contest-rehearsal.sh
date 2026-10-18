@@ -19,6 +19,8 @@ source "$SCRIPT_DIR/v3-s14-stage-7-public-voting.sh"
 source "$SCRIPT_DIR/v3-s14-stage-7-genuine-deadline.sh"
 source "$SCRIPT_DIR/v3-s14-stage-8-results.sh"
 source "$SCRIPT_DIR/v3-s14-stage-9-publication.sh"
+source "$SCRIPT_DIR/v3-s14-grand-final-leg.sh"
+source "$SCRIPT_DIR/v3-s14-grand-final-voting.sh"
 
 run_s14_stage_1_setup
 run_s14_stage_2_onboarding
@@ -29,6 +31,14 @@ run_s14_stage_6_jury
 run_s14_stage_7_public_voting
 run_s14_stage_8_results
 run_s14_stage_9_publication
+
+# The semifinal result/publication truth above now legitimately determines the
+# Grand Final. Continue in the same database state through the real Organizer
+# qualifier action and governed final Jury/Televote authorities. Final Results
+# deliberately remain unwired until System blocker #651 makes published
+# Televote truth satisfy the canonical Studio result-readiness projection.
+prepare_s14_grand_final_from_qualifiers
+run_s14_grand_final_voting
 
 PENDING_STAGES=(
   stage-10-archive
@@ -55,6 +65,21 @@ payload = {
         "stage-7-public-voting",
         "stage-8-results",
         "stage-9-publication",
+    ],
+    "completedContestExtensions": [
+        "grand-final-qualifier-bridge",
+        "grand-final-jury",
+        "grand-final-televote",
+    ],
+    "blockedContestExtensions": [
+        {
+            "id": "grand-final-results",
+            "blocker": "#651 canonical Televote publication/readiness mismatch",
+        },
+        {
+            "id": "grand-final-publication",
+            "blocker": "depends on canonical Grand Final Results",
+        },
     ],
     "implementedInvariants": [
         "confirmation-no-effective-duplicates",
@@ -83,8 +108,8 @@ with open(path, "w", encoding="utf-8") as handle:
 PY
 
 if [[ "${V3_S14_ALLOW_PARTIAL:-0}" == "1" ]]; then
-  log "Partial S14 harness passed through Stage 9; release-grade S14 remains blocked by ${#PENDING_STAGES[@]} stage."
+  log "Partial S14 harness passed through semifinal Publication and canonical Grand Final voting; Grand Final Results remain blocked by #651 and release-grade S14 remains incomplete."
   exit 0
 fi
 
-fail "S14 is intentionally incomplete: ${PENDING_STAGES[*]}. No release-grade s14-full-contest.json was written."
+fail "S14 is intentionally incomplete: Grand Final Results are blocked by #651 and ${PENDING_STAGES[*]} remains pending. No release-grade s14-full-contest.json was written."
