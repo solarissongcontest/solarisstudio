@@ -11,13 +11,15 @@ import {
   buildV3ExploreRootProjection,
   type V3EditionExperience,
   type V3ExploreEditionInput,
+  type V3ExploreNextEvent,
   type V3ExploreRootProjection,
 } from "@/lib/v3-explore";
+import { resolveV3ExploreNextPublicEvent } from "@/lib/v3-explore-next-event";
 
 const EDITION_COLUMNS =
   "id,edition_number,name,year,slug,description,host_country_id,host_city,logo,theme_id,artwork_url,status,published";
 const SHOW_COLUMNS =
-  "id,edition_id,name,kind,sort_order,status,published,publication_config";
+  "id,edition_id,name,kind,sort_order,status,published,publication_config,broadcast_config";
 const RESULT_COLUMNS =
   "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank";
 
@@ -142,8 +144,15 @@ function makeEditionInput(input: {
   currentEditionId: string | null;
   currentExperience: V3EditionExperience | null;
   currentResultsPublished: boolean;
+  currentNextEvent: V3ExploreNextEvent | null;
 }): V3ExploreEditionInput {
-  const { edition, currentEditionId, currentExperience, currentResultsPublished } = input;
+  const {
+    edition,
+    currentEditionId,
+    currentExperience,
+    currentResultsPublished,
+    currentNextEvent,
+  } = input;
   const isCurrent = edition.id === currentEditionId;
   const lifecycle = normalizeLegacyEditionStatus(edition.status);
   const archiveEligible = lifecycle === "post_edition" || lifecycle === "archived";
@@ -163,7 +172,7 @@ function makeEditionInput(input: {
       isCurrent && currentResultsPublished ? "published" : "hidden",
     href: `/editions/${edition.slug}`,
     liveHref: isCurrent && currentExperience === "live" ? "/show-mode" : null,
-    nextEvent: null,
+    nextEvent: isCurrent ? currentNextEvent : null,
     archiveEligible,
   };
 }
@@ -176,6 +185,7 @@ function makeEditionInput(input: {
  */
 export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundle> {
   const client = createConfirmationPublicRuntimeClient() as unknown as ExploreClient;
+  const generatedAt = new Date().toISOString();
 
   const [editionResult, countsResult] = await Promise.all([
     client
@@ -203,6 +213,7 @@ export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundl
   let phaseLabel: string | null = null;
   let currentExperience: V3EditionExperience | null = null;
   let currentResultsPublished = false;
+  let currentNextEvent: V3ExploreNextEvent | null = null;
 
   if (currentEdition) {
     const [showsResult, resultsResult] = await Promise.all([
@@ -230,6 +241,7 @@ export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundl
     phaseLabel = state.statusLabel;
     currentExperience = experienceFromPhase(state.phase, currentEdition);
     currentResultsPublished = finalResultsPublished(currentShows, currentResults);
+    currentNextEvent = resolveV3ExploreNextPublicEvent(currentShows, generatedAt);
   }
 
   const projected = buildV3ExploreRootProjection({
@@ -240,6 +252,7 @@ export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundl
         currentEditionId: currentEdition?.id ?? null,
         currentExperience,
         currentResultsPublished,
+        currentNextEvent,
       }),
     ),
     countries: [],
@@ -279,6 +292,6 @@ export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundl
       editionLabel: editionLabel(currentEdition),
       phaseLabel,
     },
-    generatedAt: new Date().toISOString(),
+    generatedAt,
   };
 }
