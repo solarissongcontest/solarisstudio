@@ -34,10 +34,12 @@ function deviceIcon(deviceLabel: string) {
 function SessionRow({
   session,
   busy,
+  locked,
   onRevoke,
 }: {
   session: V3AccountSession;
   busy: boolean;
+  locked: boolean;
   onRevoke: (session: V3AccountSession) => void;
 }) {
   const DeviceIcon = deviceIcon(session.deviceLabel);
@@ -68,11 +70,11 @@ function SessionRow({
       {!session.current ? (
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || locked}
           onClick={() => onRevoke(session)}
           className="inline-flex min-h-10 shrink-0 items-center rounded-xl border border-red-300/25 bg-red-400/[0.07] px-3 text-xs font-semibold text-red-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {busy ? "Revoking…" : "Revoke"}
+          {busy ? "Revoking…" : locked ? "Finish verification" : "Revoke"}
         </button>
       ) : null}
     </div>
@@ -144,7 +146,15 @@ export function V3AccountSessionsPanel() {
   };
 
   const beginRevocation = (session: V3AccountSession) => {
-    if (session.current || revokeSession.isPending || reauthenticating) return;
+    // Once a reviewed target reaches the password challenge, do not allow a
+    // second device click to silently replace that target underneath the form.
+    if (
+      session.current ||
+      revokeSession.isPending ||
+      reauthenticating ||
+      needsFreshAuth ||
+      attempt
+    ) return;
     const pending = createV3SessionRevocationAttempt(session.sessionHandle);
     setAttempt(pending);
     setPassword("");
@@ -271,6 +281,7 @@ export function V3AccountSessionsPanel() {
               key={session.sessionHandle}
               session={session}
               busy={revokeSession.isPending && attempt?.sessionHandle === session.sessionHandle}
+              locked={needsFreshAuth || reauthenticating}
               onRevoke={beginRevocation}
             />
           ))}
