@@ -56,9 +56,9 @@ test("TerraOS teaser preview route renders the production V3 screen components d
   await expect(page.getByRole("heading", { name: "Solaris now", exact: true })).toBeVisible();
   await expect(page.getByText("You’re all caught up", { exact: true })).toBeVisible();
   await expect(page.getByText("SSC 22 is the current Solaris edition", { exact: true })).toBeVisible();
-  let tabbar = page.locator(".solaris-app-tabbar");
+  let tabbar = page.locator(".v3-bottom-nav");
   await expect(tabbar).toBeVisible();
-  await expect(tabbar.getByLabel("Home", { exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(tabbar.locator('[aria-current="page"]')).toContainText("Home");
 
   const explore = await page.goto("/terraos-teaser-preview?screen=explore", {
     waitUntil: "domcontentloaded",
@@ -67,9 +67,9 @@ test("TerraOS teaser preview route renders the production V3 screen components d
   await expect(page.locator('[data-terraos-teaser-preview="explore"]')).toBeVisible();
   await expect(page.getByRole("heading", { name: "Discover the contest", exact: true })).toBeVisible();
   await expect(page.getByText("Search Solaris", { exact: true })).toBeVisible();
-  tabbar = page.locator(".solaris-app-tabbar");
+  tabbar = page.locator(".v3-bottom-nav");
   await expect(tabbar).toBeVisible();
-  await expect(tabbar.getByLabel("Explore", { exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(tabbar.locator('[aria-current="page"]')).toContainText("Explore");
 
   const participate = await page.goto("/terraos-teaser-preview?screen=participate", {
     waitUntil: "domcontentloaded",
@@ -78,9 +78,9 @@ test("TerraOS teaser preview route renders the production V3 screen components d
   await expect(page.locator('[data-terraos-teaser-preview="participate"]')).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your participation", exact: true })).toBeVisible();
   await expect(page.getByText("Country confirmed", { exact: true })).toBeVisible();
-  tabbar = page.locator(".solaris-app-tabbar");
+  tabbar = page.locator(".v3-bottom-nav");
   await expect(tabbar).toBeVisible();
-  await expect(tabbar.getByLabel("Participate", { exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(tabbar.locator('[aria-current="page"]')).toContainText("Participate");
 });
 
 test("TerraOS hero stays visually centered on a narrow phone viewport", async ({ page }) => {
