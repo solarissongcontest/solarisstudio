@@ -1,0 +1,112 @@
+name: V3 S14 stateful full-contest rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/**"
+      - ".github/scripts/v3-s14-*.sh"
+      - ".github/workflows/v3-s14-full-contest-rehearsal.yml"
+      - "scripts/v3-s14-full-contest-spec.ts"
+      - "scripts/check-v3-s14-rehearsal-readiness.ts"
+      - "src/lib/v3-s14-*.test.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s14-stateful-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stateful-rehearsal:
+    name: One-state contest lifecycle through implemented S14 stages
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      V3_RELEASE_EVIDENCE_DIR: v3-release-evidence
+      V3_S14_ALLOW_PARTIAL: "1"
+    steps:
+      - name: Checkout exact feature head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated local Supabase
+        run: supabase start
+
+      - name: Rebuild exact migration chain locally
+        run: supabase db reset --local --no-seed
+
+      - name: Run one-state S14 contest lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          export V3_CANDIDATE_SHA="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          bash .github/scripts/v3-full-contest-rehearsal.sh
+
+      - name: Validate exact-SHA partial evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          path = Path("v3-release-evidence/s14-full-contest.partial.json")
+          if not path.is_file():
+              raise SystemExit("missing S14 partial evidence")
+          data = json.loads(path.read_text())
+          sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip().lower()
+          if data.get("candidateSha") != sha:
+              raise SystemExit(f"candidate SHA mismatch: {data.get('candidateSha')} != {sha}")
+          if data.get("passed") is not False or data.get("partial") is not True:
+              raise SystemExit("partial S14 evidence must remain passed=false, partial=true")
+          expected_completed = [
+              "stage-1-setup",
+              "stage-2-delegation-onboarding",
+              "stage-3-confirmations",
+              "stage-4-entries",
+              "stage-5-running-orders",
+              "stage-6-jury",
+              "stage-7-public-voting",
+          ]
+          if data.get("completedStages") != expected_completed:
+              raise SystemExit(f"unexpected completed stages: {data.get('completedStages')}")
+          expected_pending = ["stage-8-results", "stage-9-publication", "stage-10-archive"]
+          if data.get("pendingStages") != expected_pending:
+              raise SystemExit(f"unexpected pending stages: {data.get('pendingStages')}")
+          if "televote-canonical-ballot" not in data.get("implementedInvariants", []):
+              raise SystemExit("Stage 7 completed without canonical Televote invariant evidence")
+          print(f"S14 partial evidence valid for {sha}: Stages 1-7 complete; 8-10 pending")
+          PY
+
+      - name: Upload exact-SHA S14 partial evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-s14-stateful-${{ github.event.pull_request.head.sha || github.sha }}
+          path: v3-release-evidence/s14-full-contest.partial.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
