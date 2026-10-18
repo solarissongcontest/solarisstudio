@@ -8,6 +8,10 @@ import {
 } from "react";
 
 import { APP_RESUME_EVENT } from "@/lib/app-lifecycle";
+import {
+  clearAppUpdateBlocker,
+  setAppUpdateBlocker,
+} from "@/lib/app-update-safety";
 import { prefersReducedMotion } from "@/lib/interaction-physics";
 import {
   classifyV3SwipeIntent,
@@ -23,6 +27,8 @@ import {
 } from "@/lib/v3-navigation-gesture";
 import { resolveV3TabIconVisualState } from "@/lib/v3-navigation-visual-progress";
 import "@/styles/v3-top-level-swipe.css";
+
+const V3_PAGE_SWIPE_UPDATE_BLOCKER = "v3-top-level-page-swipe";
 
 type SwipeState = {
   pointerId: number;
@@ -179,6 +185,7 @@ export function V3TopLevelSwipeSurface({
 
   const resetSurface = useCallback(() => {
     clearSettleTimer();
+    clearAppUpdateBlocker(V3_PAGE_SWIPE_UPDATE_BLOCKER);
     const drag = dragRef.current;
     dragRef.current = null;
     committedTargetRef.current = null;
@@ -409,6 +416,11 @@ export function V3TopLevelSwipeSurface({
       }
       if (drag.owner !== "horizontal") return;
       event.currentTarget.setPointerCapture?.(event.pointerId);
+      setAppUpdateBlocker(
+        V3_PAGE_SWIPE_UPDATE_BLOCKER,
+        true,
+        "Finish the current navigation gesture before updating.",
+      );
       surfaceRef.current?.setAttribute("data-v3-page-swiping", "true");
     }
 
