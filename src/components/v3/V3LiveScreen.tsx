@@ -79,12 +79,14 @@ export function V3LiveScreen({
           description="A live experience will appear when Solaris has a published show to follow."
           editorial
         />
-        <V3Surface className="p-5" role="status">
-          <p className="text-sm font-semibold">Nothing is live yet</p>
-          <p className="mt-1 text-xs leading-5 text-white/48">
-            Show status comes from the canonical public contest state. Solaris
-            will not invent a live session from a schedule alone.
-          </p>
+        <V3Surface className="p-5">
+          <div role="status">
+            <p className="text-sm font-semibold">Nothing is live yet</p>
+            <p className="mt-1 text-xs leading-5 text-white/48">
+              Show status comes from the canonical public contest state. Solaris
+              will not invent a live session from a schedule alone.
+            </p>
+          </div>
         </V3Surface>
       </V3Screen>
     );
