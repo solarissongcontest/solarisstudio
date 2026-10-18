@@ -19,7 +19,7 @@ import cardTypographyCss from "../card-typography.css?url";
 import solarisMotionCss from "../solaris-motion.css?url";
 import flagMediaCss from "../flag-media.css?url";
 import appShellCss from "../styles/app-shell.css?url";
-import solarisDepthCss from "../solaris-depth.css?url";
+import solarisDepthCss from "../styles/solaris-depth.css?url";
 import { UnifiedServiceAdminGate } from "../components/admin/UnifiedServiceAdminGate";
 import { AppRuntime, useSolarisApp } from "../components/app/AppRuntime";
 import { AppExperiencePreferenceSync } from "../components/app/AppExperiencePreferenceSync";
@@ -43,6 +43,7 @@ const SITE_DESCRIPTION =
   "Solaris Studio is the home of Solaris Song Contest editions, results, voting analytics, predictions, records and interactive archive tools.";
 const SITE_URL = "https://studio.solaris-song-contest.workers.dev";
 const SOCIAL_PREVIEW_URL = `${SITE_URL}/solaris-studio-social.jpg?v=2`;
+const TERRAOS_TEASER_PREVIEW_PATH = "/terraos-teaser-preview";
 
 type BackgroundFamily =
   | "home"
@@ -318,6 +319,7 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const { pathname } = useHydrationSafeRouterLocation();
+  const teaserPreview = pathname === TERRAOS_TEASER_PREVIEW_PATH;
   const serviceAdmin =
     pathname.startsWith("/confirmations/admin") || pathname.startsWith("/televoting/admin");
   const fullAdmin = pathname.startsWith("/admin") || serviceAdmin;
@@ -350,19 +352,23 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AccountCacheIsolation />
-      <AppLaunchRestoreCoordinator />
-      <AppDataFreshnessCoordinator />
-      <AppReconnectReconciler />
-      <AppExperiencePreferenceSync />
-      <AppTelemetryBridge />
-      <SolarisAnniversaryCelebration />
-      <RouteVisualTheme />
-      <RulesGovernanceContext />
-      {!fullAdmin ? <SolarisAmbientBackground /> : null}
+      {!teaserPreview ? (
+        <>
+          <AccountCacheIsolation />
+          <AppLaunchRestoreCoordinator />
+          <AppDataFreshnessCoordinator />
+          <AppReconnectReconciler />
+          <AppExperiencePreferenceSync />
+          <AppTelemetryBridge />
+          <SolarisAnniversaryCelebration />
+          <RouteVisualTheme />
+          <RulesGovernanceContext />
+          {!fullAdmin ? <SolarisAmbientBackground /> : null}
+        </>
+      ) : null}
       {content}
-      <ToolQuickGuide pathname={pathname} />
-      <Toaster />
+      {!teaserPreview ? <ToolQuickGuide pathname={pathname} /> : null}
+      {!teaserPreview ? <Toaster /> : null}
     </QueryClientProvider>
   );
 }
