@@ -1,12 +1,17 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
 import { V3Screen, V3Surface } from "@/components/v3/V3Foundation";
+import { useAppExperiencePreferences } from "@/lib/app-experience";
+import { useNotificationPreferences } from "@/lib/engagement-data";
 import { useV3EditionRolloutProbe, useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { useV3RecordsBundle } from "@/lib/v3-records-runtime";
+import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
 import { V3RecordsScreen } from "./V3RecordsScreen";
 
 export function V3RecordsGate({ fallback }: { fallback: ReactNode }) {
+  const { preferences } = useAppExperiencePreferences();
+  const [currentEditionRevealed, setCurrentEditionRevealed] = useState(false);
   const bundle = useV3RecordsBundle(true);
   const rolloutEditionSlug = bundle.data?.rolloutEditionSlug ?? "";
   const editionProbe = useV3EditionRolloutProbe(
@@ -17,6 +22,11 @@ export function V3RecordsGate({ fallback }: { fallback: ReactNode }) {
     bundle.isSuccess && !rolloutEditionSlug,
   );
   const rollout = rolloutEditionSlug ? editionProbe : currentProbe;
+  const serverPreferences = useNotificationPreferences(rollout.data?.userId ?? undefined);
+
+  useEffect(() => {
+    setCurrentEditionRevealed(false);
+  }, [bundle.data?.currentEditionId]);
 
   if (bundle.isLoading || (bundle.isSuccess && rollout.isLoading)) {
     return (
@@ -48,6 +58,19 @@ export function V3RecordsGate({ fallback }: { fallback: ReactNode }) {
     return <>{fallback}</>;
   }
 
+  const hideSpoilers = resolveV3ResultsSpoilerProtection({
+    localSpoilerFree: preferences.spoilerFree,
+    viewerResolved: true,
+    viewerId: rollout.data.userId ?? null,
+    serverPending: serverPreferences.isPending,
+    serverError: serverPreferences.isError,
+    serverSpoilerFree: serverPreferences.data?.spoiler_free ?? null,
+  });
+  const spoilerProtected =
+    hideSpoilers &&
+    !currentEditionRevealed &&
+    bundle.data.currentEditionAffectsRecords;
+
   return (
     <V3AppShell
       editionLabel={bundle.data.shell.editionLabel}
@@ -55,9 +78,16 @@ export function V3RecordsGate({ fallback }: { fallback: ReactNode }) {
       activeArea="results"
     >
       <V3RecordsScreen
-        records={bundle.data.records}
-        archivedFinalEditions={bundle.data.archivedFinalEditions}
+        key={`${bundle.data.currentEditionId ?? "none"}:${spoilerProtected}`}
+        records={spoilerProtected ? bundle.data.spoilerSafeRecords : bundle.data.records}
+        archivedFinalEditions={
+          spoilerProtected
+            ? bundle.data.spoilerSafeArchivedFinalEditions
+            : bundle.data.archivedFinalEditions
+        }
         generatedAt={bundle.data.generatedAt}
+        spoilerProtected={spoilerProtected}
+        onRevealCurrentEdition={() => setCurrentEditionRevealed(true)}
       />
     </V3AppShell>
   );
