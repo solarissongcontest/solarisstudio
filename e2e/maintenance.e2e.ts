@@ -48,6 +48,11 @@ test("Solaris Studio serves the TerraOS 3 maintenance teaser across the app", as
 });
 
 test("TerraOS teaser preview route renders the production V3 screen components during maintenance", async ({ page }) => {
+  const authRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/auth/v1/")) authRequests.push(request.url());
+  });
+
   const home = await page.goto("/terraos-teaser-preview?screen=home", {
     waitUntil: "domcontentloaded",
   });
@@ -59,6 +64,12 @@ test("TerraOS teaser preview route renders the production V3 screen components d
   let tabbar = page.locator(".v3-bottom-nav");
   await expect(tabbar).toBeVisible();
   await expect(tabbar.locator('[aria-current="page"]')).toContainText("Home");
+  await expect(tabbar.locator('a[href="/"]').first()).toHaveAttribute("tabindex", "-1");
+
+  const previewUrl = page.url();
+  await tabbar.locator('a[href="/"]').first().focus();
+  await page.keyboard.press("Enter");
+  expect(page.url()).toBe(previewUrl);
 
   const explore = await page.goto("/terraos-teaser-preview?screen=explore", {
     waitUntil: "domcontentloaded",
@@ -81,6 +92,22 @@ test("TerraOS teaser preview route renders the production V3 screen components d
   tabbar = page.locator(".v3-bottom-nav");
   await expect(tabbar).toBeVisible();
   await expect(tabbar.locator('[aria-current="page"]')).toContainText("Participate");
+
+  expect(authRequests, "fixture-only preview must not read the visitor auth session").toEqual([]);
+});
+
+test("TerraOS first-look device keeps a complete phone aspect on short desktop viewports", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  const response = await page.goto("/", { waitUntil: "networkidle" });
+  expect(response?.status()).toBe(503);
+
+  const device = page.locator(".preview-device");
+  await expect(device).toBeVisible();
+  const box = await device.boundingBox();
+  expect(box).not.toBeNull();
+  if (!box) return;
+
+  expect(Math.abs(box.height / box.width - 844 / 390)).toBeLessThan(0.05);
 });
 
 test("TerraOS hero stays visually centered on a narrow phone viewport", async ({ page }) => {
