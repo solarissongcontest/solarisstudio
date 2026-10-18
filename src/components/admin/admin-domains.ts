@@ -46,6 +46,7 @@ export function buildAdminDomainNavigation(
     path.startsWith("/admin/inbox");
 
   const delegationsRoute = (path: string) =>
+    path.startsWith("/admin/delegations") ||
     path.startsWith("/admin/countries") ||
     path.startsWith("/admin/next-in-line") ||
     path.startsWith("/confirmations/admin") ||
@@ -120,7 +121,7 @@ export function buildAdminDomainNavigation(
       label: "Delegations",
       description: "Countries, confirmations, participation, readiness and delegation support.",
       availability: "ready",
-      to: "/admin/countries",
+      to: "/admin/delegations",
       icon: Flag,
       active: delegationsRoute,
     },
