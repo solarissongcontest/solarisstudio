@@ -114,7 +114,7 @@ test("TerraOS first-look device keeps a complete phone aspect on short desktop v
 
   // The real V3 preview iframe is intentionally lazy-loaded below the fold.
   // Bring it into the viewport before checking its fitted phone geometry so the
-  // child preview can run the same sizing handshake a user gets while scrolling.
+  // child preview can render at the same responsive dimensions as its host.
   await device.scrollIntoViewIfNeeded();
   await expect(device).toBeVisible();
   await expect(previewFrame).toBeVisible();
@@ -131,6 +131,59 @@ test("TerraOS first-look device keeps a complete phone aspect on short desktop v
   expect(box).not.toBeNull();
   if (!box) return;
   expect(box.height).toBeLessThanOrEqual(viewport.height * 0.8);
+});
+
+test("TerraOS first-look preview fills its phone and keeps copy below mobile top chrome", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(503);
+
+  const firstLook = page.locator(".first-look");
+  const device = firstLook.locator(".preview-device");
+  const previewFrame = device.locator("iframe.preview-page");
+
+  await firstLook.scrollIntoViewIfNeeded();
+  await expect(previewFrame).toBeVisible();
+
+  // The visible 1px device border belongs to the phone frame, not to the
+  // embedded viewport. Measure the iframe against the frame's inner box so a
+  // correct edge-to-edge preview is not reported as a 2px width regression.
+  await expect
+    .poll(async () => {
+      return device.evaluate((element) => {
+        const frame = element.querySelector<HTMLIFrameElement>("iframe.preview-page");
+        if (!frame) return Number.POSITIVE_INFINITY;
+
+        const deviceBox = element.getBoundingClientRect();
+        const frameBox = frame.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        const borderLeft = Number.parseFloat(style.borderLeftWidth) || 0;
+        const borderRight = Number.parseFloat(style.borderRightWidth) || 0;
+        const innerLeft = deviceBox.left + borderLeft;
+        const innerWidth = deviceBox.width - borderLeft - borderRight;
+
+        return Math.max(
+          Math.abs(innerLeft - frameBox.left),
+          Math.abs(innerWidth - frameBox.width),
+        );
+      });
+    })
+    .toBeLessThan(1);
+
+  // Compare internal geometry instead of absolute viewport Y. The maintenance
+  // page intentionally uses smooth scrolling, so sampling immediately after a
+  // scrollIntoView() call can catch the card mid-animation even though its
+  // safe-area padding is already applied.
+  await expect
+    .poll(async () => {
+      const [cardBox, copyBox] = await Promise.all([
+        firstLook.boundingBox(),
+        firstLook.locator(".first-look-copy h3").boundingBox(),
+      ]);
+      if (!cardBox || !copyBox) return Number.NEGATIVE_INFINITY;
+      return copyBox.y - cardBox.y;
+    })
+    .toBeGreaterThanOrEqual(72);
 });
 
 test("TerraOS hero stays visually centered on a narrow phone viewport", async ({ page }) => {
