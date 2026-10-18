@@ -6,7 +6,7 @@ type RouteCapabilityRule = {
 };
 
 const ROUTE_CAPABILITY_RULES: RouteCapabilityRule[] = [
-  rule(["/confirmations/admin"], "confirmation.read"),
+  rule(["/admin/delegations", "/confirmations/admin"], "confirmation.read"),
   rule(["/televoting/admin/results", "/televoting/admin/result-integrity"], "results.preview"),
   rule(["/televoting/admin"], "voting.read"),
   rule(["/admin/access-permissions"], "permissions.read"),
