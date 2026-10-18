@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { BadgeCheck, History, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { AppShell } from "@/components/AppShell";
+import { RulesRouteShell } from "@/components/rules/RulesRouteShell";
 import { GovernanceDepthLayout } from "@/components/SolarisDepth";
 import { getPublicRuleInterpretations } from "@/lib/rule-interpretations";
 
@@ -51,7 +51,7 @@ function InterpretationsIndex() {
   }, [interpretations.data, query, showHistory]);
 
   return (
-    <AppShell>
+    <RulesRouteShell phaseLabel="Official clarifications" resolvingTitle="Opening official clarifications">
       <GovernanceDepthLayout tone="rules" context="rules" className="mx-auto max-w-4xl pb-20">
         <header className="border-b border-border/65 pb-5">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-primary/80">
@@ -168,6 +168,6 @@ function InterpretationsIndex() {
           )}
         </section>
       </GovernanceDepthLayout>
-    </AppShell>
+    </RulesRouteShell>
   );
 }
