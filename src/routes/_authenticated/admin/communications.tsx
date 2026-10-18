@@ -24,6 +24,7 @@ import { AdminPage } from '@/components/admin/AdminShell';
 import {
   AdminCard,
   AdminCardHeader,
+  AdminConfirmSheet,
   AdminEmptyState,
   AdminPageHeader,
   AdminStatus,
@@ -70,6 +71,12 @@ type CommunicationsSearch = {
   state?: CommunicationsStateFilter;
 };
 
+type PendingLifecycleReview = {
+  kind: 'cancel' | 'archive' | 'delete';
+  notice: OperationalNotice;
+  reason: string;
+};
+
 export const Route = createFileRoute('/_authenticated/admin/communications')({
   validateSearch: (search: Record<string, unknown>): CommunicationsSearch => ({
     notice: typeof search.notice === 'string' && search.notice ? search.notice : undefined,
@@ -104,6 +111,8 @@ function CommunicationsCentre() {
   const [acknowledgementRequired, setAcknowledgementRequired] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [publishReviewOpen, setPublishReviewOpen] = useState(false);
+  const [lifecycleReview, setLifecycleReview] = useState<PendingLifecycleReview | null>(null);
 
   const inboxEnabled = displaySurfaces.includes('delegation_inbox');
 
@@ -194,6 +203,7 @@ function CommunicationsCentre() {
       return publishStudio2Notice(draft.id);
     },
     onSuccess: async (notice) => {
+      setPublishReviewOpen(false);
       resetComposer();
       void navigate({ search: { ...search, notice: notice.id }, replace: true });
       await refresh();
@@ -202,7 +212,10 @@ function CommunicationsCentre() {
 
   const cancelNotice = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => cancelStudio2Notice(id, reason),
-    onSuccess: refresh,
+    onSuccess: async () => {
+      setLifecycleReview(null);
+      await refresh();
+    },
   });
 
   const supersedeNotice = useMutation({
@@ -216,7 +229,10 @@ function CommunicationsCentre() {
 
   const archiveCommunication = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => archiveStudio2Communication(id, reason),
-    onSuccess: refresh,
+    onSuccess: async () => {
+      setLifecycleReview(null);
+      await refresh();
+    },
   });
 
   const restoreCommunication = useMutation({
@@ -227,6 +243,7 @@ function CommunicationsCentre() {
   const deleteCommunication = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => deleteStudio2Communication(id, reason),
     onSuccess: async (_result, variables) => {
+      setLifecycleReview(null);
       if (editingId === variables.id) resetComposer();
       if (search.notice === variables.id) {
         void navigate({ search: search.state ? { state: search.state } : {}, replace: true });
@@ -290,14 +307,18 @@ function CommunicationsCentre() {
     setScheduledAt('');
   }
 
+  function requestCancel(notice: OperationalNotice) {
+    const reason = window.prompt('Reason for cancelling this communication (optional):');
+    if (reason === null) return;
+    setLifecycleReview({ kind: 'cancel', notice, reason });
+  }
+
   function requestArchive(notice: OperationalNotice) {
     const reason = window.prompt(
       'Archive reason (optional). This removes the communication from Public Home, MySolaris Home and delegation inboxes until restored:',
     );
     if (reason === null) return;
-    if (window.confirm(`Archive “${notice.title}” and remove it from all live surfaces?`)) {
-      archiveCommunication.mutate({ id: notice.id, reason });
-    }
+    setLifecycleReview({ kind: 'archive', notice, reason });
   }
 
   function requestDelete(notice: OperationalNotice) {
@@ -305,12 +326,21 @@ function CommunicationsCentre() {
       'Reason for permanent deletion (required and retained in the private audit log):',
     );
     if (!reason?.trim()) return;
-    const publishedWarning = notice.sentAt
-      ? ' This was previously published; its content, revisions and receipt rows will be deleted, while a minimal deletion audit record remains.'
-      : ' This draft has never been published.';
-    if (window.confirm(`Permanently delete “${notice.title}”?${publishedWarning} This cannot be undone.`)) {
-      deleteCommunication.mutate({ id: notice.id, reason });
+    setLifecycleReview({ kind: 'delete', notice, reason: reason.trim() });
+  }
+
+  async function confirmLifecycleReview() {
+    if (!lifecycleReview) return;
+    const variables = { id: lifecycleReview.notice.id, reason: lifecycleReview.reason };
+    if (lifecycleReview.kind === 'cancel') {
+      await cancelNotice.mutateAsync(variables);
+      return;
     }
+    if (lifecycleReview.kind === 'archive') {
+      await archiveCommunication.mutateAsync(variables);
+      return;
+    }
+    await deleteCommunication.mutateAsync(variables);
   }
 
   const toggleCountry = (countryId: string) => {
@@ -570,13 +600,10 @@ function CommunicationsCentre() {
                 <button
                   type="button"
                   disabled={busy || !saveAllowed}
-                  onClick={() => {
-                    const surfaces = displaySurfaces.map(noticeSurfaceLabel).join(', ');
-                    if (window.confirm(`Publish this communication now to: ${surfaces}?`)) publishNotice.mutate();
-                  }}
+                  onClick={() => setPublishReviewOpen(true)}
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                 >
-                  <Send className="size-4" /> Publish now
+                  <Send className="size-4" /> Review & publish
                 </button>
               </div>
             </div>
@@ -676,12 +703,7 @@ function CommunicationsCentre() {
                             <button
                               type="button"
                               className="admin-action-secondary"
-                              onClick={() => {
-                                const reason = window.prompt('Reason for cancelling this communication (optional):') ?? '';
-                                if (window.confirm('Cancel this draft/scheduled communication?')) {
-                                  cancelNotice.mutate({ id: notice.id, reason });
-                                }
-                              }}
+                              onClick={() => requestCancel(notice)}
                             >
                               Cancel
                             </button>
@@ -833,6 +855,80 @@ function CommunicationsCentre() {
             ) : null}
           </div>
         </div>
+
+        <AdminConfirmSheet
+          open={publishReviewOpen}
+          onClose={() => {
+            if (!publishNotice.isPending) setPublishReviewOpen(false);
+          }}
+          onConfirm={async () => {
+            await publishNotice.mutateAsync();
+          }}
+          title="Publish this communication now?"
+          description={
+            <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+              <p>Review the exact message, destinations and audience before it becomes live.</p>
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                <p className="font-semibold text-foreground">{title.trim() || 'Untitled communication'}</p>
+                <p className="mt-2 whitespace-pre-wrap">{body.trim()}</p>
+                <p className="mt-3"><span className="font-semibold text-foreground">Destinations:</span> {displaySurfaces.map(noticeSurfaceLabel).join(', ')}</p>
+                {inboxEnabled ? <p className="mt-2"><span className="font-semibold text-foreground">Inbox audience:</span> {humanize(audience)}{audienceGroup ? ` · ${humanize(audienceGroup)}` : ''}{audience === 'specific_countries' ? ` · ${countryIds.length} countr${countryIds.length === 1 ? 'y' : 'ies'}` : ''}</p> : null}
+                <p className="mt-2"><span className="font-semibold text-foreground">Acknowledgement:</span> {acknowledgementRequired && inboxEnabled ? 'required' : 'not required'}</p>
+              </div>
+              <p>The current legacy publication authority applies immediately after confirmation. Canonical expected-revision, idempotency, receipt and uncertain-outcome reconciliation remain tracked in System #599.</p>
+            </div>
+          }
+          confirmLabel="Publish communication now"
+          busy={publishNotice.isPending}
+          confirmDisabled={!saveAllowed}
+        />
+
+        <AdminConfirmSheet
+          open={Boolean(lifecycleReview)}
+          onClose={() => {
+            if (!busy) setLifecycleReview(null);
+          }}
+          onConfirm={confirmLifecycleReview}
+          title={lifecycleReview
+            ? lifecycleReview.kind === 'delete'
+              ? `Permanently delete “${lifecycleReview.notice.title}”?`
+              : lifecycleReview.kind === 'archive'
+                ? `Archive “${lifecycleReview.notice.title}”?`
+                : `Cancel “${lifecycleReview.notice.title}”?`
+            : 'Review communication action'}
+          description={lifecycleReview ? (
+            <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                <p className="font-semibold text-foreground">{lifecycleReview.notice.title}</p>
+                <p className="mt-1">Revision {lifecycleReview.notice.revision} · {noticeStateLabel(lifecycleReview.notice.state)}</p>
+                <p className="mt-2"><span className="font-semibold text-foreground">Destinations:</span> {lifecycleReview.notice.displaySurfaces.map(noticeSurfaceLabel).join(', ')}</p>
+                <p className="mt-2"><span className="font-semibold text-foreground">Reason:</span> {lifecycleReview.reason.trim() || 'No reason supplied'}</p>
+              </div>
+              {lifecycleReview.kind === 'cancel' ? (
+                <p>Cancelling stops this draft or scheduled communication from publishing. The lifecycle record remains available to Organizer history.</p>
+              ) : lifecycleReview.kind === 'archive' ? (
+                <p>Archiving removes the communication from all live destinations until an organizer deliberately restores it. Its revision and audit history remain.</p>
+              ) : (
+                <>
+                  <p className="font-semibold text-red-100">Permanent deletion cannot be undone.</p>
+                  <p>{lifecycleReview.notice.sentAt ? 'This communication was previously published. Its content, revisions and receipt rows will be deleted while the minimal private deletion audit record remains.' : 'This communication has never been published. Its draft record and revision history will be deleted.'}</p>
+                </>
+              )}
+              <p>These actions still use the existing server-authorized lifecycle RPCs. Canonical version/CAS, idempotency, operation receipts and uncertain-outcome reconciliation remain tracked in System #599.</p>
+            </div>
+          ) : null}
+          confirmLabel={lifecycleReview
+            ? lifecycleReview.kind === 'delete'
+              ? 'Delete communication permanently'
+              : lifecycleReview.kind === 'archive'
+                ? 'Archive communication'
+                : 'Cancel communication'
+            : 'Confirm'}
+          confirmationText={lifecycleReview?.kind === 'delete' ? lifecycleReview.notice.title : undefined}
+          confirmationHint={lifecycleReview?.kind === 'delete' ? `Type ${lifecycleReview.notice.title} to confirm permanent deletion.` : undefined}
+          busy={busy}
+          danger={lifecycleReview?.kind === 'delete'}
+        />
 
         <AdminCard>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
