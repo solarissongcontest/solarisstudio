@@ -4,6 +4,7 @@ import {
   type V3BootstrapSource,
 } from "@/lib/v3-bootstrap";
 import type { V3ExploreRootProjection } from "@/lib/v3-explore";
+import { useEffect, useRef } from "react";
 import { V3BottomNavigation } from "./V3AppShell";
 import { V3ExploreScreen } from "./V3ExploreScreen";
 import {
@@ -16,6 +17,10 @@ import { V3ParticipateScreen } from "./V3ParticipateScreen";
 export type TerraOSTeaserScreen = "home" | "explore" | "participate";
 
 const PREVIEW_NOW = "2026-10-18T11:00:00.000Z";
+const PREVIEW_FOCUSABLE_SELECTOR =
+  'a[href], button, input, select, textarea, [tabindex]';
+const PREVIEW_PHONE_WIDTH = 390;
+const PREVIEW_PHONE_HEIGHT = 844;
 
 function completedTask(
   id: string,
@@ -130,14 +135,76 @@ const EXPLORE_PROJECTION: V3ExploreRootProjection = {
  * The teaser deliberately renders the production V3 screen components and the
  * shared canonical V3 bottom navigation rather than maintaining a second
  * hand-built imitation. It never loads live account data, performs no
- * mutations and disables pointer interaction. The iframe is therefore an
- * accurate visual preview without becoming a maintenance bypass.
+ * mutations and removes all nested controls from keyboard navigation. The
+ * iframe is therefore an accurate visual preview without becoming a
+ * maintenance bypass.
  */
 export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }) {
+  const previewRootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const root = previewRootRef.current;
+    if (!root) return;
+
+    const focusable = Array.from(
+      root.querySelectorAll<HTMLElement>(PREVIEW_FOCUSABLE_SELECTOR),
+    );
+    const previousTabIndex = focusable.map((element) => [
+      element,
+      element.getAttribute("tabindex"),
+    ] as const);
+
+    for (const element of focusable) {
+      element.setAttribute("tabindex", "-1");
+    }
+
+    return () => {
+      for (const [element, previous] of previousTabIndex) {
+        if (previous === null) element.removeAttribute("tabindex");
+        else element.setAttribute("tabindex", previous);
+      }
+    };
+  }, [screen]);
+
+  useEffect(() => {
+    const frame = window.frameElement;
+    if (!(frame instanceof HTMLElement) || !frame.classList.contains("preview-page")) {
+      return;
+    }
+
+    const device = frame.parentElement;
+    if (!(device instanceof HTMLElement)) return;
+
+    const fitPreview = () => {
+      const deviceWidth = device.getBoundingClientRect().width;
+      if (!deviceWidth) return;
+      const scale = Math.min(1, deviceWidth / PREVIEW_PHONE_WIDTH);
+      device.style.height = `${PREVIEW_PHONE_HEIGHT * scale}px`;
+      frame.style.transform = `translateX(-50%) scale(${scale})`;
+    };
+
+    fitPreview();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(fitPreview);
+    observer?.observe(device);
+    window.addEventListener("resize", fitPreview);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", fitPreview);
+      device.style.removeProperty("height");
+      frame.style.removeProperty("transform");
+    };
+  }, []);
+
   return (
     <div
+      ref={previewRootRef}
       className="relative h-dvh min-h-dvh overflow-hidden bg-[var(--v3-bg-base)]"
       data-terraos-teaser-preview={screen}
+      onClickCapture={(event) => event.preventDefault()}
+      onKeyDownCapture={(event) => {
+        if (event.key === "Enter" || event.key === " ") event.preventDefault();
+      }}
     >
       <div className="pointer-events-none h-full select-none overflow-hidden">
         <V3FoundationShell>
@@ -160,7 +227,7 @@ export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }
                 {
                   id: "semi-final-1",
                   title: "Semi-final 1",
-                  description: "Tomorrow · 21:00",
+                  description: "19 Oct · 21:00",
                 },
               ]}
             />
