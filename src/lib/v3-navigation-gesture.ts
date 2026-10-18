@@ -9,6 +9,12 @@ export type V3TopLevelSwipePolicy =
 export type V3SwipeIntent = "undecided" | "horizontal" | "vertical";
 export type V3LayoutDirection = "ltr" | "rtl";
 
+export type V3PageSettleMotion = {
+  durationMs: number;
+  remainingRatio: number;
+  releaseSpeed: number;
+};
+
 const HORIZONTAL_BLOCK_SELECTOR = [
   '[data-v3-swipe-owner="content"]',
   '[data-v3-horizontal-gesture="true"]',
@@ -159,6 +165,46 @@ export function resolveV3PageSwipeTarget({
   // above so the rule is identical in LTR and RTL layouts.
   const step = logicalDirection < 0 ? 1 : logicalDirection > 0 ? -1 : 0;
   return Math.min(count - 1, Math.max(0, index + step));
+}
+
+/**
+ * Converts the same release state used for destination selection into bounded
+ * settle timing. A nearly-complete or fast swipe finishes quickly; a slow
+ * release with more travel remaining gets a longer spring. Mirrored RTL input
+ * resolves identically because both displacement and velocity are normalized
+ * onto the logical navigation axis first.
+ */
+export function resolveV3PageSettleMotion({
+  deltaX,
+  velocityX,
+  viewportWidth,
+  activeIndex,
+  targetIndex,
+  direction = "ltr",
+}: {
+  deltaX: number;
+  velocityX: number;
+  viewportWidth: number;
+  activeIndex: number;
+  targetIndex: number;
+  direction?: V3LayoutDirection;
+}): V3PageSettleMotion {
+  const width = Math.max(1, viewportWidth);
+  const logicalDelta = resolveV3LogicalHorizontalDelta(deltaX, direction);
+  const logicalVelocity = resolveV3LogicalHorizontalDelta(velocityX, direction);
+  const targetLogicalDelta = (activeIndex - targetIndex) * width;
+  const remainingRatio = Math.min(
+    1.35,
+    Math.abs(targetLogicalDelta - logicalDelta) / width,
+  );
+  const releaseSpeed = Math.min(1.8, Math.abs(logicalVelocity));
+  const speedRatio = Math.min(1, releaseSpeed / 1.35);
+  const distanceOwnedMs = 145 + remainingRatio * 95;
+  const durationMs = Math.round(
+    Math.max(120, Math.min(260, distanceOwnedMs - speedRatio * 75)),
+  );
+
+  return { durationMs, remainingRatio, releaseSpeed };
 }
 
 export { HORIZONTAL_BLOCK_SELECTOR };
