@@ -8,6 +8,7 @@ command -v supabase >/dev/null 2>&1 || fail "Supabase CLI is required"
 command -v psql >/dev/null 2>&1 || fail "psql is required"
 command -v node >/dev/null 2>&1 || fail "Node.js is required"
 command -v curl >/dev/null 2>&1 || fail "curl is required"
+command -v python3 >/dev/null 2>&1 || fail "python3 is required"
 
 eval "$(supabase status -o env)"
 : "${API_URL:?missing local Supabase API_URL}"
@@ -23,45 +24,26 @@ case "$DB_URL" in
   *) fail "Refusing hosted/non-local database rehearsal ($DB_URL)" ;;
 esac
 
-EDITION_ID='88000000-0000-4000-8000-000000000011'
-SHOW_ID='88000000-0000-4000-8000-000000000012'
-OPERATION_ID='88000000-0000-4000-8000-000000000013'
-IDEMPOTENCY_KEY='v3-s11-lost-response-jury-close'
+read -r EDITION_ID SHOW_ID OPERATION_ID < <(
+  python3 - <<'PY'
+import uuid
+print(uuid.uuid4(), uuid.uuid4(), uuid.uuid4())
+PY
+)
+EDITION_NUMBER="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select coalesce(max(edition_number),0) + 100000 from public.editions;")"
+EDITION_SLUG="s11-lost-response-${EDITION_ID%%-*}"
+IDEMPOTENCY_KEY="v3-s11-lost-response-$OPERATION_ID"
 TMP_DIR="$(mktemp -d)"
 PROXY_PID=''
 
-cleanup_fixture() {
+cleanup_local_processes() {
   if [[ -n "$PROXY_PID" ]]; then
     kill "$PROXY_PID" >/dev/null 2>&1 || true
     wait "$PROXY_PID" >/dev/null 2>&1 || true
   fi
-  psql "$DB_URL" -v ON_ERROR_STOP=1 -q <<SQL >/dev/null 2>&1 || true
-delete from private.v3_domain_event_consumer_receipts
-where event_id in (
-  select id from private.v3_domain_events
-  where operation_id = '$OPERATION_ID'::uuid
-     or edition_id = '$EDITION_ID'::uuid
-);
-delete from private.v3_domain_event_outbox
-where event_id in (
-  select id from private.v3_domain_events
-  where operation_id = '$OPERATION_ID'::uuid
-     or edition_id = '$EDITION_ID'::uuid
-);
-delete from private.v3_domain_events
-where operation_id = '$OPERATION_ID'::uuid
-   or edition_id = '$EDITION_ID'::uuid;
-delete from public.studio2_operation_receipts
-where operation_id = '$OPERATION_ID'::uuid
-   or idempotency_key = '$IDEMPOTENCY_KEY';
-delete from public.editions where id = '$EDITION_ID'::uuid;
-SQL
   rm -rf "$TMP_DIR"
 }
-trap cleanup_fixture EXIT
-cleanup_fixture
-trap cleanup_fixture EXIT
-mkdir -p "$TMP_DIR"
+trap cleanup_local_processes EXIT
 
 log "Creating isolated real Jury-window R2 fixture"
 psql "$DB_URL" -v ON_ERROR_STOP=1 -q <<SQL
@@ -69,9 +51,9 @@ insert into public.editions (id, name, edition_number, status, slug, published)
 values (
   '$EDITION_ID'::uuid,
   'S11 lost response rehearsal',
-  987012,
+  $EDITION_NUMBER,
   'draft',
-  's11-lost-response-rehearsal',
+  '$EDITION_SLUG',
   false
 );
 insert into public.shows (id, edition_id, name, kind, sort_order, published)
@@ -204,3 +186,4 @@ PY
   || fail "exact retry duplicated the canonical Jury DomainEvent"
 
 log "PASS: real R2 response was lost after commit and exact retry replayed durable state without duplicate effects"
+log "Fixture ledger rows are intentionally left in this disposable local database because S4 events/consumer receipts are immutable; reset local Supabase after retaining evidence."
