@@ -1,0 +1,175 @@
+name: V3 S16 supplemental evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Frozen current-main 40-character candidate SHA
+        required: true
+        type: string
+      evidence_commit_sha:
+        description: Exact commit containing only reviewable S16 JSON evidence inputs
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s16-supplemental-${{ inputs.candidate_sha }}-${{ inputs.evidence_commit_sha }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate security and surface evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      V3_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      V3_S16_EVIDENCE_SOURCE_SHA: ${{ inputs.evidence_commit_sha }}
+      V3_RELEASE_EVIDENCE_DIR: v3-s16-supplemental
+    steps:
+      - name: Validate exact SHA inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate="$(printf '%s' "$V3_CANDIDATE_SHA" | tr '[:upper:]' '[:lower:]')"
+          source="$(printf '%s' "$V3_S16_EVIDENCE_SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$candidate" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::candidate_sha must be one exact 40-character Git commit SHA"
+            exit 1
+          fi
+          if [[ ! "$source" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::evidence_commit_sha must be one exact 40-character Git commit SHA"
+            exit 1
+          fi
+          echo "V3_CANDIDATE_SHA=$candidate" >> "$GITHUB_ENV"
+          echo "V3_S16_EVIDENCE_SOURCE_SHA=$source" >> "$GITHUB_ENV"
+
+      - name: Checkout exact frozen candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          fetch-depth: 0
+
+      - name: Require candidate to equal current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          if [ "$actual" != "$V3_CANDIDATE_SHA" ]; then
+            echo "::error::Supplemental evidence checkout is $actual, expected $V3_CANDIDATE_SHA"
+            exit 1
+          fi
+          git fetch origin main --no-tags
+          main_sha="$(git rev-parse origin/main | tr '[:upper:]' '[:lower:]')"
+          if [ "$main_sha" != "$V3_CANDIDATE_SHA" ]; then
+            echo "::error::Supplemental evidence may target only frozen current main: candidate=$V3_CANDIDATE_SHA main=$main_sha"
+            exit 1
+          fi
+
+      - name: Materialize separate reviewable evidence commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_root="$RUNNER_TEMP/v3-s16-evidence-source"
+          git fetch --no-tags origin "$V3_S16_EVIDENCE_SOURCE_SHA"
+          fetched="$(git rev-parse FETCH_HEAD | tr '[:upper:]' '[:lower:]')"
+          if [ "$fetched" != "$V3_S16_EVIDENCE_SOURCE_SHA" ]; then
+            echo "::error::Fetched evidence commit $fetched, expected $V3_S16_EVIDENCE_SOURCE_SHA"
+            exit 1
+          fi
+          git worktree add --detach "$evidence_root" "$fetched"
+          input_root="$evidence_root/v3-s16-evidence-input"
+          required=(
+            security-advisor-snapshot.json
+            security-advisor-dispositions.json
+            s16-public-acceptance.json
+            s16-organizer-acceptance.json
+            s16-navigation-acceptance.json
+            s16-accessibility.json
+            s16-responsive-behavior.json
+          )
+          for filename in "${required[@]}"; do
+            if [ ! -f "$input_root/$filename" ]; then
+              echo "::error::Evidence commit is missing v3-s16-evidence-input/$filename"
+              exit 1
+            fi
+          done
+          find "$input_root" -maxdepth 1 -type f -printf '%f\n' | sort > "$RUNNER_TEMP/v3-s16-evidence-files.txt"
+          printf '%s\n' "${required[@]}" | sort > "$RUNNER_TEMP/v3-s16-required-files.txt"
+          if ! diff -u "$RUNNER_TEMP/v3-s16-required-files.txt" "$RUNNER_TEMP/v3-s16-evidence-files.txt"; then
+            echo "::error::Evidence input directory must contain exactly the seven approved JSON files"
+            exit 1
+          fi
+          echo "V3_S16_EVIDENCE_INPUT_ROOT=$input_root" >> "$GITHUB_ENV"
+          echo "V3_SECURITY_ADVISOR_SNAPSHOT=$input_root/security-advisor-snapshot.json" >> "$GITHUB_ENV"
+          echo "V3_SECURITY_ADVISOR_DISPOSITIONS=$input_root/security-advisor-dispositions.json" >> "$GITHUB_ENV"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install candidate dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build exact-SHA security advisor classification
+        run: bun run scripts/build-v3-security-advisor-classification.ts --require-release-ready
+
+      - name: Validate exact-SHA Public, Organizer, NAV, accessibility and responsive evidence
+        run: bun run scripts/build-v3-s16-supplemental-evidence.ts
+
+      - name: Verify supplemental artifact shape
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            security-advisor-classification.json
+            s16-public-acceptance.json
+            s16-organizer-acceptance.json
+            s16-navigation-acceptance.json
+            s16-accessibility.json
+            s16-responsive-behavior.json
+            supplemental-provenance.json
+          )
+          for filename in "${required[@]}"; do
+            test -f "$V3_RELEASE_EVIDENCE_DIR/$filename" || {
+              echo "::error::Supplemental output missing $filename"
+              exit 1
+            }
+          done
+          actual_count="$(find "$V3_RELEASE_EVIDENCE_DIR" -maxdepth 1 -type f | wc -l | tr -d ' ')"
+          if [ "$actual_count" != "${#required[@]}" ]; then
+            echo "::error::Supplemental output contains $actual_count files, expected ${#required[@]}"
+            find "$V3_RELEASE_EVIDENCE_DIR" -maxdepth 1 -type f -printf '%f\n' | sort
+            exit 1
+          fi
+
+      - name: Upload immutable supplemental evidence
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: v3-s16-supplemental-${{ inputs.candidate_sha }}
+          path: v3-s16-supplemental/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Remove evidence worktree
+        if: always()
+        shell: bash
+        run: |
+          git worktree remove --force "$RUNNER_TEMP/v3-s16-evidence-source" 2>/dev/null || true
+
+      - name: Publish supplemental evidence summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## V3 S16 supplemental evidence"
+            echo
+            echo "Candidate: \`$V3_CANDIDATE_SHA\`"
+            echo "Evidence commit: \`$V3_S16_EVIDENCE_SOURCE_SHA\`"
+            echo
+            echo "The evidence commit is read only as JSON. No code from that commit is executed. A successful run proves the security-advisor classification is release-ready and every required Public/Organizer/NAV/accessibility/responsive case passes the candidate's own S16 validators."
+          } >> "$GITHUB_STEP_SUMMARY"
