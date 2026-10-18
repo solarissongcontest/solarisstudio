@@ -93,6 +93,25 @@ describe("V3 Scoreboard cutover", () => {
     expect(source).not.toContain("createServerFn");
   });
 
+  it("renders an explicit empty state without inventing unpublished ranking data", () => {
+    const source = presentation();
+
+    expect(source).toContain('data-v3-scoreboard-empty=""');
+    expect(source).toContain("No published ranking yet");
+    expect(source).toContain("canonical scoreboard does not currently contain any published entries");
+    expect(source).toContain("rows.length === 0");
+  });
+
+  it("fails unresolved country identity closed instead of exposing internal ids", () => {
+    const source = presentation();
+
+    expect(source).toContain('const UNAVAILABLE_COUNTRY_LABEL = "Country unavailable"');
+    expect(source).toContain("Identity unavailable");
+    expect(source).toContain("country?.name || UNAVAILABLE_COUNTRY_LABEL");
+    expect(source).not.toContain("country?.name ?? standing.countryId");
+    expect(source).not.toContain("country?.name || standing.countryId");
+  });
+
   it("does not expose a browser-controlled scoreboard rollout escape hatch", () => {
     const combined = [migration(), probe(), stage(), presentation()].join("\n");
 
