@@ -170,6 +170,7 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "voting-integrity-review" ||
     id === "workspace-acceptance-test" ||
     id === "workspace-beta-coverage" ||
+    id === "workspace-public-ux" ||
     id === "workspace-community-moderation" ||
     id === "workspace-predictions" ||
     id === "workspace-fantasy" ||
