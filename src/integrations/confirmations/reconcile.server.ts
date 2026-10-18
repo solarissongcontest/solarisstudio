@@ -61,6 +61,11 @@ export type ConfirmationProjectionVerificationResult = {
   verifiedAt: string;
 };
 
+export type ConfirmationReconciliationDependencies = {
+  db: any;
+  syncSubmission: typeof syncConfirmationSubmissionToSolarisInternal;
+};
+
 function boundedInteger(
   value: number | undefined,
   fallback: number,
@@ -113,17 +118,15 @@ async function loadEdition(db: any, editionId: string) {
 }
 
 /**
- * Bounded S6 repair path for the Confirmation -> Solaris Entry projection.
- *
- * It intentionally delegates each row to the existing canonical sync function,
- * so reconciliation does not invent a second write authority. Calls are
- * edition-scoped, ordered deterministically, and capped per invocation. Exact
- * submission replay remains safe because the canonical sync already protects
- * external ownership and newer final lifecycle state.
+ * Dependency-injected recovery core used by the production wrapper and by S11
+ * deterministic failure-injection evidence. The injected sync function must be
+ * the canonical Confirmation sync in production; tests may inject a controlled
+ * failure without changing production authority or touching hosted Supabase.
  */
-export async function reconcileConfirmationEditionToSolarisInternal(
+export async function reconcileConfirmationEditionToSolarisWithDependencies(
   editionId: string,
-  options: ReconcileOptions = {},
+  options: ReconcileOptions,
+  dependencies: ConfirmationReconciliationDependencies,
 ): Promise<ConfirmationEditionReconciliationResult> {
   const offset = boundedInteger(options.offset, 0, 0, Number.MAX_SAFE_INTEGER);
   const limit = boundedInteger(
@@ -132,9 +135,7 @@ export async function reconcileConfirmationEditionToSolarisInternal(
     1,
     V3_CONFIRMATION_RECONCILIATION_MAX_BATCH,
   );
-
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const db = supabaseAdmin as any;
+  const { db, syncSubmission } = dependencies;
   await loadEdition(db, editionId);
 
   const page = await db
@@ -154,7 +155,7 @@ export async function reconcileConfirmationEditionToSolarisInternal(
   // service-role burst against the database or dependent projection hooks.
   for (const row of rows) {
     try {
-      const result = await syncConfirmationSubmissionToSolarisInternal(row.id);
+      const result = await syncSubmission(row.id);
       outcomes.push({
         submissionId: row.id,
         ok: result.ok,
@@ -183,23 +184,42 @@ export async function reconcileConfirmationEditionToSolarisInternal(
     succeeded: outcomes.filter((outcome) => outcome.ok).length,
     failed: outcomes.filter((outcome) => !outcome.ok).length,
     nextOffset,
+    // `complete` means the bounded page traversal reached the end. Recovery is
+    // successful only when `failed === 0` and an independent verifier agrees.
     complete: nextOffset === null,
     outcomes,
   };
 }
 
 /**
- * Independent, read-only S6 verification for the same edition-scoped
- * projection. It compares the latest Confirmation response for each country to
- * canonical Entry + participant compatibility rows. It never repairs while
- * verifying and fails closed to `unknown` if the bounded diagnostic ceiling is
- * exceeded.
+ * Bounded S6 repair path for the Confirmation -> Solaris Entry projection.
+ *
+ * It intentionally delegates each row to the existing canonical sync function,
+ * so reconciliation does not invent a second write authority. Calls are
+ * edition-scoped, ordered deterministically, and capped per invocation. Exact
+ * submission replay remains safe because the canonical sync already protects
+ * external ownership and newer final lifecycle state.
  */
-export async function verifyConfirmationEditionProjectionInternal(
+export async function reconcileConfirmationEditionToSolarisInternal(
   editionId: string,
-): Promise<ConfirmationProjectionVerificationResult> {
+  options: ReconcileOptions = {},
+): Promise<ConfirmationEditionReconciliationResult> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const db = supabaseAdmin as any;
+  return reconcileConfirmationEditionToSolarisWithDependencies(editionId, options, {
+    db: supabaseAdmin as any,
+    syncSubmission: syncConfirmationSubmissionToSolarisInternal,
+  });
+}
+
+/**
+ * Dependency-injected, read-only verification core. Keeping the verifier
+ * independently injectable lets S11 prove stale-projection detection and
+ * post-repair consistency without giving the verifier any mutation primitive.
+ */
+export async function verifyConfirmationEditionProjectionWithDatabase(
+  editionId: string,
+  db: any,
+): Promise<ConfirmationProjectionVerificationResult> {
   await loadEdition(db, editionId);
 
   const submissionsResult = await db
@@ -486,4 +506,18 @@ export async function verifyConfirmationEditionProjectionInternal(
     issues,
     verifiedAt: new Date().toISOString(),
   };
+}
+
+/**
+ * Independent, read-only S6 verification for the same edition-scoped
+ * projection. It compares the latest Confirmation response for each country to
+ * canonical Entry + participant compatibility rows. It never repairs while
+ * verifying and fails closed to `unknown` if the bounded diagnostic ceiling is
+ * exceeded.
+ */
+export async function verifyConfirmationEditionProjectionInternal(
+  editionId: string,
+): Promise<ConfirmationProjectionVerificationResult> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return verifyConfirmationEditionProjectionWithDatabase(editionId, supabaseAdmin as any);
 }
