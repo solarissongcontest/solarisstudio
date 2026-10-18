@@ -168,13 +168,15 @@ export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }
   }, [screen]);
 
   useEffect(() => {
-    const frame = window.frameElement;
-    if (!(frame instanceof HTMLElement) || !frame.classList.contains("preview-page")) {
-      return;
-    }
+    // `window.frameElement` belongs to the parent document's JS realm. Using
+    // the iframe realm's `instanceof HTMLElement` therefore rejects the real
+    // iframe even though it is an HTMLElement. Treat the known frame element
+    // structurally instead so fitting works in actual browsers as well as SSR.
+    const frame = window.frameElement as HTMLElement | null;
+    if (!frame || !frame.classList.contains("preview-page")) return;
 
     const device = frame.parentElement;
-    if (!(device instanceof HTMLElement)) return;
+    if (!device) return;
 
     const fitPreview = () => {
       // Measure the width offered by the maintenance-page CSS before applying
