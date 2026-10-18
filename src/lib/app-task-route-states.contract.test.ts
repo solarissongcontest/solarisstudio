@@ -34,11 +34,13 @@ describe("App Experience v3 task and route-state foundation", () => {
     expect(root).not.toContain("<AppRuntime>\n        <SolarisAnniversaryCelebration");
   });
 
-  it("keeps installed navigation visible while ordinary routes are pending", () => {
+  it("keeps ordinary installed navigation during pending routes but lets critical tasks own focused pending chrome", () => {
     const router = source("src/router.tsx");
+    expect(router).toContain("resolveSolarisAppScreen(pathname).behavior.criticalTask");
+    expect(router).toContain("if (isAppMode && criticalTask)");
     expect(router).toContain("AppRouteStateFrame");
     expect(router).toContain("AppRouteSkeleton");
-    expect(router).toContain("alreadyInsideParticipationChrome");
+    expect(router).not.toContain("alreadyInsideParticipationChrome");
   });
 
   it("styles loading and recovery states inside the installed app shell", () => {
