@@ -41,7 +41,7 @@ const V3_SHELL_DESTINATIONS: readonly V3ShellDestination[] = [
 ];
 
 export type V3BottomNavigationProps = {
-  activeArea: V3Area;
+  activeArea: V3Area | null;
   participateAttentionCount?: number;
 };
 
