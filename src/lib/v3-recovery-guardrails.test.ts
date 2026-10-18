@@ -55,8 +55,8 @@ describe("System V3 S11 recovery guardrails", () => {
   });
 
   it("fails closed when the canonical registry has only foundation repair evidence", () => {
-    const entryProjection = projectionForDomain("entry");
-    const plan = planV3ProjectionRecovery(entryProjection, {
+    const confirmationProjection = projectionForDomain("confirmation");
+    const plan = planV3ProjectionRecovery(confirmationProjection, {
       editionId: "33333333-3333-4333-8333-333333333333",
     });
 

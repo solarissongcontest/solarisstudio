@@ -50,15 +50,33 @@ describe("System V3 S6 projection reconciliation registry", () => {
     expect(receiptProjection?.repair.state).toBe("rebuildable");
     expect(receiptProjection?.repair.scope).toBe("operation");
     expect(receiptProjection?.repair.rebuildPath).toContain("studio2_reconcile_operation");
-  });
 
-  it("keeps partial repair evidence below rebuildable instead of manufacturing completion", () => {
     const entry = V3_PROJECTION_RECONCILIATION_REGISTRY.filter((projection) =>
       projection.canonicalDomains.includes("entry"),
     );
     expect(entry.length).toBeGreaterThan(0);
-    expect(entry.every((projection) => projection.repair.state === "foundation")).toBe(true);
-    expect(entry.every((projection) => projection.repair.rebuildPath === null)).toBe(true);
+    expect(entry.every((projection) => projection.repair.state === "rebuildable")).toBe(true);
+    expect(entry.every((projection) => projection.repair.scope === "edition")).toBe(true);
+    expect(
+      entry.every((projection) =>
+        projection.repair.rebuildPath?.includes("reconcileConfirmationEditionToSolarisInternal"),
+      ),
+    ).toBe(true);
+    expect(
+      entry.every((projection) =>
+        projection.repair.verificationPath?.includes("verifyConfirmationEditionProjectionInternal"),
+      ),
+    ).toBe(true);
+    expect(entry.every((projection) => projection.repair.boundedBy?.includes("50"))).toBe(true);
+  });
+
+  it("keeps still-partial domain repair evidence below rebuildable instead of manufacturing completion", () => {
+    const confirmation = V3_PROJECTION_RECONCILIATION_REGISTRY.filter((projection) =>
+      projection.canonicalDomains.includes("confirmation"),
+    );
+    expect(confirmation.length).toBeGreaterThan(0);
+    expect(confirmation.every((projection) => projection.repair.state === "foundation")).toBe(true);
+    expect(confirmation.every((projection) => projection.repair.rebuildPath === null)).toBe(true);
 
     const unrelatedDeclared = V3_PROJECTION_RECONCILIATION_REGISTRY.find(
       (projection) => projection.repair.state === "declared",
