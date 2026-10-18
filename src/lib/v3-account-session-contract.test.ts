@@ -56,6 +56,14 @@ describe("P42 devices and sessions authority boundary", () => {
     expect(panel()).toContain("same reviewed revocation operation");
   });
 
+  it("locks the reviewed revocation target while fresh-auth confirmation is open", () => {
+    const code = panel();
+    expect(code).toContain("needsFreshAuth ||\n      attempt");
+    expect(code).toContain("locked={needsFreshAuth || reauthenticating}");
+    expect(code).toContain('locked ? "Finish verification" : "Revoke"');
+    expect(code).toContain("setAttempt(null)");
+  });
+
   it("fails closed while the production migration is absent or projection verification fails", () => {
     expect(client()).toContain("isV3AccountSessionContractUnavailable");
     expect(panel()).toContain('data-v3-account-sessions-state="unavailable"');
