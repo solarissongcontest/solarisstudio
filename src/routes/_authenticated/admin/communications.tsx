@@ -308,30 +308,22 @@ function CommunicationsCentre() {
   }
 
   function requestCancel(notice: OperationalNotice) {
-    const reason = window.prompt('Reason for cancelling this communication (optional):');
-    if (reason === null) return;
-    setLifecycleReview({ kind: 'cancel', notice, reason });
+    setLifecycleReview({ kind: 'cancel', notice, reason: '' });
   }
 
   function requestArchive(notice: OperationalNotice) {
-    const reason = window.prompt(
-      'Archive reason (optional). This removes the communication from Public Home, MySolaris Home and delegation inboxes until restored:',
-    );
-    if (reason === null) return;
-    setLifecycleReview({ kind: 'archive', notice, reason });
+    setLifecycleReview({ kind: 'archive', notice, reason: '' });
   }
 
   function requestDelete(notice: OperationalNotice) {
-    const reason = window.prompt(
-      'Reason for permanent deletion (required and retained in the private audit log):',
-    );
-    if (!reason?.trim()) return;
-    setLifecycleReview({ kind: 'delete', notice, reason: reason.trim() });
+    setLifecycleReview({ kind: 'delete', notice, reason: '' });
   }
 
   async function confirmLifecycleReview() {
     if (!lifecycleReview) return;
-    const variables = { id: lifecycleReview.notice.id, reason: lifecycleReview.reason };
+    const reason = lifecycleReview.reason.trim();
+    if (lifecycleReview.kind === 'delete' && !reason) return;
+    const variables = { id: lifecycleReview.notice.id, reason };
     if (lifecycleReview.kind === 'cancel') {
       await cancelNotice.mutateAsync(variables);
       return;
@@ -416,7 +408,7 @@ function CommunicationsCentre() {
           <Metric label="Total" value={notices.length} />
           <Metric label="Draft / scheduled" value={notices.filter((item) => ['draft', 'scheduled'].includes(item.notice.state)).length} />
           <Metric label="Published" value={notices.filter((item) => item.notice.state === 'published' && !item.notice.archivedAt).length} />
-          <Metric label="Archived" value={notices.filter((item) => item.notice.archivedAt).length} />
+          <Metric label="Archived" value={notices.filter((item) => item.archivedAt).length} />
           <Metric label="Acknowledged" value={acknowledgementCount} />
         </section>
 
@@ -902,8 +894,19 @@ function CommunicationsCentre() {
                 <p className="font-semibold text-foreground">{lifecycleReview.notice.title}</p>
                 <p className="mt-1">Revision {lifecycleReview.notice.revision} · {noticeStateLabel(lifecycleReview.notice.state)}</p>
                 <p className="mt-2"><span className="font-semibold text-foreground">Destinations:</span> {lifecycleReview.notice.displaySurfaces.map(noticeSurfaceLabel).join(', ')}</p>
-                <p className="mt-2"><span className="font-semibold text-foreground">Reason:</span> {lifecycleReview.reason.trim() || 'No reason supplied'}</p>
               </div>
+              <label className="block space-y-1.5">
+                <span className="font-semibold text-foreground">
+                  Organizer reason {lifecycleReview.kind === 'delete' ? '(required)' : '(optional)'}
+                </span>
+                <textarea
+                  value={lifecycleReview.reason}
+                  onChange={(event) => setLifecycleReview((current) => current ? { ...current, reason: event.target.value } : current)}
+                  rows={3}
+                  placeholder={lifecycleReview.kind === 'delete' ? 'Explain why permanent deletion is required…' : 'Add an operational reason…'}
+                  className="w-full rounded-xl border border-white/[0.1] bg-black/10 p-3 text-sm text-foreground outline-none focus:border-sky-300/30"
+                />
+              </label>
               {lifecycleReview.kind === 'cancel' ? (
                 <p>Cancelling stops this draft or scheduled communication from publishing. The lifecycle record remains available to Organizer history.</p>
               ) : lifecycleReview.kind === 'archive' ? (
@@ -927,6 +930,7 @@ function CommunicationsCentre() {
           confirmationText={lifecycleReview?.kind === 'delete' ? lifecycleReview.notice.title : undefined}
           confirmationHint={lifecycleReview?.kind === 'delete' ? `Type ${lifecycleReview.notice.title} to confirm permanent deletion.` : undefined}
           busy={busy}
+          confirmDisabled={lifecycleReview?.kind === 'delete' && !lifecycleReview.reason.trim()}
           danger={lifecycleReview?.kind === 'delete'}
         />
 
