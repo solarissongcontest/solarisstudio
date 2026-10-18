@@ -13,6 +13,10 @@ import {
 import { KubeLiquidGlassBackdrop } from "@/components/app/KubeLiquidGlassBackdrop";
 import { APP_RESUME_EVENT } from "@/lib/app-lifecycle";
 import {
+  clearAppUpdateBlocker,
+  setAppUpdateBlocker,
+} from "@/lib/app-update-safety";
+import {
   prefersReducedMotion,
   resolveElasticDrag,
   resolveTabDragTargetIndex,
@@ -30,6 +34,8 @@ import { useSolarisPressHold } from "@/lib/use-solaris-press-hold";
 import { cn } from "@/lib/utils";
 import "@/styles/v3-liquid-tabbar.css";
 import "@/styles/v3-navigation-fixed-geometry.css";
+
+const V3_LIQUID_LENS_UPDATE_BLOCKER = "v3-liquid-lens-drag";
 
 export type V3LiquidTabDestination = {
   id: string;
@@ -210,6 +216,7 @@ export function V3LiquidTabBar({
   };
 
   const resetDragDom = useCallback(() => {
+    clearAppUpdateBlocker(V3_LIQUID_LENS_UPDATE_BLOCKER);
     const drag = dragState.current;
     if (drag) {
       try {
@@ -348,6 +355,11 @@ export function V3LiquidTabBar({
     };
     lastPreviewHaptic.current = index;
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    setAppUpdateBlocker(
+      V3_LIQUID_LENS_UPDATE_BLOCKER,
+      true,
+      "Finish the current navigation gesture before updating.",
+    );
     beginHold(event.pointerId, event.clientX, event.clientY);
     setDragging(true);
   };
