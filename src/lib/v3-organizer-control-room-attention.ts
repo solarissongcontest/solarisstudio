@@ -27,9 +27,9 @@ export function buildControlRoomAttention(
   readiness: EditionReadiness | null,
   incidents: Studio2IncidentRecord[],
 ): ControlRoomAttentionItem[] {
-  const incidentItems: ControlRoomAttentionItem[] = incidents
+  const incidentItems = incidents
     .filter((incident) => incident.status !== "resolved")
-    .map((incident) => ({
+    .map<ControlRoomAttentionItem>((incident) => ({
       id: `incident:${incident.id}`,
       kind: "incident",
       severity: incidentSeverity(incident),
@@ -37,9 +37,9 @@ export function buildControlRoomAttention(
       detail: `${incident.severity.toUpperCase()} · ${incident.status.replaceAll("_", " ")}`,
     }));
 
-  const readinessItems: ControlRoomAttentionItem[] = (readiness?.issues ?? [])
+  const readinessItems = (readiness?.issues ?? [])
     .filter((issue) => issue.severity === "critical" || issue.severity === "action")
-    .map((issue) => ({
+    .map<ControlRoomAttentionItem>((issue) => ({
       id: `readiness:${issue.id}`,
       kind: "readiness",
       severity: issue.severity,
