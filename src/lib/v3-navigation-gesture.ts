@@ -77,9 +77,47 @@ export function isV3BrowserEdgeGestureStart({
   return clientX <= edge || clientX >= width - edge;
 }
 
+export function isV3ScrollableHorizontalOverflow({
+  overflowX,
+  scrollWidth,
+  clientWidth,
+}: {
+  overflowX: string;
+  scrollWidth: number;
+  clientWidth: number;
+}) {
+  const overflow = overflowX.trim().toLowerCase();
+  const scrollableOverflow = overflow === "auto" || overflow === "scroll";
+  return scrollableOverflow && scrollWidth > clientWidth + 1;
+}
+
 export function elementBlocksV3TopLevelSwipe(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
   if (target.closest(HORIZONTAL_BLOCK_SELECTOR)) return true;
+
+  // Feature owners should use the explicit selectors above whenever possible,
+  // but the global page gesture must still fail closed around a real horizontal
+  // scroller that was not annotated. This inspection happens only at pointer
+  // start, never in the per-frame move loop.
+  if (typeof window !== "undefined") {
+    let current: Element | null = target;
+    while (current) {
+      if (current instanceof HTMLElement) {
+        const style = window.getComputedStyle(current);
+        if (
+          isV3ScrollableHorizontalOverflow({
+            overflowX: style.overflowX,
+            scrollWidth: current.scrollWidth,
+            clientWidth: current.clientWidth,
+          })
+        ) {
+          return true;
+        }
+      }
+      current = current.parentElement;
+    }
+  }
+
   const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
   return Boolean(selection && !selection.isCollapsed);
 }
