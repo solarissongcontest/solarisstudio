@@ -18,6 +18,7 @@ source "$SCRIPT_DIR/v3-s14-stage-6-jury.sh"
 source "$SCRIPT_DIR/v3-s14-stage-7-public-voting.sh"
 source "$SCRIPT_DIR/v3-s14-stage-7-genuine-deadline.sh"
 source "$SCRIPT_DIR/v3-s14-stage-8-results.sh"
+source "$SCRIPT_DIR/v3-s14-stage-9-publication.sh"
 
 run_s14_stage_1_setup
 run_s14_stage_2_onboarding
@@ -27,9 +28,9 @@ run_s14_stage_5_running_orders
 run_s14_stage_6_jury
 run_s14_stage_7_public_voting
 run_s14_stage_8_results
+run_s14_stage_9_publication
 
 PENDING_STAGES=(
-  stage-9-publication
   stage-10-archive
 )
 
@@ -53,6 +54,7 @@ payload = {
         "stage-6-jury",
         "stage-7-public-voting",
         "stage-8-results",
+        "stage-9-publication",
     ],
     "implementedInvariants": [
         "confirmation-no-effective-duplicates",
@@ -61,12 +63,14 @@ payload = {
         "jury-single-final-ballot",
         "televote-canonical-ballot",
         "result-reproducible",
+        "publication-final-version",
     ],
     "implementedFailureInjections": [
         "network-after-commit",
         "db-timeout-before-commit",
         "duplicate-request",
         "worker-crash",
+        "realtime-disconnect",
         "stale-client",
         "two-organizers",
     ],
@@ -79,7 +83,7 @@ with open(path, "w", encoding="utf-8") as handle:
 PY
 
 if [[ "${V3_S14_ALLOW_PARTIAL:-0}" == "1" ]]; then
-  log "Partial S14 harness passed through Stage 8; release-grade S14 remains blocked by ${#PENDING_STAGES[@]} stages."
+  log "Partial S14 harness passed through Stage 9; release-grade S14 remains blocked by ${#PENDING_STAGES[@]} stage."
   exit 0
 fi
 
