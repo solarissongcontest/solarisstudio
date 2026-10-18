@@ -17,6 +17,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
+import { RulebookPublicationManifest } from "@/components/admin/RulebookPublicationManifest";
 import { supabase } from "@/integrations/supabase/client";
 import {
   buildRuleSnapshot,
@@ -429,6 +430,7 @@ function ReleaseWorkspace(props: {
                 <p className="mt-1 text-xs leading-5 text-amber-50/70">
                   This makes its recorded modifications live across Rules and every contextual Governance OS surface. The previous version remains in public history.
                 </p>
+                <RulebookPublicationManifest release={release} />
                 {productImpact.length ? (
                   <div className="mt-3 rounded-xl border border-amber-100/15 bg-black/10 p-3">
                     <p className="text-[10px] font-black uppercase tracking-[0.12em] text-amber-100">
