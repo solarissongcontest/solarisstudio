@@ -7,6 +7,7 @@ const model = readFileSync(
   "src/lib/v3-organizer-confirmation-requirement-attention.ts",
   "utf8",
 );
+const permissionMap = readFileSync("src/lib/permission-route-map.ts", "utf8");
 
 describe("Organizer O4 Delegations attention boundary", () => {
   it("fails closed without explicit Organizer edition context", () => {
@@ -36,6 +37,12 @@ describe("Organizer O4 Delegations attention boundary", () => {
     expect(route).toContain('to="/confirmations/admin/rounds"');
     expect(route).not.toContain(".rpc(");
     expect(route).not.toContain("useMutation");
+  });
+
+  it("binds the canonical Delegations route to Confirmation read authority", () => {
+    expect(permissionMap).toContain(
+      'rule(["/admin/delegations", "/confirmations/admin"], "confirmation.read")',
+    );
   });
 
   it("keeps sync/settings diagnostics out of the canonical O4 workspace", () => {
