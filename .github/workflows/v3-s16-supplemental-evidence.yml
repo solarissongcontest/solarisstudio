@@ -30,6 +30,7 @@ jobs:
       V3_RELEASE_EVIDENCE_DIR: v3-s16-supplemental
     steps:
       - name: Validate exact SHA inputs
+        id: identity
         shell: bash
         run: |
           set -euo pipefail
@@ -43,13 +44,15 @@ jobs:
             echo "::error::evidence_commit_sha must be one exact 40-character Git commit SHA"
             exit 1
           fi
+          echo "candidate=$candidate" >> "$GITHUB_OUTPUT"
+          echo "source=$source" >> "$GITHUB_OUTPUT"
           echo "V3_CANDIDATE_SHA=$candidate" >> "$GITHUB_ENV"
           echo "V3_S16_EVIDENCE_SOURCE_SHA=$source" >> "$GITHUB_ENV"
 
       - name: Checkout exact frozen candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate_sha }}
+          ref: ${{ steps.identity.outputs.candidate }}
           fetch-depth: 0
 
       - name: Require candidate to equal current main
@@ -150,7 +153,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: v3-s16-supplemental-${{ inputs.candidate_sha }}
+          name: v3-s16-supplemental-${{ steps.identity.outputs.candidate }}
           path: v3-s16-supplemental/
           if-no-files-found: error
           retention-days: 90
@@ -168,8 +171,8 @@ jobs:
           {
             echo "## V3 S16 supplemental evidence"
             echo
-            echo "Candidate: \`$V3_CANDIDATE_SHA\`"
-            echo "Evidence commit: \`$V3_S16_EVIDENCE_SOURCE_SHA\`"
+            echo "Candidate: \`${{ steps.identity.outputs.candidate }}\`"
+            echo "Evidence commit: \`${{ steps.identity.outputs.source }}\`"
             echo
             echo "The evidence commit is read only as JSON. No code from that commit is executed. A successful run proves the security-advisor classification is release-ready and every required Public/Organizer/NAV/accessibility/responsive case passes the candidate's own S16 validators."
           } >> "$GITHUB_STEP_SUMMARY"
