@@ -39,9 +39,14 @@ describe("S14 Grand Final voting preparation", () => {
     expect(finalVoting).not.toMatch(/insert\s+into\s+televoting\.vote_entries/i);
   });
 
-  it("does not falsely wire the Grand Final voting leg before blocked parents are ready", () => {
-    expect(driver).not.toContain('source "$SCRIPT_DIR/v3-s14-grand-final-voting.sh"');
-    expect(driver).not.toContain("run_s14_grand_final_voting");
+  it("runs after qualifier promotion but keeps Grand Final Results explicitly blocked on #651", () => {
+    expect(driver).toContain('source "$SCRIPT_DIR/v3-s14-grand-final-voting.sh"');
+    expect(driver).toContain("run_s14_grand_final_voting");
+    expect(driver.indexOf("prepare_s14_grand_final_from_qualifiers")).toBeLessThan(
+      driver.indexOf("run_s14_grand_final_voting"),
+    );
+    expect(driver).toContain("#651 canonical Televote publication/readiness mismatch");
+    expect(driver).not.toContain('source "$SCRIPT_DIR/v3-s14-grand-final-results.sh"');
     expect(finalVoting).toContain("S14_GRAND_FINAL_VOTING_COMPLETE");
   });
 
