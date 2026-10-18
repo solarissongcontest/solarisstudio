@@ -1,19 +1,28 @@
 import { describe, expect, it } from "vitest";
 
-import type { EditionReadiness } from "@/lib/admin-readiness";
+import type { EditionReadiness, ReadinessIssue } from "@/lib/admin-readiness";
 import type { Studio2IncidentRecord } from "@/lib/studio2-persistence";
 import { buildControlRoomAttention } from "./v3-organizer-control-room-attention";
 
 function readiness(issues: EditionReadiness["issues"]): EditionReadiness {
   return {
     status: issues.some((issue) => issue.severity === "critical")
-      ? "blocked"
+      ? "not_ready"
       : issues.length
-        ? "needs-attention"
+        ? "warning"
         : "ready",
     progress: issues.length ? 50 : 100,
     issues,
     areas: [],
+  };
+}
+
+function issue(input: Pick<ReadinessIssue, "code" | "severity" | "title" | "detail">): ReadinessIssue {
+  return {
+    ...input,
+    area: "live",
+    actionLabel: "Open workspace",
+    actionHref: "/admin/control-room",
   };
 }
 
@@ -38,23 +47,15 @@ function incident(
 }
 
 describe("V3 Organizer Control Room attention model", () => {
-  it("puts active incidents and critical readiness failures ahead of lower-severity setup work", () => {
+  it("puts SEV1 incidents and critical readiness failures before lower-severity incidents", () => {
     const items = buildControlRoomAttention(
       readiness([
-        {
-          id: "entry-metadata",
-          severity: "action",
-          area: "entries",
-          title: "Entry metadata incomplete",
-          detail: "Complete missing artist fields.",
-        },
-        {
-          id: "broken-results",
+        issue({
+          code: "broken-results",
           severity: "critical",
-          area: "results",
           title: "Results do not reconcile",
           detail: "Totals are inconsistent.",
-        },
+        }),
       ]),
       [
         incident("incident-2", "sev2", "Graphics degraded"),
@@ -66,20 +67,18 @@ describe("V3 Organizer Control Room attention model", () => {
       "incident:incident-1",
       "readiness:broken-results",
       "incident:incident-2",
-      "readiness:entry-metadata",
     ]);
   });
 
   it("does not promote warning-only readiness observations into immediate attention", () => {
     const items = buildControlRoomAttention(
       readiness([
-        {
-          id: "tele-warning",
+        issue({
+          code: "tele-warning",
           severity: "warning",
-          area: "televote",
           title: "No televote data yet",
           detail: "No voting activity has started.",
-        },
+        }),
       ]),
       [],
     );
@@ -98,13 +97,12 @@ describe("V3 Organizer Control Room attention model", () => {
 
   it("keeps the model read-only and deterministic", () => {
     const source = readiness([
-      {
-        id: "no-shows",
+      issue({
+        code: "no-shows",
         severity: "critical",
-        area: "setup",
         title: "No shows created",
         detail: "Create a show before operating the edition.",
-      },
+      }),
     ]);
     const first = buildControlRoomAttention(source, []);
     const second = buildControlRoomAttention(source, []);
