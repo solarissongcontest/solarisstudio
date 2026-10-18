@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 
+import { Switch } from "@/components/ui/switch";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import type { V3PublicShowState } from "@/lib/v3-live";
 import { useV3LiveBundle } from "@/lib/v3-live-runtime";
@@ -146,14 +147,30 @@ export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
       <V3LiveScreen
         experience={bundle.data.experience}
         refreshing={bundle.isFetching}
-        keepScreenAwake={preferences.keepScreenAwake}
-        wakeLockSupported={wakeLockSupported}
-        wakeLockActive={wakeActive}
-        onKeepScreenAwakeChange={(checked) => update({ keepScreenAwake: checked })}
         onRefresh={() => {
           void bundle.refetch();
         }}
       />
+      <div className="v3-screen pt-0" data-v3-live-settings="">
+        <V3Surface className="flex min-h-16 items-center justify-between gap-4 p-4">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">Keep screen awake</p>
+            <p className="mt-1 text-xs leading-5 text-white/48">
+              {!wakeLockSupported
+                ? "Screen Wake Lock is not available on this device."
+                : wakeActive
+                  ? "Screen Wake Lock is active while this show state needs it."
+                  : "Use the existing Show Mode preference on active live states."}
+            </p>
+          </div>
+          <Switch
+            checked={preferences.keepScreenAwake}
+            disabled={!wakeLockSupported}
+            onCheckedChange={(checked) => update({ keepScreenAwake: checked })}
+            aria-label="Keep screen awake in Show Mode"
+          />
+        </V3Surface>
+      </div>
     </V3FoundationShell>
   );
 }
