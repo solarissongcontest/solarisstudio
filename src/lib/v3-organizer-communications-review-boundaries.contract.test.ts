@@ -9,9 +9,10 @@ const route = readFileSync(
 const api = readFileSync("src/lib/studio2-communications.ts", "utf8");
 
 describe("V3 Organizer communications review boundaries", () => {
-  it("does not use native browser confirmation for consequential lifecycle actions", () => {
+  it("does not use native browser dialogs for consequential lifecycle actions", () => {
     expect(route).toContain("AdminConfirmSheet");
     expect(route).not.toContain("window.confirm");
+    expect(route).not.toContain("window.prompt");
     expect(route).toContain("setPublishReviewOpen(true)");
     expect(route).toContain("requestCancel(notice)");
     expect(route).toContain("requestArchive(notice)");
@@ -25,6 +26,14 @@ describe("V3 Organizer communications review boundaries", () => {
     expect(route).toContain("Inbox audience:");
     expect(route).toContain("Acknowledgement:");
     expect(route).toContain('confirmLabel="Publish communication now"');
+  });
+
+  it("collects lifecycle reasons inside the same exact consequence review", () => {
+    expect(route).toContain("Organizer reason");
+    expect(route).toContain("value={lifecycleReview.reason}");
+    expect(route).toContain("setLifecycleReview((current) => current ? { ...current, reason: event.target.value } : current)");
+    expect(route).toContain("const reason = lifecycleReview.reason.trim()");
+    expect(route).toContain("lifecycleReview?.kind === 'delete' && !lifecycleReview.reason.trim()");
   });
 
   it("makes cancel, archive and permanent deletion consequences explicit", () => {
