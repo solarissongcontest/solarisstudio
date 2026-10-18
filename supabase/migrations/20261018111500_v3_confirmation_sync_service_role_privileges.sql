@@ -34,6 +34,13 @@ grant insert, update on table
   public.integration_events
   to service_role;
 
+-- Publishing an accepted Confirmation-owned Entry invokes this server-only
+-- event boundary. Fresh replay previously revoked PUBLIC execution without
+-- restoring service_role, allowing the sync to reach the RPC with insufficient
+-- function privilege.
+grant execute on function public.emit_entry_published_event(uuid, uuid)
+  to service_role;
+
 -- Fail during migration replay, not halfway through the S14 lifecycle, if a
 -- future privilege hardening migration accidentally removes one of the direct
 -- capabilities required by the canonical server sync.
@@ -77,6 +84,15 @@ begin
         v_requirement.table_name;
     end if;
   end loop;
+
+  if not has_function_privilege(
+    'service_role',
+    'public.emit_entry_published_event(uuid,uuid)',
+    'EXECUTE'
+  ) then
+    raise exception
+      'Canonical Confirmation sync requires service_role EXECUTE on public.emit_entry_published_event(uuid,uuid)';
+  end if;
 end;
 $$;
 
