@@ -41,7 +41,11 @@ describe("Solaris V6 result lifecycle authority retirement", () => {
     expect(publication).toContain("loadStudio2ResultsOperations");
     expect(publication).toContain("isStudio2ResultReleaseReady");
     expect(publication).toContain(
-      'queryKey: ["studio2-results-operations", edition?.id ?? "none"]',
+      'queryKey: ["studio2-results-operations", scopedEditionId ?? "none"]',
+    );
+    expect(publication).toContain("enabled: Boolean(scopedEditionId)");
+    expect(publication).toContain(
+      "queryFn: () => loadStudio2ResultsOperations(scopedEditionId!)",
     );
     expect(publication).toContain("resultOperationByShow");
     expect(publication).not.toContain("STUDIO2_RESULT_LIFECYCLE");
@@ -52,11 +56,16 @@ describe("Solaris V6 result lifecycle authority retirement", () => {
       "src/routes/_authenticated/admin/publication/$slug.tsx",
     );
 
+    expect(publication).toContain(
+      "const scopedEditionId = edition && organizerEditionId === edition.id ? edition.id : undefined",
+    );
+    expect(publication).toContain("assertPublicationEditionScope");
+    expect(publication).toContain("show.edition_id !== scopedEditionId");
     expect(publication).toContain("validateEditionCommandScope");
-    expect(publication).toContain("editionId: edition?.id ?? show.edition_id");
-    expect(publication).toContain("routeEditionId: edition?.id ?? null");
+    expect(publication).toContain("routeEditionId: activeEditionId");
     expect(publication).toContain("commandEditionId: pendingRelease.editionId");
     expect(publication).toContain("entityEditionId: pendingRelease.show.edition_id");
+    expect(publication).toContain("capabilityEditionId: organizerEditionId || null");
     expect(publication).toContain("setPendingRelease(null)");
     expect(publication).toContain("Canonical state was refreshed and nothing was applied");
     expect(publication.indexOf("validateEditionCommandScope")).toBeLessThan(
