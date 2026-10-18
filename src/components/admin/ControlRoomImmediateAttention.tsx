@@ -20,27 +20,41 @@ export function ControlRoomImmediateAttention({
   readinessError: unknown;
 }) {
   const items = buildControlRoomAttention(readiness, incidents);
+  const readinessUnavailable = Boolean(readinessError);
+  const readinessPending = readinessLoading || (!readinessUnavailable && readiness === null);
+  const clear = !readinessUnavailable && !readinessPending && readiness !== null && items.length === 0;
+  const title = items.length
+    ? `${items.length} operational exception${items.length === 1 ? "" : "s"}`
+    : readinessUnavailable
+      ? "Readiness unavailable"
+      : readinessPending
+        ? "Evaluating readiness"
+        : "No active blocker";
 
   return (
     <AdminCard strong>
       <AdminCardHeader
         eyebrow="Immediate attention"
-        title={items.length ? `${items.length} operational exception${items.length === 1 ? "" : "s"}` : "No active blocker"}
+        title={title}
         description="Exception-first view of active incidents and canonical readiness blockers for the selected edition. Resolve work in its owning workspace; this summary does not create a second mutation path."
         action={
           items.some((item) => item.severity === "critical") ? (
             <AdminStatus tone="blocked">Critical</AdminStatus>
           ) : items.length ? (
             <AdminStatus tone="attention">Attention</AdminStatus>
-          ) : readinessLoading ? (
+          ) : readinessUnavailable ? (
+            <AdminStatus tone="attention">Unavailable</AdminStatus>
+          ) : readinessPending ? (
             <AdminStatus tone="info">Evaluating</AdminStatus>
-          ) : (
+          ) : clear ? (
             <AdminStatus tone="ready">Clear</AdminStatus>
+          ) : (
+            <AdminStatus tone="neutral">Unknown</AdminStatus>
           )
         }
       />
 
-      {readinessError ? (
+      {readinessUnavailable ? (
         <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200/20 bg-amber-200/[0.06] p-3 text-xs text-amber-50">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           <p>Readiness evidence is unavailable, so this panel cannot claim the edition is clear. Incident state remains visible below.</p>
@@ -73,14 +87,14 @@ export function ControlRoomImmediateAttention({
             <p className="py-3 text-xs text-muted-foreground">{items.length - 8} more exception{items.length - 8 === 1 ? "" : "s"} remain in the owning workspaces.</p>
           ) : null}
         </div>
-      ) : readinessLoading ? (
+      ) : readinessPending ? (
         <p className="mt-3 text-sm text-muted-foreground">Evaluating edition readiness and active operational exceptions…</p>
-      ) : readinessError ? null : (
+      ) : readinessUnavailable ? null : clear ? (
         <div className="mt-3 flex items-center gap-2 text-sm text-emerald-100">
           <CheckCircle2 className="size-4" />
           No active incident or critical/action readiness exception is currently known.
         </div>
-      )}
+      ) : null}
     </AdminCard>
   );
 }
