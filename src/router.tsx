@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { createRouter } from "@tanstack/react-router";
 import { AppRouteSkeleton, AppRouteStateFrame } from "@/components/app/AppRouteStateFrame";
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { solarisQueryPolicy } from "@/lib/app-query-policy";
 import { routeTree } from "./routeTree.gen";
 
@@ -18,8 +19,14 @@ function RoutePending() {
   useEffect(() => {
     setPathname(window.location.pathname);
   }, []);
-  const alreadyInsideParticipationChrome =
-    pathname.startsWith("/confirmations") || pathname.startsWith("/televoting");
+
+  // Critical-task ownership belongs to the canonical screen registry. Pending
+  // transitions must not maintain a smaller hand-written route list or they can
+  // briefly re-introduce global AppShell chrome while Entry/Jury/etc. are meant
+  // to own focused task chrome.
+  const criticalTask = pathname
+    ? resolveSolarisAppScreen(pathname).behavior.criticalTask
+    : false;
 
   // Nested Organizer loading belongs inside AdminFrame's existing landmark.
   // A second main during child-route transitions breaks keyboard/screen readers.
@@ -27,7 +34,7 @@ function RoutePending() {
     return <section aria-busy="true" aria-label="Loading Organizer page"><AppRouteSkeleton /></section>;
   }
 
-  if (isAppMode && alreadyInsideParticipationChrome) {
+  if (isAppMode && criticalTask) {
     return (
       <section className="solaris-app-route-pending" aria-busy="true" aria-label="Loading">
         <AppRouteSkeleton />

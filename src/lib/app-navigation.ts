@@ -67,6 +67,7 @@ function safePath(pathname: string) {
   return (
     pathname.startsWith("/") &&
     !pathname.startsWith("//") &&
+    !pathname.includes("\\") &&
     !pathname.startsWith("/admin") &&
     !pathname.startsWith("/confirmations/admin") &&
     !pathname.startsWith("/televoting/admin")
@@ -127,6 +128,8 @@ export function readAppNavigationState(
     const raw = storage.getItem(APP_NAVIGATION_STORAGE_KEY);
     if (!raw) return emptyState();
     const parsed = JSON.parse(raw) as Partial<AppNavigationState>;
+    if (parsed.version !== 1) return emptyState();
+
     const activeTab: AppTabId =
       parsed.activeTab === "home" ||
       parsed.activeTab === "explore" ||
@@ -252,9 +255,10 @@ export function getAppTabDestination(
 }
 
 function coldLaunchDestinationAllowed(entry: AppHistoryEntry) {
+  const screen = resolveSolarisAppScreen(entry.pathname, entry.searchStr);
   if (
     /^\/(app-launch|auth|reset|recover)(\/|$)/.test(entry.pathname) ||
-    /^\/(confirmations|jury-voting|televoting|next-in-line)(\/|$)/.test(entry.pathname) ||
+    screen.behavior.criticalTask ||
     /^\/broadcast(\/|$)/.test(entry.pathname) ||
     /^\/show-mode(\/|$)/.test(entry.pathname)
   ) {
@@ -411,13 +415,22 @@ export function consumeAppNavigationRestore(
   try {
     const raw = storage.getItem(RESTORE_INTENT_KEY);
     if (!raw) return null;
+
+    // Restore intent is single-use. Consume it before parsing/matching so stale,
+    // malformed or redirected intents cannot survive and ambush a later route.
+    storage.removeItem(RESTORE_INTENT_KEY);
+
     const parsed = JSON.parse(raw) as { href?: string; scrollY?: number };
     if (parsed.href !== `${pathname}${normalizeSearch(searchStr)}`) return null;
-    storage.removeItem(RESTORE_INTENT_KEY);
     return typeof parsed.scrollY === "number" && Number.isFinite(parsed.scrollY)
       ? Math.max(0, parsed.scrollY)
       : 0;
   } catch {
+    try {
+      storage.removeItem(RESTORE_INTENT_KEY);
+    } catch {
+      // Scroll restoration is best effort even when storage itself is unavailable.
+    }
     return null;
   }
 }
