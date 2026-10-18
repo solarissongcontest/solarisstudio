@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   describeAppPushDelivery,
+  UNKNOWN_APP_PUSH_DELIVERY,
   type AppPushState,
 } from "./app-notifications";
 
@@ -27,6 +28,21 @@ describe("V3 push delivery reconciliation", () => {
     expect(delivery.mode).toBe("registration-missing");
     expect(delivery.title).toBe("Push needs repair");
     expect(delivery.requiredWorkAvailable).toBe(true);
+  });
+
+  it("keeps an unreadable delivery-health projection explicitly unknown", () => {
+    expect(UNKNOWN_APP_PUSH_DELIVERY).toEqual({
+      mode: "unknown",
+      title: "Push status unavailable",
+      description:
+        "Solaris could not verify this device's push delivery registration. Required tasks and notices remain available inside Solaris.",
+      requiredWorkAvailable: true,
+    });
+
+    const route = readFileSync("src/routes/_authenticated/notifications.tsx", "utf8");
+    expect(route).toContain("push.isError || !push.data");
+    expect(route).toContain("? UNKNOWN_APP_PUSH_DELIVERY");
+    expect(route).not.toContain("push.data ?? EMPTY_PUSH");
   });
 
   it("requires browser and server registration agreement in the authenticated V3 read", () => {
