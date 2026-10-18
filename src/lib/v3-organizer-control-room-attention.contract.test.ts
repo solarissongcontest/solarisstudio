@@ -11,6 +11,13 @@ describe("V3 Organizer Control Room exception-first boundary", () => {
     expect(route).not.toContain("useAllShows");
   });
 
+  it("does not turn an unresolved shows query into a no-shows readiness blocker", () => {
+    expect(route).toContain("const showsQuery = useShows(editionId || undefined)");
+    expect(route).toContain("selectedEdition && readinessDataQuery.data && showsQuery.data");
+    expect(route).toContain("readinessLoading={readinessDataQuery.isLoading || showsQuery.isLoading}");
+    expect(route).toContain("readinessError={readinessDataQuery.error ?? showsQuery.error}");
+  });
+
   it("surfaces immediate attention before lifecycle command controls", () => {
     const attentionIndex = route.indexOf("<ControlRoomImmediateAttention");
     const commandIndex = route.indexOf('eyebrow="Edition command"');
@@ -26,8 +33,10 @@ describe("V3 Organizer Control Room exception-first boundary", () => {
     expect(panel).not.toContain("studio2ControlRoom.transitionIncident");
   });
 
-  it("fails visibly when readiness evidence is unavailable", () => {
+  it("fails visibly when readiness evidence is unavailable and never renders a false all-clear", () => {
     expect(panel).toContain("Readiness evidence is unavailable");
     expect(panel).toContain("cannot claim the edition is clear");
+    expect(panel).toContain("const clear = !readinessUnavailable && !readinessPending && readiness !== null && items.length === 0");
+    expect(panel).toContain('<AdminStatus tone="attention">Unavailable</AdminStatus>');
   });
 });
