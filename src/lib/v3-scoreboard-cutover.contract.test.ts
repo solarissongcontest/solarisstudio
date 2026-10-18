@@ -14,7 +14,8 @@ const previousMigration = () =>
   read("supabase/migrations/20261012014000_v3_confirmation_rollout_flag.sql");
 const probe = () => read("src/integrations/v3/rollout-probe.server.ts");
 const stage = () => read("src/components/ScoreboardStage.tsx");
-const presentation = () => read("src/components/v3/V3ScoreboardPresentation.tsx");
+const presentation = () =>
+  read("src/components/v3/V3ScoreboardPresentation.tsx");
 
 function constrainedFlagKeys(source: string) {
   const constraint = source.match(
@@ -66,7 +67,9 @@ describe("V3 Scoreboard cutover", () => {
     expect(source).toContain("useV3RolloutProbe");
     expect(source).toContain("isPublicShowRoute");
     expect(source).toContain("/^\\/shows\\/[^/]+\\/?$/");
-    expect(source).toContain("platformResolved && isAppMode && isPublicShowRoute");
+    expect(source).toContain(
+      "platformResolved && isAppMode && isPublicShowRoute",
+    );
     expect(source).toContain("rollout.data?.scoreboardEnabled === true");
     expect(source).toContain("<V3ScoreboardPresentation");
   });
@@ -84,7 +87,9 @@ describe("V3 Scoreboard cutover", () => {
     const source = presentation();
 
     expect(source).toContain('import type { Standing } from "@/lib/analysis"');
-    expect(source).toContain('import type { Country, Participant } from "@/lib/data"');
+    expect(source).toContain(
+      'import type { Country, Participant } from "@/lib/data"',
+    );
     expect(source).toContain("standings: readonly Standing[]");
     expect(source).not.toContain("useResults(");
     expect(source).not.toContain("useAllResults(");
@@ -98,14 +103,18 @@ describe("V3 Scoreboard cutover", () => {
 
     expect(source).toContain('data-v3-scoreboard-empty=""');
     expect(source).toContain("No published ranking yet");
-    expect(source).toContain("canonical scoreboard does not currently contain any published entries");
+    expect(source).toContain(
+      "canonical scoreboard does not currently contain any published entries",
+    );
     expect(source).toContain("rows.length === 0");
   });
 
   it("fails unresolved country identity closed instead of exposing internal ids", () => {
     const source = presentation();
 
-    expect(source).toContain('const UNAVAILABLE_COUNTRY_LABEL = "Country unavailable"');
+    expect(source).toContain(
+      'const UNAVAILABLE_COUNTRY_LABEL = "Country unavailable"',
+    );
     expect(source).toContain("Identity unavailable");
     expect(source).toContain("country?.name || UNAVAILABLE_COUNTRY_LABEL");
     expect(source).not.toContain("country?.name ?? standing.countryId");
