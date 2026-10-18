@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Activity, AlertTriangle, Network, RefreshCw, ShieldCheck, Users } from "lucide-react";
 import { toast } from "sonner";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import {
   AdminCard,
   AdminCardHeader,
@@ -13,50 +14,97 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { getResultIntegrity, recomputeResultIntegrity } from "@/integrations/televoting/result-integrity.functions";
-import { getMergedTelevotingRounds } from "@/integrations/televoting/rounds.functions";
+import { getMergedTelevotingRoundsPage } from "@/integrations/televoting/rounds.functions";
 
 export const Route = createFileRoute("/televoting/admin/result-integrity")({
-  component: ResultIntegrityPage,
+  component: ResultIntegrityRoute,
 });
 
-function ResultIntegrityPage() {
+function ResultIntegrityRoute() {
+  const { editionId } = useAdminContext();
+
+  if (!editionId) {
+    return (
+      <div className="admin-page mx-auto max-w-6xl pb-8">
+        <AdminPageHeader
+          eyebrow="Voting integrity"
+          title="Result integrity"
+          description="Result-integrity analysis is edition-scoped Organizer work."
+        />
+        <AdminCard>
+          <AdminEmptyState
+            icon={ShieldCheck}
+            title="Choose an edition"
+            description="Select the exact edition in the Organizer toolbar before loading or recomputing result-integrity evidence."
+            action={<Link to="/televoting/admin" className="admin-action-secondary">Back to Voting</Link>}
+          />
+        </AdminCard>
+      </div>
+    );
+  }
+
+  return <ResultIntegrityPage key={editionId} editionId={editionId} />;
+}
+
+function ResultIntegrityPage({ editionId }: { editionId: string }) {
   const queryClient = useQueryClient();
-  const getRounds = useServerFn(getMergedTelevotingRounds);
+  const getRoundsPage = useServerFn(getMergedTelevotingRoundsPage);
   const getIntegrity = useServerFn(getResultIntegrity);
   const recompute = useServerFn(recomputeResultIntegrity);
   const [roundId, setRoundId] = useState("");
 
-  const { data: editions = [], isLoading: loadingRounds } = useQuery({
-    queryKey: ["merged-televoting-rounds"],
-    queryFn: () => getRounds(),
+  const { data: page, isLoading: loadingRounds, error: roundsError } = useQuery({
+    queryKey: ["v3-organizer-result-integrity-rounds", editionId],
+    queryFn: () => getRoundsPage({ data: { editionId } }),
+    staleTime: 10_000,
   });
   const rounds = useMemo(
-    () => editions.flatMap((edition) => edition.rounds.map((round) => ({ ...round, editionName: edition.name }))),
-    [editions],
+    () => (page?.edition?.rounds ?? []).map((round) => ({
+      ...round,
+      editionName: page?.edition?.name ?? "Selected edition",
+    })),
+    [page],
   );
   const effectiveRoundId = roundId || rounds.find((round) => round.status === "closed")?.id || rounds[0]?.id || "";
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["televoting-result-integrity", effectiveRoundId],
-    queryFn: () => getIntegrity({ data: { roundId: effectiveRoundId } }),
-    enabled: Boolean(effectiveRoundId),
+    queryKey: ["televoting-result-integrity", editionId, effectiveRoundId],
+    queryFn: async () => {
+      if (!rounds.some((round) => round.id === effectiveRoundId)) {
+        throw new Error("Result Integrity round is outside the selected edition scope");
+      }
+      const result = await getIntegrity({ data: { roundId: effectiveRoundId } });
+      if (result.round.id !== effectiveRoundId) {
+        throw new Error("Result Integrity returned evidence for a different voting round");
+      }
+      return result;
+    },
+    enabled: Boolean(effectiveRoundId && rounds.some((round) => round.id === effectiveRoundId)),
   });
 
   const recomputeMutation = useMutation({
-    mutationFn: () => recompute({ data: { roundId: effectiveRoundId } }),
+    mutationFn: async () => {
+      if (!effectiveRoundId || !rounds.some((round) => round.id === effectiveRoundId)) {
+        throw Object.assign(
+          new Error("Result Integrity round is outside the selected Organizer edition. Refresh before retrying."),
+          { status: 409 },
+        );
+      }
+      return recompute({ data: { roundId: effectiveRoundId } });
+    },
     onSuccess: async (result) => {
       toast.success(`Integrity analysis refreshed · ${result.clustersAnalysed} current cluster${result.clustersAnalysed === 1 ? "" : "s"} analysed`);
-      await queryClient.invalidateQueries({ queryKey: ["televoting-result-integrity", effectiveRoundId] });
+      await queryClient.invalidateQueries({ queryKey: ["televoting-result-integrity", editionId, effectiveRoundId] });
     },
     onError: (caught) => toast.error(caught instanceof Error ? caught.message : "Integrity analysis failed"),
   });
 
   return (
-    <div className="admin-page mx-auto max-w-6xl pb-8">
+    <div className="admin-page mx-auto max-w-6xl pb-8" data-v3-organizer-result-integrity-edition={editionId}>
       <AdminPageHeader
         eyebrow="Voting integrity"
         title="Result integrity"
-        description="Separate suspicious-looking behaviour from evidence quality and actual result influence. Counterfactuals are review evidence only and never delete ballots automatically."
+        description="Separate suspicious-looking behaviour from evidence quality and actual result influence inside the exact selected edition. Counterfactuals are review evidence only and never delete ballots automatically."
         actions={
           <div className="flex flex-wrap gap-2">
             <Link to="/admin/friend-voting" className="admin-action-secondary"><Network className="size-4" /> Friend-voting intelligence</Link>
@@ -75,8 +123,14 @@ function ResultIntegrityPage() {
 
       {loadingRounds ? (
         <AdminCard className="py-10 text-center text-sm text-muted-foreground">Loading rounds…</AdminCard>
+      ) : roundsError ? (
+        <AdminCard className="border-rose-200/15 bg-rose-200/[0.045] text-sm text-rose-100">
+          {roundsError instanceof Error ? roundsError.message : "Voting rounds could not be resolved for this edition."}
+        </AdminCard>
+      ) : page && !page.linked ? (
+        <AdminCard><AdminEmptyState icon={ShieldCheck} title="Voting edition is not linked" description="Link this Solaris edition to Televoting before result-integrity analysis can run." /></AdminCard>
       ) : !rounds.length ? (
-        <AdminCard><AdminEmptyState icon={ShieldCheck} title="No televote rounds" description="Create a televoting round before result-integrity analysis can run." /></AdminCard>
+        <AdminCard><AdminEmptyState icon={ShieldCheck} title="No televote rounds" description="Create a televoting round in this edition before result-integrity analysis can run." /></AdminCard>
       ) : (
         <div className="space-y-4">
           <AdminCard className="!p-3">
