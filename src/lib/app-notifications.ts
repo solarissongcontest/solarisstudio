@@ -16,13 +16,22 @@ export type AppPushDeliveryMode =
   | "registration-missing"
   | "permission-denied"
   | "unsupported"
-  | "unconfigured";
+  | "unconfigured"
+  | "unknown";
 
 export type AppPushDeliveryStatus = {
   mode: AppPushDeliveryMode;
   title: string;
   description: string;
   requiredWorkAvailable: true;
+};
+
+export const UNKNOWN_APP_PUSH_DELIVERY: AppPushDeliveryStatus = {
+  mode: "unknown",
+  title: "Push status unavailable",
+  description:
+    "Solaris could not verify this device's push delivery registration. Required tasks and notices remain available inside Solaris.",
+  requiredWorkAvailable: true,
 };
 
 /**
