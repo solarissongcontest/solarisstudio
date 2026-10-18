@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { EyeOff } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { FlagChip } from "@/components/FlagChip";
@@ -40,10 +41,14 @@ export function V3RecordsScreen({
   records,
   archivedFinalEditions,
   generatedAt,
+  spoilerProtected = false,
+  onRevealCurrentEdition,
 }: {
   records: readonly FanRecord[];
   archivedFinalEditions: number;
   generatedAt: string;
+  spoilerProtected?: boolean;
+  onRevealCurrentEdition?: () => void;
 }) {
   const [tab, setTab] = useState<RecordTab>("career");
   const filtered = useMemo(
@@ -59,6 +64,32 @@ export function V3RecordsScreen({
         description="The extreme, impressive and occasionally unfortunate corners of published SSC history, with ties kept intact."
         editorial
       />
+
+      {spoilerProtected ? (
+        <V3Surface level="raised" className="p-5" data-v3-records-spoilers="protected">
+          <div className="flex items-start gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.055]">
+              <EyeOff className="size-5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="v3-kicker">Spoiler-free mode</p>
+              <h2 className="mt-1 text-lg font-bold">Current-edition records are hidden</h2>
+              <p className="mt-2 max-w-2xl text-xs leading-5 text-white/48">
+                Career totals, streaks and record holders below are calculated without the current public edition so a fresh result cannot leak indirectly through archive statistics.
+              </p>
+              {onRevealCurrentEdition ? (
+                <button
+                  type="button"
+                  onClick={onRevealCurrentEdition}
+                  className="mt-4 min-h-11 rounded-xl bg-[var(--v3-accent)] px-4 text-sm font-semibold text-[var(--v3-bg-base)]"
+                >
+                  Reveal current-edition records
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </V3Surface>
+      ) : null}
 
       <V3Surface level="raised" className="p-5">
         <p className="v3-kicker">Archive coverage</p>
