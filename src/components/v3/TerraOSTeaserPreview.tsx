@@ -1,10 +1,14 @@
+import type { Country } from "@/lib/data";
 import type { SolarisTask } from "@/lib/participation-os";
 import { installTerraOsTeaserHostChoreography } from "@/lib/terraos-teaser-host-choreography";
+import { installTerraOsTeaserRealHostPreviews } from "@/lib/terraos-teaser-real-previews";
 import {
   projectV3Bootstrap,
   type V3BootstrapSource,
 } from "@/lib/v3-bootstrap";
 import type { V3ExploreRootProjection } from "@/lib/v3-explore";
+import { buildV3MeProjection } from "@/lib/v3-me";
+import type { V3ResultProjectionInput } from "@/lib/v3-results";
 import { useEffect, useRef } from "react";
 import { V3BottomNavigation } from "./V3AppShell";
 import { V3ExploreScreen } from "./V3ExploreScreen";
@@ -13,9 +17,11 @@ import {
   V3TopContext,
 } from "./V3Foundation";
 import { V3HomeScreen } from "./V3HomeScreen";
+import { V3MeScreen } from "./V3MeScreen";
 import { V3ParticipateScreen } from "./V3ParticipateScreen";
+import { V3ResultsScreen } from "./V3ResultsScreen";
 
-export type TerraOSTeaserScreen = "home" | "explore" | "participate";
+export type TerraOSTeaserScreen = "home" | "explore" | "participate" | "results" | "me";
 
 const PREVIEW_NOW = "2026-10-18T11:00:00.000Z";
 const PREVIEW_FOCUSABLE_SELECTOR =
@@ -128,6 +134,131 @@ const EXPLORE_PROJECTION: V3ExploreRootProjection = {
   more: [],
 };
 
+function teaserCountry(
+  id: string,
+  name: string,
+  shortCode: string,
+  accentColor: string,
+): Country {
+  return {
+    id,
+    name,
+    native_name: null,
+    short_code: shortCode,
+    flag_image: null,
+    region: "Solaris",
+    accent_color: accentColor,
+    description: null,
+    first_participation: null,
+  };
+}
+
+const RESULT_COUNTRIES = new Map<string, Country>([
+  ["oland", teaserCountry("oland", "Oland", "OLA", "#d5b45a")],
+  ["vendia", teaserCountry("vendia", "Vendia", "VEN", "#70b7e8")],
+  ["hanvor", teaserCountry("hanvor", "Hanvør", "HAN", "#d97a8d")],
+  ["averia", teaserCountry("averia", "Averia", "AVE", "#78c59b")],
+]);
+
+const RESULTS_INPUT: V3ResultProjectionInput = {
+  editionId: "22",
+  editionName: "SSC 22",
+  showId: "ssc-22-final",
+  showName: "Final",
+  publication: "published",
+  disclosure: "revealed",
+  juryPublished: true,
+  televotePublished: true,
+  userDelegationCountryId: "oland",
+  rows: [
+    {
+      countryId: "oland",
+      countryName: "Oland",
+      flagUrl: null,
+      rank: 1,
+      points: 312,
+      juryPoints: 156,
+      televotePoints: 156,
+    },
+    {
+      countryId: "vendia",
+      countryName: "Vendia",
+      flagUrl: null,
+      rank: 2,
+      points: 284,
+      juryPoints: 148,
+      televotePoints: 136,
+    },
+    {
+      countryId: "hanvor",
+      countryName: "Hanvør",
+      flagUrl: null,
+      rank: 3,
+      points: 271,
+      juryPoints: 135,
+      televotePoints: 136,
+    },
+    {
+      countryId: "averia",
+      countryName: "Averia",
+      flagUrl: null,
+      rank: 4,
+      points: 258,
+      juryPoints: 121,
+      televotePoints: 137,
+    },
+  ],
+  resultTools: [
+    { key: "show", label: "Full official result", href: "/shows/ssc-22-final" },
+  ],
+  advancedTools: [
+    { key: "scorecharts", label: "Scorecharts", href: "/scorecharts" },
+  ],
+};
+
+const ME_PROJECTION = buildV3MeProjection({
+  identity: {
+    userId: "terraos-teaser",
+    displayName: "Solaris",
+    delegationName: "Oland",
+    delegationFlagUrl: null,
+    displayRole: "Head of Delegation",
+  },
+  currentMembership: {
+    editionId: "22",
+    editionName: "Solaris Song Contest 22",
+    roleLabel: "Oland · Head of Delegation",
+    href: "/editions/ssc-22",
+  },
+  history: [
+    {
+      editionId: "21",
+      editionName: "Solaris Song Contest 21",
+      roleLabel: "Oland · Delegation",
+      href: "/editions/ssc-21",
+      completed: true,
+    },
+  ],
+  activity: {
+    verifiedReceiptCount: 4,
+    awaitingAuthoritativeReceiptCount: 0,
+    href: "/my-solaris/activity",
+  },
+  following: {
+    followedCountryCount: 3,
+    followedContentCount: 7,
+    href: "/my-solaris/following",
+  },
+  preferenceLinks: [
+    { key: "preferences", label: "Preferences", href: "/my-solaris/settings" },
+  ],
+  accountLinks: [
+    { key: "account", label: "Account", href: "/my-solaris/account" },
+  ],
+  canEnterOrganizer: false,
+  organizerHref: "/admin",
+});
+
 /**
  * Public, fixture-only renderer used by the maintenance teaser.
  *
@@ -138,7 +269,13 @@ const EXPLORE_PROJECTION: V3ExploreRootProjection = {
  * iframe is therefore an accurate visual preview without becoming a
  * maintenance bypass.
  */
-export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }) {
+export function TerraOSTeaserPreview({
+  screen,
+  showNavigation = true,
+}: {
+  screen: TerraOSTeaserScreen;
+  showNavigation?: boolean;
+}) {
   const previewRootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -166,18 +303,22 @@ export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }
   }, [screen]);
 
   useEffect(() => {
-    // The eager Home preview is also the safe same-origin bridge to the outer
-    // maintenance teaser. It only adds presentation choreography around the
-    // already-rendered fixture previews; it does not fetch product data or
-    // alter the maintenance access boundary.
-    if (screen !== "home") return;
+    // Only a full-chrome Home preview may bridge into the outer maintenance
+    // document. Content-only Home previews live inside the Five Places scene
+    // and must not recursively install host choreography.
+    if (screen !== "home" || !showNavigation) return;
     const frame = window.frameElement as HTMLElement | null;
     if (!frame) return;
 
     const hostDocument = frame.ownerDocument;
     const hostWindow = hostDocument.defaultView;
+    const cleanupRealPreviews = installTerraOsTeaserRealHostPreviews(frame);
     const cleanupChoreography = installTerraOsTeaserHostChoreography(frame);
-    if (!hostWindow) return cleanupChoreography;
+    const cleanupHost = () => {
+      cleanupChoreography();
+      cleanupRealPreviews();
+    };
+    if (!hostWindow) return cleanupHost;
 
     // The injected host stylesheet intentionally owns the material, while the
     // iframe bridge owns scroll progress. Mirror the progress onto the local
@@ -207,9 +348,9 @@ export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }
       if (localNavFrame) hostWindow.cancelAnimationFrame(localNavFrame);
       hostWindow.removeEventListener("scroll", requestLocalNavigationSync);
       hostWindow.removeEventListener("resize", requestLocalNavigationSync);
-      cleanupChoreography();
+      cleanupHost();
     };
-  }, [screen]);
+  }, [screen, showNavigation]);
 
   useEffect(() => {
     // The preview is a same-origin iframe hosted by the maintenance teaser.
@@ -243,6 +384,7 @@ export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }
       ref={previewRootRef}
       className="relative h-dvh min-h-dvh overflow-hidden bg-[var(--v3-bg-base)]"
       data-terraos-teaser-preview={screen}
+      data-terraos-teaser-chrome={showNavigation ? "full" : "content"}
       onClickCapture={(event) => event.preventDefault()}
       onKeyDownCapture={(event) => {
         if (event.key === "Enter" || event.key === " ") event.preventDefault();
@@ -286,7 +428,17 @@ export function TerraOSTeaserPreview({ screen }: { screen: TerraOSTeaserScreen }
             <V3ExploreScreen projection={EXPLORE_PROJECTION} onOpenSearch={() => undefined} />
           ) : null}
 
-          <V3BottomNavigation activeArea={screen} />
+          {screen === "results" ? (
+            <V3ResultsScreen
+              input={RESULTS_INPUT}
+              countries={RESULT_COUNTRIES}
+              hideSpoilers={false}
+            />
+          ) : null}
+
+          {screen === "me" ? <V3MeScreen projection={ME_PROJECTION} /> : null}
+
+          {showNavigation ? <V3BottomNavigation activeArea={screen} /> : null}
         </V3FoundationShell>
       </div>
     </div>

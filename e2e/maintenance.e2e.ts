@@ -50,7 +50,7 @@ test("Solaris Studio serves the TerraOS 3 maintenance teaser across the app", as
   }
 });
 
-test("TerraOS teaser preview route renders the production V3 screen components during maintenance", async ({ page }) => {
+test("TerraOS teaser preview route renders all five production V3 destinations without live data", async ({ page }) => {
   const supabaseRequests: string[] = [];
   page.on("request", (request) => {
     if (SUPABASE_API_PATH.test(new URL(request.url()).pathname)) {
@@ -98,10 +98,61 @@ test("TerraOS teaser preview route renders the production V3 screen components d
   await expect(tabbar).toBeVisible();
   await expect(tabbar.locator('[aria-current="page"]')).toContainText("Participate");
 
+  const results = await page.goto("/terraos-teaser-preview?screen=results", {
+    waitUntil: "domcontentloaded",
+  });
+  expect(results?.status()).toBe(200);
+  await expect(page.locator('[data-terraos-teaser-preview="results"]')).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Official results", exact: true })).toBeVisible();
+  await expect(page.getByText("Oland", { exact: true }).first()).toBeVisible();
+  tabbar = page.locator(".v3-bottom-nav");
+  await expect(tabbar).toBeVisible();
+  await expect(tabbar.locator('[aria-current="page"]')).toContainText("Results");
+
+  const me = await page.goto("/terraos-teaser-preview?screen=me", {
+    waitUntil: "domcontentloaded",
+  });
+  expect(me?.status()).toBe(200);
+  await expect(page.locator('[data-terraos-teaser-preview="me"]')).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Solaris", exact: true })).toBeVisible();
+  await expect(page.getByText("Oland · Head of Delegation", { exact: true }).first()).toBeVisible();
+  tabbar = page.locator(".v3-bottom-nav");
+  await expect(tabbar).toBeVisible();
+  await expect(tabbar.locator('[aria-current="page"]')).toContainText("Me");
+
+  const contentOnly = await page.goto("/terraos-teaser-preview?screen=home&chrome=content", {
+    waitUntil: "domcontentloaded",
+  });
+  expect(contentOnly?.status()).toBe(200);
+  await expect(page.locator('[data-terraos-teaser-chrome="content"]')).toBeVisible();
+  await expect(page.locator(".v3-bottom-nav")).toHaveCount(0);
+
   expect(
     supabaseRequests,
     "fixture-only preview must not make auth, Data API, Edge Function, Storage, Realtime, or GraphQL requests",
   ).toEqual([]);
+});
+
+test("Five Places upgrades its static fallback panes to the real V3 screen previews", async ({ page }) => {
+  const response = await page.goto("/", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(503);
+
+  const story = page.locator(".story-touch");
+  await expect(story).toBeVisible();
+  await story.scrollIntoViewIfNeeded();
+
+  const previews = story.locator("iframe.terraos-v3-nav-preview");
+  await expect(previews).toHaveCount(5);
+
+  for (const screen of ["home", "explore", "participate", "results", "me"] as const) {
+    await expect(
+      story.locator(
+        `iframe.terraos-v3-nav-preview[src="/terraos-teaser-preview?screen=${screen}&chrome=content"]`,
+      ),
+    ).toHaveCount(1);
+  }
+
+  await expect(previews.first()).toHaveCSS("pointer-events", "none");
 });
 
 test("TerraOS first-look device keeps a complete phone aspect on short desktop viewports", async ({ page }) => {

@@ -12,6 +12,10 @@ const previewSource = () =>
   readFileSync(resolve(process.cwd(), "src/components/v3/TerraOSTeaserPreview.tsx"), "utf8");
 const choreographySource = () =>
   readFileSync(resolve(process.cwd(), "src/lib/terraos-teaser-host-choreography.ts"), "utf8");
+const realPreviewSource = () =>
+  readFileSync(resolve(process.cwd(), "src/lib/terraos-teaser-real-previews.ts"), "utf8");
+const previewRouteSource = () =>
+  readFileSync(resolve(process.cwd(), "src/routes/terraos-teaser-preview.tsx"), "utf8");
 
 describe("TerraOS release-page choreography", () => {
   it("keeps progress bounded and reversible", () => {
@@ -36,7 +40,7 @@ describe("TerraOS release-page choreography", () => {
     const choreography = choreographySource();
 
     expect(preview).toContain("installTerraOsTeaserHostChoreography");
-    expect(preview).toContain('screen !== "home"');
+    expect(preview).toContain('screen !== "home" || !showNavigation');
     expect(choreography).toContain('[data-solaris-maintenance="true"]');
     expect(choreography).toContain("No product data is fetched");
     expect(choreography).not.toContain("supabase");
@@ -60,5 +64,32 @@ describe("TerraOS release-page choreography", () => {
     expect(choreography).toContain("updateNavigationStory");
     expect(choreography).toContain("updateParticipationStory");
     expect(choreography).toContain("updateResultsStory");
+  });
+
+  it("uses the real production V3 components for all five teaser destinations", () => {
+    const preview = previewSource();
+    const route = previewRouteSource();
+    const enhancer = realPreviewSource();
+
+    for (const component of [
+      "V3HomeScreen",
+      "V3ExploreScreen",
+      "V3ParticipateScreen",
+      "V3ResultsScreen",
+      "V3MeScreen",
+    ]) {
+      expect(preview).toContain(component);
+    }
+
+    for (const screen of ["home", "explore", "participate", "results", "me"]) {
+      expect(route).toContain(`"${screen}"`);
+    }
+
+    expect(preview).toContain("installTerraOsTeaserRealHostPreviews");
+    expect(enhancer).toContain("TERRAOS_REAL_PREVIEW_SCREENS");
+    expect(enhancer).toContain("&chrome=content");
+    expect(enhancer).toContain("pointer-events: none");
+    expect(enhancer).not.toContain("supabase");
+    expect(enhancer).not.toContain("fetch(");
   });
 });
