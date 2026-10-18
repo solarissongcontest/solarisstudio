@@ -1,500 +1,400 @@
 import {
   V3_CAPACITY_BUDGET_BANDS,
   V3_CAPACITY_DIMENSIONS,
+  v3CapacityScenario,
   type V3CapacityBudgetBand,
   type V3CapacityDimension,
   type V3CapacityMeasurement,
-  v3CapacityScenario,
 } from "./v3-capacity-scenarios";
 
-export const V3_CAPACITY_EXTERNAL_EVIDENCE_SOURCES = [
-  "provider-constraint",
-  "production-telemetry",
-  "historical-peak",
-  "approved-forecast",
-  "runtime-observation",
+export const V3_CAPACITY_EVIDENCE_KINDS = [
+  "local_rehearsal",
+  "provider_constraint",
+  "provider_runtime_measurement",
+  "historical_observation",
+  "approved_forecast",
 ] as const;
 
-export type V3CapacityExternalEvidenceSource =
-  (typeof V3_CAPACITY_EXTERNAL_EVIDENCE_SOURCES)[number];
+export type V3CapacityEvidenceKind = (typeof V3_CAPACITY_EVIDENCE_KINDS)[number];
 
-export type V3CapacityEvidenceStatus =
-  | "invalid"
-  | "measurement_incomplete"
-  | "evidence_incomplete"
-  | "ready_for_qa_review";
-
-export type V3CapacityDimensionEvidence = {
-  dimension: V3CapacityDimension;
-  sourceType: V3CapacityExternalEvidenceSource;
+export type V3CapacityEvidenceRecord = {
+  id: string;
+  kind: V3CapacityEvidenceKind;
+  environment: string;
   observedAt: string;
-  reference: string;
-  notes: string;
-};
-
-export type V3CapacityBudgetEvidence = {
-  dimension: V3CapacityDimension;
-  band: V3CapacityBudgetBand;
-  limit: number;
-  unit: string;
-  evidenceRef: string;
+  recordedAgainstCommitSha: string;
   rationale: string;
+  sourceReference: string;
+  dimensions: readonly V3CapacityDimension[];
+  bands: readonly V3CapacityBudgetBand[];
 };
 
-export type V3CapacityEvidenceContext = {
-  expectedCommitSha: string;
-  dimensionEvidence: readonly V3CapacityDimensionEvidence[];
-  budgets: readonly V3CapacityBudgetEvidence[];
+export type V3CapacityBudgetPoint = {
+  value: number;
+  evidenceIds: readonly string[];
 };
 
-export type V3CapacityEvidenceAssessment = {
-  schemaVersion: 1;
-  status: V3CapacityEvidenceStatus;
-  scenarioId: string | null;
-  expectedCommitSha: string | null;
-  reportCommitSha: string | null;
-  missingMeasurements: readonly V3CapacityMeasurement[];
-  missingExternalEvidenceDimensions: readonly V3CapacityDimension[];
-  missingBudgetKeys: readonly string[];
-  errors: readonly string[];
-  certificationClaim: false;
-  qaReviewRequired: true;
-};
-
-type UnknownRecord = Record<string, unknown>;
-
-type ParsedBudget = {
+export type V3CapacityDimensionBudget = {
   dimension: V3CapacityDimension;
-  band: V3CapacityBudgetBand;
-  limit: number;
   unit: string;
+  bands: Partial<Record<V3CapacityBudgetBand, V3CapacityBudgetPoint>>;
 };
 
-type ParsedDimensionEvidence = {
-  validDimensions: Set<V3CapacityDimension>;
-  referencesByDimension: Map<V3CapacityDimension, Set<string>>;
+export type V3CapacityBudgetPlan = {
+  schemaVersion: 1;
+  id: string;
+  scenarioId: string;
+  recordedAt: string;
+  commitSha: string;
+  rationale: string;
+  dimensions: readonly V3CapacityDimensionBudget[];
+  evidence: readonly V3CapacityEvidenceRecord[];
 };
 
-const LOAD_SHAPE_SOURCES = new Set([
-  "production-telemetry",
-  "contest-participation-or-audience",
-  "provider-constraint",
-  "historical-peak",
-  "approved-forecast",
-  "explicit-rehearsal-plan",
-  "exploratory",
+export type V3CapacityEvidenceEvaluation = {
+  schemaVersion: 1;
+  scenarioId: string;
+  status: "invalid" | "evidence_incomplete" | "exploratory" | "comparison_ready";
+  validationErrors: readonly string[];
+  gaps: readonly string[];
+  releaseEvidenceGaps: readonly string[];
+  report: {
+    commitSha: string | null;
+    loadShapeSource: string | null;
+    loadShapeEvidenceBacked: boolean;
+    missingMeasurements: readonly V3CapacityMeasurement[];
+  };
+  budget: {
+    complete: boolean;
+    providerEvidenceComplete: boolean;
+  };
+  comparisonReady: boolean;
+  certificationClaim: false;
+};
+
+type JsonObject = Record<string, unknown>;
+
+const SHA_RE = /^[0-9a-f]{40}$/i;
+const dimensionSet = new Set<string>(V3_CAPACITY_DIMENSIONS);
+const bandSet = new Set<string>(V3_CAPACITY_BUDGET_BANDS);
+const evidenceKindSet = new Set<string>(V3_CAPACITY_EVIDENCE_KINDS);
+const providerKinds = new Set<V3CapacityEvidenceKind>([
+  "provider_constraint",
+  "provider_runtime_measurement",
 ]);
 
-const externalEvidenceSources = new Set<string>(V3_CAPACITY_EXTERNAL_EVIDENCE_SOURCES);
-const capacityDimensions = new Set<string>(V3_CAPACITY_DIMENSIONS);
-const budgetBands = new Set<string>(V3_CAPACITY_BUDGET_BANDS);
-
-function asRecord(value: unknown): UnknownRecord | null {
+function asObject(value: unknown): JsonObject | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as UnknownRecord)
+    ? value as JsonObject
     : null;
 }
 
-function finiteNumber(value: unknown): number | null {
+function asFiniteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function positiveInteger(value: unknown): number | null {
-  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+function asNonNegativeNumber(value: unknown): number | null {
+  const number = asFiniteNumber(value);
+  return number !== null && number >= 0 ? number : null;
 }
 
-function nonNegativeInteger(value: unknown): number | null {
-  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
+function asPositiveInteger(value: unknown): number | null {
+  return Number.isInteger(value) && typeof value === "number" && value > 0 ? value : null;
 }
 
-function nonEmptyString(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const normalized = value.trim();
-  return normalized ? normalized : null;
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
-function exactSha(value: unknown): string | null {
-  const normalized = nonEmptyString(value);
-  return normalized && /^[0-9a-f]{40}$/i.test(normalized) ? normalized.toLowerCase() : null;
-}
-
-function validIsoTimestamp(value: unknown): boolean {
-  const normalized = nonEmptyString(value);
-  if (!normalized) return false;
-  return Number.isFinite(Date.parse(normalized));
-}
-
-function readRecord(parent: UnknownRecord | null, key: string): UnknownRecord | null {
-  return parent ? asRecord(parent[key]) : null;
-}
-
-function measurementPresent(report: UnknownRecord, measurement: V3CapacityMeasurement): boolean {
-  const latency = readRecord(report, "latencyMs");
-  const outcomes = readRecord(report, "outcomes");
-  const egress = readRecord(report, "egress");
-  const clientMemory = readRecord(report, "clientMemory");
-  const peakMemory = readRecord(clientMemory, "peakObserved");
-  const database = readRecord(report, "databaseActivity");
+function hasMeasurement(report: JsonObject, measurement: V3CapacityMeasurement) {
+  const latency = asObject(report.latencyMs);
+  const outcomes = asObject(report.outcomes);
+  const egress = asObject(report.egress);
+  const memory = asObject(report.clientMemory);
+  const database = asObject(report.databaseActivity);
 
   switch (measurement) {
-    case "throughput": {
-      const value = finiteNumber(report.requestThroughputPerSecond);
-      return value !== null && value > 0;
-    }
-    case "p95-latency": {
-      const value = finiteNumber(latency?.p95);
-      return value !== null && value >= 0;
-    }
-    case "p99-latency": {
-      const value = finiteNumber(latency?.p99);
-      return value !== null && value >= 0;
-    }
-    case "error-rate": {
-      const value = finiteNumber(outcomes?.errorRate);
-      return value !== null && value >= 0 && value <= 1;
-    }
+    case "throughput":
+      return asNonNegativeNumber(report.requestThroughputPerSecond) !== null;
+    case "p95-latency":
+      return asNonNegativeNumber(latency?.p95) !== null;
+    case "p99-latency":
+      return asNonNegativeNumber(latency?.p99) !== null;
+    case "error-rate":
+      return asNonNegativeNumber(outcomes?.errorRate) !== null;
     case "database-activity":
       return database !== null;
     case "lock-contention":
-      return readRecord(database, "lockContention") !== null;
+      return asObject(database?.lockContention) !== null;
     case "connection-pressure":
-      return readRecord(database, "connectionPressure") !== null;
-    case "observed-response-bytes": {
-      const value = finiteNumber(egress?.observedResponseBytes);
-      return value !== null && value >= 0;
-    }
-    case "client-memory": {
-      const rss = finiteNumber(peakMemory?.rssBytes);
-      return rss !== null && rss > 0;
-    }
-    case "queue-depth": {
-      const value = finiteNumber(database?.peakObservedQueueDepth);
-      return value !== null && value >= 0;
-    }
-    case "retry-pressure": {
-      const retry = readRecord(database, "retryPressure");
-      const attempts = finiteNumber(retry?.totalAttemptsDelta);
-      return retry !== null && attempts !== null;
-    }
+      return asObject(database?.connectionPressure) !== null;
+    case "observed-response-bytes":
+      return asNonNegativeNumber(egress?.observedResponseBytes) !== null;
+    case "client-memory":
+      return asObject(memory?.peakObserved) !== null;
+    case "queue-depth":
+      return asNonNegativeNumber(database?.peakObservedQueueDepth) !== null;
+    case "retry-pressure":
+      return asObject(database?.retryPressure) !== null;
   }
 }
 
-function validateLoopbackTarget(value: unknown) {
-  const raw = nonEmptyString(value);
-  if (!raw) return false;
-  try {
-    const url = new URL(raw);
-    return ["127.0.0.1", "localhost", "::1", "[::1]"].includes(url.hostname);
-  } catch {
-    return false;
-  }
-}
-
-function parseDimensionEvidence(
-  raw: unknown,
-  scenarioDimensions: readonly V3CapacityDimension[],
-  errors: string[],
-): ParsedDimensionEvidence {
-  const validDimensions = new Set<V3CapacityDimension>();
-  const referencesByDimension = new Map<V3CapacityDimension, Set<string>>();
-  if (!Array.isArray(raw)) {
-    errors.push("dimensionEvidence must be an array");
-    return { validDimensions, referencesByDimension };
-  }
-
-  const scenarioSet = new Set<string>(scenarioDimensions);
-  for (const [index, item] of raw.entries()) {
-    const record = asRecord(item);
-    if (!record) {
-      errors.push(`dimensionEvidence[${index}] must be an object`);
-      continue;
-    }
-    const dimension = nonEmptyString(record.dimension);
-    const sourceType = nonEmptyString(record.sourceType);
-    const reference = nonEmptyString(record.reference);
-    const notes = nonEmptyString(record.notes);
-    let entryValid = true;
-
-    if (!dimension || !capacityDimensions.has(dimension)) {
-      errors.push(`dimensionEvidence[${index}] has an unknown dimension`);
-      entryValid = false;
-    } else if (!scenarioSet.has(dimension)) {
-      errors.push(`dimensionEvidence[${index}] covers ${dimension} outside this scenario`);
-      entryValid = false;
-    }
-    if (!sourceType || !externalEvidenceSources.has(sourceType)) {
-      errors.push(`dimensionEvidence[${index}] has an unsupported sourceType`);
-      entryValid = false;
-    }
-    if (!validIsoTimestamp(record.observedAt)) {
-      errors.push(`dimensionEvidence[${index}] observedAt must be an ISO timestamp`);
-      entryValid = false;
-    }
-    if (!reference) {
-      errors.push(`dimensionEvidence[${index}] reference is required`);
-      entryValid = false;
-    }
-    if (!notes) {
-      errors.push(`dimensionEvidence[${index}] notes are required`);
-      entryValid = false;
-    }
-
-    if (entryValid && dimension && reference) {
-      const typedDimension = dimension as V3CapacityDimension;
-      validDimensions.add(typedDimension);
-      const references = referencesByDimension.get(typedDimension) ?? new Set<string>();
-      references.add(reference);
-      referencesByDimension.set(typedDimension, references);
-    }
-  }
-  return { validDimensions, referencesByDimension };
-}
-
-function parseBudgets(
-  raw: unknown,
-  scenarioDimensions: readonly V3CapacityDimension[],
-  evidenceReferences: ReadonlyMap<V3CapacityDimension, Set<string>>,
-  errors: string[],
-) {
-  const parsed = new Map<string, ParsedBudget>();
-  if (!Array.isArray(raw)) {
-    errors.push("budgets must be an array");
-    return parsed;
-  }
-
-  const scenarioSet = new Set<string>(scenarioDimensions);
-  for (const [index, item] of raw.entries()) {
-    const record = asRecord(item);
-    if (!record) {
-      errors.push(`budgets[${index}] must be an object`);
-      continue;
-    }
-    const dimension = nonEmptyString(record.dimension);
-    const band = nonEmptyString(record.band);
-    const limit = finiteNumber(record.limit);
-    const unit = nonEmptyString(record.unit);
-    const evidenceRef = nonEmptyString(record.evidenceRef);
-    const rationale = nonEmptyString(record.rationale);
-    let entryValid = true;
-
-    if (!dimension || !capacityDimensions.has(dimension) || !scenarioSet.has(dimension)) {
-      errors.push(`budgets[${index}] has an invalid scenario dimension`);
-      entryValid = false;
-    }
-    if (!band || !budgetBands.has(band)) {
-      errors.push(`budgets[${index}] has an invalid budget band`);
-      entryValid = false;
-    }
-    if (limit === null || limit <= 0) {
-      errors.push(`budgets[${index}] limit must be a positive finite number`);
-      entryValid = false;
-    }
-    if (!unit) {
-      errors.push(`budgets[${index}] unit is required`);
-      entryValid = false;
-    }
-    if (!evidenceRef) {
-      errors.push(`budgets[${index}] evidenceRef is required`);
-      entryValid = false;
-    }
-    if (!rationale) {
-      errors.push(`budgets[${index}] rationale is required`);
-      entryValid = false;
-    }
-    if (
-      dimension &&
-      capacityDimensions.has(dimension) &&
-      evidenceRef &&
-      !evidenceReferences.get(dimension as V3CapacityDimension)?.has(evidenceRef)
-    ) {
-      errors.push(`budgets[${index}] evidenceRef does not reference evidence for ${dimension}`);
-      entryValid = false;
-    }
-
-    if (!entryValid || !dimension || !band || limit === null || !unit) continue;
-    const key = `${dimension}:${band}`;
-    if (parsed.has(key)) {
-      errors.push(`duplicate capacity budget ${key}`);
-      continue;
-    }
-    parsed.set(key, {
-      dimension: dimension as V3CapacityDimension,
-      band: band as V3CapacityBudgetBand,
-      limit,
-      unit,
-    });
-  }
-  return parsed;
-}
-
-export function assessV3CapacityEvidence(
-  reportValue: unknown,
-  contextValue: unknown,
-): V3CapacityEvidenceAssessment {
+function validateHarnessReport(report: JsonObject, scenarioId: string) {
   const errors: string[] = [];
-  const report = asRecord(reportValue);
-  const context = asRecord(contextValue);
+  const schemaVersion = report.schemaVersion;
+  if (schemaVersion !== 3) errors.push("capacity report schemaVersion must be 3");
+  if (report.scenarioId !== scenarioId) errors.push("capacity report scenarioId does not match budget plan");
 
-  if (!report) errors.push("capacity report must be an object");
-  if (!context) errors.push("capacity evidence context must be an object");
-
-  const scenarioId = nonEmptyString(report?.scenarioId);
-  const scenario = scenarioId ? v3CapacityScenario(scenarioId) : null;
-  if (!scenarioId) errors.push("capacity report scenarioId is required");
-  if (scenarioId && !scenario) errors.push(`unknown capacity scenario ${scenarioId}`);
-
-  const expectedCommitSha = exactSha(context?.expectedCommitSha);
-  const reportIdentity = readRecord(report, "evidenceIdentity");
-  const reportCommitSha = exactSha(reportIdentity?.commitSha);
-  if (!expectedCommitSha) errors.push("expectedCommitSha must be an exact 40-character SHA");
-  if (!reportCommitSha) errors.push("capacity report commitSha must be an exact 40-character SHA");
-  if (expectedCommitSha && reportCommitSha && expectedCommitSha !== reportCommitSha) {
-    errors.push("capacity report commitSha does not match expectedCommitSha");
+  const identity = asObject(report.evidenceIdentity);
+  const commitSha = isNonEmptyString(identity?.commitSha) ? identity.commitSha : null;
+  if (!commitSha || !SHA_RE.test(commitSha)) {
+    errors.push("capacity report evidenceIdentity.commitSha must be an exact 40-character SHA");
+  }
+  const loadShapeSource = isNonEmptyString(identity?.loadShapeSource)
+    ? identity.loadShapeSource
+    : null;
+  if (!loadShapeSource) errors.push("capacity report loadShapeSource is required");
+  if (!isNonEmptyString(identity?.loadShapeRationale)) {
+    errors.push("capacity report loadShapeRationale is required");
   }
 
-  if (report && report.schemaVersion !== 3) {
-    errors.push("capacity report schemaVersion must be 3");
-  }
-  if (report && report.thresholds !== null) {
-    errors.push("capacity report must not embed pass/fail thresholds");
-  }
-  if (report && !validateLoopbackTarget(report.target)) {
-    errors.push("capacity report target must be loopback/local");
-  }
-
-  const loadSource = nonEmptyString(reportIdentity?.loadShapeSource);
-  if (!loadSource || !LOAD_SHAPE_SOURCES.has(loadSource)) {
-    errors.push("capacity report has an unsupported load-shape source");
-  }
-  if (!nonEmptyString(reportIdentity?.loadShapeRationale)) {
-    errors.push("capacity report load-shape rationale is required");
-  }
-
-  const requestedLoad = readRecord(report, "requestedLoad");
-  const requestCount = positiveInteger(requestedLoad?.requests);
-  const concurrency = positiveInteger(requestedLoad?.concurrency);
-  if (!requestCount) errors.push("capacity report requests must be a positive integer");
-  if (!concurrency) errors.push("capacity report concurrency must be a positive integer");
-  if (requestCount && concurrency && concurrency > requestCount) {
+  const requested = asObject(report.requestedLoad);
+  const requests = asPositiveInteger(requested?.requests);
+  const concurrency = asPositiveInteger(requested?.concurrency);
+  if (requests === null) errors.push("capacity report requestedLoad.requests must be a positive integer");
+  if (concurrency === null) errors.push("capacity report requestedLoad.concurrency must be a positive integer");
+  if (requests !== null && concurrency !== null && concurrency > requests) {
     errors.push("capacity report concurrency cannot exceed requests");
   }
 
-  const databaseActivity = readRecord(report, "databaseActivity");
-  if (databaseActivity && !positiveInteger(requestedLoad?.databaseSampleIntervalMs)) {
-    errors.push("capacity report databaseSampleIntervalMs must be positive when database activity is present");
-  }
+  const durationMs = asNonNegativeNumber(report.durationMs);
+  if (durationMs === null || durationMs === 0) errors.push("capacity report durationMs must be positive");
 
-  const duration = finiteNumber(report?.durationMs);
-  if (duration === null || duration <= 0) errors.push("capacity report durationMs must be positive");
-
-  const startedAt = nonEmptyString(report?.startedAt);
-  const endedAt = nonEmptyString(report?.endedAt);
-  if (!validIsoTimestamp(startedAt)) errors.push("capacity report startedAt must be an ISO timestamp");
-  if (!validIsoTimestamp(endedAt)) errors.push("capacity report endedAt must be an ISO timestamp");
-  if (
-    validIsoTimestamp(startedAt) &&
-    validIsoTimestamp(endedAt) &&
-    Date.parse(endedAt as string) < Date.parse(startedAt as string)
-  ) {
-    errors.push("capacity report endedAt cannot be before startedAt");
-  }
-
-  const latency = readRecord(report, "latencyMs");
-  const p50 = finiteNumber(latency?.p50);
-  const p95 = finiteNumber(latency?.p95);
-  const p99 = finiteNumber(latency?.p99);
-  const max = finiteNumber(latency?.max);
-  if ([p50, p95, p99, max].some((value) => value === null || (value as number) < 0)) {
-    errors.push("capacity report latency values must be non-negative finite numbers");
-  } else if (!(p50! <= p95! && p95! <= p99! && p99! <= max!)) {
-    errors.push("capacity report latency percentiles/max must be nondecreasing");
-  }
-
-  const outcomes = readRecord(report, "outcomes");
-  const successes = nonNegativeInteger(outcomes?.successes);
-  const httpErrors = nonNegativeInteger(outcomes?.httpErrors);
-  const transportErrors = nonNegativeInteger(outcomes?.transportErrors);
-  if (successes === null || httpErrors === null || transportErrors === null) {
-    errors.push("capacity report outcome counters must be non-negative integers");
-  } else if (requestCount && successes + httpErrors + transportErrors !== requestCount) {
-    errors.push("capacity report outcome totals do not equal requested requests");
-  }
-
-  const errorRate = finiteNumber(outcomes?.errorRate);
-  if (errorRate === null || errorRate < 0 || errorRate > 1) {
-    errors.push("capacity report errorRate must be between 0 and 1");
-  } else if (requestCount && httpErrors !== null && transportErrors !== null) {
-    const expectedErrorRate = (httpErrors + transportErrors) / requestCount;
-    if (Math.abs(errorRate - expectedErrorRate) > 1e-12) {
-      errors.push("capacity report errorRate does not match outcome counters");
-    }
-  }
-
-  const missingMeasurements = scenario && report
-    ? scenario.requiredMeasurements.filter((measurement) => !measurementPresent(report, measurement))
-    : [];
-
-  const scenarioDimensions = scenario?.capacityDimensions ?? [];
-  const parsedEvidence = parseDimensionEvidence(
-    context?.dimensionEvidence,
-    scenarioDimensions,
-    errors,
-  );
-  const missingExternalEvidenceDimensions = scenarioDimensions.filter(
-    (dimension) => !parsedEvidence.validDimensions.has(dimension),
-  );
-
-  const parsedBudgets = parseBudgets(
-    context?.budgets,
-    scenarioDimensions,
-    parsedEvidence.referencesByDimension,
-    errors,
-  );
-  const missingBudgetKeys: string[] = [];
-  for (const dimension of scenarioDimensions) {
-    const dimensionBudgets: ParsedBudget[] = [];
-    for (const band of V3_CAPACITY_BUDGET_BANDS) {
-      const key = `${dimension}:${band}`;
-      const budget = parsedBudgets.get(key);
-      if (!budget) missingBudgetKeys.push(key);
-      else dimensionBudgets.push(budget);
-    }
-    if (dimensionBudgets.length !== V3_CAPACITY_BUDGET_BANDS.length) continue;
-
-    const units = new Set(dimensionBudgets.map((budget) => budget.unit));
-    if (units.size !== 1) {
-      errors.push(`${dimension} capacity budget bands must use one unit`);
-      continue;
-    }
-    const limits = dimensionBudgets.map((budget) => budget.limit);
-    for (let index = 1; index < limits.length; index += 1) {
-      if (limits[index] < limits[index - 1]) {
-        errors.push(`${dimension} capacity budget limits must be nondecreasing by band`);
-        break;
+  const outcomes = asObject(report.outcomes);
+  const successes = asNonNegativeNumber(outcomes?.successes);
+  const httpErrors = asNonNegativeNumber(outcomes?.httpErrors);
+  const transportErrors = asNonNegativeNumber(outcomes?.transportErrors);
+  const errorRate = asNonNegativeNumber(outcomes?.errorRate);
+  if (requests !== null && successes !== null && httpErrors !== null && transportErrors !== null) {
+    const total = successes + httpErrors + transportErrors;
+    if (total !== requests) errors.push("capacity report outcome counts must equal requested requests");
+    if (errorRate !== null) {
+      const expected = (httpErrors + transportErrors) / requests;
+      if (Math.abs(errorRate - expected) > 1e-9) {
+        errors.push("capacity report errorRate does not match outcome counts");
       }
     }
   }
 
-  let status: V3CapacityEvidenceStatus;
-  if (errors.length > 0) status = "invalid";
-  else if (missingMeasurements.length > 0) status = "measurement_incomplete";
-  else if (missingExternalEvidenceDimensions.length > 0 || missingBudgetKeys.length > 0) {
-    status = "evidence_incomplete";
-  } else {
-    status = "ready_for_qa_review";
+  const latency = asObject(report.latencyMs);
+  const p95 = asNonNegativeNumber(latency?.p95);
+  const p99 = asNonNegativeNumber(latency?.p99);
+  if (p95 !== null && p99 !== null && p99 < p95) {
+    errors.push("capacity report p99 latency cannot be lower than p95 latency");
+  }
+
+  if (report.thresholds !== null) {
+    errors.push("capacity report thresholds must remain null; targets belong to evidence-backed policy");
+  }
+
+  return { errors, commitSha, loadShapeSource };
+}
+
+function validatePlan(plan: V3CapacityBudgetPlan) {
+  const errors: string[] = [];
+  const gaps: string[] = [];
+  const releaseEvidenceGaps: string[] = [];
+  const scenario = v3CapacityScenario(plan.scenarioId);
+
+  if (plan.schemaVersion !== 1) errors.push("capacity budget plan schemaVersion must be 1");
+  if (!isNonEmptyString(plan.id)) errors.push("capacity budget plan id is required");
+  if (!scenario) errors.push("capacity budget plan scenarioId is not canonical");
+  if (!isNonEmptyString(plan.rationale)) errors.push("capacity budget plan rationale is required");
+  if (!SHA_RE.test(plan.commitSha)) errors.push("capacity budget plan commitSha must be an exact 40-character SHA");
+  if (!Number.isFinite(Date.parse(plan.recordedAt))) {
+    errors.push("capacity budget plan recordedAt must be an ISO-compatible timestamp");
+  }
+
+  const evidenceById = new Map<string, V3CapacityEvidenceRecord>();
+  for (const evidence of plan.evidence) {
+    if (!isNonEmptyString(evidence.id)) {
+      errors.push("capacity evidence id is required");
+      continue;
+    }
+    if (evidenceById.has(evidence.id)) errors.push(`duplicate capacity evidence id ${evidence.id}`);
+    evidenceById.set(evidence.id, evidence);
+    if (!evidenceKindSet.has(evidence.kind)) errors.push(`${evidence.id} has unsupported evidence kind`);
+    if (!isNonEmptyString(evidence.environment)) errors.push(`${evidence.id} environment is required`);
+    if (!Number.isFinite(Date.parse(evidence.observedAt))) errors.push(`${evidence.id} observedAt is invalid`);
+    if (!SHA_RE.test(evidence.recordedAgainstCommitSha)) {
+      errors.push(`${evidence.id} recordedAgainstCommitSha must be an exact 40-character SHA`);
+    }
+    if (!isNonEmptyString(evidence.rationale)) errors.push(`${evidence.id} rationale is required`);
+    if (!isNonEmptyString(evidence.sourceReference)) errors.push(`${evidence.id} sourceReference is required`);
+    if (evidence.dimensions.length === 0) errors.push(`${evidence.id} must cover at least one capacity dimension`);
+    for (const dimension of evidence.dimensions) {
+      if (!dimensionSet.has(dimension)) errors.push(`${evidence.id} has unknown capacity dimension ${dimension}`);
+    }
+    if (evidence.bands.length === 0) errors.push(`${evidence.id} must cover at least one capacity budget band`);
+    for (const band of evidence.bands) {
+      if (!bandSet.has(band)) errors.push(`${evidence.id} has unknown capacity budget band ${band}`);
+    }
+  }
+
+  const budgetsByDimension = new Map<V3CapacityDimension, V3CapacityDimensionBudget>();
+  for (const budget of plan.dimensions) {
+    if (!dimensionSet.has(budget.dimension)) {
+      errors.push(`budget has unknown capacity dimension ${budget.dimension}`);
+      continue;
+    }
+    if (budgetsByDimension.has(budget.dimension)) {
+      errors.push(`duplicate capacity budget dimension ${budget.dimension}`);
+      continue;
+    }
+    budgetsByDimension.set(budget.dimension, budget);
+    if (!isNonEmptyString(budget.unit)) errors.push(`${budget.dimension} budget unit is required`);
+
+    let previous: number | null = null;
+    for (const band of V3_CAPACITY_BUDGET_BANDS) {
+      const point = budget.bands[band];
+      if (!point) {
+        gaps.push(`${budget.dimension} is missing ${band} budget`);
+        continue;
+      }
+      if (!Number.isFinite(point.value) || point.value < 0) {
+        errors.push(`${budget.dimension} ${band} budget value must be finite and non-negative`);
+      }
+      if (previous !== null && Number.isFinite(point.value) && point.value < previous) {
+        errors.push(`${budget.dimension} budget bands must be non-decreasing from normal to hard-safety-limit`);
+      }
+      if (Number.isFinite(point.value)) previous = point.value;
+      if (!Array.isArray(point.evidenceIds) || point.evidenceIds.length === 0) {
+        gaps.push(`${budget.dimension} ${band} budget has no evidence reference`);
+        continue;
+      }
+      for (const evidenceId of point.evidenceIds) {
+        const evidence = evidenceById.get(evidenceId);
+        if (!evidence) {
+          errors.push(`${budget.dimension} ${band} references unknown evidence ${evidenceId}`);
+          continue;
+        }
+        if (!evidence.dimensions.includes(budget.dimension) || !evidence.bands.includes(band)) {
+          errors.push(`${evidenceId} does not cover ${budget.dimension} ${band}`);
+        }
+      }
+    }
+  }
+
+  if (scenario) {
+    for (const dimension of scenario.capacityDimensions) {
+      if (!budgetsByDimension.has(dimension)) gaps.push(`scenario budget is missing ${dimension}`);
+      const providerCovered = plan.evidence.some((evidence) =>
+        providerKinds.has(evidence.kind)
+        && evidence.dimensions.includes(dimension)
+      );
+      if (!providerCovered) {
+        releaseEvidenceGaps.push(`${dimension} lacks provider constraint/runtime evidence`);
+      }
+    }
+    for (const dimension of budgetsByDimension.keys()) {
+      if (!scenario.capacityDimensions.includes(dimension)) {
+        errors.push(`budget dimension ${dimension} is outside scenario ${scenario.id}`);
+      }
+    }
   }
 
   return {
-    schemaVersion: 1,
-    status,
-    scenarioId: scenario?.id ?? scenarioId ?? null,
-    expectedCommitSha,
-    reportCommitSha,
-    missingMeasurements,
-    missingExternalEvidenceDimensions,
-    missingBudgetKeys,
     errors,
+    gaps: [...new Set(gaps)],
+    releaseEvidenceGaps: [...new Set(releaseEvidenceGaps)],
+    scenario,
+  };
+}
+
+export function evaluateV3CapacityEvidence(
+  plan: V3CapacityBudgetPlan,
+  rawReport: unknown,
+): V3CapacityEvidenceEvaluation {
+  const planValidation = validatePlan(plan);
+  const report = asObject(rawReport);
+  const validationErrors = [...planValidation.errors];
+  const gaps = [...planValidation.gaps];
+  const releaseEvidenceGaps = [...planValidation.releaseEvidenceGaps];
+
+  if (!report) {
+    validationErrors.push("capacity report must be a JSON object");
+    return {
+      schemaVersion: 1,
+      scenarioId: plan.scenarioId,
+      status: "invalid",
+      validationErrors,
+      gaps,
+      releaseEvidenceGaps,
+      report: {
+        commitSha: null,
+        loadShapeSource: null,
+        loadShapeEvidenceBacked: false,
+        missingMeasurements: [],
+      },
+      budget: {
+        complete: gaps.length === 0,
+        providerEvidenceComplete: releaseEvidenceGaps.length === 0,
+      },
+      comparisonReady: false,
+      certificationClaim: false,
+    };
+  }
+
+  const reportValidation = validateHarnessReport(report, plan.scenarioId);
+  validationErrors.push(...reportValidation.errors);
+  const missingMeasurements: V3CapacityMeasurement[] = [];
+  if (planValidation.scenario) {
+    for (const measurement of planValidation.scenario.requiredMeasurements) {
+      if (!hasMeasurement(report, measurement)) missingMeasurements.push(measurement);
+    }
+  }
+  for (const measurement of missingMeasurements) {
+    gaps.push(`capacity report is missing required measurement ${measurement}`);
+  }
+
+  const loadShapeEvidenceBacked = reportValidation.loadShapeSource !== null
+    && reportValidation.loadShapeSource !== "exploratory";
+  if (!loadShapeEvidenceBacked) {
+    releaseEvidenceGaps.push("load shape is exploratory rather than evidence-backed");
+  }
+
+  const dedupedGaps = [...new Set(gaps)];
+  const dedupedReleaseGaps = [...new Set(releaseEvidenceGaps)];
+  const budgetComplete = planValidation.gaps.length === 0;
+  const providerEvidenceComplete = planValidation.releaseEvidenceGaps.length === 0;
+  const comparisonReady = validationErrors.length === 0
+    && dedupedGaps.length === 0
+    && loadShapeEvidenceBacked;
+
+  let status: V3CapacityEvidenceEvaluation["status"];
+  if (validationErrors.length > 0) status = "invalid";
+  else if (dedupedGaps.length > 0) status = "evidence_incomplete";
+  else if (!loadShapeEvidenceBacked) status = "exploratory";
+  else status = "comparison_ready";
+
+  return {
+    schemaVersion: 1,
+    scenarioId: plan.scenarioId,
+    status,
+    validationErrors,
+    gaps: dedupedGaps,
+    releaseEvidenceGaps: dedupedReleaseGaps,
+    report: {
+      commitSha: reportValidation.commitSha,
+      loadShapeSource: reportValidation.loadShapeSource,
+      loadShapeEvidenceBacked,
+      missingMeasurements,
+    },
+    budget: {
+      complete: budgetComplete,
+      providerEvidenceComplete,
+    },
+    comparisonReady,
     certificationClaim: false,
-    qaReviewRequired: true,
   };
 }
