@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { AlertTriangle, CheckCircle2, RadioTower, ShieldAlert } from 'lucide-react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
+import { ControlRoomImmediateAttention } from '@/components/admin/ControlRoomImmediateAttention';
 import { AdminPage } from '@/components/admin/AdminShell';
 import {
   AdminCard,
@@ -14,7 +15,7 @@ import {
 } from '@/components/admin/AdminUI';
 import { buildEditionReadiness, type EditionReadiness } from '@/lib/admin-readiness';
 import { useAdminReadinessData } from '@/lib/admin-readiness-data';
-import { useAllShows, useEditions } from '@/lib/data';
+import { useEditions, useShows } from '@/lib/data';
 import { EDITION_STATES, getEditionTransition, type EditionState } from '@/lib/edition-state';
 import {
   INCIDENT_SEVERITIES,
@@ -39,7 +40,7 @@ function ControlRoomV2() {
   const { editionId } = useAdminContext();
   const queryClient = useQueryClient();
   const { data: editions = [] } = useEditions();
-  const { data: shows = [] } = useAllShows();
+  const showsQuery = useShows(editionId || undefined);
   const selectedEdition = useMemo(
     () => editions.find((edition) => edition.id === editionId) ?? null,
     [editionId, editions],
@@ -47,10 +48,10 @@ function ControlRoomV2() {
   const readinessDataQuery = useAdminReadinessData(editionId || undefined);
   const readiness = useMemo(
     () =>
-      selectedEdition && readinessDataQuery.data
+      selectedEdition && readinessDataQuery.data && showsQuery.data
         ? buildEditionReadiness({
             edition: selectedEdition,
-            shows,
+            shows: showsQuery.data,
             participants: readinessDataQuery.data.participants,
             voters: readinessDataQuery.data.voters,
             juryVotes: readinessDataQuery.data.juryVotes,
@@ -59,7 +60,7 @@ function ControlRoomV2() {
             results: readinessDataQuery.data.results,
           })
         : null,
-    [readinessDataQuery.data, selectedEdition, shows],
+    [readinessDataQuery.data, selectedEdition, showsQuery.data],
   );
   const [reason, setReason] = useState('');
   const [incidentTitle, setIncidentTitle] = useState('');
@@ -213,6 +214,13 @@ function ControlRoomV2() {
               </div>
             ) : null}
 
+            <ControlRoomImmediateAttention
+              readiness={readiness}
+              incidents={snapshot.incidents}
+              readinessLoading={readinessDataQuery.isLoading || showsQuery.isLoading}
+              readinessError={readinessDataQuery.error ?? showsQuery.error}
+            />
+
             <section className="grid gap-4 md:grid-cols-3">
               <AdminCard strong>
                 <AdminCardHeader eyebrow="Edition state" title={humanize(snapshot.runtime.runtime.edition)} />
@@ -328,7 +336,11 @@ function ControlRoomV2() {
                         const readinessUnavailable =
                           forward &&
                           EDITION_STATES.indexOf(transition.to) >= EDITION_STATES.indexOf('pre_show') &&
-                          (readinessDataQuery.isLoading || !readiness);
+                          (readinessDataQuery.isLoading ||
+                            showsQuery.isLoading ||
+                            Boolean(readinessDataQuery.error) ||
+                            Boolean(showsQuery.error) ||
+                            !readiness);
                         const blockedByReadiness = blockers.length > 0 || readinessUnavailable;
 
                         return (
@@ -352,7 +364,7 @@ function ControlRoomV2() {
                               </p>
                               {readinessUnavailable ? (
                                 <p className="mt-2 text-xs font-semibold text-amber-100">
-                                  Readiness is still loading. Solaris will not advance the edition until it can verify the required setup.
+                                  Readiness evidence is loading or unavailable. Solaris will not advance the edition until it can verify the required setup.
                                 </p>
                               ) : blockers.length ? (
                                 <div className="mt-2 rounded-lg border border-rose-200/15 bg-rose-200/[0.05] p-2.5">
@@ -582,7 +594,6 @@ function transitionReadinessBlockers(
       (issue.severity === 'critical' || issue.severity === 'action'),
   );
 }
-
 
 function riskTone(risk: 'normal' | 'elevated' | 'critical') {
   return risk === 'critical'
