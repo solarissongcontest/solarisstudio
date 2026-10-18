@@ -20,20 +20,17 @@ No state requires production traffic.
 
 ### Rehearsed
 
-- **Event consumer failure / unavailable dependency:** the existing S4 DomainEvent rehearsal injects `DEPENDENCY_FAILURE`, proves retry, dead-letter and explicit requeue recovery.
+- **Event consumer failure / unavailable dependency:** retained S4 evidence injects `DEPENDENCY_FAILURE`, proves retry, dead-letter and explicit requeue recovery.
 - **Duplicate delivery:** retained S4 evidence proves semantic replay and duplicate completion converge on one immutable consumer receipt.
 
 ### Rehearsal-ready
 
-- **Stale projection:** `.github/scripts/v3-s11-stale-projection-rehearsal.sh` creates an inactive Solaris scheduler job as canonical source truth, deletes only its derived Organizer Task, invokes the declared edition-bounded rebuild, and asserts semantic convergence.
-- **Reconciliation retry:** that same script deliberately makes the first projection write fail, asserts no partial task and unchanged scheduler truth, then retries the same canonical rebuild path and asserts single-row idempotent convergence.
+- **Stale projection:** `.github/scripts/v3-s11-stale-projection-rehearsal.sh` deletes only a derived Organizer Task while retaining its canonical inactive Solaris scheduler-job source, then invokes the declared edition-bounded rebuild and asserts semantic convergence.
+- **Reconciliation retry:** the same script deliberately makes the first projection write fail, proves no partial task and unchanged canonical scheduler truth, retries the same rebuild path and asserts single-row idempotent convergence.
+- **Lost response after commit:** `.github/scripts/v3-s11-lost-response-rehearsal.sh` sends a real governed Jury-window R2 mutation through a loopback proxy. The proxy fully consumes the upstream HTTP 200 response and then destroys the downstream socket without forwarding response bytes. The script verifies the operation receipt, Jury state/version and `jury.closed` DomainEvent committed exactly once before exact retry.
+- **Transient RPC failure:** the same response-drop path gives the caller a real transport failure around a real governed RPC, after which exact canonical retry must return the durable committed result without re-executing the mutation.
 
-These two remain `rehearsal_ready` until Chat 5 (or another release-evidence runner) executes the script against isolated local Supabase and retains exact-SHA run evidence.
-
-### Partial
-
-- **Lost response after commit:** S2 proves committed-operation replay semantics, but this branch does not yet include retained execution evidence for a real discarded post-commit workflow response.
-- **Transient RPC failure:** S2 proves `TIMEOUT` uncertainty and reconciliation primitives, but this branch does not yet include retained execution evidence for a real workflow transport failure.
+These four remain `rehearsal_ready` until isolated local runs are retained against the exact candidate SHA.
 
 ### Contract-only
 
@@ -41,15 +38,21 @@ These two remain `rehearsal_ready` until Chat 5 (or another release-evidence run
 
 ## Stale projection / retry rehearsal
 
-Run only against local Supabase:
-
 ```bash
 bash .github/scripts/v3-s11-stale-projection-rehearsal.sh
 ```
 
-The rehearsal hard-refuses hosted/non-loopback database targets. It wraps the fixture in a transaction and rolls it back, so the synthetic edition, cron job, corrupted projection and injected trigger never persist. It modifies only derived Organizer Task state; the inactive `cron.job` row remains authoritative throughout the failure and retry sequence.
+The script hard-refuses hosted/non-loopback database targets. It wraps the fixture in a transaction and rolls it back, so the synthetic edition, cron job, corrupted projection and injected failure trigger never persist. It modifies only derived Organizer Task state.
 
-A successful run is necessary before these scenarios may move from `rehearsal_ready` to `rehearsed`.
+## Lost response / transport-failure rehearsal
+
+```bash
+bash .github/scripts/v3-s11-lost-response-rehearsal.sh
+```
+
+The script creates an isolated draft edition/show and uses the real `studio2_apply_jury_voting_status` R2 RPC. `scripts/v3-drop-upstream-response-proxy.mjs` accepts one loopback request, forwards it only to loopback Supabase, fully consumes the upstream response and then destroys the downstream socket. It records no tokens or request headers.
+
+Before retry, the script verifies the durable succeeded receipt, `closed` Jury state, version `1` and exactly one `jury.closed` DomainEvent. It then retries the exact operation with the original `operation_id`, idempotency key and stale `expectedVersion=0`; the replay must return `previousVersion=0` / `version=1` while receipt/event counts and version stay unchanged. Any true second execution would hit mutable version 1 and/or advance it again.
 
 ## Generate exact-SHA evidence
 
@@ -62,12 +65,11 @@ npx tsx scripts/generate-v3-failure-injection-coverage.ts
 
 The generator is offline. It verifies that `V3_FAILURE_COVERAGE_SHA` exactly matches `git rev-parse HEAD`, creates requested output directories recursively, and makes no certification claim.
 
-`V3_FAILURE_COVERAGE_REQUIRE_ALL_REHEARSED=1` can be used in a deliberate release-evidence review. Chat 7 does not wire this into broad CI; Chat 5 owns release certification and broad workflow policy.
+`V3_FAILURE_COVERAGE_REQUIRE_ALL_REHEARSED=1` can be used only in a deliberate release-evidence review. Chat 7 does not wire broad CI; Chat 5 owns release certification and workflow policy.
 
-## Next reliability work
+## Remaining reliability work
 
-1. Execute and retain exact-SHA evidence for the stale-projection/retry rehearsal.
-2. Rehearse a real post-commit response loss / transport failure through a governed R2/R3 operation.
-3. Implement and execute a bounded reconciliation-backlog drain rehearsal with queue/retry and ordinary-workload measurements.
+1. Execute and retain exact-SHA evidence for the four `rehearsal_ready` scenarios.
+2. Implement and execute a bounded reconciliation-backlog drain rehearsal with queue/retry and ordinary-workload measurements.
 
 All rehearsals remain local/isolated. Production is not a chaos-testing playground, despite software's occasional attempts to become one on its own.
