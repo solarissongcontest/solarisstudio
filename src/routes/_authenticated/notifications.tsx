@@ -40,6 +40,8 @@ const EMPTY_PUSH: AppPushState = {
   configured: false,
   permission: "unsupported",
   subscribed: false,
+  browserSubscribed: false,
+  serverRegistered: false,
 };
 
 function NotificationsRoute() {
@@ -92,7 +94,7 @@ function V3NotificationsRouteContent({
   const preferences = useNotificationPreferences(userId);
   const push = useQuery({
     queryKey: ["solaris-app-push-state", userId],
-    queryFn: getAppPushState,
+    queryFn: () => getAppPushState(userId),
     staleTime: 30_000,
     refetchOnWindowFocus: true,
     retry: false,
