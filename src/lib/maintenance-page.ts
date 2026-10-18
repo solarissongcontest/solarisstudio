@@ -211,27 +211,28 @@ export function renderMaintenancePage(now: Date = new Date()): string {
     .maintenance-pill { display:inline-flex; align-items:center; gap:.44rem; min-height:34px; padding:.45rem .7rem; border:1px solid rgba(255,255,255,.1); border-radius:999px; background:rgba(14,14,16,.68); color:rgba(245,245,247,.7); font-size:.66rem; font-weight:700; -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px); }
     .maintenance-pill::before { content:""; width:.45rem; height:.45rem; border-radius:50%; background:#efc36f; }
 
-    .hero { position:relative; min-height:100svh; overflow:hidden; display:grid; align-content:start; justify-items:center; padding:max(7.2rem,calc(env(safe-area-inset-top) + 6rem)) 1rem 0; isolation:isolate; }
+    .hero { --hero-copy-y:0px; --hero-copy-scale:1; --hero-copy-opacity:1; --hero-stage-y:18px; --hero-stage-scale:.96; --hero-stage-opacity:.82; --hero-side-spread:0px; --hero-glow-opacity:.72; position:relative; min-height:100svh; overflow:hidden; display:grid; grid-template-columns:minmax(0,1fr); align-content:start; justify-items:center; padding:max(7.2rem,calc(env(safe-area-inset-top) + 6rem)) 1rem 0; isolation:isolate; }
     .hero::before { content:""; position:absolute; z-index:-2; inset:0; background:radial-gradient(circle at 50% 26%,rgba(74,167,210,.14),transparent 25rem),linear-gradient(180deg,#03070b,#000 61%); }
-    .hero::after { content:""; position:absolute; z-index:-1; top:48%; left:50%; width:min(900px,95vw); aspect-ratio:1.8; transform:translate(-50%,-50%); border-radius:50%; background:radial-gradient(ellipse,rgba(87,185,226,.09),transparent 70%); filter:blur(24px); }
-    .hero-copy { position:relative; z-index:2; width:min(100%,900px); text-align:center; }
-    .hero h1 { margin:0; font-family:"Classica Crastao",Georgia,serif; font-size:clamp(3.7rem,12.5vw,9rem); font-weight:400; line-height:.88; letter-spacing:-.03em; text-transform:none; white-space:nowrap; }
+    .hero::after { content:""; position:absolute; z-index:-1; top:48%; left:50%; width:min(900px,95vw); aspect-ratio:1.8; transform:translate(-50%,-50%); border-radius:50%; background:radial-gradient(ellipse,rgba(87,185,226,.09),transparent 70%); filter:blur(24px); opacity:var(--hero-glow-opacity); will-change:opacity; }
+    .hero-copy { position:relative; z-index:2; width:min(100%,900px); max-width:calc(100vw - 2rem); min-width:0; text-align:center; transform:translate3d(0,var(--hero-copy-y),0) scale(var(--hero-copy-scale)); transform-origin:50% 20%; opacity:var(--hero-copy-opacity); will-change:transform,opacity; }
+    .hero-copy-inner { min-width:0; }
+    .hero h1 { width:100%; margin:0; font-family:"Classica Crastao",Georgia,serif; font-size:clamp(3.7rem,12.5vw,9rem); font-weight:400; line-height:.88; letter-spacing:-.03em; text-align:center; text-transform:none; white-space:nowrap; }
     .tagline { margin:1rem auto 0; color:rgba(245,245,247,.91); font-size:clamp(1.12rem,2.8vw,1.9rem); font-weight:500; line-height:1.15; letter-spacing:-.035em; }
     .launch { margin:clamp(2rem,5vw,3rem) auto 0; display:grid; justify-items:center; gap:.68rem; }
     .launch-label { color:var(--soft); font-size:.68rem; font-weight:700; letter-spacing:.14em; text-transform:uppercase; }
     .launch-date { font-size:clamp(.95rem,2vw,1.15rem); font-weight:700; }
-    .countdown { display:flex; align-items:flex-start; justify-content:center; gap:clamp(.14rem,1vw,.7rem); width:min(100%,580px); margin-top:.18rem; font-variant-numeric:tabular-nums; }
+    .countdown { display:flex; align-items:flex-start; justify-content:center; gap:clamp(.14rem,1vw,.7rem); width:100%; max-width:580px; margin: .18rem auto 0; font-variant-numeric:tabular-nums; }
     .countdown-unit { min-width:0; flex:1 1 0; text-align:center; }
     .countdown-value { display:block; font-size:clamp(1.95rem,7.2vw,4.5rem); font-weight:500; line-height:.92; letter-spacing:-.055em; }
     .countdown-name { display:block; margin-top:.44rem; color:rgba(245,245,247,.4); font-size:clamp(.46rem,1.8vw,.6rem); font-weight:700; letter-spacing:.095em; text-transform:uppercase; }
     .colon { flex:0 0 auto; margin-top:clamp(.3rem,1.2vw,.72rem); color:rgba(245,245,247,.24); font-size:clamp(1.6rem,5.4vw,3.25rem); line-height:1; }
 
-    .hero-stage { position:relative; width:min(1100px,116vw); height:clamp(310px,43vw,520px); margin-top:clamp(1.8rem,4vw,3.2rem); perspective:1400px; pointer-events:none; }
+    .hero-stage { position:relative; justify-self:center; width:min(1100px,116vw); height:clamp(310px,43vw,520px); margin-top:clamp(1.8rem,4vw,3.2rem); perspective:1400px; pointer-events:none; transform:translate3d(0,var(--hero-stage-y),0) scale(var(--hero-stage-scale)); transform-origin:50% 18%; opacity:var(--hero-stage-opacity); will-change:transform,opacity; }
     .phone { position:absolute; left:50%; top:50%; width:clamp(190px,23vw,285px); aspect-ratio:.49; overflow:hidden; border:1px solid rgba(255,255,255,.17); border-radius:clamp(28px,4vw,43px); background:#070a10; box-shadow:0 45px 120px rgba(0,0,0,.64),inset 0 0 0 1px rgba(255,255,255,.03); }
     .phone::before { content:""; position:absolute; z-index:8; top:10px; left:50%; width:31%; height:18px; transform:translateX(-50%); border-radius:999px; background:#020203; }
     .phone.center { z-index:3; transform:translate(-50%,-46%); }
-    .phone.left { z-index:1; transform:translate(-145%,-36%) rotateY(18deg) rotateZ(-4deg) scale(.88); opacity:.72; }
-    .phone.right { z-index:2; transform:translate(45%,-36%) rotateY(-18deg) rotateZ(4deg) scale(.88); opacity:.72; }
+    .phone.left { z-index:1; transform:translate(calc(-145% - var(--hero-side-spread)),-36%) rotateY(18deg) rotateZ(-4deg) scale(.88); opacity:.72; }
+    .phone.right { z-index:2; transform:translate(calc(45% + var(--hero-side-spread)),-36%) rotateY(-18deg) rotateZ(4deg) scale(.88); opacity:.72; }
     .screen { position:absolute; inset:0; padding:2.75rem .82rem 3.7rem; background:radial-gradient(circle at 55% 3%,rgba(55,112,210,.19),transparent 33%),linear-gradient(180deg,#07101f,#02050a 78%); }
     .screen-context { display:flex; align-items:center; gap:.3rem; color:rgba(255,255,255,.54); font-size:.43rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; white-space:nowrap; }
     .screen-context::before { content:""; width:.32rem; height:.32rem; border-radius:50%; background:#62d4ff; box-shadow:0 0 .4rem rgba(98,212,255,.55); }
@@ -364,15 +365,20 @@ export function renderMaintenancePage(now: Date = new Date()): string {
     footer strong { display:block; margin-bottom:.14rem; color:rgba(245,245,247,.65); font-weight:500; }
     .scroll-in { opacity:1; transform:none; }
 
-    @media (min-width:901px) and (prefers-reduced-motion:no-preference) { .scroll-in:not(.seen) { opacity:0; transform:translateY(28px); } .scroll-in { transition:opacity .72s cubic-bezier(.2,.8,.2,1),transform .72s cubic-bezier(.2,.8,.2,1); } }
+    @media (prefers-reduced-motion:no-preference) {
+      .scroll-in:not(.seen) { opacity:0; transform:translateY(34px) scale(.992); }
+      .scroll-in { transition:opacity .78s cubic-bezier(.2,.8,.2,1),transform .88s cubic-bezier(.2,.8,.2,1); }
+      .scroll-in:not(.seen) .first-look,.scroll-in:not(.seen) .interactive-device,.scroll-in:not(.seen) .participation-device,.scroll-in:not(.seen) .results-reveal { transform:translateY(24px) scale(.985); opacity:.72; }
+      .first-look,.interactive-device,.participation-device,.results-reveal { transition:transform .9s cubic-bezier(.2,.8,.2,1),opacity .8s cubic-bezier(.2,.8,.2,1); }
+    }
     @media (max-width:900px) {
       .site-nav { width:min(calc(100% - 1.25rem),var(--wide)); }
       .maintenance-pill,.brand-sub { display:none; }
       .hero { min-height:900px; }
       .hero-stage { width:120vw; height:385px; }
       .phone { width:clamp(170px,43vw,230px); }
-      .phone.left { transform:translate(-140%,-35%) rotateY(17deg) rotateZ(-5deg) scale(.83); }
-      .phone.right { transform:translate(40%,-35%) rotateY(-17deg) rotateZ(5deg) scale(.83); }
+      .phone.left { transform:translate(calc(-140% - var(--hero-side-spread)),-35%) rotateY(17deg) rotateZ(-5deg) scale(.83); }
+      .phone.right { transform:translate(calc(40% + var(--hero-side-spread)),-35%) rotateY(-17deg) rotateZ(5deg) scale(.83); }
       .story-grid,.first-look { grid-template-columns:1fr; }
       .sticky-heading { position:static; }
       .first-look { min-height:0; }
@@ -387,13 +393,14 @@ export function renderMaintenancePage(now: Date = new Date()): string {
       .mark { width:34px; height:34px; }
       .brand-name { font-size:.76rem; }
       .hero { min-height:850px; padding-inline:.7rem; }
-      .hero h1 { font-size:clamp(3.3rem,17vw,5.7rem); max-width:100%; }
+      .hero-copy { max-width:calc(100vw - 1.4rem); }
+      .hero h1 { font-size:clamp(3rem,14.7vw,4rem); }
       .hero-stage { width:126vw; height:320px; margin-top:1.7rem; }
       .phone { width:178px; border-radius:30px; }
-      .phone.left { transform:translate(-135%,-32%) rotateY(15deg) rotateZ(-5deg) scale(.78); }
-      .phone.right { transform:translate(35%,-32%) rotateY(-15deg) rotateZ(5deg) scale(.78); }
+      .phone.left { transform:translate(calc(-135% - var(--hero-side-spread)),-32%) rotateY(15deg) rotateZ(-5deg) scale(.78); }
+      .phone.right { transform:translate(calc(35% + var(--hero-side-spread)),-32%) rotateY(-15deg) rotateZ(5deg) scale(.78); }
       .screen { padding-inline:.72rem; }
-      .countdown { gap:.08rem; }
+      .countdown { gap:.08rem; padding-inline:.05rem; }
       .colon { margin-inline:-.08rem; }
       .story { width:min(calc(100% - 1.25rem),var(--wide)); padding:4.8rem 0; }
       .story h2 { font-size:clamp(2.8rem,15vw,4.25rem); }
@@ -415,8 +422,8 @@ export function renderMaintenancePage(now: Date = new Date()): string {
     }
     @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) { .maintenance-pill,.mini-nav,.liquid-nav,.results-ui,.detail-pill { background:rgba(20,29,45,.98); } }
     @media (prefers-reduced-transparency:reduce) { .maintenance-pill,.mini-nav,.liquid-nav,.results-ui,.detail-pill { -webkit-backdrop-filter:none; backdrop-filter:none; background:rgba(20,29,45,.98); } }
-    @media (prefers-reduced-motion:no-preference) { .hero-copy { animation:hero-in .72s cubic-bezier(.2,.8,.2,1) both; } .phone.center { animation:center-in .85s .08s cubic-bezier(.2,.8,.2,1) both; } @keyframes hero-in { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } } @keyframes center-in { from { opacity:0; transform:translate(-50%,-39%) scale(.95); } to { opacity:1; transform:translate(-50%,-46%); } } }
-    @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } *,*::before,*::after { animation-duration:.001ms!important; animation-iteration-count:1!important; transition-duration:.001ms!important; scroll-behavior:auto!important; } .liquid-lens { transform:translateX(calc(var(--p)*100%))!important; } }
+    @media (prefers-reduced-motion:no-preference) { .hero-copy-inner { animation:hero-in .72s cubic-bezier(.2,.8,.2,1) both; } .phone.center { animation:center-in .85s .08s cubic-bezier(.2,.8,.2,1) both; } @keyframes hero-in { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } } @keyframes center-in { from { opacity:0; transform:translate(-50%,-39%) scale(.95); } to { opacity:1; transform:translate(-50%,-46%); } } }
+    @media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } *,*::before,*::after { animation-duration:.001ms!important; animation-iteration-count:1!important; transition-duration:.001ms!important; scroll-behavior:auto!important; } .hero { --hero-copy-y:0px!important; --hero-copy-scale:1!important; --hero-copy-opacity:1!important; --hero-stage-y:0px!important; --hero-stage-scale:1!important; --hero-stage-opacity:1!important; --hero-side-spread:0px!important; --hero-glow-opacity:1!important; } .liquid-lens { transform:translateX(calc(var(--p)*100%))!important; } }
   </style>
 </head>
 <body>
@@ -431,18 +438,20 @@ export function renderMaintenancePage(now: Date = new Date()): string {
     </header>
 
     <div class="hero-copy">
-      <h1 id="maintenance-title">TerraOS 3</h1>
-      <p class="tagline">Solaris Studio, rebuilt.</p>
-      <div class="launch">
-        <span class="launch-label">Estimated arrival</span>
-        <span class="launch-date">${returnDate}</span>
-        <div class="countdown" id="terraos-countdown" role="timer" aria-live="off" aria-label="Estimated arrival ${returnDate}">
-          <span class="countdown-unit"><span class="countdown-value" data-countdown="days">--</span><span class="countdown-name">Days</span></span><span class="colon" aria-hidden="true">:</span>
-          <span class="countdown-unit"><span class="countdown-value" data-countdown="hours">--</span><span class="countdown-name">Hours</span></span><span class="colon" aria-hidden="true">:</span>
-          <span class="countdown-unit"><span class="countdown-value" data-countdown="minutes">--</span><span class="countdown-name">Minutes</span></span><span class="colon" aria-hidden="true">:</span>
-          <span class="countdown-unit"><span class="countdown-value" data-countdown="seconds">--</span><span class="countdown-name">Seconds</span></span>
+      <div class="hero-copy-inner">
+        <h1 id="maintenance-title">TerraOS 3</h1>
+        <p class="tagline">Solaris Studio, rebuilt.</p>
+        <div class="launch">
+          <span class="launch-label">Estimated arrival</span>
+          <span class="launch-date">${returnDate}</span>
+          <div class="countdown" id="terraos-countdown" role="timer" aria-live="off" aria-label="Estimated arrival ${returnDate}">
+            <span class="countdown-unit"><span class="countdown-value" data-countdown="days">--</span><span class="countdown-name">Days</span></span><span class="colon" aria-hidden="true">:</span>
+            <span class="countdown-unit"><span class="countdown-value" data-countdown="hours">--</span><span class="countdown-name">Hours</span></span><span class="colon" aria-hidden="true">:</span>
+            <span class="countdown-unit"><span class="countdown-value" data-countdown="minutes">--</span><span class="countdown-name">Minutes</span></span><span class="colon" aria-hidden="true">:</span>
+            <span class="countdown-unit"><span class="countdown-value" data-countdown="seconds">--</span><span class="countdown-name">Seconds</span></span>
+          </div>
+          <span class="sr-only">Estimated arrival: ${returnDate}.</span>
         </div>
-        <span class="sr-only">Estimated arrival: ${returnDate}.</span>
       </div>
     </div>
 
@@ -493,6 +502,32 @@ export function renderMaintenancePage(now: Date = new Date()): string {
     if(left<=0&&interval!==null){clearInterval(interval);interval=null;}
   }
   tick();if(Number.isFinite(launch)&&launch>Date.now())interval=setInterval(tick,1000);
+
+  var hero=document.querySelector('.hero');
+  var reduceMotion=matchMedia('(prefers-reduced-motion: reduce)');
+  var heroFrame=0;
+  function clamp01(value){return Math.max(0,Math.min(1,value));}
+  function updateHeroMotion(){
+    heroFrame=0;
+    if(!hero||reduceMotion.matches)return;
+    var travel=Math.max(260,Math.min(hero.offsetHeight*.7,window.innerHeight*.78));
+    var p=clamp01(window.scrollY/travel);
+    var eased=1-Math.pow(1-p,3);
+    hero.style.setProperty('--hero-copy-y',(-34*eased).toFixed(2)+'px');
+    hero.style.setProperty('--hero-copy-scale',(1-.035*eased).toFixed(4));
+    hero.style.setProperty('--hero-copy-opacity',(1-.6*eased).toFixed(4));
+    hero.style.setProperty('--hero-stage-y',(18-62*eased).toFixed(2)+'px');
+    hero.style.setProperty('--hero-stage-scale',(.96+.08*eased).toFixed(4));
+    hero.style.setProperty('--hero-stage-opacity',(.82+.18*eased).toFixed(4));
+    hero.style.setProperty('--hero-side-spread',(18*eased).toFixed(2)+'px');
+    hero.style.setProperty('--hero-glow-opacity',(.72+.28*eased).toFixed(4));
+  }
+  function requestHeroMotion(){if(!heroFrame)heroFrame=requestAnimationFrame(updateHeroMotion);}
+  if(hero&&!reduceMotion.matches){
+    updateHeroMotion();
+    window.addEventListener('scroll',requestHeroMotion,{passive:true});
+    window.addEventListener('resize',requestHeroMotion,{passive:true});
+  }
 
   var demo=document.getElementById('liquid-demo');
   var device=document.getElementById('interactive-device');
@@ -545,7 +580,7 @@ export function renderMaintenancePage(now: Date = new Date()): string {
     demo.addEventListener('pointercancel',function(event){end(event,true);});
   }
 
-  if('IntersectionObserver'in window&&!matchMedia('(prefers-reduced-motion: reduce)').matches){var observer=new IntersectionObserver(function(entries){entries.forEach(function(entry){if(entry.isIntersecting){entry.target.classList.add('seen');observer.unobserve(entry.target);}});},{threshold:.12});document.querySelectorAll('.scroll-in').forEach(function(node){observer.observe(node);});}else{document.querySelectorAll('.scroll-in').forEach(function(node){node.classList.add('seen');});}
+  if('IntersectionObserver'in window&&!reduceMotion.matches){var observer=new IntersectionObserver(function(entries){entries.forEach(function(entry){if(entry.isIntersecting){entry.target.classList.add('seen');observer.unobserve(entry.target);}});},{threshold:.12});document.querySelectorAll('.scroll-in').forEach(function(node){observer.observe(node);});}else{document.querySelectorAll('.scroll-in').forEach(function(node){node.classList.add('seen');});}
 })();
 </script>
 </body>
