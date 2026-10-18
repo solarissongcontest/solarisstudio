@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { AlertTriangle, CheckCircle2, RadioTower, ShieldAlert } from 'lucide-react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
+import { ControlRoomImmediateAttention } from '@/components/admin/ControlRoomImmediateAttention';
 import { AdminPage } from '@/components/admin/AdminShell';
 import {
   AdminCard,
@@ -14,7 +15,7 @@ import {
 } from '@/components/admin/AdminUI';
 import { buildEditionReadiness, type EditionReadiness } from '@/lib/admin-readiness';
 import { useAdminReadinessData } from '@/lib/admin-readiness-data';
-import { useAllShows, useEditions } from '@/lib/data';
+import { useEditions, useShows } from '@/lib/data';
 import { EDITION_STATES, getEditionTransition, type EditionState } from '@/lib/edition-state';
 import {
   INCIDENT_SEVERITIES,
@@ -39,7 +40,7 @@ function ControlRoomV2() {
   const { editionId } = useAdminContext();
   const queryClient = useQueryClient();
   const { data: editions = [] } = useEditions();
-  const { data: shows = [] } = useAllShows();
+  const { data: shows = [] } = useShows(editionId || undefined);
   const selectedEdition = useMemo(
     () => editions.find((edition) => edition.id === editionId) ?? null,
     [editionId, editions],
@@ -212,6 +213,13 @@ function ControlRoomV2() {
                 </div>
               </div>
             ) : null}
+
+            <ControlRoomImmediateAttention
+              readiness={readiness}
+              incidents={snapshot.incidents}
+              readinessLoading={readinessDataQuery.isLoading}
+              readinessError={readinessDataQuery.error}
+            />
 
             <section className="grid gap-4 md:grid-cols-3">
               <AdminCard strong>
@@ -582,7 +590,6 @@ function transitionReadinessBlockers(
       (issue.severity === 'critical' || issue.severity === 'action'),
   );
 }
-
 
 function riskTone(risk: 'normal' | 'elevated' | 'critical') {
   return risk === 'critical'
