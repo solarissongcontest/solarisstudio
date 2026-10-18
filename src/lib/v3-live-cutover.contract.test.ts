@@ -53,4 +53,14 @@ describe("Public V3 Live route cutover", () => {
     expect(source).toContain("bundle.isError || !bundle.data");
     expect(source.match(/return <>{fallback}<\/>;/g)?.length).toBe(2);
   });
+
+  it("preserves the existing Show Mode wake-lock preference as progressive enhancement", () => {
+    const source = gate();
+    expect(source).toContain("preferences.keepScreenAwake");
+    expect(source).toContain('wakeLock.request("screen")');
+    expect(source).toContain('document.addEventListener("visibilitychange", onVisibility)');
+    expect(source).toContain('update({ keepScreenAwake: checked })');
+    expect(source).toContain('aria-label="Keep screen awake in Show Mode"');
+    expect(source).toContain("disabled={!wakeLockSupported}");
+  });
 });
