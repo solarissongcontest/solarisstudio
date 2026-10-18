@@ -1,0 +1,48 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const source = () =>
+  readFileSync(
+    resolve(process.cwd(), "src/components/v3/V3LiveScreen.tsx"),
+    "utf8",
+  );
+
+describe("Public V3 Live presentation", () => {
+  it("surfaces uncertainty instead of fabricating the current performer", () => {
+    const screen = source();
+
+    expect(screen).toContain('data-v3-live-truthful-uncertainty=""');
+    expect(screen).toContain("authoritative performer cursor");
+    expect(screen).toContain("will not guess who is on stage from elapsed time");
+    expect(screen).not.toContain("Date.now()");
+    expect(screen).not.toContain("setInterval(");
+  });
+
+  it("exposes public voting and results only from projection state", () => {
+    const screen = source();
+
+    expect(screen).toContain('experience.voting.state === "open"');
+    expect(screen).toContain('to="/televoting"');
+    expect(screen).toContain("experience.resultsPublished");
+    expect(screen).toContain("Open official result");
+  });
+
+  it("keeps running order publication separate from current-performance authority", () => {
+    const screen = source();
+
+    expect(screen).toContain("experience.runningOrder.map");
+    expect(screen).toContain("Running order not public");
+    expect(screen).toContain("experience.currentPerformance");
+    expect(screen).not.toContain("runningOrder[0]");
+  });
+
+  it("keeps refresh accessible and reduced-motion safe", () => {
+    const screen = source();
+
+    expect(screen).toContain('type="button"');
+    expect(screen).toContain("disabled={refreshing}");
+    expect(screen).toContain("motion-safe:animate-spin");
+    expect(screen).toContain('aria-live="polite"');
+  });
+});
