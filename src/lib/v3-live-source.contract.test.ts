@@ -19,6 +19,16 @@ describe("Public V3 Live source contract", () => {
     expect(source).not.toContain("useCountries");
   });
 
+  it("rejects terminal edition fallback instead of resurrecting archived Live", () => {
+    const source = read("src/integrations/v3/live-source.server.ts");
+
+    expect(source).toContain("activeLiveEdition(editions)");
+    expect(source).toContain("normalizeLegacyEditionStatus(edition.status)");
+    expect(source).toContain('lifecycle === "post_edition" || lifecycle === "archived" ? null : edition');
+    expect(source).toContain("if (!edition)");
+    expect(source).not.toContain("const edition = resolveCurrentPublicEdition(editions);");
+  });
+
   it("uses canonical show publication and linked voting state", () => {
     const source = read("src/integrations/v3/live-source.server.ts");
     const projection = read("src/lib/v3-live.ts");
