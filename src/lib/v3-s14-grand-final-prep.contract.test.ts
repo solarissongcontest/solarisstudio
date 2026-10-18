@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+const driver = readFileSync(".github/scripts/v3-full-contest-rehearsal.sh", "utf8");
 const finalLeg = readFileSync(".github/scripts/v3-s14-grand-final-leg.sh", "utf8");
 const browser = readFileSync("e2e/v3-s14-grand-final-runtime.e2e.ts", "utf8");
 const browserConfig = readFileSync("playwright.s14-grand-final.config.ts", "utf8");
@@ -55,10 +56,12 @@ describe("S14 canonical qualifier-to-final preparation", () => {
     expect(finalLeg).toContain("source_mode='show'");
   });
 
-  it("is prepared but does not falsely execute before upstream result truth exists", () => {
-    const driver = readFileSync(".github/scripts/v3-full-contest-rehearsal.sh", "utf8");
-    expect(driver).not.toContain('source "$SCRIPT_DIR/v3-s14-grand-final-leg.sh"');
-    expect(driver).not.toContain("prepare_s14_grand_final_from_qualifiers");
+  it("runs only after semifinal Results and Publication establish canonical qualifier truth", () => {
+    expect(driver).toContain('source "$SCRIPT_DIR/v3-s14-grand-final-leg.sh"');
+    expect(driver).toContain("prepare_s14_grand_final_from_qualifiers");
+    expect(driver.indexOf("run_s14_stage_9_publication")).toBeLessThan(
+      driver.indexOf("prepare_s14_grand_final_from_qualifiers"),
+    );
     expect(finalLeg).toContain("S14_GRAND_FINAL_PREPARED_FROM_CANONICAL_QUALIFIERS");
   });
 
