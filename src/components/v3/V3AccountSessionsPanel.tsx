@@ -1,12 +1,14 @@
 import { Clock3, KeyRound, Laptop, ShieldCheck, Smartphone, X } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 
+import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
 import {
   createV3SessionRevocationAttempt,
   isV3AccountFreshAuthRequired,
-  reauthenticateV3AccountSession,
+  revokeV3AccountSessionWithPassword,
   type V3AccountSession,
   type V3SessionRevocationAttempt,
+  type V3SessionRevocationResult,
   useRevokeV3AccountSession,
   useV3AccountSessions,
 } from "@/lib/v3-account-sessions";
@@ -78,8 +80,10 @@ function SessionRow({
 }
 
 export function V3AccountSessionsPanel() {
-  const sessionsQuery = useV3AccountSessions();
-  const revokeSession = useRevokeV3AccountSession();
+  const workspace = useMySolaris();
+  const viewerId = workspace.user?.id ?? null;
+  const sessionsQuery = useV3AccountSessions(viewerId);
+  const revokeSession = useRevokeV3AccountSession(viewerId);
   const [attempt, setAttempt] = useState<V3SessionRevocationAttempt | null>(null);
   const [password, setPassword] = useState("");
   const [needsFreshAuth, setNeedsFreshAuth] = useState(false);
@@ -92,6 +96,17 @@ export function V3AccountSessionsPanel() {
     [sessionsQuery.data?.sessions],
   );
 
+  const finishSuccessfulRevocation = (result: V3SessionRevocationResult) => {
+    setMessage(
+      result.alreadyRevoked || result.replayed
+        ? "That session was already revoked. Solaris reconciled the existing operation receipt."
+        : "Session revoked. It can no longer continue as an active Solaris session.",
+    );
+    setAttempt(null);
+    setNeedsFreshAuth(false);
+    setPassword("");
+  };
+
   const reconcileAttempt = async (pending: V3SessionRevocationAttempt) => {
     const refreshed = await sessionsQuery.refetch();
     const stillActive = refreshed.data?.sessions.some(
@@ -101,6 +116,7 @@ export function V3AccountSessionsPanel() {
       setMessage("That session is no longer active. Solaris reconciled the server state after the interrupted request.");
       setAttempt(null);
       setNeedsFreshAuth(false);
+      setPassword("");
       return true;
     }
     return false;
@@ -111,14 +127,7 @@ export function V3AccountSessionsPanel() {
     setMessage(null);
     try {
       const result = await revokeSession.mutateAsync(pending);
-      setMessage(
-        result.alreadyRevoked || result.replayed
-          ? "That session was already revoked. Solaris reconciled the existing operation receipt."
-          : "Session revoked. It can no longer continue as an active Solaris session.",
-      );
-      setAttempt(null);
-      setNeedsFreshAuth(false);
-      setPassword("");
+      finishSuccessfulRevocation(result);
     } catch (error) {
       if (isV3AccountFreshAuthRequired(error)) {
         setNeedsFreshAuth(true);
@@ -154,11 +163,20 @@ export function V3AccountSessionsPanel() {
     if (!attempt || !password || reauthenticating) return;
     setReauthenticating(true);
     setErrorMessage(null);
+    setMessage(null);
     try {
-      await reauthenticateV3AccountSession(password);
+      // Password verification uses an isolated, non-persistent Auth client and
+      // sends this exact reviewed operation under that short-lived fresh session.
+      // The canonical browser session is never replaced by the challenge.
+      const result = await revokeV3AccountSessionWithPassword(attempt, password);
+      finishSuccessfulRevocation(result);
       await sessionsQuery.refetch();
-      await executeRevocation(attempt);
     } catch (error) {
+      try {
+        if (await reconcileAttempt(attempt)) return;
+      } catch {
+        // Preserve the fresh-auth failure when reconciliation is unavailable.
+      }
       const candidate = error as { message?: string };
       setErrorMessage(candidate.message || "Solaris could not verify your password. No session was revoked.");
     } finally {
@@ -270,7 +288,7 @@ export function V3AccountSessionsPanel() {
                 <div>
                   <p className="text-sm font-semibold">Verify before revoking</p>
                   <p className="mt-1 text-xs leading-5 text-[var(--v3-text-secondary)]">
-                    Revoking another session is a high-risk account action. Enter your current password; Solaris verifies it with the authentication service before retrying the same reviewed revocation operation.
+                    Revoking another session is a high-risk account action. Enter your current password; Solaris verifies it with a short-lived authentication session before retrying the same reviewed revocation operation.
                   </p>
                 </div>
               </div>
