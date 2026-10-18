@@ -110,12 +110,26 @@ test("TerraOS first-look device keeps a complete phone aspect on short desktop v
   expect(response?.status()).toBe(503);
 
   const device = page.locator(".preview-device");
+  const previewFrame = device.locator("iframe.preview-page");
+
+  // The real V3 preview iframe is intentionally lazy-loaded below the fold.
+  // Bring it into the viewport before checking its fitted phone geometry so the
+  // child preview can run the same sizing handshake a user gets while scrolling.
+  await device.scrollIntoViewIfNeeded();
   await expect(device).toBeVisible();
+  await expect(previewFrame).toBeVisible();
+
+  await expect
+    .poll(async () => {
+      const box = await device.boundingBox();
+      if (!box || box.width === 0) return Number.POSITIVE_INFINITY;
+      return Math.abs(box.height / box.width - 844 / 390);
+    })
+    .toBeLessThan(0.05);
+
   const box = await device.boundingBox();
   expect(box).not.toBeNull();
   if (!box) return;
-
-  expect(Math.abs(box.height / box.width - 844 / 390)).toBeLessThan(0.05);
   expect(box.height).toBeLessThanOrEqual(viewport.height * 0.8);
 });
 
