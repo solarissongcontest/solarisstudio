@@ -11,6 +11,9 @@ const source = () =>
 const route = () =>
   readFileSync(resolve(process.cwd(), "src/routes/next-in-line.tsx"), "utf8");
 
+const competition = () =>
+  readFileSync(resolve(process.cwd(), "src/components/NextInLineCompetition.tsx"), "utf8");
+
 const systemMigration = () =>
   readFileSync(
     resolve(
@@ -52,6 +55,32 @@ describe("V3 Public Next in Line runtime", () => {
     expect(runtime).toContain("context.eligible");
     expect(runtime).toContain("candidate.sourceSubmissionId === data.source_submission_id");
     expect(runtime).toContain("context.country.name.trim().toLocaleLowerCase()");
+  });
+
+  it("restores the canonical saved submission and uses the server window as edit authority", () => {
+    const runtime = source();
+    const ui = competition();
+
+    expect(runtime).toContain("existing_submission: context.submission");
+    expect(runtime).toContain("editing_open: projection.window?.effectiveOpen === true");
+    expect(runtime).toContain("server_time: projection.serverTime");
+    expect(ui).toContain("result.existing_submission ?? null");
+    expect(ui).toContain("setPreviewStart(existing.previewStart ?? \"\")");
+    expect(ui).toContain("setSelectedNfEntry(existing.nationalFinalEntryId ?? \"\")");
+    expect(ui).toContain("setEditingOpen(result.editing_open === true)");
+    expect(ui).toContain("disabled={submitting || checkingDuplicate || !editingOpen}");
+    expect(ui).not.toContain("Date.now()");
+  });
+
+  it("shows canonical revision and receipt evidence after save or reconciliation", () => {
+    const ui = competition();
+
+    expect(ui).toContain('data-next-in-line-existing-submission=""');
+    expect(ui).toContain("Revision {existingSubmission.revision}");
+    expect(ui).toContain("existingSubmission.lastOperationId");
+    expect(ui).toContain('data-next-in-line-submit-receipt=""');
+    expect(ui).toContain("evidence.receiptId ?? evidence.operationId ?? null");
+    expect(ui).toContain("Solaris reconciled this save against the existing server operation");
   });
 
   it("keeps anonymous access read-only and limited to active-edition discovery", () => {
@@ -115,6 +144,9 @@ describe("V3 Public Next in Line runtime", () => {
     expect(migration).toContain("private.v3_next_in_line_actor_controls_country");
     expect(migration).toContain("private.studio2_claim_operation");
     expect(migration).toContain("create or replace function public.v3_my_next_in_line(");
+    expect(migration).toContain("'effectiveOpen', private.studio2_next_in_line_window_is_open(p_edition_id)");
+    expect(migration).toContain("'history', coalesce((");
+    expect(migration).toContain("'lastOperation', case");
     expect(migration).toContain("grant execute on function public.v3_my_next_in_line(uuid)\n  to authenticated");
     expect(migration).toContain("grant execute on function public.v3_submit_next_in_line(jsonb, uuid, text)\n  to authenticated");
   });
