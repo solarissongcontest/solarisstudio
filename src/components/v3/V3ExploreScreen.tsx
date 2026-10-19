@@ -23,9 +23,17 @@ export type V3ExploreScreenProps = {
 
 const COLLECTION_DESCRIPTIONS: Record<V3ExploreCollection["key"], string> = {
   countries: "Delegations, current entries and participation histories",
-  "songs-and-artists": "The songs and artists in the public Solaris catalogue",
+  "songs-and-artists": "Published song and artist labels in their Entry and Edition context",
   shows: "Shows, running orders and public show context",
   stories: "Editorial stories and important Solaris moments",
+};
+
+const MORE_DESCRIPTIONS: Record<string, string> = {
+  live: "Follow the current public show in Live Mode",
+  results: "Official rankings and deeper published result views",
+  rules: "Official rules, guidance, interpretations and rule history",
+  "archive-games": "Play public experiences built from Solaris archive history",
+  "advanced-discovery": "Browse the site directory and specialist public discovery tools",
 };
 
 function experiencePresentation(experience: V3EditionExperience): {
@@ -94,7 +102,7 @@ function CurrentEditionCard({ edition }: { edition: V3ExploreEditionCard }) {
         <div className="mt-4">
           <V3ActionCard
             title="Open edition"
-            description="Participants, songs, schedule, stories and official result availability"
+            description="Participants, published entries, schedule, stories and official result availability"
             tone="neutral"
             to={edition.href}
           />
@@ -142,7 +150,7 @@ export function V3ExploreScreen({ projection, onOpenSearch }: V3ExploreScreenPro
       <V3ScreenHeader
         kicker="Explore Solaris"
         title="Discover the contest"
-        description="Browse editions, delegations, songs, shows and stories. Rankings and score analysis stay in Results."
+        description="Browse editions, delegations, published entries, shows and stories. Rankings and score analysis stay in Results."
         editorial
       />
 
@@ -215,13 +223,15 @@ export function V3ExploreScreen({ projection, onOpenSearch }: V3ExploreScreenPro
       </V3Section>
 
       {projection.more.length ? (
-        <V3Section title="More">
+        <V3Section title="More Solaris">
           <div className="grid gap-3 sm:grid-cols-2">
             {projection.more.map((link) => (
               <V3ActionCard
                 key={link.key}
                 title={link.label}
-                description="Open an additional Solaris discovery experience"
+                description={
+                  MORE_DESCRIPTIONS[link.key] ?? "Open an additional Solaris discovery experience"
+                }
                 icon={Sparkles}
                 tone="neutral"
                 to={link.href}
