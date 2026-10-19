@@ -213,11 +213,11 @@ function ExpiredUploadCard({ item, onChanged }: { item: ExpiredEvidenceUpload; o
         onConfirm={async () => {
           await mutation.mutateAsync();
         }}
-        title={`Clean this expired unfinished upload ${item.original_name}?`}
+        title={`Clean expired upload ${item.original_name}?`}
         description={
           <div className="space-y-3 text-xs leading-relaxed text-muted-foreground" data-v3-organizer-expired-upload-cleanup-review>
             <p>
-              This unfinished upload has expired and is not registered as case evidence. Cleaning it discards the upload token permanently{item.object_exists ? " and removes its orphaned private storage object first" : ""}.
+              Clean this expired unfinished upload only after verifying it was never finalised into case evidence. Cleanup discards the upload token permanently{item.object_exists ? " and removes its orphaned private storage object first" : ""}.
             </p>
             <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
               <p className="font-semibold text-foreground">{item.original_name}</p>
