@@ -31,6 +31,26 @@ describe("System V3 S6 projection lag metric registry", () => {
     }
   });
 
+  it("promotes only the canonical Jury readiness projection after executable bounded proof exists", () => {
+    const measured = V3_PROJECTION_LAG_METRIC_REGISTRY.filter(
+      (item) => item.state === "measured",
+    );
+    expect(measured.map((item) => item.projection)).toEqual(["jury operational readiness"]);
+
+    const jury = v3ProjectionLagMetric("jury operational readiness");
+    expect(jury).toMatchObject({
+      state: "measured",
+      path: expect.stringContaining("studio2_measure_jury_operational_projection_lag"),
+    });
+    expect(jury?.measures).toContain("synchronous canonical read");
+    expect(jury?.evidence).toContain(
+      "supabase/migrations/20261019211100_v3_s6_jury_readiness_lag.sql",
+    );
+
+    expect(v3ProjectionLagMetric("jury ballot")?.state).toBe("missing");
+    expect(v3ProjectionLagMetric("Organizer Jury")?.state).toBe("missing");
+  });
+
   it("fails closed for unknown projection identities", () => {
     expect(v3ProjectionLagMetric("not-a-real-projection")).toBeNull();
   });
