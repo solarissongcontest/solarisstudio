@@ -55,6 +55,13 @@ describe("V3 governed country-account credential replacement", () => {
     expect(edge).toContain("reconciliationRequired: true");
   });
 
+  it("keeps transient password-safety dependency outages retryable under the same operation", () => {
+    expect(edge).toContain('stage: "password_safety_dependency"');
+    expect(edge).toContain('if (safetyFailure.stage === "password_policy")');
+    expect(edge).toContain('reconciliationRequired: safetyFailure.stage === "password_safety_dependency"');
+    expect(edge).not.toContain('p_failure_stage: "password_safety_dependency"');
+  });
+
   it("prevents browsers from forging successful credential receipts", () => {
     expect(migration).toContain("public.studio2_finalize_country_account_credential_replace");
     expect(migration).toContain("from public, anon, authenticated");
