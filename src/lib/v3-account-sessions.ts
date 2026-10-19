@@ -198,23 +198,36 @@ export function createV3SessionRevocationAttempt(sessionHandle: string): V3Sessi
   };
 }
 
-function parseRevocationResult(
+export function parseV3SessionRevocationResult(
   value: unknown,
   attempt: V3SessionRevocationAttempt,
 ): V3SessionRevocationResult {
   const row = record(value);
-  const returnedHandle = text(row.sessionHandle)?.toLowerCase() ?? attempt.sessionHandle;
-  if (returnedHandle !== attempt.sessionHandle) {
+  const returnedHandle = text(row.sessionHandle)?.toLowerCase() ?? "";
+  const operationId = text(row.operationId);
+  const receiptId = text(row.receiptId);
+  const revokedAt = text(row.revokedAt);
+
+  if (!HANDLE_PATTERN.test(returnedHandle) || returnedHandle !== attempt.sessionHandle) {
     throw new Error("Solaris returned a session receipt for a different session.");
   }
+  if (
+    row.ok !== true ||
+    operationId !== attempt.operationId ||
+    receiptId !== attempt.operationId ||
+    !revokedAt
+  ) {
+    throw new Error("Solaris could not verify the authoritative session revocation receipt.");
+  }
+
   return {
-    ok: row.ok !== false,
+    ok: true,
     sessionHandle: returnedHandle,
-    operationId: text(row.operationId),
-    receiptId: text(row.receiptId),
+    operationId,
+    receiptId,
     alreadyRevoked: boolean(row.alreadyRevoked),
     replayed: boolean(row.replayed),
-    revokedAt: text(row.revokedAt),
+    revokedAt,
   };
 }
 
@@ -223,7 +236,7 @@ export async function revokeV3AccountSession(
 ): Promise<V3SessionRevocationResult> {
   const { data, error } = await revokeAccountSessionRpc(attempt);
   if (error) throw error;
-  return parseRevocationResult(data, attempt);
+  return parseV3SessionRevocationResult(data, attempt);
 }
 
 export async function revokeV3AccountSessionWithPassword(
@@ -232,7 +245,7 @@ export async function revokeV3AccountSessionWithPassword(
 ): Promise<V3SessionRevocationResult> {
   const { data, error } = await revokeAccountSessionWithPasswordRpc(attempt, password);
   if (error) throw error;
-  return parseRevocationResult(data, attempt);
+  return parseV3SessionRevocationResult(data, attempt);
 }
 
 export function useV3AccountSessions(viewerId: string | null | undefined, enabled = true) {
