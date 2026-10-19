@@ -36,7 +36,7 @@ describe('Studio 2 Phase 8 advanced broadcast workflows', () => {
     expect(migration).toContain("using errcode = '40001'");
   });
 
-  it('requires server authorization, reasons and an explicit rundown lock for live production', () => {
+  it('requires server authorization, reviewed reasons and an explicit rundown lock for live production', () => {
     expect(migration).toContain("private.studio2_user_has_capability(p_user_id, 'edition.manage', p_edition_id)");
     expect(migration).toContain("public.has_role(p_user_id, 'organizer'::public.app_role)");
     expect(migration).toContain("length(v_reason) < 5");
@@ -47,7 +47,9 @@ describe('Studio 2 Phase 8 advanced broadcast workflows', () => {
     expect(route).toContain('Lock rundown');
     expect(route).toContain('AdminConfirmSheet');
     expect(route).not.toContain('window.confirm');
-    expect(route).toContain('window.prompt');
+    expect(route).not.toContain('window.prompt');
+    expect(route).toContain('Operator reason');
+    expect(route).toContain('At least 5 characters. The reason is stored with the audited command.');
   });
 
   it('keeps rehearsal transitions local and incapable of writing production state', () => {
