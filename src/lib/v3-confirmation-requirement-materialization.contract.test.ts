@@ -6,6 +6,9 @@ const source = (path: string) => readFileSync(path, "utf8");
 const migration = source(
   "supabase/migrations/20261020000500_v3_o4_confirmation_requirement_materialization.sql",
 );
+const requirementFoundation = source(
+  "supabase/migrations/20261002235000_organisation_os_v5_confirmation_requirements.sql",
+);
 
 describe("V3 O4 Confirmation requirement materialization authority", () => {
   it("registers the migration through the strict S13 contract", () => {
@@ -44,7 +47,7 @@ describe("V3 O4 Confirmation requirement materialization authority", () => {
     expect(migration).toContain(
       "studio2-confirmation-requirements:' || p_edition_id::text",
     );
-    expect(migration).toContain(
+    expect(requirementFoundation).toContain(
       "studio2_confirmation_requirements_current_idx",
     );
     expect(migration).toContain("requirement.superseded_at is null");
@@ -64,19 +67,28 @@ describe("V3 O4 Confirmation requirement materialization authority", () => {
   });
 
   it("locks reviewed current requirements before the final compare and applies only reviewed targets", () => {
-    const advisoryLock = migration.indexOf("perform pg_advisory_xact_lock(");
+    const applyStart = migration.indexOf(
+      "create or replace function public.admin_confirmation_apply_requirement_materialization",
+    );
+    const advisoryLock = migration.indexOf(
+      "perform pg_advisory_xact_lock(",
+      applyStart,
+    );
     const rowLock = migration.indexOf(
       "from public.studio2_confirmation_requirements requirement\n  where requirement.edition_id = p_edition_id",
       advisoryLock,
     );
     const finalCompare = migration.indexOf(
       "v_actual_fingerprint := v_preview ->> 'impactFingerprint'",
+      rowLock,
     );
     const legacyApply = migration.indexOf(
       "public.admin_confirmation_ensure_requirements(\n      p_edition_id,\n      v_target_ids",
+      finalCompare,
     );
 
-    expect(advisoryLock).toBeGreaterThan(-1);
+    expect(applyStart).toBeGreaterThan(-1);
+    expect(advisoryLock).toBeGreaterThan(applyStart);
     expect(rowLock).toBeGreaterThan(advisoryLock);
     expect(finalCompare).toBeGreaterThan(rowLock);
     expect(legacyApply).toBeGreaterThan(finalCompare);
@@ -115,5 +127,28 @@ describe("V3 O4 Confirmation requirement materialization authority", () => {
       "from public, anon, service_role;\ngrant execute on function public.admin_confirmation_apply_requirement_materialization",
     );
     expect(migration).toContain("to authenticated;");
+  });
+
+  it("cuts Organizer initialization over to review-first apply and receipt reconciliation", () => {
+    const route = source("src/routes/confirmations/admin/requirements.tsx");
+    const control = source(
+      "src/components/admin/ConfirmationRequirementMaterializationControl.tsx",
+    );
+    const client = source(
+      "src/integrations/confirmations/requirement-materialization.ts",
+    );
+
+    expect(route).toContain("ConfirmationRequirementMaterializationControl");
+    expect(route).not.toContain("ensureConfirmationRequirements");
+    expect(control).toContain("previewConfirmationRequirementMaterialization");
+    expect(control).toContain('command: "confirmation.requirement.materialize"');
+    expect(control).toContain("expectedVersion: impact.impactFingerprint");
+    expect(control).toContain("createTargets.map");
+    expect(control).toContain("operationId: command.operationId");
+    expect(client).toContain(
+      '"admin_confirmation_apply_requirement_materialization"',
+    );
+    expect(client).toContain('"studio2_reconcile_operation"');
+    expect(client).not.toContain("admin_confirmation_ensure_requirements");
   });
 });
