@@ -8,6 +8,12 @@ begin;
 -- 40001 as retryable, so keeping 40001 here can replay a command that is known
 -- to be stale and eventually surface as a gateway failure instead of HTTP 409.
 --
+-- The same canonical function originally emitted a V3 DomainEvent named
+-- edition.state_changed even though the canonical Edition registry owns the
+-- event as edition.transitioned. Keep the legacy contest-event audit vocabulary
+-- unchanged, but normalize the S4 DomainEvent vocabulary here so System/S15 has
+-- one canonical event name.
+--
 -- Keep the genuine DomainEvent worker lease conflict on 40001. Only the exact
 -- V3 lifecycle command definition is rewritten.
 insert into private.v3_migration_contracts (
@@ -23,14 +29,16 @@ insert into private.v3_migration_contracts (
   'forward_fix_only',
   false,
   null,
-  'Normalize deterministic edition lifecycle conflicts to PostgREST HTTP 409 while retaining genuine DomainEvent worker serialization semantics.'
+  'Normalize deterministic edition lifecycle conflicts to PostgREST HTTP 409 and align the canonical S4 lifecycle event with edition.transitioned while retaining genuine DomainEvent worker serialization semantics and legacy audit vocabulary.'
 )
 on conflict (migration_key) do nothing;
 
-do $normalize_transition_conflicts$
+do $normalize_transition_contract$
 declare
   v_signature constant text :=
     'public.studio2_transition_edition_v3(uuid,text,text,uuid,bigint,uuid,text)';
+  v_old_domain_event constant text := E'perform private.v3_emit_domain_event(\n    ''edition.state_changed'',';
+  v_new_domain_event constant text := E'perform private.v3_emit_domain_event(\n    ''edition.transitioned'',';
   v_function regprocedure;
   v_definition text;
   v_rewritten text;
@@ -48,10 +56,16 @@ begin
       'Expected deterministic SQLSTATE 40001 was not found in %; review the forward fix instead of silently skipping it',
       v_signature;
   end if;
+  if position(v_old_domain_event in v_definition) = 0 then
+    raise exception
+      'Expected canonical edition.state_changed DomainEvent call was not found in %; review lifecycle event vocabulary instead of silently skipping it',
+      v_signature;
+  end if;
 
   v_rewritten := replace(v_definition, '''40001''', '''PT409''');
+  v_rewritten := replace(v_rewritten, v_old_domain_event, v_new_domain_event);
   if v_rewritten is not distinct from v_definition then
-    raise exception 'Could not normalize V3 edition transition conflicts';
+    raise exception 'Could not normalize V3 edition transition contract';
   end if;
 
   execute v_rewritten;
@@ -70,8 +84,14 @@ begin
   if position('''PT409''' in v_definition) = 0 then
     raise exception 'HTTP 409 SQLSTATE was not installed in V3 edition transition';
   end if;
+  if position(v_old_domain_event in v_definition) > 0 then
+    raise exception 'Canonical edition.state_changed DomainEvent remains in V3 edition transition';
+  end if;
+  if position(v_new_domain_event in v_definition) = 0 then
+    raise exception 'Canonical edition.transitioned DomainEvent was not installed in V3 edition transition';
+  end if;
 end
-$normalize_transition_conflicts$;
+$normalize_transition_contract$;
 
 -- The archive consumer is a leased S4 worker boundary. Its lost/stale lease is
 -- a genuine retry/serialization condition and must remain 40001.
