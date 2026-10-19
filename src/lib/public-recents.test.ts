@@ -39,19 +39,32 @@ describe("public recents", () => {
     expect(shouldRememberPublicPath("/rules")).toBe(false);
   });
 
+  it("rejects malformed or cross-origin-looking persisted paths", () => {
+    for (const path of [
+      "https://example.com/path",
+      "//example.com/path",
+      "/\\example.com/path",
+      "/countries/oland\n/unsafe",
+    ]) {
+      expect(shouldRememberPublicPath(path), path).toBe(false);
+    }
+  });
+
   it("keeps ordinary public destinations, including non-critical voting results", () => {
     expect(shouldRememberPublicPath("/countries/oland")).toBe(true);
     expect(shouldRememberPublicPath("/televoting/results")).toBe(true);
   });
 
-  it("filters old hub, utility and critical entries already stored on the device", () => {
+  it("filters old hub, utility, critical and malformed entries already stored on the device", () => {
     const storage = memoryStorage();
     storage.setItem(
       PUBLIC_RECENTS_KEY,
       JSON.stringify([
-        { path: "/explore", label: "Explore", visitedAt: 7 },
-        { path: "/my-solaris/entry", label: "Entry", visitedAt: 6 },
-        { path: "/integrity/report/category", label: "Integrity report", visitedAt: 5 },
+        { path: "/explore", label: "Explore", visitedAt: 9 },
+        { path: "/my-solaris/entry", label: "Entry", visitedAt: 8 },
+        { path: "/integrity/report/category", label: "Integrity report", visitedAt: 7 },
+        { path: "//example.com/escape", label: "External", visitedAt: 6 },
+        { path: "/\\example.com/escape", label: "Backslash", visitedAt: 5 },
         { path: "/guide", label: "How to use Solaris Studio", visitedAt: 4 },
         { path: "/countries/oland", label: "Oland", visitedAt: 3 },
       ]),
