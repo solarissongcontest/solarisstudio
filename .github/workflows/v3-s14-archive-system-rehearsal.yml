@@ -8,6 +8,7 @@ on:
       - "supabase/migrations/**"
       - ".github/scripts/v3-s14-archive-system-rehearsal.sh"
       - ".github/scripts/v3-s14-archive-guard-rehearsal.sh"
+      - ".github/scripts/v3-s14-edition-event-vocabulary-rehearsal.sh"
       - ".github/workflows/v3-s14-archive-system-rehearsal.yml"
       - "src/lib/solaris-v6-domain-registry.ts"
       - "src/lib/v3-domain-consequence-registry.ts"
@@ -54,6 +55,9 @@ jobs:
 
       - name: Rehearse final-publication reconciliation and Archive consequences
         run: bash .github/scripts/v3-s14-archive-system-rehearsal.sh
+
+      - name: Verify canonical edition transition event vocabulary
+        run: bash .github/scripts/v3-s14-edition-event-vocabulary-rehearsal.sh
 
       - name: Rehearse Archive authorization and lifecycle guards
         run: bash .github/scripts/v3-s14-archive-guard-rehearsal.sh
@@ -118,6 +122,13 @@ jobs:
           set -euo pipefail
           cd /tmp/solaris-s14-main
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-archive-system-rehearsal.sh"
+
+      - name: Verify transition event vocabulary after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-s14-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-edition-event-vocabulary-rehearsal.sh"
 
       - name: Rehearse Archive guards after current-main upgrade
         shell: bash
