@@ -18,7 +18,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
-import { AdminCard, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
+import { AdminCard, AdminConfirmSheet, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { RuleDecisionStrip } from "@/components/rules/RuleDecisionStrip";
 import {
   decideSealedIdentityDisclosure,
@@ -217,6 +217,7 @@ function DisclosureRequestCard({
 }) {
   const [decisionReason, setDecisionReason] = useState("");
   const [revealed, setRevealed] = useState<RevealedSealedIdentity | null>(null);
+  const [revealConfirmOpen, setRevealConfirmOpen] = useState(false);
   const isRequester = Boolean(currentUserId && item.requested_by === currentUserId);
   const expiresAt = item.approval_expires_at ? new Date(item.approval_expires_at) : null;
   const expiredByClock = Boolean(expiresAt && expiresAt.getTime() <= Date.now());
@@ -234,6 +235,7 @@ function DisclosureRequestCard({
   const revealMutation = useMutation({
     mutationFn: () => revealSealedIdentity(item.id),
     onSuccess: async (identity) => {
+      setRevealConfirmOpen(false);
       setRevealed(identity);
       await onChanged();
       toast.success("Sealed identity revealed once and audit event recorded");
@@ -286,12 +288,40 @@ function DisclosureRequestCard({
         <div className="mt-4 rounded-xl border border-amber-200/12 bg-amber-200/[0.04] p-3">
           <div className="flex gap-2"><AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-200" /><div><p className="text-xs font-black text-amber-50">One-time disclosure window</p><p className="mt-1 text-[10px] leading-5 text-amber-50/70">Expires {expiresAt ? expiresAt.toLocaleString() : "unknown"}. Only the organizer who created the request may use it.</p></div></div>
           {isRequester && !expiredByClock ? (
-            <button type="button" disabled={revealMutation.isPending} onClick={() => revealMutation.mutate()} className="admin-action-secondary mt-3 text-amber-50"><Eye className="size-4" />{revealMutation.isPending ? "Revealing…" : "Reveal sealed identity once"}</button>
+            <button type="button" disabled={revealMutation.isPending} onClick={() => setRevealConfirmOpen(true)} className="admin-action-secondary mt-3 text-amber-50"><Eye className="size-4" />Review one-time reveal</button>
           ) : null}
           {!isRequester ? <p className="mt-2 text-[10px] text-muted-foreground">You approved or can observe this window, but only the original requester can use it.</p> : null}
           {expiredByClock ? <p className="mt-2 text-[10px] text-rose-100">This approval has expired and cannot be used. A new break-glass request is required.</p> : null}
         </div>
       ) : null}
+
+      <AdminConfirmSheet
+        open={revealConfirmOpen}
+        onClose={() => {
+          if (!revealMutation.isPending) setRevealConfirmOpen(false);
+        }}
+        onConfirm={async () => {
+          await revealMutation.mutateAsync();
+        }}
+        title={`Reveal sealed identity for ${item.case_code}?`}
+        description={
+          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+            <p>This is a Tier 4 break-glass disclosure. It exposes protected reporter identity once and cannot be repeated with this approval.</p>
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+              <p className="font-semibold text-foreground">{item.case_code} · {item.case_summary}</p>
+              <p className="mt-2"><span className="font-semibold text-foreground">Approved purpose:</span> {item.reason}</p>
+              <p className="mt-2"><span className="font-semibold text-foreground">Window:</span> expires {expiresAt ? expiresAt.toLocaleString() : "at the server-defined deadline"}.</p>
+            </div>
+            <p>The request will be consumed, the reveal is audited, and the reporter can see that identity access occurred. Use the identity only for the approved case purpose.</p>
+          </div>
+        }
+        confirmLabel="Reveal sealed identity once"
+        confirmationText={item.case_code}
+        confirmationHint={`Type ${item.case_code} to confirm this exceptional disclosure.`}
+        busy={revealMutation.isPending}
+        danger
+        confirmDisabled={!isRequester || expiredByClock}
+      />
 
       {revealed ? (
         <div className="mt-4 rounded-xl border border-rose-200/16 bg-rose-200/[0.05] p-4">
