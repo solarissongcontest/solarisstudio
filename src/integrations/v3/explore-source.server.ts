@@ -281,6 +281,8 @@ export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundl
       songsAndArtists: currentEdition ? `/editions/${currentEdition.slug}` : "/editions",
       shows: "/shows",
       stories: "/stories",
+      results: "/results",
+      rules: "/rules",
       editionsArchive: "/editions",
       wiki: "/wiki",
       encyclopedia: "/encyclopedia",

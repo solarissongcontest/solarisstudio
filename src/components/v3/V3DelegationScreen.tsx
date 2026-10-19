@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Archive, BarChart3, BookOpen, GitCompareArrows, Vote } from "lucide-react";
 
 import type { V3CountryExploreProjection } from "@/lib/v3-explore-entities";
@@ -34,6 +35,24 @@ function statusPresentation(status: string | null): {
 
 function entryTitle(entry: V3CountryExploreProjection["participationHistory"][number]) {
   return [entry.artist, entry.song].filter(Boolean).join(" · ") || "Entry details not revealed";
+}
+
+function EditionContextLink({
+  entry,
+  className,
+}: {
+  entry: V3CountryExploreProjection["participationHistory"][number];
+  className: string;
+}) {
+  if (!entry.editionHref) {
+    return <p className={className}>{entry.editionLabel}</p>;
+  }
+
+  return (
+    <Link to={entry.editionHref as any} className={`${className} hover:text-primary hover:underline`}>
+      {entry.editionLabel}
+    </Link>
+  );
 }
 
 /**
@@ -99,9 +118,10 @@ export function V3DelegationScreen({ projection }: V3DelegationScreenProps) {
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-sm font-semibold">{entryTitle(projection.currentEntry)}</p>
-                <p className="mt-1 text-xs leading-5 text-white/48">
-                  {projection.currentEntry.editionLabel}
-                </p>
+                <EditionContextLink
+                  entry={projection.currentEntry}
+                  className="mt-1 block text-xs leading-5 text-white/48"
+                />
               </div>
               {currentStatus ? (
                 <V3StatusChip tone={currentStatus.tone}>{currentStatus.label}</V3StatusChip>
@@ -134,7 +154,10 @@ export function V3DelegationScreen({ projection }: V3DelegationScreenProps) {
                 <V3Surface key={entry.editionId} className="px-4 py-3">
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold">{entry.editionLabel}</p>
+                      <EditionContextLink
+                        entry={entry}
+                        className="block text-sm font-semibold text-white/92"
+                      />
                       <p className="mt-1 truncate text-xs text-white/48">{entryTitle(entry)}</p>
                     </div>
                     {status ? <V3StatusChip tone={status.tone}>{status.label}</V3StatusChip> : null}
