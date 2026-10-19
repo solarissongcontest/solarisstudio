@@ -4,7 +4,7 @@ begin;
 -- projection authoritative while exposing the canonical published edition slug
 -- needed for exact historical deep links. No browser slug inference is allowed.
 select public.v3_register_migration_contract(
-  '20261019235000_v3_country_profile_edition_slug',
+  'v3.country-profile-edition-slug',
   1,
   'forward_fix_only',
   false,
