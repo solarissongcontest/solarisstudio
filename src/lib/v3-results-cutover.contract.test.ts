@@ -37,4 +37,20 @@ describe("Results production cutover boundary", () => {
     expect(source("src/components/v3/V3ResultsScreen.tsx")).toContain("<V3ScoreboardPresentation");
     expect(source("src/components/v3/V3ScoreboardPresentation.tsx")).not.toContain("?? rows[0]");
   });
+
+  it("keeps retained advanced Results products discoverable from the canonical V3 source", () => {
+    const serverSource = source("src/integrations/v3/results-source.server.ts");
+    for (const href of [
+      "/scorecharts",
+      "/records",
+      "/relationships",
+      "/broadcast-intelligence",
+      "/result-lab",
+    ]) {
+      expect(serverSource).toContain(`href: "${href}"`);
+    }
+    expect(source("src/components/v3/V3ResultsScreen.tsx")).toContain(
+      "projection.moreAnalysis.map",
+    );
+  });
 });
