@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Search } from "lucide-react";
 
-import { AppShell } from "@/components/AppShell";
+import { RulesRouteShell } from "@/components/rules/RulesRouteShell";
 import {
   findGovernanceQuickAnswer,
 } from "@/lib/governance-v5";
@@ -26,7 +26,7 @@ function RuleSearchPage() {
   const results = q.trim() ? searchSscRules(q).slice(0, 20) : [];
 
   return (
-    <AppShell>
+    <RulesRouteShell resolvingTitle="Opening Rule search">
       <div className="mx-auto max-w-5xl pb-20">
         <header className="border-b border-border/65 pb-5">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-primary/80">Rules</p>
@@ -102,6 +102,6 @@ function RuleSearchPage() {
           ) : null}
         </section>
       </div>
-    </AppShell>
+    </RulesRouteShell>
   );
 }

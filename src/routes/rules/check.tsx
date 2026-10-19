@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
-import { AppShell } from "@/components/AppShell";
+import { RulesRouteShell } from "@/components/rules/RulesRouteShell";
 
 export const Route = createFileRoute("/rules/check")({
   head: () => ({
@@ -31,7 +31,7 @@ export function RuleCheckerPage() {
   }, [availability, complete, eurovision, popularity]);
 
   return (
-    <AppShell>
+    <RulesRouteShell resolvingTitle="Opening Rule checker">
       <div className="mx-auto max-w-3xl pb-20">
         <header className="border-b border-border/65 pb-5">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-primary/80">Rule checker</p>
@@ -85,7 +85,7 @@ export function RuleCheckerPage() {
           </section>
         ) : null}
       </div>
-    </AppShell>
+    </RulesRouteShell>
   );
 }
 
