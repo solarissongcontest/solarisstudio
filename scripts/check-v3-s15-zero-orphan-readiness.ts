@@ -16,10 +16,23 @@ type CoreReport = {
   findings: string[];
 };
 
+type PhysicalOwnershipReport = {
+  schemaVersion: number;
+  zeroOwnershipConflicts: boolean;
+  inventory: {
+    domains: number;
+    uniquePhysicalTables: number;
+    domainTableAssignments: number;
+    explicitlySharedTables: number;
+  };
+  findings: string[];
+};
+
 const root = process.cwd();
 const requireZero = process.argv.includes("--require-zero");
 const wantsJson = process.argv.includes("--json");
 const corePath = resolve(root, "scripts/check-v3-s15-zero-orphan-readiness-core.ts");
+const physicalOwnershipPath = resolve(root, "scripts/check-v3-s15-physical-ownership.ts");
 
 /**
  * Cross-system S15 discovery stays implemented in the core scanner so this
@@ -72,6 +85,55 @@ try {
   process.exit(1);
 }
 
+if (
+  typeof core.zeroOrphans !== "boolean" ||
+  !Array.isArray(core.findings) ||
+  !core.inventory ||
+  typeof core.inventory !== "object"
+) {
+  process.stderr.write("S15 core readiness output did not match the expected report contract.\n");
+  process.exit(1);
+}
+
+// Physical table ownership is System-owned by the dedicated S15 scanner. QA
+// executes and consumes that scanner here instead of duplicating its inventory
+// or deciding which domain owns a shared table. This makes the final S15
+// evidence fail closed whenever a new shared physical authority boundary is
+// ambiguous.
+const physicalRun = spawnSync("bun", ["run", physicalOwnershipPath, "--json"], {
+  cwd: root,
+  encoding: "utf8",
+  env: process.env,
+});
+if (physicalRun.error) throw physicalRun.error;
+if (physicalRun.status !== 0) {
+  process.stderr.write(
+    physicalRun.stderr || "S15 physical-ownership scan failed without diagnostics.\n",
+  );
+  process.exit(physicalRun.status ?? 1);
+}
+
+let physicalOwnership: PhysicalOwnershipReport;
+try {
+  physicalOwnership = JSON.parse(physicalRun.stdout) as PhysicalOwnershipReport;
+} catch (error) {
+  process.stderr.write(`S15 physical-ownership output was not valid JSON: ${String(error)}\n`);
+  process.exit(1);
+}
+
+if (
+  typeof physicalOwnership.zeroOwnershipConflicts !== "boolean" ||
+  !Array.isArray(physicalOwnership.findings) ||
+  !physicalOwnership.inventory ||
+  typeof physicalOwnership.inventory.domains !== "number" ||
+  typeof physicalOwnership.inventory.uniquePhysicalTables !== "number" ||
+  typeof physicalOwnership.inventory.domainTableAssignments !== "number" ||
+  typeof physicalOwnership.inventory.explicitlySharedTables !== "number"
+) {
+  process.stderr.write("S15 physical-ownership output did not match the expected report contract.\n");
+  process.exit(1);
+}
+
 const integrationPaths = readdirSync(resolve(root, "src/integrations/v3"), { withFileTypes: true })
   .filter((entry) => entry.isFile() && entry.name.endsWith(".ts"))
   .map((entry) => `src/integrations/v3/${entry.name}`)
@@ -100,19 +162,32 @@ const artifactFindings = validateV3SystemZeroOrphans({
 for (const job of V3_SYSTEM_SCHEDULED_JOB_REGISTRY) {
   const source = readFileSync(resolve(root, job.evidence), "utf8");
   if (!source.includes(`'${job.name}'`) || !source.includes("cron.schedule")) {
-    artifactFindings.push(`SYSTEM_ARTIFACT_ORPHAN scheduled job evidence drifted: ${job.name} -> ${job.evidence}`);
+    artifactFindings.push(
+      `SYSTEM_ARTIFACT_ORPHAN scheduled job evidence drifted: ${job.name} -> ${job.evidence}`,
+    );
   }
 }
 
-const findings = [...core.findings, ...artifactFindings];
+const physicalOwnershipFindings = physicalOwnership.findings.map(
+  (finding) => `PHYSICAL_OWNERSHIP_CONFLICT ${finding}`,
+);
+const findings = [...core.findings, ...artifactFindings, ...physicalOwnershipFindings];
 const report = {
-  schemaVersion: Math.max(3, core.schemaVersion + 1),
+  schemaVersion: Math.max(4, core.schemaVersion + 1),
   zeroOrphans: findings.length === 0,
   inventory: {
     ...core.inventory,
     v3IntegrationAdapters: V3_SYSTEM_INTEGRATION_REGISTRY.length,
     edgeFunctions: V3_SYSTEM_EDGE_FUNCTION_REGISTRY.length,
     scheduledJobs: V3_SYSTEM_SCHEDULED_JOB_REGISTRY.length,
+    physicalOwnershipDomains: physicalOwnership.inventory.domains,
+    uniquePhysicalTables: physicalOwnership.inventory.uniquePhysicalTables,
+    domainTableAssignments: physicalOwnership.inventory.domainTableAssignments,
+    explicitlySharedTables: physicalOwnership.inventory.explicitlySharedTables,
+  },
+  physicalOwnership: {
+    zeroOwnershipConflicts: physicalOwnership.zeroOwnershipConflicts,
+    schemaVersion: physicalOwnership.schemaVersion,
   },
   findings,
 };
@@ -122,7 +197,11 @@ if (wantsJson) {
 } else {
   process.stdout.write(`S15 zero-orphan readiness: ${report.zeroOrphans ? "ZERO ORPHANS" : "NOT READY"}\n`);
   process.stdout.write(
-    `Concrete System inventory: integrations=${V3_SYSTEM_INTEGRATION_REGISTRY.length} edgeFunctions=${V3_SYSTEM_EDGE_FUNCTION_REGISTRY.length} scheduledJobs=${V3_SYSTEM_SCHEDULED_JOB_REGISTRY.length}\n`,
+    `Concrete System inventory: integrations=${V3_SYSTEM_INTEGRATION_REGISTRY.length} ` +
+      `edgeFunctions=${V3_SYSTEM_EDGE_FUNCTION_REGISTRY.length} ` +
+      `scheduledJobs=${V3_SYSTEM_SCHEDULED_JOB_REGISTRY.length} ` +
+      `physicalTables=${physicalOwnership.inventory.uniquePhysicalTables} ` +
+      `sharedPhysicalTables=${physicalOwnership.inventory.explicitlySharedTables}\n`,
   );
   if (findings.length) process.stdout.write(`Findings (${findings.length}):\n- ${findings.join("\n- ")}\n`);
 }
