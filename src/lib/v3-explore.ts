@@ -93,7 +93,7 @@ export type V3ExploreEditionCard = {
   artworkUrl: string | null;
   experience: V3EditionExperience;
   href: string;
-  liveHref: string | null;
+  liveHref?: string | null;
   nextEvent: V3ExploreNextEvent | null;
   resultsAvailable: boolean;
 };
