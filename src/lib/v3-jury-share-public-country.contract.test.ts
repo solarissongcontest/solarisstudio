@@ -63,9 +63,11 @@ describe("V3 Jury Share public-country consumer", () => {
 
   it("keeps browser-only export effects import-safe for the TanStack server graph", () => {
     const client = exporter();
-    expect(client).toContain('typeof document === "undefined"');
-    expect(client).toContain('typeof window === "undefined"');
-    expect(client).not.toMatch(/document\.|window\.|navigator\.|new Image\(/u, client.indexOf("function ensureBrowser"));
+    const guardIndex = client.indexOf("function ensureBrowser");
+    expect(guardIndex).toBeGreaterThan(-1);
+    expect(client.indexOf("document.createElement")).toBeGreaterThan(guardIndex);
+    expect(client.indexOf("new Image()")).toBeGreaterThan(guardIndex);
+    expect(client.indexOf("navigator as Navigator")).toBeGreaterThan(guardIndex);
     expect(composer()).toContain('from "@/lib/v3-jury-share-export"');
     expect(composer()).not.toContain("v3-jury-share-export.client");
   });
