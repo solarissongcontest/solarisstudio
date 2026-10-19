@@ -7,7 +7,7 @@ begin;
 -- command boundary required by V3 without deleting the legacy path before its
 -- active Organizer consumer has migrated.
 select public.v3_register_migration_contract(
-  '20261019211000_v3_show_lifecycle_commands',
+  'v3.o6.show-lifecycle-commands',
   1,
   'forward_fix_only',
   false,
