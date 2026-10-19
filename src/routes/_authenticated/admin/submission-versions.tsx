@@ -199,6 +199,14 @@ function SubmissionVersionsPage() {
     queryFn: () => loadResponse(activeId),
   });
 
+  const restoreScopeLabel = selected
+    ? `${selected.country} · ${
+        selected.editions
+          ? `SSC ${selected.editions.edition_number} · ${selected.editions.name}`
+          : 'Edition unavailable'
+      } · ${selected.submission_rounds?.name ?? 'Confirmation'}`
+    : 'Confirmation submission';
+
   return (
     <AdminPage>
       <div className="mx-auto max-w-7xl space-y-4" data-v3-organizer-submission-history="">
@@ -297,6 +305,7 @@ function SubmissionVersionsPage() {
                     <ConfirmationVersionHistory
                       submissionId={detailQuery.data.id}
                       currentSnapshot={currentSnapshot(detailQuery.data)}
+                      scopeLabel={restoreScopeLabel}
                     />
                   )}
                 </div>
