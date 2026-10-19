@@ -4,6 +4,7 @@ set -euo pipefail
 run_s14_stage_5_running_orders() {
   log "Stage 5/10: running-order allocation, atomic reorder, publication and public verification"
 
+  CURRENT_STAGE="stage-5-running-orders:sign-in"
   sign_in 's14-organizer-a@solaris.invalid'
   ORGANIZER_A_TOKEN="$LAST_TOKEN"
 
@@ -13,6 +14,7 @@ run_s14_stage_5_running_orders() {
   # the current product, so the rehearsal mirrors that existing authority
   # rather than inventing a QA-only command.
   for show_id in "$SEMI_ONE_ID" "$SEMI_TWO_ID"; do
+    CURRENT_STAGE="stage-5-running-orders:reset:$show_id"
     db_exec "
 update public.participants
 set running_order=null, running_order_allocation=null, updated_at=now()
@@ -22,6 +24,7 @@ set lineup_stage='allocation', updated_at=now()
 where id='$show_id'::uuid;
 "
 
+    CURRENT_STAGE="stage-5-running-orders:allocation:$show_id"
     allocation_json="$(db_scalar "
 with ordered as (
   select id, row_number() over (order by country_id, id) as rn
@@ -43,6 +46,7 @@ from ordered;
     rpc_request "$ORGANIZER_A_TOKEN" admin_set_show_allocations "{\"_show_id\":\"$show_id\",\"_allocations\":$allocation_json}"
     expect_success "atomic show allocation $show_id"
 
+    CURRENT_STAGE="stage-5-running-orders:running-order:$show_id"
     order_json="$(db_scalar "
 select coalesce(jsonb_agg(id order by country_id desc, id desc), '[]'::jsonb)::text
 from public.participants
@@ -53,6 +57,7 @@ where show_id='$show_id'::uuid;
 
     db_exec "update public.shows set lineup_stage='running_order', updated_at=now() where id='$show_id'::uuid;"
 
+    CURRENT_STAGE="stage-5-running-orders:invariants:$show_id"
     show_count="$(db_scalar "select count(*) from public.participants where show_id='$show_id'::uuid;")"
     ordered_count="$(db_scalar "select count(*) from public.participants where show_id='$show_id'::uuid and running_order is not null;")"
     distinct_count="$(db_scalar "select count(distinct running_order) from public.participants where show_id='$show_id'::uuid;")"
@@ -70,6 +75,7 @@ where show_id='$show_id'::uuid;
   publication_index=0
   for show_id in "$SEMI_ONE_ID" "$SEMI_TWO_ID"; do
     publication_index=$((publication_index + 1))
+    CURRENT_STAGE="stage-5-running-orders:publication:$show_id"
     show_count="$(db_scalar "select count(*) from public.participants where show_id='$show_id'::uuid;")"
     [[ "$show_count" -gt 0 ]] || fail "show $show_id has no participants at publication time"
     expected_version="$(db_scalar "select version from public.studio2_show_publication_controls where show_id='$show_id'::uuid;")"
@@ -82,17 +88,20 @@ where show_id='$show_id'::uuid;
     expect_success "publish running order $show_id"
     expect_json "publication state $show_id" state public
 
+    CURRENT_STAGE="stage-5-running-orders:publication-evidence:$show_id"
     [[ "$(db_scalar "select published::text from public.shows where id='$show_id'::uuid;")" == "true" ]] || fail "show $show_id was not made public"
     [[ "$(db_scalar "select count(*) from private.v3_domain_events where operation_id='$operation_id'::uuid and event_type='publication.changed' and aggregate_id='$show_id';")" == "1" ]] || fail "show $show_id publication.changed event missing"
     [[ "$(db_scalar "select count(*) from public.studio2_operation_receipts where operation_id='$operation_id'::uuid and command='publication.show.change' and status='succeeded';")" == "1" ]] || fail "show $show_id publication operation receipt missing"
 
     # Verify from the anonymous Data API boundary, not merely via privileged SQL.
+    CURRENT_STAGE="stage-5-running-orders:anonymous-show:$show_id"
     request GET "$API_URL/rest/v1/shows?id=eq.$show_id&select=id,published,publication_config" "$ANON_KEY" "$ANON_KEY"
     expect_success "anonymous public show lookup $show_id"
     [[ "$(printf '%s' "$HTTP_BODY" | json_value '0.id')" == "$show_id" ]] || fail "anonymous public lookup did not expose show $show_id"
     [[ "$(printf '%s' "$HTTP_BODY" | json_value '0.published')" == "true" ]] || fail "anonymous show $show_id is not public"
     [[ "$(printf '%s' "$HTTP_BODY" | json_value '0.publication_config.running_order')" == "true" ]] || fail "anonymous show $show_id does not expose running-order publication"
 
+    CURRENT_STAGE="stage-5-running-orders:anonymous-participants:$show_id"
     request GET "$API_URL/rest/v1/participants?show_id=eq.$show_id&select=id,running_order&order=running_order.asc" "$ANON_KEY" "$ANON_KEY"
     expect_success "anonymous running-order lookup $show_id"
     public_count="$(python3 -c 'import json,sys; print(len(json.load(sys.stdin)))' <<< "$HTTP_BODY")"
@@ -102,6 +111,8 @@ where show_id='$show_id'::uuid;
     [[ "$first_public_order" == "1" && "$last_public_order" == "$show_count" ]] || fail "anonymous running order for $show_id is not a contiguous published sequence"
   done
 
+  CURRENT_STAGE="stage-5-running-orders:final-invariant"
   [[ "$(db_scalar "select count(*) from public.shows where id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and lineup_stage='running_order' and published;")" == "2" ]] || fail "both semi-final running orders were not published"
+  CURRENT_STAGE="stage-5-running-orders"
   log "S14_STAGE_5_RUNNING_ORDERS_COMPLETE"
 }
