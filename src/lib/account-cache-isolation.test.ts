@@ -54,14 +54,13 @@ describe("shared-browser private state", () => {
     client.clear();
   });
 
-  it("reconciles the protected identity gate on remote sign-out and account change", async () => {
+  it("replaces the protected identity gate immediately on remote sign-out and account change", () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const invalidate = vi.spyOn(client, "invalidateQueries");
     const resetAttention = vi.fn();
     const applySession = createAccountCacheIsolationHandler(client, resetAttention);
 
-    client.setQueryData(["authenticated-identity-gate"], { id: "A", email: "a@example.test" });
-    applySession({ id: "A" });
+    client.setQueryData(["authenticated-identity-gate"], { id: "STALE", email: "stale@example.test" });
+    applySession({ id: "A", email: "a@example.test" });
     expect(client.getQueryData(["authenticated-identity-gate"])).toEqual({
       id: "A",
       email: "a@example.test",
@@ -70,8 +69,15 @@ describe("shared-browser private state", () => {
     applySession(null);
     expect(client.getQueryData(["authenticated-identity-gate"])).toBeNull();
 
-    applySession({ id: "B" });
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["authenticated-identity-gate"] });
+    applySession({ id: "B", email: "b@example.test" });
+    expect(client.getQueryData(["authenticated-identity-gate"])).toEqual({
+      id: "B",
+      email: "b@example.test",
+    });
+    expect(client.getQueryData(["fan-session"])).toEqual({
+      id: "B",
+      email: "b@example.test",
+    });
     expect(resetAttention).toHaveBeenCalledTimes(3);
     client.clear();
   });
