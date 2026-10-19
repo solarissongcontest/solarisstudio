@@ -139,7 +139,7 @@ describe("System V3 S13 migration hardening", () => {
     expect(rehearsal).toContain("cutover without passing parity");
     expect(rehearsal).toContain("schema version skipping");
     expect(rehearsal).not.toMatch(/supabase\.co/i);
-    expect(runbook).toContain("isolated local Supabase");
+    expect(runbook).toContain("isolated/local Supabase");
   });
 
   it("is additive foundation rather than a destructive cutover migration", () => {
