@@ -66,11 +66,11 @@ jobs:
           cd /tmp/solaris-s9-trace-main
           supabase start
           supabase db reset --local --no-seed
-      - name: Apply feature migration delta locally
+      - name: Apply additive feature migration delta locally
         shell: bash
         run: |
           set -euo pipefail
-          rsync -a --delete "$GITHUB_WORKSPACE/supabase/migrations/" /tmp/solaris-s9-trace-main/supabase/migrations/
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" "$GITHUB_WORKSPACE" /tmp/solaris-s9-trace-main
           cd /tmp/solaris-s9-trace-main
           supabase migration up --local --include-all
       - name: Rehearse operation trace after upgrade

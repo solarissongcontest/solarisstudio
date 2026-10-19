@@ -245,6 +245,7 @@ export async function loadV3ResultsBundle(
     countries = (countriesResult.data ?? []) as Country[];
   }
 
+  const publication = resolveShowPublication(selectedShow);
   const displayMap = entityDisplayMap(entities, countries);
   const resultCountries = new Map<string, Country>();
   const projectedRows = rows.flatMap((row) => {
@@ -269,12 +270,11 @@ export async function loadV3ResultsBundle(
       flagUrl: display.flag_image,
       rank: row.final_rank,
       points: row.total_points,
-      juryPoints: row.jury_points,
-      televotePoints: row.televote_points,
+      juryPoints: publication.jury_results === true ? row.jury_points : null,
+      televotePoints: publication.televote_results === true ? row.televote_points : null,
     }];
   });
 
-  const publication = resolveShowPublication(selectedShow);
   return {
     editionSlug: selectedEdition.slug,
     options,
@@ -299,6 +299,11 @@ export async function loadV3ResultsBundle(
         { key: "records", label: "Records", href: "/records" },
         { key: "relationships", label: "Voting relationships", href: "/relationships" },
         { key: "lab", label: "Result Lab", href: "/result-lab" },
+        {
+          key: "broadcast-intelligence",
+          label: "Broadcast Intelligence",
+          href: "/broadcast-intelligence",
+        },
       ],
     },
     countries: [...resultCountries.values()],

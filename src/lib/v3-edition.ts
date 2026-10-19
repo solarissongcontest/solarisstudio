@@ -47,6 +47,10 @@ export type V3EditionStory = {
   items: readonly V3EditionStoryItem[];
 };
 
+export type V3EditionStoryProjection = V3EditionStory & {
+  href: string;
+};
+
 export type V3EditionResult = V3EditionIdentity & {
   rank: number;
   totalPoints: number;
@@ -64,7 +68,7 @@ export type V3EditionPageProjection = {
   participants: readonly V3EditionParticipant[];
   entries: readonly V3EditionEntry[];
   shows: readonly V3EditionShow[];
-  story: V3EditionStory | null;
+  story: V3EditionStoryProjection | null;
   results: {
     state: "locked" | "empty" | "available";
     showHref: string | null;
@@ -87,6 +91,20 @@ function stateFromCount(count: number): "available" | "empty" {
   return count > 0 ? "available" : "empty";
 }
 
+function competingEditionResults(input: V3EditionPageInput): readonly V3EditionResult[] {
+  // public_safe_participants already supplies canonical public participation
+  // state. Stored result rows stay untouched, but a known withdrawn or
+  // disqualified identity must not be presented as a competing Edition result.
+  // Unknown result identities remain visible because no contradictory public
+  // participation state exists for Solaris to override.
+  const nonCompeting = new Set(
+    input.participants
+      .filter((participant) => participant.participationStatus !== "confirmed")
+      .map((participant) => participant.id),
+  );
+  return input.results.filter((result) => !nonCompeting.has(result.id));
+}
+
 /**
  * Builds the complete V3 Edition read model after publication and identity
  * decisions have already been made by the server source. Result analysis stays
@@ -96,6 +114,7 @@ function stateFromCount(count: number): "available" | "empty" {
 export function buildV3EditionPageProjection(
   input: V3EditionPageInput,
 ): V3EditionPageProjection | null {
+  const visibleResults = competingEditionResults(input);
   const hub = buildV3EditionHubProjection({
     edition: input.edition,
     sections: {
@@ -117,7 +136,7 @@ export function buildV3EditionPageProjection(
         href: "#edition-stories",
       },
       results: {
-        state: stateFromCount(input.results.length),
+        state: stateFromCount(visibleResults.length),
         href: "#edition-results",
       },
     },
@@ -128,9 +147,15 @@ export function buildV3EditionPageProjection(
   const resultsState =
     input.edition.resultsPublication !== "published"
       ? "locked"
-      : input.results.length
+      : visibleResults.length
         ? "available"
         : "empty";
+  const story = input.story
+    ? {
+        ...input.story,
+        href: `/stories/${encodeURIComponent(input.edition.slug)}`,
+      }
+    : null;
 
   return {
     hub,
@@ -146,11 +171,11 @@ export function buildV3EditionPageProjection(
     participants: input.participants,
     entries: input.entries,
     shows: input.shows,
-    story: input.story,
+    story,
     results: {
       state: resultsState,
       showHref: resultsState === "available" ? input.resultShowHref : null,
-      rows: resultsState === "available" ? input.results : [],
+      rows: resultsState === "available" ? visibleResults : [],
     },
   };
 }

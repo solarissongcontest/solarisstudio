@@ -27,14 +27,16 @@ describe("admin country password reset", () => {
     expect(edge).toContain('"Add-Padding": "true"');
   });
 
-  it("exposes the organizer control inside Country accounts", () => {
+  it("exposes the reviewed organizer control inside Country accounts", () => {
     const client = source("lib/country-auth.ts");
     const page = source("routes/_authenticated/admin/country-accounts.tsx");
     const panel = source("components/admin/AdminCountryPasswordPanel.tsx");
 
     expect(client).toContain('invokeFunction<PasswordUpdatePayload>("admin-country-password"');
     expect(page).toContain("<AdminCountryPasswordPanel account={target} />");
-    expect(panel).toContain("adminSetSolarisPassword(account.user_id, password)");
+    expect(panel).toContain("<AdminConfirmSheet");
+    expect(panel).toContain("adminSetSolarisPassword(review.userId, review.password)");
+    expect(panel).not.toContain("adminSetSolarisPassword(account.user_id, password)");
     expect(panel).toContain("The passwords do not match.");
   });
 });

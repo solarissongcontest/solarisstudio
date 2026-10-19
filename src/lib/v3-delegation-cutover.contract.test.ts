@@ -72,7 +72,8 @@ describe("V3 Delegation production cutover", () => {
     expect(sql).not.toContain("from public.jury_votes");
     expect(sql).not.toContain("from public.televotes");
     expect(server).toContain('client.rpc("v3_public_country_profile"');
-    expect(server).toContain("buildV3CountryExploreProjection(identity)");
+    expect(server).toContain("buildV3CountryExploreProjection(identity, editionHrefById)");
+    expect(server).toContain("editionHrefById.set(id, `/editions/${encodeURIComponent(slug)}`)");
     expect(server).not.toContain("supabaseAdmin");
   });
 

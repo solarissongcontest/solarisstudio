@@ -1,11 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { supabase } from "@/integrations/supabase/client";
 
 export type AdminScheduleItem = {
   id: string;
   source:
-    "submission" | "jury" | "televote" | "publication" | "communication" | "edition" | "reminder";
+    | "submission"
+    | "jury"
+    | "televote"
+    | "publication"
+    | "communication"
+    | "edition"
+    | "reminder";
   kind: "opens" | "closes" | "reveal" | "send" | "event" | "reminder";
   label: string;
   at: string;
@@ -24,11 +31,21 @@ const db = supabase as any;
  * that does not control the underlying service.
  */
 export function useAdminOperationalSchedule(editionId?: string | null, slug?: string | null) {
+  const { editionId: organizerContextEditionId } = useAdminContext();
+  const requestedEditionId = editionId?.trim() || null;
+  const organizerEditionId = organizerContextEditionId?.trim() || null;
+  const exactEditionId =
+    requestedEditionId && organizerEditionId === requestedEditionId ? requestedEditionId : null;
+
   return useQuery({
-    queryKey: ["admin-operational-schedule", editionId ?? "none", slug ?? ""],
-    enabled: Boolean(editionId),
+    queryKey: ["admin-operational-schedule", exactEditionId ?? "unscoped", slug ?? ""],
+    enabled: Boolean(exactEditionId),
     queryFn: async () => {
-      if (!editionId) return [] as AdminScheduleItem[];
+      if (!exactEditionId) {
+        throw new Error(
+          "Operational schedule must match the exact selected Organizer edition scope.",
+        );
+      }
 
       const [
         roundsResult,
@@ -43,34 +60,34 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
         db
           .from("submission_rounds")
           .select("id,name,status,opens_at,closes_at")
-          .eq("edition_id", editionId),
+          .eq("edition_id", exactEditionId),
         db
           .from("jury_voting_windows")
           .select("show_id,status,opened_at,closed_at")
-          .eq("edition_id", editionId),
+          .eq("edition_id", exactEditionId),
         db
           .from("televoting_round_bindings")
           .select("remote_round_id,show_id")
-          .eq("edition_id", editionId),
-        db.from("shows").select("id,name").eq("edition_id", editionId),
+          .eq("edition_id", exactEditionId),
+        db.from("shows").select("id,name").eq("edition_id", exactEditionId),
         db
           .from("participants")
           .select("id,artist,song,publication_status,scheduled_publish_at")
-          .eq("edition_id", editionId)
+          .eq("edition_id", exactEditionId)
           .is("show_id", null)
           .eq("publication_status", "scheduled")
           .not("scheduled_publish_at", "is", null),
         db
           .from("studio2_official_notices")
           .select("id,title,status,scheduled_at")
-          .eq("edition_id", editionId)
+          .eq("edition_id", exactEditionId)
           .eq("status", "scheduled")
           .not("scheduled_at", "is", null),
-        db.from("editions").select("id,event_date").eq("id", editionId).maybeSingle(),
+        db.from("editions").select("id,event_date").eq("id", exactEditionId).maybeSingle(),
         db
           .from("admin_deadlines")
           .select("id,label,due_at,notes,completed_at")
-          .eq("edition_id", editionId)
+          .eq("edition_id", exactEditionId)
           .is("completed_at", null),
       ]);
 
@@ -158,7 +175,7 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
 
         if (window.opened_at) {
           items.push({
-            id: `jury-open:${window.show_id ?? editionId}`,
+            id: `jury-open:${window.show_id ?? exactEditionId}`,
             source: "jury",
             kind: "opens",
             label: `${label} opens`,
@@ -169,7 +186,7 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
         }
         if (window.closed_at) {
           items.push({
-            id: `jury-close:${window.show_id ?? editionId}`,
+            id: `jury-close:${window.show_id ?? exactEditionId}`,
             source: "jury",
             kind: "closes",
             label: `${label} closes`,
@@ -242,7 +259,7 @@ export function useAdminOperationalSchedule(editionId?: string | null, slug?: st
 
       if (editionResult.data?.event_date) {
         items.push({
-          id: `edition-event:${editionId}`,
+          id: `edition-event:${exactEditionId}`,
           source: "edition",
           kind: "event",
           label: "Edition event date",

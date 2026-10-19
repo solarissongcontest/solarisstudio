@@ -10,9 +10,9 @@ import {
 import { useEffect } from "react";
 
 import {
-  OrganizerV6TabBar,
-  type OrganizerV6TabItem,
-} from "@/components/admin/OrganizerV6TabBar";
+  V3LiquidTabBar,
+  type V3LiquidTabDestination,
+} from "@/components/v3/V3LiquidTabBar";
 import { useOrganizerTaskCountV5 } from "@/lib/admin-tasks-v5";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { useEditions } from "@/lib/data";
@@ -35,6 +35,8 @@ import {
   v3OrganizerTabRoot,
   type V3OrganizerTabId,
 } from "@/lib/v3-organizer";
+import "@/styles/v3-foundations.css";
+import "@/styles/v3-organizer-liquid-tabbar.css";
 import { useAdminContext } from "./AdminContext";
 import { resolveAdminEditionContext } from "./admin-edition-context";
 
@@ -52,7 +54,13 @@ const TAB_DEFINITIONS: Readonly<Record<V3OrganizerTabId, TabDefinition>> = {
   more: { id: "more", label: "More", icon: MoreHorizontal },
 };
 
-/** Canonical V3 Organizer mobile navigation. Operational content remains owned by the existing safe admin routes. */
+/**
+ * Canonical V3 Organizer mobile navigation.
+ *
+ * Organizer owns destination, edition and route-memory authority. NAV owns the
+ * shared Liquid object and its gesture physics, so Public and Organizer cannot
+ * silently drift into separate bottom-navigation implementations.
+ */
 export function OrganizerV3MobileChrome() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
@@ -142,13 +150,12 @@ export function OrganizerV3MobileChrome() {
     };
   }, [navigationMemoryReady, navigationScope, pathname, searchStr]);
 
-  const items = V3_ORGANIZER_TAB_ORDER.map((id): OrganizerV6TabItem => {
+  const items: V3LiquidTabDestination[] = V3_ORGANIZER_TAB_ORDER.map((id) => {
     const definition = TAB_DEFINITIONS[id];
     return {
       id,
       label: definition.label,
-      href: v3OrganizerTabRoot(id),
-      availability: "ready",
+      to: v3OrganizerTabRoot(id),
       icon: definition.icon,
       active: activeTab === id,
       badge: id === "tasks" ? unresolvedTaskCount : undefined,
@@ -181,13 +188,21 @@ export function OrganizerV3MobileChrome() {
     );
   };
 
+  if (tabbarMode === "hidden") return null;
+
   return (
-    <OrganizerV6TabBar
-      key={navigationInteractionKey}
-      pathname={pathname}
-      mode={tabbarMode}
-      items={items}
-      onSelect={(item) => openTab(item.id as V3OrganizerTabId)}
-    />
+    <div
+      data-solaris-v3=""
+      data-organizer-v3-liquid-nav=""
+      data-organizer-v3-tabbar-mode={tabbarMode}
+      data-organizer-v3-memory-ready={navigationMemoryReady ? "true" : "false"}
+    >
+      <V3LiquidTabBar
+        key={navigationInteractionKey}
+        pathname={pathname}
+        destinations={items}
+        onSelect={(item) => openTab(item.id as V3OrganizerTabId)}
+      />
+    </div>
   );
 }

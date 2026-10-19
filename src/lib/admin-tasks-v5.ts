@@ -51,9 +51,18 @@ type RpcClient = {
   ): PromiseLike<{ data: unknown; error: { message?: string } | null }>;
 };
 
+const ORGANIZER_TASK_SCOPE_ERROR =
+  "Organizer Tasks require an explicit selected Organizer edition scope.";
+
 function normalizeOrganizerEditionId(editionId: string | null | undefined) {
   const normalized = editionId?.trim();
   return normalized ? normalized : null;
+}
+
+function requireOrganizerEditionId(editionId: string | null | undefined) {
+  const normalizedEditionId = normalizeOrganizerEditionId(editionId);
+  if (!normalizedEditionId) throw new Error(ORGANIZER_TASK_SCOPE_ERROR);
+  return normalizedEditionId;
 }
 
 function parseOperationalState(value: unknown, index: number) {
@@ -155,24 +164,35 @@ export async function loadOrganizerTasksV5(
   filter: OrganizerTaskFilter,
   client: RpcClient = supabase as unknown as RpcClient,
 ) {
+  const exactEditionId = requireOrganizerEditionId(editionId);
   const { data, error } = await client.rpc("admin_organizer_tasks", {
-    p_edition_id: normalizeOrganizerEditionId(editionId),
+    p_edition_id: exactEditionId,
     p_filter: filter,
   });
   if (error) throw new Error(error.message || "Organizer Tasks could not be loaded.");
-  return mapOrganizerTasksV5(data);
+  const tasks = mapOrganizerTasksV5(data);
+  if (tasks.some((task) => task.editionId && task.editionId !== exactEditionId)) {
+    throw new Error("Organizer Tasks returned a task from another edition scope.");
+  }
+  return tasks;
 }
 
 export async function loadOrganizerTaskCountV5(
   editionId: string | null | undefined,
   client: RpcClient = supabase as unknown as RpcClient,
 ) {
+  const exactEditionId = requireOrganizerEditionId(editionId);
   const { data, error } = await client.rpc("admin_organizer_task_count", {
-    p_edition_id: normalizeOrganizerEditionId(editionId),
+    p_edition_id: exactEditionId,
   });
   if (error) throw new Error(error.message || "Organizer task count could not be loaded.");
   const value = Number(data ?? 0);
   return Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
+}
+
+function shouldRetryOrganizerTaskQuery(failureCount: number, error: Error) {
+  if (error.message === ORGANIZER_TASK_SCOPE_ERROR) return false;
+  return failureCount < 2;
 }
 
 export function useOrganizerTasksV5(
@@ -183,8 +203,9 @@ export function useOrganizerTasksV5(
   const normalizedEditionId = normalizeOrganizerEditionId(editionId);
   return useQuery({
     enabled,
-    queryKey: ["organizer-tasks-v5", normalizedEditionId ?? "all", filter],
+    queryKey: ["organizer-tasks-v5", normalizedEditionId ?? "unscoped", filter],
     queryFn: () => loadOrganizerTasksV5(normalizedEditionId, filter),
+    retry: shouldRetryOrganizerTaskQuery,
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
   });
@@ -197,8 +218,9 @@ export function useOrganizerTaskCountV5(
   const normalizedEditionId = normalizeOrganizerEditionId(editionId);
   return useQuery({
     enabled,
-    queryKey: ["organizer-task-count-v5", normalizedEditionId ?? "all"],
+    queryKey: ["organizer-task-count-v5", normalizedEditionId ?? "unscoped"],
     queryFn: () => loadOrganizerTaskCountV5(normalizedEditionId),
+    retry: shouldRetryOrganizerTaskQuery,
     refetchInterval: 60_000,
     refetchIntervalInBackground: false,
   });

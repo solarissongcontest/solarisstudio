@@ -52,7 +52,8 @@ export type ConfirmationSolarisSyncResult = {
     | "unmatched_country"
     | "unmatched_edition"
     | "canonical_newer"
-    | "canonical_owned";
+    | "canonical_owned"
+    | "publication_event_failed";
   editionId?: string;
   countryId?: string;
   participantId?: string;
@@ -426,7 +427,6 @@ async function syncConfirmationSnapshotToSolarisInternal(
     .maybeSingle();
   if (participantLookup.error) throw new Error(participantLookup.error.message);
   let participant = participantLookup.data;
-  const publicationWasPublic = participant?.publication_status === "published";
 
   const confirmationPublicationFields = {
     publication_status: confirmationPublication.status,
@@ -561,13 +561,27 @@ async function syncConfirmationSnapshotToSolarisInternal(
 
     if (
       !participant.publication_overridden &&
-      confirmationPublication.status === "published" &&
-      !publicationWasPublic
+      confirmationPublication.status === "published"
     ) {
-      await db.rpc("emit_entry_published_event", {
+      const { error: publicationEventError } = await db.rpc("emit_entry_published_event", {
         _edition_id: edition.id,
         _country_id: country.id,
       });
+      if (publicationEventError) {
+        const message = `Confirmation sync could not emit the canonical entry publication event: ${publicationEventError.message ?? "unknown database error"}`;
+        const failedResult: ConfirmationSolarisSyncResult = {
+          ok: false,
+          status: "publication_event_failed",
+          editionId: edition.id,
+          countryId: country.id,
+          participantId: participant.id,
+          entryId: canonicalEntry.id,
+          officialEntryKnown: true,
+          message,
+        };
+        await recordSyncEvent(db, snapshot, failedResult, message);
+        return failedResult;
+      }
     }
   } else if (!existingEntry || existingEntry.source === "confirmations") {
     const pendingPayload = {

@@ -3,11 +3,14 @@ import { type ReactNode } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
+import { useAppExperiencePreferences } from "@/lib/app-experience";
+import { useNotificationPreferences } from "@/lib/engagement-data";
 import { useV3EditionBundle } from "@/lib/v3-edition-runtime";
 import { useV3EditionRolloutProbe } from "@/lib/v3-primary-runtime";
+import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
 import { decideV3ShellForRoute } from "@/lib/v3-shell-route-boundary";
 import { V3AppShell } from "./V3AppShell";
-import { V3EditionHubScreen } from "./V3EditionHubScreen";
+import { V3EditionSpoilerSafeScreen } from "./V3EditionSpoilerSafeScreen";
 
 function ResolvingEditionSurface() {
   return (
@@ -47,12 +50,14 @@ export function V3EditionRouteGate({
   legacy: ReactNode;
 }) {
   const { isAppMode, platformResolved } = useSolarisApp();
+  const { preferences } = useAppExperiencePreferences();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
   const rollout = useV3EditionRolloutProbe(
     slug,
     platformResolved && isAppMode,
   );
+  const serverPreferences = useNotificationPreferences(rollout.data?.userId ?? undefined);
   const shouldLoadBundle =
     platformResolved &&
     isAppMode &&
@@ -90,6 +95,14 @@ export function V3EditionRouteGate({
 
   const bundle = bundleQuery.data;
   const globalSearchEnabled = rollout.data.searchEnabled === true;
+  const hideSpoilers = resolveV3ResultsSpoilerProtection({
+    localSpoilerFree: preferences.spoilerFree,
+    viewerResolved: true,
+    viewerId: rollout.data.userId ?? null,
+    serverPending: serverPreferences.isPending,
+    serverError: serverPreferences.isError,
+    serverSpoilerFree: serverPreferences.data?.spoiler_free ?? null,
+  });
 
   return (
     <V3AppShell
@@ -103,7 +116,11 @@ export function V3EditionRouteGate({
         ) : undefined
       }
     >
-      <V3EditionHubScreen projection={bundle.projection} />
+      <V3EditionSpoilerSafeScreen
+        key={`${rollout.data.userId ?? "anonymous"}:${slug}:${hideSpoilers}`}
+        projection={bundle.projection}
+        hideSpoilers={hideSpoilers}
+      />
     </V3AppShell>
   );
 }

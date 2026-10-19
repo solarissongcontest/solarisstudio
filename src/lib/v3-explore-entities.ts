@@ -11,6 +11,13 @@ export type V3ExploreEntrySummary = {
   status: string | null;
 };
 
+export type V3CountryEntrySummary = Omit<
+  V3ExploreEntrySummary,
+  'entryId' | 'countryId' | 'countryName'
+> & {
+  editionHref: string | null;
+};
+
 export type V3CountryExploreProjection = {
   kind: 'country';
   code: string;
@@ -20,11 +27,8 @@ export type V3CountryExploreProjection = {
   description: string | null;
   flag: CountryIdentityModel['flag'];
   colors: CountryIdentityModel['colors'];
-  currentEntry: Omit<V3ExploreEntrySummary, 'entryId' | 'countryId' | 'countryName'> | null;
-  participationHistory: readonly Omit<
-    V3ExploreEntrySummary,
-    'entryId' | 'countryId' | 'countryName'
-  >[];
+  currentEntry: V3CountryEntrySummary | null;
+  participationHistory: readonly V3CountryEntrySummary[];
   actions: CountryIdentityModel['actions'];
   resultsDestination: '/results';
 };
@@ -100,10 +104,13 @@ function nullable(value: string | null | undefined): string | null {
 
 function entryFromCountryHistory(
   entry: CountryIdentityModel['history'][number],
-): Omit<V3ExploreEntrySummary, 'entryId' | 'countryId' | 'countryName'> {
+  editionHrefById: ReadonlyMap<string, string>,
+): V3CountryEntrySummary {
+  const editionId = required(entry.editionId, 'history editionId');
   return {
-    editionId: required(entry.editionId, 'history editionId'),
+    editionId,
     editionLabel: required(entry.editionLabel, 'history editionLabel'),
+    editionHref: nullable(editionHrefById.get(editionId)),
     artist: nullable(entry.artist),
     song: nullable(entry.song),
     status: nullable(entry.status),
@@ -112,9 +119,24 @@ function entryFromCountryHistory(
 
 export function buildV3CountryExploreProjection(
   country: CountryIdentityModel,
+  editionHrefById: ReadonlyMap<string, string> = new Map(),
 ): V3CountryExploreProjection {
   const code = required(country.code, 'country code');
   const name = required(country.name, 'country name');
+
+  const currentEntry = country.currentEntry
+    ? (() => {
+        const editionId = required(country.currentEntry.editionId, 'current entry editionId');
+        return {
+          editionId,
+          editionLabel: required(country.currentEntry.editionLabel, 'current entry editionLabel'),
+          editionHref: nullable(editionHrefById.get(editionId)),
+          artist: nullable(country.currentEntry.artist),
+          song: nullable(country.currentEntry.song),
+          status: nullable(country.currentEntry.status),
+        };
+      })()
+    : null;
 
   return {
     kind: 'country',
@@ -125,16 +147,10 @@ export function buildV3CountryExploreProjection(
     description: nullable(country.description),
     flag: { ...country.flag },
     colors: { ...country.colors },
-    currentEntry: country.currentEntry
-      ? {
-          editionId: required(country.currentEntry.editionId, 'current entry editionId'),
-          editionLabel: required(country.currentEntry.editionLabel, 'current entry editionLabel'),
-          artist: nullable(country.currentEntry.artist),
-          song: nullable(country.currentEntry.song),
-          status: nullable(country.currentEntry.status),
-        }
-      : null,
-    participationHistory: country.history.map(entryFromCountryHistory),
+    currentEntry,
+    participationHistory: country.history.map((entry) =>
+      entryFromCountryHistory(entry, editionHrefById),
+    ),
     actions: { ...country.actions },
     resultsDestination: '/results',
   };

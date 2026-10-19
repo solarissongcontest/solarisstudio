@@ -1,7 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 
-import { AppShell } from "@/components/AppShell";
+import { RulesRouteShell } from "@/components/rules/RulesRouteShell";
 import {
   GovernanceStatusStrip,
   SolarisDepthEyebrow,
@@ -30,7 +30,7 @@ function RuleChapterPage() {
   if (!chapter) throw notFound();
 
   return (
-    <AppShell>
+    <RulesRouteShell resolvingTitle={`Opening Chapter ${chapter.number}`}>
       <SolarisDepthPage tone="rules">
         <SolarisDepthSafeZone>
           <header>
@@ -80,6 +80,6 @@ function RuleChapterPage() {
           </SolarisDepthSurface>
         </SolarisDepthSafeZone>
       </SolarisDepthPage>
-    </AppShell>
+    </RulesRouteShell>
   );
 }

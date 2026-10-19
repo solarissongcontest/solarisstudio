@@ -47,6 +47,16 @@ describe("confirmation canonical reconciliation", () => {
     expect(sync).toContain("Automatic reconciliation was stopped instead of overwriting it");
   });
 
+  it("fails closed when publication-event emission fails and retries the idempotent event on the next sync", () => {
+    expect(sync).toContain(
+      'const { error: publicationEventError } = await db.rpc("emit_entry_published_event"',
+    );
+    expect(sync).toContain("if (publicationEventError)");
+    expect(sync).toContain('status: "publication_event_failed"');
+    expect(sync).toContain("await recordSyncEvent(db, snapshot, failedResult, message)");
+    expect(sync).not.toContain("!publicationWasPublic");
+  });
+
   it("keeps manual snapshot sync organizer-protected", () => {
     expect(sync).toContain("await requireSolarisOrganizerServer()");
     expect(sync).toContain("syncConfirmationSnapshotToSolarisInternal(data.snapshot)");
