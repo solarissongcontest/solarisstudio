@@ -32,7 +32,10 @@ begin
     where game.id = v_new_game_id;
   end if;
 
-  return coalesce(new, old);
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
 end
 $bump$;
 
