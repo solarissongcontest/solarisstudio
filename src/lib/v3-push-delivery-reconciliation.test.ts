@@ -64,6 +64,19 @@ describe("V3 push delivery reconciliation", () => {
     expect(migration).toContain("using ((select auth.uid()) = user_id)");
   });
 
+  it("accepts React Query context without treating the context object as a user id", () => {
+    const client = readFileSync("src/lib/app-notifications.ts", "utf8");
+    const legacyPanel = readFileSync(
+      "src/components/mysolaris/MySolarisNotificationsPanel.tsx",
+      "utf8",
+    );
+
+    expect(legacyPanel).toContain("queryFn: getAppPushState");
+    expect(client).toContain("resolvePushStateUserId");
+    expect(client).toContain("input?.queryKey?.[1]");
+    expect(client).toContain('typeof candidate === "string"');
+  });
+
   it("keeps legacy callers browser-only until they opt into authenticated reconciliation", () => {
     const client = readFileSync("src/lib/app-notifications.ts", "utf8");
 
