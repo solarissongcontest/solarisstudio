@@ -30,14 +30,17 @@ describe("V3 Organizer current-edition Broadcast building evidence", () => {
     expect(ownership).toContain('routePattern: "/admin/edition-theme/*"');
   });
 
-  it("has real production editing and persistence rather than a placeholder", () => {
+  it("has real production editing and reviewed persistence rather than a placeholder", () => {
     expect(route).toContain("BroadcastEditor");
     expect(route).toContain("ScoreboardEditor");
     expect(route).toContain("ThemeEditor");
     expect(route).toContain("EditionArtworkControl");
     expect(route).toContain('supabase.from("themes").update');
-    expect(route).toContain('supabase.from("editions").update');
+    expect(route).toContain('.from("editions")');
+    expect(route).toContain('.update({ theme_id: themeId })');
     expect(route).toContain('supabase.from("shows").update');
+    expect(route).toContain("AdminConfirmSheet");
+    expect(route).toContain("applyReviewedDesign");
   });
 
   it("does not pretend current direct table persistence is canonical parity authority", () => {
