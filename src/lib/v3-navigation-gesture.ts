@@ -9,6 +9,12 @@ export type V3TopLevelSwipePolicy =
 export type V3SwipeIntent = "undecided" | "horizontal" | "vertical";
 export type V3LayoutDirection = "ltr" | "rtl";
 
+export type V3PageSettleMotion = {
+  durationMs: number;
+  remainingRatio: number;
+  releaseSpeed: number;
+};
+
 const HORIZONTAL_BLOCK_SELECTOR = [
   '[data-v3-swipe-owner="content"]',
   '[data-v3-horizontal-gesture="true"]',
@@ -71,9 +77,47 @@ export function isV3BrowserEdgeGestureStart({
   return clientX <= edge || clientX >= width - edge;
 }
 
+export function isV3ScrollableHorizontalOverflow({
+  overflowX,
+  scrollWidth,
+  clientWidth,
+}: {
+  overflowX: string;
+  scrollWidth: number;
+  clientWidth: number;
+}) {
+  const overflow = overflowX.trim().toLowerCase();
+  const scrollableOverflow = overflow === "auto" || overflow === "scroll";
+  return scrollableOverflow && scrollWidth > clientWidth + 1;
+}
+
 export function elementBlocksV3TopLevelSwipe(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
   if (target.closest(HORIZONTAL_BLOCK_SELECTOR)) return true;
+
+  // Feature owners should use the explicit selectors above whenever possible,
+  // but the global page gesture must still fail closed around a real horizontal
+  // scroller that was not annotated. This inspection happens only at pointer
+  // start, never in the per-frame move loop.
+  if (typeof window !== "undefined") {
+    let current: Element | null = target;
+    while (current) {
+      if (current instanceof HTMLElement) {
+        const style = window.getComputedStyle(current);
+        if (
+          isV3ScrollableHorizontalOverflow({
+            overflowX: style.overflowX,
+            scrollWidth: current.scrollWidth,
+            clientWidth: current.clientWidth,
+          })
+        ) {
+          return true;
+        }
+      }
+      current = current.parentElement;
+    }
+  }
+
   const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
   return Boolean(selection && !selection.isCollapsed);
 }
@@ -159,6 +203,46 @@ export function resolveV3PageSwipeTarget({
   // above so the rule is identical in LTR and RTL layouts.
   const step = logicalDirection < 0 ? 1 : logicalDirection > 0 ? -1 : 0;
   return Math.min(count - 1, Math.max(0, index + step));
+}
+
+/**
+ * Converts the same release state used for destination selection into bounded
+ * settle timing. A nearly-complete or fast swipe finishes quickly; a slow
+ * release with more travel remaining gets a longer spring. Mirrored RTL input
+ * resolves identically because both displacement and velocity are normalized
+ * onto the logical navigation axis first.
+ */
+export function resolveV3PageSettleMotion({
+  deltaX,
+  velocityX,
+  viewportWidth,
+  activeIndex,
+  targetIndex,
+  direction = "ltr",
+}: {
+  deltaX: number;
+  velocityX: number;
+  viewportWidth: number;
+  activeIndex: number;
+  targetIndex: number;
+  direction?: V3LayoutDirection;
+}): V3PageSettleMotion {
+  const width = Math.max(1, viewportWidth);
+  const logicalDelta = resolveV3LogicalHorizontalDelta(deltaX, direction);
+  const logicalVelocity = resolveV3LogicalHorizontalDelta(velocityX, direction);
+  const targetLogicalDelta = (activeIndex - targetIndex) * width;
+  const remainingRatio = Math.min(
+    1.35,
+    Math.abs(targetLogicalDelta - logicalDelta) / width,
+  );
+  const releaseSpeed = Math.min(1.8, Math.abs(logicalVelocity));
+  const speedRatio = Math.min(1, releaseSpeed / 1.35);
+  const distanceOwnedMs = 145 + remainingRatio * 95;
+  const durationMs = Math.round(
+    Math.max(120, Math.min(260, distanceOwnedMs - speedRatio * 75)),
+  );
+
+  return { durationMs, remainingRatio, releaseSpeed };
 }
 
 export { HORIZONTAL_BLOCK_SELECTOR };
