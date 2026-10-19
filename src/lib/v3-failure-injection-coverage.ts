@@ -143,14 +143,15 @@ export const V3_FAILURE_INJECTION_COVERAGE: readonly V3FailureCoverageEntry[] = 
   },
   {
     scenario: "unavailable_dependency",
-    state: "rehearsed",
-    injection: "Record DEPENDENCY_FAILURE for a claimed event consumer delivery.",
+    state: "partial",
+    injection: "Record DEPENDENCY_FAILURE for a claimed event consumer delivery; this exercises the canonical retry/dead-letter response to a dependency-classified failure but does not make a real dependency unavailable.",
     expectedRecovery: "Schedule retry, preserve attempt evidence, dead-letter repeated poison work, and requeue only through the explicit operator path.",
     evidence: [
       ".github/scripts/v3-s4-domain-event-outbox-rehearsal.sh",
       "src/lib/v3-s4-domain-event-outbox.contract.test.ts",
     ],
-    remainingGap: null,
+    remainingGap:
+      "A deterministic local rehearsal still needs to make a real dependency unavailable, observe the resulting dependency failure through a canonical consumer or operation boundary, restore the dependency, and prove recovery convergence.",
     productionTrafficRequired: false,
   },
 ] as const;
