@@ -4,7 +4,7 @@ type AccountUser = { id: string; [key: string]: unknown } | null | undefined;
 
 export function isPrivateAccountQuery(key: readonly unknown[]) {
   const root = String(key[0] ?? "");
-  return /^(edition-selection|user-prefs|user-country-ownership|mysolaris-|my-solaris-|my-country-|owned-|country-confirmation-|country-jury-|home-personal-attention|participate-jury-|participate-confirmation-access|admin-|studio2-|organisation-backend-contract|v3-rollout-probe|v3-primary-surface-bundle|v3-account-)/.test(
+  return /^(edition-selection|user-prefs|user-country-ownership|mysolaris-|my-solaris-|my-country-|owned-|country-confirmation-|country-jury-|home-personal-attention|participate-jury-|participate-confirmation-access|admin-|studio2-|organisation-backend-contract|fan-follows|fan-event-reads|fan-profile|fan-taste-ballots|notification-preferences|my-prediction|prediction-history|prediction-movement|solaris-app-push-state|v3-rollout-probe|v3-primary-surface-bundle|v3-account-|v3-entry-bundle|v3-me-summary|v3-delegation-notices|v3-notifications-inbox|v3-follow-entity-details|v3-participation-history)/.test(
     root,
   );
 }
