@@ -1,6 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 
-type AccountUser = { id: string } | null | undefined;
+type AccountUser = { id: string; [key: string]: unknown } | null | undefined;
 
 export function isPrivateAccountQuery(key: readonly unknown[]) {
   const root = String(key[0] ?? "");
@@ -30,22 +30,20 @@ export function createAccountCacheIsolationHandler(
 
     const nextUserId = user?.id ?? null;
     if (previousUserId !== nextUserId) {
-      const priorUserId = previousUserId;
       previousUserId = nextUserId;
       // Security ordering is intentional: invalidate the previous account's
-      // private observers before publishing the next fan-session namespace.
+      // private observers before publishing the next account identity.
       clearPrivateAccountQueries(client);
       resetAttention();
 
       // The authenticated route deliberately does not own another auth-state
       // subscription. Reconcile its cached identity from this single global
-      // subscriber so remote revocation/sign-out cannot leave a protected shell
-      // showing stale identity until an incidental React Query refetch.
-      if (nextUserId === null) {
-        client.setQueryData(["authenticated-identity-gate"], null);
-      } else if (priorUserId !== undefined) {
-        void client.invalidateQueries({ queryKey: ["authenticated-identity-gate"] });
-      }
+      // subscriber so remote revocation/sign-out and A -> B account switches
+      // cannot leave the protected shell rendering the previous account while
+      // a background refetch is still pending. AccountCacheIsolation receives
+      // the Supabase auth User object at runtime, so replacing the cache is
+      // stricter than merely invalidating stale identity data.
+      client.setQueryData(["authenticated-identity-gate"], user ?? null);
     }
     client.setQueryData(["fan-session"], user ?? null);
   };
