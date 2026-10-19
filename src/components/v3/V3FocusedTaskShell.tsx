@@ -14,6 +14,7 @@ export type V3FocusedTaskShellProps = {
   chrome: V3FocusedTaskChrome;
   editionLabel?: string | null;
   statusLabel?: string | null;
+  contentWidth?: "standard" | "wide";
   children: ReactNode;
 };
 
@@ -33,6 +34,7 @@ export function V3FocusedTaskShell({
   chrome,
   editionLabel,
   statusLabel,
+  contentWidth = "standard",
   children,
 }: V3FocusedTaskShellProps) {
   const context = [editionLabel?.trim(), statusLabel?.trim()].filter(Boolean) as string[];
@@ -88,7 +90,11 @@ export function V3FocusedTaskShell({
           </div>
         </header>
 
-        <div className="v3-focused-task-content" data-v3-critical-task-content>
+        <div
+          className="v3-focused-task-content"
+          data-v3-critical-task-content
+          data-v3-focused-task-width={contentWidth}
+        >
           {children}
         </div>
       </div>

@@ -2,34 +2,39 @@ import type { ReactNode } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { useV3EntryBundle } from "@/lib/v3-entry-runtime";
+import { resolveV3FocusedTaskChrome } from "@/lib/v3-focused-task-chrome";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
-import { V3AppShell } from "./V3AppShell";
 import { V3EntryCreditsSummaryPanel } from "./V3EntryCreditsSummaryPanel";
 import { V3EntryLifecyclePanel } from "./V3EntryLifecyclePanel";
 import { V3EntryResubmissionPanel } from "./V3EntryResubmissionPanel";
 import { V3EntryScreen } from "./V3EntryScreen";
+import { V3FocusedTaskShell } from "./V3FocusedTaskShell";
+
+const ENTRY_FOCUSED_CHROME = resolveV3FocusedTaskChrome("/my-solaris/entry");
 
 function ResolvingEntrySurface() {
   return (
-    <main
-      className="relative z-10 mx-auto w-full max-w-3xl px-4 py-10 sm:py-14"
-      data-v3-entry-boot=""
-    >
-      <header className="border-b border-border/70 pb-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">
-          Participate · Entry
+    <V3FocusedTaskShell chrome={ENTRY_FOCUSED_CHROME}>
+      <div
+        className="relative z-10 mx-auto w-full max-w-3xl px-4 py-10 sm:py-14"
+        data-v3-entry-boot=""
+      >
+        <header className="border-b border-border/70 pb-5">
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">
+            Participate · Entry
+          </p>
+          <h1 className="mt-2 font-display text-3xl font-black tracking-[-0.04em] sm:text-5xl">
+            Your entry
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Checking your current delegation, readiness and immutable review evidence.
+          </p>
+        </header>
+        <p className="sr-only" role="status" aria-live="polite">
+          Opening your Entry workspace.
         </p>
-        <h1 className="mt-2 font-display text-3xl font-black tracking-[-0.04em] sm:text-5xl">
-          Your entry
-        </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Checking your current delegation, readiness and immutable review evidence.
-        </p>
-      </header>
-      <p className="sr-only" role="status" aria-live="polite">
-        Opening your Entry workspace.
-      </p>
-    </main>
+      </div>
+    </V3FocusedTaskShell>
   );
 }
 
@@ -37,7 +42,9 @@ function ResolvingEntrySurface() {
  * Installed-app participant Entry cutover. Organizer country inspection and
  * every disabled/error state preserve the canonical legacy module. The V3
  * private bundle is not requested until the server has authorized the slice and
- * identified an authenticated viewer.
+ * identified an authenticated viewer. Installed-app Entry owns focused chrome
+ * from the resolving render onward so global navigation cannot flash into a
+ * protected submission workflow.
  */
 export function V3EntryRouteGate({
   legacy,
@@ -75,10 +82,10 @@ export function V3EntryRouteGate({
   if (bundle.isError || !bundle.data) return <>{legacy}</>;
 
   return (
-    <V3AppShell
+    <V3FocusedTaskShell
+      chrome={ENTRY_FOCUSED_CHROME}
       editionLabel={bundle.data.shell.editionLabel}
-      phaseLabel={bundle.data.shell.phaseLabel}
-      activeArea="participate"
+      statusLabel={bundle.data.shell.phaseLabel}
     >
       <V3EntryLifecyclePanel projection={bundle.data.projection} />
       <V3EntryCreditsSummaryPanel projection={bundle.data.projection} />
@@ -87,6 +94,6 @@ export function V3EntryRouteGate({
         projection={bundle.data.projection}
         focusReadiness={focusReadiness}
       />
-    </V3AppShell>
+    </V3FocusedTaskShell>
   );
 }
