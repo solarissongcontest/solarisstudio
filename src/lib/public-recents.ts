@@ -39,8 +39,19 @@ const NON_CONTENT_RECENT_PATHS = new Set([
   "/scorecharts",
 ]);
 
+function isSafeRootRelativePath(path: string) {
+  return (
+    path.startsWith("/") &&
+    !path.startsWith("//") &&
+    !path.includes("\\") &&
+    !/[\u0000-\u001f\u007f]/.test(path)
+  );
+}
+
 export function shouldRememberPublicPath(path: string) {
-  if (!path || NON_CONTENT_RECENT_PATHS.has(path)) return false;
+  if (!path || !isSafeRootRelativePath(path) || NON_CONTENT_RECENT_PATHS.has(path)) {
+    return false;
+  }
 
   const screen = resolveSolarisAppScreen(path);
   if (screen.behavior.criticalTask || screen.behavior.immersive) return false;
