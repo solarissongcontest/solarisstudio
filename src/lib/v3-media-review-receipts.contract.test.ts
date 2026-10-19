@@ -38,12 +38,14 @@ describe('V3 receipted Media Review command', () => {
     expect(migration).toContain("v_claim -> 'result'");
   });
 
-  it('keeps validation, authorization and source-fingerprint authority server-side', () => {
+  it('keeps validation, authorization and canonical-source authority server-side', () => {
     expect(migration).toContain('jsonb_array_length(p_reviews) < 1');
     expect(migration).toContain('length(v_reason) < 5');
     expect(migration).toContain('public.studio2_review_media_assets_legacy_impl(');
     expect(consequenceMigration).toContain('private.studio2_can_manage_media_assets');
-    expect(consequenceMigration).toContain('source-fingerprint');
+    expect(consequenceMigration).toContain(
+      'studio2_review_media_assets_legacy_impl(uuid, jsonb, text)',
+    );
   });
 
   it('lets the client reconcile a lost response by the original operation id', () => {
@@ -53,6 +55,7 @@ describe('V3 receipted Media Review command', () => {
     expect(client).toContain("reconciliation.status !== 'succeeded'");
     expect(client).toContain('createMediaReviewOperationIdentity');
     expect(client).toContain('reviewStudio2MediaAssetsV3');
+    expect(client).not.toContain('new Date().toISOString()');
   });
 
   it('rejects receipts from another operation or edition instead of trusting a successful transport', () => {
