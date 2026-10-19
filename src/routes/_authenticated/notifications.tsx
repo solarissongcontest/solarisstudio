@@ -10,7 +10,7 @@ import { V3AppShell } from "@/components/v3/V3AppShell";
 import { V3Screen, V3ScreenHeader, V3Surface } from "@/components/v3/V3Foundation";
 import {
   describeAppPushDelivery,
-  getAppPushState,
+  getAuthenticatedAppPushState,
   UNKNOWN_APP_PUSH_DELIVERY,
 } from "@/lib/app-notifications";
 import {
@@ -85,7 +85,7 @@ function V3NotificationsRouteContent({
   const preferences = useNotificationPreferences(userId);
   const push = useQuery({
     queryKey: ["solaris-app-push-state", userId],
-    queryFn: () => getAppPushState(userId),
+    queryFn: () => getAuthenticatedAppPushState(userId),
     staleTime: 30_000,
     refetchOnWindowFocus: true,
     retry: false,
