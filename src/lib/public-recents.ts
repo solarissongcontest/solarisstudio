@@ -39,12 +39,20 @@ const NON_CONTENT_RECENT_PATHS = new Set([
   "/scorecharts",
 ]);
 
+function containsControlCharacter(value: string) {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code <= 0x1f || code === 0x7f) return true;
+  }
+  return false;
+}
+
 function isSafeRootRelativePath(path: string) {
   return (
     path.startsWith("/") &&
     !path.startsWith("//") &&
     !path.includes("\\") &&
-    !/[\u0000-\u001f\u007f]/.test(path)
+    !containsControlCharacter(path)
   );
 }
 
