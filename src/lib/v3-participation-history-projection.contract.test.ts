@@ -86,7 +86,7 @@ describe("V3 personal participation history projection", () => {
 
   it("keeps the private revision ledger inaccessible to browser roles", () => {
     expect(migration).toContain(
-      "revoke all on private.v3_delegation_hod_assignment_history\n  from public, anon, authenticated, service_role;",
+      "revoke all on table private.v3_delegation_hod_assignment_history\n  from public, anon, authenticated, service_role;",
     );
     expect(migration).toContain(
       "revoke all on function private.v3_capture_delegation_hod_assignment_history()\n  from public, anon, authenticated, service_role;",
