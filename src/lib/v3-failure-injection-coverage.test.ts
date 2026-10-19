@@ -34,6 +34,14 @@ describe("System V3 S11 deterministic failure-injection coverage", () => {
     expect(s4Rehearsal).toContain("duplicate completion was not reported as replay");
   });
 
+  it("does not overclaim a real unavailable-dependency rehearsal from an injected error code", () => {
+    const dependency = V3_FAILURE_INJECTION_COVERAGE.find(
+      (entry) => entry.scenario === "unavailable_dependency",
+    );
+    expect(dependency?.state).toBe("partial");
+    expect(dependency?.remainingGap).toContain("make a real dependency unavailable");
+  });
+
   it("marks stale projection and reconciliation retry rehearsal-ready pending retained execution evidence", () => {
     expect(staleProjectionRehearsal).toContain("V3_S11_SYNTHETIC_PROJECTION_WRITE_FAILURE");
     expect(staleProjectionRehearsal).toContain("Retry did not restore exactly one fixture task");
@@ -69,18 +77,20 @@ describe("System V3 S11 deterministic failure-injection coverage", () => {
     ).toBe("rehearsal_ready");
   });
 
-  it("binds generated evidence to the checked-out SHA and creates output directories", () => {
+  it("binds generated evidence to a clean checked-out SHA and creates output directories", () => {
     expect(evidenceGenerator).toContain('execFileSync("git", ["rev-parse", "HEAD"]');
+    expect(evidenceGenerator).toContain('"status", "--porcelain", "--untracked-files=all"');
     expect(evidenceGenerator).toContain("does not match checked-out commit");
+    expect(evidenceGenerator).toContain("exact-SHA evidence requires a clean worktree");
     expect(evidenceGenerator).toContain("mkdirSync(dirname(absoluteOutputPath), { recursive: true })");
   });
 
-  it("reports all newly implemented recovery paths as rehearsal-ready until exact-SHA runs are retained", () => {
+  it("reports implemented rehearsals honestly while the real dependency-outage injection remains open", () => {
     const report = buildV3FailureInjectionCoverageReport();
     expect(report.schemaVersion).toBe(2);
-    expect(report.counts.rehearsed).toBe(3);
+    expect(report.counts.rehearsed).toBe(2);
     expect(report.counts.rehearsal_ready).toBe(5);
-    expect(report.counts.partial).toBe(0);
+    expect(report.counts.partial).toBe(1);
     expect(report.counts.contract_only).toBe(0);
     expect(report.counts.missing).toBe(0);
     expect(report.unresolved.map((item) => item.scenario).sort()).toEqual([
@@ -89,6 +99,7 @@ describe("System V3 S11 deterministic failure-injection coverage", () => {
       "reconciliation_retry",
       "stale_projection",
       "transient_rpc_failure",
+      "unavailable_dependency",
     ]);
     expect(report.productionTrafficRequired).toBe(false);
     expect(report.certificationClaim).toBe(false);
