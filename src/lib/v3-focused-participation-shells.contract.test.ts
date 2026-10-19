@@ -29,6 +29,8 @@ describe("V3 focused participation shell adoption", () => {
 
     expect(source).toContain("useV3RolloutProbe(platformResolved && focusedTaskCandidate)");
     expect(source).toContain("v3FocusedParticipationRouteEnabled(pathname, rollout.data)");
+    expect(source).toContain("screen.behavior.criticalTask && rollout.isLoading");
+    expect(source).toContain("data-v3-focused-task-boot={service}");
     expect(rolloutAuthority).toContain("rollout?.enabled !== true");
     expect(rolloutAuthority).toContain("rollout.confirmationEnabled === true");
     expect(rolloutAuthority).toContain("rollout.juryEnabled === true");
@@ -67,21 +69,23 @@ describe("V3 focused participation shell adoption", () => {
     expect(source).not.toMatch(/<main[^>]*v3-participation-task-route-screen/);
   });
 
-  it("removes duplicate global toolbar chrome through the same rollout authority", () => {
+  it("suppresses generic toolbar during focused rollout resolution and after ownership resolves", () => {
     const toolbar = appToolbar();
     const shell = participationShell();
     const css = focusedCss();
 
     expect(toolbar).toContain('screen.id === "participation.task" && screen.chrome.toolbar === "focused"');
     expect(toolbar).toContain("useV3RolloutProbe(participationFocusedTask)");
+    expect(toolbar).toContain("focusedRollout.isLoading");
     expect(toolbar).toContain("v3FocusedParticipationRouteEnabled(");
     expect(shell).toContain("v3FocusedParticipationRouteEnabled(pathname, rollout.data)");
     expect(toolbar).toContain("participationRouteOwnsFocusedToolbar");
+    expect(toolbar).toContain('screen.id === "mysolaris.entry" && screen.chrome.toolbar === "focused"');
     expect(toolbar).toContain("if (routeOwnsFocusedToolbar) return null");
     expect(css).not.toContain(".solaris-app-toolbar");
   });
 
-  it("preserves wide operational layouts while Entry can remain independently compact", () => {
+  it("preserves wide operational layouts while Entry remains independently compact", () => {
     const shell = focusedShell();
     const css = focusedCss();
 

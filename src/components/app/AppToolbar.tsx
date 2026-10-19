@@ -36,11 +36,13 @@ export function AppToolbar({
   const participationFocusedTask =
     screen.id === "participation.task" && screen.chrome.toolbar === "focused";
   const focusedRollout = useV3RolloutProbe(participationFocusedTask);
-  const participationRouteOwnsFocusedToolbar = v3FocusedParticipationRouteEnabled(
-    pathname,
-    focusedRollout.data,
-  );
-  const routeOwnsFocusedToolbar = participationRouteOwnsFocusedToolbar;
+  const participationRouteOwnsFocusedToolbar =
+    participationFocusedTask &&
+    (focusedRollout.isLoading ||
+      v3FocusedParticipationRouteEnabled(pathname, focusedRollout.data));
+  const routeOwnsFocusedToolbar =
+    (screen.id === "mysolaris.entry" && screen.chrome.toolbar === "focused") ||
+    participationRouteOwnsFocusedToolbar;
   const morphProgress = useScrollMorphProgress({
     resetKey: `${pathname}|${searchStr}`,
   });
