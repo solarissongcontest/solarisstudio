@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const workflow = readFileSync(".github/workflows/rules-integrity-migration-rehearsal.yml", "utf8");
+const migrationDelta = readFileSync(".github/scripts/v3-copy-migration-delta.sh", "utf8");
 
 describe("S16 migration rehearsal exact-SHA evidence", () => {
   it("requires an explicit exact current-main SHA for release-grade manual runs", () => {
@@ -27,6 +28,14 @@ describe("S16 migration rehearsal exact-SHA evidence", () => {
     expect(workflow).toContain(".github/scripts/v3-copy-migration-delta.sh");
     expect(workflow).toContain('"${{ steps.prepare-baseline.outputs.sha }}"');
     expect(workflow).not.toContain("rsync -a --delete");
+  });
+
+  it("fails closed instead of deleting or overwriting migration history", () => {
+    expect(migrationDelta).toContain("--diff-filter=D");
+    expect(migrationDelta).toContain("upgrade rehearsal refuses destructive migration history");
+    expect(migrationDelta).toContain("current main already contains conflicting migration content");
+    expect(migrationDelta).toContain("install -m 0644");
+    expect(migrationDelta).not.toContain("rm -");
   });
 
   it("keeps both database paths isolated and local", () => {
