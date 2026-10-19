@@ -130,6 +130,25 @@ function tenureSlotFingerprint(slots: TenureSlotSnapshot[]) {
   );
 }
 
+function assignmentFingerprint(assignment: Assignment) {
+  return JSON.stringify({
+    id: assignment.id,
+    editionId: assignment.editionId,
+    editionNumber: assignment.editionNumber,
+    editionName: assignment.editionName,
+    countryId: assignment.countryId,
+    countryName: assignment.countryName,
+    countryCode: assignment.countryCode,
+    personId: assignment.personId,
+    personName: assignment.personName,
+    identityKey: assignment.identityKey,
+    channel: assignment.channel,
+    source: assignment.source,
+    confidence: assignment.confidence,
+    notes: assignment.notes,
+  });
+}
+
 export const Route = createFileRoute("/_authenticated/admin/hod-history")({
   head: () => ({
     meta: [
@@ -244,13 +263,31 @@ function HodHistoryPage() {
   });
 
   const removeAssignment = useMutation({
-    mutationFn: (id: string) => deleteAssignmentFn({ data: { id } }),
+    mutationFn: async (review: Assignment) => {
+      const live = await getHistory();
+      const liveAssignment = ((live.assignments ?? []) as Assignment[]).find(
+        (assignment) => assignment.id === review.id,
+      );
+      if (!liveAssignment || assignmentFingerprint(liveAssignment) !== assignmentFingerprint(review)) {
+        throw new Error(
+          "HOD assignment changed while this removal review was open. Nothing was removed. Refresh and review the current historical assignment before trying again.",
+        );
+      }
+      return deleteAssignmentFn({ data: { id: review.id } });
+    },
     onSuccess: async () => {
       setRemoveTarget(null);
       await invalidate();
       toast.success("HOD assignment removed");
     },
-    onError: (caught) => toast.error(caught instanceof Error ? caught.message : "Could not remove assignment"),
+    onError: async (caught) => {
+      const message = caught instanceof Error ? caught.message : "Could not remove assignment";
+      if (message.startsWith("HOD assignment changed")) {
+        setRemoveTarget(null);
+        await invalidate();
+      }
+      toast.error(message);
+    },
   });
 
   const filteredAssignments = useMemo(
@@ -458,11 +495,26 @@ function HodHistoryPage() {
         open={!!removeTarget}
         onClose={() => !removeAssignment.isPending && setRemoveTarget(null)}
         onConfirm={() => {
-          if (removeTarget) removeAssignment.mutate(removeTarget.id);
+          if (removeTarget) removeAssignment.mutate(removeTarget);
         }}
         title={removeTarget ? `Remove ${removeTarget.personName} from SSC${removeTarget.editionNumber ?? "?"}?` : "Remove HOD assignment?"}
-        description={removeTarget ? <>This removes the historical {removeTarget.channel === "delegation" ? "delegation" : removeTarget.channel} assignment for {removeTarget.countryName}. It does not alter ballots, votes or official contest results.</> : "Remove this historical assignment?"}
-        confirmLabel="Remove assignment"
+        description={removeTarget ? (
+          <div className="space-y-3 text-xs leading-5 text-muted-foreground" data-v3-organizer-hod-removal-review>
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+              <p className="font-semibold text-foreground">SSC{removeTarget.editionNumber ?? "?"} · {removeTarget.editionName}</p>
+              <p className="mt-1">Delegation: <strong className="text-foreground">{removeTarget.countryName} ({removeTarget.countryCode})</strong></p>
+              <p>Controller: <strong className="text-foreground">{removeTarget.personName}</strong> · {removeTarget.identityKey}</p>
+              <p>Channel: <strong className="text-foreground">{removeTarget.channel === "delegation" ? "delegation default · jury + televote" : `${removeTarget.channel} override`}</strong></p>
+              <p>Source: {removeTarget.source} · confidence {removeTarget.confidence}%</p>
+              <p className="mt-2 whitespace-pre-wrap">Historical note: {removeTarget.notes ?? "None"}</p>
+            </div>
+            <p>This removes only this historical HOD assignment. It does not alter ballots, votes or official contest results.</p>
+            <p>Solaris reloads HOD history immediately before apply and refuses the deletion if this exact assignment changed or disappeared while the review was open. The compatibility delete is still not a versioned/idempotent V3 operation; System #1071 owns canonical HOD mutation authority and receipts.</p>
+          </div>
+        ) : "Remove this historical assignment?"}
+        confirmLabel="Remove reviewed assignment"
+        confirmationText={removeTarget?.countryCode}
+        confirmationHint={removeTarget ? `Type ${removeTarget.countryCode} to confirm permanent historical assignment removal` : undefined}
         busy={removeAssignment.isPending}
         danger
       />
