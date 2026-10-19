@@ -104,7 +104,7 @@ fi
 log "Seed one exact, release-ready Grand Final result version"
 db_exec "
 update public.studio2_platform_operational_state
-set mode='normal', updated_at=now()
+set mode='normal', changed_at=now()
 where singleton=true;
 
 insert into public.countries(id,name,short_code,region)
