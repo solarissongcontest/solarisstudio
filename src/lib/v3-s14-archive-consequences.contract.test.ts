@@ -13,7 +13,12 @@ const transitionHttp409 = readFileSync(
   'supabase/migrations/20261019112300_v3_s14_transition_http409.sql',
   'utf8',
 );
+const taskAlignment = readFileSync(
+  'supabase/migrations/20261019112400_v3_s14_archive_task_registry_alignment.sql',
+  'utf8',
+);
 const rehearsal = readFileSync('.github/scripts/v3-s14-archive-system-rehearsal.sh', 'utf8');
+const guardRehearsal = readFileSync('.github/scripts/v3-s14-archive-guard-rehearsal.sh', 'utf8');
 const workflow = readFileSync('.github/workflows/v3-s14-archive-system-rehearsal.yml', 'utf8');
 const controlRoom = readFileSync('src/lib/studio2-control-room.ts', 'utf8');
 const client = readFileSync('src/lib/v3-edition-transition-client.ts', 'utf8');
@@ -26,9 +31,11 @@ describe('System V3 S14 archive consequence contract', () => {
     expect(readinessHardening).toContain("'v3.s14.final-results-readiness-hardening'");
     expect(transitionHttp409).toContain('insert into private.v3_migration_contracts');
     expect(transitionHttp409).toContain("'v3.s14.transition-http409'");
-    expect(migration).toContain("'forward_fix_only'");
-    expect(readinessHardening).toContain("'forward_fix_only'");
-    expect(transitionHttp409).toContain("'forward_fix_only'");
+    expect(taskAlignment).toContain('insert into private.v3_migration_contracts');
+    expect(taskAlignment).toContain("'v3.s14.archive-task-registry-alignment'");
+    for (const source of [migration, readinessHardening, transitionHttp409, taskAlignment]) {
+      expect(source).toContain("'forward_fix_only'");
+    }
   });
 
   it('keeps studio2_edition_runtime as the single lifecycle authority', () => {
@@ -104,13 +111,17 @@ describe('System V3 S14 archive consequence contract', () => {
     expect(migration).toContain("array['edition.tasks']::text[]");
   });
 
-  it('resolves only current-contest workflow tasks that are impossible after archive', () => {
+  it('resolves impossible workflow tasks including the canonical Edition blocker, but not governance work', () => {
     expect(migration).toContain('private.v3_resolve_archived_edition_workflow_tasks');
-    expect(migration).toContain("runtime.state = 'archived'");
-    expect(migration).toContain(
-      "task.task_type ~ '^(confirmation|entry|media|participation|jury|televote|results|publication|show|broadcast|edition\\.(transition|subsystem))\\.'",
+    expect(taskAlignment).toContain("runtime.state = 'archived'");
+    expect(taskAlignment).toContain(
+      "task.task_type ~ '^(confirmation|entry|media|participation|jury|televote|results|publication|show|broadcast)\\.'",
     );
-    expect(migration).not.toContain("task.task_type ~ '^(integrity|incident)");
+    expect(taskAlignment).toContain("task.task_type ~ '^edition\\.(transition|subsystem)\\.'");
+    expect(taskAlignment).toContain("task.task_type = 'edition.blocker'");
+    expect(taskAlignment).not.toMatch(/task\.task_type[^\n]*(incident|integrity)/);
+    expect(guardRehearsal).toContain("archive left canonical edition.blocker actionable");
+    expect(guardRehearsal).toContain("archive incorrectly resolved legitimate incident governance work");
   });
 
   it('puts archive-awareness in the canonical rebuild path so dead tasks cannot resurrect', () => {
@@ -180,10 +191,16 @@ describe('System V3 S14 archive consequence contract', () => {
     expect(rehearsal).not.toContain('PASSWORD=');
 
     expect(workflow).toContain('supabase db reset --local --no-seed');
-    expect(workflow).toContain('20261019112100_v3_s14_archive_consequence_reconciliation.sql');
-    expect(workflow).toContain('20261019112200_v3_s14_final_results_readiness_hardening.sql');
-    expect(workflow).toContain('20261019112300_v3_s14_transition_http409.sql');
-    expect(workflow).toContain('cp \\\n              "$GITHUB_WORKSPACE/supabase/migrations/$migration"');
+    for (const migrationName of [
+      '20261019112100_v3_s14_archive_consequence_reconciliation.sql',
+      '20261019112200_v3_s14_final_results_readiness_hardening.sql',
+      '20261019112300_v3_s14_transition_http409.sql',
+      '20261019112400_v3_s14_archive_task_registry_alignment.sql',
+    ]) {
+      expect(workflow).toContain(migrationName);
+    }
+    expect(workflow).toContain('for migration in');
+    expect(workflow).toContain('"$GITHUB_WORKSPACE/supabase/migrations/$migration"');
     expect(workflow).toContain('supabase migration up --local');
     expect(workflow).not.toContain('rsync');
     expect(workflow).not.toContain('--include-all');
