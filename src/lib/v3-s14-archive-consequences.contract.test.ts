@@ -64,10 +64,15 @@ describe('System V3 S14 archive consequence contract', () => {
     );
   });
 
-  it('maps deterministic lifecycle conflicts to HTTP 409 without changing worker lease retries', () => {
+  it('normalizes lifecycle transport and canonical event vocabulary without weakening worker retries', () => {
     expect(transitionHttp409).toContain("replace(v_definition, '''40001''', '''PT409''')");
     expect(transitionHttp409).toContain(
       'public.studio2_transition_edition_v3(uuid,text,text,uuid,bigint,uuid,text)',
+    );
+    expect(transitionHttp409).toContain("'edition.state_changed'");
+    expect(transitionHttp409).toContain("'edition.transitioned'");
+    expect(transitionHttp409).toContain(
+      'replace(v_rewritten, v_old_domain_event, v_new_domain_event)',
     );
     expect(transitionHttp409).toContain(
       'public.studio2_process_edition_domain_event(uuid,text,text)',
@@ -152,9 +157,12 @@ describe('System V3 S14 archive consequence contract', () => {
     expect(client).toContain("client.rpc('studio2_transition_edition_v3'");
     expect(client).toContain("'studio2_reconcile_operation'");
     expect(client).toContain('p_expected_version: request.expectedVersion');
+    expect(client).toContain('operationId !== request.operationId');
+    expect(client).toContain('previousRuntimeVersion !== request.expectedVersion');
+    expect(client).toContain('runtimeVersion !== request.expectedVersion + 1');
   });
 
-  it('proves the System contract on clean replay and current-main upgrade without hosted mutation', () => {
+  it('proves the System contract on clean replay and an exact current-main plus S14 delta upgrade', () => {
     expect(rehearsal).toContain('bun run scripts/check-v3-production-isolation.ts');
     expect(rehearsal).toContain('insert into public.studio2_result_operations');
     expect(rehearsal).not.toContain('insert into private.v3_result_versions');
@@ -172,9 +180,13 @@ describe('System V3 S14 archive consequence contract', () => {
     expect(rehearsal).not.toContain('PASSWORD=');
 
     expect(workflow).toContain('supabase db reset --local --no-seed');
-    expect(workflow).toContain('supabase migration up --local --include-all');
-    expect(workflow).toContain('rsync -a "$GITHUB_WORKSPACE/supabase/migrations/"');
-    expect(workflow).not.toContain('rsync -a --delete');
+    expect(workflow).toContain('20261019112100_v3_s14_archive_consequence_reconciliation.sql');
+    expect(workflow).toContain('20261019112200_v3_s14_final_results_readiness_hardening.sql');
+    expect(workflow).toContain('20261019112300_v3_s14_transition_http409.sql');
+    expect(workflow).toContain('cp \\\n              "$GITHUB_WORKSPACE/supabase/migrations/$migration"');
+    expect(workflow).toContain('supabase migration up --local');
+    expect(workflow).not.toContain('rsync');
+    expect(workflow).not.toContain('--include-all');
     expect(workflow).toContain('.github/scripts/v3-s14-archive-system-rehearsal.sh');
   });
 });
