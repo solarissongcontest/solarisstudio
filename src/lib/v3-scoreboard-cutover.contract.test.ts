@@ -109,6 +109,22 @@ describe("V3 Scoreboard cutover", () => {
     expect(source).toContain("rows.length === 0");
   });
 
+  it("preserves canonical tied placements without inventing a browser tie-break", () => {
+    const source = presentation();
+
+    expect(source).toContain("rankCounts");
+    expect(source).toContain("tiedRanks");
+    expect(source).toContain("rankCounts.get(1) === 1");
+    expect(source).toContain("tiedRanks.has(standing.rank)");
+    expect(source).toContain(">Tie</V3StatusChip>");
+    expect(source).toContain("does not recalculate tie-breaks in the browser");
+    expect(source).toContain('isTied ? ", tied" : ""');
+    expect(source).not.toContain("b.total - a.total");
+    expect(source).not.toContain("a.total - b.total");
+    expect(source).not.toContain("b.jury - a.jury");
+    expect(source).not.toContain("b.televote - a.televote");
+  });
+
   it("fails unresolved country identity closed instead of exposing internal ids", () => {
     const source = presentation();
 
