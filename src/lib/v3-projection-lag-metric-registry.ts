@@ -10,6 +10,18 @@ export type V3ProjectionLagMetricContract = {
   evidence: readonly string[];
 };
 
+const ENTRY_LAG_METRIC: Omit<V3ProjectionLagMetricContract, "projection"> = {
+  state: "measured",
+  path: "measureConfirmationEntryProjectionLagInternal(editionId).oldestDriftAgeSeconds",
+  measures:
+    "Oldest age in seconds of independently verified Confirmation-owned Entry/Participant projection drift for one edition; consistent=0 and unmeasurable/unknown=null.",
+  evidence: [
+    "src/integrations/confirmations/reconciliation-lag.server.ts",
+    "src/lib/v3-s6-entry-projection-lag.test.ts",
+    "src/integrations/confirmations/reconcile.server.ts",
+  ],
+};
+
 /**
  * Executable S6 lag metrics only.
  *
@@ -19,13 +31,21 @@ export type V3ProjectionLagMetricContract = {
  * S9 System Health projection exposes incomplete S6 coverage instead of
  * manufacturing a green status from repair metadata alone.
  */
-const EXECUTABLE_LAG_METRICS: Readonly<
-  Record<string, Omit<V3ProjectionLagMetricContract, "projection">>
-> = {};
+function metricForProjection(
+  projection: (typeof V3_PROJECTION_RECONCILIATION_REGISTRY)[number],
+): Omit<V3ProjectionLagMetricContract, "projection"> | null {
+  if (
+    projection.canonicalDomains.length === 1 &&
+    projection.canonicalDomains[0] === "entry"
+  ) {
+    return ENTRY_LAG_METRIC;
+  }
+  return null;
+}
 
 export const V3_PROJECTION_LAG_METRIC_REGISTRY: readonly V3ProjectionLagMetricContract[] =
   V3_PROJECTION_RECONCILIATION_REGISTRY.map((projection) => {
-    const metric = EXECUTABLE_LAG_METRICS[projection.projection];
+    const metric = metricForProjection(projection);
     return metric
       ? { projection: projection.projection, ...metric }
       : {
