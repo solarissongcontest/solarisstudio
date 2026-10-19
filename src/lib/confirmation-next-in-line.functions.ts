@@ -83,7 +83,23 @@ type V3NextInLineCandidate = {
   position: number;
 };
 
-type V3NextInLineSubmission = {
+export type NextInLineOperationEvidence = {
+  operationId: string;
+  correlationId: string | null;
+  status: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+  completedAt: string | null;
+};
+
+export type NextInLineSubmissionRevision = {
+  revision: number;
+  operationId: string | null;
+  createdAt: string | null;
+  snapshot: unknown;
+};
+
+export type NextInLineExistingSubmission = {
   id: string;
   revision: number;
   selectionType: "internal" | "national_final";
@@ -96,6 +112,8 @@ type V3NextInLineSubmission = {
   submittedAt: string | null;
   updatedAt: string | null;
   lastOperationId: string | null;
+  history?: NextInLineSubmissionRevision[];
+  lastOperation?: NextInLineOperationEvidence | null;
 };
 
 type V3NextInLineContext = {
@@ -104,12 +122,20 @@ type V3NextInLineContext = {
   selectionMethod: "internal" | "national_final" | "unknown" | null;
   eligible: boolean;
   candidates: V3NextInLineCandidate[];
-  submission: V3NextInLineSubmission | null;
+  submission: NextInLineExistingSubmission | null;
 };
 
 export type V3NextInLineProjection = {
   editionId: string;
   state: "unavailable" | "draft" | "upcoming" | "open" | "submitted" | "closed" | "cancelled";
+  window: {
+    status: string;
+    enabled: boolean;
+    opensAt: string | null;
+    closesAt: string | null;
+    version: number;
+    effectiveOpen: boolean;
+  } | null;
   contexts: V3NextInLineContext[];
   serverTime: string;
 };
@@ -158,6 +184,8 @@ export const getNextInLineCountries = createServerFn({ method: "GET" }).handler(
       edition: active.edition,
       countries,
       state: projection.state,
+      editing_open: projection.window?.effectiveOpen === true,
+      server_time: projection.serverTime,
     };
   } catch (error) {
     console.error("Could not load authenticated Next in Line context:", error);
@@ -199,6 +227,8 @@ export const getNextInLineCountry = createServerFn({ method: "POST" })
         entries: context.candidates.map(legacyEntry),
         existing_submission: context.submission,
         state: projection.state,
+        editing_open: projection.window?.effectiveOpen === true,
+        server_time: projection.serverTime,
       };
     } catch (error) {
       console.error("Could not load authenticated Next in Line country:", error);
@@ -263,7 +293,7 @@ async function nextInLineIdempotencyKey(data: SubmitInput) {
   return `participant-next-in-line-v3:${fingerprint}`;
 }
 
-function submissionMatchesIntent(submission: V3NextInLineSubmission | null, data: SubmitInput) {
+function submissionMatchesIntent(submission: NextInLineExistingSubmission | null, data: SubmitInput) {
   if (!submission) return false;
   return (
     submission.selectionType === data.selection_type &&
