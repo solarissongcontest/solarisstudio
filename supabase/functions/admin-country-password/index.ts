@@ -227,24 +227,31 @@ Deno.serve(async (req) => {
 
   const safetyFailure = await passwordSafetyFailure(password);
   if (safetyFailure) {
-    const { error: finalizeError } = await service.rpc(
-      "studio2_finalize_country_account_credential_replace",
-      {
-        p_actor_id: callerData.user.id,
-        p_operation_id: operation.operationId ?? operationId,
-        p_outcome: "failed",
-        p_failure_stage: safetyFailure.stage,
-      },
-    );
-    if (finalizeError) {
-      console.error("[admin-country-password] Could not finalize rejected credential operation", {
-        operationId: operation.operationId ?? operationId,
-        stage: safetyFailure.stage,
-        code: finalizeError.code,
-      });
+    if (safetyFailure.stage === "password_policy") {
+      const { error: finalizeError } = await service.rpc(
+        "studio2_finalize_country_account_credential_replace",
+        {
+          p_actor_id: callerData.user.id,
+          p_operation_id: operation.operationId ?? operationId,
+          p_outcome: "failed",
+          p_failure_stage: safetyFailure.stage,
+        },
+      );
+      if (finalizeError) {
+        console.error("[admin-country-password] Could not finalize rejected credential operation", {
+          operationId: operation.operationId ?? operationId,
+          stage: safetyFailure.stage,
+          code: finalizeError.code,
+        });
+      }
     }
+
     return json(
-      { error: safetyFailure.message, operationId: operation.operationId ?? operationId },
+      {
+        error: safetyFailure.message,
+        operationId: operation.operationId ?? operationId,
+        reconciliationRequired: safetyFailure.stage === "password_safety_dependency",
+      },
       safetyFailure.status,
     );
   }
