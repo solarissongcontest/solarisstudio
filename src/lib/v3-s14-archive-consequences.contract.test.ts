@@ -159,6 +159,9 @@ describe('System V3 S14 archive consequence contract', () => {
       expect(script).toContain('bun run scripts/check-v3-production-isolation.ts');
       expect(script).not.toMatch(/supabase\.co/i);
     }
+    expect(rehearsal).toContain("'edition.manage'");
+    expect(rehearsal).toContain("'edition.transition'");
+    expect(rehearsal).toContain("'edition.archive'");
     expect(workflow).toContain('supabase db reset --local --no-seed');
     for (const migrationName of [
       '20261019112100_v3_s14_archive_consequence_reconciliation.sql',
@@ -171,9 +174,8 @@ describe('System V3 S14 archive consequence contract', () => {
     }
     expect(workflow).toContain('for migration in');
     expect(workflow).toContain('"$GITHUB_WORKSPACE/supabase/migrations/$migration"');
-    expect(workflow).toContain('supabase migration up --local');
+    expect(workflow).toContain('supabase migration up --local --include-all');
     expect(workflow).not.toContain('rsync');
-    expect(workflow).not.toContain('--include-all');
     expect(workflow).toContain('.github/scripts/v3-s14-edition-event-vocabulary-rehearsal.sh');
     expect(workflow).toContain('.github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh');
   });
