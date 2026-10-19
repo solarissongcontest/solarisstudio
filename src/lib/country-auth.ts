@@ -15,6 +15,20 @@ type PasswordUpdatePayload = {
   ok: boolean;
 };
 
+export type CountryCredentialReplacementReceipt = {
+  ok: true;
+  changed: true;
+  riskClass: "R3";
+  targetUserId: string;
+  countryId: string;
+  operationId: string;
+  receiptId: string;
+  sessionPolicy: "revoke_all";
+  revokedSessionCount: number;
+  completedAt: string;
+  replayed: boolean;
+};
+
 export type SolarisAccountProfile = {
   instagramUsername: string | null;
   displayName: string | null;
@@ -100,6 +114,42 @@ export async function setSolarisPassword(password: string) {
   return invokeCountryAuth<PasswordUpdatePayload>({ action: "set-password", password });
 }
 
-export async function adminSetSolarisPassword(userId: string, password: string) {
-  return invokeFunction<PasswordUpdatePayload>("admin-country-password", { userId, password });
+export async function reauthenticateCountryCredentialR3(password: string): Promise<void> {
+  if (!password) {
+    throw new Error("Enter your current Solaris password to authorize this R3 credential change.");
+  }
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) {
+    throw new Error("Your Organizer session has expired. Sign in again before replacing credentials.");
+  }
+  const email = userData.user.email;
+  if (!email) {
+    throw new Error("This Organizer account cannot perform password reauthentication without an email address.");
+  }
+
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    throw new Error("Your current Solaris password was not accepted.");
+  }
+}
+
+export async function adminSetSolarisPassword(input: {
+  userId: string;
+  countryId: string;
+  accountUpdatedAt: string;
+  password: string;
+  reason: string;
+  operationId: string;
+  idempotencyKey: string;
+}): Promise<CountryCredentialReplacementReceipt> {
+  return invokeFunction<CountryCredentialReplacementReceipt>("admin-country-password", {
+    userId: input.userId,
+    expectedCountryId: input.countryId,
+    expectedAccountUpdatedAt: input.accountUpdatedAt,
+    password: input.password,
+    reason: input.reason,
+    operationId: input.operationId,
+    idempotencyKey: input.idempotencyKey,
+  });
 }
