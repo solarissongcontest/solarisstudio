@@ -24,21 +24,39 @@ describe("System V3 S14 archived Edition task vocabulary", () => {
     );
   });
 
-  it("resolves the canonical edition.blocker only after canonical runtime is archived", () => {
-    expect(migration).toContain("runtime.state = 'archived'");
-    expect(migration).toContain("task.task_type = 'edition.blocker'");
-    expect(migration).toContain("task.state <> 'resolved'");
-  });
-
-  it("retains compatibility task families while excluding governance/history work", () => {
+  it("centralizes the canonical and compatibility current-workflow task vocabulary", () => {
     expect(migration).toContain(
-      "task.task_type ~ '^(confirmation|entry|media|participation|jury|televote|results|publication|show|broadcast)\\.'",
+      "create or replace function private.v3_archive_task_type_is_current_workflow(",
     );
-    expect(migration).toContain("task.task_type ~ '^edition\\.(transition|subsystem)\\.'");
-    expect(migration).not.toMatch(/task\.task_type[^\n]*(incident|integrity)/);
+    expect(migration).toContain(
+      "~ '^(confirmation|entry|media|participation|jury|televote|results|publication|show|broadcast)\\.'",
+    );
+    expect(migration).toContain("~ '^edition\\.(transition|subsystem)\\.'");
+    expect(migration).toContain("= 'edition.blocker'");
+    expect(migration).not.toMatch(/p_task_type[^\n]*(incident|integrity)/);
   });
 
-  it("rehearses canonical blocker resolution without sacrificing incident work", () => {
+  it("resolves current-workflow tasks only after canonical runtime is archived", () => {
+    expect(migration).toContain("runtime.state = 'archived'");
+    expect(migration).toContain("task.state <> 'resolved'");
+    expect(migration).toContain(
+      "private.v3_archive_task_type_is_current_workflow(task.task_type)",
+    );
+  });
+
+  it("enforces non-resurrection at the task-table boundary", () => {
+    expect(migration).toContain(
+      "create or replace function private.v3_guard_archived_edition_task_resurrection()",
+    );
+    expect(migration).toContain(
+      "create trigger v3_guard_archived_edition_task_resurrection",
+    );
+    expect(migration).toContain("before insert or update on public.studio2_organizer_tasks");
+    expect(migration).toContain("new.state := 'resolved'");
+    expect(migration).toContain("new.resolved_at := coalesce(new.resolved_at, now())");
+  });
+
+  it("rehearses canonical blocker resolution and non-resurrection without sacrificing incident work", () => {
     expect(guardRehearsal).toContain("'edition.blocker','edition.manage'");
     expect(guardRehearsal).toContain("canonical edition.blocker fixture was not open before archive");
     expect(guardRehearsal).toContain("archive left canonical edition.blocker actionable");
