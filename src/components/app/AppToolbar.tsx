@@ -18,6 +18,8 @@ import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { readAppSearchReturn } from "@/lib/app-search-state";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { useScrollMorphProgress } from "@/lib/use-scroll-morph-progress";
+import { v3FocusedParticipationRouteEnabled } from "@/lib/v3-focused-task-chrome";
+import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
 export function AppToolbar({
   pathname,
@@ -31,8 +33,16 @@ export function AppToolbar({
   const navigate = useNavigate();
   const chrome = resolveAppRouteChrome(pathname, searchStr);
   const screen = resolveSolarisAppScreen(pathname, searchStr);
+  const participationFocusedTask =
+    screen.id === "participation.task" && screen.chrome.toolbar === "focused";
+  const focusedRollout = useV3RolloutProbe(participationFocusedTask);
+  const participationRouteOwnsFocusedToolbar =
+    participationFocusedTask &&
+    (focusedRollout.isLoading ||
+      v3FocusedParticipationRouteEnabled(pathname, focusedRollout.data));
   const routeOwnsFocusedToolbar =
-    screen.id === "mysolaris.entry" && screen.chrome.toolbar === "focused";
+    (screen.id === "mysolaris.entry" && screen.chrome.toolbar === "focused") ||
+    participationRouteOwnsFocusedToolbar;
   const morphProgress = useScrollMorphProgress({
     resetKey: `${pathname}|${searchStr}`,
   });
