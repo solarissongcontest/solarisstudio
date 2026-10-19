@@ -47,28 +47,46 @@ function record(category: FanRecord["category"]): FanRecord {
   };
 }
 
+function juryVote(showId: string): JuryVote {
+  return {
+    edition_id: "e22",
+    show_id: showId,
+    voter_country_id: "oland",
+    receiving_country_id: "other",
+    points: 12,
+  } as unknown as JuryVote;
+}
+
 describe("V3 Records provenance", () => {
-  it("prefers an exact published voting matrix for voting records", () => {
+  it("uses a voting matrix only when one exact published voting show is provable", () => {
     const output = attachV3RecordProvenance({
       records: [record("voting")],
       editions: [edition],
       shows: [semi, final],
       results: [],
-      jury: [
-        {
-          edition_id: "e22",
-          show_id: "semi-22",
-          voter_country_id: "oland",
-          receiving_country_id: "other",
-          points: 12,
-        } as unknown as JuryVote,
-      ],
+      jury: [juryVote("semi-22")],
     });
 
     expect(output[0]?.holders[0]?.provenance).toEqual({
       kind: "voting",
       label: "Semi-Final 1 voting matrix",
       href: "/shows/semi-22?tab=matrix&from=results",
+    });
+  });
+
+  it("does not pretend one matrix is exact when multiple voting shows match", () => {
+    const output = attachV3RecordProvenance({
+      records: [record("voting")],
+      editions: [edition],
+      shows: [semi, final],
+      results: [],
+      jury: [juryVote("semi-22"), juryVote("final-22")],
+    });
+
+    expect(output[0]?.holders[0]?.provenance).toEqual({
+      kind: "edition",
+      label: "SSC 22 archive context",
+      href: "/editions/ssc-22-hanvor",
     });
   });
 
