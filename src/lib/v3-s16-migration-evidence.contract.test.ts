@@ -23,6 +23,12 @@ describe("S16 migration rehearsal exact-SHA evidence", () => {
     expect(workflow).toContain("Upgrade rehearsal baseline cannot equal the candidate");
   });
 
+  it("copies only the additive migration delta from the exact prepared baseline", () => {
+    expect(workflow).toContain(".github/scripts/v3-copy-migration-delta.sh");
+    expect(workflow).toContain('"${{ steps.prepare-baseline.outputs.sha }}"');
+    expect(workflow).not.toContain("rsync -a --delete");
+  });
+
   it("keeps both database paths isolated and local", () => {
     expect(workflow).toContain("supabase db reset --local --no-seed");
     expect(workflow).toContain("supabase migration up --local --include-all");
