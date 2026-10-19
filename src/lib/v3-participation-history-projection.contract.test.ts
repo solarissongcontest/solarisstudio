@@ -20,10 +20,37 @@ describe("V3 personal participation history projection", () => {
     );
   });
 
-  it("derives HOD history from durable edition-scoped identity evidence", () => {
-    expect(migration).toContain("from public.delegation_hod_assignments assignment");
+  it("preserves HOD handovers instead of trusting the one-row current assignment as history", () => {
+    expect(migration).toContain("create table if not exists private.v3_delegation_hod_assignment_history");
+    expect(migration).toContain("v3_hod_assignment_history_one_open_revision");
+    expect(migration).toContain("create trigger v3_capture_delegation_hod_assignment_history");
+    expect(migration).toContain("after insert or update or delete on public.delegation_hod_assignments");
+    expect(migration).toContain("set valid_to = v_now");
+    expect(migration).toContain("case when history.valid_to is not null then 'superseded'::text");
+    expect(migration).toContain("'hod-history:' || history.id::text");
+  });
+
+  it("does not create a fictional handover for source/confidence metadata edits", () => {
+    expect(migration).toContain("new.person_id");
+    expect(migration).toContain("old.person_id");
+    expect(migration).toContain("new.channel");
+    expect(migration).toContain("old.channel");
+    expect(migration).toContain("elsif new.source is distinct from old.source");
+    expect(migration).toContain("source = new.source");
+    expect(migration).toContain("confidence = new.confidence");
+  });
+
+  it("recovers older self-attribution evidence from durable country HOD claims", () => {
+    expect(migration).toContain("from public.country_hod_edition_claims claim");
+    expect(migration).toContain("claim.user_id = v_actor");
+    expect(migration).toContain("claim.status = 'mine'");
+    expect(migration).toContain("'country_hod_edition_claim'::text as source");
+    expect(migration).toContain("then 'superseded'::text");
+  });
+
+  it("derives HOD history from durable account-linked edition evidence", () => {
     expect(migration).toContain("person.identity_key = 'account:' || v_actor::text");
-    expect(migration).toContain("assignment.channel = 'delegation'");
+    expect(migration).toContain("history.channel = 'delegation'");
     expect(migration).toContain("'hod'::text as role");
     expect(migration).not.toContain("from public.country_accounts");
   });
@@ -50,10 +77,20 @@ describe("V3 personal participation history projection", () => {
     expect(migration).not.toContain("account.country_id");
   });
 
-  it("treats only terminal edition lifecycle states as historical", () => {
+  it("treats only terminal edition lifecycle states as historical when the relationship is not superseded", () => {
+    expect(migration).toContain("coalesce(\n        evidence.relation_state,");
     expect(migration).toContain("edition.status in ('completed', 'archived', 'cancelled')");
     expect(migration).toContain("then 'historical'");
     expect(migration).toContain("else 'current'");
+  });
+
+  it("keeps the private revision ledger inaccessible to browser roles", () => {
+    expect(migration).toContain(
+      "revoke all on private.v3_delegation_hod_assignment_history\n  from public, anon, authenticated, service_role;",
+    );
+    expect(migration).toContain(
+      "revoke all on function private.v3_capture_delegation_hod_assignment_history()\n  from public, anon, authenticated, service_role;",
+    );
   });
 
   it("returns the contract consumed by Public V3 History", () => {
