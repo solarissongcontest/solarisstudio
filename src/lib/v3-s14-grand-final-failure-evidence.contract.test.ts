@@ -13,20 +13,21 @@ describe("S14 Grand Final failure evidence", () => {
     expect(driver).toContain('"completedContestExtensions": completed_extensions');
   });
 
-  it("runs qualifier preparation and final voting through the tracked extension wrapper", () => {
+  it("runs qualifier preparation, final voting, and canonical results through the tracked extension wrapper", () => {
     expect(driver).toContain(
       "run_contest_extension grand-final-qualifier-bridge prepare_s14_grand_final_from_qualifiers",
     );
     expect(driver).toContain(
       "run_contest_extension grand-final-voting run_s14_grand_final_voting",
     );
+    expect(driver).toContain(
+      "run_contest_extension grand-final-results run_s14_grand_final_results",
+    );
   });
 
-  it("keeps Grand Final Results fail-closed behind the canonical System blocker", () => {
-    expect(driver).toContain("#651 canonical Televote publication/readiness mismatch");
-    expect(driver).not.toContain('source "$SCRIPT_DIR/v3-s14-grand-final-results.sh"');
-    expect(driver).toContain('"passed": False');
-    expect(driver).toContain('"partial": True');
+  it("does not preserve the resolved #651 synthetic blocker", () => {
+    expect(driver).not.toContain("#651 canonical Televote publication/readiness mismatch");
+    expect(driver).toContain('source "$SCRIPT_DIR/v3-s14-grand-final-results.sh"');
   });
 
   it("keeps the merged stateful driver syntactically valid", () => {
