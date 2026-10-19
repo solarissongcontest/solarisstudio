@@ -8,6 +8,7 @@ const HASH_PREFIX = "entry-section-";
 const CURRENT_WRITER_STEP: Partial<Record<V3EntryEditorSection, number>> = {
   song: 3,
   artist: 3,
+  credits: 3,
   metadata: 4,
   media: 3,
   review: 5,

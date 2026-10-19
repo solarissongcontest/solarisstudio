@@ -1,3 +1,5 @@
+import type { EntryCredit } from "./ssc";
+
 export type V3EntryReviewStatus = "pending" | "accepted" | "declined" | "removed" | "unknown";
 
 export const V3_ENTRY_EDITOR_SECTIONS = [
@@ -15,6 +17,7 @@ export type V3EntryCandidate = {
   id: string;
   artist: string | null;
   songTitle: string | null;
+  credits?: readonly EntryCredit[];
   reviewStatus: V3EntryReviewStatus;
   reviewReason: string | null;
   contentRevision: number | null;
@@ -32,6 +35,7 @@ export type V3EntryVersionEvidence = {
   restoredFromSubmissionVersionId: string | null;
   artist: string | null;
   songTitle: string | null;
+  credits: readonly EntryCredit[];
   recordedAt: string | null;
   reviews: readonly {
     decision: string;
@@ -41,7 +45,7 @@ export type V3EntryVersionEvidence = {
 };
 
 export type V3EntryRevisionFieldDiff = {
-  field: "artist" | "songTitle";
+  field: "artist" | "songTitle" | "credits";
   label: string;
   previousValue: string | null;
   currentValue: string | null;
@@ -162,11 +166,26 @@ export function inferV3EntryCorrectionSection(issue: string | null): V3EntryEdit
   return null;
 }
 
+function formatCredits(credits: readonly EntryCredit[]) {
+  if (!credits.length) return null;
+  return credits
+    .map((credit) => `${credit.role.replace(/_/g, " ")}: ${credit.name}`)
+    .join(" · ");
+}
+
+function creditsMatch(left: readonly EntryCredit[], right: readonly EntryCredit[]) {
+  if (left.length !== right.length) return false;
+  return left.every(
+    (credit, index) =>
+      credit.role === right[index]?.role && credit.name === right[index]?.name,
+  );
+}
+
 /**
- * The immutable Entry-version projection currently exposes artist and song
- * title. Show an honest resubmission diff for exactly those server-backed
- * fields rather than pretending browser state can reconstruct unavailable
- * credits/media metadata.
+ * Compare the newest immutable Entry version with its previous revision. The
+ * projection now includes canonical structured Credits, so the participant can
+ * see a truthful Credits-only correction/resubmission without reconstructing
+ * state from local drafts or the browser.
  */
 export function deriveV3EntryResubmissionDiff(
   history: readonly V3EntryVersionEvidence[],
@@ -191,6 +210,13 @@ export function deriveV3EntryResubmissionDiff(
       previousValue: previous.songTitle,
       currentValue: current.songTitle,
       changed: previous.songTitle !== current.songTitle,
+    },
+    {
+      field: "credits",
+      label: "Credits",
+      previousValue: formatCredits(previous.credits),
+      currentValue: formatCredits(current.credits),
+      changed: !creditsMatch(previous.credits, current.credits),
     },
   ];
 
