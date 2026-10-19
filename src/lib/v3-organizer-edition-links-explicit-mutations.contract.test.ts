@@ -37,13 +37,14 @@ describe("V3 Organizer Confirmation edition-link mutation boundaries", () => {
     expect(route).toContain("Type SSC ${pendingEditing.edition.edition_number} exactly");
   });
 
-  it("does not claim canonical edition-link parity while System authority is missing", () => {
+  it("reports the implemented edition-link surface as building without claiming canonical parity", () => {
     const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
       (item) => item.legacyId === "delegation-edition-links",
     );
 
     expect(capability).toBeDefined();
-    expect(capability?.migrationStatus).toBe("planned");
+    expect(capability?.migrationStatus).toBe("building");
+    expect(["parity", "cutover", "retired"]).not.toContain(capability?.migrationStatus);
     expect(route).toContain("Canonical expected-version, receipt and idempotency semantics remain System-owned in #702");
   });
 });
