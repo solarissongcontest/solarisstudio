@@ -96,7 +96,6 @@ export type NextInLineSubmissionRevision = {
   revision: number;
   operationId: string | null;
   createdAt: string | null;
-  snapshot: unknown;
 };
 
 export type NextInLineExistingSubmission = {
