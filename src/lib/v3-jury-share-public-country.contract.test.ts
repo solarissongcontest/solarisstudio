@@ -7,9 +7,11 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 const source = () => read("src/integrations/v3/jury-share-source.server.ts");
 const serverFn = () => read("src/lib/v3-jury-share.functions.ts");
 const runtime = () => read("src/lib/v3-jury-share-runtime.ts");
-const exporter = () => read("src/lib/v3-jury-share-export.client.ts");
+const exporter = () => read("src/lib/v3-jury-share-export.ts");
 const composer = () => read("src/components/v3/V3JuryShareComposer.tsx");
 const route = () => read("src/routes/results/jury-share.tsx");
+const matrix = () => read("src/components/VotingMatrix.tsx");
+const showRoute = () => read("src/routes/shows/$showId.tsx");
 
 describe("V3 Jury Share public-country consumer", () => {
   it("reads only the canonical System projection and never reconstructs ballots", () => {
@@ -59,6 +61,15 @@ describe("V3 Jury Share public-country consumer", () => {
     expect(text).toContain("Connect to create this image");
   });
 
+  it("keeps browser-only export effects import-safe for the TanStack server graph", () => {
+    const client = exporter();
+    expect(client).toContain('typeof document === "undefined"');
+    expect(client).toContain('typeof window === "undefined"');
+    expect(client).not.toMatch(/document\.|window\.|navigator\.|new Image\(/u, client.indexOf("function ensureBrowser"));
+    expect(composer()).toContain('from "@/lib/v3-jury-share-export"');
+    expect(composer()).not.toContain("v3-jury-share-export.client");
+  });
+
   it("creates exact Story-sized PNG/JPEG files and uses capability-detected native sharing", () => {
     const text = exporter();
     expect(text).toContain("canvas.width = model.width");
@@ -88,6 +99,17 @@ describe("V3 Jury Share public-country consumer", () => {
     expect(text).toContain("isUuid(showId) && isUuid(countryId)");
     expect(text).toContain("does not infer those identities from names or labels");
     expect(text).not.toMatch(/slugify|toLocaleLowerCase|displayName.*showId|displayName.*countryId/);
+  });
+
+  it("discovers share cards only through the already-public detailed-jury scorechart", () => {
+    const show = showRoute();
+    const votingMatrix = matrix();
+    expect(show).toContain('tab === "matrix" && publication.detailed_voting && showJuryResults');
+    expect(votingMatrix).toContain('to="/results/jury-share"');
+    expect(votingMatrix).toContain("search={{ showId: shareShowId, countryId: country.id }}");
+    expect(votingMatrix).toContain("Share these votes");
+    expect(votingMatrix).toContain("votes.map((vote) => vote.voter_country_id)");
+    expect(votingMatrix).not.toMatch(/search=\{\{[^}]*votes|search=\{\{[^}]*points|search=\{\{[^}]*ballot/u);
   });
 
   it("offers image share/save plus accessible text fallback without mutation authority", () => {
