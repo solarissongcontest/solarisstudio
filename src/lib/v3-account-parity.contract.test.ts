@@ -19,6 +19,13 @@ describe("V3 P42 Account parity boundary", () => {
     expect(shell()).toContain("rollout.data?.accountSettingsEnabled !== true");
   });
 
+  it("preserves MySolaris account context across the V3 child cutover", () => {
+    const code = shell();
+    expect(code).toContain("const v3Content = v3Children ?? children;");
+    expect(code).toContain("<MySolarisProvider>{v3Content}</MySolarisProvider>");
+    expect(code).toContain('section === "account"');
+  });
+
   it("implements the canonical account information architecture", () => {
     const code = sections();
     for (const title of ["Security", "Devices & sessions", "Privacy", "Access", "Account actions"]) {
