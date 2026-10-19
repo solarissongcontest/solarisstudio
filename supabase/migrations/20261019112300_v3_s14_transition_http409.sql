@@ -17,7 +17,7 @@ insert into private.v3_migration_contracts (
   destructive,
   backfill_key,
   reason
-+) values (
+) values (
   'v3.s14.transition-http409',
   1,
   'forward_fix_only',
