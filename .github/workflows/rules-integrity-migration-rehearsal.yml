@@ -29,13 +29,21 @@ on:
       - ".github/scripts/v3-operation-receipt-rehearsal.sh"
       - ".github/workflows/rules-integrity-migration-rehearsal.yml"
   workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact current-main candidate SHA for release-grade migration evidence
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: migration-rehearsal-${{ github.workflow }}-${{ github.ref }}
+  group: migration-rehearsal-${{ github.workflow }}-${{ inputs.candidate_sha || github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
+
+env:
+  V3_MIGRATION_SOURCE_SHA: ${{ inputs.candidate_sha || github.event.pull_request.head.sha || github.sha }}
 
 jobs:
   clean-replay:
@@ -43,10 +51,34 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - name: Checkout feature head
+      - name: Checkout exact feature/candidate head
         uses: actions/checkout@v4
         with:
+          ref: ${{ env.V3_MIGRATION_SOURCE_SHA }}
           fetch-depth: 0
+
+      - name: Verify exact source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(printf '%s' "$V3_MIGRATION_SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$expected" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Migration rehearsal source must be one exact 40-character SHA"
+            exit 1
+          fi
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Migration rehearsal checked out $actual, expected $expected"
+            exit 1
+          fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            git fetch origin main --no-tags
+            main_sha="$(git rev-parse origin/main | tr '[:upper:]' '[:lower:]')"
+            if [ "$main_sha" != "$expected" ]; then
+              echo "::error::Release-grade migration dispatch must target current main: candidate=$expected main=$main_sha"
+              exit 1
+            fi
+          fi
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
@@ -143,28 +175,61 @@ jobs:
         run: supabase stop --no-backup || true
 
   upgrade-from-main:
-    name: Upgrade current main database
+    name: Upgrade prior candidate baseline
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      baseline_sha: ${{ steps.prepare-baseline.outputs.sha }}
     steps:
-      - name: Checkout feature head
+      - name: Checkout exact feature/candidate head
         uses: actions/checkout@v4
         with:
+          ref: ${{ env.V3_MIGRATION_SOURCE_SHA }}
           fetch-depth: 0
+
+      - name: Verify exact source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(printf '%s' "$V3_MIGRATION_SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$expected" =~ ^[0-9a-f]{40}$ ]] || [ "$actual" != "$expected" ]; then
+            echo "::error::Upgrade rehearsal source identity mismatch: actual=$actual expected=$expected"
+            exit 1
+          fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            git fetch origin main --no-tags
+            main_sha="$(git rev-parse origin/main | tr '[:upper:]' '[:lower:]')"
+            if [ "$main_sha" != "$expected" ]; then
+              echo "::error::Release-grade migration dispatch must target current main: candidate=$expected main=$main_sha"
+              exit 1
+            fi
+          fi
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
           version: 2.113.0
 
-      - name: Prepare current main worktree
+      - name: Prepare upgrade baseline worktree
+        id: prepare-baseline
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin main --no-tags
-          git worktree add /tmp/solaris-main origin/main
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            baseline_sha="$(git rev-parse "${V3_MIGRATION_SOURCE_SHA}^1" | tr '[:upper:]' '[:lower:]')"
+          else
+            baseline_sha="$(git rev-parse origin/main | tr '[:upper:]' '[:lower:]')"
+          fi
+          if [ "$baseline_sha" = "$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')" ]; then
+            echo "::error::Upgrade rehearsal baseline cannot equal the candidate"
+            exit 1
+          fi
+          git worktree add /tmp/solaris-main "$baseline_sha"
+          echo "sha=$baseline_sha" >> "$GITHUB_OUTPUT"
 
-      - name: Verify current main is an unmodified baseline
+      - name: Verify upgrade baseline is unmodified
         shell: bash
         run: |
           set -euo pipefail
@@ -172,7 +237,7 @@ jobs:
           test -f "/tmp/solaris-main/supabase/migrations/20260822204600_result_driven_qualifier_sync.sql"
           test ! -e "/tmp/solaris-main/supabase/migrations/20260822204500_result_driven_qualifier_sync.sql"
 
-      - name: Build current main database locally
+      - name: Build upgrade baseline database locally
         shell: bash
         run: |
           set -euo pipefail
@@ -189,7 +254,7 @@ jobs:
             touch /tmp/v3-entry-legacy-seeded
           fi
 
-      - name: Apply feature migration set as an upgrade
+      - name: Apply candidate migration set as an upgrade
         shell: bash
         run: |
           set -euo pipefail
@@ -260,7 +325,9 @@ jobs:
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-entry-restore-provenance-assert.sh"
 
       - name: Verify Televote receipt authority after upgrade
-        run: bash .github/scripts/v3-televote-reconciliation-rehearsal.sh
+        run: |
+          cd /tmp/solaris-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-televote-reconciliation-rehearsal.sh"
 
       - name: Run hostile V3 Jury reliability rehearsal after upgrade
         shell: bash
@@ -298,3 +365,85 @@ jobs:
         run: |
           cd /tmp/solaris-main 2>/dev/null || exit 0
           supabase stop --no-backup || true
+
+  exact-sha-evidence:
+    name: Exact-SHA migration rehearsal evidence
+    if: always()
+    needs:
+      - clean-replay
+      - upgrade-from-main
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact attested source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.V3_MIGRATION_SOURCE_SHA }}
+          fetch-depth: 1
+
+      - name: Build exact-SHA migration evidence
+        shell: bash
+        env:
+          CLEAN_REPLAY_RESULT: ${{ needs.clean-replay.result }}
+          UPGRADE_RESULT: ${{ needs.upgrade-from-main.result }}
+          BASELINE_SHA: ${{ needs.upgrade-from-main.outputs.baseline_sha }}
+        run: |
+          set -euo pipefail
+          expected="$(printf '%s' "$V3_MIGRATION_SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Migration evidence checkout is $actual, expected $expected"
+            exit 1
+          fi
+          mkdir -p v3-s16-evidence
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          clean = os.environ["CLEAN_REPLAY_RESULT"]
+          upgrade = os.environ["UPGRADE_RESULT"]
+          sha = os.environ["V3_MIGRATION_SOURCE_SHA"].lower()
+          baseline = os.environ.get("BASELINE_SHA", "").lower()
+          passed = clean == "success" and upgrade == "success"
+          payload = {
+              "schemaVersion": 1,
+              "candidateSha": sha,
+              "passed": passed,
+              "checks": [
+                  "clean-local-migration-replay",
+                  "local-migration-history",
+                  "hostile-security-rehearsals",
+                  "system-invariant-rehearsals",
+                  "upgrade-from-prior-baseline",
+              ],
+              "jobs": {
+                  "cleanReplay": clean,
+                  "upgradeFromBaseline": upgrade,
+              },
+              "provenance": {
+                  "workflow": "Rules + Integrity migration rehearsal",
+                  "runId": int(os.environ["GITHUB_RUN_ID"]),
+                  "runAttempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+                  "event": os.environ["GITHUB_EVENT_NAME"],
+                  "baselineSha": baseline or None,
+                  "conclusion": "success" if passed else "failure",
+              },
+          }
+          Path("v3-s16-evidence/s16-migration-rehearsal.json").write_text(
+              json.dumps(payload, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Upload exact-SHA migration evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-s16-migration-rehearsal-${{ env.V3_MIGRATION_SOURCE_SHA }}
+          path: v3-s16-evidence/s16-migration-rehearsal.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Fail if either canonical migration path failed
+        if: needs.clean-replay.result != 'success' || needs.upgrade-from-main.result != 'success'
+        run: exit 1

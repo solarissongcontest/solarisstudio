@@ -1,0 +1,131 @@
+name: V3 S16 core evidence attestation
+
+on:
+  workflow_run:
+    workflows:
+      - Quality
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s16-core-attestation-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  attest:
+    name: Bind completed canonical Quality workflow to exact candidate
+    if: github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact attested source without executing it
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+
+      - name: Verify exact source identity and write category evidence
+        id: evidence
+        shell: bash
+        env:
+          SOURCE_WORKFLOW: ${{ github.event.workflow_run.name }}
+          SOURCE_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          SOURCE_EVENT: ${{ github.event.workflow_run.event }}
+          SOURCE_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          if [ "$SOURCE_WORKFLOW" != "Quality" ]; then
+            echo "::error::Unexpected attestation source workflow: $SOURCE_WORKFLOW"
+            exit 1
+          fi
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          expected="$(printf '%s' "$SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$expected" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Source workflow did not expose one exact 40-character head SHA"
+            exit 1
+          fi
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Attestation checkout is $actual, source workflow ran on $expected"
+            exit 1
+          fi
+
+          mkdir -p v3-s16-evidence
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          conclusion = os.environ["SOURCE_CONCLUSION"]
+          sha = os.environ["SOURCE_SHA"].lower()
+          passed = conclusion == "success"
+          provenance = {
+              "workflow": "Quality",
+              "runId": int(os.environ["SOURCE_RUN_ID"]),
+              "runAttempt": int(os.environ["SOURCE_RUN_ATTEMPT"]),
+              "event": os.environ["SOURCE_EVENT"],
+              "headBranch": os.environ.get("SOURCE_HEAD_BRANCH") or None,
+              "conclusion": conclusion,
+          }
+          payloads = {
+              "s16-canonical-ci.json": {
+                  "schemaVersion": 1,
+                  "candidateSha": sha,
+                  "passed": passed,
+                  "checks": [
+                      "production-isolation",
+                      "capability-status-transitions-when-applicable",
+                      "capability-and-system-registries",
+                      "non-route-discovery-registries",
+                      "system-dependency-consequence-registries",
+                      "structural-release-integrity",
+                      "production-build",
+                      "client-performance-budget",
+                      "generated-route-tree",
+                      "typescript",
+                      "unit-tests",
+                      "lint",
+                      "tracked-source-immutability",
+                  ],
+                  "provenance": provenance,
+              },
+              "s16-production-isolation.json": {
+                  "schemaVersion": 1,
+                  "candidateSha": sha,
+                  "passed": passed,
+                  "checks": ["scripts/check-v3-production-isolation.ts"],
+                  "provenance": provenance,
+              },
+          }
+          output = Path("v3-s16-evidence")
+          for filename, payload in payloads.items():
+              (output / filename).write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+          PY
+
+          echo "artifact_name=v3-s16-quality-${expected}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload exact-SHA S16 Quality evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.evidence.outputs.artifact_name }}
+          path: v3-s16-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Summarize attestation
+        shell: bash
+        run: |
+          {
+            echo "## V3 S16 Quality evidence attestation"
+            echo
+            echo "- Source run: \`${{ github.event.workflow_run.id }}\` attempt \`${{ github.event.workflow_run.run_attempt }}\`"
+            echo "- Exact candidate: \`${{ github.event.workflow_run.head_sha }}\`"
+            echo "- Conclusion: \`${{ github.event.workflow_run.conclusion }}\`"
+            echo
+            echo "The attester only records the canonical Quality outcome. It does not execute the attested branch and does not contact hosted Supabase."
+          } >> "$GITHUB_STEP_SUMMARY"
