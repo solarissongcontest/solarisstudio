@@ -49,55 +49,15 @@ function VotingAdminOverview() {
     refetchIntervalInBackground: false,
   });
 
-  const nextAction =
-    data && !data.linked
-      ? {
-          title: "Link this edition to public voting",
-          description: "The selected Solaris edition does not have a Televoting projection yet.",
-          to: "/televoting/admin/editions",
-          label: "Sync editions",
-        }
-      : !data || data.rounds === 0
-        ? {
-            title: "Create the first public voting round",
-            description: "Choose the entries and voting rules before public voting can open.",
-            to: "/televoting/admin/rounds",
-            label: "Set up round",
-          }
-        : data.blocked > 0
-          ? {
-              title: `Review ${data.blocked} blocked public ${data.blocked === 1 ? "ballot" : "ballots"}`,
-              description: "Public-vote integrity checks found ballots that need an organizer decision.",
-              to: "/televoting/admin/integrity",
-              label: "Review integrity",
-            }
-          : data.openRounds > 0
-            ? {
-                title: "Public voting is open",
-                description: `${data.openRounds} ${data.openRounds === 1 ? "round is" : "rounds are"} accepting ballots now.`,
-                to: "/televoting/admin/rounds",
-                label: "Monitor voting",
-              }
-            : data.submissions > 0
-              ? {
-                  title: "Prepare the public vote result",
-                  description: `${data.submissions} submitted ${data.submissions === 1 ? "ballot is" : "ballots are"} available.`,
-                  to: "/televoting/admin/results",
-                  label: "Open results",
-                }
-              : {
-                  title: "No public voting action needs urgent attention",
-                  description: "Open or schedule the next round when you are ready.",
-                  to: "/televoting/admin/rounds",
-                  label: "Manage rounds",
-                };
+  const recommendedAction = data?.recommendedAction ?? null;
+  const overallBlocked = (data?.integrity.outstanding ?? 0) + (data?.jury.blockerCount ?? 0) > 0;
 
   return (
     <div className="mx-auto max-w-5xl" data-v3-organizer-voting="">
       <AdminPageHeader
         eyebrow="Current edition"
         title="Voting"
-        description="Jury, public voting, integrity and official results are operated from the exact edition selected in Solaris Organizer."
+        description="Jury, public voting, integrity and official results are operated from one exact-edition System projection. Missing data is never treated as a healthy Jury state."
         actions={
           <Link to="/televoting" target="_blank" className="admin-action-secondary">
             <Globe2 className="size-4" /> Public voting
@@ -139,43 +99,136 @@ function VotingAdminOverview() {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="truncate text-xl font-bold tracking-[-.025em]">
-                    {data.activeEdition ?? "Voting workspace"}
+                    {data.edition.name}
                   </h2>
-                  <AdminStatus tone={data.blocked > 0 ? "blocked" : data.openRounds > 0 ? "ready" : data.linked ? "neutral" : "attention"}>
-                    {data.blocked > 0
-                      ? `${data.blocked} blocked`
-                      : !data.linked
-                        ? "Voting not linked"
-                        : data.openRounds > 0
-                          ? "Public voting live"
-                          : "Public voting closed"}
+                  <AdminStatus
+                    tone={
+                      overallBlocked
+                        ? "blocked"
+                        : data.jury.openWindows > 0 || data.televote.openRounds > 0
+                          ? "ready"
+                          : "neutral"
+                    }
+                  >
+                    {overallBlocked
+                      ? `${data.integrity.outstanding + data.jury.blockerCount} voting attention`
+                      : data.jury.openWindows > 0 || data.televote.openRounds > 0
+                        ? "Voting active"
+                        : "Voting overview"}
                   </AdminStatus>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  This overview is a read projection. Opening, closing and correcting official voting remain in their authoritative workspaces.
+                  State {shortVersion(data.stateVersion)} · server {formatServerTime(data.serverTime)}
                 </p>
               </div>
 
               <div className="grid grid-cols-3 gap-2 text-center sm:min-w-[18rem]">
-                <Metric label="Rounds" value={data.rounds} />
-                <Metric label="Ballots" value={data.submissions} />
-                <Metric label="Blocked" value={data.blocked} />
+                <Metric label="Jury expected" value={data.jury.expected} />
+                <Metric label="Public ballots" value={data.televote.submissions} />
+                <Metric label="Integrity" value={data.integrity.outstanding} />
               </div>
             </div>
           </AdminCard>
 
-          <AdminCard>
-            <AdminCardHeader
-              eyebrow="Public voting next action"
-              title={nextAction.title}
-              description={nextAction.description}
-              action={
-                <Link to={nextAction.to as any} className="admin-action-primary !min-h-10">
-                  {nextAction.label} <ArrowRight className="size-4" />
-                </Link>
-              }
-            />
-          </AdminCard>
+          {recommendedAction ? (
+            <AdminCard>
+              <AdminCardHeader
+                eyebrow="Server-recommended next action"
+                title={recommendedAction.label}
+                description={recommendedAction.reason}
+                action={
+                  <Link to={recommendedAction.route as any} className="admin-action-primary !min-h-10">
+                    Open <ArrowRight className="size-4" />
+                  </Link>
+                }
+              />
+            </AdminCard>
+          ) : (
+            <AdminCard>
+              <AdminCardHeader
+                eyebrow="Next action"
+                title="No voting action is recommended by the current projection"
+                description="This is not a generic all-clear. Results readiness remains owned by the canonical Results workspace, and specialist configuration remains available below."
+                action={
+                  <Link to="/admin/results" className="admin-action-secondary !min-h-10">
+                    Results authority <ArrowRight className="size-4" />
+                  </Link>
+                }
+              />
+            </AdminCard>
+          )}
+
+          <section className="grid gap-4 lg:grid-cols-2">
+            <AdminCard>
+              <AdminCardHeader
+                eyebrow="Jury"
+                title={juryTitle(data.jury.state)}
+                description={juryDescription(data.jury)}
+                action={
+                  editionSlug ? (
+                    <Link to={`/admin/jury/${editionSlug}`} className="admin-action-secondary !min-h-10">
+                      Open Jury <ArrowRight className="size-4" />
+                    </Link>
+                  ) : null
+                }
+              />
+              <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                <Metric label="Valid" value={data.jury.valid} />
+                <Metric label="Missing" value={data.jury.missing} />
+                <Metric label="Review" value={data.jury.needsReview + data.jury.invalidated} />
+              </div>
+              {data.jury.shows.length ? (
+                <div className="mt-4 divide-y divide-white/[0.07] border-t border-white/[0.07]">
+                  {data.jury.shows.map((show) => (
+                    <div key={show.showId} className="flex items-center justify-between gap-3 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{show.showName}</p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          {show.expected} expected · {show.valid} valid · {show.didNotVote} did not vote
+                        </p>
+                      </div>
+                      <AdminStatus tone={show.blockers > 0 ? "attention" : show.configured ? "neutral" : "blocked"}>
+                        {show.blockers > 0
+                          ? `${show.blockers} attention`
+                          : show.configured
+                            ? show.windowStatus
+                            : "Not configured"}
+                      </AdminStatus>
+                    </div>
+                  ))}
+                  {data.jury.showSummaryTruncated ? (
+                    <p className="py-3 text-xs text-muted-foreground">
+                      Showing the first {data.jury.showSummaryLimit} shows. Edition totals above include every show.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </AdminCard>
+
+            <AdminCard>
+              <AdminCardHeader
+                eyebrow="Public vote"
+                title={
+                  !data.televote.linked
+                    ? "Voting service not linked"
+                    : data.televote.openRounds > 0
+                      ? `${data.televote.openRounds} public voting round${data.televote.openRounds === 1 ? "" : "s"} open`
+                      : `${data.televote.rounds} public voting round${data.televote.rounds === 1 ? "" : "s"}`
+                }
+                description={`${data.televote.submissions} submitted ballots · ${data.televote.blocked} blocked by integrity checks.`}
+                action={
+                  <Link to="/televoting/admin/rounds" className="admin-action-secondary !min-h-10">
+                    Open rounds <ArrowRight className="size-4" />
+                  </Link>
+                }
+              />
+              <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                <Metric label="Rounds" value={data.televote.rounds} />
+                <Metric label="Ballots" value={data.televote.submissions} />
+                <Metric label="Blocked" value={data.televote.blocked} />
+              </div>
+            </AdminCard>
+          </section>
 
           <AdminCard>
             <AdminCardHeader
@@ -190,7 +243,7 @@ function VotingAdminOverview() {
                   icon={Users}
                   title="Jury"
                   description="Manage the selected edition's jury roster, ballots, did-not-vote state and governed ballot review."
-                  detail="Exact edition"
+                  detail={juryWorkspaceDetail(data.jury)}
                 />
               ) : (
                 <WorkspaceUnavailableRow
@@ -219,28 +272,32 @@ function VotingAdminOverview() {
                 icon={PlayCircle}
                 title="Public voting rounds & entries"
                 description="Choose eligible entries and countries, then operate the public voting round lifecycle."
-                detail={data.openRounds ? `${data.openRounds} open now` : `${data.rounds} configured`}
+                detail={data.televote.openRounds ? `${data.televote.openRounds} open now` : `${data.televote.rounds} configured`}
               />
               <WorkspaceRow
                 to="/televoting/admin/integrity"
                 icon={ShieldAlert}
                 title="Integrity review"
                 description="Review ballots Solaris flagged and record organizer decisions."
-                detail={data.blocked ? `${data.blocked} blocked` : "No blocked public ballots"}
+                detail={
+                  data.integrity.outstanding
+                    ? `${data.integrity.outstanding} voting items need attention`
+                    : "No unresolved voting integrity state"
+                }
               />
               <WorkspaceRow
                 to="/televoting/admin/results"
                 icon={Trophy}
                 title="Public vote results"
                 description="Inspect the canonical public-vote result before it enters the official result lifecycle."
-                detail={`${data.submissions} ballots`}
+                detail={`${data.televote.submissions} ballots`}
               />
               <WorkspaceRow
-                to="/admin/results"
+                to={data.results.route}
                 icon={Trophy}
                 title="Official results"
-                description="Review, lock and release the complete official result after all voting sources are ready."
-                detail="Review before release"
+                description={data.results.note}
+                detail="Separate canonical authority"
               />
             </div>
           </AdminCard>
@@ -322,6 +379,53 @@ function Metric({ label, value }: { label: string; value: number }) {
       <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{label}</p>
     </div>
   );
+}
+
+function juryTitle(state: "not_configured" | "attention" | "active" | "ready") {
+  if (state === "not_configured") return "Jury is not fully configured";
+  if (state === "attention") return "Jury needs attention";
+  if (state === "active") return "Jury voting is active";
+  return "Jury state is ready";
+}
+
+function juryDescription(jury: {
+  showCount: number;
+  configuredShowCount: number;
+  expected: number;
+  valid: number;
+  didNotVote: number;
+  missing: number;
+  needsReview: number;
+  invalidated: number;
+}) {
+  if (jury.showCount === 0) return "No shows exist in the selected edition, so Solaris does not fabricate Jury readiness.";
+  if (jury.configuredShowCount === 0) return "No edition show has both Jury enabled and a configured voter roster.";
+  return `${jury.valid} valid · ${jury.didNotVote} did not vote · ${jury.missing} missing · ${jury.needsReview + jury.invalidated} need review across ${jury.configuredShowCount} configured show${jury.configuredShowCount === 1 ? "" : "s"}.`;
+}
+
+function juryWorkspaceDetail(jury: {
+  state: "not_configured" | "attention" | "active" | "ready";
+  blockerCount: number;
+  openWindows: number;
+}) {
+  if (jury.blockerCount > 0) return `${jury.blockerCount} attention`;
+  if (jury.openWindows > 0) return `${jury.openWindows} open now`;
+  if (jury.state === "not_configured") return "Setup required";
+  return "No current blocker";
+}
+
+function shortVersion(value: string) {
+  return value.length > 12 ? `${value.slice(0, 8)}…${value.slice(-4)}` : value;
+}
+
+function formatServerTime(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(date);
 }
 
 function WorkspaceRow({
