@@ -12,10 +12,25 @@ export type ShowLineupOperationAction =
   | "save_running_order"
   | "sync_confirmed_countries";
 
+export type ShowLineupMembershipAction =
+  | "member_add"
+  | "member_remove"
+  | "promote_qualifiers";
+
 type ShowLineupOperationInput = {
   editionId: string;
   showId: string;
   action: ShowLineupOperationAction;
+  payload?: Record<string, unknown>;
+  operationId?: string;
+  idempotencyKey?: string;
+  reason?: string;
+};
+
+type ShowLineupMembershipInput = {
+  editionId: string;
+  showId: string;
+  action: ShowLineupMembershipAction;
   payload?: Record<string, unknown>;
   operationId?: string;
   idempotencyKey?: string;
@@ -64,6 +79,21 @@ export type ShowLineupOperationResult = {
   replayed: boolean;
 };
 
+export type ShowLineupMembershipResult = {
+  ok: true;
+  operationId: string;
+  showId: string;
+  showName: string;
+  action: string;
+  lineupStage: string | null;
+  stateVersion: string;
+  participantCount: number;
+  changedCount: number;
+  dependencies: Record<string, unknown>;
+  sourceParticipantIds: string[];
+  replayed: boolean;
+};
+
 export type AddCountriesToShowResult = ShowLineupOperationResult & {
   countryIds: string[];
 };
@@ -91,6 +121,9 @@ type LineupOperationEnvelope = {
     refreshed?: number;
     skipped?: number;
     changed?: boolean;
+    changedCount?: number;
+    dependencies?: Record<string, unknown>;
+    sourceParticipantIds?: string[];
   } | null;
 };
 
@@ -100,6 +133,12 @@ const lineupActions = new Set<ShowLineupOperationAction>([
   "start_running_order",
   "save_running_order",
   "sync_confirmed_countries",
+]);
+
+const membershipActions = new Set<ShowLineupMembershipAction>([
+  "member_add",
+  "member_remove",
+  "promote_qualifiers",
 ]);
 
 function requireId(value: unknown, label: string) {
@@ -116,6 +155,13 @@ function requireAction(value: unknown): ShowLineupOperationAction {
     throw new Error("Choose a valid line-up operation");
   }
   return value as ShowLineupOperationAction;
+}
+
+function requireMembershipAction(value: unknown): ShowLineupMembershipAction {
+  if (typeof value !== "string" || !membershipActions.has(value as ShowLineupMembershipAction)) {
+    throw new Error("Choose a valid line-up membership operation");
+  }
+  return value as ShowLineupMembershipAction;
 }
 
 function describeBlockers(blockers: unknown) {
@@ -151,6 +197,51 @@ function completedOperationResult(
   };
 }
 
+function completedMembershipResult(
+  envelope: LineupOperationEnvelope,
+  fallbackOperationId: string,
+  replayed: boolean,
+): ShowLineupMembershipResult {
+  const result = envelope.result ?? {};
+  const canonicalOperationId = envelope.operationId ?? result.operationId ?? fallbackOperationId;
+  if (!result.ok || !result.showId || !result.showName || !result.stateVersion || !result.action) {
+    throw new Error("The canonical line-up membership command returned an incomplete receipt.");
+  }
+
+  return {
+    ok: true,
+    operationId: canonicalOperationId,
+    showId: result.showId,
+    showName: result.showName,
+    action: result.action,
+    lineupStage: result.lineupStage ?? null,
+    stateVersion: result.stateVersion,
+    participantCount: result.participantCount ?? 0,
+    changedCount: result.changedCount ?? 0,
+    dependencies: result.dependencies ?? {},
+    sourceParticipantIds: Array.isArray(result.sourceParticipantIds) ? result.sourceParticipantIds : [],
+    replayed,
+  };
+}
+
+async function reconcileExistingOperation(
+  client: any,
+  operationId: string,
+): Promise<LineupOperationEnvelope | null> {
+  const reconciliation = await client.rpc("studio2_reconcile_operation", {
+    p_operation_id: operationId,
+  });
+  if (!reconciliation.error) {
+    const envelope = (reconciliation.data ?? {}) as LineupOperationEnvelope;
+    if (envelope.status === "succeeded") return envelope;
+    throw new Error(`The existing line-up operation is ${envelope.status ?? "not complete"}. Reconcile it before starting another write.`);
+  }
+  if (reconciliation.error.code !== "P0002") {
+    throw new Error(reconciliation.error.message);
+  }
+  return null;
+}
+
 async function runShowLineupOperation(
   data: ShowLineupOperationInput,
 ): Promise<ShowLineupOperationResult> {
@@ -168,19 +259,8 @@ async function runShowLineupOperation(
   // a different state-version fingerprint and turn a safe replay into an
   // IDEMPOTENCY_CONFLICT.
   if (data.operationId) {
-    const reconciliation = await client.rpc("studio2_reconcile_operation", {
-      p_operation_id: operationId,
-    });
-    if (!reconciliation.error) {
-      const envelope = (reconciliation.data ?? {}) as LineupOperationEnvelope;
-      if (envelope.status === "succeeded") {
-        return completedOperationResult(envelope, operationId, true);
-      }
-      throw new Error(`The existing line-up operation is ${envelope.status ?? "not complete"}. Reconcile it before starting another write.`);
-    }
-    if (reconciliation.error.code !== "P0002") {
-      throw new Error(reconciliation.error.message);
-    }
+    const envelope = await reconcileExistingOperation(client, operationId);
+    if (envelope) return completedOperationResult(envelope, operationId, true);
   }
 
   const preflightResponse = await client.rpc("v3_show_lineup_preflight", {
@@ -211,6 +291,50 @@ async function runShowLineupOperation(
 
   const envelope = (operationResponse.data ?? {}) as LineupOperationEnvelope;
   return completedOperationResult(envelope, operationId, Boolean(envelope.replayed));
+}
+
+async function runShowLineupMembershipOperation(
+  data: ShowLineupMembershipInput,
+): Promise<ShowLineupMembershipResult> {
+  await requireSolarisOrganizerServer();
+  const client = createSolarisAuthenticatedClientServer() as any;
+  const payload = data.payload ?? {};
+  const operationId = data.operationId ?? crypto.randomUUID();
+  const idempotencyKey = data.idempotencyKey ?? `show-lineup-membership:${data.action}:${operationId}`;
+
+  if (data.operationId) {
+    const envelope = await reconcileExistingOperation(client, operationId);
+    if (envelope) return completedMembershipResult(envelope, operationId, true);
+  }
+
+  const preflightResponse = await client.rpc("v3_show_lineup_membership_preflight", {
+    p_edition_id: data.editionId,
+    p_show_id: data.showId,
+    p_action: data.action,
+    p_payload: payload,
+  });
+  if (preflightResponse.error) throw new Error(preflightResponse.error.message);
+
+  const preflight = (preflightResponse.data ?? {}) as LineupPreflight;
+  if (!preflight.ok || !preflight.stateVersion) {
+    throw new Error(describeBlockers(preflight.blockers));
+  }
+
+  const operationResponse = await client.rpc("v3_execute_show_lineup_membership_operation", {
+    p_edition_id: data.editionId,
+    p_show_id: data.showId,
+    p_action: data.action,
+    p_payload: payload,
+    p_operation_id: operationId,
+    p_idempotency_key: idempotencyKey,
+    p_expected_state_version: preflight.stateVersion,
+    p_reason: data.reason?.trim() || null,
+    p_correlation_id: operationId,
+  });
+  if (operationResponse.error) throw new Error(operationResponse.error.message);
+
+  const envelope = (operationResponse.data ?? {}) as LineupOperationEnvelope;
+  return completedMembershipResult(envelope, operationId, Boolean(envelope.replayed));
 }
 
 export const getSolarisEditionSyncTargets = createServerFn({ method: "POST" })
@@ -258,6 +382,18 @@ export const executeShowLineupOperation = createServerFn({ method: "POST" })
     reason: typeof data?.reason === "string" ? data.reason : undefined,
   }))
   .handler(async ({ data }): Promise<ShowLineupOperationResult> => runShowLineupOperation(data));
+
+export const executeShowLineupMembershipOperation = createServerFn({ method: "POST" })
+  .inputValidator((data: ShowLineupMembershipInput) => ({
+    editionId: requireId(data?.editionId, "Edition"),
+    showId: requireId(data?.showId, "Show"),
+    action: requireMembershipAction(data?.action),
+    payload: data?.payload && typeof data.payload === "object" && !Array.isArray(data.payload) ? data.payload : {},
+    operationId: optionalId(data?.operationId),
+    idempotencyKey: optionalId(data?.idempotencyKey),
+    reason: typeof data?.reason === "string" ? data.reason : undefined,
+  }))
+  .handler(async ({ data }): Promise<ShowLineupMembershipResult> => runShowLineupMembershipOperation(data));
 
 export const addCountriesToShow = createServerFn({ method: "POST" })
   .inputValidator((data: AddCountriesInput) => ({
