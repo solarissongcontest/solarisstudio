@@ -69,7 +69,7 @@ describe("V3 P40 personal participation history projection", () => {
     expect(body).not.toContain("edition.status <> 'completed'");
   });
 
-  it("exposes only safe role/state vocabulary and deterministic stable ids", () => {
+  it("exposes only safe role/state vocabulary and stable row identities", () => {
     const body = historyBody();
     expect(body).toContain("'hod:' || claim.edition_id::text || ':' || claim.country_id::text");
     expect(body).toContain("'juror:' || member.id::text");
@@ -82,6 +82,16 @@ describe("V3 P40 personal participation history projection", () => {
     expect(body).not.toContain("assigned_by");
     expect(body).not.toContain("removed_by");
     expect(body).not.toContain("notes");
+  });
+
+  it("orders inside jsonb_agg so equal-time history is deterministic", () => {
+    const body = historyBody();
+    const aggregate = body.slice(body.indexOf("jsonb_agg("), body.indexOf("into v_items"));
+    expect(aggregate).toContain("order by");
+    expect(aggregate).toContain("row.edition_number desc nulls last");
+    expect(aggregate).toContain("row.evidence_at desc nulls last");
+    expect(aggregate).toContain("row.role");
+    expect(aggregate).toContain("row.id");
   });
 
   it("registers as an additive forward-fix-only S13 migration", () => {
