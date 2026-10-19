@@ -152,13 +152,7 @@ async function serverHasPushSubscription(userId: string, endpoint: string) {
   return Boolean(data?.id);
 }
 
-/**
- * Callers that provide the authenticated user get an end-to-end delivery
- * health check: browser subscription plus caller-owned active server row.
- * Legacy callers that omit userId retain their previous browser-only fallback
- * until they migrate to the V3 delivery-health contract.
- */
-export async function getAppPushState(userId?: string): Promise<AppPushState> {
+async function readAppPushState(userId?: string): Promise<AppPushState> {
   const key = await vapidPublicKey();
   if (!pushSupported()) {
     return {
@@ -189,6 +183,22 @@ export async function getAppPushState(userId?: string): Promise<AppPushState> {
     browserSubscribed,
     serverRegistered,
   };
+}
+
+/**
+ * Legacy browser-only delivery state. Keep this zero-argument API compatible
+ * with existing React Query callers that pass it directly as queryFn.
+ */
+export async function getAppPushState(): Promise<AppPushState> {
+  return readAppPushState();
+}
+
+/**
+ * Authenticated V3 delivery health. A device is active only when the browser
+ * subscription and the caller-owned active server registration agree.
+ */
+export async function getAuthenticatedAppPushState(userId: string): Promise<AppPushState> {
+  return readAppPushState(userId);
 }
 
 async function storeSubscription(userId: string, subscription: PushSubscription) {
