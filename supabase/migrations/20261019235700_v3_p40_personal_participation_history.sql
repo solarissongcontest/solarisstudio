@@ -218,16 +218,6 @@ begin
     select * from hod_rows
     union all
     select * from jury_rows
-  ),
-  ordered_rows as (
-    select row.*
-    from history_rows row
-    order by
-      row.edition_number desc nulls last,
-      row.edition_name desc,
-      row.evidence_at desc nulls last,
-      row.role,
-      row.id
   )
   select coalesce(
     jsonb_agg(
@@ -245,11 +235,17 @@ begin
         'source', row.source,
         'state', row.state
       )
+      order by
+        row.edition_number desc nulls last,
+        row.edition_name desc,
+        row.evidence_at desc nulls last,
+        row.role,
+        row.id
     ),
     '[]'::jsonb
   )
   into v_items
-  from ordered_rows row;
+  from history_rows row;
 
   return jsonb_build_object(
     'viewer_id', v_actor,
