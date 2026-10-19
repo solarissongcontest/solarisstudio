@@ -42,10 +42,10 @@ begin
     limit 1
   ),
   hod_candidates as (
-    -- Edition claims are recipient-scoped and survive a current-country
-    -- handover because they are keyed by user + country + edition. Corrected
-    -- `other` / `unknown` rows remain as unavailable reconciliation evidence
-    -- instead of silently disappearing from the caller's timeline.
+    -- Self-attributed edition claims survive a current-country handover because
+    -- country_hod_edition_claims is keyed by user + country + edition. Only
+    -- `mine` is affirmative evidence that this account held the relationship;
+    -- `other` / `unknown` must never be presented as the caller's HOD history.
     select
       'hod:' || claim.edition_id::text || ':' || claim.country_id::text as id,
       claim.edition_id,
@@ -69,7 +69,6 @@ begin
       'hod'::text as role,
       null::timestamptz as started_at,
       case
-        when claim.status in ('other', 'unknown') then claim.updated_at
         when assignment.person_id is not null
           and own_person.id is not null
           and assignment.person_id <> own_person.id
@@ -78,19 +77,14 @@ begin
       end as ended_at,
       'hod_claim'::text as source,
       case
-        when claim.status in ('other', 'unknown') then 'unavailable'::text
         -- A canonical delegation assignment to another person makes the
-        -- caller's older self-claim superseded rather than current.
+        -- caller's older self-claim explicitly superseded. Do not derive
+        -- `current` from editions.status: production retains many historical
+        -- editions as `active`, so that field is not a current-context oracle.
         when assignment.person_id is not null
           and own_person.id is not null
           and assignment.person_id <> own_person.id
         then 'superseded'::text
-        -- Current is derived from the canonical assignment + active edition,
-        -- never merely from a stale self-claim or today's country account.
-        when claim.status = 'mine'
-          and assignment.person_id = own_person.id
-          and edition.status = 'active'
-        then 'current'::text
         else 'historical'::text
       end as state,
       claim.updated_at as evidence_at,
@@ -109,6 +103,7 @@ begin
      and assignment.country_id = claim.country_id
      and assignment.channel = 'delegation'
     where claim.user_id = v_actor
+      and claim.status = 'mine'
 
     union all
 
@@ -139,10 +134,7 @@ begin
       assignment.created_at as started_at,
       null::timestamptz as ended_at,
       'hod_assignment'::text as source,
-      case
-        when edition.status = 'active' then 'current'::text
-        else 'historical'::text
-      end as state,
+      'historical'::text as state,
       assignment.updated_at as evidence_at,
       10 as evidence_priority
     from public.delegation_hod_assignments assignment
@@ -161,6 +153,8 @@ begin
      and claim.country_id = assignment.country_id
      and claim.edition_id = assignment.edition_id
     where assignment.channel = 'delegation'
+      -- An explicit `other` / `unknown` self-claim means Solaris must not revive
+      -- an older assignment row and tell the caller they were the HOD.
       and (claim.status is null or claim.status = 'mine')
   ),
   hod_rows as (
@@ -212,12 +206,10 @@ begin
       member.removed_at as ended_at,
       'jury_membership'::text as source,
       case
-        -- Membership and edition lifecycle must both still be current. A jury
-        -- member left assigned after a completed edition is historical, not an
-        -- immortal current obligation.
-        when member.status = 'assigned'
-          and member.removed_at is null
-          and edition.status = 'active'
+        -- Jury membership itself has an explicit assigned/removed lifecycle,
+        -- so its own current state is usable without consulting stale edition
+        -- lifecycle metadata.
+        when member.status = 'assigned' and member.removed_at is null
         then 'current'::text
         else 'historical'::text
       end as state,
@@ -279,7 +271,7 @@ grant execute on function public.v3_my_participation_history()
   to authenticated;
 
 comment on function public.v3_my_participation_history() is
-  'Caller-scoped P40 personal participation history from direct HOD attribution and temporal jury membership evidence. No ballot content, audit payloads or cross-user contact data.';
+  'Caller-scoped P40 personal participation history from affirmative HOD attribution and temporal jury membership evidence. No ballot content, audit payloads or cross-user contact data.';
 
 notify pgrst, 'reload schema';
 
