@@ -3,11 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   V3_S16_CERTIFICATION_CATEGORIES,
   validateV3S16CertificationEvidence,
+  type V3S16CertificationEvidence,
 } from "./v3-s16-certification-contract";
 
 const SHA = "a".repeat(40);
 
-function completeEvidence() {
+function completeEvidence(): V3S16CertificationEvidence {
   return {
     schemaVersion: 1,
     candidateSha: SHA,
