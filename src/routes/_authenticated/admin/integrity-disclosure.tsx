@@ -16,7 +16,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
-import { AdminCard, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
+import { AdminCard, AdminConfirmSheet, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { supabase } from "@/integrations/supabase/client";
 import {
   createOrganizerEvidenceDisclosureCopy,
@@ -204,6 +204,7 @@ function DerivativeComposer({ source, onChanged }: { source: EvidenceItem; onCha
   const [externalUrl, setExternalUrl] = useState(source.external_url ?? "");
   const [reason, setReason] = useState("");
   const [redactedText, setRedactedText] = useState(true);
+  const [releasePreviewOpen, setReleasePreviewOpen] = useState(false);
 
   const downloadMutation = useMutation({
     mutationFn: () => getOrganizerEvidenceDownloadUrl(source.id),
@@ -226,6 +227,7 @@ function DerivativeComposer({ source, onChanged }: { source: EvidenceItem; onCha
       });
     },
     onSuccess: async (result) => {
+      setReleasePreviewOpen(false);
       setFile(null);
       setReason("");
       await onChanged();
@@ -288,11 +290,51 @@ function DerivativeComposer({ source, onChanged }: { source: EvidenceItem; onCha
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-[10px] leading-4 text-muted-foreground">The disclosure event is audit-recorded. File downloads remain signed for 60 seconds and private bucket locators never appear here.</p>
-          <button type="button" disabled={!valid || createMutation.isPending} onClick={() => createMutation.mutate()} className="admin-action-primary">
-            <GitBranch className="size-4" />{createMutation.isPending ? "Creating…" : "Create derivative"}
+          <button
+            type="button"
+            disabled={!valid || createMutation.isPending}
+            onClick={() => reporterVisible ? setReleasePreviewOpen(true) : createMutation.mutate()}
+            className="admin-action-primary"
+          >
+            <GitBranch className="size-4" />
+            {createMutation.isPending ? "Creating…" : reporterVisible ? "Review disclosure" : "Create internal derivative"}
           </button>
         </div>
       </div>
+
+      <AdminConfirmSheet
+        open={releasePreviewOpen}
+        onClose={() => {
+          if (!createMutation.isPending) setReleasePreviewOpen(false);
+        }}
+        onConfirm={async () => {
+          await createMutation.mutateAsync();
+        }}
+        title="Release this exact disclosure to the reporter?"
+        description={
+          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+            <p>This preview shows the exact reporter-visible derivative Solaris will create from the immutable source. Review the release content before continuing.</p>
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+              <p><span className="font-semibold text-foreground">Source:</span> {source.title} · {source.evidence_type.replaceAll("_", " ")} · {source.id}</p>
+              <p className="mt-2"><span className="font-semibold text-foreground">Release mode:</span> {fileMode ? kind.replaceAll("_", " ") : redactedText ? "redacted disclosure" : "disclosure"}</p>
+              <p className="mt-2"><span className="font-semibold text-foreground">Reporter-visible title:</span> {title.trim()}</p>
+              {fileMode ? (
+                <p className="mt-2"><span className="font-semibold text-foreground">Document:</span> {file?.name ?? "No file selected"}{file ? ` · ${file.size.toLocaleString()} bytes` : ""}</p>
+              ) : (
+                <p className="mt-2 whitespace-pre-wrap"><span className="font-semibold text-foreground">Reporter-visible content:</span> {description.trim()}</p>
+              )}
+              {fileMode && description.trim() ? <p className="mt-2 whitespace-pre-wrap"><span className="font-semibold text-foreground">Reporter-visible description:</span> {description.trim()}</p> : null}
+              {!fileMode && source.evidence_type === "url" && externalUrl.trim() ? <p className="mt-2 break-all"><span className="font-semibold text-foreground">Reporter-visible URL:</span> {externalUrl.trim()}</p> : null}
+            </div>
+            <p><span className="font-semibold text-foreground">Internal disclosure reason:</span> {reason.trim()}</p>
+            <p>Creating this derivative makes it reporter-visible immediately under the current legacy authority and records the disclosure event. This is a release preview, not the missing V3 partial-approval workflow tracked in System #944.</p>
+          </div>
+        }
+        confirmLabel="Create reporter-visible disclosure"
+        busy={createMutation.isPending}
+        danger
+        confirmDisabled={!reporterVisible || !valid}
+      />
     </AdminCard>
   );
 }

@@ -16,7 +16,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
-import { AdminCard, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
+import { AdminCard, AdminConfirmSheet, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { supabase } from "@/integrations/supabase/client";
 import {
   createInterpretationDraftFromPreclearance,
@@ -227,6 +227,7 @@ function RulingComposer({ detail, onChanged }: { detail: CaseDetail; onChanged: 
   const [summary, setSummary] = useState("");
   const [rationale, setRationale] = useState("");
   const [ruleInput, setRuleInput] = useState(detail.rule_links.map((item) => item.rule_id).join(", "));
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   const ruleIds = useMemo(
     () => Array.from(new Set(ruleInput.split(/[\s,]+/).map((item) => item.trim()).filter(Boolean))),
@@ -236,6 +237,7 @@ function RulingComposer({ detail, onChanged }: { detail: CaseDetail; onChanged: 
   const mutation = useMutation({
     mutationFn: () => recordAdminPreclearanceRuling(detail.case.id, { outcome, summary, rationale, ruleIds }),
     onSuccess: async () => {
+      setReviewOpen(false);
       setSummary("");
       setRationale("");
       await onChanged();
@@ -284,11 +286,44 @@ function RulingComposer({ detail, onChanged }: { detail: CaseDetail; onChanged: 
         </div>
         {invalidRules.length ? <p className="mt-2 text-[10px] font-semibold text-rose-200">Unknown current rule IDs: {invalidRules.join(", ")}</p> : null}
         <div className="mt-3 flex justify-end">
-          <button type="button" disabled={!canSubmit || mutation.isPending} onClick={() => mutation.mutate()} className="admin-action-primary">
-            <Gavel className="size-4" />{mutation.isPending ? "Recording…" : "Record ruling"}
+          <button type="button" disabled={!canSubmit || mutation.isPending} onClick={() => setReviewOpen(true)} className="admin-action-primary">
+            <Gavel className="size-4" />{mutation.isPending ? "Recording…" : "Review ruling"}
           </button>
         </div>
       </div>
+
+      <AdminConfirmSheet
+        open={reviewOpen}
+        onClose={() => {
+          if (!mutation.isPending) setReviewOpen(false);
+        }}
+        onConfirm={async () => {
+          await mutation.mutateAsync();
+        }}
+        title={`Record ${selectedOutcome.label} ruling for ${detail.case.public_code}?`}
+        description={
+          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+            <p>This creates a dated participant-visible ruling. Review the exact answer and its current-rule basis before recording it.</p>
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+              <p className="font-semibold text-foreground">{detail.case.public_code} · {detail.case.summary}</p>
+              <p className="mt-2"><span className="font-semibold text-foreground">Outcome:</span> {selectedOutcome.label}</p>
+              <p className="mt-2 whitespace-pre-wrap"><span className="font-semibold text-foreground">Participant-visible summary:</span> {summary.trim()}</p>
+              <p className="mt-2 whitespace-pre-wrap"><span className="font-semibold text-foreground">Rationale and assumptions:</span> {rationale.trim()}</p>
+              <div className="mt-2">
+                <span className="font-semibold text-foreground">Current rules cited:</span>
+                <ul className="mt-1 space-y-1">
+                  {ruleIds.map((id) => <li key={id}>Rule {id} · {getRuleById(id)?.title ?? "Unknown current rule"}</li>)}
+                </ul>
+              </div>
+            </div>
+            {outcome === "needs_more_information" ? <p>This ruling also moves the case to waiting_for_reporter so the participant can supply the missing facts.</p> : null}
+            <p>The current legacy authority records the ruling immediately after confirmation. Canonical V3 preflight, rule-snapshot binding, version/CAS and receipt authority remain tracked in System #950.</p>
+          </div>
+        }
+        confirmLabel="Record participant-visible ruling"
+        busy={mutation.isPending}
+        confirmDisabled={!canSubmit}
+      />
     </AdminCard>
   );
 }

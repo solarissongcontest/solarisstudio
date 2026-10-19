@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
+import { RuleInterpretationPublicationReview } from "@/components/admin/RuleInterpretationPublicationReview";
 import {
   createRuleInterpretation,
   getAdminRuleInterpretations,
@@ -55,6 +56,7 @@ function RuleInterpretationsAdmin() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<DraftState>(EMPTY);
   const [replacementId, setReplacementId] = useState("");
+  const [publishReviewOpen, setPublishReviewOpen] = useState(false);
   const items = query.data ?? [];
   const selected = items.find((item) => item.id === selectedId) ?? null;
   const ruleIds = parseRuleIds(draft.rules);
@@ -88,6 +90,7 @@ function RuleInterpretationsAdmin() {
   const publishMutation = useMutation({
     mutationFn: (id: string) => publishRuleInterpretation(id),
     onSuccess: async () => {
+      setPublishReviewOpen(false);
       await refresh();
       toast.success("Official interpretation published");
     },
@@ -109,6 +112,7 @@ function RuleInterpretationsAdmin() {
   const selectItem = (item: RuleInterpretation | null) => {
     setSelectedId(item?.id ?? null);
     setReplacementId("");
+    setPublishReviewOpen(false);
     if (!item) {
       setDraft(EMPTY);
       return;
@@ -130,6 +134,8 @@ function RuleInterpretationsAdmin() {
     draft.rationale.trim().length >= 20 &&
     ruleIds.length > 0 &&
     invalidRuleIds.length === 0;
+
+  const publicationSnapshot = toDraftInput(draft);
 
   return (
     <AdminPage>
@@ -217,7 +223,7 @@ function RuleInterpretationsAdmin() {
                 ) : selected.status === "draft" ? (
                   <>
                     <button type="button" disabled={!valid || saveMutation.isPending} onClick={() => saveMutation.mutate()} className="admin-action-secondary"><Save className="size-4" />Save draft</button>
-                    <button type="button" disabled={!valid || publishMutation.isPending} onClick={() => publishMutation.mutate(selected.id)} className="admin-action-primary"><Send className="size-4" />Publish interpretation</button>
+                    <button type="button" disabled={!valid || publishMutation.isPending} onClick={() => setPublishReviewOpen(true)} className="admin-action-primary"><Send className="size-4" />Review publication</button>
                   </>
                 ) : null}
               </div>
@@ -253,6 +259,26 @@ function RuleInterpretationsAdmin() {
             </AdminCard>
           </div>
         </div>
+
+        {selected?.status === "draft" ? (
+          <RuleInterpretationPublicationReview
+            open={publishReviewOpen}
+            onClose={() => {
+              if (!publishMutation.isPending) setPublishReviewOpen(false);
+            }}
+            onConfirm={async () => {
+              await publishMutation.mutateAsync(selected.id);
+            }}
+            busy={publishMutation.isPending}
+            code={selected.code}
+            title={publicationSnapshot.title}
+            question={publicationSnapshot.question}
+            interpretation={publicationSnapshot.interpretation}
+            rationale={publicationSnapshot.rationale}
+            ruleIds={publicationSnapshot.ruleIds}
+            effectiveFrom={publicationSnapshot.effectiveFrom ?? null}
+          />
+        ) : null}
       </div>
     </AdminPage>
   );
