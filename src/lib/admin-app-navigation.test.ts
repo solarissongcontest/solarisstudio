@@ -5,6 +5,7 @@ import {
   consumeAdminNavigationRestore,
   getAdminAppTabDestination,
   markAdminNavigationRestore,
+  readAdminNavigationState,
   rememberAdminLocation,
   resetAdminAppTabToRoot,
   updateAdminScrollPosition,
@@ -77,7 +78,7 @@ describe("Organizer app navigation memory", () => {
     );
   });
 
-  it("restores scroll only for the exact destination intent", () => {
+  it("consumes scroll restoration exactly once for the intended destination", () => {
     const storage = new MemoryStorage();
     const session = new MemoryStorage();
     const slug = "ssc-22";
@@ -100,6 +101,16 @@ describe("Organizer app navigation memory", () => {
         session,
       ),
     ).toBeNull();
+    // A redirected/mismatched handoff is consumed and cannot fire later.
+    expect(
+      consumeAdminNavigationRestore(
+        "/admin/entries/oland",
+        "?view=entry",
+        session,
+      ),
+    ).toBeNull();
+
+    markAdminNavigationRestore(target, session);
     expect(
       consumeAdminNavigationRestore(
         "/admin/entries/oland",
@@ -107,5 +118,53 @@ describe("Organizer app navigation memory", () => {
         session,
       ),
     ).toBe(333);
+    expect(
+      consumeAdminNavigationRestore(
+        "/admin/entries/oland",
+        "?view=entry",
+        session,
+      ),
+    ).toBeNull();
+  });
+
+  it("fails closed on unknown future persisted versions", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      "solaris:organizer-navigation:v1",
+      JSON.stringify({
+        version: 999,
+        activeTab: "edition",
+        tabs: {
+          edition: {
+            current: {
+              pathname: "/admin/ssc-22",
+              searchStr: "",
+              scrollY: 222,
+              visitedAt: new Date().toISOString(),
+            },
+            history: [],
+          },
+        },
+      }),
+    );
+
+    expect(readAdminNavigationState("ssc-22", storage)).toEqual({
+      version: 1,
+      activeTab: "home",
+      tabs: {},
+    });
+  });
+
+  it("consumes malformed restore payloads and rejects lookalike admin prefixes", () => {
+    const storage = new MemoryStorage();
+    const session = new MemoryStorage();
+    session.setItem("solaris:organizer-navigation-restore:v1", "{not-json");
+
+    expect(consumeAdminNavigationRestore("/admin/tasks", "", session)).toBeNull();
+    expect(session.getItem("solaris:organizer-navigation-restore:v1")).toBeNull();
+
+    rememberAdminLocation("/administrator", "", 100, "ssc-22", storage);
+    rememberAdminLocation("/confirmations/administrator", "", 100, "ssc-22", storage);
+    expect(readAdminNavigationState("ssc-22", storage).tabs).toEqual({});
   });
 });

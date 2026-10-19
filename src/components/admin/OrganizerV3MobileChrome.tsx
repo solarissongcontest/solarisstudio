@@ -35,6 +35,7 @@ import {
   type V3OrganizerTabId,
 } from "@/lib/v3-organizer";
 import { useAdminContext } from "./AdminContext";
+import { resolveAdminEditionContext } from "./admin-edition-context";
 
 type TabDefinition = {
   id: V3OrganizerTabId;
@@ -61,11 +62,9 @@ export function OrganizerV3MobileChrome() {
   const { data: editions = [] } = useEditions();
   const backend = useOrganisationBackendContract();
   const tasksSupported = backend.data?.capabilities.organizerTasks === true;
-  const activeEdition =
-    editions.find((edition) => edition.id === editionId) ??
-    [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
-    null;
+  const activeEdition = resolveAdminEditionContext(editions, editionId);
   const navigationScope = activeEdition?.id ?? null;
+  const navigationMemoryReady = navigationScope != null;
   const taskCount = useOrganizerTaskCountV5(activeEdition?.id ?? null, tasksSupported);
   const unresolvedTaskCount =
     tasksSupported && !taskCount.isError && typeof taskCount.data === "number"
@@ -73,7 +72,11 @@ export function OrganizerV3MobileChrome() {
       : undefined;
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia("(max-width: 899px)").matches) {
+    if (
+      typeof window === "undefined" ||
+      !window.matchMedia("(max-width: 899px)").matches ||
+      !navigationMemoryReady
+    ) {
       return;
     }
 
@@ -134,7 +137,7 @@ export function OrganizerV3MobileChrome() {
         navigationScope,
       );
     };
-  }, [navigationScope, pathname, searchStr]);
+  }, [navigationMemoryReady, navigationScope, pathname, searchStr]);
 
   const items = V3_ORGANIZER_TAB_ORDER.map((id): OrganizerV6TabItem => {
     const definition = TAB_DEFINITIONS[id];
@@ -161,10 +164,16 @@ export function OrganizerV3MobileChrome() {
       return;
     }
 
+    // Exact-edition memory must never degrade into the shared "unscoped"
+    // bucket while Organizer context is unresolved. Root navigation remains
+    // available, but memory only becomes authoritative with an exact edition.
+    const navigationStorage = navigationMemoryReady ? undefined : null;
     const target = alreadyActive
-      ? resetV3OrganizerTabToRoot(id, undefined, navigationScope)
-      : getV3OrganizerTabDestination(id, undefined, navigationScope);
-    markV3OrganizerNavigationRestore(target, undefined, navigationScope);
+      ? resetV3OrganizerTabToRoot(id, navigationStorage, navigationScope)
+      : getV3OrganizerTabDestination(id, navigationStorage, navigationScope);
+    if (navigationMemoryReady) {
+      markV3OrganizerNavigationRestore(target, undefined, navigationScope);
+    }
     void runAppViewTransition(alreadyActive ? "pop" : "tab", () =>
       navigate({ to: v3OrganizerEntryHref(target) as any }),
     );
