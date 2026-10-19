@@ -13,10 +13,10 @@ describe("V3 personal participation history projection", () => {
     expect(migration).toContain("raise exception 'Authentication required'");
     expect(migration).toContain("'viewer_id', v_actor");
     expect(migration).toContain(
-      "revoke all on function public.v3_my_participation_history()\n  from public, anon;",
+      "revoke all on function public.v3_my_participation_history()\n  from public, anon, authenticated, service_role;",
     );
     expect(migration).toContain(
-      "grant execute on function public.v3_my_participation_history()\n  to authenticated, service_role;",
+      "grant execute on function public.v3_my_participation_history()\n  to authenticated;",
     );
   });
 
@@ -46,8 +46,14 @@ describe("V3 personal participation history projection", () => {
 
   it("does not fabricate generic participant membership from current ownership", () => {
     expect(migration).not.toContain("'participant'::text as role");
+    expect(migration).not.toContain("from public.country_accounts");
     expect(migration).not.toContain("account.country_id");
-    expect(migration).not.toContain("current country account");
+  });
+
+  it("treats only terminal edition lifecycle states as historical", () => {
+    expect(migration).toContain("edition.status in ('completed', 'archived', 'cancelled')");
+    expect(migration).toContain("then 'historical'");
+    expect(migration).toContain("else 'current'");
   });
 
   it("returns the contract consumed by Public V3 History", () => {
