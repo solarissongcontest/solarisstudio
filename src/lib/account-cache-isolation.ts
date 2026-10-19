@@ -30,11 +30,22 @@ export function createAccountCacheIsolationHandler(
 
     const nextUserId = user?.id ?? null;
     if (previousUserId !== nextUserId) {
+      const priorUserId = previousUserId;
       previousUserId = nextUserId;
       // Security ordering is intentional: invalidate the previous account's
       // private observers before publishing the next fan-session namespace.
       clearPrivateAccountQueries(client);
       resetAttention();
+
+      // The authenticated route deliberately does not own another auth-state
+      // subscription. Reconcile its cached identity from this single global
+      // subscriber so remote revocation/sign-out cannot leave a protected shell
+      // showing stale identity until an incidental React Query refetch.
+      if (nextUserId === null) {
+        client.setQueryData(["authenticated-identity-gate"], null);
+      } else if (priorUserId !== undefined) {
+        void client.invalidateQueries({ queryKey: ["authenticated-identity-gate"] });
+      }
     }
     client.setQueryData(["fan-session"], user ?? null);
   };
