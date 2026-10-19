@@ -190,11 +190,11 @@ function sanitizeMetadata(metadata: PublicUxMetadata): PublicUxMetadata {
     "task_run",
     "start_route",
     "search_used",
-    "error_class",
   ] as const) {
     const value = metadata[key];
-    if (typeof value === "string" && value.trim()) clean[key] = value.trim().slice(0, 120) as never;
+    if (typeof value === "string" && value.trim()) clean[key] = value.trim().slice(0, 120);
   }
+  if (metadata.error_class) clean.error_class = metadata.error_class;
 
   if (Number.isFinite(metadata.query_length)) {
     clean.query_length = Math.max(0, Math.min(500, Math.round(metadata.query_length!)));
