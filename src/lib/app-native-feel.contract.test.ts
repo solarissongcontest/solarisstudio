@@ -50,7 +50,8 @@ describe("App Experience v3 native-feel polish", () => {
     expect(manager).toContain("!firstRunComplete");
     expect(firstRun).toContain("solaris:app-first-run-complete:v1");
     expect(firstRun).toContain("Your SSC companion");
-    expect(firstRun).toContain("allowedOnPath");
+    expect(firstRun).toContain("appFirstRunAllowedOnPath");
+    expect(firstRun).toContain("resolveSolarisAppScreen");
     expect(firstRun).toContain('pathname === "/app-launch"');
     expect(firstRun).toContain("Continue");
   });
