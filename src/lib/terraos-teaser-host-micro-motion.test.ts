@@ -39,6 +39,14 @@ describe("TerraOS release micro-motion", () => {
     expect(implementation).toContain("targetVelocity *= 0.82");
   });
 
+  it("keeps the glint inside target geometry so decoration cannot widen the page", () => {
+    const implementation = source();
+    expect(implementation).toContain("inset: 0;");
+    expect(implementation).toContain("background-position:");
+    expect(implementation).not.toContain("inset: -18%");
+    expect(implementation).not.toContain("transform: translate3d(");
+  });
+
   it("collapses the effect under Reduce Motion", () => {
     const implementation = source();
     expect(implementation).toContain('matchMedia("(prefers-reduced-motion: reduce)")');

@@ -32,9 +32,9 @@ html[data-terraos-micro-motion="true"] .results-story .results-reveal {
 html[data-terraos-micro-motion="true"] .${MICRO_GLINT_CLASS} {
   position: absolute;
   z-index: 7;
-  inset: -18%;
+  inset: 0;
   border-radius: inherit;
-  background:
+  background-image:
     linear-gradient(
       104deg,
       transparent 37%,
@@ -43,15 +43,14 @@ html[data-terraos-micro-motion="true"] .${MICRO_GLINT_CLASS} {
       rgba(111,211,255,.07) 55%,
       transparent 64%
     );
+  background-repeat: no-repeat;
+  background-size: 145% 145%;
+  background-position:
+    calc(50% + var(--terraos-scroll-glint-x, 0px))
+    calc(50% + var(--terraos-scroll-glint-y, 0px));
   opacity: var(--terraos-scroll-glint-opacity, .02);
-  transform: translate3d(
-    var(--terraos-scroll-glint-x, 0px),
-    var(--terraos-scroll-glint-y, 0px),
-    0
-  );
-  filter: blur(7px);
   pointer-events: none;
-  will-change: transform, opacity;
+  will-change: opacity;
 }
 
 html[data-terraos-micro-motion="reduced"] .${MICRO_GLINT_CLASS} {
