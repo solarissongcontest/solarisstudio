@@ -43,18 +43,32 @@ function mapTransitionResult(
   request: V3EditionTransitionRequest,
 ): Studio2RuntimeRecord {
   const result = expectObject(value, 'edition transition result');
+  const operationId = expectString(result.operationId, 'transition operation id');
   const editionId = expectString(result.editionId, 'transition edition id');
   const state = expectString(result.state, 'transition state');
+  const previousRuntimeVersion = expectNumber(
+    result.previousRuntimeVersion,
+    'transition previous runtime version',
+  );
   const runtimeVersion = expectNumber(result.runtimeVersion, 'transition runtime version');
   const runtime = mapStudio2RuntimeRow(result.runtime);
 
+  if (operationId !== request.operationId) {
+    throw new Error('Edition transition receipt belongs to a different operation.');
+  }
   if (editionId !== request.editionId || runtime.editionId !== request.editionId) {
     throw new Error('Edition transition returned a different edition than requested.');
   }
   if (state !== request.to || runtime.runtime.edition !== request.to) {
     throw new Error('Edition transition receipt disagrees with the requested destination state.');
   }
-  if (runtime.version !== runtimeVersion) {
+  if (previousRuntimeVersion !== request.expectedVersion) {
+    throw new Error('Edition transition receipt disagrees with the reviewed runtime version.');
+  }
+  if (
+    runtimeVersion !== request.expectedVersion + 1 ||
+    runtime.version !== runtimeVersion
+  ) {
     throw new Error('Edition transition receipt disagrees with canonical runtime version.');
   }
 
@@ -114,7 +128,7 @@ export async function transitionEditionV3(
       if (reconciled) return reconciled;
     } catch {
       // The mutation error remains authoritative if the receipt is malformed
-      // or contradicts the exact edition/state the caller requested.
+      // or contradicts the exact operation/edition/version/state the caller requested.
     }
   }
 
