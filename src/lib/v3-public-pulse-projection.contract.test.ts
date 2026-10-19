@@ -41,9 +41,9 @@ describe("Public V3 Pulse publication-safe projection", () => {
     expect(migration).toContain("event.route !~ '[[:cntrl:]]'");
   });
 
-  it("is a read-only S13-governed projection", () => {
+  it("is a read-only S13-governed projection with a valid stable key", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
-    expect(migration).toContain("20261019235700_v3_public_pulse_projection");
+    expect(migration).toContain("v3.public-pulse-projection");
     expect(migration).toContain("'forward_fix_only'");
     expect(migration).not.toMatch(/\binsert\s+into\s+public\.content_events\b/i);
     expect(migration).not.toMatch(/\bupdate\s+public\.content_events\b/i);
