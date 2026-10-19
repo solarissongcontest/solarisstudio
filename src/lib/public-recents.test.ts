@@ -16,23 +16,42 @@ function memoryStorage() {
 }
 
 describe("public recents", () => {
-  it("does not remember sensitive or organizer paths", () => {
-    expect(shouldRememberPublicPath("/admin/operations")).toBe(false);
-    expect(shouldRememberPublicPath("/auth")).toBe(false);
-    expect(shouldRememberPublicPath("/integrity/appeals/private-case")).toBe(false);
+  it("does not remember sensitive, organizer, critical or immersive paths", () => {
+    for (const path of [
+      "/admin/operations",
+      "/auth",
+      "/integrity/appeals/private-case",
+      "/confirmations/edit/demo-token",
+      "/jury-voting",
+      "/televoting",
+      "/next-in-line",
+      "/my-solaris/entry",
+      "/integrity/report/category",
+      "/show-mode",
+      "/broadcast/grand-final",
+    ]) {
+      expect(shouldRememberPublicPath(path), path).toBe(false);
+    }
+
     expect(shouldRememberPublicPath("/explore")).toBe(false);
     expect(shouldRememberPublicPath("/guide")).toBe(false);
     expect(shouldRememberPublicPath("/site-directory")).toBe(false);
     expect(shouldRememberPublicPath("/rules")).toBe(false);
-    expect(shouldRememberPublicPath("/countries/oland")).toBe(true);
   });
 
-  it("filters old hub and utility entries already stored on the device", () => {
+  it("keeps ordinary public destinations, including non-critical voting results", () => {
+    expect(shouldRememberPublicPath("/countries/oland")).toBe(true);
+    expect(shouldRememberPublicPath("/televoting/results")).toBe(true);
+  });
+
+  it("filters old hub, utility and critical entries already stored on the device", () => {
     const storage = memoryStorage();
     storage.setItem(
       PUBLIC_RECENTS_KEY,
       JSON.stringify([
-        { path: "/explore", label: "Explore", visitedAt: 5 },
+        { path: "/explore", label: "Explore", visitedAt: 7 },
+        { path: "/my-solaris/entry", label: "Entry", visitedAt: 6 },
+        { path: "/integrity/report/category", label: "Integrity report", visitedAt: 5 },
         { path: "/guide", label: "How to use Solaris Studio", visitedAt: 4 },
         { path: "/countries/oland", label: "Oland", visitedAt: 3 },
       ]),
