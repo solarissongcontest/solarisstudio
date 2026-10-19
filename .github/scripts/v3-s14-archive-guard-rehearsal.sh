@@ -161,25 +161,30 @@ set status='open',resolved_at=null,updated_at=now();
 
 select private.studio2_reconcile_all_organizer_tasks('$EDITION_A'::uuid);
 
--- Seed the canonical S1 Edition task vocabulary explicitly. Current V5 task
--- sources still mostly produce edition.transition.*, but an archived edition
--- must also terminate the canonical edition.blocker if/when its producer exists.
+-- Seed the canonical S1 Edition task vocabulary explicitly. Assign it to the
+-- capable fixture operator so the real task notification synchronizer creates
+-- both Inbox and delivery projections before Archive.
 insert into public.studio2_organizer_tasks(
- id,edition_id,source_kind,source_id,source_key,task_type,required_capability,
+ id,edition_id,assigned_to,source_kind,source_id,source_key,task_type,required_capability,
  priority,state,title,description,href,resolution_predicate
 ) values (
- '$BLOCKER_ID','$EDITION_A','edition','archive-guard-blocker',
+ '$BLOCKER_ID','$EDITION_A','$AUTHORIZED_ID'::uuid,'edition','archive-guard-blocker',
  'v3-s14-archive-guard:edition-blocker','edition.blocker','edition.manage',
  'high','open','Canonical edition blocker must end at Archive',
  'Synthetic canonical Edition task used only by the isolated S14 guard rehearsal.',
  '/admin/control-room','{}'::jsonb
 )
 on conflict (source_key) do update
-set state='open',resolved_at=null,last_evaluated_at=now(),updated_at=now();
+set assigned_to=excluded.assigned_to,
+    state='open',resolved_at=null,last_evaluated_at=now(),updated_at=now();
+
+select private.studio2_sync_task_notifications('$EDITION_A'::uuid);
 "
 
 [[ "$(db_value "select state from public.studio2_organizer_tasks where source_kind='incident' and source_id='$INCIDENT_ID';")" == 'open' ]] || fail "incident governance task was not created"
 [[ "$(db_value "select state from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == 'open' ]] || fail "canonical edition.blocker fixture was not open before archive"
+[[ "$(db_value "select count(*) from public.admin_notifications where recipient_id='$AUTHORIZED_ID'::uuid and source_key='v3-s14-archive-guard:edition-blocker' and resolution_mode='domain' and requires_action and resolved_at is null;")" == '1' ]] || fail "canonical edition.blocker Inbox projection was not actionable before archive"
+[[ "$(db_value "select count(*) from public.notification_deliveries where subject_id='$BLOCKER_ID' and category='organizer_tasks' and status in ('pending','processing','failed');")" -ge '1' ]] || fail "canonical edition.blocker delivery projection was not pending before archive"
 
 log "Archive capability is mandatory"
 expect_user_failure "$UNAUTHORIZED_ID" "archive without edition.archive" "AUTHORIZATION" \
@@ -198,7 +203,7 @@ expect_user_failure "$AUTHORIZED_ID" "results directly to archived" "STATE_CHANG
   "select public.studio2_transition_edition_v3('$EDITION_B'::uuid,'archived',null,null,5,'$INVALID_OPERATION'::uuid,'s14-guard-invalid-source');"
 [[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_B'::uuid;")" == 'results' ]] || fail "invalid archive source changed runtime"
 
-log "Even service-role SQL cannot bypass the canonical archive command guard"
+log "Unguarded direct runtime Archive SQL fails closed"
 expect_service_failure "direct runtime archive mutation" "Archive transition must use the canonical V3 lifecycle command" \
   "update public.studio2_edition_runtime set state='archived' where edition_id='$EDITION_B'::uuid;"
 [[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_B'::uuid;")" == 'results' ]] || fail "direct SQL bypassed archive guard"
@@ -208,6 +213,8 @@ ARCHIVE_JSON="$(as_user "$AUTHORIZED_ID" "select public.studio2_transition_editi
 [[ "$(printf '%s' "$ARCHIVE_JSON" | json_value state)" == 'archived' ]] || fail "canonical archive did not reach archived"
 as_service "select private.studio2_reconcile_all_organizer_tasks('$EDITION_A'::uuid);" >/dev/null
 [[ "$(db_value "select state from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == 'resolved' ]] || fail "archive left canonical edition.blocker actionable"
+[[ "$(db_value "select count(*) from public.admin_notifications where recipient_id='$AUTHORIZED_ID'::uuid and source_key='v3-s14-archive-guard:edition-blocker' and resolution_mode='domain' and not requires_action and resolved_at is not null;")" == '1' ]] || fail "archive left edition.blocker Inbox projection actionable"
+[[ "$(db_value "select count(*) from public.notification_deliveries where subject_id='$BLOCKER_ID' and category='organizer_tasks' and status in ('pending','processing','failed');")" == '0' ]] || fail "archive left edition.blocker push delivery claimable"
 [[ "$(db_value "select state from public.studio2_organizer_tasks where source_kind='incident' and source_id='$INCIDENT_ID';")" == 'open' ]] || fail "archive incorrectly resolved legitimate incident governance work"
 [[ "$(db_value "select count(*) from public.studio2_incidents where id='$INCIDENT_ID'::uuid and status='open';")" == '1' ]] || fail "archive mutated incident history/state"
 
