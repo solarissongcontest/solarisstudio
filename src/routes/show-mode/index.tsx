@@ -15,6 +15,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { Switch } from "@/components/ui/switch";
+import { V3LiveRouteGate } from "@/components/v3/V3LiveRouteGate";
 import { televotingSupabase } from "@/integrations/televoting/client";
 import { useAppExperiencePreferences } from "@/lib/app-experience";
 import {
@@ -47,7 +48,7 @@ export const Route = createFileRoute("/show-mode/")({
       },
     ],
   }),
-  component: ShowModePage,
+  component: ShowModeRoute,
 });
 
 type WakeLockSentinelLike = {
@@ -71,7 +72,11 @@ function activeCompanionPhase(phase: string) {
   ].includes(phase);
 }
 
-function ShowModePage() {
+function ShowModeRoute() {
+  return <V3LiveRouteGate legacy={<LegacyShowModePage />} />;
+}
+
+function LegacyShowModePage() {
   const { isAppMode } = useSolarisApp();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
