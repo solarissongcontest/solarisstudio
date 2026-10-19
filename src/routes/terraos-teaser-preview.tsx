@@ -1,10 +1,12 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 import {
   TerraOSTeaserPreview,
   type TerraOSTeaserScreen,
 } from "@/components/v3/TerraOSTeaserPreview";
 import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
+import { installTerraOsTeaserHostMicroMotion } from "@/lib/terraos-teaser-host-micro-motion";
 
 const SCREENS = new Set<TerraOSTeaserScreen>([
   "home",
@@ -45,5 +47,16 @@ export const Route = createFileRoute("/terraos-teaser-preview")({
 
 function TerraOSTeaserPreviewRoute() {
   const { screen, chrome } = Route.useSearch();
+
+  useEffect(() => {
+    // The full Home renderer is the same-origin bridge already used by the
+    // maintenance teaser. Content-only nested previews must never recursively
+    // install host motion.
+    if (screen !== "home" || chrome === "content") return;
+    const frame = window.frameElement as HTMLElement | null;
+    if (!frame) return;
+    return installTerraOsTeaserHostMicroMotion(frame);
+  }, [screen, chrome]);
+
   return <TerraOSTeaserPreview screen={screen} showNavigation={chrome !== "content"} />;
 }
