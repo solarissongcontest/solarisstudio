@@ -10,6 +10,20 @@ begin;
 -- exposed here. Audio/video stay fail-closed until their bytes have an equally
 -- authoritative verification profile.
 
+-- S13 migration-adoption contract. This is an additive, forward-fix-only
+-- participant authority cutover; rollback is performed by replacing callers
+-- and RPC definitions forward rather than destructively rewriting history.
+select set_config('request.jwt.claim.role', 'service_role', true);
+select public.v3_register_migration_contract(
+  'v3.public.p14-entry-media-participant-authority',
+  1,
+  'forward_fix_only',
+  false,
+  null,
+  'Additive participant-scoped Entry media upload/finalization authority and safe read projection.'
+);
+select set_config('request.jwt.claim.role', '', true);
+
 create or replace function private.v3_entry_media_supported_asset_type(
   p_asset_type text
 )
