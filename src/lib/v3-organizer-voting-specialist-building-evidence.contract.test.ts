@@ -24,6 +24,7 @@ const backtestServer = readFileSync(
   "utf8",
 );
 const antiAbuse = readFileSync("src/routes/televoting/admin/anti-abuse.tsx", "utf8");
+const combined = readFileSync("src/routes/televoting/admin/combined.tsx", "utf8");
 
 const SPECIALIST_CAPABILITIES = [
   "voting-intelligence",
@@ -73,11 +74,18 @@ describe("V3 Organizer read-only voting specialist building evidence", () => {
     expect(backtestServer).not.toContain(".delete(");
   });
 
-  it("keeps Combined Results outside this read-only evidence claim", () => {
-    const combined = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
+  it("tracks Combined Results as a real mutable building workspace without claiming read-only parity", () => {
+    const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
       (item) => item.legacyId === "voting-combined-results",
     );
-    expect(combined).toBeDefined();
-    expect(combined?.migrationStatus).toBe("planned");
+    expect(capability).toBeDefined();
+    expect(capability?.migrationStatus).toBe("building");
+    expect(["parity", "cutover", "retired"]).not.toContain(capability?.migrationStatus);
+    expect(combined).toContain('title="Combined Results"');
+    expect(combined).toContain("listMergedCombinedAggregations");
+    expect(combined).toContain("recalculateMergedCombined");
+    expect(combined).toContain("AdminConfirmSheet");
+    expect(combined).toContain("publishOpen");
+    expect(combined).toContain("deleteOpen");
   });
 });
