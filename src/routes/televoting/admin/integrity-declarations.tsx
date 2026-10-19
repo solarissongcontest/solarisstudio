@@ -116,10 +116,14 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
   });
 
   const previewInvalidation = useMutation({
-    mutationFn: previewVotingDeclarationInvalidation,
+    mutationFn: (preflightId: string) =>
+      previewVotingDeclarationInvalidation({ preflightId, editionId }),
     onSuccess: async (preview, preflightId) => {
       if (preview.id !== preflightId) {
         throw new Error("Voting declaration preview returned evidence for a different declaration");
+      }
+      if (preview.editionId !== editionId || preview.expectedEditionId !== editionId) {
+        throw new Error("Voting declaration preview returned evidence outside the selected edition scope");
       }
       if (preview.alreadyApplied) {
         await queryClient.invalidateQueries({ queryKey: ["merged-integrity-declarations", editionId] });
@@ -143,20 +147,29 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
 
   const invalidateDeclaration = useMutation({
     mutationFn: async (pending: NonNullable<typeof pendingInvalidation>) => {
-      if (pending.editionId !== editionId || pending.row.canonical_edition_id !== editionId) {
+      if (
+        pending.editionId !== editionId ||
+        pending.row.canonical_edition_id !== editionId ||
+        pending.preview.editionId !== editionId ||
+        pending.preview.expectedEditionId !== editionId
+      ) {
         throw Object.assign(
           new Error("Organizer edition context changed before declaration invalidation. Reopen the declaration from the current edition."),
           { status: 409 },
         );
       }
       return applyVotingDeclarationInvalidation({
+        editionId,
         preview: pending.preview,
         reason: pending.reason.trim(),
         operationId: pending.operationId,
         idempotencyKey: pending.idempotencyKey,
       });
     },
-    onSuccess: async () => {
+    onSuccess: async (receipt) => {
+      if (receipt.editionId !== editionId) {
+        throw new Error("Voting declaration invalidation settled for a different Organizer edition.");
+      }
       setPendingInvalidation(null);
       await queryClient.invalidateQueries({ queryKey: ["merged-integrity-declarations", editionId] });
     },
@@ -291,6 +304,9 @@ function IntegrityDeclarationsPage({ editionId }: { editionId: string }) {
                 Declaration v{pendingInvalidation.preview.statementVersion} · required v
                 {pendingInvalidation.preview.requiredStatementVersion} · state{" "}
                 {declarationLabel(pendingInvalidation.preview.state)}.
+              </p>
+              <p className="text-xs leading-5 text-muted-foreground">
+                Edition scope is bound server-side to the exact Organizer edition selected when this review was opened. A stale or cross-edition declaration is rejected before the operation can be claimed.
               </p>
               <label className="block">
                 <span className="text-xs font-semibold text-foreground">Reason</span>
