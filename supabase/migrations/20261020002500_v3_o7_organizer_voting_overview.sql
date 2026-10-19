@@ -16,14 +16,16 @@ returns jsonb
 language plpgsql
 stable
 security definer
-set search_path = pg_catalog, public, private, televoting, extensions
+set search_path = pg_catalog
 as $overview$
 declare
   v_edition public.editions;
   v_televote jsonb := '{}'::jsonb;
   v_show_summaries jsonb := '[]'::jsonb;
   v_show_count integer := 0;
+  v_enabled_show_count integer := 0;
   v_configured_show_count integer := 0;
+  v_unconfigured_show_count integer := 0;
   v_expected integer := 0;
   v_submitted integer := 0;
   v_valid integer := 0;
@@ -61,8 +63,8 @@ begin
     raise exception 'Missing Solaris capability: voting.read' using errcode = '42501';
   end if;
 
-  -- Reuse the existing exact-edition Televote projection rather than rebuilding
-  -- public-voting semantics in a second System surface.
+  -- Public-vote lifecycle/count semantics already have one canonical exact-edition
+  -- projection. Reuse it rather than rebuilding them inside this Organizer view.
   v_televote := coalesce(
     televoting.admin_overview_summary(p_edition_id),
     '{}'::jsonb
@@ -78,12 +80,12 @@ begin
       show_row.voting_config,
       show_row.updated_at,
       coalesce((show_row.voting_config ->> 'juryEnabled')::boolean, true) as jury_enabled,
-      coalesce(window.status, 'closed') as window_status,
-      window.updated_at as window_updated_at
+      coalesce(jury_window.status, 'closed') as window_status,
+      jury_window.updated_at as window_updated_at
     from public.shows show_row
-    left join public.jury_voting_windows window
-      on window.show_id = show_row.id
-     and window.edition_id = p_edition_id
+    left join public.jury_voting_windows jury_window
+      on jury_window.show_id = show_row.id
+     and jury_window.edition_id = p_edition_id
     where show_row.edition_id = p_edition_id
   ),
   per_show as (
@@ -185,20 +187,26 @@ begin
   aggregate as (
     select
       count(*)::integer as show_count,
+      count(*) filter (where jury_enabled)::integer as enabled_show_count,
       count(*) filter (where jury_enabled and expected_count > 0)::integer as configured_show_count,
-      coalesce(sum(expected_count), 0)::integer as expected_count,
-      coalesce(sum(submitted_count), 0)::integer as submitted_count,
-      coalesce(sum(valid_count), 0)::integer as valid_count,
-      coalesce(sum(needs_review_count), 0)::integer as needs_review_count,
-      coalesce(sum(invalidated_count), 0)::integer as invalidated_count,
-      coalesce(sum(superseded_count), 0)::integer as superseded_count,
-      coalesce(sum(did_not_vote_count), 0)::integer as did_not_vote_count,
-      coalesce(sum(missing_count), 0)::integer as missing_count,
+      count(*) filter (where jury_enabled and expected_count = 0)::integer as unconfigured_show_count,
+      coalesce(sum(case when jury_enabled then expected_count else 0 end), 0)::integer as expected_count,
+      coalesce(sum(case when jury_enabled then submitted_count else 0 end), 0)::integer as submitted_count,
+      coalesce(sum(case when jury_enabled then valid_count else 0 end), 0)::integer as valid_count,
+      coalesce(sum(case when jury_enabled then needs_review_count else 0 end), 0)::integer as needs_review_count,
+      coalesce(sum(case when jury_enabled then invalidated_count else 0 end), 0)::integer as invalidated_count,
+      coalesce(sum(case when jury_enabled then superseded_count else 0 end), 0)::integer as superseded_count,
+      coalesce(sum(case when jury_enabled then did_not_vote_count else 0 end), 0)::integer as did_not_vote_count,
+      coalesce(sum(case when jury_enabled then missing_count else 0 end), 0)::integer as missing_count,
       count(*) filter (where jury_enabled and window_status = 'open')::integer as open_windows,
       coalesce(sum(
-        needs_review_count
-        + invalidated_count
-        + case when jury_enabled and window_status = 'open' then missing_count else 0 end
+        case
+          when not jury_enabled then 0
+          when expected_count = 0 then 1
+          else needs_review_count
+            + invalidated_count
+            + case when window_status = 'open' then missing_count else 0 end
+        end
       ), 0)::integer as blocker_count
     from per_show
   ),
@@ -210,7 +218,9 @@ begin
   )
   select
     aggregate.show_count,
+    aggregate.enabled_show_count,
     aggregate.configured_show_count,
+    aggregate.unconfigured_show_count,
     aggregate.expected_count,
     aggregate.submitted_count,
     aggregate.valid_count,
@@ -231,18 +241,22 @@ begin
           'juryEnabled', bounded.jury_enabled,
           'configured', bounded.jury_enabled and bounded.expected_count > 0,
           'windowStatus', bounded.window_status,
-          'expected', bounded.expected_count,
-          'submitted', bounded.submitted_count,
-          'valid', bounded.valid_count,
-          'needsReview', bounded.needs_review_count,
-          'invalidated', bounded.invalidated_count,
-          'superseded', bounded.superseded_count,
-          'didNotVote', bounded.did_not_vote_count,
-          'missing', bounded.missing_count,
-          'blockers', bounded.needs_review_count
-            + bounded.invalidated_count
-            + case when bounded.jury_enabled and bounded.window_status = 'open' then bounded.missing_count else 0 end,
-          'stateVersion', bounded.review_version
+          'expected', case when bounded.jury_enabled then bounded.expected_count else 0 end,
+          'submitted', case when bounded.jury_enabled then bounded.submitted_count else 0 end,
+          'valid', case when bounded.jury_enabled then bounded.valid_count else 0 end,
+          'needsReview', case when bounded.jury_enabled then bounded.needs_review_count else 0 end,
+          'invalidated', case when bounded.jury_enabled then bounded.invalidated_count else 0 end,
+          'superseded', case when bounded.jury_enabled then bounded.superseded_count else 0 end,
+          'didNotVote', case when bounded.jury_enabled then bounded.did_not_vote_count else 0 end,
+          'missing', case when bounded.jury_enabled then bounded.missing_count else 0 end,
+          'blockers', case
+            when not bounded.jury_enabled then 0
+            when bounded.expected_count = 0 then 1
+            else bounded.needs_review_count
+              + bounded.invalidated_count
+              + case when bounded.window_status = 'open' then bounded.missing_count else 0 end
+          end,
+          'reviewVersion', bounded.review_version
         )
         order by bounded.sort_order nulls last, lower(bounded.name), bounded.id
       )
@@ -250,7 +264,9 @@ begin
     ), '[]'::jsonb)
   into
     v_show_count,
+    v_enabled_show_count,
     v_configured_show_count,
+    v_unconfigured_show_count,
     v_expected,
     v_submitted,
     v_valid,
@@ -271,7 +287,7 @@ begin
     v_recommended_action := jsonb_build_object(
       'kind', 'jury.review',
       'label', 'Review Jury ballots',
-      'route', '/admin/jury/' || coalesce(v_edition.slug, ''),
+      'route', '/admin/jury/' || v_edition.slug,
       'reason', (v_needs_review + v_invalidated)::text || ' Jury ballots need an Organizer decision'
     );
   elsif v_televote_blocked > 0 then
@@ -281,11 +297,18 @@ begin
       'route', '/televoting/admin/integrity',
       'reason', v_televote_blocked::text || ' public ballots are blocked'
     );
+  elsif v_unconfigured_show_count > 0 then
+    v_recommended_action := jsonb_build_object(
+      'kind', 'jury.configure',
+      'label', 'Configure Jury roster',
+      'route', '/admin/jury/' || v_edition.slug,
+      'reason', v_unconfigured_show_count::text || ' Jury-enabled show(s) have no configured voter roster'
+    );
   elsif v_open_windows > 0 and v_missing > 0 then
     v_recommended_action := jsonb_build_object(
       'kind', 'jury.monitor',
       'label', 'Monitor Jury completion',
-      'route', '/admin/jury/' || coalesce(v_edition.slug, ''),
+      'route', '/admin/jury/' || v_edition.slug,
       'reason', v_missing::text || ' expected Jury ballots remain unaccounted for while Jury voting is open'
     );
   elsif coalesce((v_televote ->> 'openRounds')::integer, 0) > 0 then
@@ -308,14 +331,15 @@ begin
     ),
     'jury', jsonb_build_object(
       'state', case
-        when v_show_count = 0 then 'not_configured'
-        when v_configured_show_count = 0 then 'not_configured'
-        when v_jury_blockers > 0 then 'attention'
+        when v_show_count = 0 or v_enabled_show_count = 0 then 'not_configured'
+        when v_unconfigured_show_count > 0 or v_jury_blockers > 0 then 'attention'
         when v_open_windows > 0 then 'active'
         else 'ready'
       end,
       'showCount', v_show_count,
+      'enabledShowCount', v_enabled_show_count,
       'configuredShowCount', v_configured_show_count,
+      'unconfiguredShowCount', v_unconfigured_show_count,
       'showSummaryLimit', 64,
       'showSummaryTruncated', v_show_count > 64,
       'expected', v_expected,
