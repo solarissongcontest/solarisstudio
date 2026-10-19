@@ -35,6 +35,13 @@ type RestoreResult = {
   restored_from_version_id: string;
 };
 
+type RestoreBaseline = {
+  targetId: string;
+  targetVersion: number;
+  latestVersion: number | null;
+  versionCount: number;
+};
+
 async function loadVersions(submissionId: string): Promise<StoredConfirmationVersion[]> {
   const { data, error } = await confirmationsSupabase.rpc('admin_confirmation_versions', {
     _submission_id: submissionId,
@@ -55,17 +62,28 @@ async function loadVersions(submissionId: string): Promise<StoredConfirmationVer
   }));
 }
 
+function latestVersionNumber(versions: StoredConfirmationVersion[]) {
+  return versions.reduce<number | null>(
+    (latest, version) => latest == null || version.version > latest ? version.version : latest,
+    null,
+  );
+}
+
 export function ConfirmationVersionHistory({
   submissionId,
   currentSnapshot,
+  scopeLabel,
 }: {
   submissionId: string;
   currentSnapshot: SubmissionSnapshot;
+  scopeLabel: string;
 }) {
   const queryClient = useQueryClient();
   const syncToSolaris = useServerFn(syncConfirmationSnapshotToSolaris);
   const [restoreTarget, setRestoreTarget] = useState<StoredConfirmationVersion | null>(null);
   const [restoreReason, setRestoreReason] = useState('');
+  const [restoreBaseline, setRestoreBaseline] = useState<RestoreBaseline | null>(null);
+  const [reviewChecking, setReviewChecking] = useState(false);
 
   const versionsQuery = useQuery({
     queryKey: ['confirmation-submission-versions', submissionId],
@@ -118,6 +136,7 @@ export function ConfirmationVersionHistory({
     onSuccess: async ({ restore, syncWarning }) => {
       setRestoreTarget(null);
       setRestoreReason('');
+      setRestoreBaseline(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['confirmation-submission-versions', submissionId] }),
         queryClient.invalidateQueries({ queryKey: ['confirmation-response-version-current', submissionId] }),
@@ -146,6 +165,67 @@ export function ConfirmationVersionHistory({
   }).reverse();
 
   const reasonAllowed = restoreReason.trim().length >= 8;
+  const restoreImpact = restoreTarget
+    ? diffConfirmationSnapshots(currentSnapshot, restoreTarget.snapshot)
+    : [];
+
+  const closeRestoreReview = () => {
+    if (restoreMutation.isPending || reviewChecking) return;
+    setRestoreTarget(null);
+    setRestoreReason('');
+    setRestoreBaseline(null);
+  };
+
+  const openRestoreReview = (target: StoredConfirmationVersion) => {
+    setRestoreReason('');
+    setRestoreTarget(target);
+    setRestoreBaseline({
+      targetId: target.id,
+      targetVersion: target.version,
+      latestVersion: latestVersionNumber(versions),
+      versionCount: versions.length,
+    });
+  };
+
+  const confirmRestore = async () => {
+    if (
+      !restoreTarget ||
+      !restoreBaseline ||
+      !reasonAllowed ||
+      restoreMutation.isPending ||
+      reviewChecking
+    ) return;
+
+    setReviewChecking(true);
+    try {
+      const refreshed = await versionsQuery.refetch();
+      if (refreshed.error) throw refreshed.error;
+      const liveVersions = refreshed.data ?? [];
+      const liveTarget = liveVersions.find((version) => version.id === restoreBaseline.targetId);
+      const latestVersion = latestVersionNumber(liveVersions);
+
+      if (!liveTarget || liveTarget.version !== restoreBaseline.targetVersion) {
+        throw new Error('The selected historical snapshot changed or is no longer available. Reopen the restore review.');
+      }
+      if (
+        liveVersions.length !== restoreBaseline.versionCount ||
+        latestVersion !== restoreBaseline.latestVersion
+      ) {
+        throw new Error(
+          'This submission gained a newer history version while the restore review was open. Nothing was restored. Reopen the review from the latest state.',
+        );
+      }
+
+      restoreMutation.mutate({ target: liveTarget, reason: restoreReason });
+    } catch (error) {
+      setRestoreTarget(null);
+      setRestoreReason('');
+      setRestoreBaseline(null);
+      toast.error(error instanceof Error ? error.message : 'The restore review could not be revalidated.');
+    } finally {
+      setReviewChecking(false);
+    }
+  };
 
   return (
     <>
@@ -206,10 +286,7 @@ export function ConfirmationVersionHistory({
                       </AdminStatus>
                       <button
                         type="button"
-                        onClick={() => {
-                          setRestoreReason('');
-                          setRestoreTarget(transition);
-                        }}
+                        onClick={() => openRestoreReview(transition)}
                         className="admin-action-secondary !min-h-9 !px-2.5"
                       >
                         <RotateCcw className="size-3.5" /> Restore
@@ -240,20 +317,35 @@ export function ConfirmationVersionHistory({
 
       <AdminSheet
         open={Boolean(restoreTarget)}
-        onClose={restoreMutation.isPending ? () => undefined : () => {
-          setRestoreTarget(null);
-          setRestoreReason('');
-        }}
+        onClose={closeRestoreReview}
         title={restoreTarget ? `Restore edit ${restoreTarget.version}` : 'Restore historical submission'}
         description="This creates a new audited state. It never deletes or rewrites the historical record."
       >
-        <div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.05] p-3">
-          <div className="flex items-start gap-3">
-            <ShieldAlert className="mt-0.5 size-5 shrink-0 text-rose-200" />
-            <div className="text-sm leading-relaxed text-muted-foreground">
-              Delegation-owned fields will be restored from this snapshot. Entry review decisions are deliberately not restored: restored songs return to <strong className="text-foreground">pending review</strong>. The current state is captured as a new version before any change is applied.
+        <div className="space-y-3">
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3 text-xs text-muted-foreground">
+            <p className="font-semibold text-foreground">{scopeLabel}</p>
+            <p className="mt-1 break-all">Submission ID: {submissionId}</p>
+            {restoreTarget ? (
+              <>
+                <p className="mt-1 break-all">Target snapshot ID: {restoreTarget.id}</p>
+                <p className="mt-1">Captured {new Date(restoreTarget.createdAt).toLocaleString()}</p>
+                <p className="mt-1">Tracked field changes if restored now: {restoreImpact.length}</p>
+              </>
+            ) : null}
+          </div>
+
+          <div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.05] p-3">
+            <div className="flex items-start gap-3">
+              <ShieldAlert className="mt-0.5 size-5 shrink-0 text-rose-200" />
+              <div className="text-sm leading-relaxed text-muted-foreground">
+                Delegation-owned fields will be restored from this snapshot. Entry review decisions are deliberately not restored: restored songs return to <strong className="text-foreground">pending review</strong>. The current state is captured as a new version before any change is applied.
+              </div>
             </div>
           </div>
+
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Before applying, Organizer refetches submission history and refuses the restore if a newer version appeared while this review was open. The underlying legacy restore authority still does not provide a canonical idempotency key or operation receipt, so an ambiguous failure must be reconciled from refreshed history before retrying.
+          </p>
         </div>
 
         <label className="mt-4 block">
@@ -272,25 +364,19 @@ export function ConfirmationVersionHistory({
         <div className="mt-5 grid grid-cols-2 gap-2">
           <button
             type="button"
-            disabled={restoreMutation.isPending}
-            onClick={() => {
-              setRestoreTarget(null);
-              setRestoreReason('');
-            }}
+            disabled={restoreMutation.isPending || reviewChecking}
+            onClick={closeRestoreReview}
             className="admin-action-secondary w-full"
           >
             Cancel
           </button>
           <button
             type="button"
-            disabled={restoreMutation.isPending || !restoreTarget || !reasonAllowed}
-            onClick={() => {
-              if (!restoreTarget || !reasonAllowed) return;
-              restoreMutation.mutate({ target: restoreTarget, reason: restoreReason });
-            }}
+            disabled={restoreMutation.isPending || reviewChecking || !restoreTarget || !restoreBaseline || !reasonAllowed}
+            onClick={() => void confirmRestore()}
             className="admin-action-danger w-full"
           >
-            <RotateCcw className="size-4" /> {restoreMutation.isPending ? 'Restoring…' : 'Restore snapshot'}
+            <RotateCcw className="size-4" /> {restoreMutation.isPending ? 'Restoring…' : reviewChecking ? 'Rechecking…' : 'Restore snapshot'}
           </button>
         </div>
       </AdminSheet>
