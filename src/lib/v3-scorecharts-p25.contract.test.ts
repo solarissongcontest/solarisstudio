@@ -59,6 +59,18 @@ describe("Public V3 P25 Scorecharts", () => {
     expect(screen).not.toContain("televote_points");
   });
 
+  it("preserves canonical edition context alongside every scorechart group", () => {
+    const screen = read("src/components/v3/V3ScorechartsScreen.tsx");
+
+    expect(screen).toContain("editionSlug: string");
+    expect(screen).toContain("editionSlug: item.editionSlug");
+    expect(screen).toContain('to="/editions/$slug"');
+    expect(screen).toContain("params={{ slug: group.editionSlug }}");
+    expect(screen).toContain("Edition overview →");
+    expect(screen).toContain("published voting matrix");
+    expect(screen).not.toContain("slugify(");
+  });
+
   it("does not expose a browser-controlled Scorecharts rollout escape hatch", () => {
     const combined = [
       read("src/components/v3/V3ScorechartsGate.tsx"),
