@@ -59,8 +59,10 @@ describe("first admin beta findings", () => {
     const legacyTheme = source("src/routes/_authenticated/admin/edition-theme.$slug.tsx");
 
     expect(theme).toContain("Fine-tune edition colours");
-    expect(theme).toContain("Save colours");
+    expect(theme).toContain("Review colour changes");
     expect(theme).toContain("linked scoreboard themes");
+    expect(theme).toContain("AdminConfirmSheet");
+    expect(theme).toContain("preparePaletteReview");
     expect(legacyTheme).toContain('to: "/admin/design/$slug"');
     expect(theme).not.toContain("611");
     expect(theme).not.toContain("444");
