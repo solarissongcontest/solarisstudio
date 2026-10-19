@@ -39,14 +39,21 @@ describe("S14 Grand Final voting preparation", () => {
     expect(finalVoting).not.toMatch(/insert\s+into\s+televoting\.vote_entries/i);
   });
 
-  it("runs after qualifier promotion but keeps Grand Final Results explicitly blocked on #651", () => {
+  it("runs after qualifier promotion and proceeds through canonical Grand Final Results and Publication", () => {
     expect(driver).toContain('source "$SCRIPT_DIR/v3-s14-grand-final-voting.sh"');
-    expect(driver).toContain("run_s14_grand_final_voting");
-    expect(driver.indexOf("prepare_s14_grand_final_from_qualifiers")).toBeLessThan(
-      driver.indexOf("run_s14_grand_final_voting"),
-    );
-    expect(driver).toContain("#651 canonical Televote publication/readiness mismatch");
-    expect(driver).not.toContain('source "$SCRIPT_DIR/v3-s14-grand-final-results.sh"');
+    expect(driver).toContain('source "$SCRIPT_DIR/v3-s14-grand-final-results.sh"');
+    expect(driver).toContain('source "$SCRIPT_DIR/v3-s14-grand-final-publication.sh"');
+
+    const qualifierIndex = driver.indexOf("prepare_s14_grand_final_from_qualifiers");
+    const votingIndex = driver.indexOf("run_s14_grand_final_voting");
+    const resultsIndex = driver.indexOf("run_s14_grand_final_results");
+    const publicationIndex = driver.indexOf("run_s14_grand_final_publication");
+
+    expect(qualifierIndex).toBeGreaterThan(-1);
+    expect(votingIndex).toBeGreaterThan(qualifierIndex);
+    expect(resultsIndex).toBeGreaterThan(votingIndex);
+    expect(publicationIndex).toBeGreaterThan(resultsIndex);
+    expect(driver).not.toContain("#651 canonical Televote publication/readiness mismatch");
     expect(finalVoting).toContain("S14_GRAND_FINAL_VOTING_COMPLETE");
   });
 
