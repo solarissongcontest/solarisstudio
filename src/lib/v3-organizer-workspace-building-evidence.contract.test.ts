@@ -45,7 +45,7 @@ describe("V3 Organizer implemented workspace building evidence", () => {
     expect(administration).toContain('title="More"');
     expect(administration).toContain("All Organizer tools");
     expect(administration).not.toContain("useMutation(");
-    expect(guide).toContain('title="Organizer guide"');
+    expect(guide).toContain('title="How to use the organizer tools"');
     expect(guide).toContain("Solaris Organizer is the private contest-management side");
     expect(guide).not.toContain("useMutation(");
   });
