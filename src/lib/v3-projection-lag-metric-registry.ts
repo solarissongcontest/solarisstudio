@@ -21,7 +21,19 @@ export type V3ProjectionLagMetricContract = {
  */
 const EXECUTABLE_LAG_METRICS: Readonly<
   Record<string, Omit<V3ProjectionLagMetricContract, "projection">>
-> = {};
+> = {
+  "jury operational readiness": {
+    state: "measured",
+    path: "public.studio2_measure_jury_operational_projection_lag(show_id, voter_limit, evidence_limit)",
+    measures:
+      "Zero projection-storage lag only when the bounded independent Jury readiness verifier proves the synchronous canonical read consistent; otherwise freshness is unknown.",
+    evidence: [
+      "supabase/migrations/20261019211100_v3_s6_jury_readiness_lag.sql",
+      "src/lib/v3-s6-jury-readiness-lag.contract.test.ts",
+      ".github/scripts/v3-s6-jury-readiness-rehearsal.sh",
+    ],
+  },
+};
 
 export const V3_PROJECTION_LAG_METRIC_REGISTRY: readonly V3ProjectionLagMetricContract[] =
   V3_PROJECTION_RECONCILIATION_REGISTRY.map((projection) => {
