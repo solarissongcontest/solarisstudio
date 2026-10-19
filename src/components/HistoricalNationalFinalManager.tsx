@@ -42,7 +42,7 @@ type PendingHistoricalReview = {
   nationalFinalId: string;
   name: string;
   edition: string;
-  source: string;
+  source?: string;
   currentLineupPublished: boolean;
   currentResultsPublished: boolean;
   nextLineupPublished: boolean | null;
