@@ -83,7 +83,7 @@ async function passwordSafetyError(password: string) {
 function rpcMessage(error: unknown, fallback: string) {
   if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
     const message = error.message;
-    if (message.includes("Fresh authentication required")) {
+    if (message.includes("Fresh authentication required") || message === "AUTHENTICATION") {
       return "Fresh authentication is required. Sign in again, then retry the exact reviewed change.";
     }
     if (message === "AUTHORIZATION") return "You do not have permission to replace country-account credentials.";
@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
 
   const authorization = req.headers.get("authorization") ?? "";
   const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
-  if (!token) return json({ error: "Sign in as an organizer to continue." }, 401);
+  if (!token) return json({ error: "Sign in to continue." }, 401);
 
   const caller = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -125,23 +125,8 @@ Deno.serve(async (req) => {
 
   const { data: callerData, error: callerError } = await caller.auth.getUser();
   if (callerError || !callerData.user) {
-    return json({ error: "Your organizer session has expired." }, 401);
+    return json({ error: "Your session has expired." }, 401);
   }
-
-  // Preserve the old fast rejection, while the R3 begin RPC below remains the
-  // authoritative capability check through delegation.manage.
-  const now = new Date().toISOString();
-  const { data: organizerAssignment, error: organizerError } = await service
-    .from("studio2_role_assignments")
-    .select("id")
-    .eq("user_id", callerData.user.id)
-    .in("role_key", ["organizer", "superadmin"])
-    .is("edition_id", null)
-    .or(`expires_at.is.null,expires_at.gt.${now}`)
-    .limit(1)
-    .maybeSingle();
-  if (organizerError) return json({ error: "Organizer access could not be verified." }, 500);
-  if (!organizerAssignment) return json({ error: "Organizer access is required." }, 403);
 
   let body: Record<string, unknown>;
   try {
@@ -213,6 +198,9 @@ Deno.serve(async (req) => {
     `solaris-country-credential:v1\u0000${operationId}\u0000${targetUserId}\u0000${password}`,
   );
 
+  // This authenticated RPC is the sole authorization boundary. It evaluates
+  // the canonical capability model instead of treating display roles such as
+  // organizer/superadmin as authority.
   const { data: beginData, error: beginError } = await caller.rpc(
     "v3_begin_country_account_credential_replacement",
     {
@@ -226,9 +214,10 @@ Deno.serve(async (req) => {
     },
   );
   if (beginError || !beginData) {
+    const authFailure = beginError?.code === "42501" || beginError?.message === "AUTHENTICATION";
     return json(
       { error: rpcMessage(beginError, "Credential replacement could not be authorized.") },
-      beginError?.code === "42501" ? 403 : 409,
+      authFailure ? 403 : 409,
     );
   }
 
