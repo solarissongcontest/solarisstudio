@@ -9,6 +9,10 @@ const migration = readFileSync(
   ),
   "utf8",
 );
+const client = readFileSync(
+  resolve(process.cwd(), "src/lib/v3-official-communications-commands.ts"),
+  "utf8",
+);
 
 describe("V3 Official Communications command authority", () => {
   it("registers the post-S13 migration as forward-only and additive", () => {
@@ -26,6 +30,8 @@ describe("V3 Official Communications command authority", () => {
     expect(migration).toContain("message = 'SCOPE_MISMATCH'");
     expect(migration).toContain("p_notice.edition_id is distinct from p_edition_id");
     expect(migration).toContain("Global communication authority is deliberately restricted");
+    expect(client).toContain('scopeKind: V3NoticeScopeKind');
+    expect(client).toContain('editionId: string | null');
   });
 
   it("offers a server-authoritative review preflight without trusting it at commit", () => {
@@ -36,6 +42,8 @@ describe("V3 Official Communications command authority", () => {
     expect(migration).toContain("'blockers', to_jsonb(v_blockers)");
     expect(migration).toContain("'canCommit', cardinality(v_blockers) = 0");
     expect(migration).toContain("Commit repeats scope and revision checks");
+    expect(client).toContain('"v3_preflight_notice_lifecycle"');
+    expect(client).toContain("Official Communications preflight crossed edition scope.");
   });
 
   it("claims semantic idempotency before stale revision validation", () => {
@@ -102,5 +110,17 @@ describe("V3 Official Communications command authority", () => {
     expect(writer).toBeGreaterThanOrEqual(0);
     expect(result).toBeGreaterThan(writer);
     expect(complete).toBeGreaterThan(result);
+  });
+
+  it("gives the Organizer consumer a stable operation identity and lost-response recovery", () => {
+    expect(client).toContain("crypto.randomUUID()");
+    expect(client).toContain("p_operation_id: operationId");
+    expect(client).toContain("p_idempotency_key: operationId");
+    expect(client).toContain("p_correlation_id: operationId");
+    expect(client).toContain('"v3_execute_notice_lifecycle"');
+    expect(client).toContain('"studio2_reconcile_operation"');
+    expect(client).toContain('recovery?.status === "succeeded"');
+    expect(client).not.toContain("localStorage");
+    expect(client).not.toContain("sessionStorage");
   });
 });
