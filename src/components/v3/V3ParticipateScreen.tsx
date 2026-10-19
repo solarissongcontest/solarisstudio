@@ -174,9 +174,10 @@ function VotingOverviewCard({
  * V3 Participate composition.
  *
  * The screen consumes the same bootstrap as Home. The shared Participate
- * projection groups canonical Actions into required, upcoming, optional and
- * completed buckets while Journey remains the evidence-backed responsibility
- * timeline. No network call or second workflow state is introduced here.
+ * projection groups canonical Actions into required, upcoming, waiting,
+ * optional and completed buckets while Journey remains the evidence-backed
+ * responsibility timeline. No network call or second workflow state is
+ * introduced here.
  */
 export function V3ParticipateScreen({
   bootstrap,
@@ -286,6 +287,16 @@ export function V3ParticipateScreen({
         <V3Section title="Next" meta={<V3StatusChip tone="progress">Upcoming</V3StatusChip>}>
           <ActionList
             actions={participate.next}
+            progressByActionId={progressByActionId}
+            delegationLabel={delegationLabel}
+          />
+        </V3Section>
+      ) : null}
+
+      {participate.waiting.length ? (
+        <V3Section title="Waiting" meta={<V3StatusChip tone="progress">No action yet</V3StatusChip>}>
+          <ActionList
+            actions={participate.waiting}
             progressByActionId={progressByActionId}
             delegationLabel={delegationLabel}
           />
