@@ -318,8 +318,12 @@ begin
     raise exception using errcode = 'P0001', message = 'DATABASE';
   end if;
 
+  -- Keep participant submission inside the canonical Fantasy event vocabulary
+  -- already owned by the System registry / Fantasy scoring slice. The payload
+  -- distinguishes this concrete participant change without inventing a second
+  -- competing event taxonomy.
   v_event_id := private.v3_emit_domain_event(
-    'fantasy.team_submitted',
+    'fantasy.changed',
     'fantasy_team',
     v_team_id::text,
     v_revision,
@@ -327,6 +331,7 @@ begin
     v_game.edition_id,
     v_game.show_id,
     jsonb_build_object(
+      'change', 'team_submitted',
       'gameId', v_game.id,
       'teamId', v_team_id,
       'revision', v_revision,
