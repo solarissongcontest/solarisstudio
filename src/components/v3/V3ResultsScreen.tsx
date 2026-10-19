@@ -5,6 +5,7 @@ import {
   buildV3ResultsProjection,
   type V3ResultMode,
   type V3ResultProjectionInput,
+  type V3ResultShowOption,
 } from "@/lib/v3-results";
 import { V3Screen, V3ScreenHeader, V3Section, V3Surface } from "./V3Foundation";
 import { V3ScoreboardPresentation } from "./V3ScoreboardPresentation";
@@ -13,10 +14,16 @@ export function V3ResultsScreen({
   input,
   countries,
   hideSpoilers,
+  options = [],
+  changingResult = false,
+  onResultChange,
 }: {
   input: V3ResultProjectionInput;
   countries: ReadonlyMap<string, Country>;
   hideSpoilers: boolean;
+  options?: readonly V3ResultShowOption[];
+  changingResult?: boolean;
+  onResultChange?: (showId: string) => void;
 }) {
   const [revealed, setRevealed] = useState(false);
   const [selectedMode, setSelectedMode] = useState<V3ResultMode>("combined");
@@ -38,6 +45,33 @@ export function V3ResultsScreen({
               : "Published outcomes and their story."
           }
         />
+
+        {options.length > 1 && onResultChange ? (
+          <V3Section title="Result archive" meta={`${options.length} published finals`}>
+            <V3Surface className="p-4">
+              <label htmlFor="v3-results-history" className="text-xs font-semibold text-[var(--v3-text-secondary)]">
+                Official result
+              </label>
+              <select
+                id="v3-results-history"
+                value={input.showId}
+                onChange={(event) => onResultChange(event.target.value)}
+                disabled={changingResult}
+                className="mt-2 min-h-11 w-full rounded-xl border border-[var(--v3-border)] bg-[var(--v3-bg-base)] px-3 text-sm disabled:opacity-60"
+                data-v3-results-history=""
+              >
+                {options.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.editionName} · {option.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-2 text-xs leading-5 text-[var(--v3-text-secondary)]">
+                Only canonically published final results appear here. Selecting a result never changes its publication state.
+              </p>
+            </V3Surface>
+          </V3Section>
+        ) : null}
 
         {projection.status === "unpublished" ? (
           <V3Surface className="p-5">
@@ -65,6 +99,26 @@ export function V3ResultsScreen({
           </V3Surface>
         ) : (
           <>
+            {projection.yourResult ? (
+              <V3Section title="Your delegation">
+                <V3Surface level="raised" className="p-4" data-v3-your-result="">
+                  <div className="flex items-center gap-4">
+                    <div className="grid size-14 shrink-0 place-items-center rounded-2xl border border-[var(--v3-border-subtle)] bg-white/[0.04] text-xl font-black tabular-nums">
+                      #{projection.yourResult.rank}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-base font-semibold">
+                        {projection.yourResult.countryName}
+                      </p>
+                      <p className="mt-1 text-sm text-[var(--v3-text-secondary)]">
+                        {projection.yourResult.points} points · official combined result
+                      </p>
+                    </div>
+                  </div>
+                </V3Surface>
+              </V3Section>
+            ) : null}
+
             <V3Section title="Official result">
               {projection.officialResult.rows.length ? (
                 <>
