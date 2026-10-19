@@ -3,7 +3,7 @@ import { AlertTriangle, CheckCircle2, ListChecks } from "lucide-react";
 import { AdminCard, AdminCardHeader, AdminStatus } from "@/components/admin/AdminUI";
 import {
   buildPublicUxFindings,
-  PUBLIC_UX_SERVER_GAPS,
+  publicUxServerGaps,
   type PublicUxFindingTone,
 } from "@/lib/public-ux-findings";
 import type { PublicUxMetrics, PublicWebVitalRouteMetric } from "@/lib/public-ux-metrics";
@@ -16,6 +16,7 @@ export function PublicUxActionabilityPanel({
   vitalRows: readonly PublicWebVitalRouteMetric[];
 }) {
   const findings = buildPublicUxFindings(metrics, vitalRows);
+  const serverGaps = publicUxServerGaps(metrics);
 
   return (
     <section className="grid gap-4 xl:grid-cols-[1.25fr_.75fr]">
@@ -50,35 +51,77 @@ export function PublicUxActionabilityPanel({
             <div>
               <p className="text-sm font-semibold">No actionable aggregate evidence yet</p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                The current window has no measured event evidence that crosses the review thresholds. Missing server signals are still unknown, not zero.
+                The current window has no measured event evidence that crosses the review thresholds.
+                Missing server signals remain unknown rather than zero.
               </p>
             </div>
           </div>
         )}
       </AdminCard>
 
-      <AdminCard className="!border-amber-200/15">
-        <AdminCardHeader
-          eyebrow="Coverage"
-          title="Canonical signals still unavailable"
-          description="The current privacy-safe server projection cannot yet answer these Admin V3 questions. Solaris deliberately does not infer them from unrelated counts."
-        />
-        <div className="mt-4 space-y-2">
-          {PUBLIC_UX_SERVER_GAPS.map((label) => (
-            <div
-              key={label}
-              className="flex items-center gap-2 rounded-xl border border-white/[0.07] bg-black/10 px-3 py-2.5"
-            >
-              <AlertTriangle className="size-3.5 shrink-0 text-amber-100" aria-hidden="true" />
-              <span className="text-xs font-semibold">{label}</span>
-              <span className="ml-auto"><AdminStatus tone="neutral">Server gap</AdminStatus></span>
-            </div>
-          ))}
-        </div>
-        <p className="mt-4 text-xs leading-5 text-muted-foreground">
-          System request #753 owns the bounded aggregate projection for these signals. Public UX remains building until that evidence exists and is validated.
-        </p>
-      </AdminCard>
+      {serverGaps.length ? (
+        <AdminCard className="!border-amber-200/15">
+          <AdminCardHeader
+            eyebrow="Coverage"
+            title="Canonical signals still unavailable"
+            description="This server is still exposing the older Public UX projection. Solaris deliberately does not infer missing diagnostics from unrelated counts."
+          />
+          <div className="mt-4 space-y-2">
+            {serverGaps.map((label) => (
+              <div
+                key={label}
+                className="flex items-center gap-2 rounded-xl border border-white/[0.07] bg-black/10 px-3 py-2.5"
+              >
+                <AlertTriangle className="size-3.5 shrink-0 text-amber-100" aria-hidden="true" />
+                <span className="text-xs font-semibold">{label}</span>
+                <span className="ml-auto">
+                  <AdminStatus tone="neutral">Server gap</AdminStatus>
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-xs leading-5 text-muted-foreground">
+            The workspace will unlock these aggregates only after schema-v2 diagnostics are present;
+            missing values never masquerade as a perfect zero.
+          </p>
+        </AdminCard>
+      ) : (
+        <AdminCard className="!border-emerald-200/15">
+          <AdminCardHeader
+            eyebrow="Coverage"
+            title="Canonical diagnostic coverage available"
+            description={`Public UX projection schema v${metrics.schemaVersion} supplies all four bounded diagnostic families required by the V3 workspace.`}
+          />
+          <div className="mt-4 space-y-2">
+            {[
+              ["Route backtracking", metrics.diagnostics?.definitions.routeBacktracking],
+              ["Dead ends", metrics.diagnostics?.definitions.deadEnds],
+              ["Workflow abandonment", metrics.diagnostics?.definitions.workflowAbandonment],
+              ["Error classes", metrics.diagnostics?.definitions.errorClasses],
+            ].map(([label, definition]) => (
+              <div
+                key={label}
+                className="rounded-xl border border-white/[0.07] bg-black/10 px-3 py-2.5"
+              >
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="size-3.5 shrink-0 text-emerald-200" aria-hidden="true" />
+                  <span className="text-xs font-semibold">{label}</span>
+                  <span className="ml-auto">
+                    <AdminStatus tone="ready">Available</AdminStatus>
+                  </span>
+                </div>
+                {definition ? (
+                  <p className="mt-1.5 text-[11px] leading-4 text-muted-foreground">{definition}</p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-xs leading-5 text-muted-foreground">
+            The projection is aggregate-only: it does not expose replayable session histories, raw search
+            text, form contents, votes, messages, Integrity evidence, error messages or stack traces.
+          </p>
+        </AdminCard>
+      )}
     </section>
   );
 }
