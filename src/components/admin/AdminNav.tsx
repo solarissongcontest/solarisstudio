@@ -4,6 +4,7 @@ import { ListTree } from "lucide-react";
 import { useEditions } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { useAdminContext } from "./AdminContext";
+import { resolveAdminEditionContext } from "./admin-edition-context";
 import { buildAdminDomainNavigation, type AdminDomainNavigationItem } from "./admin-domains";
 
 export function AdminNav() {
@@ -11,13 +12,10 @@ export function AdminNav() {
   const { editionId } = useAdminContext();
   const { data: editions = [] } = useEditions();
 
-  const activeEdition =
-    editions.find((edition) => edition.id === editionId) ??
-    [...editions].sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))[0] ??
-    null;
+  const activeEdition = resolveAdminEditionContext(editions, editionId);
   const editionNavLabel = activeEdition?.edition_number
     ? `SSC${activeEdition.edition_number}`
-    : (activeEdition?.name ?? "Current edition");
+    : (activeEdition?.name ?? "Edition");
   const domains = buildAdminDomainNavigation(activeEdition?.slug, editionNavLabel);
 
   return (
