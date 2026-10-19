@@ -10,7 +10,9 @@ type TerraOsMobileHeroPeekWindow = Window & {
 };
 
 const MOBILE_MAX_WIDTH = 560;
-const PHONE_PEEK_HEIGHT = 26;
+const PHONE_PEEK_MIN_HEIGHT = 112;
+const PHONE_PEEK_MAX_HEIGHT = 148;
+const PHONE_PEEK_VIEWPORT_FRACTION = 0.105;
 
 function clamp01(value: number) {
   return Math.max(0, Math.min(1, value));
@@ -26,18 +28,28 @@ function smoothstep(value: number) {
   return progress * progress * (3 - 2 * progress);
 }
 
+export function resolveTerraOsMobilePhonePeekHeight(viewportHeight: number) {
+  const viewport = Math.max(1, viewportHeight);
+  return Math.min(
+    PHONE_PEEK_MAX_HEIGHT,
+    Math.max(PHONE_PEEK_MIN_HEIGHT, viewport * PHONE_PEEK_VIEWPORT_FRACTION),
+  );
+}
+
 export function resolveTerraOsMobileHeroPeekState(rawProgress: number) {
   const progress = clamp01(rawProgress);
 
-  // Start releasing the phone as soon as the countdown itself begins to fade.
-  // The previous 0.58 start kept the device parked at the bottom long after the
-  // title/date had cleared, producing a large dead black region on mobile.
-  const release = smoothstep(range(progress, 0.4, 0.58));
+  // The phone should already start moving while the countdown is still the
+  // dominant focal object. By the time the title/date have cleared and the
+  // countdown is travelling upward, the Home device must be visibly rising
+  // through the lower half of the viewport instead of remaining parked at the
+  // browser edge.
+  const release = smoothstep(range(progress, 0.32, 0.58));
 
   return {
     active: progress < 0.72,
     shiftFactor: 1 - release,
-    opacity: 0.62 + 0.38 * release,
+    opacity: 0.82 + 0.18 * release,
   };
 }
 
@@ -50,15 +62,13 @@ function clearPeek(phone: HTMLElement | null) {
 }
 
 /**
- * Keeps one restrained hint of the real Home device at the bottom of the first
- * mobile viewport while the countdown remains the focal object.
+ * Keeps a deliberate, unmistakable preview of the real Home device at the
+ * bottom of the opening mobile viewport while the countdown remains dominant.
  *
- * The main mobile sequencing layer still owns the hero transform and reveal
- * timing. This refinement only offsets that same centre phone far enough down
- * to expose roughly its top 26 px. As the countdown starts to fade, the offset
- * is released immediately so the phone rises through the newly cleared lower
- * half of the viewport instead of waiting for the hero to be nearly finished.
- * Side phones remain entirely owned by the main sequence.
+ * The main mobile sequencing layer still owns the phone transform and final
+ * reveal timing. This refinement only moves that same centre phone downward so
+ * roughly 112-148 px remain visible initially, then releases the offset during
+ * the countdown fade. Side phones remain entirely owned by the main sequence.
  */
 export function installTerraOsTeaserMobileHeroPeek(frame: HTMLElement) {
   const hostDocument = frame.ownerDocument;
@@ -81,6 +91,7 @@ export function installTerraOsTeaserMobileHeroPeek(frame: HTMLElement) {
   }
 
   const reducedMotion = hostWindow.matchMedia("(prefers-reduced-motion: reduce)");
+  const visualViewport = hostWindow.visualViewport;
   let hero = hostDocument.querySelector<HTMLElement>(".hero");
   let phone = hostDocument.querySelector<HTMLElement>(".hero .phone.center");
   let animationFrame = 0;
@@ -112,11 +123,19 @@ export function installTerraOsTeaserMobileHeroPeek(frame: HTMLElement) {
       return;
     }
 
-    // Measure the phone without our previous offset so the calculation cannot
-    // feed back into itself on repeated scroll/resize frames.
+    // Measure without our previous offset so repeated frames cannot compound it.
     phone.style.removeProperty("translate");
     const naturalRect = phone.getBoundingClientRect();
-    const targetTop = hostWindow.innerHeight - PHONE_PEEK_HEIGHT;
+
+    // visualViewport tracks the actually visible iOS Safari area as browser
+    // chrome expands/collapses. Falling back to innerHeight keeps desktop/mobile
+    // browsers without VisualViewport deterministic.
+    const visibleHeight = visualViewport?.height ?? hostWindow.innerHeight;
+    const visibleBottom = visualViewport
+      ? visualViewport.offsetTop + visualViewport.height
+      : hostWindow.innerHeight;
+    const peekHeight = resolveTerraOsMobilePhonePeekHeight(visibleHeight);
+    const targetTop = visibleBottom - peekHeight;
     const fullShift = Math.max(0, targetTop - naturalRect.top);
     const shift = fullShift * state.shiftFactor;
 
@@ -137,6 +156,7 @@ export function installTerraOsTeaserMobileHeroPeek(frame: HTMLElement) {
   render();
   hostWindow.addEventListener("scroll", requestRender, { passive: true });
   hostWindow.addEventListener("resize", requestRender, { passive: true });
+  visualViewport?.addEventListener("resize", requestRender, { passive: true });
   reducedMotion.addEventListener("change", onMotionPreferenceChanged);
 
   const runtime: TerraOsMobileHeroPeekRuntime = {
@@ -147,6 +167,7 @@ export function installTerraOsTeaserMobileHeroPeek(frame: HTMLElement) {
       if (animationFrame) hostWindow.cancelAnimationFrame(animationFrame);
       hostWindow.removeEventListener("scroll", requestRender);
       hostWindow.removeEventListener("resize", requestRender);
+      visualViewport?.removeEventListener("resize", requestRender);
       reducedMotion.removeEventListener("change", onMotionPreferenceChanged);
       clearPeek(phone);
     },

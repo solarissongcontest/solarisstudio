@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { resolveTerraOsMobileHeroPeekState } from "./terraos-teaser-mobile-hero-peek";
+import {
+  resolveTerraOsMobileHeroPeekState,
+  resolveTerraOsMobilePhonePeekHeight,
+} from "./terraos-teaser-mobile-hero-peek";
 
 const source = () =>
   readFileSync(resolve(process.cwd(), "src/lib/terraos-teaser-mobile-hero-peek.ts"), "utf8");
@@ -10,28 +13,35 @@ const routeSource = () =>
   readFileSync(resolve(process.cwd(), "src/routes/terraos-teaser-preview.tsx"), "utf8");
 
 describe("TerraOS mobile hero phone peek", () => {
-  it("keeps a restrained centre-phone hint in the initial viewport", () => {
+  it("keeps an unmistakable centre-phone preview in the initial viewport", () => {
     const initial = resolveTerraOsMobileHeroPeekState(0);
-    const beforeCountdownFade = resolveTerraOsMobileHeroPeekState(0.35);
+    const beforeRelease = resolveTerraOsMobileHeroPeekState(0.3);
 
     expect(initial.active).toBe(true);
     expect(initial.shiftFactor).toBe(1);
-    expect(initial.opacity).toBeCloseTo(0.62);
-    expect(beforeCountdownFade.shiftFactor).toBe(1);
+    expect(initial.opacity).toBeCloseTo(0.82);
+    expect(beforeRelease.shiftFactor).toBe(1);
   });
 
-  it("starts raising the phone while the countdown is fading instead of leaving a dead black gap", () => {
-    const start = resolveTerraOsMobileHeroPeekState(0.4);
-    const midway = resolveTerraOsMobileHeroPeekState(0.5);
+  it("scales the initial preview to a useful visible slice instead of a 26 px sliver", () => {
+    expect(resolveTerraOsMobilePhonePeekHeight(700)).toBe(112);
+    expect(resolveTerraOsMobilePhonePeekHeight(1334)).toBeCloseTo(140.07, 1);
+    expect(resolveTerraOsMobilePhonePeekHeight(2000)).toBe(148);
+  });
+
+  it("raises the phone during the countdown fade", () => {
+    const start = resolveTerraOsMobileHeroPeekState(0.32);
+    const moving = resolveTerraOsMobileHeroPeekState(0.4);
+    const mostlyRisen = resolveTerraOsMobileHeroPeekState(0.5);
     const risen = resolveTerraOsMobileHeroPeekState(0.58);
 
     expect(start.shiftFactor).toBe(1);
-    expect(midway.shiftFactor).toBeGreaterThan(0);
-    expect(midway.shiftFactor).toBeLessThan(1);
-    expect(midway.opacity).toBeGreaterThan(0.62);
+    expect(moving.shiftFactor).toBeLessThan(1);
+    expect(moving.shiftFactor).toBeGreaterThan(0.5);
+    expect(mostlyRisen.shiftFactor).toBeLessThan(0.3);
+    expect(mostlyRisen.opacity).toBeGreaterThan(0.94);
     expect(risen.shiftFactor).toBe(0);
     expect(risen.opacity).toBe(1);
-    expect(risen.active).toBe(true);
   });
 
   it("keeps ownership through the centre reveal and then yields before the cross-scene handoff", () => {
@@ -46,12 +56,14 @@ describe("TerraOS mobile hero phone peek", () => {
     expect(released.opacity).toBe(1);
   });
 
-  it("targets only a roughly 26 px centre-phone hint and leaves side phones alone", () => {
+  it("uses the visible viewport on iOS and leaves side phones alone", () => {
     const implementation = source();
 
-    expect(implementation).toContain("const PHONE_PEEK_HEIGHT = 26");
+    expect(implementation).toContain("PHONE_PEEK_MIN_HEIGHT = 112");
+    expect(implementation).toContain("PHONE_PEEK_MAX_HEIGHT = 148");
+    expect(implementation).toContain("hostWindow.visualViewport");
+    expect(implementation).toContain("visualViewport.offsetTop + visualViewport.height");
     expect(implementation).toContain('querySelector<HTMLElement>(".hero .phone.center")');
-    expect(implementation).toContain("hostWindow.innerHeight - PHONE_PEEK_HEIGHT");
     expect(implementation).not.toContain(".phone.left");
     expect(implementation).not.toContain(".phone.right");
   });
