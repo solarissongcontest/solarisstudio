@@ -33,7 +33,10 @@ describe("V3 O6 governed show line-up authority", () => {
 
   it("locks show and membership before stale-state validation", () => {
     const lockIndex = migration.indexOf("perform private.v3_lock_show_lineup(p_show_id)");
-    const casIndex = migration.indexOf("private.v3_assert_show_lineup_version(");
+    const casIndex = migration.indexOf(
+      "v_before := private.v3_assert_show_lineup_version(",
+      lockIndex,
+    );
     expect(lockIndex).toBeGreaterThan(-1);
     expect(casIndex).toBeGreaterThan(-1);
     expect(lockIndex).toBeLessThan(casIndex);
