@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { AppErrorKind } from "@/lib/app-error-state";
 
 export type PublicUxEventName =
   | "public_nav_clicked"
@@ -18,7 +19,8 @@ export type PublicUxEventName =
   | "app_offline_recovered"
   | "app_push_opened"
   | "app_show_mode_state"
-  | "app_task_resumed";
+  | "app_task_resumed"
+  | "public_error_shown";
 
 export type PublicUxMetadata = {
   device?: "mobile" | "tablet" | "desktop";
@@ -35,6 +37,7 @@ export type PublicUxMetadata = {
   elapsed_ms?: number;
   start_route?: string;
   search_used?: string;
+  error_class?: AppErrorKind;
 };
 
 type PublicUxEventOptions = {
@@ -115,13 +118,21 @@ export function getPublicUxSessionId(
   return id;
 }
 
+function isOrganizerTelemetryPath(pathname: string) {
+  return (
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/confirmations/admin") ||
+    pathname.startsWith("/televoting/admin")
+  );
+}
+
 export function trackPublicUxEvent(
   eventName: PublicUxEventName,
   options: PublicUxEventOptions = {},
 ) {
   if (typeof window === "undefined") return;
   if (window.navigator.webdriver) return;
-  if (window.location.pathname.startsWith("/admin")) return;
+  if (isOrganizerTelemetryPath(window.location.pathname)) return;
   if (telemetryWriteDisabled) return;
 
   const betaTask = readActiveBetaTask();
@@ -179,9 +190,10 @@ function sanitizeMetadata(metadata: PublicUxMetadata): PublicUxMetadata {
     "task_run",
     "start_route",
     "search_used",
+    "error_class",
   ] as const) {
     const value = metadata[key];
-    if (typeof value === "string" && value.trim()) clean[key] = value.trim().slice(0, 120);
+    if (typeof value === "string" && value.trim()) clean[key] = value.trim().slice(0, 120) as never;
   }
 
   if (Number.isFinite(metadata.query_length)) {
