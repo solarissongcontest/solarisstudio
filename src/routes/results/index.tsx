@@ -205,6 +205,7 @@ function LegacyResultsOverviewPage() {
               { key: "records", label: "Records", href: "/records" },
               { key: "relationships", label: "Voting relationships", href: "/relationships" },
               { key: "lab", label: "Result Lab", href: "/result-lab" },
+              { key: "broadcast", label: "Broadcast Intelligence", href: "/broadcast-intelligence" },
             ],
           }}
         />
@@ -251,6 +252,12 @@ function LegacyResultsOverviewPage() {
         title: "Result Lab",
         description: "Test alternate voting scenarios without changing official results.",
         icon: Beaker,
+      },
+      {
+        to: "/broadcast-intelligence",
+        title: "Broadcast Intelligence",
+        description: "Replay the published voting sequence and inspect the turning points.",
+        icon: Table2,
       },
     ] as const;
 
