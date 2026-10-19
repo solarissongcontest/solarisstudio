@@ -35,6 +35,15 @@ describe("V3 Explore screen architecture boundary", () => {
     expect(source).not.toMatch(/SearchOverlay|SolarisSearchField|searchParams|searchQuery/);
   });
 
+  it("surfaces Live from the projected current-edition state without inferring show authority", () => {
+    expect(source).toContain('edition.experience === "live" && edition.liveHref');
+    expect(source).toContain('data-v3-explore-live-action=""');
+    expect(source).toContain('title="Open Live Mode"');
+    expect(source).toContain("to={edition.liveHref}");
+    expect(source).not.toContain('to="/show-mode"');
+    expect(source).not.toMatch(/Date\.now|new Date|scheduledStart|liveStartedAt|show\.status/);
+  });
+
   it("does not acquire Results data or analysis ownership", () => {
     expect(source).not.toMatch(/V3Results|scorechart|juryPoints|televotePoints|totalPoints|points:/);
     expect(source).not.toMatch(/resultRows|leaderboard|placement:/);
