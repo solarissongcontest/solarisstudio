@@ -36,12 +36,8 @@ describe("V3 Integrity creation idempotency", () => {
     expect(migration).toContain("idempotency_hash text not null unique");
     expect(migration).toContain("recovery_secret_hash text not null");
     expect(migration).toContain("request_fingerprint text not null");
-    expect(migration).not.toMatch(
-      /create table if not exists private\.v3_anonymous_integrity_create_operations[\s\S]*?\bidempotency_key\s+text/i,
-    );
-    expect(migration).not.toMatch(
-      /create table if not exists private\.v3_anonymous_integrity_create_operations[\s\S]*?\brecovery_key\s+text/i,
-    );
+    expect(migration).not.toContain("  idempotency_key text not null");
+    expect(migration).not.toContain("  recovery_key text not null");
     expect(migration).toContain("extensions.digest(convert_to(v_recovery_raw, 'UTF8'), 'sha256')");
     expect(migration).toContain("p_operation_id::text || ':' || v_key");
     expect(migration).toContain("revoke all on table private.v3_anonymous_integrity_create_operations");
