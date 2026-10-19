@@ -17,7 +17,8 @@ export interface NfEntryInput {
   artist: string;
   song_title: string;
   song_url: string;
-  credits: EntryCredit[];
+  /** Older saved/draft NF rows legitimately predate structured Credits. */
+  credits?: EntryCredit[];
 }
 
 export interface ConfirmationPayload {
