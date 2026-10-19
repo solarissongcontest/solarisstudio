@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const migration = source("supabase/migrations/20261019223000_v3_jury_roster_authority.sql");
 const client = source("src/lib/v3-jury-roster.ts");
+const registry = source("src/lib/solaris-v6-domain-registry.ts");
 
 function block(start: string, end: string) {
   const from = migration.indexOf(start);
@@ -21,6 +22,17 @@ describe("V3 Jury roster authority", () => {
     expect(migration).not.toMatch(/\bdrop\s+(?:table|column|constraint)\b/i);
     expect(migration).not.toMatch(/\btruncate\b/i);
     expect(migration).not.toMatch(/\bdelete\s+from\s+public\.(?:jury_votes|jury_ballot_submissions|jury_ballot_statuses)\b/i);
+  });
+
+  it("registers the command and completed-fact event under the canonical Jury owner", () => {
+    const juryStart = registry.indexOf('id: "jury"');
+    const televoteStart = registry.indexOf('id: "televote"', juryStart);
+    expect(juryStart).toBeGreaterThanOrEqual(0);
+    expect(televoteStart).toBeGreaterThan(juryStart);
+    const jury = registry.slice(juryStart, televoteStart);
+    expect(jury).toContain('"jury.roster_change"');
+    expect(jury).toContain('"jury.roster_changed"');
+    expect(jury).toContain('"direct show-roster voter mutations"');
   });
 
   it("versions every legacy and V3 voter write during staged cutover", () => {
