@@ -61,7 +61,17 @@ describe("System V3 S6 notification reconciliation reactivation", () => {
     expect(reactivate).toContain("title = candidate.title");
     expect(reactivate).toContain("body = candidate.body");
     expect(reactivate).toContain("scheduled_for = candidate.scheduled_for");
-    expect(reactivate).not.toMatch(/dedupe_key\s*=\s*candidate\.dedupe_key/);
+
+    const setStart = reactivate.indexOf("\n  set\n");
+    const fromStart = reactivate.indexOf(
+      "\n  from private.solaris_expected_notification_deliveries",
+      setStart,
+    );
+    expect(setStart).toBeGreaterThanOrEqual(0);
+    expect(fromStart).toBeGreaterThan(setStart);
+    const setClause = reactivate.slice(setStart, fromStart);
+    expect(setClause).not.toContain("dedupe_key");
+    expect(setClause).not.toContain("user_id");
   });
 
   it("treats persisted preference opt-out as stale for user-configurable categories only", () => {
