@@ -175,6 +175,14 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "voting-public-results" ||
     id === "voting-result-integrity" ||
     id === "voting-edition-links" ||
+    id === "trust-rule-rulings" ||
+    id === "trust-appeals" ||
+    id === "trust-evidence" ||
+    id === "trust-disclosure" ||
+    id === "trust-identity-access" ||
+    id === "trust-rules-manager" ||
+    id === "trust-interpretations" ||
+    id === "workspace-country-accounts" ||
     id === "workspace-acceptance-test" ||
     id === "workspace-beta-coverage" ||
     id === "workspace-public-ux" ||
