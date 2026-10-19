@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { RuleInterpretationPublicationReview } from "@/components/admin/RuleInterpretationPublicationReview";
+import { RuleInterpretationSupersessionReview } from "@/components/admin/RuleInterpretationSupersessionReview";
 import {
   createRuleInterpretation,
   getAdminRuleInterpretations,
@@ -38,6 +39,15 @@ type DraftState = {
   effectiveFrom: string;
 };
 
+type PendingSupersession = {
+  currentId: string;
+  currentCode: string;
+  currentTitle: string;
+  replacementId: string;
+  replacementCode: string;
+  replacementTitle: string;
+};
+
 const EMPTY: DraftState = {
   title: "",
   question: "",
@@ -57,6 +67,7 @@ function RuleInterpretationsAdmin() {
   const [draft, setDraft] = useState<DraftState>(EMPTY);
   const [replacementId, setReplacementId] = useState("");
   const [publishReviewOpen, setPublishReviewOpen] = useState(false);
+  const [pendingSupersession, setPendingSupersession] = useState<PendingSupersession | null>(null);
   const items = query.data ?? [];
   const selected = items.find((item) => item.id === selectedId) ?? null;
   const ruleIds = parseRuleIds(draft.rules);
@@ -97,11 +108,9 @@ function RuleInterpretationsAdmin() {
     onError: errorToast,
   });
   const supersedeMutation = useMutation({
-    mutationFn: () => {
-      if (!selected || !replacementId) throw new Error("Choose a replacement interpretation");
-      return supersedeRuleInterpretation(selected.id, replacementId);
-    },
+    mutationFn: (pending: PendingSupersession) => supersedeRuleInterpretation(pending.currentId, pending.replacementId),
     onSuccess: async () => {
+      setPendingSupersession(null);
       setReplacementId("");
       await refresh();
       toast.success("Older interpretation marked superseded");
@@ -113,6 +122,7 @@ function RuleInterpretationsAdmin() {
     setSelectedId(item?.id ?? null);
     setReplacementId("");
     setPublishReviewOpen(false);
+    setPendingSupersession(null);
     if (!item) {
       setDraft(EMPTY);
       return;
@@ -136,6 +146,23 @@ function RuleInterpretationsAdmin() {
     invalidRuleIds.length === 0;
 
   const publicationSnapshot = toDraftInput(draft);
+
+  function reviewSupersession() {
+    if (!selected || selected.status !== "published" || !replacementId) return;
+    const replacement = currentPublished.find((item) => item.id === replacementId);
+    if (!replacement || replacement.id === selected.id) {
+      toast.error("Choose a different published replacement interpretation");
+      return;
+    }
+    setPendingSupersession({
+      currentId: selected.id,
+      currentCode: selected.code,
+      currentTitle: selected.title,
+      replacementId: replacement.id,
+      replacementCode: replacement.code,
+      replacementTitle: replacement.title,
+    });
+  }
 
   return (
     <AdminPage>
@@ -243,7 +270,7 @@ function RuleInterpretationsAdmin() {
                     <option value="">Choose published replacement</option>
                     {currentPublished.filter((item) => item.id !== selected.id).map((item) => <option key={item.id} value={item.id}>{item.code} · {item.title}</option>)}
                   </select>
-                  <button type="button" disabled={!replacementId || supersedeMutation.isPending} onClick={() => supersedeMutation.mutate()} className="admin-action-secondary"><History className="size-4" />Supersede</button>
+                  <button type="button" disabled={!replacementId || supersedeMutation.isPending} onClick={reviewSupersession} className="admin-action-secondary"><History className="size-4" />Review supersession</button>
                 </div>
               </AdminCard>
             ) : null}
@@ -277,6 +304,23 @@ function RuleInterpretationsAdmin() {
             rationale={publicationSnapshot.rationale}
             ruleIds={publicationSnapshot.ruleIds}
             effectiveFrom={publicationSnapshot.effectiveFrom ?? null}
+          />
+        ) : null}
+
+        {pendingSupersession ? (
+          <RuleInterpretationSupersessionReview
+            open
+            onClose={() => {
+              if (!supersedeMutation.isPending) setPendingSupersession(null);
+            }}
+            onConfirm={async () => {
+              await supersedeMutation.mutateAsync(pendingSupersession);
+            }}
+            busy={supersedeMutation.isPending}
+            currentCode={pendingSupersession.currentCode}
+            currentTitle={pendingSupersession.currentTitle}
+            replacementCode={pendingSupersession.replacementCode}
+            replacementTitle={pendingSupersession.replacementTitle}
           />
         ) : null}
       </div>
