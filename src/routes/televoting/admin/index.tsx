@@ -50,7 +50,12 @@ function VotingAdminOverview() {
   });
 
   const recommendedAction = data?.recommendedAction ?? null;
-  const overallBlocked = (data?.integrity.outstanding ?? 0) + (data?.jury.blockerCount ?? 0) > 0;
+  // Jury blockerCount already contains Jury review/invalidated, open-window
+  // missing ballots and unconfigured Jury-enabled shows. Add only the separate
+  // Televote blocked count so one issue is never counted twice in the headline.
+  const votingAttention =
+    (data?.jury.blockerCount ?? 0) + (data?.televote.blocked ?? 0);
+  const overallBlocked = votingAttention > 0;
 
   return (
     <div className="mx-auto max-w-5xl" data-v3-organizer-voting="">
@@ -111,7 +116,7 @@ function VotingAdminOverview() {
                     }
                   >
                     {overallBlocked
-                      ? `${data.integrity.outstanding + data.jury.blockerCount} voting attention`
+                      ? `${votingAttention} voting attention`
                       : data.jury.openWindows > 0 || data.televote.openRounds > 0
                         ? "Voting active"
                         : "Voting overview"}
@@ -179,23 +184,40 @@ function VotingAdminOverview() {
               </div>
               {data.jury.shows.length ? (
                 <div className="mt-4 divide-y divide-white/[0.07] border-t border-white/[0.07]">
-                  {data.jury.shows.map((show) => (
-                    <div key={show.showId} className="flex items-center justify-between gap-3 py-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">{show.showName}</p>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground">
-                          {show.expected} expected · {show.valid} valid · {show.didNotVote} did not vote
-                        </p>
+                  {data.jury.shows.map((show) => {
+                    const disabled = !show.juryEnabled;
+                    return (
+                      <div key={show.showId} className="flex items-center justify-between gap-3 py-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold">{show.showName}</p>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">
+                            {disabled
+                              ? "Jury disabled for this show"
+                              : `${show.expected} expected · ${show.valid} valid · ${show.didNotVote} did not vote`}
+                          </p>
+                        </div>
+                        <AdminStatus
+                          tone={
+                            disabled
+                              ? "neutral"
+                              : show.blockers > 0
+                                ? "attention"
+                                : show.configured
+                                  ? "neutral"
+                                  : "blocked"
+                          }
+                        >
+                          {disabled
+                            ? "Disabled"
+                            : show.blockers > 0
+                              ? `${show.blockers} attention`
+                              : show.configured
+                                ? show.windowStatus
+                                : "Not configured"}
+                        </AdminStatus>
                       </div>
-                      <AdminStatus tone={show.blockers > 0 ? "attention" : show.configured ? "neutral" : "blocked"}>
-                        {show.blockers > 0
-                          ? `${show.blockers} attention`
-                          : show.configured
-                            ? show.windowStatus
-                            : "Not configured"}
-                      </AdminStatus>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {data.jury.showSummaryTruncated ? (
                     <p className="py-3 text-xs text-muted-foreground">
                       Showing the first {data.jury.showSummaryLimit} shows. Edition totals above include every show.
@@ -390,7 +412,9 @@ function juryTitle(state: "not_configured" | "attention" | "active" | "ready") {
 
 function juryDescription(jury: {
   showCount: number;
+  enabledShowCount: number;
   configuredShowCount: number;
+  unconfiguredShowCount: number;
   expected: number;
   valid: number;
   didNotVote: number;
@@ -398,8 +422,15 @@ function juryDescription(jury: {
   needsReview: number;
   invalidated: number;
 }) {
-  if (jury.showCount === 0) return "No shows exist in the selected edition, so Solaris does not fabricate Jury readiness.";
-  if (jury.configuredShowCount === 0) return "No edition show has both Jury enabled and a configured voter roster.";
+  if (jury.showCount === 0) {
+    return "No shows exist in the selected edition, so Solaris does not fabricate Jury readiness.";
+  }
+  if (jury.enabledShowCount === 0) {
+    return "Jury voting is disabled for every show in the selected edition.";
+  }
+  if (jury.unconfiguredShowCount > 0) {
+    return `${jury.unconfiguredShowCount} Jury-enabled show${jury.unconfiguredShowCount === 1 ? " has" : "s have"} no configured voter roster. ${jury.valid} valid · ${jury.didNotVote} did not vote · ${jury.missing} missing.`;
+  }
   return `${jury.valid} valid · ${jury.didNotVote} did not vote · ${jury.missing} missing · ${jury.needsReview + jury.invalidated} need review across ${jury.configuredShowCount} configured show${jury.configuredShowCount === 1 ? "" : "s"}.`;
 }
 
