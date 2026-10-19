@@ -67,10 +67,20 @@ describe("V3 Media Review operation envelope", () => {
     expect(envelopeMigration).toContain("'replayed', false");
   });
 
-  it("does not let a replayed non-success operation blindly execute the mutation again", () => {
-    expect(envelopeMigration).toContain(
-      "if coalesce((v_claim ->> 'replayed')::boolean, false) then",
+  it("fails closed for every replayed non-success state instead of re-entering the writer", () => {
+    const replayBranch = envelopeMigration.slice(
+      envelopeMigration.indexOf(
+        "if coalesce((v_claim ->> 'replayed')::boolean, false) then",
+      ),
+      envelopeMigration.indexOf(
+        "if v_claim_status is distinct from 'processing' then",
+      ),
     );
+
+    expect(replayBranch).toContain("if v_claim_status = 'succeeded' then");
+    expect(replayBranch).toContain("'ok', false");
+    expect(replayBranch).toContain("'status', coalesce(v_claim_status, 'unknown')");
+    expect(replayBranch).not.toContain("studio2_review_media_assets_legacy_impl");
     expect(envelopeMigration).toContain(
       "if v_claim_status is distinct from 'processing' then",
     );
