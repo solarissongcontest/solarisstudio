@@ -234,9 +234,14 @@ const MOBILE_HERO_CSS = `
   html[data-terraos-mobile-hero="${ROOT_DATASET_VALUE}"] .hero .launch-label,
   html[data-terraos-mobile-hero="${ROOT_DATASET_VALUE}"] .hero .launch-date,
   html[data-terraos-mobile-hero="${ROOT_DATASET_VALUE}"] .hero .countdown,
-  html[data-terraos-mobile-hero="${ROOT_DATASET_VALUE}"] .hero-stage,
-  html[data-terraos-mobile-hero="${ROOT_DATASET_VALUE}"] .hero-stage .phone {
+  html[data-terraos-mobile-hero="${ROOT_DATASET_VALUE}"] .hero-stage {
     transform: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+  }
+
+  html[data-terraos-mobile-hero="${ROOT_DATASET_VALUE}"] .hero-stage .phone.center {
+    transform: translate(-50%, -46%) !important;
     opacity: 1 !important;
     filter: none !important;
   }
