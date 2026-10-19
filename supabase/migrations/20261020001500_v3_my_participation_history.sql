@@ -1,12 +1,182 @@
 begin;
 
--- Solaris Studio V3 P41 / Me History integration.
+-- Solaris Studio V3 P40 / Me History integration.
 --
 -- Personal history must be derived from durable edition-scoped evidence, never
 -- reconstructed from whichever country account the viewer happens to own now.
--- This projection therefore uses canonical HOD assignments and jury evidence.
--- It deliberately does not fabricate a generic Participant role where no
--- durable user -> participant identity relationship exists.
+-- `delegation_hod_assignments` is intentionally the one-row current assignment
+-- authority, so handovers update that row in place. Capture those revisions in
+-- a private append-only history before exposing personal cross-time history.
+
+create table if not exists private.v3_delegation_hod_assignment_history (
+  id uuid primary key default gen_random_uuid(),
+  assignment_id uuid not null,
+  edition_id uuid not null references public.editions(id) on delete cascade,
+  country_id uuid not null references public.countries(id) on delete cascade,
+  person_id uuid not null references public.delegation_people(id) on delete restrict,
+  channel text not null,
+  source text not null,
+  confidence integer not null,
+  valid_from timestamptz not null,
+  valid_to timestamptz,
+  change_kind text not null,
+  captured_at timestamptz not null default now(),
+  constraint v3_hod_assignment_history_channel_check
+    check (channel in ('delegation', 'jury', 'televote')),
+  constraint v3_hod_assignment_history_confidence_check
+    check (confidence between 0 and 100),
+  constraint v3_hod_assignment_history_change_kind_check
+    check (change_kind in ('backfill', 'insert', 'update', 'delete')),
+  constraint v3_hod_assignment_history_window_check
+    check (valid_to is null or valid_to >= valid_from)
+);
+
+create unique index if not exists v3_hod_assignment_history_one_open_revision
+  on private.v3_delegation_hod_assignment_history (assignment_id)
+  where valid_to is null;
+
+create index if not exists v3_hod_assignment_history_person_idx
+  on private.v3_delegation_hod_assignment_history (person_id, edition_id, country_id, channel);
+
+revoke all on private.v3_delegation_hod_assignment_history
+  from public, anon, authenticated, service_role;
+
+insert into private.v3_delegation_hod_assignment_history (
+  assignment_id,
+  edition_id,
+  country_id,
+  person_id,
+  channel,
+  source,
+  confidence,
+  valid_from,
+  valid_to,
+  change_kind
+)
+select
+  assignment.id,
+  assignment.edition_id,
+  assignment.country_id,
+  assignment.person_id,
+  assignment.channel,
+  assignment.source,
+  assignment.confidence,
+  assignment.created_at,
+  null,
+  'backfill'
+from public.delegation_hod_assignments assignment
+where not exists (
+  select 1
+  from private.v3_delegation_hod_assignment_history history
+  where history.assignment_id = assignment.id
+    and history.valid_to is null
+);
+
+create or replace function private.v3_capture_delegation_hod_assignment_history()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $capture$
+declare
+  v_now timestamptz := clock_timestamp();
+begin
+  if tg_op = 'INSERT' then
+    insert into private.v3_delegation_hod_assignment_history (
+      assignment_id,
+      edition_id,
+      country_id,
+      person_id,
+      channel,
+      source,
+      confidence,
+      valid_from,
+      valid_to,
+      change_kind
+    ) values (
+      new.id,
+      new.edition_id,
+      new.country_id,
+      new.person_id,
+      new.channel,
+      new.source,
+      new.confidence,
+      coalesce(new.created_at, v_now),
+      null,
+      'insert'
+    );
+    return new;
+  end if;
+
+  if tg_op = 'UPDATE' then
+    if row(
+      new.edition_id,
+      new.country_id,
+      new.person_id,
+      new.channel,
+      new.source,
+      new.confidence
+    ) is distinct from row(
+      old.edition_id,
+      old.country_id,
+      old.person_id,
+      old.channel,
+      old.source,
+      old.confidence
+    ) then
+      update private.v3_delegation_hod_assignment_history history
+      set valid_to = v_now
+      where history.assignment_id = old.id
+        and history.valid_to is null;
+
+      insert into private.v3_delegation_hod_assignment_history (
+        assignment_id,
+        edition_id,
+        country_id,
+        person_id,
+        channel,
+        source,
+        confidence,
+        valid_from,
+        valid_to,
+        change_kind
+      ) values (
+        new.id,
+        new.edition_id,
+        new.country_id,
+        new.person_id,
+        new.channel,
+        new.source,
+        new.confidence,
+        v_now,
+        null,
+        'update'
+      );
+    end if;
+    return new;
+  end if;
+
+  if tg_op = 'DELETE' then
+    update private.v3_delegation_hod_assignment_history history
+    set valid_to = v_now
+    where history.assignment_id = old.id
+      and history.valid_to is null;
+    return old;
+  end if;
+
+  raise exception 'Unsupported HOD assignment history trigger operation: %', tg_op
+    using errcode = '0A000';
+end
+$capture$;
+
+revoke all on function private.v3_capture_delegation_hod_assignment_history()
+  from public, anon, authenticated, service_role;
+
+drop trigger if exists v3_capture_delegation_hod_assignment_history
+  on public.delegation_hod_assignments;
+create trigger v3_capture_delegation_hod_assignment_history
+after insert or update or delete on public.delegation_hod_assignments
+for each row execute function private.v3_capture_delegation_hod_assignment_history();
 
 create or replace function public.v3_my_participation_history()
 returns jsonb
@@ -47,18 +217,56 @@ begin
       assignment.updated_at desc,
       assignment.id
   ),
-  hod_evidence as (
+  hod_history_evidence as (
     select
-      'hod:' || assignment.id::text as id,
-      assignment.edition_id,
-      assignment.country_id,
+      'hod-history:' || history.id::text as id,
+      history.edition_id,
+      history.country_id,
       'hod'::text as role,
-      ('delegation_hod_assignment:' || coalesce(nullif(btrim(assignment.source), ''), 'canonical'))::text as source,
+      ('delegation_hod_assignment:' || coalesce(nullif(btrim(history.source), ''), 'canonical'))::text as source,
+      history.valid_from as started_at,
+      history.valid_to as ended_at,
+      case when history.valid_to is not null then 'superseded'::text else null::text end as relation_state
+    from private.v3_delegation_hod_assignment_history history
+    join actor_people actor_person on actor_person.id = history.person_id
+    where history.channel = 'delegation'
+  ),
+  hod_claim_evidence as (
+    -- `country_hod_edition_claims` predates the revision capture above and is
+    -- the only durable evidence for some already-completed self-attributions
+    -- that may have been overwritten in the one-row assignment table.
+    select
+      'hod-claim:' || claim.user_id::text || ':' || claim.country_id::text || ':' || claim.edition_id::text as id,
+      claim.edition_id,
+      claim.country_id,
+      'hod'::text as role,
+      'country_hod_edition_claim'::text as source,
       null::timestamptz as started_at,
-      null::timestamptz as ended_at
-    from public.delegation_hod_assignments assignment
-    join actor_people actor_person on actor_person.id = assignment.person_id
-    where assignment.channel = 'delegation'
+      null::timestamptz as ended_at,
+      case
+        when exists (
+          select 1
+          from public.delegation_hod_assignments current_assignment
+          join public.delegation_people current_person
+            on current_person.id = current_assignment.person_id
+          where current_assignment.edition_id = claim.edition_id
+            and current_assignment.country_id = claim.country_id
+            and current_assignment.channel = 'delegation'
+            and current_person.identity_key <> 'account:' || v_actor::text
+        ) then 'superseded'::text
+        else null::text
+      end as relation_state
+    from public.country_hod_edition_claims claim
+    where claim.user_id = v_actor
+      and claim.status = 'mine'
+      and not exists (
+        select 1
+        from private.v3_delegation_hod_assignment_history history
+        join actor_people actor_person on actor_person.id = history.person_id
+        where history.edition_id = claim.edition_id
+          and history.country_id = claim.country_id
+          and history.channel = 'delegation'
+      )
   ),
   ballot_juror_evidence as (
     select
@@ -68,7 +276,8 @@ begin
       'juror'::text as role,
       'jury_ballot_submission'::text as source,
       null::timestamptz as started_at,
-      null::timestamptz as ended_at
+      null::timestamptz as ended_at,
+      null::text as relation_state
     from public.jury_ballot_submissions ballot
     where ballot.user_id = v_actor
     group by ballot.edition_id, ballot.voter_country_id
@@ -84,7 +293,8 @@ begin
         coalesce(nullif(btrim(juror.source), ''), 'canonical')
       )::text as source,
       null::timestamptz as started_at,
-      null::timestamptz as ended_at
+      null::timestamptz as ended_at,
+      null::text as relation_state
     from selected_jurors juror
     join actor_people actor_person on actor_person.id = juror.person_id
     where not exists (
@@ -96,7 +306,9 @@ begin
     )
   ),
   evidence as (
-    select * from hod_evidence
+    select * from hod_history_evidence
+    union all
+    select * from hod_claim_evidence
     union all
     select * from ballot_juror_evidence
     union all
@@ -115,13 +327,16 @@ begin
       evidence.started_at,
       evidence.ended_at,
       evidence.source,
-      case
-        -- Existing Solaris databases historically used fewer lifecycle labels.
-        -- Closed terminal states are unambiguously historical; every other
-        -- nonterminal/future state remains current rather than being guessed.
-        when edition.status in ('completed', 'archived', 'cancelled') then 'historical'
-        else 'current'
-      end as state
+      coalesce(
+        evidence.relation_state,
+        case
+          -- Existing Solaris databases historically used fewer lifecycle labels.
+          -- Closed terminal states are unambiguously historical; every other
+          -- nonterminal/future state remains current rather than being guessed.
+          when edition.status in ('completed', 'archived', 'cancelled') then 'historical'
+          else 'current'
+        end
+      ) as state
     from evidence
     join public.editions edition on edition.id = evidence.edition_id
     join public.countries country on country.id = evidence.country_id
@@ -154,7 +369,13 @@ begin
         'source', enriched.source,
         'state', enriched.state
       )
-      order by enriched.edition_number desc nulls last, enriched.edition_name, enriched.country_name, enriched.role
+      order by
+        enriched.edition_number desc nulls last,
+        enriched.edition_name,
+        enriched.country_name,
+        enriched.role,
+        enriched.started_at desc nulls last,
+        enriched.id
     ),
     '[]'::jsonb
   ) into v_items
@@ -174,7 +395,7 @@ grant execute on function public.v3_my_participation_history()
   to authenticated;
 
 comment on function public.v3_my_participation_history() is
-  'Recipient-scoped V3 Me participation history derived from canonical edition HOD assignments, canonical jury identity and immutable jury submission evidence. It never infers past participation from current country ownership.';
+  'Recipient-scoped V3 Me participation history derived from canonical HOD assignment revisions, preserved HOD claims, canonical jury identity and immutable jury submission evidence. It never infers past participation from current country ownership.';
 
 notify pgrst, 'reload schema';
 
