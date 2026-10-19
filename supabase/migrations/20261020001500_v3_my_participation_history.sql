@@ -113,16 +113,12 @@ begin
       new.edition_id,
       new.country_id,
       new.person_id,
-      new.channel,
-      new.source,
-      new.confidence
+      new.channel
     ) is distinct from row(
       old.edition_id,
       old.country_id,
       old.person_id,
-      old.channel,
-      old.source,
-      old.confidence
+      old.channel
     ) then
       update private.v3_delegation_hod_assignment_history history
       set valid_to = v_now
@@ -152,6 +148,15 @@ begin
         null,
         'update'
       );
+    elsif new.source is distinct from old.source
+       or new.confidence is distinct from old.confidence then
+      -- Evidence metadata can improve without creating a fictional handover.
+      update private.v3_delegation_hod_assignment_history history
+      set
+        source = new.source,
+        confidence = new.confidence
+      where history.assignment_id = new.id
+        and history.valid_to is null;
     end if;
     return new;
   end if;
