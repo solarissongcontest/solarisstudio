@@ -65,6 +65,7 @@ assert payload['state'] == 'drift', payload
 assert payload['reason'] == 'verified', payload
 assert payload['missingCurrent'] == 1, payload
 assert payload['stalePending'] == 1, payload
+assert payload['failedExpected'] == 0, payload
 PY
 
 log "Exact-recipient repair inserts only A and suppresses A's stale delivery"
@@ -75,12 +76,15 @@ payload=json.loads(sys.argv[1])
 assert payload['userId'] == sys.argv[2], payload
 assert payload['scope'] == 'recipient', payload
 assert payload['inserted'] == 1, payload
+assert payload['reactivated'] == 0, payload
 assert payload['suppressed'] == 1, payload
 assert payload['verification']['state'] == 'consistent', payload
 PY
 [[ "$(db_scalar "select status from public.notification_deliveries where id='$STALE_ID'::uuid;")" == "suppressed" ]] || fail "stale pending delivery was not suppressed"
 [[ "$(db_scalar "select count(*) from public.notification_deliveries where user_id='$USER_A'::uuid and event_type='prediction_opened';")" == "1" ]] || fail "recipient A did not receive expected candidate"
 [[ "$(db_scalar "select count(*) from public.notification_deliveries where user_id='$USER_B'::uuid;")" == "0" ]] || fail "recipient-bounded repair fanned out to recipient B"
+DELIVERY_A="$(db_scalar "select id from public.notification_deliveries where user_id='$USER_A'::uuid and event_type='prediction_opened';")"
+[[ -n "$DELIVERY_A" ]] || fail "recipient A delivery identity missing"
 
 log "Replay is idempotent"
 REPLAY="$(service_scalar "select public.studio2_reconcile_notification_delivery_projection('$USER_A'::uuid,now(),100)::text;")"
@@ -88,14 +92,73 @@ python3 - "$REPLAY" <<'PY'
 import json,sys
 payload=json.loads(sys.argv[1])
 assert payload['inserted'] == 0, payload
+assert payload['reactivated'] == 0, payload
 assert payload['suppressed'] == 0, payload
 assert payload['verification']['state'] == 'consistent', payload
 PY
+
+log "Preference opt-out suppresses an unsent expected delivery"
+db_exec "update public.notification_preferences set external_enabled=false where profile_id='$USER_A'::uuid;"
+OPTOUT="$(service_scalar "select public.studio2_reconcile_notification_delivery_projection('$USER_A'::uuid,now(),100)::text;")"
+python3 - "$OPTOUT" <<'PY'
+import json,sys
+payload=json.loads(sys.argv[1])
+assert payload['inserted'] == 0, payload
+assert payload['reactivated'] == 0, payload
+assert payload['suppressed'] == 1, payload
+assert payload['verification']['state'] == 'consistent', payload
+PY
+[[ "$(db_scalar "select status from public.notification_deliveries where id='$DELIVERY_A'::uuid;")" == "suppressed" ]] || fail "preference opt-out did not suppress delivery"
+
+log "Restored eligibility is visible as drift until the same stable identity is reactivated"
+db_exec "update public.notification_preferences set external_enabled=true where profile_id='$USER_A'::uuid;"
+REENABLED_BEFORE="$(service_scalar "select public.studio2_verify_notification_delivery_projection('$USER_A'::uuid,now(),500)::text;")"
+python3 - "$REENABLED_BEFORE" <<'PY'
+import json,sys
+payload=json.loads(sys.argv[1])
+assert payload['state'] == 'drift', payload
+assert payload['missingCurrent'] == 0, payload
+assert payload['suppressedExpected'] == 1, payload
+assert payload['failedExpected'] == 0, payload
+PY
+REACTIVATED="$(service_scalar "select public.studio2_reconcile_notification_delivery_projection('$USER_A'::uuid,now(),100)::text;")"
+python3 - "$REACTIVATED" <<'PY'
+import json,sys
+payload=json.loads(sys.argv[1])
+assert payload['inserted'] == 0, payload
+assert payload['reactivated'] == 1, payload
+assert payload['suppressed'] == 0, payload
+assert payload['verification']['state'] == 'consistent', payload
+PY
+[[ "$(db_scalar "select id from public.notification_deliveries where user_id='$USER_A'::uuid and event_type='prediction_opened';")" == "$DELIVERY_A" ]] || fail "reactivation replaced the stable delivery identity"
+[[ "$(db_scalar "select status from public.notification_deliveries where id='$DELIVERY_A'::uuid;")" == "pending" ]] || fail "restored expected delivery was not reactivated"
+
+log "Failed expected delivery stays failed and is reported as drift for governed retry"
+db_exec "update public.notification_deliveries set status='failed',error='injected provider failure' where id='$DELIVERY_A'::uuid;"
+FAILED_BEFORE="$(service_scalar "select public.studio2_verify_notification_delivery_projection('$USER_A'::uuid,now(),500)::text;")"
+python3 - "$FAILED_BEFORE" <<'PY'
+import json,sys
+payload=json.loads(sys.argv[1])
+assert payload['state'] == 'drift', payload
+assert payload['failedExpected'] == 1, payload
+PY
+FAILED_REPAIR="$(service_scalar "select public.studio2_reconcile_notification_delivery_projection('$USER_A'::uuid,now(),100)::text;")"
+python3 - "$FAILED_REPAIR" <<'PY'
+import json,sys
+payload=json.loads(sys.argv[1])
+assert payload['inserted'] == 0, payload
+assert payload['reactivated'] == 0, payload
+assert payload['suppressed'] == 0, payload
+assert payload['verification']['state'] == 'drift', payload
+assert payload['verification']['failedExpected'] == 1, payload
+PY
+[[ "$(db_scalar "select status from public.notification_deliveries where id='$DELIVERY_A'::uuid;")" == "failed" ]] || fail "reconciliation auto-retried a failed delivery"
 
 log "Ordinary global enqueue uses the same candidate engine and reaches B"
 [[ "$(service_scalar "select public.solaris_enqueue_app_notifications(now());")" == "1" ]] || fail "global enqueue should insert exactly B's missing delivery"
 [[ "$(db_scalar "select count(*) from public.notification_deliveries where user_id='$USER_B'::uuid and event_type='prediction_opened';")" == "1" ]] || fail "global enqueue did not reach recipient B"
 [[ "$(db_scalar "select count(*) from public.notification_deliveries where user_id='$USER_A'::uuid and event_type='prediction_opened';")" == "1" ]] || fail "global enqueue duplicated recipient A"
+[[ "$(db_scalar "select status from public.notification_deliveries where id='$DELIVERY_A'::uuid;")" == "failed" ]] || fail "global enqueue auto-retried failed recipient A"
 
 log "Repair refuses a recipient workload above the 100-candidate ceiling"
 db_exec "
