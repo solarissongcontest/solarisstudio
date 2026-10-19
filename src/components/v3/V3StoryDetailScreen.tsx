@@ -69,9 +69,18 @@ export function V3StoryDetailScreen({
 
   return (
     <V3Screen>
-      <Link to="/stories" className="text-xs font-semibold text-primary hover:underline">
-        ← Story archive
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link to="/stories" className="text-xs font-semibold text-primary hover:underline">
+          ← Story archive
+        </Link>
+        <Link
+          to="/editions/$slug"
+          params={{ slug: story.editionSlug }}
+          className="text-xs font-semibold text-primary hover:underline"
+        >
+          Open edition →
+        </Link>
+      </div>
 
       <div className="mt-5">
         <V3ScreenHeader
@@ -139,6 +148,31 @@ export function V3StoryDetailScreen({
           </V3Surface>
         )}
       </V3Section>
+
+      {bundle.moreStories.length ? (
+        <V3Section title="More published stories" meta={`${bundle.moreStories.length} nearby in the archive`}>
+          <div className="grid gap-3 md:grid-cols-3">
+            {bundle.moreStories.map((related) => (
+              <Link
+                key={related.editionId}
+                to="/stories/$editionSlug"
+                params={{ editionSlug: related.editionSlug }}
+                className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <V3Surface level="raised" className="h-full p-4 transition hover:border-white/20">
+                  <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-white/38">
+                    {related.editionNumber != null ? `SSC ${related.editionNumber}` : related.editionName}
+                  </p>
+                  <h2 className="mt-2 text-base font-bold leading-5">{related.title}</h2>
+                  <p className="mt-2 text-xs leading-5 text-white/45">
+                    {related.itemCount} reviewed moment{related.itemCount === 1 ? "" : "s"}
+                  </p>
+                </V3Surface>
+              </Link>
+            ))}
+          </div>
+        </V3Section>
+      ) : null}
     </V3Screen>
   );
 }
