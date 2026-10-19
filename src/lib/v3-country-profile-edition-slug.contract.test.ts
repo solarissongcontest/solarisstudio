@@ -31,9 +31,9 @@ describe("Public V3 country profile canonical edition slug", () => {
     expect(migration).toContain("grant execute on function public.v3_public_country_profile(text) to anon, authenticated");
   });
 
-  it("is governed by the S13 migration framework", () => {
+  it("is governed by the S13 migration framework with a valid stable key", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
-    expect(migration).toContain("20261019235000_v3_country_profile_edition_slug");
+    expect(migration).toContain("v3.country-profile-edition-slug");
     expect(migration).toContain("'forward_fix_only'");
   });
 });
