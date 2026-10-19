@@ -93,14 +93,22 @@ describe("S14 Grand Final results", () => {
     expect(finalResults).toContain("S14_GRAND_FINAL_RESULTS_COMPLETE");
   });
 
-  it("is wired into the stateful contest driver now that canonical Televote result truth is available", () => {
+  it("is wired into the stateful contest driver before exact-version Grand Final Publication", () => {
     expect(driver).toContain('source "$SCRIPT_DIR/v3-s14-grand-final-results.sh"');
+    expect(driver).toContain('source "$SCRIPT_DIR/v3-s14-grand-final-publication.sh"');
     expect(driver).toContain(
       "run_contest_extension grand-final-results run_s14_grand_final_results",
     );
+    expect(driver).toContain(
+      "run_contest_extension grand-final-publication run_s14_grand_final_publication",
+    );
     expect(driver).toContain('"grand-final-results",');
+    expect(driver).toContain('"grand-final-publication",');
     expect(driver).not.toContain("#651 canonical Televote publication/readiness mismatch");
-    expect(driver).toContain("Grand Final Publication and Archive remain pending");
+    expect(driver.indexOf("run_s14_grand_final_results")).toBeLessThan(
+      driver.indexOf("run_s14_grand_final_publication"),
+    );
+    expect(driver).toContain("exact-version Grand Final Publication; only Archive remains pending");
   });
 
   it("keeps the Grand Final result shell and unified driver syntactically valid", () => {
