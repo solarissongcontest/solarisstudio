@@ -54,6 +54,20 @@ describe('System V3 S14 archive consequence contract', () => {
     );
   });
 
+  it('reconciles multi-show edition runtime to results only from canonical final publication', () => {
+    expect(lifecycleCommand).toContain('private.v3_edition_final_results_ready');
+    expect(lifecycleCommand).toContain("in ('grand-final', 'final')");
+    expect(lifecycleCommand).toContain("control.state = 'public'");
+    expect(lifecycleCommand).toContain('join private.v3_result_versions result_version');
+    expect(lifecycleCommand).toContain('result_version.result_row_count > 0');
+    expect(lifecycleCommand).toContain("and p_to = 'results'");
+    expect(lifecycleCommand).toContain("and v_from in (");
+    expect(lifecycleCommand).toContain('private.v3_edition_final_results_ready(p_edition_id)');
+    expect(lifecycleCommand).toContain('v_reconciled_final_results := true');
+    expect(lifecycleCommand).toContain("'reconciledFromFinalPublication', v_reconciled_final_results");
+    expect(lifecycleCommand).not.toContain("p_to = 'archived'\n     and private.v3_edition_final_results_ready");
+  });
+
   it('emits one canonical archive fact with task consequences', () => {
     expect(lifecycleCommand).toContain("'edition.archived'");
     expect(lifecycleCommand).toContain('private.v3_emit_domain_event(');
