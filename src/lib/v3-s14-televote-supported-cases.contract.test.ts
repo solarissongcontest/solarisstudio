@@ -61,6 +61,14 @@ describe("S14 canonical Televote Stage 7", () => {
     expect(deadlineStage).toContain("studio2_process_televote_domain_event");
   });
 
+  it("retries the user ballot before reconciling extension consequences", () => {
+    const retryIndex = deadlineStage.indexOf('expect_success "public Televote after governed deadline extension"');
+    const consequenceIndex = deadlineStage.indexOf("studio2_claim_domain_event_deliveries");
+
+    expect(retryIndex).toBeGreaterThan(-1);
+    expect(consequenceIndex).toBeGreaterThan(retryIndex);
+  });
+
   it("still proves duplicate protection, uncertainty recovery and integrity evidence", () => {
     expect(stage7).toContain("duplicate public Televote");
     expect(stage7).toContain("v3_create_televote_recovery_handle");
