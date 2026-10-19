@@ -2,6 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useMyCountryAccount } from "@/lib/country-account";
 import { editionLabel, useCountries, useEditions } from "@/lib/data";
 import {
@@ -19,6 +29,60 @@ const EMPTY_ENTRY: HistoricalNationalFinalEntryInput = {
   next_in_line: false,
   result_position: null,
 };
+
+type HistoricalReviewAction =
+  | "publish_lineup"
+  | "hide_lineup"
+  | "publish_results"
+  | "hide_results"
+  | "delete";
+
+type PendingHistoricalReview = {
+  action: HistoricalReviewAction;
+  nationalFinalId: string;
+  name: string;
+  edition: string;
+  source: string;
+  currentLineupPublished: boolean;
+  currentResultsPublished: boolean;
+  nextLineupPublished: boolean | null;
+  nextResultsPublished: boolean | null;
+};
+
+function reviewTitle(action: HistoricalReviewAction) {
+  switch (action) {
+    case "publish_lineup":
+      return "Publish this National Final line-up?";
+    case "hide_lineup":
+      return "Hide this National Final line-up?";
+    case "publish_results":
+      return "Publish these National Final results?";
+    case "hide_results":
+      return "Hide these National Final results?";
+    case "delete":
+      return "Delete this National Final permanently?";
+  }
+}
+
+function reviewActionLabel(action: HistoricalReviewAction) {
+  switch (action) {
+    case "publish_lineup":
+      return "Publish line-up";
+    case "hide_lineup":
+      return "Hide line-up";
+    case "publish_results":
+      return "Publish results";
+    case "hide_results":
+      return "Hide results";
+    case "delete":
+      return "Delete permanently";
+  }
+}
+
+function publicStateLabel(value: boolean | null) {
+  if (value == null) return "Deleted";
+  return value ? "Public" : "Private";
+}
 
 export function HistoricalNationalFinalManager() {
   const [target, setTarget] = useState<Element | null>(null);
@@ -85,6 +149,9 @@ function HistoricalNationalFinalEditor({ countryId }: { countryId: string }) {
   const [winnerIndex, setWinnerIndex] = useState<number | null>(null);
   const [nextInLineIndex, setNextInLineIndex] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [pendingReview, setPendingReview] = useState<PendingHistoricalReview | null>(null);
+  const [reviewConfirmation, setReviewConfirmation] = useState("");
+  const [reviewBusy, setReviewBusy] = useState(false);
 
   const editionMap = useMemo(
     () => new Map((editions ?? []).map((edition) => [edition.id, edition])),
@@ -191,37 +258,135 @@ function HistoricalNationalFinalEditor({ countryId }: { countryId: string }) {
     }
   };
 
-  const setPublication = async (
+  const displayEdition = (nf: NonNullable<typeof finalsQuery.data>[number]) =>
+    nf.edition_id && editionMap.get(nf.edition_id)
+      ? editionLabel(editionMap.get(nf.edition_id)!)
+      : nf.edition_number
+        ? `SSC ${nf.edition_number}`
+        : "Edition unknown";
+
+  const openPublicationReview = (
     nf: NonNullable<typeof finalsQuery.data>[number],
     type: "lineup" | "results",
   ) => {
+    const nextLineupPublished =
+      type === "lineup"
+        ? !nf.lineup_published
+        : !nf.results_published
+          ? true
+          : nf.lineup_published;
+    const nextResultsPublished =
+      type === "results"
+        ? !nf.results_published
+        : !nf.lineup_published
+          ? nf.results_published
+          : false;
+    const action: HistoricalReviewAction =
+      type === "lineup"
+        ? nf.lineup_published
+          ? "hide_lineup"
+          : "publish_lineup"
+        : nf.results_published
+          ? "hide_results"
+          : "publish_results";
+
+    setPendingReview({
+      action,
+      nationalFinalId: nf.id,
+      name: nf.name?.trim() || nf.id,
+      edition: displayEdition(nf),
+      source: nf.source,
+      currentLineupPublished: nf.lineup_published,
+      currentResultsPublished: nf.results_published,
+      nextLineupPublished,
+      nextResultsPublished,
+    });
+    setReviewConfirmation("");
+    setMessage(null);
+  };
+
+  const openDeleteReview = (nf: NonNullable<typeof finalsQuery.data>[number]) => {
+    setPendingReview({
+      action: "delete",
+      nationalFinalId: nf.id,
+      name: nf.name?.trim() || nf.id,
+      edition: displayEdition(nf),
+      source: nf.source,
+      currentLineupPublished: nf.lineup_published,
+      currentResultsPublished: nf.results_published,
+      nextLineupPublished: null,
+      nextResultsPublished: null,
+    });
+    setReviewConfirmation("");
+    setMessage(null);
+  };
+
+  const closeReview = () => {
+    if (reviewBusy) return;
+    setPendingReview(null);
+    setReviewConfirmation("");
+  };
+
+  const applyHistoricalReview = async () => {
+    if (!pendingReview || reviewBusy) return;
+
+    setReviewBusy(true);
     setMessage(null);
     try {
-      if (type === "lineup") {
-        await publication.mutateAsync({
-          nationalFinalId: nf.id,
-          lineupPublished: !nf.lineup_published,
-        });
-        setMessage(
-          nf.lineup_published
-            ? "National-final line-up hidden. Its results were hidden too."
-            : "National-final songs and running order published.",
-        );
-      } else {
-        await publication.mutateAsync({
-          nationalFinalId: nf.id,
-          resultsPublished: !nf.results_published,
-        });
-        setMessage(
-          nf.results_published
-            ? "National-final results hidden; the line-up stays public."
-            : "National-final results published. The line-up is public too.",
+      const refreshed = await finalsQuery.refetch();
+      if (refreshed.error) throw refreshed.error;
+      const live = refreshed.data?.find((nf) => nf.id === pendingReview.nationalFinalId);
+      if (!live) {
+        throw new Error("This National Final no longer exists. Nothing was changed.");
+      }
+      if (
+        live.lineup_published !== pendingReview.currentLineupPublished ||
+        live.results_published !== pendingReview.currentResultsPublished
+      ) {
+        throw new Error(
+          "Publication state changed while this review was open. Reopen the review from the latest state before applying anything.",
         );
       }
+
+      if (pendingReview.action === "delete") {
+        if (live.source !== "manual" || pendingReview.source !== "manual") {
+          throw new Error("Only manually added historical National Finals can be deleted here.");
+        }
+        await remove.mutateAsync(live.id);
+        if (editingId === live.id) reset();
+        setMessage("Historical National Final deleted.");
+      } else {
+        await publication.mutateAsync({
+          nationalFinalId: live.id,
+          lineupPublished: pendingReview.nextLineupPublished ?? undefined,
+          resultsPublished: pendingReview.nextResultsPublished ?? undefined,
+        });
+        setMessage(
+          pendingReview.action === "publish_lineup"
+            ? "National-final songs and running order published."
+            : pendingReview.action === "hide_lineup"
+              ? "National-final line-up hidden. Its results were hidden too."
+              : pendingReview.action === "publish_results"
+                ? "National-final results published. The line-up is public too."
+                : "National-final results hidden; the line-up stays public.",
+        );
+      }
+
+      setPendingReview(null);
+      setReviewConfirmation("");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Publication could not be changed.");
+      setMessage(error instanceof Error ? error.message : "The reviewed change could not be applied.");
+    } finally {
+      setReviewBusy(false);
     }
   };
+
+  const reviewRequiresTyping =
+    pendingReview?.action === "publish_lineup" ||
+    pendingReview?.action === "publish_results" ||
+    pendingReview?.action === "delete";
+  const reviewCanApply =
+    !pendingReview || !reviewRequiresTyping || reviewConfirmation === pendingReview.name;
 
   return (
     <div className="mt-6 border-t border-border/70 pt-5">
@@ -243,11 +408,7 @@ function HistoricalNationalFinalEditor({ countryId }: { countryId: string }) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[9px] font-black uppercase tracking-[0.14em] text-primary">
-                      {nf.edition_id && editionMap.get(nf.edition_id)
-                        ? editionLabel(editionMap.get(nf.edition_id)!)
-                        : nf.edition_number
-                          ? `SSC ${nf.edition_number}`
-                          : "Edition unknown"}
+                      {displayEdition(nf)}
                     </p>
                     <p className="mt-1 truncate text-sm font-semibold">{nf.name || "National final"}</p>
                     <p className="mt-1 text-[11px] text-muted-foreground">
@@ -273,19 +434,19 @@ function HistoricalNationalFinalEditor({ countryId }: { countryId: string }) {
                 <div className="mt-auto grid grid-cols-2 gap-2 pt-3">
                   <button
                     type="button"
-                    disabled={publication.isPending}
-                    onClick={() => void setPublication(nf, "lineup")}
+                    disabled={publication.isPending || reviewBusy}
+                    onClick={() => openPublicationReview(nf, "lineup")}
                     className="min-h-9 rounded-lg border border-border px-2 text-[10px] font-semibold disabled:opacity-50"
                   >
-                    {nf.lineup_published ? "Hide line-up" : "Publish line-up"}
+                    {nf.lineup_published ? "Review hide line-up" : "Review publish line-up"}
                   </button>
                   <button
                     type="button"
-                    disabled={publication.isPending}
-                    onClick={() => void setPublication(nf, "results")}
+                    disabled={publication.isPending || reviewBusy}
+                    onClick={() => openPublicationReview(nf, "results")}
                     className="min-h-9 rounded-lg border border-border px-2 text-[10px] font-semibold disabled:opacity-50"
                   >
-                    {nf.results_published ? "Hide results" : "Publish results"}
+                    {nf.results_published ? "Review hide results" : "Review publish results"}
                   </button>
                 </div>
 
@@ -300,19 +461,11 @@ function HistoricalNationalFinalEditor({ countryId }: { countryId: string }) {
                     </button>
                     <button
                       type="button"
-                      disabled={remove.isPending}
-                      onClick={async () => {
-                        if (!window.confirm(`Delete ${nf.name || "this national final"}?`)) return;
-                        try {
-                          await remove.mutateAsync(nf.id);
-                          if (editingId === nf.id) reset();
-                        } catch (error) {
-                          setMessage(error instanceof Error ? error.message : "The national final could not be deleted.");
-                        }
-                      }}
+                      disabled={remove.isPending || reviewBusy}
+                      onClick={() => openDeleteReview(nf)}
                       className="min-h-9 rounded-lg border border-destructive/30 px-3 text-xs font-semibold text-destructive disabled:opacity-50"
                     >
-                      Delete
+                      Review delete
                     </button>
                   </div>
                 )}
@@ -464,6 +617,87 @@ function HistoricalNationalFinalEditor({ countryId }: { countryId: string }) {
         </button>
         {message && <p className="mt-3 text-xs text-muted-foreground">{message}</p>}
       </div>
+
+      <AlertDialog open={Boolean(pendingReview)} onOpenChange={(open) => !open && closeReview()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{pendingReview ? reviewTitle(pendingReview.action) : "Review change"}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                {pendingReview ? (
+                  <>
+                    <p>
+                      Review the exact public-state change for <strong className="text-foreground">{pendingReview.name}</strong> before applying it.
+                    </p>
+                    <div className="rounded-lg border border-border bg-background/45 p-3 text-xs">
+                      <p><span className="font-semibold text-foreground">Edition:</span> {pendingReview.edition}</p>
+                      <p className="mt-1 break-all"><span className="font-semibold text-foreground">National Final ID:</span> {pendingReview.nationalFinalId}</p>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <div className="rounded-md border border-border/70 p-2">
+                          <p className="font-semibold text-foreground">Before</p>
+                          <p className="mt-1">Line-up: {publicStateLabel(pendingReview.currentLineupPublished)}</p>
+                          <p>Results: {publicStateLabel(pendingReview.currentResultsPublished)}</p>
+                        </div>
+                        <div className="rounded-md border border-border/70 p-2">
+                          <p className="font-semibold text-foreground">After</p>
+                          <p className="mt-1">Line-up: {publicStateLabel(pendingReview.nextLineupPublished)}</p>
+                          <p>Results: {publicStateLabel(pendingReview.nextResultsPublished)}</p>
+                        </div>
+                      </div>
+                    </div>
+                    {pendingReview.action === "publish_results" ? (
+                      <p className="font-semibold text-amber-100">
+                        Publishing results reveals the result publicly and also makes the line-up public.
+                      </p>
+                    ) : null}
+                    {pendingReview.action === "hide_lineup" ? (
+                      <p>
+                        Hiding the line-up also hides published results, matching the existing historical-NF publication rule.
+                      </p>
+                    ) : null}
+                    {pendingReview.action === "delete" ? (
+                      <p className="font-semibold text-destructive">
+                        Deletion is permanent for this manually added historical National Final.
+                      </p>
+                    ) : null}
+                    <p>
+                      This review still uses the existing historical-NF mutation authority. The live refetch below is a client safety guard, not server-side version/CAS, idempotency or operation-receipt parity.
+                    </p>
+                  </>
+                ) : null}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {pendingReview && reviewRequiresTyping ? (
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-muted-foreground">
+                Type <span className="text-foreground">{pendingReview.name}</span> exactly to confirm
+              </span>
+              <input
+                autoComplete="off"
+                value={reviewConfirmation}
+                onChange={(event) => setReviewConfirmation(event.target.value)}
+                className="min-h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+              />
+            </label>
+          ) : null}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={reviewBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!pendingReview || !reviewCanApply || reviewBusy}
+              onClick={(event) => {
+                event.preventDefault();
+                void applyHistoricalReview();
+              }}
+              className={pendingReview?.action === "delete" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : undefined}
+            >
+              {reviewBusy ? "Applying…" : pendingReview ? reviewActionLabel(pendingReview.action) : "Apply"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
