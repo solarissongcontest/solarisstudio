@@ -8,8 +8,6 @@ import {
 import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import { installTerraOsTeaserHeroHandoff } from "@/lib/terraos-teaser-hero-handoff";
 import { installTerraOsTeaserHostMicroMotion } from "@/lib/terraos-teaser-host-micro-motion";
-import { installTerraOsTeaserMobileHeroPeek } from "@/lib/terraos-teaser-mobile-hero-peek";
-import { installTerraOsTeaserMobileHeroSequencing } from "@/lib/terraos-teaser-mobile-hero-sequencing";
 
 const SCREENS = new Set<TerraOSTeaserScreen>([
   "home",
@@ -59,19 +57,13 @@ function TerraOSTeaserPreviewRoute() {
     const frame = window.frameElement as HTMLElement | null;
     if (!frame) return;
 
-    // TerraOSTeaserPreview's child effect installs the macro choreography first.
-    // These route-level refinements therefore run afterward. Mobile sequencing
-    // owns the opening composition, the peek keeps only the top edge of Home
-    // visible below the countdown, and the handoff becomes the final owner of
-    // the centre device when the first-look scene approaches.
+    // Keep the original mobile hero composition from the maintenance host:
+    // title + launch information + countdown + the three-phone product tableau.
+    // Only the subtle physical response and later Home-device handoff refine it.
     const cleanupMicroMotion = installTerraOsTeaserHostMicroMotion(frame);
-    const cleanupMobileHero = installTerraOsTeaserMobileHeroSequencing(frame);
-    const cleanupMobilePeek = installTerraOsTeaserMobileHeroPeek(frame);
     const cleanupHeroHandoff = installTerraOsTeaserHeroHandoff(frame);
     return () => {
       cleanupHeroHandoff();
-      cleanupMobilePeek();
-      cleanupMobileHero();
       cleanupMicroMotion();
     };
   }, [screen, chrome]);
