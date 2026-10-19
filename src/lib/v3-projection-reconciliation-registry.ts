@@ -92,12 +92,15 @@ const DOMAIN_REPAIR_CONTRACTS: Readonly<Record<string, V3ProjectionRepairContrac
     scope: "edition",
     incrementalPath: "confirmation.submitted/window_changed drive task and notification reconciliation.",
     rebuildPath: null,
-    verificationPath: "Re-read canonical Confirmation requirements/submissions for the edition.",
-    boundedBy: "edition-scoped rebuild contract still required",
+    verificationPath: "public.studio2_verify_confirmation_requirements(edition_id, 500)",
+    boundedBy:
+      "one edition per verification; at most 500 canonical requirement rows; verifier is read-only and no bulk canonical rebuild writer is declared",
     explicitFailureState: "reconciliation_required",
     evidence: [
       "supabase/migrations/20261015183000_v3_s5_confirmation_consequences.sql",
       ".github/scripts/v3-s5-confirmation-consequences-rehearsal.sh",
+      "supabase/migrations/20261018053000_v3_s6_confirmation_requirement_reconciliation.sql",
+      "src/lib/v3-s6-confirmation-requirement-reconciliation.contract.test.ts",
     ],
   },
   notification: {
