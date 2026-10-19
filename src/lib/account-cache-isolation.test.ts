@@ -1,7 +1,10 @@
 import { QueryClient } from "@tanstack/react-query";
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
-import { clearPrivateAccountQueries } from "./account-cache-isolation";
+import { describe, expect, it, vi } from "vitest";
+import {
+  clearPrivateAccountQueries,
+  createAccountCacheIsolationHandler,
+} from "./account-cache-isolation";
 
 describe("shared-browser private state", () => {
   it("removes A, preserves public data and prevents A's late response repopulating B", async () => {
@@ -24,7 +27,10 @@ describe("shared-browser private state", () => {
       { bootstrap: { identity: { userId: "A" } } },
     );
     let complete: (value: string) => void = () => undefined;
-    const pending = client.fetchQuery({ queryKey: ["country-confirmation-access", "A"], queryFn: () => new Promise<string>((resolve) => { complete = resolve; }) }).catch(() => undefined);
+    const pending = client.fetchQuery({
+      queryKey: ["country-confirmation-access", "A"],
+      queryFn: () => new Promise<string>((resolve) => { complete = resolve; }),
+    }).catch(() => undefined);
     clearPrivateAccountQueries(client);
     client.setQueryData(["mysolaris-jury-task", "B", "country", "edition"], "BBBB");
     complete("OLD ACCOUNT DATA");
@@ -47,6 +53,29 @@ describe("shared-browser private state", () => {
     expect(client.getQueryData(["mysolaris-jury-task", "B", "country", "edition"])).toBeUndefined();
     client.clear();
   });
+
+  it("reconciles the protected identity gate on remote sign-out and account change", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    const resetAttention = vi.fn();
+    const applySession = createAccountCacheIsolationHandler(client, resetAttention);
+
+    client.setQueryData(["authenticated-identity-gate"], { id: "A", email: "a@example.test" });
+    applySession({ id: "A" });
+    expect(client.getQueryData(["authenticated-identity-gate"])).toEqual({
+      id: "A",
+      email: "a@example.test",
+    });
+
+    applySession(null);
+    expect(client.getQueryData(["authenticated-identity-gate"])).toBeNull();
+
+    applySession({ id: "B" });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["authenticated-identity-gate"] });
+    expect(resetAttention).toHaveBeenCalledTimes(3);
+    client.clear();
+  });
+
   it("namespaces private jury observers and remounts the ballot when accounts change", () => {
     const context = readFileSync("src/components/mysolaris/MySolarisContext.tsx", "utf8");
     const jury = readFileSync("src/routes/jury-voting.tsx", "utf8");
