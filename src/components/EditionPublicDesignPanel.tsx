@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
+import { AdminConfirmSheet } from "@/components/admin/AdminUI";
 import { LiquidGlassBackdrop } from "@/components/LiquidGlassBackdrop";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
 import { useEditions } from "@/lib/data";
@@ -15,6 +16,21 @@ import {
 const supabase = typedSupabase as any;
 
 type GradientValue = { enabled: boolean; colors: string[]; angle: number };
+type PendingPublicDesignReview = {
+  editionId: string;
+  editionSlug: string;
+  editionName: string;
+  beforeThemeColors: Record<string, unknown>;
+  nextThemeColors: Record<string, unknown>;
+  beforeStyle: string;
+  nextStyle: PublicStyle;
+  beforeRadius: number;
+  nextRadius: number;
+  beforeFocalX: number;
+  nextFocalX: number;
+  beforeFocalY: number;
+  nextFocalY: number;
+};
 
 function validHex(value: unknown, fallback: string) {
   const text = typeof value === "string" ? value.trim() : "";
@@ -43,6 +59,35 @@ function styleLocksSquare(style: PublicStyle) {
   return style === "editorial" || style === "minimal";
 }
 
+function normalizedJson(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(normalizedJson);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, child]) => [key, normalizedJson(child)]),
+    );
+  }
+  return value;
+}
+
+function sameJson(left: unknown, right: unknown) {
+  return JSON.stringify(normalizedJson(left)) === JSON.stringify(normalizedJson(right));
+}
+
+function cloneRecord(value: Record<string, unknown>): Record<string, unknown> {
+  return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+}
+
+function savedPublicStyle(raw: Record<string, unknown>): PublicStyle {
+  const value = raw.publicStyle;
+  return EDITION_PUBLIC_STYLES.some((item) => item.id === value) ? (value as PublicStyle) : "cinematic";
+}
+
+function savedNumber(raw: Record<string, unknown>, key: string, fallback: number, min: number, max: number) {
+  return Number.isFinite(Number(raw[key])) ? Math.max(min, Math.min(max, Number(raw[key]))) : fallback;
+}
+
 export function EditionPublicDesignPanel() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const match = pathname.match(/^\/admin\/(?:design|edition-theme)\/([^/]+)\/?$/);
@@ -63,22 +108,24 @@ export function EditionPublicDesignPanel() {
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [host, setHost] = useState<HTMLElement | null>(null);
+  const [pendingReview, setPendingReview] = useState<PendingPublicDesignReview | null>(null);
 
   useEffect(() => {
-    const value = raw.publicStyle;
-    const nextStyle = EDITION_PUBLIC_STYLES.some((item) => item.id === value) ? (value as PublicStyle) : "cinematic";
+    const nextStyle = savedPublicStyle(raw);
     setStyle(nextStyle);
-    const savedRadius = Number.isFinite(Number(raw.publicRadius)) ? Math.max(0, Math.min(40, Number(raw.publicRadius))) : 24;
+    const savedRadius = savedNumber(raw, "publicRadius", 24, 0, 40);
     setRadius(styleLocksSquare(nextStyle) ? 0 : savedRadius);
-    setSurfaceStrength(Number.isFinite(Number(raw.publicSurfaceStrength)) ? Math.max(45, Math.min(100, Number(raw.publicSurfaceStrength))) : 82);
-    setHeroGlow(Number.isFinite(Number(raw.publicHeroGlow)) ? Math.max(0, Math.min(100, Number(raw.publicHeroGlow))) : 72);
-    setFocalX(Number.isFinite(Number(raw.publicFocalX)) ? Math.max(0, Math.min(100, Number(raw.publicFocalX))) : 50);
-    setFocalY(Number.isFinite(Number(raw.publicFocalY)) ? Math.max(0, Math.min(100, Number(raw.publicFocalY))) : 50);
+    setSurfaceStrength(savedNumber(raw, "publicSurfaceStrength", 82, 45, 100));
+    setHeroGlow(savedNumber(raw, "publicHeroGlow", 72, 0, 100));
+    setFocalX(savedNumber(raw, "publicFocalX", 50, 0, 100));
+    setFocalY(savedNumber(raw, "publicFocalY", 50, 0, 100));
     const accent = validHex(raw.accent, "#86c9d7");
     const surface = validHex(raw.surface, "#0d2634");
     const secondary = validHex(raw.backgroundSecondary, "#123a49");
     setAccentGradient(readGradient(raw.publicAccentGradient, accent, secondary));
     setSurfaceGradient(readGradient(raw.publicSurfaceGradient, surface, secondary));
+    setPendingReview(null);
+    setMessage(null);
   }, [edition?.id, edition?.theme_colors]);
 
   useEffect(() => {
@@ -105,23 +152,77 @@ export function EditionPublicDesignPanel() {
     else if (radius === 0) setRadius(24);
   };
 
-  const save = async () => {
+  const buildNextThemeColors = () => ({
+    ...raw,
+    publicStyle: style,
+    publicRadius: squareLocked ? 0 : Math.round(radius),
+    publicSurfaceStrength: Math.round(surfaceStrength),
+    publicHeroGlow: Math.round(heroGlow),
+    publicFocalX: Math.round(focalX),
+    publicFocalY: Math.round(focalY),
+    publicAccentGradient: accentGradient.enabled ? accentGradient : null,
+    publicSurfaceGradient: surfaceGradient.enabled ? surfaceGradient : null,
+  });
+
+  const requestSave = () => {
+    const next = buildNextThemeColors();
+    if (sameJson(raw, next)) {
+      setMessage("No public design changes to review.");
+      return;
+    }
+    setMessage(null);
+    setPendingReview({
+      editionId: edition.id,
+      editionSlug: edition.slug,
+      editionName: edition.name,
+      beforeThemeColors: cloneRecord(raw),
+      nextThemeColors: cloneRecord(next),
+      beforeStyle: savedPublicStyle(raw),
+      nextStyle: style,
+      beforeRadius: styleLocksSquare(savedPublicStyle(raw)) ? 0 : Math.round(savedNumber(raw, "publicRadius", 24, 0, 40)),
+      nextRadius: squareLocked ? 0 : Math.round(radius),
+      beforeFocalX: Math.round(savedNumber(raw, "publicFocalX", 50, 0, 100)),
+      nextFocalX: Math.round(focalX),
+      beforeFocalY: Math.round(savedNumber(raw, "publicFocalY", 50, 0, 100)),
+      nextFocalY: Math.round(focalY),
+    });
+  };
+
+  const applyReviewedDesign = async () => {
+    if (!pendingReview) return;
     setSaving(true);
     setMessage(null);
     try {
-      const next = {
-        ...raw,
-        publicStyle: style,
-        publicRadius: squareLocked ? 0 : Math.round(radius),
-        publicSurfaceStrength: Math.round(surfaceStrength),
-        publicHeroGlow: Math.round(heroGlow),
-        publicFocalX: Math.round(focalX),
-        publicFocalY: Math.round(focalY),
-        publicAccentGradient: accentGradient.enabled ? accentGradient : null,
-        publicSurfaceGradient: surfaceGradient.enabled ? surfaceGradient : null,
-      };
-      const { error } = await supabase.from("editions").update({ theme_colors: next }).eq("id", edition.id);
-      if (error) throw error;
+      const { data: liveEdition, error: readError } = await supabase
+        .from("editions")
+        .select("id,slug,name,theme_colors")
+        .eq("id", pendingReview.editionId)
+        .single();
+      if (readError) throw readError;
+
+      const liveThemeColors = liveEdition.theme_colors && typeof liveEdition.theme_colors === "object"
+        ? liveEdition.theme_colors
+        : {};
+      if (
+        liveEdition.slug !== pendingReview.editionSlug ||
+        liveEdition.name !== pendingReview.editionName ||
+        !sameJson(liveThemeColors, pendingReview.beforeThemeColors)
+      ) {
+        throw new Error(
+          "The edition identity or public design changed while this review was open. Nothing was changed. Refresh the Design workspace and review the current state before retrying.",
+        );
+      }
+
+      const { error: updateError } = await supabase
+        .from("editions")
+        .update({ theme_colors: pendingReview.nextThemeColors })
+        .eq("id", pendingReview.editionId)
+        .eq("slug", pendingReview.editionSlug)
+        .select("id")
+        .single();
+      if (updateError) throw updateError;
+
+      setPendingReview(null);
       await Promise.all([qc.invalidateQueries({ queryKey: ["editions"] }), qc.invalidateQueries({ queryKey: ["edition"] })]);
       setMessage("Public edition and show design saved.");
     } catch (error) {
@@ -132,85 +233,114 @@ export function EditionPublicDesignPanel() {
   };
 
   return createPortal(
-    <section className="admin-card rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 sm:p-5">
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <p className="admin-section-label">3 · Public page style</p>
-          <h3 className="mt-1 font-display text-lg font-bold">Edition & show layout</h3>
-          <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">These settings control the public edition page and its semi-final/final pages.</p>
-        </div>
-        <LayoutTemplate className="mt-1 size-5 shrink-0 text-primary" />
-      </div>
-
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        {EDITION_PUBLIC_STYLES.map((option) => (
-          <button key={option.id} type="button" onClick={() => chooseStyle(option.id)} aria-pressed={style === option.id} className={`overflow-hidden rounded-xl border text-left transition-colors ${style === option.id ? "border-primary/60 bg-primary/10" : "border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04]"}`}>
-            <StyleThumbnail style={option.id} />
-            <span className="block p-3">
-              <span className="text-sm font-semibold text-foreground">{option.label}</span>
-              <span className="mt-1 block text-[10px] font-bold uppercase tracking-[.12em] text-primary">{option.signature}</span>
-              <span className="mt-1.5 block text-[11px] leading-relaxed text-muted-foreground">{option.description}</span>
-            </span>
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-4 rounded-2xl border border-white/[0.08] bg-black/15 p-3">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div><p className="text-xs font-bold">Real-layout preview</p><p className="mt-1 text-[11px] text-muted-foreground">Uses the same composition and artwork rules as the public renderer.</p></div>
-          <div className="flex rounded-lg border border-white/[0.08] p-1" aria-label="Preview size">
-            {([ ["desktop", Monitor], ["tablet", Tablet], ["mobile", Smartphone] ] as const).map(([mode, Icon]) => <button key={mode} type="button" onClick={() => setPreviewMode(mode)} aria-label={`${mode} preview`} aria-pressed={previewMode === mode} className={`grid size-9 place-items-center rounded-md ${previewMode === mode ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}><Icon className="size-4" /></button>)}
+    <>
+      <section className="admin-card rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4 sm:p-5">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <p className="admin-section-label">3 · Public page style</p>
+            <h3 className="mt-1 font-display text-lg font-bold">Edition & show layout</h3>
+            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">These settings control the public edition page and its semi-final/final pages.</p>
           </div>
+          <LayoutTemplate className="mt-1 size-5 shrink-0 text-primary" />
         </div>
-        <EditionDesignPreview
-          style={style}
-          mode={previewMode}
-          artwork={edition.artwork_url ?? edition.logo}
-          logo={edition.logo}
-          title={edition.name}
-          focalX={focalX}
-          focalY={focalY}
-        />
-      </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <label className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
-          <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Surface roundness</span>
-          <input type="range" min="0" max="40" value={squareLocked ? 0 : radius} disabled={squareLocked} onChange={(event) => setRadius(Number(event.target.value))} className="mt-3 w-full disabled:opacity-40" />
-          <span className="mt-1 block text-xs text-foreground">{squareLocked ? "0px · fixed by this layout" : `${radius}px`}</span>
-        </label>
-        <label className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
-          <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Artwork focus X</span>
-          <input type="range" min="0" max="100" value={focalX} onChange={(event) => setFocalX(Number(event.target.value))} className="mt-3 w-full" />
-          <span className="mt-1 block text-xs text-foreground">{focalX}%</span>
-        </label>
-        <label className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
-          <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Artwork focus Y</span>
-          <input type="range" min="0" max="100" value={focalY} onChange={(event) => setFocalY(Number(event.target.value))} className="mt-3 w-full" />
-          <span className="mt-1 block text-xs text-foreground">{focalY}%</span>
-        </label>
-        <label className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
-          <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Surface strength</span>
-          <input type="range" min="45" max="100" value={surfaceStrength} onChange={(event) => setSurfaceStrength(Number(event.target.value))} className="mt-3 w-full" />
-          <span className="mt-1 block text-xs text-foreground">{surfaceStrength}%</span>
-        </label>
-        <label className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
-          <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Hero glow</span>
-          <input type="range" min="0" max="100" value={heroGlow} onChange={(event) => setHeroGlow(Number(event.target.value))} className="mt-3 w-full" />
-          <span className="mt-1 block text-xs text-foreground">{heroGlow}%</span>
-        </label>
-      </div>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {EDITION_PUBLIC_STYLES.map((option) => (
+            <button key={option.id} type="button" onClick={() => chooseStyle(option.id)} aria-pressed={style === option.id} className={`overflow-hidden rounded-xl border text-left transition-colors ${style === option.id ? "border-primary/60 bg-primary/10" : "border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04]"}`}>
+              <StyleThumbnail style={option.id} />
+              <span className="block p-3">
+                <span className="text-sm font-semibold text-foreground">{option.label}</span>
+                <span className="mt-1 block text-[10px] font-bold uppercase tracking-[.12em] text-primary">{option.signature}</span>
+                <span className="mt-1.5 block text-[11px] leading-relaxed text-muted-foreground">{option.description}</span>
+              </span>
+            </button>
+          ))}
+        </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        <GradientEditor label="Accent gradient" description="Highlights, progress, selected states and accent details." value={accentGradient} onChange={setAccentGradient} />
-        <GradientEditor label="Surface gradient" description="Large surfaces and edition atmosphere, without turning every content item into a gradient card." value={surfaceGradient} onChange={setSurfaceGradient} />
-      </div>
+        <div className="mt-4 rounded-2xl border border-white/[0.08] bg-black/15 p-3">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div><p className="text-xs font-bold">Real-layout preview</p><p className="mt-1 text-[11px] text-muted-foreground">Uses the same composition and artwork rules as the public renderer.</p></div>
+            <div className="flex rounded-lg border border-white/[0.08] p-1" aria-label="Preview size">
+              {([ ["desktop", Monitor], ["tablet", Tablet], ["mobile", Smartphone] ] as const).map(([mode, Icon]) => <button key={mode} type="button" onClick={() => setPreviewMode(mode)} aria-label={`${mode} preview`} aria-pressed={previewMode === mode} className={`grid size-9 place-items-center rounded-md ${previewMode === mode ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}><Icon className="size-4" /></button>)}
+            </div>
+          </div>
+          <EditionDesignPreview
+            style={style}
+            mode={previewMode}
+            artwork={edition.artwork_url ?? edition.logo}
+            logo={edition.logo}
+            title={edition.name}
+            focalX={focalX}
+            focalY={focalY}
+          />
+        </div>
 
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <button type="button" disabled={saving} onClick={() => void save()} className="admin-action-primary sm:min-w-52"><Sparkles className="size-4" /> {saving ? "Saving…" : "Save public page design"}</button>
-        {message ? <p role="status" aria-live="polite" className="text-xs text-muted-foreground">{message}</p> : null}
-      </div>
-    </section>, host,
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <label className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
+            <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Surface roundness</span>
+            <input type="range" min="0" max="40" value={squareLocked ? 0 : radius} disabled={squareLocked} onChange={(event) => setRadius(Number(event.target.value))} className="mt-3 w-full disabled:opacity-40" />
+            <span className="mt-1 block text-xs text-foreground">{squareLocked ? "0px · fixed by this layout" : `${radius}px`}</span>
+          </label>
+          <label className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
+            <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Artwork focus X</span>
+            <input type="range" min="0" max="100" value={focalX} onChange={(event) => setFocalX(Number(event.target.value))} className="mt-3 w-full" />
+            <span className="mt-1 block text-xs text-foreground">{focalX}%</span>
+          </label>
+          <label className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
+            <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Artwork focus Y</span>
+            <input type="range" min="0" max="100" value={focalY} onChange={(event) => setFocalY(Number(event.target.value))} className="mt-3 w-full" />
+            <span className="mt-1 block text-xs text-foreground">{focalY}%</span>
+          </label>
+          <label className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
+            <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Surface strength</span>
+            <input type="range" min="45" max="100" value={surfaceStrength} onChange={(event) => setSurfaceStrength(Number(event.target.value))} className="mt-3 w-full" />
+            <span className="mt-1 block text-xs text-foreground">{surfaceStrength}%</span>
+          </label>
+          <label className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
+            <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-muted-foreground">Hero glow</span>
+            <input type="range" min="0" max="100" value={heroGlow} onChange={(event) => setHeroGlow(Number(event.target.value))} className="mt-3 w-full" />
+            <span className="mt-1 block text-xs text-foreground">{heroGlow}%</span>
+          </label>
+        </div>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <GradientEditor label="Accent gradient" description="Highlights, progress, selected states and accent details." value={accentGradient} onChange={setAccentGradient} />
+          <GradientEditor label="Surface gradient" description="Large surfaces and edition atmosphere, without turning every content item into a gradient card." value={surfaceGradient} onChange={setSurfaceGradient} />
+        </div>
+
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <button type="button" disabled={saving} onClick={requestSave} className="admin-action-primary sm:min-w-52"><Sparkles className="size-4" /> {saving ? "Saving…" : "Review public page design"}</button>
+          {message ? <p role="status" aria-live="polite" className="text-xs text-muted-foreground">{message}</p> : null}
+        </div>
+      </section>
+
+      <AdminConfirmSheet
+        open={Boolean(pendingReview)}
+        onClose={() => {
+          if (!saving) setPendingReview(null);
+        }}
+        onConfirm={applyReviewedDesign}
+        title={pendingReview ? `Apply public design to ${pendingReview.editionName}?` : "Apply public design?"}
+        description={pendingReview ? (
+          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+              <p className="font-semibold text-foreground">{pendingReview.editionName}</p>
+              <p className="mt-2">Layout: <span className="text-foreground">{pendingReview.beforeStyle} → {pendingReview.nextStyle}</span></p>
+              <p>Surface roundness: <span className="text-foreground">{pendingReview.beforeRadius}px → {pendingReview.nextRadius}px</span></p>
+              <p>Artwork focus X: <span className="text-foreground">{pendingReview.beforeFocalX}% → {pendingReview.nextFocalX}%</span></p>
+              <p>Artwork focus Y: <span className="text-foreground">{pendingReview.beforeFocalY}% → {pendingReview.nextFocalY}%</span></p>
+            </div>
+            <p>The reviewed payload also freezes surface strength, hero glow and both gradient configurations exactly as previewed.</p>
+            <p>Before applying, Organizer re-reads the exact edition and refuses the save if its identity or any stored theme colour/design field changed while this review was open.</p>
+            <p>The underlying edition metadata update remains legacy direct-table authority. System #625 is still required for canonical version/CAS, idempotency, receipt and uncertain-outcome reconciliation.</p>
+          </div>
+        ) : null}
+        confirmLabel="Apply public design"
+        confirmationText={pendingReview?.editionName}
+        confirmationHint={pendingReview ? `Type ${pendingReview.editionName} to confirm` : undefined}
+        busy={saving}
+      />
+    </>, host,
   );
 }
 
