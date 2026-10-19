@@ -10,7 +10,7 @@ const migration = readFileSync(
 describe("V3 canonical show lifecycle command contract", () => {
   it("registers the migration under the S13 forward-only contract", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
-    expect(migration).toContain("'20261019211000_v3_show_lifecycle_commands'");
+    expect(migration).toContain("'v3.o6.show-lifecycle-commands'");
     expect(migration).toContain("'forward_fix_only'");
   });
 
