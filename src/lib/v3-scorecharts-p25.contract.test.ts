@@ -59,6 +59,43 @@ describe("Public V3 P25 Scorecharts", () => {
     expect(screen).not.toContain("televote_points");
   });
 
+  it("provides the P25 entry filter as shareable route state instead of browser-only state", () => {
+    const route = read("src/routes/shows/$showId.tsx");
+    const matrix = read("src/components/VotingMatrix.tsx");
+
+    expect(route).toContain("entry?: string;");
+    expect(route).toContain("validated.entry = search.entry;");
+    expect(route).toContain("const navigate = Route.useNavigate();");
+    expect(route).toContain("const handleScorechartEntryChange");
+    expect(route).toContain('tab: "matrix"');
+    expect(route).toContain("selectedEntryId={scorechartEntryId}");
+    expect(route).toContain("onSelectedEntryChange={handleScorechartEntryChange}");
+    expect(route).toContain("participantMap.has(search.entry)");
+    expect(matrix).toContain("Focus entry");
+    expect(matrix).toContain("onSelectedEntryChange");
+    expect(matrix).toContain("visibleRows");
+  });
+
+  it("keeps show analysis tabs refreshable and clears scorechart-only state when leaving the matrix", () => {
+    const route = read("src/routes/shows/$showId.tsx");
+
+    expect(route).toContain("const handleTabChange");
+    expect(route).toContain("tab: next");
+    expect(route).toContain("story: undefined");
+    expect(route).toContain('entry: next === "matrix" ? previous.entry : undefined');
+    expect(route).toContain("onChange={handleTabChange}");
+  });
+
+  it("keeps the detailed matrix an accessible table while mobile uses a simplified ranking first", () => {
+    const matrix = read("src/components/VotingMatrix.tsx");
+
+    expect(matrix).toContain('className="space-y-2 sm:hidden"');
+    expect(matrix).toContain("Open full voting matrix");
+    expect(matrix).toContain('<caption className="sr-only">');
+    expect(matrix).toContain('scope="col"');
+    expect(matrix).toContain('scope="row"');
+  });
+
   it("does not expose a browser-controlled Scorecharts rollout escape hatch", () => {
     const combined = [
       read("src/components/v3/V3ScorechartsGate.tsx"),
