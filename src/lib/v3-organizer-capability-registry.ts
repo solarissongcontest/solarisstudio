@@ -182,6 +182,7 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "trust-identity-access" ||
     id === "trust-rules-manager" ||
     id === "trust-interpretations" ||
+    id === "workspace-access-permissions" ||
     id === "workspace-country-accounts" ||
     id === "workspace-acceptance-test" ||
     id === "workspace-beta-coverage" ||
