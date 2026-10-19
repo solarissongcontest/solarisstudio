@@ -33,9 +33,12 @@ export const Route = createFileRoute("/_authenticated/admin/country-accounts")({
 
 type PendingAccountStatusReview = {
   userId: string;
+  countryId: string;
   countryName: string;
   email: string | null;
   currentStatus: "active" | "suspended";
+  currentSuspensionReason: string | null;
+  currentUpdatedAt: string;
   targetStatus: "active" | "suspended";
   reason: string;
 };
@@ -94,9 +97,12 @@ function CountryAccountsAdminPage() {
     setMessage(null);
     setPendingReview({
       userId: target.user_id,
+      countryId: target.country_id,
       countryName: target.country_name,
       email: target.email,
       currentStatus: target.status,
+      currentSuspensionReason: target.suspension_reason,
+      currentUpdatedAt: target.updated_at,
       targetStatus,
       reason: targetStatus === "suspended" ? reason.trim() : "",
     });
@@ -105,17 +111,27 @@ function CountryAccountsAdminPage() {
   async function confirmStatusReview() {
     if (!pendingReview) return;
     const review = pendingReview;
-    const liveAccount = data?.accounts.find((account) => account.user_id === review.userId) ?? null;
+    const refreshed = await refetchAccounts();
+    const refreshedData = refreshed.data;
 
+    if (refreshed.error || !refreshedData?.schemaReady) {
+      setPendingReview(null);
+      setMessage("Country account state could not be refreshed before apply. Nothing was changed. Reload the account and review the access change again.");
+      return;
+    }
+
+    const liveAccount = refreshedData.accounts.find((account) => account.user_id === review.userId) ?? null;
     if (
       !liveAccount ||
+      liveAccount.country_id !== review.countryId ||
       liveAccount.country_name !== review.countryName ||
       liveAccount.email !== review.email ||
-      liveAccount.status !== review.currentStatus
+      liveAccount.status !== review.currentStatus ||
+      liveAccount.suspension_reason !== review.currentSuspensionReason ||
+      liveAccount.updated_at !== review.currentUpdatedAt
     ) {
       setPendingReview(null);
-      await refetchAccounts();
-      setMessage("Country account state changed while the review was open. Reload the account and review the access change again.");
+      setMessage("Country account state changed while the review was open. Nothing was changed. Reload the account and review the access change again.");
       return;
     }
 
@@ -361,7 +377,7 @@ function CountryAccountsAdminPage() {
         }
         description={
           pendingReview ? (
-            <div className="space-y-3">
+            <div className="space-y-3" data-v3-organizer-country-account-status-review>
               <p>
                 Review the exact country account before changing delegation editing access.
               </p>
@@ -378,6 +394,9 @@ function CountryAccountsAdminPage() {
                   The owner will regain country-profile editing access. This does not change contest participation, entries or results.
                 </p>
               )}
+              <p className="text-xs leading-5 text-muted-foreground">
+                Organizer refreshes the account directory immediately before apply and refuses the change if the exact country, owner email, access state, suspension reason or account revision changed while this review was open. The existing status RPC is still not a version-bound/idempotent V3 command, so a narrow race remains until System provides canonical account-access authority and receipts.
+              </p>
             </div>
           ) : (
             "Review the account access change before continuing."
