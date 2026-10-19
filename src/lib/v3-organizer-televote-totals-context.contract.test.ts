@@ -22,13 +22,14 @@ describe("V3 Organizer Televote totals context", () => {
     expect(route).toContain("Reads and saves stay blocked until the contexts match");
   });
 
-  it("reasserts edition and show scope before any legacy aggregate write", () => {
+  it("reasserts edition, show and frozen review scope before any legacy aggregate write", () => {
     expect(route).toContain("validateEditionCommandScope");
     expect(route).toContain("routeEditionId: edition.id");
-    expect(route).toContain("commandEditionId: organizerEditionId");
-    expect(route).toContain("entityEditionId: selectedShow.edition_id");
+    expect(route).toContain("commandEditionId: review?.editionId ?? organizerEditionId");
+    expect(route).toContain("entityEditionId: review?.showEditionId ?? selectedShow.edition_id");
     expect(route).toContain("capabilityEditionId: organizerEditionId");
-    expect(route).toContain("const commandEditionId = assertTelevoteEditionScope()");
+    expect(route).toContain("review.editionId !== edition.id || review.showId !== selectedShow.id");
+    expect(route).toContain("const commandEditionId = assertTelevoteEditionScope(review)");
     expect(route).toContain("edition_id: commandEditionId");
     expect(route.indexOf("validateEditionCommandScope")).toBeLessThan(
       route.indexOf('supabase.from("televote_votes")'),
