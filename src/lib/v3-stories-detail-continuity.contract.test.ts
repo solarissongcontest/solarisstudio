@@ -48,9 +48,15 @@ describe("V3 Story detail continuity", () => {
   });
 
   it("keeps shared-link metadata generic instead of leaking Story content", () => {
-    expect(storyRoute).toContain("Edition Story — Solaris Studio");
-    expect(storyRoute).toContain("A reviewed edition timeline from the Solaris Song Contest archive.");
-    expect(storyRoute).not.toContain("story.title");
-    expect(storyRoute).not.toContain("story.introduction");
+    const headStart = storyRoute.indexOf("head: ({ params }) => {");
+    const componentStart = storyRoute.indexOf("component: EditionStoryPage");
+    expect(headStart).toBeGreaterThanOrEqual(0);
+    expect(componentStart).toBeGreaterThan(headStart);
+
+    const headBlock = storyRoute.slice(headStart, componentStart);
+    expect(headBlock).toContain("Edition Story — Solaris Studio");
+    expect(headBlock).toContain("A reviewed edition timeline from the Solaris Song Contest archive.");
+    expect(headBlock).not.toContain("story.title");
+    expect(headBlock).not.toContain("story.introduction");
   });
 });
