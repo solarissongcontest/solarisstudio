@@ -7,6 +7,54 @@ begin;
 -- operator, uses caller-stable operation/idempotency identity, preserves the
 -- existing second-operator approval semantics, and returns a durable receipt
 -- result that can be reconciled after an uncertain transport outcome.
+--
+-- IMPORTANT: show-scoped Jury/Televote/Results cycles are orthogonal to the
+-- coarse edition runtime. A multi-show edition therefore does not have to fake
+-- every old single-show edition state once per show. When the canonical Grand
+-- Final result is publicly published from an immutable result version, the same
+-- governed lifecycle command may reconcile an earlier contest-running runtime
+-- directly to `results`. Archive still remains strictly results -> post_edition
+-- -> archived.
+
+create or replace function private.v3_edition_final_results_ready(
+  p_edition_id uuid
+)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog, public, private
+as $ready$
+  with final_shows as (
+    select show_row.id
+    from public.shows show_row
+    where show_row.edition_id = p_edition_id
+      and lower(replace(replace(coalesce(show_row.kind, ''), '_', '-'), ' ', '-'))
+          in ('grand-final', 'final')
+  )
+  select
+    exists (select 1 from final_shows)
+    and not exists (
+      select 1
+      from final_shows final_show
+      where not exists (
+        select 1
+        from public.studio2_show_publication_controls control
+        join private.v3_result_versions result_version
+          on result_version.show_id = control.show_id
+         and result_version.version = control.source_result_version
+         and result_version.edition_id = control.edition_id
+        where control.show_id = final_show.id
+          and control.edition_id = p_edition_id
+          and control.state = 'public'
+          and control.source_result_version is not null
+          and result_version.result_row_count > 0
+      )
+    )
+$ready$;
+
+revoke all on function private.v3_edition_final_results_ready(uuid)
+  from public, anon, authenticated;
 
 create or replace function public.studio2_transition_edition_v3(
   p_edition_id uuid,
@@ -32,6 +80,7 @@ declare
   v_runtime public.studio2_edition_runtime%rowtype;
   v_from text;
   v_risk text;
+  v_reconciled_final_results boolean := false;
   v_approval public.studio2_transition_approval_requests%rowtype;
   v_result jsonb;
   v_server_time timestamptz;
@@ -114,6 +163,28 @@ begin
 
   v_from := v_runtime.state;
   v_risk := private.studio2_transition_risk(v_from, p_to);
+
+  -- The legacy edition state graph encoded one show cycle into the edition.
+  -- V3 instead treats show voting/results as orthogonal domain state. Permit one
+  -- reconciliation edge only after authoritative Grand Final publication proves
+  -- the contest has genuinely reached final Results. This is NOT a generic
+  -- fast-forward: no publication => no edge, and post_edition/archive cannot use
+  -- it to move backwards.
+  if v_risk is null
+     and p_to = 'results'
+     and v_from in (
+       'submissions',
+       'pre_show',
+       'rehearsals',
+       'jury_voting',
+       'live_show',
+       'televoting',
+       'vote_verification'
+     )
+     and private.v3_edition_final_results_ready(p_edition_id) then
+    v_risk := 'normal';
+    v_reconciled_final_results := true;
+  end if;
 
   if v_risk is null then
     raise exception using
@@ -218,7 +289,8 @@ begin
       'secondApproverUserId', case when v_risk = 'critical' then v_approval.approved_by else null end,
       'operationId', p_operation_id,
       'previousRuntimeVersion', p_expected_version,
-      'runtimeVersion', v_runtime.version
+      'runtimeVersion', v_runtime.version,
+      'reconciledFromFinalPublication', v_reconciled_final_results
     )
   );
 
@@ -256,6 +328,7 @@ begin
     'runtimeVersion', v_runtime.version,
     'serverTime', v_server_time,
     'replayed', false,
+    'reconciledFromFinalPublication', v_reconciled_final_results,
     'runtime', to_jsonb(v_runtime)
   );
 
@@ -278,6 +351,7 @@ begin
       'secondApproverUserId', case when v_risk = 'critical' then v_approval.approved_by else null end,
       'previousRuntimeVersion', p_expected_version,
       'runtimeVersion', v_runtime.version,
+      'reconciledFromFinalPublication', v_reconciled_final_results,
       'lifecycleAuthority', 'studio2_edition_runtime'
     ),
     1,
@@ -332,10 +406,13 @@ grant execute on function public.studio2_transition_edition_v3(
   uuid, text, text, uuid, bigint, uuid, text
 ) to authenticated, service_role;
 
+comment on function private.v3_edition_final_results_ready(uuid) is
+  'True only when every Grand Final/final show for the edition has public publication control pointing to a retained non-empty immutable V3 result version.';
+
 comment on function public.studio2_transition_edition_v3(
   uuid, text, text, uuid, bigint, uuid, text
 ) is
-  'Canonical V3 edition lifecycle mutation authority. Requires reviewed runtime version plus stable operation/idempotency identity; returns a durable reconciliable receipt result.';
+  'Canonical V3 edition lifecycle mutation authority. Requires reviewed runtime version plus stable operation/idempotency identity; may reconcile coarse runtime to results only after authoritative Grand Final publication; returns a durable reconciliable receipt result.';
 
 notify pgrst, 'reload schema';
 
