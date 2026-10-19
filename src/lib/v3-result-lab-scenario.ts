@@ -44,6 +44,7 @@ function boundedText(value: string | null, maxLength: number): string | null {
 }
 
 function juryWeight(value: string | null): number {
+  if (value == null || !value.trim()) return 50;
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 50;
   return Math.max(0, Math.min(100, Math.round(parsed / 5) * 5));
