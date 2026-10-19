@@ -22,6 +22,7 @@ source "$SCRIPT_DIR/v3-s14-stage-9-publication.sh"
 source "$SCRIPT_DIR/v3-s14-grand-final-leg.sh"
 source "$SCRIPT_DIR/v3-s14-grand-final-voting.sh"
 source "$SCRIPT_DIR/v3-s14-grand-final-results.sh"
+source "$SCRIPT_DIR/v3-s14-grand-final-publication.sh"
 
 OUTPUT_DIR="${V3_RELEASE_EVIDENCE_DIR:-v3-release-evidence}"
 mkdir -p "$OUTPUT_DIR"
@@ -115,14 +116,13 @@ run_stage stage-7-public-voting run_s14_stage_7_public_voting
 run_stage stage-8-results run_s14_stage_8_results
 run_stage stage-9-publication run_s14_stage_9_publication
 
-# Semifinal result/publication truth determines the Grand Final. Continue in the
-# same database state through Organizer qualifier promotion, governed final Jury
-# and Televote authority, and canonical Grand Final Results. System issue #651 is
-# resolved, so QA now executes the result verifier rather than preserving a stale
-# synthetic blocker.
+# Semifinal truth determines the Grand Final. Continue in the same local contest
+# through governed qualifier promotion, Jury/Televote, immutable final Results,
+# and exact-version public release.
 run_contest_extension grand-final-qualifier-bridge prepare_s14_grand_final_from_qualifiers
 run_contest_extension grand-final-voting run_s14_grand_final_voting
 run_contest_extension grand-final-results run_s14_grand_final_results
+run_contest_extension grand-final-publication run_s14_grand_final_publication
 
 PENDING_STAGES=(
   stage-10-archive
@@ -153,13 +153,9 @@ payload = {
         "grand-final-jury",
         "grand-final-televote",
         "grand-final-results",
+        "grand-final-publication",
     ],
-    "blockedContestExtensions": [
-        {
-            "id": "grand-final-publication",
-            "blocker": "prepared in child verifier; not yet part of this exact-head driver",
-        },
-    ],
+    "blockedContestExtensions": [],
     "implementedInvariants": [
         "confirmation-no-effective-duplicates",
         "entry-valid-revision",
@@ -170,6 +166,7 @@ payload = {
         "publication-final-version",
         "grand-final-televote-source-parity",
         "grand-final-result-reproducible",
+        "grand-final-publication-final-version",
     ],
     "implementedFailureInjections": [
         "network-after-commit",
@@ -190,8 +187,8 @@ PY
 EVIDENCE_WRITTEN=1
 
 if [[ "${V3_S14_ALLOW_PARTIAL:-0}" == "1" ]]; then
-  log "Partial S14 harness passed through Stage 9 and canonical Grand Final Results; Grand Final Publication and Archive remain pending."
+  log "Partial S14 harness passed through Stage 9 and exact-version Grand Final Publication; only Archive remains pending."
   exit 0
 fi
 
-fail "S14 is intentionally incomplete: Grand Final Publication and ${PENDING_STAGES[*]} remain pending. No release-grade s14-full-contest.json was written."
+fail "S14 is intentionally incomplete: ${PENDING_STAGES[*]} remains pending. No release-grade s14-full-contest.json was written."
