@@ -136,9 +136,7 @@ async function reconcileMediaReview(
       editionId,
       reviews: reviews(reconciliation.result, editionId),
       replayed: true,
-      serverTime: typeof reconciliation.completedAt === 'string'
-        ? reconciliation.completedAt
-        : new Date().toISOString(),
+      serverTime: text(reconciliation.completedAt, 'Media Review completion time'),
     };
   } catch {
     return null;
