@@ -17,12 +17,15 @@ describe("V3 Participate screen contract", () => {
     expect(participate).not.toContain("useMutation(");
   });
 
-  it("keeps required, upcoming, optional and completed presentation lanes distinct", () => {
+  it("keeps required, upcoming, waiting, optional and completed presentation lanes distinct", () => {
     expect(participate).toContain('title="Needs attention"');
     expect(participate).toContain('title="Next"');
+    expect(participate).toContain('title="Waiting"');
     expect(participate).toContain('title="Optional now"');
     expect(participate).toContain('title="Completed"');
     expect(participate).toContain("participate.needsAttention");
+    expect(participate).toContain("participate.next");
+    expect(participate).toContain("participate.waiting");
     expect(participate).toContain("participate.optionalNow");
   });
 
