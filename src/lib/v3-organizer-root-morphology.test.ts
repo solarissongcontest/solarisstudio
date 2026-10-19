@@ -25,8 +25,9 @@ describe("V3 Organizer root navigation morphology", () => {
     expect(resolveV3OrganizerTabbarMode("/admin/control-room", "compact")).toBe("full");
   });
 
-  it("preserves inherited compact/hidden policy for non-root workspaces", () => {
+  it("preserves inherited compact/minimal/hidden policy for non-root workspaces", () => {
     expect(resolveV3OrganizerTabbarMode("/admin/tasks/123", "compact")).toBe("compact");
+    expect(resolveV3OrganizerTabbarMode("/admin/show-mode", "minimal")).toBe("minimal");
     expect(resolveV3OrganizerTabbarMode("/admin/incidents/123", "hidden")).toBe("hidden");
     expect(isV3OrganizerRootPath("/admin/control-room/incident-1")).toBe(false);
   });
