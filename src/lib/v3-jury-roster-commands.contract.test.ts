@@ -127,9 +127,12 @@ describe("V3 Jury roster command authority", () => {
     expect(migration).toContain("array['jury.tasks']::text[]");
   });
 
-  it("keeps roster authority server-side and does not weaken the historical jury-vote delete protection", () => {
-    expect(migration).not.toContain("drop constraint if exists jury_votes_voter_id_fkey");
-    expect(migration).not.toContain("on delete cascade");
+  it("keeps roster authority server-side without weakening historical jury-vote protection", () => {
+    expect(migration).not.toContain("alter table public.jury_votes");
+    expect(migration).not.toContain("jury_votes_voter_id_fkey");
+    expect(migration).not.toMatch(
+      /references public\.voters\s*\(id\)[\s\S]{0,160}on delete cascade/i,
+    );
     expect(migration).toContain("revoke all on function public.studio2_apply_jury_roster_change(");
     expect(migration).toContain("to authenticated, service_role");
   });
