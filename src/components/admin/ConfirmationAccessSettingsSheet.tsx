@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { loadConfirmationResponseForEdition } from "@/integrations/confirmations/scoped-admin-reads";
 import {
   applyConfirmationResponseAccess,
@@ -36,7 +37,6 @@ export function ConfirmationAccessSettingsSheet({
   open,
   onClose,
   onApplied,
-  editionId,
   submissionId,
   country,
   editionLabel,
@@ -48,7 +48,6 @@ export function ConfirmationAccessSettingsSheet({
   open: boolean;
   onClose: () => void;
   onApplied: () => Promise<void> | void;
-  editionId: string;
   submissionId: string;
   country: string;
   editionLabel: string;
@@ -57,6 +56,7 @@ export function ConfirmationAccessSettingsSheet({
   locked: boolean;
   adminNotes: string | null;
 }) {
+  const { editionId: organizerEditionId } = useAdminContext();
   const reconcileOperation = useServerFn(reconcileSystemOperation);
   const [draftEditingAllowed, setDraftEditingAllowed] = useState(editingAllowed);
   const [draftLocked, setDraftLocked] = useState(locked);
@@ -102,6 +102,10 @@ export function ConfirmationAccessSettingsSheet({
       toast.message("No response-setting changes to review.");
       return;
     }
+    if (!organizerEditionId) {
+      toast.error("Select the exact Organizer edition before reviewing response access.");
+      return;
+    }
     setPendingReview({
       baseline: currentSnapshot,
       next: draftSnapshot,
@@ -119,6 +123,11 @@ export function ConfirmationAccessSettingsSheet({
     setSaving(true);
     let operationId: string | null = null;
     try {
+      if (!organizerEditionId) {
+        throw new Error("The Organizer edition context is unavailable. Nothing was changed.");
+      }
+      const editionId = organizerEditionId;
+
       // Preview owns the canonical response version. Reading the exact-edition
       // response after preview lets us compare the reviewed private-note state;
       // any change after preview still invalidates the expected version at apply.
@@ -279,7 +288,7 @@ export function ConfirmationAccessSettingsSheet({
             </button>
             <button
               type="button"
-              disabled={saving || !controlsChanged}
+              disabled={saving || !controlsChanged || !organizerEditionId}
               onClick={openReview}
               className="admin-action-primary"
             >
