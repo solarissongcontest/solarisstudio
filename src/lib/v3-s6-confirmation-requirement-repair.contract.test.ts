@@ -27,7 +27,7 @@ describe("System V3 S6 bounded Confirmation requirement repair", () => {
   it("declares the migration under the S13 forward-fix contract", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
     expect(migration).toContain(
-      "'20261019205000_v3_s6_confirmation_requirement_bounded_repair'",
+      "'v3.s6.confirmation-requirement-bounded-repair'",
     );
     expect(migration).toContain("'forward_fix_only'");
   });
