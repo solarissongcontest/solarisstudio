@@ -61,7 +61,8 @@ describe("V3 app shell migration contract", () => {
     expect(tabs).toContain("onPointerMove={moveDrag}");
     expect(tabs).toContain("onPointerCancel={cancelDrag}");
     expect(tabs).toContain("onLostPointerCapture={cancelDrag}");
-    expect(shell).toContain("void navigate({ to: destination.to as any })");
+    expect(shell).toContain("navigate({ to: v3PublicEntryHref(target) as any })");
+    expect(shell).toContain('runAppViewTransition(alreadyActive ? "pop" : "tab"');
     expect(shell).not.toContain("V3TopLevelSwipeSurface");
     expect(shell).not.toContain("swipePreviewSurfaces");
   });
