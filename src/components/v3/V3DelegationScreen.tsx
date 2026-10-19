@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Archive, BarChart3, BookOpen, GitCompareArrows, Vote } from "lucide-react";
+import { Archive, BarChart3, BookOpen, GitCompareArrows, Trophy, Vote } from "lucide-react";
 
 import type { V3CountryExploreProjection } from "@/lib/v3-explore-entities";
 import {
@@ -14,6 +14,7 @@ import {
 
 export type V3DelegationScreenProps = {
   projection: V3CountryExploreProjection;
+  hideResultSpoilers: boolean;
 };
 
 function statusPresentation(status: string | null): {
@@ -56,16 +57,21 @@ function EditionContextLink({
 }
 
 /**
- * Presentation-only public Delegation detail. Results, ranks, points, voting
- * analytics, publication decisions and following mutations remain owned by
+ * Presentation-only public Delegation detail. Result rows arrive only from the
+ * canonical publication-gated Results source and remain spoiler-protected here.
+ * Voting analytics, publication decisions and following mutations stay owned by
  * their canonical Solaris surfaces.
  */
-export function V3DelegationScreen({ projection }: V3DelegationScreenProps) {
+export function V3DelegationScreen({
+  projection,
+  hideResultSpoilers,
+}: V3DelegationScreenProps) {
   const currentStatus = projection.currentEntry
     ? statusPresentation(projection.currentEntry.status)
     : null;
   const wiki = projection.actions.wiki;
   const compare = projection.actions.compare;
+  const currentResult = projection.currentResult;
 
   return (
     <V3Screen>
@@ -137,6 +143,56 @@ export function V3DelegationScreen({ projection }: V3DelegationScreenProps) {
           </V3Surface>
         )}
       </V3Section>
+
+      {currentResult ? (
+        <V3Section title="Current result">
+          {hideResultSpoilers ? (
+            <V3ActionCard
+              title="Official result published"
+              description="Spoiler-free mode is hiding this delegation's placement and points until you deliberately open the result."
+              icon={Trophy}
+              tone="neutral"
+              to={currentResult.showHref}
+            />
+          ) : (
+            <V3Surface level="raised" className="p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="v3-kicker">{currentResult.showName}</p>
+                  <p className="mt-2 text-2xl font-black tracking-[-0.04em]">
+                    #{currentResult.rank} · {currentResult.points} pts
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/48">
+                    {currentResult.juryPoints != null ? (
+                      <span>Jury {currentResult.juryPoints} pts</span>
+                    ) : null}
+                    {currentResult.televotePoints != null ? (
+                      <span>Televote {currentResult.televotePoints} pts</span>
+                    ) : null}
+                  </div>
+                  {currentResult.editionHref ? (
+                    <Link
+                      to={currentResult.editionHref as any}
+                      className="mt-3 inline-block text-xs font-semibold text-white/55 hover:text-primary hover:underline"
+                    >
+                      {currentResult.editionLabel}
+                    </Link>
+                  ) : (
+                    <p className="mt-3 text-xs text-white/48">{currentResult.editionLabel}</p>
+                  )}
+                </div>
+                <V3StatusChip tone="success">Published</V3StatusChip>
+              </div>
+              <Link
+                to={currentResult.showHref as any}
+                className="mt-5 inline-flex min-h-11 items-center rounded-xl border border-white/10 bg-white/[0.045] px-4 text-sm font-semibold text-white/80 transition hover:bg-white/[0.08] hover:text-white"
+              >
+                Open official result
+              </Link>
+            </V3Surface>
+          )}
+        </V3Section>
+      ) : null}
 
       <V3Section
         title="Participation history"
@@ -225,7 +281,7 @@ export function V3DelegationScreen({ projection }: V3DelegationScreenProps) {
       </V3Section>
 
       <p className="px-1 text-xs leading-5 text-white/40">
-        Delegation detail is publication-safe. Placements, points and voting analysis remain authoritative in Results and dedicated analysis surfaces.
+        Delegation detail is publication-safe. Official result context comes from the canonical Results source; deeper voting analysis remains authoritative in Results and dedicated analysis surfaces.
       </p>
     </V3Screen>
   );
