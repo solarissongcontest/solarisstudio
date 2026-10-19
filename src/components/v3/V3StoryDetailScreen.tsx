@@ -43,9 +43,7 @@ export function V3StoryDetailScreen({
   if (hideSpoilers && !revealed) {
     return (
       <V3Screen>
-        <Link to="/stories" className="text-xs font-semibold text-primary hover:underline">
-          ← Story archive
-        </Link>
+        <StoryContextLinks editionSlug={story.editionSlug} />
         <V3Surface level="raised" className="mt-5 p-5" data-v3-story-spoiler-protected="">
           <div className="flex flex-wrap items-center gap-2">
             <V3StatusChip tone="warning">Spoiler-free</V3StatusChip>
@@ -69,18 +67,7 @@ export function V3StoryDetailScreen({
 
   return (
     <V3Screen>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link to="/stories" className="text-xs font-semibold text-primary hover:underline">
-          ← Story archive
-        </Link>
-        <Link
-          to="/editions/$slug"
-          params={{ slug: story.editionSlug }}
-          className="text-xs font-semibold text-primary hover:underline"
-        >
-          Open edition →
-        </Link>
-      </div>
+      <StoryContextLinks editionSlug={story.editionSlug} />
 
       <div className="mt-5">
         <V3ScreenHeader
@@ -174,6 +161,23 @@ export function V3StoryDetailScreen({
         </V3Section>
       ) : null}
     </V3Screen>
+  );
+}
+
+function StoryContextLinks({ editionSlug }: { editionSlug: string }) {
+  return (
+    <nav aria-label="Story context" className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <Link to="/stories" className="text-xs font-semibold text-primary hover:underline">
+        ← Story archive
+      </Link>
+      <Link
+        to="/editions/$slug"
+        params={{ slug: editionSlug }}
+        className="text-xs font-semibold text-primary hover:underline"
+      >
+        Open edition →
+      </Link>
+    </nav>
   );
 }
 
