@@ -99,7 +99,11 @@ export function createStudio2ControlRoom(
       if (source === studio2Persistence) {
         const expectedVersion =
           request.expectedVersion ?? reviewedRuntimeVersions.get(request.editionId) ?? null;
-        if (!Number.isInteger(expectedVersion) || (expectedVersion ?? 0) < 1) {
+        if (
+          typeof expectedVersion !== 'number' ||
+          !Number.isInteger(expectedVersion) ||
+          expectedVersion < 1
+        ) {
           throw new Error('Refresh the Control Room before changing edition state.');
         }
 
