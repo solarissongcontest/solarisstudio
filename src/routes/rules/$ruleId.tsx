@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, BookOpen } from "lucide-react";
 
-import { AppShell } from "@/components/AppShell";
 import { RuleDetailV5 } from "@/components/rules/RuleDetailV5";
+import { RulesRouteShell } from "@/components/rules/RulesRouteShell";
 import { usePublishedRulebook } from "@/lib/rules-governance";
 import { getRuleById } from "@/lib/ssc-rules-v4";
 
@@ -35,7 +35,7 @@ function RulePage() {
 
   if (!rule) {
     return (
-      <AppShell>
+      <RulesRouteShell resolvingTitle="Opening rule">
         <div className="mx-auto max-w-3xl py-10 sm:py-16">
           <div className="rounded-[2rem] border border-white/[0.08] bg-[linear-gradient(150deg,rgba(20,44,74,.84),rgba(5,18,39,.95))] p-6 text-center sm:p-10">
             <BookOpen className="mx-auto size-8 text-sky-200" />
@@ -58,15 +58,15 @@ function RulePage() {
             </Link>
           </div>
         </div>
-      </AppShell>
+      </RulesRouteShell>
     );
   }
 
   return (
-    <AppShell>
+    <RulesRouteShell resolvingTitle={`Opening Rule ${rule.id}`}>
       <div key={published.version}>
         <RuleDetailV5 rule={rule} />
       </div>
-    </AppShell>
+    </RulesRouteShell>
   );
 }

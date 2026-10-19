@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import {
+  BookOpen,
   CalendarDays,
   Flag,
   LockKeyhole,
@@ -318,26 +319,35 @@ export function V3EditionHubScreen({ projection }: V3EditionHubScreenProps) {
       <V3Section title="Stories" className="scroll-mt-24">
         <div id="edition-stories">
           {projection.story ? (
-            <V3Surface level="raised" className="p-5">
-              <p className="v3-kicker">Published story</p>
-              <h3 className="mt-2 text-xl font-bold tracking-[-0.03em]">{projection.story.title}</h3>
-              {projection.story.subtitle ? (
-                <p className="mt-1 text-sm text-white/55">{projection.story.subtitle}</p>
-              ) : null}
-              {projection.story.introduction ? (
-                <p className="mt-4 text-sm leading-6 text-white/62">{projection.story.introduction}</p>
-              ) : null}
-              {projection.story.items.length ? (
-                <div className="mt-5 grid gap-3">
-                  {projection.story.items.slice(0, 5).map((item) => (
-                    <V3Surface key={item.id} className="p-4">
-                      <p className="text-sm font-semibold">{item.headline}</p>
-                      <p className="mt-1 text-xs leading-5 text-white/48">{item.summary}</p>
-                    </V3Surface>
-                  ))}
-                </div>
-              ) : null}
-            </V3Surface>
+            <div className="grid gap-3">
+              <V3Surface level="raised" className="p-5">
+                <p className="v3-kicker">Published story</p>
+                <h3 className="mt-2 text-xl font-bold tracking-[-0.03em]">{projection.story.title}</h3>
+                {projection.story.subtitle ? (
+                  <p className="mt-1 text-sm text-white/55">{projection.story.subtitle}</p>
+                ) : null}
+                {projection.story.introduction ? (
+                  <p className="mt-4 text-sm leading-6 text-white/62">{projection.story.introduction}</p>
+                ) : null}
+                {projection.story.items.length ? (
+                  <div className="mt-5 grid gap-3">
+                    {projection.story.items.slice(0, 5).map((item) => (
+                      <V3Surface key={item.id} className="p-4">
+                        <p className="text-sm font-semibold">{item.headline}</p>
+                        <p className="mt-1 text-xs leading-5 text-white/48">{item.summary}</p>
+                      </V3Surface>
+                    ))}
+                  </div>
+                ) : null}
+              </V3Surface>
+              <V3ActionCard
+                title="Open full story"
+                description="Read the complete published edition timeline"
+                icon={BookOpen}
+                tone="neutral"
+                to={projection.story.href}
+              />
+            </div>
           ) : (
             <V3Surface className="p-4">
               <p className="text-sm font-semibold">No published edition story yet</p>
