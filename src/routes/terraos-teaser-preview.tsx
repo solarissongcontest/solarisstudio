@@ -8,6 +8,7 @@ import {
 import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import { installTerraOsTeaserHeroHandoff } from "@/lib/terraos-teaser-hero-handoff";
 import { installTerraOsTeaserHostMicroMotion } from "@/lib/terraos-teaser-host-micro-motion";
+import { installTerraOsTeaserMobileHeroSequencing } from "@/lib/terraos-teaser-mobile-hero-sequencing";
 
 const SCREENS = new Set<TerraOSTeaserScreen>([
   "home",
@@ -58,12 +59,15 @@ function TerraOSTeaserPreviewRoute() {
     if (!frame) return;
 
     // TerraOSTeaserPreview's child effect installs the macro choreography first.
-    // These route-level refinements therefore run afterward and may safely add
-    // optical response / handoff geometry without taking scroll ownership.
+    // These route-level refinements therefore run afterward. Mobile sequencing
+    // owns only the opening composition; the handoff remains the final owner of
+    // the centre device when the first-look scene approaches.
     const cleanupMicroMotion = installTerraOsTeaserHostMicroMotion(frame);
+    const cleanupMobileHero = installTerraOsTeaserMobileHeroSequencing(frame);
     const cleanupHeroHandoff = installTerraOsTeaserHeroHandoff(frame);
     return () => {
       cleanupHeroHandoff();
+      cleanupMobileHero();
       cleanupMicroMotion();
     };
   }, [screen, chrome]);
