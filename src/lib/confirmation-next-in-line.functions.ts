@@ -235,7 +235,7 @@ type V3NextInLineSubmitResult = {
   receiptId?: string;
   replayed?: boolean;
   unchanged?: boolean;
-  error?: unknown;
+  error?: string;
 };
 
 async function nextInLineIdempotencyKey(data: SubmitInput) {
