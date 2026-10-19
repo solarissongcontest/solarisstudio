@@ -256,11 +256,14 @@
       const path = location.pathname || "/";
       const initialView =
         path === "/" ? "home" :
+        path === "/televoting/results" || path === "/televoting/results/" ? "results" :
         path.startsWith("/participate") ||
         path.startsWith("/confirmations") ||
         path.startsWith("/jury-voting") ||
         path.startsWith("/televoting") ||
-        path.startsWith("/next-in-line") ? "participate" :
+        path.startsWith("/next-in-line") ||
+        path.startsWith("/my-solaris/entry") ||
+        path.startsWith("/integrity/report") ? "participate" :
         path.startsWith("/results") ||
         path.startsWith("/scorecharts") ||
         path.startsWith("/analysis") ||
@@ -294,7 +297,12 @@
         if (!item || typeof item.label !== "string") return null;
         const button = document.createElement("a");
         button.className = "row";
-        if (typeof item.path === "string" && item.path.startsWith("/") && !item.path.startsWith("//")) {
+        if (
+          typeof item.path === "string" &&
+          item.path.startsWith("/") &&
+          !item.path.startsWith("//") &&
+          !item.path.includes("\\")
+        ) {
           button.href = item.path;
         } else {
           button.href = "/explore";
