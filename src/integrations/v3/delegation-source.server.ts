@@ -1,9 +1,11 @@
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
+import { loadV3ResultsBundle } from "@/integrations/v3/results-source.server";
 import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
 import type { CountryIdentityModel } from "@/lib/country-semantic-model";
 import type { Edition } from "@/lib/data";
 import {
   buildV3CountryExploreProjection,
+  type V3CountryCurrentResult,
   type V3CountryExploreProjection,
 } from "@/lib/v3-explore-entities";
 
@@ -41,6 +43,11 @@ type EntryPayload = {
 type ProfilePayload = {
   country?: unknown;
   entries?: unknown;
+};
+
+type ParsedProfile = {
+  countryId: string;
+  identity: CountryIdentityModel;
 };
 
 export type V3DelegationServerBundle = {
@@ -84,7 +91,7 @@ function editionLabel(entry: EntryPayload): string {
 function parseProfile(
   value: unknown,
   currentEditionId: string | null,
-): CountryIdentityModel | null {
+): ParsedProfile | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const profile = value as ProfilePayload;
   if (!profile.country || typeof profile.country !== "object" || Array.isArray(profile.country)) {
@@ -92,6 +99,7 @@ function parseProfile(
   }
 
   const country = profile.country as CountryPayload;
+  const countryId = requiredString(country.id, "country id");
   const code = requiredString(country.short_code, "country code").toUpperCase();
   const name = requiredString(country.name, "country name");
   const entries = Array.isArray(profile.entries)
@@ -111,39 +119,84 @@ function parseProfile(
     : [];
 
   return {
-    code,
-    name,
-    nativeName: stringOrNull(country.native_name),
-    region: stringOrNull(country.region),
-    description: stringOrNull(country.description),
-    flag: {
-      src: stringOrNull(country.flag_image),
-      alt: `Flag of ${name}`,
-      aspectRatio: 1.5,
-    },
-    colors: {
-      primary: stringOrNull(country.accent_color),
-      accent: stringOrNull(country.accent_color),
-    },
-    facts: [],
-    statistics: [],
-    currentEntry: currentEditionId
-      ? (entries.find((entry) => entry.editionId === currentEditionId) ?? null)
-      : null,
-    history: entries,
-    geography: null,
-    actions: {
-      wiki: { label: "Wiki", href: `/wiki/${code}` },
-      compare: { label: "Compare", href: `/compare?a=${encodeURIComponent(code)}` },
+    countryId,
+    identity: {
+      code,
+      name,
+      nativeName: stringOrNull(country.native_name),
+      region: stringOrNull(country.region),
+      description: stringOrNull(country.description),
+      flag: {
+        src: stringOrNull(country.flag_image),
+        alt: `Flag of ${name}`,
+        aspectRatio: 1.5,
+      },
+      colors: {
+        primary: stringOrNull(country.accent_color),
+        accent: stringOrNull(country.accent_color),
+      },
+      facts: [],
+      statistics: [],
+      currentEntry: currentEditionId
+        ? (entries.find((entry) => entry.editionId === currentEditionId) ?? null)
+        : null,
+      history: entries,
+      geography: null,
+      actions: {
+        wiki: { label: "Wiki", href: `/wiki/${code}` },
+        compare: { label: "Compare", href: `/compare?a=${encodeURIComponent(code)}` },
+      },
     },
   };
 }
 
+async function loadCurrentPublishedResult(input: {
+  currentEdition: Edition | null;
+  countryId: string;
+  editionHrefById: ReadonlyMap<string, string>;
+}): Promise<V3CountryCurrentResult | null> {
+  if (!input.currentEdition) return null;
+
+  try {
+    const resultsBundle = await loadV3ResultsBundle();
+    if (
+      resultsBundle.input.publication !== "published" ||
+      resultsBundle.input.editionId !== input.currentEdition.id ||
+      !resultsBundle.input.showId
+    ) {
+      return null;
+    }
+
+    const row = resultsBundle.input.rows.find(
+      (candidate) => candidate.canonicalCountryId === input.countryId,
+    );
+    if (!row) return null;
+
+    return {
+      editionId: resultsBundle.input.editionId,
+      editionLabel: resultsBundle.input.editionName,
+      editionHref: input.editionHrefById.get(resultsBundle.input.editionId) ?? null,
+      showId: resultsBundle.input.showId,
+      showName: resultsBundle.input.showName,
+      showHref: `/shows/${encodeURIComponent(resultsBundle.input.showId)}?from=results`,
+      rank: row.rank,
+      points: row.points,
+      juryPoints: resultsBundle.input.juryPublished ? (row.juryPoints ?? null) : null,
+      televotePoints: resultsBundle.input.televotePublished ? (row.televotePoints ?? null) : null,
+    };
+  } catch {
+    // Current result is supplemental to the canonical Delegation identity.
+    // If the Results source is temporarily unavailable, keep the country page
+    // usable and fail closed by omitting the result summary.
+    return null;
+  }
+}
+
 /**
- * Publication-safe and bounded V3 Delegation source. The database RPC delegates
- * entry disclosure to public_safe_participants and returns one country only.
- * This server adapter owns no result, voting, ranking or participant mutation
- * logic and therefore cannot become a second archive authority.
+ * Publication-safe and bounded V3 Delegation source. The country-profile RPC
+ * remains identity/entry authority only. Current result context is composed
+ * separately from the canonical publication-gated Results read model, so the
+ * Delegation RPC never becomes a second result or voting authority.
  */
 export async function loadV3DelegationBundle(input: {
   code: string;
@@ -172,11 +225,21 @@ export async function loadV3DelegationBundle(input: {
     if (id && slug) editionHrefById.set(id, `/editions/${encodeURIComponent(slug)}`);
   }
 
-  const identity = parseProfile(profileResult.data, currentEdition?.id ?? null);
-  if (!identity) return null;
+  const profile = parseProfile(profileResult.data, currentEdition?.id ?? null);
+  if (!profile) return null;
+
+  const currentResult = await loadCurrentPublishedResult({
+    currentEdition,
+    countryId: profile.countryId,
+    editionHrefById,
+  });
 
   return {
-    projection: buildV3CountryExploreProjection(identity, editionHrefById),
+    projection: buildV3CountryExploreProjection(
+      profile.identity,
+      editionHrefById,
+      currentResult,
+    ),
     shell: {
       editionLabel: "Solaris Studio",
       phaseLabel: "Delegation",
