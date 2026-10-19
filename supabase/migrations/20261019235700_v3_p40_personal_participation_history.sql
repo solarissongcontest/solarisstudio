@@ -51,20 +51,31 @@ begin
       edition.name as edition_name,
       claim.country_id,
       country.short_code as country_code,
-      coalesce(identity.display_name, entity.display_name, country.name) as country_name,
+      coalesce(
+        identity.display_name,
+        (
+          select entity.display_name
+          from public.contest_entities entity
+          where entity.country_id = claim.country_id
+            and entity.edition_id = claim.edition_id
+            and entity.entity_type = 'global'
+          order by entity.id
+          limit 1
+        ),
+        country.name
+      ) as country_name,
       'hod'::text as role,
       null::timestamptz as started_at,
       null::timestamptz as ended_at,
       'hod_claim'::text as source,
       case
-        -- A newer canonical delegation assignment to another person makes the
-        -- caller's older self-claim explicitly superseded rather than current.
+        -- A canonical delegation assignment to another person makes the
+        -- caller's self-claim stale. Never present contradictory evidence as
+        -- current just because the older claim row still says `mine`.
         when assignment.person_id is not null
           and own_person.id is not null
           and assignment.person_id <> own_person.id
         then 'superseded'::text
-        when account.user_id is not null and edition.status <> 'completed'
-        then 'current'::text
         else 'historical'::text
       end as state,
       claim.updated_at as evidence_at,
@@ -77,19 +88,11 @@ begin
     left join public.country_edition_identities identity
       on identity.country_id = claim.country_id
      and identity.edition_id = claim.edition_id
-    left join public.contest_entities entity
-      on entity.country_id = claim.country_id
-     and entity.edition_id = claim.edition_id
-     and entity.entity_type = 'global'
     left join self_person own_person on true
     left join public.delegation_hod_assignments assignment
       on assignment.edition_id = claim.edition_id
      and assignment.country_id = claim.country_id
      and assignment.channel = 'delegation'
-    left join public.country_accounts account
-      on account.user_id = v_actor
-     and account.country_id = claim.country_id
-     and account.status = 'active'
     where claim.user_id = v_actor
       and claim.status = 'mine'
 
@@ -104,16 +107,24 @@ begin
       edition.name as edition_name,
       assignment.country_id,
       country.short_code as country_code,
-      coalesce(identity.display_name, entity.display_name, country.name) as country_name,
+      coalesce(
+        identity.display_name,
+        (
+          select entity.display_name
+          from public.contest_entities entity
+          where entity.country_id = assignment.country_id
+            and entity.edition_id = assignment.edition_id
+            and entity.entity_type = 'global'
+          order by entity.id
+          limit 1
+        ),
+        country.name
+      ) as country_name,
       'hod'::text as role,
       null::timestamptz as started_at,
       null::timestamptz as ended_at,
       'hod_assignment'::text as source,
-      case
-        when account.user_id is not null and edition.status <> 'completed'
-        then 'current'::text
-        else 'historical'::text
-      end as state,
+      'historical'::text as state,
       assignment.updated_at as evidence_at,
       10 as evidence_priority
     from public.delegation_hod_assignments assignment
@@ -127,14 +138,6 @@ begin
     left join public.country_edition_identities identity
       on identity.country_id = assignment.country_id
      and identity.edition_id = assignment.edition_id
-    left join public.contest_entities entity
-      on entity.country_id = assignment.country_id
-     and entity.edition_id = assignment.edition_id
-     and entity.entity_type = 'global'
-    left join public.country_accounts account
-      on account.user_id = v_actor
-     and account.country_id = assignment.country_id
-     and account.status = 'active'
     left join public.country_hod_edition_claims claim
       on claim.user_id = v_actor
      and claim.country_id = assignment.country_id
@@ -175,15 +178,28 @@ begin
       edition.name as edition_name,
       member.country_id,
       country.short_code as country_code,
-      coalesce(identity.display_name, entity.display_name, country.name) as country_name,
+      coalesce(
+        identity.display_name,
+        (
+          select entity.display_name
+          from public.contest_entities entity
+          where entity.country_id = member.country_id
+            and entity.edition_id = member.edition_id
+            and entity.entity_type = 'global'
+          order by entity.id
+          limit 1
+        ),
+        country.name
+      ) as country_name,
       'juror'::text as role,
       member.created_at as started_at,
       member.removed_at as ended_at,
       'jury_membership'::text as source,
       case
-        when member.status = 'assigned'
-          and member.removed_at is null
-          and edition.status <> 'completed'
+        -- Jury membership has an explicit canonical assigned/removed lifecycle,
+        -- unlike the historical edition status field, so it is safe to expose
+        -- current only from the membership record itself.
+        when member.status = 'assigned' and member.removed_at is null
         then 'current'::text
         else 'historical'::text
       end as state,
@@ -196,10 +212,6 @@ begin
     left join public.country_edition_identities identity
       on identity.country_id = member.country_id
      and identity.edition_id = member.edition_id
-    left join public.contest_entities entity
-      on entity.country_id = member.country_id
-     and entity.edition_id = member.edition_id
-     and entity.entity_type = 'global'
     where member.member_user_id = v_actor
   ),
   history_rows as (
