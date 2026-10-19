@@ -11,7 +11,7 @@ begin;
 -- S13 contract: forward-only service recovery surface. No destructive phase,
 -- bulk backfill, table rewrite, or automatic production invocation.
 select public.v3_register_migration_contract(
-  '20261019205000_v3_s6_confirmation_requirement_bounded_repair',
+  'v3.s6.confirmation-requirement-bounded-repair',
   1,
   'forward_fix_only',
   false,
