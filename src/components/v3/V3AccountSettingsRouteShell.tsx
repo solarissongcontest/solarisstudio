@@ -18,6 +18,7 @@ type V3AccountSettingsRouteShellProps = {
   title: string;
   description: string;
   children: ReactNode;
+  v3Children?: ReactNode;
 };
 
 function ResolvingAccountSettingsRoute({ title }: { title: string }) {
@@ -52,6 +53,7 @@ export function V3AccountSettingsRouteShell({
   title,
   description,
   children,
+  v3Children,
 }: V3AccountSettingsRouteShellProps) {
   const { isAppMode, platformResolved } = useSolarisApp();
   const session = useFanSession();
@@ -143,7 +145,7 @@ export function V3AccountSettingsRouteShell({
             </Link>
           </nav>
 
-          <div data-v3-account-settings-content="">{children}</div>
+          <div data-v3-account-settings-content="">{v3Children ?? children}</div>
         </div>
       </V3Screen>
     </V3AppShell>
