@@ -189,11 +189,11 @@ jobs:
             touch /tmp/v3-entry-legacy-seeded
           fi
 
-      - name: Apply feature migration set as an upgrade
+      - name: Apply additive feature migration set as an upgrade
         shell: bash
         run: |
           set -euo pipefail
-          rsync -a --delete "$GITHUB_WORKSPACE/supabase/migrations/" /tmp/solaris-main/supabase/migrations/
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" "$GITHUB_WORKSPACE" /tmp/solaris-main
           cd /tmp/solaris-main
           supabase migration up --local --include-all
           supabase migration list --local
