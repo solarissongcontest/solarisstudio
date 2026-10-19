@@ -111,6 +111,7 @@ create_local_user() {
 EDITION_A='18910000-0000-4000-8000-000000000001'
 EDITION_B='18910000-0000-4000-8000-000000000002'
 INCIDENT_ID='18910000-0000-4000-8000-000000000003'
+BLOCKER_ID='18910000-0000-4000-8000-000000000004'
 STALE_OPERATION='18910000-0000-4000-8000-000000000010'
 INVALID_OPERATION='18910000-0000-4000-8000-000000000011'
 UNAUTHORIZED_OPERATION='18910000-0000-4000-8000-000000000012'
@@ -119,7 +120,7 @@ ARCHIVE_OPERATION='18910000-0000-4000-8000-000000000013'
 AUTHORIZED_ID="$(create_local_user 's14-archive-guards-authorized@solaris.invalid' 'S14 Archive Guard Authorized')"
 UNAUTHORIZED_ID="$(create_local_user 's14-archive-guards-unauthorized@solaris.invalid' 'S14 Archive Guard Unauthorized')"
 
-log "Seed independent lifecycle and governance fixtures"
+log "Seed independent lifecycle, canonical blocker and governance fixtures"
 db_exec "
 update public.studio2_platform_operational_state
 set mode='normal', updated_at=now()
@@ -159,19 +160,38 @@ on conflict (id) do update
 set status='open',resolved_at=null,updated_at=now();
 
 select private.studio2_reconcile_all_organizer_tasks('$EDITION_A'::uuid);
+
+-- Seed the canonical S1 Edition task vocabulary explicitly. Current V5 task
+-- sources still mostly produce edition.transition.*, but an archived edition
+-- must also terminate the canonical edition.blocker if/when its producer exists.
+insert into public.studio2_organizer_tasks(
+ id,edition_id,source_kind,source_id,source_key,task_type,required_capability,
+ priority,state,title,description,href,resolution_predicate
+) values (
+ '$BLOCKER_ID','$EDITION_A','edition','archive-guard-blocker',
+ 'v3-s14-archive-guard:edition-blocker','edition.blocker','edition.manage',
+ 'high','open','Canonical edition blocker must end at Archive',
+ 'Synthetic canonical Edition task used only by the isolated S14 guard rehearsal.',
+ '/admin/control-room','{}'::jsonb
+)
+on conflict (source_key) do update
+set state='open',resolved_at=null,last_evaluated_at=now(),updated_at=now();
 "
 
 [[ "$(db_value "select state from public.studio2_organizer_tasks where source_kind='incident' and source_id='$INCIDENT_ID';")" == 'open' ]] || fail "incident governance task was not created"
+[[ "$(db_value "select state from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == 'open' ]] || fail "canonical edition.blocker fixture was not open before archive"
 
 log "Archive capability is mandatory"
 expect_user_failure "$UNAUTHORIZED_ID" "archive without edition.archive" "AUTHORIZATION" \
   "select public.studio2_transition_edition_v3('$EDITION_A'::uuid,'archived',null,null,3,'$UNAUTHORIZED_OPERATION'::uuid,'s14-guard-unauthorized');"
 [[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_A'::uuid;")" == 'post_edition' ]] || fail "unauthorized archive changed runtime"
+[[ "$(db_value "select state from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == 'open' ]] || fail "failed archive resolved edition.blocker prematurely"
 
 log "Stale runtime versions fail closed"
 expect_user_failure "$AUTHORIZED_ID" "archive with stale expected version" "VERSION_CONFLICT" \
   "select public.studio2_transition_edition_v3('$EDITION_A'::uuid,'archived',null,null,2,'$STALE_OPERATION'::uuid,'s14-guard-stale');"
 [[ "$(db_value "select count(*) from public.studio2_operation_receipts where operation_id='$STALE_OPERATION'::uuid;")" == '0' ]] || fail "failed stale transition left a processing receipt"
+[[ "$(db_value "select state from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == 'open' ]] || fail "stale archive resolved edition.blocker prematurely"
 
 log "Archive cannot skip post_edition"
 expect_user_failure "$AUTHORIZED_ID" "results directly to archived" "STATE_CHANGED" \
@@ -183,10 +203,11 @@ expect_service_failure "direct runtime archive mutation" "Archive transition mus
   "update public.studio2_edition_runtime set state='archived' where edition_id='$EDITION_B'::uuid;"
 [[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_B'::uuid;")" == 'results' ]] || fail "direct SQL bypassed archive guard"
 
-log "Canonical archive succeeds and governance work remains actionable"
+log "Canonical archive resolves Edition blocker while governance work remains actionable"
 ARCHIVE_JSON="$(as_user "$AUTHORIZED_ID" "select public.studio2_transition_edition_v3('$EDITION_A'::uuid,'archived',null,null,3,'$ARCHIVE_OPERATION'::uuid,'s14-guard-canonical-archive');")"
 [[ "$(printf '%s' "$ARCHIVE_JSON" | json_value state)" == 'archived' ]] || fail "canonical archive did not reach archived"
 as_service "select private.studio2_reconcile_all_organizer_tasks('$EDITION_A'::uuid);" >/dev/null
+[[ "$(db_value "select state from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == 'resolved' ]] || fail "archive left canonical edition.blocker actionable"
 [[ "$(db_value "select state from public.studio2_organizer_tasks where source_kind='incident' and source_id='$INCIDENT_ID';")" == 'open' ]] || fail "archive incorrectly resolved legitimate incident governance work"
 [[ "$(db_value "select count(*) from public.studio2_incidents where id='$INCIDENT_ID'::uuid and status='open';")" == '1' ]] || fail "archive mutated incident history/state"
 
