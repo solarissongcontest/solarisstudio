@@ -41,12 +41,16 @@ describe("V3 Organizer governance and account status evidence", () => {
     }
   });
 
-  it("keeps Combined Results outside this evidence claim", () => {
+  it("keeps Combined Results outside this governance/account evidence claim without freezing its own status", () => {
     const combined = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
       (item) => item.legacyId === "voting-combined-results",
     );
 
     expect(combined).toBeDefined();
-    expect(combined?.migrationStatus).toBe("planned");
+    expect(combined?.migrationStatus).toBe("building");
+    expect(["parity", "cutover", "retired"]).not.toContain(combined?.migrationStatus);
+    expect(MERGED_GOVERNANCE_AND_ACCOUNT_CAPABILITIES).not.toContain(
+      "voting-combined-results" as (typeof MERGED_GOVERNANCE_AND_ACCOUNT_CAPABILITIES)[number],
+    );
   });
 });
