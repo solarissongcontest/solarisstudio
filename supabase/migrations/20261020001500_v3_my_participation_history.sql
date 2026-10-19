@@ -116,8 +116,11 @@ begin
       evidence.ended_at,
       evidence.source,
       case
-        when edition.status in ('planning', 'active') then 'current'
-        else 'historical'
+        -- Existing Solaris databases historically used fewer lifecycle labels.
+        -- Closed terminal states are unambiguously historical; every other
+        -- nonterminal/future state remains current rather than being guessed.
+        when edition.status in ('completed', 'archived', 'cancelled') then 'historical'
+        else 'current'
       end as state
     from evidence
     join public.editions edition on edition.id = evidence.edition_id
@@ -166,9 +169,9 @@ end
 $history$;
 
 revoke all on function public.v3_my_participation_history()
-  from public, anon;
+  from public, anon, authenticated, service_role;
 grant execute on function public.v3_my_participation_history()
-  to authenticated, service_role;
+  to authenticated;
 
 comment on function public.v3_my_participation_history() is
   'Recipient-scoped V3 Me participation history derived from canonical edition HOD assignments, canonical jury identity and immutable jury submission evidence. It never infers past participation from current country ownership.';
