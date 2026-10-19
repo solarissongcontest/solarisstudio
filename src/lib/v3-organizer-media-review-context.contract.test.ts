@@ -20,15 +20,16 @@ describe("V3 Organizer Media Review exact-edition safety", () => {
     expect(route).toContain("review.editionId !== resolvedEditionId");
     expect(route).toContain("setSelectedKeys(new Set())");
     expect(route).toContain("setReviewReason('')");
-    expect(route).toContain("item.editionId !== commandEditionId");
+    expect(route).toContain("current.editionId !== review.commandEditionId");
+    expect(route).toContain("current.sourceFingerprint !== reviewed.sourceFingerprint");
     expect(service).toContain("mapReviewsForEdition(data, editionId)");
     expect(service).toContain("review.editionId !== editionId");
     expect(service).toContain("mapReviewsForEdition(data, input.editionId)");
   });
 
   it("binds review mutation and reconciliation to the captured edition", () => {
-    expect(route).toContain("selectedEdition.id !== commandEditionId || editionId !== commandEditionId");
-    expect(route).toContain("editionId: commandEditionId");
+    expect(route).toContain("selectedEdition.id !== review.commandEditionId || editionId !== review.commandEditionId");
+    expect(route).toContain("editionId: review.commandEditionId");
     expect(route).toContain("variables.commandEditionId");
     expect(route).toContain("if (editionId !== variables.commandEditionId) return;");
     expect(service).toContain("p_edition_id: input.editionId");
