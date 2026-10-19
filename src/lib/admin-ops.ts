@@ -14,6 +14,9 @@ export type AdminDeadline = {
   completed_at: string | null;
   notes: string | null;
   created_at: string;
+  updated_at?: string;
+  version?: number;
+  archived_at?: string | null;
 };
 
 export type AdminAuditRow = {
@@ -44,6 +47,24 @@ export type AdminNotification = {
   created_at: string;
 };
 
+type AdminDeadlineCommandResult = {
+  ok: boolean;
+  action: "create" | "update" | "complete" | "reopen" | "archive";
+  operationId: string;
+  deadlineId: string;
+  editionId: string;
+  showId?: string | null;
+  version: number;
+  state: "open" | "completed" | "archived";
+};
+
+type OperationReceipt = {
+  operationId?: string;
+  status?: "processing" | "succeeded" | "failed" | "uncertain";
+  result?: AdminDeadlineCommandResult | null;
+  error?: unknown;
+};
+
 const adminDb = supabase as any;
 
 function missingSchema(error: unknown) {
@@ -69,6 +90,7 @@ async function loadAdminDeadlines(editionId?: string | null) {
     .from("admin_deadlines")
     .select("*")
     .eq("edition_id", normalizedEditionId)
+    .is("archived_at", null)
     .order("due_at", { ascending: true });
 
   if (error) {
@@ -77,6 +99,41 @@ async function loadAdminDeadlines(editionId?: string | null) {
   }
 
   return (data ?? []) as AdminDeadline[];
+}
+
+async function reconcileAdminDeadlineOperation(operationId: string) {
+  const { data, error } = await adminDb.rpc("studio2_reconcile_operation", {
+    p_operation_id: operationId,
+  });
+  if (error) return null;
+
+  const receipt = (data ?? null) as OperationReceipt | null;
+  if (receipt?.status === "succeeded" && receipt.result?.ok) {
+    return receipt.result;
+  }
+
+  return null;
+}
+
+async function applyAdminDeadlineCommand(
+  args: Record<string, unknown> & {
+    p_operation_id: string;
+    p_edition_id: string;
+  },
+): Promise<AdminDeadlineCommandResult> {
+  const { data, error } = await adminDb.rpc("studio2_apply_admin_deadline", args);
+
+  if (!error && data) {
+    return data as AdminDeadlineCommandResult;
+  }
+
+  // A transport failure after the database committed is an uncertain outcome,
+  // not permission to blindly retry the mutation. Reconcile the stable operation
+  // identity first; semantic retry with the same idempotency key remains safe.
+  const reconciled = await reconcileAdminDeadlineOperation(args.p_operation_id);
+  if (reconciled) return reconciled;
+
+  throw error ?? new Error("Custom reminder operation did not return an authoritative result.");
 }
 
 export function useAdminDeadlines(editionId?: string | null) {
@@ -138,9 +195,6 @@ export function useAdminNotifications() {
   const user = useAuthenticatedUser();
 
   return useQuery({
-    // Keep notification cache identity-scoped. This also avoids asking Supabase
-    // Auth to resolve session state from inside a query observer while the
-    // Organizer tree is still mounting.
     queryKey: ["admin-notifications", user.id],
     queryFn: async () => {
       const { data, error } = await adminDb
@@ -170,7 +224,10 @@ export function useCreateAdminDeadline() {
 
   return useMutation({
     mutationFn: async (
-      payload: Omit<AdminDeadline, "id" | "created_at" | "completed_at">,
+      payload: Pick<
+        AdminDeadline,
+        "edition_id" | "show_id" | "kind" | "label" | "due_at" | "notes"
+      >,
     ) => {
       if (!organizerEditionId || payload.edition_id !== organizerEditionId) {
         throw new Error(
@@ -178,17 +235,35 @@ export function useCreateAdminDeadline() {
         );
       }
 
-      const { data, error } = await adminDb
-        .from("admin_deadlines")
-        .insert(payload)
-        .select("id, edition_id")
-        .single();
-      if (error) throw error;
-      if (!data || data.edition_id !== organizerEditionId) {
-        throw new Error("Custom reminder creation returned an unexpected edition scope.");
+      const operationId = crypto.randomUUID();
+      const result = await applyAdminDeadlineCommand({
+        p_action: "create",
+        p_edition_id: organizerEditionId,
+        p_operation_id: operationId,
+        p_idempotency_key: operationId,
+        p_deadline_id: null,
+        p_expected_version: 0,
+        p_show_id: payload.show_id,
+        p_kind: payload.kind,
+        p_label: payload.label,
+        p_due_at: payload.due_at,
+        p_notes: payload.notes,
+        p_correlation_id: operationId,
+      });
+
+      if (!result.ok || result.editionId !== organizerEditionId || result.state === "archived") {
+        throw new Error("Custom reminder creation returned an unexpected authoritative result.");
       }
+
+      return result;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-deadlines"] }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["admin-deadlines"] }),
+        qc.invalidateQueries({ queryKey: ["organizer-v3-projection"] }),
+        qc.invalidateQueries({ queryKey: ["admin-audit"] }),
+      ]);
+    },
   });
 }
 
@@ -203,43 +278,53 @@ export function useToggleAdminDeadline() {
         throw new Error("Custom reminder changes require an explicit Organizer edition scope.");
       }
 
-      const { data: current, error: currentError } = await adminDb
-        .from("admin_deadlines")
-        .select("id, edition_id, completed_at")
-        .eq("id", id)
-        .eq("edition_id", organizerEditionId)
-        .maybeSingle();
-      if (currentError) throw currentError;
-      if (!current || current.edition_id !== organizerEditionId) {
+      const { data: preview, error: previewError } = await adminDb.rpc(
+        "studio2_admin_deadline_preview",
+        {
+          p_edition_id: organizerEditionId,
+          p_deadline_id: id,
+        },
+      );
+      if (previewError) throw previewError;
+      if (!preview || preview.editionId !== organizerEditionId || preview.state === "archived") {
         throw new Error("This reminder is not part of the selected Organizer edition.");
       }
 
-      if (Boolean(current.completed_at) === complete) return;
+      if ((preview.state === "completed") === complete) return preview;
 
-      let update = adminDb
-        .from("admin_deadlines")
-        .update({ completed_at: complete ? new Date().toISOString() : null })
-        .eq("id", id)
-        .eq("edition_id", organizerEditionId);
+      const operationId = crypto.randomUUID();
+      const result = await applyAdminDeadlineCommand({
+        p_action: complete ? "complete" : "reopen",
+        p_edition_id: organizerEditionId,
+        p_operation_id: operationId,
+        p_idempotency_key: operationId,
+        p_deadline_id: id,
+        p_expected_version: preview.version,
+        p_show_id: null,
+        p_kind: null,
+        p_label: null,
+        p_due_at: null,
+        p_notes: null,
+        p_correlation_id: operationId,
+      });
 
-      update = current.completed_at
-        ? update.eq("completed_at", current.completed_at)
-        : update.is("completed_at", null);
-
-      const { data: updated, error } = await update
-        .select("id, edition_id, completed_at")
-        .maybeSingle();
-      if (error) throw error;
-      if (!updated) {
-        throw new Error(
-          "This reminder changed before your action was applied. Refresh and review the current state.",
-        );
+      if (
+        !result.ok ||
+        result.editionId !== organizerEditionId ||
+        (result.state === "completed") !== complete
+      ) {
+        throw new Error("Custom reminder state could not be reconciled after the operation.");
       }
-      if (updated.edition_id !== organizerEditionId || Boolean(updated.completed_at) !== complete) {
-        throw new Error("Custom reminder state could not be reconciled after the update.");
-      }
+
+      return result;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-deadlines"] }),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["admin-deadlines"] }),
+        qc.invalidateQueries({ queryKey: ["organizer-v3-projection"] }),
+        qc.invalidateQueries({ queryKey: ["admin-audit"] }),
+      ]);
+    },
   });
 }
 
