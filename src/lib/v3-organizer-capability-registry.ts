@@ -188,6 +188,8 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "trust-rules-manager" ||
     id === "trust-interpretations" ||
     id === "workspace-access-permissions" ||
+    id === "workspace-administration" ||
+    id === "workspace-organizer-guide" ||
     id === "workspace-country-accounts" ||
     id === "workspace-acceptance-test" ||
     id === "workspace-beta-coverage" ||
@@ -198,7 +200,9 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "workspace-command-assistant" ||
     id === "workspace-beta-3-feedback" ||
     id === "workspace-beta-2-feedback" ||
-    id === "workspace-beta-1-archive"
+    id === "workspace-beta-1-archive" ||
+    id === "workspace-system-health" ||
+    id === "workspace-delivery-jobs"
   ) {
     return "building";
   }
