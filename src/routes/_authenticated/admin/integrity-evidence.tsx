@@ -213,7 +213,7 @@ function ExpiredUploadCard({ item, onChanged }: { item: ExpiredEvidenceUpload; o
         onConfirm={async () => {
           await mutation.mutateAsync();
         }}
-        title={`Clean expired upload ${item.original_name}?`}
+        title={`Clean this expired unfinished upload ${item.original_name}?`}
         description={
           <div className="space-y-3 text-xs leading-relaxed text-muted-foreground" data-v3-organizer-expired-upload-cleanup-review>
             <p>
