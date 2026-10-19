@@ -3,7 +3,7 @@ import {
   v3OrganizerTabRoot,
 } from "@/lib/v3-organizer";
 
-export type V3OrganizerTabbarMode = "full" | "compact" | "hidden";
+export type V3OrganizerTabbarMode = "full" | "compact" | "minimal" | "hidden";
 
 function normalizeOrganizerPath(pathname: string) {
   if (!pathname || pathname === "/") return pathname;
@@ -19,8 +19,8 @@ export function isV3OrganizerRootPath(pathname: string) {
 
 /**
  * V3 owns morphology for the five canonical Organizer roots. Detail/workspace
- * routes inherit the legacy compact/hidden policy until their route owner
- * supplies a V3-specific presentation contract.
+ * routes inherit the legacy compact/minimal/hidden policy until their route
+ * owner supplies a V3-specific presentation contract.
  */
 export function resolveV3OrganizerTabbarMode(
   pathname: string,
