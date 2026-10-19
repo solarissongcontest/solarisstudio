@@ -17,6 +17,7 @@ source "$SCRIPT_DIR/v3-s14-stage-5-running-orders.sh"
 source "$SCRIPT_DIR/v3-s14-stage-6-jury.sh"
 source "$SCRIPT_DIR/v3-s14-stage-7-public-voting.sh"
 source "$SCRIPT_DIR/v3-s14-stage-7-genuine-deadline.sh"
+source "$SCRIPT_DIR/v3-s14-stage-7-diagnostics.sh"
 
 OUTPUT_DIR="${V3_RELEASE_EVIDENCE_DIR:-v3-release-evidence}"
 mkdir -p "$OUTPUT_DIR"
