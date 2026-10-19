@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowDown,
   ArrowLeft,
@@ -14,7 +15,7 @@ import {
   Trash2,
   UserRoundPlus,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 
@@ -33,6 +34,7 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { supabase } from "@/integrations/supabase/client";
+import { executeShowLineupOperation, type ShowLineupOperationAction } from "@/lib/admin-lineup.functions";
 import {
   editionLabel,
   useContestEntities,
@@ -89,6 +91,8 @@ function participantKey(participant: Pick<Participant, "id" | "country_id" | "co
 
 export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initialShow?: string }) {
   const qc = useQueryClient();
+  const executeLineup = useServerFn(executeShowLineupOperation);
+  const operationIdsRef = useRef(new Map<string, string>());
   const { data: edition, isLoading: loadingEdition } = useEdition(slug);
   const { data: shows = [], isLoading: loadingShows } = useShows(edition?.id);
   const { data: countries = [] } = useCountries();
@@ -209,22 +213,48 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     ]);
   }
 
-  async function setStage(nextStage: LineupStage) {
-    if (!activeShow) return;
-    const { error } = await (supabase.from("shows") as any).update({ lineup_stage: nextStage }).eq("id", activeShow.id);
-    if (error) throw error;
+  function operationKey(action: ShowLineupOperationAction) {
+    return activeShowId ? `${activeShowId}:${action}` : action;
+  }
+
+  function discardOperation(action: ShowLineupOperationAction) {
+    operationIdsRef.current.delete(operationKey(action));
+  }
+
+  async function runGovernedLineup(
+    action: ShowLineupOperationAction,
+    payload: Record<string, unknown>,
+    reason: string,
+  ) {
+    if (!edition || !activeShow) throw new Error("Choose an edition and show first.");
+    const key = operationKey(action);
+    const operationId = operationIdsRef.current.get(key) ?? crypto.randomUUID();
+    operationIdsRef.current.set(key, operationId);
+    const result = await executeLineup({
+      data: {
+        editionId: edition.id,
+        showId: activeShow.id,
+        action,
+        payload,
+        operationId,
+        idempotencyKey: `show-lineup:${action}:${operationId}`,
+        reason,
+      },
+    });
+    operationIdsRef.current.delete(key);
+    return result;
   }
 
   async function startAllocation() {
     if (!activeShow || !lifecycleParticipants.length) return;
     setBusy(true);
     try {
-      const { error: clearError } = await (supabase.from("participants") as any)
-        .update({ running_order: null, running_order_allocation: null })
-        .eq("show_id", activeShow.id);
-      if (clearError) throw clearError;
-      await setStage("allocation");
-      toast.success("Allocation draw started. No running order exists yet.");
+      const result = await runGovernedLineup(
+        "start_allocation",
+        {},
+        "Start allocation draw and clear any obsolete running-order state",
+      );
+      toast.success(`Allocation draw started${result.replayed ? " · reconciled" : ""}. No running order exists yet.`);
       await refresh();
     } catch (caught) {
       toast.error(reportSupabaseError(caught, "Allocation draw could not be started."));
@@ -234,6 +264,7 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
   }
 
   function assignAllocation(participantId: string, value: Allocation | null) {
+    discardOperation("save_allocation");
     setAllocationDraft((current) => ({ ...current, [participantId]: value ?? "" }));
     setAllocationDirty(true);
   }
@@ -247,11 +278,11 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     if (rows.some((row) => !row.allocation)) {
       throw new Error("Every entry needs an allocation before the draw can be saved.");
     }
-    const { error } = await (supabase as any).rpc("admin_set_show_allocations", {
-      _show_id: activeShow.id,
-      _allocations: rows,
-    });
-    if (error) throw error;
+    await runGovernedLineup(
+      "save_allocation",
+      { allocations: rows },
+      "Save the complete allocation draw",
+    );
     setAllocationDirty(false);
   }
 
@@ -275,15 +306,14 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     try {
       if (allocationDirty) await persistAllocationDraft();
       const ids = alphaParticipants.map((participant) => participant.id);
-      const { error } = await (supabase as any).rpc("admin_set_show_running_order", {
-        _show_id: activeShow.id,
-        _participant_ids: ids,
-      });
-      if (error) throw error;
-      await setStage("running_order");
+      const result = await runGovernedLineup(
+        "start_running_order",
+        { participantIds: ids },
+        "Start the running-order workspace from the complete allocation draw",
+      );
       setRunningOrderDraft(ids);
       setRunningOrderDirty(false);
-      toast.success("Running-order workspace started with an editable A–Z draft.");
+      toast.success(`Running-order workspace started${result.replayed ? " · reconciled" : ""} with an editable A–Z draft.`);
       await refresh();
     } catch (caught) {
       toast.error(reportSupabaseError(caught, "Running-order workspace could not be started."));
@@ -456,6 +486,7 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
       const { error } = await (supabase.from("participants") as any).update(patch).eq("id", entryDraft.id);
       if (error) throw error;
       if (requestedPosition != null) {
+        discardOperation("save_running_order");
         setRunningOrderDraft((current) => {
           const without = current.filter((id) => id !== entryDraft.id);
           const next = [...without];
@@ -476,6 +507,7 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
 
   function moveEntry(index: number, direction: -1 | 1) {
     if (stage !== "running_order") return;
+    discardOperation("save_running_order");
     setRunningOrderDraft((current) => {
       const nextIndex = index + direction;
       if (index < 0 || nextIndex < 0 || index >= current.length || nextIndex >= current.length) return current;
@@ -490,11 +522,11 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     if (!activeShow || !runningOrderDirty) return;
     setBusy(true);
     try {
-      const { error } = await (supabase as any).rpc("admin_set_show_running_order", {
-        _show_id: activeShow.id,
-        _participant_ids: runningOrderDraft,
-      });
-      if (error) throw error;
+      await runGovernedLineup(
+        "save_running_order",
+        { participantIds: runningOrderDraft },
+        "Save the complete running order",
+      );
       setRunningOrderDirty(false);
       toast.success("Running order saved");
       await refresh();
@@ -506,11 +538,13 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
   }
 
   function resetRunningOrderDraft() {
+    discardOperation("save_running_order");
     setRunningOrderDraft(runningParticipants.map((participant) => participant.id));
     setRunningOrderDirty(false);
   }
 
   function resetAllocationDraft() {
+    discardOperation("save_allocation");
     setAllocationDraft(
       Object.fromEntries(
         lifecycleParticipants.map((participant) => [
