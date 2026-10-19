@@ -20,6 +20,11 @@ import {
 } from "lucide-react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
+import {
+  EntryCreditsEditor,
+  entryCreditsSummary,
+  entryCreditsValidationMessage,
+} from "@/components/EntryCreditsEditor";
 import { GovernanceInlineReference, RulesApplyingHere } from "@/components/rules/GovernanceRules";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +60,7 @@ import {
   type AvailabilityReason,
   type ConfirmationPayload,
   type DateType,
+  type EntryCredit,
 } from "@/lib/ssc";
 
 const STEPS = ["Delegation", "Participation", "Selection", "Entry", "Release", "Review"] as const;
@@ -63,6 +69,7 @@ type KnownErrorKey =
   | "artist"
   | "country"
   | "country_account"
+  | "credits"
   | "final_clip_start"
   | "instagram_username"
   | "internal"
@@ -95,6 +102,24 @@ type DraftConflict = {
   server: DraftVersion;
   preferred: "device" | "server";
 };
+
+function normalizeFormPayload(roundId: string, payload: Partial<ConfirmationPayload>): ConfirmationPayload {
+  const normalized = {
+    ...emptyPayload(roundId),
+    ...payload,
+    round_id: roundId,
+  } as ConfirmationPayload;
+  normalized.credits = Array.isArray(payload.credits) ? payload.credits : [];
+  normalized.nf_entries = Array.isArray(payload.nf_entries)
+    ? payload.nf_entries.map((entry) => ({
+        artist: entry?.artist ?? "",
+        song_title: entry?.song_title ?? "",
+        song_url: entry?.song_url ?? "",
+        credits: Array.isArray(entry?.credits) ? entry.credits : [],
+      }))
+    : [];
+  return normalized;
+}
 
 function Field({
   label,
@@ -254,7 +279,7 @@ export function ConfirmationForm({
   const dirty = useRef(false);
 
   const applyDraftVersion = (version: DraftVersion) => {
-    setData({ ...version.payload, round_id: round.id });
+    setData(normalizeFormPayload(round.id, version.payload));
     setStep(Math.min(version.step ?? 0, STEPS.length - 1));
     setRestored(version.savedAt);
     setDraftConflict(null);
@@ -282,7 +307,7 @@ export function ConfirmationForm({
     void (async () => {
       const local = readLocalDraft<ConfirmationPayload>(round.id);
       if (local?.payload) {
-        setData({ ...local.payload, round_id: round.id });
+        setData(normalizeFormPayload(round.id, local.payload));
         setStep(Math.min(local.step ?? 0, STEPS.length - 1));
         setRestored(local.savedAt);
       }
@@ -299,14 +324,14 @@ export function ConfirmationForm({
           const localAt = local ? new Date(local.savedAt).getTime() : 0;
           if (parsed.payload) {
             const serverVersion: DraftVersion = {
-              payload: parsed.payload,
+              payload: normalizeFormPayload(round.id, parsed.payload),
               step: Math.min(parsed.step ?? 0, STEPS.length - 1),
               savedAt: remote.updated_at,
               source: "server",
             };
             if (local?.payload) {
               const deviceVersion: DraftVersion = {
-                payload: local.payload,
+                payload: normalizeFormPayload(round.id, local.payload),
                 step: Math.min(local.step ?? 0, STEPS.length - 1),
                 savedAt: local.savedAt,
                 source: "device",
@@ -317,17 +342,17 @@ export function ConfirmationForm({
               if (differs) {
                 const preferred = remoteAt > localAt ? "server" : "device";
                 const chosen = preferred === "server" ? serverVersion : deviceVersion;
-                setData({ ...chosen.payload, round_id: round.id });
+                setData(normalizeFormPayload(round.id, chosen.payload));
                 setStep(chosen.step);
                 setRestored(chosen.savedAt);
                 setDraftConflict({ device: deviceVersion, server: serverVersion, preferred });
               } else if (remoteAt > localAt) {
-                setData({ ...serverVersion.payload, round_id: round.id });
+                setData(normalizeFormPayload(round.id, serverVersion.payload));
                 setStep(serverVersion.step);
                 setRestored(serverVersion.savedAt);
               }
             } else {
-              setData({ ...serverVersion.payload, round_id: round.id });
+              setData(normalizeFormPayload(round.id, serverVersion.payload));
               setStep(serverVersion.step);
               setRestored(serverVersion.savedAt);
             }
@@ -487,6 +512,7 @@ export function ConfirmationForm({
       set("artist", "");
       set("song_title", "");
       set("song_url", "");
+      set("credits", []);
       set("preview_start", "");
       set("preview_end", "");
       set("final_clip_start", "");
@@ -500,6 +526,7 @@ export function ConfirmationForm({
     set("artist", entry.artist);
     set("song_title", entry.song_title);
     set("song_url", entry.song_url);
+    set("credits", entry.credits ?? []);
     if (winnerIndex !== index) {
       set("preview_start", "");
       set("preview_end", "");
@@ -510,18 +537,22 @@ export function ConfirmationForm({
     }
   }
 
-  function updateNfEntry(index: number, patch: { artist?: string; song_title?: string; song_url?: string }) {
+  function updateNfEntry(
+    index: number,
+    patch: { artist?: string; song_title?: string; song_url?: string; credits?: EntryCredit[] },
+  ) {
     const list = [...data.nf_entries];
     const old = list[index];
     if (!old) return;
     const wasWinner = sameWinner(data, old);
-    const updated = { ...old, ...patch };
+    const updated = { ...old, ...patch, credits: patch.credits ?? old.credits ?? [] };
     list[index] = updated;
     set("nf_entries", list);
     if (wasWinner) {
       set("artist", updated.artist);
       set("song_title", updated.song_title);
       set("song_url", updated.song_url);
+      set("credits", updated.credits);
     }
   }
 
@@ -538,6 +569,8 @@ export function ConfirmationForm({
       if (!data.artist.trim()) next.artist = "Artist is required.";
       if (!data.song_title.trim()) next.song_title = "Song title is required.";
       if (!isValidUrl(data.song_url)) next.song_url = "Enter a valid song link.";
+      const creditsError = entryCreditsValidationMessage(data.credits ?? []);
+      if (creditsError) next.credits = creditsError;
       if (parseTimestamp(data.preview_start) === null) next.preview_start = "Enter an MM:SS timestamp.";
       if (parseTimestamp(data.final_clip_start) === null) next.final_clip_start = "Enter an MM:SS timestamp.";
       if (data.replacement_video_required && !isValidUrl(data.replacement_video_url)) next.replacement_video_url = "Enter a valid replacement video link.";
@@ -553,6 +586,8 @@ export function ConfirmationForm({
           if (!entry.artist.trim() || !entry.song_title.trim()) next[`nf_entry_${index}`] = "Artist and song title are required.";
           else if (entry.song_url.trim() && !isValidUrl(entry.song_url)) next[`nf_entry_${index}`] = "Enter a valid song link.";
           else if (duplicateChecks[`nf_${index}`]) next[`nf_entry_${index}`] = duplicateMessage(duplicateChecks[`nf_${index}`] ?? null)!;
+          const creditsError = entryCreditsValidationMessage(entry.credits ?? []);
+          if (creditsError) next[`nf_entry_${index}_credits`] = creditsError;
         });
         if (winner) {
           if (!isValidUrl(data.song_url)) next.nf_winner_song_url = "The winning song needs a valid song link.";
@@ -810,6 +845,7 @@ export function ConfirmationForm({
                   const next = value as ConfirmationPayload["selection_method"];
                   if (next !== data.selection_method) {
                     set("artist", ""); set("song_title", ""); set("song_url", "");
+                    set("credits", []);
                     set("preview_start", ""); set("preview_end", "");
                     set("final_clip_start", ""); set("final_clip_end", "");
                     set("replacement_video_required", false); set("replacement_video_url", "");
@@ -831,6 +867,12 @@ export function ConfirmationForm({
             {!data.entry_unknown ? (
               <>
                 <SongDetails data={data} errors={errors} set={set} previewEnd={previewEnd} clipEnd={clipEnd} />
+                <EntryCreditsEditor
+                  credits={data.credits ?? []}
+                  onChange={(credits) => set("credits", credits)}
+                  error={errors.credits}
+                  idPrefix="internal-entry-credit"
+                />
                 <EntryEligibilityHelp />
               </>
             ) : null}
@@ -882,12 +924,25 @@ export function ConfirmationForm({
                           <Input placeholder="Song title" value={entry.song_title} onChange={(event) => updateNfEntry(index, { song_title: event.target.value })} />
                         </div>
                         <Input className="mt-2" placeholder="Song link (https://)" value={entry.song_url} onChange={(event) => updateNfEntry(index, { song_url: event.target.value })} />
+                        <div className="mt-4">
+                          <EntryCreditsEditor
+                            credits={entry.credits ?? []}
+                            onChange={(credits) => updateNfEntry(index, { credits })}
+                            error={errors[`nf_entry_${index}_credits`]}
+                            idPrefix={`nf-entry-${index}-credit`}
+                            compact
+                          />
+                        </div>
                         {errors[`nf_entry_${index}`] ? <p className="mt-2 text-xs font-medium text-destructive">{errors[`nf_entry_${index}`]}</p> : null}
                         {duplicateChecks[`nf_${index}`] ? <p className="mt-2 text-xs font-medium text-destructive">{duplicateMessage(duplicateChecks[`nf_${index}`] ?? null)}</p> : null}
                       </div>
                     );
                   })}
-                  <Button type="button" variant="outline" onClick={() => set("nf_entries", [...data.nf_entries, { artist: "", song_title: "", song_url: "" }])}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => set("nf_entries", [...data.nf_entries, { artist: "", song_title: "", song_url: "", credits: [] }])}
+                  >
                     <Plus className="size-4" /> Add entry
                   </Button>
                 </div>
@@ -918,6 +973,9 @@ export function ConfirmationForm({
                         <Field label="Winner artist"><Input value={winner.artist} onChange={(event) => updateNfEntry(winnerIndex, { artist: event.target.value })} /></Field>
                         <Field label="Winning song title"><Input value={winner.song_title} onChange={(event) => updateNfEntry(winnerIndex, { song_title: event.target.value })} /></Field>
                         <Field label="Winning song link" error={errors.nf_winner_song_url}><Input value={winner.song_url} onChange={(event) => updateNfEntry(winnerIndex, { song_url: event.target.value })} placeholder="https://" /></Field>
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                          Winner Credits are edited on the matching National Final entry above and stay synchronized with the canonical winner payload.
+                        </p>
                         <Field label="Post preview timestamp" hint="The 25-second song reveal / social media preview." error={errors.nf_winner_preview}>
                           <Input value={data.preview_start} onChange={(event) => set("preview_start", event.target.value)} placeholder="MM:SS" />
                           {previewEnd ? <p className="text-xs text-accent">Preview: {data.preview_start}–{previewEnd}</p> : null}
@@ -931,7 +989,8 @@ export function ConfirmationForm({
                         </Field>
                         {data.replacement_video_required ? (
                           <Field label="Replacement video link" error={errors.nf_winner_replacement}>
-                            <Input value={data.replacement_video_url} onChange={(event) => set("replacement_video_url", event.target.value)} placeholder="https://" /></Field>
+                            <Input value={data.replacement_video_url} onChange={(event) => set("replacement_video_url", event.target.value)} placeholder="https://" />
+                          </Field>
                         ) : null}
                       </div>
                     ) : null}
@@ -942,7 +1001,7 @@ export function ConfirmationForm({
 
             <EntryEligibilityHelp />
 
-                        <Field label="Expected National Final date" error={errors.nf_date_type}>
+            <Field label="Expected National Final date" error={errors.nf_date_type}>
               <DateChoice
                 value={data.nf_date_type}
                 onChange={(value) => set("nf_date_type", value)}
@@ -1002,6 +1061,7 @@ export function ConfirmationForm({
               <ReviewBlock title="Internal entry">
                 <SummaryRow label="Artist" value={data.entry_unknown ? "Not known yet" : data.artist} />
                 <SummaryRow label="Song" value={data.entry_unknown ? "Not known yet" : data.song_title} />
+                <SummaryRow label="Credits" value={data.entry_unknown ? "Not known yet" : entryCreditsSummary(data.credits ?? [])} />
               </ReviewBlock>
             ) : null}
             {data.selection_method === "national_final" ? (
@@ -1009,10 +1069,14 @@ export function ConfirmationForm({
                 <ReviewBlock title="National Final">
                   <SummaryRow label="Name" value={data.nf_name} />
                   <SummaryRow label="Entries" value={data.nf_entries_unknown ? "Not known yet" : data.nf_entries.map((entry) => `${entry.artist} — ${entry.song_title}`).join(" · ")} />
+                  {!data.nf_entries_unknown ? data.nf_entries.map((entry, index) => (
+                    <SummaryRow key={`nf-credit-review-${index}`} label={`Entry ${index + 1} credits`} value={entryCreditsSummary(entry.credits ?? [])} />
+                  )) : null}
                   <SummaryRow label="Winner" value={winner ? `${winner.artist} — ${winner.song_title}` : "Winner not known yet"} />
                 </ReviewBlock>
                 {winner ? (
                   <ReviewBlock title="NF winner technical details">
+                    <SummaryRow label="Credits" value={entryCreditsSummary(winner.credits ?? [])} />
                     <SummaryRow label="25s preview" value={`${data.preview_start}–${previewEnd}`} />
                     <SummaryRow label="90s final clip" value={`${data.final_clip_start}–${clipEnd}`} />
                     <SummaryRow label="Replacement video" value={data.replacement_video_required ? data.replacement_video_url : "Not needed"} />

@@ -14,17 +14,14 @@ describe("V3 Entry correction focus", () => {
       supported: true,
     });
     expect(parseV3EntryEditorFocus("#entry-section-artist")?.step).toBe(3);
+    expect(parseV3EntryEditorFocus("#entry-section-credits")).toEqual({
+      section: "credits",
+      step: 3,
+      supported: true,
+    });
     expect(parseV3EntryEditorFocus("#entry-section-media")?.step).toBe(3);
     expect(parseV3EntryEditorFocus("#entry-section-metadata")?.step).toBe(4);
     expect(parseV3EntryEditorFocus("#entry-section-review")?.step).toBe(5);
-  });
-
-  it("keeps Credits explicitly blocked until the canonical writer can persist it", () => {
-    expect(parseV3EntryEditorFocus("#entry-section-credits")).toEqual({
-      section: "credits",
-      step: null,
-      supported: false,
-    });
   });
 
   it("rejects unknown hashes and only appends allowlisted presentation focus", () => {
@@ -37,5 +34,18 @@ describe("V3 Entry correction focus", () => {
     expect(appendV3EntryEditorFocus("/confirmations/edit/server-token", null)).toBe(
       "/confirmations/edit/server-token",
     );
+  });
+
+  it("fails closed when a focus fragment is asked to decorate a non-canonical edit URL", () => {
+    for (const href of [
+      "https://evil.invalid/confirmations/edit/token",
+      "//evil.invalid/confirmations/edit/token",
+      "/confirmations/administrator/token",
+      "/confirmations/edit/",
+      "/confirmations/edit/token/extra",
+      "/confirmations\\edit\\token",
+    ]) {
+      expect(appendV3EntryEditorFocus(href, "credits")).toBe(href);
+    }
   });
 });

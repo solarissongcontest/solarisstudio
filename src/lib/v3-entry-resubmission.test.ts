@@ -18,6 +18,7 @@ function version(
     restoredFromSubmissionVersionId: null,
     artist: "Artist",
     songTitle: "Song",
+    credits: [],
     recordedAt: `2026-10-${String(10 + revision).padStart(2, "0")}T12:00:00.000Z`,
     reviews: [],
     ...overrides,
@@ -64,7 +65,78 @@ describe("V3 Entry resubmission diff", () => {
           currentValue: "Song",
           changed: false,
         },
+        {
+          field: "credits",
+          label: "Credits",
+          previousValue: null,
+          currentValue: null,
+          changed: false,
+        },
       ],
+    });
+  });
+
+  it("shows a Credits-only immutable revision without manufacturing browser state", () => {
+    const diff = deriveV3EntryResubmissionDiff([
+      version(1, {
+        credits: [{ role: "composer", name: "Alice Example" }],
+      }),
+      version(2, {
+        credits: [
+          { role: "composer", name: "Alice Example" },
+          { role: "lyricist", name: "Bob Example" },
+        ],
+      }),
+    ]);
+
+    expect(diff?.fields).toEqual([
+      {
+        field: "artist",
+        label: "Artist",
+        previousValue: "Artist",
+        currentValue: "Artist",
+        changed: false,
+      },
+      {
+        field: "songTitle",
+        label: "Song",
+        previousValue: "Song",
+        currentValue: "Song",
+        changed: false,
+      },
+      {
+        field: "credits",
+        label: "Credits",
+        previousValue: "composer: Alice Example",
+        currentValue: "composer: Alice Example · lyricist: Bob Example",
+        changed: true,
+      },
+    ]);
+  });
+
+  it("uses the restored immutable revision's historical Credits as diff evidence", () => {
+    const diff = deriveV3EntryResubmissionDiff([
+      version(1, {
+        credits: [{ role: "composer", name: "Original Composer" }],
+      }),
+      version(2, {
+        credits: [{ role: "composer", name: "Replacement Composer" }],
+      }),
+      version(3, {
+        source: "organizer_restore",
+        restoredFromSubmissionVersionId: "submission-version-1",
+        credits: [{ role: "composer", name: "Original Composer" }],
+      }),
+    ]);
+
+    expect(diff?.previousRevision).toBe(2);
+    expect(diff?.currentRevision).toBe(3);
+    expect(diff?.fields.find((field) => field.field === "credits")).toEqual({
+      field: "credits",
+      label: "Credits",
+      previousValue: "composer: Replacement Composer",
+      currentValue: "composer: Original Composer",
+      changed: true,
     });
   });
 
@@ -72,12 +144,16 @@ describe("V3 Entry resubmission diff", () => {
     expect(deriveV3EntryResubmissionDiff([version(1)])).toBeNull();
   });
 
-  it("does not manufacture fields that are absent from the Entry version projection", () => {
+  it("limits the comparison to fields actually present in the immutable Entry projection", () => {
     const diff = deriveV3EntryResubmissionDiff([
       version(1, { artist: "A", songTitle: "S" }),
       version(2, { artist: "A", songTitle: "S2" }),
     ]);
 
-    expect(diff?.fields.map((field) => field.field)).toEqual(["artist", "songTitle"]);
+    expect(diff?.fields.map((field) => field.field)).toEqual([
+      "artist",
+      "songTitle",
+      "credits",
+    ]);
   });
 });
