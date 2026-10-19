@@ -5,7 +5,10 @@ import {
   requireSolarisOrganizerServer,
 } from "@/integrations/supabase/organizer.server";
 
-type OperationIdentity = { operationId?: string; idempotencyKey?: string };
+type OperationIdentity = {
+  operationId?: string;
+  idempotencyKey?: string;
+};
 
 type OperationResult = {
   ok: true;
@@ -22,7 +25,9 @@ type ReconcileEnvelope = {
 };
 
 function requiredId(value: unknown, label: string) {
-  if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required`);
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`${label} is required`);
+  }
   return value.trim();
 }
 
@@ -41,7 +46,7 @@ async function organizerClient() {
   return createSolarisAuthenticatedClientServer() as any;
 }
 
-function identity(data: OperationIdentity, prefix: string) {
+function operationIdentity(data: OperationIdentity, prefix: string) {
   const operationId = data.operationId ?? crypto.randomUUID();
   return {
     operationId,
@@ -49,17 +54,27 @@ function identity(data: OperationIdentity, prefix: string) {
   };
 }
 
-async function reconcileKnown(client: any, operationId?: string): Promise<OperationResult | null> {
+async function reconcileKnownOperation(
+  client: any,
+  operationId?: string,
+): Promise<OperationResult | null> {
   if (!operationId) return null;
-  const response = await client.rpc("studio2_reconcile_operation", { p_operation_id: operationId });
+
+  const response = await client.rpc("studio2_reconcile_operation", {
+    p_operation_id: operationId,
+  });
   if (response.error) {
     if (response.error.code === "P0002") return null;
     throw new Error(response.error.message);
   }
+
   const envelope = (response.data ?? {}) as ReconcileEnvelope;
   if (envelope.status !== "succeeded" || !envelope.result) {
-    throw new Error(`The existing operation is ${envelope.status ?? "not complete"}. Reconcile it before retrying.`);
+    throw new Error(
+      `The existing operation is ${envelope.status ?? "not complete"}. Reconcile it before retrying.`,
+    );
   }
+
   return {
     ok: true,
     operationId: envelope.operationId ?? operationId,
@@ -68,15 +83,24 @@ async function reconcileKnown(client: any, operationId?: string): Promise<Operat
   };
 }
 
-function completed(data: unknown, fallbackOperationId: string): OperationResult {
+function completedOperation(
+  data: unknown,
+  fallbackOperationId: string,
+): OperationResult {
   const envelope = (data ?? {}) as ReconcileEnvelope;
   const result = envelope.result ?? {};
-  if (result.ok !== true) throw new Error("The canonical operation returned an incomplete receipt.");
+  if (result.ok !== true) {
+    throw new Error("The canonical contest-identity operation returned an incomplete receipt.");
+  }
+
+  const resultOperationId =
+    typeof result.operationId === "string" ? result.operationId : undefined;
+
   return {
     ok: true,
     operationId:
       (typeof envelope.operationId === "string" && envelope.operationId) ||
-      (typeof result.operationId === "string" && result.operationId) ||
+      resultOperationId ||
       fallbackOperationId,
     replayed: Boolean(envelope.replayed),
     result,
@@ -84,7 +108,10 @@ function completed(data: unknown, fallbackOperationId: string): OperationResult 
 }
 
 export const ensureGlobalContestEntity = createServerFn({ method: "POST" })
-  .inputValidator((data: { editionId: string; countryId: string } & OperationIdentity) => ({
+  .inputValidator((data: {
+    editionId: string;
+    countryId: string;
+  } & OperationIdentity) => ({
     editionId: requiredId(data?.editionId, "Edition"),
     countryId: requiredId(data?.countryId, "Country"),
     operationId: optionalId(data?.operationId),
@@ -92,18 +119,23 @@ export const ensureGlobalContestEntity = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data }): Promise<OperationResult> => {
     const client = await organizerClient();
-    const recovered = await reconcileKnown(client, data.operationId);
+
+    // If a previous request may have succeeded but its response was lost, the
+    // receipt is authoritative. Reconcile before attempting another write.
+    const recovered = await reconcileKnownOperation(client, data.operationId);
     if (recovered) return recovered;
-    const op = identity(data, "contest-entity:global:ensure");
+
+    const operation = operationIdentity(data, "contest-entity:global:ensure");
     const response = await client.rpc("v3_ensure_global_contest_entity", {
       p_edition_id: data.editionId,
       p_country_id: data.countryId,
-      p_operation_id: op.operationId,
-      p_idempotency_key: op.idempotencyKey,
-      p_correlation_id: op.operationId,
+      p_operation_id: operation.operationId,
+      p_idempotency_key: operation.idempotencyKey,
+      p_correlation_id: operation.operationId,
     });
     if (response.error) throw new Error(response.error.message);
-    return completed(response.data, op.operationId);
+
+    return completedOperation(response.data, operation.operationId);
   });
 
 export const executeCustomContestEntityOperation = createServerFn({ method: "POST" })
@@ -118,6 +150,7 @@ export const executeCustomContestEntityOperation = createServerFn({ method: "POS
     if (action !== "create" && action !== "update" && action !== "delete") {
       throw new Error("Choose a valid custom identity operation");
     }
+
     return {
       editionId: requiredId(data?.editionId, "Edition"),
       entityId: optionalId(data?.entityId),
@@ -130,112 +163,58 @@ export const executeCustomContestEntityOperation = createServerFn({ method: "POS
   })
   .handler(async ({ data }): Promise<OperationResult> => {
     const client = await organizerClient();
-    const recovered = await reconcileKnown(client, data.operationId);
+
+    const recovered = await reconcileKnownOperation(client, data.operationId);
     if (recovered) return recovered;
-    const op = identity(data, `contest-entity:custom:${data.action}`);
+
+    const operation = operationIdentity(
+      data,
+      `contest-entity:custom:${data.action}`,
+    );
 
     let expectedUpdatedAt: string | null = null;
     if (data.action !== "create") {
       const entityId = requiredId(data.entityId, "Contest entity");
-      const preflight = await client.rpc("v3_custom_contest_entity_preflight", {
-        p_edition_id: data.editionId,
-        p_entity_id: entityId,
-      });
-      if (preflight.error) throw new Error(preflight.error.message);
-      expectedUpdatedAt = preflight.data?.updatedAt ?? null;
-      if (!expectedUpdatedAt) throw new Error("Custom identity preflight did not return a version.");
-      if (data.action === "delete" && !preflight.data?.canDelete) {
-        const count = Number(preflight.data?.dependencies?.totalReferences ?? 0);
-        throw new Error(`This custom identity still has ${count} canonical reference${count === 1 ? "" : "s"}.`);
+      const preflightResponse = await client.rpc(
+        "v3_custom_contest_entity_preflight",
+        {
+          p_edition_id: data.editionId,
+          p_entity_id: entityId,
+        },
+      );
+      if (preflightResponse.error) {
+        throw new Error(preflightResponse.error.message);
+      }
+
+      const preflight = preflightResponse.data ?? {};
+      expectedUpdatedAt = preflight.updatedAt ?? null;
+      if (!expectedUpdatedAt) {
+        throw new Error("Custom identity preflight did not return a version.");
+      }
+
+      if (data.action === "delete" && !preflight.canDelete) {
+        const count = Number(preflight.dependencies?.totalReferences ?? 0);
+        throw new Error(
+          `This custom identity still has ${count} canonical reference${count === 1 ? "" : "s"}.`,
+        );
       }
     }
 
-    const response = await client.rpc("v3_execute_custom_contest_entity_operation", {
-      p_edition_id: data.editionId,
-      p_entity_id: data.entityId ?? null,
-      p_action: data.action,
-      p_payload: data.payload,
-      p_operation_id: op.operationId,
-      p_idempotency_key: op.idempotencyKey,
-      p_expected_updated_at: expectedUpdatedAt,
-      p_reason: data.reason?.trim() || null,
-      p_correlation_id: op.operationId,
-    });
+    const response = await client.rpc(
+      "v3_execute_custom_contest_entity_operation",
+      {
+        p_edition_id: data.editionId,
+        p_entity_id: data.entityId ?? null,
+        p_action: data.action,
+        p_payload: data.payload,
+        p_operation_id: operation.operationId,
+        p_idempotency_key: operation.idempotencyKey,
+        p_expected_updated_at: expectedUpdatedAt,
+        p_reason: data.reason?.trim() || null,
+        p_correlation_id: operation.operationId,
+      },
+    );
     if (response.error) throw new Error(response.error.message);
-    return completed(response.data, op.operationId);
-  });
 
-export const updateShowLineupEntryDetails = createServerFn({ method: "POST" })
-  .inputValidator((data: {
-    editionId: string;
-    showId: string;
-    participantId: string;
-    artist?: string;
-    song?: string;
-  } & OperationIdentity) => ({
-    editionId: requiredId(data?.editionId, "Edition"),
-    showId: requiredId(data?.showId, "Show"),
-    participantId: requiredId(data?.participantId, "Participant"),
-    artist: typeof data?.artist === "string" ? data.artist : "",
-    song: typeof data?.song === "string" ? data.song : "",
-    operationId: optionalId(data?.operationId),
-    idempotencyKey: optionalId(data?.idempotencyKey),
-  }))
-  .handler(async ({ data }): Promise<OperationResult> => {
-    const client = await organizerClient();
-    const recovered = await reconcileKnown(client, data.operationId);
-    if (recovered) return recovered;
-    const op = identity(data, "show-lineup:entry:update");
-
-    const preflight = await client.rpc("v3_show_lineup_state_preflight", {
-      p_edition_id: data.editionId,
-      p_show_id: data.showId,
-    });
-    if (preflight.error) throw new Error(preflight.error.message);
-    const stateVersion = preflight.data?.stateVersion;
-    if (!stateVersion) throw new Error("Line-up preflight did not return a state version.");
-
-    const response = await client.rpc("v3_execute_show_entry_detail_update", {
-      p_edition_id: data.editionId,
-      p_show_id: data.showId,
-      p_participant_id: data.participantId,
-      p_artist: data.artist,
-      p_song: data.song,
-      p_operation_id: op.operationId,
-      p_idempotency_key: op.idempotencyKey,
-      p_expected_state_version: stateVersion,
-      p_correlation_id: op.operationId,
-    });
-    if (response.error) throw new Error(response.error.message);
-    return completed(response.data, op.operationId);
-  });
-
-export const syncEditionEntryDetails = createServerFn({ method: "POST" })
-  .inputValidator((data: { editionId: string } & OperationIdentity) => ({
-    editionId: requiredId(data?.editionId, "Edition"),
-    operationId: optionalId(data?.operationId),
-    idempotencyKey: optionalId(data?.idempotencyKey),
-  }))
-  .handler(async ({ data }): Promise<OperationResult> => {
-    const client = await organizerClient();
-    const recovered = await reconcileKnown(client, data.operationId);
-    if (recovered) return recovered;
-    const op = identity(data, "entry-details:sync");
-
-    const preflight = await client.rpc("v3_entry_detail_sync_preflight", {
-      p_edition_id: data.editionId,
-    });
-    if (preflight.error) throw new Error(preflight.error.message);
-    const stateVersion = preflight.data?.stateVersion;
-    if (!stateVersion) throw new Error("Entry-detail preflight did not return a state version.");
-
-    const response = await client.rpc("v3_execute_entry_detail_sync", {
-      p_edition_id: data.editionId,
-      p_operation_id: op.operationId,
-      p_idempotency_key: op.idempotencyKey,
-      p_expected_state_version: stateVersion,
-      p_correlation_id: op.operationId,
-    });
-    if (response.error) throw new Error(response.error.message);
-    return completed(response.data, op.operationId);
+    return completedOperation(response.data, operation.operationId);
   });
