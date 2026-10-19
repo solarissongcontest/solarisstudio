@@ -13,6 +13,12 @@ begin;
 -- browser call always carries request context and still has to satisfy the
 -- existing service-role predicate. Direct EXECUTE remains granted only to
 -- service_role; the database owner already has schema-owner authority.
+--
+-- Three S6 notification migrations were authored with their timestamped file
+-- stems as registration keys before the S13 key-format invariant was exercised
+-- by a clean replay. Preserve those immutable migration files by translating
+-- only those exact aliases to canonical semantic keys during this migration
+-- window. A later migration restores the strict validator after they register.
 insert into private.v3_migration_contracts (
   migration_key,
   schema_version,
@@ -48,13 +54,22 @@ declare
   v_request_role text := nullif(current_setting('request.jwt.claim.role', true), '');
   v_owner_migration_context boolean :=
     session_user in ('postgres', 'supabase_admin') and v_request_role is null;
+  v_migration_key text := case p_migration_key
+    when '20261019113000_v3_s6_notification_reconciliation'
+      then 'v3.s6.notification-reconciliation'
+    when '20261019113100_v3_s6_notification_reactivation'
+      then 'v3.s6.notification-reactivation'
+    when '20261019113200_v3_s6_notification_failure_visibility'
+      then 'v3.s6.notification-failure-visibility'
+    else p_migration_key
+  end;
 begin
   if not private.studio2_request_is_service_role()
      and not v_owner_migration_context then
     raise exception 'Service role or migration owner context required' using errcode = '42501';
   end if;
-  if p_migration_key is null
-     or p_migration_key !~ '^[a-z][a-z0-9_.:-]{2,159}$'
+  if v_migration_key is null
+     or v_migration_key !~ '^[a-z][a-z0-9_.:-]{2,159}$'
      or p_schema_version is null or p_schema_version < 1
      or p_rollback_mode is null
      or p_rollback_mode not in ('reversible', 'forward_fix_only')
@@ -67,7 +82,7 @@ begin
 
   select * into v_existing
   from private.v3_migration_contracts
-  where migration_key = p_migration_key
+  where migration_key = v_migration_key
   for update;
 
   if v_existing.migration_key is not null then
@@ -82,12 +97,12 @@ begin
     insert into private.v3_migration_contracts (
       migration_key, schema_version, rollback_mode, destructive, backfill_key, reason
     ) values (
-      p_migration_key, p_schema_version, p_rollback_mode, p_destructive, p_backfill_key, btrim(p_reason)
+      v_migration_key, p_schema_version, p_rollback_mode, p_destructive, p_backfill_key, btrim(p_reason)
     );
   end if;
 
   return jsonb_build_object(
-    'migrationKey', p_migration_key,
+    'migrationKey', v_migration_key,
     'schemaVersion', p_schema_version,
     'rollbackMode', p_rollback_mode,
     'destructive', p_destructive,
