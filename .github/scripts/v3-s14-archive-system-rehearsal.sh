@@ -58,7 +58,7 @@ as_user_fails() {
 as_service() {
   local sql="$1"
   psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c \
-    "set role service_role; set request.jwt.claims = '{\"role\":\"service_role\"}'; $sql"
+    "set \"request.jwt.claim.role\" = 'service_role'; $sql"
 }
 
 json_value() {
