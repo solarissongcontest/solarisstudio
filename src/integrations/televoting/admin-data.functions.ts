@@ -24,7 +24,7 @@ type VotingJuryShowSummary = {
   didNotVote: number;
   missing: number;
   blockers: number;
-  stateVersion: number;
+  reviewVersion: number;
 };
 
 export type OrganizerVotingOverview = {
@@ -41,7 +41,9 @@ export type OrganizerVotingOverview = {
   jury: {
     state: "not_configured" | "attention" | "active" | "ready";
     showCount: number;
+    enabledShowCount: number;
     configuredShowCount: number;
+    unconfiguredShowCount: number;
     showSummaryLimit: number;
     showSummaryTruncated: boolean;
     expected: number;
@@ -78,8 +80,8 @@ export type OrganizerVotingOverview = {
   };
   recommendedAction: VotingRecommendedAction | null;
 
-  // Temporary compatibility aliases for existing Organizer cards while the
-  // canonical O7/O8 projection becomes the only overview source.
+  // Compatibility aliases for older cards while O7/O8 consumers converge on
+  // the nested canonical projection.
   editions: number;
   rounds: number;
   openRounds: number;
@@ -88,6 +90,16 @@ export type OrganizerVotingOverview = {
   activeEdition: string;
   remoteEditionId: string | null;
   linked: boolean;
+};
+
+type VotingOverviewRpcClient = {
+  rpc(
+    name: "studio2_organizer_voting_overview",
+    args: { p_edition_id: string },
+  ): PromiseLike<{
+    data: unknown;
+    error: { message?: string } | null;
+  }>;
 };
 
 function record(value: unknown): Record<string, unknown> {
@@ -136,7 +148,7 @@ function parseJuryShow(value: unknown): VotingJuryShowSummary | null {
     didNotVote: numberValue(row.didNotVote),
     missing: numberValue(row.missing),
     blockers: numberValue(row.blockers),
-    stateVersion: numberValue(row.stateVersion),
+    reviewVersion: numberValue(row.reviewVersion),
   };
 }
 
@@ -202,7 +214,9 @@ function parseOverview(value: unknown, expectedEditionId: string): OrganizerVoti
     jury: {
       state: juryState as OrganizerVotingOverview["jury"]["state"],
       showCount: numberValue(jury.showCount),
+      enabledShowCount: numberValue(jury.enabledShowCount),
       configuredShowCount: numberValue(jury.configuredShowCount),
+      unconfiguredShowCount: numberValue(jury.unconfiguredShowCount),
       showSummaryLimit: numberValue(jury.showSummaryLimit),
       showSummaryTruncated: boolValue(jury.showSummaryTruncated),
       expected: numberValue(jury.expected),
@@ -273,12 +287,13 @@ export const getMergedTelevotingOverview = createServerFn({ method: "POST" })
     ]);
 
     await requireMergedTelevotingAdminServer();
-    const client = createSolarisAuthenticatedClientServer() as any;
+    const client =
+      createSolarisAuthenticatedClientServer() as unknown as VotingOverviewRpcClient;
     const { data: rawSummary, error } = await client.rpc(
       "studio2_organizer_voting_overview",
       { p_edition_id: data.editionId },
     );
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(error.message || "Voting overview could not be loaded.");
 
     return parseOverview(rawSummary, data.editionId);
   });
