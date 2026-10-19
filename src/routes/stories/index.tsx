@@ -3,6 +3,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { BookOpen, CalendarDays, Clock3, Sparkles } from 'lucide-react';
 
 import { AppShell } from '@/components/AppShell';
+import { useSolarisApp } from '@/components/app/AppRuntime';
+import { V3StoriesIndexGate } from '@/components/v3/V3StoriesGates';
 import { SOLARIS_TIME_ZONE } from '@/lib/public-time';
 import { loadAnniversaryEngine, loadPublicStorylines } from '@/lib/studio2-storytelling';
 
@@ -45,6 +47,25 @@ function todayInSolaris() {
 }
 
 function StoriesArchivePage() {
+  const { isAppMode, platformResolved } = useSolarisApp();
+
+  if (!platformResolved) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-10" data-v3-stories-boot="">
+        <h1 className="text-3xl font-bold">Stories</h1>
+        <p role="status" className="mt-3">Opening published Solaris stories…</p>
+      </main>
+    );
+  }
+
+  if (isAppMode) {
+    return <V3StoriesIndexGate fallback={<LegacyStoriesArchivePage />} />;
+  }
+
+  return <LegacyStoriesArchivePage />;
+}
+
+function LegacyStoriesArchivePage() {
   const referenceDate = Route.useLoaderData();
   const storiesQuery = useQuery({
     queryKey: ['public-storylines'],

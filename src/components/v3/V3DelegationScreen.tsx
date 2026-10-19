@@ -1,4 +1,4 @@
-import { Archive, BarChart3, BookOpen, GitCompareArrows } from "lucide-react";
+import { Archive, BarChart3, BookOpen, GitCompareArrows, Vote } from "lucide-react";
 
 import type { V3CountryExploreProjection } from "@/lib/v3-explore-entities";
 import {
@@ -128,7 +128,7 @@ export function V3DelegationScreen({ projection }: V3DelegationScreenProps) {
       >
         {projection.participationHistory.length ? (
           <div className="grid gap-2">
-            {projection.participationHistory.slice(0, 10).map((entry) => {
+            {projection.participationHistory.map((entry) => {
               const status = statusPresentation(entry.status);
               return (
                 <V3Surface key={entry.editionId} className="px-4 py-3">
@@ -158,6 +158,20 @@ export function V3DelegationScreen({ projection }: V3DelegationScreenProps) {
             icon={BarChart3}
             tone="neutral"
             to={projection.resultsDestination}
+          />
+          <V3ActionCard
+            title="Voting relationships"
+            description="Explore published historical support patterns across delegations"
+            icon={Vote}
+            tone="neutral"
+            to="/relationships"
+          />
+          <V3ActionCard
+            title="Stories"
+            description="Published edition narratives and archive moments"
+            icon={BookOpen}
+            tone="neutral"
+            to="/stories"
           />
           {wiki ? (
             <V3ActionCard

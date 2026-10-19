@@ -3,6 +3,8 @@ import { createFileRoute } from '@tanstack/react-router';
 import { ArrowLeft, BookOpen, CalendarDays } from 'lucide-react';
 
 import { AppShell } from '@/components/AppShell';
+import { useSolarisApp } from '@/components/app/AppRuntime';
+import { V3StoryDetailGate } from '@/components/v3/V3StoriesGates';
 import { loadPublicStoryline } from '@/lib/studio2-storytelling';
 
 export const Route = createFileRoute('/stories/$editionSlug')({
@@ -44,6 +46,30 @@ export const Route = createFileRoute('/stories/$editionSlug')({
 
 function EditionStoryPage() {
   const { editionSlug } = Route.useParams();
+  const { isAppMode, platformResolved } = useSolarisApp();
+
+  if (!platformResolved) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-10" data-v3-story-detail-boot="">
+        <h1 className="text-3xl font-bold">Edition Story</h1>
+        <p role="status" className="mt-3">Opening published edition story…</p>
+      </main>
+    );
+  }
+
+  if (isAppMode) {
+    return (
+      <V3StoryDetailGate
+        editionSlug={editionSlug}
+        fallback={<LegacyEditionStoryPage editionSlug={editionSlug} />}
+      />
+    );
+  }
+
+  return <LegacyEditionStoryPage editionSlug={editionSlug} />;
+}
+
+function LegacyEditionStoryPage({ editionSlug }: { editionSlug: string }) {
   const storyQuery = useQuery({
     queryKey: ['public-storyline', editionSlug],
     queryFn: () => loadPublicStoryline(editionSlug),
