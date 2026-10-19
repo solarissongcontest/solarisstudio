@@ -1,7 +1,7 @@
 import type { PublicDestination } from "@/lib/public-navigation";
 
 export type SiteDirectoryViewer = {
-  signedIn: boolean;
+  authenticationState: "loading" | "anonymous" | "signed-in";
 };
 
 /**
@@ -22,15 +22,13 @@ export function visibleSiteDirectoryDestinations(
 
     switch (destination.auth) {
       case "signed-in":
-        return viewer.signedIn;
+        return viewer.authenticationState === "signed-in";
       case "hod":
       case "organizer":
         return false;
       case "public":
-        // `sign-in` is the one contextual public destination whose purpose
-        // disappears after authentication. Other public destinations remain
-        // valid for signed-in viewers too.
-        return destination.id !== "sign-in" || !viewer.signedIn;
+        if (destination.id !== "sign-in") return true;
+        return viewer.authenticationState === "anonymous";
       default:
         return true;
     }
