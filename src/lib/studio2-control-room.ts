@@ -9,6 +9,7 @@ import {
   type Studio2RuntimeRecord,
   type Studio2TransitionEditionRequest,
 } from './studio2-persistence';
+import { transitionEditionV3 } from './v3-edition-transition-client';
 
 export type Studio2ControlRoomSnapshot = {
   editionId: string;
@@ -75,6 +76,25 @@ export function createStudio2ControlRoom(
 
     async transitionEdition(request: Studio2TransitionEditionRequest) {
       await requireEnabled(request.editionId);
+
+      // Production Control Room traffic uses the single governed V3 command.
+      // Load the canonical version immediately before the command so the server
+      // can CAS-bind the mutation. Injected data sources remain unchanged for
+      // isolated tests and do not accidentally call the real Supabase client.
+      if (source === studio2Persistence) {
+        const runtime = await source.loadEditionRuntime(request.editionId);
+        if (!runtime) {
+          throw new Error(`Studio 2 runtime is unavailable for edition ${request.editionId}`);
+        }
+        const operationId = crypto.randomUUID();
+        return transitionEditionV3({
+          ...request,
+          expectedVersion: runtime.version,
+          operationId,
+          idempotencyKey: `edition-transition:${operationId}`,
+        });
+      }
+
       return source.transitionEdition(request);
     },
 
