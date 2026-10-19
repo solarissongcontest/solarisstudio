@@ -159,7 +159,15 @@ PY
   expect_failure "stale competing Televote deadline extension"
   [[ "$HTTP_BODY" == *"changed since this preview"* ]] || fail "stale deadline extension did not surface canonical version conflict: $HTTP_BODY"
 
-  # Prove the queued consequence is executable in this same contest lifecycle.
+  # Retry the identical previously rejected ballot immediately after the
+  # governed extension. User acceptance must not wait behind Organizer task
+  # reconciliation or consume the newly extended voting window doing QA work.
+  televote_rpc_request "$ANON_KEY" submit_vote_checked \
+    "{\"p_round_id\":\"$round_id\",\"p_username\":\"$username\",\"p_country_code\":\"$country_code\",\"p_entries\":$ballot_json,\"p_preflight_token\":\"$preflight_id\",\"p_ip_hash\":null,\"p_fingerprint_hash\":null,\"p_device_token_hash\":null,\"p_ip_country\":null,\"p_is_vpn\":false}"
+  expect_success "public Televote after governed deadline extension"
+
+  # Prove the queued consequence is executable in this same contest lifecycle,
+  # after the acceptance path has consumed the deadline extension it is testing.
   event_id="$(db_scalar "select id from private.v3_domain_events where operation_id='$operation_id'::uuid and event_type='televote.extended';")"
   db_exec "set request.jwt.claim.role='service_role'; select * from public.studio2_claim_domain_event_deliveries('televote.tasks','s14-stage7-deadline-worker',25,300);"
   process_result="$(db_scalar "set request.jwt.claim.role='service_role'; select public.studio2_process_televote_domain_event('$event_id','televote.tasks','s14-stage7-deadline-worker')::text;")"
@@ -172,11 +180,6 @@ PY
 
   S14_STAGE7_DEADLINE_EXTENSION_DONE=1
   log "S14_TELEVOTE_DEADLINE_EXTENSION_COMPLETE"
-
-  # The identical previously rejected ballot is now accepted because only the
-  # authoritative server deadline changed. No close/reopen occurs.
-  televote_rpc_request "$ANON_KEY" submit_vote_checked \
-    "{\"p_round_id\":\"$round_id\",\"p_username\":\"$username\",\"p_country_code\":\"$country_code\",\"p_entries\":$ballot_json,\"p_preflight_token\":\"$preflight_id\",\"p_ip_hash\":null,\"p_fingerprint_hash\":null,\"p_device_token_hash\":null,\"p_ip_country\":null,\"p_is_vpn\":false}"
 }
 
 # Replace the short submit helper so one real ballot straddles the authoritative
