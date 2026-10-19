@@ -20,7 +20,7 @@ No state requires production traffic.
 
 ### Rehearsed
 
-- **Event consumer failure / unavailable dependency:** retained S4 evidence injects `DEPENDENCY_FAILURE`, proves retry, dead-letter and explicit requeue recovery.
+- **Event consumer failure:** retained S4 evidence fails a claimed DomainEvent delivery, proves retry/dead-letter handling and explicit requeue recovery.
 - **Duplicate delivery:** retained S4 evidence proves semantic replay and duplicate completion converge on one immutable consumer receipt.
 
 ### Rehearsal-ready
@@ -32,6 +32,12 @@ No state requires production traffic.
 - **Queue backlog:** `.github/scripts/v3-s11-backlog-drain-rehearsal.sh` generates a bounded backlog through real `jury.closed` R2 operations, deliberately leaves their `jury.tasks` consequences pending, samples ordinary PostgREST reads concurrently, and drains only through the canonical S4 claim plus Jury consumer path.
 
 All five remain `rehearsal_ready` until isolated local runs are retained against the exact candidate SHA. The already-retained S4 evidence remains separately `rehearsed`; existence of a shell script is not retroactively a successful test run, because paperwork has caused enough damage already.
+
+### Partial
+
+- **Unavailable dependency:** existing S4 evidence can classify a failed delivery as `DEPENDENCY_FAILURE` and prove the retry/dead-letter/requeue mechanics. That is not the same thing as making a real dependency unavailable. This scenario remains partial until an isolated deterministic rehearsal removes or blocks a real dependency at a canonical operation/consumer boundary, observes the dependency-classified failure, restores the dependency, and proves convergence.
+
+Do not promote this scenario merely because an error code can be supplied to the S4 failure RPC. Classification is not failure injection.
 
 ## Stale projection / retry rehearsal
 
@@ -95,17 +101,18 @@ V3_FAILURE_COVERAGE_OUTPUT=./artifacts/v3-failure-injection-coverage.json \
 npx tsx scripts/generate-v3-failure-injection-coverage.ts
 ```
 
-The generator is offline. It verifies that `V3_FAILURE_COVERAGE_SHA` exactly matches `git rev-parse HEAD`, creates requested output directories recursively, and makes no certification claim.
+The generator is offline. It verifies that `V3_FAILURE_COVERAGE_SHA` exactly matches `git rev-parse HEAD`, refuses a dirty worktree including untracked files, creates requested output directories recursively, and makes no certification claim.
 
 `V3_FAILURE_COVERAGE_REQUIRE_ALL_REHEARSED=1` can be used only in a deliberate release-evidence review. Chat 7 does not wire broad CI; Chat 5 owns release certification and workflow policy.
 
 ## Remaining reliability work
 
-The explicit S11 failure-injection **implementation** inventory is now complete: 3 scenarios have retained rehearsed evidence and the other 5 have deterministic rehearsal tooling ready. The remaining work is execution/evidence, not inventing more recovery mechanisms:
+The current S11 implementation inventory is intentionally not declared complete:
 
-1. run each `rehearsal_ready` path against isolated local Supabase on the exact candidate SHA;
+1. execute and retain exact-SHA evidence for each `rehearsal_ready` path against isolated local Supabase;
 2. retain the backlog JSON report and corresponding local/runtime evidence;
-3. promote a scenario to `rehearsed` only after that run is objectively retained;
-4. let Chat 5 decide whether the resulting evidence is sufficient for release certification.
+3. implement a deterministic **real unavailable-dependency** rehearsal instead of substituting an injected `DEPENDENCY_FAILURE` label;
+4. promote a scenario to `rehearsed` only after its run is objectively retained;
+5. let Chat 5 decide whether the resulting evidence is sufficient for release certification.
 
 All rehearsals remain local/isolated. Production is not a chaos-testing playground, despite software's occasional attempts to become one on its own.
