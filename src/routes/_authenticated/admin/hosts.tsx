@@ -75,6 +75,7 @@ type PendingOperation = {
   title: string;
   description: string;
   confirmationText: string;
+  reviewLines?: string[];
   danger?: boolean;
 };
 
@@ -321,13 +322,21 @@ function HostManagementPage() {
       toast.error('Add an audit reason of at least 5 characters.');
       return;
     }
+    const action = pending.action;
     await mutation.mutateAsync({
-      action: pending.action,
+      action,
       reason: pendingReason,
       bidId: pending.bidId,
       expectedRevision: pending.expectedRevision,
       payload: pending.payload,
     });
+    if (action === 'update_operations') setOperationsReason('');
+    if (action === 'set_show_host') {
+      setShowTarget(null);
+      setShowCountryId('');
+      setShowCity('');
+      setShowReason('');
+    }
     setPending(null);
     setPendingReason('');
   }
@@ -361,19 +370,34 @@ function HostManagementPage() {
     setEvaluationTarget(null);
   }
 
-  async function saveOperations() {
+  async function requestSaveOperations() {
     if (!snapshot?.operations || !readiness) return;
     if (operationsReason.trim().length < 5) {
       toast.error('Add an audit reason of at least 5 characters.');
       return;
     }
-    await mutation.mutateAsync({
+    const operations = snapshot.operations;
+    const changedKeys = HOST_READINESS_KEYS.filter((key) => operations.readiness[key] !== readiness[key]);
+    const nextNotes = operationsNotes.trim() || null;
+    const currentNotes = operations.notes?.trim() || null;
+    if (!changedKeys.length && nextNotes === currentNotes) {
+      toast.message('No host readiness changes to review.');
+      return;
+    }
+    const contextLabel = edition ? editionLabel(edition) : snapshot.edition.name;
+    setPendingReason(operationsReason);
+    setPending({
       action: 'update_operations',
-      reason: operationsReason,
-      expectedRevision: snapshot.operations.revision,
-      payload: { ...readiness, notes: operationsNotes.trim() || null },
+      expectedRevision: operations.revision,
+      payload: { ...readiness, notes: nextNotes },
+      title: 'Review operational readiness',
+      description: `Apply this exact readiness snapshot to ${contextLabel}. The command is bound to operations revision ${operations.revision}; if another Organizer changes Host Management first, the server rejects this reviewed snapshot instead of overwriting newer state.`,
+      confirmationText: contextLabel,
+      reviewLines: [
+        ...changedKeys.map((key) => `${readinessLabels[key]}: ${operations.readiness[key] ? 'Ready' : 'Not ready'} → ${readiness[key] ? 'Ready' : 'Not ready'}`),
+        ...(nextNotes !== currentNotes ? [`Operations notes: ${currentNotes ?? 'None'} → ${nextNotes ?? 'None'}`] : []),
+      ],
     });
-    setOperationsReason('');
   }
 
   function requestSyncShows() {
@@ -396,17 +420,38 @@ function HostManagementPage() {
     setShowReason('');
   }
 
-  async function saveShowHost() {
+  async function requestSaveShowHost() {
     if (!showTarget || !snapshot?.operations) return;
     if (showReason.trim().length < 5) {
       toast.error('Add an audit reason of at least 5 characters.');
       return;
     }
-    await mutation.mutateAsync({
+    const nextCountryId = showCountryId || null;
+    const nextCity = showCity.trim() || null;
+    if ((showTarget.hostCountryId ?? null) === nextCountryId && (showTarget.hostCity?.trim() || null) === nextCity) {
+      toast.message('This show host assignment has not changed.');
+      return;
+    }
+    const operations = snapshot.operations;
+    const currentCountry = countries.find((item) => item.id === showTarget.effectiveCountryId)?.name ?? showTarget.hostCountryName ?? 'Country TBC';
+    const currentHost = `${currentCountry} · ${showTarget.effectiveCity ?? 'City TBC'}${showTarget.hostCountryId || showTarget.hostCity ? ' (show override)' : ' (edition host)'}`;
+    const editionHostCountry = countries.find((item) => item.id === snapshot.edition.hostCountryId)?.name ?? selectedBid?.countryName ?? 'Edition host country';
+    const proposedCountry = nextCountryId ? countries.find((item) => item.id === nextCountryId)?.name ?? 'Unknown country' : editionHostCountry;
+    const proposedCity = nextCity ?? snapshot.edition.hostCity ?? selectedBid?.city ?? 'City TBC';
+    const proposedHost = `${proposedCountry} · ${proposedCity}${nextCountryId || nextCity ? ' (show override)' : ' (inherit edition host)'}`;
+    setPendingReason(showReason);
+    setPending({
       action: 'set_show_host',
-      reason: showReason,
-      expectedRevision: snapshot.operations.revision,
-      payload: { showId: showTarget.showId, countryId: showCountryId || null, city: showCity.trim() || null },
+      expectedRevision: operations.revision,
+      payload: { showId: showTarget.showId, countryId: nextCountryId, city: nextCity },
+      title: `Review ${showTarget.showName} host`,
+      description: `Change the canonical show-level host assignment for ${showTarget.showName}. The command is bound to operations revision ${operations.revision}; stale reviewed state is rejected by the Host Management command instead of silently replacing a newer assignment.`,
+      confirmationText: showTarget.showName,
+      reviewLines: [
+        `Current host: ${currentHost}`,
+        `Proposed host: ${proposedHost}`,
+        `Show ID: ${showTarget.showId}`,
+      ],
     });
     setShowTarget(null);
   }
@@ -472,7 +517,7 @@ function HostManagementPage() {
                 reason={operationsReason}
                 setReason={setOperationsReason}
                 busy={mutation.isPending}
-                onSave={saveOperations}
+                onSave={requestSaveOperations}
               />
             ) : null}
           </>
@@ -537,7 +582,7 @@ function HostManagementPage() {
             <AuditReason value={showReason} onChange={setShowReason} disabled={mutation.isPending} />
             <div className="admin-sticky-actions grid grid-cols-[auto_minmax(0,1fr)] gap-2">
               <button type="button" className="admin-action-secondary" disabled={mutation.isPending} onClick={() => setShowTarget(null)}>Cancel</button>
-              <button type="button" className="admin-action-primary w-full" disabled={mutation.isPending} onClick={() => void saveShowHost()}>{mutation.isPending ? 'Saving…' : 'Save show host'}</button>
+              <button type="button" className="admin-action-primary w-full" disabled={mutation.isPending} onClick={() => void requestSaveShowHost()}>{mutation.isPending ? 'Saving…' : 'Review show host'}</button>
             </div>
           </div>
         </AdminSheet>
@@ -550,6 +595,15 @@ function HostManagementPage() {
           description={pending ? (
             <div className="space-y-4">
               <p>{pending.description}</p>
+              {pending.reviewLines?.length ? (
+                <div className="rounded-xl border border-white/[0.08] bg-black/10 p-3" data-v3-organizer-host-review-snapshot>
+                  <p className="text-[9px] font-black uppercase tracking-[.1em] text-muted-foreground">Reviewed snapshot</p>
+                  <div className="mt-2 space-y-1.5">
+                    {pending.reviewLines.map((line) => <p key={line} className="break-words text-xs text-slate-200/85">{line}</p>)}
+                  </div>
+                  {pending.expectedRevision != null ? <p className="mt-3 font-mono text-[10px] text-sky-100">Expected revision: {pending.expectedRevision}</p> : null}
+                </div>
+              ) : null}
               <AuditReason value={pendingReason} onChange={setPendingReason} disabled={mutation.isPending} />
             </div>
           ) : null}
@@ -804,7 +858,7 @@ function OperationsView({ snapshot, readiness, setReadiness, notes, setNotes, re
       </div>
       <label className="mt-4 block"><span className="admin-section-label">Operations notes</span><textarea className="admin-input mt-2 min-h-28 w-full resize-y" value={notes} onChange={(event) => setNotes(event.target.value)} disabled={busy} placeholder="Delivery risks, dependencies, owners or next actions…" /></label>
       <div className="mt-4"><AuditReason value={reason} onChange={setReason} disabled={busy} /></div>
-      <div className="mt-4 flex justify-end"><button type="button" className="admin-action-primary" disabled={busy} onClick={() => void onSave()}>{busy ? 'Saving…' : 'Save readiness'}</button></div>
+      <div className="mt-4 flex justify-end"><button type="button" className="admin-action-primary" disabled={busy} onClick={() => void onSave()}>{busy ? 'Saving…' : 'Review readiness'}</button></div>
     </AdminCard>
   </div>;
 }
