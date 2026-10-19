@@ -11,7 +11,7 @@ begin;
 -- This is additive during compatibility: admin_organizer_tasks(uuid,text) and
 -- admin_organizer_task_count(uuid) remain untouched for older clients.
 select public.v3_register_migration_contract(
-  '20261019205500_v3_organizer_task_projection',
+  'v3.organizer.tasks.projection',
   1,
   'forward_fix_only',
   false,
@@ -55,8 +55,6 @@ begin
     v_explicit_state := null;
   end if;
 
-  -- Persisted resolution is authoritative. Expired/superseded may be retained
-  -- as a more specific terminal reason only when the canonical producer says so.
   if p_task.state = 'resolved' then
     if v_explicit_state in ('expired', 'superseded') then
       v_operational_state := v_explicit_state;
@@ -74,8 +72,6 @@ begin
        'system_job',
        'confirmation_sync'
      ) then
-    -- These Task producers exist only while their canonical failure condition is
-    -- current; their reconcilers resolve the Task after recovery.
     v_operational_state := 'failed';
   elsif p_task.due_at is not null and p_task.due_at <= p_now then
     v_operational_state := 'overdue';
@@ -97,8 +93,6 @@ begin
   if jsonb_typeof(p_task.resolution_predicate -> 'blocking') = 'boolean' then
     v_blocking := (p_task.resolution_predicate ->> 'blocking')::boolean;
   else
-    -- These two existing canonical Task families represent unmet mandatory
-    -- readiness conditions. Priority alone never implies blocking.
     v_blocking := p_task.task_type in ('confirmation.required', 'media.required');
   end if;
 
@@ -241,8 +235,6 @@ begin
     raise exception 'Authentication required' using errcode = '42501';
   end if;
 
-  -- V3 Organizer is always exact-edition scoped. The legacy null/global contract
-  -- is intentionally not inherited here.
   if p_edition_id is null then
     raise exception 'Organizer Tasks V3 require an explicit edition' using errcode = '22023';
   end if;
@@ -277,8 +269,6 @@ begin
     raise exception 'Organizer task access required' using errcode = '42501';
   end if;
 
-  -- Reconcile all canonical Task producers before projecting. Notification read
-  -- state is never consulted as Task truth.
   perform private.studio2_reconcile_all_organizer_tasks(p_edition_id);
 
   with projected as materialized (
@@ -437,9 +427,6 @@ revoke all on function public.admin_organizer_task_count_v3(uuid)
 grant execute on function public.admin_organizer_task_count_v3(uuid)
   to authenticated;
 
--- Advertise the successor independently of legacy Organizer Tasks so an older
--- database remains usable during deployment ordering and a newer database can
--- be consumed without changing the existing schema identifier.
 create or replace function public.studio2_runtime_contract()
 returns jsonb
 language sql
