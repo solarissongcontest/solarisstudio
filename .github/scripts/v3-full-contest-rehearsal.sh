@@ -20,6 +20,10 @@ source "$SCRIPT_DIR/v3-s14-stage-7-genuine-deadline.sh"
 source "$SCRIPT_DIR/v3-s14-stage-7-diagnostics.sh"
 source "$SCRIPT_DIR/v3-s14-stage-8-results.sh"
 source "$SCRIPT_DIR/v3-s14-stage-9-publication.sh"
+source "$SCRIPT_DIR/v3-s14-grand-final-leg.sh"
+source "$SCRIPT_DIR/v3-s14-grand-final-voting.sh"
+source "$SCRIPT_DIR/v3-s14-grand-final-results.sh"
+source "$SCRIPT_DIR/v3-s14-grand-final-publication.sh"
 
 OUTPUT_DIR="${V3_RELEASE_EVIDENCE_DIR:-v3-release-evidence}"
 mkdir -p "$OUTPUT_DIR"
@@ -27,6 +31,7 @@ PARTIAL_PATH="$OUTPUT_DIR/s14-full-contest.partial.json"
 EVIDENCE_WRITTEN=0
 CURRENT_STAGE="bootstrap"
 COMPLETED_STAGES=()
+COMPLETED_CONTEST_EXTENSIONS=()
 ALL_STAGES=(
   stage-1-setup
   stage-2-delegation-onboarding
@@ -42,10 +47,11 @@ ALL_STAGES=(
 
 write_runtime_failure_evidence() {
   local exit_code="$1"
-  python3 - "$PARTIAL_PATH" "$CANDIDATE_SHA" "$CURRENT_STAGE" "$exit_code" "${COMPLETED_STAGES[*]}" <<'PY'
+  python3 - "$PARTIAL_PATH" "$CANDIDATE_SHA" "$CURRENT_STAGE" "$exit_code" "${COMPLETED_STAGES[*]}" "${COMPLETED_CONTEST_EXTENSIONS[*]}" <<'PY'
 import json, sys
-path, sha, failure_stage, exit_code, completed_text = sys.argv[1:]
+path, sha, failure_stage, exit_code, completed_text, completed_extensions_text = sys.argv[1:]
 completed = completed_text.split() if completed_text else []
+completed_extensions = completed_extensions_text.split() if completed_extensions_text else []
 all_stages = [
     "stage-1-setup",
     "stage-2-delegation-onboarding",
@@ -68,6 +74,7 @@ payload = {
     "failureStage": failure_stage,
     "exitCode": int(exit_code),
     "completedStages": completed,
+    "completedContestExtensions": completed_extensions,
     "pendingStages": pending,
     "seed": {"editionCount": 1, "delegationCount": 66, "showCount": 3},
 }
@@ -93,6 +100,13 @@ run_stage() {
   COMPLETED_STAGES+=("$stage_id")
 }
 
+run_contest_extension() {
+  local extension_id="$1" function_name="$2"
+  CURRENT_STAGE="$extension_id"
+  "$function_name"
+  COMPLETED_CONTEST_EXTENSIONS+=("$extension_id")
+}
+
 run_stage stage-1-setup run_s14_stage_1_setup
 run_stage stage-2-delegation-onboarding run_s14_stage_2_onboarding
 run_stage stage-3-confirmations run_s14_stage_3_confirmations
@@ -102,6 +116,14 @@ run_stage stage-6-jury run_s14_stage_6_jury
 run_stage stage-7-public-voting run_s14_stage_7_public_voting
 run_stage stage-8-results run_s14_stage_8_results
 run_stage stage-9-publication run_s14_stage_9_publication
+
+# Semifinal truth determines the Grand Final. Continue in the same local contest
+# through governed qualifier promotion, Jury/Televote, immutable final Results,
+# and exact-version public release.
+run_contest_extension grand-final-qualifier-bridge prepare_s14_grand_final_from_qualifiers
+run_contest_extension grand-final-voting run_s14_grand_final_voting
+run_contest_extension grand-final-results run_s14_grand_final_results
+run_contest_extension grand-final-publication run_s14_grand_final_publication
 
 PENDING_STAGES=(
   stage-10-archive
@@ -127,6 +149,14 @@ payload = {
         "stage-8-results",
         "stage-9-publication",
     ],
+    "completedContestExtensions": [
+        "grand-final-qualifier-bridge",
+        "grand-final-jury",
+        "grand-final-televote",
+        "grand-final-results",
+        "grand-final-publication",
+    ],
+    "blockedContestExtensions": [],
     "implementedInvariants": [
         "confirmation-no-effective-duplicates",
         "entry-valid-revision",
@@ -135,6 +165,9 @@ payload = {
         "televote-canonical-ballot",
         "result-reproducible",
         "publication-final-version",
+        "grand-final-televote-source-parity",
+        "grand-final-result-reproducible",
+        "grand-final-publication-final-version",
     ],
     "implementedFailureInjections": [
         "network-after-commit",
@@ -155,8 +188,8 @@ PY
 EVIDENCE_WRITTEN=1
 
 if [[ "${V3_S14_ALLOW_PARTIAL:-0}" == "1" ]]; then
-  log "Partial S14 harness passed through Stage 9; release-grade S14 remains blocked by ${#PENDING_STAGES[@]} stage."
+  log "Partial S14 harness passed through Stage 9 and exact-version Grand Final Publication; only Archive remains pending."
   exit 0
 fi
 
-fail "S14 is intentionally incomplete: ${PENDING_STAGES[*]}. No release-grade s14-full-contest.json was written."
+fail "S14 is intentionally incomplete: ${PENDING_STAGES[*]} remains pending. No release-grade s14-full-contest.json was written."
