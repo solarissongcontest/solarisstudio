@@ -135,7 +135,8 @@ describe("Organizer rearchitecture foundation", () => {
     const legacyTheme = source("src/routes/_authenticated/admin/edition-theme.$slug.tsx");
 
     expect(identity).toContain("Fine-tune edition colours");
-    expect(identity).toContain("synchroniseScoreboardThemes");
+    expect(identity).toContain("synchroniseReviewedScoreboardThemes");
+    expect(identity).toContain("AdminConfirmSheet");
     expect(legacyTheme).toContain('to: "/admin/design/$slug"');
     expect(legacyTheme).toContain("replace: true");
   });

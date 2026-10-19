@@ -27,11 +27,12 @@ describe("PR #450 release-blocker regression contracts", () => {
   it("publishes bottom obstruction before paint and does not zero it between dependency reruns", () => {
     const publicTabs = source("src/components/app/AppTabBar.tsx");
     const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
+    const unmountOnlyObstructionReset = /useEffect\(\s*\(\) => \(\) => \{[\s\S]*?--solaris-bottom-obstruction[\s\S]*?\},\s*\[\],\s*\);/;
 
     expect(publicTabs).toContain("useLayoutEffect(() => {");
     expect(organizerTabs).toContain("useLayoutEffect(() => {");
-    expect(publicTabs).toContain("True unmount cleanup below owns the reset");
-    expect(organizerTabs).toContain("unmount reset");
+    expect(publicTabs).toMatch(unmountOnlyObstructionReset);
+    expect(organizerTabs).toMatch(unmountOnlyObstructionReset);
   });
 
   it("keeps visual reference capture in a real reduced-motion browser context", () => {

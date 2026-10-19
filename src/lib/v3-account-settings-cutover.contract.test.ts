@@ -79,6 +79,14 @@ describe("V3 Account + Settings cutover", () => {
     expect(source).toContain('data-v3-account-settings-route=""');
   });
 
+  it("preserves the MySolaris provider when V3 bypasses the legacy workspace shell", () => {
+    const source = shell();
+
+    expect(source).toContain('import { MySolarisProvider } from "@/components/mysolaris/MySolarisContext"');
+    expect(source).toContain('section === "account" ? <MySolarisProvider>{children}</MySolarisProvider> : children');
+    expect(source).toContain("{routeContent}");
+  });
+
   it("keeps canonical account, security, notification and device engines downstream", () => {
     const account = accountRoute();
     const settings = settingsRoute();

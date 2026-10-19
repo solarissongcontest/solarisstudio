@@ -18,7 +18,13 @@ describe("V3 Organizer Shows exact-edition boundary", () => {
     expect(source).toContain("function assertEditionScope(target?: Show | null)");
     expect(source).toContain("target.edition_id !== edition.id");
     expect(source).toContain("Edition context changed before the show command");
-    expect(source).toContain("!showModeTarget || !assertEditionScope(showModeTarget)");
+    expect(source).toContain("!showModeTarget || !edition || !assertEditionScope(showModeTarget) || busy");
+    expect(source).toContain("async function applyShowModeReview()");
+    expect(source).toContain("organizerEditionId !== review.editionId");
+    expect(source).toContain('.select("id,edition_id,name,broadcast_config")');
+    expect(source).toContain("!sameShowMode(showModeSnapshot(current), review.before)");
+    expect(source).toContain('.eq("id", review.showId)');
+    expect(source).toContain('.eq("edition_id", review.editionId)');
     expect(source).toContain("!edition || !draft.name.trim() || !assertEditionScope()");
     expect(source).toContain("!target || !assertEditionScope(target)");
     expect(source).toContain("!deleteTarget || !assertEditionScope(deleteTarget)");

@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Loader2, Palette, RotateCcw, Save } from "lucide-react";
 
+import { AdminConfirmSheet } from "@/components/admin/AdminUI";
 import { supabase as typedSupabase } from "@/integrations/supabase/client";
-import { editionLabel, useEditions, useThemes } from "@/lib/data";
+import { editionLabel, useEditions, useShows, useThemes } from "@/lib/data";
 import {
   DEFAULT_THEME,
   editionThemeToVisual,
@@ -20,22 +21,63 @@ type EditionArtworkRow = {
   slug: string;
   name: string;
   edition_number: number | null;
+  theme_id?: string | null;
   logo?: string | null;
   artwork_url?: string | null;
   artwork_storage_path?: string | null;
   theme_colors?: unknown;
 };
 
+type ArtworkThemeSnapshot = {
+  id: string;
+  config: unknown;
+  configFingerprint: string;
+};
+
+type ArtworkShowSnapshot = {
+  id: string;
+  themeId: string | null;
+};
+
+type ArtworkBaseline = {
+  editionId: string;
+  editionName: string;
+  editionThemeId: string | null;
+  logo: string | null;
+  artworkUrl: string | null;
+  artworkStoragePath: string | null;
+  themeColorsFingerprint: string;
+  shows: ArtworkShowSnapshot[];
+  themes: ArtworkThemeSnapshot[];
+};
+
+type PendingArtworkReview =
+  | {
+      kind: "upload";
+      baseline: ArtworkBaseline;
+      file: File;
+      theme: VisualTheme;
+      palette: string[];
+    }
+  | {
+      kind: "palette";
+      baseline: ArtworkBaseline;
+      theme: VisualTheme;
+      palette: string[];
+    };
+
 export function EditionArtworkControl({ slug }: { slug: string }) {
   const { data: editions } = useEditions();
   const { data: themes = [] } = useThemes();
-  const qc = useQueryClient();
   const edition = useMemo(() => (editions ?? []).find((item) => item.slug === slug) as EditionArtworkRow | undefined, [editions, slug]);
+  const { data: shows = [] } = useShows(edition?.id);
+  const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [themeDraft, setThemeDraft] = useState<VisualTheme>(DEFAULT_THEME);
   const [savedTheme, setSavedTheme] = useState<VisualTheme>(DEFAULT_THEME);
   const [palette, setPalette] = useState<string[]>([]);
+  const [pendingReview, setPendingReview] = useState<PendingArtworkReview | null>(null);
 
   useEffect(() => {
     if (!edition) return;
@@ -47,49 +89,132 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
     setThemeDraft(nextTheme);
     setSavedTheme(nextTheme);
     setPalette(nextPalette);
+    setPendingReview(null);
   }, [edition]);
 
   if (!edition) return null;
   const activeEdition = edition;
   const artworkUrl = activeEdition.artwork_url ?? null;
   const paletteDirty = JSON.stringify(themeDraft) !== JSON.stringify(savedTheme);
+  const editionShows = shows.filter((show) => show.edition_id === activeEdition.id);
 
-  const upload = async (file: File) => {
+  function captureBaseline(): ArtworkBaseline | null {
+    const showSnapshots = editionShows
+      .map<ArtworkShowSnapshot>((show) => ({ id: show.id, themeId: show.theme_id ?? null }))
+      .sort((left, right) => left.id.localeCompare(right.id));
+    const themeIds = new Set<string>();
+    if (activeEdition.theme_id) themeIds.add(activeEdition.theme_id);
+    for (const show of showSnapshots) if (show.themeId) themeIds.add(show.themeId);
+
+    const themeSnapshots: ArtworkThemeSnapshot[] = [];
+    for (const themeId of [...themeIds].sort()) {
+      const row = themes.find((item) => item.id === themeId);
+      if (!row) {
+        setMessage("A linked scoreboard theme is not loaded yet. Reload this Production workspace before reviewing artwork or colour changes.");
+        return null;
+      }
+      themeSnapshots.push({
+        id: themeId,
+        config: cloneForReview(row.config),
+        configFingerprint: stableFingerprint(row.config),
+      });
+    }
+
+    return {
+      editionId: activeEdition.id,
+      editionName: editionLabel(activeEdition as any),
+      editionThemeId: activeEdition.theme_id ?? null,
+      logo: activeEdition.logo ?? null,
+      artworkUrl: activeEdition.artwork_url ?? null,
+      artworkStoragePath: activeEdition.artwork_storage_path ?? null,
+      themeColorsFingerprint: stableFingerprint(activeEdition.theme_colors ?? null),
+      shows: showSnapshots,
+      themes: themeSnapshots,
+    };
+  }
+
+  async function prepareArtworkReview(file: File) {
+    if (busy) return;
     setBusy(true);
-    setMessage("Uploading artwork and reading its colours…");
+    setMessage("Reading artwork colours locally before review…");
     try {
       const extracted = await extractThemeFromImage(file);
-      const asset = await uploadEditionArtwork(activeEdition.id, file);
-      await saveEditionVisualTheme({
-        editionId: activeEdition.id,
-        artworkUrl: asset.publicUrl,
-        artworkStoragePath: asset.storagePath,
-        theme: extracted.theme,
-        palette: extracted.palette,
-        generatedFromArtwork: true,
+      const baseline = captureBaseline();
+      if (!baseline) return;
+      setPendingReview({
+        kind: "upload",
+        baseline,
+        file,
+        theme: cloneForReview(extracted.theme),
+        palette: [...extracted.palette],
       });
-      await synchroniseScoreboardThemes(extracted.theme);
-      setThemeDraft(extracted.theme);
-      setSavedTheme(extracted.theme);
-      setPalette(extracted.palette);
-
-      const { error: compatibilityError } = await supabase.from("editions").update({ logo: asset.publicUrl }).eq("id", activeEdition.id);
-      if (compatibilityError) throw compatibilityError;
-
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ["editions"] }),
-        qc.invalidateQueries({ queryKey: ["edition"] }),
-        qc.invalidateQueries({ queryKey: ["themes"] }),
-        qc.invalidateQueries({ queryKey: ["shows"] }),
-        qc.invalidateQueries({ queryKey: ["all-shows"] }),
-      ]);
-      setMessage("Official artwork saved. It will appear uncropped on the public edition page.");
+      setMessage(null);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Artwork could not be uploaded.");
+      setMessage(error instanceof Error ? error.message : "Artwork could not be prepared for review.");
     } finally {
       setBusy(false);
     }
-  };
+  }
+
+  function preparePaletteReview() {
+    if (!paletteDirty || busy) return;
+    const baseline = captureBaseline();
+    if (!baseline) return;
+    setPendingReview({
+      kind: "palette",
+      baseline,
+      theme: cloneForReview(themeDraft),
+      palette: [...palette],
+    });
+    setMessage(null);
+  }
+
+  async function verifyBaseline(baseline: ArtworkBaseline) {
+    const { data: liveEdition, error: editionError } = await supabase
+      .from("editions")
+      .select("id,theme_id,logo,artwork_url,artwork_storage_path,theme_colors")
+      .eq("id", baseline.editionId)
+      .maybeSingle();
+    if (editionError) throw editionError;
+    if (
+      !liveEdition ||
+      (liveEdition.theme_id ?? null) !== baseline.editionThemeId ||
+      (liveEdition.logo ?? null) !== baseline.logo ||
+      (liveEdition.artwork_url ?? null) !== baseline.artworkUrl ||
+      (liveEdition.artwork_storage_path ?? null) !== baseline.artworkStoragePath ||
+      stableFingerprint(liveEdition.theme_colors ?? null) !== baseline.themeColorsFingerprint
+    ) {
+      throw new Error("Edition artwork or colour state changed while this review was open. Nothing was uploaded or saved. Reload and review the latest state.");
+    }
+
+    const { data: liveShows, error: showError } = await supabase
+      .from("shows")
+      .select("id,theme_id")
+      .eq("edition_id", baseline.editionId);
+    if (showError) throw showError;
+    const liveShowSnapshots = (liveShows ?? [])
+      .map((show: { id: string; theme_id?: string | null }) => ({ id: show.id, themeId: show.theme_id ?? null }))
+      .sort((left: ArtworkShowSnapshot, right: ArtworkShowSnapshot) => left.id.localeCompare(right.id));
+    if (stableFingerprint(liveShowSnapshots) !== stableFingerprint(baseline.shows)) {
+      throw new Error("Show-to-theme assignments changed while this review was open. Nothing was uploaded or saved. Reload and review again.");
+    }
+
+    if (baseline.themes.length) {
+      const themeIds = baseline.themes.map((theme) => theme.id);
+      const { data: liveThemes, error: themeError } = await supabase
+        .from("themes")
+        .select("id,config")
+        .in("id", themeIds);
+      if (themeError) throw themeError;
+      const liveThemeById = new Map((liveThemes ?? []).map((theme: { id: string; config?: unknown }) => [theme.id, theme]));
+      for (const reviewedTheme of baseline.themes) {
+        const liveTheme = liveThemeById.get(reviewedTheme.id) as { id: string; config?: unknown } | undefined;
+        if (!liveTheme || stableFingerprint(liveTheme.config) !== reviewedTheme.configFingerprint) {
+          throw new Error("A linked scoreboard theme changed while this review was open. Nothing was uploaded or saved. Reload and review again.");
+        }
+      }
+    }
+  }
 
   const buildSyncedConfig = (configInput: unknown, nextTheme: VisualTheme) => {
     const config = { ...((configInput && typeof configInput === "object" ? configInput : {}) as Record<string, any>) };
@@ -100,51 +225,63 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
     return config;
   };
 
-  async function synchroniseScoreboardThemes(nextTheme: VisualTheme) {
-    const { data: showRows, error: showError } = await supabase
-      .from("shows")
-      .select("theme_id")
-      .eq("edition_id", activeEdition.id);
-    if (showError) throw showError;
-
-    const themeIds = new Set<string>();
-    const editionWithTheme = activeEdition as EditionArtworkRow & { theme_id?: string | null };
-    if (editionWithTheme.theme_id) themeIds.add(editionWithTheme.theme_id);
-    for (const show of showRows ?? []) {
-      if (typeof show.theme_id === "string" && show.theme_id) themeIds.add(show.theme_id);
-    }
-
-    for (const themeId of themeIds) {
-      const cached = themes.find((item) => item.id === themeId);
-      let sourceConfig: unknown = cached?.config;
-      if (!sourceConfig) {
-        const { data, error } = await supabase.from("themes").select("config").eq("id", themeId).maybeSingle();
-        if (error) throw error;
-        sourceConfig = data?.config;
-      }
+  async function synchroniseReviewedScoreboardThemes(nextTheme: VisualTheme, reviewedThemes: ArtworkThemeSnapshot[]) {
+    for (const reviewedTheme of reviewedThemes) {
       const { error } = await supabase
         .from("themes")
-        .update({ config: buildSyncedConfig(sourceConfig, nextTheme) })
-        .eq("id", themeId);
+        .update({ config: buildSyncedConfig(reviewedTheme.config, nextTheme) })
+        .eq("id", reviewedTheme.id);
       if (error) throw error;
     }
   }
 
-  async function savePalette() {
-    if (!paletteDirty || busy) return;
+  async function applyReviewedChange() {
+    const review = pendingReview;
+    if (!review || busy) return;
     setBusy(true);
     setMessage(null);
+    let mutationStarted = false;
     try {
-      await saveEditionVisualTheme({
-        editionId: activeEdition.id,
-        artworkUrl: activeEdition.artwork_url ?? null,
-        artworkStoragePath: activeEdition.artwork_storage_path ?? null,
-        theme: themeDraft,
-        palette,
-        generatedFromArtwork: false,
-      });
-      await synchroniseScoreboardThemes(themeDraft);
-      setSavedTheme(themeDraft);
+      await verifyBaseline(review.baseline);
+      mutationStarted = true;
+
+      if (review.kind === "upload") {
+        const asset = await uploadEditionArtwork(review.baseline.editionId, review.file);
+        await saveEditionVisualTheme({
+          editionId: review.baseline.editionId,
+          artworkUrl: asset.publicUrl,
+          artworkStoragePath: asset.storagePath,
+          theme: review.theme,
+          palette: review.palette,
+          generatedFromArtwork: true,
+        });
+        await synchroniseReviewedScoreboardThemes(review.theme, review.baseline.themes);
+        const { error: compatibilityError } = await supabase
+          .from("editions")
+          .update({ logo: asset.publicUrl })
+          .eq("id", review.baseline.editionId);
+        if (compatibilityError) throw compatibilityError;
+        setThemeDraft(review.theme);
+        setSavedTheme(review.theme);
+        setPalette(review.palette);
+        setMessage("Official artwork saved. It will appear uncropped on the public edition page.");
+      } else {
+        await saveEditionVisualTheme({
+          editionId: review.baseline.editionId,
+          artworkUrl: review.baseline.artworkUrl,
+          artworkStoragePath: review.baseline.artworkStoragePath,
+          theme: review.theme,
+          palette: review.palette,
+          generatedFromArtwork: false,
+        });
+        await synchroniseReviewedScoreboardThemes(review.theme, review.baseline.themes);
+        setThemeDraft(review.theme);
+        setSavedTheme(review.theme);
+        setPalette(review.palette);
+        setMessage("Edition colours saved and synced to the reviewed scoreboard themes.");
+      }
+
+      setPendingReview(null);
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["editions"] }),
         qc.invalidateQueries({ queryKey: ["edition"] }),
@@ -152,9 +289,20 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
         qc.invalidateQueries({ queryKey: ["shows"] }),
         qc.invalidateQueries({ queryKey: ["all-shows"] }),
       ]);
-      setMessage("Edition colours saved and synced to linked scoreboard themes.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Edition colours could not be saved.");
+      setPendingReview(null);
+      const detail = error instanceof Error ? error.message : "The reviewed edition artwork change could not be applied.";
+      setMessage(
+        mutationStarted
+          ? `${detail} Artwork/theme persistence currently spans multiple legacy operations and is not atomic. Refresh canonical state before retrying because verified upload or theme changes may already have succeeded.`
+          : detail,
+      );
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["editions"] }),
+        qc.invalidateQueries({ queryKey: ["edition"] }),
+        qc.invalidateQueries({ queryKey: ["themes"] }),
+        qc.invalidateQueries({ queryKey: ["shows"] }),
+      ]);
     } finally {
       setBusy(false);
     }
@@ -163,6 +311,10 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
   function setColour(key: keyof VisualTheme, value: string) {
     setThemeDraft((current) => ({ ...current, [key]: value }));
   }
+
+  const reviewTitle = pendingReview?.kind === "upload"
+    ? `Replace ${pendingReview.baseline.editionName} official artwork?`
+    : `Apply ${pendingReview?.baseline.editionName ?? "edition"} colour changes?`;
 
   return (
     <section className="admin-card overflow-hidden">
@@ -175,8 +327,8 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <label className="admin-action-primary cursor-pointer">
               {busy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
-              {busy ? "Processing artwork…" : artworkUrl ? "Replace artwork" : "Upload artwork"}
-              <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.currentTarget.value = ""; }} />
+              {busy ? "Preparing…" : artworkUrl ? "Review replacement artwork" : "Review artwork upload"}
+              <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void prepareArtworkReview(file); event.currentTarget.value = ""; }} />
             </label>
             <span className="admin-action-secondary pointer-events-none"><Palette className="size-4" /> Colours live here now</span>
           </div>
@@ -186,7 +338,7 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
 
           <details className="mt-4 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
             <summary className="cursor-pointer text-sm font-semibold text-foreground">Fine-tune edition colours</summary>
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Advanced colour controls stay collapsed until you need them. Saving here also updates linked scoreboard theme colours.</p>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Advanced colour controls stay collapsed until you need them. Applying them also updates the exact linked scoreboard themes shown in review.</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <ColourControl label="Background" value={themeDraft.backgroundPrimary} onChange={(value) => setColour("backgroundPrimary", value)} />
               <ColourControl label="Secondary" value={themeDraft.backgroundSecondary} onChange={(value) => setColour("backgroundSecondary", value)} />
@@ -199,8 +351,8 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
               <button type="button" disabled={!paletteDirty || busy} onClick={() => setThemeDraft(savedTheme)} className="admin-action-secondary flex-1">
                 <RotateCcw className="size-4" /> Reset
               </button>
-              <button type="button" disabled={!paletteDirty || busy} onClick={() => void savePalette()} className="admin-action-primary flex-[1.4]">
-                <Save className="size-4" /> {busy ? "Saving…" : paletteDirty ? "Save colours" : "Saved"}
+              <button type="button" disabled={!paletteDirty || busy} onClick={preparePaletteReview} className="admin-action-primary flex-[1.4]">
+                <Save className="size-4" /> {busy ? "Preparing…" : paletteDirty ? "Review colour changes" : "Saved"}
               </button>
             </div>
           </details>
@@ -210,10 +362,69 @@ export function EditionArtworkControl({ slug }: { slug: string }) {
           {artworkUrl ? <img src={artworkUrl} alt={`${editionLabel(edition as any)} official artwork`} className="block h-auto max-h-64 w-auto max-w-full rounded-xl object-contain" /> : <div className="text-center text-xs text-muted-foreground"><ImagePlus className="mx-auto mb-2 size-6 opacity-60" />No official artwork uploaded yet</div>}
         </div>
       </div>
+
+      <AdminConfirmSheet
+        open={Boolean(pendingReview)}
+        onClose={() => !busy && setPendingReview(null)}
+        onConfirm={applyReviewedChange}
+        title={reviewTitle}
+        description={pendingReview ? (
+          <div className="space-y-3">
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3 text-xs text-muted-foreground">
+              <p><span className="font-semibold text-foreground">Edition:</span> {pendingReview.baseline.editionName}</p>
+              <p className="mt-1"><span className="font-semibold text-foreground">Stable edition ID:</span> {pendingReview.baseline.editionId}</p>
+              <p className="mt-1"><span className="font-semibold text-foreground">Linked shows:</span> {pendingReview.baseline.shows.length}</p>
+              <p className="mt-1"><span className="font-semibold text-foreground">Scoreboard themes to sync:</span> {pendingReview.baseline.themes.length}</p>
+              {pendingReview.kind === "upload" ? (
+                <>
+                  <p className="mt-3"><span className="font-semibold text-foreground">File:</span> {pendingReview.file.name}</p>
+                  <p className="mt-1"><span className="font-semibold text-foreground">Type:</span> {pendingReview.file.type || "unknown"}</p>
+                  <p className="mt-1"><span className="font-semibold text-foreground">Size:</span> {formatBytes(pendingReview.file.size)}</p>
+                </>
+              ) : null}
+            </div>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Solaris re-reads the edition artwork fields, edition/show theme bindings and every linked theme configuration immediately before apply. If any reviewed source changed, the operation fails closed before upload or save.
+            </p>
+            <p className="text-xs leading-relaxed text-amber-100/85">
+              The verified upload pipeline remains authoritative for artwork bytes, but artwork metadata, compatibility logo and theme synchronisation still span multiple legacy operations and are not atomic. System #625 owns canonical version/CAS, idempotency, receipts and uncertain-outcome recovery for Production design mutations.
+            </p>
+          </div>
+        ) : null}
+        confirmLabel={pendingReview?.kind === "upload" ? "Upload reviewed artwork" : "Apply reviewed colours"}
+        confirmationText={pendingReview?.baseline.editionName}
+        confirmationHint={pendingReview ? `Type ${pendingReview.baseline.editionName} exactly to confirm this Production design change` : undefined}
+        busy={busy}
+        danger={pendingReview?.kind === "upload" && Boolean(pendingReview.baseline.artworkUrl)}
+      />
     </section>
   );
 }
 
+function cloneForReview<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function stableFingerprint(value: unknown): string {
+  return JSON.stringify(normalizeFingerprintValue(value));
+}
+
+function normalizeFingerprintValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(normalizeFingerprintValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.keys(value as Record<string, unknown>)
+    .sort()
+    .reduce<Record<string, unknown>>((result, key) => {
+      result[key] = normalizeFingerprintValue((value as Record<string, unknown>)[key]);
+      return result;
+    }, {});
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function ColourControl({
   label,
