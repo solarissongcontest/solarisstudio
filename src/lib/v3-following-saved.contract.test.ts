@@ -66,6 +66,8 @@ describe("V3 Following & Saved architecture", () => {
     expect(screen()).toContain("has not confirmed it yet");
     expect(screen()).toContain("could not confirm whether that preference was saved");
     expect(projection()).toContain("export function v3FollowPreferenceMatches");
+    expect(engagement()).toContain("onSettled: async () =>");
+    expect(engagement()).toContain('queryKey: ["fan-follows", profileId]');
   });
 
   it("lets users manage both follow state and notification level", () => {
