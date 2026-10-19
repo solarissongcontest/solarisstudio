@@ -13,6 +13,28 @@ import {
 } from "./V3Foundation";
 import { V3EditionHubScreen } from "./V3EditionHubScreen";
 
+function ProtectedSection({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <V3Section title={title} meta="Spoiler protected" className="scroll-mt-24">
+      <V3Surface className="flex items-start gap-3 p-4">
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/[0.055] text-white/45">
+          <LockKeyhole className="size-4" aria-hidden="true" />
+        </span>
+        <div>
+          <p className="text-sm font-semibold">Hidden while spoiler-free mode is on</p>
+          <p className="mt-1 text-xs leading-5 text-white/48">{description}</p>
+        </div>
+      </V3Surface>
+    </V3Section>
+  );
+}
+
 export function V3EditionSpoilerSafeScreen({
   projection,
   hideSpoilers,
@@ -50,7 +72,7 @@ export function V3EditionSpoilerSafeScreen({
           Edition spoilers are hidden
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-white/52">
-          Published story titles, narrative moments, placements and points stay hidden because spoiler-free mode is on. Public edition identity, participants and show schedule remain available below.
+          Published story titles, narrative moments, entry details, placements and points stay hidden because spoiler-free mode is on. Public edition identity, participants and show schedule remain available below.
         </p>
         <button
           type="button"
@@ -123,6 +145,11 @@ export function V3EditionSpoilerSafeScreen({
         )}
       </V3Section>
 
+      <ProtectedSection
+        title="Songs & artists"
+        description="Artist and song names remain withheld here until you deliberately reveal this Edition. The section stays in place so the Edition structure does not change underneath you."
+      />
+
       <V3Section title="Schedule" meta={`${projection.shows.length} public shows`}>
         {projection.shows.length ? (
           <div className="grid gap-3">
@@ -149,19 +176,19 @@ export function V3EditionSpoilerSafeScreen({
         )}
       </V3Section>
 
-      <V3Section title="Protected content">
-        <V3Surface className="flex items-start gap-3 p-4">
-          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/[0.055] text-white/45">
-            <LockKeyhole className="size-4" aria-hidden="true" />
-          </span>
-          <div>
-            <p className="text-sm font-semibold">Stories and official results remain hidden</p>
-            <p className="mt-1 text-xs leading-5 text-white/48">
-              Revealing is local to this Edition view. Your spoiler-free preference stays unchanged.
-            </p>
-          </div>
-        </V3Surface>
-      </V3Section>
+      <ProtectedSection
+        title="Stories"
+        description="Published story titles, introductions and narrative moments stay hidden until this Edition is revealed."
+      />
+
+      <ProtectedSection
+        title="Results"
+        description="Official placements, points, qualification outcomes and result links stay hidden until this Edition is revealed."
+      />
+
+      <p className="px-1 text-xs leading-5 text-white/45">
+        Revealing is local to this Edition view. Your spoiler-free preference stays unchanged.
+      </p>
     </V3Screen>
   );
 }
