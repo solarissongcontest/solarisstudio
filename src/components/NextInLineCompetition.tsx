@@ -12,6 +12,7 @@ import {
   getNextInLineCountry,
   submitNextInLine,
   type NextInLineEdition,
+  type NextInLineExistingSubmission,
   type NextInLineNfEntry,
 } from "@/lib/confirmation-next-in-line.functions";
 import { checkEntryDuplicate } from "@/lib/public.functions";
@@ -19,6 +20,13 @@ import { isValidUrl, offsetTimestamp, parseTimestamp } from "@/lib/ssc";
 import { cn } from "@/lib/utils";
 
 type DuplicateType = "song" | "artist" | null;
+
+type SubmitEvidence = {
+  revision: number | null;
+  receiptId: string | null;
+  replayed: boolean;
+  reconciled: boolean;
+};
 
 function Choice({
   selected,
@@ -45,6 +53,16 @@ function Choice({
   );
 }
 
+function formatSavedAt(value: string | null) {
+  if (!value) return "time unavailable";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "time unavailable";
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
 export function NextInLineCompetition() {
   const loadCountries = useServerFn(getNextInLineCountries);
   const loadCountry = useServerFn(getNextInLineCountry);
@@ -63,6 +81,9 @@ export function NextInLineCompetition() {
   const [sourceSubmissionId, setSourceSubmissionId] = useState("");
   const [originalMethod, setOriginalMethod] = useState<"internal" | "national_final" | "unknown" | null>(null);
   const [nfEntries, setNfEntries] = useState<NextInLineNfEntry[]>([]);
+  const [existingSubmission, setExistingSubmission] = useState<NextInLineExistingSubmission | null>(null);
+  const [editingOpen, setEditingOpen] = useState(false);
+  const [submitEvidence, setSubmitEvidence] = useState<SubmitEvidence | null>(null);
 
   const [selectedNfEntry, setSelectedNfEntry] = useState("");
   const [artist, setArtist] = useState("");
@@ -101,6 +122,9 @@ export function NextInLineCompetition() {
     setSourceSubmissionId("");
     setOriginalMethod(null);
     setNfEntries([]);
+    setExistingSubmission(null);
+    setEditingOpen(false);
+    setSubmitEvidence(null);
     setSelectedNfEntry("");
     setArtist("");
     setSongTitle("");
@@ -121,6 +145,20 @@ export function NextInLineCompetition() {
       setSourceSubmissionId(result.submission_id);
       setOriginalMethod(result.selection_method ?? "unknown");
       setNfEntries(result.entries ?? []);
+      setEditingOpen(result.editing_open === true);
+
+      const existing = result.existing_submission ?? null;
+      setExistingSubmission(existing);
+      if (existing) {
+        setPreviewStart(existing.previewStart ?? "");
+        if (existing.selectionType === "national_final") {
+          setSelectedNfEntry(existing.nationalFinalEntryId ?? "");
+        } else {
+          setArtist(existing.artist ?? "");
+          setSongTitle(existing.songTitle ?? "");
+          setSongUrl(existing.songUrl ?? "");
+        }
+      }
     } catch {
       setError("That country's selection information could not be loaded.");
     } finally {
@@ -173,6 +211,10 @@ export function NextInLineCompetition() {
     setError(null);
     if (!edition || !country || !sourceSubmissionId) {
       setError("Choose your competing country first.");
+      return;
+    }
+    if (!editingOpen) {
+      setError("Editing is closed for this Next in Line round. Your saved submission remains visible above.");
       return;
     }
 
@@ -241,6 +283,19 @@ export function NextInLineCompetition() {
       });
 
       if (result.ok) {
+        const evidence = result as {
+          revision?: number;
+          receiptId?: string;
+          operationId?: string;
+          replayed?: boolean;
+          reconciled?: boolean;
+        };
+        setSubmitEvidence({
+          revision: evidence.revision ?? null,
+          receiptId: evidence.receiptId ?? evidence.operationId ?? null,
+          replayed: evidence.replayed === true,
+          reconciled: evidence.reconciled === true,
+        });
         setDone(true);
         return;
       }
@@ -250,6 +305,8 @@ export function NextInLineCompetition() {
       else if (result.error === "duplicate_song") setError("That song is already an SSC entry and cannot enter Next in Line.");
       else if (result.error === "duplicate_artist") setError("That artist is already used by another country in this edition.");
       else if (result.error === "preview_required") setError("Choose the 25-second preview start before submitting.");
+      else if (result.error === "state_changed") setError("The Next in Line round changed while you were submitting. Reload the saved state before retrying.");
+      else if (result.error === "forbidden") setError("Your current account is not authorized to submit for that delegation.");
       else setError("The Next in Line entry could not be submitted.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The Next in Line entry could not be submitted.");
@@ -290,14 +347,35 @@ export function NextInLineCompetition() {
           </Panel>
         ) : done ? (
           <Panel>
-            <div className="py-6 text-center">
+            <div className="py-6 text-center" data-next-in-line-submit-receipt="">
               <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-emerald-300/20 bg-emerald-300/10 text-emerald-200">
                 <Check className="size-6" />
               </div>
-              <h2 className="mt-5 text-2xl font-semibold">Next in Line entry submitted</h2>
+              <h2 className="mt-5 text-2xl font-semibold">Next in Line entry saved</h2>
               <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
-                {country}'s song is saved for the separate Next in Line competition.
+                {country}'s song is stored in the canonical Next in Line submission.
               </p>
+              {submitEvidence ? (
+                <div className="mx-auto mt-4 max-w-lg rounded-xl border border-border bg-surface p-3 text-left text-xs leading-relaxed text-muted-foreground">
+                  {submitEvidence.revision ? <p>Revision {submitEvidence.revision}</p> : null}
+                  {submitEvidence.receiptId ? (
+                    <p className="mt-1 break-all">Receipt: <span className="font-mono text-foreground">{submitEvidence.receiptId}</span></p>
+                  ) : null}
+                  {submitEvidence.replayed || submitEvidence.reconciled ? (
+                    <p className="mt-1">Solaris reconciled this save against the existing server operation, so no duplicate submission was created.</p>
+                  ) : null}
+                </div>
+              ) : null}
+              <Button
+                variant="outline"
+                className="mt-5"
+                onClick={() => {
+                  setDone(false);
+                  void chooseCountry(country);
+                }}
+              >
+                Review saved entry
+              </Button>
             </div>
           </Panel>
         ) : (
@@ -318,10 +396,42 @@ export function NextInLineCompetition() {
                   {countries.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
-                  The list only contains countries already participating in this SSC edition.
+                  This list comes from your authenticated delegation scope. Selecting a country does not grant submission authority.
                 </p>
                 {loadingCountry ? <p className="text-xs text-muted-foreground">Loading selection information…</p> : null}
               </div>
+
+              {existingSubmission ? (
+                <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4" data-next-in-line-existing-submission="">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-foreground">Current saved submission</p>
+                    <span className="rounded-full border border-emerald-300/20 px-2 py-1 text-[11px] font-semibold text-emerald-100">
+                      Revision {existingSubmission.revision}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm text-foreground">
+                    {existingSubmission.artist ?? "Unknown artist"} — {existingSubmission.songTitle ?? "Unknown song"}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Saved {formatSavedAt(existingSubmission.updatedAt ?? existingSubmission.submittedAt)}
+                    {existingSubmission.previewStart && existingSubmission.previewEnd
+                      ? ` · Preview ${existingSubmission.previewStart}–${existingSubmission.previewEnd}`
+                      : ""}
+                  </p>
+                  {existingSubmission.lastOperationId ? (
+                    <p className="mt-1 text-[11px] text-muted-foreground">A canonical operation receipt is linked to this revision.</p>
+                  ) : null}
+                  <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+                    {editingOpen
+                      ? "Editing is open. Saving again creates or reconciles the next canonical revision."
+                      : "Editing is closed. This submission remains visible, but Solaris will not offer a browser-only override."}
+                  </p>
+                </div>
+              ) : sourceSubmissionId && !editingOpen ? (
+                <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.07] p-3 text-sm text-amber-100">
+                  This Next in Line round is not accepting edits right now.
+                </div>
+              ) : null}
 
               {sourceSubmissionId && originalMethod === "national_final" ? (
                 <div className="space-y-2">
@@ -380,7 +490,7 @@ export function NextInLineCompetition() {
                 <div className="flex items-start gap-3 rounded-xl border border-border bg-surface p-3">
                   <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
                   <p className="text-xs leading-relaxed text-muted-foreground">
-                    Solaris checks that the song is eligible. National Final winners and already-used SSC songs cannot be entered.
+                    Solaris checks delegation authority, the active server window and song eligibility again when you save. National Final winners and already-used SSC songs cannot be entered.
                   </p>
                 </div>
               ) : null}
@@ -388,8 +498,12 @@ export function NextInLineCompetition() {
               {error ? <div className="rounded-xl border border-red-300/20 bg-red-300/10 p-3 text-sm text-red-100">{error}</div> : null}
 
               {sourceSubmissionId ? (
-                <Button className="w-full" disabled={submitting || checkingDuplicate} onClick={() => void send()}>
-                  {submitting ? "Submitting…" : "Submit Next in Line entry"}
+                <Button className="w-full" disabled={submitting || checkingDuplicate || !editingOpen} onClick={() => void send()}>
+                  {submitting
+                    ? "Saving…"
+                    : existingSubmission
+                      ? "Save revised Next in Line entry"
+                      : "Submit Next in Line entry"}
                 </Button>
               ) : null}
             </div>
