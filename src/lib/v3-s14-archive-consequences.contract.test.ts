@@ -135,6 +135,8 @@ describe('System V3 S14 archive consequence contract', () => {
 
   it('proves the System contract on clean replay and current-main upgrade without hosted mutation', () => {
     expect(rehearsal).toContain('bun run scripts/check-v3-production-isolation.ts');
+    expect(rehearsal).toContain('insert into public.studio2_result_operations');
+    expect(rehearsal).not.toContain('insert into private.v3_result_versions');
     expect(rehearsal).toContain('private.v3_publication_result_version_release_ready');
     expect(rehearsal).toContain("studio2_normalise_publication_config('{\\\"results\\\":true}'::jsonb)");
     expect(rehearsal).toContain('private.v3_edition_final_results_ready');
@@ -143,9 +145,10 @@ describe('System V3 S14 archive consequence contract', () => {
     expect(rehearsal).toContain("'archived',null,null,9");
     expect(rehearsal).toContain('studio2_claim_domain_event_deliveries');
     expect(rehearsal).toContain('studio2_process_edition_domain_event');
-    expect(rehearsal).toContain("status='suppressed'");
+    expect(rehearsal).toContain("== 'suppressed'");
     expect(rehearsal).toContain('immutable result snapshot changed during archive');
     expect(rehearsal).toContain('a pre-existing operation receipt was lost');
+    expect(rehearsal).not.toContain('PASSWORD=');
 
     expect(workflow).toContain('supabase db reset --local --no-seed');
     expect(workflow).toContain('supabase migration up --local --include-all');
