@@ -16,6 +16,10 @@ const compatibilityMigration = readFileSync(
   ),
   "utf8",
 );
+const client = readFileSync(
+  resolve(process.cwd(), "src/lib/v3-country-account-access.ts"),
+  "utf8",
+);
 
 describe("V3 country-account suspension/restoration authority", () => {
   it("registers additive S13 migration contracts", () => {
@@ -60,6 +64,16 @@ describe("V3 country-account suspension/restoration authority", () => {
     expect(commandMigration).toContain("'version', v_after.updated_at");
     expect(commandMigration).toContain("'receiptId', v_operation_id");
     expect(commandMigration).toContain("private.studio2_complete_operation(v_operation_id, v_result)");
+  });
+
+  it("exposes a typed exact-subject client without silently accepting contradictory receipts", () => {
+    expect(client).toContain('"studio2_country_account_access_preview"');
+    expect(client).toContain('"studio2_apply_country_account_access"');
+    expect(client).toContain("p_expected_updated_at: input.expectedVersion");
+    expect(client).toContain("result.operationId !== operationId");
+    expect(client).toContain("result.receiptId !== operationId");
+    expect(client).toContain("result.userId !== userId");
+    expect(client).toContain("result.status !== input.targetStatus");
   });
 
   it("keeps old authenticated clients working until the consumer cutover actually lands", () => {
