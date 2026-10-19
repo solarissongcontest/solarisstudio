@@ -47,6 +47,11 @@ const corePath = resolve(root, "scripts/check-v3-s15-zero-orphan-readiness-core.
  * Core inventory evidence includes runtimeRoutes, legacyAliases,
  * v3FeatureFlags, organizerControls, publicSourceSurfaces and
  * notificationDeepLinks.
+ *
+ * Core discovery roots and source registries include src/routes,
+ * SOLARIS_FEATURE_FLAGS, SOLARIS_V6_FEATURE_SURFACES and
+ * V3_ORGANIZER_DISCOVERED_IDS. Keeping these concrete markers here makes the
+ * final S15 wrapper auditable without duplicating the core discovery loops.
  */
 const coreRun = spawnSync(process.execPath, [corePath, "--json"], {
   cwd: root,
