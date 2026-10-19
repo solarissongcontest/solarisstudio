@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
   BookOpen,
@@ -9,15 +9,32 @@ import {
   Vote,
   type LucideIcon,
 } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAppAttentionSummary } from "@/lib/app-attention";
+import { runAppViewTransition } from "@/lib/app-view-transitions";
+import { prefersReducedMotion } from "@/lib/interaction-physics";
 import { resolveV3ShellActiveArea } from "@/lib/v3-shell-active-area";
+import {
+  consumeV3PublicNavigationRestore,
+  getV3PublicTabDestination,
+  markV3PublicNavigationRestore,
+  rememberV3PublicLocation,
+  resetV3PublicTabToRoot,
+  updateV3PublicScrollPosition,
+  v3PublicEntryHref,
+  type V3PublicTabId,
+} from "@/lib/v3-public-navigation";
 import { getRuleContext, sanitizeRuleContextPath } from "@/lib/rule-context";
 import { cn } from "@/lib/utils";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
+import { V3DesktopPrimaryNavigation } from "./V3DesktopPrimaryNavigation";
 import { V3FoundationShell, V3TopContext } from "./V3Foundation";
+import {
+  V3LiquidTabBar,
+  type V3LiquidTabDestination,
+} from "./V3LiquidTabBar";
 
 export type V3Area = "home" | "explore" | "participate" | "results" | "me";
 
@@ -51,7 +68,11 @@ export type V3BottomNavigationProps = {
   participateAttentionCount?: number;
 };
 
-/** Shared canonical V3 five-destination navigation. */
+/**
+ * Static five-destination preview navigation retained for the TerraOS maintenance
+ * teaser. Installed V3 uses V3LiquidTabBar below; keeping this preview helper
+ * avoids coupling the maintenance teaser to gesture/runtime state.
+ */
 export function V3BottomNavigation({
   activeArea,
   participateAttentionCount = 0,
@@ -101,16 +122,19 @@ export type V3AppShellProps = {
 /**
  * Migration-ready V3 chrome.
  *
- * This component deliberately routes to existing canonical Solaris
- * destinations. It can therefore be rolled out independently from page
- * migrations and does not require duplicate routes, duplicate state or a
- * simultaneous rewrite of Home/Explore/Participate/Results/Me.
+ * Canonical route ownership stays in TanStack Router and the screen registry.
+ * The Liquid bar provides direct manipulation as progressive enhancement, but
+ * every destination remains a semantic link and this shell never invents a
+ * second URL/state model. Per-tab memory is viewer-scoped and rejects focused,
+ * immersive and critical-task routes. Whole-page swipe remains deliberately
+ * disabled until route owners provide safe live adjacent DOM surfaces rather
+ * than screenshots or duplicate data graphs.
  *
- * Notifications, Search and Rules guidance are also server-gated. Search
- * reuses the existing installed-app PublicCommandPalette. Rules guidance links
- * into the existing versioned Rules domain and its coarse workflow contexts,
- * so V3 does not acquire another query index, rule corpus, recents store or
- * guidance state model. Browser-local state cannot enable these capabilities.
+ * Notifications, Search and Rules guidance are server-gated. Search reuses the
+ * existing installed-app PublicCommandPalette. Rules guidance links into the
+ * existing versioned Rules domain and its coarse workflow contexts, so V3 does
+ * not acquire another query index, rule corpus, recents store or guidance state
+ * model. Browser-local state cannot enable these capabilities.
  */
 export function V3AppShell({
   children,
@@ -123,6 +147,7 @@ export function V3AppShell({
 }: V3AppShellProps) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const searchStr = useRouterState({ select: (state) => state.location.searchStr });
+  const navigate = useNavigate();
   const publicArea = activeArea ?? resolveV3ShellActiveArea(pathname, searchStr);
   const attention = useAppAttentionSummary();
   const rollout = useV3RolloutProbe(true);
@@ -132,6 +157,147 @@ export function V3AppShell({
   const rulesGuidanceAvailable = rollout.data?.rulesGuidanceEnabled === true;
   const ruleContext = rulesGuidanceAvailable ? getRuleContext(pathname) : null;
   const ruleContextPath = sanitizeRuleContextPath(ruleContext?.sourcePath);
+  // Route memory is viewer-scoped, but the scope itself is not trustworthy
+  // until the server-owned rollout/bootstrap probe has resolved. Treating an
+  // unresolved authenticated session as anonymous could leak that user's Me
+  // route into the anonymous storage bucket.
+  const navigationIdentityReady =
+    !rollout.isLoading && !rollout.isError && rollout.data != null;
+  const navigationScope = navigationIdentityReady ? (rollout.data.userId ?? null) : null;
+  const resolvedViewerKey = navigationScope ?? "anonymous";
+  // Interaction ownership is stricter than storage scope. An unresolved viewer
+  // is not the same generation as an explicitly anonymous viewer. Remounting
+  // the Liquid primitive on these transitions guarantees pointer capture,
+  // long-press and drag state cannot cross login/logout identity handoffs.
+  const navigationInteractionKey = navigationIdentityReady
+    ? (navigationScope ?? "anonymous")
+    : "resolving";
+  const previousResolvedViewerKeyRef = useRef<string | undefined>(undefined);
+  const notificationLabel =
+    attention.me > 0
+      ? `Notifications, ${attention.me} ${attention.me === 1 ? "item" : "items"} need attention`
+      : "Notifications";
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !navigationIdentityReady) return;
+
+    const previousViewerKey = previousResolvedViewerKeyRef.current;
+    previousResolvedViewerKeyRef.current = resolvedViewerKey;
+    if (previousViewerKey !== undefined && previousViewerKey !== resolvedViewerKey) {
+      // Auth can resolve before its redirect commits. Do not sample the old
+      // viewer's still-mounted route into the newly resolved viewer bucket.
+      // Memory resumes after the authoritative route/query changes.
+      return;
+    }
+
+    const restoreY = consumeV3PublicNavigationRestore(
+      pathname,
+      searchStr,
+      undefined,
+      navigationScope,
+    );
+    rememberV3PublicLocation(
+      pathname,
+      searchStr,
+      restoreY ?? undefined,
+      undefined,
+      navigationScope,
+    );
+
+    if (restoreY != null) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => window.scrollTo({ top: restoreY, behavior: "auto" }));
+      });
+    }
+
+    let frame: number | null = null;
+    const persistScroll = () => {
+      frame = null;
+      updateV3PublicScrollPosition(
+        pathname,
+        searchStr,
+        window.scrollY,
+        undefined,
+        navigationScope,
+      );
+    };
+    const onScroll = () => {
+      if (frame != null) return;
+      frame = window.requestAnimationFrame(persistScroll);
+    };
+    const onPageHide = () =>
+      updateV3PublicScrollPosition(
+        pathname,
+        searchStr,
+        window.scrollY,
+        undefined,
+        navigationScope,
+      );
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("pagehide", onPageHide);
+      if (frame != null) window.cancelAnimationFrame(frame);
+      updateV3PublicScrollPosition(
+        pathname,
+        searchStr,
+        window.scrollY,
+        undefined,
+        navigationScope,
+      );
+    };
+  }, [
+    navigationIdentityReady,
+    navigationScope,
+    pathname,
+    resolvedViewerKey,
+    searchStr,
+  ]);
+
+  const navigationDestinations: V3LiquidTabDestination[] = V3_SHELL_DESTINATIONS.map(
+    ({ id, label, to, icon, emphasis }) => ({
+      id,
+      label,
+      to,
+      icon,
+      emphasis,
+      active: publicArea === id,
+      badge: id === "participate" ? participateAttentionCount : 0,
+    }),
+  );
+
+  const selectDestination = (destination: V3LiquidTabDestination) => {
+    const id = destination.id as V3PublicTabId;
+    const alreadyActive = publicArea === id;
+    const normalizedPath =
+      pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
+    const normalizedRoot =
+      destination.to.endsWith("/") && destination.to !== "/"
+        ? destination.to.slice(0, -1)
+        : destination.to;
+
+    if (alreadyActive && normalizedPath === normalizedRoot) {
+      window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+      return;
+    }
+
+    // Until viewer identity resolves, semantic navigation still works but uses
+    // canonical roots only. Passing null storage avoids reading/writing the
+    // anonymous memory bucket with an identity we do not yet know is anonymous.
+    const navigationStorage = navigationIdentityReady ? undefined : null;
+    const target = alreadyActive
+      ? resetV3PublicTabToRoot(id, navigationStorage, navigationScope)
+      : getV3PublicTabDestination(id, navigationStorage, navigationScope);
+    if (navigationIdentityReady) {
+      markV3PublicNavigationRestore(target, undefined, navigationScope);
+    }
+
+    void runAppViewTransition(alreadyActive ? "pop" : "tab", () =>
+      navigate({ to: v3PublicEntryHref(target) as any }),
+    );
+  };
 
   const shellActions =
     notificationsAvailable || searchAvailable || rulesGuidanceAvailable || topActions ? (
@@ -158,7 +324,7 @@ export function V3AppShell({
           <Link
             to={"/notifications" as any}
             className="v3-icon-button"
-            aria-label="Notifications"
+            aria-label={notificationLabel}
             title="Notifications"
             data-v3-notifications-entry=""
           >
@@ -180,12 +346,18 @@ export function V3AppShell({
     <V3FoundationShell>
       <div className={cn("min-h-dvh", className)}>
         <V3TopContext edition={editionLabel} phase={phaseLabel} actions={shellActions} />
+        <V3DesktopPrimaryNavigation
+          destinations={navigationDestinations}
+          onSelect={selectDestination}
+        />
         {children}
       </div>
 
-      <V3BottomNavigation
-        activeArea={publicArea}
-        participateAttentionCount={participateAttentionCount}
+      <V3LiquidTabBar
+        key={navigationInteractionKey}
+        pathname={pathname}
+        destinations={navigationDestinations}
+        onSelect={selectDestination}
       />
     </V3FoundationShell>
   );

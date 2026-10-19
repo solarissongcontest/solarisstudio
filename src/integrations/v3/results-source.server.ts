@@ -2,7 +2,10 @@ import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmati
 import type { Country, Edition, ResultRow, Show } from "@/lib/data";
 import { entityDisplayMap, entityKeyOf, type ContestEntityRow } from "@/lib/entities";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
-import type { V3ResultProjectionInput } from "@/lib/v3-results";
+import type {
+  V3ResultProjectionInput,
+  V3ResultShowOption,
+} from "@/lib/v3-results";
 
 const EDITION_COLUMNS = "id,edition_number,name,slug,published";
 const SHOW_COLUMNS =
@@ -30,6 +33,7 @@ type PublicParticipantState = {
 
 export type V3ResultsServerBundle = {
   editionSlug: string | null;
+  options: V3ResultShowOption[];
   shell: {
     editionLabel: string;
     phaseLabel: string | null;
@@ -109,12 +113,15 @@ function emptyInput(edition: Pick<Edition, "id" | "name" | "edition_number"> | n
 /**
  * Narrow, publication-gated source for the installed-app Results root.
  *
- * Discovery reads only published edition metadata plus published final-show metadata.
- * Once the newest public result show is known, every larger read is scoped to that one
- * edition/show. This intentionally replaces the old browser fan-out over every edition,
- * show, result, participant, country and entity for V3 users.
+ * Discovery returns only published edition/final-show metadata. The browser may
+ * nominate one show id from that archive, but the source revalidates the id
+ * against canonical public result publication before performing larger reads.
+ * Result rows, participant state and historical identity remain scoped to one
+ * server-approved edition/show at a time.
  */
-export async function loadLatestV3ResultsBundle(): Promise<V3ResultsServerBundle> {
+export async function loadV3ResultsBundle(
+  requestedShowId?: string | null,
+): Promise<V3ResultsServerBundle> {
   const client = createConfirmationPublicRuntimeClient() as unknown as ResultsSourceClient;
 
   const editionsResult = await client
@@ -129,6 +136,7 @@ export async function loadLatestV3ResultsBundle(): Promise<V3ResultsServerBundle
   if (!editions.length) {
     return {
       editionSlug: null,
+      options: [],
       shell: { editionLabel: "Solaris Studio", phaseLabel: null },
       input: emptyInput(null),
       countries: [],
@@ -136,6 +144,7 @@ export async function loadLatestV3ResultsBundle(): Promise<V3ResultsServerBundle
     };
   }
 
+  const editionById = new Map(editions.map((edition) => [edition.id, edition]));
   const editionOrder = new Map(
     editions.map((edition, index) => [edition.id, edition.edition_number ?? -index - 1]),
   );
@@ -160,16 +169,32 @@ export async function loadLatestV3ResultsBundle(): Promise<V3ResultsServerBundle
       return b.sort_order - a.sort_order || a.id.localeCompare(b.id);
     });
 
-  const latestShow = resultShows[0] ?? null;
-  const latestEdition = latestShow
-    ? editions.find((edition) => edition.id === latestShow.edition_id) ?? null
+  const options = resultShows.flatMap((show) => {
+    const edition = editionById.get(show.edition_id);
+    if (!edition?.slug) return [];
+    return [{
+      id: show.id,
+      name: show.name,
+      kind: show.kind,
+      editionId: edition.id,
+      editionName: editionLabel(edition),
+      editionSlug: edition.slug,
+      editionNumber: edition.edition_number ?? null,
+    } satisfies V3ResultShowOption];
+  });
+
+  const selectedShow =
+    resultShows.find((show) => show.id === requestedShowId) ?? resultShows[0] ?? null;
+  const selectedEdition = selectedShow
+    ? editionById.get(selectedShow.edition_id) ?? null
     : latestPublicEdition;
 
-  if (!latestShow || !latestEdition) {
+  if (!selectedShow || !selectedEdition) {
     return {
-      editionSlug: latestEdition?.slug ?? null,
-      shell: { editionLabel: editionLabel(latestEdition), phaseLabel: null },
-      input: emptyInput(latestEdition),
+      editionSlug: selectedEdition?.slug ?? null,
+      options,
+      shell: { editionLabel: editionLabel(selectedEdition), phaseLabel: null },
+      input: emptyInput(selectedEdition),
       countries: [],
       generatedAt: new Date().toISOString(),
     };
@@ -179,19 +204,19 @@ export async function loadLatestV3ResultsBundle(): Promise<V3ResultsServerBundle
     client
       .from("results")
       .select(RESULT_COLUMNS)
-      .eq("show_id", latestShow.id)
+      .eq("show_id", selectedShow.id)
       .not("final_rank", "is", null)
       .order("final_rank", { ascending: true }),
     client.rpc("public_safe_participants", {
-      _edition_id: latestEdition.id,
+      _edition_id: selectedEdition.id,
       _show_id: null,
     }),
     client
       .from("contest_entities")
       .select(ENTITY_COLUMNS)
-      .eq("edition_id", latestEdition.id),
+      .eq("edition_id", selectedEdition.id),
   ]);
-  throwIfError(resultsResult.error, "Could not load latest public result");
+  throwIfError(resultsResult.error, "Could not load selected public result");
   throwIfError(participantsResult.error, "Could not load public participant state for Results");
   throwIfError(entitiesResult.error, "Could not load public result identities");
 
@@ -239,6 +264,7 @@ export async function loadLatestV3ResultsBundle(): Promise<V3ResultsServerBundle
     resultCountries.set(display.id, country);
     return [{
       countryId: display.id,
+      canonicalCountryId: row.country_id,
       countryName: display.name,
       flagUrl: display.flag_image,
       rank: row.final_rank,
@@ -248,18 +274,19 @@ export async function loadLatestV3ResultsBundle(): Promise<V3ResultsServerBundle
     }];
   });
 
-  const publication = resolveShowPublication(latestShow);
+  const publication = resolveShowPublication(selectedShow);
   return {
-    editionSlug: latestEdition.slug,
+    editionSlug: selectedEdition.slug,
+    options,
     shell: {
-      editionLabel: editionLabel(latestEdition),
+      editionLabel: editionLabel(selectedEdition),
       phaseLabel: "Results",
     },
     input: {
-      editionId: latestEdition.id,
-      editionName: editionLabel(latestEdition),
-      showId: latestShow.id,
-      showName: latestShow.name,
+      editionId: selectedEdition.id,
+      editionName: editionLabel(selectedEdition),
+      showId: selectedShow.id,
+      showName: selectedShow.name,
       publication: "published",
       disclosure: "withheld",
       rows: projectedRows,
@@ -277,4 +304,9 @@ export async function loadLatestV3ResultsBundle(): Promise<V3ResultsServerBundle
     countries: [...resultCountries.values()],
     generatedAt: new Date().toISOString(),
   };
+}
+
+/** Backward-compatible latest-result loader for non-interactive server callers. */
+export async function loadLatestV3ResultsBundle(): Promise<V3ResultsServerBundle> {
+  return loadV3ResultsBundle(null);
 }

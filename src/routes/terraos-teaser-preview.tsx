@@ -1,12 +1,22 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 import {
   TerraOSTeaserPreview,
   type TerraOSTeaserScreen,
 } from "@/components/v3/TerraOSTeaserPreview";
 import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
+import { installTerraOsTeaserHeroHandoff } from "@/lib/terraos-teaser-hero-handoff";
+import { installTerraOsTeaserHostMicroMotion } from "@/lib/terraos-teaser-host-micro-motion";
+import { installTerraOsTeaserMobileReferenceHero } from "@/lib/terraos-teaser-mobile-reference-hero";
 
-const SCREENS = new Set<TerraOSTeaserScreen>(["home", "explore", "participate"]);
+const SCREENS = new Set<TerraOSTeaserScreen>([
+  "home",
+  "explore",
+  "participate",
+  "results",
+  "me",
+]);
 
 export const Route = createFileRoute("/terraos-teaser-preview")({
   beforeLoad: () => {
@@ -21,6 +31,7 @@ export const Route = createFileRoute("/terraos-teaser-preview")({
       screen: (SCREENS.has(requested as TerraOSTeaserScreen)
         ? requested
         : "home") as TerraOSTeaserScreen,
+      chrome: search.chrome === "content" ? ("content" as const) : ("full" as const),
     };
   },
   head: () => ({
@@ -37,6 +48,27 @@ export const Route = createFileRoute("/terraos-teaser-preview")({
 });
 
 function TerraOSTeaserPreviewRoute() {
-  const { screen } = Route.useSearch();
-  return <TerraOSTeaserPreview screen={screen} />;
+  const { screen, chrome } = Route.useSearch();
+
+  useEffect(() => {
+    // The full Home renderer is the same-origin bridge already used by the
+    // maintenance teaser. Content-only nested previews must never recursively
+    // install host motion or the cross-scene hero handoff.
+    if (screen !== "home" || chrome === "content") return;
+    const frame = window.frameElement as HTMLElement | null;
+    if (!frame) return;
+
+    // Keep the approved three-phone mobile opening while retaining the existing
+    // physical response and continuous Home-device handoff into first look.
+    const cleanupMicroMotion = installTerraOsTeaserHostMicroMotion(frame);
+    const cleanupReferenceHero = installTerraOsTeaserMobileReferenceHero(frame);
+    const cleanupHeroHandoff = installTerraOsTeaserHeroHandoff(frame);
+    return () => {
+      cleanupHeroHandoff();
+      cleanupReferenceHero();
+      cleanupMicroMotion();
+    };
+  }, [screen, chrome]);
+
+  return <TerraOSTeaserPreview screen={screen} showNavigation={chrome !== "content"} />;
 }

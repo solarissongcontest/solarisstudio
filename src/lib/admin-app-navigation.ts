@@ -51,11 +51,15 @@ function normalizeSearch(searchStr?: string | null) {
   return normalized.length <= 2048 ? normalized : "";
 }
 
+function withinRouteRoot(pathname: string, root: string) {
+  return pathname === root || pathname.startsWith(`${root}/`);
+}
+
 function safeAdminPath(pathname: string) {
   return (
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/confirmations/admin") ||
-    pathname.startsWith("/televoting/admin")
+    withinRouteRoot(pathname, "/admin") ||
+    withinRouteRoot(pathname, "/confirmations/admin") ||
+    withinRouteRoot(pathname, "/televoting/admin")
   );
 }
 
@@ -179,6 +183,7 @@ export function readAdminNavigationState(
       activeTab?: AdminAppTabId | "inbox" | "cases";
       tabs?: Record<string, AdminTabState | undefined>;
     };
+    if (parsed.version !== 1) return emptyState();
     const validTabs: AdminAppTabId[] = ["home", "edition", "tasks", "delegations", "more"];
     const migrateTab = (value: unknown): AdminAppTabId => {
       if (value === "inbox") return "tasks";
@@ -350,9 +355,11 @@ export function consumeAdminNavigationRestore(
   try {
     const raw = storage.getItem(RESTORE_INTENT_KEY);
     if (!raw) return null;
+    // Consume first so malformed, redirected or stale intents can never remain
+    // armed and restore an unrelated later navigation.
+    storage.removeItem(RESTORE_INTENT_KEY);
     const parsed = JSON.parse(raw) as { href?: string; scrollY?: number };
     if (parsed.href !== pathname + normalizeSearch(searchStr)) return null;
-    storage.removeItem(RESTORE_INTENT_KEY);
     return typeof parsed.scrollY === "number" && Number.isFinite(parsed.scrollY)
       ? Math.max(0, parsed.scrollY)
       : 0;

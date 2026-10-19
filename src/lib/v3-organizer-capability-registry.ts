@@ -147,9 +147,11 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "current-edition-results" ||
     id === "current-edition-storytelling" ||
     id === "current-edition-publish" ||
+    id === "current-edition-broadcast" ||
     id === "operations-eligibility" ||
     id === "operations-media-assets" ||
     id === "operations-communications" ||
+    id === "live-review-reveal-director" ||
     id === "live-review-broadcast-rundown" ||
     id === "live-review-simulation-lab" ||
     id === "live-review-time-machine" ||
@@ -166,8 +168,30 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "delegation-sync" ||
     id === "delegation-settings" ||
     id === "voting-rounds-entries" ||
+    id === "voting-jury" ||
+    id === "voting-rules" ||
     id === "voting-jury-integrity" ||
+    id === "voting-televote-totals" ||
     id === "voting-integrity-review" ||
+    id === "voting-public-results" ||
+    id === "voting-intelligence" ||
+    id === "voting-analytics" ||
+    id === "voting-result-integrity" ||
+    id === "voting-audit-log" ||
+    id === "voting-edition-links" ||
+    id === "voting-result-backtest" ||
+    id === "voting-anti-abuse" ||
+    id === "trust-rule-rulings" ||
+    id === "trust-appeals" ||
+    id === "trust-evidence" ||
+    id === "trust-disclosure" ||
+    id === "trust-identity-access" ||
+    id === "trust-rules-manager" ||
+    id === "trust-interpretations" ||
+    id === "workspace-access-permissions" ||
+    id === "workspace-administration" ||
+    id === "workspace-organizer-guide" ||
+    id === "workspace-country-accounts" ||
     id === "workspace-acceptance-test" ||
     id === "workspace-beta-coverage" ||
     id === "workspace-public-ux" ||
@@ -177,7 +201,9 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "workspace-command-assistant" ||
     id === "workspace-beta-3-feedback" ||
     id === "workspace-beta-2-feedback" ||
-    id === "workspace-beta-1-archive"
+    id === "workspace-beta-1-archive" ||
+    id === "workspace-system-health" ||
+    id === "workspace-delivery-jobs"
   ) {
     return "building";
   }

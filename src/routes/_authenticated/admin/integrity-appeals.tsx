@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
-import { AdminCard, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
+import { AdminCard, AdminConfirmSheet, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { RuleDecisionStrip } from "@/components/rules/RuleDecisionStrip";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -128,6 +128,7 @@ function IntegrityAppeals() {
 
 function AppealCard({ appeal, onChanged }: { appeal: AppealItem; onChanged: () => Promise<void> }) {
   const [extensionOpen, setExtensionOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [deadline, setDeadline] = useState("");
   const [reason, setReason] = useState("");
   const mutation = useMutation({
@@ -137,6 +138,7 @@ function AppealCard({ appeal, onChanged }: { appeal: AppealItem; onChanged: () =
       _reason: reason,
     }),
     onSuccess: async () => {
+      setConfirmOpen(false);
       setExtensionOpen(false);
       setDeadline("");
       setReason("");
@@ -147,6 +149,9 @@ function AppealCard({ appeal, onChanged }: { appeal: AppealItem; onChanged: () =
   });
 
   const statusTone = appeal.status === "rejected_late" ? "blocked" : ["submitted", "under_review"].includes(appeal.status) ? "attention" : "ready";
+  const proposedDeadline = deadline ? new Date(deadline) : null;
+  const proposedDeadlineValid = Boolean(proposedDeadline && Number.isFinite(proposedDeadline.getTime()));
+
   return (
     <article className="rounded-[1.35rem] border border-white/[0.08] bg-white/[0.02] p-4">
       <div className="flex items-start justify-between gap-3">
@@ -164,7 +169,35 @@ function AppealCard({ appeal, onChanged }: { appeal: AppealItem; onChanged: () =
         {appeal.status === "rejected_late" ? <button type="button" onClick={() => setExtensionOpen((value) => !value)} className="admin-action-secondary"><CalendarClock className="size-3.5"/>Exceptional extension</button> : null}
       </div>
 
-      {extensionOpen ? <div className="mt-4 rounded-xl border border-amber-200/12 bg-amber-200/[0.04] p-3"><div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-200"/><p className="text-[10px] leading-5 text-amber-50/75">Use only where exceptional circumstances justify extending the ordinary 48-hour deadline. The reason becomes part of the reporter-visible case audit trail.</p></div><label className="mt-3 block"><span className="text-[9px] font-black uppercase tracking-[.1em] text-muted-foreground">Extended deadline</span><input type="datetime-local" value={deadline} onChange={(event) => setDeadline(event.target.value)} className="mt-1 min-h-10 w-full rounded-lg border px-3 text-xs"/></label><label className="mt-3 block"><span className="text-[9px] font-black uppercase tracking-[.1em] text-muted-foreground">Exceptional reason</span><textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} placeholder="Explain why the ordinary deadline should be extended…" className="mt-1 w-full rounded-lg border p-3 text-xs"/></label><button type="button" disabled={!deadline || reason.trim().length < 10 || mutation.isPending} onClick={() => mutation.mutate()} className="admin-action-primary mt-3"><CalendarClock className="size-4"/>{mutation.isPending ? "Granting…" : "Grant extension"}</button></div> : null}
+      {extensionOpen ? <div className="mt-4 rounded-xl border border-amber-200/12 bg-amber-200/[0.04] p-3"><div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-200"/><p className="text-[10px] leading-5 text-amber-50/75">Use only where exceptional circumstances justify extending the ordinary 48-hour deadline. The reason becomes part of the reporter-visible case audit trail.</p></div><label className="mt-3 block"><span className="text-[9px] font-black uppercase tracking-[.1em] text-muted-foreground">Extended deadline</span><input type="datetime-local" value={deadline} onChange={(event) => setDeadline(event.target.value)} className="mt-1 min-h-10 w-full rounded-lg border px-3 text-xs"/></label><label className="mt-3 block"><span className="text-[9px] font-black uppercase tracking-[.1em] text-muted-foreground">Exceptional reason</span><textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} placeholder="Explain why the ordinary deadline should be extended…" className="mt-1 w-full rounded-lg border p-3 text-xs"/></label><button type="button" disabled={!proposedDeadlineValid || reason.trim().length < 10 || mutation.isPending} onClick={() => setConfirmOpen(true)} className="admin-action-primary mt-3"><CalendarClock className="size-4"/>{mutation.isPending ? "Granting…" : "Review extension"}</button></div> : null}
+
+      <AdminConfirmSheet
+        open={confirmOpen}
+        onClose={() => {
+          if (!mutation.isPending) setConfirmOpen(false);
+        }}
+        onConfirm={async () => {
+          await mutation.mutateAsync();
+        }}
+        title={`Grant exceptional extension for ${appeal.case_code}?`}
+        description={
+          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+            <p>This action reopens a late appeal for fresh review. Confirm the exact deadline change and exceptional reason before applying it.</p>
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+              <p className="font-semibold text-foreground">{appeal.case_code} · {appeal.case_summary}</p>
+              <p className="mt-2"><span className="font-semibold text-foreground">Original deadline:</span> {new Date(appeal.deadline_at).toLocaleString()}</p>
+              <p className="mt-2"><span className="font-semibold text-foreground">Proposed deadline:</span> {proposedDeadlineValid && proposedDeadline ? proposedDeadline.toLocaleString() : "Invalid deadline"}</p>
+              <p className="mt-2"><span className="font-semibold text-foreground">Exceptional reason:</span> {reason.trim()}</p>
+            </div>
+            <p>The appeal status will return from rejected-late to submitted under the current legacy authority, and the extension reason becomes part of the reporter-visible case audit trail.</p>
+            <p>Canonical V3 preflight, version/CAS and receipt authority remain tracked in System #947.</p>
+          </div>
+        }
+        confirmLabel="Grant exceptional extension"
+        busy={mutation.isPending}
+        confirmDisabled={!proposedDeadlineValid || reason.trim().length < 10 || appeal.status !== "rejected_late"}
+        danger
+      />
     </article>
   );
 }

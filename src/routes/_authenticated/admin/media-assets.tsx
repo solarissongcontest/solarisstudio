@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminDataView, type AdminDataColumn } from '@/components/admin/AdminDataView';
 import { AdminPage } from '@/components/admin/AdminShell';
-import { AdminCard, AdminEmptyState, AdminPageHeader, AdminSheet, AdminStatus } from '@/components/admin/AdminUI';
+import { AdminCard, AdminConfirmSheet, AdminEmptyState, AdminPageHeader, AdminSheet, AdminStatus } from '@/components/admin/AdminUI';
 import { selectOrganizerEdition } from '@/lib/admin-edition-selection';
 import { useCountries, useEditions } from '@/lib/data';
 import { MEDIA_ASSET_TYPES, type MediaAssetType } from '@/lib/media-asset-vault';
@@ -29,6 +29,26 @@ type MediaSearch = {
   type?: 'all' | MediaAssetType;
   country?: string;
   asset?: string;
+};
+
+type PendingMediaReviewItem = {
+  assetKey: string;
+  assetType: MediaAssetType;
+  countryId: string | null;
+  entryId: string | null;
+  sourceFingerprint: string;
+  title: string;
+  countryName: string | null;
+  entryLabel: string | null;
+  state: Studio2MediaAssetState;
+};
+
+type PendingMediaReview = {
+  decision: Studio2MediaReviewDecision;
+  commandEditionId: string;
+  editionLabel: string;
+  reason: string;
+  items: PendingMediaReviewItem[];
 };
 
 export const Route = createFileRoute('/_authenticated/admin/media-assets')({
@@ -61,6 +81,7 @@ function MediaAssetsPage() {
   const countriesQuery = useCountries();
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
   const [reviewReason, setReviewReason] = useState('');
+  const [pendingReview, setPendingReview] = useState<PendingMediaReview | null>(null);
 
   const editions = editionsQuery.data ?? [];
   const selectedEdition = selectOrganizerEdition(editions, editionId);
@@ -69,6 +90,7 @@ function MediaAssetsPage() {
   useEffect(() => {
     setSelectedKeys(new Set());
     setReviewReason('');
+    setPendingReview(null);
   }, [resolvedEditionId]);
 
   const cockpitQuery = useQuery({
@@ -177,30 +199,43 @@ function MediaAssetsPage() {
   const error = editionsQuery.error ?? countriesQuery.error ?? cockpitQuery.error ?? reviewsQuery.error;
 
   const reviewMutation = useMutation({
-    mutationFn: async ({ decision, commandEditionId }: { decision: Studio2MediaReviewDecision; commandEditionId: string }) => {
-      if (!selectedEdition || selectedEdition.id !== commandEditionId || editionId !== commandEditionId) {
+    mutationFn: async (review: PendingMediaReview) => {
+      if (!selectedEdition || selectedEdition.id !== review.commandEditionId || editionId !== review.commandEditionId) {
         throw new Error('Organizer edition changed. Review the current media selection again before applying a decision.');
       }
-      if (!reviewableSelected.length || reviewableSelected.length !== selectedItems.length) {
-        throw new Error('Only uploaded assets that are not processing can be reviewed.');
+      if (!review.items.length || review.reason.trim().length < 5) {
+        throw new Error('The reviewed media decision is missing its exact asset set or audit reason.');
       }
-      if (reviewableSelected.some((item) => item.editionId !== commandEditionId)) {
-        throw new Error('Selected media contains data from another edition. Clear the selection and reload the current edition.');
-      }
-      if (decision === 'approved' && !canApproveSelected) {
-        throw new Error('Resolve blocked validation checks before approving these assets.');
-      }
+
+      const currentByKey = new Map(inventory.map((item) => [item.assetKey, item] as const));
+      const exactItems = review.items.map((reviewed) => {
+        const current = currentByKey.get(reviewed.assetKey);
+        if (!current || current.editionId !== review.commandEditionId) {
+          throw new Error('A reviewed media asset is no longer present in this edition. Reload and review again.');
+        }
+        if (!current.sourceFingerprint || current.processing) {
+          throw new Error(`${current.title} is no longer reviewable. Reload the current media state.`);
+        }
+        if (current.sourceFingerprint !== reviewed.sourceFingerprint) {
+          throw new Error(`${current.title} changed after this review opened. Review the replacement source instead.`);
+        }
+        if (review.decision === 'approved' && current.validation.some((check) => check.level === 'blocked')) {
+          throw new Error(`${current.title} now has a blocking validation check and cannot be approved.`);
+        }
+        return current;
+      });
+
       return reviewStudio2MediaAssets({
-        editionId: commandEditionId,
-        reviews: reviewableSelected.map((item) => ({
+        editionId: review.commandEditionId,
+        reviews: exactItems.map((item) => ({
           assetKey: item.assetKey,
           assetType: item.assetType,
           countryId: item.countryId,
           entryId: item.entryId,
           sourceFingerprint: item.sourceFingerprint!,
-          decision,
+          decision: review.decision,
         })),
-        reason: reviewReason,
+        reason: review.reason,
       });
     },
     onSuccess: async (_rows, variables) => {
@@ -209,6 +244,7 @@ function MediaAssetsPage() {
       toast.success(variables.decision === 'approved' ? 'Media assets approved.' : 'Media assets marked invalid.');
       setSelectedKeys(new Set());
       setReviewReason('');
+      setPendingReview(null);
     },
     onError: (mutationError) => toast.error(errorText(mutationError)),
   });
@@ -232,6 +268,42 @@ function MediaAssetsPage() {
   function selectVisible() {
     const reviewable = filtered.filter((item) => item.sourceFingerprint && !item.processing);
     setSelectedKeys(new Set(reviewable.map((item) => item.assetKey)));
+  }
+
+  function requestReview(decision: Studio2MediaReviewDecision) {
+    if (!selectedEdition || editionId !== selectedEdition.id) {
+      toast.error('Select the current Organizer edition again before reviewing media.');
+      return;
+    }
+    if (!reviewableSelected.length || reviewableSelected.length !== selectedItems.length) {
+      toast.error('Only uploaded assets that are not processing can be reviewed.');
+      return;
+    }
+    if (reviewReason.trim().length < 5) {
+      toast.error('Add an audit reason of at least 5 characters.');
+      return;
+    }
+    if (decision === 'approved' && !canApproveSelected) {
+      toast.error('Resolve blocked validation checks before approving these assets.');
+      return;
+    }
+    setPendingReview({
+      decision,
+      commandEditionId: selectedEdition.id,
+      editionLabel: `${selectedEdition.edition_number ? `SSC ${selectedEdition.edition_number} · ` : ''}${selectedEdition.name}`,
+      reason: reviewReason.trim(),
+      items: reviewableSelected.map((item) => ({
+        assetKey: item.assetKey,
+        assetType: item.assetType,
+        countryId: item.countryId,
+        entryId: item.entryId,
+        sourceFingerprint: item.sourceFingerprint!,
+        title: item.title,
+        countryName: item.countryName,
+        entryLabel: item.entryLabel,
+        state: item.state,
+      })),
+    });
   }
 
   return (
@@ -298,8 +370,8 @@ function MediaAssetsPage() {
                   <input aria-label="Review reason" value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} className="admin-input min-w-0 flex-1" placeholder="Review reason (required)" />
                   <button type="button" className="admin-action-secondary" onClick={selectVisible}>Select visible</button>
                   <button type="button" className="admin-action-secondary" onClick={() => setSelectedKeys(new Set())} disabled={!selectedKeys.size}>Clear</button>
-                  <button type="button" className="admin-action-primary" disabled={!resolvedEditionId || !selectedKeys.size || reviewReason.trim().length < 5 || !canApproveSelected || reviewMutation.isPending} onClick={() => reviewMutation.mutate({ decision: 'approved', commandEditionId: resolvedEditionId })}>Approve selected</button>
-                  <button type="button" className="admin-action-secondary" disabled={!resolvedEditionId || !selectedKeys.size || reviewReason.trim().length < 5 || reviewMutation.isPending} onClick={() => reviewMutation.mutate({ decision: 'invalid', commandEditionId: resolvedEditionId })}>Mark invalid</button>
+                  <button type="button" className="admin-action-primary" disabled={!resolvedEditionId || !selectedKeys.size || reviewReason.trim().length < 5 || !canApproveSelected || reviewMutation.isPending} onClick={() => requestReview('approved')}>Review approval</button>
+                  <button type="button" className="admin-action-secondary" disabled={!resolvedEditionId || !selectedKeys.size || reviewReason.trim().length < 5 || reviewMutation.isPending} onClick={() => requestReview('invalid')}>Review invalidation</button>
                 </div>
               </div>
               {selectedKeys.size ? <p className="mt-3 text-xs text-muted-foreground">{selectedKeys.size} selected · {reviewableSelected.length} reviewable</p> : null}
@@ -321,6 +393,46 @@ function MediaAssetsPage() {
         )}
 
         <MediaAssetSheet asset={selectedAsset} reviews={(reviewsQuery.data ?? []).filter((review) => review.assetKey === selectedAsset?.assetKey)} onClose={() => updateSearch({ asset: undefined })} />
+
+        <AdminConfirmSheet
+          open={Boolean(pendingReview)}
+          onClose={() => {
+            if (!reviewMutation.isPending) setPendingReview(null);
+          }}
+          onConfirm={async () => {
+            if (pendingReview) await reviewMutation.mutateAsync(pendingReview);
+          }}
+          title={pendingReview?.decision === 'approved' ? 'Approve these exact media sources?' : 'Mark these exact media sources invalid?'}
+          description={pendingReview ? (
+            <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                <p className="font-semibold text-foreground">{pendingReview.editionLabel}</p>
+                <p className="mt-1">Decision: {pendingReview.decision === 'approved' ? 'Approve' : 'Mark invalid'} · {pendingReview.items.length} asset{pendingReview.items.length === 1 ? '' : 's'}</p>
+                <p className="mt-1"><span className="font-semibold text-foreground">Audit reason:</span> {pendingReview.reason}</p>
+              </div>
+              <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                {pendingReview.items.map((item) => (
+                  <div key={item.assetKey} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground">{item.title}</p>
+                        <p className="mt-1">{item.countryName ?? pendingReview.editionLabel}{item.entryLabel ? ` · ${item.entryLabel}` : ''}</p>
+                        <p className="mt-1 break-all font-mono text-[10px]">{item.assetKey}</p>
+                      </div>
+                      <AdminStatus tone={stateTone(item.state)}>{stateLabel(item.state)}</AdminStatus>
+                    </div>
+                    <p className="mt-2 break-all font-mono text-[10px] text-muted-foreground">Source fingerprint: {item.sourceFingerprint}</p>
+                  </div>
+                ))}
+              </div>
+              <p>Before apply, Solaris rechecks every asset key against the current edition and requires the source fingerprint to still match this review. Replaced or processing sources fail closed and must be reviewed again.</p>
+              <p>This decision is an audited review overlay. It does not delete, replace or rewrite the canonical media source.</p>
+            </div>
+          ) : null}
+          confirmLabel={pendingReview?.decision === 'approved' ? 'Approve reviewed sources' : 'Mark reviewed sources invalid'}
+          busy={reviewMutation.isPending}
+          danger={pendingReview?.decision === 'invalid'}
+        />
       </div>
     </AdminPage>
   );

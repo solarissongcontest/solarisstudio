@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, type LucideIcon } from "lucide-react";
+import { useRef } from "react";
 
 import { trackPublicUxEvent, type PublicUxEventName } from "@/lib/public-ux-events";
 import { cn } from "@/lib/utils";
@@ -25,18 +26,28 @@ export function PublicPrimaryAction({
   analyticsEvent?: PublicUxEventName;
   analyticsArea?: string;
 }) {
+  const mountedAt = useRef(
+    typeof performance !== "undefined" ? performance.now() : 0,
+  );
+
   return (
     <Link
       to={to as any}
-      onClick={() =>
+      onClick={() => {
+        const elapsedMs =
+          mountedAt.current > 0 && typeof performance !== "undefined"
+            ? Math.max(0, Math.round(performance.now() - mountedAt.current))
+            : undefined;
         trackPublicUxEvent(analyticsEvent, {
           target: to,
           metadata: {
             ...(analyticsArea ? { area: analyticsArea } : {}),
             ...(status ? { task_status: status } : {}),
+            ...(elapsedMs != null ? { elapsed_ms: elapsedMs } : {}),
+            interaction: "primary_action",
           },
-        })
-      }
+        });
+      }}
       className={cn("public-primary-action group", dominant && "is-dominant")}
     >
       <div className="flex items-start justify-between gap-4">

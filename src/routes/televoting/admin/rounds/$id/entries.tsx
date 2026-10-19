@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowDown, ArrowUp, Globe, Link2, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { AdminPageHeader } from "@/components/admin/AdminUI";
+import { AdminConfirmSheet, AdminPageHeader } from "@/components/admin/AdminUI";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,6 +39,8 @@ type CustomForm = {
   description: string;
 };
 
+type SelfVotingMode = "country_match" | "linked_identity" | "disabled" | "unrestricted";
+
 const emptyCustom: CustomForm = {
   customName: "",
   shortName: "",
@@ -52,6 +54,13 @@ function displayName(entry: MergedRoundEntry) {
   return entry.entry_type === "country"
     ? entry.country?.name || entry.country_code || entry.entry_key
     : entry.custom_name || entry.entry_key;
+}
+
+function selfVotingModeLabel(mode: SelfVotingMode) {
+  if (mode === "country_match") return "Country match";
+  if (mode === "linked_identity") return "Linked identity";
+  if (mode === "disabled") return "Disabled";
+  return "Unrestricted";
 }
 
 function RoundEntriesPage() {
@@ -72,6 +81,10 @@ function RoundEntriesPage() {
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
   const [customForm, setCustomForm] = useState<CustomForm>(emptyCustom);
   const [sourceSelection, setSourceSelection] = useState("edition");
+  const [deleteTarget, setDeleteTarget] = useState<MergedRoundEntry | null>(null);
+  const [deletingCustom, setDeletingCustom] = useState(false);
+  const [pendingSelfVotingMode, setPendingSelfVotingMode] = useState<SelfVotingMode | null>(null);
+  const [savingSelfVotingMode, setSavingSelfVotingMode] = useState(false);
 
   const { data: admin, isLoading: adminLoading } = useQuery({
     queryKey: ["merged-televoting-admin"],
@@ -112,6 +125,11 @@ function RoundEntriesPage() {
       setSourceSelection("edition");
     }
   }, [solarisSource?.binding]);
+
+  useEffect(() => {
+    setDeleteTarget(null);
+    setPendingSelfVotingMode(null);
+  }, [roundId]);
 
   const refresh = async () => {
     await Promise.all([
@@ -183,6 +201,7 @@ function RoundEntriesPage() {
 
   const editable = data?.round.status !== "open";
   const entries = data?.entries ?? [];
+  const currentSelfVotingMode = (data?.round.self_voting_mode ?? "country_match") as SelfVotingMode;
 
   const selectedSourceCount = useMemo(() => {
     if (!solarisSource) return 0;
@@ -202,6 +221,40 @@ function RoundEntriesPage() {
       await refresh();
     } catch (caught) {
       toast.error(caught instanceof Error ? caught.message : "Entries could not be reordered");
+    }
+  }
+
+  async function confirmCustomDeletion() {
+    if (!deleteTarget || deleteTarget.entry_type !== "custom" || !editable || deletingCustom) return;
+    setDeletingCustom(true);
+    try {
+      await deleteCustom({ data: { roundId, entryId: deleteTarget.id } });
+      toast.success("Custom entry deleted");
+      setDeleteTarget(null);
+      await refresh();
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "Entry could not be deleted");
+    } finally {
+      setDeletingCustom(false);
+    }
+  }
+
+  async function confirmSelfVotingModeChange() {
+    if (!data || !pendingSelfVotingMode || !editable || savingSelfVotingMode) return;
+    if (pendingSelfVotingMode === currentSelfVotingMode) {
+      setPendingSelfVotingMode(null);
+      return;
+    }
+    setSavingSelfVotingMode(true);
+    try {
+      await setSelfVoting({ data: { roundId, mode: pendingSelfVotingMode } });
+      toast.success("Self-voting mode updated");
+      setPendingSelfVotingMode(null);
+      await refresh();
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "Mode could not be updated");
+    } finally {
+      setSavingSelfVotingMode(false);
     }
   }
 
@@ -302,21 +355,11 @@ function RoundEntriesPage() {
                 <p className="mt-1 text-sm text-muted-foreground">Participant mode is derived from the actual line-up. Self-voting rules can be changed while the round is not open.</p>
               </div>
               <select
-                value={data.round.self_voting_mode ?? "country_match"}
-                disabled={!editable}
-                onChange={async (event) => {
-                  try {
-                    await setSelfVoting({
-                      data: {
-                        roundId,
-                        mode: event.target.value as "country_match" | "linked_identity" | "disabled" | "unrestricted",
-                      },
-                    });
-                    toast.success("Self-voting mode updated");
-                    await refresh();
-                  } catch (caught) {
-                    toast.error(caught instanceof Error ? caught.message : "Mode could not be updated");
-                  }
+                value={currentSelfVotingMode}
+                disabled={!editable || savingSelfVotingMode}
+                onChange={(event) => {
+                  const nextMode = event.target.value as SelfVotingMode;
+                  if (nextMode !== currentSelfVotingMode) setPendingSelfVotingMode(nextMode);
                 }}
                 className="h-10 rounded-xl border border-white/12 bg-black/20 px-3 text-sm"
               >
@@ -454,17 +497,9 @@ function RoundEntriesPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          disabled={!editable}
-                          onClick={async () => {
-                            if (!confirm(`Delete ${displayName(entry)}?`)) return;
-                            try {
-                              await deleteCustom({ data: { roundId, entryId: entry.id } });
-                              toast.success("Custom entry deleted");
-                              await refresh();
-                            } catch (caught) {
-                              toast.error(caught instanceof Error ? caught.message : "Entry could not be deleted");
-                            }
-                          }}
+                          disabled={!editable || deletingCustom}
+                          aria-label={`Review deletion of ${displayName(entry)}`}
+                          onClick={() => setDeleteTarget(entry)}
                         >
                           <Trash2 className="size-3.5" />
                         </Button>
@@ -480,6 +515,70 @@ function RoundEntriesPage() {
           </section>
         </div>
       )}
+
+      <AdminConfirmSheet
+        open={Boolean(deleteTarget)}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmCustomDeletion}
+        title={deleteTarget ? `Delete ${displayName(deleteTarget)}?` : "Delete custom entry?"}
+        description={
+          deleteTarget ? (
+            <div className="space-y-2">
+              <p>
+                This removes the custom entry <strong className="text-foreground">{displayName(deleteTarget)}</strong> from
+                <strong className="text-foreground"> {data?.round.name ?? "this round"}</strong>.
+              </p>
+              <p>
+                Entry key: <span className="font-mono text-foreground">{deleteTarget.entry_key}</span>. The round must still be
+                closed/editable when the server applies the deletion.
+              </p>
+              <p>
+                This review does not bypass the existing server authority and does not delete country-backed Solaris participants.
+              </p>
+            </div>
+          ) : null
+        }
+        confirmLabel="Delete custom entry"
+        confirmationText={deleteTarget ? displayName(deleteTarget) : undefined}
+        confirmationHint={deleteTarget ? `Type ${displayName(deleteTarget)} exactly to confirm deletion` : undefined}
+        busy={deletingCustom}
+        confirmDisabled={!editable || deleteTarget?.entry_type !== "custom"}
+        danger
+      />
+
+      <AdminConfirmSheet
+        open={Boolean(pendingSelfVotingMode)}
+        onClose={() => setPendingSelfVotingMode(null)}
+        onConfirm={confirmSelfVotingModeChange}
+        title="Review self-voting rule change"
+        description={
+          pendingSelfVotingMode ? (
+            <div className="space-y-2">
+              <p>
+                Round: <strong className="text-foreground">{data?.round.name ?? roundId}</strong>.
+              </p>
+              <p>
+                Rule change: <strong className="text-foreground">{selfVotingModeLabel(currentSelfVotingMode)}</strong>
+                {" → "}<strong className="text-foreground">{selfVotingModeLabel(pendingSelfVotingMode)}</strong>.
+              </p>
+              <p>
+                This changes how the voting identity rules treat votes involving the participant&apos;s own entry. The round must remain closed before the existing server authority will apply the change.
+              </p>
+              {pendingSelfVotingMode === "unrestricted" ? (
+                <p className="text-amber-100">
+                  Unrestricted mode removes the self-voting restriction for this round. Verify that this is intentional before applying it.
+                </p>
+              ) : null}
+            </div>
+          ) : null
+        }
+        confirmLabel="Apply self-voting rule"
+        confirmationText={pendingSelfVotingMode === "unrestricted" ? data?.round.name : undefined}
+        confirmationHint={pendingSelfVotingMode === "unrestricted" && data?.round.name ? `Type ${data.round.name} exactly to allow unrestricted self-voting` : undefined}
+        busy={savingSelfVotingMode}
+        confirmDisabled={!editable || pendingSelfVotingMode === currentSelfVotingMode}
+        danger={pendingSelfVotingMode === "unrestricted"}
+      />
     </div>
   );
 }

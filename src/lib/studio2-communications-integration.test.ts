@@ -45,7 +45,7 @@ describe("Studio 2 Official Communications integration", () => {
     expect(adminRoute).toContain("NOTICE_EDITION_GROUPS");
     expect(adminRoute).toContain("Save draft");
     expect(adminRoute).toContain("Schedule");
-    expect(adminRoute).toContain("Publish now");
+    expect(adminRoute).toMatch(/Review &(?:amp;)? publish/);
     expect(adminRoute).toContain("Revision history");
     expect(adminRoute).toContain("createSupersedingStudio2NoticeDraft");
     expect(adminRoute).toContain("audience === 'specific_countries'");
