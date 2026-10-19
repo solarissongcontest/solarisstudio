@@ -18,6 +18,7 @@ on:
       - "src/lib/v3-s14-archive-consequences.contract.test.ts"
       - "src/lib/v3-s14-archive-registry.contract.test.ts"
       - "src/lib/v3-s14-archive-task-registry-alignment.contract.test.ts"
+      - "src/lib/v3-s14-resolved-task-notification-invariant.contract.test.ts"
       - "src/lib/v3-s14-transition-http409.contract.test.ts"
       - "src/lib/v3-edition-transition-client.ts"
       - "src/lib/v3-edition-transition-client.test.ts"
@@ -63,7 +64,7 @@ jobs:
       - name: Rehearse Archive authorization and lifecycle guards
         run: bash .github/scripts/v3-s14-archive-guard-rehearsal.sh
 
-      - name: Rehearse archived task non-resurrection invariant
+      - name: Rehearse archived task and notification non-resurrection invariants
         run: bash .github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh
 
       - name: Stop isolated local Supabase
@@ -111,7 +112,8 @@ jobs:
             20261019112100_v3_s14_archive_consequence_reconciliation.sql \
             20261019112200_v3_s14_final_results_readiness_hardening.sql \
             20261019112300_v3_s14_transition_http409.sql \
-            20261019112400_v3_s14_archive_task_registry_alignment.sql
+            20261019112400_v3_s14_archive_task_registry_alignment.sql \
+            20261019112500_v3_s14_resolved_task_notification_invariant.sql
           do
             cp \
               "$GITHUB_WORKSPACE/supabase/migrations/$migration" \
@@ -141,7 +143,7 @@ jobs:
           cd /tmp/solaris-s14-main
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-archive-guard-rehearsal.sh"
 
-      - name: Rehearse task non-resurrection after current-main upgrade
+      - name: Rehearse task and notification non-resurrection after current-main upgrade
         shell: bash
         run: |
           set -euo pipefail
