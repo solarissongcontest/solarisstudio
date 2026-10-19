@@ -9,18 +9,30 @@ const migration = readFileSync(
   ),
   "utf8",
 );
+const draftMigration = readFileSync(
+  resolve(
+    process.cwd(),
+    "supabase/migrations/20261020003000_v3_official_communications_draft_authority.sql",
+  ),
+  "utf8",
+);
 const client = readFileSync(
   resolve(process.cwd(), "src/lib/v3-official-communications-commands.ts"),
   "utf8",
 );
 
 describe("V3 Official Communications command authority", () => {
-  it("registers the post-S13 migration as forward-only and additive", () => {
-    expect(migration).toContain("public.v3_register_migration_contract(");
-    expect(migration).toContain("20261020001500_v3_official_communications_command_authority");
-    expect(migration).toContain("'forward_fix_only'");
-    expect(migration).not.toMatch(/drop\s+table/i);
-    expect(migration).not.toMatch(/truncate/i);
+  it("registers both post-S13 migrations as forward-only and additive", () => {
+    for (const [source, id] of [
+      [migration, "20261020001500_v3_official_communications_command_authority"],
+      [draftMigration, "20261020003000_v3_official_communications_draft_authority"],
+    ] as const) {
+      expect(source).toContain("public.v3_register_migration_contract(");
+      expect(source).toContain(id);
+      expect(source).toContain("'forward_fix_only'");
+      expect(source).not.toMatch(/drop\s+table/i);
+      expect(source).not.toMatch(/truncate/i);
+    }
   });
 
   it("binds every lifecycle command to explicit edition/global scope", () => {
@@ -122,5 +134,50 @@ describe("V3 Official Communications command authority", () => {
     expect(client).toContain('recovery?.status === "succeeded"');
     expect(client).not.toContain("localStorage");
     expect(client).not.toContain("sessionStorage");
+  });
+
+  it("governs create, update and superseding-draft mutations as R1 operations", () => {
+    for (const fn of [
+      "public.v3_create_notice_draft(",
+      "public.v3_update_notice_draft(",
+      "public.v3_create_superseding_notice_draft(",
+    ]) {
+      expect(draftMigration).toContain(fn);
+    }
+    expect(draftMigration).toContain("'notice.draft.create'");
+    expect(draftMigration).toContain("'notice.draft.update'");
+    expect(draftMigration).toContain("'notice.superseding_draft.create'");
+    expect(draftMigration.match(/'R1'/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+  });
+
+  it("normalizes set-like draft inputs before request fingerprinting", () => {
+    expect(draftMigration).toContain("private.v3_normalize_uuid_set(p_country_ids)");
+    expect(draftMigration).toContain("private.v3_normalize_text_set(p_display_surfaces)");
+    expect(draftMigration).toContain("select distinct unnest");
+    expect(draftMigration).toContain("array_agg(value order by value)");
+  });
+
+  it("binds draft update and superseding creation to expected revision under lock", () => {
+    const update = draftMigration.indexOf("create or replace function public.v3_update_notice_draft(");
+    const updateClaim = draftMigration.indexOf("private.studio2_claim_operation(", update);
+    const updateLock = draftMigration.indexOf("for update;", updateClaim);
+    const updateCas = draftMigration.indexOf("message = 'VERSION_CONFLICT'", updateLock);
+    const supersede = draftMigration.indexOf("create or replace function public.v3_create_superseding_notice_draft(");
+    const supersedeClaim = draftMigration.indexOf("private.studio2_claim_operation(", supersede);
+    const supersedeLock = draftMigration.indexOf("for update;", supersedeClaim);
+    const supersedeCas = draftMigration.indexOf("message = 'VERSION_CONFLICT'", supersedeLock);
+    expect(updateClaim).toBeGreaterThan(update);
+    expect(updateLock).toBeGreaterThan(updateClaim);
+    expect(updateCas).toBeGreaterThan(updateLock);
+    expect(supersedeClaim).toBeGreaterThan(supersede);
+    expect(supersedeLock).toBeGreaterThan(supersedeClaim);
+    expect(supersedeCas).toBeGreaterThan(supersedeLock);
+  });
+
+  it("keeps V2 content/target/surface validation as the canonical draft writer", () => {
+    expect(draftMigration).toContain("public.studio2_create_notice_draft_v2(");
+    expect(draftMigration).toContain("public.studio2_update_notice_draft_v2(");
+    expect(draftMigration).toContain("public.studio2_create_superseding_notice_draft(p_notice_id)");
+    expect(draftMigration).toContain("preserving the established V2 target/surface/content validators");
   });
 });
