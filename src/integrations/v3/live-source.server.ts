@@ -81,10 +81,10 @@ function publicParticipantRows(value: unknown): PublicParticipantRow[] {
 }
 
 function activeLiveEdition(editions: readonly Edition[]) {
-  const edition = resolveCurrentPublicEdition(editions);
-  if (!edition) return null;
-  const lifecycle = normalizeLegacyEditionStatus(edition.status);
-  return lifecycle === "post_edition" || lifecycle === "archived" ? null : edition;
+  const candidate = resolveCurrentPublicEdition(editions);
+  if (!candidate) return null;
+  const lifecycle = normalizeLegacyEditionStatus(candidate.status);
+  return lifecycle === "post_edition" || lifecycle === "archived" ? null : candidate;
 }
 
 async function loadLinkedTelevoteRound(
