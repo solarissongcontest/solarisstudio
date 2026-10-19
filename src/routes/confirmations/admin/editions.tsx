@@ -9,6 +9,7 @@ import {
   AdminActionItem,
   AdminCard,
   AdminCardHeader,
+  AdminConfirmSheet,
   AdminMoreMenu,
   AdminPageHeader,
   AdminStatus,
@@ -35,6 +36,13 @@ type CanonicalEdition = {
   status: string;
 };
 
+type PendingEditingChange = {
+  edition: CanonicalEdition;
+  remoteId: string;
+  previous: boolean;
+  next: boolean;
+};
+
 function confirmationStatus(status: string): ConfirmationEdition["status"] {
   if (status === "active") return "active";
   if (status === "completed" || status === "finished") return "finished";
@@ -47,6 +55,9 @@ function EditionsPage() {
   const [remoteEditions, setRemoteEditions] = useState<ConfirmationEdition[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [syncReviewOpen, setSyncReviewOpen] = useState(false);
+  const [pendingEditing, setPendingEditing] = useState<PendingEditingChange | null>(null);
+  const [editingBusy, setEditingBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadCanonical = useCallback(async () => {
@@ -135,7 +146,7 @@ function EditionsPage() {
           return;
         }
         if (!alive) return;
-        await synchronize(false);
+        await refresh();
       } catch (caught) {
         if (alive) setError(caught instanceof Error ? caught.message : "Could not load editions.");
       } finally {
@@ -143,23 +154,56 @@ function EditionsPage() {
       }
     })();
     return () => { alive = false; };
-  }, [navigate, synchronize]);
+  }, [navigate, refresh]);
 
   const remoteById = useMemo(() => confirmationEditionsById(remoteEditions), [remoteEditions]);
   const orphanCount = useMemo(() => {
     const canonicalIds = new Set(canonicalEditions.map((edition) => edition.id));
     return remoteEditions.filter((edition) => !canonicalIds.has(edition.id)).length;
   }, [canonicalEditions, remoteEditions]);
+  const metadataSyncCount = useMemo(() => canonicalEditions.filter((edition) => {
+    const current = remoteById.get(edition.id);
+    const desiredStatus = confirmationStatus(edition.status);
+    return !current || current.name !== edition.name || (current.description ?? "") !== (edition.description ?? "") || current.status !== desiredStatus;
+  }).length, [canonicalEditions, remoteById]);
 
-  async function setEditing(edition: CanonicalEdition, enabled: boolean) {
-    const remote = remoteById.get(edition.id);
-    if (!remote) return;
+  function reviewEditing(edition: CanonicalEdition, remote: ConfirmationEdition) {
+    setPendingEditing({
+      edition,
+      remoteId: remote.id,
+      previous: remote.editing_enabled,
+      next: !remote.editing_enabled,
+    });
+  }
+
+  async function applyEditingChange() {
+    if (!pendingEditing || editingBusy) return;
+    setEditingBusy(true);
     try {
-      await setConfirmationEditionEditing(remote.id, enabled);
+      const latest = await refresh();
+      const liveEdition = latest.canonical.find((edition) => edition.id === pendingEditing.edition.id);
+      const liveRemote = confirmationEditionsById(latest.remote).get(pendingEditing.edition.id);
+      if (
+        !liveEdition ||
+        liveEdition.name !== pendingEditing.edition.name ||
+        liveEdition.edition_number !== pendingEditing.edition.edition_number ||
+        !liveRemote ||
+        liveRemote.id !== pendingEditing.remoteId ||
+        liveRemote.editing_enabled !== pendingEditing.previous
+      ) {
+        setPendingEditing(null);
+        toast.error("Edition or editing state changed while this review was open. Review the current state before applying again.");
+        return;
+      }
+
+      await setConfirmationEditionEditing(pendingEditing.remoteId, pendingEditing.next);
       await refresh();
-      toast.success(enabled ? "Response editing opened" : "Response editing closed");
+      toast.success(pendingEditing.next ? "Response editing opened" : "Response editing closed");
+      setPendingEditing(null);
     } catch (caught) {
       toast.error(caught instanceof Error ? caught.message : "Editing status could not be changed");
+    } finally {
+      setEditingBusy(false);
     }
   }
 
@@ -168,10 +212,10 @@ function EditionsPage() {
       <AdminPageHeader
         eyebrow="Delegations"
         title="Edition links"
-        description="Keep delegation rounds connected to the correct Solaris edition and control whether submitted responses can still be edited."
+        description="Keep delegation rounds connected to the correct Solaris edition and control whether submitted responses can still be edited. Opening this page is read-only; legacy synchronization runs only after explicit review."
         actions={
           <AdminMoreMenu label="Edition actions" title="Edition actions" description="Occasional delegation-edition controls.">
-            <AdminActionItem icon={RefreshCw} title={syncing ? "Synchronizing…" : "Sync edition links"} description="Refresh delegation edition links from Solaris." disabled={syncing} onClick={() => void synchronize(true)} />
+            <AdminActionItem icon={RefreshCw} title={syncing ? "Synchronizing…" : "Review edition link sync"} description="Review the legacy synchronization before it changes Confirmation editions or integration links." disabled={syncing || loading} onClick={() => setSyncReviewOpen(true)} />
           </AdminMoreMenu>
         }
       />
@@ -180,7 +224,7 @@ function EditionsPage() {
       {orphanCount ? <AdminCard><AdminCardHeader eyebrow="Unlinked data" title={`${orphanCount} unlinked delegation edition${orphanCount === 1 ? "" : "s"}`} description="These older records remain stored but are hidden because they are not connected to a Solaris edition." /></AdminCard> : null}
 
       {loading ? (
-        <AdminCard><p className="py-6 text-center text-sm text-muted-foreground">Synchronizing edition links…</p></AdminCard>
+        <AdminCard><p className="py-6 text-center text-sm text-muted-foreground">Loading edition links…</p></AdminCard>
       ) : (
         <div className="space-y-3">
           {canonicalEditions.map((edition) => {
@@ -196,7 +240,7 @@ function EditionsPage() {
                       <AdminStatus tone={remote ? "info" : "attention"}>{remote ? "Linked" : "Needs link"}</AdminStatus>
                     </div>
                     <p className="mt-1 truncate text-sm font-semibold text-foreground">{edition.name}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{remote ? `${remote.rounds.length} rounds · ${remote.response_count} responses` : "Delegation edition link will be created on synchronization."}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{remote ? `${remote.rounds.length} rounds · ${remote.response_count} responses` : "Delegation edition link requires an explicit synchronization review."}</p>
                   </div>
                   <SlidersHorizontal className="mt-1 size-4 shrink-0 text-muted-foreground" />
                 </div>
@@ -210,8 +254,8 @@ function EditionsPage() {
                       </div>
                       <AdminStatus tone={remote.editing_enabled ? "ready" : "neutral"}>{remote.editing_enabled ? "Open" : "Closed"}</AdminStatus>
                     </div>
-                    <button type="button" className="admin-action-secondary mt-3 w-full" onClick={() => void setEditing(edition, !remote.editing_enabled)}>
-                      {remote.editing_enabled ? "Close response editing" : "Open response editing"}
+                    <button type="button" disabled={editingBusy} className="admin-action-secondary mt-3 w-full" onClick={() => reviewEditing(edition, remote)}>
+                      {remote.editing_enabled ? "Review closing response editing" : "Review opening response editing"}
                     </button>
                   </div>
                 ) : null}
@@ -221,6 +265,61 @@ function EditionsPage() {
           {!canonicalEditions.length ? <AdminCard><p className="py-6 text-center text-sm text-muted-foreground">No numbered Solaris editions exist yet.</p></AdminCard> : null}
         </div>
       )}
+
+      <AdminConfirmSheet
+        open={syncReviewOpen}
+        onClose={syncing ? () => undefined : () => setSyncReviewOpen(false)}
+        onConfirm={async () => {
+          await synchronize(true);
+          setSyncReviewOpen(false);
+        }}
+        title="Synchronize delegation edition links?"
+        description={
+          <div className="space-y-2">
+            <p>
+              This legacy synchronization inspects all <strong className="text-foreground">{canonicalEditions.length}</strong> numbered Solaris editions. At least <strong className="text-foreground">{metadataSyncCount}</strong> currently need Confirmation metadata created or updated.
+            </p>
+            <p>
+              It also repairs the browser-managed Confirmation edition binding rows for every linked edition. That authority is not yet the canonical versioned/idempotent V3 command and remains tracked in System #702.
+            </p>
+            <p>
+              Merely opening this page no longer performs this mutation. Confirm only when you intend to run the legacy reconciliation now.
+            </p>
+          </div>
+        }
+        confirmLabel="Run legacy edition-link sync"
+        busy={syncing}
+      />
+
+      <AdminConfirmSheet
+        open={Boolean(pendingEditing)}
+        onClose={editingBusy ? () => undefined : () => setPendingEditing(null)}
+        onConfirm={applyEditingChange}
+        title={pendingEditing ? `${pendingEditing.next ? "Open" : "Close"} existing-response editing for SSC ${pendingEditing.edition.edition_number}?` : "Review response editing"}
+        description={pendingEditing ? (
+          <div className="space-y-2">
+            <p>
+              <strong className="text-foreground">SSC {pendingEditing.edition.edition_number} · {pendingEditing.edition.name}</strong>
+            </p>
+            <p>
+              Existing-response editing: <strong className="text-foreground">{pendingEditing.previous ? "Open" : "Closed"}</strong> → <strong className="text-foreground">{pendingEditing.next ? "Open" : "Closed"}</strong>.
+            </p>
+            <p>
+              {pendingEditing.next
+                ? "Opening editing widens delegation access to already submitted responses. The current edition and editing state will be re-read before apply."
+                : "Closing editing prevents delegations from changing already submitted responses. The current edition and editing state will be re-read before apply."}
+            </p>
+            <p>
+              This still uses the legacy Confirmation editing authority. Canonical expected-version, receipt and idempotency semantics remain System-owned in #702.
+            </p>
+          </div>
+        ) : "Review the current editing state before applying."}
+        confirmLabel={pendingEditing?.next ? "Open response editing" : "Close response editing"}
+        confirmationText={pendingEditing?.next ? `SSC ${pendingEditing.edition.edition_number}` : undefined}
+        confirmationHint={pendingEditing?.next ? `Type SSC ${pendingEditing.edition.edition_number} exactly to confirm wider editing access` : undefined}
+        busy={editingBusy}
+        danger={Boolean(pendingEditing?.next)}
+      />
     </AdminPage>
   );
 }
