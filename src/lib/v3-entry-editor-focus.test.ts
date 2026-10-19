@@ -35,4 +35,17 @@ describe("V3 Entry correction focus", () => {
       "/confirmations/edit/server-token",
     );
   });
+
+  it("fails closed when a focus fragment is asked to decorate a non-canonical edit URL", () => {
+    for (const href of [
+      "https://evil.invalid/confirmations/edit/token",
+      "//evil.invalid/confirmations/edit/token",
+      "/confirmations/administrator/token",
+      "/confirmations/edit/",
+      "/confirmations/edit/token/extra",
+      "/confirmations\\edit\\token",
+    ]) {
+      expect(appendV3EntryEditorFocus(href, "credits")).toBe(href);
+    }
+  });
 });
