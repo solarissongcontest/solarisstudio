@@ -182,19 +182,16 @@ function DueEvidenceCard({ item, onChanged }: { item: DueEvidenceDeletion; onCha
 }
 
 function ExpiredUploadCard({ item, onChanged }: { item: ExpiredEvidenceUpload; onChanged: () => Promise<unknown> }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const mutation = useMutation({
     mutationFn: () => cleanExpiredEvidenceUpload(item),
     onSuccess: async () => {
+      setConfirmOpen(false);
       await onChanged();
       toast.success("Expired upload cleaned");
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not clean expired upload"),
   });
-
-  const confirmCleanup = () => {
-    if (!window.confirm(`Clean this expired unfinished upload? ${item.object_exists ? "Its orphaned private storage object will be permanently removed first." : "No storage object remains; the expired token will be discarded."}`)) return;
-    mutation.mutate();
-  };
 
   return (
     <article className="rounded-xl border border-amber-200/10 bg-amber-200/[0.025] p-4">
@@ -206,7 +203,37 @@ function ExpiredUploadCard({ item, onChanged }: { item: ExpiredEvidenceUpload; o
         <ArchiveRestore className="size-4 shrink-0 text-amber-200" />
       </div>
       <p className="mt-2 text-[10px] leading-4 text-muted-foreground">Private storage location hidden from the interface.</p>
-      <button type="button" disabled={mutation.isPending} onClick={confirmCleanup} className="admin-action-secondary mt-4"><Trash2 className="size-3.5" />{mutation.isPending ? "Cleaning…" : "Clean expired upload"}</button>
+      <button type="button" disabled={mutation.isPending} onClick={() => setConfirmOpen(true)} className="admin-action-secondary mt-4"><Trash2 className="size-3.5" />{mutation.isPending ? "Cleaning…" : "Review expired upload cleanup"}</button>
+
+      <AdminConfirmSheet
+        open={confirmOpen}
+        onClose={() => {
+          if (!mutation.isPending) setConfirmOpen(false);
+        }}
+        onConfirm={async () => {
+          await mutation.mutateAsync();
+        }}
+        title={`Clean expired upload ${item.original_name}?`}
+        description={
+          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground" data-v3-organizer-expired-upload-cleanup-review>
+            <p>
+              Clean this expired unfinished upload only after verifying it was never finalised into case evidence. Cleanup discards the upload token permanently{item.object_exists ? " and removes its orphaned private storage object first" : ""}.
+            </p>
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+              <p className="font-semibold text-foreground">{item.original_name}</p>
+              <p className="mt-1">Expired: {new Date(item.expires_at).toLocaleString()}</p>
+              <p className="mt-1">Private storage object: {item.object_exists ? "exists and will be permanently removed" : "already absent"}</p>
+              <p className="mt-1 font-mono text-[10px]">Upload token: {item.token_id}</p>
+            </div>
+            <p>{item.object_exists ? "The storage object cannot be recovered after cleanup." : "No storage bytes remain, but discarding the token is still irreversible."}</p>
+          </div>
+        }
+        confirmLabel={item.object_exists ? "Delete orphaned upload permanently" : "Discard expired upload token"}
+        confirmationText={item.original_name}
+        confirmationHint={`Type ${item.original_name} to confirm cleanup of this exact expired upload.`}
+        busy={mutation.isPending}
+        danger={item.object_exists}
+      />
     </article>
   );
 }
