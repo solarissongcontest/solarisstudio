@@ -84,6 +84,68 @@ function derivedEditionStatus(edition: Edition, editionShows: Show[]) {
   };
 }
 
+type EditionLifecycleReviewKind = "private" | "delete";
+
+type EditionLifecycleReview = {
+  kind: EditionLifecycleReviewKind;
+  editionId: string;
+  editionLabel: string;
+  editionName: string;
+  editionFingerprint: string;
+  showFingerprints: string[];
+  participantIds: string[];
+  publicationControlFingerprints: string[];
+  activePublicationCount: number;
+  reason: string;
+};
+
+type PublicationControlSummary = {
+  showId: string;
+  state: string;
+};
+
+function sorted(values: string[]) {
+  return [...values].sort((a, b) => a.localeCompare(b));
+}
+
+function sameStringArray(left: string[], right: string[]) {
+  if (left.length !== right.length) return false;
+  return left.every((value, index) => value === right[index]);
+}
+
+function editionLifecycleFingerprint(edition: Edition) {
+  const lifecycle = edition as Edition & {
+    status?: string | null;
+    published?: boolean | null;
+  };
+  return JSON.stringify({
+    id: edition.id,
+    editionNumber: edition.edition_number ?? null,
+    name: edition.name,
+    slug: edition.slug,
+    year: edition.year ?? null,
+    hostCity: edition.host_city ?? null,
+    hostCountryId: edition.host_country_id ?? null,
+    status: lifecycle.status ?? null,
+    published: lifecycle.published ?? null,
+  });
+}
+
+function showLifecycleFingerprint(show: Show) {
+  return JSON.stringify({
+    id: show.id,
+    editionId: show.edition_id,
+    name: show.name,
+    kind: show.kind,
+    published: show.published,
+    publication: resolveShowPublication(show),
+  });
+}
+
+function publicationControlFingerprint(control: PublicationControlSummary) {
+  return `${control.showId}:${control.state}`;
+}
+
 function AdminHome() {
   const { data: editions = [], isLoading: editionsLoading } = useEditions();
   const { data: countries = [] } = useCountries();
@@ -105,8 +167,7 @@ function AdminHome() {
   });
   const [numberTouched, setNumberTouched] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const [privateEdition, setPrivateEdition] = useState<Edition | null>(null);
-  const [deleteEdition, setDeleteEdition] = useState<Edition | null>(null);
+  const [lifecycleReview, setLifecycleReview] = useState<EditionLifecycleReview | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -197,80 +258,174 @@ function AdminHome() {
     }
   };
 
-  const makeEditionPrivate = async (edition: Edition) => {
-    const actionKey = `private:${edition.id}`;
+  const prepareEditionLifecycleReview = async (
+    edition: Edition,
+    kind: EditionLifecycleReviewKind,
+  ) => {
+    const actionKey = `review:${kind}:${edition.id}`;
+    if (busyAction) return;
     setBusyAction(actionKey);
-    setError(null);
     setMsg(null);
+    setError(null);
 
     try {
       const controls = await loadShowPublicationControls(edition.id);
-      const showById = new Map(
-        shows
-          .filter((show) => show.edition_id === edition.id)
-          .map((show) => [show.id, show] as const),
+      const editionShows = shows.filter((show) => show.edition_id === edition.id);
+      const participantIds = sorted(
+        participants
+          .filter((participant) => participant.edition_id === edition.id)
+          .map((participant) => participant.id),
       );
+      const publicationControls = controls.map((control) => ({
+        showId: control.showId,
+        state: control.state,
+      }));
 
-      for (const control of controls) {
-        if (control.state !== "public" && control.state !== "scheduled") continue;
-        const show = showById.get(control.showId);
-        if (!show) continue;
-
-        const preview = await previewShowPublicationChange({
-          showId: show.id,
-          targetState: "hidden",
-          config: resolveShowPublication(show),
-          scheduledFor: null,
-        });
-        if (preview.alreadyApplied) continue;
-
-        const operationId = crypto.randomUUID();
-        await applyShowPublicationChange({
-          preview,
-          operationId,
-          idempotencyKey: operationId,
-        });
-      }
-
-      const { error: editionError } = await supabase
-        .from("editions")
-        .update({ published: false, status: "draft" })
-        .eq("id", edition.id);
-
-      if (editionError) {
-        setError(
-          reportSupabaseError(
-            editionError,
-            "The show publication lifecycle was hidden, but the edition status could not be updated.",
-          ),
-        );
-        return false;
-      }
-
-      setMsg(`${editionLabel(edition)} is private. Its saved publication choices are still available.`);
-      refresh();
-      return true;
+      setLifecycleReview({
+        kind,
+        editionId: edition.id,
+        editionLabel: editionLabel(edition),
+        editionName: edition.name,
+        editionFingerprint: editionLifecycleFingerprint(edition),
+        showFingerprints: sorted(editionShows.map(showLifecycleFingerprint)),
+        participantIds,
+        publicationControlFingerprints: sorted(
+          publicationControls.map(publicationControlFingerprint),
+        ),
+        activePublicationCount: publicationControls.filter(
+          (control) => control.state === "public" || control.state === "scheduled",
+        ).length,
+        reason: "",
+      });
+    } catch (reviewError) {
+      setError(
+        reviewError instanceof Error
+          ? `Could not prepare the edition review: ${reviewError.message}`
+          : "Could not prepare the edition review.",
+      );
     } finally {
       setBusyAction(null);
     }
   };
 
-  const removeEdition = async (edition: Edition) => {
-    const actionKey = `delete:${edition.id}`;
+  const revalidateEditionLifecycleReview = async (review: EditionLifecycleReview) => {
+    const [editionResult, showsResult, participantsResult, controls] = await Promise.all([
+      supabase.from("editions").select("*").eq("id", review.editionId).maybeSingle(),
+      supabase.from("shows").select("*").eq("edition_id", review.editionId),
+      supabase.from("participants").select("id").eq("edition_id", review.editionId),
+      loadShowPublicationControls(review.editionId),
+    ]);
+
+    if (editionResult.error) throw editionResult.error;
+    if (showsResult.error) throw showsResult.error;
+    if (participantsResult.error) throw participantsResult.error;
+    if (!editionResult.data) {
+      throw new Error("The edition no longer exists. Refresh before continuing.");
+    }
+
+    const currentEdition = editionResult.data as Edition;
+    const currentShows = (showsResult.data ?? []) as Show[];
+    const currentParticipantIds = sorted(
+      (participantsResult.data ?? []).map((participant) => participant.id),
+    );
+    const currentControlFingerprints = sorted(
+      controls.map((control) =>
+        publicationControlFingerprint({ showId: control.showId, state: control.state }),
+      ),
+    );
+    const currentShowFingerprints = sorted(currentShows.map(showLifecycleFingerprint));
+
+    const stale =
+      editionLifecycleFingerprint(currentEdition) !== review.editionFingerprint ||
+      !sameStringArray(currentShowFingerprints, review.showFingerprints) ||
+      !sameStringArray(currentParticipantIds, review.participantIds) ||
+      !sameStringArray(currentControlFingerprints, review.publicationControlFingerprints);
+
+    if (stale) {
+      throw new Error(
+        "Edition state changed after this review opened. Nothing was applied. Close the review and inspect the current state before trying again.",
+      );
+    }
+
+    return { edition: currentEdition, shows: currentShows, controls };
+  };
+
+  const applyEditionLifecycleReview = async () => {
+    const review = lifecycleReview;
+    if (!review || busyAction) return;
+    if (review.kind === "delete" && review.reason.trim().length < 5) return;
+
+    const actionKey = `${review.kind}:${review.editionId}`;
     setBusyAction(actionKey);
     setError(null);
     setMsg(null);
 
     try {
-      const { error: deleteError } = await supabase.from("editions").delete().eq("id", edition.id);
-      if (deleteError) {
-        setError(reportSupabaseError(deleteError, "Could not delete this edition."));
-        return false;
+      const fresh = await revalidateEditionLifecycleReview(review);
+
+      if (review.kind === "private") {
+        const showById = new Map(fresh.shows.map((show) => [show.id, show] as const));
+
+        for (const control of fresh.controls) {
+          if (control.state !== "public" && control.state !== "scheduled") continue;
+          const show = showById.get(control.showId);
+          if (!show) continue;
+
+          const preview = await previewShowPublicationChange({
+            showId: show.id,
+            targetState: "hidden",
+            config: resolveShowPublication(show),
+            scheduledFor: null,
+          });
+          if (preview.alreadyApplied) continue;
+
+          const operationId = crypto.randomUUID();
+          await applyShowPublicationChange({
+            preview,
+            operationId,
+            idempotencyKey: operationId,
+          });
+        }
+
+        const { error: editionError } = await supabase
+          .from("editions")
+          .update({ published: false, status: "draft" })
+          .eq("id", review.editionId);
+
+        if (editionError) {
+          setError(
+            reportSupabaseError(
+              editionError,
+              "The show publication lifecycle was hidden, but the edition status could not be updated. Refresh canonical state before retrying because this legacy operation is not atomic.",
+            ),
+          );
+          return;
+        }
+
+        setMsg(
+          `${review.editionLabel} is private. Its saved publication choices are still available.`,
+        );
+      } else {
+        const { error: deleteError } = await supabase
+          .from("editions")
+          .delete()
+          .eq("id", review.editionId);
+        if (deleteError) {
+          setError(reportSupabaseError(deleteError, "Could not delete this edition."));
+          return;
+        }
+
+        setMsg(`Deleted ${review.editionLabel}.`);
       }
 
-      setMsg(`Deleted ${editionLabel(edition)}.`);
+      setLifecycleReview(null);
       refresh();
-      return true;
+    } catch (applyError) {
+      setError(
+        applyError instanceof Error
+          ? applyError.message
+          : "The edition changed or the operation could not be verified. Nothing was intentionally retried.",
+      );
     } finally {
       setBusyAction(null);
     }
@@ -460,7 +615,7 @@ function AdminHome() {
                               icon={EyeOff}
                               title="Make edition private"
                               description="Hide all public shows without deleting their saved publication settings."
-                              onClick={() => setPrivateEdition(edition)}
+                              onClick={() => void prepareEditionLifecycleReview(edition, "private")}
                             />
                           ) : null}
                           <AdminActionItem
@@ -468,7 +623,7 @@ function AdminHome() {
                             title="Delete edition"
                             description="Permanently remove the edition and related contest data."
                             tone="danger"
-                            onClick={() => setDeleteEdition(edition)}
+                            onClick={() => void prepareEditionLifecycleReview(edition, "delete")}
                           />
                         </div>
                       </AdminMoreMenu>
@@ -603,44 +758,88 @@ function AdminHome() {
       </AdminSheet>
 
       <AdminConfirmSheet
-        open={Boolean(privateEdition)}
-        onClose={() => setPrivateEdition(null)}
-        title={privateEdition ? `Make ${editionLabel(privateEdition)} private?` : "Make edition private?"}
-        description={
-          <>
-            All shows in this edition will disappear from the public site. Nothing is deleted, and
-            the saved publication choices remain available.
-          </>
-        }
-        confirmLabel="Make private"
-        busy={Boolean(privateEdition && busyAction === `private:${privateEdition.id}`)}
-        onConfirm={async () => {
-          if (!privateEdition) return;
-          const success = await makeEditionPrivate(privateEdition);
-          if (success) setPrivateEdition(null);
+        open={Boolean(lifecycleReview)}
+        onClose={() => {
+          if (!busyAction) setLifecycleReview(null);
         }}
-      />
+        title={
+          lifecycleReview
+            ? lifecycleReview.kind === "delete"
+              ? `Delete ${lifecycleReview.editionLabel}?`
+              : `Make ${lifecycleReview.editionLabel} private?`
+            : "Review edition action"
+        }
+        description={
+          lifecycleReview ? (
+            <div className="space-y-3">
+              <p>
+                {lifecycleReview.kind === "delete"
+                  ? "This permanently deletes the edition through the existing legacy authority. Archive is safer when historical truth must remain available."
+                  : "All currently public or scheduled shows in this edition will be hidden. Saved publication choices are not intentionally deleted."}
+              </p>
 
-      <AdminConfirmSheet
-        open={Boolean(deleteEdition)}
-        onClose={() => setDeleteEdition(null)}
-        title={deleteEdition ? `Delete ${editionLabel(deleteEdition)}?` : "Delete edition?"}
-        description={
-          <>
-            This permanently deletes the edition and data linked to it. This is intentionally harder
-            to do than ordinary organizer actions.
-          </>
+              <div className="grid grid-cols-3 gap-2 rounded-xl border border-white/[0.08] bg-black/10 p-3 text-center">
+                <EditionMetric label="Shows" value={lifecycleReview.showFingerprints.length} />
+                <EditionMetric label="Entries" value={lifecycleReview.participantIds.length} />
+                <EditionMetric label="Public/scheduled" value={lifecycleReview.activePublicationCount} />
+              </div>
+
+              <p className="text-xs leading-relaxed">
+                Before anything is applied, Solaris re-reads the exact edition, show publication
+                state and known entry membership. If that reviewed scope changed, the action fails
+                closed and must be reviewed again.
+              </p>
+
+              {lifecycleReview.kind === "delete" ? (
+                <label className="block">
+                  <span className="text-xs font-semibold text-foreground">Reason for permanent deletion</span>
+                  <textarea
+                    value={lifecycleReview.reason}
+                    onChange={(event) =>
+                      setLifecycleReview((current) =>
+                        current ? { ...current, reason: event.target.value } : current,
+                      )
+                    }
+                    rows={3}
+                    placeholder="Why is permanent deletion required instead of archive?"
+                    className="mt-2 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 py-2 text-sm text-foreground outline-none focus:border-sky-200/30"
+                  />
+                  <span className="mt-1 block text-[11px] text-muted-foreground">
+                    At least 5 characters. The current legacy delete does not yet attach this reason
+                    to an atomic canonical receipt.
+                  </span>
+                </label>
+              ) : null}
+
+              <div className="rounded-lg border border-amber-200/15 bg-amber-200/[0.04] p-2 text-xs leading-relaxed text-amber-50/80">
+                System #1068 still owns the canonical edition lifecycle command. This legacy path
+                has no edition CAS, durable operation receipt or atomic cross-domain preflight. For
+                deletion, Solaris cannot yet certify media, ballots, results, stories, audit
+                references and integrations from one authoritative preflight. Do not treat this
+                review as V3 lifecycle parity.
+              </div>
+            </div>
+          ) : (
+            "Review the exact edition scope before continuing."
+          )
         }
-        confirmLabel="Delete edition"
-        confirmationText={deleteEdition ? editionLabel(deleteEdition) : undefined}
-        confirmationHint={deleteEdition ? `Type ${editionLabel(deleteEdition)} to confirm` : undefined}
-        danger
-        busy={Boolean(deleteEdition && busyAction === `delete:${deleteEdition.id}`)}
-        onConfirm={async () => {
-          if (!deleteEdition) return;
-          const success = await removeEdition(deleteEdition);
-          if (success) setDeleteEdition(null);
-        }}
+        confirmLabel={lifecycleReview?.kind === "delete" ? "Delete edition" : "Make private"}
+        confirmationText={
+          lifecycleReview?.kind === "delete" ? lifecycleReview.editionLabel : undefined
+        }
+        confirmationHint={
+          lifecycleReview?.kind === "delete"
+            ? `Type ${lifecycleReview.editionLabel} to confirm permanent deletion`
+            : undefined
+        }
+        confirmDisabled={
+          lifecycleReview?.kind === "delete" ? lifecycleReview.reason.trim().length < 5 : false
+        }
+        danger={lifecycleReview?.kind === "delete"}
+        busy={Boolean(
+          lifecycleReview && busyAction === `${lifecycleReview.kind}:${lifecycleReview.editionId}`,
+        )}
+        onConfirm={applyEditionLifecycleReview}
       />
     </div>
   );
