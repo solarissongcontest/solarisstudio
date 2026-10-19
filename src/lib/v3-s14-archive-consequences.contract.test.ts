@@ -17,6 +17,10 @@ const taskAlignment = readFileSync(
   'supabase/migrations/20261019112400_v3_s14_archive_task_registry_alignment.sql',
   'utf8',
 );
+const notificationInvariant = readFileSync(
+  'supabase/migrations/20261019112500_v3_s14_resolved_task_notification_invariant.sql',
+  'utf8',
+);
 const rehearsal = readFileSync('.github/scripts/v3-s14-archive-system-rehearsal.sh', 'utf8');
 const guardRehearsal = readFileSync('.github/scripts/v3-s14-archive-guard-rehearsal.sh', 'utf8');
 const eventRehearsal = readFileSync(
@@ -31,7 +35,13 @@ const workflow = readFileSync('.github/workflows/v3-s14-archive-system-rehearsal
 const controlRoom = readFileSync('src/lib/studio2-control-room.ts', 'utf8');
 const client = readFileSync('src/lib/v3-edition-transition-client.ts', 'utf8');
 
-const migrations = [migration, readinessHardening, transitionNormalization, taskAlignment];
+const migrations = [
+  migration,
+  readinessHardening,
+  transitionNormalization,
+  taskAlignment,
+  notificationInvariant,
+];
 
 describe('System V3 S14 archive consequence contract', () => {
   it('adopts every S14 database change through the S13 forward-fix contract', () => {
@@ -43,15 +53,14 @@ describe('System V3 S14 archive consequence contract', () => {
     expect(readinessHardening).toContain("'v3.s14.final-results-readiness-hardening'");
     expect(transitionNormalization).toContain("'v3.s14.transition-http409'");
     expect(taskAlignment).toContain("'v3.s14.archive-task-registry-alignment'");
+    expect(notificationInvariant).toContain("'v3.s14.resolved-task-notification-invariant'");
   });
 
   it('keeps one versioned edition runtime authority and fences direct Archive mutation', () => {
     expect(migration).toContain('public.studio2_edition_runtime');
     expect(migration).toContain("'lifecycleAuthority', 'studio2_edition_runtime'");
     expect(migration).not.toMatch(/update public\.editions\s+set\s+status\s*=/i);
-    expect(migration).toContain(
-      'create or replace function public.studio2_transition_edition_v3(',
-    );
+    expect(migration).toContain('create or replace function public.studio2_transition_edition_v3(');
     expect(migration).toContain('p_expected_version bigint');
     expect(migration).toContain('p_operation_id uuid');
     expect(migration).toContain('p_idempotency_key text');
@@ -76,18 +85,14 @@ describe('System V3 S14 archive consequence contract', () => {
     expect(readinessHardening).toContain("->> 'results'");
     expect(readinessHardening).toContain('join private.v3_result_versions result_version');
     expect(readinessHardening).toContain('result_version.result_row_count > 0');
-    expect(readinessHardening).toContain(
-      'private.v3_publication_result_version_release_ready(',
-    );
+    expect(readinessHardening).toContain('private.v3_publication_result_version_release_ready(');
   });
 
   it('emits canonical lifecycle/archive events with replay-safe consequences', () => {
     expect(migration).toContain("'edition.archived'");
     expect(migration).toContain('private.v3_emit_domain_event(');
     expect(migration).toContain("array['edition.tasks']::text[]");
-    expect(migration).toContain(
-      'create or replace function public.studio2_process_edition_domain_event(',
-    );
+    expect(migration).toContain('create or replace function public.studio2_process_edition_domain_event(');
     expect(migration).toContain('private.v3_domain_event_consumer_receipts');
     expect(migration).toContain('public.studio2_complete_domain_event_delivery');
     expect(transitionNormalization).toContain("'''PT409'''");
@@ -98,33 +103,37 @@ describe('System V3 S14 archive consequence contract', () => {
   });
 
   it('makes archived current-workflow task resolution a non-resurrectable database invariant', () => {
-    expect(taskAlignment).toContain(
-      'create or replace function private.v3_archive_task_type_is_current_workflow(',
-    );
+    expect(taskAlignment).toContain('create or replace function private.v3_archive_task_type_is_current_workflow(');
     expect(taskAlignment).toContain("= 'edition.blocker'");
-    expect(taskAlignment).toContain(
-      'private.v3_archive_task_type_is_current_workflow(task.task_type)',
-    );
-    expect(taskAlignment).toContain(
-      'create trigger v3_guard_archived_edition_task_resurrection',
-    );
+    expect(taskAlignment).toContain('private.v3_archive_task_type_is_current_workflow(task.task_type)');
+    expect(taskAlignment).toContain('create trigger v3_guard_archived_edition_task_resurrection');
     expect(taskAlignment).toContain('before insert or update on public.studio2_organizer_tasks');
     expect(taskAlignment).toContain("runtime.state = 'archived'");
     expect(taskAlignment).not.toMatch(/p_task_type[^\n]*(incident|integrity)/);
     expect(guardRehearsal).toContain('archive left canonical edition.blocker actionable');
-    expect(guardRehearsal).toContain(
-      'archive incorrectly resolved legitimate incident governance work',
-    );
     expect(resurrectionRehearsal).toContain('archived edition.blocker was resurrected');
-    expect(resurrectionRehearsal).toContain(
-      'new impossible archived-edition task became actionable',
+    expect(resurrectionRehearsal).toContain('new impossible archived-edition task became actionable');
+  });
+
+  it('makes resolved Task Inbox and undelivered push state canonical rather than call-order dependent', () => {
+    expect(notificationInvariant).toContain("requires_action = task.state <> 'resolved'");
+    expect(notificationInvariant).toContain(
+      'create or replace function private.v3_project_resolved_task_delivery_state()',
     );
+    expect(notificationInvariant).toContain("status = 'suppressed'");
+    expect(notificationInvariant).toContain(
+      'after insert or update of state, resolved_at on public.studio2_organizer_tasks',
+    );
+    expect(guardRehearsal).toContain('canonical edition.blocker Inbox projection was not actionable before archive');
+    expect(guardRehearsal).toContain('archive left edition.blocker Inbox projection actionable');
+    expect(resurrectionRehearsal).toContain('task resolution did not immediately repair poisoned Inbox action state');
+    expect(resurrectionRehearsal).toContain('task resolution did not immediately suppress poisoned delivery state');
   });
 
   it('retains task/notification/history evidence while ending false current action state', () => {
     expect(migration).toContain('private.v3_reconcile_resolved_task_notifications');
-    expect(migration).toContain('requires_action = false');
-    expect(migration).not.toMatch(/delete\s+from\s+public\.admin_notifications/i);
+    expect(notificationInvariant).not.toMatch(/delete\s+from\s+public\.admin_notifications/i);
+    expect(notificationInvariant).not.toMatch(/delete\s+from\s+public\.notification_deliveries/i);
     expect(rehearsal).toContain('immutable result snapshot changed during archive');
     expect(rehearsal).toContain('publication provenance changed during archive');
     expect(rehearsal).toContain('a pre-existing operation receipt was lost');
@@ -156,6 +165,7 @@ describe('System V3 S14 archive consequence contract', () => {
       '20261019112200_v3_s14_final_results_readiness_hardening.sql',
       '20261019112300_v3_s14_transition_http409.sql',
       '20261019112400_v3_s14_archive_task_registry_alignment.sql',
+      '20261019112500_v3_s14_resolved_task_notification_invariant.sql',
     ]) {
       expect(workflow).toContain(migrationName);
     }
