@@ -46,6 +46,7 @@ describe('V3 Explore entity projections', () => {
     expect(projection.currentEntry).toEqual({
       editionId: 'edition-22',
       editionLabel: 'SSC 22',
+      editionHref: null,
       artist: 'Nera Vale',
       song: 'Further Review',
       status: 'published',
@@ -53,6 +54,7 @@ describe('V3 Explore entity projections', () => {
     expect(projection.participationHistory[0]).toEqual({
       editionId: 'edition-21',
       editionLabel: 'SSC 21',
+      editionHref: null,
       artist: 'Earlier Artist',
       song: 'Earlier Song',
       status: 'published',
@@ -60,6 +62,20 @@ describe('V3 Explore entity projections', () => {
     expect(projection.resultsDestination).toBe('/results');
     expect('placement' in projection.participationHistory[0]).toBe(false);
     expect('points' in projection.participationHistory[0]).toBe(false);
+  });
+
+  it('attaches canonical Edition hrefs by stable edition id only', () => {
+    const projection = buildV3CountryExploreProjection(
+      country,
+      new Map([
+        ['edition-22', '/editions/ssc-22'],
+        ['edition-21', '/editions/ssc-21'],
+        ['SSC 22', '/editions/wrong-label-derived-route'],
+      ]),
+    );
+
+    expect(projection.currentEntry?.editionHref).toBe('/editions/ssc-22');
+    expect(projection.participationHistory[0]?.editionHref).toBe('/editions/ssc-21');
   });
 
   it('builds a public Show running order without importing ranking data', () => {
