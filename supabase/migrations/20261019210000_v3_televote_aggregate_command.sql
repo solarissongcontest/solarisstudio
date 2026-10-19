@@ -7,6 +7,17 @@ begin;
 -- browser cutover a state fingerprint also detects legacy writes that bypass
 -- the command version counter.
 
+select set_config('request.jwt.claim.role', 'service_role', true);
+select public.v3_register_migration_contract(
+  'v3.system.televote-aggregate-command',
+  1,
+  'forward_fix_only',
+  false,
+  null,
+  'Additive governed Televote aggregate snapshot, CAS authority, S2 receipt and S4 event command.'
+);
+select set_config('request.jwt.claim.role', '', true);
+
 create table if not exists private.studio2_televote_aggregate_versions (
   show_id uuid primary key references public.shows(id) on delete cascade,
   edition_id uuid not null references public.editions(id) on delete cascade,
