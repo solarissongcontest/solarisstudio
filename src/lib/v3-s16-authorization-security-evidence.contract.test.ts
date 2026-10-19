@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const readiness = readFileSync("scripts/check-v3-s16-authorization-readiness.ts", "utf8");
+const readiness = readFileSync("src/lib/v3-s16-authorization-readiness.ts", "utf8");
 const builder = readFileSync("scripts/build-v3-s16-authorization-security-evidence.ts", "utf8");
 
 describe("S16 authorization/security evidence", () => {
@@ -12,11 +12,11 @@ describe("S16 authorization/security evidence", () => {
     expect(readiness).toContain("validateV3AuthorizationRequirementRegistry");
   });
 
-  it("requires hostile-path evidence on every verified command", () => {
+  it("requires hostile-path evidence on every verified command through the canonical readiness assessment", () => {
     expect(readiness).toContain("item.negativePaths.length < 3");
     expect(readiness).toContain("item.evidence.length === 0");
-    expect(builder).toContain("item.negativePaths.length < 3");
-    expect(builder).toContain("item.evidence.length === 0");
+    expect(builder).toContain("assessV3S16AuthorizationReadiness");
+    expect(builder).toContain("const authorization = assessV3S16AuthorizationReadiness()");
   });
 
   it("binds the category to the literal checked-out candidate SHA", () => {
@@ -32,7 +32,7 @@ describe("S16 authorization/security evidence", () => {
   });
 
   it("writes a diagnostic artifact but cannot pass unless authorization and security are both green", () => {
-    expect(builder).toContain("authorizationReady && securityClassificationExactSha && securityReleaseReady");
+    expect(builder).toContain("authorization.ready && securityClassificationExactSha && securityReleaseReady");
     expect(builder).toContain('"s16-authorization-security.json"');
     expect(builder).toContain('process.argv.includes("--require-passed")');
   });
