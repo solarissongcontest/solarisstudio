@@ -87,6 +87,20 @@ function stateFromCount(count: number): "available" | "empty" {
   return count > 0 ? "available" : "empty";
 }
 
+function competingEditionResults(input: V3EditionPageInput): readonly V3EditionResult[] {
+  // public_safe_participants already supplies canonical public participation
+  // state. Stored result rows stay untouched, but a known withdrawn or
+  // disqualified identity must not be presented as a competing Edition result.
+  // Unknown result identities remain visible because no contradictory public
+  // participation state exists for Solaris to override.
+  const nonCompeting = new Set(
+    input.participants
+      .filter((participant) => participant.participationStatus !== "confirmed")
+      .map((participant) => participant.id),
+  );
+  return input.results.filter((result) => !nonCompeting.has(result.id));
+}
+
 /**
  * Builds the complete V3 Edition read model after publication and identity
  * decisions have already been made by the server source. Result analysis stays
@@ -96,6 +110,7 @@ function stateFromCount(count: number): "available" | "empty" {
 export function buildV3EditionPageProjection(
   input: V3EditionPageInput,
 ): V3EditionPageProjection | null {
+  const visibleResults = competingEditionResults(input);
   const hub = buildV3EditionHubProjection({
     edition: input.edition,
     sections: {
@@ -117,7 +132,7 @@ export function buildV3EditionPageProjection(
         href: "#edition-stories",
       },
       results: {
-        state: stateFromCount(input.results.length),
+        state: stateFromCount(visibleResults.length),
         href: "#edition-results",
       },
     },
@@ -128,7 +143,7 @@ export function buildV3EditionPageProjection(
   const resultsState =
     input.edition.resultsPublication !== "published"
       ? "locked"
-      : input.results.length
+      : visibleResults.length
         ? "available"
         : "empty";
 
@@ -150,7 +165,7 @@ export function buildV3EditionPageProjection(
     results: {
       state: resultsState,
       showHref: resultsState === "available" ? input.resultShowHref : null,
-      rows: resultsState === "available" ? input.results : [],
+      rows: resultsState === "available" ? visibleResults : [],
     },
   };
 }
