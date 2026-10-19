@@ -70,9 +70,11 @@ describe("V3 Fantasy participant authority", () => {
     expect(migration).toContain("team.revision = team.revision + 1");
   });
 
-  it("emits one versioned fact and returns a reconcilable receipt", () => {
+  it("uses the canonical Fantasy event vocabulary and returns a reconcilable receipt", () => {
     expect(migration).toContain("private.v3_emit_domain_event(");
-    expect(migration).toContain("'fantasy.team_submitted'");
+    expect(migration).toContain("'fantasy.changed'");
+    expect(migration).toContain("'change', 'team_submitted'");
+    expect(migration).not.toContain("'fantasy.team_submitted'");
     expect(migration).toContain("'fantasy_team'");
     expect(migration).toContain("v_revision,");
     expect(migration).toContain("public.studio2_reconcile_operation(v_operation_id)");
