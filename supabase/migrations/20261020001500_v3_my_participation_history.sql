@@ -38,7 +38,7 @@ create unique index if not exists v3_hod_assignment_history_one_open_revision
 create index if not exists v3_hod_assignment_history_person_idx
   on private.v3_delegation_hod_assignment_history (person_id, edition_id, country_id, channel);
 
-revoke all on private.v3_delegation_hod_assignment_history
+revoke all on table private.v3_delegation_hod_assignment_history
   from public, anon, authenticated, service_role;
 
 insert into private.v3_delegation_hod_assignment_history (
