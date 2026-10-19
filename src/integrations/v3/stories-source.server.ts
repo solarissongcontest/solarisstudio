@@ -167,7 +167,12 @@ export async function loadV3StoriesIndexBundle(): Promise<V3StoriesIndexBundle> 
   };
 }
 
-/** Published-only edition Story source. */
+/**
+ * Published-only edition Story source.
+ *
+ * Related stories are optional continuity links. A failure to load the public
+ * archive list must not turn a valid published Story into an unavailable page.
+ */
 export async function loadV3StoryDetailBundle(
   editionSlug: string,
 ): Promise<V3StoryDetailBundle> {
@@ -176,17 +181,30 @@ export async function loadV3StoryDetailBundle(
     return {
       shell: { editionLabel: "Solaris Studio", phaseLabel: "Stories" },
       story: null,
+      relatedEdition: null,
+      relatedStories: [],
       generatedAt: new Date().toISOString(),
     };
   }
 
   const client = createConfirmationPublicRuntimeClient() as unknown as StoriesSourceClient;
-  const result = await client.rpc("studio2_public_storyline", {
-    p_edition_slug: cleanSlug,
-  });
+  const [result, relatedResult] = await Promise.all([
+    client.rpc("studio2_public_storyline", {
+      p_edition_slug: cleanSlug,
+    }),
+    client.rpc("studio2_public_storylines", { p_limit: 12 }),
+  ]);
   throwIfError(result.error, "Could not load published Solaris edition story");
 
   const story = parseStoryline(result.data);
+  const relatedStories =
+    story && !relatedResult.error && Array.isArray(relatedResult.data)
+      ? relatedResult.data
+          .map(parseStorySummary)
+          .filter((candidate) => candidate.editionId !== story.editionId)
+          .slice(0, 3)
+      : [];
+
   return {
     shell: {
       editionLabel:
@@ -196,6 +214,13 @@ export async function loadV3StoryDetailBundle(
       phaseLabel: "Stories",
     },
     story,
+    relatedEdition: story
+      ? {
+          label: story.editionName,
+          href: `/editions/${encodeURIComponent(story.editionSlug)}`,
+        }
+      : null,
+    relatedStories,
     generatedAt: new Date().toISOString(),
   };
 }

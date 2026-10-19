@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { BookOpen, CalendarDays } from "lucide-react";
+import { BookOpen, CalendarDays, Share2 } from "lucide-react";
 
 import type { V3StoryDetailBundle } from "@/lib/v3-stories";
 import {
+  V3ActionCard,
   V3Screen,
   V3ScreenHeader,
   V3Section,
@@ -19,6 +20,7 @@ export function V3StoryDetailScreen({
   hideSpoilers: boolean;
 }) {
   const [revealed, setRevealed] = useState(false);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
   const story = bundle.story;
 
   if (!story) {
@@ -67,6 +69,40 @@ export function V3StoryDetailScreen({
     );
   }
 
+  async function shareStory() {
+    if (typeof window === "undefined") return;
+    const url = window.location.href;
+    setShareMessage(null);
+
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title: story.title, url });
+        setShareMessage("Story shared.");
+        return;
+      }
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        setShareMessage("Story link copied.");
+        return;
+      }
+
+      setShareMessage("Copy this page address from your browser to share it.");
+    } catch (error) {
+      if ((error as { name?: string } | null)?.name === "AbortError") return;
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(url);
+          setShareMessage("Story link copied.");
+          return;
+        }
+      } catch {
+        // Fall through to stable public-safe copy below.
+      }
+      setShareMessage("Sharing is unavailable on this device.");
+    }
+  }
+
   return (
     <V3Screen>
       <Link to="/stories" className="text-xs font-semibold text-primary hover:underline">
@@ -85,6 +121,29 @@ export function V3StoryDetailScreen({
           <span className="text-xs text-white/38">
             Published {formatDate(story.publishedAt)} · {story.items.length} reviewed moments
           </span>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {bundle.relatedEdition ? (
+            <Link
+              to={bundle.relatedEdition.href as any}
+              className="inline-flex min-h-11 items-center rounded-xl border border-white/10 bg-white/[0.035] px-4 text-sm font-semibold text-white/78 hover:bg-white/[0.06] hover:text-white"
+            >
+              Explore {bundle.relatedEdition.label}
+            </Link>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => void shareStory()}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.035] px-4 text-sm font-semibold text-white/78 hover:bg-white/[0.06] hover:text-white"
+          >
+            <Share2 className="size-4" aria-hidden="true" />
+            Share story
+          </button>
+          {shareMessage ? (
+            <span role="status" className="text-xs text-white/48">
+              {shareMessage}
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -139,6 +198,25 @@ export function V3StoryDetailScreen({
           </V3Surface>
         )}
       </V3Section>
+
+      {bundle.relatedStories.length ? (
+        <V3Section title="More published stories" meta={`${bundle.relatedStories.length} stories`}>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {bundle.relatedStories.map((related) => (
+              <V3ActionCard
+                key={related.editionId}
+                title={related.title}
+                description={
+                  related.subtitle ??
+                  `${related.editionNumber != null ? `SSC ${related.editionNumber}` : related.editionName} · ${related.itemCount} moments`
+                }
+                tone="neutral"
+                to={`/stories/${encodeURIComponent(related.editionSlug)}`}
+              />
+            ))}
+          </div>
+        </V3Section>
+      ) : null}
     </V3Screen>
   );
 }
