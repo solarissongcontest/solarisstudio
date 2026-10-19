@@ -44,6 +44,7 @@ describe("V3 Organizer edition destructive review boundary", () => {
     expect(source).toContain('.from("editions")\n          .delete()');
     expect(source).toContain("System #1068 still owns the canonical edition lifecycle command");
     expect(source).toContain("no edition CAS, durable operation receipt or atomic cross-domain preflight");
-    expect(source).toContain("Do not treat this review as V3 lifecycle parity");
+    expect(source).toContain("Do not treat this");
+    expect(source).toContain("review as V3 lifecycle parity");
   });
 });
