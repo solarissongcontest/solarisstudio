@@ -179,6 +179,12 @@ export type V3ResultsOwnedFeature =
 export type V3ExploreOrResultsFeature = V3ExploreOwnedFeature | V3ResultsOwnedFeature;
 
 const PUBLIC_VISIBILITY: V3PublicationVisibility = "public";
+const NEXT_EVENT_EXPERIENCES = new Set<V3EditionExperience>([
+  "upcoming",
+  "pre-show",
+  "show-day",
+  "live",
+]);
 
 const SECTION_LABELS: Record<V3EditionSectionKey, string> = {
   overview: "Overview",
@@ -218,7 +224,9 @@ function projectEdition(edition: V3ExploreEditionInput): V3ExploreEditionCard {
     artworkUrl: edition.artworkUrl,
     experience: edition.experience,
     href: edition.href,
-    nextEvent: edition.nextEvent ?? null,
+    nextEvent: NEXT_EVENT_EXPERIENCES.has(edition.experience)
+      ? edition.nextEvent ?? null
+      : null,
     resultsAvailable: edition.resultsPublication === "published",
   };
 }
@@ -229,16 +237,19 @@ export function buildV3ExploreRootProjection(
   const currentEdition = input.currentEditionId
     ? input.editions.find(
         (edition) =>
-          edition.id === input.currentEditionId && edition.visibility === PUBLIC_VISIBILITY,
+          edition.id === input.currentEditionId &&
+          edition.visibility === PUBLIC_VISIBILITY &&
+          edition.experience !== "archived",
       ) ?? null
     : null;
+  const resolvedCurrentEditionId = currentEdition?.id ?? null;
 
   const archiveEditions = input.editions
     .filter(
       (edition) =>
         edition.visibility === PUBLIC_VISIBILITY &&
         edition.archiveEligible &&
-        edition.id !== input.currentEditionId,
+        edition.id !== resolvedCurrentEditionId,
     )
     .map(projectEdition);
 
