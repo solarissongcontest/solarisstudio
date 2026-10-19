@@ -7,6 +7,7 @@ import {
   XCircle,
 } from "lucide-react";
 
+import { deriveV3EntryEditingPresentation } from "@/lib/v3-entry-editing-state";
 import {
   deriveV3EntryLifecycle,
   inferV3EntryCorrectionSection,
@@ -85,11 +86,18 @@ function sectionLabel(value: ReturnType<typeof inferV3EntryCorrectionSection>) {
   return "Review";
 }
 
+function editingTone(state: ReturnType<typeof deriveV3EntryEditingPresentation>["state"]) {
+  if (state === "reopened" || state === "open") return "text-emerald-300";
+  if (state === "locked") return "text-amber-200";
+  return "text-[var(--v3-text-tertiary)]";
+}
+
 export function V3EntryLifecyclePanel({ projection }: { projection: V3EntryProjection }) {
   if (projection.state !== "ready") return null;
 
   const lifecycle = projection.lifecycle ?? deriveV3EntryLifecycle(projection.confirmation);
   const presentation = PRESENTATION[lifecycle.state];
+  const editing = deriveV3EntryEditingPresentation(projection.confirmation, lifecycle);
   const correctionSection =
     lifecycle.state === "changes-required"
       ? inferV3EntryCorrectionSection(lifecycle.issue)
@@ -124,6 +132,19 @@ export function V3EntryLifecyclePanel({ projection }: { projection: V3EntryProje
             <p className="mt-1 text-sm leading-6 text-[var(--v3-text-secondary)]">
               {presentation.description}
             </p>
+            {editing.state !== "not-applicable" ? (
+              <div
+                className="mt-3 rounded-xl border border-[var(--v3-border-subtle)] px-3 py-2"
+                data-v3-entry-editing-state={editing.state}
+              >
+                <p className={cn("text-xs font-semibold", editingTone(editing.state))}>
+                  {editing.label}
+                </p>
+                <p className="mt-0.5 text-xs leading-5 text-[var(--v3-text-tertiary)]">
+                  {editing.description}
+                </p>
+              </div>
+            ) : null}
             {lifecycle.issue ? (
               <div
                 className="mt-3 rounded-xl border border-[var(--v3-danger)]/25 bg-[var(--v3-danger)]/5 p-3"
