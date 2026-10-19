@@ -2,9 +2,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
-import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
+import {
+  ArchiveDataError,
+  ArchiveDataLoading,
+  archiveHasError,
+  archiveIsLoading,
+} from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
+import { useSolarisApp } from "@/components/app/AppRuntime";
+import { V3RecordsGate } from "@/components/v3/V3RecordsGate";
 import { buildCanonicalFanRecords } from "@/lib/canonical-fan-records";
 import {
   useAllJuryVotes,
@@ -14,7 +21,11 @@ import {
   useCountries,
   useEditions,
 } from "@/lib/data";
-import { type FanRecord, type FanRecordCategory, type FanRecordHolder } from "@/lib/fan-records";
+import {
+  type FanRecord,
+  type FanRecordCategory,
+  type FanRecordHolder,
+} from "@/lib/fan-records";
 
 export const Route = createFileRoute("/records/")({
   head: () => ({ meta: [{ title: "Records — Solaris Studio" }] }),
@@ -43,6 +54,27 @@ const CATEGORY_LABELS: Record<FanRecordCategory, string> = {
 };
 
 function RecordsPage() {
+  const { isAppMode, platformResolved } = useSolarisApp();
+
+  if (!platformResolved) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-10" data-v3-records-boot="">
+        <h1 className="text-3xl font-bold">Records</h1>
+        <p role="status" className="mt-3">
+          Opening published archive records…
+        </p>
+      </main>
+    );
+  }
+
+  if (isAppMode) {
+    return <V3RecordsGate fallback={<LegacyRecordsPage />} />;
+  }
+
+  return <LegacyRecordsPage />;
+}
+
+function LegacyRecordsPage() {
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
@@ -73,8 +105,14 @@ function RecordsPage() {
     [countries, editions, shows, participants, results, jury],
   );
 
-  const filtered = tab === "all" ? records : records.filter((record) => record.category === tab);
-  const showById = useMemo(() => new Map((shows ?? []).map((show) => [show.id, show])), [shows]);
+  const filtered =
+    tab === "all"
+      ? records
+      : records.filter((record) => record.category === tab);
+  const showById = useMemo(
+    () => new Map((shows ?? []).map((show) => [show.id, show])),
+    [shows],
+  );
   const archivedFinalEditions = useMemo(
     () =>
       new Set(
@@ -88,9 +126,38 @@ function RecordsPage() {
     [results, showById],
   );
 
-  const archiveQueries = [countriesQuery, editionsQuery, showsQuery, participantsQuery, resultsQuery, juryQuery];
-  if (archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Hall of records" title="Records" description="Verified records from the published archive." /><ArchiveDataLoading label="Calculating records from the archive…" /></AppShell>;
-  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Hall of records" title="Records" description="Verified records from the published archive." /><ArchiveDataError /></AppShell>;
+  const archiveQueries = [
+    countriesQuery,
+    editionsQuery,
+    showsQuery,
+    participantsQuery,
+    resultsQuery,
+    juryQuery,
+  ];
+  if (archiveIsLoading(...archiveQueries)) {
+    return (
+      <AppShell>
+        <PageHeader
+          eyebrow="Hall of records"
+          title="Records"
+          description="Verified records from the published archive."
+        />
+        <ArchiveDataLoading label="Calculating records from the archive…" />
+      </AppShell>
+    );
+  }
+  if (archiveHasError(...archiveQueries)) {
+    return (
+      <AppShell>
+        <PageHeader
+          eyebrow="Hall of records"
+          title="Records"
+          description="Verified records from the published archive."
+        />
+        <ArchiveDataError />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -99,7 +166,10 @@ function RecordsPage() {
         title="Records"
         description="The extreme, impressive and occasionally unfortunate corners of SSC history, with ties shown properly instead of quietly choosing one country and hoping nobody notices."
         actions={
-          <Link to="/archive-games" className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto">
+          <Link
+            to="/archive-games"
+            className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm sm:w-auto"
+          >
             Play Archive Games →
           </Link>
         }
@@ -107,18 +177,34 @@ function RecordsPage() {
 
       <Panel className="mb-5" title="Archive coverage">
         <p className="text-xs leading-relaxed text-muted-foreground">
-          These records currently use {archivedFinalEditions} edition{archivedFinalEditions === 1 ? "" : "s"} with archived Grand Final results, plus the jury and qualification data that is actually stored. Missing editions are excluded rather than treated as zeroes, so a record can change when older archive data is added.
+          These records currently use {archivedFinalEditions} edition
+          {archivedFinalEditions === 1 ? "" : "s"} with archived Grand Final
+          results, plus the jury and qualification data that is actually stored.
+          Missing editions are excluded rather than treated as zeroes, so a record
+          can change when older archive data is added.
         </p>
       </Panel>
 
-      <ResponsiveTabs value={tab} options={TABS} onChange={setTab} label="Record category" className="mb-5" />
+      <ResponsiveTabs
+        value={tab}
+        options={TABS}
+        onChange={setTab}
+        label="Record category"
+        className="mb-5"
+      />
 
       {filtered.length ? (
         <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
-          {filtered.map((record) => <RecordCard key={record.id} record={record} />)}
+          {filtered.map((record) => (
+            <RecordCard key={record.id} record={record} />
+          ))}
         </div>
       ) : (
-        <Panel><p className="text-sm text-muted-foreground">No records in this category yet.</p></Panel>
+        <Panel>
+          <p className="text-sm text-muted-foreground">
+            No records in this category yet.
+          </p>
+        </Panel>
       )}
     </AppShell>
   );
@@ -132,8 +218,12 @@ function RecordCard({ record }: { record: FanRecord }) {
     <article className="glass flex min-h-[250px] min-w-0 flex-col overflow-hidden p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">{CATEGORY_LABELS[record.category]}</p>
-          <h2 className="mt-1 break-words font-display text-lg font-bold leading-tight sm:text-xl">{record.label}</h2>
+          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
+            {CATEGORY_LABELS[record.category]}
+          </p>
+          <h2 className="mt-1 break-words font-display text-lg font-bold leading-tight sm:text-xl">
+            {record.label}
+          </h2>
         </div>
         {record.holders.length > 1 && (
           <span className="shrink-0 rounded-full border border-primary/20 bg-primary/[0.07] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-primary">
@@ -142,8 +232,12 @@ function RecordCard({ record }: { record: FanRecord }) {
         )}
       </div>
 
-      <p className="numeric mt-4 break-words text-3xl font-black tracking-[-.045em] text-foreground">{record.value}</p>
-      <p className="mt-2 text-[11px] leading-5 text-muted-foreground">{record.explanation}</p>
+      <p className="numeric mt-4 break-words text-3xl font-black tracking-[-.045em] text-foreground">
+        {record.value}
+      </p>
+      <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+        {record.explanation}
+      </p>
 
       <div className="mt-4 divide-y divide-border/55 rounded-xl border border-border/60 bg-surface/45 px-3">
         {primaryHolders.map((holder) => (
@@ -171,14 +265,25 @@ function RecordHolderRow({ holder }: { holder: FanRecordHolder }) {
   return (
     <div className="py-3 first:pt-2.5 last:pb-2.5">
       <div className="flex min-w-0 items-start gap-3">
-        <FlagChip code={holder.shortCode} color={holder.accentColor} image={holder.flagImage} size="sm" />
+        <FlagChip
+          code={holder.shortCode}
+          color={holder.accentColor}
+          image={holder.flagImage}
+          size="sm"
+        />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <Link to="/countries/$code" params={{ code: holder.shortCode }} className="truncate text-sm font-semibold text-foreground hover:text-primary">
+            <Link
+              to="/countries/$code"
+              params={{ code: holder.shortCode }}
+              className="truncate text-sm font-semibold text-foreground hover:text-primary"
+            >
               {holder.countryName}
             </Link>
             {holder.editionLabel && (
-              <span className="text-[10px] text-muted-foreground">{holder.editionLabel}</span>
+              <span className="text-[10px] text-muted-foreground">
+                {holder.editionLabel}
+              </span>
             )}
           </div>
           {(holder.artist || holder.song) && (
@@ -186,7 +291,11 @@ function RecordHolderRow({ holder }: { holder: FanRecordHolder }) {
               {[holder.artist, holder.song].filter(Boolean).join(" · ")}
             </p>
           )}
-          {holder.context && <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{holder.context}</p>}
+          {holder.context && (
+            <p className="mt-1 text-[10px] leading-4 text-muted-foreground">
+              {holder.context}
+            </p>
+          )}
         </div>
       </div>
     </div>

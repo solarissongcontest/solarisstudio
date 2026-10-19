@@ -37,6 +37,7 @@ export type V3SystemZeroOrphanDiscovery = {
  * an adapter into canonical write authority for the domains it reads.
  */
 export const V3_SYSTEM_INTEGRATION_REGISTRY: readonly V3SystemIntegrationRegistration[] = [
+  { path: "src/integrations/v3/broadcast-intelligence-source.server.ts", coordinatorDomain: "results", role: "composite-read-adapter" },
   { path: "src/integrations/v3/delegation-source.server.ts", coordinatorDomain: "delegation", role: "projection-adapter" },
   { path: "src/integrations/v3/edition-source.server.ts", coordinatorDomain: "edition", role: "projection-adapter" },
   { path: "src/integrations/v3/entry-actions.server.ts", coordinatorDomain: "entry", role: "command-adapter" },
@@ -46,8 +47,12 @@ export const V3_SYSTEM_INTEGRATION_REGISTRY: readonly V3SystemIntegrationRegistr
   { path: "src/integrations/v3/me-summary.server.ts", coordinatorDomain: "account", role: "composite-read-adapter" },
   { path: "src/integrations/v3/participant-activity.server.ts", coordinatorDomain: "activity", role: "projection-adapter" },
   { path: "src/integrations/v3/primary-surface-source.server.ts", coordinatorDomain: "participation", role: "composite-read-adapter" },
+  { path: "src/integrations/v3/records-source.server.ts", coordinatorDomain: "results", role: "composite-read-adapter" },
+  { path: "src/integrations/v3/relationships-source.server.ts", coordinatorDomain: "results", role: "composite-read-adapter" },
+  { path: "src/integrations/v3/result-lab-source.server.ts", coordinatorDomain: "results", role: "composite-read-adapter" },
   { path: "src/integrations/v3/results-source.server.ts", coordinatorDomain: "results", role: "projection-adapter" },
   { path: "src/integrations/v3/rollout-probe.server.ts", coordinatorDomain: "feature-rollout", role: "rollout-probe" },
+  { path: "src/integrations/v3/scorecharts-source.server.ts", coordinatorDomain: "results", role: "composite-read-adapter" },
 ];
 
 export const V3_SYSTEM_EDGE_FUNCTION_REGISTRY: readonly V3SystemEdgeFunctionRegistration[] = [

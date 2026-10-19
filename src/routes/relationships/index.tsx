@@ -2,9 +2,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
-import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
+import {
+  ArchiveDataError,
+  ArchiveDataLoading,
+  archiveHasError,
+  archiveIsLoading,
+} from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
 import { ResponsiveTabs } from "@/components/ResponsiveTabs";
+import { useSolarisApp } from "@/components/app/AppRuntime";
+import { V3RelationshipsIndexGate } from "@/components/v3/V3RelationshipsGate";
 import { useCompleteJuryArchive } from "@/lib/complete-jury";
 import {
   useAllParticipants,
@@ -37,6 +44,27 @@ function pairParam(a: Country, b: Country) {
 }
 
 function RelationshipsPage() {
+  const { isAppMode, platformResolved } = useSolarisApp();
+
+  if (!platformResolved) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-10" data-v3-relationships-boot="">
+        <h1 className="text-3xl font-bold">Voting relationships</h1>
+        <p role="status" className="mt-3">
+          Opening published relationship history…
+        </p>
+      </main>
+    );
+  }
+
+  if (isAppMode) {
+    return <V3RelationshipsIndexGate fallback={<LegacyRelationshipsPage />} />;
+  }
+
+  return <LegacyRelationshipsPage />;
+}
+
+function LegacyRelationshipsPage() {
   const countriesQuery = useCountries();
   const participantsQuery = useAllParticipants();
   const juryQuery = useCompleteJuryArchive();
@@ -144,9 +172,38 @@ function RelationshipsPage() {
     return rows;
   }, [pairs, query, tab, oneSidedMap]);
 
-  const archiveQueries = [countriesQuery, participantsQuery, juryQuery, resultsQuery, showsQuery, editionsQuery];
-  if (archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Voting patterns" title="Voting relationships" description="Repeated support and competitive history from the published archive." /><ArchiveDataLoading label="Calculating country relationships…" /></AppShell>;
-  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Voting patterns" title="Voting relationships" description="Repeated support and competitive history from the published archive." /><ArchiveDataError /></AppShell>;
+  const archiveQueries = [
+    countriesQuery,
+    participantsQuery,
+    juryQuery,
+    resultsQuery,
+    showsQuery,
+    editionsQuery,
+  ];
+  if (archiveIsLoading(...archiveQueries)) {
+    return (
+      <AppShell>
+        <PageHeader
+          eyebrow="Voting patterns"
+          title="Voting relationships"
+          description="Repeated support and competitive history from the published archive."
+        />
+        <ArchiveDataLoading label="Calculating country relationships…" />
+      </AppShell>
+    );
+  }
+  if (archiveHasError(...archiveQueries)) {
+    return (
+      <AppShell>
+        <PageHeader
+          eyebrow="Voting patterns"
+          title="Voting relationships"
+          description="Repeated support and competitive history from the published archive."
+        />
+        <ArchiveDataError />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -182,7 +239,12 @@ function RelationshipsPage() {
             placeholder="Search a country…"
             className="min-h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none"
           />
-          <ResponsiveTabs value={tab} options={TABS} onChange={setTab} label="Relationship type" />
+          <ResponsiveTabs
+            value={tab}
+            options={TABS}
+            onChange={setTab}
+            label="Relationship type"
+          />
         </div>
       </Panel>
 
@@ -201,7 +263,9 @@ function RelationshipsPage() {
                 image={row.a.flag_image}
                 size="sm"
               />
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">{row.a.name}</span>
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                {row.a.name}
+              </span>
               <span className="text-xs text-muted-foreground">vs</span>
               <FlagChip
                 code={row.b.short_code}

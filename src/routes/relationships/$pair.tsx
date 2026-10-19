@@ -11,8 +11,15 @@ import {
 } from "recharts";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
-import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
+import {
+  ArchiveDataError,
+  ArchiveDataLoading,
+  archiveHasError,
+  archiveIsLoading,
+} from "@/components/ArchiveDataState";
 import { FlagChip } from "@/components/FlagChip";
+import { useSolarisApp } from "@/components/app/AppRuntime";
+import { V3RelationshipDetailGate } from "@/components/v3/V3RelationshipsGate";
 import { computeCanonicalHeadToHead } from "@/lib/canonical-head-to-head";
 import { useCompleteJuryArchive } from "@/lib/complete-jury";
 import {
@@ -35,6 +42,32 @@ export const Route = createFileRoute("/relationships/$pair")({
 
 function RelationshipPairPage() {
   const { pair } = Route.useParams();
+  const { isAppMode, platformResolved } = useSolarisApp();
+
+  if (!platformResolved) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-10" data-v3-relationship-detail-boot="">
+        <h1 className="text-3xl font-bold">Voting relationship</h1>
+        <p role="status" className="mt-3">
+          Opening published relationship history…
+        </p>
+      </main>
+    );
+  }
+
+  if (isAppMode) {
+    return (
+      <V3RelationshipDetailGate
+        pair={pair}
+        fallback={<LegacyRelationshipPairPage pair={pair} />}
+      />
+    );
+  }
+
+  return <LegacyRelationshipPairPage pair={pair} />;
+}
+
+function LegacyRelationshipPairPage({ pair }: { pair: string }) {
   const countriesQuery = useCountries();
   const editionsQuery = useEditions();
   const participantsQuery = useAllParticipants();
@@ -51,18 +84,44 @@ function RelationshipPairPage() {
   const { data: shows } = showsQuery;
 
   const [codeA, codeB] = pair.toUpperCase().split("-VS-");
-  const a = (countries ?? []).find((country) => country.short_code.toUpperCase() === codeA);
-  const b = (countries ?? []).find((country) => country.short_code.toUpperCase() === codeB);
+  const a = (countries ?? []).find(
+    (country) => country.short_code.toUpperCase() === codeA,
+  );
+  const b = (countries ?? []).find(
+    (country) => country.short_code.toUpperCase() === codeB,
+  );
 
-  const archiveQueries = [countriesQuery, editionsQuery, participantsQuery, juryQuery, televoteQuery, resultsQuery, showsQuery];
-  if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading relationship history…" /></AppShell>;
-  if (archiveHasError(...archiveQueries)) return <AppShell><ArchiveDataError /></AppShell>;
+  const archiveQueries = [
+    countriesQuery,
+    editionsQuery,
+    participantsQuery,
+    juryQuery,
+    televoteQuery,
+    resultsQuery,
+    showsQuery,
+  ];
+  if (archiveIsLoading(...archiveQueries)) {
+    return (
+      <AppShell>
+        <ArchiveDataLoading label="Loading relationship history…" />
+      </AppShell>
+    );
+  }
+  if (archiveHasError(...archiveQueries)) {
+    return (
+      <AppShell>
+        <ArchiveDataError />
+      </AppShell>
+    );
+  }
 
   if (!a || !b) {
     return (
       <AppShell>
         <PageHeader title="Relationship not found" />
-        <Link to="/relationships" className="text-sm text-primary">← Relationships</Link>
+        <Link to="/relationships" className="text-sm text-primary">
+          ← Relationships
+        </Link>
       </AppShell>
     );
   }
@@ -93,7 +152,9 @@ function RelationshipPairPage() {
     ...new Set(
       (participants ?? [])
         .filter(
-          (participant) => participant.country_id === b.id && aEditions.has(participant.edition_id),
+          (participant) =>
+            participant.country_id === b.id &&
+            aEditions.has(participant.edition_id),
         )
         .map((participant) => participant.edition_id),
     ),
@@ -136,17 +197,35 @@ function RelationshipPairPage() {
 
       <Panel className="mb-5" title="Relationship score guide">
         <div className="grid gap-3 sm:grid-cols-3">
-          <Guide title="Support score" text="Two-way support adjusted for how often both countries had a chance to vote for one another." />
-          <Guide title="Reciprocity" text="How balanced that support is in both directions. A high number means the pattern is more mutual." />
-          <Guide title="Sample confidence" text="How much shared voting history exists behind the score. More shared opportunities make the pattern more reliable." />
+          <Guide
+            title="Support score"
+            text="Two-way support adjusted for how often both countries had a chance to vote for one another."
+          />
+          <Guide
+            title="Reciprocity"
+            text="How balanced that support is in both directions. A high number means the pattern is more mutual."
+          />
+          <Guide
+            title="Sample confidence"
+            text="How much shared voting history exists behind the score. More shared opportunities make the pattern more reliable."
+          />
         </div>
       </Panel>
 
       <Panel className="mb-5">
         <div className="grid grid-cols-2 gap-x-5 gap-y-5 sm:grid-cols-4">
-          <StatTile label="Shared editions" value={relationship.participationsTogether} />
-          <StatTile label="Support score" value={relationship.friendshipScore.toFixed(0)} />
-          <StatTile label="Reciprocity" value={relationship.reciprocityScore.toFixed(0)} />
+          <StatTile
+            label="Shared editions"
+            value={relationship.participationsTogether}
+          />
+          <StatTile
+            label="Support score"
+            value={relationship.friendshipScore.toFixed(0)}
+          />
+          <StatTile
+            label="Reciprocity"
+            value={relationship.reciprocityScore.toFixed(0)}
+          />
           <StatTile
             label="Trend"
             value={relationship.relationshipTrend}
@@ -165,8 +244,17 @@ function RelationshipPairPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="edition" stroke="var(--muted-foreground)" fontSize={11} />
-                  <YAxis stroke="var(--muted-foreground)" fontSize={11} allowDecimals={false} domain={[0, 100]} />
+                  <XAxis
+                    dataKey="edition"
+                    stroke="var(--muted-foreground)"
+                    fontSize={11}
+                  />
+                  <YAxis
+                    stroke="var(--muted-foreground)"
+                    fontSize={11}
+                    allowDecimals={false}
+                    domain={[0, 100]}
+                  />
                   <Tooltip
                     contentStyle={{
                       background: "var(--popover)",
@@ -174,31 +262,67 @@ function RelationshipPairPage() {
                       borderRadius: 14,
                     }}
                   />
-                  <Line type="monotone" dataKey="aToB" name={`${a.short_code} → ${b.short_code}`} stroke="var(--jury)" strokeWidth={3} dot />
-                  <Line type="monotone" dataKey="bToA" name={`${b.short_code} → ${a.short_code}`} stroke="var(--televote)" strokeWidth={3} dot />
+                  <Line
+                    type="monotone"
+                    dataKey="aToB"
+                    name={`${a.short_code} → ${b.short_code}`}
+                    stroke="var(--jury)"
+                    strokeWidth={3}
+                    dot
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="bToA"
+                    name={`${b.short_code} → ${a.short_code}`}
+                    stroke="var(--televote)"
+                    strokeWidth={3}
+                    dot
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No exchanged jury points yet.</p>
+            <p className="text-sm text-muted-foreground">
+              No exchanged jury points yet.
+            </p>
           )}
         </Panel>
 
-        <Panel title="Head-to-head" description="Performance and voting numbers from editions where both countries appear in the archive.">
+        <Panel
+          title="Head-to-head"
+          description="Performance and voting numbers from editions where both countries appear in the archive."
+        >
           <div className="divide-y divide-border/60">
             <Row label={`${a.name} finished higher`} value={headToHead.aWins} />
             <Row label={`${b.name} finished higher`} value={headToHead.bWins} />
             <Row label="Ties" value={headToHead.ties} />
-            <Row label="Average placement gap" value={headToHead.avgDiff?.toFixed(1) ?? "—"} />
-            <Row label={`${a.short_code} → ${b.short_code}`} value={`${relationship.totalAtoB} pts / ${relationship.expectedAtoB.toFixed(1)} expected`} />
-            <Row label={`${b.short_code} → ${a.short_code}`} value={`${relationship.totalBtoA} pts / ${relationship.expectedBtoA.toFixed(1)} expected`} />
+            <Row
+              label="Average placement gap"
+              value={headToHead.avgDiff?.toFixed(1) ?? "—"}
+            />
+            <Row
+              label={`${a.short_code} → ${b.short_code}`}
+              value={`${relationship.totalAtoB} pts / ${relationship.expectedAtoB.toFixed(1)} expected`}
+            />
+            <Row
+              label={`${b.short_code} → ${a.short_code}`}
+              value={`${relationship.totalBtoA} pts / ${relationship.expectedBtoA.toFixed(1)} expected`}
+            />
             <Row
               label={`${a.short_code} support frequency`}
-              value={relationship.persistenceAtoB != null ? `${relationship.persistenceAtoB.toFixed(0)}%` : "—"}
+              value={
+                relationship.persistenceAtoB != null
+                  ? `${relationship.persistenceAtoB.toFixed(0)}%`
+                  : "—"
+              }
             />
             <Row
               label={`${b.short_code} support frequency`}
-              value={relationship.persistenceBtoA != null ? `${relationship.persistenceBtoA.toFixed(0)}%` : "—"}
+              value={
+                relationship.persistenceBtoA != null
+                  ? `${relationship.persistenceBtoA.toFixed(0)}%`
+                  : "—"
+              }
             />
           </div>
         </Panel>
@@ -211,15 +335,25 @@ function RelationshipPairPage() {
           <div className="grid gap-3 sm:grid-cols-3">
             <Milestone
               label="First top score"
-              value={relationship.firstTopScore ? `SSC ${relationship.firstTopScore.editionNumber ?? "—"}` : "Not yet"}
+              value={
+                relationship.firstTopScore
+                  ? `SSC ${relationship.firstTopScore.editionNumber ?? "—"}`
+                  : "Not yet"
+              }
             />
             <Milestone
               label="100 exchanged points"
-              value={relationship.hundredPointMilestone != null ? `SSC ${relationship.hundredPointMilestone}` : "Not yet"}
+              value={
+                relationship.hundredPointMilestone != null
+                  ? `SSC ${relationship.hundredPointMilestone}`
+                  : "Not yet"
+              }
             />
             <Milestone
               label="Longest support run"
-              value={`${relationship.longestSupportRun} edition${relationship.longestSupportRun === 1 ? "" : "s"}`}
+              value={`${relationship.longestSupportRun} edition${
+                relationship.longestSupportRun === 1 ? "" : "s"
+              }`}
             />
           </div>
         </Panel>
@@ -247,14 +381,27 @@ function RelationshipPairPage() {
   );
 }
 
-function CountryLink({ country, align = "left" }: { country: any; align?: "left" | "right" }) {
+function CountryLink({
+  country,
+  align = "left",
+}: {
+  country: any;
+  align?: "left" | "right";
+}) {
   return (
     <Link
       to="/countries/$code"
       params={{ code: country.short_code }}
-      className={`flex min-w-0 items-center gap-3 ${align === "right" ? "flex-row-reverse text-right" : ""}`}
+      className={`flex min-w-0 items-center gap-3 ${
+        align === "right" ? "flex-row-reverse text-right" : ""
+      }`}
     >
-      <FlagChip code={country.short_code} color={country.accent_color} image={country.flag_image} size="md" />
+      <FlagChip
+        code={country.short_code}
+        color={country.accent_color}
+        image={country.flag_image}
+        size="md"
+      />
       <div className="min-w-0">
         <p className="truncate text-sm font-semibold">{country.name}</p>
         <p className="text-[11px] text-muted-foreground">{country.short_code}</p>
@@ -267,7 +414,9 @@ function Guide({ title, text }: { title: string; text: string }) {
   return (
     <div className="rounded-xl bg-surface p-3">
       <p className="text-xs font-semibold">{title}</p>
-      <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">{text}</p>
+      <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+        {text}
+      </p>
     </div>
   );
 }
@@ -284,7 +433,9 @@ function Row({ label, value }: { label: string; value: string | number }) {
 function Milestone({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl bg-surface p-3">
-      <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </p>
       <p className="numeric mt-2 text-sm font-semibold">{value}</p>
     </div>
   );
