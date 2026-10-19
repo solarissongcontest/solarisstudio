@@ -59,14 +59,22 @@ describe("V3 push delivery reconciliation", () => {
     expect(client).toContain('.eq("user_id", userId)');
     expect(client).toContain('.eq("endpoint", endpoint)');
     expect(client).toContain('.is("disabled_at", null)');
-    expect(route).toContain("queryFn: () => getAppPushState(userId)");
+    expect(client).toContain("getAuthenticatedAppPushState(userId: string)");
+    expect(route).toContain("queryFn: () => getAuthenticatedAppPushState(userId)");
     expect(migration).toContain('policy "users read own app push subscriptions"');
     expect(migration).toContain("using ((select auth.uid()) = user_id)");
   });
 
-  it("keeps legacy callers browser-only until they opt into authenticated reconciliation", () => {
+  it("keeps the legacy zero-argument query function browser-only", () => {
     const client = readFileSync("src/lib/app-notifications.ts", "utf8");
+    const legacyPanel = readFileSync(
+      "src/components/mysolaris/MySolarisNotificationsPanel.tsx",
+      "utf8",
+    );
 
+    expect(client).toContain("export async function getAppPushState(): Promise<AppPushState>");
+    expect(client).toContain("return readAppPushState();");
+    expect(legacyPanel).toContain("queryFn: getAppPushState");
     expect(client).toContain("userId\n      ? browserSubscribed && serverRegistered === true\n      : browserSubscribed");
     expect(client).toContain("serverRegistered: userId ? false : undefined");
   });
