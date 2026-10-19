@@ -11,6 +11,60 @@ s14_stage7_mark() {
   log "S14_STAGE7_DIAGNOSTIC $CURRENT_STAGE"
 }
 
+# The post-extension ballot has previously failed without enough state to tell
+# whether the QA fixture, the governed round mutation, or the final DB trigger
+# rejected it. Capture only non-secret local state when that exact acceptance
+# assertion is about to fail, then delegate to the canonical assertion so test
+# semantics remain unchanged.
+eval "$(declare -f expect_success | sed '1s/expect_success/expect_success_without_stage7_diagnostics/')"
+expect_success() {
+  local label="$1"
+  if [[ "$label" == "public Televote after governed deadline extension" ]] \
+     && ! (( HTTP_STATUS >= 200 && HTTP_STATUS < 300 )); then
+    local round_snapshot preflight_snapshot submission_count
+    round_snapshot="$(db_scalar "
+select jsonb_build_object(
+  'dbNow', clock_timestamp(),
+  'status', r.status,
+  'closesAt', r.closes_at,
+  'secondsRemaining', extract(epoch from (r.closes_at - clock_timestamp())),
+  'roundVersion', coalesce(v.version,0)
+)::text
+from televoting.rounds r
+left join public.studio2_televote_round_versions v on v.round_id=r.id
+where r.id='$TV_ROUND_ID'::uuid;
+")"
+    preflight_snapshot="$(db_scalar "
+select coalesce((
+  select jsonb_build_object(
+    'id', p.id,
+    'roundId', p.round_id,
+    'username', p.username_normalized,
+    'countryCode', p.country_code,
+    'expiresAt', p.expires_at,
+    'submittedAt', p.submitted_at,
+    'expired', p.expires_at <= clock_timestamp(),
+    'alreadyUsed', p.submitted_at is not null
+  )::text
+  from televoting.vote_preflight_checks p
+  where p.round_id='$TV_ROUND_ID'::uuid
+    and p.username_normalized='s14-public-52'
+  order by p.created_at desc
+  limit 1
+), 'null');
+")"
+    submission_count="$(db_scalar "
+select count(*)
+from televoting.vote_submissions
+where round_id='$TV_ROUND_ID'::uuid
+  and username_normalized='s14-public-52'
+  and status<>'deleted';
+")"
+    log "S14_STAGE7_DEADLINE_RETRY_DIAGNOSTIC http_status=$HTTP_STATUS round=$round_snapshot preflight=$preflight_snapshot submissions=$submission_count response=$HTTP_BODY"
+  fi
+  expect_success_without_stage7_diagnostics "$@"
+}
+
 # Public-schema recovery/receipt RPCs are mixed into the Televote lifecycle.
 eval "$(declare -f rpc_request | sed '1s/rpc_request/rpc_request_without_stage7_diagnostics/')"
 rpc_request() {
