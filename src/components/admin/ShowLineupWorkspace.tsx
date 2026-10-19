@@ -34,7 +34,12 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { supabase } from "@/integrations/supabase/client";
-import { executeShowLineupOperation, type ShowLineupOperationAction } from "@/lib/admin-lineup.functions";
+import {
+  executeShowLineupMembershipOperation,
+  executeShowLineupOperation,
+  type ShowLineupMembershipAction,
+  type ShowLineupOperationAction,
+} from "@/lib/admin-lineup.functions";
 import {
   editionLabel,
   useContestEntities,
@@ -51,6 +56,7 @@ import { reportSupabaseError } from "@/lib/errors";
 
 type LineupStage = "lineup" | "allocation" | "running_order";
 type Allocation = "first_half" | "second_half" | "producer_choice";
+type LineupCommandAction = ShowLineupOperationAction | ShowLineupMembershipAction;
 
 type LifecycleShow = Show & { lineup_stage?: LineupStage | null };
 type LifecycleParticipant = Participant & {
@@ -92,6 +98,7 @@ function participantKey(participant: Pick<Participant, "id" | "country_id" | "co
 export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initialShow?: string }) {
   const qc = useQueryClient();
   const executeLineup = useServerFn(executeShowLineupOperation);
+  const executeMembership = useServerFn(executeShowLineupMembershipOperation);
   const operationIdsRef = useRef(new Map<string, string>());
   const { data: edition, isLoading: loadingEdition } = useEdition(slug);
   const { data: shows = [], isLoading: loadingShows } = useShows(edition?.id);
@@ -213,12 +220,13 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     ]);
   }
 
-  function operationKey(action: ShowLineupOperationAction) {
-    return activeShowId ? `${activeShowId}:${action}` : action;
+  function operationKey(action: LineupCommandAction, subjectId?: string) {
+    const base = activeShowId ? `${activeShowId}:${action}` : action;
+    return subjectId ? `${base}:${subjectId}` : base;
   }
 
-  function discardOperation(action: ShowLineupOperationAction) {
-    operationIdsRef.current.delete(operationKey(action));
+  function discardOperation(action: LineupCommandAction, subjectId?: string) {
+    operationIdsRef.current.delete(operationKey(action, subjectId));
   }
 
   async function runGovernedLineup(
@@ -238,6 +246,31 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
         payload,
         operationId,
         idempotencyKey: `show-lineup:${action}:${operationId}`,
+        reason,
+      },
+    });
+    operationIdsRef.current.delete(key);
+    return result;
+  }
+
+  async function runGovernedMembership(
+    action: ShowLineupMembershipAction,
+    payload: Record<string, unknown>,
+    reason: string,
+    subjectId?: string,
+  ) {
+    if (!edition || !activeShow) throw new Error("Choose an edition and show first.");
+    const key = operationKey(action, subjectId);
+    const operationId = operationIdsRef.current.get(key) ?? crypto.randomUUID();
+    operationIdsRef.current.set(key, operationId);
+    const result = await executeMembership({
+      data: {
+        editionId: edition.id,
+        showId: activeShow.id,
+        action,
+        payload,
+        operationId,
+        idempotencyKey: `show-lineup-membership:${action}:${operationId}`,
         reason,
       },
     });
@@ -352,21 +385,13 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
       toast.message(`${displayMap.get(key)?.name ?? entity.display_name} is already in this show`);
       return;
     }
-    const prior = (allParticipants as LifecycleParticipant[])
-      .filter((participant) => participantKey(participant) === key && participant.show_id !== activeShow.id && (participant.artist || participant.song))
-      .at(-1);
-    const { error } = await (supabase.from("participants") as any).insert({
-      edition_id: edition.id,
-      show_id: activeShow.id,
-      country_id: entity.country_id,
-      contest_entity_id: entity.id,
-      running_order: null,
-      running_order_allocation: null,
-      semi_final: activeShow.kind,
-      artist: prior?.artist ?? null,
-      song: prior?.song ?? null,
-    });
-    if (error) throw error;
+    const result = await runGovernedMembership(
+      "member_add",
+      { contestEntityId: entity.id },
+      `Add ${entity.display_name} to ${activeShow.name}`,
+      entity.id,
+    );
+    toast.success(`${entity.display_name} added${result.replayed ? " · reconciled" : ""}`);
     await refresh();
   }
 
@@ -378,7 +403,6 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
       await addEntityToShow(entity);
       setCountryPick(null);
       setAddOpen(false);
-      toast.success(`${displayMap.get(countryId)?.name ?? "Country"} added to the show without a running-order position`);
     } catch (caught) {
       toast.error(reportSupabaseError(caught, "Entry could not be added."));
     } finally {
@@ -391,7 +415,6 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     try {
       await addEntityToShow(entity);
       setAddOpen(false);
-      toast.success(`${entity.display_name} added`);
     } catch (caught) {
       toast.error(reportSupabaseError(caught, "Custom entry could not be added."));
     } finally {
@@ -431,7 +454,7 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
         if (error || !data) throw error ?? new Error("Custom country could not be created.");
         await qc.invalidateQueries({ queryKey: ["contest_entities"] });
         await addEntityToShow(data as ContestEntityRow);
-        toast.success(`${customDraft.display_name.trim()} created and added`);
+        toast.success(`${customDraft.display_name.trim()} created`);
       }
       setCustomDraft(null);
       setAddOpen(false);
@@ -557,18 +580,22 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
   }
 
   async function removeEntry() {
-    if (!removeTarget) return;
+    if (!removeTarget || !activeShow) return;
     setBusy(true);
     try {
-      const { error } = await supabase.from("participants").delete().eq("id", removeTarget.id);
-      if (error) throw error;
       const key = participantKey(removeTarget);
       const name = displayMap.get(key)?.name ?? "Entry";
-      toast.success(`${name} removed from ${activeShow?.name ?? "show"}`);
+      const result = await runGovernedMembership(
+        "member_remove",
+        { participantId: removeTarget.id },
+        `Remove ${name} from ${activeShow.name}`,
+        removeTarget.id,
+      );
+      toast.success(`${name} removed from ${activeShow.name}${result.replayed ? " · reconciled" : ""}`);
       setRemoveTarget(null);
       await refresh();
     } catch (caught) {
-      toast.error(reportSupabaseError(caught, "Entry could not be removed."));
+      toast.error(reportSupabaseError(caught, "Entry could not be removed. Solaris keeps membership locked once allocation, publication, voting or results depend on it."));
     } finally {
       setBusy(false);
     }
@@ -608,20 +635,14 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     }
     setBusy(true);
     try {
-      const rows = qualifierCandidates.map((participant) => ({
-        edition_id: edition.id,
-        show_id: activeShow.id,
-        country_id: participant.country_id,
-        contest_entity_id: participant.contest_entity_id,
-        running_order: null,
-        running_order_allocation: null,
-        semi_final: activeShow.kind,
-        artist: participant.artist,
-        song: participant.song,
-      }));
-      const { error } = await (supabase.from("participants") as any).insert(rows);
-      if (error) throw error;
-      toast.success(`Added ${rows.length} qualifier${rows.length === 1 ? "" : "s"} without creating a running order`);
+      const sourceParticipantIds = qualifierCandidates.map((participant) => participant.id).sort();
+      const result = await runGovernedMembership(
+        "promote_qualifiers",
+        { sourceParticipantIds },
+        `Promote ${sourceParticipantIds.length} qualified entries into ${activeShow.name}`,
+        sourceParticipantIds.join(","),
+      );
+      toast.success(`Added ${result.changedCount} qualifier${result.changedCount === 1 ? "" : "s"}${result.replayed ? " · reconciled" : ""} without creating a running order`);
       await refresh();
     } catch (caught) {
       toast.error(reportSupabaseError(caught, "Qualifiers could not be added."));
@@ -661,10 +682,10 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
         description="Build the show in the correct order: countries first, allocation draw second, running order last."
         actions={
           <div className="flex gap-2">
-            <button type="button" className="admin-action-primary" onClick={() => setAddOpen(true)} disabled={!activeShow}><Plus className="size-4" /> Add entry</button>
+            <button type="button" className="admin-action-primary" onClick={() => setAddOpen(true)} disabled={!activeShow || stage !== "lineup"}><Plus className="size-4" /> Add entry</button>
             <AdminMoreMenu label="More" title="Line-up actions" description="Entry maintenance that does not change the workflow stage.">
               <AdminActionItem icon={RefreshCw} title="Sync artist & song" description="Fill blank entry details from the same country in another show." disabled={busy} onClick={() => void syncArtistSong()} />
-              {(activeShow?.kind === "grand-final" || activeShow?.kind === "final") ? <AdminActionItem icon={UserRoundPlus} title="Add semi-final qualifiers" description={qualifierCandidates.length ? `${qualifierCandidates.length} qualified entr${qualifierCandidates.length === 1 ? "y is" : "ies are"} not in this final yet.` : "No unpromoted qualifiers are currently available."} disabled={busy || !qualifierCandidates.length} onClick={() => void addQualifiers()} /> : null}
+              {(activeShow?.kind === "grand-final" || activeShow?.kind === "final") ? <AdminActionItem icon={UserRoundPlus} title="Add semi-final qualifiers" description={qualifierCandidates.length ? `${qualifierCandidates.length} qualified entr${qualifierCandidates.length === 1 ? "y is" : "ies are"} not in this final yet.` : "No unpromoted qualifiers are currently available."} disabled={busy || stage !== "lineup" || !qualifierCandidates.length} onClick={() => void addQualifiers()} /> : null}
               <AdminActionItem icon={Flag} title="Create custom country" description="Add an edition-only nation without touching the global country library." onClick={() => { setAddOpen(false); setCustomDraft({ ...emptyCustom }); }} />
             </AdminMoreMenu>
           </div>
@@ -746,7 +767,7 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
         ) : null}
 
         {loadingParticipants ? <p className="py-8 text-center text-sm text-muted-foreground">Loading line-up…</p> : !displayedParticipants.length ? (
-          <AdminEmptyState icon={ListOrdered} title="Build the line-up" description="Add a Terra Solaris country, an existing edition-only country, or create a new custom country. Nothing gets a running-order position yet." action={<button type="button" className="admin-action-primary" onClick={() => setAddOpen(true)}><Plus className="size-4" /> Add first entry</button>} />
+          <AdminEmptyState icon={ListOrdered} title="Build the line-up" description="Add a Terra Solaris country, an existing edition-only country, or create a new custom country. Nothing gets a running-order position yet." action={<button type="button" className="admin-action-primary" onClick={() => setAddOpen(true)} disabled={stage !== "lineup"}><Plus className="size-4" /> Add first entry</button>} />
         ) : (
           <div className="divide-y divide-white/[0.07]">
             {displayedParticipants.map((participant, index) => {
@@ -788,7 +809,7 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
                       <button type="button" disabled={busy || index === runningDraftParticipants.length - 1} onClick={() => moveEntry(index, 1)} className="admin-action-quiet size-9 !p-0" aria-label={`Move ${display?.name ?? "entry"} down`}><ArrowDown className="size-4" /></button>
                     </div>
                   ) : null}
-                  <button type="button" onClick={() => setRemoveTarget(participant)} className="admin-action-quiet size-9 !p-0 text-rose-200" aria-label={`Remove ${display?.name ?? "entry"}`}><Trash2 className="size-4" /></button>
+                  <button type="button" disabled={busy || stage !== "lineup"} onClick={() => setRemoveTarget(participant)} className="admin-action-quiet size-9 !p-0 text-rose-200" aria-label={`Remove ${display?.name ?? "entry"}`}><Trash2 className="size-4" /></button>
                 </div>
               );
             })}
@@ -806,7 +827,7 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
                 <div key={entity.id} className="flex min-w-0 items-center gap-3 py-3 first:pt-0 last:pb-0">
                   <FlagChip code={entity.abbreviation} color={DEFAULT_ACCENT} image={entity.flag_image} size="sm" />
                   <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{entity.display_name}</p><p className="mt-1 truncate text-xs text-muted-foreground">{entity.abbreviation}{entity.region ? ` · ${entity.region}` : ""}</p></div>
-                  {inShow ? <AdminStatus tone="info">In show</AdminStatus> : <button type="button" disabled={busy} onClick={() => void addExistingCustom(entity)} className="admin-action-secondary !min-h-9 !px-3">Add</button>}
+                  {inShow ? <AdminStatus tone="info">In show</AdminStatus> : <button type="button" disabled={busy || stage !== "lineup"} onClick={() => void addExistingCustom(entity)} className="admin-action-secondary !min-h-9 !px-3">Add</button>}
                   <button type="button" className="admin-action-quiet size-9 !p-0" aria-label={`Edit ${entity.display_name}`} onClick={() => setCustomDraft({ id: entity.id, display_name: entity.display_name, abbreviation: entity.abbreviation, flag_image: entity.flag_image ?? "", region: entity.region ?? "" })}><MoreHorizontal className="size-4" /></button>
                 </div>
               );
@@ -825,7 +846,7 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
             <div className="flex items-center justify-between gap-3"><p className="admin-section-label">Edition-only countries</p><button type="button" className="admin-action-secondary !min-h-9 !px-3" onClick={() => { setAddOpen(false); setCustomDraft({ ...emptyCustom }); }}><Plus className="size-3.5" /> Create</button></div>
             {!customEntities.length ? <p className="mt-3 text-xs leading-relaxed text-muted-foreground">No custom countries exist for this edition.</p> : <div className="mt-2 divide-y divide-white/[0.07]">{customEntities.map((entity) => {
               const inShow = presentKeys.has(entity.id);
-              return <div key={entity.id} className="flex items-center gap-3 py-3"><FlagChip code={entity.abbreviation} color={DEFAULT_ACCENT} image={entity.flag_image} size="sm" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{entity.display_name}</p><p className="text-xs text-muted-foreground">{entity.abbreviation}</p></div>{inShow ? <AdminStatus tone="neutral">Already added</AdminStatus> : <button type="button" disabled={busy} onClick={() => void addExistingCustom(entity)} className="admin-action-primary !min-h-9 !px-3">Add</button>}</div>;
+              return <div key={entity.id} className="flex items-center gap-3 py-3"><FlagChip code={entity.abbreviation} color={DEFAULT_ACCENT} image={entity.flag_image} size="sm" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{entity.display_name}</p><p className="text-xs text-muted-foreground">{entity.abbreviation}</p></div>{inShow ? <AdminStatus tone="neutral">Already added</AdminStatus> : <button type="button" disabled={busy || stage !== "lineup"} onClick={() => void addExistingCustom(entity)} className="admin-action-primary !min-h-9 !px-3">Add</button>}</div>;
             })}</div>}
           </div>
         </div>
@@ -856,7 +877,7 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
         onClose={() => !busy && setRemoveTarget(null)}
         onConfirm={removeEntry}
         title={`Remove ${removeTarget ? displayMap.get(participantKey(removeTarget))?.name ?? "entry" : "entry"}?`}
-        description={<>This removes the participant row from <strong>{activeShow?.name}</strong>. It does not remove the country's edition participation.</>}
+        description={<>This removes only the membership row from <strong>{activeShow?.name}</strong>. The contest identity and history stay intact. Solaris will refuse removal after allocation starts or if publication, voting or results already depend on that identity.</>}
         confirmLabel="Remove entry"
         busy={busy}
         danger
