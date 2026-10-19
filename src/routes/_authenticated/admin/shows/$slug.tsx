@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, BarChart3, Calculator, Clock3, ExternalLink, Globe2, ListChecks, ListOrdered, MoreHorizontal, Plus, RadioTower, Scale, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -54,6 +54,23 @@ type ShowModeDraft = {
   televoteRoundId: string;
 };
 
+type ResolvedShowMode = ReturnType<typeof resolveBroadcast>["showMode"];
+
+type ShowModeSnapshot = {
+  phase: ShowModeManualPhase;
+  scheduledStart: string | null;
+  youtubeUrl: string;
+  televoteRoundId: string | null;
+};
+
+type PendingShowModeReview = {
+  editionId: string;
+  showId: string;
+  showName: string;
+  before: ShowModeSnapshot;
+  after: ShowModeSnapshot;
+};
+
 const emptyDraft: ShowDraft = { name: "", kind: "semi-final", sort_order: 1 };
 
 const emptyShowModeDraft: ShowModeDraft = {
@@ -77,6 +94,28 @@ function localInputToIso(value: string) {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+function showModeSnapshot(config: ResolvedShowMode): ShowModeSnapshot {
+  return {
+    phase: config.phase,
+    scheduledStart: config.scheduledStart,
+    youtubeUrl: config.youtubeUrl,
+    televoteRoundId: config.televoteRoundId ?? null,
+  };
+}
+
+function sameShowMode(left: ShowModeSnapshot, right: ShowModeSnapshot) {
+  return (
+    left.phase === right.phase &&
+    left.scheduledStart === right.scheduledStart &&
+    left.youtubeUrl === right.youtubeUrl &&
+    left.televoteRoundId === right.televoteRoundId
+  );
+}
+
+function showModeValue(value: string | null) {
+  return value || "Not set";
+}
+
 function ShowsWorkspace() {
   const { slug } = Route.useParams();
   const { editionId: organizerEditionId } = useAdminContext();
@@ -92,6 +131,7 @@ function ShowsWorkspace() {
   const [actionsTarget, setActionsTarget] = useState<Show | null>(null);
   const [showModeTarget, setShowModeTarget] = useState<Show | null>(null);
   const [showModeDraft, setShowModeDraft] = useState<ShowModeDraft>(emptyShowModeDraft);
+  const [pendingShowModeReview, setPendingShowModeReview] = useState<PendingShowModeReview | null>(null);
 
   const roundsQuery = useQuery({
     enabled: Boolean(edition?.id),
@@ -110,6 +150,10 @@ function ShowsWorkspace() {
           participant,
         ] as const),
       ).values()];
+
+  useEffect(() => {
+    setPendingShowModeReview(null);
+  }, [organizerEditionId]);
 
   async function refresh() {
     await Promise.all([
@@ -139,6 +183,7 @@ function ShowsWorkspace() {
 
   function openShowMode(show: Show) {
     const config = resolveBroadcast(show.broadcast_config).showMode;
+    setPendingShowModeReview(null);
     setShowModeTarget(show);
     setShowModeDraft({
       phase: config.phase,
@@ -148,8 +193,8 @@ function ShowsWorkspace() {
     });
   }
 
-  async function saveShowMode() {
-    if (!showModeTarget || !assertEditionScope(showModeTarget)) return;
+  function reviewShowMode() {
+    if (!showModeTarget || !edition || !assertEditionScope(showModeTarget) || busy) return;
 
     const youtubeUrl = showModeDraft.youtubeUrl.trim();
     const safeYoutube = youtubeUrl ? safeShowModeYoutubeUrl(youtubeUrl) : null;
@@ -164,36 +209,88 @@ function ShowsWorkspace() {
       return;
     }
 
-    setBusy(true);
     try {
-      const raw =
-        showModeTarget.broadcast_config &&
-        typeof showModeTarget.broadcast_config === "object"
-          ? showModeTarget.broadcast_config
-          : {};
-      const current = resolveBroadcast(raw).showMode;
+      const current = resolveBroadcast(showModeTarget.broadcast_config).showMode;
       const transitioned = transitionShowModePhase(current, showModeDraft.phase);
-      const nextShowMode = {
+      const next: ResolvedShowMode = {
         ...transitioned,
         scheduledStart,
         youtubeUrl: safeYoutube ?? "",
         televoteRoundId: showModeDraft.televoteRoundId || null,
       };
 
-      const { error } = await (supabase.from("shows") as any)
+      setPendingShowModeReview({
+        editionId: edition.id,
+        showId: showModeTarget.id,
+        showName: showModeTarget.name,
+        before: showModeSnapshot(current),
+        after: showModeSnapshot(next),
+      });
+    } catch (caught) {
+      toast.error(caught instanceof Error ? caught.message : "Show Mode transition is not valid.");
+    }
+  }
+
+  async function applyShowModeReview() {
+    if (!pendingShowModeReview || busy) return;
+    const review = pendingShowModeReview;
+    if (!edition || organizerEditionId !== review.editionId || edition.id !== review.editionId) {
+      setPendingShowModeReview(null);
+      toast.error("Edition context changed while this Show Mode review was open. Nothing was applied.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const { data: liveShow, error: loadError } = await (supabase.from("shows") as any)
+        .select("id,edition_id,name,broadcast_config")
+        .eq("id", review.showId)
+        .maybeSingle();
+      if (loadError) throw loadError;
+      if (!liveShow || liveShow.edition_id !== review.editionId || liveShow.name !== review.showName) {
+        throw new Error("The reviewed show changed or is no longer available. Nothing was applied. Reopen Show Mode and review the current state.");
+      }
+      if (organizerEditionId !== review.editionId) {
+        throw new Error("Edition context changed during Show Mode revalidation. Nothing was applied.");
+      }
+
+      const raw =
+        liveShow.broadcast_config && typeof liveShow.broadcast_config === "object"
+          ? liveShow.broadcast_config
+          : {};
+      const current = resolveBroadcast(raw).showMode;
+      if (!sameShowMode(showModeSnapshot(current), review.before)) {
+        throw new Error("Show Mode changed while this review was open. Nothing was applied. Reopen the review from the current state.");
+      }
+
+      const transitioned = transitionShowModePhase(current, review.after.phase);
+      const nextShowMode: ResolvedShowMode = {
+        ...transitioned,
+        scheduledStart: review.after.scheduledStart,
+        youtubeUrl: review.after.youtubeUrl,
+        televoteRoundId: review.after.televoteRoundId,
+      };
+
+      const { data: updated, error } = await (supabase.from("shows") as any)
         .update({
           broadcast_config: {
             ...raw,
             showMode: nextShowMode,
           },
         })
-        .eq("id", showModeTarget.id);
+        .eq("id", review.showId)
+        .eq("edition_id", review.editionId)
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      if (!updated) throw new Error("Show Mode was not updated because the exact reviewed show scope no longer matched.");
 
       toast.success("Show Mode companion updated");
+      setPendingShowModeReview(null);
       setShowModeTarget(null);
       await refresh();
     } catch (caught) {
+      setPendingShowModeReview(null);
       toast.error(caught instanceof Error ? caught.message : "Show Mode could not be updated");
     } finally {
       setBusy(false);
@@ -355,7 +452,7 @@ function ShowsWorkspace() {
 
       <AdminSheet
         open={Boolean(showModeTarget)}
-        onClose={() => !busy && setShowModeTarget(null)}
+        onClose={() => !busy && !pendingShowModeReview && setShowModeTarget(null)}
         title={showModeTarget ? `${showModeTarget.name} · Show Mode` : "Show Mode"}
         description="YouTube owns the actual broadcast timing. Solaris only tracks reliable companion events and linked voting state."
       >
@@ -469,13 +566,57 @@ function ShowsWorkspace() {
           <button
             type="button"
             disabled={busy}
-            onClick={() => void saveShowMode()}
+            onClick={reviewShowMode}
             className="admin-action-primary w-full"
           >
-            {busy ? "Saving…" : "Save Show Mode"}
+            {busy ? "Saving…" : "Review Show Mode changes"}
           </button>
         </div>
       </AdminSheet>
+
+      <AdminConfirmSheet
+        open={Boolean(pendingShowModeReview)}
+        onClose={busy ? () => undefined : () => setPendingShowModeReview(null)}
+        onConfirm={applyShowModeReview}
+        title={pendingShowModeReview ? `Apply Show Mode changes to ${pendingShowModeReview.showName}?` : "Apply Show Mode changes?"}
+        description={pendingShowModeReview ? (
+          <div className="space-y-3 text-xs">
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+              <p className="font-semibold text-foreground">Exact production target</p>
+              <p className="mt-1">Show: {pendingShowModeReview.showName}</p>
+              <p className="mt-1 break-all">Show ID: {pendingShowModeReview.showId}</p>
+              <p className="mt-1 break-all">Edition ID: {pendingShowModeReview.editionId}</p>
+            </div>
+            <div className="overflow-hidden rounded-xl border border-white/[0.08]">
+              <div className="grid grid-cols-[110px_1fr_1fr] gap-2 border-b border-white/[0.07] bg-white/[0.025] p-2 font-semibold text-foreground">
+                <span>Setting</span><span>Current</span><span>After</span>
+              </div>
+              {[
+                ["Phase", pendingShowModeReview.before.phase, pendingShowModeReview.after.phase],
+                ["Scheduled", showModeValue(pendingShowModeReview.before.scheduledStart), showModeValue(pendingShowModeReview.after.scheduledStart)],
+                ["YouTube", showModeValue(pendingShowModeReview.before.youtubeUrl), showModeValue(pendingShowModeReview.after.youtubeUrl)],
+                ["Televote", showModeValue(pendingShowModeReview.before.televoteRoundId), showModeValue(pendingShowModeReview.after.televoteRoundId)],
+              ].map(([label, before, after]) => (
+                <div key={label} className="grid grid-cols-[110px_1fr_1fr] gap-2 border-b border-white/[0.05] p-2 last:border-b-0">
+                  <span className="font-semibold text-foreground">{label}</span>
+                  <span className="break-all text-muted-foreground">{before}</span>
+                  <span className="break-all text-foreground">{after}</span>
+                </div>
+              ))}
+            </div>
+            <p className="leading-5 text-muted-foreground">
+              Organizer re-reads this exact show and refuses the save if its Show Mode state or edition changed while this review was open.
+            </p>
+            <p className="rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3 leading-5 text-amber-50/90">
+              This still uses the legacy browser-side broadcast configuration write. The recheck narrows stale-state risk but is not a server CAS, idempotency key or authoritative operation receipt. System #625 remains the blocker for the governed production-configuration command.
+            </p>
+          </div>
+        ) : null}
+        confirmLabel="Apply reviewed Show Mode"
+        confirmationText={pendingShowModeReview?.showName}
+        confirmationHint={pendingShowModeReview ? `Type ${pendingShowModeReview.showName} exactly to confirm this production configuration change` : undefined}
+        busy={busy}
+      />
 
       <AdminConfirmSheet
         open={!!deleteTarget}

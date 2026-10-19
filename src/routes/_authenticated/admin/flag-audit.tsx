@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 
+import { AdminConfirmSheet } from "@/components/admin/AdminUI";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { FlagFrame, FlagMedia, clampFlagCrop, type FlagCrop } from "@/components/FlagMedia";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +12,26 @@ export const Route = createFileRoute("/_authenticated/admin/flag-audit")({
   head: () => ({ meta: [{ title: "Flag QA — Solaris Organizer" }, { name: "robots", content: "noindex, nofollow" }] }),
   component: FlagAudit,
 });
+
+type PendingCropReview = {
+  countryId: string;
+  countryName: string;
+  sourceImage: string | null;
+  before: FlagCrop;
+  next: FlagCrop;
+};
+
+function storedCrop(country: Pick<Country, "flag_crop_x" | "flag_crop_y" | "flag_crop_zoom">): FlagCrop {
+  return clampFlagCrop({
+    x: Number(country.flag_crop_x ?? 50),
+    y: Number(country.flag_crop_y ?? 50),
+    zoom: Number(country.flag_crop_zoom ?? 1),
+  });
+}
+
+function sameCrop(left: FlagCrop, right: FlagCrop) {
+  return left.x === right.x && left.y === right.y && left.zoom === right.zoom;
+}
 
 function FlagAudit() {
   const { data: countries = [], isLoading, error } = useCountries();
@@ -46,12 +67,20 @@ function AuditCard({ country, active, onSelect }: { country: Country; active: bo
 
 function CropEditor({ country }: { country: Country }) {
   const queryClient = useQueryClient();
-  const [crop, setCrop] = useState<FlagCrop>({ x: Number(country.flag_crop_x ?? 50), y: Number(country.flag_crop_y ?? 50), zoom: Number(country.flag_crop_zoom ?? 1) });
+  const [crop, setCrop] = useState<FlagCrop>(() => storedCrop(country));
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [pendingReview, setPendingReview] = useState<PendingCropReview | null>(null);
   const pointer = useRef<{ x: number; y: number; crop: FlagCrop } | null>(null);
-  const dirty = crop.x !== Number(country.flag_crop_x ?? 50) || crop.y !== Number(country.flag_crop_y ?? 50) || crop.zoom !== Number(country.flag_crop_zoom ?? 1);
-  useEffect(() => { setCrop({ x: Number(country.flag_crop_x ?? 50), y: Number(country.flag_crop_y ?? 50), zoom: Number(country.flag_crop_zoom ?? 1) }); }, [country.id, country.flag_crop_x, country.flag_crop_y, country.flag_crop_zoom]);
+  const persistedCrop = storedCrop(country);
+  const dirty = !sameCrop(crop, persistedCrop);
+
+  useEffect(() => {
+    setCrop(storedCrop(country));
+    setPendingReview(null);
+    setMessage("");
+  }, [country.id, country.flag_crop_x, country.flag_crop_y, country.flag_crop_zoom, country.flag_image]);
+
   function move(event: PointerEvent<HTMLDivElement>) {
     if (!pointer.current) return;
     const rect = event.currentTarget.getBoundingClientRect();
@@ -59,29 +88,105 @@ function CropEditor({ country }: { country: Country }) {
     const dy = ((event.clientY - pointer.current.y) / rect.height) * 100;
     setCrop(clampFlagCrop({ ...pointer.current.crop, x: pointer.current.crop.x - dx, y: pointer.current.crop.y - dy }));
   }
-  async function save() {
-    setSaving(true); setMessage("");
-    const { error } = await supabase.from("countries").update({ flag_crop_x: crop.x, flag_crop_y: crop.y, flag_crop_zoom: crop.zoom }).eq("id", country.id).select("id").single();
-    setSaving(false);
-    if (error) { setMessage(error.message); return; }
-    await queryClient.invalidateQueries({ queryKey: ["countries"] });
-    setMessage("Crop saved for every Solaris flag view.");
+
+  function requestSave() {
+    if (!dirty || saving || !country.flag_image) return;
+    setMessage("");
+    setPendingReview({
+      countryId: country.id,
+      countryName: country.name,
+      sourceImage: country.flag_image,
+      before: persistedCrop,
+      next: clampFlagCrop(crop),
+    });
   }
-  return <section className="mt-7 rounded-2xl border border-border bg-surface p-4 sm:p-6" aria-label={`Edit ${country.name} flag crop`}>
-    <h2 className="text-xl font-semibold">{country.name} · display crop</h2>
-    <div className="mt-4 grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_minmax(15rem,.8fr)]">
-      <div className="min-w-0">
-        <div className="aspect-[3/2] w-full max-w-xl touch-none overflow-hidden rounded-xl border border-border" onPointerDown={(event) => { pointer.current = { x: event.clientX, y: event.clientY, crop }; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerMove={move} onPointerUp={() => { pointer.current = null; }} onPointerCancel={() => { pointer.current = null; }}>
-          {country.flag_image ? <FlagMedia image={country.flag_image} alt={`Display crop of ${country.name}`} crop={crop} className="h-full w-full" /> : <p className="p-4">Upload an original flag first.</p>}
+
+  async function applyReviewedCrop() {
+    if (!pendingReview || pendingReview.countryId !== country.id) return;
+    setSaving(true);
+    setMessage("");
+    try {
+      const { data: liveCountry, error: readError } = await supabase
+        .from("countries")
+        .select("id,name,flag_image,flag_crop_x,flag_crop_y,flag_crop_zoom")
+        .eq("id", pendingReview.countryId)
+        .single();
+      if (readError) throw readError;
+
+      const liveCrop = storedCrop(liveCountry);
+      if (
+        liveCountry.flag_image !== pendingReview.sourceImage ||
+        !sameCrop(liveCrop, pendingReview.before)
+      ) {
+        throw new Error(
+          "The flag source or saved crop changed while this review was open. Nothing was changed. Refresh Flag QA and review the current source before retrying.",
+        );
+      }
+
+      const { error: updateError } = await supabase
+        .from("countries")
+        .update({
+          flag_crop_x: pendingReview.next.x,
+          flag_crop_y: pendingReview.next.y,
+          flag_crop_zoom: pendingReview.next.zoom,
+        })
+        .eq("id", pendingReview.countryId)
+        .select("id")
+        .single();
+      if (updateError) throw updateError;
+
+      setCrop(pendingReview.next);
+      setPendingReview(null);
+      await queryClient.invalidateQueries({ queryKey: ["countries"] });
+      setMessage("Crop saved for every Solaris flag view.");
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "The flag crop could not be saved.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return <>
+    <section className="mt-7 rounded-2xl border border-border bg-surface p-4 sm:p-6" aria-label={`Edit ${country.name} flag crop`}>
+      <h2 className="text-xl font-semibold">{country.name} · display crop</h2>
+      <div className="mt-4 grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_minmax(15rem,.8fr)]">
+        <div className="min-w-0">
+          <div className="aspect-[3/2] w-full max-w-xl touch-none overflow-hidden rounded-xl border border-border" onPointerDown={(event) => { pointer.current = { x: event.clientX, y: event.clientY, crop }; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerMove={move} onPointerUp={() => { pointer.current = null; }} onPointerCancel={() => { pointer.current = null; }}>
+            {country.flag_image ? <FlagMedia image={country.flag_image} alt={`Display crop of ${country.name}`} crop={crop} className="h-full w-full" /> : <p className="p-4">Upload an original flag first.</p>}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">Drag to reposition. Recommended original: 3:2, at least 1500 × 1000. Source remains available at its original ratio.</p>
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">Drag to reposition. Recommended original: 3:2, at least 1500 × 1000. Source remains available at its original ratio.</p>
+        <div className="space-y-4">
+          {(["x", "y", "zoom"] as const).map((key) => <label key={key} className="block text-sm font-medium">{key === "x" ? "Horizontal focus" : key === "y" ? "Vertical focus" : "Zoom"} · {crop[key]}{key === "zoom" ? "×" : "%"}<input type="range" min={key === "zoom" ? 1 : 0} max={key === "zoom" ? 2 : 100} step={key === "zoom" ? .05 : 1} value={crop[key]} onChange={(event) => setCrop(clampFlagCrop({ ...crop, [key]: Number(event.target.value) }))} className="mt-2 block w-full" /></label>)}
+          <div className="flex flex-wrap items-center gap-3"><button type="button" onClick={() => setCrop({ x: 50, y: 50, zoom: 1 })} className="min-h-11 rounded-lg border border-border px-4">Reset / center</button><button type="button" disabled={!dirty || saving || !country.flag_image} onClick={requestSave} className="min-h-11 rounded-lg bg-primary px-4 text-primary-foreground disabled:opacity-50">{saving ? "Saving…" : "Review crop"}</button></div>
+          {message ? <p role="status" className="text-sm">{message}</p> : null}
+          <div className="flex items-end gap-4 rounded-xl border border-border p-3"><FlagFrame image={country.flag_image} crop={crop} alt={`Flag of ${country.name}`} fallback={country.short_code} className="h-16 w-24 rounded-lg" /><FlagFrame image={country.flag_image} crop={crop} alt={`Flag of ${country.name}`} fallback={country.short_code} className="h-8 w-12 rounded-md" /><FlagFrame image={country.flag_image} crop={crop} alt={`Flag of ${country.name}`} fallback={country.short_code} className="h-5 w-7.5 rounded-[3px]" /></div>
+        </div>
       </div>
-      <div className="space-y-4">
-        {(["x", "y", "zoom"] as const).map((key) => <label key={key} className="block text-sm font-medium">{key === "x" ? "Horizontal focus" : key === "y" ? "Vertical focus" : "Zoom"} · {crop[key]}{key === "zoom" ? "×" : "%"}<input type="range" min={key === "zoom" ? 1 : 0} max={key === "zoom" ? 2 : 100} step={key === "zoom" ? .05 : 1} value={crop[key]} onChange={(event) => setCrop(clampFlagCrop({ ...crop, [key]: Number(event.target.value) }))} className="mt-2 block w-full" /></label>)}
-        <div className="flex flex-wrap items-center gap-3"><button type="button" onClick={() => setCrop({ x: 50, y: 50, zoom: 1 })} className="min-h-11 rounded-lg border border-border px-4">Reset / center</button><button type="button" disabled={!dirty || saving || !country.flag_image} onClick={() => void save()} className="min-h-11 rounded-lg bg-primary px-4 text-primary-foreground disabled:opacity-50">{saving ? "Saving…" : "Save crop"}</button></div>
-        {message ? <p role="status" className="text-sm">{message}</p> : null}
-        <div className="flex items-end gap-4 rounded-xl border border-border p-3"><FlagFrame image={country.flag_image} crop={crop} alt={`Flag of ${country.name}`} fallback={country.short_code} className="h-16 w-24 rounded-lg" /><FlagFrame image={country.flag_image} crop={crop} alt={`Flag of ${country.name}`} fallback={country.short_code} className="h-8 w-12 rounded-md" /><FlagFrame image={country.flag_image} crop={crop} alt={`Flag of ${country.name}`} fallback={country.short_code} className="h-5 w-7.5 rounded-[3px]" /></div>
-      </div>
-    </div>
-  </section>;
+    </section>
+
+    <AdminConfirmSheet
+      open={Boolean(pendingReview)}
+      onClose={() => {
+        if (!saving) setPendingReview(null);
+      }}
+      onConfirm={applyReviewedCrop}
+      title={`Apply ${pendingReview?.countryName ?? country.name} flag crop?`}
+      description={pendingReview ? (
+        <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+            <p className="font-semibold text-foreground">{pendingReview.countryName}</p>
+            <p className="mt-2">Horizontal focus: <span className="text-foreground">{pendingReview.before.x}% → {pendingReview.next.x}%</span></p>
+            <p>Vertical focus: <span className="text-foreground">{pendingReview.before.y}% → {pendingReview.next.y}%</span></p>
+            <p>Zoom: <span className="text-foreground">{pendingReview.before.zoom}× → {pendingReview.next.zoom}×</span></p>
+          </div>
+          <p>This changes the shared 3:2 crop used by Solaris flag views. The original image is not modified.</p>
+          <p>Before applying, Organizer re-reads the exact country and refuses the save if the source image or stored crop changed while this review was open.</p>
+          <p>This remains the existing legacy country metadata write. It does not claim a versioned, idempotent or receipted System operation.</p>
+        </div>
+      ) : null}
+      confirmLabel="Apply crop"
+      busy={saving}
+    />
+  </>;
 }

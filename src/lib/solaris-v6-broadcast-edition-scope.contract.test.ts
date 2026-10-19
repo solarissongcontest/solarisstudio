@@ -4,6 +4,21 @@ import { describe, expect, it } from "vitest";
 
 const source = (path: string) => readFileSync(path, "utf8");
 
+function mutationSection(route: string, start: string, end: string) {
+  const startIndex = route.indexOf(start);
+  const endIndex = route.indexOf(end, startIndex + start.length);
+  expect(startIndex).toBeGreaterThanOrEqual(0);
+  expect(endIndex).toBeGreaterThan(startIndex);
+  return route.slice(startIndex, endIndex);
+}
+
+function expectGuardBeforeWrite(section: string, writeCall: string) {
+  const guardIndex = section.indexOf("assertProductionEditionScope();");
+  const writeIndex = section.indexOf(writeCall);
+  expect(guardIndex).toBeGreaterThanOrEqual(0);
+  expect(writeIndex).toBeGreaterThan(guardIndex);
+}
+
 describe("Solaris V6 Broadcast edition isolation", () => {
   it("validates production commands against the selected show's canonical edition", () => {
     const route = source(
@@ -17,20 +32,26 @@ describe("Solaris V6 Broadcast edition isolation", () => {
     expect(route).toContain("{ status: 409 }");
   });
 
-  it("guards save lock and segment transition before their production writes", () => {
+  it("guards save lock and production segment transition before their production writes", () => {
     const route = source(
       "src/routes/_authenticated/admin/broadcast-rundown.tsx",
     );
 
-    expect(route).toContain(
-      "assertProductionEditionScope();\n      return saveStudio2BroadcastRundown",
+    const saveSection = mutationSection(route, "const saveMutation = useMutation", "const lockMutation = useMutation");
+    const lockSection = mutationSection(route, "const lockMutation = useMutation", "const transitionMutation = useMutation");
+    const transitionSection = mutationSection(route, "const transitionMutation = useMutation", "const calculated = useMemo");
+
+    expectGuardBeforeWrite(saveSection, "saveStudio2BroadcastRundown(");
+    expectGuardBeforeWrite(lockSection, "setStudio2BroadcastRundownLock(");
+    expectGuardBeforeWrite(
+      transitionSection,
+      "return transitionStudio2BroadcastSegment(\n        reviewedShowId,",
     );
-    expect(route).toContain(
-      "assertProductionEditionScope();\n      return setStudio2BroadcastRundownLock",
-    );
-    expect(route).toContain(
-      "assertProductionEditionScope();\n      return transitionStudio2BroadcastSegment",
-    );
+
+    expect(lockSection).toContain("await loadStudio2BroadcastRundown(reviewedShowId)");
+    expect(transitionSection).toContain("await loadStudio2BroadcastRundown(reviewedShowId)");
+    expect(transitionSection).toContain("if (mode === 'rehearsal') {");
+    expect(transitionSection).toContain("return transitionStudio2BroadcastSegment(showId, draft, segmentId, status, reason, mode);");
   });
 
   it("keeps rehearsal mode local and outside production authority checks", () => {

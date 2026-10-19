@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, ArrowRight, RefreshCw } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
-import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
+import { AdminCard, AdminCardHeader, AdminConfirmSheet, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import { syncConfirmationSubmissionToSolaris } from "@/integrations/confirmations/sync-submission.functions";
 import {
@@ -54,6 +54,18 @@ type RoundOption = {
   count: number;
 };
 
+type PendingLineupSyncReview = {
+  editionId: string;
+  editionNumber: number;
+  editionName: string;
+  roundId: string;
+  roundName: string;
+  showId: string;
+  showName: string;
+  responseIds: string[];
+  countries: string[];
+};
+
 export const Route = createFileRoute("/confirmations/admin/sync")({
   head: () => ({ meta: [{ title: "Sync to Solaris — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
   component: ConfirmationSyncPage,
@@ -61,6 +73,7 @@ export const Route = createFileRoute("/confirmations/admin/sync")({
 
 function ConfirmationSyncPage() {
   const { editionId: organizerEditionId } = useAdminContext();
+  const organizerEditionIdRef = useRef(organizerEditionId);
   const syncSubmission = useServerFn(syncConfirmationSubmissionToSolaris);
   const getTargets = useServerFn(getSolarisEditionSyncTargets);
   const addToShow = useServerFn(addCountriesToShow);
@@ -71,6 +84,16 @@ function ConfirmationSyncPage() {
   const [roundId, setRoundId] = useState("");
   const [targets, setTargets] = useState<SolarisSyncTargets | null>(null);
   const [showId, setShowId] = useState("");
+  const [pendingSyncReview, setPendingSyncReview] = useState<PendingLineupSyncReview | null>(null);
+
+  useEffect(() => {
+    organizerEditionIdRef.current = organizerEditionId;
+    setPendingSyncReview(null);
+  }, [organizerEditionId]);
+
+  useEffect(() => {
+    setPendingSyncReview(null);
+  }, [roundId, showId]);
 
   useEffect(() => {
     let alive = true;
@@ -131,6 +154,7 @@ function ConfirmationSyncPage() {
     () => rows.filter((row) => row.participating && row.submission_rounds?.id === roundId && row.editions?.id === organizerEditionId),
     [organizerEditionId, roundId, rows],
   );
+  const selectedShow = targets?.shows.find((show) => show.id === showId) ?? null;
 
   useEffect(() => {
     let alive = true;
@@ -165,10 +189,35 @@ function ConfirmationSyncPage() {
     return () => { alive = false; };
   }, [getTargets, organizerEditionId, selectedRound]);
 
-  async function runSync() {
-    if (!organizerEditionId || !selectedRound || !targets || !showId || !selectedRows.length) return;
+  function openSyncReview() {
+    if (!organizerEditionId || !selectedRound || !targets || !selectedShow || !selectedRows.length || busy) return;
     if (selectedRound.editionId !== organizerEditionId || targets.editionId !== organizerEditionId) {
-      const message = "Edition context changed before the line-up sync. Refresh the selected edition and review the target again; nothing was applied.";
+      const message = "Edition context changed before the line-up review. Refresh the selected edition and choose the target again.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+
+    setPendingSyncReview({
+      editionId: organizerEditionId,
+      editionNumber: selectedRound.editionNumber,
+      editionName: selectedRound.editionName,
+      roundId: selectedRound.id,
+      roundName: selectedRound.name,
+      showId: selectedShow.id,
+      showName: selectedShow.name,
+      responseIds: selectedRows.map((row) => row.id).sort(),
+      countries: selectedRows.map((row) => row.country).sort((a, b) => a.localeCompare(b)),
+    });
+  }
+
+  async function runReviewedSync() {
+    if (!pendingSyncReview || busy) return;
+    const review = pendingSyncReview;
+
+    if (organizerEditionIdRef.current !== review.editionId) {
+      setPendingSyncReview(null);
+      const message = "Organizer edition changed after this line-up review. Nothing was applied.";
       setError(message);
       toast.error(message);
       return;
@@ -177,13 +226,50 @@ function ConfirmationSyncPage() {
     setBusy(true);
     setError(null);
     try {
+      const currentResponses = await confirmationsSupabase.rpc("admin_confirmation_responses");
+      if (currentResponses.error) throw currentResponses.error;
+      if (organizerEditionIdRef.current !== review.editionId) {
+        throw new Error("Organizer edition changed while the reviewed sync was being revalidated. Nothing was applied.");
+      }
+
+      const currentRows = Array.isArray(currentResponses.data)
+        ? (currentResponses.data as unknown as ResponseRow[])
+        : [];
+      const liveRows = currentRows.filter((row) =>
+        row.participating &&
+        row.editions?.id === review.editionId &&
+        row.submission_rounds?.id === review.roundId,
+      );
+      const liveResponseIds = liveRows.map((row) => row.id).sort();
+      if (
+        liveResponseIds.length !== review.responseIds.length ||
+        liveResponseIds.some((id, index) => id !== review.responseIds[index])
+      ) {
+        throw new Error(
+          "The participating Confirmation responses changed while this review was open. Nothing was applied. Review the current round again.",
+        );
+      }
+
+      const liveTargets = await getTargets({ data: { editionNumber: review.editionNumber } });
+      if (organizerEditionIdRef.current !== review.editionId) {
+        throw new Error("Organizer edition changed while the reviewed target was being revalidated. Nothing was applied.");
+      }
+      if (liveTargets.editionId !== review.editionId) {
+        throw new Error("The Solaris target edition no longer matches this review. Nothing was applied.");
+      }
+      const liveShow = liveTargets.shows.find((show) => show.id === review.showId);
+      if (!liveShow || liveShow.name !== review.showName) {
+        throw new Error("The reviewed target show changed or is no longer available. Nothing was applied. Review the target again.");
+      }
+
       const countryIds: string[] = [];
       const failures: string[] = [];
 
-      for (const row of selectedRows) {
-        if (row.editions?.id !== organizerEditionId) {
-          failures.push(`${row.country}: response no longer belongs to the selected Organizer edition`);
-          continue;
+      for (const row of liveRows) {
+        if (organizerEditionIdRef.current !== review.editionId) {
+          throw new Error(
+            "Organizer edition changed during the legacy multi-step sync. Some earlier submission syncs may already have completed; reconcile the selected edition before retrying.",
+          );
         }
         try {
           const result = await syncSubmission({ data: { submissionId: row.id } });
@@ -195,12 +281,20 @@ function ConfirmationSyncPage() {
       }
 
       if (!countryIds.length) throw new Error(failures[0] ?? "No countries could be synced.");
-      const showResult = await addToShow({ data: { editionId: organizerEditionId, showId, countryIds } });
+      if (organizerEditionIdRef.current !== review.editionId) {
+        throw new Error(
+          "Organizer edition changed before show membership could be applied. Submission syncs may already have completed; reconcile before retrying.",
+        );
+      }
+
+      const showResult = await addToShow({ data: { editionId: review.editionId, showId: review.showId, countryIds } });
+      setPendingSyncReview(null);
       toast.success(
         `${countryIds.length} countries synced · ${showResult.added} added to ${showResult.showName}${showResult.refreshed ? ` · ${showResult.refreshed} refreshed` : ""}`,
       );
       if (failures.length) setError(`${failures.length} response${failures.length === 1 ? "" : "s"} need attention: ${failures.join(" | ")}`);
     } catch (caught) {
+      setPendingSyncReview(null);
       const message = caught instanceof Error ? caught.message : "Round sync failed.";
       setError(message);
       toast.error(message);
@@ -232,8 +326,8 @@ function ConfirmationSyncPage() {
         <>
           <AdminCard strong className="mb-4">
             <AdminCardHeader
-              eyebrow="One-click import"
-              title={selectedRound ? `${selectedRound.name} → ${targets?.shows.find((show) => show.id === showId)?.name ?? "choose a show"}` : "Choose a round"}
+              eyebrow="Reviewed import"
+              title={selectedRound ? `${selectedRound.name} → ${selectedShow?.name ?? "choose a show"}` : "Choose a round"}
               description="The country is synced once at edition level. The selected show receives the same entry, but its song stays hidden until the HOD publishes it or its exact reveal time arrives."
               action={<AdminStatus tone={selectedRows.length ? "ready" : "neutral"}>{selectedRows.length} countries</AdminStatus>}
             />
@@ -253,9 +347,9 @@ function ConfirmationSyncPage() {
               </label>
             </div>
 
-            <button type="button" disabled={busy || !showId || !selectedRows.length} onClick={() => void runSync()} className="admin-action-primary mt-4 w-full">
+            <button type="button" disabled={busy || !selectedShow || !selectedRows.length} onClick={openSyncReview} className="admin-action-primary mt-4 w-full">
               <RefreshCw className={busy ? "size-4 animate-spin" : "size-4"} />
-              {busy ? "Syncing countries and entries…" : `Sync ${selectedRows.length} to ${targets?.shows.find((show) => show.id === showId)?.name ?? "show"}`}
+              {busy ? "Syncing countries and entries…" : `Review ${selectedRows.length} → ${selectedShow?.name ?? "show"}`}
             </button>
           </AdminCard>
 
@@ -277,6 +371,37 @@ function ConfirmationSyncPage() {
           {error ? <div className="mt-4 rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3 text-xs leading-relaxed text-amber-100">{error}</div> : null}
         </>
       )}
+
+      <AdminConfirmSheet
+        open={Boolean(pendingSyncReview)}
+        onClose={busy ? () => undefined : () => setPendingSyncReview(null)}
+        onConfirm={() => void runReviewedSync()}
+        title="Apply reviewed Confirmation line-up sync?"
+        description={pendingSyncReview ? (
+          <div className="space-y-3 text-xs">
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+              <p><span className="font-semibold text-foreground">Edition:</span> SSC {pendingSyncReview.editionNumber} · {pendingSyncReview.editionName}</p>
+              <p className="mt-1"><span className="font-semibold text-foreground">Confirmation round:</span> {pendingSyncReview.roundName}</p>
+              <p className="mt-1"><span className="font-semibold text-foreground">Target show:</span> {pendingSyncReview.showName}</p>
+              <p className="mt-1"><span className="font-semibold text-foreground">Responses:</span> {pendingSyncReview.responseIds.length}</p>
+            </div>
+            <div className="max-h-44 overflow-y-auto rounded-xl border border-white/[0.08] bg-black/10 p-3">
+              <p className="font-semibold text-foreground">Countries in this reviewed batch</p>
+              <p className="mt-2 leading-5 text-muted-foreground">{pendingSyncReview.countries.join(" · ")}</p>
+            </div>
+            <p className="leading-5 text-muted-foreground">
+              Organizer re-fetches the participating responses and Solaris target immediately before apply and refuses the operation if the batch, edition or target show changed while this review was open.
+            </p>
+            <p className="rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3 leading-5 text-amber-50/90">
+              This still uses the legacy multi-step sync boundary: submissions are synchronized individually before show membership is applied. A mid-operation failure can therefore leave partial progress. System #598 remains the blocker for one atomic, versioned, idempotent and receipted line-up command; reconcile current state before retrying an ambiguous failure.
+            </p>
+          </div>
+        ) : null}
+        confirmLabel="Sync reviewed batch"
+        confirmationText={pendingSyncReview?.showName}
+        confirmationHint={pendingSyncReview ? `Type ${pendingSyncReview.showName} exactly to confirm this show line-up change` : undefined}
+        busy={busy}
+      />
     </div>
   );
 }
