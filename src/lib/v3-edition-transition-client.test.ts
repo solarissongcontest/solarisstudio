@@ -96,7 +96,7 @@ describe('V3 edition transition client', () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it('rejects a contradictory authoritative result instead of showing false success', async () => {
+  it('rejects a contradictory authoritative target state instead of showing false success', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: { ...result, state: 'archived' },
       error: null,
@@ -104,6 +104,43 @@ describe('V3 edition transition client', () => {
 
     await expect(transitionEditionV3(request, { rpc })).rejects.toThrow(
       'receipt disagrees with the requested destination state',
+    );
+  });
+
+  it('rejects a receipt that belongs to another operation', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { ...result, operationId: 'operation-other' },
+      error: null,
+    });
+
+    await expect(transitionEditionV3(request, { rpc })).rejects.toThrow(
+      'receipt belongs to a different operation',
+    );
+  });
+
+  it('rejects a receipt that was not applied from the reviewed runtime version', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { ...result, previousRuntimeVersion: 6 },
+      error: null,
+    });
+
+    await expect(transitionEditionV3(request, { rpc })).rejects.toThrow(
+      'receipt disagrees with the reviewed runtime version',
+    );
+  });
+
+  it('rejects a runtime version that did not advance exactly once', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: {
+        ...result,
+        runtimeVersion: 9,
+        runtime: { ...runtime, version: 9 },
+      },
+      error: null,
+    });
+
+    await expect(transitionEditionV3(request, { rpc })).rejects.toThrow(
+      'receipt disagrees with canonical runtime version',
     );
   });
 });
