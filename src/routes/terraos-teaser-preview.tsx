@@ -8,6 +8,7 @@ import {
 import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import { installTerraOsTeaserHeroHandoff } from "@/lib/terraos-teaser-hero-handoff";
 import { installTerraOsTeaserHostMicroMotion } from "@/lib/terraos-teaser-host-micro-motion";
+import { installTerraOsTeaserMobileReferenceHero } from "@/lib/terraos-teaser-mobile-reference-hero";
 
 const SCREENS = new Set<TerraOSTeaserScreen>([
   "home",
@@ -57,13 +58,14 @@ function TerraOSTeaserPreviewRoute() {
     const frame = window.frameElement as HTMLElement | null;
     if (!frame) return;
 
-    // Keep the original mobile hero composition from the maintenance host:
-    // title + launch information + countdown + the three-phone product tableau.
-    // Only the subtle physical response and later Home-device handoff refine it.
+    // Keep the approved three-phone mobile opening while retaining the existing
+    // physical response and continuous Home-device handoff into first look.
     const cleanupMicroMotion = installTerraOsTeaserHostMicroMotion(frame);
+    const cleanupReferenceHero = installTerraOsTeaserMobileReferenceHero(frame);
     const cleanupHeroHandoff = installTerraOsTeaserHeroHandoff(frame);
     return () => {
       cleanupHeroHandoff();
+      cleanupReferenceHero();
       cleanupMicroMotion();
     };
   }, [screen, chrome]);
