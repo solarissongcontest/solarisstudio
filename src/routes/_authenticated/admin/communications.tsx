@@ -24,6 +24,7 @@ import { AdminPage } from '@/components/admin/AdminShell';
 import {
   AdminCard,
   AdminCardHeader,
+  AdminConfirmSheet,
   AdminEmptyState,
   AdminPageHeader,
   AdminStatus,
@@ -70,6 +71,12 @@ type CommunicationsSearch = {
   state?: CommunicationsStateFilter;
 };
 
+type PendingLifecycleReview = {
+  kind: 'cancel' | 'archive' | 'restore' | 'delete';
+  notice: OperationalNotice;
+  reason: string;
+};
+
 export const Route = createFileRoute('/_authenticated/admin/communications')({
   validateSearch: (search: Record<string, unknown>): CommunicationsSearch => ({
     notice: typeof search.notice === 'string' && search.notice ? search.notice : undefined,
@@ -104,6 +111,9 @@ function CommunicationsCentre() {
   const [acknowledgementRequired, setAcknowledgementRequired] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [scheduleReviewOpen, setScheduleReviewOpen] = useState(false);
+  const [publishReviewOpen, setPublishReviewOpen] = useState(false);
+  const [lifecycleReview, setLifecycleReview] = useState<PendingLifecycleReview | null>(null);
 
   const inboxEnabled = displaySurfaces.includes('delegation_inbox');
 
@@ -180,6 +190,7 @@ function CommunicationsCentre() {
       return scheduleStudio2Notice(draft.id, date.toISOString());
     },
     onSuccess: async (notice) => {
+      setScheduleReviewOpen(false);
       setEditingId(notice.id);
       void navigate({ search: { ...search, notice: notice.id }, replace: true });
       await refresh();
@@ -194,6 +205,7 @@ function CommunicationsCentre() {
       return publishStudio2Notice(draft.id);
     },
     onSuccess: async (notice) => {
+      setPublishReviewOpen(false);
       resetComposer();
       void navigate({ search: { ...search, notice: notice.id }, replace: true });
       await refresh();
@@ -202,7 +214,10 @@ function CommunicationsCentre() {
 
   const cancelNotice = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => cancelStudio2Notice(id, reason),
-    onSuccess: refresh,
+    onSuccess: async () => {
+      setLifecycleReview(null);
+      await refresh();
+    },
   });
 
   const supersedeNotice = useMutation({
@@ -216,17 +231,24 @@ function CommunicationsCentre() {
 
   const archiveCommunication = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => archiveStudio2Communication(id, reason),
-    onSuccess: refresh,
+    onSuccess: async () => {
+      setLifecycleReview(null);
+      await refresh();
+    },
   });
 
   const restoreCommunication = useMutation({
     mutationFn: (id: string) => restoreStudio2Communication(id),
-    onSuccess: refresh,
+    onSuccess: async () => {
+      setLifecycleReview(null);
+      await refresh();
+    },
   });
 
   const deleteCommunication = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => deleteStudio2Communication(id, reason),
     onSuccess: async (_result, variables) => {
+      setLifecycleReview(null);
       if (editingId === variables.id) resetComposer();
       if (search.notice === variables.id) {
         void navigate({ search: search.state ? { state: search.state } : {}, replace: true });
@@ -290,27 +312,40 @@ function CommunicationsCentre() {
     setScheduledAt('');
   }
 
+  function requestCancel(notice: OperationalNotice) {
+    setLifecycleReview({ kind: 'cancel', notice, reason: '' });
+  }
+
   function requestArchive(notice: OperationalNotice) {
-    const reason = window.prompt(
-      'Archive reason (optional). This removes the communication from Public Home, MySolaris Home and delegation inboxes until restored:',
-    );
-    if (reason === null) return;
-    if (window.confirm(`Archive “${notice.title}” and remove it from all live surfaces?`)) {
-      archiveCommunication.mutate({ id: notice.id, reason });
-    }
+    setLifecycleReview({ kind: 'archive', notice, reason: '' });
+  }
+
+  function requestRestore(notice: OperationalNotice) {
+    setLifecycleReview({ kind: 'restore', notice, reason: '' });
   }
 
   function requestDelete(notice: OperationalNotice) {
-    const reason = window.prompt(
-      'Reason for permanent deletion (required and retained in the private audit log):',
-    );
-    if (!reason?.trim()) return;
-    const publishedWarning = notice.sentAt
-      ? ' This was previously published; its content, revisions and receipt rows will be deleted, while a minimal deletion audit record remains.'
-      : ' This draft has never been published.';
-    if (window.confirm(`Permanently delete “${notice.title}”?${publishedWarning} This cannot be undone.`)) {
-      deleteCommunication.mutate({ id: notice.id, reason });
+    setLifecycleReview({ kind: 'delete', notice, reason: '' });
+  }
+
+  async function confirmLifecycleReview() {
+    if (!lifecycleReview) return;
+    const reason = lifecycleReview.reason.trim();
+    if (lifecycleReview.kind === 'delete' && !reason) return;
+    const variables = { id: lifecycleReview.notice.id, reason };
+    if (lifecycleReview.kind === 'cancel') {
+      await cancelNotice.mutateAsync(variables);
+      return;
     }
+    if (lifecycleReview.kind === 'archive') {
+      await archiveCommunication.mutateAsync(variables);
+      return;
+    }
+    if (lifecycleReview.kind === 'restore') {
+      await restoreCommunication.mutateAsync(lifecycleReview.notice.id);
+      return;
+    }
+    await deleteCommunication.mutateAsync(variables);
   }
 
   const toggleCountry = (countryId: string) => {
@@ -386,7 +421,7 @@ function CommunicationsCentre() {
           <Metric label="Total" value={notices.length} />
           <Metric label="Draft / scheduled" value={notices.filter((item) => ['draft', 'scheduled'].includes(item.notice.state)).length} />
           <Metric label="Published" value={notices.filter((item) => item.notice.state === 'published' && !item.notice.archivedAt).length} />
-          <Metric label="Archived" value={notices.filter((item) => item.notice.archivedAt).length} />
+          <Metric label="Archived" value={notices.filter((item) => Boolean(item.notice.archivedAt)).length} />
           <Metric label="Acknowledged" value={acknowledgementCount} />
         </section>
 
@@ -562,21 +597,18 @@ function CommunicationsCentre() {
                 <button
                   type="button"
                   disabled={busy || !scheduledAt || !saveAllowed}
-                  onClick={() => scheduleNotice.mutate()}
+                  onClick={() => setScheduleReviewOpen(true)}
                   className="admin-action-secondary min-h-11 disabled:opacity-50"
                 >
-                  <CalendarClock className="size-4" /> Schedule
+                  <CalendarClock className="size-4" /> Review &amp; Schedule
                 </button>
                 <button
                   type="button"
                   disabled={busy || !saveAllowed}
-                  onClick={() => {
-                    const surfaces = displaySurfaces.map(noticeSurfaceLabel).join(', ');
-                    if (window.confirm(`Publish this communication now to: ${surfaces}?`)) publishNotice.mutate();
-                  }}
+                  onClick={() => setPublishReviewOpen(true)}
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                 >
-                  <Send className="size-4" /> Publish now
+                  <Send className="size-4" /> Review &amp; publish
                 </button>
               </div>
             </div>
@@ -676,12 +708,7 @@ function CommunicationsCentre() {
                             <button
                               type="button"
                               className="admin-action-secondary"
-                              onClick={() => {
-                                const reason = window.prompt('Reason for cancelling this communication (optional):') ?? '';
-                                if (window.confirm('Cancel this draft/scheduled communication?')) {
-                                  cancelNotice.mutate({ id: notice.id, reason });
-                                }
-                              }}
+                              onClick={() => requestCancel(notice)}
                             >
                               Cancel
                             </button>
@@ -700,9 +727,9 @@ function CommunicationsCentre() {
                               type="button"
                               className="admin-action-secondary"
                               disabled={busy}
-                              onClick={() => restoreCommunication.mutate(notice.id)}
+                              onClick={() => requestRestore(notice)}
                             >
-                              <ArchiveRestore className="size-4" /> Restore
+                              <ArchiveRestore className="size-4" /> Review restore
                             </button>
                           ) : (
                             <button
@@ -775,9 +802,9 @@ function CommunicationsCentre() {
                       type="button"
                       className="admin-action-secondary"
                       disabled={busy}
-                      onClick={() => restoreCommunication.mutate(selectedNotice.id)}
+                      onClick={() => requestRestore(selectedNotice)}
                     >
-                      <ArchiveRestore className="size-4" /> Restore to its destinations
+                      <ArchiveRestore className="size-4" /> Review restore to destinations
                     </button>
                   ) : (
                     <button
@@ -833,6 +860,129 @@ function CommunicationsCentre() {
             ) : null}
           </div>
         </div>
+
+        <AdminConfirmSheet
+          open={scheduleReviewOpen}
+          onClose={() => {
+            if (!scheduleNotice.isPending) setScheduleReviewOpen(false);
+          }}
+          onConfirm={async () => {
+            await scheduleNotice.mutateAsync();
+          }}
+          title="Schedule this communication?"
+          description={
+            <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+              <p>Review the exact publication time, message, destinations and audience before scheduling.</p>
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                <p className="font-semibold text-foreground">{title.trim() || 'Untitled communication'}</p>
+                <p className="mt-2"><span className="font-semibold text-foreground">Publishes:</span> {formatScheduledInput(scheduledAt)}</p>
+                <p className="mt-2"><span className="font-semibold text-foreground">Destinations:</span> {displaySurfaces.map(noticeSurfaceLabel).join(', ')}</p>
+                {inboxEnabled ? <p className="mt-2"><span className="font-semibold text-foreground">Inbox audience:</span> {humanize(audience)}{audienceGroup ? ` · ${humanize(audienceGroup)}` : ''}{audience === 'specific_countries' ? ` · ${countryIds.length} countr${countryIds.length === 1 ? 'y' : 'ies'}` : ''}</p> : null}
+                <p className="mt-2"><span className="font-semibold text-foreground">Acknowledgement:</span> {acknowledgementRequired && inboxEnabled ? 'required' : 'not required'}</p>
+                <p className="mt-2 whitespace-pre-wrap">{body.trim()}</p>
+              </div>
+              <p>Once scheduled, the existing server scheduler can publish this communication at that time without another Organizer action. Verify the timing and audience before applying the schedule.</p>
+              <p>Canonical expected-revision, idempotency, receipt and uncertain-outcome reconciliation remain tracked in System #599.</p>
+            </div>
+          }
+          confirmLabel="Schedule communication"
+          busy={scheduleNotice.isPending}
+          confirmDisabled={!scheduledAt || !saveAllowed}
+        />
+
+        <AdminConfirmSheet
+          open={publishReviewOpen}
+          onClose={() => {
+            if (!publishNotice.isPending) setPublishReviewOpen(false);
+          }}
+          onConfirm={async () => {
+            await publishNotice.mutateAsync();
+          }}
+          title="Publish this communication now?"
+          description={
+            <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+              <p>Review the exact message, destinations and audience before it becomes live.</p>
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                <p className="font-semibold text-foreground">{title.trim() || 'Untitled communication'}</p>
+                <p className="mt-2 whitespace-pre-wrap">{body.trim()}</p>
+                <p className="mt-3"><span className="font-semibold text-foreground">Destinations:</span> {displaySurfaces.map(noticeSurfaceLabel).join(', ')}</p>
+                {inboxEnabled ? <p className="mt-2"><span className="font-semibold text-foreground">Inbox audience:</span> {humanize(audience)}{audienceGroup ? ` · ${humanize(audienceGroup)}` : ''}{audience === 'specific_countries' ? ` · ${countryIds.length} countr${countryIds.length === 1 ? 'y' : 'ies'}` : ''}</p> : null}
+                <p className="mt-2"><span className="font-semibold text-foreground">Acknowledgement:</span> {acknowledgementRequired && inboxEnabled ? 'required' : 'not required'}</p>
+              </div>
+              <p>The current legacy publication authority applies immediately after confirmation. Canonical expected-revision, idempotency, receipt and uncertain-outcome reconciliation remain tracked in System #599.</p>
+            </div>
+          }
+          confirmLabel="Publish communication now"
+          busy={publishNotice.isPending}
+          confirmDisabled={!saveAllowed}
+        />
+
+        <AdminConfirmSheet
+          open={Boolean(lifecycleReview)}
+          onClose={() => {
+            if (!busy) setLifecycleReview(null);
+          }}
+          onConfirm={confirmLifecycleReview}
+          title={lifecycleReview
+            ? lifecycleReview.kind === 'delete'
+              ? `Permanently delete “${lifecycleReview.notice.title}”?`
+              : lifecycleReview.kind === 'archive'
+                ? `Archive “${lifecycleReview.notice.title}”?`
+                : lifecycleReview.kind === 'restore'
+                  ? `Restore “${lifecycleReview.notice.title}” to its destinations?`
+                  : `Cancel “${lifecycleReview.notice.title}”?`
+            : 'Review communication action'}
+          description={lifecycleReview ? (
+            <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                <p className="font-semibold text-foreground">{lifecycleReview.notice.title}</p>
+                <p className="mt-1">Revision {lifecycleReview.notice.revision} · {noticeStateLabel(lifecycleReview.notice.state)}</p>
+                <p className="mt-2"><span className="font-semibold text-foreground">Destinations:</span> {lifecycleReview.notice.displaySurfaces.map(noticeSurfaceLabel).join(', ')}</p>
+              </div>
+              {lifecycleReview.kind !== 'restore' ? (
+                <label className="block space-y-1.5">
+                  <span className="font-semibold text-foreground">
+                    Organizer reason {lifecycleReview.kind === 'delete' ? '(required)' : '(optional)'}
+                  </span>
+                  <textarea
+                    value={lifecycleReview.reason}
+                    onChange={(event) => setLifecycleReview((current) => current ? { ...current, reason: event.target.value } : current)}
+                    rows={3}
+                    placeholder={lifecycleReview.kind === 'delete' ? 'Explain why permanent deletion is required…' : 'Add an operational reason…'}
+                    className="w-full rounded-xl border border-white/[0.1] bg-black/10 p-3 text-sm text-foreground outline-none focus:border-sky-300/30"
+                  />
+                </label>
+              ) : null}
+              {lifecycleReview.kind === 'cancel' ? (
+                <p>Cancelling stops this draft or scheduled communication from publishing. The lifecycle record remains available to Organizer history.</p>
+              ) : lifecycleReview.kind === 'archive' ? (
+                <p>Archiving removes the communication from all live destinations until an organizer deliberately restores it. Its revision and audit history remain.</p>
+              ) : lifecycleReview.kind === 'restore' ? (
+                <p>Restoring republishes this archived communication to its original destinations using the existing server restore authority. Verify the destinations above before making it live again.</p>
+              ) : (
+                <>
+                  <p className="font-semibold text-red-100">Permanent deletion cannot be undone.</p>
+                  <p>{lifecycleReview.notice.sentAt ? 'This communication was previously published. Its content, revisions and receipt rows will be deleted while the minimal private deletion audit record remains.' : 'This communication has never been published. Its draft record and revision history will be deleted.'}</p>
+                </>
+              )}
+              <p>These actions still use the existing server-authorized lifecycle RPCs. Canonical version/CAS, idempotency, operation receipts and uncertain-outcome reconciliation remain tracked in System #599.</p>
+            </div>
+          ) : null}
+          confirmLabel={lifecycleReview
+            ? lifecycleReview.kind === 'delete'
+              ? 'Delete communication permanently'
+              : lifecycleReview.kind === 'archive'
+                ? 'Archive communication'
+                : lifecycleReview.kind === 'restore'
+                  ? 'Restore communication'
+                  : 'Cancel communication'
+            : 'Confirm'}
+          confirmationText={lifecycleReview?.kind === 'delete' ? lifecycleReview.notice.title : undefined}
+          confirmationHint={lifecycleReview?.kind === 'delete' ? `Type ${lifecycleReview.notice.title} to confirm permanent deletion.` : undefined}
+          busy={busy}
+          confirmDisabled={lifecycleReview?.kind === 'delete' && !lifecycleReview.reason.trim()}
+          danger={lifecycleReview?.kind === 'delete'}
+        />
 
         <AdminCard>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -945,6 +1095,12 @@ function humanize(value: string) {
 }
 
 function formatTimestamp(value: string | null) {
+  if (!value) return 'Not set';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+function formatScheduledInput(value: string) {
   if (!value) return 'Not set';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
