@@ -230,49 +230,46 @@ export function useToggleAdminDeadline() {
   const { editionId } = useAdminContext();
   const organizerEditionId = normalizeEditionId(editionId);
   const pendingOperations = useRef(
-    new Map<string, { operationId: string; idempotencyKey: string }>(),
+    new Map<
+      string,
+      { operationId: string; idempotencyKey: string; expectedVersion: number }
+    >(),
   );
 
   return useMutation({
-    mutationFn: async ({
-      id,
-      complete,
-      expectedVersion,
-    }: {
-      id: string;
-      complete: boolean;
-      expectedVersion: number;
-    }) => {
+    mutationFn: async ({ id, complete }: { id: string; complete: boolean }) => {
       if (!organizerEditionId) {
         throw new Error("Custom reminder changes require an explicit Organizer edition scope.");
       }
-      if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
-        throw new Error("Custom reminder version is missing. Refresh before changing this reminder.");
-      }
 
-      const operationKey = `${id}:${expectedVersion}:${complete ? "complete" : "reopen"}`;
-      const identity =
-        pendingOperations.current.get(operationKey) ??
-        operationIdentity(complete ? "custom-reminder-complete" : "custom-reminder-reopen");
-      pendingOperations.current.set(operationKey, identity);
+      const operationKey = `${id}:${complete ? "complete" : "reopen"}`;
+      let identity = pendingOperations.current.get(operationKey);
 
-      const { data: snapshot, error: snapshotError } = await adminDb.rpc(
-        "studio2_admin_deadline_snapshot",
-        { p_deadline_id: id },
-      );
-      if (snapshotError) throw snapshotError;
-      if (!snapshot || snapshot.editionId !== organizerEditionId) {
-        throw new Error("This reminder is not part of the selected Organizer edition.");
-      }
-      if (snapshot.version !== expectedVersion) {
-        throw new Error(
-          "This reminder changed before your action was applied. Refresh and review the current state.",
+      if (!identity) {
+        const { data: snapshot, error: snapshotError } = await adminDb.rpc(
+          "studio2_admin_deadline_snapshot",
+          { p_deadline_id: id },
         );
+        if (snapshotError) throw snapshotError;
+        if (!snapshot || snapshot.editionId !== organizerEditionId) {
+          throw new Error("This reminder is not part of the selected Organizer edition.");
+        }
+        if (!Number.isInteger(snapshot.version) || snapshot.version < 1) {
+          throw new Error("Custom reminder version is missing. Refresh before changing this reminder.");
+        }
+
+        identity = {
+          ...operationIdentity(
+            complete ? "custom-reminder-complete" : "custom-reminder-reopen",
+          ),
+          expectedVersion: snapshot.version,
+        };
+        pendingOperations.current.set(operationKey, identity);
       }
 
       const { error } = await adminDb.rpc("studio2_set_admin_deadline_completed", {
         p_deadline_id: id,
-        p_expected_version: expectedVersion,
+        p_expected_version: identity.expectedVersion,
         p_complete: complete,
         p_operation_id: identity.operationId,
         p_idempotency_key: identity.idempotencyKey,
