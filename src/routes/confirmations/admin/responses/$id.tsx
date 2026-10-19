@@ -9,7 +9,6 @@ import {
   Copy,
   ExternalLink,
   Link2,
-  LockKeyhole,
   RefreshCw,
   RotateCcw,
   Settings2,
@@ -20,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { ConfirmationAccessSettingsSheet } from "@/components/admin/ConfirmationAccessSettingsSheet";
 import {
   AdminActionItem,
   AdminCard,
@@ -32,7 +32,6 @@ import {
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { confirmationsSupabase } from "@/integrations/confirmations/client";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
@@ -617,12 +616,8 @@ function ResponseDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [technicalError, setTechnicalError] = useState<string | null>(null);
-  const [editingAllowed, setEditingAllowed] = useState(false);
-  const [locked, setLocked] = useState(false);
-  const [notes, setNotes] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deleteReviewOpen, setDeleteReviewOpen] = useState(false);
-  const [savingControls, setSavingControls] = useState(false);
   const [solarisSync, setSolarisSync] = useState<ConfirmationSolarisSyncResult | null>(null);
   const [solarisSyncError, setSolarisSyncError] = useState<string | null>(null);
   const [syncingSolaris, setSyncingSolaris] = useState(false);
@@ -691,9 +686,6 @@ function ResponseDetailPage() {
 
     const detail = result as unknown as ResponseDetail;
     setData(detail);
-    setEditingAllowed(detail.editing_allowed);
-    setLocked(detail.locked);
-    setNotes(detail.admin_notes ?? "");
     setLoading(false);
 
     await loadTechnical();
@@ -708,31 +700,6 @@ function ResponseDetailPage() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  async function saveControls() {
-    if (!data) return;
-    setSavingControls(true);
-    setError(null);
-    try {
-      const { error: rpcError } = await confirmationsSupabase.rpc(
-        "admin_update_confirmation_controls",
-        {
-          _submission_id: data.id,
-          _editing_allowed: editingAllowed,
-          _locked: locked,
-          _admin_notes: notes,
-        },
-      );
-      if (rpcError) throw rpcError;
-      toast.success("Response settings saved");
-      setSettingsOpen(false);
-      await load();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not save response settings.");
-    } finally {
-      setSavingControls(false);
-    }
-  }
 
   async function changeWinner(action: "select" | "clear", reason: string, entryId: string | null) {
     if (!data?.national_final) return;
@@ -1328,64 +1295,22 @@ function ResponseDetailPage() {
         </AdminCard>
       </div>
 
-      <AdminSheet
+      <ConfirmationAccessSettingsSheet
         open={settingsOpen}
-        onClose={savingControls ? () => undefined : () => setSettingsOpen(false)}
-        title="Response settings"
-        description="These controls affect delegation access."
-      >
-        <div className="space-y-4">
-          <label className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-            <span>
-              <span className="block text-sm font-semibold">Allow editing</span>
-              <span className="mt-1 block text-xs text-muted-foreground">
-                The delegation can update this response.
-              </span>
-            </span>
-            <Switch checked={editingAllowed} onCheckedChange={setEditingAllowed} />
-          </label>
-
-          <label className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-            <span>
-              <span className="block text-sm font-semibold">Lock response</span>
-              <span className="mt-1 block text-xs text-muted-foreground">
-                Blocks delegation changes until unlocked.
-              </span>
-            </span>
-            <Switch checked={locked} onCheckedChange={setLocked} />
-          </label>
-
-          <div className="space-y-2">
-            <Label htmlFor="admin-notes">Private organiser notes</Label>
-            <Textarea
-              id="admin-notes"
-              rows={6}
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              placeholder="Notes visible only to organisers…"
-            />
-          </div>
-
-          <div className="admin-sticky-actions grid grid-cols-[auto_1fr] gap-2">
-            <button
-              type="button"
-              disabled={savingControls}
-              onClick={() => setSettingsOpen(false)}
-              className="admin-action-secondary"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={savingControls}
-              onClick={() => void saveControls()}
-              className="admin-action-primary"
-            >
-              <LockKeyhole className="size-4" /> {savingControls ? "Saving…" : "Save settings"}
-            </button>
-          </div>
-        </div>
-      </AdminSheet>
+        onClose={() => setSettingsOpen(false)}
+        onApplied={load}
+        submissionId={data.id}
+        country={data.country}
+        editionLabel={
+          data.edition
+            ? `SSC ${data.edition.edition_number} · ${data.edition.name}`
+            : "Edition unavailable"
+        }
+        roundName={data.round?.name ?? "Confirmation"}
+        editingAllowed={data.editing_allowed}
+        locked={data.locked}
+        adminNotes={data.admin_notes}
+      />
 
       <AdminConfirmSheet
         open={deleteReviewOpen}
