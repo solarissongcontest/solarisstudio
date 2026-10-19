@@ -22,6 +22,13 @@ function projectionSql() {
 }
 
 describe("System V3 P40 participant activity projection", () => {
+  it("is governed by the S13 migration-adoption contract", () => {
+    expect(migration).toContain("public.v3_register_migration_contract(");
+    expect(migration).toContain("'20261019235317_v3_me_participant_activity_projection'");
+    expect(migration).toContain("'forward_fix_only'");
+    expect(migration).toContain("false");
+  });
+
   it("binds identity only to the authenticated caller", () => {
     const projection = projectionSql();
 
