@@ -1,9 +1,14 @@
+import type { SolarisTabbarMode } from "@/lib/solaris-screen-contract";
 import {
   V3_ORGANIZER_TAB_ORDER,
   v3OrganizerTabRoot,
 } from "@/lib/v3-organizer";
 
-export type V3OrganizerTabbarMode = "full" | "compact" | "minimal" | "hidden";
+/**
+ * Organizer V3 consumes the canonical shell tab-bar contract instead of
+ * maintaining a second union that can silently drift from screen registries.
+ */
+export type V3OrganizerTabbarMode = SolarisTabbarMode;
 
 function normalizeOrganizerPath(pathname: string) {
   if (!pathname || pathname === "/") return pathname;
