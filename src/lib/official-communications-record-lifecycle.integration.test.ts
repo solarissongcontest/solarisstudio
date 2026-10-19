@@ -44,9 +44,11 @@ describe('Official Communications record lifecycle', () => {
     expect(adapter).toContain('deleteStudio2Communication');
   });
 
-  it('exposes clear Organizer archive, restore and permanent delete controls', () => {
+  it('exposes clear reviewed Organizer archive, restore and permanent delete controls', () => {
     expect(organizer).toContain('Archive / remove everywhere');
-    expect(organizer).toContain('Restore to its destinations');
+    expect(organizer).toContain('Review restore to destinations');
+    expect(organizer).toContain('requestRestore(selectedNotice)');
+    expect(organizer).toContain('Restoring republishes this archived communication to its original destinations');
     expect(organizer).toContain('Delete permanently');
     expect(organizer).toContain("state?: CommunicationsStateFilter");
     expect(organizer).toContain("<option value=\"archived\">Archived</option>");
