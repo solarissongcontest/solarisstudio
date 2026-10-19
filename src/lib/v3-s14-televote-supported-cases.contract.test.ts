@@ -6,6 +6,7 @@ import { V3_S14_INVARIANTS, V3_S14_STAGES } from "../../scripts/v3-s14-full-cont
 const source = (path: string) => readFileSync(path, "utf8");
 const stage7 = source(".github/scripts/v3-s14-stage-7-public-voting.sh");
 const deadlineStage = source(".github/scripts/v3-s14-stage-7-genuine-deadline.sh");
+const diagnostics = source(".github/scripts/v3-s14-stage-7-diagnostics.sh");
 const driver = source(".github/scripts/v3-full-contest-rehearsal.sh");
 
 describe("S14 canonical Televote Stage 7", () => {
@@ -69,6 +70,22 @@ describe("S14 canonical Televote Stage 7", () => {
     expect(consequenceIndex).toBeGreaterThan(retryIndex);
   });
 
+  it("captures sanitized local state before a failed post-extension ballot assertion", () => {
+    expect(diagnostics).toContain("public Televote after governed deadline extension");
+    expect(diagnostics).toContain("S14_STAGE7_DEADLINE_RETRY_DIAGNOSTIC");
+    expect(diagnostics).toContain("clock_timestamp()");
+    expect(diagnostics).toContain("secondsRemaining");
+    expect(diagnostics).toContain("studio2_televote_round_versions");
+    expect(diagnostics).toContain("vote_preflight_checks");
+    expect(diagnostics).toContain("submittedAt");
+    expect(diagnostics).toContain("expiresAt");
+    expect(diagnostics).toContain("username_normalized='s14-public-52'");
+    expect(diagnostics).toContain("expect_success_without_stage7_diagnostics");
+    expect(diagnostics).not.toContain("SERVICE_ROLE_KEY");
+    expect(diagnostics).not.toContain("ORGANIZER_A_TOKEN");
+    expect(diagnostics).not.toContain("ANON_KEY");
+  });
+
   it("still proves duplicate protection, uncertainty recovery and integrity evidence", () => {
     expect(stage7).toContain("duplicate public Televote");
     expect(stage7).toContain("v3_create_televote_recovery_handle");
@@ -114,8 +131,9 @@ describe("S14 canonical Televote Stage 7", () => {
     expect(driver).toContain('"passed": False');
   });
 
-  it("keeps both shell modules syntactically valid", () => {
+  it("keeps all Stage 7 shell modules syntactically valid", () => {
     expect(() => execFileSync("bash", ["-n", ".github/scripts/v3-s14-stage-7-public-voting.sh"], { stdio: "pipe" })).not.toThrow();
     expect(() => execFileSync("bash", ["-n", ".github/scripts/v3-s14-stage-7-genuine-deadline.sh"], { stdio: "pipe" })).not.toThrow();
+    expect(() => execFileSync("bash", ["-n", ".github/scripts/v3-s14-stage-7-diagnostics.sh"], { stdio: "pipe" })).not.toThrow();
   });
 });
