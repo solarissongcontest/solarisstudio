@@ -31,9 +31,10 @@ describe("V3 Organizer Confirmation response access review", () => {
 
   it("binds preview, live-state comparison and apply to the shell-owned exact edition", () => {
     expect(review).toContain("useAdminContext()");
-    expect(review).toContain("editionId: organizerEditionId");
+    expect(review).toContain("const editionId = organizerEditionId;");
     expect(review).toContain("previewConfirmationResponseAction");
     expect(review).toContain("loadConfirmationResponseForEdition<LiveResponseAccess>");
+    expect(review).toContain("scope: { editionId, entityId: submissionId }");
     expect(review).toContain("Response settings changed while this review was open");
     expect(review).toContain("Nothing was changed");
     expect(commands).toContain('"studio2_confirmation_response_access_preview"');
