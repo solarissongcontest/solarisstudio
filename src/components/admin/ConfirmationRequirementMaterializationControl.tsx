@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -123,11 +123,8 @@ export function ConfirmationRequirementMaterializationControl(props: {
   });
 
   useEffect(() => {
-    preview.reset();
-    apply.reset();
-    setPending(null);
     // A reviewed R2 impact belongs to exactly one Organizer edition.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setPending(null);
   }, [props.editionId]);
 
   const busy = preview.isPending || apply.isPending;
@@ -261,10 +258,7 @@ function ImpactMetric(props: { label: string; value: number }) {
   );
 }
 
-async function invalidateRequirementState(
-  queryClient: ReturnType<typeof useQueryClient>,
-  editionId: string,
-) {
+async function invalidateRequirementState(queryClient: QueryClient, editionId: string) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: ["confirmation-requirements", editionId] }),
     queryClient.invalidateQueries({ queryKey: ["organizer-tasks-v5", editionId] }),
