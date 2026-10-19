@@ -139,7 +139,7 @@ export function ConfirmationVersionHistory({
       setRestoreBaseline(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['confirmation-submission-versions', submissionId] }),
-        queryClient.invalidateQueries({ queryKey: ['confirmation-response-version-current', submissionId] }),
+        queryClient.invalidateQueries({ queryKey: ['confirmation-response-version-current'] }),
         queryClient.invalidateQueries({ queryKey: ['confirmation-responses-for-version-history'] }),
       ]);
 
