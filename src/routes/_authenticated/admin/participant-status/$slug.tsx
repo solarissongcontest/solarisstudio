@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Ban, ShieldX, UserCheck } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ArrowLeft, Ban, ShieldX, TriangleAlert, UserCheck } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminConfirmSheet, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { FlagChip } from "@/components/FlagChip";
@@ -23,6 +24,7 @@ import {
   type ParticipationAwareParticipant,
   type ParticipationStatus,
 } from "@/lib/participation-status";
+import { validateEditionCommandScope } from "@/lib/solaris-v6-edition-context";
 
 export const Route = createFileRoute("/_authenticated/admin/participant-status/$slug")({
   head: () => ({ meta: [{ title: "Participation status — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
@@ -65,17 +67,23 @@ type PendingStatusChange = {
 function ParticipantStatusWorkspace() {
   const { slug } = Route.useParams();
   const qc = useQueryClient();
+  const { editionId: organizerEditionId } = useAdminContext();
   const { data: edition, isLoading } = useEdition(slug);
-  const { data: participants = [] } = useParticipants(edition?.id);
+  const scopedEditionId = edition && organizerEditionId === edition.id ? edition.id : undefined;
+  const { data: participants = [] } = useParticipants(scopedEditionId);
   const { data: countries = [] } = useCountries();
-  const { data: entities = [] } = useContestEntities(edition?.id);
-  const { data: shows = [] } = useShows(edition?.id);
+  const { data: entities = [] } = useContestEntities(scopedEditionId);
+  const { data: shows = [] } = useShows(scopedEditionId);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [pendingChange, setPendingChange] = useState<PendingStatusChange | null>(null);
 
   const displays = useMemo(() => entityDisplayMap(entities, countries), [entities, countries]);
   const countryIds = useMemo(() => new Set(countries.map((country) => country.id)), [countries]);
   const showNames = useMemo(() => new Map(shows.map((show) => [show.id, show.name])), [shows]);
+
+  useEffect(() => {
+    setPendingChange(null);
+  }, [organizerEditionId, edition?.id]);
 
   const groups = useMemo<StatusGroup[]>(() => {
     const byIdentity = new Map<string, ParticipationAwareParticipant[]>();
@@ -108,14 +116,40 @@ function ParticipantStatusWorkspace() {
       });
   }, [participants, countryIds, displays]);
 
+  function assertParticipationEditionScope(entityEditionId?: string) {
+    if (!edition || !organizerEditionId) {
+      throw Object.assign(
+        new Error("Participation status requires an exact Organizer edition context."),
+        { status: 409 },
+      );
+    }
+
+    const scope = validateEditionCommandScope({
+      routeEditionId: edition.id,
+      commandEditionId: organizerEditionId,
+      entityEditionId: entityEditionId ?? edition.id,
+      capabilityEditionId: organizerEditionId,
+    });
+    if (!scope.ok) {
+      throw Object.assign(
+        new Error(
+          `Edition context changed before the participation-status command (${scope.mismatches.join(", ")}). Refresh canonical state before retrying.`,
+        ),
+        { status: 409 },
+      );
+    }
+    return edition.id;
+  }
+
   async function requestStatusChange(group: StatusGroup, status: ParticipationStatus) {
     if (!edition || group.status === status) return;
     setBusyKey(group.key);
     try {
+      const commandEditionId = assertParticipationEditionScope();
       const { data, error } = await (supabase as any).rpc(
         "studio2_participation_status_change_preview",
         {
-          p_edition_id: edition.id,
+          p_edition_id: commandEditionId,
           p_country_id: group.countryId,
           p_contest_entity_id: group.contestEntityId,
           p_status: status,
@@ -124,6 +158,13 @@ function ParticipantStatusWorkspace() {
       if (error) throw error;
 
       const preview = data as ParticipationStatusPreview;
+      if (preview.editionId !== commandEditionId) {
+        throw Object.assign(
+          new Error("Participation preview returned a different edition than the reviewed Organizer context."),
+          { status: 409 },
+        );
+      }
+
       const displayName = displays.get(group.key)?.name ?? "Country";
       if (preview.alreadyApplied) {
         toast.message(`${displayName} is already marked ${participationStatusLabel(status).toLowerCase()}.`);
@@ -149,10 +190,11 @@ function ParticipantStatusWorkspace() {
     const pending = pendingChange;
     setBusyKey(pending.group.key);
     try {
+      const commandEditionId = assertParticipationEditionScope(pending.preview.editionId);
       const { error } = await (supabase as any).rpc(
         "studio2_apply_participation_status",
         {
-          p_edition_id: edition.id,
+          p_edition_id: commandEditionId,
           p_country_id: pending.group.countryId,
           p_contest_entity_id: pending.group.contestEntityId,
           p_status: pending.preview.requestedStatus,
@@ -186,6 +228,36 @@ function ParticipantStatusWorkspace() {
 
   if (!edition) {
     return <AdminCard><AdminEmptyState icon={Ban} title="Edition not found" description="Choose another edition from the organizer workspace." action={<Link to="/admin" className="admin-action-secondary">Back to editions</Link>} /></AdminCard>;
+  }
+
+  if (!organizerEditionId) {
+    return (
+      <AdminPage>
+        <AdminCard>
+          <AdminEmptyState
+            icon={Ban}
+            title="Choose an edition"
+            description="Participation status is edition-scoped contest authority. Select the exact edition in the Organizer toolbar before loading or changing participation state."
+            action={<Link to="/admin" className="admin-action-secondary">Back to Organizer</Link>}
+          />
+        </AdminCard>
+      </AdminPage>
+    );
+  }
+
+  if (organizerEditionId !== edition.id) {
+    return (
+      <AdminPage>
+        <AdminCard>
+          <AdminEmptyState
+            icon={TriangleAlert}
+            title="Edition context mismatch"
+            description="This Participation Status URL belongs to a different edition than the one selected in Solaris Organizer. Edition-scoped reads and actions stay blocked until the contexts match."
+            action={<Link to="/admin" className="admin-action-secondary">Back to Organizer</Link>}
+          />
+        </AdminCard>
+      </AdminPage>
+    );
   }
 
   return (
