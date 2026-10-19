@@ -9,6 +9,10 @@ const migration = readFileSync(
   ),
   "utf8",
 );
+const runtimeRehearsal = readFileSync(
+  resolve(process.cwd(), ".github/scripts/v3-s14-edition-event-vocabulary-rehearsal.sh"),
+  "utf8",
+);
 
 describe("System V3 S14 edition lifecycle transition normalization", () => {
   it("targets only the exact governed V3 lifecycle command", () => {
@@ -54,6 +58,19 @@ describe("System V3 S14 edition lifecycle transition normalization", () => {
       "Canonical edition.transitioned DomainEvent was not installed in V3 edition transition",
     );
     expect(migration).toContain("legacy contest-event audit vocabulary");
+  });
+
+  it("proves the normalized vocabulary against persisted runtime events", () => {
+    expect(runtimeRehearsal).toContain("Refusing hosted Supabase rehearsal");
+    expect(runtimeRehearsal).toContain("Refusing non-local database rehearsal");
+    expect(runtimeRehearsal).toContain("bun run scripts/check-v3-production-isolation.ts");
+    expect(runtimeRehearsal).toContain("event_type='edition.transitioned'");
+    expect(runtimeRehearsal).toContain("event_type='edition.state_changed'");
+    expect(runtimeRehearsal).toContain("type='edition.state_changed'");
+    expect(runtimeRehearsal).toContain("CANONICAL_COUNT");
+    expect(runtimeRehearsal).toContain("OLD_CANONICAL_COUNT");
+    expect(runtimeRehearsal).toContain("LEGACY_COUNT");
+    expect(runtimeRehearsal).not.toMatch(/supabase\.co/i);
   });
 
   it("preserves genuine DomainEvent worker lease retry semantics on 40001", () => {
