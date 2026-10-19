@@ -20,17 +20,29 @@ describe("V3 Edition spoiler and result safety", () => {
     expect(source).toContain("<V3EditionSpoilerSafeScreen");
   });
 
-  it("hides narrative/result content before the user explicitly reveals this Edition", () => {
+  it("hides narrative, entry and result content before the user explicitly reveals this Edition", () => {
     const source = safeScreen();
     const revealBoundary = source.indexOf("if (!hideSpoilers || revealed)");
     const protectedMarker = source.indexOf('data-v3-edition-spoiler-protected=""');
     expect(revealBoundary).toBeGreaterThan(-1);
     expect(protectedMarker).toBeGreaterThan(revealBoundary);
-    expect(source).toContain("Published story titles, narrative moments, placements and points stay hidden");
+    expect(source).toContain("Published story titles, narrative moments, entry details, placements and points stay hidden");
     expect(source).toContain("Reveal edition spoilers");
+    expect(source).not.toContain("projection.entries.map");
     expect(source).not.toContain("projection.story.title");
     expect(source).not.toContain("projection.story.items");
     expect(source).not.toContain("projection.results.rows");
+  });
+
+  it("preserves normal Edition section landmarks without exposing protected payloads", () => {
+    const source = safeScreen();
+    expect(source).toContain('title="At a glance"');
+    expect(source).toContain('title="Participants"');
+    expect(source).toContain('title="Songs & artists"');
+    expect(source).toContain('title="Schedule"');
+    expect(source).toContain('title="Stories"');
+    expect(source).toContain('title="Results"');
+    expect(source).toContain('meta="Spoiler protected"');
   });
 
   it("keeps safe Edition identity, participant and schedule value available while protected", () => {
