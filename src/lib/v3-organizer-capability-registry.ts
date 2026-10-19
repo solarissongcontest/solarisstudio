@@ -195,6 +195,7 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "workspace-administration" ||
     id === "workspace-organizer-guide" ||
     id === "workspace-country-accounts" ||
+    id === "workspace-flag-qa" ||
     id === "workspace-hod-history" ||
     id === "workspace-acceptance-test" ||
     id === "workspace-beta-coverage" ||
