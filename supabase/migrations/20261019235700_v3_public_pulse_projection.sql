@@ -8,7 +8,7 @@ begin;
 -- intentionally gives privileged publishing callers a wider operational view,
 -- so public-side Pulse must not read that table directly.
 select public.v3_register_migration_contract(
-  '20261019235700_v3_public_pulse_projection',
+  'v3.public-pulse-projection',
   1,
   'forward_fix_only',
   false,
