@@ -52,7 +52,7 @@ describe("S14 Stage 7 failure detail evidence", () => {
       "supported-cases",
       "completion-invariants",
     ]) {
-      expect(diagnostics).toContain(`s14_stage7_mark \"${boundary}\"`);
+      expect(diagnostics).toContain(`s14_stage7_mark "${boundary}"`);
     }
 
     expect(diagnostics).toContain(
