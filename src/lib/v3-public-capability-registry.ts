@@ -319,7 +319,7 @@ export const V3_PUBLIC_CAPABILITY_REGISTRY = [
   {
     id: "live-show",
     sourceSurfaceId: "live-show",
-    sourceFeatureFlags: [],
+    sourceFeatureFlags: ["solaris_app_v3_live"],
     legacyRoutes: ["/show-mode", "/show-mode/*"],
     legacyComponents: [],
     backendOwners: ["live-show", "publication"],

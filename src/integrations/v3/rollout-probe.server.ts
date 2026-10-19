@@ -40,6 +40,7 @@ export type V3RolloutProbe = {
   meEnabled?: boolean;
   entryEnabled?: boolean;
   juryEnabled?: boolean;
+  liveEnabled: boolean;
   organizerEnabled?: boolean;
   editionId: string | null;
   userId: string | null;
@@ -86,6 +87,7 @@ function disabledProbe(input?: {
     meEnabled: false,
     entryEnabled: false,
     juryEnabled: false,
+    liveEnabled: false,
     organizerEnabled: false,
     editionId: input?.editionId ?? null,
     userId: input?.userId ?? null,
@@ -112,6 +114,7 @@ async function evaluateV3Rollout(
     resultsFlag,
     entryFlag,
     juryFlag,
+    liveFlag,
     organizerFlag,
   ] = await Promise.all([
     client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3", p_edition_id: editionId }),
@@ -128,6 +131,7 @@ async function evaluateV3Rollout(
     client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_results", p_edition_id: editionId }),
     client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_entry", p_edition_id: editionId }),
     client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_jury", p_edition_id: editionId }),
+    client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_live", p_edition_id: editionId }),
     client.rpc("studio2_feature_enabled", { p_key: "solaris_app_v3_organizer", p_edition_id: editionId }),
   ]);
 
@@ -164,6 +168,7 @@ async function evaluateV3Rollout(
     resultsEnabled: enabled && !resultsFlag.error && resultsFlag.data === true,
     entryEnabled: enabled && !entryFlag.error && entryFlag.data === true,
     juryEnabled: enabled && !juryFlag.error && juryFlag.data === true,
+    liveEnabled: enabled && !liveFlag.error && liveFlag.data === true,
     organizerEnabled: enabled && !organizerFlag.error && organizerFlag.data === true,
     editionId,
     userId,

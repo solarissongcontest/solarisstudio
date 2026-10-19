@@ -181,6 +181,11 @@ export const STUDIO2_PRODUCT_SURFACES: Readonly<Record<SolarisFeatureFlag, Studi
     route: "/participate", surfaceLabel: "Jury V3", dependsOn: ["solaris_app_v3"],
     description: "Reversible official Jury reliability layer with revision-safe server drafts, idempotent canonical submission, uncertainty recovery and authoritative receipts.",
   },
+  solaris_app_v3_live: {
+    key: "solaris_app_v3_live", label: "Solaris App V3 · Live", state: "integrated", audience: "public",
+    route: "/show-mode", surfaceLabel: "Live V3", dependsOn: ["solaris_app_v3"],
+    description: "Reversible installed-app Live presentation over canonical show and live-result truth, with fail-closed rollout and legacy public fallback preserved during staged cutover.",
+  },
   solaris_app_v3_organizer: {
     key: "solaris_app_v3_organizer", label: "Solaris App V3 · Organizer", state: "integrated", audience: "organizer",
     route: "/admin/operations", surfaceLabel: "Organizer V3", dependsOn: ["solaris_app_v3"],
