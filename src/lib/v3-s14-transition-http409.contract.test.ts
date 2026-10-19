@@ -10,7 +10,7 @@ const migration = readFileSync(
   "utf8",
 );
 
-describe("System V3 S14 edition lifecycle conflict transport", () => {
+describe("System V3 S14 edition lifecycle transition normalization", () => {
   it("targets only the exact governed V3 lifecycle command", () => {
     expect(migration).toContain(
       "public.studio2_transition_edition_v3(uuid,text,text,uuid,bigint,uuid,text)",
@@ -37,6 +37,23 @@ describe("System V3 S14 edition lifecycle conflict transport", () => {
     expect(migration).toContain(
       "Canonical V3 edition transition function is missing",
     );
+  });
+
+  it("aligns only the canonical S4 lifecycle event with edition.transitioned", () => {
+    expect(migration).toContain("v_old_domain_event");
+    expect(migration).toContain("'edition.state_changed'");
+    expect(migration).toContain("v_new_domain_event");
+    expect(migration).toContain("'edition.transitioned'");
+    expect(migration).toContain(
+      "replace(v_rewritten, v_old_domain_event, v_new_domain_event)",
+    );
+    expect(migration).toContain(
+      "Canonical edition.state_changed DomainEvent remains in V3 edition transition",
+    );
+    expect(migration).toContain(
+      "Canonical edition.transitioned DomainEvent was not installed in V3 edition transition",
+    );
+    expect(migration).toContain("legacy contest-event audit vocabulary");
   });
 
   it("preserves genuine DomainEvent worker lease retry semantics on 40001", () => {
