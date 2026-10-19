@@ -69,11 +69,15 @@ function normalizeSearch(searchStr?: string | null) {
   return normalized.length <= 2048 ? normalized : "";
 }
 
+function withinRouteRoot(pathname: string, root: string) {
+  return pathname === root || pathname.startsWith(`${root}/`);
+}
+
 function safeOrganizerPath(pathname: string) {
   return (
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/confirmations/admin") ||
-    pathname.startsWith("/televoting/admin")
+    withinRouteRoot(pathname, "/admin") ||
+    withinRouteRoot(pathname, "/confirmations/admin") ||
+    withinRouteRoot(pathname, "/televoting/admin")
   );
 }
 
@@ -123,6 +127,7 @@ export function readV3OrganizerNavigationState(
     const raw = storage.getItem(storageKey(scopeKey));
     if (!raw) return emptyState();
     const parsed = JSON.parse(raw) as Partial<V3OrganizerNavigationState>;
+    if (parsed.version !== 1) return emptyState();
     const activeTab = VALID_TABS.includes(parsed.activeTab as V3OrganizerTabId)
       ? (parsed.activeTab as V3OrganizerTabId)
       : "overview";
@@ -272,9 +277,11 @@ export function consumeV3OrganizerNavigationRestore(
     const key = restoreKey(scopeKey);
     const raw = storage.getItem(key);
     if (!raw) return null;
+    // Restore intents are one-shot even when malformed, redirected or stale.
+    // A failed handoff must never remain armed and fire on a later route visit.
+    storage.removeItem(key);
     const parsed = JSON.parse(raw) as { href?: string; scrollY?: number };
     if (parsed.href !== pathname + normalizeSearch(searchStr)) return null;
-    storage.removeItem(key);
     return typeof parsed.scrollY === "number" && Number.isFinite(parsed.scrollY)
       ? Math.max(0, parsed.scrollY)
       : 0;
