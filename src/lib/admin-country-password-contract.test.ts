@@ -6,17 +6,14 @@ function source(path: string) {
 }
 
 describe("admin country password reset", () => {
-  it("requires an authenticated organizer and only targets country accounts", () => {
+  it("authenticates the caller but delegates sensitive authorization/freshness to the canonical R3 RPC", () => {
     const edge = source("../supabase/functions/admin-country-password/index.ts");
     expect(edge).toContain('req.headers.get("authorization")');
-    expect(edge).toContain('.from("studio2_role_assignments")');
-    expect(edge).toContain('.in("role_key", ["organizer", "superadmin"])');
-    expect(edge).toContain('.is("edition_id", null)');
+    expect(edge).toContain("publicAuth.auth.getUser(token)");
+    expect(edge).toContain('"studio2_begin_country_account_credential_replace"');
+    expect(edge).not.toContain('.from("studio2_role_assignments")');
     expect(edge).not.toContain('.from("user_roles")');
-    expect(edge).toContain('return json({ error: "Organizer access is required." }, 403)');
-    expect(edge).toContain('.from("country_accounts")');
-    expect(edge).toContain('.eq("user_id", targetUserId)');
-    expect(edge).toContain("service.auth.admin.updateUserById(targetUserId, { password })");
+    expect(edge).not.toContain('.from("country_accounts")');
   });
 
   it("uses the same breached-password safety pattern as country signup", () => {
@@ -27,12 +24,30 @@ describe("admin country password reset", () => {
     expect(edge).toContain('"Add-Padding": "true"');
   });
 
-  it("exposes the reviewed organizer control inside Country accounts", () => {
+  it("never sends the raw password to the database operation boundary", () => {
+    const edge = source("../supabase/functions/admin-country-password/index.ts");
+    expect(edge).toContain("hmacSha256Hex");
+    expect(edge).toContain("p_credential_fingerprint: credentialFingerprint");
+    expect(edge).not.toContain("p_password: password");
+    expect(edge).toContain("service.auth.admin.updateUserById(targetUserId, { password })");
+  });
+
+  it("finalizes receipts only through the trusted service-role path", () => {
+    const edge = source("../supabase/functions/admin-country-password/index.ts");
+    expect(edge).toContain('"studio2_finalize_country_account_credential_replace"');
+    expect(edge).toContain("p_actor_id: callerData.user.id");
+    expect(edge).toContain('p_outcome: "succeeded"');
+    expect(edge).toContain("reconciliationRequired: true");
+  });
+
+  it("keeps the existing reviewed Organizer control wired to the sole Edge Function writer", () => {
     const client = source("lib/country-auth.ts");
     const page = source("routes/_authenticated/admin/country-accounts.tsx");
     const panel = source("components/admin/AdminCountryPasswordPanel.tsx");
 
     expect(client).toContain('invokeFunction<PasswordUpdatePayload>("admin-country-password"');
+    expect(client).toContain('rpc("admin_country_accounts")');
+    expect(client).toContain("pendingAdminCredentialOperations");
     expect(page).toContain("<AdminCountryPasswordPanel account={target} />");
     expect(panel).toContain("<AdminConfirmSheet");
     expect(panel).toContain("adminSetSolarisPassword(review.userId, review.password)");
