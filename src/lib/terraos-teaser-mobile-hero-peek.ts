@@ -28,7 +28,12 @@ function smoothstep(value: number) {
 
 export function resolveTerraOsMobileHeroPeekState(rawProgress: number) {
   const progress = clamp01(rawProgress);
-  const release = smoothstep(range(progress, 0.58, 0.72));
+
+  // Start releasing the phone as soon as the countdown itself begins to fade.
+  // The previous 0.58 start kept the device parked at the bottom long after the
+  // title/date had cleared, producing a large dead black region on mobile.
+  const release = smoothstep(range(progress, 0.4, 0.58));
+
   return {
     active: progress < 0.72,
     shiftFactor: 1 - release,
@@ -50,8 +55,10 @@ function clearPeek(phone: HTMLElement | null) {
  *
  * The main mobile sequencing layer still owns the hero transform and reveal
  * timing. This refinement only offsets that same centre phone far enough down
- * to expose roughly its top 26 px, then releases the offset as the countdown
- * finishes. Side phones remain entirely owned by the main sequence.
+ * to expose roughly its top 26 px. As the countdown starts to fade, the offset
+ * is released immediately so the phone rises through the newly cleared lower
+ * half of the viewport instead of waiting for the hero to be nearly finished.
+ * Side phones remain entirely owned by the main sequence.
  */
 export function installTerraOsTeaserMobileHeroPeek(frame: HTMLElement) {
   const hostDocument = frame.ownerDocument;
