@@ -6,6 +6,11 @@ import { V3_ORGANIZER_CAPABILITY_REGISTRY } from "./v3-organizer-capability-regi
 
 const administration = readFileSync("src/routes/_authenticated/admin/more.tsx", "utf8");
 const guide = readFileSync("src/routes/_authenticated/admin/guide.tsx", "utf8");
+const hodHistory = readFileSync("src/routes/_authenticated/admin/hod-history.tsx", "utf8");
+const hodReviewContract = readFileSync(
+  "src/lib/v3-organizer-hod-tenure-review.contract.test.ts",
+  "utf8",
+);
 const syncHealthRoute = readFileSync("src/routes/_authenticated/admin/sync-health.tsx", "utf8");
 const syncHealthServer = readFileSync(
   "src/integrations/unified/sync-health.functions.ts",
@@ -23,12 +28,13 @@ const operationContract = readFileSync(
 const IMPLEMENTED_WORKSPACE_CAPABILITIES = [
   "workspace-administration",
   "workspace-organizer-guide",
+  "workspace-hod-history",
   "workspace-system-health",
   "workspace-delivery-jobs",
 ] as const;
 
 describe("V3 Organizer implemented workspace building evidence", () => {
-  it("reports the four implemented workspace surfaces as building without parity inflation", () => {
+  it("reports the five implemented workspace surfaces as building without parity inflation", () => {
     const byId = new Map(
       V3_ORGANIZER_CAPABILITY_REGISTRY.map((item) => [item.legacyId, item]),
     );
@@ -48,6 +54,16 @@ describe("V3 Organizer implemented workspace building evidence", () => {
     expect(guide).toContain('title="How to use the organizer tools"');
     expect(guide).toContain("Solaris Organizer is the private contest-management side");
     expect(guide).not.toContain("useMutation(");
+  });
+
+  it("binds HOD History building status to the merged reviewed-tenure workflow", () => {
+    expect(hodHistory).toContain("AdminConfirmSheet");
+    expect(hodHistory).toContain("PendingTenureReview");
+    expect(hodHistory).toContain("pendingTenureReview");
+    expect(hodHistory).toContain("saveHodAssignments");
+    expect(hodHistory).toContain("System #1071");
+    expect(hodReviewContract).toContain("reloads exact assignment slots and fails closed when the reviewed baseline changed");
+    expect(hodReviewContract).toContain("keeps the compatibility writer as the sole authority and states the remaining System boundary");
   });
 
   it("keeps System Health a read-only diagnostic", () => {
@@ -71,14 +87,13 @@ describe("V3 Organizer implemented workspace building evidence", () => {
     expect(operationContract).toContain("Only failed notification deliveries can be retried");
   });
 
-  it("keeps mutation-heavy platform surfaces outside this evidence claim", () => {
+  it("keeps mutation-heavy platform surfaces without merged V3 evidence outside this claim", () => {
     const byId = new Map(
       V3_ORGANIZER_CAPABILITY_REGISTRY.map((item) => [item.legacyId, item]),
     );
     for (const id of [
       "workspace-feature-rollout",
       "workspace-all-editions",
-      "workspace-hod-history",
       "workspace-system-settings",
     ]) {
       expect(byId.get(id)?.migrationStatus).toBe("planned");
