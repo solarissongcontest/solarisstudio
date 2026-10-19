@@ -13,6 +13,10 @@ const guardRehearsal = readFileSync(
   resolve(process.cwd(), ".github/scripts/v3-s14-archive-guard-rehearsal.sh"),
   "utf8",
 );
+const resurrectionRehearsal = readFileSync(
+  resolve(process.cwd(), ".github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh"),
+  "utf8",
+);
 
 describe("System V3 S14 archived Edition task vocabulary", () => {
   it("adopts the S13 forward-fix contract", () => {
@@ -56,10 +60,21 @@ describe("System V3 S14 archived Edition task vocabulary", () => {
     expect(migration).toContain("new.resolved_at := coalesce(new.resolved_at, now())");
   });
 
-  it("rehearses canonical blocker resolution and non-resurrection without sacrificing incident work", () => {
+  it("rehearses canonical blocker resolution without sacrificing incident work", () => {
     expect(guardRehearsal).toContain("'edition.blocker','edition.manage'");
     expect(guardRehearsal).toContain("canonical edition.blocker fixture was not open before archive");
     expect(guardRehearsal).toContain("archive left canonical edition.blocker actionable");
     expect(guardRehearsal).toContain("archive incorrectly resolved legitimate incident governance work");
+  });
+
+  it("proves both update and insert resurrection attempts are neutralized after Archive", () => {
+    expect(resurrectionRehearsal).toContain("Refusing hosted Supabase rehearsal");
+    expect(resurrectionRehearsal).toContain("bun run scripts/check-v3-production-isolation.ts");
+    expect(resurrectionRehearsal).toContain("Attempt to resurrect the canonical Edition blocker");
+    expect(resurrectionRehearsal).toContain("archived edition.blocker was resurrected");
+    expect(resurrectionRehearsal).toContain("Attempt to create new impossible current-contest work after Archive");
+    expect(resurrectionRehearsal).toContain("new impossible archived-edition task became actionable");
+    expect(resurrectionRehearsal).toContain("task invariant incorrectly resolved incident governance work");
+    expect(resurrectionRehearsal).not.toMatch(/supabase\.co/i);
   });
 });
