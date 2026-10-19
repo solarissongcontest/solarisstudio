@@ -191,11 +191,15 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "trust-identity-access" ||
     id === "trust-rules-manager" ||
     id === "trust-interpretations" ||
+    id === "trust-public-rules" ||
     id === "workspace-access-permissions" ||
     id === "workspace-administration" ||
+    id === "workspace-feature-rollout" ||
+    id === "workspace-all-editions" ||
     id === "workspace-organizer-guide" ||
     id === "workspace-country-accounts" ||
     id === "workspace-flag-qa" ||
+    id === "workspace-hod-history" ||
     id === "workspace-acceptance-test" ||
     id === "workspace-beta-coverage" ||
     id === "workspace-public-ux" ||
@@ -203,6 +207,8 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "workspace-predictions" ||
     id === "workspace-fantasy" ||
     id === "workspace-command-assistant" ||
+    id === "workspace-anniversary-settings" ||
+    id === "workspace-anniversary-dates" ||
     id === "workspace-beta-3-feedback" ||
     id === "workspace-beta-2-feedback" ||
     id === "workspace-beta-1-archive" ||
