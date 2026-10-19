@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   matchVoterKey,
@@ -16,6 +17,10 @@ import { FlagMedia } from "@/components/FlagMedia";
  * Hovering a cell highlights the row/column and shows full country names.
  * Columns are keyed by voting entity ("v:<voterId>" or "c:<countryId>") so
  * custom juries display correctly alongside legacy country-only ballots.
+ *
+ * This component is only mounted by the public show route after detailed jury
+ * voting is published. Its share links carry identity only; the share route
+ * revalidates publication and the exact canonical Result Version server-side.
  */
 export function VotingMatrix({
   votes,
@@ -84,6 +89,14 @@ export function VotingMatrix({
     ? voterList.map((voter) => voter.key)
     : order.map((id) => `c:${id}`);
   const rows = [...order].sort((a, b) => (totals.get(b) ?? 0) - (totals.get(a) ?? 0));
+
+  const shareShowId = votes.find((vote) => Boolean(vote.show_id))?.show_id ?? null;
+  const shareCountries = shareShowId
+    ? Array.from(new Set(votes.map((vote) => vote.voter_country_id).filter(Boolean)))
+        .map((countryId) => countries.get(countryId))
+        .filter((country): country is Country => Boolean(country))
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
+    : [];
 
   if (!order.length) return <p className="text-sm text-muted-foreground">No votes yet.</p>;
 
@@ -327,6 +340,55 @@ export function VotingMatrix({
         </tbody>
       </table>
       </div>
+
+      {shareShowId && shareCountries.length ? (
+        <section
+          className="mt-5 border-t border-border/60 pt-4"
+          aria-labelledby="jury-share-cards-title"
+          data-v3-jury-share-discovery=""
+        >
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <p id="jury-share-cards-title" className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                Jury share cards
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Create a verified image from a published country jury ballot.
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {shareCountries.map((country) => (
+              <div
+                key={country.id}
+                className="flex min-w-0 items-center gap-2 rounded-xl border border-border/70 bg-surface/45 p-2.5"
+              >
+                {country.flag_image ? (
+                  <FlagMedia
+                    image={country.flag_image}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    className="h-5 w-8 shrink-0 rounded-[.3rem] object-cover"
+                  />
+                ) : null}
+                <span className="min-w-0 flex-1 truncate text-xs font-semibold">{country.name}</span>
+                <Link
+                  to="/results/jury-share"
+                  search={{ showId: shareShowId, countryId: country.id }}
+                  className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-semibold text-primary transition hover:border-primary/40"
+                  aria-label={`Share ${country.name} jury votes`}
+                >
+                  Share these votes
+                </Link>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
+            The share page rechecks publication and the canonical Result Version before rendering.
+          </p>
+        </section>
+      ) : null}
     </div>
   );
 }
