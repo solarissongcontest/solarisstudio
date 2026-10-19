@@ -20,6 +20,7 @@ import {
 import type { BetaAnswer, BetaAnswers, BetaBugReport } from "@/features/beta-test/types";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadBetaFeedbackScreenshot } from "@/lib/beta-feedback-upload";
+import { publicBetaFeedbackErrorMessage } from "@/lib/public-beta-feedback-safety";
 import { completePublicUxBetaTask } from "@/lib/public-ux-events";
 
 export const Route = createFileRoute("/beta-test/")({
@@ -197,7 +198,7 @@ function BetaTestPage() {
         answers: { ...answers, activityPoints },
         bug_reports: preparedBugs,
         screenshot_paths: uploadedPaths,
-        user_agent: navigator.userAgent,
+        user_agent: null,
         form_version: BETA_FORM_VERSION,
       };
 
@@ -212,12 +213,7 @@ function BetaTestPage() {
       setAnswers((previous) => ({ ...previous, activityPoints }));
       setSubmitted(true);
     } catch (submissionError) {
-      console.error("Beta feedback submission failed", submissionError);
-      setError(
-        submissionError instanceof Error
-          ? `Your feedback was not submitted yet: ${submissionError.message}`
-          : "Your feedback was not submitted yet. Please try again.",
-      );
+      setError(publicBetaFeedbackErrorMessage(submissionError));
     } finally {
       setSubmitting(false);
     }
@@ -319,6 +315,9 @@ function BetaTestPage() {
             <p className="mt-2">
               The test records navigation steps, elapsed time, search use and final route through privacy-minimised
               UX telemetry. It does not record search text, votes, messages, form contents or Integrity evidence.
+            </p>
+            <p className="mt-2">
+              The feedback submission stores the device and browser categories you provide, not your full browser user-agent string.
             </p>
             <p className="mt-2">
               Activity points reward the amount and usefulness of testing, never whether your feedback is positive

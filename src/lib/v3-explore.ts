@@ -56,6 +56,8 @@ export type V3ExploreRoutes = {
   songsAndArtists: string;
   shows: string;
   stories: string;
+  results: string;
+  rules: string;
   editionsArchive: string;
   wiki: string;
   encyclopedia: string;
@@ -290,7 +292,17 @@ export function buildV3ExploreRootProjection(
     },
   ];
 
-  const more: V3ExploreLink[] = [];
+  const more: V3ExploreLink[] = [
+    { key: "results", label: "Results", href: input.routes.results },
+    { key: "rules", label: "Rules", href: input.routes.rules },
+  ];
+  if (currentEdition?.experience === "live" && currentEdition.liveHref) {
+    more.unshift({
+      key: "live",
+      label: "Live",
+      href: currentEdition.liveHref,
+    });
+  }
   if (input.routes.archiveGames) {
     more.push({
       key: "archive-games",

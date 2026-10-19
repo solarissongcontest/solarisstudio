@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 
-import { AppShell } from "@/components/AppShell";
+import { RulesRouteShell } from "@/components/rules/RulesRouteShell";
 import { PARTICIPANT_RULE_JOURNEY } from "@/lib/governance-v5";
 import { getRuleById } from "@/lib/ssc-rules-v4";
 
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/rules/participating")({
 
 function ParticipatingRulesPage() {
   return (
-    <AppShell>
+    <RulesRouteShell resolvingTitle="Opening participation rules">
       <div className="mx-auto max-w-4xl pb-20">
         <header className="border-b border-border/65 pb-5">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-primary/80">Rules</p>
@@ -61,6 +61,6 @@ function ParticipatingRulesPage() {
           ))}
         </ol>
       </div>
-    </AppShell>
+    </RulesRouteShell>
   );
 }

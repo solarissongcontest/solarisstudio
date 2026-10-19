@@ -6,12 +6,14 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { AppEntitySidebar } from "@/components/app/AppEntitySidebar";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
 import { DetailedTelevoteBreakdown } from "@/components/DetailedTelevoteBreakdown";
 import { FlagChip } from "@/components/FlagChip";
 import { FollowButton } from "@/components/FollowButton";
 import { JuryTelevoteComparison } from "@/components/JuryTelevoteComparison";
 import { PublicDataState } from "@/components/public/PublicDataState";
+import { PublicShowResultSpoilerGuard } from "@/components/public/PublicShowResultSpoilerGuard";
 import { RadialPointsView } from "@/components/RadialPointsView";
 import { ResponsiveTabs, type ResponsiveTabOption } from "@/components/ResponsiveTabs";
 import { ScoreboardStage } from "@/components/ScoreboardStage";
@@ -20,6 +22,7 @@ import { ShowVotingStats } from "@/components/ShowVotingStats";
 import { TelevoteRoundsComparison } from "@/components/TelevoteRoundsComparison";
 import { VotingMatrix } from "@/components/VotingMatrix";
 
+import { useAppExperiencePreferences } from "@/lib/app-experience";
 import {
   useContestEntities,
   useAllResults,
@@ -32,6 +35,7 @@ import {
   useTelevotes,
   useThemes,
 } from "@/lib/data";
+import { useNotificationPreferences } from "@/lib/engagement-data";
 import { entityDisplayMap } from "@/lib/entities";
 import {
   filterResultsToCompetingParticipants,
@@ -39,9 +43,11 @@ import {
   participationStatusLabel,
   type ParticipationAwareParticipant,
 } from "@/lib/participation-status";
+import { useFanSession } from "@/lib/prediction-data";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 import { usePublicShowParticipants } from "@/lib/public-participants";
 import { resolveTheme } from "@/lib/theme";
+import { resolveV3ResultsSpoilerProtection } from "@/lib/v3-results";
 import { hasMultipleTelevoteRounds, parseTelevoteComponents, resolveVoting } from "@/lib/voting";
 import type { Standing } from "@/lib/analysis";
 import { buildShowStories } from "@/lib/stories";
@@ -135,6 +141,11 @@ function ShowPage() {
   const { showId } = Route.useParams();
   const search = Route.useSearch();
   const resultsContext = search.from === "results";
+  const { isAppMode } = useSolarisApp();
+  const { preferences } = useAppExperiencePreferences();
+  const viewer = useFanSession();
+  const serverPreferences = useNotificationPreferences(viewer.data?.id);
+  const [resultSpoilersRevealed, setResultSpoilersRevealed] = useState(false);
   const showQuery = useShow(showId);
   const participantsQuery = usePublicShowParticipants(showId);
   const resultsQuery = useResults(showId);
@@ -174,6 +185,18 @@ function ShowPage() {
     () => resolveShowPublication(show),
     [show?.published, show?.publication_config],
   );
+  const hideResultSpoilers =
+    isAppMode &&
+    publication.results &&
+    !resultSpoilersRevealed &&
+    resolveV3ResultsSpoilerProtection({
+      localSpoilerFree: preferences.spoilerFree,
+      viewerResolved: viewer.isSuccess,
+      viewerId: viewer.data?.id ?? null,
+      serverPending: serverPreferences.isPending,
+      serverError: serverPreferences.isError,
+      serverSpoilerFree: serverPreferences.data?.spoiler_free ?? null,
+    });
   const voting = useMemo(() => resolveVoting(show?.voting_config), [show?.voting_config]);
   const showJuryResults = voting.juryEnabled && publication.jury_results;
   const showTelevoteResults = voting.televoteEnabled && publication.televote_results;
@@ -337,6 +360,10 @@ function ShowPage() {
   const [tab, setTab] = useState<Tab>(search.story ? "stories" : (search.tab ?? defaultTab));
 
   useEffect(() => {
+    setResultSpoilersRevealed(false);
+  }, [showId]);
+
+  useEffect(() => {
     if (search.story) {
       setTab("stories");
     } else if (search.tab) {
@@ -394,6 +421,17 @@ function ShowPage() {
           </Panel>
         </div>
       </AppShell>
+    );
+  }
+
+  if (hideResultSpoilers) {
+    return (
+      <PublicShowResultSpoilerGuard
+        key={showId}
+        showName={show.name}
+        showKind={show.kind}
+        onReveal={() => setResultSpoilersRevealed(true)}
+      />
     );
   }
 

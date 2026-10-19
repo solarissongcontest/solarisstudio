@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { BookOpen, CalendarClock, FileClock } from "lucide-react";
 
-import { AppShell } from "@/components/AppShell";
+import { RulesRouteShell } from "@/components/rules/RulesRouteShell";
 import { GovernanceDepthLayout } from "@/components/SolarisDepth";
 import { rulebookReleaseAnchor } from "@/lib/public-library-governance";
 import {
@@ -28,7 +28,7 @@ function RulebookChangesPage() {
   const releases = history.data ?? [];
 
   return (
-    <AppShell>
+    <RulesRouteShell phaseLabel="Rule history" resolvingTitle="Opening Rule history">
       <GovernanceDepthLayout tone="rules" context="rules" className="mx-auto max-w-4xl pb-20">
         <header className="border-b border-border/65 pb-5">
           <p className="text-xs font-black uppercase tracking-[0.12em] text-primary/80">
@@ -63,7 +63,7 @@ function RulebookChangesPage() {
           </ol>
         ) : null}
       </GovernanceDepthLayout>
-    </AppShell>
+    </RulesRouteShell>
   );
 }
 

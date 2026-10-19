@@ -13,6 +13,8 @@ const routes = {
   songsAndArtists: "/entries",
   shows: "/shows",
   stories: "/stories",
+  results: "/results",
+  rules: "/rules",
   editionsArchive: "/editions/",
   wiki: "/wiki",
   encyclopedia: "/encyclopedia",

@@ -27,10 +27,10 @@ describe("Solaris V6 Rules and Trust depth harmonisation", () => {
     }
   });
 
-  it("keeps Rules history and interpretations on the shared Rules depth grammar", () => {
+  it("keeps Rules history and interpretations on the shared Rules depth grammar inside the reversible Rules shell", () => {
     for (const path of RULES_ROUTES) {
       const route = source(path);
-      expect(route, path).toContain("<AppShell>");
+      expect(route, path).toContain("RulesRouteShell");
       expect(route, path).toContain("GovernanceDepthLayout");
       expect(route, path).toContain('tone="rules"');
       expect(route, path).toContain('context="rules"');

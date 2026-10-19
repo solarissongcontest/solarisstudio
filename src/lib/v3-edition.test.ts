@@ -144,6 +144,115 @@ describe("V3 Edition page projection", () => {
     expect(projection?.results.showHref).toBe("/shows/final?from=results");
   });
 
+  it("omits stored result rows for identities known to be non-competing", () => {
+    const projection = buildV3EditionPageProjection(
+      input({
+        edition: edition({ resultsPublication: "published", experience: "results" }),
+        participants: [
+          {
+            id: "oland",
+            name: "Oland",
+            shortCode: "OLA",
+            flagImage: null,
+            accentColor: "#ffffff",
+            href: "/countries/OLA",
+            participationStatus: "confirmed",
+          },
+          {
+            id: "withdrawn",
+            name: "Withdrawnland",
+            shortCode: "WDL",
+            flagImage: null,
+            accentColor: "#888888",
+            href: "/countries/WDL",
+            participationStatus: "withdrawn",
+          },
+          {
+            id: "dq",
+            name: "Disqualifiedland",
+            shortCode: "DQL",
+            flagImage: null,
+            accentColor: "#777777",
+            href: "/countries/DQL",
+            participationStatus: "disqualified",
+          },
+        ],
+        resultShowHref: "/shows/final?from=results",
+        results: [
+          {
+            id: "oland",
+            name: "Oland",
+            shortCode: "OLA",
+            flagImage: null,
+            accentColor: "#ffffff",
+            href: "/countries/OLA",
+            rank: 1,
+            totalPoints: 250,
+          },
+          {
+            id: "withdrawn",
+            name: "Withdrawnland",
+            shortCode: "WDL",
+            flagImage: null,
+            accentColor: "#888888",
+            href: "/countries/WDL",
+            rank: 2,
+            totalPoints: 200,
+          },
+          {
+            id: "dq",
+            name: "Disqualifiedland",
+            shortCode: "DQL",
+            flagImage: null,
+            accentColor: "#777777",
+            href: "/countries/DQL",
+            rank: 3,
+            totalPoints: 150,
+          },
+        ],
+      }),
+    );
+
+    expect(projection?.results.state).toBe("available");
+    expect(projection?.results.rows.map((row) => row.id)).toEqual(["oland"]);
+  });
+
+  it("does not treat a published result as available when only non-competing rows remain", () => {
+    const projection = buildV3EditionPageProjection(
+      input({
+        edition: edition({ resultsPublication: "published", experience: "results" }),
+        participants: [
+          {
+            id: "withdrawn",
+            name: "Withdrawnland",
+            shortCode: "WDL",
+            flagImage: null,
+            accentColor: "#888888",
+            href: "/countries/WDL",
+            participationStatus: "withdrawn",
+          },
+        ],
+        resultShowHref: "/shows/final?from=results",
+        results: [
+          {
+            id: "withdrawn",
+            name: "Withdrawnland",
+            shortCode: "WDL",
+            flagImage: null,
+            accentColor: "#888888",
+            href: "/countries/WDL",
+            rank: 1,
+            totalPoints: 200,
+          },
+        ],
+      }),
+    );
+
+    expect(projection?.results.state).toBe("empty");
+    expect(projection?.results.rows).toEqual([]);
+    expect(projection?.results.showHref).toBeNull();
+  });
+
   it("keeps empty publication-safe sections explicit", () => {
     const projection = buildV3EditionPageProjection(
       input({ participants: [], entries: [], shows: [], story: null }),
