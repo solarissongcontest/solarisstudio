@@ -75,7 +75,7 @@ describe("V3 Organizer Jury vote correction authority", () => {
 
   it("serializes against Results and fails closed after any official outcome publication begins", () => {
     expect(authority).toContain("'studio2-results:' || p_show_id::text");
-    expect(authority).toContain("studio2_jury_correction_results_are_protected");
+    expect(authority).toContain("studio2_jury_correction_results_protected");
     expect(authority).toContain("operation.locked_version is not null");
     expect(authority).toContain("operation.reveal_ready_version is not null");
     expect(authority).toContain("control.state in ('scheduled', 'public')");
