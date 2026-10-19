@@ -193,6 +193,7 @@ export function deriveV3EntryResubmissionDiff(
   if (history.length < 2) return null;
   const ordered = [...history].sort((left, right) => right.revision - left.revision);
   const current = ordered[0];
+  if (!current) return null;
   const previous = ordered.find((version) => version.revision < current.revision);
   if (!previous) return null;
 
