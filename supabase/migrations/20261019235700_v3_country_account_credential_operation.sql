@@ -236,7 +236,7 @@ begin
 
   if v_account.user_id is null
      or v_account.country_id is distinct from p_country_id
-     or v_account.updated_at::text is distinct from v_receipt.scope ->> 'expectedAccountUpdatedAt' then
+     or v_account.updated_at is distinct from (v_receipt.scope ->> 'expectedAccountUpdatedAt')::timestamptz then
     raise exception using
       errcode = 'P0001',
       message = 'STATE_CHANGED',
