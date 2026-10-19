@@ -27,17 +27,29 @@ describe("V3 Stories published relationship navigation", () => {
     expect(screen).toContain("bundle.moreStories.map");
   });
 
-  it("keeps safe Edition context visible but related Story titles behind spoiler reveal", () => {
+  it("keeps safe Edition context visible but Story payload, sharing and neighbour titles behind spoiler reveal", () => {
     const screen = source("src/components/v3/V3StoryDetailScreen.tsx");
     const spoilerGuard = screen.indexOf("if (hideSpoilers && !revealed)");
+    const shareAction = screen.indexOf("<StoryShareButton");
     const relatedStories = screen.indexOf("bundle.moreStories.length");
-    const protectedBranch = screen.slice(spoilerGuard, relatedStories);
+    const protectedBranch = screen.slice(spoilerGuard, shareAction);
 
     expect(spoilerGuard).toBeGreaterThanOrEqual(0);
-    expect(relatedStories).toBeGreaterThan(spoilerGuard);
+    expect(shareAction).toBeGreaterThan(spoilerGuard);
+    expect(relatedStories).toBeGreaterThan(shareAction);
     expect(protectedBranch).toContain("<StoryContextLinks editionSlug={story.editionSlug} />");
     expect(protectedBranch).toContain("Reveal edition story");
+    expect(protectedBranch).not.toContain("StoryShareButton title=");
     expect(protectedBranch).not.toContain("related.title");
     expect(protectedBranch).not.toContain("bundle.moreStories.map");
+  });
+
+  it("shares only the canonical Story route derived from the published Edition slug", () => {
+    const screen = source("src/components/v3/V3StoryDetailScreen.tsx");
+
+    expect(screen).toContain("new URL(`/stories/${encodeURIComponent(editionSlug)}`, window.location.origin)");
+    expect(screen).toContain("await navigator.share({ title, url })");
+    expect(screen).toContain("await navigator.clipboard.writeText(url)");
+    expect(screen).not.toContain("encodeURIComponent(title)");
   });
 });
