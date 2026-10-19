@@ -17,6 +17,43 @@ export function PublicUxActionabilityPanel({
 }) {
   const findings = buildPublicUxFindings(metrics, vitalRows);
   const serverGaps = publicUxServerGaps(metrics);
+  const diagnostics = metrics.diagnostics;
+  const coverageRows = diagnostics
+    ? [
+        {
+          label: "Route backtracking",
+          value: `${diagnostics.routeBacktracking.sessions} sessions · ${diagnostics.routeBacktracking.events} returns`,
+          detail: diagnostics.routeBacktracking.topDestinations[0]
+            ? `Top: ${diagnostics.routeBacktracking.topDestinations[0].destination} (${diagnostics.routeBacktracking.topDestinations[0].count})`
+            : "No measured backtracks in this window.",
+          definition: diagnostics.definitions.routeBacktracking,
+        },
+        {
+          label: "Dead ends",
+          value: `${diagnostics.deadEnds.sessions} sessions`,
+          detail: diagnostics.deadEnds.topRoutes[0]
+            ? `Top: ${diagnostics.deadEnds.topRoutes[0].pathname} · ${diagnostics.deadEnds.topRoutes[0].source} (${diagnostics.deadEnds.topRoutes[0].count})`
+            : "No measured dead ends in this window.",
+          definition: diagnostics.definitions.deadEnds,
+        },
+        {
+          label: "Workflow abandonment",
+          value: `${diagnostics.workflowAbandonment.abandoned} / ${diagnostics.workflowAbandonment.eligibleStarts} eligible runs`,
+          detail: diagnostics.workflowAbandonment.tasks[0]
+            ? `Top: ${diagnostics.workflowAbandonment.tasks[0].target} · ${Math.round(diagnostics.workflowAbandonment.tasks[0].abandonmentRate)}%`
+            : `No eligible ${diagnostics.workflowAbandonment.windowMinutes}-minute task runs in this window.`,
+          definition: diagnostics.definitions.workflowAbandonment,
+        },
+        {
+          label: "Error classes",
+          value: `${diagnostics.errors.total} classified errors`,
+          detail: diagnostics.errors.classes[0]
+            ? `Top: ${diagnostics.errors.classes[0].errorClass} (${diagnostics.errors.classes[0].count})`
+            : "No classified public errors in this window.",
+          definition: diagnostics.definitions.errorClasses,
+        },
+      ]
+    : [];
 
   return (
     <section className="grid gap-4 xl:grid-cols-[1.25fr_.75fr]">
@@ -93,26 +130,25 @@ export function PublicUxActionabilityPanel({
             description={`Public UX projection schema v${metrics.schemaVersion} supplies all four bounded diagnostic families required by the V3 workspace.`}
           />
           <div className="mt-4 space-y-2">
-            {[
-              ["Route backtracking", metrics.diagnostics?.definitions.routeBacktracking],
-              ["Dead ends", metrics.diagnostics?.definitions.deadEnds],
-              ["Workflow abandonment", metrics.diagnostics?.definitions.workflowAbandonment],
-              ["Error classes", metrics.diagnostics?.definitions.errorClasses],
-            ].map(([label, definition]) => (
+            {coverageRows.map((row) => (
               <div
-                key={label}
+                key={row.label}
                 className="rounded-xl border border-white/[0.07] bg-black/10 px-3 py-2.5"
               >
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="size-3.5 shrink-0 text-emerald-200" aria-hidden="true" />
-                  <span className="text-xs font-semibold">{label}</span>
-                  <span className="ml-auto">
-                    <AdminStatus tone="ready">Available</AdminStatus>
-                  </span>
+                <div className="flex items-start gap-2">
+                  <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-emerald-200" aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-semibold">{row.label}</span>
+                      <AdminStatus tone="ready">Available</AdminStatus>
+                    </div>
+                    <p className="numeric mt-1 text-xs font-bold text-foreground">{row.value}</p>
+                    <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{row.detail}</p>
+                    <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground/80">
+                      {row.definition}
+                    </p>
+                  </div>
                 </div>
-                {definition ? (
-                  <p className="mt-1.5 text-[11px] leading-4 text-muted-foreground">{definition}</p>
-                ) : null}
               </div>
             ))}
           </div>
