@@ -144,6 +144,115 @@ $state$;
 revoke all on function private.studio2_confirmation_requirement_materialization_state(uuid, uuid[])
   from public, anon, authenticated;
 
+-- Preserve the established requirement generator as the single compatibility
+-- writer, but bind its authorization to the explicit edition instead of a
+-- global Organizer check. The materialization command below invokes this same
+-- writer with the exact reviewed target set.
+create or replace function public.admin_confirmation_ensure_requirements(
+  p_edition_id uuid,
+  p_country_ids uuid[] default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, private
+as $ensure$
+declare
+  v_inserted integer := 0;
+  v_country_count integer;
+  v_requested_count integer := cardinality(coalesce(p_country_ids, '{}'::uuid[]));
+begin
+  if not public.studio2_access_allowed('delegation.manage', p_edition_id, true) then
+    raise exception 'Missing Solaris capability: delegation.manage' using errcode = '42501';
+  end if;
+
+  if p_edition_id is null
+     or not exists (select 1 from public.editions edition where edition.id = p_edition_id) then
+    raise exception 'Valid edition id is required' using errcode = '22023';
+  end if;
+
+  if p_country_ids is not null then
+    select count(*)::integer into v_country_count from public.countries;
+    if v_requested_count > v_country_count then
+      raise exception 'Confirmation requirement batch exceeds the canonical country universe'
+        using errcode = '22023';
+    end if;
+  end if;
+
+  perform pg_advisory_xact_lock(
+    hashtextextended('studio2-confirmation-requirements:' || p_edition_id::text, 0)
+  );
+
+  with target_countries as (
+    select distinct account.country_id
+    from public.country_accounts account
+    where account.status = 'active'
+      and (p_country_ids is null or account.country_id = any(p_country_ids))
+    union
+    select unnest(coalesce(p_country_ids, '{}'::uuid[]))
+  ),
+  inserted as (
+    insert into public.studio2_confirmation_requirements (
+      edition_id,
+      country_id,
+      generation,
+      status,
+      reason,
+      valid_from,
+      created_by
+    )
+    select
+      p_edition_id,
+      target.country_id,
+      1,
+      'required',
+      'Edition confirmation required by TSBC',
+      now(),
+      auth.uid()
+    from target_countries target
+    where target.country_id is not null
+      and exists (
+        select 1 from public.countries country where country.id = target.country_id
+      )
+      and not exists (
+        select 1
+        from public.studio2_confirmation_requirements requirement
+        where requirement.edition_id = p_edition_id
+          and requirement.country_id = target.country_id
+          and requirement.superseded_at is null
+      )
+    returning id
+  )
+  select count(*)::integer into v_inserted from inserted;
+
+  perform private.studio2_reconcile_confirmation_requirement(
+    p_edition_id,
+    target.country_id
+  )
+  from (
+    select distinct account.country_id
+    from public.country_accounts account
+    where account.status = 'active'
+      and (p_country_ids is null or account.country_id = any(p_country_ids))
+    union
+    select unnest(coalesce(p_country_ids, '{}'::uuid[]))
+  ) target
+  where target.country_id is not null
+    and exists (select 1 from public.countries country where country.id = target.country_id);
+
+  return jsonb_build_object(
+    'ok', true,
+    'editionId', p_edition_id,
+    'created', v_inserted
+  );
+end
+$ensure$;
+
+revoke all on function public.admin_confirmation_ensure_requirements(uuid, uuid[])
+  from public, anon;
+grant execute on function public.admin_confirmation_ensure_requirements(uuid, uuid[])
+  to authenticated, service_role;
+
 create or replace function public.admin_confirmation_requirement_materialization_preview(
   p_edition_id uuid,
   p_country_ids uuid[] default null
@@ -161,8 +270,7 @@ begin
     raise exception 'Authentication required' using errcode = '42501';
   end if;
 
-  if not private.solaris_confirmation_admin_allowed()
-     or not public.studio2_access_allowed('delegation.manage', p_edition_id, false) then
+  if not public.studio2_access_allowed('delegation.manage', p_edition_id, true) then
     raise exception 'Missing Solaris capability: delegation.manage' using errcode = '42501';
   end if;
 
@@ -176,9 +284,9 @@ end
 $preview$;
 
 revoke all on function public.admin_confirmation_requirement_materialization_preview(uuid, uuid[])
-  from public, anon;
+  from public, anon, service_role;
 grant execute on function public.admin_confirmation_requirement_materialization_preview(uuid, uuid[])
-  to authenticated, service_role;
+  to authenticated;
 
 create or replace function public.admin_confirmation_apply_requirement_materialization(
   p_edition_id uuid,
@@ -213,8 +321,7 @@ begin
     raise exception 'Authentication required' using errcode = '42501';
   end if;
 
-  if not private.solaris_confirmation_admin_allowed()
-     or not public.studio2_access_allowed('delegation.manage', p_edition_id, false) then
+  if not public.studio2_access_allowed('delegation.manage', p_edition_id, true) then
     raise exception 'Missing Solaris capability: delegation.manage' using errcode = '42501';
   end if;
 
@@ -224,8 +331,6 @@ begin
       using errcode = '22023';
   end if;
 
-  -- Validate and normalize the caller's target set before the semantic operation
-  -- is claimed. The state itself is re-read under the edition lock below.
   v_input_state := private.studio2_confirmation_requirement_materialization_state(
     p_edition_id,
     p_country_ids
@@ -257,7 +362,7 @@ begin
       'operationId', v_claim ->> 'operationId',
       'status', v_claim ->> 'status',
       'error', v_claim -> 'error',
-      'reconciliationRequired', true,
+      'reconciliationRequired', (v_claim ->> 'status') in ('processing', 'uncertain'),
       'serverTime', now()
     );
   end if;
@@ -268,8 +373,25 @@ begin
     hashtextextended('studio2-confirmation-requirements:' || p_edition_id::text, 0)
   );
 
-  -- Recompute the exact impact after the same lock used by the legacy canonical
-  -- generator has been acquired. Apply only the target set that was reviewed.
+  v_preview := private.studio2_confirmation_requirement_materialization_state(
+    p_edition_id,
+    p_country_ids
+  );
+
+  select coalesce(array_agg((target.value ->> 'countryId')::uuid order by target.ordinality), '{}'::uuid[])
+  into v_target_ids
+  from jsonb_array_elements(v_preview -> 'targets') with ordinality as target(value, ordinality);
+
+  -- Lock every existing reviewed requirement before the final preview comparison.
+  -- Missing rows remain protected by the partial unique invariant and the atomic
+  -- compatibility writer below.
+  perform 1
+  from public.studio2_confirmation_requirements requirement
+  where requirement.edition_id = p_edition_id
+    and requirement.country_id = any(v_target_ids)
+    and requirement.superseded_at is null
+  for update;
+
   v_preview := private.studio2_confirmation_requirement_materialization_state(
     p_edition_id,
     p_country_ids
@@ -309,10 +431,6 @@ begin
 
   v_create_count := coalesce((v_preview ->> 'createCount')::integer, 0);
 
-  -- Keep the existing generator as the one canonical writer. The nested block
-  -- gives us a subtransaction: if a compatibility race violates the reviewed
-  -- impact, its writes are rolled back while the outer operation receipt can be
-  -- durably failed and reconciled.
   begin
     v_legacy_result := public.admin_confirmation_ensure_requirements(
       p_edition_id,
@@ -382,8 +500,8 @@ begin
     '[]'::jsonb
   )
   into v_created_requirements
-  from jsonb_array_elements(v_preview -> 'createTargets') target
-  join public.countries country on country.id = (target ->> 'countryId')::uuid
+  from jsonb_array_elements(v_preview -> 'createTargets') as created_target(value)
+  join public.countries country on country.id = (created_target.value ->> 'countryId')::uuid
   join public.studio2_confirmation_requirements requirement
     on requirement.edition_id = p_edition_id
    and requirement.country_id = country.id
@@ -441,10 +559,10 @@ $apply$;
 
 revoke all on function public.admin_confirmation_apply_requirement_materialization(
   uuid, uuid[], text, uuid, text, uuid
-) from public, anon;
+) from public, anon, service_role;
 grant execute on function public.admin_confirmation_apply_requirement_materialization(
   uuid, uuid[], text, uuid, text, uuid
-) to authenticated, service_role;
+) to authenticated;
 
 notify pgrst, 'reload schema';
 
