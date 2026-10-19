@@ -17,6 +17,10 @@ export type ShowLineupMembershipAction =
   | "member_remove"
   | "promote_qualifiers";
 
+export type ShowLineupMetadataAction =
+  | "member_metadata_update"
+  | "sync_entry_metadata";
+
 type ShowLineupOperationInput = {
   editionId: string;
   showId: string;
@@ -31,6 +35,16 @@ type ShowLineupMembershipInput = {
   editionId: string;
   showId: string;
   action: ShowLineupMembershipAction;
+  payload?: Record<string, unknown>;
+  operationId?: string;
+  idempotencyKey?: string;
+  reason?: string;
+};
+
+type ShowLineupMetadataInput = {
+  editionId: string;
+  showId: string;
+  action: ShowLineupMetadataAction;
   payload?: Record<string, unknown>;
   operationId?: string;
   idempotencyKey?: string;
@@ -94,6 +108,18 @@ export type ShowLineupMembershipResult = {
   replayed: boolean;
 };
 
+export type ShowLineupMetadataResult = {
+  ok: true;
+  operationId: string;
+  showId: string;
+  showName: string;
+  action: string;
+  stateVersion: string;
+  participantCount: number;
+  changedCount: number;
+  replayed: boolean;
+};
+
 export type AddCountriesToShowResult = ShowLineupOperationResult & {
   countryIds: string[];
 };
@@ -141,6 +167,11 @@ const membershipActions = new Set<ShowLineupMembershipAction>([
   "promote_qualifiers",
 ]);
 
+const metadataActions = new Set<ShowLineupMetadataAction>([
+  "member_metadata_update",
+  "sync_entry_metadata",
+]);
+
 function requireId(value: unknown, label: string) {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required`);
   return value.trim();
@@ -162,6 +193,13 @@ function requireMembershipAction(value: unknown): ShowLineupMembershipAction {
     throw new Error("Choose a valid line-up membership operation");
   }
   return value as ShowLineupMembershipAction;
+}
+
+function requireMetadataAction(value: unknown): ShowLineupMetadataAction {
+  if (typeof value !== "string" || !metadataActions.has(value as ShowLineupMetadataAction)) {
+    throw new Error("Choose a valid line-up metadata operation");
+  }
+  return value as ShowLineupMetadataAction;
 }
 
 function describeBlockers(blockers: unknown) {
@@ -224,6 +262,29 @@ function completedMembershipResult(
   };
 }
 
+function completedMetadataResult(
+  envelope: LineupOperationEnvelope,
+  fallbackOperationId: string,
+  replayed: boolean,
+): ShowLineupMetadataResult {
+  const result = envelope.result ?? {};
+  const canonicalOperationId = envelope.operationId ?? result.operationId ?? fallbackOperationId;
+  if (!result.ok || !result.showId || !result.showName || !result.stateVersion || !result.action) {
+    throw new Error("The canonical line-up metadata command returned an incomplete receipt.");
+  }
+  return {
+    ok: true,
+    operationId: canonicalOperationId,
+    showId: result.showId,
+    showName: result.showName,
+    action: result.action,
+    stateVersion: result.stateVersion,
+    participantCount: result.participantCount ?? 0,
+    changedCount: result.changedCount ?? 0,
+    replayed,
+  };
+}
+
 async function reconcileExistingOperation(
   client: any,
   operationId: string,
@@ -246,18 +307,11 @@ async function runShowLineupOperation(
   data: ShowLineupOperationInput,
 ): Promise<ShowLineupOperationResult> {
   await requireSolarisOrganizerServer();
-
-  // Use the request's authenticated Solaris identity for canonical commands.
-  // Exact-edition capability checks remain server-authoritative inside the RPC.
   const client = createSolarisAuthenticatedClientServer() as any;
   const payload = data.payload ?? {};
   const operationId = data.operationId ?? crypto.randomUUID();
   const idempotencyKey = data.idempotencyKey ?? `show-lineup:${data.action}:${operationId}`;
 
-  // Lost-response recovery must happen before a fresh preflight. A successful
-  // first request advances canonical state, so preflighting first would produce
-  // a different state-version fingerprint and turn a safe replay into an
-  // IDEMPOTENCY_CONFLICT.
   if (data.operationId) {
     const envelope = await reconcileExistingOperation(client, operationId);
     if (envelope) return completedOperationResult(envelope, operationId, true);
@@ -337,6 +391,50 @@ async function runShowLineupMembershipOperation(
   return completedMembershipResult(envelope, operationId, Boolean(envelope.replayed));
 }
 
+async function runShowLineupMetadataOperation(
+  data: ShowLineupMetadataInput,
+): Promise<ShowLineupMetadataResult> {
+  await requireSolarisOrganizerServer();
+  const client = createSolarisAuthenticatedClientServer() as any;
+  const payload = data.payload ?? {};
+  const operationId = data.operationId ?? crypto.randomUUID();
+  const idempotencyKey = data.idempotencyKey ?? `show-lineup-metadata:${data.action}:${operationId}`;
+
+  if (data.operationId) {
+    const envelope = await reconcileExistingOperation(client, operationId);
+    if (envelope) return completedMetadataResult(envelope, operationId, true);
+  }
+
+  const preflightResponse = await client.rpc("v3_show_lineup_metadata_preflight", {
+    p_edition_id: data.editionId,
+    p_show_id: data.showId,
+    p_action: data.action,
+    p_payload: payload,
+  });
+  if (preflightResponse.error) throw new Error(preflightResponse.error.message);
+
+  const preflight = (preflightResponse.data ?? {}) as LineupPreflight;
+  if (!preflight.ok || !preflight.stateVersion) {
+    throw new Error(describeBlockers(preflight.blockers));
+  }
+
+  const operationResponse = await client.rpc("v3_execute_show_lineup_metadata_operation", {
+    p_edition_id: data.editionId,
+    p_show_id: data.showId,
+    p_action: data.action,
+    p_payload: payload,
+    p_operation_id: operationId,
+    p_idempotency_key: idempotencyKey,
+    p_expected_state_version: preflight.stateVersion,
+    p_reason: data.reason?.trim() || null,
+    p_correlation_id: operationId,
+  });
+  if (operationResponse.error) throw new Error(operationResponse.error.message);
+
+  const envelope = (operationResponse.data ?? {}) as LineupOperationEnvelope;
+  return completedMetadataResult(envelope, operationId, Boolean(envelope.replayed));
+}
+
 export const getSolarisEditionSyncTargets = createServerFn({ method: "POST" })
   .inputValidator((data: SyncTargetsInput) => {
     const editionNumber = Number(data?.editionNumber);
@@ -394,6 +492,18 @@ export const executeShowLineupMembershipOperation = createServerFn({ method: "PO
     reason: typeof data?.reason === "string" ? data.reason : undefined,
   }))
   .handler(async ({ data }): Promise<ShowLineupMembershipResult> => runShowLineupMembershipOperation(data));
+
+export const executeShowLineupMetadataOperation = createServerFn({ method: "POST" })
+  .inputValidator((data: ShowLineupMetadataInput) => ({
+    editionId: requireId(data?.editionId, "Edition"),
+    showId: requireId(data?.showId, "Show"),
+    action: requireMetadataAction(data?.action),
+    payload: data?.payload && typeof data.payload === "object" && !Array.isArray(data.payload) ? data.payload : {},
+    operationId: optionalId(data?.operationId),
+    idempotencyKey: optionalId(data?.idempotencyKey),
+    reason: typeof data?.reason === "string" ? data.reason : undefined,
+  }))
+  .handler(async ({ data }): Promise<ShowLineupMetadataResult> => runShowLineupMetadataOperation(data));
 
 export const addCountriesToShow = createServerFn({ method: "POST" })
   .inputValidator((data: AddCountriesInput) => ({
