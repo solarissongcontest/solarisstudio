@@ -44,11 +44,12 @@ describe("installed app information hierarchy", () => {
     expect(styles).not.toContain('body .public-hub-hero { display: none');
   });
 
-  it("does not treat participation workflows as recently viewed content", () => {
+  it("takes critical and immersive recent exclusions from the canonical screen registry", () => {
     const recents = source("src/lib/public-recents.ts");
-    expect(recents).toContain('"/confirmations"');
-    expect(recents).toContain('"/jury-voting"');
-    expect(recents).toContain('"/televoting"');
-    expect(recents).toContain('NON_CONTENT_RECENT_PREFIXES.some');
+    expect(recents).toContain("resolveSolarisAppScreen(path)");
+    expect(recents).toContain("screen.behavior.criticalTask || screen.behavior.immersive");
+    expect(recents).not.toContain("NON_CONTENT_RECENT_PREFIXES");
+    expect(recents).not.toContain('"/confirmations"');
+    expect(recents).not.toContain('"/jury-voting"');
   });
 });
