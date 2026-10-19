@@ -10,15 +10,22 @@ const preflight = fs.readFileSync(
   path.join(process.cwd(), "supabase/migrations/20261019223100_v3_jury_correction_preflight_blockers.sql"),
   "utf8",
 );
+const publicationGuard = fs.readFileSync(
+  path.join(process.cwd(), "supabase/migrations/20261019223200_v3_jury_correction_publication_guard.sql"),
+  "utf8",
+);
 
 describe("V3 Organizer Jury vote correction authority", () => {
-  it("registers both forward-only migrations under the S13 framework", () => {
+  it("registers every forward-only migration under the S13 framework", () => {
     expect(authority).toContain("public.v3_register_migration_contract(");
     expect(authority).toContain("'20261019223000_v3_jury_vote_correction_authority'");
     expect(authority).toContain("'forward_fix_only'");
     expect(preflight).toContain("public.v3_register_migration_contract(");
     expect(preflight).toContain("'20261019223100_v3_jury_correction_preflight_blockers'");
     expect(preflight).toContain("'forward_fix_only'");
+    expect(publicationGuard).toContain("public.v3_register_migration_contract(");
+    expect(publicationGuard).toContain("'20261019223200_v3_jury_correction_publication_guard'");
+    expect(publicationGuard).toContain("'forward_fix_only'");
   });
 
   it("keeps the existing object-scope authority and requires Organizer Jury capability", () => {
@@ -66,13 +73,17 @@ describe("V3 Organizer Jury vote correction authority", () => {
     expect(authority).toContain("private.studio2_complete_operation");
   });
 
-  it("serializes against Results and fails closed after official result protection begins", () => {
+  it("serializes against Results and fails closed after any official outcome publication begins", () => {
     expect(authority).toContain("'studio2-results:' || p_show_id::text");
-    expect(authority).toContain("studio2_jury_correction_results_protected");
+    expect(authority).toContain("studio2_jury_correction_results_are_protected");
     expect(authority).toContain("operation.locked_version is not null");
     expect(authority).toContain("operation.reveal_ready_version is not null");
     expect(authority).toContain("control.state in ('scheduled', 'public')");
     expect(authority).toContain("Results must be corrected through the Results correction lifecycle");
+    expect(publicationGuard).toContain("private.studio2_publication_has_outcomes(control.frozen_config)");
+    expect(publicationGuard).toContain("show_row.publication_config ? 'qualifiers'");
+    expect(publicationGuard).toContain("show_row.publication_config -> 'qualifiers' = 'true'::jsonb");
+    expect(publicationGuard).toContain("show_row.publication_config -> 'jury_results' = 'true'::jsonb");
   });
 
   it("forces an unlocked calculated result back to genuine recalculation without destroying immutable snapshots", () => {
