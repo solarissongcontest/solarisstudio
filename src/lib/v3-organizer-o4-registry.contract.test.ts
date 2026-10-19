@@ -21,15 +21,13 @@ describe("V3 Organizer O4 capability registry", () => {
       "delegation-calendar",
       "delegation-access",
       "delegation-submission-history",
+      "delegation-edition-links",
       "delegation-sync",
       "delegation-settings",
     ]) {
       expect(capability(id).migrationStatus).toBe("building");
+      expect(["parity", "cutover", "retired"]).not.toContain(capability(id).migrationStatus);
     }
-  });
-
-  it("keeps untouched O4 specialist surfaces planned", () => {
-    expect(capability("delegation-edition-links").migrationStatus).toBe("planned");
   });
 
   it("keeps Eligibility in Contest instead of treating it as delegation authority", () => {
