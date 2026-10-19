@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { v3DomainConsequence } from "./v3-domain-consequence-registry";
 import { v3SystemDomain } from "./v3-system-domain-registry";
+import { V3_VERIFIED_DOMAIN_TABLES } from "./v3-system-physical-audit";
 
 const migration = readFileSync(
   "supabase/migrations/20261020002000_v3_organizer_reminder_commands.sql",
@@ -14,7 +15,11 @@ const client = readFileSync("src/lib/admin-ops.ts", "utf8");
 describe("V3 Organizer custom reminder command authority", () => {
   it("registers one canonical reminder owner and event-backed consequence", () => {
     const domain = v3SystemDomain("organizer-reminder");
-    expect(domain?.primaryTables).toEqual(["admin_deadlines"]);
+    expect(V3_VERIFIED_DOMAIN_TABLES["organizer-reminder"]).toEqual([
+      "public.admin_deadlines",
+    ]);
+    expect(domain?.primaryTables).toEqual(["public.admin_deadlines"]);
+    expect(domain?.physicalAuditStatus).toBe("verified");
     expect(domain?.mutationCommands).toEqual([
       "organizer_reminder.create",
       "organizer_reminder.set_completed",
