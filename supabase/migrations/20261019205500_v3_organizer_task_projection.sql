@@ -316,7 +316,7 @@ begin
     select *
     from projected item
     where case v_filter
-      when 'all' then item.payload ->> 'operationalState' <> 'resolved'
+      when 'all' then item.payload ->> 'operationalState' not in ('resolved', 'expired', 'superseded')
       when 'needs_action' then coalesce((item.payload ->> 'actionRequired')::boolean, false)
       when 'actionable' then item.payload ->> 'operationalState' in ('actionable', 'in_progress')
       when 'in_progress' then item.payload ->> 'operationalState' = 'in_progress'
@@ -326,9 +326,10 @@ begin
       when 'overdue' then item.payload ->> 'operationalState' in ('overdue', 'expired')
       when 'expired' then item.payload ->> 'operationalState' = 'expired'
       when 'superseded' then item.payload ->> 'operationalState' = 'superseded'
-      when 'mine' then item.payload ->> 'operationalState' <> 'resolved' and item.assigned_to = v_actor
-      when 'resolved' then item.payload ->> 'operationalState' = 'resolved'
-      when 'recent_resolved' then item.payload ->> 'operationalState' = 'resolved'
+      when 'mine' then item.payload ->> 'operationalState' not in ('resolved', 'expired', 'superseded')
+        and item.assigned_to = v_actor
+      when 'resolved' then item.payload ->> 'operationalState' in ('resolved', 'expired', 'superseded')
+      when 'recent_resolved' then item.payload ->> 'operationalState' in ('resolved', 'expired', 'superseded')
         and item.resolved_at >= v_now - interval '30 days'
       else false
     end
@@ -348,7 +349,9 @@ begin
   stats as (
     select jsonb_build_object(
       'total', count(*),
-      'unresolved', count(*) filter (where payload ->> 'operationalState' <> 'resolved'),
+      'unresolved', count(*) filter (
+        where payload ->> 'operationalState' not in ('resolved', 'expired', 'superseded')
+      ),
       'actionable', count(*) filter (where payload ->> 'operationalState' = 'actionable'),
       'inProgress', count(*) filter (where payload ->> 'operationalState' = 'in_progress'),
       'blocked', count(*) filter (where payload ->> 'operationalState' = 'blocked'),
