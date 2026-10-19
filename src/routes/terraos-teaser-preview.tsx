@@ -6,7 +6,9 @@ import {
   type TerraOSTeaserScreen,
 } from "@/components/v3/TerraOSTeaserPreview";
 import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
+import { installTerraOsTeaserHeroHandoff } from "@/lib/terraos-teaser-hero-handoff";
 import { installTerraOsTeaserHostMicroMotion } from "@/lib/terraos-teaser-host-micro-motion";
+import { installTerraOsTeaserMobileHeroSequencing } from "@/lib/terraos-teaser-mobile-hero-sequencing";
 
 const SCREENS = new Set<TerraOSTeaserScreen>([
   "home",
@@ -51,11 +53,23 @@ function TerraOSTeaserPreviewRoute() {
   useEffect(() => {
     // The full Home renderer is the same-origin bridge already used by the
     // maintenance teaser. Content-only nested previews must never recursively
-    // install host motion.
+    // install host motion or the cross-scene hero handoff.
     if (screen !== "home" || chrome === "content") return;
     const frame = window.frameElement as HTMLElement | null;
     if (!frame) return;
-    return installTerraOsTeaserHostMicroMotion(frame);
+
+    // TerraOSTeaserPreview's child effect installs the macro choreography first.
+    // These route-level refinements therefore run afterward. Mobile sequencing
+    // owns only the opening composition; the handoff remains the final owner of
+    // the centre device when the first-look scene approaches.
+    const cleanupMicroMotion = installTerraOsTeaserHostMicroMotion(frame);
+    const cleanupMobileHero = installTerraOsTeaserMobileHeroSequencing(frame);
+    const cleanupHeroHandoff = installTerraOsTeaserHeroHandoff(frame);
+    return () => {
+      cleanupHeroHandoff();
+      cleanupMobileHero();
+      cleanupMicroMotion();
+    };
   }, [screen, chrome]);
 
   return <TerraOSTeaserPreview screen={screen} showNavigation={chrome !== "content"} />;
