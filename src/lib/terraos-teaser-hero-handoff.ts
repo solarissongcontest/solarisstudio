@@ -12,6 +12,7 @@ type HandoffElements = {
   firstLook: HTMLElement;
   firstLookStory: HTMLElement;
   destinationPhone: HTMLElement;
+  destinationFrame: HTMLIFrameElement | null;
 };
 
 const HANDOFF_PLACEHOLDER_ATTRIBUTE = "data-terraos-handoff-placeholder";
@@ -63,7 +64,13 @@ function collectHandoffElements(document: Document): HandoffElements | null {
   const firstLookStory = firstLook?.closest<HTMLElement>(".story") ?? null;
   const destinationPhone = firstLook?.querySelector<HTMLElement>(".preview-device") ?? null;
   if (!heroPhone || !firstLook || !firstLookStory || !destinationPhone) return null;
-  return { heroPhone, firstLook, firstLookStory, destinationPhone };
+  return {
+    heroPhone,
+    firstLook,
+    firstLookStory,
+    destinationPhone,
+    destinationFrame: destinationPhone.querySelector<HTMLIFrameElement>("iframe.preview-page"),
+  };
 }
 
 function clearDeviceHandoffStyles(device: HTMLElement) {
@@ -150,10 +157,15 @@ export function installTerraOsTeaserHeroHandoff(frame: HTMLElement) {
     elements = collectHandoffElements(hostDocument);
     if (!elements) return;
 
-    const progress = resolveTerraOsHeroHandoffProgress(
-      elements.firstLookStory.getBoundingClientRect().top,
-      hostWindow.innerHeight,
-    );
+    const storyTop = elements.firstLookStory.getBoundingClientRect().top;
+    if (storyTop <= hostWindow.innerHeight * 1.18 && elements.destinationFrame?.loading === "lazy") {
+      // Preserve the initial lazy-load budget, then prewarm the existing Home
+      // preview shortly before the handoff can begin. No duplicate iframe is
+      // created and the fixture-only route remains the same.
+      elements.destinationFrame.loading = "eager";
+    }
+
+    const progress = resolveTerraOsHeroHandoffProgress(storyTop, hostWindow.innerHeight);
 
     if (progress <= 0.001) {
       root.dataset.terraosHeroHandoff = "idle";

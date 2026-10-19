@@ -29,6 +29,15 @@ describe("TerraOS hero-to-first-look handoff", () => {
     expect(implementation).not.toContain('canvas');
   });
 
+  it("prewarms only the existing lazy Home iframe shortly before the handoff", () => {
+    const implementation = source();
+    expect(implementation).toContain('destinationPhone.querySelector<HTMLIFrameElement>("iframe.preview-page")');
+    expect(implementation).toContain('hostWindow.innerHeight * 1.18');
+    expect(implementation).toContain('destinationFrame?.loading === "lazy"');
+    expect(implementation).toContain('destinationFrame.loading = "eager"');
+    expect(implementation).not.toContain('createElement("iframe")');
+  });
+
   it("preserves browser scroll ownership and keeps the handoff reversible", () => {
     const implementation = source();
     expect(implementation).toContain('addEventListener("scroll", requestRender, { passive: true })');
