@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { BookOpen, CalendarDays } from "lucide-react";
+import { BookOpen, CalendarDays, Share2 } from "lucide-react";
+import { toast } from "sonner";
 
 import type { V3StoryDetailBundle } from "@/lib/v3-stories";
 import {
@@ -81,6 +82,9 @@ export function V3StoryDetailScreen({
           <span className="text-xs text-white/38">
             Published {formatDate(story.publishedAt)} · {story.items.length} reviewed moments
           </span>
+        </div>
+        <div className="mt-4">
+          <StoryShareButton title={story.title} editionSlug={story.editionSlug} />
         </div>
       </div>
 
@@ -178,6 +182,47 @@ function StoryContextLinks({ editionSlug }: { editionSlug: string }) {
         Open edition →
       </Link>
     </nav>
+  );
+}
+
+function StoryShareButton({ title, editionSlug }: { title: string; editionSlug: string }) {
+  const [busy, setBusy] = useState(false);
+
+  const share = async () => {
+    if (busy || typeof window === "undefined") return;
+
+    const url = new URL(`/stories/${encodeURIComponent(editionSlug)}`, window.location.origin).toString();
+    setBusy(true);
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title, url });
+        return;
+      }
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        toast.success("Story link copied.");
+        return;
+      }
+      toast.error("Sharing is not available on this device.");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast.error("Could not share this story.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={() => void share()}
+      className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white/80 transition hover:border-white/20 hover:bg-white/[0.07] disabled:cursor-wait disabled:opacity-60"
+      aria-label={`Share ${title}`}
+    >
+      <Share2 className="size-4" aria-hidden="true" />
+      Share story
+    </button>
   );
 }
 
