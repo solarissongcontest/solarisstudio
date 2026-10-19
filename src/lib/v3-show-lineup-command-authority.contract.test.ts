@@ -9,6 +9,8 @@ const migration = readFileSync(
   ),
   "utf8",
 );
+const lineupServer = readFileSync("src/lib/admin-lineup.functions.ts", "utf8");
+const lineupWorkspace = readFileSync("src/components/admin/ShowLineupWorkspace.tsx", "utf8");
 
 describe("V3 governed show line-up command authority", () => {
   it("registers the post-S13 migration contract and remains additive", () => {
@@ -86,5 +88,36 @@ describe("V3 governed show line-up command authority", () => {
     expect(migration).toContain(
       "revoke all on function public.v3_execute_show_lineup_operation(\n  uuid, uuid, text, jsonb, uuid, text, text, text, uuid\n) from public, anon;",
     );
+  });
+
+  it("exposes one authenticated server boundary for all migrated line-up stage operations", () => {
+    expect(lineupServer).toContain("export const executeShowLineupOperation");
+    expect(lineupServer).toContain("runShowLineupOperation");
+    expect(lineupServer).toContain('rpc("studio2_reconcile_operation"');
+    expect(lineupServer).toContain('rpc("v3_show_lineup_preflight"');
+    expect(lineupServer).toContain('rpc("v3_execute_show_lineup_operation"');
+    expect(lineupServer).toContain("p_expected_state_version: preflight.stateVersion");
+  });
+
+  it("cuts allocation and running-order workflow writes off the legacy browser/RPC path", () => {
+    expect(lineupWorkspace).toContain("useServerFn(executeShowLineupOperation)");
+    expect(lineupWorkspace).toContain('runGovernedLineup(\n        "start_allocation"');
+    expect(lineupWorkspace).toContain('runGovernedLineup(\n      "save_allocation"');
+    expect(lineupWorkspace).toContain('runGovernedLineup(\n        "start_running_order"');
+    expect(lineupWorkspace).toContain('runGovernedLineup(\n        "save_running_order"');
+    expect(lineupWorkspace).not.toContain('rpc("admin_set_show_allocations"');
+    expect(lineupWorkspace).not.toContain('rpc("admin_set_show_running_order"');
+    expect(lineupWorkspace).not.toContain("async function setStage(");
+    expect(lineupWorkspace).not.toContain('update({ lineup_stage: nextStage })');
+    expect(lineupWorkspace).not.toContain("running_order: null, running_order_allocation: null");
+  });
+
+  it("preserves an operation id across ambiguous stage-command retries but discards it after user draft changes", () => {
+    expect(lineupWorkspace).toContain("operationIdsRef");
+    expect(lineupWorkspace).toContain("operationIdsRef.current.get(key) ?? crypto.randomUUID()");
+    expect(lineupWorkspace).toContain("operationIdsRef.current.delete(key)");
+    expect(lineupWorkspace).toContain('discardOperation("save_allocation")');
+    expect(lineupWorkspace).toContain('discardOperation("save_running_order")');
+    expect(lineupWorkspace).toContain("idempotencyKey: `show-lineup:${action}:${operationId}`");
   });
 });
