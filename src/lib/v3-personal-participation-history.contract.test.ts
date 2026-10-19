@@ -32,9 +32,10 @@ describe("V3 P40 personal participation history projection", () => {
     );
   });
 
-  it("uses only direct edition-scoped recipient evidence for personal roles", () => {
+  it("uses only affirmative edition-scoped recipient evidence for personal roles", () => {
     const body = historyBody();
     expect(body).toContain("public.country_hod_edition_claims");
+    expect(body).toContain("claim.status = 'mine'");
     expect(body).toContain("public.delegation_hod_assignments");
     expect(body).toContain("person.identity_key = 'account:' || v_actor::text");
     expect(body).toContain("public.studio2_jury_members");
@@ -61,23 +62,26 @@ describe("V3 P40 personal participation history projection", () => {
     expect(body).not.toContain("update public.country_edition_identities");
   });
 
-  it("reconciles current, handed-over and corrected HOD evidence explicitly", () => {
+  it("marks contradictory HOD evidence superseded and suppresses negative self-claims", () => {
     const body = historyBody();
-    expect(body).toContain("claim.status in ('other', 'unknown') then 'unavailable'::text");
     expect(body).toContain("assignment.person_id <> own_person.id");
     expect(body).toContain("then 'superseded'::text");
-    expect(body).toContain("assignment.person_id = own_person.id");
-    expect(body).toContain("edition.status = 'active'");
-    expect(body).toContain("then 'current'::text");
+    expect(body).toContain("claim.status = 'mine'");
     expect(body).toContain("and (claim.status is null or claim.status = 'mine')");
-    expect(body).not.toContain("from public.country_accounts");
+    expect(body).not.toContain("claim.status in ('other', 'unknown') then 'unavailable'::text");
   });
 
-  it("makes completed-edition jury assignments historical even if not explicitly removed", () => {
+  it("never derives personal-current state from legacy edition lifecycle status", () => {
     const body = historyBody();
-    expect(body).toContain("member.status = 'assigned'");
-    expect(body).toContain("member.removed_at is null");
-    expect(body).toContain("and edition.status = 'active'");
+    expect(body).not.toContain("edition.status = 'active'");
+    expect(body).not.toContain("edition.status <> 'completed'");
+    expect(body).not.toMatch(/edition\.status\s*(?:=|<>|in\s*\()/i);
+  });
+
+  it("uses the Jury membership lifecycle itself for current versus historical", () => {
+    const body = historyBody();
+    expect(body).toContain("member.status = 'assigned' and member.removed_at is null");
+    expect(body).toContain("then 'current'::text");
     expect(body).toContain("member.removed_at as ended_at");
   });
 
@@ -90,7 +94,6 @@ describe("V3 P40 personal participation history projection", () => {
     expect(body).toContain("'historical'::text");
     expect(body).toContain("'current'::text");
     expect(body).toContain("'superseded'::text");
-    expect(body).toContain("'unavailable'::text");
     expect(body).not.toContain("capability");
     expect(body).not.toContain("assigned_by");
     expect(body).not.toContain("removed_by");
