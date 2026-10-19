@@ -21,6 +21,7 @@ source "$SCRIPT_DIR/v3-s14-stage-8-results.sh"
 source "$SCRIPT_DIR/v3-s14-stage-9-publication.sh"
 source "$SCRIPT_DIR/v3-s14-grand-final-leg.sh"
 source "$SCRIPT_DIR/v3-s14-grand-final-voting.sh"
+source "$SCRIPT_DIR/v3-s14-grand-final-results.sh"
 
 OUTPUT_DIR="${V3_RELEASE_EVIDENCE_DIR:-v3-release-evidence}"
 mkdir -p "$OUTPUT_DIR"
@@ -114,13 +115,14 @@ run_stage stage-7-public-voting run_s14_stage_7_public_voting
 run_stage stage-8-results run_s14_stage_8_results
 run_stage stage-9-publication run_s14_stage_9_publication
 
-# Semifinal result/publication truth legitimately determines the Grand Final.
-# Continue in the same database state through the real Organizer qualifier
-# action and governed final Jury/Televote authorities. Final Results deliberately
-# remain unwired until System blocker #651 makes published Televote truth satisfy
-# the canonical Studio result-readiness projection.
+# Semifinal result/publication truth determines the Grand Final. Continue in the
+# same database state through Organizer qualifier promotion, governed final Jury
+# and Televote authority, and canonical Grand Final Results. System issue #651 is
+# resolved, so QA now executes the result verifier rather than preserving a stale
+# synthetic blocker.
 run_contest_extension grand-final-qualifier-bridge prepare_s14_grand_final_from_qualifiers
 run_contest_extension grand-final-voting run_s14_grand_final_voting
+run_contest_extension grand-final-results run_s14_grand_final_results
 
 PENDING_STAGES=(
   stage-10-archive
@@ -150,15 +152,12 @@ payload = {
         "grand-final-qualifier-bridge",
         "grand-final-jury",
         "grand-final-televote",
+        "grand-final-results",
     ],
     "blockedContestExtensions": [
         {
-            "id": "grand-final-results",
-            "blocker": "#651 canonical Televote publication/readiness mismatch",
-        },
-        {
             "id": "grand-final-publication",
-            "blocker": "depends on canonical Grand Final Results",
+            "blocker": "prepared in child verifier; not yet part of this exact-head driver",
         },
     ],
     "implementedInvariants": [
@@ -169,6 +168,8 @@ payload = {
         "televote-canonical-ballot",
         "result-reproducible",
         "publication-final-version",
+        "grand-final-televote-source-parity",
+        "grand-final-result-reproducible",
     ],
     "implementedFailureInjections": [
         "network-after-commit",
@@ -189,8 +190,8 @@ PY
 EVIDENCE_WRITTEN=1
 
 if [[ "${V3_S14_ALLOW_PARTIAL:-0}" == "1" ]]; then
-  log "Partial S14 harness passed through semifinal Publication and canonical Grand Final voting; Grand Final Results remain blocked by #651 and release-grade S14 remains incomplete."
+  log "Partial S14 harness passed through Stage 9 and canonical Grand Final Results; Grand Final Publication and Archive remain pending."
   exit 0
 fi
 
-fail "S14 is intentionally incomplete: Grand Final Results are blocked by #651 and ${PENDING_STAGES[*]} remains pending. No release-grade s14-full-contest.json was written."
+fail "S14 is intentionally incomplete: Grand Final Publication and ${PENDING_STAGES[*]} remain pending. No release-grade s14-full-contest.json was written."
