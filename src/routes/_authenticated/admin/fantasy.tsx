@@ -9,6 +9,10 @@ import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStat
 import { supabase } from "@/integrations/supabase/client";
 import { useCountries, useParticipants, useShows } from "@/lib/data";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
+import {
+  getV3OrganizerFantasyGame,
+  saveV3FantasyGameConfig,
+} from "@/lib/v3-organizer-fantasy-command";
 
 export const Route = createFileRoute("/_authenticated/admin/fantasy")({
   head: () => ({
@@ -19,19 +23,6 @@ export const Route = createFileRoute("/_authenticated/admin/fantasy")({
   }),
   component: FantasyAdminPage,
 });
-
-type ExistingGame = {
-  id: string;
-  edition_id: string;
-  show_id: string;
-  name: string;
-  opens_at: string;
-  locks_at: string;
-  status: string;
-  roster_size: number;
-  budget: number;
-  captain_multiplier: number;
-};
 
 function FantasyAdminPage() {
   const { editionId } = useAdminContext();
@@ -50,34 +41,11 @@ function FantasyAdminPage() {
   const existing = useQuery({
     enabled: Boolean(editionId),
     queryKey: ["fantasy-admin-game", editionId ?? "none"],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("fantasy_games")
-        .select("*")
-        .eq("edition_id", editionId!)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data as ExistingGame | null;
-    },
+    queryFn: () => getV3OrganizerFantasyGame(editionId!),
+    refetchOnWindowFocus: true,
   });
-
-  const choices = useQuery({
-    enabled: Boolean(editionId && existing.data?.id && existing.data.edition_id === editionId),
-    queryKey: ["fantasy-admin-choices", editionId ?? "none", existing.data?.id ?? "none"],
-    queryFn: async () => {
-      if (!editionId || !existing.data?.id || existing.data.edition_id !== editionId) {
-        throw new Error("Fantasy game context changed before choices were loaded.");
-      }
-      const { data, error } = await (supabase as any)
-        .from("fantasy_game_entries")
-        .select("country_id,cost,eligible")
-        .eq("game_id", existing.data.id);
-      if (error) throw error;
-      return (data ?? []) as Array<{ country_id: string; cost: number; eligible: boolean }>;
-    },
-  });
+  const existingGame = existing.data?.game ?? null;
+  const choices = existing.data?.entries ?? [];
 
   const [showId, setShowId] = useState("");
   const [name, setName] = useState("Fantasy SSC");
@@ -100,15 +68,15 @@ function FantasyAdminPage() {
   }, [editionId]);
 
   useEffect(() => {
-    if (!existing.data || existing.data.edition_id !== editionId) return;
-    setShowId(existing.data.show_id);
-    setName(existing.data.name);
-    setOpensAt(toLocal(existing.data.opens_at));
-    setLocksAt(toLocal(existing.data.locks_at));
-    setRosterSize(existing.data.roster_size);
-    setBudget(Number(existing.data.budget));
-    setCaptainMultiplier(Number(existing.data.captain_multiplier));
-  }, [editionId, existing.data]);
+    if (!existingGame || existingGame.editionId !== editionId) return;
+    setShowId(existingGame.showId);
+    setName(existingGame.name);
+    setOpensAt(toLocal(existingGame.opensAt));
+    setLocksAt(toLocal(existingGame.locksAt));
+    setRosterSize(existingGame.rosterSize);
+    setBudget(Number(existingGame.budget));
+    setCaptainMultiplier(Number(existingGame.captainMultiplier));
+  }, [editionId, existingGame]);
 
   const selectedShowId = showId || shows[0]?.id || "";
   const selectedShow = shows.find((show) => show.id === selectedShowId) ?? null;
@@ -120,68 +88,109 @@ function FantasyAdminPage() {
   useEffect(() => {
     const initial: Record<string, number> = {};
     for (const participant of showParticipants) {
-      const saved = choices.data?.find((row) => row.country_id === participant.country_id)?.cost;
+      const saved = choices.find((row) => row.countryId === participant.country_id)?.cost;
       initial[participant.country_id] = saved ?? 10;
     }
-    setCosts((current) => ({ ...initial, ...Object.fromEntries(Object.entries(current).filter(([id]) => showParticipants.some((row) => row.country_id === id))) }));
-  }, [choices.data, showParticipants]);
+    setCosts((current) => ({
+      ...initial,
+      ...Object.fromEntries(
+        Object.entries(current).filter(([id]) =>
+          showParticipants.some((row) => row.country_id === id),
+        ),
+      ),
+    }));
+  }, [choices, showParticipants]);
 
-  const countryMap = useMemo(() => new Map(countries.map((country) => [country.id, country])), [countries]);
+  const countryMap = useMemo(
+    () => new Map(countries.map((country) => [country.id, country])),
+    [countries],
+  );
 
   function assertExactScope() {
-    if (!editionId) throw new Error("Select the exact Organizer edition before changing Fantasy SSC.");
-    if (!selectedShow || selectedShow.edition_id !== editionId) {
-      throw Object.assign(new Error("Edition context changed before the Fantasy SSC command. Review the show again before continuing."), { status: 409 });
+    if (!editionId) {
+      throw new Error("Select the exact Organizer edition before changing Fantasy SSC.");
     }
-    if (existing.data && existing.data.edition_id !== editionId) {
-      throw Object.assign(new Error("The loaded Fantasy game belongs to a different edition. Refresh canonical state before continuing."), { status: 409 });
+    if (!selectedShow || selectedShow.edition_id !== editionId) {
+      throw Object.assign(
+        new Error(
+          "Edition context changed before the Fantasy SSC command. Review the show again before continuing.",
+        ),
+        { status: 409 },
+      );
+    }
+    if (existingGame && existingGame.editionId !== editionId) {
+      throw Object.assign(
+        new Error(
+          "The loaded Fantasy game belongs to a different edition. Refresh canonical state before continuing.",
+        ),
+        { status: 409 },
+      );
     }
   }
 
   const save = useMutation({
     mutationFn: async () => {
       assertExactScope();
-      if (!editionId || !selectedShowId || !opensAt || !locksAt) throw new Error("Complete the game window first.");
-      const entries = showParticipants.map((participant) => ({
-        countryId: participant.country_id,
-        cost: Number(costs[participant.country_id] ?? 10),
-        eligible: true,
-      }));
-      const { error } = await (supabase as any).rpc("studio2_save_fantasy_game", {
-        _game_id: existing.data?.id ?? null,
-        _edition_id: editionId,
-        _show_id: selectedShowId,
-        _name: name.trim(),
-        _opens_at: new Date(opensAt).toISOString(),
-        _locks_at: new Date(locksAt).toISOString(),
-        _roster_size: rosterSize,
-        _budget: budget,
-        _captain_multiplier: captainMultiplier,
-        _entries: entries,
+      if (!editionId || !selectedShowId || !opensAt || !locksAt) {
+        throw new Error("Complete the game window first.");
+      }
+
+      return saveV3FantasyGameConfig({
+        editionId,
+        showId: selectedShowId,
+        gameId: existingGame?.id ?? null,
+        expectedConfigVersion: existing.data?.stateVersion ?? 0,
+        name: name.trim(),
+        opensAt: new Date(opensAt).toISOString(),
+        locksAt: new Date(locksAt).toISOString(),
+        rosterSize,
+        budget,
+        captainMultiplier,
+        entries: showParticipants.map((participant) => ({
+          countryId: participant.country_id,
+          cost: Number(costs[participant.country_id] ?? 10),
+          eligible: true,
+        })),
       });
-      if (error) throw error;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["fantasy-admin-game", editionId ?? "none"] });
-      await queryClient.invalidateQueries({ queryKey: ["fantasy-admin-choices"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["fantasy-admin-game", editionId ?? "none"],
+      });
     },
   });
 
+  // #787 owns the canonical scoring operation. Keep the existing scorer until
+  // that System contract lands rather than inventing a second score authority.
   const score = useMutation({
     mutationFn: async () => {
       assertExactScope();
-      if (!existing.data?.id || existing.data.edition_id !== editionId) throw new Error("Save the game in the selected edition first.");
-      const { data, error } = await (supabase as any).rpc("score_fantasy_game", { _game_id: existing.data.id });
+      if (!existingGame?.id || existingGame.editionId !== editionId) {
+        throw new Error("Save the game in the selected edition first.");
+      }
+      const { data, error } = await (supabase as any).rpc("score_fantasy_game", {
+        _game_id: existingGame.id,
+      });
       if (error) throw error;
       return Number(data ?? 0);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["fantasy-admin-game", editionId ?? "none"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["fantasy-admin-game", editionId ?? "none"],
+      });
     },
   });
 
   if (!editionId) {
-    return <AdminPage><AdminEmptyState icon={Trophy} title="Select an edition" description="Fantasy SSC configuration is edition-scoped. Solaris will not substitute a globally active or newest edition." /></AdminPage>;
+    return (
+      <AdminPage>
+        <AdminEmptyState
+          icon={Trophy}
+          title="Select an edition"
+          description="Fantasy SSC configuration is edition-scoped. Solaris will not substitute a globally active or newest edition."
+        />
+      </AdminPage>
+    );
   }
 
   return (
@@ -195,8 +204,14 @@ function FantasyAdminPage() {
 
         <AdminCard>
           <div className="flex flex-wrap items-center gap-2">
-            <AdminStatus tone={feature.data ? "ready" : "attention"}>{feature.data ? "Rollout enabled for this Organizer" : "Rollout flag off"}</AdminStatus>
-            {existing.data ? <AdminStatus tone="info">{existing.data.status}</AdminStatus> : <AdminStatus tone="neutral">Not configured</AdminStatus>}
+            <AdminStatus tone={feature.data ? "ready" : "attention"}>
+              {feature.data ? "Rollout enabled for this Organizer" : "Rollout flag off"}
+            </AdminStatus>
+            {existingGame ? (
+              <AdminStatus tone="info">{existingGame.status}</AdminStatus>
+            ) : (
+              <AdminStatus tone="neutral">Not configured</AdminStatus>
+            )}
           </div>
           <p className="mt-3 text-xs leading-5 text-muted-foreground">
             Configuration can be prepared while the public rollout stays disabled. The public page still obeys the feature flag, because apparently shipping half-configured games to everyone would be frowned upon.
@@ -206,40 +221,112 @@ function FantasyAdminPage() {
         <AdminCard strong>
           <AdminCardHeader eyebrow="Game window" title="Rules and lock" />
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            <Field label="Name"><input value={name} onChange={(event) => setName(event.target.value)} className="admin-input" /></Field>
+            <Field label="Name">
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                className="admin-input"
+              />
+            </Field>
             <Field label="Show">
-              <select value={selectedShowId} onChange={(event) => setShowId(event.target.value)} className="admin-input min-w-11 w-full">
+              <select
+                value={selectedShowId}
+                onChange={(event) => setShowId(event.target.value)}
+                className="admin-input min-w-11 w-full"
+              >
                 {!shows.length ? <option value="">No shows available</option> : null}
-                {shows.map((show) => <option key={show.id} value={show.id}>{show.name}</option>)}
+                {shows.map((show) => (
+                  <option key={show.id} value={show.id}>
+                    {show.name}
+                  </option>
+                ))}
               </select>
             </Field>
-            <Field label="Roster size"><input type="number" min={2} max={15} value={rosterSize} onChange={(event) => setRosterSize(Number(event.target.value))} className="admin-input" /></Field>
-            <Field label="Budget"><input type="number" min={1} step="0.5" value={budget} onChange={(event) => setBudget(Number(event.target.value))} className="admin-input" /></Field>
-            <Field label="Captain multiplier"><input type="number" min={1} max={5} step="0.25" value={captainMultiplier} onChange={(event) => setCaptainMultiplier(Number(event.target.value))} className="admin-input" /></Field>
+            <Field label="Roster size">
+              <input
+                type="number"
+                min={2}
+                max={15}
+                value={rosterSize}
+                onChange={(event) => setRosterSize(Number(event.target.value))}
+                className="admin-input"
+              />
+            </Field>
+            <Field label="Budget">
+              <input
+                type="number"
+                min={1}
+                step="0.5"
+                value={budget}
+                onChange={(event) => setBudget(Number(event.target.value))}
+                className="admin-input"
+              />
+            </Field>
+            <Field label="Captain multiplier">
+              <input
+                type="number"
+                min={1}
+                max={5}
+                step="0.25"
+                value={captainMultiplier}
+                onChange={(event) => setCaptainMultiplier(Number(event.target.value))}
+                className="admin-input"
+              />
+            </Field>
             <div />
-            <Field label="Opens"><input type="datetime-local" value={opensAt} onChange={(event) => setOpensAt(event.target.value)} className="admin-input" /></Field>
-            <Field label="Locks"><input type="datetime-local" value={locksAt} onChange={(event) => setLocksAt(event.target.value)} className="admin-input" /></Field>
+            <Field label="Opens">
+              <input
+                type="datetime-local"
+                value={opensAt}
+                onChange={(event) => setOpensAt(event.target.value)}
+                className="admin-input"
+              />
+            </Field>
+            <Field label="Locks">
+              <input
+                type="datetime-local"
+                value={locksAt}
+                onChange={(event) => setLocksAt(event.target.value)}
+                className="admin-input"
+              />
+            </Field>
           </div>
         </AdminCard>
 
         <AdminCard>
-          <AdminCardHeader eyebrow="Roster market" title="Entry costs" description="Every eligible show participant receives an explicit locked cost." />
+          <AdminCardHeader
+            eyebrow="Roster market"
+            title="Entry costs"
+            description="Every eligible show participant receives an explicit locked cost."
+          />
           {showParticipants.length ? (
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {showParticipants.map((participant) => {
                 const country = countryMap.get(participant.country_id);
                 return (
-                  <label key={participant.country_id} className="grid grid-cols-[minmax(0,1fr)_90px] items-center gap-3 rounded-xl border border-white/[0.07] bg-black/10 p-3">
+                  <label
+                    key={participant.country_id}
+                    className="grid grid-cols-[minmax(0,1fr)_90px] items-center gap-3 rounded-xl border border-white/[0.07] bg-black/10 p-3"
+                  >
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold">{country?.name ?? participant.country_id}</span>
-                      <span className="mt-0.5 block truncate text-xs text-muted-foreground">{participant.artist ?? "Artist not published"} · {participant.song ?? "Song not published"}</span>
+                      <span className="block truncate text-sm font-semibold">
+                        {country?.name ?? participant.country_id}
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                        {participant.artist ?? "Artist not published"} · {participant.song ?? "Song not published"}
+                      </span>
                     </span>
                     <input
                       type="number"
                       min={0.5}
                       step="0.5"
                       value={costs[participant.country_id] ?? 10}
-                      onChange={(event) => setCosts((current) => ({ ...current, [participant.country_id]: Number(event.target.value) }))}
+                      onChange={(event) =>
+                        setCosts((current) => ({
+                          ...current,
+                          [participant.country_id]: Number(event.target.value),
+                        }))
+                      }
                       className="admin-input text-right"
                       aria-label={`Fantasy cost for ${country?.name ?? participant.country_id}`}
                     />
@@ -247,7 +334,12 @@ function FantasyAdminPage() {
                 );
               })}
             </div>
-          ) : <AdminEmptyState title="No participants for this show" description="Select a show with participant rows before configuring Fantasy SSC." />}
+          ) : (
+            <AdminEmptyState
+              title="No participants for this show"
+              description="Select a show with participant rows before configuring Fantasy SSC."
+            />
+          )}
         </AdminCard>
 
         <div className="flex flex-wrap gap-2">
@@ -257,9 +349,13 @@ function FantasyAdminPage() {
             disabled={save.isPending || !showParticipants.length}
             className="admin-action-primary"
           >
-            {save.isPending ? "Saving…" : existing.data ? "Update Fantasy game" : "Create Fantasy game"}
+            {save.isPending
+              ? "Saving…"
+              : existingGame
+                ? "Update Fantasy game"
+                : "Create Fantasy game"}
           </button>
-          {existing.data ? (
+          {existingGame ? (
             <button
               type="button"
               onClick={() => score.mutate()}
@@ -269,10 +365,22 @@ function FantasyAdminPage() {
               {score.isPending ? "Scoring…" : "Score from published results"}
             </button>
           ) : null}
-          {save.isError ? <AdminStatus tone="blocked">{save.error instanceof Error ? save.error.message : "Save failed"}</AdminStatus> : null}
+          {save.isError ? (
+            <AdminStatus tone="blocked">
+              {save.error instanceof Error ? save.error.message : "Save failed"}
+            </AdminStatus>
+          ) : null}
           {save.isSuccess ? <AdminStatus tone="ready">Saved</AdminStatus> : null}
-          {score.isError ? <AdminStatus tone="blocked">{score.error instanceof Error ? score.error.message : "Scoring failed"}</AdminStatus> : null}
-          {score.isSuccess ? <AdminStatus tone="ready">{score.data} team{score.data === 1 ? "" : "s"} scored</AdminStatus> : null}
+          {score.isError ? (
+            <AdminStatus tone="blocked">
+              {score.error instanceof Error ? score.error.message : "Scoring failed"}
+            </AdminStatus>
+          ) : null}
+          {score.isSuccess ? (
+            <AdminStatus tone="ready">
+              {score.data} team{score.data === 1 ? "" : "s"} scored
+            </AdminStatus>
+          ) : null}
         </div>
       </div>
     </AdminPage>
@@ -280,7 +388,12 @@ function FantasyAdminPage() {
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="text-xs font-semibold text-muted-foreground"><span>{label}</span><div className="mt-1.5">{children}</div></label>;
+  return (
+    <label className="text-xs font-semibold text-muted-foreground">
+      <span>{label}</span>
+      <div className="mt-1.5">{children}</div>
+    </label>
+  );
 }
 
 function toLocal(iso: string) {
