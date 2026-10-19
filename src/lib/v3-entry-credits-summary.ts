@@ -10,8 +10,9 @@ export type V3EntryCreditSummaryRow = {
 
 /**
  * Build current participant-facing Credits rows only from the caller-scoped
- * Entry projection. Empty Credits remain a valid empty value and are not
- * reconstructed from drafts, public archive rows or browser state.
+ * Entry projection. Empty/missing Credits are a valid backwards-compatible
+ * value and are never reconstructed from drafts, public archive rows or browser
+ * state.
  */
 export function v3EntryCreditSummaryRows(
   projection: V3EntryProjection,
@@ -21,11 +22,12 @@ export function v3EntryCreditSummaryRows(
 
   if (confirmation.internalEntry) {
     const entry = confirmation.internalEntry;
-    return entry.credits.length
+    const credits = entry.credits ?? [];
+    return credits.length
       ? [{
           id: entry.id,
           label: entry.songTitle ?? entry.artist ?? "Current entry",
-          credits: entry.credits,
+          credits,
           selected: true,
         }]
       : [];
@@ -34,14 +36,15 @@ export function v3EntryCreditSummaryRows(
   const nationalFinal = confirmation.nationalFinal;
   if (!nationalFinal) return [];
 
-  return nationalFinal.entries.flatMap((entry) =>
-    entry.credits.length
+  return nationalFinal.entries.flatMap((entry) => {
+    const credits = entry.credits ?? [];
+    return credits.length
       ? [{
           id: entry.id,
           label: entry.songTitle ?? entry.artist ?? "National final entry",
-          credits: entry.credits,
+          credits,
           selected: entry.id === nationalFinal.winnerEntryId,
         }]
-      : [],
-  );
+      : [];
+  });
 }
