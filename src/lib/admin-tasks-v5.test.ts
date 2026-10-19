@@ -34,21 +34,18 @@ function task(overrides: Partial<OrganizerTaskV5> = {}): OrganizerTaskV5 {
 }
 
 describe("Organizer Tasks edition RPC boundary", () => {
-  it("maps an unselected or whitespace-only edition to SQL null", async () => {
+  it("refuses missing or whitespace-only edition scope before any task RPC", async () => {
     const rpc = vi.fn(async () => ({ data: [], error: null }));
     const client = { rpc };
 
-    await loadOrganizerTasksV5("", "all", client);
-    await loadOrganizerTasksV5("   ", "mine", client);
+    await expect(loadOrganizerTasksV5("", "all", client)).rejects.toThrow(
+      "Organizer Tasks require an explicit selected Organizer edition scope.",
+    );
+    await expect(loadOrganizerTasksV5("   ", "mine", client)).rejects.toThrow(
+      "Organizer Tasks require an explicit selected Organizer edition scope.",
+    );
 
-    expect(rpc).toHaveBeenNthCalledWith(1, "admin_organizer_tasks", {
-      p_edition_id: null,
-      p_filter: "all",
-    });
-    expect(rpc).toHaveBeenNthCalledWith(2, "admin_organizer_tasks", {
-      p_edition_id: null,
-      p_filter: "mine",
-    });
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("preserves a selected UUID while trimming accidental surrounding whitespace", async () => {
@@ -64,15 +61,38 @@ describe("Organizer Tasks edition RPC boundary", () => {
     });
   });
 
-  it("applies the same null normalization to Organizer task counts", async () => {
+  it("refuses missing edition scope before the task-count RPC", async () => {
     const rpc = vi.fn(async () => ({ data: 0, error: null }));
     const client = { rpc };
 
-    await expect(loadOrganizerTaskCountV5("", client)).resolves.toBe(0);
+    await expect(loadOrganizerTaskCountV5("", client)).rejects.toThrow(
+      "Organizer Tasks require an explicit selected Organizer edition scope.",
+    );
 
-    expect(rpc).toHaveBeenCalledWith("admin_organizer_task_count", {
-      p_edition_id: null,
-    });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects a cross-edition task row even after an exact-edition RPC", async () => {
+    const editionId = "00000000-0000-4000-8000-00000000e220";
+    const rpc = vi.fn(async () => ({
+      data: [
+        task({
+          editionId: "00000000-0000-4000-8000-00000000e221",
+        }),
+      ],
+      error: null,
+    }));
+
+    await expect(loadOrganizerTasksV5(editionId, "all", { rpc })).rejects.toThrow(
+      "Organizer Tasks returned a task from another edition scope.",
+    );
+  });
+
+  it("allows edition-null system tasks returned by an exact-edition projection", async () => {
+    const editionId = "00000000-0000-4000-8000-00000000e220";
+    const rpc = vi.fn(async () => ({ data: [task({ editionId: null })], error: null }));
+
+    await expect(loadOrganizerTasksV5(editionId, "all", { rpc })).resolves.toHaveLength(1);
   });
 });
 
