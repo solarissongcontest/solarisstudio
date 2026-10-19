@@ -33,6 +33,10 @@ import {
 import { useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
+import {
+  IntegrityFindingReview,
+  IntegrityPrecedentPublicationReview,
+} from "@/components/admin/IntegrityFindingPublicationReview";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { supabase } from "@/integrations/supabase/client";
@@ -162,6 +166,53 @@ async function rpc<T>(name: string, args: Record<string, unknown> = {}): Promise
   const { data, error } = await (supabase as any).rpc(name, args);
   if (error) throw new Error(error.message);
   return data as T;
+}
+
+function integrityDecisionBasisFingerprint(detail: CaseDetail) {
+  return JSON.stringify({
+    case: {
+      id: detail.case.id,
+      publicCode: detail.case.public_code,
+      status: detail.case.status,
+      priority: detail.case.priority,
+      updatedAt: detail.case.updated_at,
+    },
+    ruleLinks: [...detail.rule_links]
+      .sort((left, right) => left.rule_id.localeCompare(right.rule_id))
+      .map((item) => ({
+        id: item.rule_id,
+        relevance: item.relevance,
+        note: item.note,
+      })),
+    findings: [...detail.findings]
+      .sort((left, right) => left.id.localeCompare(right.id))
+      .map((item) => ({
+        id: item.id,
+        outcome: item.outcome,
+        summary: item.summary,
+        rationale: item.rationale,
+        ruleIds: [...item.rule_ids].sort(),
+        reporterVisible: item.visible_to_reporter,
+        createdAt: item.created_at,
+      })),
+    evidence: [...detail.evidence]
+      .sort((left, right) => left.id.localeCompare(right.id))
+      .map((item) => ({
+        id: item.id,
+        lifecycleStatus: item.lifecycle_status,
+        visibleToReporter: item.visible_to_reporter,
+        retentionUntil: item.retention_until,
+        redactedFromId: item.redacted_from_id,
+        disclosureCopyOfId: item.disclosure_copy_of_id,
+        createdAt: item.created_at,
+      })),
+    messages: [...detail.messages]
+      .sort((left, right) => left.id.localeCompare(right.id))
+      .map((item) => ({ id: item.id, authorRole: item.author_role, createdAt: item.created_at })),
+    requests: [...detail.requests]
+      .sort((left, right) => left.id.localeCompare(right.id))
+      .map((item) => ({ id: item.id, status: item.status, createdAt: item.created_at })),
+  });
 }
 
 function InvestigationDesk() {
@@ -617,42 +668,110 @@ function FindingPanel({ detail, refresh }: { detail: CaseDetail; refresh: () => 
   const [rationale, setRationale] = useState("");
   const [visible, setVisible] = useState(true);
   const [selectedRules, setSelectedRules] = useState<string[]>(detail.rule_links.map((item) => item.rule_id));
-  const mutation = useMutation({
-    mutationFn: () => rpc("admin_record_integrity_finding", { _case_id: detail.case.id, _outcome: outcome, _summary: summary, _rationale: rationale, _rule_ids: selectedRules, _visible_to_reporter: visible }),
-    onSuccess: async () => { setSummary(""); setRationale(""); await refresh(); toast.success("Formal finding recorded"); },
-    onError: errorToast,
-  });
+  const [pendingReview, setPendingReview] = useState<{
+    caseId: string;
+    caseCode: string;
+    basisFingerprint: string;
+    outcome: string;
+    summary: string;
+    rationale: string;
+    ruleIds: string[];
+    visibleToReporter: boolean;
+  } | null>(null);
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const activeReview = pendingReview?.caseId === detail.case.id ? pendingReview : null;
+
+  const openFindingReview = () => {
+    const availableRuleIds = new Set(detail.rule_links.map((item) => item.rule_id));
+    const ruleIds = Array.from(new Set(selectedRules.filter((ruleId) => availableRuleIds.has(ruleId)))).sort();
+    setPendingReview({
+      caseId: detail.case.id,
+      caseCode: detail.case.public_code,
+      basisFingerprint: integrityDecisionBasisFingerprint(detail),
+      outcome,
+      summary: summary.trim(),
+      rationale: rationale.trim(),
+      ruleIds,
+      visibleToReporter: visible,
+    });
+  };
+
+  const applyFindingReview = async () => {
+    if (!activeReview || reviewBusy) return;
+    setReviewBusy(true);
+    try {
+      const live = await rpc<CaseDetail | null>("admin_integrity_case", { _case_id: activeReview.caseId });
+      if (!live || integrityDecisionBasisFingerprint(live) !== activeReview.basisFingerprint) {
+        setPendingReview(null);
+        await refresh();
+        throw new Error("Integrity case changed while this finding review was open. Nothing was recorded. Review the latest case before trying again.");
+      }
+      await rpc("admin_record_integrity_finding", {
+        _case_id: activeReview.caseId,
+        _outcome: activeReview.outcome,
+        _summary: activeReview.summary,
+        _rationale: activeReview.rationale,
+        _rule_ids: activeReview.ruleIds,
+        _visible_to_reporter: activeReview.visibleToReporter,
+      });
+      setSummary("");
+      setRationale("");
+      setPendingReview(null);
+      await refresh();
+      toast.success("Formal finding recorded");
+    } catch (error) {
+      errorToast(error);
+    } finally {
+      setReviewBusy(false);
+    }
+  };
 
   return (
-    <AdminCard>
-      <SectionTitle icon={Gavel} eyebrow="Findings" title="Record what the evidence actually establishes" />
-      <div className="mt-4 space-y-2">
-        {detail.findings.map((item) => (
-          <div key={item.id} className="rounded-xl border border-violet-300/12 bg-violet-300/[0.035] p-3">
-            <div className="flex justify-between gap-2"><span className="text-[9px] font-black uppercase tracking-[.1em] text-violet-200">{item.outcome.replaceAll("_", " ")}</span><span className="text-[9px] text-muted-foreground">{item.visible_to_reporter ? "reporter-visible" : "internal"}</span></div>
-            <p className="mt-1 text-sm font-bold">{item.summary}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{item.rationale}</p>
-          </div>
-        ))}
-      </div>
-      <div className="mt-4 rounded-xl border border-white/[0.07] bg-black/10 p-3">
-        <select value={outcome} onChange={(event) => setOutcome(event.target.value)} className="min-h-10 w-full rounded-lg border px-2 text-xs">
-          <option value="violation">Rule violation confirmed</option><option value="no_violation">No violation found</option><option value="insufficient_evidence">Insufficient evidence</option><option value="outside_jurisdiction">Outside SSC jurisdiction</option><option value="duplicate">Duplicate / linked case</option><option value="administrative_resolution">Administrative resolution</option>
-        </select>
-        <input value={summary} onChange={(event) => setSummary(event.target.value)} placeholder="Finding summary" className="mt-2 min-h-10 w-full rounded-lg border px-3 text-xs" />
-        <textarea value={rationale} onChange={(event) => setRationale(event.target.value)} rows={4} placeholder="Reasoning: facts established, evidence considered, uncertainties and rule application" className="mt-2 w-full rounded-lg border p-3 text-xs" />
-        <div className="mt-3 flex flex-wrap gap-2">
-          {detail.rule_links.map((item) => (
-            <label key={item.rule_id} className={cn("rounded-lg border px-2 py-1 text-[10px]", selectedRules.includes(item.rule_id) ? "border-violet-300/20 bg-violet-300/[0.06]" : "border-white/[0.07]")}>
-              <input type="checkbox" className="mr-1" checked={selectedRules.includes(item.rule_id)} onChange={() => setSelectedRules((current) => current.includes(item.rule_id) ? current.filter((id) => id !== item.rule_id) : [...current, item.rule_id])} />{item.rule_id}
-            </label>
+    <>
+      <AdminCard>
+        <SectionTitle icon={Gavel} eyebrow="Findings" title="Record what the evidence actually establishes" />
+        <div className="mt-4 space-y-2">
+          {detail.findings.map((item) => (
+            <div key={item.id} className="rounded-xl border border-violet-300/12 bg-violet-300/[0.035] p-3">
+              <div className="flex justify-between gap-2"><span className="text-[9px] font-black uppercase tracking-[.1em] text-violet-200">{item.outcome.replaceAll("_", " ")}</span><span className="text-[9px] text-muted-foreground">{item.visible_to_reporter ? "reporter-visible" : "internal"}</span></div>
+              <p className="mt-1 text-sm font-bold">{item.summary}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{item.rationale}</p>
+            </div>
           ))}
         </div>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <label className="flex items-center gap-2 text-[10px] text-muted-foreground"><input type="checkbox" checked={visible} onChange={(event) => setVisible(event.target.checked)} /> Share finding with reporter</label>
-          <button type="button" disabled={summary.trim().length < 5 || rationale.trim().length < 20 || mutation.isPending} onClick={() => mutation.mutate()} className="admin-action-primary">Record finding</button>
+        <div className="mt-4 rounded-xl border border-white/[0.07] bg-black/10 p-3">
+          <select value={outcome} onChange={(event) => setOutcome(event.target.value)} className="min-h-10 w-full rounded-lg border px-2 text-xs">
+            <option value="violation">Rule violation confirmed</option><option value="no_violation">No violation found</option><option value="insufficient_evidence">Insufficient evidence</option><option value="outside_jurisdiction">Outside SSC jurisdiction</option><option value="duplicate">Duplicate / linked case</option><option value="administrative_resolution">Administrative resolution</option>
+          </select>
+          <input value={summary} onChange={(event) => setSummary(event.target.value)} placeholder="Finding summary" className="mt-2 min-h-10 w-full rounded-lg border px-3 text-xs" />
+          <textarea value={rationale} onChange={(event) => setRationale(event.target.value)} rows={4} placeholder="Reasoning: facts established, evidence considered, uncertainties and rule application" className="mt-2 w-full rounded-lg border p-3 text-xs" />
+          <div className="mt-3 flex flex-wrap gap-2">
+            {detail.rule_links.map((item) => (
+              <label key={item.rule_id} className={cn("rounded-lg border px-2 py-1 text-[10px]", selectedRules.includes(item.rule_id) ? "border-violet-300/20 bg-violet-300/[0.06]" : "border-white/[0.07]")}>
+                <input type="checkbox" className="mr-1" checked={selectedRules.includes(item.rule_id)} onChange={() => setSelectedRules((current) => current.includes(item.rule_id) ? current.filter((id) => id !== item.rule_id) : [...current, item.rule_id])} />{item.rule_id}
+              </label>
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <label className="flex items-center gap-2 text-[10px] text-muted-foreground"><input type="checkbox" checked={visible} onChange={(event) => setVisible(event.target.checked)} /> Share finding with reporter</label>
+            <button type="button" disabled={summary.trim().length < 5 || rationale.trim().length < 20 || reviewBusy} onClick={openFindingReview} className="admin-action-primary">Review finding</button>
+          </div>
         </div>
-      </div>
-    </AdminCard>
+      </AdminCard>
+      {activeReview ? (
+        <IntegrityFindingReview
+          open
+          onClose={() => setPendingReview(null)}
+          onConfirm={applyFindingReview}
+          busy={reviewBusy}
+          caseCode={activeReview.caseCode}
+          outcome={activeReview.outcome}
+          summary={activeReview.summary}
+          rationale={activeReview.rationale}
+          ruleIds={activeReview.ruleIds}
+          visibleToReporter={activeReview.visibleToReporter}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -763,17 +882,85 @@ function DecisionPublicationPanel({ detail, refresh }: { detail: CaseDetail; ref
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [rationale, setRationale] = useState("");
-  const rules = useMemo(() => Array.from(new Set(detail.findings.flatMap((item) => item.rule_ids))), [detail.findings]);
-  const mutation = useMutation({ mutationFn: () => rpc("admin_publish_integrity_decision", { _case_id: detail.case.id, _title: title, _summary: summary, _rationale: rationale, _rule_ids: rules }), onSuccess: async () => { setTitle(""); setSummary(""); setRationale(""); await refresh(); toast.success("Anonymised decision published"); }, onError: errorToast });
+  const rules = useMemo(() => Array.from(new Set(detail.findings.flatMap((item) => item.rule_ids))).sort(), [detail.findings]);
+  const [pendingReview, setPendingReview] = useState<{
+    caseId: string;
+    caseCode: string;
+    basisFingerprint: string;
+    title: string;
+    summary: string;
+    rationale: string;
+    ruleIds: string[];
+  } | null>(null);
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const activeReview = pendingReview?.caseId === detail.case.id ? pendingReview : null;
+
+  const openPublicationReview = () => {
+    setPendingReview({
+      caseId: detail.case.id,
+      caseCode: detail.case.public_code,
+      basisFingerprint: integrityDecisionBasisFingerprint(detail),
+      title: title.trim(),
+      summary: summary.trim(),
+      rationale: rationale.trim(),
+      ruleIds: rules,
+    });
+  };
+
+  const applyPublicationReview = async () => {
+    if (!activeReview || reviewBusy) return;
+    setReviewBusy(true);
+    try {
+      const live = await rpc<CaseDetail | null>("admin_integrity_case", { _case_id: activeReview.caseId });
+      if (!live || integrityDecisionBasisFingerprint(live) !== activeReview.basisFingerprint) {
+        setPendingReview(null);
+        await refresh();
+        throw new Error("Integrity case changed while this publication review was open. Nothing was published. Review the latest findings and rule basis before trying again.");
+      }
+      await rpc("admin_publish_integrity_decision", {
+        _case_id: activeReview.caseId,
+        _title: activeReview.title,
+        _summary: activeReview.summary,
+        _rationale: activeReview.rationale,
+        _rule_ids: activeReview.ruleIds,
+      });
+      setTitle("");
+      setSummary("");
+      setRationale("");
+      setPendingReview(null);
+      await refresh();
+      toast.success("Anonymised decision published");
+    } catch (error) {
+      errorToast(error);
+    } finally {
+      setReviewBusy(false);
+    }
+  };
+
   return (
-    <AdminCard>
-      <SectionTitle icon={BadgeCheck} eyebrow="Precedent" title="Publish anonymised decision" />
-      <p className="mt-2 text-xs leading-5 text-muted-foreground">Publish only reusable rule reasoning. Do not copy private evidence, usernames or details that identify a protected source.</p>
-      <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Decision title" className="mt-3 min-h-10 w-full rounded-lg border px-3 text-xs" />
-      <textarea value={summary} onChange={(event) => setSummary(event.target.value)} rows={2} placeholder="Public summary" className="mt-2 w-full rounded-lg border p-3 text-xs" />
-      <textarea value={rationale} onChange={(event) => setRationale(event.target.value)} rows={3} placeholder="Anonymised reasoning" className="mt-2 w-full rounded-lg border p-3 text-xs" />
-      <button type="button" disabled={title.trim().length < 3 || summary.trim().length < 5 || rationale.trim().length < 20 || mutation.isPending} onClick={() => mutation.mutate()} className="admin-action-secondary mt-2"><BadgeCheck className="size-3.5" />Publish decision</button>
-    </AdminCard>
+    <>
+      <AdminCard>
+        <SectionTitle icon={BadgeCheck} eyebrow="Precedent" title="Publish anonymised decision" />
+        <p className="mt-2 text-xs leading-5 text-muted-foreground">Publish only reusable rule reasoning. Do not copy private evidence, usernames or details that identify a protected source.</p>
+        <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Decision title" className="mt-3 min-h-10 w-full rounded-lg border px-3 text-xs" />
+        <textarea value={summary} onChange={(event) => setSummary(event.target.value)} rows={2} placeholder="Public summary" className="mt-2 w-full rounded-lg border p-3 text-xs" />
+        <textarea value={rationale} onChange={(event) => setRationale(event.target.value)} rows={3} placeholder="Anonymised reasoning" className="mt-2 w-full rounded-lg border p-3 text-xs" />
+        <button type="button" disabled={title.trim().length < 3 || summary.trim().length < 5 || rationale.trim().length < 20 || reviewBusy} onClick={openPublicationReview} className="admin-action-secondary mt-2"><BadgeCheck className="size-3.5" />Review publication</button>
+      </AdminCard>
+      {activeReview ? (
+        <IntegrityPrecedentPublicationReview
+          open
+          onClose={() => setPendingReview(null)}
+          onConfirm={applyPublicationReview}
+          busy={reviewBusy}
+          caseCode={activeReview.caseCode}
+          title={activeReview.title}
+          summary={activeReview.summary}
+          rationale={activeReview.rationale}
+          ruleIds={activeReview.ruleIds}
+        />
+      ) : null}
+    </>
   );
 }
 
