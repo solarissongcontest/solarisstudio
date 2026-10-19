@@ -3,8 +3,10 @@ import { useMemo } from "react";
 
 import { AppShell, PageHeader } from "@/components/AppShell";
 import { ArchiveDataError, ArchiveDataLoading, archiveHasError, archiveIsLoading } from "@/components/ArchiveDataState";
+import { useSolarisApp } from "@/components/app/AppRuntime";
 import { PublicDataState } from "@/components/public/PublicDataState";
 import { PublicDataGuide } from "@/components/public/PublicDataView";
+import { V3ScorechartsGate } from "@/components/v3/V3ScorechartsGate";
 import { editionLabel, useAllShows, useEditions } from "@/lib/data";
 import { isShowPublic, resolveShowPublication } from "@/lib/publication";
 
@@ -22,6 +24,27 @@ export const Route = createFileRoute("/scorecharts/")({
 });
 
 function ScorechartsPage() {
+  const { isAppMode, platformResolved } = useSolarisApp();
+
+  if (!platformResolved) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-10" data-v3-scorecharts-boot="">
+        <h1 className="text-3xl font-bold">Full Scorecharts</h1>
+        <p role="status" className="mt-3">
+          Opening published detailed voting…
+        </p>
+      </main>
+    );
+  }
+
+  if (isAppMode) {
+    return <V3ScorechartsGate fallback={<LegacyScorechartsPage />} />;
+  }
+
+  return <LegacyScorechartsPage />;
+}
+
+function LegacyScorechartsPage() {
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
   const { data: editions } = editionsQuery;
@@ -35,7 +58,11 @@ function ScorechartsPage() {
   const scorechartShows = useMemo(
     () =>
       (shows ?? [])
-        .filter((show) => isShowPublic(show) && resolveShowPublication(show).detailed_voting)
+        .filter(
+          (show) =>
+            isShowPublic(show) &&
+            resolveShowPublication(show).detailed_voting,
+        )
         .sort((a, b) => {
           const editionA = editionMap.get(a.edition_id)?.edition_number ?? -1;
           const editionB = editionMap.get(b.edition_id)?.edition_number ?? -1;
@@ -45,8 +72,30 @@ function ScorechartsPage() {
   );
 
   const archiveQueries = [editionsQuery, showsQuery];
-  if (archiveIsLoading(...archiveQueries)) return <AppShell><PageHeader eyebrow="Detailed voting" title="Full Scorecharts" description="Published detailed voting matrices." /><ArchiveDataLoading label="Loading scorecharts…" /></AppShell>;
-  if (archiveHasError(...archiveQueries)) return <AppShell><PageHeader eyebrow="Detailed voting" title="Full Scorecharts" description="Published detailed voting matrices." /><ArchiveDataError /></AppShell>;
+  if (archiveIsLoading(...archiveQueries)) {
+    return (
+      <AppShell>
+        <PageHeader
+          eyebrow="Detailed voting"
+          title="Full Scorecharts"
+          description="Published detailed voting matrices."
+        />
+        <ArchiveDataLoading label="Loading scorecharts…" />
+      </AppShell>
+    );
+  }
+  if (archiveHasError(...archiveQueries)) {
+    return (
+      <AppShell>
+        <PageHeader
+          eyebrow="Detailed voting"
+          title="Full Scorecharts"
+          description="Published detailed voting matrices."
+        />
+        <ArchiveDataError />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -70,15 +119,18 @@ function ScorechartsPage() {
         items={[
           {
             title: "Rows receive",
-            description: "Find an entry down the left side to follow all points it received.",
+            description:
+              "Find an entry down the left side to follow all points it received.",
           },
           {
             title: "Columns give",
-            description: "Follow a voter across the top to see how it distributed its points.",
+            description:
+              "Follow a voter across the top to see how it distributed its points.",
           },
           {
             title: "Open a show",
-            description: "The scorechart opens inside that show's results page, next to the other result views.",
+            description:
+              "The scorechart opens inside that show's results page, next to the other result views.",
           },
         ]}
       />
@@ -86,10 +138,16 @@ function ScorechartsPage() {
       <section>
         <div className="mb-3 flex items-end justify-between gap-3 border-b border-border/60 pb-3">
           <div>
-            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">Available scorecharts</p>
-            <h2 className="mt-1 font-display text-xl font-bold sm:text-2xl">Published detailed voting</h2>
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">
+              Available scorecharts
+            </p>
+            <h2 className="mt-1 font-display text-xl font-bold sm:text-2xl">
+              Published detailed voting
+            </h2>
           </div>
-          <span className="numeric text-xs text-muted-foreground">{scorechartShows.length}</span>
+          <span className="numeric text-xs text-muted-foreground">
+            {scorechartShows.length}
+          </span>
         </div>
 
         {scorechartShows.length ? (
@@ -107,7 +165,9 @@ function ScorechartsPage() {
                   <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-primary">
                     {edition ? editionLabel(edition) : "SSC"}
                   </p>
-                  <h3 className="mt-2 font-display text-lg font-bold">{show.name}</h3>
+                  <h3 className="mt-2 font-display text-lg font-bold">
+                    {show.name}
+                  </h3>
                   <p className="mt-2 text-xs text-muted-foreground">
                     {show.kind.replaceAll("-", " ")} · full voting matrix available
                   </p>

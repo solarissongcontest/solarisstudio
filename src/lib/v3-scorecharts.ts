@@ -1,0 +1,19 @@
+export type V3ScorechartIndexItem = {
+  showId: string;
+  showName: string;
+  showKind: string;
+  editionId: string;
+  editionName: string;
+  editionSlug: string;
+  editionNumber: number | null;
+};
+
+export type V3ScorechartsBundle = {
+  rolloutEditionSlug: string | null;
+  shell: {
+    editionLabel: string;
+    phaseLabel: string;
+  };
+  items: V3ScorechartIndexItem[];
+  generatedAt: string;
+};
