@@ -26,23 +26,25 @@ describe("V3 Country Hub convergence", () => {
     }
   });
 
-  it("moves HOD and readiness work into Participate rather than a second task center", () => {
-    for (const name of ["hod", "readiness"] as const) {
-      const source = route(name);
-      expect(source).toContain("NAV_TARGETS.participate");
-    }
+  it("routes delegation work into canonical MySolaris participant destinations", () => {
+    expect(route("hod")).toContain("NAV_TARGETS.mySolarisTasks");
+
+    const readiness = route("readiness");
+    expect(readiness).toContain("NAV_TARGETS.mySolarisEntry");
+    expect(readiness).toContain('view: "readiness"');
   });
 
-  it("moves notices to the canonical Me notice inbox", () => {
+  it("moves notices to the canonical Me notice inbox without dropping validated search state", () => {
     const source = route("notices");
-    expect(source).toContain('to: "/my-solaris/notices"');
-    expect(source).toContain("notice: search.notice");
-    expect(source).toContain("state: search.state");
+    expect(source).toContain("NAV_TARGETS.mySolarisNotices");
+    expect(source).toContain("notice: typeof search.notice");
+    expect(source).toContain("state:");
+    expect(source).toContain("search, replace: true");
   });
 
   it("moves page and visual identity work to canonical MySolaris destinations", () => {
-    expect(route("page-builder")).toContain("NAV_TARGETS.mySolarisPage");
-    expect(route("theme")).toContain("NAV_TARGETS.mySolarisAppearance");
+    expect(route("page-builder")).toContain("NAV_TARGETS.mySolarisPageBuilder");
+    expect(route("theme")).toContain("NAV_TARGETS.mySolarisTheme");
   });
 
   it("keeps the Country Hub root as a compatibility path into Me", () => {
