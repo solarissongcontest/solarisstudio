@@ -32,15 +32,23 @@ function provenanceForHolder(input: {
   if (!input.editionId) return null;
 
   if (input.record.category === "voting") {
-    const voteShowIds = input.jury
-      .filter(
-        (vote) =>
-          vote.edition_id === input.editionId &&
-          (vote.voter_country_id === input.countryId ||
-            vote.receiving_country_id === input.countryId),
-      )
-      .flatMap((vote) => (vote.show_id ? [vote.show_id] : []));
-    const votingShow = bestShow(voteShowIds, input.showById);
+    const voteShowIds = [...new Set(
+      input.jury
+        .filter(
+          (vote) =>
+            vote.edition_id === input.editionId &&
+            (vote.voter_country_id === input.countryId ||
+              vote.receiving_country_id === input.countryId),
+        )
+        .flatMap((vote) => (vote.show_id ? [vote.show_id] : [])),
+    )];
+    // A record holder does not currently carry the exact ballot/show that
+    // produced a voting record. Only link a matrix when the published archive
+    // proves there is exactly one candidate show; ambiguity falls through to a
+    // broader published result/edition source instead of inventing precision.
+    const votingShow = voteShowIds.length === 1
+      ? input.showById.get(voteShowIds[0]) ?? null
+      : null;
     if (votingShow) {
       return {
         kind: "voting",
