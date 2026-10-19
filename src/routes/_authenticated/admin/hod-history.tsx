@@ -43,6 +43,7 @@ type Suggestion = {
 
 type Assignment = {
   id: string;
+  editionId: string;
   editionNumber: number | null;
   editionName: string;
   countryId: string;
@@ -57,7 +58,77 @@ type Assignment = {
   notes: string | null;
 };
 
+type TenureSlotSnapshot = {
+  editionId: string;
+  editionLabel: string;
+  assignmentId: string | null;
+  personId: string | null;
+  personName: string | null;
+  source: string | null;
+  confidence: number | null;
+  notes: string | null;
+};
+
+type PendingTenureReview = {
+  personId: string;
+  personName: string;
+  countryId: string;
+  countryCode: string;
+  countryName: string;
+  editionIds: string[];
+  channel: HodChannel;
+  notes: string | null;
+  slots: TenureSlotSnapshot[];
+  baselineFingerprint: string;
+};
+
 const controlClass = "mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30";
+
+function editionOptionLabel(edition: EditionOption) {
+  return `SSC${edition.editionNumber ?? "?"} · ${edition.name}`;
+}
+
+function snapshotTenureSlots(
+  assignments: Assignment[],
+  editions: EditionOption[],
+  editionIds: string[],
+  countryId: string,
+  channel: HodChannel,
+): TenureSlotSnapshot[] {
+  const editionById = new Map(editions.map((edition) => [edition.id, edition]));
+  return editionIds.map((editionId) => {
+    const current = assignments.find(
+      (assignment) =>
+        assignment.editionId === editionId &&
+        assignment.countryId === countryId &&
+        assignment.channel === channel,
+    );
+    const edition = editionById.get(editionId);
+    return {
+      editionId,
+      editionLabel: edition ? editionOptionLabel(edition) : editionId,
+      assignmentId: current?.id ?? null,
+      personId: current?.personId ?? null,
+      personName: current?.personName ?? null,
+      source: current?.source ?? null,
+      confidence: current?.confidence ?? null,
+      notes: current?.notes ?? null,
+    };
+  });
+}
+
+function tenureSlotFingerprint(slots: TenureSlotSnapshot[]) {
+  return JSON.stringify(
+    slots.map((slot) => ({
+      editionId: slot.editionId,
+      assignmentId: slot.assignmentId,
+      personId: slot.personId,
+      source: slot.source,
+      confidence: slot.confidence,
+      notes: slot.notes,
+    })),
+  );
+}
 
 export const Route = createFileRoute("/_authenticated/admin/hod-history")({
   head: () => ({
@@ -94,6 +165,7 @@ function HodHistoryPage() {
   const [filterCountry, setFilterCountry] = useState("");
   const [filterPerson, setFilterPerson] = useState("");
   const [removeTarget, setRemoveTarget] = useState<Assignment | null>(null);
+  const [pendingTenureReview, setPendingTenureReview] = useState<PendingTenureReview | null>(null);
 
   const invalidate = async () => {
     await Promise.all([
@@ -127,23 +199,48 @@ function HodHistoryPage() {
   }, [editionsAscending, fromEditionId, toEditionId]);
 
   const saveTenure = useMutation({
-    mutationFn: () => saveAssignmentsFn({
-      data: {
-        personId,
-        countryId,
-        editionIds: selectedEditionIds,
-        channel,
-        source: "manual",
-        confidence: 100,
-        notes: notes || null,
-      },
-    }),
+    mutationFn: async (review: PendingTenureReview) => {
+      const live = await getHistory();
+      const liveAssignments = (live.assignments ?? []) as Assignment[];
+      const liveEditions = (live.editions ?? []) as EditionOption[];
+      const liveSlots = snapshotTenureSlots(
+        liveAssignments,
+        liveEditions,
+        review.editionIds,
+        review.countryId,
+        review.channel,
+      );
+      if (tenureSlotFingerprint(liveSlots) !== review.baselineFingerprint) {
+        throw new Error(
+          "HOD tenure history changed while this review was open. Nothing was saved. Refresh and review the current controllers before trying again.",
+        );
+      }
+      return saveAssignmentsFn({
+        data: {
+          personId: review.personId,
+          countryId: review.countryId,
+          editionIds: review.editionIds,
+          channel: review.channel,
+          source: "manual",
+          confidence: 100,
+          notes: review.notes,
+        },
+      });
+    },
     onSuccess: async (result) => {
+      setPendingTenureReview(null);
       setNotes("");
       await invalidate();
       toast.success(`Saved ${result.updated} HOD assignment${result.updated === 1 ? "" : "s"}`);
     },
-    onError: (caught) => toast.error(caught instanceof Error ? caught.message : "Could not save HOD tenure"),
+    onError: async (caught) => {
+      const message = caught instanceof Error ? caught.message : "Could not save HOD tenure";
+      if (message.startsWith("HOD tenure history changed")) {
+        setPendingTenureReview(null);
+        await invalidate();
+      }
+      toast.error(message);
+    },
   });
 
   const removeAssignment = useMutation({
@@ -177,6 +274,26 @@ function HodHistoryPage() {
   const assignments = (data?.assignments ?? []) as Assignment[];
   const countries = (data?.countries ?? []) as CountryOption[];
   const visibleSuggestions = (suggestions as Suggestion[]).slice(0, 30);
+
+  function openTenureReview() {
+    const person = people.find((item) => item.id === personId);
+    const country = countries.find((item) => item.id === countryId);
+    if (!person || !country || !selectedEditionIds.length) return;
+    const editionIds = [...selectedEditionIds];
+    const slots = snapshotTenureSlots(assignments, editionsAscending, editionIds, country.id, channel);
+    setPendingTenureReview({
+      personId: person.id,
+      personName: person.displayName,
+      countryId: country.id,
+      countryCode: country.code,
+      countryName: country.name,
+      editionIds,
+      channel,
+      notes: notes.trim() || null,
+      slots,
+      baselineFingerprint: tenureSlotFingerprint(slots),
+    });
+  }
 
   return (
     <AdminPage>
@@ -240,13 +357,13 @@ function HodHistoryPage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="HOD"><select value={personId} onChange={(event) => setPersonId(event.target.value)} className={controlClass}><option value="">Choose HOD</option>{people.map((person) => <option key={person.id} value={person.id}>{person.displayName}</option>)}</select></Field>
                 <Field label="Country"><select value={countryId} onChange={(event) => setCountryId(event.target.value)} className={controlClass}><option value="">Choose country</option>{countries.map((country) => <option key={country.id} value={country.id}>{country.name} ({country.code})</option>)}</select></Field>
-                <Field label="From edition"><select value={fromEditionId} onChange={(event) => { setFromEditionId(event.target.value); if (!toEditionId) setToEditionId(event.target.value); }} className={controlClass}><option value="">Choose edition</option>{editionsAscending.map((edition) => <option key={edition.id} value={edition.id}>SSC{edition.editionNumber ?? "?"} · {edition.name}</option>)}</select></Field>
-                <Field label="Through edition"><select value={toEditionId} onChange={(event) => setToEditionId(event.target.value)} className={controlClass}><option value="">Same edition</option>{editionsAscending.map((edition) => <option key={edition.id} value={edition.id}>SSC{edition.editionNumber ?? "?"} · {edition.name}</option>)}</select></Field>
+                <Field label="From edition"><select value={fromEditionId} onChange={(event) => { setFromEditionId(event.target.value); if (!toEditionId) setToEditionId(event.target.value); }} className={controlClass}><option value="">Choose edition</option>{editionsAscending.map((edition) => <option key={edition.id} value={edition.id}>{editionOptionLabel(edition)}</option>)}</select></Field>
+                <Field label="Through edition"><select value={toEditionId} onChange={(event) => setToEditionId(event.target.value)} className={controlClass}><option value="">Same edition</option>{editionsAscending.map((edition) => <option key={edition.id} value={edition.id}>{editionOptionLabel(edition)}</option>)}</select></Field>
                 <Field label="Controls"><select value={channel} onChange={(event) => setChannel(event.target.value as HodChannel)} className={controlClass}><option value="delegation">Delegation default · jury + televote</option><option value="jury">Jury override only</option><option value="televote">Televote override only</option></select></Field>
                 <Field label="Notes"><input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional historical name / handover note" className={controlClass} /></Field>
               </div>
               <div className="mt-4 rounded-xl border border-white/[0.07] bg-white/[0.025] p-3 text-xs leading-relaxed text-muted-foreground">This will assign {selectedEditionIds.length} edition{selectedEditionIds.length === 1 ? "" : "s"}. An existing assignment for the same country, edition and channel is replaced. Use Notes when a historical country name or handover needs context.</div>
-              <div className="admin-sticky-actions mt-4"><button type="button" disabled={!personId || !countryId || !selectedEditionIds.length || saveTenure.isPending} onClick={() => saveTenure.mutate()} className="admin-action-primary w-full">{saveTenure.isPending ? "Saving…" : "Save tenure"}</button></div>
+              <div className="admin-sticky-actions mt-4"><button type="button" disabled={!personId || !countryId || !selectedEditionIds.length || saveTenure.isPending} onClick={openTenureReview} className="admin-action-primary w-full">{saveTenure.isPending ? "Saving…" : "Review tenure"}</button></div>
             </AdminCard>
           </div>
 
@@ -298,6 +415,44 @@ function HodHistoryPage() {
           </AdminCard>
         </>
       ) : null}
+
+      <AdminConfirmSheet
+        open={!!pendingTenureReview}
+        onClose={() => !saveTenure.isPending && setPendingTenureReview(null)}
+        onConfirm={async () => {
+          if (pendingTenureReview) await saveTenure.mutateAsync(pendingTenureReview);
+        }}
+        title={pendingTenureReview ? `Save ${pendingTenureReview.personName} as HOD for ${pendingTenureReview.countryName}?` : "Save HOD tenure?"}
+        description={pendingTenureReview ? (
+          <div className="space-y-3 text-xs leading-5 text-muted-foreground" data-v3-organizer-hod-tenure-review>
+            <p>
+              Review every historical controller slot that will be written. Existing assignments in the same edition, country and channel are replaced.
+            </p>
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+              <p className="font-semibold text-foreground">{pendingTenureReview.countryName} ({pendingTenureReview.countryCode})</p>
+              <p className="mt-1">Channel: <strong className="text-foreground">{pendingTenureReview.channel === "delegation" ? "delegation default · jury + televote" : `${pendingTenureReview.channel} override`}</strong></p>
+              <div className="mt-3 space-y-2">
+                {pendingTenureReview.slots.map((slot) => (
+                  <div key={slot.editionId} className="rounded-lg border border-white/[0.07] bg-black/10 p-2.5">
+                    <p className="font-semibold text-foreground">{slot.editionLabel}</p>
+                    <p className="mt-1">Current: {slot.personName ?? "No HOD assignment"}</p>
+                    <p>After: <strong className="text-foreground">{pendingTenureReview.personName}</strong></p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 whitespace-pre-wrap"><span className="font-semibold text-foreground">Historical note:</span> {pendingTenureReview.notes ?? "None"}</p>
+            </div>
+            <p>
+              Solaris reloads these exact slots immediately before apply and rejects the review if any controller, source, confidence or note changed. The legacy upsert is still not an atomic CAS/idempotent V3 operation; System #1071 owns that canonical authority and receipt contract.
+            </p>
+          </div>
+        ) : "Review the exact historical controller changes before saving."}
+        confirmLabel="Save reviewed tenure"
+        confirmationText={pendingTenureReview?.countryCode}
+        confirmationHint={pendingTenureReview ? `Type ${pendingTenureReview.countryCode} to confirm historical controller changes` : undefined}
+        busy={saveTenure.isPending}
+        danger={Boolean(pendingTenureReview?.slots.some((slot) => slot.personId && slot.personId !== pendingTenureReview.personId))}
+      />
 
       <AdminConfirmSheet
         open={!!removeTarget}
