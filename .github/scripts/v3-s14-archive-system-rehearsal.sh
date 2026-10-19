@@ -180,6 +180,7 @@ db_exec "
 insert into public.studio2_capability_grants(user_id,capability,edition_id)
 values
  ('$ORGANIZER_ID'::uuid,'edition.manage','$EDITION_ID'::uuid),
+ ('$ORGANIZER_ID'::uuid,'edition.transition','$EDITION_ID'::uuid),
  ('$ORGANIZER_ID'::uuid,'edition.archive','$EDITION_ID'::uuid)
 on conflict do nothing;
 
