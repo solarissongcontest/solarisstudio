@@ -84,13 +84,20 @@ function rpcMessage(error: unknown, fallback: string) {
   if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
     const message = error.message;
     if (message.includes("Fresh authentication required")) {
-      return "Fresh authentication is required. Re-enter your own current Solaris password and retry the exact reviewed change.";
+      return "Fresh authentication is required. Sign in again, then retry the exact reviewed change.";
     }
     if (message === "AUTHORIZATION") return "You do not have permission to replace country-account credentials.";
     if (message === "STATE_CHANGED") return "The reviewed country account changed. Reload it and review the current target before retrying.";
     if (message === "IDEMPOTENCY_CONFLICT") return "This credential operation identity was already used for different reviewed details. Start a new review.";
   }
   return fallback;
+}
+
+function sameInstant(left: unknown, right: string) {
+  if (typeof left !== "string") return false;
+  const leftTime = Date.parse(left);
+  const rightTime = Date.parse(right);
+  return Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime === rightTime;
 }
 
 Deno.serve(async (req) => {
@@ -162,6 +169,37 @@ Deno.serve(async (req) => {
   }
   if (reason.length < 8 || reason.length > 500) {
     return json({ error: "Add a brief reason for this credential replacement." }, 400);
+  }
+
+  // Reconcile an already-completed exact operation before depending on password
+  // safety or Auth again. A lost response must remain recoverable even if an
+  // external dependency is unavailable on the later retry.
+  const { data: existingReceipt, error: existingReceiptError } = await service
+    .from("studio2_operation_receipts")
+    .select("actor_id,command,idempotency_key,status,scope,result")
+    .eq("operation_id", operationId)
+    .maybeSingle();
+  if (existingReceiptError) {
+    return json({ error: "Credential operation state could not be reconciled." }, 503);
+  }
+  if (existingReceipt) {
+    const scope = (existingReceipt.scope ?? {}) as Record<string, unknown>;
+    const exactIdentity =
+      existingReceipt.actor_id === callerData.user.id &&
+      existingReceipt.command === "account.country_credential.replace" &&
+      existingReceipt.idempotency_key === idempotencyKey &&
+      scope.targetUserId === targetUserId &&
+      scope.countryId === expectedCountryId &&
+      scope.reason === reason &&
+      scope.sessionPolicy === "revoke_all" &&
+      sameInstant(scope.expectedAccountUpdatedAt, expectedAccountUpdatedAt);
+
+    if (!exactIdentity) {
+      return json({ error: "This credential operation identity belongs to different reviewed details." }, 409);
+    }
+    if (existingReceipt.status === "succeeded" && existingReceipt.result) {
+      return json({ ...(existingReceipt.result as Record<string, unknown>), replayed: true });
+    }
   }
 
   const passwordError = await passwordSafetyError(password);
