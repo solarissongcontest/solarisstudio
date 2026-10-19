@@ -76,7 +76,16 @@ describe("System V3 S6 projection reconciliation registry", () => {
     );
     expect(confirmation.length).toBeGreaterThan(0);
     expect(confirmation.every((projection) => projection.repair.state === "foundation")).toBe(true);
-    expect(confirmation.every((projection) => projection.repair.rebuildPath === null)).toBe(true);
+    expect(
+      confirmation.every((projection) =>
+        projection.repair.rebuildPath?.includes("studio2_reconcile_confirmation_requirements"),
+      ),
+    ).toBe(true);
+    expect(
+      confirmation.every((projection) =>
+        projection.repair.verificationPath?.includes("studio2_verify_confirmation_requirements"),
+      ),
+    ).toBe(true);
 
     const unrelatedDeclared = V3_PROJECTION_RECONCILIATION_REGISTRY.find(
       (projection) => projection.repair.state === "declared",
