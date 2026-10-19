@@ -298,6 +298,7 @@ export async function loadV3ResultsBundle(
         { key: "analysis", label: "Analysis", href: "/analysis" },
         { key: "records", label: "Records", href: "/records" },
         { key: "relationships", label: "Voting relationships", href: "/relationships" },
+        { key: "broadcast-intelligence", label: "Broadcast Intelligence", href: "/broadcast-intelligence" },
         { key: "lab", label: "Result Lab", href: "/result-lab" },
       ],
     },
