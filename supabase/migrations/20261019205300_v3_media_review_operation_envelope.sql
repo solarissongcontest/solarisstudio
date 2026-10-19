@@ -107,19 +107,24 @@ begin
       );
     end if;
 
-    if v_claim_status is distinct from 'processing' then
-      return jsonb_strip_nulls(jsonb_build_object(
-        'ok', false,
-        'operationId', v_canonical_operation_id,
-        'receiptId', v_canonical_operation_id,
-        'correlationId', v_claim -> 'correlationId',
-        'editionId', p_edition_id,
-        'status', coalesce(v_claim_status, 'unknown'),
-        'error', v_claim -> 'error',
-        'replayed', true,
-        'serverTime', now()
-      ));
-    end if;
+    -- A replayed operation that is still processing, uncertain or failed must
+    -- never re-enter the canonical writer. The caller reconciles the original
+    -- operationId instead of creating a second semantic review attempt.
+    return jsonb_strip_nulls(jsonb_build_object(
+      'ok', false,
+      'operationId', v_canonical_operation_id,
+      'receiptId', v_canonical_operation_id,
+      'correlationId', v_claim -> 'correlationId',
+      'editionId', p_edition_id,
+      'status', coalesce(v_claim_status, 'unknown'),
+      'error', v_claim -> 'error',
+      'replayed', true,
+      'serverTime', now()
+    ));
+  end if;
+
+  if v_claim_status is distinct from 'processing' then
+    raise exception using errcode = 'P0001', message = 'STATE_CHANGED';
   end if;
 
   -- Keep one authoritative writer. The legacy implementation owns canonical
