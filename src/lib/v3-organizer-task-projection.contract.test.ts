@@ -12,9 +12,10 @@ const runtime = source("src/lib/organisation-backend-contract.ts");
 const route = source("src/routes/_authenticated/admin/tasks.tsx");
 
 describe("V3 Organizer Task authority", () => {
-  it("registers the post-S13 migration and preserves the legacy compatibility contract", () => {
+  it("registers the post-S13 migration with a strict semantic key and preserves compatibility", () => {
     expect(migration).toContain("public.v3_register_migration_contract");
-    expect(migration).toContain("20261019205500_v3_organizer_task_projection");
+    expect(migration).toContain("'v3.organizer.tasks.projection'");
+    expect(migration).not.toContain("'20261019205500_v3_organizer_task_projection'");
     expect(migration).toContain("'forward_fix_only'");
     expect(migration).toContain("admin_organizer_tasks(uuid,text)");
     expect(migration).toContain("admin_organizer_task_count(uuid)");
