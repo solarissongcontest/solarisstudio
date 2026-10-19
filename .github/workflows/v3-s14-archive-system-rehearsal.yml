@@ -15,6 +15,7 @@ on:
       - "src/lib/v3-system-s1-registry.test.ts"
       - "src/lib/v3-s14-archive-consequences.contract.test.ts"
       - "src/lib/v3-s14-archive-registry.contract.test.ts"
+      - "src/lib/v3-s14-transition-http409.contract.test.ts"
       - "src/lib/v3-edition-transition-client.ts"
       - "src/lib/v3-edition-transition-client.test.ts"
       - "src/lib/studio2-control-room.ts"
@@ -93,13 +94,21 @@ jobs:
           supabase start
           supabase db reset --local --no-seed
 
-      - name: Apply feature migration delta without deleting newer main migrations
+      - name: Apply only the S14 feature migration delta
         shell: bash
         run: |
           set -euo pipefail
-          rsync -a "$GITHUB_WORKSPACE/supabase/migrations/" /tmp/solaris-s14-main/supabase/migrations/
+          for migration in \
+            20261019112100_v3_s14_archive_consequence_reconciliation.sql \
+            20261019112200_v3_s14_final_results_readiness_hardening.sql \
+            20261019112300_v3_s14_transition_http409.sql
+          do
+            cp \
+              "$GITHUB_WORKSPACE/supabase/migrations/$migration" \
+              "/tmp/solaris-s14-main/supabase/migrations/$migration"
+          done
           cd /tmp/solaris-s14-main
-          supabase migration up --local --include-all
+          supabase migration up --local
 
       - name: Rehearse S14 after current-main upgrade
         shell: bash
