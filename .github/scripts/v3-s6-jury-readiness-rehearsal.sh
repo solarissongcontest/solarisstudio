@@ -52,6 +52,7 @@ db_exec "insert into public.voters(edition_id,show_id,country_id,name,sort_order
 log "Browser roles cannot invoke the S6 service boundary"
 expect_db_failure "authenticated rebuild" "set role authenticated; select public.studio2_rebuild_jury_operational_projection('$SHOW_ID'::uuid,200,5000);"
 expect_db_failure "authenticated verifier" "set role authenticated; select public.studio2_verify_jury_operational_projection('$SHOW_ID'::uuid,200,5000);"
+expect_db_failure "authenticated lag metric" "set role authenticated; select public.studio2_measure_jury_operational_projection_lag('$SHOW_ID'::uuid,200,5000);"
 
 log "Read-only recomputation exposes canonical not-ready Jury state"
 REBUILT="$(service_value "select public.studio2_rebuild_jury_operational_projection('$SHOW_ID'::uuid,200,5000)::text;")"
@@ -78,6 +79,18 @@ assert value['projection']['juryReady'] is False
 PY
 log "PASS: independent verifier agrees with bounded canonical recomputation"
 
+LAG="$(service_value "select public.studio2_measure_jury_operational_projection_lag('$SHOW_ID'::uuid,200,5000)::text;")"
+python3 - "$LAG" <<'PY'
+import json,sys
+value=json.loads(sys.argv[1])
+assert value['state'] == 'measured'
+assert value['reason'] == 'synchronous_read_through'
+assert value['freshnessModel'] == 'synchronous_read_through'
+assert value['lagSeconds'] == 0
+assert value['verificationState'] == 'consistent'
+PY
+log "PASS: synchronous Jury projection reports zero storage lag only after verification"
+
 log "A voter set above the requested diagnostic bound fails honestly"
 db_exec "insert into public.voters(edition_id,show_id,country_id,name,sort_order)
   values ('$EDITION_ID','$SHOW_ID','$COUNTRY_D','Jury D',2);"
@@ -99,5 +112,15 @@ assert value['reason'] == 'verification_voter_bound_exceeded'
 assert value['observedVotersAtLeast'] == 2
 assert value['issues'] == []
 PY
+LAG_BOUNDED="$(service_value "select public.studio2_measure_jury_operational_projection_lag('$SHOW_ID'::uuid,1,5000)::text;")"
+python3 - "$LAG_BOUNDED" <<'PY'
+import json,sys
+value=json.loads(sys.argv[1])
+assert value['state'] == 'unknown'
+assert value['reason'] == 'verification_bound_exceeded'
+assert value['lagSeconds'] is None
+assert value['verificationState'] == 'unknown'
+PY
+log "PASS: bounded-out verification cannot fabricate a Jury lag value"
 
 log "System V3 S6 Jury readiness rehearsal passed"
