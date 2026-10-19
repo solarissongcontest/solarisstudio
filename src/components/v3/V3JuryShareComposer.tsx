@@ -12,7 +12,7 @@ import {
   downloadJuryShareImage,
   renderDefaultJuryShareImage,
   shareJuryShareImage,
-} from "@/lib/v3-jury-share-export.client";
+} from "@/lib/v3-jury-share-export";
 import { useV3PublicJuryShareProjection } from "@/lib/v3-jury-share-runtime";
 import { V3Section, V3Surface } from "./V3Foundation";
 
