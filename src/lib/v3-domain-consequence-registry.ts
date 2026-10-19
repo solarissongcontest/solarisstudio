@@ -72,6 +72,11 @@ const EVENT_BACKED_CONSEQUENCES: Readonly<Record<string, readonly string[]>> = {
     "src/lib/v3-s5-acknowledgement-consequences.test.ts",
     ".github/scripts/v3-s5-acknowledgement-consequences-rehearsal.sh",
   ],
+  "edition.archived": [
+    "supabase/migrations/20261019111100_v3_s14_archive_consequence_reconciliation.sql",
+    "src/lib/v3-s14-archive-consequences.contract.test.ts",
+    ".github/scripts/v3-s14-archive-system-rehearsal.sh",
+  ],
   "confirmation.submitted": [
     "supabase/migrations/20261015183000_v3_s5_confirmation_consequences.sql",
     ".github/scripts/v3-s5-confirmation-consequences-rehearsal.sh",
