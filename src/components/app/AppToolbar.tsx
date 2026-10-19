@@ -14,6 +14,7 @@ import {
   type AppHistoryEntry,
 } from "@/lib/app-navigation";
 import { resolveAppRouteChrome } from "@/lib/app-route-chrome";
+import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { readAppSearchReturn } from "@/lib/app-search-state";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { useScrollMorphProgress } from "@/lib/use-scroll-morph-progress";
@@ -29,6 +30,9 @@ export function AppToolbar({
 }) {
   const navigate = useNavigate();
   const chrome = resolveAppRouteChrome(pathname, searchStr);
+  const screen = resolveSolarisAppScreen(pathname, searchStr);
+  const routeOwnsFocusedToolbar =
+    screen.id === "mysolaris.entry" && screen.chrome.toolbar === "focused";
   const morphProgress = useScrollMorphProgress({
     resetKey: `${pathname}|${searchStr}`,
   });
@@ -44,6 +48,8 @@ export function AppToolbar({
   useEffect(() => {
     setBackTarget(peekAppBackTarget(pathname, searchStr));
   }, [pathname, searchStr]);
+
+  if (routeOwnsFocusedToolbar) return null;
 
   const fallback = chrome.backFallback;
   const searchReturn = chrome.root ? null : readAppSearchReturn(pathname);
