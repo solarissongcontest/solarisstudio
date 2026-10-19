@@ -18,6 +18,7 @@ source "$SCRIPT_DIR/v3-s14-stage-6-jury.sh"
 source "$SCRIPT_DIR/v3-s14-stage-7-public-voting.sh"
 source "$SCRIPT_DIR/v3-s14-stage-7-genuine-deadline.sh"
 source "$SCRIPT_DIR/v3-s14-stage-7-diagnostics.sh"
+source "$SCRIPT_DIR/v3-s14-stage-8-results.sh"
 
 OUTPUT_DIR="${V3_RELEASE_EVIDENCE_DIR:-v3-release-evidence}"
 mkdir -p "$OUTPUT_DIR"
@@ -98,9 +99,9 @@ run_stage stage-4-entries run_s14_stage_4_entries
 run_stage stage-5-running-orders run_s14_stage_5_running_orders
 run_stage stage-6-jury run_s14_stage_6_jury
 run_stage stage-7-public-voting run_s14_stage_7_public_voting
+run_stage stage-8-results run_s14_stage_8_results
 
 PENDING_STAGES=(
-  stage-8-results
   stage-9-publication
   stage-10-archive
 )
@@ -122,6 +123,7 @@ payload = {
         "stage-5-running-orders",
         "stage-6-jury",
         "stage-7-public-voting",
+        "stage-8-results",
     ],
     "implementedInvariants": [
         "confirmation-no-effective-duplicates",
@@ -129,10 +131,13 @@ payload = {
         "media-accepted-revision",
         "jury-single-final-ballot",
         "televote-canonical-ballot",
+        "result-reproducible",
     ],
     "implementedFailureInjections": [
         "network-after-commit",
+        "db-timeout-before-commit",
         "duplicate-request",
+        "worker-crash",
         "stale-client",
         "two-organizers",
     ],
@@ -146,7 +151,7 @@ PY
 EVIDENCE_WRITTEN=1
 
 if [[ "${V3_S14_ALLOW_PARTIAL:-0}" == "1" ]]; then
-  log "Partial S14 harness passed through Stage 7; release-grade S14 remains blocked by ${#PENDING_STAGES[@]} stages."
+  log "Partial S14 harness passed through Stage 8; release-grade S14 remains blocked by ${#PENDING_STAGES[@]} stages."
   exit 0
 fi
 
