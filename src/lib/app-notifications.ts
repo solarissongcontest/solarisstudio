@@ -152,13 +152,28 @@ async function serverHasPushSubscription(userId: string, endpoint: string) {
   return Boolean(data?.id);
 }
 
+type AppPushStateQueryContext = {
+  queryKey?: readonly unknown[];
+};
+
+function resolvePushStateUserId(input?: string | AppPushStateQueryContext) {
+  if (typeof input === "string") return input || undefined;
+  const candidate = input?.queryKey?.[1];
+  return typeof candidate === "string" && candidate ? candidate : undefined;
+}
+
 /**
  * Callers that provide the authenticated user get an end-to-end delivery
  * health check: browser subscription plus caller-owned active server row.
- * Legacy callers that omit userId retain their previous browser-only fallback
- * until they migrate to the V3 delivery-health contract.
+ * React Query callers may also pass this function directly as queryFn; the
+ * authenticated user id is then read from queryKey[1]. Legacy callers that
+ * omit userId retain their previous browser-only fallback until they migrate
+ * to the V3 delivery-health contract.
  */
-export async function getAppPushState(userId?: string): Promise<AppPushState> {
+export async function getAppPushState(
+  userIdOrContext?: string | AppPushStateQueryContext,
+): Promise<AppPushState> {
+  const userId = resolvePushStateUserId(userIdOrContext);
   const key = await vapidPublicKey();
   if (!pushSupported()) {
     return {
