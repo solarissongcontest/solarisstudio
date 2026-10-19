@@ -10,6 +10,15 @@ begin;
 -- derived from the canonical jury_ballot_submissions record. Ballot contents are
 -- intentionally never selected.
 
+select public.v3_register_migration_contract(
+  '20261019235317_v3_me_participant_activity_projection',
+  1,
+  'forward_fix_only',
+  false,
+  null,
+  'Additive recipient-scoped P40 activity projection; repair forward if the read contract changes.'
+);
+
 create index if not exists v3_domain_events_actor_time_idx
   on private.v3_domain_events (actor_id, occurred_at desc, id desc)
   where actor_id is not null;
