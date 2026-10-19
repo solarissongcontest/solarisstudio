@@ -4,21 +4,34 @@ export type AppPushState = {
   supported: boolean;
   configured: boolean;
   permission: NotificationPermission | "unsupported";
+  /** Effective delivery registration. V3 callers verify browser + server agreement. */
   subscribed: boolean;
+  browserSubscribed?: boolean;
+  serverRegistered?: boolean;
 };
 
 export type AppPushDeliveryMode =
   | "active"
   | "available"
+  | "registration-missing"
   | "permission-denied"
   | "unsupported"
-  | "unconfigured";
+  | "unconfigured"
+  | "unknown";
 
 export type AppPushDeliveryStatus = {
   mode: AppPushDeliveryMode;
   title: string;
   description: string;
   requiredWorkAvailable: true;
+};
+
+export const UNKNOWN_APP_PUSH_DELIVERY: AppPushDeliveryStatus = {
+  mode: "unknown",
+  title: "Push status unavailable",
+  description:
+    "Solaris could not verify this device's push delivery registration. Required tasks and notices remain available inside Solaris.",
+  requiredWorkAvailable: true,
 };
 
 /**
@@ -57,6 +70,16 @@ export function describeAppPushDelivery(
       title: "Push is active",
       description:
         "This device can receive Solaris alerts. Required work still remains available inside Solaris even if delivery is delayed.",
+      requiredWorkAvailable: true,
+    };
+  }
+
+  if (state.browserSubscribed === true && state.serverRegistered === false) {
+    return {
+      mode: "registration-missing",
+      title: "Push needs repair",
+      description:
+        "This browser still has a push subscription, but Solaris does not have an active server registration for it. Enable push again to repair delivery. Required tasks and notices remain available inside Solaris.",
       requiredWorkAvailable: true,
     };
   }
@@ -117,7 +140,25 @@ function pushSupported() {
   );
 }
 
-export async function getAppPushState(): Promise<AppPushState> {
+async function serverHasPushSubscription(userId: string, endpoint: string) {
+  const { data, error } = await (supabase as any)
+    .from("app_push_subscriptions")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("endpoint", endpoint)
+    .is("disabled_at", null)
+    .maybeSingle();
+  if (error) throw error;
+  return Boolean(data?.id);
+}
+
+/**
+ * Callers that provide the authenticated user get an end-to-end delivery
+ * health check: browser subscription plus caller-owned active server row.
+ * Legacy callers that omit userId retain their previous browser-only fallback
+ * until they migrate to the V3 delivery-health contract.
+ */
+export async function getAppPushState(userId?: string): Promise<AppPushState> {
   const key = await vapidPublicKey();
   if (!pushSupported()) {
     return {
@@ -125,15 +166,28 @@ export async function getAppPushState(): Promise<AppPushState> {
       configured: Boolean(key),
       permission: "unsupported",
       subscribed: false,
+      browserSubscribed: false,
+      serverRegistered: userId ? false : undefined,
     };
   }
+
   const registration = await navigator.serviceWorker.getRegistration("/");
   const subscription = await registration?.pushManager.getSubscription();
+  const browserSubscribed = Boolean(subscription);
+  const serverRegistered =
+    userId && subscription?.endpoint
+      ? await serverHasPushSubscription(userId, subscription.endpoint)
+      : undefined;
+
   return {
     supported: true,
     configured: Boolean(key),
     permission: Notification.permission,
-    subscribed: Boolean(subscription),
+    subscribed: userId
+      ? browserSubscribed && serverRegistered === true
+      : browserSubscribed,
+    browserSubscribed,
+    serverRegistered,
   };
 }
 

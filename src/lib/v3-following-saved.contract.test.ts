@@ -6,6 +6,8 @@ const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8"
 const route = () => read("src/routes/_authenticated/my-solaris/saved.tsx");
 const screen = () => read("src/components/v3/V3FollowingSavedScreen.tsx");
 const projection = () => read("src/lib/v3-following-saved.ts");
+const projectionData = () => read("src/lib/v3-following-saved-data.ts");
+const integrationData = () => read("src/integrations/v3/following-saved-data.ts");
 const engagement = () => read("src/lib/engagement-data.ts");
 
 describe("V3 Following & Saved architecture", () => {
@@ -21,8 +23,30 @@ describe("V3 Following & Saved architecture", () => {
     expect(engagement()).toContain('.from("fan_follows")');
     expect(engagement()).toContain('.eq("profile_id", profileId!)');
     expect(projection()).toContain("scoped: false");
+    expect(integrationData()).toContain("follow.profile_id === profileId");
     expect(screen()).toContain("projection && !projection.scoped");
     expect(screen()).not.toContain("localStorage");
+  });
+
+  it("keeps database IO in the integration layer", () => {
+    expect(projectionData()).toContain('@/integrations/v3/following-saved-data');
+    expect(projectionData()).not.toContain("integrations/supabase");
+    expect(projectionData()).not.toContain('.from("');
+    expect(integrationData()).toContain('@/integrations/supabase/client');
+  });
+
+  it("resolves only followed entity IDs instead of loading public catalogues", () => {
+    expect(screen()).toContain("useV3FollowEntityDetails(viewerId, followRows)");
+    expect(screen()).not.toContain("useCountries");
+    expect(screen()).not.toContain("useEditions");
+    expect(screen()).not.toContain("useAllShows");
+    expect(integrationData()).toContain('.from("countries")');
+    expect(integrationData()).toContain('.from("shows")');
+    expect(integrationData()).toContain('.from("editions")');
+    expect(integrationData()).toContain('.in("id", countryIds)');
+    expect(integrationData()).toContain('.in("id", showIds)');
+    expect(integrationData()).toContain('.in("id", editionIds)');
+    expect(integrationData()).toContain('.eq("published", true)');
   });
 
   it("uses the existing authenticated follow writer without caller-selected profile authority", () => {
@@ -34,6 +58,14 @@ describe("V3 Following & Saved architecture", () => {
     expect(engagement()).toContain("_following: following");
     expect(engagement()).toContain("_notification_level: notificationLevel");
     expect(engagement()).not.toMatch(/set_fan_follow[\s\S]{0,350}_profile_id/);
+  });
+
+  it("reconciles successful and uncertain writes against refreshed server state", () => {
+    expect(screen()).toContain("const reconciled = await follows.refetch()");
+    expect(screen()).toContain("v3FollowPreferenceMatches({");
+    expect(screen()).toContain("has not confirmed it yet");
+    expect(screen()).toContain("could not confirm whether that preference was saved");
+    expect(projection()).toContain("export function v3FollowPreferenceMatches");
   });
 
   it("lets users manage both follow state and notification level", () => {

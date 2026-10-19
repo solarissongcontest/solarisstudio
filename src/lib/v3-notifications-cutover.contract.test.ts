@@ -81,6 +81,17 @@ describe("V3 Notifications cutover", () => {
     expect(source).toContain('activeArea="me"');
   });
 
+  it("waits for preference, push and inbox reads before making notification-state claims", () => {
+    const source = route();
+
+    expect(source).toContain("preferences.isLoading || push.isLoading || inbox.isLoading");
+    expect(source).toContain('data-v3-notifications-authority-state="loading"');
+    expect(source).toContain("Loading your notification state");
+    expect(source.indexOf("preferences.isLoading || push.isLoading || inbox.isLoading")).toBeLessThan(
+      source.indexOf("const preferenceRow = preferences.data"),
+    );
+  });
+
   it("uses canonical preference, push and recipient-inbox engines without cloning writes", () => {
     const source = route();
 
