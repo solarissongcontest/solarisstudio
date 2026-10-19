@@ -32,6 +32,12 @@ export type Studio2ControlRoomDataSource = Pick<
   | 'transitionIncident'
 >;
 
+type Studio2ReviewedTransitionRequest = Studio2TransitionEditionRequest & {
+  expectedVersion?: number | null;
+  operationId?: string | null;
+  idempotencyKey?: string | null;
+};
+
 export async function loadStudio2ControlRoomSnapshot(
   editionId: string,
   source: Studio2ControlRoomDataSource = studio2Persistence,
@@ -62,6 +68,13 @@ export function createStudio2ControlRoom(
   source: Studio2ControlRoomDataSource = studio2Persistence,
   featureGate: Studio2FeatureGate = isStudio2FeatureEnabled,
 ) {
+  // The version remembered here is the exact runtime snapshot handed to the
+  // Control Room UI for review. Do not silently replace it with a fresher value
+  // immediately before mutation: that would let CAS authorize state the
+  // operator never reviewed. The server remains authoritative and rejects this
+  // remembered version if another actor has advanced the runtime meanwhile.
+  const reviewedRuntimeVersions = new Map<string, number>();
+
   async function requireEnabled(editionId: string) {
     if (!(await featureGate('live_control_room', editionId))) {
       throw new Error('Live Control Room v2 is disabled by the Studio 2 rollout flag.');
@@ -71,27 +84,31 @@ export function createStudio2ControlRoom(
   return {
     async loadSnapshot(editionId: string, eventLimit = 50) {
       await requireEnabled(editionId);
-      return loadStudio2ControlRoomSnapshot(editionId, source, eventLimit);
+      const snapshot = await loadStudio2ControlRoomSnapshot(editionId, source, eventLimit);
+      reviewedRuntimeVersions.set(editionId, snapshot.runtime.version);
+      return snapshot;
     },
 
-    async transitionEdition(request: Studio2TransitionEditionRequest) {
+    async transitionEdition(request: Studio2ReviewedTransitionRequest) {
       await requireEnabled(request.editionId);
 
       // Production Control Room traffic uses the single governed V3 command.
-      // Load the canonical version immediately before the command so the server
-      // can CAS-bind the mutation. Injected data sources remain unchanged for
-      // isolated tests and do not accidentally call the real Supabase client.
+      // Bind it to the reviewed snapshot version. Optional explicit identity is
+      // accepted so a future caller can keep the same operation across a UI
+      // retry; today's default path already reconciles uncertain transport once.
       if (source === studio2Persistence) {
-        const runtime = await source.loadEditionRuntime(request.editionId);
-        if (!runtime) {
-          throw new Error(`Studio 2 runtime is unavailable for edition ${request.editionId}`);
+        const expectedVersion =
+          request.expectedVersion ?? reviewedRuntimeVersions.get(request.editionId) ?? null;
+        if (!Number.isInteger(expectedVersion) || (expectedVersion ?? 0) < 1) {
+          throw new Error('Refresh the Control Room before changing edition state.');
         }
-        const operationId = crypto.randomUUID();
+
+        const operationId = request.operationId ?? crypto.randomUUID();
         return transitionEditionV3({
           ...request,
-          expectedVersion: runtime.version,
+          expectedVersion,
           operationId,
-          idempotencyKey: `edition-transition:${operationId}`,
+          idempotencyKey: request.idempotencyKey ?? `edition-transition:${operationId}`,
         });
       }
 
