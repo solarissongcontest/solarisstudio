@@ -61,12 +61,24 @@ describe("V3 P40 personal participation history projection", () => {
     expect(body).not.toContain("update public.country_edition_identities");
   });
 
-  it("marks contradictory HOD evidence superseded rather than current", () => {
+  it("reconciles current, handed-over and corrected HOD evidence explicitly", () => {
     const body = historyBody();
+    expect(body).toContain("claim.status in ('other', 'unknown') then 'unavailable'::text");
     expect(body).toContain("assignment.person_id <> own_person.id");
     expect(body).toContain("then 'superseded'::text");
+    expect(body).toContain("assignment.person_id = own_person.id");
+    expect(body).toContain("edition.status = 'active'");
+    expect(body).toContain("then 'current'::text");
     expect(body).toContain("and (claim.status is null or claim.status = 'mine')");
-    expect(body).not.toContain("edition.status <> 'completed'");
+    expect(body).not.toContain("from public.country_accounts");
+  });
+
+  it("makes completed-edition jury assignments historical even if not explicitly removed", () => {
+    const body = historyBody();
+    expect(body).toContain("member.status = 'assigned'");
+    expect(body).toContain("member.removed_at is null");
+    expect(body).toContain("and edition.status = 'active'");
+    expect(body).toContain("member.removed_at as ended_at");
   });
 
   it("exposes only safe role/state vocabulary and stable row identities", () => {
@@ -78,6 +90,7 @@ describe("V3 P40 personal participation history projection", () => {
     expect(body).toContain("'historical'::text");
     expect(body).toContain("'current'::text");
     expect(body).toContain("'superseded'::text");
+    expect(body).toContain("'unavailable'::text");
     expect(body).not.toContain("capability");
     expect(body).not.toContain("assigned_by");
     expect(body).not.toContain("removed_by");
