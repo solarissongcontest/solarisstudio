@@ -92,11 +92,12 @@ describe("V3 Notifications cutover", () => {
     );
   });
 
-  it("uses canonical preference, push and recipient-inbox engines without cloning writes", () => {
+  it("uses canonical preference, authenticated push and recipient-inbox engines without cloning writes", () => {
     const source = route();
 
     expect(source).toContain("useNotificationPreferences(userId)");
-    expect(source).toContain("getAppPushState");
+    expect(source).toContain("getAuthenticatedAppPushState(userId)");
+    expect(source).not.toMatch(/\bgetAppPushState\b/);
     expect(source).toContain("loadStudio2RecipientNoticeInbox(editionId)");
     expect(source).toContain('queryKey: ["v3-notifications-inbox", userId');
     expect(source).not.toContain("useSaveNotificationPreferences");
