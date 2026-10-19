@@ -75,6 +75,14 @@ describe("TerraOS mobile hero sequencing", () => {
     expect(implementation).toContain("--terraos-mobile-side-opacity");
   });
 
+  it("keeps a correctly centred static phone for Reduce Motion instead of applying the animated geometry", () => {
+    const implementation = source();
+    expect(implementation).toContain("prefers-reduced-motion: reduce");
+    expect(implementation).toContain("transform: translate(-50%, -46%) !important");
+    expect(implementation).toContain(".hero-stage .phone.left");
+    expect(implementation).toContain("display: none !important");
+  });
+
   it("keeps native scroll ownership and installs after macro choreography but before the handoff", () => {
     const implementation = source();
     const route = routeSource();
