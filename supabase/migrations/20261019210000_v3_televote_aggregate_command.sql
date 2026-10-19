@@ -1,10 +1,11 @@
 begin;
 
--- V3 System: Organizer Televote aggregate totals are consequential voting
--- state. Move the authoritative write behind one capability-checked, atomic,
--- versioned and idempotent command while preserving a compatibility window for
--- the legacy Organizer editor. During that window a state hash detects any
--- direct legacy write that bypasses the command version counter.
+-- V3 System / #585
+-- Official aggregate Televote totals are consequential contest state. Keep the
+-- existing public.televote_votes rows for compatibility, but move authority to
+-- one capability-checked, atomic, versioned and idempotent command. During the
+-- browser cutover a state fingerprint also detects legacy writes that bypass
+-- the command version counter.
 
 create table if not exists private.studio2_televote_aggregate_versions (
   show_id uuid primary key references public.shows(id) on delete cascade,
@@ -49,12 +50,17 @@ as $totals$
           and televote.contest_entity_id = participant.contest_entity_id
         )
         or (
-          participant.contest_entity_id is null
-          and participant.country_id is not null
+          participant.country_id is not null
           and televote.contest_entity_id is null
           and televote.country_id = participant.country_id
         )
       )
+    order by
+      (
+        participant.contest_entity_id is not null
+        and televote.contest_entity_id = participant.contest_entity_id
+      ) desc,
+      televote.id
     limit 1
   ) vote on true
   where participant.show_id = p_show_id
@@ -77,7 +83,23 @@ as $state_hash$
     'R0',
     jsonb_build_object('showId', p_show_id),
     jsonb_build_object(
-      'totals', private.studio2_televote_aggregate_totals(p_show_id)
+      'totals', private.studio2_televote_aggregate_totals(p_show_id),
+      'rawRows', coalesce(
+        (
+          select jsonb_agg(
+            jsonb_build_object(
+              'id', vote.id,
+              'countryId', vote.country_id,
+              'contestEntityId', vote.contest_entity_id,
+              'points', vote.points
+            )
+            order by vote.id
+          )
+          from public.televote_votes vote
+          where vote.show_id = p_show_id
+        ),
+        '[]'::jsonb
+      )
     )
   )
 $state_hash$;
@@ -96,9 +118,6 @@ set search_path = pg_catalog, public, private
 as $protected$
   select coalesce((
     select
-      -- An exact result version that has reached lock/reveal-ready is no longer
-      -- editable from the aggregate input screen. Corrections must go through
-      -- the Results lifecycle instead.
       exists (
         select 1
         from public.studio2_result_operations operation
@@ -162,7 +181,7 @@ set search_path = pg_catalog, public, private
 as $snapshot$
 declare
   v_actor uuid := auth.uid();
-  v_show public.shows;
+  v_show public.shows%rowtype;
   v_version bigint := 0;
   v_hash text;
   v_totals jsonb;
@@ -232,7 +251,7 @@ set search_path = pg_catalog, public, private, extensions
 as $command$
 declare
   v_actor uuid := auth.uid();
-  v_show public.shows;
+  v_show public.shows%rowtype;
   v_mode text := lower(btrim(coalesce(p_mode, 'patch')));
   v_reason text := nullif(btrim(coalesce(p_reason, '')), '');
   v_claim jsonb;
@@ -249,8 +268,11 @@ declare
   v_current_hash text;
   v_after_hash text;
   v_applied integer := 0;
-  v_participant public.participants;
+  v_participant public.participants%rowtype;
   v_participant_count integer;
+  v_before_totals jsonb;
+  v_after_totals jsonb;
+  v_affected_ids jsonb;
   v_result jsonb;
   v_event_id uuid;
 begin
@@ -264,9 +286,6 @@ begin
      or p_operation_id is null
      or nullif(btrim(coalesce(p_idempotency_key, '')), '') is null
      or nullif(btrim(coalesce(p_expected_state_hash, '')), '') is null then
-    raise exception 'VALIDATION' using errcode = '22023';
-  end if;
-  if p_expected_state_hash !~ '^[0-9a-f]{64}$' then
     raise exception 'VALIDATION' using errcode = '22023';
   end if;
   if v_mode not in ('patch', 'replace') then
@@ -293,8 +312,8 @@ begin
     raise exception 'Missing Solaris capability: voting.manage' using errcode = '42501';
   end if;
 
-  -- Validate and canonicalize before claiming idempotency so equivalent client
-  -- array order produces the same semantic request fingerprint.
+  -- Canonicalize before claiming idempotency so equivalent client array order
+  -- produces the same semantic request fingerprint.
   for v_item in
     select value from jsonb_array_elements(p_changes)
   loop
@@ -335,18 +354,6 @@ begin
   into v_canonical_changes
   from jsonb_array_elements(v_canonical_changes);
 
-  select count(*)
-  into v_participant_count
-  from public.participants participant
-  where participant.show_id = p_show_id
-    and participant.edition_id = p_edition_id;
-
-  if v_mode = 'replace'
-     and jsonb_array_length(v_canonical_changes) <> v_participant_count then
-    raise exception 'VALIDATION' using errcode = '22023';
-  end if;
-
-  -- Validate every referenced participant before any canonical vote write.
   if exists (
     select 1
     from jsonb_array_elements(v_canonical_changes) change
@@ -358,6 +365,41 @@ begin
        or (participant.country_id is null and participant.contest_entity_id is null)
   ) then
     raise exception 'STATE_CHANGED' using errcode = 'P0001';
+  end if;
+
+  if exists (
+    select 1
+    from (
+      select
+        case
+          when participant.contest_entity_id is not null
+            then 'entity:' || participant.contest_entity_id::text
+          when participant.country_id is not null
+            then 'country:' || participant.country_id::text
+          else null
+        end as identity_key,
+        count(*) as identity_count
+      from public.participants participant
+      where participant.show_id = p_show_id
+        and participant.edition_id = p_edition_id
+      group by 1
+    ) identities
+    where identities.identity_key is null or identities.identity_count > 1
+  ) then
+    raise exception 'STATE_CHANGED' using
+      errcode = 'P0001',
+      hint = 'Show participant identities are incomplete or ambiguous.';
+  end if;
+
+  select count(*)
+  into v_participant_count
+  from public.participants participant
+  where participant.show_id = p_show_id
+    and participant.edition_id = p_edition_id;
+
+  if v_mode = 'replace'
+     and jsonb_array_length(v_canonical_changes) <> v_participant_count then
+    raise exception 'VALIDATION' using errcode = '22023';
   end if;
 
   v_scope := jsonb_build_object(
@@ -383,15 +425,29 @@ begin
   );
 
   if coalesce((v_claim ->> 'replayed')::boolean, false) then
+    if v_claim ->> 'status' = 'succeeded' then
+      return coalesce(v_claim -> 'result', '{}'::jsonb)
+        || jsonb_build_object('replayed', true);
+    end if;
     return public.studio2_reconcile_operation((v_claim ->> 'operationId')::uuid);
   end if;
 
-  -- Serialize aggregate updates and any Results lifecycle change for this show.
-  -- Results already uses this advisory-lock namespace, so this also closes the
-  -- race where totals change while a result is being locked/published.
+  -- Results operations already serialize on this per-show namespace. Sharing
+  -- it prevents a totals write from racing a lock/publication transition.
   perform pg_advisory_xact_lock(
     hashtextextended('studio2-results:' || p_show_id::text, 0)
   );
+
+  select show_row.*
+  into v_show
+  from public.shows show_row
+  where show_row.id = p_show_id
+    and show_row.edition_id = p_edition_id
+  for share;
+
+  if v_show.id is null then
+    raise exception 'STATE_CHANGED' using errcode = 'P0001';
+  end if;
 
   insert into private.studio2_televote_aggregate_versions (
     show_id,
@@ -437,6 +493,44 @@ begin
       hint = 'Locked, reveal-ready, scheduled or public result totals must be corrected through the Results lifecycle.';
   end if;
 
+  select count(*)
+  into v_participant_count
+  from public.participants participant
+  where participant.show_id = p_show_id
+    and participant.edition_id = p_edition_id;
+
+  if v_mode = 'replace'
+     and jsonb_array_length(v_canonical_changes) <> v_participant_count then
+    raise exception 'STATE_CHANGED' using errcode = 'P0001';
+  end if;
+
+  v_before_totals := private.studio2_televote_aggregate_totals(p_show_id);
+
+  -- Replace mode owns the full show aggregate. Remove legacy/orphan rows that
+  -- no longer resolve to a current participant before applying the new set.
+  if v_mode = 'replace' then
+    delete from public.televote_votes vote
+    where vote.show_id = p_show_id
+      and not exists (
+        select 1
+        from public.participants participant
+        where participant.show_id = p_show_id
+          and participant.edition_id = p_edition_id
+          and (
+            (
+              participant.contest_entity_id is not null
+              and vote.contest_entity_id = participant.contest_entity_id
+            )
+            or (
+              participant.contest_entity_id is null
+              and participant.country_id is not null
+              and vote.contest_entity_id is null
+              and vote.country_id = participant.country_id
+            )
+          )
+      );
+  end if;
+
   for v_item in
     select value from jsonb_array_elements(v_canonical_changes)
   loop
@@ -451,11 +545,21 @@ begin
       and participant.edition_id = p_edition_id
     for key share;
 
-    if v_participant.id is null then
+    if v_participant.id is null
+       or (v_participant.country_id is null and v_participant.contest_entity_id is null) then
       raise exception 'STATE_CHANGED' using errcode = 'P0001';
     end if;
 
     if v_participant.contest_entity_id is not null then
+      -- Collapse a possible legacy country-only row before moving authority to
+      -- canonical contest-entity identity. This avoids double-counting readers.
+      if v_participant.country_id is not null then
+        delete from public.televote_votes vote
+        where vote.show_id = p_show_id
+          and vote.contest_entity_id is null
+          and vote.country_id = v_participant.country_id;
+      end if;
+
       insert into public.televote_votes (
         edition_id,
         country_id,
@@ -476,7 +580,7 @@ begin
         edition_id = excluded.edition_id,
         country_id = excluded.country_id,
         points = excluded.points;
-    elsif v_participant.country_id is not null then
+    else
       insert into public.televote_votes (
         edition_id,
         country_id,
@@ -497,8 +601,6 @@ begin
         edition_id = excluded.edition_id,
         points = excluded.points,
         contest_entity_id = null;
-    else
-      raise exception 'STATE_CHANGED' using errcode = 'P0001';
     end if;
 
     v_applied := v_applied + 1;
@@ -510,30 +612,73 @@ begin
     version = v_next_version,
     updated_at = now(),
     updated_by = v_actor
-  where show_id = p_show_id;
+  where show_id = p_show_id
+    and edition_id = p_edition_id;
 
+  v_after_totals := private.studio2_televote_aggregate_totals(p_show_id);
   v_after_hash := private.studio2_televote_aggregate_state_hash(p_show_id);
 
+  select coalesce(
+    jsonb_agg(value ->> 'participantId' order by value ->> 'participantId'),
+    '[]'::jsonb
+  )
+  into v_affected_ids
+  from jsonb_array_elements(v_canonical_changes);
+
+  -- Canonical S4 event signature derives correlation + actor from the S2
+  -- receipt. Do not duplicate those authoritative values in browser input.
   v_event_id := private.v3_emit_domain_event(
     'televote.aggregate_updated',
     'show',
-    p_show_id,
+    p_show_id::text,
     v_next_version,
     p_operation_id,
-    coalesce(p_correlation_id, p_operation_id),
     p_edition_id,
     p_show_id,
-    v_actor,
     jsonb_build_object(
-      'aggregateVersion', v_next_version,
+      'beforeVersion', v_current_version,
+      'afterVersion', v_next_version,
+      'beforeStateHash', v_current_hash,
       'stateHash', v_after_hash,
       'mode', v_mode,
       'appliedCount', v_applied,
+      'affectedParticipantIds', v_affected_ids,
       'reason', v_reason,
       'resultsRecalculationRequired', true
     ),
     1,
     array[]::text[]
+  );
+
+  insert into public.admin_audit_log (
+    actor_id,
+    action,
+    table_name,
+    record_id,
+    edition_id,
+    before_data,
+    after_data
+  ) values (
+    v_actor,
+    'televote.aggregate.update',
+    'televote_votes',
+    p_show_id::text,
+    p_edition_id,
+    jsonb_build_object(
+      'version', v_current_version,
+      'stateHash', v_current_hash,
+      'totals', v_before_totals,
+      'operationId', p_operation_id,
+      'reason', v_reason
+    ),
+    jsonb_build_object(
+      'version', v_next_version,
+      'stateHash', v_after_hash,
+      'totals', v_after_totals,
+      'operationId', p_operation_id,
+      'eventId', v_event_id,
+      'reason', v_reason
+    )
   );
 
   v_result := jsonb_build_object(
@@ -548,10 +693,11 @@ begin
     'stateHash', v_after_hash,
     'stateVersion', v_next_version::text || ':' || v_after_hash,
     'appliedCount', v_applied,
-    'totals', private.studio2_televote_aggregate_totals(p_show_id),
+    'totals', v_after_totals,
     'eventId', v_event_id,
     'resultsRecalculationRequired', true,
-    'serverTime', now()
+    'serverTime', now(),
+    'replayed', false
   );
 
   perform private.studio2_complete_operation(p_operation_id, v_result);
