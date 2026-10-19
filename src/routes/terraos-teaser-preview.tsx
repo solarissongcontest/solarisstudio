@@ -6,7 +6,13 @@ import {
 } from "@/components/v3/TerraOSTeaserPreview";
 import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 
-const SCREENS = new Set<TerraOSTeaserScreen>(["home", "explore", "participate"]);
+const SCREENS = new Set<TerraOSTeaserScreen>([
+  "home",
+  "explore",
+  "participate",
+  "results",
+  "me",
+]);
 
 export const Route = createFileRoute("/terraos-teaser-preview")({
   beforeLoad: () => {
@@ -21,6 +27,7 @@ export const Route = createFileRoute("/terraos-teaser-preview")({
       screen: (SCREENS.has(requested as TerraOSTeaserScreen)
         ? requested
         : "home") as TerraOSTeaserScreen,
+      chrome: search.chrome === "content" ? ("content" as const) : ("full" as const),
     };
   },
   head: () => ({
@@ -37,6 +44,6 @@ export const Route = createFileRoute("/terraos-teaser-preview")({
 });
 
 function TerraOSTeaserPreviewRoute() {
-  const { screen } = Route.useSearch();
-  return <TerraOSTeaserPreview screen={screen} />;
+  const { screen, chrome } = Route.useSearch();
+  return <TerraOSTeaserPreview screen={screen} showNavigation={chrome !== "content"} />;
 }
