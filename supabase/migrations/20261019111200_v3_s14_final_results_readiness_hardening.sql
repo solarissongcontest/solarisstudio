@@ -36,7 +36,8 @@ as $ready$
     select show_row.id
     from public.shows show_row
     where show_row.edition_id = p_edition_id
-      and lower(replace(coalesce(show_row.kind, ''), '_', '-')) in ('grand-final', 'final')
+      and lower(replace(replace(coalesce(show_row.kind, ''), '_', '-'), ' ', '-'))
+          in ('grand-final', 'final')
   ),
   evidenced_final_shows as (
     select final_show.id
