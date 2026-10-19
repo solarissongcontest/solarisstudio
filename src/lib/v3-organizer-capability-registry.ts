@@ -173,8 +173,13 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "voting-televote-totals" ||
     id === "voting-integrity-review" ||
     id === "voting-public-results" ||
+    id === "voting-intelligence" ||
+    id === "voting-analytics" ||
     id === "voting-result-integrity" ||
+    id === "voting-audit-log" ||
     id === "voting-edition-links" ||
+    id === "voting-result-backtest" ||
+    id === "voting-anti-abuse" ||
     id === "trust-rule-rulings" ||
     id === "trust-appeals" ||
     id === "trust-evidence" ||
