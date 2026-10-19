@@ -1,3 +1,6 @@
+import type { AppErrorKind } from "@/lib/app-error-state";
+import { trackPublicUxEvent } from "@/lib/public-ux-events";
+
 type LovableErrorOptions = {
   mechanism?: "manual" | "onerror" | "unhandledrejection" | "react_error_boundary";
   handled?: boolean;
@@ -23,8 +26,40 @@ declare global {
   }
 }
 
+const PUBLIC_UX_ERROR_CLASSES = new Set<AppErrorKind>([
+  "offline",
+  "service-unavailable",
+  "authentication-expired",
+  "permission-denied",
+  "conflict",
+  "not-found",
+  "unpublished",
+  "request-failed",
+  "unexpected",
+]);
+
+function safePublicUxErrorClass(value: unknown): AppErrorKind | null {
+  if (typeof value !== "string") return null;
+  return PUBLIC_UX_ERROR_CLASSES.has(value as AppErrorKind) ? (value as AppErrorKind) : null;
+}
+
 export function reportLovableError(error: unknown, context: Record<string, unknown> = {}) {
   if (typeof window === "undefined") return;
+
+  // The root public error boundary supplies only Solaris's existing
+  // low-cardinality AppErrorKind. Record that class separately from Lovable's
+  // detailed developer report: never send the error message, stack, response
+  // body or arbitrary context into Public UX telemetry.
+  const publicErrorClass = safePublicUxErrorClass(context.app_error_kind);
+  if (publicErrorClass) {
+    trackPublicUxEvent("public_error_shown", {
+      metadata: {
+        error_class: publicErrorClass,
+        source: "root_error_boundary",
+      },
+    });
+  }
+
   window.__lovableEvents?.captureException?.(
     error,
     {
