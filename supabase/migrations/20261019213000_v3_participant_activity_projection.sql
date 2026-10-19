@@ -45,17 +45,10 @@ set search_path = pg_catalog
 as $kind$
   select case
     when p_event_type = 'jury.ballot_submitted'
-      or p_command in ('jury.submit', 'jury.ballot_submit')
       then 'jury_participation'
     when p_event_type = 'televote.ballot_submitted'
       or p_command = 'televote.submit'
       then 'televote_participation'
-    when p_event_type in ('prediction.submitted', 'prediction.changed')
-      or p_command = 'prediction.submit'
-      then 'prediction'
-    when p_event_type in ('fantasy.submitted', 'fantasy.locked')
-      or p_command in ('fantasy.submit', 'fantasy.lock')
-      then 'fantasy'
     when p_event_type in (
       'confirmation.submitted',
       'entry.submitted',
@@ -94,16 +87,9 @@ as $title$
     when p_event_type = 'next_in_line.submitted' or p_command = 'next_in_line.submit'
       then 'Next in Line submission sent'
     when p_event_type = 'jury.ballot_submitted'
-      or p_command in ('jury.submit', 'jury.ballot_submit')
       then 'Jury ballot submitted'
     when p_event_type = 'televote.ballot_submitted' or p_command = 'televote.submit'
       then 'Televote submitted'
-    when p_event_type in ('prediction.submitted', 'prediction.changed')
-      or p_command = 'prediction.submit'
-      then 'Prediction submitted'
-    when p_event_type in ('fantasy.submitted', 'fantasy.locked')
-      or p_command in ('fantasy.submit', 'fantasy.lock')
-      then 'Fantasy submission saved'
     when p_command = 'media.finalize_upload'
       then 'Media upload finalized'
     else 'Solaris operation completed'
@@ -182,11 +168,7 @@ begin
           'entry.resubmitted',
           'jury.ballot_submitted',
           'televote.ballot_submitted',
-          'next_in_line.submitted',
-          'prediction.submitted',
-          'prediction.changed',
-          'fantasy.submitted',
-          'fantasy.locked'
+          'next_in_line.submitted'
         )
       order by domain_event.occurred_at desc, domain_event.id desc
       limit 1
@@ -197,13 +179,8 @@ begin
         'confirmation.submit',
         'entry.submit',
         'entry.resubmit',
-        'jury.submit',
-        'jury.ballot_submit',
         'televote.submit',
         'next_in_line.submit',
-        'prediction.submit',
-        'fantasy.submit',
-        'fantasy.lock',
         'media.finalize_upload'
       )
   ),
@@ -233,11 +210,7 @@ begin
         'entry.resubmitted',
         'jury.ballot_submitted',
         'televote.ballot_submitted',
-        'next_in_line.submitted',
-        'prediction.submitted',
-        'prediction.changed',
-        'fantasy.submitted',
-        'fantasy.locked'
+        'next_in_line.submitted'
       )
       and not exists (
         select 1
