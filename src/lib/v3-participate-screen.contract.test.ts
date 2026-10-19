@@ -17,12 +17,24 @@ describe("V3 Participate screen contract", () => {
     expect(participate).not.toContain("useMutation(");
   });
 
-  it("keeps required, upcoming, optional and completed presentation lanes distinct", () => {
+  it("keeps required, upcoming, waiting, optional and completed presentation lanes distinct", () => {
     expect(participate).toContain('title="Needs attention"');
     expect(participate).toContain('title="Next"');
+    expect(participate).toContain('title="Waiting"');
     expect(participate).toContain('title="Optional now"');
     expect(participate).toContain('title="Completed"');
     expect(participate).toContain("participate.needsAttention");
+    expect(participate).toContain("participate.next");
+    expect(participate).toContain("participate.waiting");
     expect(participate).toContain("participate.optionalNow");
+  });
+
+  it("shows canonical action timing instead of a generic local deadline badge", () => {
+    expect(participate).toContain("action.deadline ? formatActionTime(action.deadline) : null");
+    expect(participate).toContain("action.opensAt ? formatActionTime(action.opensAt) : null");
+    expect(participate).toContain("`Closes ${deadline}`");
+    expect(participate).toContain("`Opens ${opensAt}`");
+    expect(participate).not.toContain('action.deadline ? "Deadline set"');
+    expect(participate).not.toContain('action.opensAt ? "Scheduled"');
   });
 });

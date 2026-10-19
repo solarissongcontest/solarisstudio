@@ -19,6 +19,7 @@ type V3AccountSettingsRouteShellProps = {
   title: string;
   description: string;
   children: ReactNode;
+  v3Children?: ReactNode;
 };
 
 function ResolvingAccountSettingsRoute({ title }: { title: string }) {
@@ -53,6 +54,7 @@ export function V3AccountSettingsRouteShell({
   title,
   description,
   children,
+  v3Children,
 }: V3AccountSettingsRouteShellProps) {
   const { isAppMode, platformResolved } = useSolarisApp();
   const session = useFanSession();
@@ -80,13 +82,13 @@ export function V3AccountSettingsRouteShell({
     window.location.href = "/";
   };
 
-  // The legacy MySolaris presentation receives this provider from AppShell's
-  // MySolarisWorkspaceShell. The V3 Account cutover deliberately bypasses that
-  // legacy shell, so it must preserve the same context boundary here. Settings
-  // does not consume MySolaris context and stays outside the provider to avoid
-  // duplicating its account/task query fan-out.
+  // Keep the legacy account route untouched outside V3, while allowing the
+  // installed-app cutover to provide its dedicated account/settings content.
+  // Account still needs the MySolaris context that the legacy workspace shell
+  // normally supplies; Settings does not consume that context.
+  const v3Content = v3Children ?? children;
   const routeContent =
-    section === "account" ? <MySolarisProvider>{children}</MySolarisProvider> : children;
+    section === "account" ? <MySolarisProvider>{v3Content}</MySolarisProvider> : v3Content;
 
   return (
     <V3AppShell
