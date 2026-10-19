@@ -27,6 +27,7 @@ on:
       - ".github/scripts/v3-entry-legacy-upgrade-rehearsal.sh"
       - ".github/scripts/v3-entry-restore-provenance-assert.sh"
       - ".github/scripts/v3-operation-receipt-rehearsal.sh"
+      - ".github/scripts/v3-copy-migration-delta.sh"
       - ".github/workflows/rules-integrity-migration-rehearsal.yml"
   workflow_dispatch:
     inputs:
@@ -254,11 +255,14 @@ jobs:
             touch /tmp/v3-entry-legacy-seeded
           fi
 
-      - name: Apply candidate migration set as an upgrade
+      - name: Apply candidate migration delta as an upgrade
         shell: bash
         run: |
           set -euo pipefail
-          rsync -a --delete "$GITHUB_WORKSPACE/supabase/migrations/" /tmp/solaris-main/supabase/migrations/
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" \
+            "$GITHUB_WORKSPACE" \
+            /tmp/solaris-main \
+            "${{ steps.prepare-baseline.outputs.sha }}"
           cd /tmp/solaris-main
           supabase migration up --local --include-all
           supabase migration list --local
