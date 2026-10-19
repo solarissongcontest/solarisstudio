@@ -1,3 +1,5 @@
+import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
+
 export type PublicRecentDestination = {
   path: string;
   label: string;
@@ -15,13 +17,6 @@ const SENSITIVE_PREFIXES = [
   "/integrity/anonymous-appeal",
   "/my-solaris/account",
 ];
-
-const NON_CONTENT_RECENT_PREFIXES = [
-  "/confirmations",
-  "/jury-voting",
-  "/televoting",
-  "/next-in-line",
-] as const;
 
 const NON_CONTENT_RECENT_PATHS = new Set([
   "/",
@@ -46,7 +41,10 @@ const NON_CONTENT_RECENT_PATHS = new Set([
 
 export function shouldRememberPublicPath(path: string) {
   if (!path || NON_CONTENT_RECENT_PATHS.has(path)) return false;
-  if (NON_CONTENT_RECENT_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) return false;
+
+  const screen = resolveSolarisAppScreen(path);
+  if (screen.behavior.criticalTask || screen.behavior.immersive) return false;
+
   if (path.startsWith("/admin")) return false;
   if (SENSITIVE_PREFIXES.some((prefix) => path.startsWith(prefix))) return false;
   return true;
