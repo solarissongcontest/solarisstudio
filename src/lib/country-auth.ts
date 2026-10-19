@@ -13,6 +13,12 @@ type RecoveryPayload = {
 
 type PasswordUpdatePayload = {
   ok: boolean;
+  operationId?: string;
+  receiptId?: string;
+  userId?: string;
+  countryId?: string;
+  sessionPolicy?: "preserve_existing_sessions";
+  sessionsRevoked?: boolean;
 };
 
 export type SolarisAccountProfile = {
@@ -100,6 +106,13 @@ export async function setSolarisPassword(password: string) {
   return invokeCountryAuth<PasswordUpdatePayload>({ action: "set-password", password });
 }
 
-export async function adminSetSolarisPassword(userId: string, password: string) {
-  return invokeFunction<PasswordUpdatePayload>("admin-country-password", { userId, password });
+export async function adminSetSolarisPassword(input: {
+  userId: string;
+  countryId: string;
+  expectedUpdatedAt: string;
+  password: string;
+  operationId: string;
+  idempotencyKey: string;
+}) {
+  return invokeFunction<PasswordUpdatePayload>("admin-country-password", input);
 }
