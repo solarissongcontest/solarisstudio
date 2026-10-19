@@ -175,7 +175,7 @@ export function V3ScoreboardPresentation({
                         ) : null}
                         {country && isQualified === true ? (
                           <V3StatusChip tone="success">Qualified</V3StatusChip>
-                        ) : country && isQualified === false && hasQualifierCutoff ? (
+                        ) : country && isQualified === false ? (
                           <V3StatusChip tone="neutral">Eliminated</V3StatusChip>
                         ) : null}
                       </span>
