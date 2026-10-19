@@ -7,7 +7,7 @@ function source(path: string) {
 }
 
 const migration = source(
-  "supabase/migrations/20261019111000_v3_s13_migration_hardening.sql",
+  "supabase/migrations/20261016234500_v3_s13_migration_hardening.sql",
 );
 const rehearsal = source(
   ".github/scripts/v3-s13-migration-hardening-rehearsal.sh",

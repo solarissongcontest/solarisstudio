@@ -1,118 +1,128 @@
 import { describe, expect, it } from "vitest";
 import {
+  V3_S13_FRAMEWORK_VERSION,
   auditV3S13MigrationAdoption,
   classifyV3S13MigrationRisks,
-  type V3S13ReviewedMigrationExemption,
+  validateV3S13ReviewedExemptions,
 } from "./v3-s13-migration-adoption-audit";
 
-const migration = (name: string, source: string) => ({
-  path: `supabase/migrations/${name}`,
-  source,
-});
-
-const reviewed = (
-  name: string,
-  rationale = "Merged before the S13 gate existed.",
-): V3S13ReviewedMigrationExemption => ({
-  path: `supabase/migrations/${name}`,
-  reason: "pre_framework_merge",
-  rationale,
-});
-
 describe("System V3 S13 migration adoption audit", () => {
-  it("classifies destructive and backfill-like SQL after stripping comments", () => {
+  it("classifies destructive and backfill-like SQL while ignoring comments", () => {
     expect(
       classifyV3S13MigrationRisks(`
-        -- delete from ignored_comment;
-        /* drop table ignored_comment; */
-        update private.example set migrated = true where migrated = false;
-        alter table private.example drop column legacy;
+        -- drop table public.not_really;
+        /* truncate public.also_not_real; */
+        update public.entries set metadata = '{}'::jsonb where metadata is null;
+        alter table public.legacy drop column obsolete;
       `),
     ).toEqual(["backfill_like_dml", "destructive_ddl"]);
   });
 
-  it("accepts a concrete migration contract declaration but not a marker comment", () => {
-    const concrete = migration(
-      "20261020010000_concrete.sql",
-      "select public.v3_register_migration_contract('v3.test',1,'forward_fix_only',false,null,'test');",
-    );
-    const commentOnly = migration(
-      "20261020010100_comment.sql",
-      "-- V3-S13: contract\ncreate table public.example(id uuid primary key);",
-    );
-
-    expect(auditV3S13MigrationAdoption([concrete]).clean).toBe(true);
-    const commentReport = auditV3S13MigrationAdoption([commentOnly]);
-    expect(commentReport.clean).toBe(false);
-    expect(commentReport.findings[0]?.finding).toBe("missing_s13_adoption");
-  });
-
-  it("accepts an exact reviewed grandfather exemption", () => {
-    const name = "20261020010200_grandfathered.sql";
-    const report = auditV3S13MigrationAdoption(
-      [migration(name, "create table public.example(id uuid primary key);")],
-      [reviewed(name)],
-    );
+  it("accepts a concrete migration-contract declaration", () => {
+    const report = auditV3S13MigrationAdoption([
+      {
+        path: "supabase/migrations/20261019000000_example.sql",
+        source: `
+          insert into private.v3_migration_contracts (
+            migration_key, schema_version, rollback_mode, destructive, reason
+          ) values ('example.contract', 1, 'forward_fix_only', false, 'example');
+          update public.entries set metadata = '{}'::jsonb where metadata is null;
+        `,
+      },
+    ]);
 
     expect(report).toMatchObject({
-      clean: true,
-      exemptCount: 1,
+      migrationCount: 1,
+      adoptedCount: 1,
+      exemptCount: 0,
+      highRiskCount: 1,
       findingCount: 0,
-      exemptionIssueCount: 0,
+      highRiskFindingCount: 0,
     });
   });
 
-  it("fails closed on duplicate, stale, invalid-path, empty-rationale, and invalid-reason exemptions", () => {
-    const duplicateName = "20261020010300_present.sql";
-    const emptyName = "20261020010800_empty.sql";
-    const invalidReasonName = "20261020010900_reason.sql";
-    const migrations = [
-      migration(duplicateName, "create table public.example(id uuid primary key);"),
-      migration(emptyName, "create table public.empty_example(id uuid primary key);"),
-      migration(invalidReasonName, "create table public.reason_example(id uuid primary key);"),
-    ];
-    const invalidReason = {
-      path: `supabase/migrations/${invalidReasonName}`,
-      reason: "because_i_said_so",
-      rationale: "Nope.",
-    } as unknown as V3S13ReviewedMigrationExemption;
-
-    const report = auditV3S13MigrationAdoption(migrations, [
-      reviewed(duplicateName),
-      reviewed(duplicateName),
-      reviewed("20261020010400_missing.sql"),
-      { ...reviewed("20261020010700_bad_path.sql"), path: "migrations/not-canonical.sql" },
-      reviewed(emptyName, "   "),
-      invalidReason,
+  it("accepts a reasoned inline exemption", () => {
+    const accepted = auditV3S13MigrationAdoption([
+      {
+        path: "supabase/migrations/20261019000001_exempt.sql",
+        source: "-- V3-S13: exempt reason=metadata-only\nselect 1;",
+      },
     ]);
+    expect(accepted.findingCount).toBe(0);
+    expect(accepted.exemptCount).toBe(1);
 
-    expect(report.clean).toBe(false);
-    expect(report.exemptionIssues.map((issue) => issue.issue)).toEqual([
-      "duplicate_exemption",
-      "stale_exemption",
-      "invalid_exemption_path",
-      "empty_exemption_rationale",
-      "invalid_exemption_reason",
+    const rejected = auditV3S13MigrationAdoption([
+      {
+        path: "supabase/migrations/20261019000002_bad_exempt.sql",
+        source: "-- V3-S13: exempt\nselect 1;",
+      },
     ]);
+    expect(rejected.findings[0]?.finding).toBe("missing_s13_adoption");
   });
 
-  it("reports unclassified high-risk migrations separately from ordinary adoption gaps", () => {
-    const report = auditV3S13MigrationAdoption([
-      migration(
-        "20261020010500_backfill.sql",
-        "update public.example set migrated = true where migrated = false;",
-      ),
-      migration(
-        "20261020010600_additive.sql",
-        "create table public.example_two(id uuid primary key);",
-      ),
+  it("accepts only concrete structured reviewed exemptions", () => {
+    const path = "supabase/migrations/20261019000003_reviewed.sql";
+    const migrations = [{ path, source: "update public.entries set updated_at = now();" }];
+    const exemptions = [
+      {
+        path,
+        owner: "system-v3",
+        reason: "pre-enforcement bounded metadata repair reviewed during S13 adoption",
+        evidence: "isolated migration rehearsal + exact-SHA Quality",
+      },
+    ];
+
+    expect(validateV3S13ReviewedExemptions(migrations, exemptions)).toEqual([]);
+    expect(auditV3S13MigrationAdoption(migrations, exemptions)).toMatchObject({
+      exemptCount: 1,
+      findingCount: 0,
+    });
+  });
+
+  it("rejects duplicate, stale, missing and incomplete reviewed exemptions", () => {
+    const currentPath = "supabase/migrations/20261019000004_current.sql";
+    const stalePath = `supabase/migrations/${V3_S13_FRAMEWORK_VERSION}_stale.sql`;
+    const migrations = [{ path: currentPath, source: "select 1;" }];
+    const errors = validateV3S13ReviewedExemptions(migrations, [
+      { path: currentPath, owner: "", reason: "reviewed", evidence: "proof" },
+      { path: currentPath, owner: "system-v3", reason: "reviewed", evidence: "proof" },
+      { path: stalePath, owner: "system-v3", reason: "reviewed", evidence: "proof" },
     ]);
 
-    expect(report.clean).toBe(false);
-    expect(report.findings.map((finding) => finding.finding)).toEqual([
-      "high_risk_without_contract",
-      "missing_s13_adoption",
+    expect(errors).toContain(`duplicate exemption: ${currentPath}`);
+    expect(errors).toContain(`exemption ${currentPath} is missing owner`);
+    expect(errors).toContain(
+      `exemption does not match a post-framework migration: ${stalePath}`,
+    );
+    expect(errors).toContain(
+      `exemption is not newer than the S13 framework: ${stalePath}`,
+    );
+  });
+
+  it("distinguishes ordinary missing adoption from high-risk missing adoption", () => {
+    const report = auditV3S13MigrationAdoption([
+      {
+        path: "supabase/migrations/20261019000005_additive.sql",
+        source: "create index if not exists example_idx on public.entries(id);",
+      },
+      {
+        path: "supabase/migrations/20261019000006_destructive.sql",
+        source: "delete from public.legacy_rows where retired_at is not null;",
+      },
     ]);
-    expect(report.highRiskCount).toBe(1);
+
+    expect(report.findings).toEqual([
+      expect.objectContaining({
+        path: "supabase/migrations/20261019000005_additive.sql",
+        finding: "missing_s13_adoption",
+        risks: [],
+      }),
+      expect.objectContaining({
+        path: "supabase/migrations/20261019000006_destructive.sql",
+        finding: "high_risk_without_contract",
+        risks: ["bulk_delete"],
+      }),
+    ]);
+    expect(report.highRiskFindingCount).toBe(1);
   });
 });
