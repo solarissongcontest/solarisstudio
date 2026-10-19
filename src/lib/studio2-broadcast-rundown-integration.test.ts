@@ -45,7 +45,8 @@ describe('Studio 2 Phase 8 advanced broadcast workflows', () => {
     expect(liveLockGuard).toContain('Lock the broadcast rundown before taking a segment live');
     expect(liveLockGuard).toContain('before update of broadcast_config on public.shows');
     expect(route).toContain('Lock rundown');
-    expect(route).toContain('window.confirm');
+    expect(route).toContain('AdminConfirmSheet');
+    expect(route).not.toContain('window.confirm');
     expect(route).toContain('window.prompt');
   });
 

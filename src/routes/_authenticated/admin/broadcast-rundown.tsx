@@ -20,6 +20,7 @@ import { AdminPage } from '@/components/admin/AdminShell';
 import {
   AdminCard,
   AdminCardHeader,
+  AdminConfirmSheet,
   AdminEmptyState,
   AdminPageHeader,
   AdminStatus,
@@ -41,6 +42,17 @@ import {
   type Studio2BroadcastMode,
   type Studio2BroadcastRundownConfig,
 } from '@/lib/studio2-broadcast-rundown';
+
+type PendingLockReview = {
+  locked: boolean;
+  reason: string;
+};
+
+type PendingSegmentReview = {
+  segment: RundownSegment;
+  status: RundownSegmentStatus;
+  reason: string;
+};
 
 export const Route = createFileRoute('/_authenticated/admin/broadcast-rundown')({
   head: () => ({
@@ -65,6 +77,8 @@ function BroadcastRundownPage() {
   const [showId, setShowId] = useState('');
   const [mode, setMode] = useState<Studio2BroadcastMode>('production');
   const [draft, setDraft] = useState<Studio2BroadcastRundownConfig | null>(null);
+  const [pendingLockReview, setPendingLockReview] = useState<PendingLockReview | null>(null);
+  const [pendingSegmentReview, setPendingSegmentReview] = useState<PendingSegmentReview | null>(null);
 
   useEffect(() => {
     if (!shows.length) {
@@ -88,6 +102,11 @@ function BroadcastRundownPage() {
   useEffect(() => {
     if (mode === 'production' && rundownQuery.data) setDraft(rundownQuery.data);
   }, [mode, rundownQuery.data]);
+
+  useEffect(() => {
+    setPendingLockReview(null);
+    setPendingSegmentReview(null);
+  }, [showId, mode]);
 
   const refreshRundown = async () => {
     await queryClient.invalidateQueries({ queryKey: ['studio2-broadcast-rundown', showId] });
@@ -138,6 +157,7 @@ function BroadcastRundownPage() {
       return setStudio2BroadcastRundownLock(showId, draft, locked, reason);
     },
     onSuccess: async (config) => {
+      setPendingLockReview(null);
       setDraft(config);
       await refreshRundown();
     },
@@ -150,6 +170,7 @@ function BroadcastRundownPage() {
       return transitionStudio2BroadcastSegment(showId, draft, segmentId, status, reason, mode);
     },
     onSuccess: async (config) => {
+      setPendingSegmentReview(null);
       setDraft(config);
       if (mode === 'production') await refreshRundown();
     },
@@ -262,20 +283,24 @@ function BroadcastRundownPage() {
   const changeLock = (locked: boolean) => {
     if (!draft || mode !== 'production') return;
     const verb = locked ? 'lock' : 'unlock';
-    if (!window.confirm(`${locked ? 'Lock' : 'Unlock'} this rundown? This action is audited.`)) return;
     const reason = window.prompt(`Reason to ${verb} the rundown:`)?.trim();
     if (!reason) return;
-    lockMutation.mutate({ locked, reason });
+    setPendingLockReview({ locked, reason });
   };
 
   const transitionSegment = (segment: RundownSegment, status: RundownSegmentStatus) => {
     const action = `${segment.status} → ${status}`;
-    if (mode === 'production' && !window.confirm(`Confirm broadcast transition ${action} for “${segment.label}”?`)) return;
-    const reason = mode === 'rehearsal'
-      ? `Rehearsal preview: ${action}`
-      : window.prompt(`Reason for ${action}:`)?.trim();
+    if (mode === 'rehearsal') {
+      transitionMutation.mutate({
+        segmentId: segment.id,
+        status,
+        reason: `Rehearsal preview: ${action}`,
+      });
+      return;
+    }
+    const reason = window.prompt(`Reason for ${action}:`)?.trim();
     if (!reason) return;
-    transitionMutation.mutate({ segmentId: segment.id, status, reason });
+    setPendingSegmentReview({ segment, status, reason });
   };
 
   const mutationError = saveMutation.error ?? lockMutation.error ?? transitionMutation.error;
@@ -513,6 +538,66 @@ function BroadcastRundownPage() {
             </AdminCard>
           </>
         ) : null}
+
+        <AdminConfirmSheet
+          open={Boolean(pendingLockReview)}
+          onClose={() => {
+            if (!lockMutation.isPending) setPendingLockReview(null);
+          }}
+          onConfirm={async () => {
+            if (!pendingLockReview) return;
+            await lockMutation.mutateAsync(pendingLockReview);
+          }}
+          title={pendingLockReview?.locked ? 'Lock this rundown for execution?' : 'Unlock this rundown for editing?'}
+          description={pendingLockReview ? (
+            <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                <p className="font-semibold text-foreground">{selectedShow?.name ?? 'Selected show'}</p>
+                <p className="mt-1">Rundown revision {draft?.revision ?? 'unknown'}</p>
+                <p className="mt-2"><span className="font-semibold text-foreground">Reason:</span> {pendingLockReview.reason}</p>
+              </div>
+              {pendingLockReview.locked ? (
+                <p>Locking freezes structural edits for this rundown while keeping valid live segment commands available. The server rechecks the reviewed revision before applying the lock.</p>
+              ) : (
+                <p>Unlocking re-enables structural editing. The server rechecks the current rundown and live-state safety rules before accepting the change.</p>
+              )}
+            </div>
+          ) : null}
+          confirmLabel={pendingLockReview?.locked ? 'Lock rundown' : 'Unlock rundown'}
+          busy={lockMutation.isPending}
+          danger={Boolean(pendingLockReview && !pendingLockReview.locked)}
+        />
+
+        <AdminConfirmSheet
+          open={Boolean(pendingSegmentReview)}
+          onClose={() => {
+            if (!transitionMutation.isPending) setPendingSegmentReview(null);
+          }}
+          onConfirm={async () => {
+            if (!pendingSegmentReview) return;
+            await transitionMutation.mutateAsync({
+              segmentId: pendingSegmentReview.segment.id,
+              status: pendingSegmentReview.status,
+              reason: pendingSegmentReview.reason,
+            });
+          }}
+          title={pendingSegmentReview ? `${pendingSegmentReview.segment.label}: ${pendingSegmentReview.segment.status} → ${pendingSegmentReview.status}?` : 'Review broadcast transition'}
+          description={pendingSegmentReview ? (
+            <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                <p className="font-semibold text-foreground">{selectedShow?.name ?? 'Selected show'}</p>
+                <p className="mt-1">Rundown revision {draft?.revision ?? 'unknown'}</p>
+                <p className="mt-2"><span className="font-semibold text-foreground">Segment:</span> {pendingSegmentReview.segment.label}</p>
+                <p className="mt-1"><span className="font-semibold text-foreground">Transition:</span> {pendingSegmentReview.segment.status} → {pendingSegmentReview.status}</p>
+                <p className="mt-1"><span className="font-semibold text-foreground">Reason:</span> {pendingSegmentReview.reason}</p>
+              </div>
+              <p>This changes production rundown state and is audited. The server revalidates exact edition, show and rundown revision before applying the transition.</p>
+            </div>
+          ) : null}
+          confirmLabel="Apply production transition"
+          busy={transitionMutation.isPending}
+          danger={pendingSegmentReview?.status === 'skipped'}
+        />
       </div>
     </AdminPage>
   );
