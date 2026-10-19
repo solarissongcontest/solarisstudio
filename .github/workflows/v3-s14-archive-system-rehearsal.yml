@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - "supabase/migrations/**"
-      - "scripts/v3-s14-archive-system-rehearsal.sh"
+      - ".github/scripts/v3-s14-archive-system-rehearsal.sh"
       - ".github/workflows/v3-s14-archive-system-rehearsal.yml"
       - "src/lib/v3-s14-archive-consequences.contract.test.ts"
       - "src/lib/v3-edition-transition-client.ts"
@@ -45,7 +45,7 @@ jobs:
         run: supabase db reset --local --no-seed
 
       - name: Rehearse final-publication reconciliation and Archive consequences
-        run: bash scripts/v3-s14-archive-system-rehearsal.sh
+        run: bash .github/scripts/v3-s14-archive-system-rehearsal.sh
 
       - name: Stop isolated local Supabase
         if: always()
@@ -97,7 +97,7 @@ jobs:
         run: |
           set -euo pipefail
           cd /tmp/solaris-s14-main
-          bash "$GITHUB_WORKSPACE/scripts/v3-s14-archive-system-rehearsal.sh"
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-archive-system-rehearsal.sh"
 
       - name: Stop isolated local Supabase
         if: always()
