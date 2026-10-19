@@ -4,10 +4,12 @@ import {
 } from "./v3-entry";
 
 const HASH_PREFIX = "entry-section-";
+const CONFIRMATION_EDIT_PREFIX = "/confirmations/edit/";
 
 const CURRENT_WRITER_STEP: Partial<Record<V3EntryEditorSection, number>> = {
   song: 3,
   artist: 3,
+  credits: 3,
   metadata: 4,
   media: 3,
   review: 5,
@@ -24,11 +26,19 @@ export function v3EntryEditorFocusHash(section: V3EntryEditorSection) {
   return `#${HASH_PREFIX}${section}`;
 }
 
+function isCanonicalConfirmationEditHref(href: string) {
+  const path = href.split("#", 1)[0] ?? "";
+  if (!path.startsWith(CONFIRMATION_EDIT_PREFIX)) return false;
+  if (path.startsWith("//") || path.includes("\\")) return false;
+  const token = path.slice(CONFIRMATION_EDIT_PREFIX.length).split("?", 1)[0]?.trim() ?? "";
+  return token.length > 0 && !token.includes("/");
+}
+
 export function appendV3EntryEditorFocus(
   href: string,
   section: V3EntryEditorSection | null,
 ) {
-  if (!section) return href;
+  if (!section || !isCanonicalConfirmationEditHref(href)) return href;
   return `${href.split("#", 1)[0]}${v3EntryEditorFocusHash(section)}`;
 }
 

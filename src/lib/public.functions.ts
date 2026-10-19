@@ -128,6 +128,11 @@ async function recordConfirmationCanonicalSyncFailure(
   }
 }
 
+const entryCreditSchema = z.object({
+  role: z.enum(["composer", "lyricist", "songwriter", "producer", "arranger", "other"]),
+  name: z.string().trim().min(1).max(160),
+});
+
 const payloadSchema = z.object({
   round_id: z.string().uuid(),
   instagram_username: z.string().trim().min(1).max(80),
@@ -141,6 +146,7 @@ const payloadSchema = z.object({
   artist: z.string().trim().max(160),
   song_title: z.string().trim().max(160),
   song_url: z.string().trim().max(500),
+  credits: z.array(entryCreditSchema).max(32),
   preview_start: z.string().trim().max(10),
   preview_end: z.string().trim().max(10),
   final_clip_start: z.string().trim().max(10),
@@ -153,6 +159,7 @@ const payloadSchema = z.object({
     artist: z.string().trim().max(160),
     song_title: z.string().trim().max(160),
     song_url: z.string().trim().max(500),
+    credits: z.array(entryCreditSchema).max(32),
   })).max(60),
   nf_date_type: z.string().max(20),
   nf_exact_date: z.string().max(20),
