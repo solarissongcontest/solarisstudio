@@ -165,6 +165,7 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "delegation-calendar" ||
     id === "delegation-access" ||
     id === "delegation-submission-history" ||
+    id === "delegation-edition-links" ||
     id === "delegation-sync" ||
     id === "delegation-settings" ||
     id === "voting-rounds-entries" ||
@@ -176,11 +177,13 @@ function migrationStatusFor(id: string): AdminCapabilityMigration["migrationStat
     id === "voting-public-results" ||
     id === "voting-intelligence" ||
     id === "voting-analytics" ||
+    id === "voting-combined-results" ||
     id === "voting-result-integrity" ||
     id === "voting-audit-log" ||
     id === "voting-edition-links" ||
     id === "voting-result-backtest" ||
     id === "voting-anti-abuse" ||
+    id === "trust-investigations" ||
     id === "trust-rule-rulings" ||
     id === "trust-appeals" ||
     id === "trust-evidence" ||
