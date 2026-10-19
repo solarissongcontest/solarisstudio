@@ -19,14 +19,6 @@ export const getMergedCombinedAggregation = createServerFn({ method: "POST" })
     return data;
   })
   .handler(async ({ data }) => {
-    // Reading an editable Combined workspace also refreshes its canonical
-    // participant projection. Failure here must not hide the specialist result
-    // engine; publication will still enforce the canonical guard strictly.
-    try {
-      await refreshCombinedCanonicalParticipants(data.id);
-    } catch (caught) {
-      console.error("[Combined canonical sync] Refresh on load failed", caught);
-    }
     const { getMergedCombinedAggregationServer } = await import("@/integrations/televoting/combined.server");
     return getMergedCombinedAggregationServer(data.id);
   });
