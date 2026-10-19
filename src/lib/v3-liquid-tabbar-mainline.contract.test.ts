@@ -65,6 +65,7 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
 
     expect(shell).not.toContain("V3TopLevelSwipeSurface");
     expect(shell).not.toContain("swipePreviewSurfaces");
-    expect(shell).toContain("Whole-page swipe is deliberately not enabled here");
+    expect(shell).toContain("safe live adjacent DOM surfaces");
+    expect(shell).toContain("duplicate data graphs");
   });
 });
