@@ -62,7 +62,8 @@ describe("System V3 S11 recovery guardrails", () => {
 
     expect(plan.status).toBe("blocked");
     expect(plan.blockedReason).toBe("canonical_rebuild_contract_missing");
-    expect(plan.canonicalPath).toBeNull();
+    expect(plan.canonicalPath).toContain("studio2_reconcile_confirmation_requirements");
+    expect(plan.verificationPath).toContain("studio2_verify_confirmation_requirements");
     expect(plan.maxMutations).toBe(0);
   });
 
