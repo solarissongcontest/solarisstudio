@@ -37,9 +37,23 @@ describe("S14 canonical Confirmation publication sync boundary", () => {
     if (!errorName) return;
 
     const callEnd = (publicationCall?.index ?? 0) + (publicationCall?.[0].length ?? 0);
-    const followingSource = syncSource.slice(callEnd, callEnd + 500);
-    expect(followingSource).toMatch(
-      new RegExp(`if\\s*\\(\\s*${errorName}\\s*\\)[\\s\\S]{0,160}?(?:throw|return)`),
+    const followingSource = syncSource.slice(callEnd, callEnd + 1_500);
+    const errorGuardIndex = followingSource.search(
+      new RegExp(`if\\s*\\(\\s*${errorName}\\s*\\)`),
     );
+    expect(errorGuardIndex).toBeGreaterThanOrEqual(0);
+
+    const guardedSource = followingSource.slice(errorGuardIndex);
+    const failureStatusIndex = guardedSource.indexOf('status: "publication_event_failed"');
+    expect(failureStatusIndex).toBeGreaterThanOrEqual(0);
+
+    const terminalIndex = guardedSource.slice(failureStatusIndex).search(/\b(?:throw|return)\b/);
+    expect(terminalIndex).toBeGreaterThanOrEqual(0);
+
+    const absoluteTerminalIndex = failureStatusIndex + terminalIndex;
+    const syncedStatusIndex = guardedSource.indexOf('status: "synced"');
+    if (syncedStatusIndex >= 0) {
+      expect(absoluteTerminalIndex).toBeLessThan(syncedStatusIndex);
+    }
   });
 });
