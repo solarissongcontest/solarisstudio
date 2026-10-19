@@ -1,0 +1,198 @@
+name: V3 S16 exact-SHA certification
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact current-main SHA to certify
+        required: true
+        type: string
+      source_run_ids:
+        description: Comma or space separated Actions run IDs containing canonical S16 evidence artifacts
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: v3-s16-certification-${{ inputs.candidate_sha }}
+  cancel-in-progress: false
+
+jobs:
+  certify:
+    name: Certify one exact current-main candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      V3_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+      V3_RELEASE_EVIDENCE_DIR: v3-release-evidence
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Validate exact candidate input
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate="$(printf '%s' "$V3_CANDIDATE_SHA" | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$candidate" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::candidate_sha must be one exact 40-character Git commit SHA"
+            exit 1
+          fi
+          echo "V3_CANDIDATE_SHA=$candidate" >> "$GITHUB_ENV"
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          fetch-depth: 0
+
+      - name: Require current-main candidate and exact checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          git fetch origin main --no-tags
+          main_sha="$(git rev-parse origin/main | tr '[:upper:]' '[:lower:]')"
+          if [ "$actual" != "$V3_CANDIDATE_SHA" ]; then
+            echo "::error::checked out $actual but certification requested $V3_CANDIDATE_SHA"
+            exit 1
+          fi
+          if [ "$main_sha" != "$V3_CANDIDATE_SHA" ]; then
+            echo "::error::S16 release certification may only certify current main: candidate=$V3_CANDIDATE_SHA main=$main_sha"
+            exit 1
+          fi
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify production isolation before evidence handling
+        run: bun run scripts/check-v3-production-isolation.ts
+
+      - name: Download declared evidence runs
+        id: sources
+        shell: bash
+        env:
+          SOURCE_RUN_IDS: ${{ inputs.source_run_ids }}
+        run: |
+          set -euo pipefail
+          mkdir -p s16-source-runs
+          normalized="$(printf '%s' "$SOURCE_RUN_IDS" | tr ',\n\t' '   ')"
+          mapfile -t run_ids < <(printf '%s\n' $normalized | awk 'NF' | sort -u)
+          if [ "${#run_ids[@]}" -eq 0 ]; then
+            echo "::error::source_run_ids must name at least one Actions run"
+            exit 1
+          fi
+          for run_id in "${run_ids[@]}"; do
+            if [[ ! "$run_id" =~ ^[0-9]+$ ]]; then
+              echo "::error::invalid Actions run id: $run_id"
+              exit 1
+            fi
+            status="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .status)"
+            if [ "$status" != "completed" ]; then
+              echo "::error::evidence source run $run_id is not completed: $status"
+              exit 1
+            fi
+            mkdir -p "s16-source-runs/run-$run_id"
+            gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --dir "s16-source-runs/run-$run_id"
+          done
+          printf '%s\n' "${run_ids[@]}" > s16-source-runs/run-ids.txt
+
+      - name: Discover canonical evidence source directories
+        id: evidence_sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t dirs < <(
+            find s16-source-runs -type f \
+              \( -name 's16-canonical-ci.json' \
+                 -o -name 's16-migration-rehearsal.json' \
+                 -o -name 's16-authorization-security.json' \
+                 -o -name 's16-production-isolation.json' \
+                 -o -name 's16-public-acceptance.json' \
+                 -o -name 's16-organizer-acceptance.json' \
+                 -o -name 's16-navigation-acceptance.json' \
+                 -o -name 's16-accessibility.json' \
+                 -o -name 's16-responsive-behavior.json' \
+                 -o -name 's14-full-contest.json' \
+                 -o -name 's15-zero-orphan.json' \) \
+              -printf '%h\n' | sort -u
+          )
+          if [ "${#dirs[@]}" -eq 0 ]; then
+            echo "::error::declared source runs contained no canonical S16 evidence files"
+            exit 1
+          fi
+          printf '%s\n' "${dirs[@]}" > s16-source-runs/source-dirs.txt
+
+      - name: Assemble and semantically revalidate all 11 categories
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=()
+          while IFS= read -r dir; do
+            [ -n "$dir" ] || continue
+            args+=(--source "$dir")
+          done < s16-source-runs/source-dirs.txt
+          bun run scripts/assemble-v3-s16-evidence.ts "${args[@]}" --require-complete
+
+      - name: Build exact-SHA S16 certificate
+        run: bun run scripts/build-v3-s16-certification.ts --require-certified
+
+      - name: Revalidate complete source bundle and certificate
+        run: bun run scripts/check-v3-release-integrity.ts --certified
+
+      - name: Record certification source runs
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$V3_RELEASE_EVIDENCE_DIR"
+          if [ -f s16-source-runs/run-ids.txt ]; then
+            python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path('s16-source-runs/run-ids.txt')
+          run_ids = [int(line.strip()) for line in path.read_text().splitlines() if line.strip()]
+          out = {
+              'schemaVersion': 1,
+              'candidateSha': os.environ['V3_CANDIDATE_SHA'].lower(),
+              'sourceRunIds': run_ids,
+          }
+          Path(os.environ['V3_RELEASE_EVIDENCE_DIR'], 's16-certification-source-runs.json').write_text(
+              json.dumps(out, indent=2) + '\n', encoding='utf-8'
+          )
+          PY
+          fi
+
+      - name: Upload exact-SHA certification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-s16-certification-${{ inputs.candidate_sha }}
+          path: v3-release-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish certification summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## V3 S16 exact-SHA certification"
+            echo
+            echo "Candidate: \`$V3_CANDIDATE_SHA\`"
+            if [ -f "$V3_RELEASE_EVIDENCE_DIR/s16-certification.json" ]; then
+              certified="$(node -e 'const fs=require("fs"); const v=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); process.stdout.write(String(v.certified===true))' "$V3_RELEASE_EVIDENCE_DIR/s16-certification.json")"
+              echo "Certified: \`$certified\`"
+            else
+              echo "Certified: \`false\` (certificate was not produced)"
+            fi
+            echo
+            echo "This workflow certifies only when all 11 canonical source-evidence categories are present, exact-SHA bound and semantically passing, and final release integrity revalidates the bundle."
+          } >> "$GITHUB_STEP_SUMMARY"
