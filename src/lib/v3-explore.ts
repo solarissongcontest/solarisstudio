@@ -93,6 +93,7 @@ export type V3ExploreEditionCard = {
   artworkUrl: string | null;
   experience: V3EditionExperience;
   href: string;
+  liveHref: string | null;
   nextEvent: V3ExploreNextEvent | null;
   resultsAvailable: boolean;
 };
@@ -226,6 +227,8 @@ function projectEdition(edition: V3ExploreEditionInput): V3ExploreEditionCard {
     artworkUrl: edition.artworkUrl,
     experience: edition.experience,
     href: edition.href,
+    liveHref:
+      edition.experience === "live" && edition.liveHref ? edition.liveHref : null,
     nextEvent: NEXT_EVENT_EXPERIENCES.has(edition.experience)
       ? edition.nextEvent ?? null
       : null,
