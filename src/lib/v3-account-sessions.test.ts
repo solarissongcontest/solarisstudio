@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createV3SessionRevocationAttempt,
   parseV3AccountSessionsProjection,
+  parseV3SessionRevocationResult,
 } from "./v3-account-sessions";
 
 const handleA = "a".repeat(64);
@@ -97,5 +98,54 @@ describe("V3 account session projection", () => {
     expect(attempt.sessionHandle).toBe(handleB);
     expect(attempt.operationId).toMatch(/^[0-9a-f-]{36}$/i);
     expect(attempt.idempotencyKey).toBe(`account-session-revoke:${attempt.operationId}`);
+  });
+
+  it("accepts only the authoritative receipt for the exact reviewed revocation attempt", () => {
+    const attempt = {
+      sessionHandle: handleB,
+      operationId: "11111111-1111-4111-8111-111111111111",
+      idempotencyKey: "account-session-revoke:11111111-1111-4111-8111-111111111111",
+    };
+
+    expect(
+      parseV3SessionRevocationResult(
+        {
+          ok: true,
+          sessionHandle: handleB,
+          operationId: attempt.operationId,
+          receiptId: attempt.operationId,
+          alreadyRevoked: false,
+          replayed: false,
+          revokedAt: "2026-10-19T20:00:00Z",
+        },
+        attempt,
+      ),
+    ).toMatchObject({
+      ok: true,
+      sessionHandle: handleB,
+      operationId: attempt.operationId,
+      receiptId: attempt.operationId,
+    });
+
+    for (const payload of [
+      {},
+      { ok: true, sessionHandle: handleB },
+      {
+        ok: true,
+        sessionHandle: handleB,
+        operationId: "22222222-2222-4222-8222-222222222222",
+        receiptId: "22222222-2222-4222-8222-222222222222",
+        revokedAt: "2026-10-19T20:00:00Z",
+      },
+      {
+        ok: true,
+        sessionHandle: handleA,
+        operationId: attempt.operationId,
+        receiptId: attempt.operationId,
+        revokedAt: "2026-10-19T20:00:00Z",
+      },
+    ]) {
+      expect(() => parseV3SessionRevocationResult(payload, attempt)).toThrow();
+    }
   });
 });
