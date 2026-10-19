@@ -15,6 +15,7 @@ on:
       - "src/lib/v3-system-s1-registry.test.ts"
       - "src/lib/v3-s14-archive-consequences.contract.test.ts"
       - "src/lib/v3-s14-archive-registry.contract.test.ts"
+      - "src/lib/v3-s14-archive-task-registry-alignment.contract.test.ts"
       - "src/lib/v3-s14-transition-http409.contract.test.ts"
       - "src/lib/v3-edition-transition-client.ts"
       - "src/lib/v3-edition-transition-client.test.ts"
@@ -101,7 +102,8 @@ jobs:
           for migration in \
             20261019112100_v3_s14_archive_consequence_reconciliation.sql \
             20261019112200_v3_s14_final_results_readiness_hardening.sql \
-            20261019112300_v3_s14_transition_http409.sql
+            20261019112300_v3_s14_transition_http409.sql \
+            20261019112400_v3_s14_archive_task_registry_alignment.sql
           do
             cp \
               "$GITHUB_WORKSPACE/supabase/migrations/$migration" \
