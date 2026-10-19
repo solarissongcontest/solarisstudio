@@ -4,6 +4,7 @@ import {
 } from "./permissions-v2";
 
 export type V3AuthorizationOperationScope = "global" | "edition" | "either";
+export type V3AuthorizationScopeLevel = "platform" | "edition" | "show" | "object";
 
 export type V3AuthorizationEffect =
   | "read"
@@ -46,6 +47,7 @@ export type V3AuthorizationMatrixRow = {
   capability: SolarisCapability;
   domain: string;
   operationScope: V3AuthorizationOperationScope;
+  scopeLevels: readonly V3AuthorizationScopeLevel[];
   objectTypes: readonly V3AuthorizationObjectType[];
   effect: V3AuthorizationEffect;
   riskTier: V3AuthorizationRiskTier;
@@ -57,6 +59,7 @@ type AuthorizationFamily = {
   prefix: string;
   domain: string;
   operationScope: V3AuthorizationOperationScope;
+  scopeLevels: readonly V3AuthorizationScopeLevel[];
   objectTypes: readonly V3AuthorizationObjectType[];
   domainSafeguards: readonly string[];
 };
@@ -74,6 +77,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "edition.",
     domain: "edition",
     operationScope: "edition",
+    scopeLevels: ["edition", "object"],
     objectTypes: ["edition"],
     domainSafeguards: ["edition lifecycle", "edition scope"],
   },
@@ -81,6 +85,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "delegation.",
     domain: "delegation",
     operationScope: "edition",
+    scopeLevels: ["edition", "object"],
     objectTypes: ["delegation", "country"],
     domainSafeguards: ["edition scope", "country/delegation ownership where applicable"],
   },
@@ -88,6 +93,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "confirmation.",
     domain: "confirmation",
     operationScope: "edition",
+    scopeLevels: ["edition", "object"],
     objectTypes: ["confirmation", "delegation", "country"],
     domainSafeguards: ["edition scope", "confirmation workflow state", "delegation ownership"],
   },
@@ -95,6 +101,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "entry.",
     domain: "entry",
     operationScope: "edition",
+    scopeLevels: ["edition", "object"],
     objectTypes: ["entry", "delegation", "country"],
     domainSafeguards: ["edition scope", "entry ownership", "entry workflow/publication state"],
   },
@@ -102,6 +109,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "voting.",
     domain: "voting",
     operationScope: "edition",
+    scopeLevels: ["edition", "show", "object"],
     objectTypes: ["voting_configuration", "show"],
     domainSafeguards: ["edition scope", "show/voting lifecycle"],
   },
@@ -109,6 +117,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "jury.ballots.",
     domain: "jury",
     operationScope: "edition",
+    scopeLevels: ["edition", "show", "object"],
     objectTypes: ["jury_ballot", "show", "delegation"],
     domainSafeguards: ["edition scope", "jury round state", "ballot ownership/integrity"],
   },
@@ -116,6 +125,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "televote.ballots.",
     domain: "televote",
     operationScope: "edition",
+    scopeLevels: ["edition", "show", "object"],
     objectTypes: ["televote_ballot", "show"],
     domainSafeguards: ["edition scope", "televote round state", "vote integrity"],
   },
@@ -123,6 +133,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "results.",
     domain: "results",
     operationScope: "edition",
+    scopeLevels: ["edition", "show", "object"],
     objectTypes: ["result", "show"],
     domainSafeguards: ["edition scope", "result version/review state", "publication state"],
   },
@@ -130,6 +141,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "incident.",
     domain: "incident",
     operationScope: "edition",
+    scopeLevels: ["edition", "show", "object"],
     objectTypes: ["incident"],
     domainSafeguards: ["edition scope", "incident lifecycle"],
   },
@@ -137,6 +149,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "communications.",
     domain: "communications",
     operationScope: "edition",
+    scopeLevels: ["edition", "object"],
     objectTypes: ["communication", "audience"],
     domainSafeguards: ["edition scope", "audience eligibility", "delivery/publication state"],
   },
@@ -144,6 +157,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "rules.",
     domain: "rules",
     operationScope: "either",
+    scopeLevels: ["platform", "edition", "object"],
     objectTypes: ["rule", "edition"],
     domainSafeguards: ["rulebook validation", "effective-version state", "governance where required"],
   },
@@ -151,6 +165,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "integrity.",
     domain: "integrity",
     operationScope: "edition",
+    scopeLevels: ["edition", "show", "object"],
     objectTypes: ["integrity_case", "show"],
     domainSafeguards: ["edition scope", "evidence visibility", "appeal/sanction safeguards"],
   },
@@ -158,6 +173,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "publishing.",
     domain: "publication",
     operationScope: "edition",
+    scopeLevels: ["edition", "show", "object"],
     objectTypes: ["publication", "edition"],
     domainSafeguards: ["edition scope", "canonical publication state", "publication policy"],
   },
@@ -165,6 +181,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "broadcast.",
     domain: "broadcast",
     operationScope: "edition",
+    scopeLevels: ["edition", "show", "object"],
     objectTypes: ["broadcast", "show"],
     domainSafeguards: ["edition scope", "show/runtime state"],
   },
@@ -172,6 +189,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "system.",
     domain: "system",
     operationScope: "global",
+    scopeLevels: ["platform", "object"],
     objectTypes: ["system"],
     domainSafeguards: ["platform scope", "service-role boundary where required"],
   },
@@ -179,6 +197,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "community.",
     domain: "community",
     operationScope: "either",
+    scopeLevels: ["platform", "edition", "object"],
     objectTypes: ["community_case"],
     domainSafeguards: ["subject visibility", "moderation lifecycle"],
   },
@@ -186,6 +205,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "rollout.",
     domain: "feature-rollout",
     operationScope: "either",
+    scopeLevels: ["platform", "edition", "object"],
     objectTypes: ["feature_rollout", "edition"],
     domainSafeguards: ["rollout dependency graph", "requested/effective scope"],
   },
@@ -193,6 +213,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "permissions.",
     domain: "permissions",
     operationScope: "either",
+    scopeLevels: ["platform", "edition", "object"],
     objectTypes: ["permission_assignment", "edition"],
     domainSafeguards: ["target scope", "grant expiry", "permission administration audit"],
   },
@@ -200,6 +221,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "governance.",
     domain: "governance",
     operationScope: "global",
+    scopeLevels: ["platform", "object"],
     objectTypes: ["governance_motion"],
     domainSafeguards: ["governance eligibility", "motion/vote lifecycle"],
   },
@@ -207,6 +229,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "host.",
     domain: "host",
     operationScope: "edition",
+    scopeLevels: ["edition", "object"],
     objectTypes: ["host", "edition"],
     domainSafeguards: ["edition scope", "host workflow state"],
   },
@@ -214,6 +237,7 @@ const AUTHORIZATION_FAMILIES: readonly AuthorizationFamily[] = [
     prefix: "story.",
     domain: "story",
     operationScope: "edition",
+    scopeLevels: ["edition", "object"],
     objectTypes: ["story", "edition"],
     domainSafeguards: ["edition scope", "story/publication state"],
   },
@@ -285,7 +309,9 @@ function riskFor(
 ): V3AuthorizationRiskTier {
   if (CRITICAL_EFFECT_CAPABILITIES.has(capability)) return 4;
   if (effect === "read") return 1;
-  if (effect === "review" || effect === "write") return 2;
+  if (effect === "review") return 2;
+  if (capability.endsWith(".manage")) return 3;
+  if (effect === "write") return 2;
   return 3;
 }
 
@@ -298,6 +324,7 @@ function buildAuthorizationMatrixRow(
     capability,
     domain: family.domain,
     operationScope: family.operationScope,
+    scopeLevels: family.scopeLevels,
     objectTypes: family.objectTypes,
     effect,
     riskTier: riskFor(capability, effect),
