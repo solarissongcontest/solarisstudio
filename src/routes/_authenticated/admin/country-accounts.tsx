@@ -7,6 +7,7 @@ import { AdminPage } from "@/components/admin/AdminShell";
 import {
   AdminCard,
   AdminCardHeader,
+  AdminConfirmSheet,
   AdminEmptyState,
   AdminPageHeader,
   AdminSheet,
@@ -30,6 +31,15 @@ export const Route = createFileRoute("/_authenticated/admin/country-accounts")({
   component: CountryAccountsAdminPage,
 });
 
+type PendingAccountStatusReview = {
+  userId: string;
+  countryName: string;
+  email: string | null;
+  currentStatus: "active" | "suspended";
+  targetStatus: "active" | "suspended";
+  reason: string;
+};
+
 function CountryAccountsAdminPage() {
   const { data: countries = [] } = useCountries();
   const {
@@ -45,6 +55,7 @@ function CountryAccountsAdminPage() {
   const [target, setTarget] = useState<AdminCountryAccount | null>(null);
   const [reason, setReason] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [pendingReview, setPendingReview] = useState<PendingAccountStatusReview | null>(null);
 
   const accountByCountry = useMemo(
     () => new Map((data?.accounts ?? []).map((account) => [account.country_id, account])),
@@ -69,33 +80,66 @@ function CountryAccountsAdminPage() {
     setTarget(account);
     setReason(account.suspension_reason ?? "");
     setMessage(null);
+    setPendingReview(null);
   }
 
-  async function suspend() {
-    if (!target) return;
+  function closeAccount() {
+    if (setStatus.isPending) return;
+    setTarget(null);
+    setPendingReview(null);
+  }
+
+  function requestStatusReview(targetStatus: "active" | "suspended") {
+    if (!target || target.status === targetStatus) return;
     setMessage(null);
+    setPendingReview({
+      userId: target.user_id,
+      countryName: target.country_name,
+      email: target.email,
+      currentStatus: target.status,
+      targetStatus,
+      reason: targetStatus === "suspended" ? reason.trim() : "",
+    });
+  }
+
+  async function confirmStatusReview() {
+    if (!pendingReview) return;
+    const review = pendingReview;
+    const liveAccount = data?.accounts.find((account) => account.user_id === review.userId) ?? null;
+
+    if (
+      !liveAccount ||
+      liveAccount.country_name !== review.countryName ||
+      liveAccount.email !== review.email ||
+      liveAccount.status !== review.currentStatus
+    ) {
+      setPendingReview(null);
+      await refetchAccounts();
+      setMessage("Country account state changed while the review was open. Reload the account and review the access change again.");
+      return;
+    }
+
     try {
       await setStatus.mutateAsync({
-        userId: target.user_id,
-        status: "suspended",
-        reason: reason.trim(),
+        userId: review.userId,
+        status: review.targetStatus,
+        ...(review.targetStatus === "suspended" ? { reason: review.reason } : {}),
       });
-      setMessage(`${target.country_name} account suspended.`);
+      setMessage(
+        review.targetStatus === "suspended"
+          ? `${review.countryName} account suspended.`
+          : `${review.countryName} account restored.`,
+      );
+      setPendingReview(null);
       setTarget(null);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Account could not be suspended.");
-    }
-  }
-
-  async function restore() {
-    if (!target) return;
-    setMessage(null);
-    try {
-      await setStatus.mutateAsync({ userId: target.user_id, status: "active" });
-      setMessage(`${target.country_name} account restored.`);
-      setTarget(null);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Account could not be restored.");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : review.targetStatus === "suspended"
+            ? "Account could not be suspended."
+            : "Account could not be restored.",
+      );
     }
   }
 
@@ -244,7 +288,7 @@ function CountryAccountsAdminPage() {
 
       <AdminSheet
         open={!!target}
-        onClose={() => !setStatus.isPending && setTarget(null)}
+        onClose={closeAccount}
         title={target ? `${target.country_name} account` : "Country account"}
         description={target?.email ?? "Account moderation"}
       >
@@ -279,10 +323,10 @@ function CountryAccountsAdminPage() {
                 <button
                   type="button"
                   disabled={setStatus.isPending}
-                  onClick={() => void suspend()}
+                  onClick={() => requestStatusReview("suspended")}
                   className="admin-action-danger w-full"
                 >
-                  {setStatus.isPending ? "Suspending…" : "Suspend editing access"}
+                  Review suspension
                 </button>
               </>
             ) : (
@@ -293,16 +337,60 @@ function CountryAccountsAdminPage() {
                 <button
                   type="button"
                   disabled={setStatus.isPending}
-                  onClick={() => void restore()}
+                  onClick={() => requestStatusReview("active")}
                   className="admin-action-primary w-full"
                 >
-                  {setStatus.isPending ? "Restoring…" : "Restore editing access"}
+                  Review restoration
                 </button>
               </>
             )}
           </div>
         ) : null}
       </AdminSheet>
+
+      <AdminConfirmSheet
+        open={Boolean(pendingReview)}
+        onClose={() => {
+          if (!setStatus.isPending) setPendingReview(null);
+        }}
+        onConfirm={confirmStatusReview}
+        title={
+          pendingReview?.targetStatus === "suspended"
+            ? `Suspend ${pendingReview.countryName} editing?`
+            : `Restore ${pendingReview?.countryName ?? "country"} editing?`
+        }
+        description={
+          pendingReview ? (
+            <div className="space-y-3">
+              <p>
+                Review the exact country account before changing delegation editing access.
+              </p>
+              <div className="rounded-lg border border-white/[0.08] bg-black/10 p-3 text-xs leading-5 text-muted-foreground">
+                <strong className="text-foreground">Account:</strong> {pendingReview.email ?? "No account email"}<br />
+                <strong className="text-foreground">Access:</strong> {pendingReview.currentStatus} → {pendingReview.targetStatus}
+              </div>
+              {pendingReview.targetStatus === "suspended" ? (
+                <p className="text-xs leading-5 text-muted-foreground">
+                  The owner will lose country-profile editing access. Public country visibility and contest results are not removed. Reason shown to owner: {pendingReview.reason || "No reason provided"}.
+                </p>
+              ) : (
+                <p className="text-xs leading-5 text-muted-foreground">
+                  The owner will regain country-profile editing access. This does not change contest participation, entries or results.
+                </p>
+              )}
+            </div>
+          ) : (
+            "Review the account access change before continuing."
+          )
+        }
+        confirmLabel={pendingReview?.targetStatus === "suspended" ? "Suspend editing" : "Restore editing"}
+        confirmationText={pendingReview?.countryName}
+        confirmationHint={
+          pendingReview ? `Type ${pendingReview.countryName} to confirm the access change` : undefined
+        }
+        busy={setStatus.isPending}
+        danger={pendingReview?.targetStatus === "suspended"}
+      />
     </AdminPage>
   );
 }
