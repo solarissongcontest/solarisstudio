@@ -68,7 +68,11 @@ export function useSetFanFollow(profileId?: string) {
       if (error) throw error;
       return data;
     },
-    onSuccess: async () => {
+    // A transport error can arrive after the database committed the idempotent
+    // preference change. Re-read caller-scoped follow truth for every outcome so
+    // all consumers converge on server state instead of preserving stale UI until
+    // some unrelated future refresh.
+    onSettled: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["fan-follows", profileId] }),
         queryClient.invalidateQueries({ queryKey: ["content-events"] }),
