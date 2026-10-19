@@ -100,7 +100,7 @@ begin
         or case
           when event.event_type = 'entry_published' then 'entries'
           when event.event_type = 'running_order_published' then 'running_orders'
-          when event.event_type like 'prediction\_%' escape '\\' then 'predictions'
+          when event.event_type ~ '^prediction_' then 'predictions'
           when event.event_type = 'results_published' then 'results'
           when event.event_type in ('record_broken', 'record_threat') then 'records'
           else null
