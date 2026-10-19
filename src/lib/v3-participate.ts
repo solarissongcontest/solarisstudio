@@ -15,6 +15,7 @@ export type V3ParticipateProjection = {
   voting: V3VotingOverviewProjection;
   needsAttention: readonly V3ActionProjection[];
   next: readonly V3ActionProjection[];
+  waiting: readonly V3ActionProjection[];
   optionalNow: readonly V3ActionProjection[];
   completed: readonly V3ActionProjection[];
 };
@@ -39,21 +40,29 @@ function currentVotingAction(
  * that feeds Home. It deliberately does not create another task source or
  * infer workflow truth from routes.
  *
- * Responsibilities and optional participation remain separate. A public vote
- * may be time-sensitive, but it must never visually compete with an unfinished
- * official delegation responsibility as though both were required work.
+ * Responsibilities, waiting state and optional participation remain separate.
+ * A public vote may be time-sensitive, but it must never visually compete with
+ * an unfinished official delegation responsibility as though both were required
+ * work. Likewise, a canonical waiting task must not be presented as the user's
+ * next action while Solaris is waiting on a window, review or organizer state.
  */
 export function projectV3Participate(
   bootstrap: Pick<V3BootstrapProjection, "actions" | "journey">,
 ): V3ParticipateProjection {
   const needsAttention: V3ActionProjection[] = [];
   const next: V3ActionProjection[] = [];
+  const waiting: V3ActionProjection[] = [];
   const optionalNow: V3ActionProjection[] = [];
   const completed: V3ActionProjection[] = [];
 
   for (const action of bootstrap.actions) {
     if (action.completed) {
       completed.push(action);
+      continue;
+    }
+
+    if (action.sourceState === "waiting") {
+      waiting.push(action);
       continue;
     }
 
@@ -84,6 +93,7 @@ export function projectV3Participate(
     },
     needsAttention,
     next,
+    waiting,
     optionalNow,
     completed,
   };
