@@ -59,6 +59,7 @@ export function V3ScoreboardPresentation({
     ? participants?.get(winnerStanding.countryId)
     : undefined;
   const winnerSubtitle = entrySubtitle(winnerParticipant);
+  const hasQualifierCutoff = typeof qualifiers === "number" && qualifiers > 0;
 
   return (
     <section
@@ -138,13 +139,14 @@ export function V3ScoreboardPresentation({
                 const subtitle = entrySubtitle(participant);
                 const countryLabel = country?.name || UNAVAILABLE_COUNTRY_LABEL;
                 const isTied = tiedRanks.has(standing.rank);
-                const isQualified = qualifiers
-                  ? standing.rank <= qualifiers
-                  : participant?.qualified === true
+                const isQualified =
+                  participant?.qualified === true
                     ? true
                     : participant?.qualified === false
                       ? false
-                      : null;
+                      : hasQualifierCutoff
+                        ? standing.rank <= qualifiers!
+                        : null;
 
                 const body = (
                   <>
@@ -173,7 +175,7 @@ export function V3ScoreboardPresentation({
                         ) : null}
                         {country && isQualified === true ? (
                           <V3StatusChip tone="success">Qualified</V3StatusChip>
-                        ) : country && isQualified === false && qualifiers ? (
+                        ) : country && isQualified === false && hasQualifierCutoff ? (
                           <V3StatusChip tone="neutral">Eliminated</V3StatusChip>
                         ) : null}
                       </span>
