@@ -6,6 +6,10 @@ const migration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20261019231500_v3_versioned_voting_config.sql"),
   "utf8",
 );
+const riskClosure = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20261019231600_v3_voting_config_preflight_risk_closure.sql"),
+  "utf8",
+);
 
 function section(start: string, end: string) {
   const startIndex = migration.indexOf(start);
@@ -16,10 +20,13 @@ function section(start: string, end: string) {
 }
 
 describe("V3 versioned VotingConfig authority", () => {
-  it("registers an additive forward-fix migration", () => {
+  it("registers additive forward-fix migration contracts", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
     expect(migration).toContain("'20261019231500_v3_versioned_voting_config'");
     expect(migration).toContain("'forward_fix_only'");
+    expect(riskClosure).toContain("public.v3_register_migration_contract(");
+    expect(riskClosure).toContain("'20261019231600_v3_voting_config_preflight_risk_closure'");
+    expect(riskClosure).toContain("'forward_fix_only'");
   });
 
   it("keeps shows.voting_config as compatibility truth but versions every change immutably", () => {
@@ -84,15 +91,19 @@ describe("V3 versioned VotingConfig authority", () => {
     expect(snapshot).toContain("'Points '");
     expect(snapshot).toContain("'Tie: '");
 
-    const preflight = section(
-      "create or replace function public.studio2_voting_config_preflight(",
-      "create or replace function public.studio2_apply_voting_config_change(",
-    );
-    expect(preflight).toContain("'expectedVersion'");
-    expect(preflight).toContain("'blocked'");
-    expect(preflight).toContain("'riskClass'");
-    expect(preflight).toContain("'recalculationRequired'");
-    expect(preflight).toContain("'evidence'");
+    expect(riskClosure).toContain("create or replace function public.studio2_voting_config_preflight(");
+    expect(riskClosure).toContain("'expectedVersion'");
+    expect(riskClosure).toContain("'blocked'");
+    expect(riskClosure).toContain("'riskClass'");
+    expect(riskClosure).toContain("'recalculationRequired'");
+    expect(riskClosure).toContain("'evidence'");
+  });
+
+  it("keeps the final risk contract aligned: allowed edits are R2 and evidence-bearing edits are blocked", () => {
+    expect(riskClosure).toContain("when v_blocked then 'blocked'");
+    expect(riskClosure).toContain("else 'R2'");
+    expect(riskClosure).toContain("'reasonRequired', false");
+    expect(riskClosure).not.toContain("then 'R3'");
   });
 
   it("claims semantic S2 idempotency before mutable-state version checks", () => {
