@@ -44,13 +44,27 @@ describe("V3 S7 generated authorization matrix", () => {
     ).toThrow("Missing S7 authorization policy");
   });
 
-  it("declares object scope and separate domain safeguards for every capability", () => {
+  it("declares platform/edition/show/object scope plus separate domain safeguards", () => {
     for (const row of V3_S7_AUTHORIZATION_MATRIX) {
       expect(row.domain.length).toBeGreaterThan(0);
       expect(row.objectTypes.length).toBeGreaterThan(0);
+      expect(row.scopeLevels.length).toBeGreaterThan(0);
       expect(row.domainSafeguards.length).toBeGreaterThan(0);
       expect(["global", "edition", "either"]).toContain(row.operationScope);
+      for (const scope of row.scopeLevels) {
+        expect(["platform", "edition", "show", "object"]).toContain(scope);
+      }
     }
+
+    expect(authorizationPolicyForCapability("results.publish").scopeLevels).toEqual([
+      "edition",
+      "show",
+      "object",
+    ]);
+    expect(authorizationPolicyForCapability("system.manage").scopeLevels).toEqual([
+      "platform",
+      "object",
+    ]);
   });
 
   it("marks every mutating capability as requiring a server-authoritative mutation boundary", () => {
@@ -71,6 +85,14 @@ describe("V3 S7 generated authorization matrix", () => {
       const row = authorizationPolicyForCapability(capability);
       expect(row.riskTier).toBe(4);
       expect(row.serverAuthoritativeMutationRequired).toBe(true);
+    }
+  });
+
+  it("does not downgrade ordinary manage capabilities below Tier 3", () => {
+    for (const row of V3_S7_AUTHORIZATION_MATRIX.filter((candidate) =>
+      candidate.capability.endsWith(".manage"),
+    )) {
+      expect(row.riskTier).toBeGreaterThanOrEqual(3);
     }
   });
 
