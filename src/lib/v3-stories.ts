@@ -47,5 +47,7 @@ export type V3StoriesIndexBundle = {
 export type V3StoryDetailBundle = {
   shell: { editionLabel: string; phaseLabel: string };
   story: V3Storyline | null;
+  relatedEdition: { label: string; href: string } | null;
+  relatedStories: V3StorySummary[];
   generatedAt: string;
 };
