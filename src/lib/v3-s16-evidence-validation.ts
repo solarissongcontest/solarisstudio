@@ -13,10 +13,72 @@ const SURFACE_CATEGORIES = new Set<V3S16SurfaceCategory>([
   "responsive-behavior",
 ]);
 
+const S14_COMPLETE_STAGES = [
+  "stage-1-setup",
+  "stage-2-delegation-onboarding",
+  "stage-3-confirmations",
+  "stage-4-entries",
+  "stage-5-running-orders",
+  "stage-6-jury",
+  "stage-7-public-voting",
+  "stage-8-results",
+  "stage-9-publication",
+  "stage-10-archive",
+] as const;
+
+const S14_COMPLETE_EXTENSIONS = [
+  "grand-final-qualifier-bridge",
+  "grand-final-jury",
+  "grand-final-televote",
+  "grand-final-results",
+  "grand-final-publication",
+] as const;
+
+const S14_REQUIRED_INVARIANTS = new Set([
+  "confirmation-no-effective-duplicates",
+  "entry-valid-revision",
+  "media-accepted-revision",
+  "jury-single-final-ballot",
+  "televote-canonical-ballot",
+  "result-reproducible",
+  "publication-final-version",
+  "tasks-canonical",
+  "notifications-reconcilable",
+  "grand-final-televote-source-parity",
+  "grand-final-result-reproducible",
+  "grand-final-publication-final-version",
+]);
+
+const S14_REQUIRED_FAILURE_INJECTIONS = new Set([
+  "network-after-commit",
+  "db-timeout-before-commit",
+  "duplicate-request",
+  "worker-crash",
+  "realtime-disconnect",
+  "stale-client",
+  "two-organizers",
+  "supabase-outage",
+]);
+
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
+}
+
+function exactStringArray(value: unknown, expected: readonly string[]) {
+  return (
+    Array.isArray(value) &&
+    value.length === expected.length &&
+    value.every((item, index) => item === expected[index])
+  );
+}
+
+function missingStrings(value: unknown, required: ReadonlySet<string>) {
+  const actual = new Set(
+    Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [],
+  );
+  return [...required].filter((item) => !actual.has(item));
 }
 
 export function validateV3S16CategorySourceEvidence(
@@ -119,19 +181,66 @@ export function validateV3S16CategorySourceEvidence(
   }
 
   if (categoryId === "full-contest-rehearsal") {
-    if (evidence.partial === true) issues.push("full-contest-rehearsal: partial evidence cannot certify S16");
-    if (evidence.runtimeFailure === true) {
-      issues.push("full-contest-rehearsal: runtime failure evidence cannot certify S16");
+    if (evidence.schemaVersion !== 2) {
+      issues.push("full-contest-rehearsal: schemaVersion must be 2");
     }
-    if (Array.isArray(evidence.pendingStages) && evidence.pendingStages.length !== 0) {
-      issues.push("full-contest-rehearsal: pending stages remain");
+    if (evidence.partial !== false) {
+      issues.push("full-contest-rehearsal: final evidence must prove partial=false");
+    }
+    if (evidence.runtimeFailure !== false) {
+      issues.push("full-contest-rehearsal: final evidence must prove runtimeFailure=false");
+    }
+    if (!exactStringArray(evidence.completedStages, S14_COMPLETE_STAGES)) {
+      issues.push("full-contest-rehearsal: completedStages does not prove the canonical 10-stage lifecycle");
+    }
+    if (!Array.isArray(evidence.pendingStages) || evidence.pendingStages.length !== 0) {
+      issues.push("full-contest-rehearsal: pending stages remain or are not explicitly reported");
+    }
+    if (!exactStringArray(evidence.completedContestExtensions, S14_COMPLETE_EXTENSIONS)) {
+      issues.push("full-contest-rehearsal: Grand Final completion evidence is incomplete");
+    }
+    if (!Array.isArray(evidence.pendingContestExtensions) || evidence.pendingContestExtensions.length !== 0) {
+      issues.push("full-contest-rehearsal: pending contest extensions remain or are not explicitly reported");
+    }
+    if (!Array.isArray(evidence.blockedContestExtensions) || evidence.blockedContestExtensions.length !== 0) {
+      issues.push("full-contest-rehearsal: blocked contest extensions remain or are not explicitly reported");
+    }
+
+    const missingInvariants = missingStrings(evidence.implementedInvariants, S14_REQUIRED_INVARIANTS);
+    if (missingInvariants.length) {
+      issues.push(`full-contest-rehearsal: required invariants missing: ${missingInvariants.join(", ")}`);
+    }
+    const missingFailures = missingStrings(
+      evidence.implementedFailureInjections,
+      S14_REQUIRED_FAILURE_INJECTIONS,
+    );
+    if (missingFailures.length) {
+      issues.push(`full-contest-rehearsal: required failure injections missing: ${missingFailures.join(", ")}`);
+    }
+
+    const seed = record(evidence.seed);
+    if (seed?.editionCount !== 1 || seed?.delegationCount !== 66 || seed?.showCount !== 3) {
+      issues.push("full-contest-rehearsal: seed evidence must prove one edition, 66 delegations and three shows");
     }
   }
 
   if (categoryId === "registry-zero-gap") {
+    if (typeof evidence.schemaVersion !== "number" || evidence.schemaVersion < 4) {
+      issues.push("registry-zero-gap: schemaVersion must include final cross-system and physical-ownership evidence");
+    }
     if (evidence.zeroOrphans !== true) issues.push("registry-zero-gap: zeroOrphans is not true");
-    if (Array.isArray(evidence.findings) && evidence.findings.length !== 0) {
-      issues.push("registry-zero-gap: orphan findings remain");
+    if (!Array.isArray(evidence.findings) || evidence.findings.length !== 0) {
+      issues.push("registry-zero-gap: orphan findings remain or findings are not explicitly reported");
+    }
+    if (!record(evidence.inventory)) {
+      issues.push("registry-zero-gap: canonical inventory is missing");
+    }
+    const physicalOwnership = record(evidence.physicalOwnership);
+    if (physicalOwnership?.zeroOwnershipConflicts !== true) {
+      issues.push("registry-zero-gap: physical ownership is not conflict-free");
+    }
+    if (typeof physicalOwnership?.schemaVersion !== "number") {
+      issues.push("registry-zero-gap: physical ownership schema evidence is missing");
     }
   }
 
