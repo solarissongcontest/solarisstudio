@@ -24,6 +24,10 @@ const operationContract = readFileSync(
   "supabase/migrations/20261002203000_organisation_os_v5_operation_contract.sql",
   "utf8",
 );
+const systemSettingsSafety = readFileSync(
+  "src/lib/v3-organizer-system-reminder-scope.contract.test.ts",
+  "utf8",
+);
 
 const IMPLEMENTED_WORKSPACE_CAPABILITIES = [
   "workspace-administration",
@@ -31,10 +35,11 @@ const IMPLEMENTED_WORKSPACE_CAPABILITIES = [
   "workspace-hod-history",
   "workspace-system-health",
   "workspace-delivery-jobs",
+  "workspace-system-settings",
 ] as const;
 
 describe("V3 Organizer implemented workspace building evidence", () => {
-  it("reports the five implemented workspace surfaces as building without parity inflation", () => {
+  it("reports the implemented workspace surfaces as building without parity inflation", () => {
     const byId = new Map(
       V3_ORGANIZER_CAPABILITY_REGISTRY.map((item) => [item.legacyId, item]),
     );
@@ -91,11 +96,11 @@ describe("V3 Organizer implemented workspace building evidence", () => {
     expect(operationContract).toContain("Only failed notification deliveries can be retried");
   });
 
-  it("keeps the still-ungoverned System Settings workspace outside this evidence claim", () => {
-    const byId = new Map(
-      V3_ORGANIZER_CAPABILITY_REGISTRY.map((item) => [item.legacyId, item]),
-    );
-
-    expect(byId.get("workspace-system-settings")?.migrationStatus).toBe("planned");
+  it("keeps System Settings building on exact-edition compatibility safety without claiming final command authority", () => {
+    expect(systemSettingsSafety).toContain("Admin deadlines require an explicit Organizer edition scope.");
+    expect(systemSettingsSafety).toContain("Operational schedule must match the exact selected Organizer edition scope.");
+    expect(systemSettingsSafety).toContain("does not pretend compatibility reminder CRUD closes System #1074");
+    expect(systemSettingsSafety).toContain("studio2_apply_admin_deadline");
+    expect(systemSettingsSafety).toContain("studio2_admin_deadline_preview");
   });
 });
