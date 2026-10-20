@@ -17,12 +17,44 @@ function coreEvidence(workflow: string) {
   };
 }
 
+function productionIsolationEvidence() {
+  return {
+    ...coreEvidence("Quality"),
+    guard: {
+      workflowPath: ".github/workflows/ci.yml",
+      scriptPath: "scripts/check-v3-production-isolation.ts",
+      invocationVerified: true,
+    },
+  };
+}
+
 describe("S16 source evidence validation", () => {
-  it("accepts canonical Quality provenance for CI and production isolation", () => {
+  it("accepts canonical Quality provenance for CI and guarded production isolation", () => {
     expect(validateV3S16CategorySourceEvidence("canonical-ci", coreEvidence("Quality"), SHA)).toEqual([]);
     expect(
-      validateV3S16CategorySourceEvidence("production-isolation", coreEvidence("Quality"), SHA),
+      validateV3S16CategorySourceEvidence(
+        "production-isolation",
+        productionIsolationEvidence(),
+        SHA,
+      ),
     ).toEqual([]);
+  });
+
+  it("rejects production-isolation evidence that only inherits a successful Quality conclusion", () => {
+    const issues = validateV3S16CategorySourceEvidence(
+      "production-isolation",
+      coreEvidence("Quality"),
+      SHA,
+    );
+    expect(issues).toContain(
+      "production-isolation: evidence is not bound to canonical Quality workflow path",
+    );
+    expect(issues).toContain(
+      "production-isolation: evidence is not bound to canonical production-isolation guard",
+    );
+    expect(issues).toContain(
+      "production-isolation: exact-SHA Quality invocation of the isolation guard was not verified",
+    );
   });
 
   it("rejects forged workflow provenance", () => {
