@@ -9,6 +9,11 @@ import {
 
 const polishSource = () =>
   readFileSync(resolve(process.cwd(), "src/lib/terraos-teaser-mobile-polish.ts"), "utf8");
+const accessibilitySource = () =>
+  readFileSync(
+    resolve(process.cwd(), "src/lib/terraos-teaser-mobile-accessibility.ts"),
+    "utf8",
+  );
 const routeSource = () =>
   readFileSync(resolve(process.cwd(), "src/routes/terraos-teaser-preview.tsx"), "utf8");
 
@@ -34,6 +39,15 @@ describe("TerraOS mobile teaser composition", () => {
     expect(source).not.toContain("min-height: 270svh");
   });
 
+  it("collapses those mobile scene budgets again for Reduce Motion", () => {
+    const source = accessibilitySource();
+
+    expect(source).toContain('data-terraos-reduced-motion="true"');
+    expect(source).toContain("min-height: auto !important");
+    expect(source).toContain("position: static !important");
+    expect(source).toContain("transform: none !important");
+  });
+
   it("keeps the mobile Results detail treatment compact instead of stacking three giant cards", () => {
     const source = polishSource();
 
@@ -56,13 +70,14 @@ describe("TerraOS mobile teaser composition", () => {
 
     expect(route).toContain("installTerraOsTeaserPreviewPolish(document)");
     expect(route).toContain("installTerraOsTeaserHostMobilePolish(frame)");
+    expect(route).toContain("installTerraOsTeaserMobileAccessibility");
     expect(route).toContain("matchMedia(TERRAOS_COMPACT_PREVIEW_MEDIA)");
     expect(route).toContain("compactMedia?.matches");
     expect(route).toContain(": installTerraOsTeaserHeroHandoff(frame)");
   });
 
   it("remains presentation-only and cannot introduce a production data path", () => {
-    const source = polishSource().toLowerCase();
+    const source = `${polishSource()}\n${accessibilitySource()}`.toLowerCase();
 
     expect(source).not.toContain("supabase.co");
     expect(source).not.toContain("createclient(");
