@@ -39,10 +39,11 @@ describe("TerraOS mobile teaser composition", () => {
     expect(source).not.toContain("min-height: 270svh");
   });
 
-  it("preserves mobile safe-area spacing and collapses scene budgets for Reduce Motion", () => {
+  it("preserves mobile chrome clearance and collapses scene budgets for Reduce Motion", () => {
     const source = accessibilitySource();
 
     expect(source).toContain("env(safe-area-inset-top)");
+    expect(source).toContain("padding-top: max(6.4rem");
     expect(source).toContain("padding-top: max(5.5rem");
     expect(source).toContain('data-terraos-reduced-motion="true"');
     expect(source).toContain("min-height: auto !important");
