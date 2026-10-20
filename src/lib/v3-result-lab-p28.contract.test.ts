@@ -84,6 +84,21 @@ describe("Public V3 P28 Result Lab", () => {
     expect(route).toContain("return <LegacyResultLabPage />");
   });
 
+  it("keeps the selected official source show shareable while the server remains authority", () => {
+    const gate = read("src/components/v3/V3ResultLabGate.tsx");
+    const source = read("src/integrations/v3/result-lab-source.server.ts");
+
+    expect(gate).toContain("state.location.search");
+    expect(gate).toContain("requestedShowIdFromSearch(search)");
+    expect(gate).toContain("useV3ResultLabBundle(requestedShowId, true)");
+    expect(gate).toContain('to: "/result-lab"');
+    expect(gate).toContain("search: { show: showId }");
+    expect(gate).toContain("search: { show: selectedShowId }");
+    expect(gate).toContain("replace: true");
+    expect(source).toContain("eligibleShows.find((show) => show.id === requestedShowId)");
+    expect(gate).not.toContain("useState<string | null>(null)");
+  });
+
   it("does not expose a browser-controlled rollout or write path", () => {
     const combined = [
       read("src/components/v3/V3ResultLabGate.tsx"),
