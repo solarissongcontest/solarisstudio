@@ -68,7 +68,10 @@ describe("Solaris Studio V3 production primary-surface source architecture", () 
     expect(source).toContain("public_country_account_confirmation_requirements");
     expect(source).toContain("public_confirmation_rounds");
     expect(source).toContain("country_jury_voting_context");
-    expect(source).toContain("studio2_feature_enabled");
+    expect(source).toContain('client.rpc("studio2_feature_flags_snapshot"');
+    expect(source).toContain("V3_PARTICIPANT_FEATURE_KEYS");
+    expect(source).toContain("resolveV3ParticipantFeatureSnapshot");
+    expect(source).not.toContain('client.rpc("studio2_feature_enabled"');
     expect(source).toContain("studio2_my_notice_inbox");
     expect(source).toContain("assembleV3PrimarySurfaceSnapshot");
   });

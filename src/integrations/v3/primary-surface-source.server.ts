@@ -19,6 +19,10 @@ import {
   mapStudio2HodContext,
 } from "@/lib/studio2-hod-workspace";
 import {
+  resolveV3ParticipantFeatureSnapshot,
+  V3_PARTICIPANT_FEATURE_KEYS,
+} from "@/lib/v3-participant-feature-snapshot";
+import {
   loadV3PrimarySurfaceBundle,
   type V3PrimarySurfaceBundle,
   type V3PrimarySurfaceServerSource,
@@ -31,12 +35,6 @@ import {
   type V3PrimarySurfaceDelegation,
 } from "@/lib/v3-primary-surface-source";
 import type { V3BootstrapServerRequest } from "@/lib/v3-bootstrap-server";
-
-const PARTICIPANT_FEATURES = [
-  "official_communications",
-  "hod_workspace_v2",
-  "rules_engine",
-] as const;
 
 const EDITION_COLUMNS =
   "id,edition_number,name,year,slug,description,host_country_id,host_city,logo,theme_id,status,published";
@@ -253,14 +251,10 @@ async function loadParticipantEvidence(input: {
   const { viewer, publicClient, editionId, serverNow } = input;
   const client = viewer.client;
 
-  const featurePromise = Promise.all(
-    PARTICIPANT_FEATURES.map((key) =>
-      client.rpc("studio2_feature_enabled", {
-        p_key: key,
-        p_edition_id: editionId,
-      }),
-    ),
-  );
+  const featurePromise = client.rpc("studio2_feature_flags_snapshot", {
+    p_keys: [...V3_PARTICIPANT_FEATURE_KEYS],
+    p_edition_id: editionId,
+  });
   const preferencePromise = client
     .from("notification_preferences")
     .select("spoiler_free")
@@ -274,7 +268,7 @@ async function loadParticipantEvidence(input: {
     rounds,
     juryContext,
     preferences,
-    featureResults,
+    featureSnapshot,
   ] = await Promise.all([
     loadDelegation(client, viewer.id),
     client.rpc("public_country_account_confirmation_access"),
@@ -290,13 +284,12 @@ async function loadParticipantEvidence(input: {
   throwIfError(rounds.error, "Could not load confirmation rounds");
   throwIfError(juryContext.error, "Could not load jury task context");
   throwIfError(preferences.error, "Could not load Solaris app experience preferences");
+  throwIfError(featureSnapshot.error, "Could not resolve participant feature capabilities");
 
-  const capabilities: string[] = [];
-  PARTICIPANT_FEATURES.forEach((key, index) => {
-    const result = featureResults[index];
-    throwIfError(result?.error, `Could not resolve ${key} capability`);
-    if (result?.data === true) capabilities.push(key);
-  });
+  const capabilities = resolveV3ParticipantFeatureSnapshot(featureSnapshot.data);
+  if (!capabilities) {
+    throw new Error("Could not resolve participant feature capabilities: invalid snapshot.");
+  }
 
   let acknowledgementTasks = 0;
   if (capabilities.includes("official_communications")) {
