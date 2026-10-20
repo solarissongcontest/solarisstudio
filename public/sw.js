@@ -1,6 +1,8 @@
-const CACHE_VERSION = "solaris-app-v15";
+const CACHE_VERSION = "solaris-app-v16";
 const STATIC_CACHE = `${CACHE_VERSION}:static`;
+const RUNTIME_CACHE = `${CACHE_VERSION}:runtime`;
 const OFFLINE_URL = "/offline.html";
+const MAX_RUNTIME_CACHE_ENTRIES = 96;
 
 const PRECACHE = [
   OFFLINE_URL,
@@ -17,13 +19,17 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
+  const currentCaches = new Set([STATIC_CACHE, RUNTIME_CACHE]);
   event.waitUntil(
     caches
       .keys()
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith("solaris-app-") && key !== STATIC_CACHE)
+            .filter(
+              (key) =>
+                key.startsWith("solaris-app-") && !currentCaches.has(key),
+            )
             .map((key) => caches.delete(key)),
         ),
       )
@@ -58,19 +64,42 @@ async function networkNavigation(request) {
   }
 }
 
-async function staleWhileRevalidate(request) {
-  const cache = await caches.open(STATIC_CACHE);
-  const cached = await cache.match(request);
-  const network = fetch(request)
-    .then((response) => {
+async function trimRuntimeCache(cache) {
+  const keys = await cache.keys();
+  const overflow = keys.length - MAX_RUNTIME_CACHE_ENTRIES;
+  if (overflow <= 0) return;
+
+  await Promise.all(
+    keys.slice(0, overflow).map((request) => cache.delete(request)),
+  );
+}
+
+function staleWhileRevalidate(request) {
+  const runtimeCachePromise = caches.open(RUNTIME_CACHE);
+  const cachedPromise = Promise.all([
+    runtimeCachePromise.then((cache) => cache.match(request)),
+    caches.open(STATIC_CACHE).then((cache) => cache.match(request)),
+  ]).then(([runtimeCached, precached]) => runtimeCached || precached);
+
+  const networkPromise = runtimeCachePromise.then(async (cache) => {
+    try {
+      const response = await fetch(request);
       if (response.ok && response.type === "basic") {
-        cache.put(request, response.clone());
+        await cache.put(request, response.clone());
+        await trimRuntimeCache(cache);
       }
       return response;
-    })
-    .catch(() => null);
+    } catch {
+      return null;
+    }
+  });
 
-  return cached || (await network) || Response.error();
+  return {
+    response: cachedPromise.then(
+      async (cached) => cached || (await networkPromise) || Response.error(),
+    ),
+    revalidation: networkPromise.then(() => undefined),
+  };
 }
 
 self.addEventListener("fetch", (event) => {
@@ -85,7 +114,9 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (isCacheableStaticAsset(url)) {
-    event.respondWith(staleWhileRevalidate(request));
+    const { response, revalidation } = staleWhileRevalidate(request);
+    event.respondWith(response);
+    event.waitUntil(revalidation);
   }
 });
 
@@ -184,7 +215,8 @@ self.addEventListener("push", (event) => {
     payload = { body: event.data?.text?.() ?? "" };
   }
 
-  const title = typeof payload.title === "string" ? payload.title : "Solaris Studio";
+  const title =
+    typeof payload.title === "string" ? payload.title : "Solaris Studio";
   const route = normalizePushRoute(payload.route);
   const options = {
     body: typeof payload.body === "string" ? payload.body : "",
@@ -205,10 +237,12 @@ self.addEventListener("push", (event) => {
 
   // Display is the critical path; receipt networking cannot delay it.
   const display = self.registration.showNotification(title, options);
-  event.waitUntil(Promise.all([
-    display.then(() => reportPushReceipt(options.data, "displayed")),
-    reportPushReceipt(options.data, "received"),
-  ]));
+  event.waitUntil(
+    Promise.all([
+      display.then(() => reportPushReceipt(options.data, "displayed")),
+      reportPushReceipt(options.data, "received"),
+    ]),
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
