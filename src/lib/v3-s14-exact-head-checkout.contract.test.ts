@@ -11,7 +11,8 @@ describe("S14 exact-SHA workflow identity", () => {
     const exactSource = "${{ github.event.pull_request.head.sha || github.sha }}";
     expect(workflow).toContain(`ref: ${exactSource}`);
     expect(workflow).toContain(`name: v3-s14-stateful-${exactSource}`);
-    expect(workflow).toContain('export V3_CANDIDATE_SHA="$(git rev-parse HEAD');
+    expect(workflow).toContain("git rev-parse HEAD");
+    expect(workflow).toContain('echo "V3_CANDIDATE_SHA=$actual" >> "$GITHUB_ENV"');
     expect(workflow).toContain("candidate SHA mismatch");
   });
 });
