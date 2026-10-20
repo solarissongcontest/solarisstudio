@@ -54,7 +54,7 @@ s14_stage7_set_deadline_before_open() {
   first_result="$HTTP_BODY"
   [[ "$(printf '%s' "$first_result" | json_value action)" == "set" ]] || fail "initial deadline apply did not persist action=set"
   receipt_command="$(db_scalar "select command from public.studio2_operation_receipts where operation_id='$operation_id'::uuid;")"
-  [[ "$receipt_command" == "televote.deadline.set" ]] || fail "deadline set receipt used '$receipt_command' instead of canonical televote.deadline.set"
+  [[ "$receipt_command" == "televote.deadline.change" ]] || fail "deadline set receipt used '$receipt_command' instead of replay-stable canonical televote.deadline.change"
   [[ "$(db_scalar "select count(*) from private.v3_domain_events where operation_id='$operation_id'::uuid and event_type='televote.deadline_set';")" == "1" ]] || fail "initial deadline set did not emit exactly one canonical DomainEvent"
 
   televote_rpc_request "$ORGANIZER_A_TOKEN" studio2_apply_round_deadline_change \
@@ -130,7 +130,7 @@ assert r['roundVersion'] > r['previousRoundVersion']
 PY
   [[ "$(db_scalar "select extract(epoch from (closes_at - '$previous_deadline'::timestamptz))::int from televoting.rounds where id='$round_id'::uuid;")" == "120" ]] || fail "S14 governed extension was not exactly +2 minutes"
   receipt_command="$(db_scalar "select command from public.studio2_operation_receipts where operation_id='$operation_id'::uuid;")"
-  [[ "$receipt_command" == "televote.extend" ]] || fail "deadline extension receipt used '$receipt_command' instead of canonical televote.extend"
+  [[ "$receipt_command" == "televote.deadline.change" ]] || fail "deadline extension receipt used '$receipt_command' instead of replay-stable canonical televote.deadline.change"
 
   televote_rpc_request "$ORGANIZER_A_TOKEN" studio2_apply_round_deadline_change \
     "{\"p_round_id\":\"$round_id\",\"p_new_deadline_at\":\"$extended_deadline\",\"p_operation_id\":\"$operation_id\",\"p_idempotency_key\":\"$idempotency_key\",\"p_expected_round_version\":$stale_version}"
