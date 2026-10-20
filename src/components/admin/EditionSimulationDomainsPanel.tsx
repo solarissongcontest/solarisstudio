@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import { AdminCard, AdminCardHeader, AdminStatus } from '@/components/admin/AdminUI';
 import {
   simulationDomainTransitions,
@@ -128,7 +130,7 @@ function DomainCard({
   nextStates: readonly string[];
   onTransition: (state: string) => void;
   detail?: string;
-  blockerControls?: React.ReactNode;
+  blockerControls?: ReactNode;
 }) {
   return (
     <div className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
@@ -195,7 +197,7 @@ function SmallButton({
   onClick,
   disabled = false,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   onClick: () => void;
   disabled?: boolean;
 }) {
