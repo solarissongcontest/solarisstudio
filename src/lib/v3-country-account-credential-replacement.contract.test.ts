@@ -56,9 +56,23 @@ describe("V3 governed country-account credential replacement", () => {
   });
 
   it("keeps transient password-safety dependency outages retryable under the same operation", () => {
+    const dependencyBranch = edge.indexOf(
+      'if (safetyFailure.stage === "password_safety_dependency")',
+    );
+    const reconciliationMarker = edge.indexOf(
+      "reconciliationRequired: true",
+      dependencyBranch,
+    );
+    const terminalPolicyFailure = edge.indexOf(
+      'p_outcome: "failed"',
+      dependencyBranch,
+    );
+
     expect(edge).toContain('stage: "password_safety_dependency"');
-    expect(edge).toContain('if (safetyFailure.stage === "password_policy")');
-    expect(edge).toContain('reconciliationRequired: safetyFailure.stage === "password_safety_dependency"');
+    expect(dependencyBranch).toBeGreaterThan(-1);
+    expect(reconciliationMarker).toBeGreaterThan(dependencyBranch);
+    expect(terminalPolicyFailure).toBeGreaterThan(reconciliationMarker);
+    expect(edge.slice(dependencyBranch, terminalPolicyFailure)).toContain("return json(");
     expect(edge).not.toContain('p_failure_stage: "password_safety_dependency"');
   });
 
