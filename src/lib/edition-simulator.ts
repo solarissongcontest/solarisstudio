@@ -1,4 +1,15 @@
 import { assertEditionTransition, type EditionRuntimeState, type EditionState, type EditionSubsystem, type SubsystemState } from './edition-state';
+import {
+  assertSimulationDomainTransition,
+  defaultSimulationDomains,
+  hasActiveSimulationBlockers,
+  type EntryReviewSimulationState,
+  type LiveSimulationState,
+  type ProgressionSimulationState,
+  type PublicationSimulationState,
+  type SimulationDomain,
+  type SimulationDomainState,
+} from './edition-simulation-domains';
 import type { IncidentSeverity } from './incident-command';
 
 export type SimulationIncident = {
@@ -11,6 +22,7 @@ export type SimulationIncident = {
 export type EditionSimulationState = {
   clock: string;
   runtime: EditionRuntimeState;
+  domains: SimulationDomainState;
   incidents: SimulationIncident[];
   log: SimulationLogEntry[];
 };
@@ -19,6 +31,12 @@ export type SimulationAction =
   | { type: 'advance_time'; seconds: number }
   | { type: 'transition_edition'; to: EditionState }
   | { type: 'set_subsystem'; subsystem: EditionSubsystem; state: SubsystemState }
+  | { type: 'transition_entries'; to: EntryReviewSimulationState }
+  | { type: 'transition_publication'; to: PublicationSimulationState }
+  | { type: 'transition_progression'; to: ProgressionSimulationState }
+  | { type: 'transition_live'; to: LiveSimulationState }
+  | { type: 'set_domain_blocker'; domain: SimulationDomain; id: string; label: string; active: boolean }
+  | { type: 'set_progression_counts'; qualifiersExpected: number; qualifiersApplied: number }
   | { type: 'create_incident'; id: string; title: string; severity: IncidentSeverity }
   | { type: 'resolve_incident'; id: string };
 
@@ -51,6 +69,7 @@ function log(state: EditionSimulationState, action: SimulationAction, summary: s
 export function createEditionSimulation(input: {
   startsAt: string;
   runtime: EditionRuntimeState;
+  domains?: SimulationDomainState;
 }): EditionSimulationState {
   const start = new Date(input.startsAt);
   if (!Number.isFinite(start.getTime())) throw new Error('Simulation requires a valid start time');
@@ -58,9 +77,48 @@ export function createEditionSimulation(input: {
   return {
     clock: start.toISOString(),
     runtime: structuredClone(input.runtime),
+    domains: structuredClone(input.domains ?? defaultSimulationDomains()),
     incidents: [],
     log: [],
   };
+}
+
+function transitionDomain<TDomain extends SimulationDomain>(
+  current: EditionSimulationState,
+  action: SimulationAction,
+  domain: TDomain,
+  next: SimulationDomainState[TDomain]['state'],
+): EditionSimulationState {
+  const previous = current.domains[domain].state;
+  assertSimulationDomainTransition(domain, previous, next);
+
+  if (
+    (domain === 'publication' || domain === 'progression' || domain === 'live') &&
+    hasActiveSimulationBlockers(current.domains[domain]) &&
+    !['blocked', 'held'].includes(next as string)
+  ) {
+    throw new Error(`${domain} simulation has active blockers`);
+  }
+
+  if (domain === 'progression' && next === 'locked') {
+    const progression = current.domains.progression;
+    if (progression.qualifiersApplied !== progression.qualifiersExpected) {
+      throw new Error('Progression cannot lock until the expected qualifier set is applied');
+    }
+  }
+
+  const state = {
+    ...current,
+    domains: {
+      ...current.domains,
+      [domain]: {
+        ...current.domains[domain],
+        state: next,
+      },
+    },
+  } as EditionSimulationState;
+
+  return log(state, action, `${domain} ${previous} -> ${next}`);
 }
 
 export function applySimulationAction(
@@ -99,6 +157,70 @@ export function applySimulationAction(
         },
       };
       return log(state, action, `${action.subsystem} ${previous} -> ${action.state}`);
+    }
+
+    case 'transition_entries':
+      return transitionDomain(current, action, 'entries', action.to);
+
+    case 'transition_publication':
+      return transitionDomain(current, action, 'publication', action.to);
+
+    case 'transition_progression':
+      return transitionDomain(current, action, 'progression', action.to);
+
+    case 'transition_live':
+      return transitionDomain(current, action, 'live', action.to);
+
+    case 'set_domain_blocker': {
+      const currentDomain = current.domains[action.domain];
+      const existing = currentDomain.blockers.find((blocker) => blocker.id === action.id);
+      const blockers = existing
+        ? currentDomain.blockers.map((blocker) =>
+            blocker.id === action.id
+              ? { ...blocker, label: action.label, active: action.active }
+              : blocker,
+          )
+        : [...currentDomain.blockers, { id: action.id, label: action.label, active: action.active }];
+      const state = {
+        ...current,
+        domains: {
+          ...current.domains,
+          [action.domain]: { ...currentDomain, blockers },
+        },
+      } as EditionSimulationState;
+      return log(
+        state,
+        action,
+        `${action.domain} blocker ${action.id} ${action.active ? 'activated' : 'cleared'}`,
+      );
+    }
+
+    case 'set_progression_counts': {
+      if (
+        !Number.isInteger(action.qualifiersExpected) ||
+        !Number.isInteger(action.qualifiersApplied) ||
+        action.qualifiersExpected < 0 ||
+        action.qualifiersApplied < 0 ||
+        action.qualifiersApplied > action.qualifiersExpected
+      ) {
+        throw new Error('Progression counts must be non-negative integers with applied <= expected');
+      }
+      const state = {
+        ...current,
+        domains: {
+          ...current.domains,
+          progression: {
+            ...current.domains.progression,
+            qualifiersExpected: action.qualifiersExpected,
+            qualifiersApplied: action.qualifiersApplied,
+          },
+        },
+      };
+      return log(
+        state,
+        action,
+        `Progression qualifiers ${action.qualifiersApplied}/${action.qualifiersExpected}`,
+      );
     }
 
     case 'create_incident': {
