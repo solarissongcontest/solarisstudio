@@ -17,6 +17,8 @@ const PERSISTENT_NAVIGATION_SELECTOR = [
 
 const OVERLAY_NAV_INERT_OWNER = "data-solaris-overlay-nav-inert-owner";
 const OVERLAY_NAV_ARIA_OWNER = "data-solaris-overlay-nav-aria-owner";
+const OVERLAY_NAV_ARIA_PREVIOUS = "data-solaris-overlay-nav-aria-previous";
+const OVERLAY_NAV_ARIA_ABSENT = "__absent__";
 
 function setPersistentNavigationIsolation(blocked: boolean) {
   if (typeof document === "undefined") return;
@@ -37,6 +39,11 @@ function setPersistentNavigationIsolation(blocked: boolean) {
           navigation.setAttribute(OVERLAY_NAV_INERT_OWNER, "overlay-manager");
         }
         if (navigation.getAttribute("aria-hidden") !== "true") {
+          const previousAriaHidden = navigation.getAttribute("aria-hidden");
+          navigation.setAttribute(
+            OVERLAY_NAV_ARIA_PREVIOUS,
+            previousAriaHidden ?? OVERLAY_NAV_ARIA_ABSENT,
+          );
           navigation.setAttribute("aria-hidden", "true");
           navigation.setAttribute(OVERLAY_NAV_ARIA_OWNER, "overlay-manager");
         }
@@ -48,7 +55,13 @@ function setPersistentNavigationIsolation(blocked: boolean) {
         navigation.removeAttribute(OVERLAY_NAV_INERT_OWNER);
       }
       if (navigation.getAttribute(OVERLAY_NAV_ARIA_OWNER) === "overlay-manager") {
-        navigation.removeAttribute("aria-hidden");
+        const previousAriaHidden = navigation.getAttribute(OVERLAY_NAV_ARIA_PREVIOUS);
+        if (previousAriaHidden && previousAriaHidden !== OVERLAY_NAV_ARIA_ABSENT) {
+          navigation.setAttribute("aria-hidden", previousAriaHidden);
+        } else {
+          navigation.removeAttribute("aria-hidden");
+        }
+        navigation.removeAttribute(OVERLAY_NAV_ARIA_PREVIOUS);
         navigation.removeAttribute(OVERLAY_NAV_ARIA_OWNER);
       }
     });
@@ -119,11 +132,21 @@ export function AppOverlayManager({
     if (teaserPreview || typeof document === "undefined") return;
 
     const root = document.documentElement;
+    let navigationBlocked = false;
+    const rootBlocksNavigation = () =>
+      root.hasAttribute("data-solaris-feature-overlay-open") ||
+      root.hasAttribute("data-solaris-keyboard-open");
+
     const syncNavigationIsolation = () => {
-      const blocked =
-        root.hasAttribute("data-solaris-feature-overlay-open") ||
-        root.hasAttribute("data-solaris-keyboard-open");
-      setPersistentNavigationIsolation(blocked);
+      const blocked = rootBlocksNavigation();
+      if (blocked) {
+        setPersistentNavigationIsolation(true);
+      } else if (navigationBlocked) {
+        // Scan once when leaving the blocked state to restore only attributes
+        // owned by this manager. Ordinary unblocked DOM churn does no nav scan.
+        setPersistentNavigationIsolation(false);
+      }
+      navigationBlocked = blocked;
     };
 
     syncNavigationIsolation();
@@ -138,9 +161,12 @@ export function AppOverlayManager({
     });
 
     // Persistent chrome may mount after a keyboard/sheet already owns the
-    // viewport. Re-apply the current state to newly inserted navigation rather
-    // than allowing one focusable frame to leak behind the active surface.
-    const mountObserver = new MutationObserver(syncNavigationIsolation);
+    // viewport. Only blocked-state insertions need a selector scan; normal page
+    // rendering stays off this document-wide isolation path.
+    const mountObserver = new MutationObserver(() => {
+      if (!navigationBlocked) return;
+      setPersistentNavigationIsolation(true);
+    });
     mountObserver.observe(document.body, { subtree: true, childList: true });
 
     return () => {
