@@ -17,12 +17,17 @@ const integrityReview = readFileSync(
   "utf8",
 );
 
-const command = readFileSync(
+const roundsView = readFileSync(
+  resolve(process.cwd(), "src/components/televoting/VotingRoundsView.tsx"),
+  "utf8",
+);
+
+const declarationCommand = readFileSync(
   resolve(process.cwd(), "src/lib/voting-declaration-admin.ts"),
   "utf8",
 );
 
-describe("V3 Organizer voting integrity context lock", () => {
+describe("V3 Organizer voting context lock", () => {
   it("uses the shell-owned edition identity and label for declarations", () => {
     expect(declarationsRoute).toContain("const { editionId, editionLabel } = useAdminContext()");
     expect(declarationsRoute).toContain("editionContextLabel={editionLabel?.trim() || editionId}");
@@ -56,10 +61,10 @@ describe("V3 Organizer voting integrity context lock", () => {
   it("keeps declaration invalidation on the governed preview/apply authority", () => {
     expect(declarationsRoute).toContain("previewVotingDeclarationInvalidation");
     expect(declarationsRoute).toContain("applyVotingDeclarationInvalidation");
-    expect(command).toContain("studio2_voting_declaration_invalidation_preview");
-    expect(command).toContain("studio2_apply_voting_declaration_invalidation");
-    expect(command).toContain("expectedVersion: input.preview.declarationVersion");
-    expect(command).toContain("idempotencyKey: input.idempotencyKey");
+    expect(declarationCommand).toContain("studio2_voting_declaration_invalidation_preview");
+    expect(declarationCommand).toContain("studio2_apply_voting_declaration_invalidation");
+    expect(declarationCommand).toContain("expectedVersion: input.preview.declarationVersion");
+    expect(declarationCommand).toContain("idempotencyKey: input.idempotencyKey");
   });
 
   it("does not add a browser-owned declaration mutation path", () => {
@@ -83,5 +88,38 @@ describe("V3 Organizer voting integrity context lock", () => {
     expect(integrityReview).toContain("Human moderation is temporarily read-only here");
     expect(integrityReview).toContain("until the server verifies edition ownership for every command");
     expect(integrityReview).not.toContain("useMutation");
+  });
+
+  it("keeps Voting Rounds visibly tied to the shell-owned edition", () => {
+    expect(roundsView).toContain("editionLabel: organizerEditionLabel");
+    expect(roundsView).toContain('data-v3-organizer-context-lock="edition"');
+    expect(roundsView).toContain("eyebrow={`${editionContextLabel} · Voting`}");
+    expect(roundsView).toContain("<AdminStatus tone=\"info\">{editionContextLabel}</AdminStatus>");
+  });
+
+  it("requires the R2 round preview to prove exact Solaris and remote edition scope", () => {
+    expect(roundsView).toContain("preview.solarisEditionId !== scope.editionId");
+    expect(roundsView).toContain("preview.remoteEditionId !== scope.remoteEditionId");
+    expect(roundsView).toContain("Voting round preview returned a different edition scope");
+    expect(roundsView).toContain("pending.editionId !== scope.editionId");
+    expect(roundsView).toContain("pending.preview.solarisEditionId !== scope.editionId");
+    expect(roundsView).toContain("pending.preview.remoteEditionId !== scope.remoteEditionId");
+  });
+
+  it("freezes edition plus round inside R2 and delete confirmations", () => {
+    expect(roundsView).toContain("editionLabel: editionContextLabel");
+    expect(roundsView).toContain('data-v3-organizer-confirmation-context="edition-round"');
+    expect(roundsView).toContain("{pending.editionLabel} · {pending.round.name}");
+    expect(roundsView).toContain("{editionContextLabel} · {deleteTarget.name}");
+  });
+
+  it("keeps round status changes on versioned server authority", () => {
+    expect(roundsView).toContain("previewMergedTelevotingRoundStatus");
+    expect(roundsView).toContain("setMergedTelevotingRoundStatus");
+    expect(roundsView).toContain("expectedGlobalVersion: pending.preview.expectedGlobalVersion");
+    expect(roundsView).toContain("expectedRoundVersion: pending.preview.expectedRoundVersion");
+    expect(roundsView).toContain("operationId: pending.operationId");
+    expect(roundsView).toContain("idempotencyKey: pending.idempotencyKey");
+    expect(roundsView).not.toContain("supabase.from");
   });
 });
