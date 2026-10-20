@@ -28,10 +28,20 @@ describe("MySolaris voting state truth", () => {
     expect(voting).not.toContain('.from("rounds")');
   });
 
-  it("avoids background polling from the overview while keeping focus reconciliation for its scoped Jury and delegation reads", () => {
+  it("reconciles an existing accepted Televote receipt before presenting an open round as a fresh action", () => {
+    expect(voting).toContain("reconcileMergedTelevotingRecoveryCookie");
+    expect(voting).toContain('"mysolaris-televote-receipt"');
+    expect(voting).toContain('"Checking receipt"');
+    expect(voting).toContain('"Receipt unknown"');
+    expect(voting).toContain('"Submitted"');
+    expect(voting).toContain("Receipt status unavailable");
+    expect(voting).toContain("View recorded vote");
+  });
+
+  it("avoids background polling from the overview while keeping focus reconciliation for scoped and receipt reads", () => {
     expect(voting).not.toContain("refetchInterval:");
     expect(voting.match(/refetchOnWindowFocus: true/g)?.length ?? 0).toBeGreaterThanOrEqual(
-      2,
+      3,
     );
   });
 });
