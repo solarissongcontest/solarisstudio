@@ -20,6 +20,7 @@ describe("V3 Organizer Jury roster authority", () => {
       expect(route).toContain(`changeKind: \"${changeKind}\"`);
     }
     expect(route).toContain("payload: { voterIds: canonicalIds }");
+    expect(client).toContain("orderedVoterIds: voterIds");
     expect(route).toContain("expectedVersion: preview.expectedVersion");
   });
 
