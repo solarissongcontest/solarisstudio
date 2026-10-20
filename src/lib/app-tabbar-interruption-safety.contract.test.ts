@@ -39,6 +39,20 @@ describe("retained AppTabBar interruption safety", () => {
     );
   });
 
+  it("clears stale interruption suppression before an inactive fresh pointer returns early", () => {
+    const startDragStart = tabs.indexOf("const startDrag =");
+    const moveDragStart = tabs.indexOf("const moveDrag =", startDragStart);
+    const startDragBlock = tabs.slice(startDragStart, moveDragStart);
+    const resetIndex = startDragBlock.indexOf(
+      "if (!dragState.current) suppressClick.current = false",
+    );
+    const inactiveGuardIndex = startDragBlock.indexOf("!active ||");
+
+    expect(resetIndex).toBeGreaterThan(-1);
+    expect(inactiveGuardIndex).toBeGreaterThan(-1);
+    expect(resetIndex).toBeLessThan(inactiveGuardIndex);
+  });
+
   it("treats app/browser/overlay/keyboard changes as gesture interruption boundaries", () => {
     expect(tabs).toContain('window.addEventListener("blur", resetInterruptedGesture)');
     expect(tabs).toContain('window.addEventListener("resize", resetInterruptedGesture)');
