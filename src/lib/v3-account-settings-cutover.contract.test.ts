@@ -127,7 +127,7 @@ describe("V3 Account + Settings cutover", () => {
     expect(source).toContain('window.location.href = "/"');
     expect(source).not.toContain("integrations/supabase");
     expect(source).not.toContain("supabase.auth.signOut");
-    expect(session).toContain("supabase.auth.signOut()");
+    expect(session).toContain('supabase.auth.signOut({ scope: "local" })');
   });
 
   it("does not expose a browser-controlled rollout escape hatch", () => {
