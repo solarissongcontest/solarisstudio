@@ -263,6 +263,11 @@ export function OrganizerV6TabBar({
     index: number,
     active: boolean,
   ) => {
+    // Clear suppression left behind by an older interrupted gesture at the start
+    // of a genuinely fresh pointer sequence. This must happen before the inactive
+    // tab guard so the next legitimate tab click cannot be swallowed.
+    if (!dragState.current) suppressClick.current = false;
+
     if (
       !active ||
       collapsed ||
