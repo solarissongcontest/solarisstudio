@@ -36,12 +36,12 @@ describe("V3 navigation interruption click safety", () => {
   it("remounts Public mobile navigation when viewer identity generation changes", () => {
     const shell = source("src/components/v3/V3AppShell.tsx");
 
-    expect(shell).toContain('const navigationInteractionKey = navigationIdentityReady');
+    expect(shell).toContain("const navigationInteractionKey = navigationIdentityReady");
     expect(shell).toContain(': "resolving";');
     expect(shell).toContain("key={navigationInteractionKey}");
   });
 
-  it("applies the same cancellation rule to Organizer lens presses", () => {
+  it("applies the same cancellation rule to the legacy Organizer fallback", () => {
     const tabs = source("src/components/admin/OrganizerV6TabBar.tsx");
 
     assertInterruptedGestureClickSafety(tabs);
@@ -51,7 +51,17 @@ describe("V3 navigation interruption click safety", () => {
     expect(tabs).toContain("suppressClick.current = false;");
   });
 
-  it("remounts Organizer mobile navigation when shell-owned contest context changes", () => {
+  it("remounts canonical Organizer Liquid navigation for every shell context generation", () => {
+    const chrome = source("src/components/admin/OrganizerV3MobileChrome.tsx");
+
+    expect(chrome).toContain("const { editionId, contextVersion } = useAdminContext();");
+    expect(chrome).toContain(
+      'const navigationInteractionKey = `${navigationScope ?? "unscoped"}:${contextVersion}`;',
+    );
+    expect(chrome).toContain("key={navigationInteractionKey}");
+  });
+
+  it("keeps the same context-switch interruption safety on the Organizer fallback", () => {
     const chrome = source("src/components/admin/OrganizerV6MobileChrome.tsx");
 
     expect(chrome).toContain("const { editionId, contextVersion } = useAdminContext();");
