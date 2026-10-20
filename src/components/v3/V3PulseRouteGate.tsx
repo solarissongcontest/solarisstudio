@@ -8,10 +8,11 @@ import { V3PulseScreen } from "./V3PulseScreen";
 
 export function V3PulseRouteGate({ fallback }: { fallback: ReactNode }) {
   const rollout = useV3RolloutProbe(true);
-  const pulse = useV3PublicPulse(null, true);
+  const pulseEnabled = rollout.isSuccess && rollout.data?.enabled === true;
+  const pulse = useV3PublicPulse(null, pulseEnabled);
   const firstPage = pulse.data?.pages[0];
 
-  if (rollout.isLoading || pulse.isLoading) {
+  if (rollout.isLoading || (pulseEnabled && pulse.isLoading)) {
     return (
       <V3AppShell editionLabel="Solaris Studio" phaseLabel="Pulse" activeArea="home">
         <V3Screen>
