@@ -51,6 +51,11 @@ function LiveBootSurface({ message }: { message: string }) {
  * an enabled V3 session never launches the old archive-wide browser fan-out.
  * The V3 branch intentionally uses only the foundation shell: /show-mode is an
  * immersive route and must not acquire the normal five-tab application chrome.
+ *
+ * Once an authoritative V3 snapshot exists, a later refresh/reconnect failure
+ * keeps that snapshot mounted in a visibly degraded state. Falling back to the
+ * legacy subtree at that point would throw away known-good server truth and
+ * restart the archive-wide legacy read path precisely while connectivity is bad.
  */
 export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
   const rollout = useV3RolloutProbe(true);
@@ -136,9 +141,10 @@ export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
     return <LiveBootSurface message="Opening authoritative show state…" />;
   }
 
-  // The existing Show Mode remains the reversible fallback if the focused V3
-  // read boundary itself fails. Never substitute locally inferred state.
-  if (bundle.isError || !bundle.data) {
+  // The legacy Show Mode is a reversible fallback only when the initial V3 read
+  // cannot produce any authoritative snapshot. Refetch errors with cached data
+  // must remain on V3 and surface that the snapshot is stale/degraded instead.
+  if (!bundle.data) {
     return <>{fallback}</>;
   }
 
@@ -146,6 +152,7 @@ export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
     <V3FoundationShell>
       <V3LiveScreen
         experience={bundle.data.experience}
+        degraded={bundle.isError}
         refreshing={bundle.isFetching}
         onRefresh={() => {
           void bundle.refetch();
