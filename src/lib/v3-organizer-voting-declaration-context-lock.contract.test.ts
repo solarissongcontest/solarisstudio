@@ -22,6 +22,11 @@ const roundsView = readFileSync(
   "utf8",
 );
 
+const roundGuard = readFileSync(
+  resolve(process.cwd(), "src/routes/televoting/admin/rounds/$id.tsx"),
+  "utf8",
+);
+
 const declarationCommand = readFileSync(
   resolve(process.cwd(), "src/lib/voting-declaration-admin.ts"),
   "utf8",
@@ -121,5 +126,23 @@ describe("V3 Organizer voting context lock", () => {
     expect(roundsView).toContain("operationId: pending.operationId");
     expect(roundsView).toContain("idempotencyKey: pending.idempotencyKey");
     expect(roundsView).not.toContain("supabase.from");
+  });
+
+  it("keeps round child editors behind exact-edition membership verification", () => {
+    expect(roundGuard).toContain('queryKey: ["v3-organizer-voting-round-scope", editionId ?? "unscoped", roundId]');
+    expect(roundGuard).toContain("scopeEdition && scopeEdition.solaris_id === editionId");
+    expect(roundGuard).toContain("scopeEdition?.rounds.find((round) => round.id === roundId)");
+    expect(roundGuard).toContain("Round is outside the selected edition");
+    expect(roundGuard.indexOf("roundBelongsToEdition")).toBeLessThan(roundGuard.indexOf("<Outlet />"));
+  });
+
+  it("keeps verified edition plus round visible throughout child editors", () => {
+    expect(roundGuard).toContain("const { editionId, editionLabel } = useAdminContext()");
+    expect(roundGuard).toContain('data-v3-organizer-context-lock="edition-round"');
+    expect(roundGuard).toContain("<AdminStatus tone=\"info\">{editionContextLabel}</AdminStatus>");
+    expect(roundGuard).toContain("<AdminStatus tone=\"neutral\">{scopeRound!.name}</AdminStatus>");
+    expect(roundGuard.indexOf('data-v3-organizer-context-lock="edition-round"')).toBeLessThan(
+      roundGuard.indexOf("<Outlet />"),
+    );
   });
 });
