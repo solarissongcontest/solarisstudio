@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, type ReactNode } from "react";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
 import { V3Screen, V3Surface } from "@/components/v3/V3Foundation";
@@ -10,13 +10,21 @@ import {
 } from "@/lib/v3-primary-runtime";
 import { V3BroadcastIntelligenceScreen } from "./V3BroadcastIntelligenceScreen";
 
+function broadcastShowNomination(search: unknown) {
+  if (!search || typeof search !== "object" || Array.isArray(search)) return null;
+  const raw = (search as Record<string, unknown>).show;
+  return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+}
+
 export function V3BroadcastIntelligenceGate({
   fallback,
 }: {
   fallback: ReactNode;
 }) {
-  const [selectedShowId, setSelectedShowId] = useState<string | null>(null);
-  const bundle = useV3BroadcastIntelligenceBundle(selectedShowId, true);
+  const navigate = useNavigate();
+  const search = useRouterState({ select: (state) => state.location.search });
+  const nominatedShowId = broadcastShowNomination(search);
+  const bundle = useV3BroadcastIntelligenceBundle(nominatedShowId, true);
   const rolloutEditionSlug = bundle.data?.rolloutEditionSlug ?? "";
   const editionProbe = useV3EditionRolloutProbe(
     rolloutEditionSlug,
@@ -26,6 +34,22 @@ export function V3BroadcastIntelligenceGate({
     bundle.isSuccess && !rolloutEditionSlug,
   );
   const rollout = rolloutEditionSlug ? editionProbe : currentProbe;
+  const authoritativeShowId = bundle.data?.selectedShowId ?? null;
+  const nominatedShowMismatch = Boolean(
+    bundle.isSuccess &&
+      nominatedShowId &&
+      nominatedShowId !== authoritativeShowId,
+  );
+
+  useEffect(() => {
+    if (!nominatedShowMismatch) return;
+
+    void navigate({
+      to: "/broadcast-intelligence",
+      search: { show: authoritativeShowId ?? undefined } as any,
+      replace: true,
+    });
+  }, [authoritativeShowId, navigate, nominatedShowMismatch]);
 
   if (bundle.isLoading || (bundle.isSuccess && rollout.isLoading)) {
     return (
@@ -57,6 +81,14 @@ export function V3BroadcastIntelligenceGate({
     return <>{fallback}</>;
   }
 
+  const changeShow = (showId: string) => {
+    if (!showId || showId === bundle.data.selectedShowId) return;
+    void navigate({
+      to: "/broadcast-intelligence",
+      search: { show: showId } as any,
+    });
+  };
+
   return (
     <V3AppShell
       editionLabel={bundle.data.shell.editionLabel}
@@ -65,7 +97,7 @@ export function V3BroadcastIntelligenceGate({
     >
       <V3BroadcastIntelligenceScreen
         bundle={bundle.data}
-        onShowChange={setSelectedShowId}
+        onShowChange={changeShow}
         changingShow={bundle.isFetching}
       />
     </V3AppShell>
