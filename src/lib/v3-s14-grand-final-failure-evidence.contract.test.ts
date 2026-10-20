@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const driver = readFileSync(".github/scripts/v3-full-contest-rehearsal.sh", "utf8");
+const workflow = readFileSync(".github/workflows/v3-s14-full-contest-rehearsal.yml", "utf8");
 
 describe("S14 Grand Final failure evidence", () => {
   it("tracks contest extensions as first-class runtime failure stages", () => {
@@ -23,6 +24,22 @@ describe("S14 Grand Final failure evidence", () => {
     expect(driver).toContain(
       "run_contest_extension grand-final-results run_s14_grand_final_results",
     );
+  });
+
+  it("uses the same canonical Grand Final extension vocabulary for success and failure evidence", () => {
+    for (const extension of [
+      "grand-final-qualifier-bridge",
+      "grand-final-voting",
+      "grand-final-results",
+      "grand-final-publication",
+    ]) {
+      expect(driver).toContain(extension);
+      expect(workflow).toContain(extension);
+    }
+    expect(driver).not.toContain('"grand-final-jury"');
+    expect(driver).not.toContain('"grand-final-televote"');
+    expect(workflow).not.toContain('"grand-final-jury"');
+    expect(workflow).not.toContain('"grand-final-televote"');
   });
 
   it("does not preserve the resolved #651 synthetic blocker", () => {
