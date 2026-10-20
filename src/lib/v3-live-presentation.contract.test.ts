@@ -45,4 +45,15 @@ describe("Public V3 Live presentation", () => {
     expect(screen).toContain("motion-safe:animate-spin");
     expect(screen).toContain('aria-live="polite"');
   });
+
+  it("surfaces a stale authoritative snapshot instead of pretending it is current", () => {
+    const screen = source();
+
+    expect(screen).toContain("degraded = false");
+    expect(screen).toContain('data-v3-live-degraded-snapshot=""');
+    expect(screen).toContain("Live connection interrupted");
+    expect(screen).toContain("last authoritative Solaris snapshot");
+    expect(screen).toContain("Refresh to reconcile with the current show state");
+    expect(screen).toContain('degraded ? "Retry refresh" : "Refresh"');
+  });
 });
