@@ -31,6 +31,10 @@ function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function textValue(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
 function uuidValue(value: unknown): string | null {
   const candidate = stringValue(value);
   return candidate && UUID_PATTERN.test(candidate) ? candidate : null;
@@ -70,7 +74,7 @@ export function parseV3PublicPulseBundle(value: unknown): V3PublicPulseBundle {
         const rawEntityType = stringValue(row.entityType ?? row.entity_type);
         const entityId = stringValue(row.entityId ?? row.entity_id);
         const title = stringValue(row.title);
-        const summary = stringValue(row.summary);
+        const summary = textValue(row.summary);
         const route = safeRelativeRoute(row.route);
         const rawImportance = stringValue(row.importance);
         const publishedAt = stringValue(row.publishedAt ?? row.published_at);
@@ -91,7 +95,7 @@ export function parseV3PublicPulseBundle(value: unknown): V3PublicPulseBundle {
           return [];
         }
 
-        const payload = objectValue(row.payload) ?? {};
+        const payload = (objectValue(row.payload) ?? {}) as ContentEventRow["payload"];
 
         return [{
           id,
