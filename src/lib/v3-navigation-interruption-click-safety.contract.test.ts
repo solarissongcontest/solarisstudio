@@ -1,0 +1,70 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
+
+const assertInterruptedGestureClickSafety = (tabs: string) => {
+  const interruptStart = tabs.indexOf("const interruptDrag = useCallback");
+  const interruptEnd = tabs.indexOf("useEffect(() => {", interruptStart);
+  const interrupt = tabs.slice(interruptStart, interruptEnd);
+
+  expect(interruptStart).toBeGreaterThan(-1);
+  expect(interrupt).toContain("if (dragState.current) suppressClick.current = true;");
+  expect(interrupt).toContain("clearDrag();");
+  expect(tabs).toContain("const resetInterruptedGesture = () => interruptDrag();");
+  expect(tabs).toContain('document.visibilityState !== "visible") interruptDrag();');
+  expect(tabs).not.toContain("const resetInterruptedGesture = () => clearDrag();");
+  expect(tabs).toContain("  }, [interruptDrag, pathname]);");
+  expect(tabs).toMatch(
+    /document\.removeEventListener\("visibilitychange", resetWhenHidden\);[\s\S]{0,650}interruptDrag\(\);/,
+  );
+};
+
+describe("V3 navigation interruption click safety", () => {
+  it("cancels Public lens presses without allowing a trailing click to navigate", () => {
+    const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
+
+    assertInterruptedGestureClickSafety(tabs);
+    expect(tabs).toMatch(/data-solaris-feature-overlay-open[\s\S]*interruptDrag\(\)/);
+    expect(tabs).toMatch(/data-solaris-keyboard-open[\s\S]*interruptDrag\(\)/);
+    expect(tabs).toContain("if (suppressClick.current) {");
+    expect(tabs).toContain("suppressClick.current = false;");
+  });
+
+  it("remounts Public mobile navigation when viewer identity generation changes", () => {
+    const shell = source("src/components/v3/V3AppShell.tsx");
+
+    expect(shell).toContain("const navigationInteractionKey = navigationIdentityReady");
+    expect(shell).toContain(': "resolving";');
+    expect(shell).toContain("key={navigationInteractionKey}");
+  });
+
+  it("applies the same cancellation rule to the legacy Organizer fallback", () => {
+    const tabs = source("src/components/admin/OrganizerV6TabBar.tsx");
+
+    assertInterruptedGestureClickSafety(tabs);
+    expect(tabs).toMatch(/data-solaris-feature-overlay-open[\s\S]*interruptDrag\(\)/);
+    expect(tabs).toMatch(/data-solaris-keyboard-open[\s\S]*interruptDrag\(\)/);
+    expect(tabs).toContain("if (suppressClick.current) {");
+    expect(tabs).toContain("suppressClick.current = false;");
+  });
+
+  it("remounts canonical Organizer Liquid navigation for every shell context generation", () => {
+    const chrome = source("src/components/admin/OrganizerV3MobileChrome.tsx");
+
+    expect(chrome).toContain("const { editionId, contextVersion } = useAdminContext();");
+    expect(chrome).toContain(
+      'const navigationInteractionKey = `${navigationScope ?? "unscoped"}:${contextVersion}`;',
+    );
+    expect(chrome).toContain("key={navigationInteractionKey}");
+  });
+
+  it("keeps the same context-switch interruption safety on the Organizer fallback", () => {
+    const chrome = source("src/components/admin/OrganizerV6MobileChrome.tsx");
+
+    expect(chrome).toContain("const { editionId, contextVersion } = useAdminContext();");
+    expect(chrome).toContain('key={`organizer-navigation:${contextVersion}`}');
+  });
+});
