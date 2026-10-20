@@ -313,6 +313,7 @@ export function V3LiquidTabBar({
       !active ||
       collapsed ||
       prefersReducedMotion() ||
+      document.documentElement.hasAttribute("data-solaris-feature-overlay-open") ||
       document.documentElement.hasAttribute("data-solaris-keyboard-open") ||
       (event.pointerType === "mouse" && event.button !== 0)
     ) {
