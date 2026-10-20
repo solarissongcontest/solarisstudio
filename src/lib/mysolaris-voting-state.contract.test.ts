@@ -21,9 +21,8 @@ describe("MySolaris voting state truth", () => {
   it("uses the shared V3 projection for current-edition Televote status instead of a duplicate browser round query", () => {
     expect(voting).toContain("useV3PrimarySurfaceBundle");
     expect(voting).toContain('(action) => action.kind === "televote"');
-    expect(voting).toContain(
-      "The dedicated Televoting workflow remains\n                  the authority for ballot submission.",
-    );
+    expect(voting).toContain("The dedicated Televoting workflow remains");
+    expect(voting).toContain("the authority for ballot submission.");
     expect(voting).not.toContain("@/integrations/televoting/client");
     expect(voting).not.toContain("loadOpenTelevote");
     expect(voting).not.toContain('.from("rounds")');
