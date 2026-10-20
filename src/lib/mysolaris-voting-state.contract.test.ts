@@ -9,13 +9,30 @@ const voting = readFileSync(
 
 describe("MySolaris voting state truth", () => {
   it("does not infer a closed jury window when Organizer Participant View has no country-scoped window context", () => {
-    expect(voting).toContain("const juryWindowOpen: boolean | null = organizerInspection");
+    expect(voting).toContain(
+      "const juryWindowOpen: boolean | null = organizerInspection",
+    );
     expect(voting).toContain('"Window state unavailable"');
-    expect(voting).toContain('"Window state is available in Organizer controls"');
+    expect(voting).toContain(
+      '"Window state is available in Organizer controls"',
+    );
   });
 
-  it("refreshes jury, delegation and televote state while the page remains open", () => {
-    expect(voting.match(/refetchInterval: 30_000/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
-    expect(voting.match(/refetchOnWindowFocus: true/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+  it("uses the shared V3 projection for current-edition Televote status instead of a duplicate browser round query", () => {
+    expect(voting).toContain("useV3PrimarySurfaceBundle");
+    expect(voting).toContain('(action) => action.kind === "televote"');
+    expect(voting).toContain(
+      "The dedicated Televoting workflow remains\n                  the authority for ballot submission.",
+    );
+    expect(voting).not.toContain("@/integrations/televoting/client");
+    expect(voting).not.toContain("loadOpenTelevote");
+    expect(voting).not.toContain('.from("rounds")');
+  });
+
+  it("avoids background polling from the overview while keeping focus reconciliation for its scoped Jury and delegation reads", () => {
+    expect(voting).not.toContain("refetchInterval:");
+    expect(voting.match(/refetchOnWindowFocus: true/g)?.length ?? 0).toBeGreaterThanOrEqual(
+      2,
+    );
   });
 });
