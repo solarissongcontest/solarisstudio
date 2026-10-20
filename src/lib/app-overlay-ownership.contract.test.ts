@@ -36,4 +36,20 @@ describe("installed app overlay ownership", () => {
     expect(appStyles).toContain('data-side="bottom"');
     expect(appStyles).toContain("--solaris-app-safe-bottom");
   });
+
+  it("removes persistent navigation from interaction and accessibility while keyboard or feature overlays own the viewport", () => {
+    const manager = source("src/components/app/AppOverlayManager.tsx");
+
+    expect(manager).toContain('".solaris-app-tabbar"');
+    expect(manager).toContain('"[data-v3-liquid-tabbar]"');
+    expect(manager).toContain('".admin-mobile-nav[data-v6-organizer-tabbar]"');
+    expect(manager).toContain('root.hasAttribute("data-solaris-feature-overlay-open")');
+    expect(manager).toContain('root.hasAttribute("data-solaris-keyboard-open")');
+    expect(manager).toContain('navigation.setAttribute("inert", "")');
+    expect(manager).toContain('navigation.setAttribute("aria-hidden", "true")');
+    expect(manager).toContain("OVERLAY_NAV_INERT_OWNER");
+    expect(manager).toContain("OVERLAY_NAV_ARIA_OWNER");
+    expect(manager).toContain("mountObserver.observe(document.body, { subtree: true, childList: true })");
+    expect(manager).toContain("setPersistentNavigationIsolation(false)");
+  });
 });
