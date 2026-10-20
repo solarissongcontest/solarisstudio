@@ -19,6 +19,7 @@ done
 EVIDENCE_OUTPUT="${V3_RECOVERY_EVIDENCE_OUTPUT:-}"
 EVIDENCE_SHA="${V3_RECOVERY_EVIDENCE_SHA:-}"
 EVIDENCE_ENVIRONMENT="${V3_RECOVERY_EVIDENCE_ENVIRONMENT:-isolated-local-supabase}"
+EVIDENCE_OPERATOR="${V3_RECOVERY_EVIDENCE_OPERATOR:-}"
 
 verify_evidence_checkout() {
   [[ -n "$EVIDENCE_OUTPUT" ]] || return 0
@@ -33,6 +34,8 @@ verify_evidence_checkout() {
     || fail "recovery evidence requires a clean worktree"
   [[ -n "$EVIDENCE_ENVIRONMENT" && ${#EVIDENCE_ENVIRONMENT} -le 120 ]] \
     || fail "V3_RECOVERY_EVIDENCE_ENVIRONMENT must be 1..120 characters"
+  [[ -n "$EVIDENCE_OPERATOR" && ${#EVIDENCE_OPERATOR} -le 120 ]] \
+    || fail "V3_RECOVERY_EVIDENCE_OPERATOR must be 1..120 characters when evidence output is requested"
 }
 
 verify_evidence_checkout
@@ -41,6 +44,11 @@ RESTORE_DB="v3_s11_restore_${RANDOM}_$$"
 TMP_ROOT="$(mktemp -d)"
 DUMP_PATH="$TMP_ROOT/solaris.dump"
 FINGERPRINTS_PATH="$TMP_ROOT/critical-fingerprints.tsv"
+REHEARSAL_ID="$(python3 - <<'PY'
+import uuid
+print(uuid.uuid4())
+PY
+)"
 
 restore_url() {
   python3 - "$DB_URL" "$RESTORE_DB" <<'PY'
@@ -75,6 +83,9 @@ create table v3_s11_rehearsal.restore_sentinel (
 insert into v3_s11_rehearsal.restore_sentinel(id, payload)
 values (1, 'solaris-v3-s11-restore-proof'), (2, 'canonical-truth-survives-restore');
 SQL
+
+SOURCE_MIGRATION_HEAD="$(source_scalar "select coalesce(max(version::text), '') from supabase_migrations.schema_migrations;")"
+[[ -n "$SOURCE_MIGRATION_HEAD" ]] || fail "source migration head is missing"
 
 # Test setup is intentionally excluded from the measured recovery interval.
 STARTED_AT="$(python3 - <<'PY'
@@ -123,6 +134,10 @@ pg_restore \
   --no-privileges \
   --exit-on-error \
   "$DUMP_PATH"
+
+RESTORE_MIGRATION_HEAD="$(restore_scalar "select coalesce(max(version::text), '') from supabase_migrations.schema_migrations;")"
+[[ "$RESTORE_MIGRATION_HEAD" == "$SOURCE_MIGRATION_HEAD" ]] \
+  || fail "migration head differs after restore"
 
 log "Verifying sentinel survived the restore"
 [[ "$(restore_scalar "select count(*) from v3_s11_rehearsal.restore_sentinel;")" == "2" ]] \
@@ -199,8 +214,11 @@ if [[ -n "$EVIDENCE_OUTPUT" ]]; then
     "$EVIDENCE_OUTPUT" \
     "$(printf '%s' "$EVIDENCE_SHA" | tr '[:upper:]' '[:lower:]')" \
     "$EVIDENCE_ENVIRONMENT" \
+    "$EVIDENCE_OPERATOR" \
+    "$REHEARSAL_ID" \
     "$STARTED_AT" \
     "$COMPLETED_AT" \
+    "$SOURCE_MIGRATION_HEAD" \
     "$SNAPSHOT_SHA256" \
     "$SNAPSHOT_BYTES" \
     "$REHEARSAL_RTO_MS" \
@@ -214,8 +232,11 @@ import sys
     output_path,
     commit_sha,
     environment,
+    operator_identity,
+    rehearsal_id,
     started_at,
     completed_at,
+    migration_head,
     snapshot_sha256,
     snapshot_bytes,
     rehearsal_rto_ms,
@@ -235,8 +256,11 @@ evidence = {
     "status": "passed",
     "commitSha": commit_sha,
     "environment": environment,
+    "operatorIdentity": operator_identity,
+    "rehearsalId": rehearsal_id,
     "startedAt": started_at,
     "completedAt": completed_at,
+    "migrationHead": migration_head,
     "snapshot": {
         "format": "pg_dump_custom",
         "sha256": snapshot_sha256,
@@ -250,6 +274,7 @@ evidence = {
     },
     "validation": {
         "sentinelVerified": True,
+        "migrationHeadVerified": True,
         "criticalRelationFingerprints": fingerprints,
         "foreignKeyValidationState": foreign_key_state,
         "operationReceiptsPresent": True,
