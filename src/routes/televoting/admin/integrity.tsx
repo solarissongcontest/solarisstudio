@@ -16,7 +16,7 @@ export const Route = createFileRoute("/televoting/admin/integrity")({
 });
 
 function IntegrityRoute() {
-  const { editionId } = useAdminContext();
+  const { editionId, editionLabel } = useAdminContext();
 
   if (!editionId) {
     return (
@@ -33,5 +33,11 @@ function IntegrityRoute() {
     );
   }
 
-  return <V3ScopedIntegrityReview key={editionId} editionId={editionId} />;
+  return (
+    <V3ScopedIntegrityReview
+      key={editionId}
+      editionId={editionId}
+      editionLabel={editionLabel?.trim() || editionId}
+    />
+  );
 }
