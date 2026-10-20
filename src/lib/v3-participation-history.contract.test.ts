@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const source = () => read("src/integrations/v3/participation-history.server.ts");
 const functions = () => read("src/lib/v3-participation-history.functions.ts");
+const runtime = () => read("src/lib/v3-participation-history-runtime.ts");
 const route = () => read("src/routes/_authenticated/my-solaris/history.tsx");
 const screen = () => read("src/components/v3/V3ParticipationHistoryScreen.tsx");
 
@@ -25,9 +26,12 @@ describe("V3 personal participation history architecture", () => {
     expect(screen()).toContain('data-v3-participation-history-state="unavailable"');
   });
 
-  it("binds returned history to the rollout-authenticated viewer", () => {
+  it("binds returned history and its private cache to the rollout-authenticated viewer", () => {
     expect(route()).toContain("rollout.data.userId");
     expect(route()).toContain("<V3ParticipationHistoryScreen viewerId={rollout.data.userId} />");
+    expect(runtime()).toContain('queryKey: ["v3-participation-history", viewerId]');
+    expect(runtime()).toContain("enabled: Boolean(enabled && viewerId)");
+    expect(screen()).toContain("useV3ParticipationHistory(viewerId, true)");
     expect(screen()).toContain("history.data.viewerId !== viewerId");
     expect(screen()).toContain('data-v3-participation-history-state="scope-error"');
   });
