@@ -16,6 +16,10 @@ const assertInterruptedGestureClickSafety = (tabs: string) => {
   expect(tabs).toContain("const resetInterruptedGesture = () => interruptDrag();");
   expect(tabs).toContain('document.visibilityState !== "visible") interruptDrag();');
   expect(tabs).not.toContain("const resetInterruptedGesture = () => clearDrag();");
+  expect(tabs).toContain("  }, [interruptDrag, pathname]);");
+  expect(tabs).toMatch(
+    /document\.removeEventListener\("visibilitychange", resetWhenHidden\);[\s\S]{0,650}interruptDrag\(\);/,
+  );
 };
 
 describe("V3 navigation interruption click safety", () => {
@@ -37,5 +41,12 @@ describe("V3 navigation interruption click safety", () => {
     expect(tabs).toMatch(/data-solaris-keyboard-open[\s\S]*interruptDrag\(\)/);
     expect(tabs).toContain("if (suppressClick.current) {");
     expect(tabs).toContain("suppressClick.current = false;");
+  });
+
+  it("remounts Organizer mobile navigation when shell-owned contest context changes", () => {
+    const chrome = source("src/components/admin/OrganizerV6MobileChrome.tsx");
+
+    expect(chrome).toContain("const { editionId, contextVersion } = useAdminContext();");
+    expect(chrome).toContain('key={`organizer-navigation:${contextVersion}`}');
   });
 });
