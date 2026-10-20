@@ -42,6 +42,20 @@ const assertInterruptedGestureClickSafety = (tabs: string) => {
   );
 };
 
+const assertFreshPointerClearsStaleSuppression = (tabs: string) => {
+  const startDragStart = tabs.indexOf("const startDrag = (");
+  const startDragEnd = tabs.indexOf("const moveDrag =", startDragStart);
+  const startDrag = tabs.slice(startDragStart, startDragEnd);
+  const suppressionReset = startDrag.indexOf(
+    "if (!dragState.current) suppressClick.current = false;",
+  );
+  const inactiveGuard = startDrag.indexOf("!active ||");
+
+  expect(startDragStart).toBeGreaterThan(-1);
+  expect(suppressionReset).toBeGreaterThan(-1);
+  expect(inactiveGuard).toBeGreaterThan(suppressionReset);
+};
+
 describe("V3 navigation interruption click safety", () => {
   it("cancels Public lens presses across the canonical N11 interruption matrix", () => {
     const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
@@ -49,6 +63,14 @@ describe("V3 navigation interruption click safety", () => {
     assertInterruptedGestureClickSafety(tabs);
     expect(tabs).toContain("if (suppressClick.current) {");
     expect(tabs).toContain("suppressClick.current = false;");
+  });
+
+  it("clears stale Public and Organizer click suppression before inactive-tab guards", () => {
+    const publicTabs = source("src/components/v3/V3LiquidTabBar.tsx");
+    const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
+
+    assertFreshPointerClearsStaleSuppression(publicTabs);
+    assertFreshPointerClearsStaleSuppression(organizerTabs);
   });
 
   it("prevents a completed long press from falling through into navigation", () => {
