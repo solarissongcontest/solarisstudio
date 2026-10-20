@@ -58,6 +58,28 @@ describe("System V3 S6 Jury operational-readiness reconciliation", () => {
     );
   });
 
+  it("bounds every Jury vote row before filtering valid ballots or invoking canonical preconditions", () => {
+    const verify = functionBody("studio2_verify_jury_operational_projection");
+    const allVoteBound = verify.indexOf("into v_all_vote_rows");
+    const evidenceGuard = verify.indexOf(
+      "if greatest(v_all_vote_rows, v_submission_rows, v_status_rows) > p_evidence_limit",
+    );
+    const validVoteCount = verify.indexOf("into v_valid_vote_rows");
+    const canonicalRead = verify.indexOf("private.studio2_result_preconditions(p_show_id)");
+
+    expect(allVoteBound).toBeGreaterThanOrEqual(0);
+    expect(evidenceGuard).toBeGreaterThan(allVoteBound);
+    expect(validVoteCount).toBeGreaterThan(evidenceGuard);
+    expect(canonicalRead).toBeGreaterThan(validVoteCount);
+
+    const allVoteQuery = verify.slice(allVoteBound, evidenceGuard);
+    expect(allVoteQuery).toContain("from public.jury_votes vote");
+    expect(allVoteQuery).toContain("limit p_evidence_limit + 1");
+    expect(allVoteQuery).not.toContain("submission.status = 'valid'");
+    expect(verify).toContain("'verification_evidence_bound_exceeded'");
+    expect(verify).toContain("'allVoteRowsAtLeast', v_all_vote_rows");
+  });
+
   it("verifies canonical Jury evidence independently before declaring consistency", () => {
     const verify = functionBody("studio2_verify_jury_operational_projection");
     expect(verify).toContain("from public.voters voter");
@@ -65,13 +87,38 @@ describe("System V3 S6 Jury operational-readiness reconciliation", () => {
     expect(verify).toContain("from public.jury_votes vote");
     expect(verify).toContain("from public.jury_ballot_submissions submission");
     expect(verify).toContain("from public.jury_ballot_statuses status_row");
+    expect(verify).toContain("'jury_enabled_mismatch'");
+    expect(verify).toContain("'jury_required_points_mismatch'");
     expect(verify).toContain("'jury_voter_count_mismatch'");
     expect(verify).toContain("'jury_vote_row_count_mismatch'");
     expect(verify).toContain("'jury_dnv_count_mismatch'");
     expect(verify).toContain("'jury_pending_review_count_mismatch'");
     expect(verify).toContain("'jury_invalidated_count_mismatch'");
+    expect(verify).toContain("'jury_conflict_count_mismatch'");
+    expect(verify).toContain("'jury_incomplete_count_mismatch'");
     expect(verify).toContain("'jury_readiness_mismatch'");
     expect(verify).toContain("jsonb_array_length(v_issues) = 0");
+  });
+
+  it("recomputes readiness inputs from bounded evidence instead of trusting projection self-consistency", () => {
+    const verify = functionBody("studio2_verify_jury_operational_projection");
+    expect(verify).toContain("into v_conflicts, v_incomplete");
+
+    const readinessStart = verify.indexOf("v_expected_ready :=");
+    const readinessEnd = verify.indexOf(
+      "if (v_projection ->> 'juryReady')::boolean",
+      readinessStart,
+    );
+    expect(readinessStart).toBeGreaterThanOrEqual(0);
+    expect(readinessEnd).toBeGreaterThan(readinessStart);
+
+    const readiness = verify.slice(readinessStart, readinessEnd);
+    expect(readiness).toContain("not v_jury_enabled");
+    expect(readiness).toContain("v_expected_voters > 0");
+    expect(readiness).toContain("v_conflicts = 0");
+    expect(readiness).toContain("v_incomplete = 0");
+    expect(readiness).not.toContain("juryConflictCount");
+    expect(readiness).not.toContain("juryIncompleteCount");
   });
 
   it("keeps both recovery boundaries read-only and service-role-only", () => {
