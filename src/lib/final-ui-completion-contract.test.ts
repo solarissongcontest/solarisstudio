@@ -73,7 +73,9 @@ describe("final UI completion contracts", () => {
     expect(design).toContain("<WorkspaceActionBar");
     expect(design).not.toContain("overflow-x-auto");
 
-    const editions = source("src/routes/_authenticated/admin/editions.tsx");
+    const editionsRoute = source("src/routes/_authenticated/admin/editions.tsx");
+    const editions = source("src/components/admin/AllEditionsWorkspaceV3.tsx");
+    expect(editionsRoute).toContain("AllEditionsWorkspaceV3");
     expect(editions).toContain("<WorkspaceHeader");
     expect(editions).toContain("<MetricStrip");
     expect(editions).toContain("<WorkspaceActionBar");
@@ -150,7 +152,7 @@ describe("final UI completion contracts", () => {
     expect(edit).not.toContain("<ParticipationServiceShell");
     expect(edit).not.toContain("confirmations-backdrop");
     expect(confirmationShell).toContain("<ParticipationRouteChrome>");
-    expect(confirmationShell).toContain("<ParticipationServiceShell");
+    expect(confirmationShell).toContain("<ParticipationServiceShell>");
     expect(confirmationShell).toContain("rollout.isError || rollout.data?.confirmationEnabled !== true");
     expect(jury).toContain("Solaris found an unusual pattern");
     expect(jury).not.toContain("Your jury ballot was automatically flagged");
