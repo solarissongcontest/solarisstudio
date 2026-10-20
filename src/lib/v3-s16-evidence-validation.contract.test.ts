@@ -198,18 +198,19 @@ describe("S16 source evidence validation", () => {
   });
 
   it("rejects S14 evidence that says passed without proving the complete lifecycle", () => {
-    const evidence = completeS14Evidence();
-    evidence.completedStages = evidence.completedStages.slice(0, 9);
-    evidence.completedContestExtensions = ["grand-final-qualifier-bridge"];
-    evidence.pendingContestExtensions = ["grand-final-publication"];
-    evidence.blockedContestExtensions = ["grand-final-publication"];
-    evidence.implementedInvariants = evidence.implementedInvariants.filter(
-      (item) => item !== "tasks-canonical",
-    );
-    evidence.implementedFailureInjections = evidence.implementedFailureInjections.filter(
-      (item) => item !== "supabase-outage",
-    );
-    evidence.seed = { editionCount: 1, delegationCount: 65, showCount: 3 };
+    const base = completeS14Evidence();
+    const evidence = {
+      ...base,
+      completedStages: base.completedStages.slice(0, 9),
+      completedContestExtensions: ["grand-final-qualifier-bridge"],
+      pendingContestExtensions: ["grand-final-publication"],
+      blockedContestExtensions: ["grand-final-publication"],
+      implementedInvariants: base.implementedInvariants.filter((item) => item !== "tasks-canonical"),
+      implementedFailureInjections: base.implementedFailureInjections.filter(
+        (item) => item !== "supabase-outage",
+      ),
+      seed: { editionCount: 1, delegationCount: 65, showCount: 3 },
+    };
 
     const issues = validateV3S16CategorySourceEvidence("full-contest-rehearsal", evidence, SHA);
     expect(issues).toContain(
@@ -232,10 +233,13 @@ describe("S16 source evidence validation", () => {
   });
 
   it("rejects partial, runtime-failed or ambiguous final S14 evidence", () => {
-    const evidence = completeS14Evidence();
-    evidence.partial = true;
-    evidence.runtimeFailure = true;
-    evidence.pendingStages = ["stage-10-archive"];
+    const base = completeS14Evidence();
+    const evidence = {
+      ...base,
+      partial: true,
+      runtimeFailure: true,
+      pendingStages: ["stage-10-archive"],
+    };
     const issues = validateV3S16CategorySourceEvidence("full-contest-rehearsal", evidence, SHA);
     expect(issues).toContain("full-contest-rehearsal: final evidence must prove partial=false");
     expect(issues).toContain("full-contest-rehearsal: final evidence must prove runtimeFailure=false");
@@ -251,9 +255,15 @@ describe("S16 source evidence validation", () => {
   });
 
   it("rejects zero-orphan claims that retain findings or ambiguous physical ownership", () => {
-    const evidence = completeS15Evidence();
-    evidence.findings = [{ code: "ORPHAN" }];
-    evidence.physicalOwnership.zeroOwnershipConflicts = false;
+    const base = completeS15Evidence();
+    const evidence = {
+      ...base,
+      findings: [{ code: "ORPHAN" }],
+      physicalOwnership: {
+        ...base.physicalOwnership,
+        zeroOwnershipConflicts: false,
+      },
+    };
     const issues = validateV3S16CategorySourceEvidence("registry-zero-gap", evidence, SHA);
     expect(issues).toContain(
       "registry-zero-gap: orphan findings remain or findings are not explicitly reported",
