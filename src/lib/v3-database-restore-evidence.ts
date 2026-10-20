@@ -110,6 +110,8 @@ export function assessV3DatabaseRestoreEvidence(
   const rehearsalDurationMs = finiteNonNegative(achieved?.exerciseRtoMs);
   const exerciseRpoSeconds = finiteNonNegative(achieved?.exerciseRpoSeconds);
   const fingerprints = asRecord(validation?.criticalRelationFingerprints);
+  const foreignKeyValidationState = validation?.foreignKeyValidationState;
+  const environment = record.environment;
   const issuesFound = stringArray(record.issuesFound);
   const followUpActions = stringArray(record.followUpActions);
 
@@ -126,9 +128,9 @@ export function assessV3DatabaseRestoreEvidence(
   } else if (expectedCommitSha && evidenceCommitSha !== expectedCommitSha) {
     errors.push("database restore evidence does not belong to the expected commit SHA");
   }
-  if (typeof record.environment !== "string" || record.environment.trim().length === 0) {
+  if (typeof environment !== "string" || environment.trim().length === 0) {
     errors.push("environment must be a non-empty label");
-  } else if (record.environment.length > 120) {
+  } else if (environment.length > 120) {
     errors.push("environment must be at most 120 characters");
   }
   if (startedAt === null || completedAt === null || completedAt < startedAt) {
@@ -166,7 +168,10 @@ export function assessV3DatabaseRestoreEvidence(
     }
   }
 
-  if (typeof validation?.foreignKeyValidationState !== "string" || !/^\d+:\d+$/.test(validation.foreignKeyValidationState)) {
+  if (
+    typeof foreignKeyValidationState !== "string"
+    || !/^\d+:\d+$/.test(foreignKeyValidationState)
+  ) {
     errors.push("foreignKeyValidationState must contain total:validated counts");
   }
   for (const key of [
