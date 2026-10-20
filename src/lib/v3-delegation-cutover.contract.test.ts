@@ -62,7 +62,7 @@ describe("V3 Delegation production cutover", () => {
     expect(text).not.toContain("sessionStorage");
   });
 
-  it("uses public_safe_participants as the publication authority and returns one bounded country profile", () => {
+  it("uses public_safe_participants for the bounded country profile and composes Results separately", () => {
     const sql = migration();
     const server = source();
     expect(sql).toContain("public.public_safe_participants(null, null)");
@@ -72,8 +72,16 @@ describe("V3 Delegation production cutover", () => {
     expect(sql).not.toContain("from public.jury_votes");
     expect(sql).not.toContain("from public.televotes");
     expect(server).toContain('client.rpc("v3_public_country_profile"');
-    expect(server).toContain("buildV3CountryExploreProjection(identity)");
+    expect(server).toContain("loadV3ResultsBundle()");
+    expect(server).toContain("projection: buildV3CountryExploreProjection(");
+    expect(server).toContain("profile.identity,");
+    expect(server).toContain("editionHrefById,");
+    expect(server).toContain("currentResult,");
+    expect(server).toContain("editionHrefById.set(id, `/editions/${encodeURIComponent(slug)}`)");
     expect(server).not.toContain("supabaseAdmin");
+    expect(server).not.toContain('.from("results")');
+    expect(server).not.toContain('.from("jury_votes")');
+    expect(server).not.toContain('.from("televote_votes")');
   });
 
   it("keeps the app route reversible and prevents legacy archive hooks from mounting under V3", () => {
@@ -99,15 +107,21 @@ describe("V3 Delegation production cutover", () => {
     expect(text).not.toContain("refetchInterval");
   });
 
-  it("keeps V3 Delegation presentation free of result and voting authority", () => {
-    const text = screen();
-    expect(text).toContain("projection.resultsDestination");
-    expect(text).toContain("Placements, points and voting analysis remain authoritative");
-    expect(text).not.toContain("jury_points");
-    expect(text).not.toContain("televote_points");
-    expect(text).not.toContain("final_rank");
-    expect(text).not.toContain("total_points");
-    expect(text).not.toContain("supabase");
-    expect(text).not.toContain("useQuery");
+  it("keeps V3 Delegation presentation free of raw result and voting authority", () => {
+    const presentation = screen();
+    const server = source();
+    expect(presentation).toContain("projection.resultsDestination");
+    expect(presentation).toContain("currentResult = projection.currentResult");
+    expect(presentation).toContain("Official result context comes from the canonical Results source");
+    expect(presentation).not.toContain("jury_points");
+    expect(presentation).not.toContain("televote_points");
+    expect(presentation).not.toContain("final_rank");
+    expect(presentation).not.toContain("total_points");
+    expect(presentation).not.toContain("supabase");
+    expect(presentation).not.toContain("useQuery");
+    expect(server).toContain("loadV3ResultsBundle()");
+    expect(server).not.toContain('.from("results")');
+    expect(server).not.toContain('.from("jury_votes")');
+    expect(server).not.toContain('.from("televote_votes")');
   });
 });

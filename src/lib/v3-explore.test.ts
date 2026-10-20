@@ -14,6 +14,8 @@ const routes = {
   songsAndArtists: "/entries",
   shows: "/shows",
   stories: "/stories",
+  results: "/results",
+  rules: "/rules",
   editionsArchive: "/editions/",
   wiki: "/wiki",
   encyclopedia: "/encyclopedia",
@@ -36,7 +38,7 @@ function edition(
     experience: "pre-show",
     resultsPublication: "hidden",
     href: "/editions/ssc-22",
-    liveHref: "/shows/ssc22-final/live",
+    liveHref: "/show-mode",
     nextEvent: {
       id: "sf1",
       title: "Semi-final 1",
@@ -156,6 +158,27 @@ describe("V3 Explore projection", () => {
     ]);
   });
 
+  it("makes core public tools discoverable without exposing Live outside canonical live state", () => {
+    const preShow = buildV3ExploreRootProjection(rootInput());
+
+    expect(preShow.more).toEqual([
+      { key: "results", label: "Results", href: "/results" },
+      { key: "rules", label: "Rules", href: "/rules" },
+      { key: "archive-games", label: "Archive games", href: "/games" },
+      { key: "advanced-discovery", label: "Advanced discovery", href: "/discover" },
+    ]);
+
+    const live = buildV3ExploreRootProjection(
+      rootInput({
+        editions: [edition({ experience: "live", liveHref: "/show-mode" })],
+      }),
+    );
+
+    expect(live.more[0]).toEqual({ key: "live", label: "Live", href: "/show-mode" });
+    expect(live.more).toContainEqual({ key: "results", label: "Results", href: "/results" });
+    expect(live.more).toContainEqual({ key: "rules", label: "Rules", href: "/rules" });
+  });
+
   it("keeps result-analysis tools owned by Results rather than Explore", () => {
     expect(classifyV3ExploreOrResultsFeature("edition")).toBe("explore");
     expect(classifyV3ExploreOrResultsFeature("story")).toBe("explore");
@@ -205,7 +228,7 @@ describe("V3 Edition hub projection", () => {
     expect(preShow?.liveAction).toBeNull();
     expect(live?.liveAction).toEqual({
       label: "Open Live Mode",
-      href: "/shows/ssc22-final/live",
+      href: "/show-mode",
     });
   });
 

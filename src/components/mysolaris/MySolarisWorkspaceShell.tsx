@@ -5,6 +5,7 @@ import { useSolarisApp } from "@/components/app/AppRuntime";
 import { MySolarisAnniversaryRecap } from "@/components/mysolaris/MySolarisAnniversaryRecap";
 import { MySolarisProvider, useMySolaris } from "@/components/mysolaris/MySolarisContext";
 import { MySolarisWorkspaceNav } from "@/components/mysolaris/MySolarisWorkspaceNav";
+import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 
 export function MySolarisWorkspaceShell({ children }: { children: ReactNode }) {
@@ -26,9 +27,14 @@ function MySolarisWorkspaceContent({ children }: { children: ReactNode }) {
   const workspace = useMySolaris();
   const location = useRouterState({ select: (state) => state.location });
   const votingOverview = location.pathname === "/my-solaris/voting";
+  const countryInspection = countryInspectionTarget(location.search);
+  const focusedTask =
+    isAppMode &&
+    !countryInspection &&
+    resolveSolarisAppScreen(location.pathname).behavior.criticalTask;
   const organizerInspection = Boolean(
     votingOverview &&
-      countryInspectionTarget(location.search) &&
+      countryInspection &&
       workspace.countryAccount?.access.isOrganizer === true,
   );
   const rollout = useV3RolloutProbe(
@@ -60,6 +66,11 @@ function MySolarisWorkspaceContent({ children }: { children: ReactNode }) {
   ) {
     return <Navigate to="/participate" replace />;
   }
+
+  // Keep MySolarisProvider authority for participant critical work, but let the
+  // route own its focused chrome. Country-scoped Organizer inspection remains
+  // in the canonical workspace and therefore keeps the sidebar/status surfaces.
+  if (focusedTask) return <>{children}</>;
 
   return (
     <div className="solaris-mysolaris-workspace min-w-0 lg:grid lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:items-start lg:gap-6 xl:grid-cols-[14.5rem_minmax(0,1fr)]">

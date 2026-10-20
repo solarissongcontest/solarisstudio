@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -54,15 +55,22 @@ function missingSchema(error: unknown) {
   );
 }
 
+function normalizeEditionId(editionId?: string | null) {
+  return editionId?.trim() || null;
+}
+
 async function loadAdminDeadlines(editionId?: string | null) {
-  let query = adminDb
+  const normalizedEditionId = normalizeEditionId(editionId);
+  if (!normalizedEditionId) {
+    throw new Error("Admin deadlines require an explicit Organizer edition scope.");
+  }
+
+  const { data, error } = await adminDb
     .from("admin_deadlines")
     .select("*")
+    .eq("edition_id", normalizedEditionId)
     .order("due_at", { ascending: true });
 
-  if (editionId) query = query.eq("edition_id", editionId);
-
-  const { data, error } = await query;
   if (error) {
     if (missingSchema(error)) return [] as AdminDeadline[];
     throw error;
@@ -72,14 +80,28 @@ async function loadAdminDeadlines(editionId?: string | null) {
 }
 
 export function useAdminDeadlines(editionId?: string | null) {
+  const { editionId: organizerContextEditionId } = useAdminContext();
+  const requestedEditionId = normalizeEditionId(editionId);
+  const organizerEditionId = normalizeEditionId(organizerContextEditionId);
+  const exactEditionId =
+    requestedEditionId && organizerEditionId === requestedEditionId ? requestedEditionId : null;
+
   return useQuery({
-    queryKey: ["admin-deadlines", editionId ?? "all"],
-    queryFn: () => loadAdminDeadlines(editionId),
+    enabled: Boolean(exactEditionId),
+    queryKey: ["admin-deadlines", exactEditionId ?? "unscoped"],
+    queryFn: () => {
+      if (!exactEditionId) {
+        throw new Error(
+          "Admin deadlines must match the exact selected Organizer edition scope.",
+        );
+      }
+      return loadAdminDeadlines(exactEditionId);
+    },
   });
 }
 
 export function useEditionAdminDeadlines(editionId?: string | null) {
-  const normalizedEditionId = editionId?.trim() || null;
+  const normalizedEditionId = normalizeEditionId(editionId);
   return useQuery({
     enabled: Boolean(normalizedEditionId),
     queryKey: ["admin-deadlines", normalizedEditionId ?? "unscoped"],
@@ -143,13 +165,28 @@ export function useAdminNotifications() {
 
 export function useCreateAdminDeadline() {
   const qc = useQueryClient();
+  const { editionId } = useAdminContext();
+  const organizerEditionId = normalizeEditionId(editionId);
 
   return useMutation({
     mutationFn: async (
       payload: Omit<AdminDeadline, "id" | "created_at" | "completed_at">,
     ) => {
-      const { error } = await adminDb.from("admin_deadlines").insert(payload);
+      if (!organizerEditionId || payload.edition_id !== organizerEditionId) {
+        throw new Error(
+          "Custom reminder creation requires the exact selected Organizer edition.",
+        );
+      }
+
+      const { data, error } = await adminDb
+        .from("admin_deadlines")
+        .insert(payload)
+        .select("id, edition_id")
+        .single();
       if (error) throw error;
+      if (!data || data.edition_id !== organizerEditionId) {
+        throw new Error("Custom reminder creation returned an unexpected edition scope.");
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-deadlines"] }),
   });
@@ -157,15 +194,50 @@ export function useCreateAdminDeadline() {
 
 export function useToggleAdminDeadline() {
   const qc = useQueryClient();
+  const { editionId } = useAdminContext();
+  const organizerEditionId = normalizeEditionId(editionId);
 
   return useMutation({
     mutationFn: async ({ id, complete }: { id: string; complete: boolean }) => {
-      const { error } = await adminDb
+      if (!organizerEditionId) {
+        throw new Error("Custom reminder changes require an explicit Organizer edition scope.");
+      }
+
+      const { data: current, error: currentError } = await adminDb
+        .from("admin_deadlines")
+        .select("id, edition_id, completed_at")
+        .eq("id", id)
+        .eq("edition_id", organizerEditionId)
+        .maybeSingle();
+      if (currentError) throw currentError;
+      if (!current || current.edition_id !== organizerEditionId) {
+        throw new Error("This reminder is not part of the selected Organizer edition.");
+      }
+
+      if (Boolean(current.completed_at) === complete) return;
+
+      let update = adminDb
         .from("admin_deadlines")
         .update({ completed_at: complete ? new Date().toISOString() : null })
-        .eq("id", id);
+        .eq("id", id)
+        .eq("edition_id", organizerEditionId);
 
+      update = current.completed_at
+        ? update.eq("completed_at", current.completed_at)
+        : update.is("completed_at", null);
+
+      const { data: updated, error } = await update
+        .select("id, edition_id, completed_at")
+        .maybeSingle();
       if (error) throw error;
+      if (!updated) {
+        throw new Error(
+          "This reminder changed before your action was applied. Refresh and review the current state.",
+        );
+      }
+      if (updated.edition_id !== organizerEditionId || Boolean(updated.completed_at) !== complete) {
+        throw new Error("Custom reminder state could not be reconciled after the update.");
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-deadlines"] }),
   });

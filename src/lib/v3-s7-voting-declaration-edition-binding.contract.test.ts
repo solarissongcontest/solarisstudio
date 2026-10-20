@@ -9,6 +9,10 @@ const migration = readFileSync(
   ),
   "utf8",
 );
+const client = readFileSync(
+  resolve(process.cwd(), "src/lib/voting-declaration-admin.ts"),
+  "utf8",
+);
 
 function functionBody(signatureStart: string, endMarker: string) {
   const start = migration.indexOf(signatureStart);
@@ -116,12 +120,23 @@ describe("System V3 S7 voting declaration edition binding", () => {
     );
   });
 
-  it("keeps compatibility overloads until the Organizer caller is explicitly cut over", () => {
+  it("cuts the Organizer adapter over to the canonical tab-scoped edition", () => {
+    expect(client).toContain("readTabScopedEdition(window.sessionStorage, SOLARIS_TAB_EDITION_KEY)");
+    expect(client).toContain("Choose an Organizer edition before changing a voting declaration.");
+    expect(client).toContain("p_expected_edition_id: editionId");
+    expect(client).toContain("scope: { editionId, entityId: input.preview.id }");
+    expect(client).toContain("editionId: text(row.editionId, \"declaration edition id\")");
+    expect(client).toContain("expectedEditionId: text(row.expectedEditionId, \"reviewed Organizer edition id\")");
+    expect(client).toContain("input.preview.editionId !== editionId");
+    expect(client).toContain("input.preview.expectedEditionId !== editionId");
+    expect(client).toContain("receiptEditionId !== editionId");
+  });
+
+  it("keeps compatibility overloads without letting the Organizer adapter use them", () => {
     expect(migration).toContain(
       "legacy one-argument preview / five-argument apply continue to exist",
     );
-    expect(migration).not.toContain(
-      "revoke execute on function public.studio2_apply_voting_declaration_invalidation(\n  uuid, text, uuid, text, bigint\n) from authenticated",
-    );
+    expect(client).toContain("p_expected_edition_id: editionId");
+    expect(client).not.toContain("p_preflight_id: preflightId,\n    }),");
   });
 });

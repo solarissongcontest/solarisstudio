@@ -18,6 +18,7 @@ import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 
 export const Route = createFileRoute("/encyclopedia/")({
   validateSearch: (search: Record<string, unknown>) => ({
+    // Backward-compatible search hint only. This must not become Artist identity.
     artist: typeof search.artist === "string" ? search.artist : undefined,
   }),
   head: () => ({
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/encyclopedia/")({
       {
         name: "description",
         content:
-          "Published Solaris Song Contest history: editions, countries, entries, artists and shows.",
+          "Published Solaris Song Contest history: editions, countries, entries and shows.",
       },
     ],
     links: [
@@ -39,7 +40,7 @@ export const Route = createFileRoute("/encyclopedia/")({
   component: EncyclopediaPage,
 });
 
-type Kind = "all" | "edition" | "country" | "entry" | "artist" | "show";
+type Kind = "all" | "edition" | "country" | "entry" | "show";
 
 type EncyclopediaItem = {
   id: string;
@@ -122,7 +123,6 @@ function EncyclopediaPage() {
     }
 
     const seenEntry = new Set<string>();
-    const artistCounts = new Map<string, { name: string; count: number }>();
 
     for (const participant of publicArchive.participants) {
       const country = countryMap.get(participant.country_id);
@@ -130,53 +130,34 @@ function EncyclopediaPage() {
       if (!country || !edition) continue;
 
       const entryKey = `${participant.edition_id}:${participant.country_id}`;
-      if (!seenEntry.has(entryKey)) {
-        seenEntry.add(entryKey);
-        const title =
-          [participant.artist, participant.song].filter(Boolean).join(" — ") ||
-          `${country.name} entry`;
-        output.push({
-          id: `entry:${entryKey}`,
-          kind: "entry",
-          title,
-          subtitle: `${country.name} · ${editionLabel(edition)}`,
-          href: `/countries/${country.short_code}`,
-          search: [
-            title,
-            country.name,
-            country.short_code,
-            edition.name,
-            edition.edition_number,
-          ].join(" "),
-          flag: {
-            code: country.short_code,
-            color: country.accent_color,
-            image: country.flag_image,
-          },
-        });
-      }
+      if (seenEntry.has(entryKey)) continue;
+      seenEntry.add(entryKey);
 
-      if (participant.artist) {
-        const key = participant.artist.trim().toLocaleLowerCase();
-        const current = artistCounts.get(key);
-        artistCounts.set(key, {
-          name: participant.artist.trim(),
-          count: (current?.count ?? 0) + 1,
-        });
-      }
-    }
-
-    for (const [key, artist] of artistCounts) {
+      const title =
+        [participant.artist, participant.song].filter(Boolean).join(" — ") ||
+        `${country.name} entry`;
       output.push({
-        id: `artist:${key}`,
-        kind: "artist",
-        title: artist.name,
-        subtitle:
-          artist.count === 1
-            ? "1 published SSC entry"
-            : `${artist.count} published SSC entries`,
-        href: `/encyclopedia?artist=${encodeURIComponent(artist.name)}`,
-        search: artist.name,
+        id: `entry:${entryKey}`,
+        kind: "entry",
+        title,
+        subtitle: `${country.name} · ${editionLabel(edition)}`,
+        href: `/countries/${country.short_code}`,
+        search: [
+          title,
+          participant.artist,
+          participant.song,
+          country.name,
+          country.short_code,
+          edition.name,
+          edition.edition_number,
+        ]
+          .filter(Boolean)
+          .join(" "),
+        flag: {
+          code: country.short_code,
+          color: country.accent_color,
+          image: country.flag_image,
+        },
       });
     }
 
@@ -267,7 +248,7 @@ function EncyclopediaPage() {
       <PageHeader
         eyebrow="Explore Solaris"
         title="Encyclopedia"
-        description="A publication-safe reference across editions, countries, entries, artists and shows."
+        description="A publication-safe reference across editions, countries, published entries and shows."
         actions={
           <Link
             to="/wiki"
@@ -317,7 +298,7 @@ function EncyclopediaPage() {
         </label>
 
         <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Filter Encyclopedia">
-          {(["all", "edition", "country", "entry", "artist", "show"] as Kind[]).map(
+          {(["all", "edition", "country", "entry", "show"] as Kind[]).map(
             (value) => (
               <button
                 key={value}
@@ -392,7 +373,8 @@ function EncyclopediaPage() {
 
       <p className="mt-5 text-xs leading-relaxed text-muted-foreground">
         Historical gaps are left as gaps. Draft entries, organizer notes, private ballots and
-        unpublished results are never indexed here.
+        unpublished results are never indexed here. Artist and song labels remain attached to
+        their published Entry until Solaris has durable first-class Artist and Song identity.
       </p>
     </AppShell>
   );

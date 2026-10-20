@@ -7,6 +7,7 @@ const rollout = readFileSync("src/integrations/v3/rollout-probe.server.ts", "utf
 const shell = readFileSync("src/components/admin/AdminShell.tsx", "utf8");
 const mobile = readFileSync("src/components/admin/OrganizerV3MobileChrome.tsx", "utf8");
 const navigation = readFileSync("src/lib/v3-organizer-navigation.ts", "utf8");
+const organizerLiquid = readFileSync("src/styles/v3-organizer-liquid-tabbar.css", "utf8");
 const control = readFileSync("src/routes/_authenticated/admin/control.tsx", "utf8");
 const migration = readFileSync(
   "supabase/migrations/20261014142000_v3_organizer_cutover.sql",
@@ -33,18 +34,26 @@ describe("V3 Organizer reversible cutover", () => {
     expect(shell).toContain("organizerV3Enabled ? <OrganizerV3MobileChrome /> : <OrganizerV6MobileChrome />");
   });
 
-  it("uses the canonical five Organizer areas without creating a second tab bar primitive", () => {
+  it("uses the canonical five Organizer areas on the shared V3 Liquid primitive", () => {
     for (const label of ["Overview", "Tasks", "Control", "Live", "More"]) {
       expect(mobile).toContain(`label: "${label}"`);
     }
-    expect(mobile).toContain("OrganizerV6TabBar");
+    expect(mobile).toContain("V3LiquidTabBar");
+    expect(mobile).not.toContain("OrganizerV6TabBar");
     expect(mobile).toContain("V3_ORGANIZER_TAB_ORDER.map");
     expect(mobile).toContain("getV3OrganizerTabDestination");
     expect(mobile).toContain("consumeV3OrganizerNavigationRestore");
+    expect(mobile).toContain('data-organizer-v3-tabbar-mode={tabbarMode}');
+    expect(organizerLiquid).toContain('data-organizer-v3-tabbar-mode="compact"');
+    expect(organizerLiquid).toContain("@media (min-width: 900px)");
   });
 
-  it("locks navigation and active workflow UI to the selected edition context", () => {
+  it("locks navigation, interaction generation and route memory to the selected edition context", () => {
     expect(mobile).toContain("const navigationScope = activeEdition?.id ?? null");
+    expect(mobile).toContain("const navigationMemoryReady = navigationScope != null");
+    expect(mobile).toContain('const navigationInteractionKey = navigationScope ?? "unscoped"');
+    expect(mobile).toContain("key={navigationInteractionKey}");
+    expect(mobile).toContain('data-organizer-v3-memory-ready={navigationMemoryReady ? "true" : "false"}');
     expect(mobile).toContain("navigationScope,");
     expect(navigation).toContain('return `${STORAGE_PREFIX}:${scopeToken(scopeKey)}`');
     expect(navigation).toContain('return `${RESTORE_PREFIX}:${scopeToken(scopeKey)}`');

@@ -101,16 +101,22 @@ const DOMAIN_REPAIR_CONTRACTS: Readonly<Record<string, V3ProjectionRepairContrac
     ],
   },
   notification: {
-    state: "foundation",
+    state: "rebuildable",
     scope: "actor",
-    incrementalPath: "Domain notification consumers evaluate the existing deduplicating delivery provider.",
-    rebuildPath: null,
-    verificationPath: "Compare delivery state with current canonical workflow state and stable dedupe keys.",
-    boundedBy: "recipient/provider-bounded reconciliation still required",
+    incrementalPath:
+      "Domain notification consumers and the global enqueue sweep use the shared server-owned candidate engine with stable user/dedupe-key idempotency.",
+    rebuildPath:
+      "public.studio2_reconcile_notification_delivery_projection(user_id, now, limit)",
+    verificationPath:
+      "public.studio2_verify_notification_delivery_projection(user_id, now, limit)",
+    boundedBy:
+      "one recipient per repair; at most 100 expected/stale rows per repair and 500 expected-plus-pending rows per verification",
     explicitFailureState: "delivery_reconciliation_required",
     evidence: [
       "supabase/migrations/20260929214500_solaris_app_push_foundation.sql",
-      "supabase/migrations/20261015183000_v3_s5_confirmation_consequences.sql",
+      "supabase/migrations/20261003003000_organisation_os_v5_task_notifications.sql",
+      "supabase/migrations/20261019113000_v3_s6_notification_reconciliation.sql",
+      "src/lib/v3-s6-notification-reconciliation.contract.test.ts",
     ],
   },
 };
