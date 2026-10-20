@@ -48,6 +48,17 @@ describe("S15 exact-SHA zero-orphan release evidence", () => {
     expect(readiness).toContain("if (requireZero && !report.zeroOrphans) process.exit(1)");
   });
 
+  it("refuses to materialize a green exact-SHA artifact from incomplete or contradictory readiness output", () => {
+    expect(builder).toContain('typeof readiness.schemaVersion !== "number"');
+    expect(builder).toContain('typeof readiness.inventory !== "object"');
+    expect(builder).toContain('typeof physicalOwnership.schemaVersion !== "number"');
+    expect(builder).toContain('typeof physicalOwnership.zeroOwnershipConflicts !== "boolean"');
+    expect(builder).toContain("S15 readiness claimed zeroOrphans=true while retaining findings");
+    expect(builder).toContain(
+      "S15 readiness claimed zeroOrphans=true while physical ownership is not conflict-free",
+    );
+  });
+
   it("writes the exact release artifact consumed by release integrity", () => {
     expect(builder).toContain('"s15-zero-orphan.json"');
     expect(builder).toContain("V3_RELEASE_EVIDENCE_DIR");
