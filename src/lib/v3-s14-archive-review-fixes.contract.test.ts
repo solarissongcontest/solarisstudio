@@ -34,7 +34,8 @@ describe('System V3 S14 Archive review-fix contract', () => {
       'before delete on public.studio2_edition_runtime',
     );
     expect(deleteGuard).toContain('delete from public.studio2_edition_runtime');
-    expect(deleteGuard).toContain('service-role archived runtime deletion unexpectedly succeeded');
+    expect(deleteGuard).toContain('"service-role archived runtime deletion"');
+    expect(deleteGuard).toContain('fail "$label unexpectedly succeeded"');
     expect(deleteGuard).toContain('Archived edition runtime is irreversible.');
     expect(deleteGuard).toContain('Refusing hosted Supabase rehearsal');
     expect(deleteGuard).not.toMatch(/supabase\.co/i);
@@ -49,7 +50,8 @@ describe('System V3 S14 Archive review-fix contract', () => {
     );
     expect(deleteGuard).toContain("insert into public.studio2_edition_runtime(edition_id,state,subsystems,version,updated_by)");
     expect(deleteGuard).toContain("'archived',private.studio2_default_subsystems('archived')");
-    expect(deleteGuard).toContain('service-role direct archived runtime insertion unexpectedly succeeded');
+    expect(deleteGuard).toContain('"service-role direct archived runtime insertion"');
+    expect(deleteGuard).toContain('fail "$label unexpectedly succeeded"');
     expect(deleteGuard).toContain('Archive transition must use the canonical V3 lifecycle command.');
     expect(deleteGuard).toContain('failed archived insert did not roll back the fixture runtime atomically');
   });
