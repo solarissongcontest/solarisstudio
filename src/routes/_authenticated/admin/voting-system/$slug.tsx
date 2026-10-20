@@ -166,7 +166,6 @@ function VotingSystemWorkspace() {
     busy ||
     authorityLoading ||
     !snapshot ||
-    Boolean(authorityError) ||
     invalidWeight ||
     !exactEditionReady;
 
@@ -184,7 +183,6 @@ function VotingSystemWorkspace() {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["shows"] }),
       qc.invalidateQueries({ queryKey: ["show"] }),
-      qc.invalidateQueries({ queryKey: ["results"] }),
     ]);
     return nextSnapshot;
   }
@@ -212,7 +210,9 @@ function VotingSystemWorkspace() {
 
       if (preflight.expectedVersion !== snapshot.version) {
         await reloadAuthority();
-        throw new Error("Voting rules changed while you were editing. The current version has been reloaded; review your change again.");
+        const message = "Voting rules changed while you were editing. The current version has been reloaded; review your change again.";
+        toast.error(message);
+        return;
       }
       if (!preflight.changed) {
         setDraft(resolveVoting(snapshot.config));
@@ -221,9 +221,10 @@ function VotingSystemWorkspace() {
       }
       if (preflight.blocked || preflight.riskClass === "blocked") {
         await reloadAuthority();
-        throw new Error(
-          "Voting configuration is frozen because official voting or result evidence now exists. No rule change was applied.",
-        );
+        const message = "Voting configuration is frozen because official voting or result evidence now exists. No rule change was applied.";
+        setAuthorityError(message);
+        toast.error(message);
+        return;
       }
       if (preflight.riskClass !== "R2") {
         throw new Error("Voting configuration preflight returned an unexpected risk class.");
@@ -323,11 +324,15 @@ function VotingSystemWorkspace() {
       );
     } catch (caught) {
       const systemError = toSystemError(caught);
-      if (systemError.code === "STATE_CHANGED" || systemError.code === "VERSION_CONFLICT") {
+      if (
+        systemError.code === "STATE_CHANGED" ||
+        systemError.code === "VERSION_CONFLICT" ||
+        systemError.code === "DEPENDENCY_FAILURE"
+      ) {
         try {
           await reloadAuthority();
         } catch {
-          // Keep the original conflict as the actionable message.
+          // Keep the original failure as the actionable message.
         }
       }
       setPendingSave(null);
