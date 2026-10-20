@@ -36,13 +36,13 @@ const archiveForwardFixMigration = readFileSync(
 );
 
 describe("S14 Stage 10 archive certification against current canonical V3 System authority", () => {
-  it("keeps Stage 10 unwired until the prerequisite full-contest chain reaches it", () => {
-    expect(V3_S14_STAGES.find((stage) => stage.id === "stage-10-archive")?.implementationState).toBe("planned");
-    expect(V3_S14_INVARIANTS.find((item) => item.id === "tasks-canonical")?.implementationState).toBe("planned");
-    expect(V3_S14_INVARIANTS.find((item) => item.id === "notifications-reconcilable")?.implementationState).toBe("planned");
-    expect(V3_S14_FAILURE_INJECTIONS.find((item) => item.id === "supabase-outage")?.implementationState).toBe("planned");
-    expect(driver).not.toContain('source "$SCRIPT_DIR/v3-s14-stage-10-archive.sh"');
-    expect(driver).not.toContain("run_s14_stage_10_archive");
+  it("registers Stage 10, task/notification invariants and outage recovery as implemented and wires the stage once", () => {
+    expect(V3_S14_STAGES.find((stage) => stage.id === "stage-10-archive")?.implementationState).toBe("implemented");
+    expect(V3_S14_INVARIANTS.find((item) => item.id === "tasks-canonical")?.implementationState).toBe("implemented");
+    expect(V3_S14_INVARIANTS.find((item) => item.id === "notifications-reconcilable")?.implementationState).toBe("implemented");
+    expect(V3_S14_FAILURE_INJECTIONS.find((item) => item.id === "supabase-outage")?.implementationState).toBe("implemented");
+    expect(driver.match(/source "\$SCRIPT_DIR\/v3-s14-stage-10-archive\.sh"/g)).toHaveLength(1);
+    expect(driver.match(/run_stage stage-10-archive run_s14_stage_10_archive/g)).toHaveLength(1);
   });
 
   it("tracks the complete current Archive migration chain instead of stale pre-convergence filenames", () => {
