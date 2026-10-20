@@ -46,6 +46,15 @@ import {
 } from '@/lib/studio2-incidents';
 import { isStudio2FeatureEnabled } from '@/lib/studio2-feature-flags';
 import { studio2Persistence, type Studio2IncidentRecord } from '@/lib/studio2-persistence';
+import {
+  commitOrganizerIncidentOperation,
+  loadOrganizerIncidentCurrentState,
+  prepareOrganizerIncidentOperation,
+  withOrganizerIncidentReviewReason,
+  type OrganizerIncidentOperationReview,
+} from '@/lib/v3-organizer-incident-operations';
+import type { V3IncidentAction } from '@/lib/v3-incident-command';
+import type { SystemJsonValue } from '@/lib/system-operation-contract';
 import { supabase } from '@/integrations/supabase/client';
 
 const STATUS_SET = new Set<string>(INCIDENT_STATUSES);
@@ -64,6 +73,8 @@ type IncidentSearch = {
 type PendingIncidentReview = {
   kind: 'crisis' | 'severity' | 'transition' | 'resolve';
   value?: string;
+  review: OrganizerIncidentOperationReview;
+  reason: string;
 };
 
 export const Route = createFileRoute('/_authenticated/admin/incidents')({
@@ -114,6 +125,9 @@ function IncidentCommandPage() {
     staleTime: 30_000,
   });
 
+  // Compatibility reads remain while all mutation authority is cut over. The
+  // exact canonical incident version used for writes is loaded separately from
+  // the bounded V3 System projection before every commit.
   const incidentsQuery = useQuery({
     queryKey: ['studio2-incidents-full', resolvedEditionId || 'none'],
     enabled: Boolean(resolvedEditionId) && featureQuery.data === true,
@@ -138,23 +152,41 @@ function IncidentCommandPage() {
   };
 
   const createIncident = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!resolvedEditionId) {
         throw new Error('Choose an edition before opening an incident.');
       }
-      return studio2Persistence.createIncidentFull({
-        editionId: resolvedEditionId,
-        title: title.trim(),
-        severity,
-        category,
-        description: description.trim(),
-        affectedSystems: parseSystems(systems),
+      const review = await prepareOrganizerIncidentOperation({
+        context: { editionId: resolvedEditionId },
+        action: 'create',
+        payload: {
+          title: title.trim(),
+          severity,
+          category,
+          description: description.trim(),
+          affectedSystems: parseSystems(systems),
+        },
       });
+      if (review.riskClass !== 'R1') {
+        throw new Error('Incident creation unexpectedly requires consequential review. Reload before continuing.');
+      }
+      const receipt = await commitOrganizerIncidentOperation({
+        context: { editionId: resolvedEditionId },
+        review,
+      });
+      const incidentId = incidentIdFromResult(receipt.result);
+      if (!incidentId) throw new Error('Incident creation receipt did not identify the created incident.');
+      return incidentId;
     },
-    onSuccess: async (incident) => {
-      setTitle(''); setDescription(''); setSystems(''); setSeverity('sev3'); setCategory('technical'); setCreateOpen(false);
+    onSuccess: async (incidentId) => {
+      setTitle('');
+      setDescription('');
+      setSystems('');
+      setSeverity('sev3');
+      setCategory('technical');
+      setCreateOpen(false);
       await invalidate();
-      void navigate({ search: { ...search, incident: incident.id }, replace: true });
+      void navigate({ search: { ...search, incident: incidentId }, replace: true });
     },
   });
 
@@ -179,7 +211,7 @@ function IncidentCommandPage() {
         <AdminPageHeader
           eyebrow="Solaris Studio 2 · Operations"
           title="Incident Command"
-          description="Open, acknowledge, command, escalate, document, resolve and reopen operational incidents with a persisted timeline and capability-checked server commands."
+          description="Open, acknowledge, command, escalate, document, resolve and reopen operational incidents through exact-edition, versioned server commands with receipt reconciliation."
           actions={<button type="button" disabled={!edition} onClick={() => setCreateOpen((value) => !value)} className="admin-action-primary disabled:opacity-50"><Plus className="size-4" /> Open incident</button>}
         />
 
@@ -286,34 +318,63 @@ function IncidentDetailSheet({ incident, events, editionId, onClose, onChanged }
     setPendingReview(null);
   }, [incident?.id, incident?.updatedAt]);
 
-  const mutate = useMutation({
-    mutationFn: async (action: { kind: string; value?: string }) => {
-      if (!incident) return;
-      if (!editionId || incident.editionId !== editionId) {
-        throw Object.assign(
-          new Error('Edition context changed before the incident command. Reload Incident Command before retrying.'),
-          { status: 409 },
-        );
+  const currentContext = () => {
+    if (!incident || !editionId || incident.editionId !== editionId) {
+      throw new Error('Edition context changed before the incident command. Reload Incident Command before retrying.');
+    }
+    return { editionId };
+  };
+
+  const immediateMutation = useMutation({
+    mutationFn: async (input: { action: V3IncidentAction; payload?: Record<string, unknown> }) => {
+      if (!incident) throw new Error('Choose an incident before applying an operation.');
+      const context = currentContext();
+      const review = await prepareOrganizerIncidentOperation({
+        context,
+        incidentId: incident.id,
+        action: input.action,
+        payload: input.payload,
+      });
+      if (review.riskClass !== 'R1' || review.reasonRequired) {
+        throw new Error('This incident operation now requires explicit consequence review. Reload and review it before applying.');
       }
-      if (action.kind === 'ack') await studio2Persistence.acknowledgeIncident(incident.id);
-      else if (action.kind === 'crisis') await studio2Persistence.declareIncidentCrisis(incident.id);
-      else if (action.kind === 'transition') await studio2Persistence.transitionIncident(incident.id, action.value as IncidentStatus);
-      else if (action.kind === 'severity') await studio2Persistence.updateIncident({ id: incident.id, severity: action.value as IncidentSeverity });
-      else if (action.kind === 'save') await studio2Persistence.updateIncident({ id: incident.id, description, affectedSystems: parseSystems(systems), resolution, postmortem });
-      else if (action.kind === 'assign-me') {
-        const { data } = await supabase.auth.getUser();
-        if (!data.user) throw new Error('You must be signed in to become incident commander.');
-        await studio2Persistence.updateIncident({ id: incident.id, commanderId: data.user.id, setCommander: true });
-      } else if (action.kind === 'clear-commander') {
-        await studio2Persistence.updateIncident({ id: incident.id, commanderId: null, setCommander: true });
-      } else if (action.kind === 'note') {
-        await studio2Persistence.addIncidentTimelineEvent(incident.id, note);
-        setNote('');
-      } else if (action.kind === 'resolve') {
-        if (!resolution.trim()) throw new Error('Enter a resolution before resolving the incident.');
-        await studio2Persistence.updateIncident({ id: incident.id, resolution });
-        await studio2Persistence.transitionIncident(incident.id, 'resolved');
-      }
+      const current = await loadOrganizerIncidentCurrentState({ context, incidentId: incident.id });
+      return commitOrganizerIncidentOperation({ context, review, current });
+    },
+    onSuccess: async (_receipt, variables) => {
+      if (variables.action === 'timeline_note') setNote('');
+      await onChanged();
+    },
+  });
+
+  const prepareReviewMutation = useMutation({
+    mutationFn: async (intent: { kind: PendingIncidentReview['kind']; value?: string }) => {
+      if (!incident) throw new Error('Choose an incident before reviewing an operation.');
+      const context = currentContext();
+      const command = reviewedCommand(intent.kind, intent.value, resolution);
+      const review = await prepareOrganizerIncidentOperation({
+        context,
+        incidentId: incident.id,
+        action: command.action,
+        payload: command.payload,
+      });
+      return {
+        kind: intent.kind,
+        value: intent.value,
+        review,
+        reason: '',
+      } satisfies PendingIncidentReview;
+    },
+    onSuccess: (prepared) => setPendingReview(prepared),
+  });
+
+  const commitReviewMutation = useMutation({
+    mutationFn: async (pending: PendingIncidentReview) => {
+      if (!incident) throw new Error('Choose an incident before committing an operation.');
+      const context = currentContext();
+      const current = await loadOrganizerIncidentCurrentState({ context, incidentId: incident.id });
+      const review = withOrganizerIncidentReviewReason(pending.review, pending.reason);
+      return commitOrganizerIncidentOperation({ context, review, current });
     },
     onSuccess: async () => {
       setPendingReview(null);
@@ -324,10 +385,32 @@ function IncidentDetailSheet({ incident, events, editionId, onClose, onChanged }
   const timeline = incident ? incidentTimeline(events, incident.id) : [];
   const transitions = incident ? availableIncidentTransitions(incident.status) : [];
   const escalation = incident ? previousSeverity(incident.severity) : null;
+  const busy = immediateMutation.isPending || prepareReviewMutation.isPending || commitReviewMutation.isPending;
+  const mutationError = immediateMutation.error || prepareReviewMutation.error || commitReviewMutation.error;
+  const resolutionDirty = Boolean(incident) && resolution.trim() !== (incident.resolution ?? '').trim();
+
+  const requestReviewedCommand = async (kind: PendingIncidentReview['kind'], value?: string) => {
+    if (kind === 'resolve') {
+      if (!resolution.trim()) throw new Error('Enter and save a resolution before resolving the incident.');
+      if (resolutionDirty) throw new Error('Save the incident record before resolving so the reviewed transition uses canonical resolution evidence.');
+    }
+    await prepareReviewMutation.mutateAsync({ kind, value });
+  };
 
   const applyReviewedCommand = async () => {
-    if (!pendingReview || !incident) return;
-    await mutate.mutateAsync(pendingReview);
+    if (!pendingReview) return;
+    await commitReviewMutation.mutateAsync(pendingReview);
+  };
+
+  const toggleCommander = async () => {
+    if (!incident) return;
+    if (incident.commanderId) {
+      immediateMutation.mutate({ action: 'update', payload: { setCommander: true, commanderId: null } });
+      return;
+    }
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) throw new Error('You must be signed in to become incident commander.');
+    immediateMutation.mutate({ action: 'update', payload: { setCommander: true, commanderId: data.user.id } });
   };
 
   const reviewTitle = pendingReview
@@ -354,10 +437,10 @@ function IncidentDetailSheet({ incident, events, editionId, onClose, onChanged }
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            {!incident.acknowledgedAt ? <button type="button" disabled={mutate.isPending} onClick={() => mutate.mutate({ kind: 'ack' })} className="admin-action-secondary"><UserRoundCheck className="size-4" /> Acknowledge</button> : null}
-            <button type="button" disabled={mutate.isPending} onClick={() => mutate.mutate({ kind: incident.commanderId ? 'clear-commander' : 'assign-me' })} className="admin-action-secondary">{incident.commanderId ? 'Clear commander' : 'Assign me commander'}</button>
-            {!incident.crisisDeclaredAt && incident.status !== 'resolved' ? <button type="button" disabled={mutate.isPending} onClick={() => setPendingReview({ kind: 'crisis' })} className="admin-action-secondary text-rose-100"><Siren className="size-4" /> Review crisis mode</button> : null}
-            {escalation && incident.status !== 'resolved' ? <button type="button" disabled={mutate.isPending} onClick={() => setPendingReview({ kind: 'severity', value: escalation })} className="admin-action-secondary"><CircleAlert className="size-4" /> Review escalation to {escalation.toUpperCase()}</button> : null}
+            {!incident.acknowledgedAt ? <button type="button" disabled={busy} onClick={() => immediateMutation.mutate({ action: 'acknowledge' })} className="admin-action-secondary"><UserRoundCheck className="size-4" /> Acknowledge</button> : null}
+            <button type="button" disabled={busy} onClick={() => void toggleCommander()} className="admin-action-secondary">{incident.commanderId ? 'Clear commander' : 'Assign me commander'}</button>
+            {!incident.crisisDeclaredAt && incident.status !== 'resolved' ? <button type="button" disabled={busy} onClick={() => void requestReviewedCommand('crisis')} className="admin-action-secondary text-rose-100"><Siren className="size-4" /> Review crisis mode</button> : null}
+            {escalation && incident.status !== 'resolved' ? <button type="button" disabled={busy} onClick={() => void requestReviewedCommand('severity', escalation)} className="admin-action-secondary"><CircleAlert className="size-4" /> Review escalation to {escalation.toUpperCase()}</button> : null}
           </div>
 
           <AdminCard>
@@ -367,28 +450,38 @@ function IncidentDetailSheet({ incident, events, editionId, onClose, onChanged }
               <Field label="Affected systems"><input value={systems} onChange={(e) => setSystems(e.target.value)} className="admin-input" /></Field>
               <Field label="Resolution"><textarea value={resolution} onChange={(e) => setResolution(e.target.value)} className="admin-input min-h-20" placeholder="Required before resolving" /></Field>
               <Field label="Postmortem"><textarea value={postmortem} onChange={(e) => setPostmortem(e.target.value)} className="admin-input min-h-24" placeholder="Root cause, lessons and follow-up" /></Field>
-              <button type="button" disabled={mutate.isPending} onClick={() => mutate.mutate({ kind: 'save' })} className="admin-action-primary">Save incident record</button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => immediateMutation.mutate({
+                  action: 'update',
+                  payload: { description, affectedSystems: parseSystems(systems), resolution, postmortem },
+                })}
+                className="admin-action-primary"
+              >
+                Save incident record
+              </button>
             </div>
           </AdminCard>
 
           <AdminCard>
-            <AdminCardHeader eyebrow="Lifecycle" title="Incident state" description="State transitions are reviewed before they change the operational incident truth." />
+            <AdminCardHeader eyebrow="Lifecycle" title="Incident state" description="System preflight freezes the exact edition, incident version, capability, risk and consequences before lifecycle state changes." />
             <div className="flex flex-wrap gap-2">
-              {transitions.filter((status) => status !== 'resolved').map((status) => <button key={status} type="button" disabled={mutate.isPending} onClick={() => setPendingReview({ kind: 'transition', value: status })} className="admin-action-secondary">{incident.status === 'resolved' && status === 'monitoring' ? 'Review reopen to monitoring' : `Review move to ${humanize(status)}`}</button>)}
-              {transitions.includes('resolved') ? <button type="button" disabled={mutate.isPending || !resolution.trim()} onClick={() => setPendingReview({ kind: 'resolve' })} className="admin-action-primary">Review resolution</button> : null}
+              {transitions.filter((status) => status !== 'resolved').map((status) => <button key={status} type="button" disabled={busy} onClick={() => void requestReviewedCommand('transition', status)} className="admin-action-secondary">{incident.status === 'resolved' && status === 'monitoring' ? 'Review reopen to monitoring' : `Review move to ${humanize(status)}`}</button>)}
+              {transitions.includes('resolved') ? <button type="button" disabled={busy || !resolution.trim() || resolutionDirty} onClick={() => void requestReviewedCommand('resolve')} className="admin-action-primary">{resolutionDirty ? 'Save record before resolving' : 'Review resolution'}</button> : null}
             </div>
           </AdminCard>
 
           <AdminCard>
-            <AdminCardHeader eyebrow="Timeline" title="Operational history" description="Timeline notes become immutable contest events rather than being buried inside an editable description." />
-            <div className="flex gap-2"><input value={note} onChange={(e) => setNote(e.target.value)} className="admin-input flex-1" placeholder="Add timeline update…" /><button type="button" disabled={!note.trim() || mutate.isPending} onClick={() => mutate.mutate({ kind: 'note' })} className="admin-action-secondary">Add</button></div>
+            <AdminCardHeader eyebrow="Timeline" title="Operational history" description="Timeline notes use the canonical command and advance incident version so concurrent reviews become stale." />
+            <div className="flex gap-2"><input value={note} onChange={(e) => setNote(e.target.value)} className="admin-input flex-1" placeholder="Add timeline update…" /><button type="button" disabled={!note.trim() || busy} onClick={() => immediateMutation.mutate({ action: 'timeline_note', payload: { message: note.trim() } })} className="admin-action-secondary">Add</button></div>
             <div className="mt-3 space-y-2">
               {timeline.map((item) => <div key={item.id} className="flex gap-3 rounded-xl border border-white/[0.07] p-3"><Clock3 className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><div className="min-w-0"><p className="text-sm font-semibold">{item.message ?? humanize(item.action ?? item.type.replace('.', ' '))}</p><p className="mt-1 text-xs text-muted-foreground">{formatDateTime(item.occurredAt)}{item.actorUserId ? ` · ${item.actorUserId}` : ''}</p></div></div>)}
               {!timeline.length ? <p className="py-3 text-center text-xs text-muted-foreground">No incident events recorded yet.</p> : null}
             </div>
           </AdminCard>
 
-          {mutate.error ? <p className="text-sm text-rose-200">{errorText(mutate.error)}</p> : null}
+          {mutationError ? <p className="text-sm text-rose-200">{errorText(mutationError)}</p> : null}
           <a href="/admin/control-room" className="admin-action-secondary flex w-full items-center justify-center gap-2">Open Control Room <ChevronRight className="size-4" /></a>
         </div> : null}
       </AdminSheet>
@@ -396,7 +489,7 @@ function IncidentDetailSheet({ incident, events, editionId, onClose, onChanged }
       <AdminConfirmSheet
         open={Boolean(incident && pendingReview)}
         onClose={() => {
-          if (!mutate.isPending) setPendingReview(null);
+          if (!busy) setPendingReview(null);
         }}
         onConfirm={applyReviewedCommand}
         title={reviewTitle}
@@ -404,25 +497,39 @@ function IncidentDetailSheet({ incident, events, editionId, onClose, onChanged }
           <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
             <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
               <p className="font-semibold text-foreground">{incident.title}</p>
-              <p className="mt-1">Edition {editionId} · {incidentSeverityLabel(incident.severity)} · {humanize(incident.status)}</p>
-              <p className="mt-1">Incident ID: <span className="font-mono text-foreground">{incident.id}</span></p>
+              <p className="mt-1">Edition {pendingReview.review.editionId} · {incidentSeverityLabel(incident.severity)} · {humanize(incident.status)}</p>
+              <p className="mt-1">Incident ID: <span className="font-mono text-foreground">{pendingReview.review.incidentId}</span></p>
+              <p className="mt-1">Canonical version: <span className="font-mono text-foreground">v{pendingReview.review.expectedVersion}</span></p>
+              <p className="mt-1">Risk: <strong className="text-foreground">{pendingReview.review.riskClass}</strong> · Capability: <span className="font-mono text-foreground">{pendingReview.review.requiredCapability}</span></p>
+            </div>
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+              <p className="font-semibold text-foreground">Server-authoritative consequences</p>
+              <ul className="mt-2 list-disc space-y-1 pl-4">
+                {pendingReview.review.consequences.map((consequence) => <li key={consequence}>{consequence}</li>)}
+              </ul>
             </div>
             {pendingReview.kind === 'crisis' ? (
               <p>Declaring crisis mode makes this incident persist as a prominent crisis warning in Control Room until the incident is resolved. This should represent an actual operational crisis, not routine escalation.</p>
             ) : pendingReview.kind === 'severity' ? (
-              <p>Severity changes from <strong className="text-foreground">{incident.severity.toUpperCase()}</strong> to <strong className="text-foreground">{pendingReview.value?.toUpperCase()}</strong>. This changes prioritization and can activate crisis treatment when the target is SEV-1.</p>
+              <p>Severity changes from <strong className="text-foreground">{incident.severity.toUpperCase()}</strong> to <strong className="text-foreground">{pendingReview.value?.toUpperCase()}</strong>. This changes operational prioritization.</p>
             ) : pendingReview.kind === 'resolve' ? (
-              <>
-                <p>Resolving closes the active incident lifecycle and removes its unresolved crisis state from operational attention.</p>
-                <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-                  <p className="font-semibold text-foreground">Resolution being recorded</p>
-                  <p className="mt-2 whitespace-pre-wrap">{resolution.trim()}</p>
-                </div>
-                <p>The current implementation saves the resolution text immediately before the existing server-authorized resolved transition. This review does not invent atomic rollback semantics that the server contract does not provide.</p>
-              </>
+              <p>Resolution text is already saved in canonical Incident state. This reviewed R3 command changes the lifecycle to resolved without a browser-owned two-write sequence.</p>
             ) : (
-              <p>Status changes from <strong className="text-foreground">{humanize(incident.status)}</strong> to <strong className="text-foreground">{humanize(pendingReview.value ?? '')}</strong>. {incident.status === 'resolved' ? 'This reopens the incident into active operational monitoring.' : 'The incident remains active unless the reviewed target is resolved.'}</p>
+              <p>Status changes from <strong className="text-foreground">{humanize(incident.status)}</strong> to <strong className="text-foreground">{humanize(pendingReview.value ?? '')}</strong>.</p>
             )}
+            {pendingReview.review.reasonRequired ? (
+              <label className="block space-y-1.5">
+                <span className="font-semibold text-foreground">Organizer reason (required)</span>
+                <textarea
+                  value={pendingReview.reason}
+                  onChange={(event) => setPendingReview((current) => current ? { ...current, reason: event.target.value } : current)}
+                  rows={3}
+                  className="w-full rounded-xl border border-white/[0.1] bg-black/10 p-3 text-sm text-foreground outline-none focus:border-sky-300/30"
+                  placeholder="Explain why this high-risk incident operation is required…"
+                />
+              </label>
+            ) : null}
+            <p>The exact preflighted incident version is re-read immediately before commit. Any concurrent incident change invalidates this review instead of being silently overwritten.</p>
           </div>
         ) : null}
         confirmLabel={pendingReview
@@ -436,14 +543,33 @@ function IncidentDetailSheet({ incident, events, editionId, onClose, onChanged }
                   ? 'Reopen incident'
                   : `Move to ${humanize(pendingReview.value ?? '')}`
           : 'Confirm incident command'}
-        confirmationText={pendingReview && (pendingReview.kind === 'crisis' || pendingReview.kind === 'resolve') ? incident?.title : undefined}
-        confirmationHint={pendingReview && (pendingReview.kind === 'crisis' || pendingReview.kind === 'resolve') && incident ? `Type ${incident.title} exactly to confirm this incident command` : undefined}
-        busy={mutate.isPending}
-        confirmDisabled={pendingReview?.kind === 'resolve' && !resolution.trim()}
-        danger={pendingReview?.kind === 'crisis' || pendingReview?.kind === 'resolve'}
+        confirmationText={pendingReview?.review.riskClass === 'R3' ? incident?.title : undefined}
+        confirmationHint={pendingReview?.review.riskClass === 'R3' && incident ? `Type ${incident.title} exactly to confirm this R3 incident command` : undefined}
+        busy={busy}
+        confirmDisabled={Boolean(pendingReview?.review.reasonRequired && !pendingReview.reason.trim())}
+        danger={pendingReview?.review.riskClass === 'R3'}
       />
     </>
   );
+}
+
+function reviewedCommand(kind: PendingIncidentReview['kind'], value: string | undefined, resolution: string): {
+  action: V3IncidentAction;
+  payload: Record<string, unknown>;
+} {
+  if (kind === 'crisis') return { action: 'declare_crisis', payload: {} };
+  if (kind === 'severity') return { action: 'update', payload: { severity: value } };
+  if (kind === 'resolve') {
+    if (!resolution.trim()) throw new Error('Enter and save a resolution before resolving the incident.');
+    return { action: 'transition', payload: { to: 'resolved' } };
+  }
+  return { action: 'transition', payload: { to: value } };
+}
+
+function incidentIdFromResult(value: SystemJsonValue | null | undefined): string | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const candidate = (value as Record<string, SystemJsonValue>).incidentId;
+  return typeof candidate === 'string' && candidate ? candidate : null;
 }
 
 function IncidentRow({ incident, onOpen }: { incident: Studio2IncidentRecord; onOpen: () => void }) {
