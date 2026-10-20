@@ -13,9 +13,15 @@ describe("MySolaris voting state truth", () => {
       "const juryWindowOpen: boolean | null = organizerInspection",
     );
     expect(voting).toContain('"Window state unavailable"');
-    expect(voting).toContain(
-      '"Window state is available in Organizer controls"',
-    );
+  });
+
+  it("projects Jury schedule and eligibility instead of treating every non-open state as closed", () => {
+    expect(voting).toContain("resolveScheduleState");
+    expect(voting).toContain("juryWindowUpcoming");
+    expect(voting).toContain('"Opening soon"');
+    expect(voting).toContain('"Upcoming"');
+    expect(voting).toContain('"Not eligible"');
+    expect(voting).toContain('label={juryWindowUpcoming ? "Opens" : "Deadline"}');
   });
 
   it("uses the shared V3 projection for current-edition Televote status instead of a duplicate browser round query", () => {
