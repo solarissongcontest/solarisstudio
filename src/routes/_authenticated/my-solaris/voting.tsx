@@ -19,6 +19,7 @@ import {
 import { reconcileMergedTelevotingRecoveryCookie } from "@/integrations/televoting/vote.functions";
 import { loadCountryJuryVotingState } from "@/lib/country-jury-task";
 import { useCountries } from "@/lib/data";
+import { resolveScheduleState } from "@/lib/solaris-schedule";
 import { loadStudio2HodWorkspace } from "@/lib/studio2-hod-workspace";
 import { useV3PrimarySurfaceBundle } from "@/lib/v3-primary-runtime";
 
@@ -170,11 +171,34 @@ function MySolarisVotingContent() {
     : juryWindowQuery.data ?? null;
   const ballotSubmitted =
     canonicalJuryState?.submitted ?? Boolean(context?.juryBallotSubmitted);
+  const juryScheduleState = canonicalJuryState
+    ? resolveScheduleState({
+        status: canonicalJuryState.status,
+        opensAt: canonicalJuryState.opensAt,
+        closesAt: canonicalJuryState.closesAt,
+      })
+    : null;
   const juryWindowOpen: boolean | null = organizerInspection
     ? null
-    : canonicalJuryState
-      ? canonicalJuryState.status === "open"
+    : juryScheduleState
+      ? juryScheduleState === "open" || juryScheduleState === "closing-soon"
       : null;
+  const juryWindowUpcoming =
+    juryScheduleState === "upcoming" || juryScheduleState === "opening-soon";
+  const juryEligible = canonicalJuryState?.eligible ?? null;
+  const juryStatusLabel = ballotSubmitted
+    ? "Submitted"
+    : juryEligible === false
+      ? "Not eligible"
+      : juryWindowOpen === true
+        ? "Open · not submitted"
+        : juryWindowUpcoming
+          ? juryScheduleState === "opening-soon"
+            ? "Opening soon"
+            : "Upcoming"
+          : juryScheduleState === "closed"
+            ? "Closed · not submitted"
+            : "Window state unavailable";
   const televoteReceipt = televoteReceiptQuery.data ?? null;
   const televoteStatus =
     !workspace.user || !edition
@@ -232,18 +256,7 @@ function MySolarisVotingContent() {
               hod?.displayName ?? (juryReady ? "Assigned" : "Not assigned")
             }
           />
-          <VotingMetric
-            label="Jury ballot"
-            value={
-              ballotSubmitted
-                ? "Submitted"
-                : juryWindowOpen === true
-                  ? "Open · not submitted"
-                  : juryWindowOpen === false
-                    ? "Closed · not submitted"
-                    : "Window state unavailable"
-            }
-          />
+          <VotingMetric label="Jury ballot" value={juryStatusLabel} />
           <VotingMetric label="Televote" value={televoteStatus} />
         </section>
 
@@ -251,21 +264,7 @@ function MySolarisVotingContent() {
           <Panel
             title="Jury"
             description="The official HOD ballot for the current edition"
-            actions={
-              <StatusPill
-                value={
-                  ballotSubmitted
-                    ? "submitted"
-                    : juryWindowOpen === true
-                      ? juryReady
-                        ? "open"
-                        : "not ready"
-                      : juryWindowOpen === false
-                        ? "closed"
-                        : "window state unavailable"
-                }
-              />
-            }
+            actions={<StatusPill value={juryStatusLabel.toLowerCase()} />}
           >
             {delegationQuery.isLoading || workspace.isLoading ? (
               <p className="text-sm text-muted-foreground">
@@ -294,26 +293,20 @@ function MySolarisVotingContent() {
                 <StatusRow
                   icon={CheckCircle2}
                   label="Ballot status"
-                  value={
-                    ballotSubmitted
-                      ? "Submitted"
-                      : juryWindowOpen === true
-                        ? juryReady
-                          ? "Open · ready to submit"
-                          : "Waiting for HOD assignment"
-                        : juryWindowOpen === false
-                          ? "Voting is closed"
-                          : "Window state is available in Organizer controls"
-                  }
+                  value={juryStatusLabel}
                   complete={ballotSubmitted}
                 />
                 <StatusRow
                   icon={CalendarClock}
-                  label="Deadline"
+                  label={juryWindowUpcoming ? "Opens" : "Deadline"}
                   value={
-                    juryDeadline
-                      ? formatDateTime(juryDeadline.dueAt)
-                      : "No jury deadline published"
+                    juryWindowUpcoming && canonicalJuryState?.opensAt
+                      ? formatDateTime(canonicalJuryState.opensAt)
+                      : juryDeadline
+                        ? formatDateTime(juryDeadline.dueAt)
+                        : canonicalJuryState?.closesAt
+                          ? formatDateTime(canonicalJuryState.closesAt)
+                          : "No jury deadline published"
                   }
                   complete={Boolean(juryDeadline?.completedAt)}
                 />
@@ -334,7 +327,7 @@ function MySolarisVotingContent() {
                   ? "Open Organizer jury controls"
                   : ballotSubmitted
                     ? "Review jury vote"
-                    : juryWindowOpen === true
+                    : juryWindowOpen === true && juryEligible !== false
                       ? "Open jury vote"
                       : "View jury voting"}
               </span>
