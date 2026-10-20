@@ -82,7 +82,7 @@ describe("System V3 S6 Jury operational-readiness reconciliation", () => {
       const body = functionBody(name);
       expect(body).toContain("stable");
       expect(body).not.toMatch(/\binsert\s+into\b/i);
-      expect(body).not.toMatch(/\bupdate\s+[a-z0-9_.\"]+\s+set\b/i);
+      expect(body).not.toMatch(/\bupdate\s+[a-z0-9_."]+\s+set\b/i);
       expect(body).not.toMatch(/\bdelete\s+from\b/i);
     }
 
