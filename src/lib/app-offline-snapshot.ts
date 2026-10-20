@@ -1,4 +1,5 @@
-export const OFFLINE_PUBLIC_INDEX_KEY = "solaris:offline-public-index:v1";
+export const OFFLINE_PUBLIC_INDEX_KEY = "solaris:offline-public-index:v2";
+const LEGACY_OFFLINE_PUBLIC_INDEX_KEYS = ["solaris:offline-public-index:v1"] as const;
 
 export type OfflinePublicIndex = {
   savedAt: string;
@@ -13,6 +14,7 @@ type OfflineIndexInput = {
     name: string;
     slug: string;
     edition_number?: number | null;
+    published: boolean;
   }>;
   shows: Array<{ id: string; name: string }>;
   countries: Array<{ id: string; name: string; short_code: string }>;
@@ -22,7 +24,11 @@ export function writeOfflinePublicIndex(
   input: OfflineIndexInput,
   storage: Pick<Storage, "setItem"> = window.localStorage,
 ) {
+  // The offline shell outlives the live authorization context that produced
+  // this snapshot. Persist only edition metadata that is already public even
+  // when an authenticated viewer can see planning/unpublished editions.
   const editions = [...input.editions]
+    .filter((edition) => edition.published)
     .sort((a, b) => (b.edition_number ?? -1) - (a.edition_number ?? -1))
     .slice(0, 12)
     .map((edition) => ({
@@ -80,7 +86,6 @@ export function readOfflinePublicIndex(
   }
 }
 
-
 export function clearOfflinePublicIndex(
   storage: Pick<Storage, "removeItem"> | null =
     typeof window === "undefined" ? null : window.localStorage,
@@ -88,6 +93,7 @@ export function clearOfflinePublicIndex(
   if (!storage) return;
   try {
     storage.removeItem(OFFLINE_PUBLIC_INDEX_KEY);
+    for (const key of LEGACY_OFFLINE_PUBLIC_INDEX_KEYS) storage.removeItem(key);
   } catch {
     // Clearing optional public metadata must never affect critical local drafts.
   }
