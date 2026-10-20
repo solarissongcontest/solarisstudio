@@ -11,6 +11,11 @@ type TerraOsMobileAccessibilityWindow = Window & {
 
 const MOBILE_ACCESSIBILITY_CSS = `
 @media (max-width: 560px) {
+  html[data-terraos-mobile-composition="v1"] .story {
+    padding-top: max(6.4rem, calc(env(safe-area-inset-top) + 4.1rem)) !important;
+    padding-bottom: 5rem !important;
+  }
+
   html[data-terraos-mobile-composition="v1"] [data-terra-first-look="true"] .first-look {
     padding-top: max(5.5rem, calc(env(safe-area-inset-top) + 3.75rem)) !important;
   }
@@ -34,10 +39,11 @@ const MOBILE_ACCESSIBILITY_CSS = `
 `;
 
 /**
- * Mobile teaser polish must preserve the maintenance page's safe-area contract
- * and its canonical reduced-motion fallback. The maintenance page contains more
- * than one full Home preview, so ownership is reference-counted just like the
- * other host presentation bridges.
+ * Mobile teaser polish must preserve the maintenance page's safe-area contract,
+ * keep section headings clear of the fixed local preview chrome and retain its
+ * canonical reduced-motion fallback. The maintenance page contains more than
+ * one full Home preview, so ownership is reference-counted just like the other
+ * host presentation bridges.
  */
 export function installTerraOsTeaserMobileAccessibility(document: Document) {
   const hostWindow = document.defaultView as TerraOsMobileAccessibilityWindow | null;
