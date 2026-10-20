@@ -94,6 +94,17 @@ case "$DB_URL" in
   *) fail "Refusing non-local database rehearsal" ;;
 esac
 
+reset_local_operational_mode() {
+  local mode
+  mode="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select mode from public.studio2_platform_operational_state where singleton=true;")"
+  if [[ "$mode" != "normal" ]]; then
+    log "Resetting local platform mode from $mode to normal between destructive rehearsals"
+    psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c \
+      "update public.studio2_platform_operational_state set mode='normal', version=version+1, reason='Production-head rehearsal isolation', changed_by=null, changed_at=now() where singleton=true;" \
+      >/dev/null
+  fi
+}
+
 baseline_head="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select version from supabase_migrations.schema_migrations order by version desc limit 1;")"
 [[ "$baseline_head" == "$PRODUCTION_HEAD" ]] \
   || fail "Local baseline head is $baseline_head, expected hosted production head $PRODUCTION_HEAD"
@@ -116,30 +127,46 @@ applied_delta="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select count(*) from
 [[ "$applied_delta" == "$expected_delta" ]] \
   || fail "Applied migration delta count $applied_delta differs from repository delta $expected_delta"
 
-log "Re-running critical V3 invariants on the production-head upgrade path"
-for rehearsal in \
-  v3-operation-receipt-rehearsal.sh \
-  v3-s2-entry-correction-rehearsal.sh \
-  v3-confirmation-security-rehearsal.sh \
-  v3-entry-credits-rehearsal.sh \
-  v3-s3-confirmation-invariants-rehearsal.sh \
-  v3-s3-entry-invariants-rehearsal.sh \
-  v3-s3-media-invariants-rehearsal.sh \
-  v3-entry-receipt-security-rehearsal.sh \
-  v3-entry-restore-provenance-assert.sh \
-  v3-jury-security-rehearsal.sh \
-  v3-s3-jury-invariants-rehearsal.sh \
-  v3-televote-reconciliation-rehearsal.sh \
-  v3-s3-televote-invariants-rehearsal.sh \
-  v3-s3-results-invariants-rehearsal.sh \
-  v3-s3-publication-invariants-rehearsal.sh \
-  v3-s3-identity-access-invariants-rehearsal.sh \
-  v3-s4-domain-event-outbox-rehearsal.sh \
-  v3-s5-confirmation-consequences-rehearsal.sh \
-  v3-s5-entry-consequences-rehearsal.sh
-  do
-    log "Running $rehearsal"
-    bash "$ROOT/.github/scripts/$rehearsal"
-  done
+core_rehearsals=(
+  v3-operation-receipt-rehearsal.sh
+  v3-s2-entry-correction-rehearsal.sh
+  v3-confirmation-security-rehearsal.sh
+  v3-confirmation-maintenance-edit-rehearsal.sh
+  v3-entry-credits-rehearsal.sh
+  v3-s3-confirmation-invariants-rehearsal.sh
+  v3-s3-entry-invariants-rehearsal.sh
+  v3-s3-media-invariants-rehearsal.sh
+  v3-entry-receipt-security-rehearsal.sh
+  v3-entry-restore-provenance-assert.sh
+  v3-jury-security-rehearsal.sh
+  v3-s3-jury-invariants-rehearsal.sh
+  v3-televote-reconciliation-rehearsal.sh
+  v3-s3-televote-invariants-rehearsal.sh
+  v3-s3-results-invariants-rehearsal.sh
+  v3-s3-publication-invariants-rehearsal.sh
+  v3-s3-identity-access-invariants-rehearsal.sh
+  v3-s4-domain-event-outbox-rehearsal.sh
+)
 
-log "Production-head-equivalent upgrade passed: $PRODUCTION_HEAD -> $LATEST_HEAD ($expected_delta migrations)"
+# S5 keeps growing as domains are migrated to canonical event-backed
+# consequences. Discover the checked-in rehearsal set so production-head proof
+# cannot silently stay green while a newly added S5 consequence family is never
+# exercised on the upgrade path.
+mapfile -t s5_consequence_rehearsals < <(
+  find "$ROOT/.github/scripts" -maxdepth 1 -type f \
+    -name 'v3-s5-*-consequences-rehearsal.sh' -printf '%f\n' | sort
+)
+(( ${#s5_consequence_rehearsals[@]} > 0 )) \
+  || fail "No S5 consequence rehearsals found after the production-head upgrade"
+
+log "Re-running critical V3 invariants on the production-head upgrade path"
+for rehearsal in "${core_rehearsals[@]}" "${s5_consequence_rehearsals[@]}"; do
+  log "Running $rehearsal"
+  bash "$ROOT/.github/scripts/$rehearsal"
+  # A destructive rehearsal may intentionally enter read_only/maintenance.
+  # Keep scenarios independent without weakening the platform-mode guard inside
+  # the rehearsal itself.
+  reset_local_operational_mode
+done
+
+log "Production-head-equivalent upgrade passed: $PRODUCTION_HEAD -> $LATEST_HEAD ($expected_delta migrations; ${#s5_consequence_rehearsals[@]} S5 consequence rehearsals)"
