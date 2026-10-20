@@ -27,7 +27,42 @@ export type PublicUxTaskMetric = {
   completionRate: number;
 };
 
+export type PublicUxDiagnostics = {
+  definitions: {
+    routeBacktracking: string;
+    deadEnds: string;
+    workflowAbandonment: string;
+    errorClasses: string;
+  };
+  routeBacktracking: {
+    sessions: number;
+    events: number;
+    topDestinations: Array<{ destination: string; count: number }>;
+  };
+  deadEnds: {
+    sessions: number;
+    topRoutes: Array<{ pathname: string; source: string; count: number }>;
+  };
+  workflowAbandonment: {
+    windowMinutes: number;
+    eligibleStarts: number;
+    abandoned: number;
+    tasks: Array<{
+      target: string;
+      eligibleStarts: number;
+      abandoned: number;
+      abandonmentRate: number;
+    }>;
+  };
+  errors: {
+    total: number;
+    classes: Array<{ errorClass: string; count: number }>;
+    routes: Array<{ pathname: string; errorClass: string; count: number }>;
+  };
+};
+
 export type PublicUxMetrics = {
+  schemaVersion: number;
   since: string;
   generatedAt: string;
   totals: {
@@ -54,6 +89,11 @@ export type PublicUxMetrics = {
   };
   tasks: PublicUxTaskMetric[];
   devices: PublicUxGroupCount[];
+  /**
+   * Null only when an older server projection is still deployed. Missing V2
+   * diagnostics remain visibly unavailable instead of being parsed as zero.
+   */
+  diagnostics: PublicUxDiagnostics | null;
 };
 
 export type PublicWebVitalRouteMetric = {
@@ -156,7 +196,9 @@ function parseMetrics(value: unknown): PublicUxMetrics {
     throw new Error("Public UX metrics returned an invalid response.");
   }
   const raw = value as Record<string, any>;
+  const schemaVersion = number(raw.schemaVersion);
   return {
+    schemaVersion,
     since: String(raw.since ?? ""),
     generatedAt: String(raw.generatedAt ?? ""),
     totals: {
@@ -190,6 +232,91 @@ function parseMetrics(value: unknown): PublicUxMetrics {
         }))
       : [],
     devices: rows(raw.devices),
+    diagnostics: schemaVersion >= 2 ? parseDiagnostics(raw.diagnostics) : null,
+  };
+}
+
+function parseDiagnostics(value: unknown): PublicUxDiagnostics {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Public UX diagnostics are missing from a schema-v2 response.");
+  }
+  const raw = value as Record<string, any>;
+  const definitions = raw.definitions;
+  const backtracking = raw.routeBacktracking;
+  const deadEnds = raw.deadEnds;
+  const abandonment = raw.workflowAbandonment;
+  const errors = raw.errors;
+  if (
+    !definitions ||
+    !backtracking ||
+    !deadEnds ||
+    !abandonment ||
+    !errors ||
+    typeof definitions !== "object" ||
+    typeof backtracking !== "object" ||
+    typeof deadEnds !== "object" ||
+    typeof abandonment !== "object" ||
+    typeof errors !== "object"
+  ) {
+    throw new Error("Public UX diagnostics returned an incomplete schema-v2 response.");
+  }
+
+  return {
+    definitions: {
+      routeBacktracking: String(definitions.routeBacktracking ?? ""),
+      deadEnds: String(definitions.deadEnds ?? ""),
+      workflowAbandonment: String(definitions.workflowAbandonment ?? ""),
+      errorClasses: String(definitions.errorClasses ?? ""),
+    },
+    routeBacktracking: {
+      sessions: number(backtracking.sessions),
+      events: number(backtracking.events),
+      topDestinations: Array.isArray(backtracking.topDestinations)
+        ? backtracking.topDestinations.map((item: any) => ({
+            destination: String(item?.destination ?? "unknown"),
+            count: number(item?.count),
+          }))
+        : [],
+    },
+    deadEnds: {
+      sessions: number(deadEnds.sessions),
+      topRoutes: Array.isArray(deadEnds.topRoutes)
+        ? deadEnds.topRoutes.map((item: any) => ({
+            pathname: String(item?.pathname ?? "/"),
+            source: String(item?.source ?? "unknown"),
+            count: number(item?.count),
+          }))
+        : [],
+    },
+    workflowAbandonment: {
+      windowMinutes: number(abandonment.windowMinutes),
+      eligibleStarts: number(abandonment.eligibleStarts),
+      abandoned: number(abandonment.abandoned),
+      tasks: Array.isArray(abandonment.tasks)
+        ? abandonment.tasks.map((item: any) => ({
+            target: String(item?.target ?? "unknown"),
+            eligibleStarts: number(item?.eligibleStarts),
+            abandoned: number(item?.abandoned),
+            abandonmentRate: number(item?.abandonmentRate),
+          }))
+        : [],
+    },
+    errors: {
+      total: number(errors.total),
+      classes: Array.isArray(errors.classes)
+        ? errors.classes.map((item: any) => ({
+            errorClass: String(item?.error_class ?? "unexpected"),
+            count: number(item?.count),
+          }))
+        : [],
+      routes: Array.isArray(errors.routes)
+        ? errors.routes.map((item: any) => ({
+            pathname: String(item?.pathname ?? "/"),
+            errorClass: String(item?.error_class ?? "unexpected"),
+            count: number(item?.count),
+          }))
+        : [],
+    },
   };
 }
 
