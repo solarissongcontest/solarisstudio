@@ -20,15 +20,22 @@ describe("System V3 S11 retained database restore evidence contract", () => {
     expect(rehearsal).not.toContain("supabase.co");
   });
 
-  it("binds retained evidence to an exact clean checked-out commit", () => {
+  it("binds retained evidence to an exact clean checked-out commit before and after rehearsal", () => {
     expect(rehearsal).toContain("V3_RECOVERY_EVIDENCE_SHA");
     expect(rehearsal).toContain("git rev-parse HEAD");
     expect(rehearsal).toContain("git status --porcelain --untracked-files=all");
+    expect(rehearsal).toContain("verify_evidence_checkout");
+    expect(rehearsal.match(/verify_evidence_checkout/g)?.length).toBeGreaterThanOrEqual(3);
     expect(rehearsal).toContain("recovery evidence SHA does not match checked-out HEAD");
     expect(rehearsal).toContain("recovery evidence requires a clean worktree");
   });
 
-  it("retains snapshot identity, measured exercise recovery time and canonical fingerprints", () => {
+  it("retains migration, operator, snapshot, timing and canonical fingerprint identity", () => {
+    expect(rehearsal).toContain("V3_RECOVERY_EVIDENCE_OPERATOR");
+    expect(rehearsal).toContain("REHEARSAL_ID");
+    expect(rehearsal).toContain("SOURCE_MIGRATION_HEAD");
+    expect(rehearsal).toContain("RESTORE_MIGRATION_HEAD");
+    expect(rehearsal).toContain("migration head differs after restore");
     expect(rehearsal).toContain("hashlib.sha256");
     expect(rehearsal).toContain("SNAPSHOT_BYTES");
     expect(rehearsal).toContain("REHEARSAL_RTO_MS");
@@ -53,6 +60,8 @@ describe("System V3 S11 retained database restore evidence contract", () => {
     expect(runbook).toContain("Exact-SHA evidence mode");
     expect(runbook).toContain("Never rehearse a destructive restore against production");
     expect(runbook).toContain("local/loopback `DB_URL`");
+    expect(runbook).toContain("V3_RECOVERY_EVIDENCE_OPERATOR");
+    expect(runbook).toContain("migration head");
     expect(runbook).toContain("providerRpoClaim: false");
     expect(runbook).toContain("qaReviewRequired: true");
   });
