@@ -98,7 +98,7 @@ async function expectActiveTab(
 
 test.describe.configure({ retries: 0 });
 
-test("installed app shell survives representative navigation without duplicate chrome: preserves remembered deep tab routes across keyboard navigation, Back, reload and resume", async ({
+test("installed app shell survives representative navigation without duplicate chrome: preserves deep tab route and scroll memory across keyboard navigation, Back, reload and resume", async ({
   browser,
 }, testInfo) => {
   test.skip(testInfo.project.name !== "ios-pwa-portrait", "Focused installed-iOS contract only");
@@ -119,8 +119,24 @@ test("installed app shell survives representative navigation without duplicate c
   await expect(page.locator('[data-v3-account-settings-screen="account"]')).toBeVisible();
   await expectActiveTab(page, "Me");
 
-  // Keyboard is a first-class navigation path. Leaving Me must retain the deep
-  // route as that tab's remembered destination.
+  // Give the fixture deterministic scroll room without seeding navigation state.
+  // The style stays mounted across SPA tab changes, so a nonzero Me scroll value
+  // can be distinguished from browser-history behavior on Home.
+  await page.addStyleTag({ content: "body { min-height: 2400px !important; }" });
+  const rememberedScrollY = 420;
+  await page.evaluate((top) => window.scrollTo({ top, behavior: "auto" }), rememberedScrollY);
+  await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(rememberedScrollY);
+  // Let V3AppShell's requestAnimationFrame scroll persistence commit before the
+  // tab switch. Route cleanup also records the same value as a second boundary.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+
+  // Keyboard is a first-class navigation path. Leaving Me must retain both the
+  // deep route and its scroll position as that tab's remembered destination.
   const homeLink = page.locator("[data-v3-liquid-tabbar]").getByRole("link", {
     name: "Home",
     exact: true,
@@ -131,8 +147,13 @@ test("installed app shell survives representative navigation without duplicate c
   await expect.poll(() => new URL(page.url()).pathname).toBe("/");
   await expectActiveTab(page, "Home");
 
+  // Deliberately move Home to the top. If Me later returns to ~420px, that value
+  // came through tab memory / restore intent rather than the current window Y.
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "auto" }));
+  await expect.poll(() => page.evaluate(() => Math.round(window.scrollY))).toBe(0);
+
   // Returning through the semantic Me tab should restore the remembered nested
-  // route instead of collapsing to a generic root.
+  // route and its remembered scroll, not collapse to a generic root/current Y.
   await page
     .locator("[data-v3-liquid-tabbar]")
     .getByRole("link", { name: "Me", exact: true })
@@ -140,6 +161,12 @@ test("installed app shell survives representative navigation without duplicate c
   await expect.poll(() => new URL(page.url()).pathname).toBe("/my-solaris/account");
   await expect(page.locator('[data-v3-account-settings-screen="account"]')).toBeVisible();
   await expectActiveTab(page, "Me");
+  await expect
+    .poll(() => page.evaluate(() => Math.round(window.scrollY)))
+    .toBeGreaterThanOrEqual(rememberedScrollY - 2);
+  await expect
+    .poll(() => page.evaluate(() => Math.round(window.scrollY)))
+    .toBeLessThanOrEqual(rememberedScrollY + 2);
 
   // Put another Home entry on the browser history stack, then prove native Back
   // returns to the exact remembered deep route with canonical tab identity.
