@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import {
   CalendarClock,
   CheckCircle2,
@@ -15,6 +16,7 @@ import {
   featureSurfaceLinks,
   SolarisSurfaceSwitch,
 } from "@/components/surfaces/SolarisSurfaceSwitch";
+import { reconcileMergedTelevotingRecoveryCookie } from "@/integrations/televoting/vote.functions";
 import { loadCountryJuryVotingState } from "@/lib/country-jury-task";
 import { useCountries } from "@/lib/data";
 import { loadStudio2HodWorkspace } from "@/lib/studio2-hod-workspace";
@@ -41,6 +43,9 @@ function MySolarisVotingPage() {
 function MySolarisVotingContent() {
   const workspace = useMySolaris();
   const search = useRouterState({ select: (state) => state.location.search });
+  const reconcileTelevoteReceipt = useServerFn(
+    reconcileMergedTelevotingRecoveryCookie,
+  );
   const targetCountryId =
     search &&
     typeof search === "object" &&
@@ -106,6 +111,28 @@ function MySolarisVotingContent() {
     refetchOnWindowFocus: true,
   });
 
+  const televoteAction =
+    primarySurfaceQuery.data?.bootstrap.actions.find(
+      (action) => action.kind === "televote",
+    ) ?? null;
+  const televoteRoundId =
+    televoteAction?.id.startsWith("televote:") === true
+      ? televoteAction.id.slice("televote:".length)
+      : null;
+  const televoteReceiptQuery = useQuery({
+    queryKey: [
+      "mysolaris-televote-receipt",
+      workspace.user?.id ?? "none",
+      televoteRoundId ?? "none",
+    ],
+    enabled: Boolean(televoteRoundId && !organizerInspection),
+    queryFn: () =>
+      reconcileTelevoteReceipt({ data: { roundId: televoteRoundId! } }),
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+    retry: false,
+  });
+
   if (organizerInspection && countries.isLoading) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -148,10 +175,7 @@ function MySolarisVotingContent() {
     : canonicalJuryState
       ? canonicalJuryState.status === "open"
       : null;
-  const televoteAction =
-    primarySurfaceQuery.data?.bootstrap.actions.find(
-      (action) => action.kind === "televote",
-    ) ?? null;
+  const televoteReceipt = televoteReceiptQuery.data ?? null;
   const televoteStatus =
     !workspace.user || !edition
       ? "Unavailable"
@@ -159,9 +183,17 @@ function MySolarisVotingContent() {
         ? "Checking"
         : primarySurfaceQuery.error
           ? "Unavailable"
-          : televoteAction
-            ? "Open"
-            : "Closed";
+          : !televoteAction
+            ? "Closed"
+            : organizerInspection
+              ? "Open"
+              : televoteReceiptQuery.isLoading
+                ? "Checking receipt"
+                : televoteReceiptQuery.error
+                  ? "Receipt unknown"
+                  : televoteReceipt
+                    ? "Submitted"
+                    : "Open";
 
   return (
     <>
@@ -327,6 +359,34 @@ function MySolarisVotingContent() {
                 The authoritative voting summary could not be loaded. Open the
                 Televoting service to check its current state.
               </p>
+            ) : televoteAction && !organizerInspection && televoteReceiptQuery.isLoading ? (
+              <p className="text-sm text-muted-foreground">
+                The round is open. Checking for an existing accepted vote
+                receipt before showing your status…
+              </p>
+            ) : televoteAction && !organizerInspection && televoteReceiptQuery.error ? (
+              <div className="rounded-xl border border-amber-300/30 bg-amber-300/10 p-4">
+                <p className="text-sm font-semibold">Receipt status unavailable</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Solaris could not reconcile this browser’s read-only Televote
+                  receipt. The dedicated voting flow will check again before it
+                  allows a fresh ballot.
+                </p>
+              </div>
+            ) : televoteAction && televoteReceipt ? (
+              <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">
+                  Vote received
+                </p>
+                <p className="mt-2 text-base font-semibold">
+                  {televoteAction.title}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {televoteReceipt.accepted_at
+                    ? `Accepted ${formatDateTime(televoteReceipt.accepted_at)}`
+                    : "An authoritative accepted-vote receipt was recovered for this round."}
+                </p>
+              </div>
             ) : televoteAction ? (
               <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
                 <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">
@@ -363,7 +423,8 @@ function MySolarisVotingContent() {
                   to="/televoting"
                   className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground"
                 >
-                  <Vote className="size-4" aria-hidden="true" /> Open televoting
+                  <Vote className="size-4" aria-hidden="true" />
+                  {televoteReceipt ? "View recorded vote" : "Open televoting"}
                 </Link>
               ) : null}
               <Link
