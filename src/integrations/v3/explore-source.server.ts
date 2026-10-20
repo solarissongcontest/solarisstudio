@@ -88,16 +88,17 @@ function experienceFromPhase(
   switch (phase) {
     case "live":
       return "live";
+    case "jury_voting":
+    case "voting":
+      return "voting";
+    case "results_pending":
+      return "results-pending";
     case "results_published":
       return "results";
     case "post_edition":
       return normalizeLegacyEditionStatus(edition.status) === "archived"
         ? "archived"
         : "post-edition";
-    case "jury_voting":
-    case "voting":
-    case "results_pending":
-      return "show-day";
     case "pre_show":
     case "submissions":
     case "confirmations":
