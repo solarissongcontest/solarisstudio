@@ -100,7 +100,7 @@ describe("V3 account session projection", () => {
     expect(attempt.idempotencyKey).toBe(`account-session-revoke:${attempt.operationId}`);
   });
 
-  it("accepts only the authoritative receipt for the exact reviewed revocation attempt", () => {
+  it("accepts only the authoritative successful receipt for the exact reviewed revocation attempt", () => {
     const attempt = {
       sessionHandle: handleB,
       operationId: "11111111-1111-4111-8111-111111111111",
@@ -130,6 +130,14 @@ describe("V3 account session projection", () => {
     for (const payload of [
       {},
       { ok: true, sessionHandle: handleB },
+      {
+        ok: false,
+        sessionHandle: handleB,
+        operationId: attempt.operationId,
+        receiptId: attempt.operationId,
+        replayed: true,
+        revokedAt: "2026-10-19T20:00:00Z",
+      },
       {
         ok: true,
         sessionHandle: handleB,
