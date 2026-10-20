@@ -26,6 +26,24 @@ describe("retained AppTabBar interruption safety", () => {
     );
   });
 
+  it("releases retained pointer capture from the canonical reset path", () => {
+    const resetStart = tabs.indexOf("const resetDragDom = useCallback");
+    const clearStart = tabs.indexOf("const clearDrag = useCallback", resetStart);
+    const startDragStart = tabs.indexOf("const startDrag =", clearStart);
+    const moveDragStart = tabs.indexOf("const moveDrag =", startDragStart);
+    const resetBlock = tabs.slice(resetStart, clearStart);
+    const startDragBlock = tabs.slice(startDragStart, moveDragStart);
+
+    expect(tabs).toContain("captureTarget: HTMLAnchorElement");
+    expect(startDragBlock).toContain("captureTarget: event.currentTarget");
+    expect(resetBlock).toContain(
+      "drag.captureTarget.hasPointerCapture?.(drag.pointerId)",
+    );
+    expect(resetBlock).toContain(
+      "drag.captureTarget.releasePointerCapture?.(drag.pointerId)",
+    );
+  });
+
   it("suppresses the trailing click before environment-level cleanup", () => {
     const interruptStart = tabs.indexOf("const interruptDrag = useCallback");
     const listenerStart = tabs.indexOf("useEffect(() => {", interruptStart);
