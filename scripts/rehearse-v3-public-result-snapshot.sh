@@ -76,10 +76,10 @@ commit;"
 
 log "Capturing and publishing corrected version 2"
 db_exec "update public.studio2_result_operations
-set calculation_version=2,last_calculated_at=now(),last_calculated_by=null,
-    reviewed_version=2,reviewed_at=now(),reviewed_by=null,
-    locked_version=2,locked_at=now(),locked_by=null,
-    reveal_ready_version=2,reveal_ready_at=now(),reveal_ready_by=null
+set calculation_version=2,last_calculated_at=now(),
+    reviewed_version=2,reviewed_at=now(),
+    locked_version=2,locked_at=now(),
+    reveal_ready_version=2,reveal_ready_at=now()
 where show_id='$SHOW_ID';"
 [[ "$(db_value "select count(*) from private.v3_result_versions where show_id='$SHOW_ID' and version=2;")" == '1' ]] || fail "immutable corrected result version 2 was not captured"
 
