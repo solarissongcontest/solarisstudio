@@ -11,6 +11,14 @@ const migration = () =>
 const rolloutProbe = () => source("src/integrations/v3/rollout-probe.server.ts");
 
 describe("System V3 S12 bounded feature-flag snapshot", () => {
+  it("registers through the canonical S13 migration contract", () => {
+    const sql = migration();
+
+    expect(sql).toContain("public.v3_register_migration_contract(");
+    expect(sql).toContain("20261020062000_v3_s12_feature_flag_snapshot");
+    expect(sql).toContain("'forward_fix_only'");
+  });
+
   it("keeps the public RPC bounded and metadata-minimal", () => {
     const sql = migration();
 
