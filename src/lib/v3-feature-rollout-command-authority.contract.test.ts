@@ -13,6 +13,7 @@ const organizerRoute = source('src/routes/_authenticated/admin/feature-rollout.t
 const maintenanceGuard = source(
   'supabase/migrations/20261017210000_confirmation_maintenance_operation_claim_gate.sql',
 );
+const rehearsal = source('scripts/v3-feature-rollout-command-rehearsal.sh');
 
 describe('System V3 Feature Rollout command authority', () => {
   it('is explicitly governed by the S13 forward-fix migration contract', () => {
@@ -123,5 +124,17 @@ describe('System V3 Feature Rollout command authority', () => {
     expect(noChange).toBeGreaterThan(-1);
     expect(canonicalApply).toBeGreaterThan(noChange);
     expect(compatibility.slice(noChange, canonicalApply)).toContain('return v_row;');
+  });
+
+  it('ships a local-only runtime rehearsal for replay, stale CAS, privacy and authorization', () => {
+    expect(rehearsal).toContain('Refusing hosted Supabase rehearsal');
+    expect(rehearsal).toContain('Refusing non-local database rehearsal');
+    expect(rehearsal).toContain('Equivalent reordered scope is a true compatibility no-op');
+    expect(rehearsal).toContain('exact rollout operation did not replay');
+    expect(rehearsal).toContain('stale rollout CAS');
+    expect(rehearsal).toContain('unauthorized rollout preview');
+    expect(rehearsal).toContain('rollout event leaked targeted user identifiers');
+    expect(rehearsal).toContain('rollout audit leaked targeted user identifiers');
+    expect(rehearsal).toContain('service_role still has direct rollout UPDATE authority');
   });
 });
