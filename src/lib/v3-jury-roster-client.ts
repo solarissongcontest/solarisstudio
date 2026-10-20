@@ -17,7 +17,7 @@ export type JuryRosterPreviewVoter = {
   countryId: string | null;
   contestEntityId: string | null;
   name: string;
-  kind: "country" | "external-country" | "organisation" | "person" | "custom";
+  kind: "country" | "external-country" | "organization" | "person" | "custom";
   flagImage: string | null;
   accentColor: string;
   sortOrder: number;
