@@ -70,6 +70,19 @@ export function validateV3S16CategorySourceEvidence(
     }
   }
 
+  if (categoryId === "production-isolation") {
+    const guard = record(evidence.guard);
+    if (guard?.workflowPath !== ".github/workflows/ci.yml") {
+      issues.push("production-isolation: evidence is not bound to canonical Quality workflow path");
+    }
+    if (guard?.scriptPath !== "scripts/check-v3-production-isolation.ts") {
+      issues.push("production-isolation: evidence is not bound to canonical production-isolation guard");
+    }
+    if (guard?.invocationVerified !== true) {
+      issues.push("production-isolation: exact-SHA Quality invocation of the isolation guard was not verified");
+    }
+  }
+
   if (categoryId === "migration-rehearsal") {
     const provenance = record(evidence.provenance);
     if (provenance?.workflow !== "Rules + Integrity migration rehearsal") {
