@@ -10,15 +10,15 @@ import {
 } from "lucide-react";
 
 import { AppShell, PageHeader, Panel } from "@/components/AppShell";
+import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
 import {
   featureSurfaceLinks,
   SolarisSurfaceSwitch,
 } from "@/components/surfaces/SolarisSurfaceSwitch";
-import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
-import { televotingSupabase } from "@/integrations/televoting/client";
-import { useCountries } from "@/lib/data";
 import { loadCountryJuryVotingState } from "@/lib/country-jury-task";
+import { useCountries } from "@/lib/data";
 import { loadStudio2HodWorkspace } from "@/lib/studio2-hod-workspace";
+import { useV3PrimarySurfaceBundle } from "@/lib/v3-primary-runtime";
 
 export const Route = createFileRoute("/_authenticated/my-solaris/voting")({
   head: () => ({
@@ -29,32 +29,6 @@ export const Route = createFileRoute("/_authenticated/my-solaris/voting")({
   }),
   component: MySolarisVotingPage,
 });
-
-type OpenTelevote = {
-  id: string;
-  name: string;
-  editionName: string | null;
-};
-
-async function loadOpenTelevote(): Promise<OpenTelevote | null> {
-  const { data, error } = await televotingSupabase
-    .from("rounds")
-    .select("id,name,editions(name)")
-    .eq("status", "open")
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) return null;
-  const row = data as unknown as {
-    id: string;
-    name: string;
-    editions: { name: string } | null;
-  };
-  return {
-    id: row.id,
-    name: row.name,
-    editionName: row.editions?.name ?? null,
-  };
-}
 
 function MySolarisVotingPage() {
   return (
@@ -110,24 +84,25 @@ function MySolarisVotingContent() {
     ),
     queryFn: () => loadStudio2HodWorkspace(edition!.id, country!.id),
     staleTime: 20_000,
-    refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
 
-  const televoteQuery = useQuery({
-    queryKey: ["mysolaris-open-televote"],
-    queryFn: loadOpenTelevote,
-    staleTime: 15_000,
-    refetchInterval: 30_000,
-    refetchOnWindowFocus: true,
-  });
+  const primarySurfaceQuery = useV3PrimarySurfaceBundle(
+    Boolean(workspace.user?.id && edition?.id),
+    edition?.id,
+    workspace.user?.id,
+  );
 
   const juryWindowQuery = useQuery({
     enabled: Boolean(workspace.user && !organizerInspection && edition?.id),
-    queryKey: ["mysolaris-jury-window-state", workspace.user?.id ?? "none", country?.id ?? "none", edition?.id ?? "none"],
+    queryKey: [
+      "mysolaris-jury-window-state",
+      workspace.user?.id ?? "none",
+      country?.id ?? "none",
+      edition?.id ?? "none",
+    ],
     queryFn: () => loadCountryJuryVotingState(edition!.id),
     staleTime: 15_000,
-    refetchInterval: 30_000,
     refetchOnWindowFocus: true,
   });
 
@@ -163,7 +138,9 @@ function MySolarisVotingContent() {
     `${deadline.kind} ${deadline.label}`.toLowerCase().includes("jury"),
   );
   const juryReady = Boolean(context && hod);
-  const canonicalJuryState = organizerInspection ? null : juryWindowQuery.data ?? null;
+  const canonicalJuryState = organizerInspection
+    ? null
+    : juryWindowQuery.data ?? null;
   const ballotSubmitted =
     canonicalJuryState?.submitted ?? Boolean(context?.juryBallotSubmitted);
   const juryWindowOpen: boolean | null = organizerInspection
@@ -171,7 +148,20 @@ function MySolarisVotingContent() {
     : canonicalJuryState
       ? canonicalJuryState.status === "open"
       : null;
-  const openTelevote = televoteQuery.data ?? null;
+  const televoteAction =
+    primarySurfaceQuery.data?.bootstrap.actions.find(
+      (action) => action.kind === "televote",
+    ) ?? null;
+  const televoteStatus =
+    !workspace.user || !edition
+      ? "Unavailable"
+      : primarySurfaceQuery.isLoading
+        ? "Checking"
+        : primarySurfaceQuery.error
+          ? "Unavailable"
+          : televoteAction
+            ? "Open"
+            : "Closed";
 
   return (
     <>
@@ -191,7 +181,9 @@ function MySolarisVotingContent() {
         <div className="mb-4 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3">
           <p className="text-sm font-semibold">Participant View · read-only</p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            You are inspecting this delegation’s voting status. Jury submission and public voting actions are disabled here; use Manage for Organizer controls.
+            You are inspecting this delegation’s voting status. Jury submission
+            and public voting actions are disabled here; use Manage for
+            Organizer controls.
           </p>
         </div>
       ) : null}
@@ -220,10 +212,7 @@ function MySolarisVotingContent() {
                     : "Window state unavailable"
             }
           />
-          <VotingMetric
-            label="Televote"
-            value={openTelevote ? "Open" : "Closed"}
-          />
+          <VotingMetric label="Televote" value={televoteStatus} />
         </section>
 
         <div className="grid gap-4 xl:grid-cols-2">
@@ -326,27 +315,30 @@ function MySolarisVotingContent() {
 
           <Panel
             title="Public televote"
-            description="Live audience-voting status and relevant actions"
-            actions={<StatusPill value={openTelevote ? "open" : "closed"} />}
+            description="Current-edition audience-voting status from the shared V3 projection"
+            actions={<StatusPill value={televoteStatus.toLowerCase()} />}
           >
-            {televoteQuery.isLoading ? (
+            {primarySurfaceQuery.isLoading ? (
               <p className="text-sm text-muted-foreground">
-                Checking the public televote…
+                Checking the current-edition public televote…
               </p>
-            ) : televoteQuery.error ? (
+            ) : primarySurfaceQuery.error ? (
               <p className="text-sm text-destructive">
-                The live televote status could not be loaded.
+                The authoritative voting summary could not be loaded. Open the
+                Televoting service to check its current state.
               </p>
-            ) : openTelevote ? (
+            ) : televoteAction ? (
               <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 p-4">
                 <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-200">
                   Open now
                 </p>
                 <p className="mt-2 text-base font-semibold">
-                  {openTelevote.name}
+                  {televoteAction.title}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {openTelevote.editionName ?? "Solaris Song Contest"}
+                  {televoteAction.deadline
+                    ? `Closes ${formatDateTime(televoteAction.deadline)}`
+                    : edition?.name ?? "Solaris Song Contest"}
                 </p>
               </div>
             ) : (
@@ -359,8 +351,9 @@ function MySolarisVotingContent() {
                   Voting is currently closed
                 </p>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  The public voting service has not published a future opening
-                  time. This status refreshes automatically.
+                  The shared current-edition V3 projection reports no open
+                  public televote. The dedicated Televoting workflow remains
+                  the authority for ballot submission.
                 </p>
               </div>
             )}
