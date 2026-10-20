@@ -303,6 +303,11 @@ export function AppTabBar({
     index: number,
     active: boolean,
   ) => {
+    // A completed or interrupted gesture may deliberately suppress its trailing
+    // click. A genuinely new pointer press starts a fresh click sequence, even
+    // when it lands on an inactive tab that will not enter drag mode.
+    if (!dragState.current) suppressClick.current = false;
+
     if (
       !active ||
       collapsed ||
