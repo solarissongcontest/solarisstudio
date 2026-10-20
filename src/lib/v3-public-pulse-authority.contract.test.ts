@@ -7,6 +7,7 @@ const server = () => read("src/integrations/v3/public-pulse.server.ts");
 const functions = () => read("src/lib/v3-public-pulse.functions.ts");
 const runtime = () => read("src/lib/v3-public-pulse-runtime.ts");
 const engagement = () => read("src/lib/engagement-data.ts");
+const pulseRoute = () => read("src/routes/pulse/index.tsx");
 
 describe("V3 Public Pulse authority", () => {
   it("reads only the caller-invariant System projection", () => {
@@ -45,5 +46,15 @@ describe("V3 Public Pulse authority", () => {
     expect(server()).toContain("missingPublicPulseContract");
     expect(server()).toContain("emptyV3PublicPulseBundle");
     expect(server()).not.toContain("fallback");
+  });
+
+  it("does not let the browser clock decide Prediction movement eligibility", () => {
+    const route = pulseRoute();
+    expect(route).toContain('round.status === "open"');
+    expect(route).toContain("const movementAllowed = Boolean(user && pulseRound);");
+    expect(route).toContain("usePredictionMovement(pulseRound?.id, movementAllowed)");
+    expect(route).not.toContain("useMyPrediction");
+    expect(route).not.toContain("new Date(pulseRound.locks_at).getTime() <= now");
+    expect(route).not.toContain("new Date(round.locks_at).getTime() > now");
   });
 });
