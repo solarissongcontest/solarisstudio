@@ -1,6 +1,7 @@
 import type { SystemJsonValue, SystemReceipt } from "@/lib/system-operation-contract";
 import {
   applyIncidentCommandV3,
+  loadIncidentCommandProjection,
   preflightIncidentCommand,
   type V3IncidentAction,
   type V3IncidentCommandPreflight,
@@ -71,6 +72,36 @@ function assertPreflightScope(input: {
   }
 }
 
+/**
+ * Load only the exact canonical identity/version required to commit a reviewed
+ * Incident operation. The route may keep its mature compatibility read model
+ * during cutover, but consequential mutation CAS always binds to this bounded
+ * System projection.
+ */
+export async function loadOrganizerIncidentCurrentState(input: {
+  context: OrganizerIncidentContext;
+  incidentId: string;
+}): Promise<OrganizerIncidentCurrentState> {
+  const editionId = requireId(input.context.editionId, "Organizer edition");
+  const incidentId = requireId(input.incidentId, "Incident");
+  const projection = await loadIncidentCommandProjection(editionId, {
+    incidentId,
+    limit: 1,
+  });
+  if (projection.editionId !== editionId) {
+    throw new Error("Incident Command projection crossed Organizer edition scope.");
+  }
+  const incident = projection.incidents.find((candidate) => candidate.id === incidentId);
+  if (!incident) {
+    throw new Error("The reviewed incident no longer exists in the selected edition.");
+  }
+  return {
+    editionId,
+    incidentId,
+    version: requireVersion(incident.version),
+  };
+}
+
 export async function prepareOrganizerIncidentOperation(input: {
   context: OrganizerIncidentContext;
   incidentId?: string | null;
@@ -97,10 +128,9 @@ export async function prepareOrganizerIncidentOperation(input: {
     ? null
     : requireVersion(preflight.expectedVersion);
 
-  if (preflight.reasonRequired && !reason) {
-    throw new Error("Incident Command requires an Organizer reason for this operation.");
-  }
-
+  // Reason requirements are authoritative preflight evidence shown to the
+  // organizer. The human may supply the reason after preflight; commit is the
+  // point that must fail closed when required evidence is still absent.
   return {
     editionId,
     incidentId,
@@ -113,6 +143,16 @@ export async function prepareOrganizerIncidentOperation(input: {
     reasonRequired: preflight.reasonRequired,
     consequences: [...preflight.consequences],
     serverTime: preflight.serverTime,
+  };
+}
+
+export function withOrganizerIncidentReviewReason(
+  review: OrganizerIncidentOperationReview,
+  reason: string | null | undefined,
+): OrganizerIncidentOperationReview {
+  return {
+    ...review,
+    reason: normalizeReason(reason),
   };
 }
 
