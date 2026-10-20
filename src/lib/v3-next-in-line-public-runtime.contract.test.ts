@@ -57,6 +57,14 @@ describe("V3 Public Next in Line runtime", () => {
     expect(runtime).toContain("context.country.name.trim().toLocaleLowerCase()");
   });
 
+  it("returns an explicit ineligible state instead of an empty successful country picker", () => {
+    const runtime = source();
+
+    expect(runtime).toContain("if (!countries.length)");
+    expect(runtime).toContain('error: "ineligible" as const');
+    expect(runtime).toContain("editing_open: false");
+  });
+
   it("restores the canonical saved submission and uses the server window as edit authority", () => {
     const runtime = source();
     const ui = competition();
