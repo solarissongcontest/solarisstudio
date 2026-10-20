@@ -5,6 +5,8 @@ export type V3DatabaseRestoreEvidenceAssessment = {
   status: V3DatabaseRestoreEvidenceStatus;
   expectedCommitSha: string | null;
   evidenceCommitSha: string | null;
+  rehearsalId: string | null;
+  migrationHead: string | null;
   rehearsalDurationMs: number | null;
   exerciseRpoSeconds: number | null;
   snapshotSha256: string | null;
@@ -27,6 +29,7 @@ const REQUIRED_CRITICAL_RELATIONS = [
   "public.studio2_operation_receipts",
   "public.admin_audit_log",
 ] as const;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function asRecord(value: unknown): UnknownRecord | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -44,6 +47,12 @@ function exactSha256(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toLowerCase();
   return /^[0-9a-f]{64}$/.test(normalized) ? normalized : null;
+}
+
+function boundedLabel(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized && normalized.length <= 120 ? normalized : null;
 }
 
 function finiteNonNegative(value: unknown): number | null {
@@ -89,6 +98,8 @@ export function assessV3DatabaseRestoreEvidence(
       status: "invalid",
       expectedCommitSha,
       evidenceCommitSha: null,
+      rehearsalId: null,
+      migrationHead: null,
       rehearsalDurationMs: null,
       exerciseRpoSeconds: null,
       snapshotSha256: null,
@@ -100,6 +111,16 @@ export function assessV3DatabaseRestoreEvidence(
   }
 
   const evidenceCommitSha = exactSha(record.commitSha);
+  const rehearsalId =
+    typeof record.rehearsalId === "string" && UUID_RE.test(record.rehearsalId)
+      ? record.rehearsalId.toLowerCase()
+      : null;
+  const migrationHead =
+    typeof record.migrationHead === "string" && /^\d{8,20}$/.test(record.migrationHead)
+      ? record.migrationHead
+      : null;
+  const operatorIdentity = boundedLabel(record.operatorIdentity);
+  const environment = boundedLabel(record.environment);
   const startedAt = isoInstant(record.startedAt);
   const completedAt = isoInstant(record.completedAt);
   const snapshot = asRecord(record.snapshot);
@@ -111,7 +132,6 @@ export function assessV3DatabaseRestoreEvidence(
   const exerciseRpoSeconds = finiteNonNegative(achieved?.exerciseRpoSeconds);
   const fingerprints = asRecord(validation?.criticalRelationFingerprints);
   const foreignKeyValidationState = validation?.foreignKeyValidationState;
-  const environment = record.environment;
   const issuesFound = stringArray(record.issuesFound);
   const followUpActions = stringArray(record.followUpActions);
 
@@ -128,11 +148,10 @@ export function assessV3DatabaseRestoreEvidence(
   } else if (expectedCommitSha && evidenceCommitSha !== expectedCommitSha) {
     errors.push("database restore evidence does not belong to the expected commit SHA");
   }
-  if (typeof environment !== "string" || environment.trim().length === 0) {
-    errors.push("environment must be a non-empty label");
-  } else if (environment.length > 120) {
-    errors.push("environment must be at most 120 characters");
-  }
+  if (!environment) errors.push("environment must be a 1..120 character label");
+  if (!operatorIdentity) errors.push("operatorIdentity must be a 1..120 character label");
+  if (!rehearsalId) errors.push("rehearsalId must be a UUID");
+  if (!migrationHead) errors.push("migrationHead must be a migration version identifier");
   if (startedAt === null || completedAt === null || completedAt < startedAt) {
     errors.push("startedAt/completedAt must be ordered ISO timestamps");
   }
@@ -168,6 +187,9 @@ export function assessV3DatabaseRestoreEvidence(
     }
   }
 
+  if (validation?.migrationHeadVerified !== true) {
+    errors.push("migrationHeadVerified must be true");
+  }
   if (
     typeof foreignKeyValidationState !== "string"
     || !/^\d+:\d+$/.test(foreignKeyValidationState)
@@ -199,6 +221,8 @@ export function assessV3DatabaseRestoreEvidence(
     status: errors.length === 0 ? "ready_for_qa_review" : "invalid",
     expectedCommitSha,
     evidenceCommitSha,
+    rehearsalId,
+    migrationHead,
     rehearsalDurationMs,
     exerciseRpoSeconds,
     snapshotSha256,
