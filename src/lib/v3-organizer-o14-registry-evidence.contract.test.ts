@@ -26,16 +26,21 @@ describe("V3 Organizer platform and anniversary capability evidence", () => {
     expect(reviewContract).toContain("re-reads rollout state and recomputes dependency legality immediately before apply");
   });
 
-  it("reports All Editions as building from the merged reviewed lifecycle boundary", () => {
+  it("reports All Editions as building while recording the governed lifecycle cutover", () => {
     const route = source("src/routes/_authenticated/admin/editions.tsx");
+    const workspace = source("src/components/admin/AllEditionsWorkspaceV3.tsx");
     const reviewContract = source("src/lib/v3-organizer-edition-destructive-review.contract.test.ts");
+    const lifecycle = source("supabase/migrations/20261020092500_v3_all_editions_lifecycle_authority.sql");
 
+    // System #1068 is implemented here, but the Organizer registry owner still
+    // controls final parity/cutover promotion after exact-head integration evidence.
     expect(statusFor("workspace-all-editions")).toBe("building");
-    expect(route).toContain("prepareEditionLifecycleReview");
-    expect(route).toContain("revalidateEditionLifecycleReview");
-    expect(route).toContain("Edition state changed after this review opened");
-    expect(route).toContain("System #1068 still owns the canonical edition lifecycle command");
-    expect(reviewContract).toContain("re-reads exact edition dependencies and fails closed on review drift");
+    expect(route).toContain("AllEditionsWorkspaceV3");
+    expect(workspace).toContain("previewEditionMakePrivateV3");
+    expect(workspace).toContain("createEditionDraftV3");
+    expect(lifecycle).toContain("'edition.make_private'");
+    expect(lifecycle).toContain("'edition.create_draft'");
+    expect(reviewContract).toContain("retires permanent browser deletion instead of cascading historical truth");
   });
 
   it("reports Anniversary Dates as building from the merged conditional review boundary", () => {
@@ -54,7 +59,7 @@ describe("V3 Organizer platform and anniversary capability evidence", () => {
     expect(statusFor("workspace-system-settings")).toBe("planned");
   });
 
-  it("keeps every evidence-backed mutation surface in this slice below parity while System gaps remain open", () => {
+  it("keeps registry promotion separate from implementation evidence until integrator certification", () => {
     expect(statusFor("workspace-feature-rollout")).not.toBe("parity");
     expect(statusFor("workspace-all-editions")).not.toBe("parity");
     expect(statusFor("workspace-anniversary-dates")).not.toBe("parity");
