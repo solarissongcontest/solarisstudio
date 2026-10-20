@@ -14,6 +14,60 @@ MIGRATIONS_DIR="$ROOT/supabase/migrations"
 HELD_DIR="$(mktemp -d)"
 RESTORED=false
 STARTED=false
+CURRENT_PHASE="bootstrap"
+CURRENT_REHEARSAL=""
+EVIDENCE_DIR="${V3_RELEASE_EVIDENCE_DIR:-$ROOT/v3-release-evidence}"
+EVIDENCE_PATH="$EVIDENCE_DIR/production-head-upgrade-evidence.json"
+CANDIDATE_SHA="$(git -C "$ROOT" rev-parse HEAD)"
+LATEST_HEAD="unknown"
+EXPECTED_DELTA="unknown"
+mkdir -p "$EVIDENCE_DIR"
+
+write_evidence() {
+  local passed="$1" exit_code="$2"
+  V3_UPGRADE_EVIDENCE_PATH="$EVIDENCE_PATH" \
+  V3_UPGRADE_PASSED="$passed" \
+  V3_UPGRADE_EXIT_CODE="$exit_code" \
+  V3_UPGRADE_CANDIDATE_SHA="$CANDIDATE_SHA" \
+  V3_UPGRADE_PRODUCTION_HEAD="$PRODUCTION_HEAD" \
+  V3_UPGRADE_REPOSITORY_HEAD="$LATEST_HEAD" \
+  V3_UPGRADE_EXPECTED_DELTA="$EXPECTED_DELTA" \
+  V3_UPGRADE_PHASE="$CURRENT_PHASE" \
+  V3_UPGRADE_REHEARSAL="$CURRENT_REHEARSAL" \
+  python3 <<'PY' || true
+import json
+import os
+from pathlib import Path
+
+passed = os.environ.get("V3_UPGRADE_PASSED") == "true"
+try:
+    exit_code = int(os.environ.get("V3_UPGRADE_EXIT_CODE", "1"))
+except ValueError:
+    exit_code = 1
+
+raw_delta = os.environ.get("V3_UPGRADE_EXPECTED_DELTA", "unknown")
+try:
+    expected_delta = int(raw_delta)
+except ValueError:
+    expected_delta = None
+
+payload = {
+    "schemaVersion": 1,
+    "candidateSha": os.environ.get("V3_UPGRADE_CANDIDATE_SHA"),
+    "passed": passed,
+    "exitCode": exit_code,
+    "productionMigrationHead": os.environ.get("V3_UPGRADE_PRODUCTION_HEAD"),
+    "repositoryMigrationHead": os.environ.get("V3_UPGRADE_REPOSITORY_HEAD"),
+    "expectedMigrationDelta": expected_delta,
+    "phase": os.environ.get("V3_UPGRADE_PHASE"),
+    "rehearsal": os.environ.get("V3_UPGRADE_REHEARSAL") or None,
+}
+Path(os.environ["V3_UPGRADE_EVIDENCE_PATH"]).write_text(
+    json.dumps(payload, indent=2, sort_keys=True) + "\n",
+    encoding="utf-8",
+)
+PY
+}
 
 restore_migrations() {
   if [[ "$RESTORED" == false ]]; then
@@ -27,6 +81,9 @@ restore_migrations() {
 cleanup() {
   local status=$?
   trap - EXIT INT TERM
+  if (( status != 0 )); then
+    write_evidence false "$status"
+  fi
   restore_migrations || true
   if [[ "$STARTED" == true ]]; then
     (cd "$ROOT" && supabase stop --no-backup) >/dev/null 2>&1 || true
@@ -36,11 +93,13 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+CURRENT_PHASE="validate-configuration"
 [[ "$PRODUCTION_HEAD" =~ ^[0-9]{14}$ ]] \
   || fail "Configured production head must be a 14-digit migration version"
 [[ "$PRODUCTION_BASELINE_SHA256" =~ ^[0-9a-f]{64}$ ]] \
   || fail "Configured production baseline fingerprint must be a lowercase SHA-256"
 
+CURRENT_PHASE="inventory-migrations"
 mapfile -t all_migrations < <(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort)
 (( ${#all_migrations[@]} > 0 )) || fail "No migration files found"
 mapfile -t production_head_matches < <(printf '%s\n' "${all_migrations[@]}" | awk -F_ -v head="$PRODUCTION_HEAD" '$1 == head')
@@ -51,6 +110,7 @@ LATEST_HEAD="${all_migrations[$last_index]%%_*}"
 [[ "$LATEST_HEAD" =~ ^[0-9]{14}$ ]] || fail "Cannot derive repository migration head"
 [[ "$LATEST_HEAD" > "$PRODUCTION_HEAD" ]] || fail "Repository head must be ahead of production for this rehearsal"
 
+CURRENT_PHASE="verify-production-baseline-fingerprint"
 baseline_fingerprint="$({
   for base in "${all_migrations[@]}"; do
     version="${base%%_*}"
@@ -63,6 +123,7 @@ baseline_fingerprint="$({
 [[ "$baseline_fingerprint" == "$PRODUCTION_BASELINE_SHA256" ]] \
   || fail "A migration at or before hosted production head was added or changed"
 
+CURRENT_PHASE="isolate-post-production-migrations"
 log "Holding migrations newer than hosted production head $PRODUCTION_HEAD"
 held=0
 for base in "${all_migrations[@]}"; do
@@ -75,7 +136,9 @@ for base in "${all_migrations[@]}"; do
 done
 (( held > 0 )) || fail "No post-production migrations were isolated"
 expected_delta="$held"
+EXPECTED_DELTA="$expected_delta"
 
+CURRENT_PHASE="build-production-head-baseline"
 log "Building disposable local Supabase at the hosted production migration head"
 cd "$ROOT"
 supabase start
@@ -105,20 +168,25 @@ reset_local_operational_mode() {
   fi
 }
 
+CURRENT_PHASE="verify-production-head-baseline"
 baseline_head="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select version from supabase_migrations.schema_migrations order by version desc limit 1;")"
 [[ "$baseline_head" == "$PRODUCTION_HEAD" ]] \
   || fail "Local baseline head is $baseline_head, expected hosted production head $PRODUCTION_HEAD"
 
+CURRENT_PHASE="seed-legacy-entry-evidence"
 log "Seeding representative legacy Entry evidence before the upgrade"
 bash "$ROOT/.github/scripts/v3-entry-legacy-upgrade-rehearsal.sh" --seed
 
+CURRENT_PHASE="apply-repository-migration-delta"
 log "Restoring the exact repository delta and applying it as one upgrade"
 restore_migrations
 supabase migration up --local --include-all
 
+CURRENT_PHASE="verify-legacy-entry-evidence"
 log "Verifying the legacy Entry evidence survived without fabricated approval provenance"
 bash "$ROOT/.github/scripts/v3-entry-legacy-upgrade-rehearsal.sh"
 
+CURRENT_PHASE="verify-upgraded-migration-head"
 upgraded_head="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -qAt -c "select version from supabase_migrations.schema_migrations order by version desc limit 1;")"
 [[ "$upgraded_head" == "$LATEST_HEAD" ]] \
   || fail "Local upgraded head is $upgraded_head, expected repository head $LATEST_HEAD"
@@ -159,14 +227,21 @@ mapfile -t s5_consequence_rehearsals < <(
 (( ${#s5_consequence_rehearsals[@]} > 0 )) \
   || fail "No S5 consequence rehearsals found after the production-head upgrade"
 
+CURRENT_PHASE="run-post-upgrade-rehearsals"
 log "Re-running critical V3 invariants on the production-head upgrade path"
 for rehearsal in "${core_rehearsals[@]}" "${s5_consequence_rehearsals[@]}"; do
+  CURRENT_REHEARSAL="$rehearsal"
+  CURRENT_PHASE="rehearsal:$rehearsal"
   log "Running $rehearsal"
   bash "$ROOT/.github/scripts/$rehearsal"
+  CURRENT_PHASE="reset-local-operational-mode:$rehearsal"
   # A destructive rehearsal may intentionally enter read_only/maintenance.
   # Keep scenarios independent without weakening the platform-mode guard inside
   # the rehearsal itself.
   reset_local_operational_mode
 done
+CURRENT_REHEARSAL=""
+CURRENT_PHASE="complete"
+write_evidence true 0
 
 log "Production-head-equivalent upgrade passed: $PRODUCTION_HEAD -> $LATEST_HEAD ($expected_delta migrations; ${#s5_consequence_rehearsals[@]} S5 consequence rehearsals)"
