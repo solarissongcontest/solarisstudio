@@ -69,16 +69,22 @@ describe("S15 exact-SHA zero-orphan release evidence", () => {
   it("supports fail-closed final enforcement without suppressing diagnostic evidence", () => {
     expect(builder).toContain('process.argv.includes("--require-zero")');
     expect(builder).toContain("if (requireZero && readiness.zeroOrphans !== true) process.exit(1)");
+    expect(builder.indexOf("writeFileSync(outputPath")).toBeLessThan(
+      builder.indexOf("if (requireZero && readiness.zeroOrphans !== true) process.exit(1)"),
+    );
   });
 
-  it("is wired into exact-SHA release preflight", () => {
-    expect(preflight).toContain("build-v3-s15-zero-orphan-evidence.ts");
+  it("is enforced in exact-SHA release preflight rather than generated as advisory evidence", () => {
+    expect(preflight).toContain("build-v3-s15-zero-orphan-evidence.ts --require-zero");
     expect(preflight).toContain("V3_RELEASE_EVIDENCE_DIR=v3-release-preflight");
     expect(preflight).toContain("s15-zero-orphan.json");
+    expect(preflight).toContain('zero_orphans="$(node -e');
+    expect(preflight).toContain("S15 release preflight did not prove zeroOrphans=true");
   });
 
   it("does not introduce hosted Supabase access", () => {
     expect(builder).not.toContain("supabase.co");
     expect(readiness).not.toContain("supabase.co");
+    expect(preflight).not.toContain("supabase.co");
   });
 });
