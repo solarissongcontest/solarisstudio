@@ -26,7 +26,7 @@ describe("System V3 S9/S10 workflow observability", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
     expect(migration).toContain("'v3.s9-s10.workflow-observability-v1'");
     expect(migration).toContain("'forward_fix_only'");
-    expect(migration).not.toMatch(/https:\/\/[^\s'\"]+\.supabase\.co/i);
+    expect(migration).not.toMatch(/https:\/\/[^\s'"]+\.supabase\.co/i);
   });
 
   it("uses exactly the fixed workflow scopes already owned by the S10 error-budget contract", () => {
