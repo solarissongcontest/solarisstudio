@@ -48,10 +48,10 @@ function missingPublicPulseContract(error: RpcError | null) {
  * owns publication timing, payload allowlisting and route safety; viewer role
  * must never widen this feed.
  */
-export async function loadV3PublicPulseEvents(): Promise<V3PublicPulseBundle> {
+export async function loadV3PublicPulseEvents(limit: number): Promise<V3PublicPulseBundle> {
   const client = createCallerInvariantPulseClient();
   const { data, error } = await client.rpc("v3_public_pulse_events", {
-    p_limit: 50,
+    p_limit: limit,
     p_before_published_at: null,
     p_before_id: null,
     p_category: null,
