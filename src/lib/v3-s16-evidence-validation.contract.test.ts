@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
+import {
+  V3_S14_FAILURE_INJECTIONS,
+  V3_S14_INVARIANTS,
+  V3_S14_SEED_CONTRACT,
+  V3_S14_STAGES,
+} from "../../scripts/v3-s14-full-contest-spec";
 import { validateV3S16CategorySourceEvidence } from "./v3-s16-evidence-validation";
 
 const SHA = "a".repeat(40);
+const GRAND_FINAL_EXTENSIONS = [
+  "grand-final-qualifier-bridge",
+  "grand-final-voting",
+  "grand-final-results",
+  "grand-final-publication",
+];
 
 function coreEvidence(workflow: string) {
   return {
@@ -24,6 +36,28 @@ function productionIsolationEvidence() {
       workflowPath: ".github/workflows/ci.yml",
       scriptPath: "scripts/check-v3-production-isolation.ts",
       invocationVerified: true,
+    },
+  };
+}
+
+function completeS14Evidence() {
+  return {
+    schemaVersion: 2,
+    candidateSha: SHA,
+    passed: true,
+    partial: false,
+    runtimeFailure: false,
+    completedStages: V3_S14_STAGES.map((item) => item.id),
+    pendingStages: [],
+    completedContestExtensions: [...GRAND_FINAL_EXTENSIONS],
+    pendingContestExtensions: [],
+    blockedContestExtensions: [],
+    implementedInvariants: V3_S14_INVARIANTS.map((item) => item.id),
+    implementedFailureInjections: V3_S14_FAILURE_INJECTIONS.map((item) => item.id),
+    seed: {
+      editionCount: V3_S14_SEED_CONTRACT.editionCount,
+      delegationCount: V3_S14_SEED_CONTRACT.delegationCount,
+      showCount: V3_S14_SEED_CONTRACT.minimumShowCount,
     },
   };
 }
@@ -120,19 +154,69 @@ describe("S16 source evidence validation", () => {
     );
   });
 
+  it("accepts complete exact-SHA S14 evidence only when the canonical rehearsal contents are present", () => {
+    expect(
+      validateV3S16CategorySourceEvidence("full-contest-rehearsal", completeS14Evidence(), SHA),
+    ).toEqual([]);
+  });
+
   it("rejects partial, runtime-failed or unfinished S14 evidence", () => {
     const evidence = {
-      schemaVersion: 2,
-      candidateSha: SHA,
-      passed: true,
+      ...completeS14Evidence(),
       partial: true,
       runtimeFailure: true,
       pendingStages: ["stage-10-archive"],
     };
     const issues = validateV3S16CategorySourceEvidence("full-contest-rehearsal", evidence, SHA);
-    expect(issues).toContain("full-contest-rehearsal: partial evidence cannot certify S16");
-    expect(issues).toContain("full-contest-rehearsal: runtime failure evidence cannot certify S16");
+    expect(issues).toContain(
+      "full-contest-rehearsal: final evidence must explicitly prove partial=false",
+    );
+    expect(issues).toContain(
+      "full-contest-rehearsal: final evidence must explicitly prove runtimeFailure=false",
+    );
     expect(issues).toContain("full-contest-rehearsal: pending stages remain");
+  });
+
+  it("rejects cheerful S14 booleans that omit lifecycle, invariant or failure-injection proof", () => {
+    const evidence = {
+      ...completeS14Evidence(),
+      completedStages: V3_S14_STAGES.slice(0, -1).map((item) => item.id),
+      completedContestExtensions: GRAND_FINAL_EXTENSIONS.slice(0, -1),
+      implementedInvariants: V3_S14_INVARIANTS.slice(0, -1).map((item) => item.id),
+      implementedFailureInjections: V3_S14_FAILURE_INJECTIONS.slice(0, -1).map((item) => item.id),
+    };
+    const issues = validateV3S16CategorySourceEvidence("full-contest-rehearsal", evidence, SHA);
+    expect(issues).toContain(
+      `full-contest-rehearsal: completed lifecycle stages missing: ${V3_S14_STAGES.at(-1)?.id}`,
+    );
+    expect(issues).toContain(
+      "full-contest-rehearsal: completed contest extensions missing: grand-final-publication",
+    );
+    expect(issues).toContain(
+      `full-contest-rehearsal: invariant evidence missing: ${V3_S14_INVARIANTS.at(-1)?.id}`,
+    );
+    expect(issues).toContain(
+      `full-contest-rehearsal: failure-injection evidence missing: ${V3_S14_FAILURE_INJECTIONS.at(-1)?.id}`,
+    );
+  });
+
+  it("rejects S14 evidence that does not prove empty extension queues and the bounded canonical seed", () => {
+    const evidence = {
+      ...completeS14Evidence(),
+      pendingContestExtensions: ["grand-final-publication"],
+      blockedContestExtensions: ["grand-final-results"],
+      seed: { editionCount: 2, delegationCount: 65, showCount: 1 },
+    };
+    const issues = validateV3S16CategorySourceEvidence("full-contest-rehearsal", evidence, SHA);
+    expect(issues).toContain(
+      "full-contest-rehearsal: pending contest extensions remain or are not recorded",
+    );
+    expect(issues).toContain(
+      "full-contest-rehearsal: blocked contest extensions remain or are not recorded",
+    );
+    expect(issues).toContain(
+      "full-contest-rehearsal: seed evidence does not match the canonical bounded S14 contest",
+    );
   });
 
   it("rejects zero-orphan evidence that still carries findings", () => {
