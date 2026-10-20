@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -519,10 +520,32 @@ export function V3TopLevelSwipeSurface({
   const visualNextSurface = settlingComposition?.nextSurface ?? nextSurface;
   const canonicalSlot = canonicalSwipeSlot(settlingComposition, activeIndex);
 
+  useLayoutEffect(() => {
+    const surface = surfaceRef.current;
+    if (!surface || typeof document === "undefined") return;
+
+    const focusedElement = document.activeElement;
+    if (!(focusedElement instanceof HTMLElement) || !surface.contains(focusedElement)) return;
+
+    const focusedPage = focusedElement.closest<HTMLElement>(".v3-top-level-swipe-page");
+    if (!focusedPage || focusedPage.dataset.v3SwipeCanonical === "true") return;
+
+    // A committed swipe can make the formerly-current page inert while one of
+    // its descendants still owns focus. Move focus to the selected top-level
+    // destination rather than leaving assistive technology anchored inside an
+    // aria-hidden subtree. The stable surface is the no-tab fallback when the
+    // shell has no mounted Liquid tab item.
+    const selectedTab = navigationMaterial()?.querySelector<HTMLElement>(
+      '[data-v3-tab-index][aria-current="page"]',
+    );
+    (selectedTab ?? surface).focus({ preventScroll: true });
+  }, [canonicalSlot]);
+
   return (
     <div
       ref={surfaceRef}
       className="v3-top-level-swipe-surface"
+      tabIndex={-1}
       data-v3-top-level-swipe-policy={policy}
       data-v3-top-level-swipe-preview-ready={previewReady ? "true" : "false"}
       data-v3-top-level-swipe-adjacent-ready={requiredAdjacentSurfacesReady ? "true" : "false"}
