@@ -1,0 +1,115 @@
+name: V3 Public Result Analysis Context Rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+      - v3/sys-public-result-analysis-context
+    paths:
+      - "supabase/migrations/**"
+      - "scripts/v3-public-result-analysis-context-rehearsal.sh"
+      - "src/lib/v3-public-result-analysis-context.contract.test.ts"
+      - ".github/workflows/v3-public-result-analysis-context-rehearsal.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-public-result-analysis-context-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-replay:
+    name: Clean replay + Result Analysis Context proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated local Supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase db reset --local --no-seed
+
+      - name: Ensure PostgreSQL client
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Rehearse publication-safe analysis provenance
+        shell: bash
+        run: bash scripts/v3-public-result-analysis-context-rehearsal.sh
+
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+  upgrade-from-main:
+    name: Current main upgrade + Result Analysis Context proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Ensure PostgreSQL client
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - name: Prepare disposable current-main worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          git worktree add /tmp/solaris-result-analysis-main origin/main
+
+      - name: Build current main locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-result-analysis-main
+          supabase start
+          supabase db reset --local --no-seed
+
+      - name: Apply exact branch migration delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" "$GITHUB_WORKSPACE" /tmp/solaris-result-analysis-main
+          cd /tmp/solaris-result-analysis-main
+          supabase migration up --local --include-all
+
+      - name: Rehearse contract after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-result-analysis-main
+          bash "$GITHUB_WORKSPACE/scripts/v3-public-result-analysis-context-rehearsal.sh"
+
+      - name: Stop isolated local Supabase
+        if: always()
+        shell: bash
+        run: |
+          cd /tmp/solaris-result-analysis-main 2>/dev/null || exit 0
+          supabase stop --no-backup || true
