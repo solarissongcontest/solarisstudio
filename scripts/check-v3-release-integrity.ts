@@ -98,8 +98,20 @@ function semanticEvidenceFailures(
   evidence: Record<string, unknown>,
   expectedCandidateSha: string,
 ): string[] {
-  if (filename === "s14-full-contest.json" && evidence.passed !== true) return ["s14-full-contest.json does not prove passed=true"];
-  if (filename === "s15-zero-orphan.json" && evidence.zeroOrphans !== true) return ["s15-zero-orphan.json does not prove zeroOrphans=true"];
+  if (filename === "s14-full-contest.json") {
+    return validateV3S16CategorySourceEvidence(
+      "full-contest-rehearsal",
+      evidence,
+      expectedCandidateSha,
+    );
+  }
+  if (filename === "s15-zero-orphan.json") {
+    return validateV3S16CategorySourceEvidence(
+      "registry-zero-gap",
+      evidence,
+      expectedCandidateSha,
+    );
+  }
   if (filename === "security-advisor-classification.json" && evidence.releaseReady !== true) return ["security-advisor-classification.json does not prove releaseReady=true"];
   if (filename === "s16-certification.json") return validateV3S16CertificationEvidence(evidence, expectedCandidateSha);
   return [];
