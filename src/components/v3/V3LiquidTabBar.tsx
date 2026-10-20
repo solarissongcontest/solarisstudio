@@ -308,9 +308,12 @@ export function V3LiquidTabBar({
       window.removeEventListener("pagehide", resetInterruptedGesture);
       window.removeEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
       document.removeEventListener("visibilitychange", resetWhenHidden);
-      resetDragDom();
+      // `pathname` is a dependency, so cleanup is also the route-redirect
+      // interruption boundary. Clear React gesture state and arm click
+      // suppression before releasing capture, rather than resetting DOM only.
+      interruptDrag();
     };
-  }, [interruptDrag, pathname, resetDragDom]);
+  }, [interruptDrag, pathname]);
 
   const startDrag = (
     event: ReactPointerEvent<HTMLAnchorElement>,
