@@ -49,19 +49,21 @@ import {
   type OperationalNotice,
 } from '@/lib/official-communications';
 import {
-  archiveStudio2Communication,
-  cancelStudio2Notice,
-  createStudio2NoticeDraft,
-  createSupersedingStudio2NoticeDraft,
-  deleteStudio2Communication,
   loadStudio2NoticeRevisions,
   loadStudio2Notices,
-  publishStudio2Notice,
-  restoreStudio2Communication,
-  scheduleStudio2Notice,
-  updateStudio2NoticeDraft,
   type SaveStudio2NoticeInput,
 } from '@/lib/studio2-communications';
+import {
+  archiveOrganizerCommunication,
+  cancelOrganizerNotice,
+  createOrganizerNoticeDraft,
+  createSupersedingOrganizerNoticeDraft,
+  deleteOrganizerCommunication,
+  publishOrganizerNotice,
+  restoreOrganizerCommunication,
+  scheduleOrganizerNotice,
+  updateOrganizerNoticeDraft,
+} from '@/lib/v3-organizer-communications';
 
 type CommunicationsStateFilter = NoticeState | 'archived';
 const NOTICE_STATE_SET = new Set<string>([...NOTICE_STATES, 'archived']);
@@ -110,11 +112,12 @@ function CommunicationsCentre() {
   const [countryIds, setCountryIds] = useState<string[]>([]);
   const [acknowledgementRequired, setAcknowledgementRequired] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingBase, setEditingBase] = useState<OperationalNotice | null>(null);
   const [scheduleReviewOpen, setScheduleReviewOpen] = useState(false);
   const [publishReviewOpen, setPublishReviewOpen] = useState(false);
   const [lifecycleReview, setLifecycleReview] = useState<PendingLifecycleReview | null>(null);
 
+  const editingId = editingBase?.id ?? null;
   const inboxEnabled = displaySurfaces.includes('delegation_inbox');
 
   const noticesQuery = useQuery({
@@ -169,11 +172,11 @@ function CommunicationsCentre() {
   };
 
   const saveDraft = useMutation({
-    mutationFn: async () => editingId
-      ? updateStudio2NoticeDraft(editingId, currentInput())
-      : createStudio2NoticeDraft(currentInput()),
+    mutationFn: async () => editingBase
+      ? updateOrganizerNoticeDraft(editingBase, currentInput())
+      : createOrganizerNoticeDraft(currentInput()),
     onSuccess: async (notice) => {
-      setEditingId(notice.id);
+      setEditingBase(notice);
       void navigate({ search: { ...search, notice: notice.id }, replace: true });
       await refresh();
     },
@@ -181,17 +184,15 @@ function CommunicationsCentre() {
 
   const scheduleNotice = useMutation({
     mutationFn: async () => {
-      const draft = editingId
-        ? await updateStudio2NoticeDraft(editingId, currentInput())
-        : await createStudio2NoticeDraft(currentInput());
+      const draft = editingBase
+        ? await updateOrganizerNoticeDraft(editingBase, currentInput())
+        : await createOrganizerNoticeDraft(currentInput());
       if (!scheduledAt) throw new Error('Choose a publication time before scheduling.');
-      const date = new Date(scheduledAt);
-      if (Number.isNaN(date.getTime())) throw new Error('The scheduled publication time is invalid.');
-      return scheduleStudio2Notice(draft.id, date.toISOString());
+      return scheduleOrganizerNotice(draft, scheduledAt);
     },
     onSuccess: async (notice) => {
       setScheduleReviewOpen(false);
-      setEditingId(notice.id);
+      setEditingBase(notice);
       void navigate({ search: { ...search, notice: notice.id }, replace: true });
       await refresh();
     },
@@ -199,10 +200,10 @@ function CommunicationsCentre() {
 
   const publishNotice = useMutation({
     mutationFn: async () => {
-      const draft = editingId
-        ? await updateStudio2NoticeDraft(editingId, currentInput())
-        : await createStudio2NoticeDraft(currentInput());
-      return publishStudio2Notice(draft.id);
+      const draft = editingBase
+        ? await updateOrganizerNoticeDraft(editingBase, currentInput())
+        : await createOrganizerNoticeDraft(currentInput());
+      return publishOrganizerNotice(draft);
     },
     onSuccess: async (notice) => {
       setPublishReviewOpen(false);
@@ -213,7 +214,7 @@ function CommunicationsCentre() {
   });
 
   const cancelNotice = useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) => cancelStudio2Notice(id, reason),
+    mutationFn: ({ notice, reason }: { notice: OperationalNotice; reason: string }) => cancelOrganizerNotice(notice, reason),
     onSuccess: async () => {
       setLifecycleReview(null);
       await refresh();
@@ -221,7 +222,7 @@ function CommunicationsCentre() {
   });
 
   const supersedeNotice = useMutation({
-    mutationFn: (id: string) => createSupersedingStudio2NoticeDraft(id),
+    mutationFn: (notice: OperationalNotice) => createSupersedingOrganizerNoticeDraft(notice),
     onSuccess: async (draft) => {
       loadIntoComposer(draft);
       void navigate({ search: { ...search, notice: draft.id }, replace: true });
@@ -230,7 +231,7 @@ function CommunicationsCentre() {
   });
 
   const archiveCommunication = useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) => archiveStudio2Communication(id, reason),
+    mutationFn: ({ notice, reason }: { notice: OperationalNotice; reason: string }) => archiveOrganizerCommunication(notice, reason),
     onSuccess: async () => {
       setLifecycleReview(null);
       await refresh();
@@ -238,7 +239,7 @@ function CommunicationsCentre() {
   });
 
   const restoreCommunication = useMutation({
-    mutationFn: (id: string) => restoreStudio2Communication(id),
+    mutationFn: (notice: OperationalNotice) => restoreOrganizerCommunication(notice),
     onSuccess: async () => {
       setLifecycleReview(null);
       await refresh();
@@ -246,11 +247,11 @@ function CommunicationsCentre() {
   });
 
   const deleteCommunication = useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) => deleteStudio2Communication(id, reason),
+    mutationFn: ({ notice, reason }: { notice: OperationalNotice; reason: string }) => deleteOrganizerCommunication(notice, reason),
     onSuccess: async (_result, variables) => {
       setLifecycleReview(null);
-      if (editingId === variables.id) resetComposer();
-      if (search.notice === variables.id) {
+      if (editingId === variables.notice.id) resetComposer();
+      if (search.notice === variables.notice.id) {
         void navigate({ search: search.state ? { state: search.state } : {}, replace: true });
       }
       await refresh();
@@ -285,7 +286,7 @@ function CommunicationsCentre() {
     || deleteCommunication.isPending;
 
   function loadIntoComposer(notice: OperationalNotice) {
-    setEditingId(notice.id);
+    setEditingBase(notice);
     setNoticeType(notice.noticeType);
     setTitle(notice.title);
     setBody(notice.body);
@@ -299,7 +300,7 @@ function CommunicationsCentre() {
   }
 
   function resetComposer() {
-    setEditingId(null);
+    setEditingBase(null);
     setNoticeType('official_notice');
     setTitle('');
     setBody('');
@@ -332,7 +333,7 @@ function CommunicationsCentre() {
     if (!lifecycleReview) return;
     const reason = lifecycleReview.reason.trim();
     if (lifecycleReview.kind === 'delete' && !reason) return;
-    const variables = { id: lifecycleReview.notice.id, reason };
+    const variables = { notice: lifecycleReview.notice, reason };
     if (lifecycleReview.kind === 'cancel') {
       await cancelNotice.mutateAsync(variables);
       return;
@@ -342,7 +343,7 @@ function CommunicationsCentre() {
       return;
     }
     if (lifecycleReview.kind === 'restore') {
-      await restoreCommunication.mutateAsync(lifecycleReview.notice.id);
+      await restoreCommunication.mutateAsync(lifecycleReview.notice);
       return;
     }
     await deleteCommunication.mutateAsync(variables);
@@ -717,7 +718,7 @@ function CommunicationsCentre() {
                             <button
                               type="button"
                               className="admin-action-secondary"
-                              onClick={() => supersedeNotice.mutate(notice.id)}
+                              onClick={() => supersedeNotice.mutate(notice)}
                             >
                               <CopyPlus className="size-4" /> Supersede
                             </button>
@@ -881,8 +882,8 @@ function CommunicationsCentre() {
                 <p className="mt-2"><span className="font-semibold text-foreground">Acknowledgement:</span> {acknowledgementRequired && inboxEnabled ? 'required' : 'not required'}</p>
                 <p className="mt-2 whitespace-pre-wrap">{body.trim()}</p>
               </div>
-              <p>Once scheduled, the existing server scheduler can publish this communication at that time without another Organizer action. Verify the timing and audience before applying the schedule.</p>
-              <p>Canonical expected-revision, idempotency, receipt and uncertain-outcome reconciliation remain tracked in System #599.</p>
+              <p>Once scheduled, the server scheduler can publish this communication at that time without another Organizer action. The governed command revalidates the exact edition and reviewed revision before applying the schedule.</p>
+              <p>Operation identity, idempotency, receipt evidence and uncertain-outcome reconciliation are handled by the canonical V3 communications command.</p>
             </div>
           }
           confirmLabel="Schedule communication"
@@ -909,7 +910,8 @@ function CommunicationsCentre() {
                 {inboxEnabled ? <p className="mt-2"><span className="font-semibold text-foreground">Inbox audience:</span> {humanize(audience)}{audienceGroup ? ` · ${humanize(audienceGroup)}` : ''}{audience === 'specific_countries' ? ` · ${countryIds.length} countr${countryIds.length === 1 ? 'y' : 'ies'}` : ''}</p> : null}
                 <p className="mt-2"><span className="font-semibold text-foreground">Acknowledgement:</span> {acknowledgementRequired && inboxEnabled ? 'required' : 'not required'}</p>
               </div>
-              <p>The current legacy publication authority applies immediately after confirmation. Canonical expected-revision, idempotency, receipt and uncertain-outcome reconciliation remain tracked in System #599.</p>
+              <p>The governed publication command revalidates the exact edition and reviewed revision at commit. A stale or cross-edition draft is rejected rather than silently published.</p>
+              <p>Unknown network outcomes reconcile by the same operation identity before any retry, preventing duplicate publication side effects.</p>
             </div>
           }
           confirmLabel="Publish communication now"
@@ -958,14 +960,14 @@ function CommunicationsCentre() {
               ) : lifecycleReview.kind === 'archive' ? (
                 <p>Archiving removes the communication from all live destinations until an organizer deliberately restores it. Its revision and audit history remain.</p>
               ) : lifecycleReview.kind === 'restore' ? (
-                <p>Restoring republishes this archived communication to its original destinations using the existing server restore authority. Verify the destinations above before making it live again.</p>
+                <p>Restoring republishes this archived communication to its original destinations. The governed command revalidates the edition and reviewed revision before making it live again.</p>
               ) : (
                 <>
                   <p className="font-semibold text-red-100">Permanent deletion cannot be undone.</p>
                   <p>{lifecycleReview.notice.sentAt ? 'This communication was previously published. Its content, revisions and receipt rows will be deleted while the minimal private deletion audit record remains.' : 'This communication has never been published. Its draft record and revision history will be deleted.'}</p>
                 </>
               )}
-              <p>These actions still use the existing server-authorized lifecycle RPCs. Canonical version/CAS, idempotency, operation receipts and uncertain-outcome reconciliation remain tracked in System #599.</p>
+              <p>The reviewed revision is frozen when this sheet opens. Server preflight and commit both validate that exact revision, and consequential outcomes are recorded with canonical operation/receipt identity.</p>
             </div>
           ) : null}
           confirmLabel={lifecycleReview
@@ -987,7 +989,7 @@ function CommunicationsCentre() {
         <AdminCard>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CheckCircle2 className="size-4" />
-            Publication, scheduling, surface placement, archive/restore, permanent deletion, recipient access and acknowledgement are validated server-side.
+            Drafts and lifecycle actions use canonical V3 command authority with exact-edition scope, revision checks, idempotency, receipts and lost-response reconciliation.
           </div>
         </AdminCard>
       </div>
