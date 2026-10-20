@@ -89,7 +89,7 @@ function HistoryItem({ item }: { item: V3ParticipationHistoryItem }) {
 }
 
 export function V3ParticipationHistoryScreen({ viewerId }: { viewerId: string }) {
-  const history = useV3ParticipationHistory(true);
+  const history = useV3ParticipationHistory(viewerId, true);
   const scopeMismatch = Boolean(
     history.data?.schemaReady === true && history.data.viewerId !== viewerId,
   );
