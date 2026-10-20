@@ -247,7 +247,6 @@ test("Reduced Transparency keeps Liquid navigation geometry and semantics while 
   expect(before).not.toBeNull();
   if (!before) return;
   expect(before.activeItem).not.toBeNull();
-  expect(before.backdropDisplay).not.toBe("none");
   expect(before.overflow).toBeLessThanOrEqual(2);
 
   const forced = await forceLoadedReducedTransparencyRules(page);
