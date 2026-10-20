@@ -9,15 +9,16 @@ const registry = () => read("src/lib/v3-public-capability-supplements.ts");
 const contract = () => read("docs/v3-public-p20-pulse-contract.md");
 
 describe("Public V3 P20 Pulse contract", () => {
-  it("maps Pulse as a retained redesign rather than a discovered placeholder", () => {
+  it("maps Pulse as an actively building retained redesign", () => {
     const source = registry();
     expect(source).toContain('id: "pulse"');
     expect(source).toContain('classification: "redesign"');
-    expect(source).toContain('specificationStatus: "mapped"');
+    expect(source).toContain('specificationStatus: "building"');
     expect(source).toContain('acceptanceScenarioId: "public.pulse-v3-public-feed"');
+    expect(source).toContain("v3_public_pulse_events");
   });
 
-  it("documents the server-authoritative public-event projection blocker", () => {
+  it("documents the server-authoritative public-event projection requirement", () => {
     const source = contract();
     expect(source).toContain("Organizer permissions must not widen the public projection");
     expect(source).toContain("public Pulse event projection");

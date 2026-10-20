@@ -16,6 +16,128 @@ const supabase = baseSupabase as unknown as SupabaseClient<AppDatabase>;
 
 export type FollowEntityType = FanFollowRow["entity_type"];
 
+type PublicPulseEventItem = {
+  id: string;
+  eventType: string;
+  entityType: ContentEventRow["entity_type"];
+  entityId: string;
+  title: string;
+  summary: string;
+  route: string | null;
+  importance: ContentEventRow["importance"];
+  payload: ContentEventRow["payload"];
+  publishedAt: string;
+};
+
+type PublicPulseProjection = {
+  items: PublicPulseEventItem[];
+  nextCursor: { publishedAt: string; id: string } | null;
+  serverTime: string;
+};
+
+function isPulseEntityType(value: unknown): value is ContentEventRow["entity_type"] {
+  return value === "country" || value === "edition" || value === "show";
+}
+
+function isPulseImportance(value: unknown): value is ContentEventRow["importance"] {
+  return value === "normal" || value === "important";
+}
+
+function parsePublicPulseProjection(value: unknown): PublicPulseProjection {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Pulse projection returned an invalid response.");
+  }
+
+  const projection = value as Record<string, unknown>;
+  if (!Array.isArray(projection.items) || typeof projection.serverTime !== "string") {
+    throw new Error("Pulse projection returned an invalid response.");
+  }
+
+  const items = projection.items.map((rawItem) => {
+    if (!rawItem || typeof rawItem !== "object" || Array.isArray(rawItem)) {
+      throw new Error("Pulse projection returned an invalid event.");
+    }
+    const item = rawItem as Record<string, unknown>;
+    if (
+      typeof item.id !== "string" ||
+      typeof item.eventType !== "string" ||
+      !isPulseEntityType(item.entityType) ||
+      typeof item.entityId !== "string" ||
+      typeof item.title !== "string" ||
+      typeof item.summary !== "string" ||
+      !(typeof item.route === "string" || item.route === null) ||
+      !isPulseImportance(item.importance) ||
+      typeof item.publishedAt !== "string"
+    ) {
+      throw new Error("Pulse projection returned an invalid event.");
+    }
+
+    return {
+      id: item.id,
+      eventType: item.eventType,
+      entityType: item.entityType,
+      entityId: item.entityId,
+      title: item.title,
+      summary: item.summary,
+      route: item.route,
+      importance: item.importance,
+      payload: (item.payload ?? {}) as ContentEventRow["payload"],
+      publishedAt: item.publishedAt,
+    } satisfies PublicPulseEventItem;
+  });
+
+  let nextCursor: PublicPulseProjection["nextCursor"] = null;
+  if (projection.nextCursor != null) {
+    if (
+      typeof projection.nextCursor !== "object" ||
+      Array.isArray(projection.nextCursor) ||
+      typeof (projection.nextCursor as Record<string, unknown>).publishedAt !== "string" ||
+      typeof (projection.nextCursor as Record<string, unknown>).id !== "string"
+    ) {
+      throw new Error("Pulse projection returned an invalid cursor.");
+    }
+    nextCursor = {
+      publishedAt: (projection.nextCursor as Record<string, string>).publishedAt,
+      id: (projection.nextCursor as Record<string, string>).id,
+    };
+  }
+
+  return {
+    items,
+    nextCursor,
+    serverTime: projection.serverTime,
+  };
+}
+
+function missingPublicPulseProjection(error: { code?: string; message?: string } | null) {
+  if (missingEngagementSchema(error)) return true;
+  const message = error?.message?.toLowerCase() ?? "";
+  return (
+    error?.code === "PGRST202" ||
+    (message.includes("v3_public_pulse_events") &&
+      (message.includes("schema cache") ||
+        message.includes("could not find") ||
+        message.includes("does not exist")))
+  );
+}
+
+function publicPulseEventRow(item: PublicPulseEventItem): ContentEventRow {
+  return {
+    id: item.id,
+    event_type: item.eventType,
+    entity_type: item.entityType,
+    entity_id: item.entityId,
+    title: item.title,
+    summary: item.summary,
+    route: item.route ?? "/pulse",
+    importance: item.importance,
+    payload: item.payload,
+    published_at: item.publishedAt,
+    created_at: item.publishedAt,
+    dedupe_key: null,
+  };
+}
+
 export const DEFAULT_SOLARIS_NOTIFICATION_CATEGORIES = [
   "confirmations",
   "jury",
@@ -81,17 +203,30 @@ export function useContentEvents(limit = 30) {
   return useQuery({
     queryKey: ["content-events", limit],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("content_events")
-        .select("*")
-        .lte("published_at", new Date().toISOString())
-        .order("published_at", { ascending: false })
-        .limit(limit);
-      if (missingEngagementSchema(error)) {
-        return { schemaReady: false, events: [] as ContentEventRow[] };
+      const pageSize = Math.min(50, Math.max(1, Math.trunc(limit)));
+      const { data, error } = await supabase.rpc("v3_public_pulse_events", {
+        p_limit: pageSize,
+        p_before_published_at: null,
+        p_before_id: null,
+        p_category: null,
+      });
+      if (missingPublicPulseProjection(error)) {
+        return {
+          schemaReady: false,
+          events: [] as ContentEventRow[],
+          nextCursor: null as PublicPulseProjection["nextCursor"],
+          serverTime: null as string | null,
+        };
       }
       if (error) throw error;
-      return { schemaReady: true, events: data ?? [] };
+
+      const projection = parsePublicPulseProjection(data);
+      return {
+        schemaReady: true,
+        events: projection.items.map(publicPulseEventRow),
+        nextCursor: projection.nextCursor,
+        serverTime: projection.serverTime,
+      };
     },
     staleTime: 30_000,
   });

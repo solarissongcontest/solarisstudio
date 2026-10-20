@@ -110,9 +110,9 @@ export const V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES = [
     classification: "redesign",
     targetArea: "contextual",
     targetRoute: "/pulse",
-    specificationStatus: "mapped",
+    specificationStatus: "building",
     acceptanceScenarioId: "public.pulse-v3-public-feed",
-    migrationEvidence: "P20 audit retains Pulse as a redesigned contextual feed. V3 projection preserves canonical content-event identity, follows and caller-bound read state without browser-owned workflow truth. Final parity is blocked on a System-owned public Pulse event projection so Organizer privileges cannot expose future or unpublished events on the public surface.",
+    migrationEvidence: "P20 now consumes the System-owned v3_public_pulse_events projection through the shared Public engagement query, preserving canonical content-event IDs while removing direct content_events publication authority from the browser. The consumer fails closed until System #1244 is landed/deployed and keeps serverTime/cursor evidence for later pagination. Parity still requires integrated deployment and final route/responsive/accessibility evidence.",
   },
   {
     id: "taste-dna",
