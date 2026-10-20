@@ -6,6 +6,14 @@ begin;
 -- This is intentionally an additive compatibility RPC. Existing callers of
 -- studio2_feature_enabled(text, uuid) remain valid while V3 server projections
 -- migrate to the bounded snapshot contract.
+select public.v3_register_migration_contract(
+  '20261020062000_v3_s12_feature_flag_snapshot',
+  1,
+  'forward_fix_only',
+  false,
+  null,
+  'S12 bounded feature flag snapshot for server rollout probes'
+);
 
 create or replace function public.studio2_feature_flags_snapshot(
   p_keys text[],
