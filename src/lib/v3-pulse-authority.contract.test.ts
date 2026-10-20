@@ -8,6 +8,8 @@ const functions = () => read("src/lib/v3-pulse.functions.ts");
 const runtime = () => read("src/lib/v3-pulse-runtime.ts");
 const screen = () => read("src/components/v3/V3PulseScreen.tsx");
 const gate = () => read("src/components/v3/V3PulseRouteGate.tsx");
+const route = () => read("src/routes/pulse/route.tsx");
+const legacyRoute = () => read("src/routes/pulse/index.tsx");
 
 describe("Public V3 Pulse authority", () => {
   it("consumes only the caller-invariant System event projection", () => {
@@ -28,7 +30,7 @@ describe("Public V3 Pulse authority", () => {
     expect(runtime()).toContain("getNextPageParam");
   });
 
-  it("keeps publication authority out of browser storage and clocks", () => {
+  it("keeps publication authority out of the installed-app browser surface", () => {
     expect(screen()).not.toContain("localStorage");
     expect(screen()).not.toContain("sessionStorage");
     expect(screen()).not.toContain("Date.now()");
@@ -47,5 +49,14 @@ describe("Public V3 Pulse authority", () => {
     expect(gate()).toContain("firstPage.schemaReady !== true");
     expect(gate()).toContain("rollout.data.enabled !== true");
     expect(gate()).toContain("return <>{fallback}</>");
+    expect(route()).toContain("useSolarisApp");
+    expect(route()).toContain("if (!isAppMode) return <Outlet />");
+    expect(route()).toContain("<V3PulseRouteGate fallback={<Outlet />} />");
+  });
+
+  it("keeps the legacy route intact as the reversible non-app fallback", () => {
+    expect(legacyRoute()).toContain("useContentEvents(100)");
+    expect(legacyRoute()).toContain("function SolarisPulsePage()");
+    expect(route()).not.toContain("useContentEvents");
   });
 });
