@@ -156,32 +156,20 @@ PENDING_STAGES=(
   stage-10-archive
 )
 
-python3 - "$PARTIAL_PATH" "$CANDIDATE_SHA" "${PENDING_STAGES[@]}" <<'PY'
+python3 - "$PARTIAL_PATH" "$CANDIDATE_SHA" "${COMPLETED_STAGES[*]}" "${COMPLETED_CONTEST_EXTENSIONS[*]}" "${PENDING_STAGES[*]}" <<'PY'
 import json, sys
-path, sha, *pending = sys.argv[1:]
+path, sha, completed_text, completed_extensions_text, pending_text = sys.argv[1:]
+completed = completed_text.split() if completed_text else []
+completed_extensions = completed_extensions_text.split() if completed_extensions_text else []
+pending = pending_text.split() if pending_text else []
 payload = {
     "schemaVersion": 2,
     "candidateSha": sha,
     "passed": False,
     "partial": True,
     "runtimeFailure": False,
-    "completedStages": [
-        "stage-1-setup",
-        "stage-2-delegation-onboarding",
-        "stage-3-confirmations",
-        "stage-4-entries",
-        "stage-5-running-orders",
-        "stage-6-jury",
-        "stage-7-public-voting",
-        "stage-8-results",
-        "stage-9-publication",
-    ],
-    "completedContestExtensions": [
-        "grand-final-qualifier-bridge",
-        "grand-final-voting",
-        "grand-final-results",
-        "grand-final-publication",
-    ],
+    "completedStages": completed,
+    "completedContestExtensions": completed_extensions,
     "pendingContestExtensions": [],
     "blockedContestExtensions": [],
     "implementedInvariants": [
