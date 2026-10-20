@@ -167,9 +167,12 @@ function parseResult(value: unknown, expected: {
   if (expected.showId && showId !== expected.showId) {
     throw new Error("Solaris returned a result for a different Show.");
   }
+  if (row.ok !== true) {
+    throw new Error("Solaris returned an unsuccessful Show lifecycle result.");
+  }
 
   return {
-    ok: row.ok === true,
+    ok: true,
     editionId,
     showId,
     stateVersion: numberValue(row.stateVersion, "Show state version"),
