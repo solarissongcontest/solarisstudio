@@ -32,6 +32,16 @@ describe("S16 canonical Quality workflow attestation", () => {
     expect(workflow).toContain('"conclusion": conclusion');
   });
 
+  it("proves exact-SHA Quality still invokes the production-isolation guard before attesting it", () => {
+    expect(workflow).toContain("Verify canonical Quality still owns production isolation");
+    expect(workflow).toContain('Path(".github/workflows/ci.yml")');
+    expect(workflow).toContain('Path("scripts/check-v3-production-isolation.ts")');
+    expect(workflow).toContain('invocation = "bun" + " run scripts/check-v3-production-isolation.ts"');
+    expect(workflow).toContain('"workflowPath": ".github/workflows/ci.yml"');
+    expect(workflow).toContain('"scriptPath": "scripts/check-v3-production-isolation.ts"');
+    expect(workflow).toContain('"invocationVerified": True');
+  });
+
   it("produces only the canonical CI and production-isolation category files", () => {
     expect(workflow).toContain('"s16-canonical-ci.json"');
     expect(workflow).toContain('"s16-production-isolation.json"');
@@ -39,7 +49,7 @@ describe("S16 canonical Quality workflow attestation", () => {
   });
 
   it("does not execute the attested branch or access hosted Supabase", () => {
-    expect(workflow).not.toContain("bun run");
+    expect(workflow).not.toContain("run: bun run");
     expect(workflow).not.toContain("supabase start");
     expect(workflow).not.toContain("supabase.co");
   });
