@@ -185,8 +185,13 @@ if (unifiedDriverPresent && runtimeLibraryPresent) {
   ]) {
     if (!runtimeSource.includes(safetyMarker)) blockers.push(`S14 runtime safety contract missing marker: ${safetyMarker}`);
   }
-  if (!driverSource.includes("s14-full-contest.partial.json")) blockers.push("S14 driver does not emit explicit partial-state evidence while incomplete");
-  if (!driverSource.includes("No release-grade s14-full-contest.json was written")) blockers.push("S14 driver does not explicitly fail closed against premature release evidence");
+  if (!driverSource.includes("s14-full-contest.partial.json")) blockers.push("S14 driver does not emit explicit failure/partial evidence");
+  if (!driverSource.includes("s14-full-contest.json")) blockers.push("S14 driver does not emit release-grade final evidence on complete success");
+  if (!driverSource.includes('"passed": True')) blockers.push("S14 driver does not mark successful final evidence passed=true");
+  if (!driverSource.includes("run_stage stage-10-archive run_s14_stage_10_archive")) blockers.push("S14 driver does not execute Stage 10 before final evidence");
+  const archiveRun = driverSource.indexOf("run_stage stage-10-archive run_s14_stage_10_archive");
+  const finalWrite = driverSource.indexOf('python3 - "$FINAL_PATH"');
+  if (archiveRun < 0 || finalWrite < 0 || finalWrite <= archiveRun) blockers.push("S14 final evidence is not sequenced after Stage 10 completion");
   if (allImplementationSource.includes("supabase.co")) blockers.push("S14 harness contains a hosted Supabase endpoint");
 }
 
