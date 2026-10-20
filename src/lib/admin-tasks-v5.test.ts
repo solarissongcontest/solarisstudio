@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  hasCompleteOrganizerTaskOperationalEvidence,
   loadOrganizerTaskCountV5,
   loadOrganizerTasksV5,
   mapOrganizerTasksV5,
@@ -72,6 +73,33 @@ describe("Organizer Tasks edition RPC boundary", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it("accepts only a non-negative integer as authoritative task-count evidence", async () => {
+    const editionId = "00000000-0000-4000-8000-00000000e220";
+
+    await expect(
+      loadOrganizerTaskCountV5(editionId, {
+        rpc: vi.fn(async () => ({ data: 0, error: null })),
+      }),
+    ).resolves.toBe(0);
+    await expect(
+      loadOrganizerTaskCountV5(editionId, {
+        rpc: vi.fn(async () => ({ data: 7, error: null })),
+      }),
+    ).resolves.toBe(7);
+  });
+
+  it.each([null, "0", -1, 1.5, Number.NaN])(
+    "rejects malformed task-count payload %p instead of fabricating zero",
+    async (data) => {
+      const editionId = "00000000-0000-4000-8000-00000000e220";
+      const rpc = vi.fn(async () => ({ data, error: null }));
+
+      await expect(loadOrganizerTaskCountV5(editionId, { rpc })).rejects.toThrow(
+        "Organizer task count returned an invalid authoritative payload.",
+      );
+    },
+  );
+
   it("rejects a cross-edition task row even after an exact-edition RPC", async () => {
     const editionId = "00000000-0000-4000-8000-00000000e220";
     const rpc = vi.fn(async () => ({
@@ -119,7 +147,7 @@ describe("Organizer Task operational state trust boundary", () => {
     ).toThrow("Invalid Organizer Task operational state at index 0");
   });
 
-  it("keeps resolved and waiting domain state authoritative", () => {
+  it("keeps resolved and waiting legacy domain state authoritative", () => {
     expect(
       resolveOrganizerTaskOperationalState(
         task({ state: "resolved", operationalState: "failed" }),
@@ -132,43 +160,66 @@ describe("Organizer Task operational state trust boundary", () => {
     ).toBe("waiting");
   });
 
-  it("honors explicit blocked and failed evidence for open tasks", () => {
+  it("honors explicit blocked, failed, overdue and actionable evidence for open tasks", () => {
     expect(
       resolveOrganizerTaskOperationalState(task({ operationalState: "blocked" })),
     ).toBe("blocked");
     expect(
       resolveOrganizerTaskOperationalState(task({ operationalState: "failed" })),
     ).toBe("failed");
-  });
-
-  it("derives overdue only from an actual due timestamp", () => {
-    const now = Date.parse("2026-10-18T00:00:00.000Z");
-
     expect(
-      resolveOrganizerTaskOperationalState(
-        task({ dueAt: "2026-10-17T23:59:59.000Z" }),
-        now,
-      ),
+      resolveOrganizerTaskOperationalState(task({ operationalState: "overdue" })),
     ).toBe("overdue");
     expect(
-      resolveOrganizerTaskOperationalState(
-        task({ dueAt: "2026-10-18T00:00:01.000Z" }),
-        now,
-      ),
+      resolveOrganizerTaskOperationalState(task({ operationalState: "actionable" })),
     ).toBe("actionable");
+  });
+
+  it("never promotes a due timestamp to workflow truth with the browser clock", () => {
+    const overdueByBrowserTime = task({
+      dueAt: "2026-10-17T23:59:59.000Z",
+      operationalState: null,
+    });
+    const futureByBrowserTime = task({
+      dueAt: "2099-10-18T00:00:01.000Z",
+      operationalState: null,
+    });
+
+    expect(resolveOrganizerTaskOperationalState(overdueByBrowserTime)).toBe(
+      "unclassified",
+    );
+    expect(resolveOrganizerTaskOperationalState(futureByBrowserTime)).toBe(
+      "unclassified",
+    );
     expect(
-      resolveOrganizerTaskOperationalState(task({ dueAt: "not-a-date" }), now),
-    ).toBe("actionable");
+      resolveOrganizerTaskOperationalState(
+        task({ dueAt: "not-a-date", operationalState: null }),
+      ),
+    ).toBe("unclassified");
   });
 
   it("never treats severity as workflow state", () => {
-    const now = Date.parse("2026-10-18T00:00:00.000Z");
-
     expect(
       resolveOrganizerTaskOperationalState(
-        task({ priority: "critical", dueAt: "2026-10-19T00:00:00.000Z" }),
-        now,
+        task({ priority: "critical", operationalState: null }),
       ),
-    ).toBe("actionable");
+    ).toBe("unclassified");
+  });
+
+  it("requires canonical rich-state evidence for every unresolved open task before rich metrics are complete", () => {
+    expect(
+      hasCompleteOrganizerTaskOperationalEvidence([
+        task({ state: "waiting", operationalState: null }),
+        task({ state: "resolved", operationalState: null }),
+        task({ state: "open", operationalState: "blocked" }),
+      ]),
+    ).toBe(true);
+
+    expect(
+      hasCompleteOrganizerTaskOperationalEvidence([
+        task({ id: "task-modern", operationalState: "failed" }),
+        task({ id: "task-legacy", operationalState: null }),
+      ]),
+    ).toBe(false);
   });
 });
