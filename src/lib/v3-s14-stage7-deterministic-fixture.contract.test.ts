@@ -11,7 +11,7 @@ const fixture = readFileSync(
 );
 
 function sourceIndex(file: string) {
-  const marker = `source \"$SCRIPT_DIR/${file}\"`;
+  const marker = `source "$SCRIPT_DIR/${file}"`;
   const index = driver.indexOf(marker);
   expect(index, `${file} must be sourced by the full-contest driver`).toBeGreaterThan(-1);
   return index;
