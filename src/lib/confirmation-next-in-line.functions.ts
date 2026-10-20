@@ -178,6 +178,18 @@ export const getNextInLineCountries = createServerFn({ method: "GET" }).handler(
       .filter((context) => context.eligible)
       .map((context) => ({ country: context.country.name }));
 
+    if (!countries.length) {
+      return {
+        ok: false as const,
+        error: "ineligible" as const,
+        edition: active.edition,
+        countries,
+        state: projection.state,
+        editing_open: false,
+        server_time: projection.serverTime,
+      };
+    }
+
     return {
       ok: true as const,
       edition: active.edition,
