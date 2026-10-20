@@ -42,6 +42,7 @@ type PrimaryArea = (typeof PUBLIC_GLOBAL_AREAS)[number]["id"];
 
 type DragState = {
   pointerId: number;
+  captureTarget: HTMLAnchorElement;
   startX: number;
   originIndex: number;
   moved: boolean;
@@ -220,6 +221,17 @@ export function AppTabBar({
 
   const resetDragDom = useCallback(() => {
     clearAppUpdateBlocker(APP_TABBAR_LENS_UPDATE_BLOCKER);
+    const drag = dragState.current;
+    if (drag) {
+      try {
+        if (drag.captureTarget.hasPointerCapture?.(drag.pointerId)) {
+          drag.captureTarget.releasePointerCapture?.(drag.pointerId);
+        }
+      } catch {
+        // Browser may already have released pointer capture.
+      }
+    }
+
     const material = materialRef.current;
     material?.style.setProperty("--solaris-tab-drag-x", "0px");
     material?.style.setProperty("--solaris-tab-drag-scale-x", "1");
@@ -317,6 +329,7 @@ export function AppTabBar({
 
     dragState.current = {
       pointerId: event.pointerId,
+      captureTarget: event.currentTarget,
       startX: event.clientX,
       originIndex: index,
       moved: false,
