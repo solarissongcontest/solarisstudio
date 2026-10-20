@@ -30,6 +30,10 @@ export type V3S16SurfaceEvidence = {
 
 const SHA_RE = /^[0-9a-f]{40}$/;
 
+function isRetiredMigrationStatus(status: string) {
+  return status === "retired";
+}
+
 export const V3_S16_NAVIGATION_REQUIRED_CASES = [
   "standard-phone",
   "tiny-phone",
@@ -65,15 +69,17 @@ export const V3_S16_RESPONSIVE_REQUIRED_CASES = [
 export function requiredV3S16PublicAcceptanceCases() {
   return [
     ...new Set(
-      V3_PUBLIC_CAPABILITIES.filter((item) => item.specificationStatus !== "retired").map(
-        (item) => item.acceptanceScenarioId,
-      ),
+      V3_PUBLIC_CAPABILITIES.filter(
+        (item) => !isRetiredMigrationStatus(item.specificationStatus),
+      ).map((item) => item.acceptanceScenarioId),
     ),
   ].sort();
 }
 
 export function requiredV3S16OrganizerAcceptanceCases() {
-  return V3_ORGANIZER_CAPABILITY_REGISTRY.filter((item) => item.migrationStatus !== "retired")
+  return V3_ORGANIZER_CAPABILITY_REGISTRY.filter(
+    (item) => !isRetiredMigrationStatus(item.migrationStatus),
+  )
     .map((item) => item.legacyId)
     .sort();
 }
