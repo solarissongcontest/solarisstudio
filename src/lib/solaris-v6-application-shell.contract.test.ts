@@ -32,15 +32,20 @@ describe("Solaris V6 application shell convergence", () => {
 
   it("shares overlay, viewport, keyboard and bottom-obstruction ownership across perspectives", () => {
     const runtime = source("src/components/app/AppRuntime.tsx");
+    const viewport = source("src/lib/app-viewport.ts");
     const overlays = source("src/components/app/AppOverlayManager.tsx");
     const metrics = source("src/components/app/AppChromeMetrics.tsx");
     const publicTabs = source("src/components/app/AppTabBar.tsx");
     const organizerTabs = source("src/components/admin/OrganizerV6TabBar.tsx");
 
+    expect(runtime).toContain("createAppViewportController");
     expect(runtime).toContain("<AppOverlayManager");
     expect(overlays).toContain("<AppChromeMetrics />");
-    expect(metrics).toContain("--solaris-keyboard-inset");
+    expect(viewport).toContain("--solaris-keyboard-inset");
+    expect(viewport).toContain("data-solaris-keyboard-open");
     expect(metrics).toContain("--solaris-safe-bottom");
+    expect(metrics).not.toContain("--solaris-keyboard-inset");
+    expect(metrics).not.toContain("window.visualViewport");
     expect(publicTabs).toContain("--solaris-bottom-obstruction");
     expect(organizerTabs).toContain("--solaris-bottom-obstruction");
   });

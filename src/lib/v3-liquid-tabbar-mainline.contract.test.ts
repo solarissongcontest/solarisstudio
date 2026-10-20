@@ -16,13 +16,20 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     expect(css).toMatch(/v3-liquid-tabbar__label[\s\S]*position: absolute;[\s\S]*clip-path: inset\(50%\)/);
   });
 
-  it("keeps direct-lens dragging adjacent-only with bounded edge physics", () => {
+  it("keeps direct-lens dragging adjacent-only on the shared visual-progress model", () => {
     const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
 
     expect(tabs).toContain("resolveElasticDrag({");
     expect(tabs).toContain("rubberBand: true");
     expect(tabs).toMatch(/activationRatio: 0\.72,[\s\S]*maxSteps: 1/);
     expect(tabs).toContain("velocityProjectionMs: 110");
+    expect(tabs).toContain("resolveV3NavigationVisualProgress({");
+    expect(tabs).toContain("physicalDelta: response.delta");
+    expect(tabs).toContain("direction: drag.layoutDirection");
+    expect(tabs).toContain("resolveV3TabIconVisualState(iconIndex, visualProgress)");
+    expect(tabs).toContain('icon.style.removeProperty("opacity")');
+    expect(tabs).toContain('icon.style.removeProperty("transform")');
+    expect(tabs).toContain('icon.style.removeProperty("stroke-width")');
     expect(tabs).toContain("onPointerCancel={cancelDrag}");
     expect(tabs).toContain("onLostPointerCapture={cancelDrag}");
   });
@@ -38,6 +45,23 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
     expect(tabs).toContain("// Pre-measure once at gesture start.");
   });
 
+  it("uses an RTL-safe physical lens without changing logical Public tab order", () => {
+    const tabs = source("src/components/v3/V3LiquidTabBar.tsx");
+    const css = source("src/styles/v3-navigation-fixed-geometry.css");
+
+    expect(tabs).toContain("const physicalLensIndex =");
+    expect(tabs).toContain(
+      'layoutDirection === "rtl" ? count - 1 - visualLensIndex : visualLensIndex',
+    );
+    expect(tabs).toContain('left: "6px"');
+    expect(tabs).toContain('right: "auto"');
+    expect(css).toContain(".v3-liquid-tabbar__lens-layer");
+    expect(css).toContain("direction: ltr");
+    expect(css).toContain("left: 6px !important");
+    expect(css).toContain("right: auto !important");
+    expect(css).not.toContain("flex-direction: row-reverse");
+  });
+
   it("uses physical CSS-pixel geometry while preserving 44px compact targets", () => {
     const css = source("src/styles/v3-navigation-fixed-geometry.css");
 
@@ -50,9 +74,14 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
 
   it("keeps keyboard, Reduced Motion and Reduced Transparency fallbacks", () => {
     const liquidCss = source("src/styles/v3-liquid-tabbar.css");
+    const fixedGeometryCss = source("src/styles/v3-navigation-fixed-geometry.css");
+    const organizerCss = source("src/styles/v3-organizer-navigation.css");
     const responsiveCss = source("src/styles/v3-responsive-shell.css");
 
     expect(liquidCss).toContain("html[data-solaris-keyboard-open]");
+    expect(liquidCss).toMatch(/data-solaris-keyboard-open[\s\S]*pointer-events: none;/);
+    expect(fixedGeometryCss).toMatch(/data-solaris-keyboard-open[\s\S]*visibility: hidden;/);
+    expect(organizerCss).toMatch(/data-solaris-keyboard-open[\s\S]*visibility: hidden;[\s\S]*pointer-events: none;/);
     expect(liquidCss).toContain("@media (prefers-reduced-motion: reduce)");
     expect(liquidCss).toContain("@media (prefers-reduced-transparency: reduce)");
     expect(responsiveCss).toContain("@media (min-width: 1024px)");

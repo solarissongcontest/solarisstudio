@@ -11,6 +11,16 @@ const organizer = () => read("e2e/v3-organizer.e2e.ts");
 const focusedParticipation = () =>
   read("e2e/v3-navigation/focused-participation-account-states.e2e.ts");
 
+const navigationBrowserEvidence = [
+  "e2e/v3-navigation/installed-app.e2e.ts",
+  "e2e/v3-navigation/route-memory-installed-app.e2e.ts",
+  "e2e/v3-navigation/geometry-report-installed-app.e2e.ts",
+  "e2e/v3-navigation/frame-profile-installed-app.e2e.ts",
+  "e2e/v3-navigation/large-text-installed-app.e2e.ts",
+  "e2e/v3-navigation/reduced-transparency-installed-app.e2e.ts",
+  "e2e/v3-navigation/overlay-isolation-installed-app.e2e.ts",
+] as const;
+
 const sharedRootDisable = /(?:setFeature|setV3FeatureForLocalUser|setV3ForLocalUser)\([^;]*"solaris_app_v3"\s*,\s*false\b/s;
 
 describe("Browser Audit V3 rollout isolation", () => {
@@ -53,6 +63,16 @@ describe("Browser Audit V3 rollout isolation", () => {
     expect(source).toContain('"solaris_app_v3_jury"');
     expect(source).not.toContain('key: "solaris_app_v3"');
     expect(source).toContain("Refusing focused participation E2E against non-local Supabase");
+  });
+
+  it("keeps every NAV Browser Audit fixture hard-wired to loopback Supabase", () => {
+    for (const path of navigationBrowserEvidence) {
+      const source = read(path);
+      expect(source, path).toContain("127.0.0.1");
+      expect(source, path).toContain("localhost");
+      expect(source, path).toMatch(/Refusing V3/);
+      expect(source, path).not.toContain("supabase.co");
+    }
   });
 
   it("keeps shared Explore ownership stable while Search and account-state proofs overlap", () => {

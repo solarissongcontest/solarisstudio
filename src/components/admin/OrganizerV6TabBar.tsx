@@ -203,10 +203,18 @@ export function OrganizerV6TabBar({
     setDragPreviewIndex(null);
   }, [endHold, resetDragDom]);
 
+  const interruptDrag = useCallback(() => {
+    // An environment interruption cancels the press as well as its visuals. Arm
+    // click suppression before releasing capture so a trailing click cannot turn
+    // a cancelled Organizer gesture into an accidental route change.
+    if (dragState.current) suppressClick.current = true;
+    clearDrag();
+  }, [clearDrag]);
+
   useEffect(() => {
-    const resetInterruptedGesture = () => clearDrag();
+    const resetInterruptedGesture = () => interruptDrag();
     const resetWhenHidden = () => {
-      if (document.visibilityState !== "visible") clearDrag();
+      if (document.visibilityState !== "visible") interruptDrag();
     };
     const root = document.documentElement;
     const rootInterruptionObserver =
@@ -216,7 +224,7 @@ export function OrganizerV6TabBar({
               root.hasAttribute("data-solaris-feature-overlay-open") ||
               root.hasAttribute("data-solaris-keyboard-open")
             ) {
-              clearDrag();
+              interruptDrag();
             }
           })
         : null;
@@ -243,9 +251,12 @@ export function OrganizerV6TabBar({
       window.removeEventListener("pagehide", resetInterruptedGesture);
       window.removeEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
       document.removeEventListener("visibilitychange", resetWhenHidden);
-      resetDragDom();
+      // `pathname` is a dependency, so route redirects use the same canonical
+      // interruption path as blur/keyboard/overlay changes. This clears React
+      // gesture state and suppresses a trailing click before capture is released.
+      interruptDrag();
     };
-  }, [clearDrag, pathname, resetDragDom]);
+  }, [interruptDrag, pathname]);
 
   const startDrag = (
     event: ReactPointerEvent<HTMLAnchorElement>,
