@@ -38,13 +38,24 @@ describe("S16 exact-SHA certification orchestration", () => {
     expect(workflow).toContain('actual="$(git rev-parse HEAD');
   });
 
-  it("collects completed Actions runs but delegates trust to semantic evidence validation", () => {
-    expect(workflow).toContain("gh api \"repos/$GITHUB_REPOSITORY/actions/runs/$run_id\" --jq .status");
+  it("accepts only successful same-repository Actions runs before downloading evidence", () => {
+    expect(workflow).toContain('run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id")"');
+    expect(workflow).toContain(".status //");
     expect(workflow).toContain('if [ "$status" != "completed" ]');
+    expect(workflow).toContain('if [ "$conclusion" != "success" ]');
+    expect(workflow).toContain('if [ "$head_repository" != "$GITHUB_REPOSITORY" ]');
+    expect(workflow).toContain("run-metadata.ndjson");
     expect(workflow).toContain('gh run download "$run_id"');
     for (const filename of canonicalEvidenceFiles) {
       expect(workflow).toContain(filename);
     }
+  });
+
+  it("records immutable source-run metadata in the final evidence instead of IDs alone", () => {
+    expect(workflow).toContain("'schemaVersion': 2");
+    expect(workflow).toContain("'sourceRunIds': run_ids");
+    expect(workflow).toContain("'sources': sources");
+    expect(workflow).toContain("source run metadata is incomplete or does not match declared run IDs");
   });
 
   it("fails closed through assembly, certificate construction and final release revalidation", () => {
