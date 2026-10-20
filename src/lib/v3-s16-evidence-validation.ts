@@ -1,3 +1,9 @@
+import {
+  V3_S14_FAILURE_INJECTIONS,
+  V3_S14_INVARIANTS,
+  V3_S14_SEED_CONTRACT,
+  V3_S14_STAGES,
+} from "../../scripts/v3-s14-full-contest-spec";
 import { V3_S16_CERTIFICATION_CATEGORIES } from "./v3-s16-certification-contract";
 import {
   validateV3S16SurfaceEvidence,
@@ -12,11 +18,32 @@ const SURFACE_CATEGORIES = new Set<V3S16SurfaceCategory>([
   "accessibility",
   "responsive-behavior",
 ]);
+const REQUIRED_S14_STAGES = V3_S14_STAGES.map((item) => item.id);
+const REQUIRED_S14_INVARIANTS = V3_S14_INVARIANTS.map((item) => item.id);
+const REQUIRED_S14_FAILURE_INJECTIONS = V3_S14_FAILURE_INJECTIONS.map((item) => item.id);
+const REQUIRED_S14_CONTEST_EXTENSIONS = [
+  "grand-final-qualifier-bridge",
+  "grand-final-voting",
+  "grand-final-results",
+  "grand-final-publication",
+] as const;
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
+}
+
+function stringArray(value: unknown): string[] | null {
+  return Array.isArray(value) && value.every((item) => typeof item === "string")
+    ? value
+    : null;
+}
+
+function missingRequired(actual: string[] | null, required: readonly string[]): string[] {
+  if (!actual) return [...required];
+  const present = new Set(actual);
+  return required.filter((item) => !present.has(item));
 }
 
 export function validateV3S16CategorySourceEvidence(
@@ -119,12 +146,67 @@ export function validateV3S16CategorySourceEvidence(
   }
 
   if (categoryId === "full-contest-rehearsal") {
-    if (evidence.partial === true) issues.push("full-contest-rehearsal: partial evidence cannot certify S16");
-    if (evidence.runtimeFailure === true) {
-      issues.push("full-contest-rehearsal: runtime failure evidence cannot certify S16");
+    if (evidence.partial !== false) {
+      issues.push("full-contest-rehearsal: final evidence must explicitly prove partial=false");
     }
-    if (Array.isArray(evidence.pendingStages) && evidence.pendingStages.length !== 0) {
+    if (evidence.runtimeFailure !== false) {
+      issues.push("full-contest-rehearsal: final evidence must explicitly prove runtimeFailure=false");
+    }
+
+    const completedStages = stringArray(evidence.completedStages);
+    const pendingStages = stringArray(evidence.pendingStages);
+    const completedExtensions = stringArray(evidence.completedContestExtensions);
+    const pendingExtensions = stringArray(evidence.pendingContestExtensions);
+    const blockedExtensions = stringArray(evidence.blockedContestExtensions);
+    const implementedInvariants = stringArray(evidence.implementedInvariants);
+    const implementedFailures = stringArray(evidence.implementedFailureInjections);
+
+    if (!completedStages) {
+      issues.push("full-contest-rehearsal: completedStages must be a string array");
+    } else {
+      const missingStages = missingRequired(completedStages, REQUIRED_S14_STAGES);
+      if (missingStages.length) {
+        issues.push(`full-contest-rehearsal: completed lifecycle stages missing: ${missingStages.join(", ")}`);
+      }
+    }
+    if (!pendingStages) {
+      issues.push("full-contest-rehearsal: pendingStages must be a string array");
+    } else if (pendingStages.length !== 0) {
       issues.push("full-contest-rehearsal: pending stages remain");
+    }
+
+    if (!completedExtensions) {
+      issues.push("full-contest-rehearsal: completedContestExtensions must be a string array");
+    } else {
+      const missingExtensions = missingRequired(completedExtensions, REQUIRED_S14_CONTEST_EXTENSIONS);
+      if (missingExtensions.length) {
+        issues.push(`full-contest-rehearsal: completed contest extensions missing: ${missingExtensions.join(", ")}`);
+      }
+    }
+    if (!pendingExtensions || pendingExtensions.length !== 0) {
+      issues.push("full-contest-rehearsal: pending contest extensions remain or are not recorded");
+    }
+    if (!blockedExtensions || blockedExtensions.length !== 0) {
+      issues.push("full-contest-rehearsal: blocked contest extensions remain or are not recorded");
+    }
+
+    const missingInvariants = missingRequired(implementedInvariants, REQUIRED_S14_INVARIANTS);
+    if (missingInvariants.length) {
+      issues.push(`full-contest-rehearsal: invariant evidence missing: ${missingInvariants.join(", ")}`);
+    }
+    const missingFailures = missingRequired(implementedFailures, REQUIRED_S14_FAILURE_INJECTIONS);
+    if (missingFailures.length) {
+      issues.push(`full-contest-rehearsal: failure-injection evidence missing: ${missingFailures.join(", ")}`);
+    }
+
+    const seed = record(evidence.seed);
+    if (
+      seed?.editionCount !== V3_S14_SEED_CONTRACT.editionCount ||
+      seed?.delegationCount !== V3_S14_SEED_CONTRACT.delegationCount ||
+      typeof seed?.showCount !== "number" ||
+      seed.showCount < V3_S14_SEED_CONTRACT.minimumShowCount
+    ) {
+      issues.push("full-contest-rehearsal: seed evidence does not match the canonical bounded S14 contest");
     }
   }
 
