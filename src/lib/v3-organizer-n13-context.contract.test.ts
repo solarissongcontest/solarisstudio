@@ -30,7 +30,7 @@ describe("V3 Organizer N13 context safety", () => {
     );
   });
 
-  it("invalidates Organizer lens interaction when exact Organizer context changes", () => {
+  it("invalidates Organizer lens interaction when exact context generation changes", () => {
     const chrome = source("src/components/admin/OrganizerV3MobileChrome.tsx");
     expect(chrome).toContain("const { editionId, contextVersion } = useAdminContext()");
     expect(chrome).toContain(
