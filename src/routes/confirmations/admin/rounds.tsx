@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarClock,
   ExternalLink,
@@ -56,6 +56,9 @@ type PendingRoundChange = {
   restoreFormOnCancel: boolean;
 };
 
+const STALE_ROUND_REVIEW_ERROR =
+  "Organizer edition context changed before this submission-round review completed. Review the operation again in the selected edition.";
+
 const emptyForm = {
   name: "",
   status: "draft" as ConfirmationRound["status"],
@@ -90,6 +93,9 @@ export function resolveConfirmationRoundEditionId(
 
 function RoundsPage() {
   const { editionId: organizerEditionId, setEditionId: setOrganizerEditionId } = useAdminContext();
+  const organizerEditionRef = useRef(organizerEditionId);
+  organizerEditionRef.current = organizerEditionId;
+  const previewRequestRef = useRef(0);
   const [editions, setEditions] = useState<ConfirmationEdition[]>([]);
   const [editionId, setEditionId] = useState("");
   const [form, setForm] = useState<typeof emptyForm & { id?: string }>(emptyForm);
@@ -107,7 +113,7 @@ function RoundsPage() {
       resolveConfirmationRoundEditionId(rows, [
         preferredEditionId,
         current,
-        organizerEditionId,
+        organizerEditionRef.current,
       ]),
     );
   }
@@ -119,7 +125,7 @@ function RoundsPage() {
         const rows = await loadConfirmationEditions();
         if (!alive) return;
         setEditions(rows);
-        setEditionId(resolveConfirmationRoundEditionId(rows, [organizerEditionId]));
+        setEditionId(resolveConfirmationRoundEditionId(rows, [organizerEditionRef.current]));
       } catch (caught) {
         if (alive) {
           setError(caught instanceof Error ? caught.message : "Could not load submission rounds.");
@@ -130,6 +136,7 @@ function RoundsPage() {
     })();
     return () => {
       alive = false;
+      previewRequestRef.current += 1;
     };
   }, []);
 
@@ -141,22 +148,29 @@ function RoundsPage() {
   useEffect(() => {
     const nextEditionId = resolveConfirmationRoundEditionId(editions, [organizerEditionId]);
     if (nextEditionId !== editionId) {
+      previewRequestRef.current += 1;
       setEditionId(nextEditionId);
       setForm(emptyForm);
       setFormOpen(false);
       setPendingChange(null);
+      setBusy(false);
+      setRoundBusy(null);
     }
   }, [editionId, editions, organizerEditionId]);
   const rounds = edition?.rounds ?? [];
 
   function startCreate() {
-    if (!editionId) return;
+    if (!editionId || organizerEditionRef.current !== editionId) return;
     setForm(emptyForm);
     setError(null);
     setFormOpen(true);
   }
 
   function startEdit(round: ConfirmationRound) {
+    if (!editionId || organizerEditionRef.current !== editionId || round.edition_id !== editionId) {
+      toast.error(STALE_ROUND_REVIEW_ERROR);
+      return;
+    }
     setForm({
       id: round.id,
       name: round.name,
@@ -176,6 +190,15 @@ function RoundsPage() {
     payload?: ConfirmationRoundChangePayload;
     restoreFormOnCancel?: boolean;
   }) {
+    const reviewedEditionId = editionId;
+    if (!reviewedEditionId || organizerEditionRef.current !== reviewedEditionId) {
+      setPendingChange(null);
+      setFormOpen(false);
+      toast.error(STALE_ROUND_REVIEW_ERROR);
+      return;
+    }
+
+    const requestId = ++previewRequestRef.current;
     setError(null);
     if (input.roundId) setRoundBusy(input.roundId);
     else setBusy(true);
@@ -186,6 +209,21 @@ function RoundsPage() {
         kind: input.kind,
         payload: input.payload ?? {},
       });
+
+      if (
+        previewRequestRef.current !== requestId ||
+        organizerEditionRef.current !== reviewedEditionId
+      ) {
+        return;
+      }
+
+      if (
+        preview.editionId !== reviewedEditionId ||
+        preview.changeKind !== input.kind ||
+        preview.roundId !== (input.roundId ?? null)
+      ) {
+        throw new Error(STALE_ROUND_REVIEW_ERROR);
+      }
 
       if (preview.alreadyApplied && preview.blockers.length === 0) {
         if (input.restoreFormOnCancel) setFormOpen(false);
@@ -220,19 +258,29 @@ function RoundsPage() {
         restoreFormOnCancel: input.restoreFormOnCancel === true,
       });
     } catch (caught) {
+      if (
+        previewRequestRef.current !== requestId ||
+        organizerEditionRef.current !== reviewedEditionId
+      ) {
+        return;
+      }
       const message =
         caught instanceof Error ? caught.message : "Round impact preview could not be loaded.";
       if (input.restoreFormOnCancel) setError(message);
       else toast.error(message);
     } finally {
-      if (input.roundId) setRoundBusy(null);
-      else setBusy(false);
+      if (previewRequestRef.current === requestId) {
+        if (input.roundId) setRoundBusy(null);
+        else setBusy(false);
+      }
     }
   }
 
   async function submit() {
     setError(null);
-    if (!editionId) return setError("Select an edition first.");
+    if (!editionId || organizerEditionRef.current !== editionId) {
+      return setError(STALE_ROUND_REVIEW_ERROR);
+    }
     if (!form.name.trim()) return setError("Round name is required.");
     if (form.response_limit && !/^\d+$/.test(form.response_limit)) {
       return setError("Response limit must be a whole number.");
@@ -295,6 +343,21 @@ function RoundsPage() {
     if (!pendingChange || pendingChange.preview.blockers.length > 0) return;
 
     const pending = pendingChange;
+    if (
+      !editionId ||
+      pending.preview.editionId !== editionId ||
+      organizerEditionRef.current !== pending.preview.editionId
+    ) {
+      previewRequestRef.current += 1;
+      setPendingChange(null);
+      setForm(emptyForm);
+      setFormOpen(false);
+      setBusy(false);
+      setRoundBusy(null);
+      toast.error(STALE_ROUND_REVIEW_ERROR);
+      return;
+    }
+
     setBusy(true);
     if (pending.roundId) setRoundBusy(pending.roundId);
 
@@ -308,9 +371,15 @@ function RoundsPage() {
         expectedVersion: pending.preview.expectedVersion,
       });
 
+      if (organizerEditionRef.current !== pending.preview.editionId) {
+        setPendingChange(null);
+        setForm(emptyForm);
+        return;
+      }
+
       setPendingChange(null);
       setForm(emptyForm);
-      await refresh(editionId);
+      await refresh(pending.preview.editionId);
 
       if (pending.kind === "create") {
         toast.success("Submission round created as a draft.");
@@ -370,11 +439,14 @@ function RoundsPage() {
             value={editionId}
             onChange={(event) => {
               const nextEditionId = event.target.value;
+              previewRequestRef.current += 1;
               setEditionId(nextEditionId);
               setOrganizerEditionId(nextEditionId);
               setForm(emptyForm);
               setFormOpen(false);
               setPendingChange(null);
+              setBusy(false);
+              setRoundBusy(null);
             }}
             className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-[#07111f] px-3 text-sm text-foreground outline-none"
           >
