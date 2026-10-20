@@ -13,6 +13,7 @@ const resultInvariants = source(
 const publicationInvariants = source(
   'supabase/migrations/20261015164100_v3_s3_publication_invariants.sql',
 );
+const rehearsal = source('scripts/v3-public-result-analysis-context-rehearsal.sh');
 
 describe('V3 publication-safe Result Analysis Context', () => {
   it('is an additive S13 forward-fix read contract', () => {
@@ -35,11 +36,9 @@ describe('V3 publication-safe Result Analysis Context', () => {
     expect(migration).toContain("v_control.state <> 'public'");
     expect(migration).toContain("->> 'results'");
 
+    expect(resultInvariants).toContain('primary key (show_id, version)');
     expect(resultInvariants).toContain(
-      'primary key (show_id, version)',
-    );
-    expect(resultInvariants).toContain(
-      'raise exception \'Result version evidence is immutable\'',
+      "raise exception 'Result version evidence is immutable'",
     );
     expect(publicationInvariants).toContain(
       'studio2_show_publication_source_snapshot_v3_fk',
@@ -100,5 +99,15 @@ describe('V3 publication-safe Result Analysis Context', () => {
     expect(migration).not.toContain("'resultRowCount'");
     expect(migration).not.toContain('v_version.result_rows');
     expect(migration).not.toContain('v_version.created_by');
+  });
+
+  it('ships a local-only proof for role parity, scheduling, withdrawal and corrected publication', () => {
+    expect(rehearsal).toContain('Refusing hosted Supabase rehearsal');
+    expect(rehearsal).toContain('Refusing non-local database rehearsal');
+    expect(rehearsal).toContain('for ROLE in anon authenticated service_role');
+    expect(rehearsal).toContain('scheduled publication exposed Result Analysis Context');
+    expect(rehearsal).toContain('hidden result remained publicly available');
+    expect(rehearsal).toContain('corrected public result did not resolve Version 2');
+    expect(rehearsal).toContain('corrected publication still called Version 1 current');
   });
 });
