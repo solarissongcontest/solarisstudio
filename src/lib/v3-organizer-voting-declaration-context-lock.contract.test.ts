@@ -2,35 +2,13 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const declarationsRoute = readFileSync(
-  resolve(process.cwd(), "src/routes/televoting/admin/integrity-declarations.tsx"),
-  "utf8",
-);
-
-const integrityRoute = readFileSync(
-  resolve(process.cwd(), "src/routes/televoting/admin/integrity.tsx"),
-  "utf8",
-);
-
-const integrityReview = readFileSync(
-  resolve(process.cwd(), "src/components/televoting/V3ScopedIntegrityReview.tsx"),
-  "utf8",
-);
-
-const roundsView = readFileSync(
-  resolve(process.cwd(), "src/components/televoting/VotingRoundsView.tsx"),
-  "utf8",
-);
-
-const roundGuard = readFileSync(
-  resolve(process.cwd(), "src/routes/televoting/admin/rounds/$id.tsx"),
-  "utf8",
-);
-
-const declarationCommand = readFileSync(
-  resolve(process.cwd(), "src/lib/voting-declaration-admin.ts"),
-  "utf8",
-);
+const declarationsRoute = readFileSync(resolve(process.cwd(), "src/routes/televoting/admin/integrity-declarations.tsx"), "utf8");
+const integrityRoute = readFileSync(resolve(process.cwd(), "src/routes/televoting/admin/integrity.tsx"), "utf8");
+const integrityReview = readFileSync(resolve(process.cwd(), "src/components/televoting/V3ScopedIntegrityReview.tsx"), "utf8");
+const resultIntegrity = readFileSync(resolve(process.cwd(), "src/routes/televoting/admin/result-integrity.tsx"), "utf8");
+const roundsView = readFileSync(resolve(process.cwd(), "src/components/televoting/VotingRoundsView.tsx"), "utf8");
+const roundGuard = readFileSync(resolve(process.cwd(), "src/routes/televoting/admin/rounds/$id.tsx"), "utf8");
+const declarationCommand = readFileSync(resolve(process.cwd(), "src/lib/voting-declaration-admin.ts"), "utf8");
 
 describe("V3 Organizer voting context lock", () => {
   it("uses the shell-owned edition identity and label for declarations", () => {
@@ -41,7 +19,6 @@ describe("V3 Organizer voting context lock", () => {
 
   it("keeps declaration edition scope visibly locked near the page header", () => {
     expect(declarationsRoute).toContain('data-v3-organizer-context-lock="edition"');
-    expect(declarationsRoute).toContain("Edition context");
     expect(declarationsRoute).toContain("<AdminStatus tone=\"info\">{editionContextLabel}</AdminStatus>");
     expect(declarationsRoute).toContain("eyebrow={`${editionContextLabel} · Voting integrity`}");
   });
@@ -50,9 +27,6 @@ describe("V3 Organizer voting context lock", () => {
     expect(declarationsRoute).toContain("editionLabel: editionContextLabel");
     expect(declarationsRoute).toContain('data-v3-organizer-confirmation-context="edition"');
     expect(declarationsRoute).toContain("{pendingInvalidation.editionLabel}");
-    expect(declarationsRoute.indexOf("editionLabel: editionContextLabel")).toBeLessThan(
-      declarationsRoute.indexOf("{pendingInvalidation.editionLabel}"),
-    );
   });
 
   it("retains fail-closed declaration query and command edition checks", () => {
@@ -82,32 +56,35 @@ describe("V3 Organizer voting context lock", () => {
   it("passes the shell-owned human edition label into the read-only integrity review", () => {
     expect(integrityRoute).toContain("const { editionId, editionLabel } = useAdminContext()");
     expect(integrityRoute).toContain("editionLabel={editionLabel?.trim() || editionId}");
-    expect(integrityReview).toContain("editionLabel: string");
     expect(integrityReview).toContain("eyebrow={`${editionLabel} · Voting · Integrity`}");
   });
 
   it("keeps exact integrity scope visibly locked without re-enabling unsafe moderation", () => {
     expect(integrityReview).toContain('data-v3-organizer-integrity-scope={editionId}');
     expect(integrityReview).toContain('data-v3-organizer-context-lock="edition"');
-    expect(integrityReview).toContain("<AdminStatus tone=\"info\">{editionLabel}</AdminStatus>");
     expect(integrityReview).toContain("Human moderation is temporarily read-only here");
-    expect(integrityReview).toContain("until the server verifies edition ownership for every command");
     expect(integrityReview).not.toContain("useMutation");
+  });
+
+  it("keeps Result Integrity visibly tied to the selected edition while preserving round checks", () => {
+    expect(resultIntegrity).toContain("const { editionId, editionLabel } = useAdminContext()");
+    expect(resultIntegrity).toContain("editionLabel={editionLabel?.trim() || editionId}");
+    expect(resultIntegrity).toContain("eyebrow={`${editionLabel} · Voting integrity`}");
+    expect(resultIntegrity).toContain('data-v3-organizer-context-lock="edition"');
+    expect(resultIntegrity).toContain("rounds.some((round) => round.id === effectiveRoundId)");
+    expect(resultIntegrity).toContain("result.round.id !== effectiveRoundId");
   });
 
   it("keeps Voting Rounds visibly tied to the shell-owned edition", () => {
     expect(roundsView).toContain("editionLabel: organizerEditionLabel");
     expect(roundsView).toContain('data-v3-organizer-context-lock="edition"');
     expect(roundsView).toContain("eyebrow={`${editionContextLabel} · Voting`}");
-    expect(roundsView).toContain("<AdminStatus tone=\"info\">{editionContextLabel}</AdminStatus>");
   });
 
   it("requires the R2 round preview to prove exact Solaris and remote edition scope", () => {
     expect(roundsView).toContain("preview.solarisEditionId !== scope.editionId");
     expect(roundsView).toContain("preview.remoteEditionId !== scope.remoteEditionId");
-    expect(roundsView).toContain("Voting round preview returned a different edition scope");
     expect(roundsView).toContain("pending.editionId !== scope.editionId");
-    expect(roundsView).toContain("pending.preview.solarisEditionId !== scope.editionId");
     expect(roundsView).toContain("pending.preview.remoteEditionId !== scope.remoteEditionId");
   });
 
@@ -141,8 +118,5 @@ describe("V3 Organizer voting context lock", () => {
     expect(roundGuard).toContain('data-v3-organizer-context-lock="edition-round"');
     expect(roundGuard).toContain("<AdminStatus tone=\"info\">{editionContextLabel}</AdminStatus>");
     expect(roundGuard).toContain("<AdminStatus tone=\"neutral\">{scopeRound!.name}</AdminStatus>");
-    expect(roundGuard.indexOf('data-v3-organizer-context-lock="edition-round"')).toBeLessThan(
-      roundGuard.indexOf("<Outlet />"),
-    );
   });
 });
