@@ -101,6 +101,7 @@ async function setV3ForLocalUser(
   publishableKey: string,
   session: E2ESession,
   enabled: boolean,
+  targetUserIds?: string[],
 ) {
   await setV3FeatureForLocalUser(
     url,
@@ -108,12 +109,15 @@ async function setV3ForLocalUser(
     session,
     "solaris_app_v3",
     enabled,
+    [],
+    targetUserIds,
   );
 }
 
 // Several tests deliberately mutate the same local rollout rows. Serializing this
 // one account-state project prevents one valid rollout proof from rewriting the
-// authority scope underneath another. This affects only isolated local Supabase.
+// authority scope underneath another. Cross-file Browser Audit workers still run
+// in parallel, so shared root prerequisites must preserve all active cohorts.
 test.describe.configure({ mode: "serial" });
 
 for (const state of ["COUNTRY", "ORGANIZER", "SUSPENDED"] as const satisfies readonly AccountState[]) {
@@ -197,7 +201,9 @@ test("country participant Entry cuts over to V3 without taking Organizer inspect
   );
   const target = [country.user.id];
 
-  await setV3FeatureForLocalUser(url!, publishableKey!, organizer, "solaris_app_v3", true, [], target);
+  // The local seed owns the shared root V3 cohort. Entry only mutates the two
+  // feature rows it is actually certifying so it cannot clobber parallel NAV
+  // or Organizer-B tests using the same singleton root flag.
   await setV3FeatureForLocalUser(url!, publishableKey!, organizer, "hod_workspace_v2", true, [], target);
   await setV3FeatureForLocalUser(
     url!,
@@ -216,9 +222,8 @@ test("country participant Entry cuts over to V3 without taking Organizer inspect
     await expect(entryRoot).toHaveAttribute("data-v3-entry-state", "ready");
     await expect(page.getByRole("heading", { name: "Your entry", exact: true })).toBeVisible();
     await expect(page.locator("[data-v3-entry-readiness]")).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Primary app navigation" })
-      .getByRole("link", { name: "Participate", exact: true }))
-      .toHaveAttribute("aria-current", "page");
+    await expect(page.locator('[data-v3-focused-task-shell="mysolaris.entry"]')).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Primary app navigation" })).toHaveCount(0);
     await expect(page.locator("body")).not.toContainText(/This page didn't load|missing supabase/i);
 
     // A country selector is an Organizer inspection contract. It must never be
@@ -236,16 +241,19 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
   const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
   const email = process.env.E2E_ORGANIZER_B_EMAIL;
   const password = process.env.E2E_ORGANIZER_B_PASSWORD;
-  const missingConfig = !url || !publishableKey || !email || !password;
+  const countryEmail = process.env.E2E_COUNTRY_EMAIL;
+  const countryPassword = process.env.E2E_COUNTRY_PASSWORD;
+  const missingConfig =
+    !url || !publishableKey || !email || !password || !countryEmail || !countryPassword;
 
   if (missingConfig && process.env.CI) {
     throw new Error(
-      "Browser Audit must seed local Organizer B credentials for the V3 positive-path cutover proof.",
+      "Browser Audit must seed local Organizer B + country credentials for the V3 positive-path cutover proof.",
     );
   }
   test.skip(
     missingConfig,
-    "Organizer B browser credentials or E2E Supabase public config are not configured",
+    "Organizer B, country or E2E Supabase public config is not configured",
   );
 
   expect(url).toMatch(/^http:\/\/(?:127\.0\.0\.1|localhost):\d+/);
@@ -256,7 +264,14 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     localStorage.setItem("solaris:app-first-run-complete:v1", "1");
   });
   const session = await addSession(context, url!, publishableKey!, email!, password!);
-  await setV3ForLocalUser(url!, publishableKey!, session, true);
+  const country = await fetchSession(url!, publishableKey!, countryEmail!, countryPassword!);
+  await setV3ForLocalUser(
+    url!,
+    publishableKey!,
+    session,
+    true,
+    [session.user.id, country.user.id],
+  );
   await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_explore", true);
   await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_edition_hub", true);
   await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_delegation", true);
@@ -388,7 +403,8 @@ test("server-authorized V3 rollout keeps primary, Edition and Delegation content
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_results", false);
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_delegation", false);
     await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_edition_hub", false);
-    await setV3FeatureForLocalUser(url!, publishableKey!, session, "solaris_app_v3_explore", false);
-    await setV3ForLocalUser(url!, publishableKey!, session, false);
+    // Explore and the global V3 root are shared prerequisites for other parallel
+    // Browser Audit specs. Leave them enabled for the local Organizer-B/country
+    // cohort instead of invalidating another worker mid-navigation.
   }
 });

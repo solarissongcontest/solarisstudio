@@ -23,15 +23,40 @@ describe("V3 Confirmation route cutover", () => {
     expect(source).not.toContain("localStorage");
   });
 
-  it("uses the canonical V3 app shell instead of nesting the legacy app shell", () => {
+  it("uses the canonical focused critical-task shell in the installed V3 app", () => {
     const source = shell();
 
-    expect(source).toContain("<V3AppShell");
+    expect(source).toContain('resolveV3FocusedTaskChrome("/confirmations")');
+    expect(source).toContain("<V3FocusedTaskShell");
+    expect(source).toContain("chrome={CONFIRMATION_FOCUSED_CHROME}");
     expect(source).toContain("<V3Screen");
     expect(source).toContain('data-v3-confirmation-route-content=""');
     expect(source).toContain("<V3ConfirmationPresentation>{children}</V3ConfirmationPresentation>");
-    expect(source).toContain('to="/participate"');
-    expect(source).toContain('to="/guide"');
+    expect(source).not.toContain("<V3AppShell");
+    expect(source).not.toContain("Back to Participate");
+    expect(source).not.toContain('to="/guide"');
+  });
+
+  it("keeps emergency maintenance Confirmation isolated ahead of app/focused chrome", () => {
+    const source = shell();
+    const maintenanceStart = source.indexOf("function MaintenanceConfirmationRoute");
+    const connectedStart = source.indexOf("function ConnectedV3ConfirmationRouteShell");
+    const wrapperStart = source.indexOf("export function V3ConfirmationRouteShell");
+    const maintenanceGuard = source.indexOf("if (props.maintenanceMode)", wrapperStart);
+    const maintenanceReturn = source.indexOf("<MaintenanceConfirmationRoute {...props} />", wrapperStart);
+    const connectedReturn = source.indexOf("<ConnectedV3ConfirmationRouteShell {...props} />", wrapperStart);
+
+    expect(source).toContain("maintenanceMode?: boolean");
+    expect(maintenanceStart).toBeGreaterThanOrEqual(0);
+    expect(connectedStart).toBeGreaterThan(maintenanceStart);
+    const maintenanceSlice = source.slice(maintenanceStart, connectedStart);
+    expect(maintenanceSlice).toContain('data-maintenance-confirmation-shell=""');
+    expect(maintenanceSlice).not.toContain("V3FocusedTaskShell");
+    expect(maintenanceSlice).not.toContain("ParticipationRouteChrome");
+    expect(wrapperStart).toBeGreaterThan(connectedStart);
+    expect(maintenanceGuard).toBeGreaterThan(wrapperStart);
+    expect(maintenanceReturn).toBeGreaterThan(maintenanceGuard);
+    expect(connectedReturn).toBeGreaterThan(maintenanceReturn);
   });
 
   it("keeps V3 presentation separate from the canonical confirmation engine", () => {
