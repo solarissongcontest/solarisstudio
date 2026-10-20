@@ -2,10 +2,12 @@ import { createClient } from "@supabase/supabase-js";
 
 import { getSolarisPublicConfig } from "@/integrations/supabase/organizer.server";
 import type { Database } from "@/integrations/supabase/types";
+import type { PulseCategory } from "@/lib/pulse";
 import {
   emptyV3PublicPulseBundle,
   parseV3PublicPulseBundle,
   type V3PublicPulseBundle,
+  type V3PublicPulseCursor,
 } from "@/lib/v3-public-pulse";
 
 type RpcError = {
@@ -48,13 +50,17 @@ function missingPublicPulseContract(error: RpcError | null) {
  * owns publication timing, payload allowlisting and route safety; viewer role
  * must never widen this feed.
  */
-export async function loadV3PublicPulseEvents(limit: number): Promise<V3PublicPulseBundle> {
+export async function loadV3PublicPulseEvents(
+  limit: number,
+  cursor: V3PublicPulseCursor | null = null,
+  category: PulseCategory | null = null,
+): Promise<V3PublicPulseBundle> {
   const client = createCallerInvariantPulseClient();
   const { data, error } = await client.rpc("v3_public_pulse_events", {
     p_limit: limit,
-    p_before_published_at: null,
-    p_before_id: null,
-    p_category: null,
+    p_before_published_at: cursor?.publishedAt ?? null,
+    p_before_id: cursor?.id ?? null,
+    p_category: category,
   });
 
   if (missingPublicPulseContract(error)) return emptyV3PublicPulseBundle();
