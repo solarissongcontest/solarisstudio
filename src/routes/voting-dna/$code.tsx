@@ -4,10 +4,22 @@ import { useMemo } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { FlagChip } from "@/components/FlagChip";
-import { DataStoryPage, MethodologyDisclosure, ResponsiveHistory, StatSummary, type PublicDataColumn } from "@/components/public/PublicDataStory";
+import {
+  DataStoryPage,
+  MethodologyDisclosure,
+  ResponsiveHistory,
+  StatSummary,
+  type PublicDataColumn,
+} from "@/components/public/PublicDataStory";
 import { supabase } from "@/integrations/supabase/client";
 import { editionLabel, useCountries, useEditions } from "@/lib/data";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
+import {
+  VOTING_DNA_PRESENTATION_FORMULA_VERSION,
+  averagePublishedTotals,
+  getVotingDnaAvailability,
+  type VotingDnaAggregate,
+} from "@/lib/v3-voting-dna";
 
 export const Route = createFileRoute("/voting-dna/$code")({
   head: ({ params }) => ({
@@ -22,29 +34,6 @@ export const Route = createFileRoute("/voting-dna/$code")({
   }),
   component: VotingDnaPage,
 });
-
-type VotingDnaAggregate = {
-  sample: {
-    detailedEditions: number;
-    givenPoints: number;
-    receivedPoints: number;
-    resultEditions: number;
-  };
-  topGiven: Array<{ countryId: string; points: number; ballots: number }>;
-  topReceived: Array<{ countryId: string; points: number; ballots: number }>;
-  results: Array<{
-    editionId: string;
-    showId: string;
-    finalRank: number | null;
-    juryPoints: number;
-    televotePoints: number;
-    totalPoints: number;
-  }>;
-};
-
-function average(values: number[]) {
-  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
-}
 
 function VotingDnaPage() {
   const { code } = Route.useParams();
@@ -160,6 +149,45 @@ function VotingDnaPage() {
     );
   }
 
+  const availability = getVotingDnaAvailability(dna.data);
+
+  if (!availability.hasAnyPublishedData) {
+    return (
+      <AppShell>
+        <PageHeader
+          eyebrow="Published analysis"
+          title={`${country.name} Voting DNA`}
+          description="A descriptive profile built only from published voting and result history."
+          actions={
+            <Link
+              to="/countries/$code"
+              params={{ code: country.short_code }}
+              className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold"
+            >
+              Country profile →
+            </Link>
+          }
+        />
+        <DataStoryPage>
+          <Panel
+            title="Not enough data yet"
+            description="Solaris does not yet have a published detailed-voting or result sample for this country."
+          >
+            <p className="text-sm text-muted-foreground" role="status">
+              Voting DNA does not estimate missing history or turn unpublished contest data into a
+              pattern. This profile will populate as publication-safe source data becomes available.
+            </p>
+          </Panel>
+          <MethodologyDisclosure title="Methodology">
+            Voting DNA uses only published editions, published result layers and detailed jury
+            voting that the relevant show has made public. Missing historical detail is excluded
+            rather than inferred.
+          </MethodologyDisclosure>
+        </DataStoryPage>
+      </AppShell>
+    );
+  }
+
   const topGiven = dna.data.topGiven
     .map((row) => ({ ...row, country: countryMap.get(row.countryId) }))
     .filter((row): row is typeof row & { country: NonNullable<typeof row.country> } =>
@@ -211,6 +239,9 @@ function VotingDnaPage() {
     },
   ] satisfies readonly PublicDataColumn<(typeof editionRows)[number]>[];
 
+  const limitedSample =
+    availability.limitedDetailedSample || availability.limitedResultSample;
+
   return (
     <AppShell>
       <PageHeader
@@ -230,84 +261,103 @@ function VotingDnaPage() {
 
       <DataStoryPage>
         <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-4">
-        <FlagChip
-          code={country.short_code}
-          color={country.accent_color}
-          image={country.flag_image}
-          size="md"
-        />
-        <div>
-          <p className="font-semibold">{country.name}</p>
-          <p className="text-xs text-muted-foreground">
-            {country.region} · {country.short_code}
-          </p>
+          <FlagChip
+            code={country.short_code}
+            color={country.accent_color}
+            image={country.flag_image}
+            size="md"
+          />
+          <div>
+            <p className="font-semibold">{country.name}</p>
+            <p className="text-xs text-muted-foreground">
+              {country.region} · {country.short_code}
+            </p>
+          </div>
         </div>
-      </div>
 
-      <Panel
-        title="Sample"
-        description="The sample changes when Solaris has not published detailed ballots for an older show."
-      >
-        <StatSummary>
-          <StatTile label="Detailed editions" value={dna.data.sample.detailedEditions} />
-          <StatTile label="Jury points given" value={dna.data.sample.givenPoints} />
-          <StatTile label="Jury points received" value={dna.data.sample.receivedPoints} />
-          <StatTile label="Result editions" value={dna.data.sample.resultEditions} />
-        </StatSummary>
-      </Panel>
-
-      <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <Panel
-          title="Most supported"
-          description="Countries receiving the most published jury points from this country."
+          title="Published sample"
+          description={
+            limitedSample
+              ? "Limited sample: treat these published totals as context, not as a stable long-term pattern."
+              : "Only editions and voting layers already published for public viewing are included."
+          }
         >
-          <SupportList rows={topGiven} />
+          <StatSummary>
+            <StatTile label="Detailed editions" value={dna.data.sample.detailedEditions} />
+            <StatTile label="Jury points given" value={dna.data.sample.givenPoints} />
+            <StatTile label="Jury points received" value={dna.data.sample.receivedPoints} />
+            <StatTile label="Result editions" value={dna.data.sample.resultEditions} />
+          </StatSummary>
         </Panel>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <Panel
+            title="Most supported"
+            description="Countries receiving the most published jury points from this country."
+          >
+            <SupportList rows={topGiven} />
+          </Panel>
+          <Panel
+            title="Strongest received support"
+            description="Countries that have given this country the most published jury points."
+          >
+            <SupportList rows={topReceived} />
+          </Panel>
+        </div>
+
         <Panel
-          title="Strongest received support"
-          description="Countries that have given this country the most published jury points."
-        >
-          <SupportList rows={topReceived} />
-        </Panel>
-      </div>
-
-      <Panel
-        title="Jury and televote result profile"
-        description="Aggregate result totals, kept separate rather than flattened into fake precision."
-        className="mt-5"
-      >
-        <StatSummary>
-          <StatTile label="Avg jury points" value={average(juryValues)?.toFixed(1) ?? "—"} />
-          <StatTile
-            label="Avg televote points"
-            value={average(teleValues)?.toFixed(1) ?? "—"}
-          />
-          <StatTile
-            label="Best jury total"
-            value={juryValues.length ? Math.max(...juryValues) : "—"}
-          />
-          <StatTile
-            label="Best televote total"
-            value={teleValues.length ? Math.max(...teleValues) : "—"}
-          />
-        </StatSummary>
-
-        <ResponsiveHistory
+          title="Jury and televote result profile"
+          description="Published edition totals remain separate rather than being flattened into a single opaque score."
           className="mt-5"
-          rows={editionRows}
-          columns={historyColumns}
-          rowKey={(row) => row.edition.id}
-          ariaLabel={`${country.name} published result history`}
-        />
-      </Panel>
+        >
+          {availability.hasResultSample && editionRows.length ? (
+            <>
+              <StatSummary>
+                <StatTile
+                  label="Avg jury points"
+                  value={averagePublishedTotals(juryValues)?.toFixed(1) ?? "—"}
+                />
+                <StatTile
+                  label="Avg televote points"
+                  value={averagePublishedTotals(teleValues)?.toFixed(1) ?? "—"}
+                />
+                <StatTile
+                  label="Best jury total"
+                  value={juryValues.length ? Math.max(...juryValues) : "—"}
+                />
+                <StatTile
+                  label="Best televote total"
+                  value={teleValues.length ? Math.max(...teleValues) : "—"}
+                />
+              </StatSummary>
 
-      <MethodologyDisclosure title="Methodology">
-        Voting DNA uses a compact database aggregate over published editions, result layers and
-        detailed jury ballots. Jury and televote totals remain separate. Directional support uses
-        detailed jury ballots because aggregate televote totals do not identify individual
-        voter-country relationships. Missing historical detail is excluded, and the sample counts
-        above show how much published evidence exists.
-      </MethodologyDisclosure>
+              <ResponsiveHistory
+                className="mt-5"
+                rows={editionRows}
+                columns={historyColumns}
+                rowKey={(row) => row.edition.id}
+                ariaLabel={`${country.name} published result history`}
+              />
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground" role="status">
+              Not enough result data yet. No published result history is available for this
+              country.
+            </p>
+          )}
+        </Panel>
+
+        <MethodologyDisclosure title="Methodology">
+          Voting DNA uses a compact database aggregate over published editions, result layers and
+          detailed jury ballots. Jury and televote totals remain separate. Directional support is
+          the sum of published detailed jury vote rows because aggregate televote totals do not
+          identify individual voter-country relationships. The displayed jury and televote
+          averages use presentation formula {VOTING_DNA_PRESENTATION_FORMULA_VERSION}: the
+          arithmetic mean of the published edition totals shown in this profile. Missing historical
+          detail is excluded rather than estimated, and the sample counts above show the historical
+          scope of the available evidence.
+        </MethodologyDisclosure>
       </DataStoryPage>
     </AppShell>
   );
@@ -330,8 +380,8 @@ function SupportList({
 }) {
   if (!rows.length) {
     return (
-      <p className="text-sm text-muted-foreground">
-        No published detailed ballot sample is available.
+      <p className="text-sm text-muted-foreground" role="status">
+        Not enough detailed voting data yet.
       </p>
     );
   }
@@ -358,7 +408,9 @@ function SupportList({
           <span className="text-right text-xs tabular-nums">
             <strong>{row.points}</strong>
             <br />
-            <span className="text-muted-foreground">{row.ballots} rows</span>
+            <span className="text-muted-foreground">
+              {row.ballots} published {row.ballots === 1 ? "vote row" : "vote rows"}
+            </span>
           </span>
         </Link>
       ))}
