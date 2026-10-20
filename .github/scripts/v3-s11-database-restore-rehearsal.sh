@@ -20,33 +20,27 @@ EVIDENCE_OUTPUT="${V3_RECOVERY_EVIDENCE_OUTPUT:-}"
 EVIDENCE_SHA="${V3_RECOVERY_EVIDENCE_SHA:-}"
 EVIDENCE_ENVIRONMENT="${V3_RECOVERY_EVIDENCE_ENVIRONMENT:-isolated-local-supabase}"
 
-if [[ -n "$EVIDENCE_OUTPUT" ]]; then
+verify_evidence_checkout() {
+  [[ -n "$EVIDENCE_OUTPUT" ]] || return 0
   command -v git >/dev/null 2>&1 || fail "git is required when exact-SHA evidence output is requested"
   [[ "$EVIDENCE_SHA" =~ ^[0-9a-fA-F]{40}$ ]] \
     || fail "V3_RECOVERY_EVIDENCE_SHA must be an exact 40-character commit SHA when evidence output is requested"
-  HEAD_SHA="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
-  [[ "$HEAD_SHA" == "$(printf '%s' "$EVIDENCE_SHA" | tr '[:upper:]' '[:lower:]')" ]] \
+  local head_sha
+  head_sha="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+  [[ "$head_sha" == "$(printf '%s' "$EVIDENCE_SHA" | tr '[:upper:]' '[:lower:]')" ]] \
     || fail "recovery evidence SHA does not match checked-out HEAD"
   [[ -z "$(git status --porcelain --untracked-files=all)" ]] \
     || fail "recovery evidence requires a clean worktree"
   [[ -n "$EVIDENCE_ENVIRONMENT" && ${#EVIDENCE_ENVIRONMENT} -le 120 ]] \
     || fail "V3_RECOVERY_EVIDENCE_ENVIRONMENT must be 1..120 characters"
-fi
+}
+
+verify_evidence_checkout
 
 RESTORE_DB="v3_s11_restore_${RANDOM}_$$"
 TMP_ROOT="$(mktemp -d)"
 DUMP_PATH="$TMP_ROOT/solaris.dump"
 FINGERPRINTS_PATH="$TMP_ROOT/critical-fingerprints.tsv"
-STARTED_AT="$(python3 - <<'PY'
-from datetime import datetime, timezone
-print(datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'))
-PY
-)"
-START_NS="$(python3 - <<'PY'
-import time
-print(time.time_ns())
-PY
-)"
 
 restore_url() {
   python3 - "$DB_URL" "$RESTORE_DB" <<'PY'
@@ -81,6 +75,18 @@ create table v3_s11_rehearsal.restore_sentinel (
 insert into v3_s11_rehearsal.restore_sentinel(id, payload)
 values (1, 'solaris-v3-s11-restore-proof'), (2, 'canonical-truth-survives-restore');
 SQL
+
+# Test setup is intentionally excluded from the measured recovery interval.
+STARTED_AT="$(python3 - <<'PY'
+from datetime import datetime, timezone
+print(datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'))
+PY
+)"
+START_NS="$(python3 - <<'PY'
+import time
+print(time.time_ns())
+PY
+)"
 
 log "Creating full local database dump"
 pg_dump "$DB_URL" \
@@ -185,6 +191,9 @@ PY
 REHEARSAL_RTO_MS="$(((END_NS - START_NS) / 1000000))"
 
 if [[ -n "$EVIDENCE_OUTPUT" ]]; then
+  # Exact-head identity is rechecked after the rehearsal so a concurrent local
+  # edit cannot be retained as evidence for an older commit.
+  verify_evidence_checkout
   mkdir -p "$(dirname "$EVIDENCE_OUTPUT")"
   python3 - \
     "$EVIDENCE_OUTPUT" \
