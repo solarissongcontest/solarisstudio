@@ -10,6 +10,30 @@ export type AppViewportSnapshot = {
 
 const KEYBOARD_THRESHOLD_PX = 120;
 
+export type VisualViewportKeyboardMetrics = {
+  layoutHeight: number;
+  viewportHeight: number;
+  viewportOffsetTop: number;
+  viewportScale: number;
+};
+
+export function resolveVisualViewportKeyboardInset({
+  layoutHeight,
+  viewportHeight,
+  viewportOffsetTop,
+  viewportScale,
+}: VisualViewportKeyboardMetrics) {
+  const safeScale =
+    Number.isFinite(viewportScale) && viewportScale > 0 ? viewportScale : 1;
+
+  // VisualViewport.height shrinks for both the software keyboard and pinch
+  // zoom. Scale the visible height back into layout-viewport CSS pixels before
+  // interpreting any remaining bottom gap as keyboard occlusion. offsetTop is
+  // already expressed in layout CSS pixels, so it must not be scaled again.
+  const visibleLayoutExtent = viewportHeight * safeScale + viewportOffsetTop;
+  return Math.max(0, layoutHeight - visibleLayoutExtent);
+}
+
 function readViewport(): AppViewportSnapshot {
   if (typeof window === "undefined") {
     return {
@@ -28,11 +52,17 @@ function readViewport(): AppViewportSnapshot {
   const viewportHeight = visual?.height ?? window.innerHeight;
   const viewportOffsetLeft = visual?.offsetLeft ?? 0;
   const viewportOffsetTop = visual?.offsetTop ?? 0;
-  const viewportScale = visual?.scale ?? 1;
-  const keyboardInset = Math.max(
-    0,
-    window.innerHeight - (viewportHeight + viewportOffsetTop),
-  );
+  const rawViewportScale = visual?.scale ?? 1;
+  const viewportScale =
+    Number.isFinite(rawViewportScale) && rawViewportScale > 0
+      ? rawViewportScale
+      : 1;
+  const keyboardInset = resolveVisualViewportKeyboardInset({
+    layoutHeight: window.innerHeight,
+    viewportHeight,
+    viewportOffsetTop,
+    viewportScale,
+  });
 
   return {
     viewportWidth,
