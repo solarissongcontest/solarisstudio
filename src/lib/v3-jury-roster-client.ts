@@ -91,7 +91,8 @@ export async function applyJuryRosterChange(input: {
   reason?: string | null;
   expectedVersion: number;
 }): Promise<JuryRosterApplyResult> {
-  const payload = input.payload ?? {};
+  const rawPayload = input.payload ?? {};
+  const payload = normalizePayload(input.changeKind, rawPayload);
   const reason = input.reason?.trim() || null;
   if (input.changeKind === "remove" && !reason) {
     throw new Error("A removal reason is required.");
@@ -153,6 +154,19 @@ export async function applyJuryRosterChange(input: {
   }
 
   throw mutation.error;
+}
+
+function normalizePayload(
+  changeKind: JuryRosterChangeKind,
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  if (changeKind !== "reorder") return payload;
+  const voterIds = Array.isArray(payload.voterIds)
+    ? payload.voterIds
+    : Array.isArray(payload.orderedVoterIds)
+      ? payload.orderedVoterIds
+      : null;
+  return voterIds ? { orderedVoterIds: voterIds } : payload;
 }
 
 function isPreview(
