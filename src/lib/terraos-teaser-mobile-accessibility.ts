@@ -9,8 +9,12 @@ type TerraOsMobileAccessibilityWindow = Window & {
   __terraosMobileAccessibilityRuntime?: TerraOsMobileAccessibilityRuntime;
 };
 
-const REDUCED_MOTION_CSS = `
+const MOBILE_ACCESSIBILITY_CSS = `
 @media (max-width: 560px) {
+  html[data-terraos-mobile-composition="v1"] [data-terra-first-look="true"] .first-look {
+    padding-top: max(5.5rem, calc(env(safe-area-inset-top) + 3.75rem)) !important;
+  }
+
   html[data-terraos-mobile-composition="v1"][data-terraos-reduced-motion="true"] .story-touch[data-terra-scroll-scene="true"],
   html[data-terraos-mobile-composition="v1"][data-terraos-reduced-motion="true"] .participation-story[data-terra-scroll-scene="true"],
   html[data-terraos-mobile-composition="v1"][data-terraos-reduced-motion="true"] .participation-story[data-terra-scroll-scene="true"] .story-grid,
@@ -30,12 +34,10 @@ const REDUCED_MOTION_CSS = `
 `;
 
 /**
- * The compact teaser intentionally overrides the normal cinematic scene budget.
- * This guard restores the canonical reduced-motion structure after those mobile
- * overrides so accessibility preferences never leave several viewport-heights
- * of inert scroll space behind. The maintenance page contains more than one
- * full Home preview, so ownership is reference-counted just like the other host
- * presentation bridges.
+ * Mobile teaser polish must preserve the maintenance page's safe-area contract
+ * and its canonical reduced-motion fallback. The maintenance page contains more
+ * than one full Home preview, so ownership is reference-counted just like the
+ * other host presentation bridges.
  */
 export function installTerraOsTeaserMobileAccessibility(document: Document) {
   const hostWindow = document.defaultView as TerraOsMobileAccessibilityWindow | null;
@@ -58,7 +60,7 @@ export function installTerraOsTeaserMobileAccessibility(document: Document) {
   const ownsStyle = existingStyle === null;
   if (ownsStyle) {
     style.id = STYLE_ID;
-    style.textContent = REDUCED_MOTION_CSS;
+    style.textContent = MOBILE_ACCESSIBILITY_CSS;
     document.head.appendChild(style);
   }
 
