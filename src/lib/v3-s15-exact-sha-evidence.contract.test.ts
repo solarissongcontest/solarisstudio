@@ -33,6 +33,19 @@ describe("S15 exact-SHA zero-orphan release evidence", () => {
     expect(readiness).toContain("S15 physical-ownership output was not valid JSON");
     expect(readiness).toContain("S15 physical-ownership output did not match the expected report contract");
     expect(readiness).toContain("S15 physical-ownership scan failed without diagnostics");
+    expect(readiness).toContain('typeof physicalOwnership.schemaVersion !== "number"');
+  });
+
+  it("cannot report zero orphans when a canonical scanner summary contradicts its findings", () => {
+    expect(readiness).toContain("CORE_READINESS_CONFLICT");
+    expect(readiness).toContain("core.zeroOrphans !== (core.findings.length === 0)");
+    expect(readiness).toContain(
+      "physicalOwnership.zeroOwnershipConflicts !== (physicalOwnership.findings.length === 0)",
+    );
+    expect(readiness).toContain("core.zeroOrphans &&");
+    expect(readiness).toContain("physicalOwnership.zeroOwnershipConflicts &&");
+    expect(readiness).toContain("findings.length === 0");
+    expect(readiness).toContain("if (requireZero && !report.zeroOrphans) process.exit(1)");
   });
 
   it("writes the exact release artifact consumed by release integrity", () => {
