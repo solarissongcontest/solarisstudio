@@ -50,6 +50,11 @@ import {
 import { DEFAULT_ACCENT, entityDisplayMap } from "@/lib/entities";
 import { reportSupabaseError } from "@/lib/errors";
 import { createOrganisationCommand } from "@/lib/organisation-operation-contract";
+import {
+  applyJuryRosterChange,
+  loadJuryRosterPreview,
+  type JuryRosterDependencies,
+} from "@/lib/v3-jury-roster-client";
 import { resolveVoting } from "@/lib/voting";
 
 type JurySearch = { show?: string };
@@ -105,6 +110,13 @@ type PendingDnvChange = {
   idempotencyKey: string;
 };
 
+type PendingRosterRemoval = {
+  voter: Voter;
+  expectedVersion: number;
+  dependencies: JuryRosterDependencies;
+  canRemove: boolean;
+};
+
 type LifecycleRpcResult = {
   data: unknown;
   error: { message?: string } | null;
@@ -128,7 +140,6 @@ type EditDraft = {
   name: string;
   flag_image: string;
   accent_color: string;
-  sort_order: number;
 };
 
 const emptyVoter: VoterDraft = {
@@ -240,7 +251,8 @@ function JuryWorkspace() {
   const [addOpen, setAddOpen] = useState(false);
   const [draft, setDraft] = useState<VoterDraft>({ ...emptyVoter });
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Voter | null>(null);
+  const [pendingRosterRemoval, setPendingRosterRemoval] = useState<PendingRosterRemoval | null>(null);
+  const [rosterReason, setRosterReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [pendingBallotReview, setPendingBallotReview] =
     useState<PendingBallotReview | null>(null);
@@ -519,36 +531,25 @@ function JuryWorkspace() {
   }
 
   async function addMissingParticipants() {
-    if (!edition || !selectedShow) return;
-    const existing = new Set(showVoters.flatMap((voter) => [voter.contest_entity_id, voter.country_id]).filter(Boolean));
-    const missing = order.filter((key) => {
-      const identity = identityFor(key);
-      return !existing.has(key) && !existing.has(identity.country_id) && !existing.has(identity.contest_entity_id);
-    });
-    if (!missing.length) {
-      toast.info("All participating countries are already in the editable jury roster");
-      return;
-    }
+    if (!edition || !selectedShow || busy) return;
     setBusy(true);
     try {
-      const nextOrder = Math.max(0, ...showVoters.map((voter) => voter.sort_order ?? 0)) + 1;
-      const rows = missing.map((key, index) => {
-        const identity = identityFor(key);
-        const display = displays.get(key);
-        return {
-          edition_id: edition.id,
-          show_id: selectedShow.id,
-          ...identity,
-          name: display?.name ?? "Country",
-          kind: "country",
-          flag_image: display?.flag_image ?? null,
-          accent_color: display?.accent_color ?? "#8888aa",
-          sort_order: nextOrder + index,
-        };
+      const preview = await loadJuryRosterPreview({ editionId: edition.id, showId: selectedShow.id });
+      if (!preview.missingParticipantCount) {
+        toast.info("All participating countries are already in the editable jury roster");
+        return;
+      }
+      const result = await applyJuryRosterChange({
+        editionId: edition.id,
+        showId: selectedShow.id,
+        changeKind: "materialize",
+        expectedVersion: preview.expectedVersion,
       });
-      const { error } = await (supabase.from("voters") as any).insert(rows);
-      if (error) throw error;
-      toast.success(explicitRoster ? `Added ${rows.length} missing countr${rows.length === 1 ? "y" : "ies"}` : `Created editable roster with ${rows.length} jur${rows.length === 1 ? "y" : "ies"}`);
+      toast.success(
+        preview.explicitRoster
+          ? `Added ${result.createdCount} missing countr${result.createdCount === 1 ? "y" : "ies"}`
+          : `Created editable roster with ${result.createdCount} jur${result.createdCount === 1 ? "y" : "ies"}`,
+      );
       await refresh();
     } catch (caught) {
       toast.error(reportSupabaseError(caught, "Jury roster could not be updated."));
@@ -568,27 +569,40 @@ function JuryWorkspace() {
   }
 
   async function addVoter() {
-    if (!edition || !selectedShow || !explicitRoster) return;
+    if (!edition || !selectedShow || !explicitRoster || busy) return;
     const country = countries.find((item) => item.id === draft.countryId);
     const countryKind = draft.kind === "country" || draft.kind === "external-country";
     const name = countryKind ? country?.name ?? "" : draft.name.trim();
     if (!name) return;
+
     setBusy(true);
     try {
+      const preview = await loadJuryRosterPreview({ editionId: edition.id, showId: selectedShow.id });
+      if (!preview.explicitRoster) {
+        toast.info("Create the editable roster first so participating juries are preserved.");
+        setAddOpen(false);
+        setView("roster");
+        await refresh();
+        return;
+      }
+
       const identity = draft.kind === "country" && draft.countryId
         ? identityFor(draft.countryId)
         : { country_id: draft.countryId, contest_entity_id: null };
-      const { error } = await (supabase.from("voters") as any).insert({
-        edition_id: edition.id,
-        show_id: selectedShow.id,
-        ...identity,
-        name,
-        kind: draft.kind,
-        flag_image: draft.flag_image.trim() || country?.flag_image || null,
-        accent_color: draft.accent_color.trim() || country?.accent_color || "#8888aa",
-        sort_order: Math.max(0, ...showVoters.map((voter) => voter.sort_order ?? 0)) + 1,
+      await applyJuryRosterChange({
+        editionId: edition.id,
+        showId: selectedShow.id,
+        changeKind: "add",
+        expectedVersion: preview.expectedVersion,
+        payload: {
+          countryId: identity.country_id,
+          contestEntityId: identity.contest_entity_id,
+          name,
+          kind: draft.kind,
+          flagImage: draft.flag_image.trim() || country?.flag_image || null,
+          accentColor: draft.accent_color.trim() || country?.accent_color || "#8888aa",
+        },
       });
-      if (error) throw error;
       toast.success("Jury added");
       setDraft({ ...emptyVoter });
       setAddOpen(false);
@@ -601,17 +615,37 @@ function JuryWorkspace() {
   }
 
   function openEdit(voter: Voter) {
-    setEditDraft({ id: voter.id, name: voter.name, flag_image: voter.flag_image ?? "", accent_color: voter.accent_color, sort_order: voter.sort_order });
+    setEditDraft({
+      id: voter.id,
+      name: voter.name,
+      flag_image: voter.flag_image ?? "",
+      accent_color: voter.accent_color,
+    });
   }
 
   async function saveEdit() {
-    if (!editDraft?.name.trim()) return;
+    if (!edition || !selectedShow || !editDraft?.name.trim() || busy) return;
     setBusy(true);
     try {
-      const { error } = await (supabase.from("voters") as any)
-        .update({ name: editDraft.name.trim(), flag_image: editDraft.flag_image.trim() || null, accent_color: editDraft.accent_color.trim() || "#8888aa", sort_order: Math.max(1, editDraft.sort_order || 1) })
-        .eq("id", editDraft.id);
-      if (error) throw error;
+      const preview = await loadJuryRosterPreview({ editionId: edition.id, showId: selectedShow.id });
+      if (!preview.roster.some((voter) => voter.id === editDraft.id)) {
+        toast.info("That jury changed or was removed. The roster has been refreshed.");
+        setEditDraft(null);
+        await refresh();
+        return;
+      }
+      await applyJuryRosterChange({
+        editionId: edition.id,
+        showId: selectedShow.id,
+        changeKind: "update",
+        expectedVersion: preview.expectedVersion,
+        payload: {
+          voterId: editDraft.id,
+          name: editDraft.name.trim(),
+          flagImage: editDraft.flag_image.trim() || null,
+          accentColor: editDraft.accent_color.trim() || "#8888aa",
+        },
+      });
       toast.success("Jury updated");
       setEditDraft(null);
       await refresh();
@@ -623,18 +657,39 @@ function JuryWorkspace() {
   }
 
   async function moveVoter(index: number, direction: -1 | 1) {
-    const current = orderedVoters[index];
-    const other = orderedVoters[index + direction];
-    if (!current || !other) return;
+    if (!edition || !selectedShow || busy) return;
+    const clickedVoter = orderedVoters[index];
+    if (!clickedVoter) return;
+
     setBusy(true);
     try {
-      const [first, second] = await Promise.all([
-        (supabase.from("voters") as any).update({ sort_order: other.sort_order }).eq("id", current.id),
-        (supabase.from("voters") as any).update({ sort_order: current.sort_order }).eq("id", other.id),
-      ]);
-      if (first.error) throw first.error;
-      if (second.error) throw second.error;
-      await qc.invalidateQueries({ queryKey: ["voters"] });
+      const preview = await loadJuryRosterPreview({ editionId: edition.id, showId: selectedShow.id });
+      const canonicalIds = [...preview.roster]
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((voter) => voter.id);
+      const renderedIds = orderedVoters.map((voter) => voter.id);
+      if (
+        canonicalIds.length !== renderedIds.length ||
+        canonicalIds.some((id, voterIndex) => id !== renderedIds[voterIndex])
+      ) {
+        toast.info("The Jury roster changed after this screen loaded. It has been refreshed; try the move again.");
+        await refresh();
+        return;
+      }
+
+      const currentIndex = canonicalIds.indexOf(clickedVoter.id);
+      const targetIndex = currentIndex + direction;
+      if (currentIndex < 0 || targetIndex < 0 || targetIndex >= canonicalIds.length) return;
+      [canonicalIds[currentIndex], canonicalIds[targetIndex]] = [canonicalIds[targetIndex], canonicalIds[currentIndex]];
+
+      await applyJuryRosterChange({
+        editionId: edition.id,
+        showId: selectedShow.id,
+        changeKind: "reorder",
+        expectedVersion: preview.expectedVersion,
+        payload: { voterIds: canonicalIds },
+      });
+      await refresh();
     } catch (caught) {
       toast.error(reportSupabaseError(caught, "Jury order could not be changed."));
     } finally {
@@ -642,23 +697,57 @@ function JuryWorkspace() {
     }
   }
 
-  function votesForVoter(voter: Voter) {
-    const key = `v:${voter.id}`;
-    return juryVotes.filter((vote) => matchVoterKey(vote, voterOptions) === key).length;
+  async function prepareDeleteVoter(voter: Voter) {
+    if (!edition || !selectedShow || busy) return;
+    setBusy(true);
+    try {
+      const preview = await loadJuryRosterPreview({ editionId: edition.id, showId: selectedShow.id });
+      const canonicalVoter = preview.roster.find((item) => item.id === voter.id);
+      if (!canonicalVoter) {
+        toast.info("That jury changed or was removed. The roster has been refreshed.");
+        await refresh();
+        return;
+      }
+      setRosterReason("");
+      setPendingRosterRemoval({
+        voter,
+        expectedVersion: preview.expectedVersion,
+        dependencies: canonicalVoter.dependencies,
+        canRemove: canonicalVoter.canRemove,
+      });
+    } catch (caught) {
+      toast.error(reportSupabaseError(caught, "Jury removal impact could not be loaded."));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function deleteVoter() {
-    if (!deleteTarget) return;
+    if (
+      !edition ||
+      !selectedShow ||
+      !pendingRosterRemoval ||
+      !pendingRosterRemoval.canRemove ||
+      rosterReason.trim().length < 3 ||
+      busy
+    ) return;
+
     setBusy(true);
     try {
-      const voteRows = votesForVoter(deleteTarget);
-      const { error } = await supabase.from("voters").delete().eq("id", deleteTarget.id);
-      if (error) throw error;
-      toast.success(voteRows ? `${deleteTarget.name} and ${voteRows} saved jury score row${voteRows === 1 ? "" : "s"} removed` : `${deleteTarget.name} removed`);
-      setDeleteTarget(null);
+      await applyJuryRosterChange({
+        editionId: edition.id,
+        showId: selectedShow.id,
+        changeKind: "remove",
+        expectedVersion: pendingRosterRemoval.expectedVersion,
+        reason: rosterReason,
+        payload: { voterId: pendingRosterRemoval.voter.id },
+      });
+      toast.success(`${pendingRosterRemoval.voter.name} removed`);
+      setPendingRosterRemoval(null);
+      setRosterReason("");
       await refresh();
     } catch (caught) {
-      toast.error(reportSupabaseError(caught, "Jury could not be removed."));
+      toast.error(reportSupabaseError(caught, "Jury could not be removed. Nothing was changed."));
     } finally {
       setBusy(false);
     }
@@ -829,7 +918,7 @@ function JuryWorkspace() {
             </div>
           ) : !orderedVoters.length ? <AdminEmptyState icon={Users} title="No explicit juries" description="Add a country, external country, organisation, person or custom voting entity." action={<button type="button" className="admin-action-primary" onClick={openAddVoter}><Plus className="size-4" /> Add jury</button>} /> : (
             <div className="space-y-4">
-              <div className="divide-y divide-white/[0.07]">{orderedVoters.map((voter, index) => { const option = voterOptions.find((item) => item.voterId === voter.id); const given = option ? ballotCounts.get(option.key) ?? 0 : 0; const key = option?.key ?? `v:${voter.id}`; const status = statusForVoter(key, given); return <div key={voter.id} className="flex min-w-0 items-center gap-2 py-3 first:pt-0 last:pb-0"><FlagChip code={option?.short_code ?? "?"} color={voter.accent_color || DEFAULT_ACCENT} image={voter.flag_image ?? option?.flag_image ?? null} size="sm" /><button type="button" onClick={() => openEdit(voter)} className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-semibold">{voter.name}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{voter.kind.replaceAll("-", " ")} · {didNotVoteVoterKeys.has(key) ? "no ballot expected" : `${given}/${neededPerBallot} awards`}</span></button><AdminStatus tone={status.tone}>{status.label}</AdminStatus><div className="flex shrink-0 gap-1"><button type="button" disabled={busy || index === 0} onClick={() => void moveVoter(index, -1)} className="admin-action-quiet size-9 !p-0" aria-label={`Move ${voter.name} up`}><ArrowUp className="size-4" /></button><button type="button" disabled={busy || index === orderedVoters.length - 1} onClick={() => void moveVoter(index, 1)} className="admin-action-quiet size-9 !p-0" aria-label={`Move ${voter.name} down`}><ArrowDown className="size-4" /></button><button type="button" onClick={() => setDeleteTarget(voter)} className="admin-action-quiet size-9 !p-0 text-rose-200" aria-label={`Remove ${voter.name}`}><Trash2 className="size-4" /></button></div></div>; })}</div>
+              <div className="divide-y divide-white/[0.07]">{orderedVoters.map((voter, index) => { const option = voterOptions.find((item) => item.voterId === voter.id); const given = option ? ballotCounts.get(option.key) ?? 0 : 0; const key = option?.key ?? `v:${voter.id}`; const status = statusForVoter(key, given); return <div key={voter.id} className="flex min-w-0 items-center gap-2 py-3 first:pt-0 last:pb-0"><FlagChip code={option?.short_code ?? "?"} color={voter.accent_color || DEFAULT_ACCENT} image={voter.flag_image ?? option?.flag_image ?? null} size="sm" /><button type="button" onClick={() => openEdit(voter)} className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-semibold">{voter.name}</span><span className="mt-1 block truncate text-xs text-muted-foreground">{voter.kind.replaceAll("-", " ")} · {didNotVoteVoterKeys.has(key) ? "no ballot expected" : `${given}/${neededPerBallot} awards`}</span></button><AdminStatus tone={status.tone}>{status.label}</AdminStatus><div className="flex shrink-0 gap-1"><button type="button" disabled={busy || index === 0} onClick={() => void moveVoter(index, -1)} className="admin-action-quiet size-9 !p-0" aria-label={`Move ${voter.name} up`}><ArrowUp className="size-4" /></button><button type="button" disabled={busy || index === orderedVoters.length - 1} onClick={() => void moveVoter(index, 1)} className="admin-action-quiet size-9 !p-0" aria-label={`Move ${voter.name} down`}><ArrowDown className="size-4" /></button><button type="button" disabled={busy} onClick={() => void prepareDeleteVoter(voter)} className="admin-action-quiet size-9 !p-0 text-rose-200" aria-label={`Remove ${voter.name}`}><Trash2 className="size-4" /></button></div></div>; })}</div>
               <button type="button" disabled={busy} onClick={() => void addMissingParticipants()} className="admin-action-secondary w-full"><Users className="size-4" /> Add missing participating countries</button>
             </div>
           )}
@@ -838,7 +927,7 @@ function JuryWorkspace() {
 
       <AdminSheet open={addOpen} onClose={() => !busy && setAddOpen(false)} title="Add jury" description="An explicit roster can include participating countries, external countries, organisations, people or custom voting entities."><div className="space-y-4"><label className="block"><span className="admin-section-label">Type</span><select value={draft.kind} onChange={(event) => setDraft({ ...emptyVoter, kind: event.target.value as VoterKind })} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30">{VOTER_KINDS.map((kind) => <option key={kind} value={kind}>{kind.replaceAll("-", " ")}</option>)}</select></label>{draft.kind === "country" || draft.kind === "external-country" ? <label className="block"><span className="admin-section-label">Country</span><CountryPicker countries={countryChoices} value={draft.countryId} onChange={(id) => { const country = countries.find((item) => item.id === id); setDraft((current) => ({ ...current, countryId: id, name: country?.name ?? "", flag_image: country?.flag_image ?? "", accent_color: country?.accent_color ?? current.accent_color })); }} placeholder={draft.kind === "country" ? "Search participating country…" : "Search any country…"} className="mt-2" /></label> : <label className="block"><span className="admin-section-label">Name</span><input value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="International Jury" className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label>}<label className="block"><span className="admin-section-label">Flag / logo URL</span><input value={draft.flag_image} onChange={(event) => setDraft((current) => ({ ...current, flag_image: event.target.value }))} placeholder="Optional" className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><label className="block"><span className="admin-section-label">Accent colour</span><input value={draft.accent_color} onChange={(event) => setDraft((current) => ({ ...current, accent_color: event.target.value }))} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><button type="button" disabled={busy || !draft.name.trim()} onClick={() => void addVoter()} className="admin-action-primary w-full">{busy ? "Adding…" : "Add jury"}</button></div></AdminSheet>
 
-      <AdminSheet open={!!editDraft} onClose={() => !busy && setEditDraft(null)} title="Edit jury" description="Identity binding stays unchanged. Edit its display and jury call order here.">{editDraft ? <div className="space-y-4"><label className="block"><span className="admin-section-label">Name</span><input value={editDraft.name} onChange={(event) => setEditDraft((current) => current ? { ...current, name: event.target.value } : current)} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><label className="block"><span className="admin-section-label">Flag / logo URL</span><input value={editDraft.flag_image} onChange={(event) => setEditDraft((current) => current ? { ...current, flag_image: event.target.value } : current)} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><label className="block"><span className="admin-section-label">Accent colour</span><input value={editDraft.accent_color} onChange={(event) => setEditDraft((current) => current ? { ...current, accent_color: event.target.value } : current)} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><label className="block"><span className="admin-section-label">Call order</span><input type="number" min={1} value={editDraft.sort_order} onChange={(event) => setEditDraft((current) => current ? { ...current, sort_order: Number(event.target.value) || 1 } : current)} className="numeric mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><button type="button" disabled={busy || !editDraft.name.trim()} onClick={() => void saveEdit()} className="admin-action-primary w-full">{busy ? "Saving…" : "Save jury"}</button></div> : null}</AdminSheet>
+      <AdminSheet open={!!editDraft} onClose={() => !busy && setEditDraft(null)} title="Edit jury" description="Identity binding and call order stay unchanged here. Reorder juries from the roster list.">{editDraft ? <div className="space-y-4"><label className="block"><span className="admin-section-label">Name</span><input value={editDraft.name} onChange={(event) => setEditDraft((current) => current ? { ...current, name: event.target.value } : current)} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><label className="block"><span className="admin-section-label">Flag / logo URL</span><input value={editDraft.flag_image} onChange={(event) => setEditDraft((current) => current ? { ...current, flag_image: event.target.value } : current)} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><label className="block"><span className="admin-section-label">Accent colour</span><input value={editDraft.accent_color} onChange={(event) => setEditDraft((current) => current ? { ...current, accent_color: event.target.value } : current)} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label><button type="button" disabled={busy || !editDraft.name.trim()} onClick={() => void saveEdit()} className="admin-action-primary w-full">{busy ? "Saving…" : "Save jury"}</button></div> : null}</AdminSheet>
 
       <AdminConfirmSheet
         open={Boolean(pendingBallotReview)}
@@ -953,7 +1042,59 @@ function JuryWorkspace() {
         danger={pendingDnvChange?.action === "set"}
       />
 
-      <AdminConfirmSheet open={!!deleteTarget} onClose={() => !busy && setDeleteTarget(null)} onConfirm={deleteVoter} title={`Remove ${deleteTarget?.name ?? "jury"}?`} description={deleteTarget ? <>{votesForVoter(deleteTarget) ? <><strong>This jury already has {votesForVoter(deleteTarget)} saved score row{votesForVoter(deleteTarget) === 1 ? "" : "s"}.</strong> Removing the voter permanently deletes those rows too because they belong to this jury entity. </> : null}{orderedVoters.length === 1 ? "Removing the final explicit jury returns this show to the automatic participating-country roster." : "The remaining explicit jury roster stays active."}</> : <>Remove this jury?</>} confirmLabel="Remove jury" confirmationText={deleteTarget?.name} confirmationHint={deleteTarget ? `Type ${deleteTarget.name} to confirm` : undefined} busy={busy} danger />
+      <AdminConfirmSheet
+        open={Boolean(pendingRosterRemoval)}
+        onClose={() => {
+          if (!busy) {
+            setPendingRosterRemoval(null);
+            setRosterReason("");
+          }
+        }}
+        onConfirm={deleteVoter}
+        title={`Remove ${pendingRosterRemoval?.voter.name ?? "jury"}?`}
+        description={
+          pendingRosterRemoval ? (
+            <div className="space-y-3">
+              {pendingRosterRemoval.canRemove ? (
+                <>
+                  <p>
+                    The authoritative preflight found no saved Jury score, ballot-status or submitted-ballot evidence for this voter. Removal is an R3 operation and the server will re-check those dependencies before committing.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {orderedVoters.length === 1
+                      ? "Removing the final explicit jury returns this show to the automatic participating-country roster."
+                      : "The remaining explicit jury roster stays active."}
+                  </p>
+                  <label className="block">
+                    <span className="text-xs font-semibold text-foreground">Operator reason</span>
+                    <textarea
+                      value={rosterReason}
+                      onChange={(event) => setRosterReason(event.target.value)}
+                      className="admin-input mt-2 min-h-24 resize-y"
+                      placeholder="Why should this jury identity be removed?"
+                    />
+                  </label>
+                </>
+              ) : (
+                <div className="rounded-xl border border-rose-200/20 bg-rose-200/[0.05] p-3">
+                  <p className="font-semibold text-rose-100">This jury cannot be removed.</p>
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                    Official evidence exists: {pendingRosterRemoval.dependencies.scoreRows} saved score row{pendingRosterRemoval.dependencies.scoreRows === 1 ? "" : "s"}, {pendingRosterRemoval.dependencies.ballotStatuses} ballot-status row{pendingRosterRemoval.dependencies.ballotStatuses === 1 ? "" : "s"}, and {pendingRosterRemoval.dependencies.ballotSubmissions} submitted ballot{pendingRosterRemoval.dependencies.ballotSubmissions === 1 ? "" : "s"}. The roster identity is preserved; resolve that evidence through its governed lifecycle instead.
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            "Review the authoritative removal impact before continuing."
+          )
+        }
+        confirmLabel="Remove jury"
+        confirmationText={pendingRosterRemoval?.canRemove ? pendingRosterRemoval.voter.name : undefined}
+        confirmationHint={pendingRosterRemoval?.canRemove ? `Type ${pendingRosterRemoval.voter.name} to confirm` : undefined}
+        busy={busy}
+        confirmDisabled={!pendingRosterRemoval?.canRemove || rosterReason.trim().length < 3}
+        danger
+      />
     </AdminPage>
   );
 }
