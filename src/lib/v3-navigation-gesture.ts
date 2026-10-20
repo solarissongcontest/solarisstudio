@@ -23,6 +23,8 @@ const HORIZONTAL_BLOCK_SELECTOR = [
   '[data-solaris-drawer]',
   '[role="slider"]',
   '[role="scrollbar"]',
+  'video[controls]',
+  'audio[controls]',
   'input',
   'textarea',
   'select',

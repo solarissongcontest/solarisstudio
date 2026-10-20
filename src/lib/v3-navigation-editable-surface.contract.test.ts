@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { HORIZONTAL_BLOCK_SELECTOR } from "@/lib/v3-navigation-gesture";
 
-describe("V3 editable-surface gesture arbitration", () => {
+describe("V3 content-owned gesture arbitration", () => {
   it("fails closed for every explicit editable content surface except false", () => {
     expect(HORIZONTAL_BLOCK_SELECTOR).toContain(
       '[contenteditable]:not([contenteditable="false"])',
@@ -12,6 +12,12 @@ describe("V3 editable-surface gesture arbitration", () => {
 
   it("keeps ordinary form controls owned by content instead of whole-page navigation", () => {
     for (const selector of ["input", "textarea", "select", "button"]) {
+      expect(HORIZONTAL_BLOCK_SELECTOR.split(",")).toContain(selector);
+    }
+  });
+
+  it("keeps native media controls owned by the media element", () => {
+    for (const selector of ["video[controls]", "audio[controls]"]) {
       expect(HORIZONTAL_BLOCK_SELECTOR.split(",")).toContain(selector);
     }
   });
