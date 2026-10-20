@@ -29,8 +29,24 @@ const readinessRaw = execFileSync(
   },
 );
 const readiness = JSON.parse(readinessRaw) as Record<string, unknown>;
-if (typeof readiness.zeroOrphans !== "boolean" || !Array.isArray(readiness.findings)) {
+const physicalOwnership = readiness.physicalOwnership as Record<string, unknown> | undefined;
+if (
+  typeof readiness.schemaVersion !== "number" ||
+  typeof readiness.zeroOrphans !== "boolean" ||
+  !Array.isArray(readiness.findings) ||
+  !readiness.inventory ||
+  typeof readiness.inventory !== "object" ||
+  !physicalOwnership ||
+  typeof physicalOwnership.schemaVersion !== "number" ||
+  typeof physicalOwnership.zeroOwnershipConflicts !== "boolean"
+) {
   throw new Error("S15 readiness output does not match the zero-orphan evidence contract");
+}
+if (readiness.zeroOrphans === true && readiness.findings.length !== 0) {
+  throw new Error("S15 readiness claimed zeroOrphans=true while retaining findings");
+}
+if (readiness.zeroOrphans === true && physicalOwnership.zeroOwnershipConflicts !== true) {
+  throw new Error("S15 readiness claimed zeroOrphans=true while physical ownership is not conflict-free");
 }
 
 const evidence = {
