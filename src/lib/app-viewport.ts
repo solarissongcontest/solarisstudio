@@ -54,19 +54,30 @@ export function resolveAppKeyboardViewport({
   viewportScale,
   editableFocus,
 }: AppKeyboardViewportInput) {
+  const safeScale =
+    Number.isFinite(viewportScale) && viewportScale > 0 ? viewportScale : 1;
   const rawInset = Math.max(
     0,
     layoutHeight - (viewportHeight + viewportOffsetTop),
   );
   const pinchZoomed =
-    Math.abs(viewportScale - 1) > PINCH_ZOOM_SCALE_EPSILON;
+    Math.abs(safeScale - 1) > PINCH_ZOOM_SCALE_EPSILON;
 
-  // Pinch zoom also shrinks VisualViewport dimensions. Treating that geometric
-  // difference as an IME would hide persistent navigation and apply keyboard
-  // spacing while the user is only zooming the page. Keep the occlusion only
-  // when zoom is effectively 1x, or when an editable surface actually owns
-  // focus and can legitimately have the software keyboard open while zoomed.
-  const keyboardInset = pinchZoomed && !editableFocus ? 0 : rawInset;
+  // VisualViewport height shrinks for both pinch zoom and the software keyboard.
+  // At ~1x retain the established offset-aware bottom-occlusion calculation.
+  // While pinch-zoomed, first normalize the visible height back to the 1x screen
+  // scale; viewportOffsetTop is page pan in layout CSS pixels, not keyboard height,
+  // so it must not be mixed into that normalized estimate. Editable focus remains
+  // a fail-closed prerequisite because zoom alone is not evidence of an IME.
+  const zoomNormalizedInset = Math.max(
+    0,
+    layoutHeight - viewportHeight * safeScale,
+  );
+  const keyboardInset = pinchZoomed
+    ? editableFocus && zoomNormalizedInset >= KEYBOARD_THRESHOLD_PX
+      ? zoomNormalizedInset
+      : 0
+    : rawInset;
 
   return {
     keyboardInset,
