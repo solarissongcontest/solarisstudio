@@ -62,6 +62,28 @@ function completeS14Evidence() {
   };
 }
 
+function completeS15Evidence() {
+  return {
+    schemaVersion: 4,
+    candidateSha: SHA,
+    zeroOrphans: true,
+    findings: [],
+    inventory: {
+      v3IntegrationAdapters: 8,
+      edgeFunctions: 6,
+      scheduledJobs: 3,
+      physicalOwnershipDomains: 39,
+      uniquePhysicalTables: 149,
+      domainTableAssignments: 170,
+      explicitlySharedTables: 12,
+    },
+    physicalOwnership: {
+      schemaVersion: 1,
+      zeroOwnershipConflicts: true,
+    },
+  };
+}
+
 describe("S16 source evidence validation", () => {
   it("accepts canonical Quality provenance for CI and guarded production isolation", () => {
     expect(validateV3S16CategorySourceEvidence("canonical-ci", coreEvidence("Quality"), SHA)).toEqual([]);
@@ -219,11 +241,32 @@ describe("S16 source evidence validation", () => {
     );
   });
 
-  it("rejects zero-orphan evidence that still carries findings", () => {
+  it("accepts S15 only with concrete inventory and conflict-free physical ownership evidence", () => {
+    expect(
+      validateV3S16CategorySourceEvidence("registry-zero-gap", completeS15Evidence(), SHA),
+    ).toEqual([]);
+  });
+
+  it("rejects zero-orphan S15 claims without scanner inventory and physical-ownership provenance", () => {
     const evidence = {
       candidateSha: SHA,
+      schemaVersion: 3,
       zeroOrphans: true,
-      findings: [{ code: "ORPHAN" }],
+      findings: [],
+    };
+    const issues = validateV3S16CategorySourceEvidence("registry-zero-gap", evidence, SHA);
+    expect(issues).toContain(
+      "registry-zero-gap: S15 evidence schemaVersion is missing or predates physical-ownership evidence",
+    );
+    expect(issues).toContain("registry-zero-gap: concrete inventory is missing");
+    expect(issues).toContain("registry-zero-gap: physical ownership is not explicitly conflict-free");
+    expect(issues).toContain("registry-zero-gap: physical ownership scanner provenance is missing");
+  });
+
+  it("rejects zero-orphan evidence that still carries findings", () => {
+    const evidence = {
+      ...completeS15Evidence(),
+      findings: ["ORPHAN"],
     };
     expect(validateV3S16CategorySourceEvidence("registry-zero-gap", evidence, SHA)).toContain(
       "registry-zero-gap: orphan findings remain",
