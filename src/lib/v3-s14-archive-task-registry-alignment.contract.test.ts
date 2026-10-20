@@ -83,9 +83,9 @@ describe("System V3 S14 archived Edition task vocabulary", () => {
   it("proves update, insert and delete attempts cannot corrupt archived current-workflow Task history", () => {
     expect(resurrectionRehearsal).toContain("Refusing hosted Supabase rehearsal");
     expect(resurrectionRehearsal).toContain("bun run scripts/check-v3-production-isolation.ts");
-    expect(resurrectionRehearsal).toContain(
-      "attempt to resurrect the canonical Edition blocker",
-    );
+    expect(resurrectionRehearsal).toContain("update public.studio2_organizer_tasks");
+    expect(resurrectionRehearsal).toContain("set state='open', resolved_at=null, updated_at=now()");
+    expect(resurrectionRehearsal).toContain("where id='$BLOCKER_ID'::uuid;");
     expect(resurrectionRehearsal).toContain("archived edition.blocker was resurrected");
     expect(resurrectionRehearsal).toContain("resurrection guard rewrote historical blocker resolution timestamp");
     expect(resurrectionRehearsal).toContain("Archived current-workflow Task evidence cannot be deleted");
