@@ -39,7 +39,7 @@ export const Route = createFileRoute("/confirmations/admin/editions")({
 function bindingTone(state: ConfirmationEditionAuthoritySnapshot["bindingState"]) {
   if (state === "linked") return "ready" as const;
   if (state === "missing" || state === "stale") return "attention" as const;
-  return "danger" as const;
+  return "blocked" as const;
 }
 
 function bindingLabel(state: ConfirmationEditionAuthoritySnapshot["bindingState"]) {
