@@ -178,8 +178,7 @@ payload = {
     ],
     "completedContestExtensions": [
         "grand-final-qualifier-bridge",
-        "grand-final-jury",
-        "grand-final-televote",
+        "grand-final-voting",
         "grand-final-results",
         "grand-final-publication",
     ],
