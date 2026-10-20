@@ -18,13 +18,26 @@ describe("canonical edition identity", () => {
     expect(rows.get(a.id)).toBe(a);
     expect(rows.get("missing")).toBeUndefined();
   });
-  it("fails closed for missing or duplicate linkage instead of using a number", () => {
+
+  it("binds Confirmation administration to the exact Organizer edition id instead of edition-number inference", () => {
     expect(() => confirmationEditionsById([{ id: "" }])).toThrow();
     expect(() => confirmationEditionsById([{ id: "aaa" }, { id: "aaa" }])).toThrow();
+
     const route = source("src/routes/confirmations/admin/editions.tsx");
+    const client = source("src/lib/v3-confirmation-edition-authority.ts");
+    const migration = source(
+      "supabase/migrations/20261020090000_v3_confirmation_edition_authority.sql",
+    );
+
     expect(route).not.toContain("remoteByNumber");
-    expect(route).toContain("remoteById.get(edition.id)");
-    expect(route).toContain("id: edition.id,");
+    expect(route).not.toContain("remoteById");
+    expect(route).toContain("useAdminContext()");
+    expect(route).toContain("loadConfirmationEditionAuthority(editionId)");
+    expect(client).toContain("p_edition_id: editionId");
+    expect(migration).toContain("where edition.id = p_edition_id");
+    expect(migration).toContain("link.solaris_id = p_edition_id");
+    expect(migration).toContain("v_link.remote_id is distinct from p_expected_remote_id");
+    expect(migration).not.toContain("order by edition_number");
   });
 });
 
