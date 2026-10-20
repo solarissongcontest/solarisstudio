@@ -1,15 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# QA-only integration adapter for the canonical System-owned #694 deadline
-# contract. The underlying Stage 7 module still owns the contest fixture and
-# ordinary Televote cases; this adapter makes those same rounds exercise the
-# real persisted deadline authority in the same stateful contest.
+# QA-only integration adapter for the canonical System-owned Televote deadline
+# contract. It keeps the Stage 7 fixture/ballot authority intact while forcing
+# the same persistent contest through set -> expiry -> governed extension.
 
 S14_STAGE7_DEADLINE_EXTENSION_DONE=0
 
-# Preserve the existing governed round-status helper, then wrap only the open
-# transition so #694's canonical future-deadline precondition is satisfied.
 eval "$(declare -f apply_televote_round_status | sed '1s/apply_televote_round_status/apply_televote_round_status_without_deadline/')"
 
 s14_stage7_deadline_set_identity() {
@@ -25,14 +22,12 @@ s14_stage7_deadline_set_identity() {
 
 s14_stage7_set_deadline_before_open() {
   local round_id="$1"
-  local current_deadline desired_deadline identity operation_id idempotency_key preview expected_version blockers first_result replay_result
+  local current_deadline desired_deadline identity operation_id idempotency_key
+  local preview expected_version blockers first_result replay_result receipt_command
 
   current_deadline="$(db_scalar "select coalesce(closes_at::text,'') from televoting.rounds where id='$round_id'::uuid;")"
   [[ -z "$current_deadline" ]] || return 0
 
-  # Semi-final 1 intentionally gets a short first window so this same contest
-  # can cross the real server deadline and prove a genuine +2 minute extension.
-  # Semi-final 2 only needs a comfortably future governed deadline.
   if [[ "$round_id" == "$TV_ROUND_ID" ]]; then
     desired_deadline="$(db_scalar "select (clock_timestamp() + interval '6 seconds')::text;")"
   else
@@ -58,11 +53,10 @@ s14_stage7_set_deadline_before_open() {
   expect_success "apply initial Televote deadline for $round_id"
   first_result="$HTTP_BODY"
   [[ "$(printf '%s' "$first_result" | json_value action)" == "set" ]] || fail "initial deadline apply did not persist action=set"
-  [[ "$(db_scalar "select command from public.studio2_operation_receipts where operation_id='$operation_id'::uuid;")" == "televote.deadline.change" ]] || fail "deadline set did not use the canonical semantic command identity"
+  receipt_command="$(db_scalar "select command from public.studio2_operation_receipts where operation_id='$operation_id'::uuid;")"
+  [[ "$receipt_command" == "televote.deadline.set" ]] || fail "deadline set receipt used '$receipt_command' instead of canonical televote.deadline.set"
   [[ "$(db_scalar "select count(*) from private.v3_domain_events where operation_id='$operation_id'::uuid and event_type='televote.deadline_set';")" == "1" ]] || fail "initial deadline set did not emit exactly one canonical DomainEvent"
 
-  # Lost-response retry must be semantic replay even though the first call has
-  # already advanced the round version.
   televote_rpc_request "$ORGANIZER_A_TOKEN" studio2_apply_round_deadline_change \
     "{\"p_round_id\":\"$round_id\",\"p_new_deadline_at\":\"$desired_deadline\",\"p_operation_id\":\"$operation_id\",\"p_idempotency_key\":\"$idempotency_key\",\"p_expected_round_version\":$expected_version}"
   expect_success "replay initial Televote deadline for $round_id"
@@ -83,10 +77,10 @@ apply_televote_round_status() {
 
 s14_stage7_extend_expired_semi_one() {
   local round_id="$1" username="$2" country_code="$3" ballot_json="$4" preflight_id="$5"
-  local expired=0 previous_deadline stale_version extended_deadline preview blockers operation_id idempotency_key extend_result replay_result stale_deadline event_id process_result
+  local expired=0 previous_deadline stale_version extended_deadline preview blockers
+  local operation_id idempotency_key extend_result replay_result stale_deadline
+  local event_id process_result receipt_command
 
-  # Wait for the database's authoritative deadline rather than consulting a
-  # browser/client clock. The initial window is deliberately only six seconds.
   for _ in $(seq 1 80); do
     if [[ "$(db_scalar "select (clock_timestamp() >= closes_at)::text from televoting.rounds where id='$round_id'::uuid;")" == "t" ]]; then
       expired=1
@@ -98,8 +92,6 @@ s14_stage7_extend_expired_semi_one() {
   [[ "$(db_scalar "select status from televoting.rounds where id='$round_id'::uuid;")" == "open" ]] || fail "deadline expiry incorrectly closed the Televote round"
   [[ "$(db_scalar "select count(*) from televoting.rounds where id='$round_id'::uuid and closed_at is null;")" == "1" ]] || fail "deadline expiry fabricated a lifecycle close timestamp"
 
-  # Use the already-created real integrity preflight. It must fail at the final
-  # canonical ballot insert while the round is still open.
   televote_rpc_request "$ANON_KEY" submit_vote_checked \
     "{\"p_round_id\":\"$round_id\",\"p_username\":\"$username\",\"p_country_code\":\"$country_code\",\"p_entries\":$ballot_json,\"p_preflight_token\":\"$preflight_id\",\"p_ip_hash\":null,\"p_fingerprint_hash\":null,\"p_device_token_hash\":null,\"p_ip_country\":null,\"p_is_vpn\":false}"
   expect_failure "public Televote after authoritative deadline"
@@ -137,9 +129,9 @@ assert r['deadline'] is not None
 assert r['roundVersion'] > r['previousRoundVersion']
 PY
   [[ "$(db_scalar "select extract(epoch from (closes_at - '$previous_deadline'::timestamptz))::int from televoting.rounds where id='$round_id'::uuid;")" == "120" ]] || fail "S14 governed extension was not exactly +2 minutes"
-  [[ "$(db_scalar "select command from public.studio2_operation_receipts where operation_id='$operation_id'::uuid;")" == "televote.deadline.change" ]] || fail "extension receipt did not use canonical semantic command identity"
+  receipt_command="$(db_scalar "select command from public.studio2_operation_receipts where operation_id='$operation_id'::uuid;")"
+  [[ "$receipt_command" == "televote.extend" ]] || fail "deadline extension receipt used '$receipt_command' instead of canonical televote.extend"
 
-  # Exact retry returns the same durable result after state has advanced.
   televote_rpc_request "$ORGANIZER_A_TOKEN" studio2_apply_round_deadline_change \
     "{\"p_round_id\":\"$round_id\",\"p_new_deadline_at\":\"$extended_deadline\",\"p_operation_id\":\"$operation_id\",\"p_idempotency_key\":\"$idempotency_key\",\"p_expected_round_version\":$stale_version}"
   expect_success "replay genuine +2 minute Televote extension"
@@ -152,22 +144,16 @@ PY
   [[ "$(db_scalar "select count(*) from private.v3_domain_events where operation_id='$operation_id'::uuid and event_type='televote.extended';")" == "1" ]] || fail "genuine extension did not emit exactly one televote.extended event"
   [[ "$(db_scalar "select count(*) from private.v3_domain_event_outbox o join private.v3_domain_events e on e.id=o.event_id where e.operation_id='$operation_id'::uuid and o.consumer_key='televote.tasks';")" == "1" ]] || fail "genuine extension did not queue its canonical task consequence"
 
-  # A competing organizer holding the pre-extension version must fail closed.
   stale_deadline="$(db_scalar "select (closes_at + interval '1 minute')::text from televoting.rounds where id='$round_id'::uuid;")"
   televote_rpc_request "$ORGANIZER_A_TOKEN" studio2_apply_round_deadline_change \
     "{\"p_round_id\":\"$round_id\",\"p_new_deadline_at\":\"$stale_deadline\",\"p_operation_id\":\"14000000-0000-4007-8500-000000000003\",\"p_idempotency_key\":\"s14-televote-stale-deadline-extension\",\"p_expected_round_version\":$stale_version}"
   expect_failure "stale competing Televote deadline extension"
   [[ "$HTTP_BODY" == *"changed since this preview"* ]] || fail "stale deadline extension did not surface canonical version conflict: $HTTP_BODY"
 
-  # Retry the identical previously rejected ballot immediately after the
-  # governed extension. User acceptance must not wait behind Organizer task
-  # reconciliation or consume the newly extended voting window doing QA work.
   televote_rpc_request "$ANON_KEY" submit_vote_checked \
     "{\"p_round_id\":\"$round_id\",\"p_username\":\"$username\",\"p_country_code\":\"$country_code\",\"p_entries\":$ballot_json,\"p_preflight_token\":\"$preflight_id\",\"p_ip_hash\":null,\"p_fingerprint_hash\":null,\"p_device_token_hash\":null,\"p_ip_country\":null,\"p_is_vpn\":false}"
   expect_success "public Televote after governed deadline extension"
 
-  # Prove the queued consequence is executable in this same contest lifecycle,
-  # after the acceptance path has consumed the deadline extension it is testing.
   event_id="$(db_scalar "select id from private.v3_domain_events where operation_id='$operation_id'::uuid and event_type='televote.extended';")"
   db_exec "set request.jwt.claim.role='service_role'; select * from public.studio2_claim_domain_event_deliveries('televote.tasks','s14-stage7-deadline-worker',25,300);"
   process_result="$(db_scalar "set request.jwt.claim.role='service_role'; select public.studio2_process_televote_domain_event('$event_id','televote.tasks','s14-stage7-deadline-worker')::text;")"
@@ -182,8 +168,6 @@ PY
   log "S14_TELEVOTE_DEADLINE_EXTENSION_COMPLETE"
 }
 
-# Replace the short submit helper so one real ballot straddles the authoritative
-# deadline boundary. All other supported Stage 7 cases keep their original path.
 submit_supported_vote() {
   local round_id="$1" username="$2" country_code="$3" ballot_json="$4" preflight_id="$5"
   local risk_score="${6:-0}" severity="${7:-none}"
