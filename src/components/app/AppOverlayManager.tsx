@@ -25,6 +25,13 @@ function setPersistentNavigationIsolation(blocked: boolean) {
     .querySelectorAll<HTMLElement>(PERSISTENT_NAVIGATION_SELECTOR)
     .forEach((navigation) => {
       if (blocked) {
+        const focused = document.activeElement;
+        if (focused instanceof HTMLElement && navigation.contains(focused)) {
+          // Do not leave keyboard/screen-reader focus parked inside chrome that
+          // is about to become inert/aria-hidden. The opening dialog/sheet or
+          // active form owns its own focus destination/restoration semantics.
+          focused.blur();
+        }
         if (!navigation.hasAttribute("inert")) {
           navigation.setAttribute("inert", "");
           navigation.setAttribute(OVERLAY_NAV_INERT_OWNER, "overlay-manager");
