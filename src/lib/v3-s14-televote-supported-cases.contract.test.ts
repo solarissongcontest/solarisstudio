@@ -70,17 +70,27 @@ describe("S14 canonical Televote Stage 7", () => {
     expect(consequenceIndex).toBeGreaterThan(retryIndex);
   });
 
-  it("captures sanitized local state before a failed post-extension ballot assertion", () => {
+  it("persists sanitized local evidence before a failed post-extension ballot assertion", () => {
     expect(diagnostics).toContain("public Televote after governed deadline extension");
     expect(diagnostics).toContain("S14_STAGE7_DEADLINE_RETRY_DIAGNOSTIC");
+    expect(diagnostics).toContain("stage7-deadline-retry-diagnostics.json");
+    expect(diagnostics).toContain("V3_RELEASE_EVIDENCE_DIR");
     expect(diagnostics).toContain("clock_timestamp()");
     expect(diagnostics).toContain("secondsRemaining");
     expect(diagnostics).toContain("studio2_televote_round_versions");
     expect(diagnostics).toContain("vote_preflight_checks");
     expect(diagnostics).toContain("submittedAt");
     expect(diagnostics).toContain("expiresAt");
+    expect(diagnostics).toContain("'valid'");
+    expect(diagnostics).toContain("roundId");
+    expect(diagnostics).toContain("opensAt");
+    expect(diagnostics).toContain("closesAt");
+    expect(diagnostics).toContain('"httpStatus"');
+    expect(diagnostics).toContain('"response"');
     expect(diagnostics).toContain("username_normalized='s14-public-52'");
     expect(diagnostics).toContain("expect_success_without_stage7_diagnostics");
+    expect(diagnostics).not.toContain("'id', p.id");
+    expect(diagnostics).not.toContain("response=$HTTP_BODY");
     expect(diagnostics).not.toContain("SERVICE_ROLE_KEY");
     expect(diagnostics).not.toContain("ORGANIZER_A_TOKEN");
     expect(diagnostics).not.toContain("ANON_KEY");
