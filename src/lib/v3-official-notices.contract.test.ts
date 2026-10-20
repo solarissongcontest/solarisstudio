@@ -48,12 +48,14 @@ describe("V3 official delegation notices", () => {
     expect(workflow).not.toContain("optimistic");
   });
 
-  it("does not drop an unread receipt when another notice is still being marked open", () => {
+  it("does not drop an unread receipt or leak an unhandled rejection while another notice is being marked open", () => {
     const source = content();
 
     expect(source).toContain("openingIdsRef = useRef(new Set<string>())");
     expect(source).toContain("!openingIdsRef.current.has(noticeId)");
-    expect(source).toContain("markOpened.mutateAsync(noticeId)");
+    expect(source).toContain("markOpened");
+    expect(source).toContain(".mutateAsync(noticeId)");
+    expect(source).toContain(".catch(() => undefined)");
     expect(source).toContain("openingIdsRef.current.delete(noticeId)");
     expect(source).not.toContain("!markOpened.isPending");
   });
@@ -74,7 +76,7 @@ describe("V3 official delegation notices", () => {
     const source = content();
 
     expect(source).toContain("!item.receipt?.openedAt");
-    expect(source).toContain("markOpened.mutateAsync(noticeId)");
+    expect(source).toContain(".mutateAsync(noticeId)");
     expect(source).not.toContain('item.inboxState === "unread"');
   });
 
