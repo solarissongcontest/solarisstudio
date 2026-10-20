@@ -18,9 +18,17 @@ case "$DB_URL" in
   *) fail "Refusing non-local database rehearsal" ;;
 esac
 
-export DATABASE_URL="$DB_URL"
-export SUPABASE_URL="$API_URL" VITE_SUPABASE_URL="$API_URL"
-export V3_VERIFICATION_TARGET=local V3_SEED_TARGET=local V3_CLEANUP_TARGET=local
+# Establish the complete verification identity explicitly. GitHub environments
+# may inherit hosted project refs even after the URLs have been redirected to
+# loopback. The isolation guard is correct to reject that mixed identity, so the
+# local rehearsal must normalize every project-id/ref input it knows about.
+export DATABASE_URL="$DB_URL" POSTGRES_URL="$DB_URL" SUPABASE_DB_URL="$DB_URL"
+export SUPABASE_URL="$API_URL" E2E_SUPABASE_URL="$API_URL" VITE_SUPABASE_URL="$API_URL"
+export CONFIRMATIONS_SUPABASE_URL="$API_URL" VITE_CONFIRMATIONS_SUPABASE_URL="$API_URL"
+export SUPABASE_PROJECT_ID=local SUPABASE_PROJECT_REF=local
+export E2E_SUPABASE_PROJECT_ID=local E2E_SUPABASE_PROJECT_REF=local
+export VITE_SUPABASE_PROJECT_ID=local VITE_SUPABASE_PROJECT_REF=local
+export V3_VERIFICATION_TARGET=local V3_SEED_TARGET=local V3_CLEANUP_TARGET=local E2E_TARGET=local
 export V3_DESTRUCTIVE_VERIFICATION=1 V3_SERVICE_ROLE_SCOPE=local
 bun run scripts/check-v3-production-isolation.ts
 
