@@ -8,6 +8,7 @@ import {
 import { GLOBAL_MAINTENANCE_MODE } from "@/lib/maintenance";
 import { installTerraOsTeaserHeroHandoff } from "@/lib/terraos-teaser-hero-handoff";
 import { installTerraOsTeaserHostMicroMotion } from "@/lib/terraos-teaser-host-micro-motion";
+import { installTerraOsTeaserMobileAccessibility } from "@/lib/terraos-teaser-mobile-accessibility";
 import {
   TERRAOS_COMPACT_PREVIEW_MEDIA,
   installTerraOsTeaserHostMobilePolish,
@@ -75,6 +76,9 @@ function TerraOSTeaserPreviewRoute() {
     const cleanupMicroMotion = installTerraOsTeaserHostMicroMotion(frame);
     const cleanupReferenceHero = installTerraOsTeaserMobileReferenceHero(frame);
     const cleanupHostMobilePolish = installTerraOsTeaserHostMobilePolish(frame);
+    const cleanupMobileAccessibility = installTerraOsTeaserMobileAccessibility(
+      frame.ownerDocument,
+    );
     const compactMedia = hostWindow?.matchMedia(TERRAOS_COMPACT_PREVIEW_MEDIA) ?? null;
     let cleanupHeroHandoff: () => void = () => undefined;
 
@@ -91,6 +95,7 @@ function TerraOSTeaserPreviewRoute() {
     return () => {
       compactMedia?.removeEventListener("change", syncHeroHandoff);
       cleanupHeroHandoff();
+      cleanupMobileAccessibility();
       cleanupHostMobilePolish();
       cleanupReferenceHero();
       cleanupMicroMotion();
