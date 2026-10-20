@@ -25,10 +25,14 @@ source "$SCRIPT_DIR/v3-s14-grand-final-leg.sh"
 source "$SCRIPT_DIR/v3-s14-grand-final-voting.sh"
 source "$SCRIPT_DIR/v3-s14-grand-final-results.sh"
 source "$SCRIPT_DIR/v3-s14-grand-final-publication.sh"
+source "$SCRIPT_DIR/v3-s14-stage-10-archive.sh"
 
 OUTPUT_DIR="${V3_RELEASE_EVIDENCE_DIR:-v3-release-evidence}"
 mkdir -p "$OUTPUT_DIR"
 PARTIAL_PATH="$OUTPUT_DIR/s14-full-contest.partial.json"
+FINAL_PATH="$OUTPUT_DIR/s14-full-contest.json"
+rm -f "$PARTIAL_PATH" "$FINAL_PATH"
+
 EVIDENCE_WRITTEN=0
 CURRENT_STAGE="bootstrap"
 COMPLETED_STAGES=()
@@ -54,6 +58,7 @@ ALL_CONTEST_EXTENSIONS=(
 
 write_runtime_failure_evidence() {
   local exit_code="$1"
+  rm -f "$FINAL_PATH"
   python3 - "$PARTIAL_PATH" "$CANDIDATE_SHA" "$CURRENT_STAGE" "$exit_code" "${COMPLETED_STAGES[*]}" "${COMPLETED_CONTEST_EXTENSIONS[*]}" <<'PY'
 import json, sys
 path, sha, failure_stage, exit_code, completed_text, completed_extensions_text = sys.argv[1:]
@@ -151,18 +156,20 @@ run_contest_extension grand-final-voting run_s14_grand_final_voting
 run_contest_extension grand-final-results run_s14_grand_final_results
 run_contest_extension grand-final-publication run_s14_grand_final_publication
 
-PENDING_STAGES=(
-  stage-10-archive
-)
+# Archive is intentionally last. It proves the completed contest can leave all
+# current-workflow surfaces while retaining immutable result, publication,
+# receipt, task and notification history.
+run_stage stage-10-archive run_s14_stage_10_archive
+CURRENT_STAGE="complete"
 
-python3 - "$PARTIAL_PATH" "$CANDIDATE_SHA" "${PENDING_STAGES[@]}" <<'PY'
+python3 - "$FINAL_PATH" "$CANDIDATE_SHA" <<'PY'
 import json, sys
-path, sha, *pending = sys.argv[1:]
+path, sha = sys.argv[1:]
 payload = {
     "schemaVersion": 2,
     "candidateSha": sha,
-    "passed": False,
-    "partial": True,
+    "passed": True,
+    "partial": False,
     "runtimeFailure": False,
     "completedStages": [
         "stage-1-setup",
@@ -174,7 +181,9 @@ payload = {
         "stage-7-public-voting",
         "stage-8-results",
         "stage-9-publication",
+        "stage-10-archive",
     ],
+    "pendingStages": [],
     "completedContestExtensions": [
         "grand-final-qualifier-bridge",
         "grand-final-jury",
@@ -192,6 +201,8 @@ payload = {
         "televote-canonical-ballot",
         "result-reproducible",
         "publication-final-version",
+        "tasks-canonical",
+        "notifications-reconcilable",
         "grand-final-televote-source-parity",
         "grand-final-result-reproducible",
         "grand-final-publication-final-version",
@@ -204,19 +215,14 @@ payload = {
         "realtime-disconnect",
         "stale-client",
         "two-organizers",
+        "supabase-outage",
     ],
-    "pendingStages": pending,
-    "seed": {"editionCount": 1, "delegationCount": 66,"showCount": 3},
+    "seed": {"editionCount": 1, "delegationCount": 66, "showCount": 3},
 }
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(payload, handle, indent=2)
     handle.write("\n")
 PY
+rm -f "$PARTIAL_PATH"
 EVIDENCE_WRITTEN=1
-
-if [[ "${V3_S14_ALLOW_PARTIAL:-0}" == "1" ]]; then
-  log "Partial S14 harness passed through Stage 9 and exact-version Grand Final Publication; only Archive remains pending."
-  exit 0
-fi
-
-fail "S14 is intentionally incomplete: ${PENDING_STAGES[*]} remains pending. No release-grade s14-full-contest.json was written."
+log "Release-grade S14 full-contest evidence written for exact candidate $CANDIDATE_SHA."
