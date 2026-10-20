@@ -256,6 +256,7 @@ export function OrganizerV6TabBar({
       !active ||
       collapsed ||
       prefersReducedMotion() ||
+      document.documentElement.hasAttribute("data-solaris-feature-overlay-open") ||
       document.documentElement.hasAttribute("data-solaris-keyboard-open") ||
       (event.pointerType === "mouse" && event.button !== 0)
     ) {
