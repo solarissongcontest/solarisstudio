@@ -6,19 +6,32 @@ const adapter = readFileSync(
   resolve(process.cwd(), ".github/scripts/v3-s14-stage-7-genuine-deadline.sh"),
   "utf8",
 );
-const migration = readFileSync(
+const foundation = readFileSync(
   resolve(process.cwd(), "supabase/migrations/20261017002000_v3_s14_televote_deadline_extension.sql"),
+  "utf8",
+);
+const replayFix = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/20261017002100_v3_s14_televote_deadline_replay_fix.sql"),
   "utf8",
 );
 
 describe("S14 Stage 7 deadline operation identity", () => {
-  it("tracks the System-owned split semantic command identities", () => {
-    expect(migration).toContain(
+  it("tracks the latest System-owned replay-stable command identity", () => {
+    expect(foundation).toContain(
       "v_command := case when v_action = 'set' then 'televote.deadline.set' else 'televote.extend' end;",
     );
-    expect(adapter).toContain('receipt_command" == "televote.deadline.set"');
-    expect(adapter).toContain('receipt_command" == "televote.extend"');
-    expect(adapter).not.toContain('== "televote.deadline.change"');
+    expect(replayFix).toContain("'televote.deadline.change'");
+    expect(replayFix).toContain("new.command <> 'televote.deadline.change'");
+    expect(adapter).toContain('receipt_command" == "televote.deadline.change"');
+    expect(adapter).not.toContain('receipt_command" == "televote.deadline.set"');
+    expect(adapter).not.toContain('receipt_command" == "televote.extend"');
+  });
+
+  it("derives set/extend DomainEvents from the durable result without changing replay identity", () => {
+    expect(replayFix).toContain("when new.result ->> 'action' = 'extend' then 'televote.extended'");
+    expect(replayFix).toContain("else 'televote.deadline_set'");
+    expect(adapter).toContain("event_type='televote.deadline_set'");
+    expect(adapter).toContain("event_type='televote.extended'");
   });
 
   it("keeps receipt identity tied to the same deterministic operations used for replay", () => {
