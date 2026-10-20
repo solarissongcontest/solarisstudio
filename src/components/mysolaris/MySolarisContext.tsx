@@ -74,7 +74,10 @@ const MySolarisContext = createContext<MySolarisContextValue | null>(null);
 export function MySolarisProvider({
   children,
   editionId,
-  includeParticipationContext = true,
+  // The canonical V3 Me root is the only explicit-edition provider today. It
+  // needs identity/account/current-membership context, not the legacy
+  // participant task engine. Other MySolaris consumers keep full behavior.
+  includeParticipationContext = editionId === undefined,
 }: {
   children: ReactNode;
   editionId?: string | null;
