@@ -26,6 +26,19 @@ describe("Public V3 P26 Relationships", () => {
     expect(source).toContain("buildPublicCountryArchive({");
   });
 
+  it("does not select private participant notes for public relationship analytics", () => {
+    const source = read("src/integrations/v3/relationships-source.server.ts");
+    const participantColumns = source.slice(
+      source.indexOf("const PARTICIPANT_COLUMNS"),
+      source.indexOf("const RESULT_COLUMNS"),
+    );
+
+    expect(participantColumns).toContain("publication_status");
+    expect(participantColumns).toContain("scheduled_publish_at");
+    expect(participantColumns).toContain("participation_status");
+    expect(participantColumns).not.toContain("notes");
+  });
+
   it("validates pair input and does not let the browser nominate archive authority", () => {
     const functions = read("src/lib/v3-relationships.functions.ts");
     const runtime = read("src/lib/v3-relationships-runtime.ts");
@@ -80,6 +93,20 @@ describe("Public V3 P26 Relationships", () => {
     expect(detail).toContain("Relationship milestones");
     expect(detail).toContain('to="/countries/$code"');
     expect(detail).toContain('to="/editions/$slug"');
+  });
+
+  it("explains sample scope, publication boundaries and statistical limitations", () => {
+    const detail = read("src/components/v3/V3RelationshipDetailScreen.tsx");
+
+    expect(detail).toContain('title="Methodology & limitations"');
+    expect(detail).toContain("relationship.opportunitiesAtoB");
+    expect(detail).toContain("relationship.opportunitiesBtoA");
+    expect(detail).toContain("canonically published result layers");
+    expect(detail).toContain("detailed voting that is officially public");
+    expect(detail).toContain("Unpublished or missing detail is omitted, never treated as zero");
+    expect(detail).toContain("There is no hard minimum sample threshold");
+    expect(detail).toContain("not evidence of intent, favoritism, coordination or personal relationships");
+    expect(detail).toContain("historical coverage vary between eras");
   });
 
   it("does not expose browser-controlled relationship rollout or raw archive hooks in V3", () => {
