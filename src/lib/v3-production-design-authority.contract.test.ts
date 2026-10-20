@@ -91,7 +91,9 @@ describe("V3 Production Design authority", () => {
     expect(body).toContain("other_show.edition_id <> p_edition_id");
     expect(body).toContain("v_theme_id = v_edition.theme_id");
     expect(body).toContain("other_show.id <> v_show_id");
-    expect(body).toContain("is_public,\n          false");
+    expect(body).toContain("'Organizer-managed edition Production design'");
+    expect(body).toContain("'Organizer-managed show Production override'");
+    expect(body).toContain("false\n        )\n        returning id into v_theme_id");
   });
 
   it("writes audit evidence and reuses registered edition/show event facts", () => {
