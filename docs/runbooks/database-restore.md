@@ -58,6 +58,43 @@ A mismatch is a failed restore until explained and approved. Never silently "rep
 
 This proves the repository's PostgreSQL restore path, not provider backup availability and not Storage object recovery.
 
+## Exact-SHA evidence mode
+
+The same rehearsal can retain a machine-readable evidence artifact without changing the restore target or adding network access.
+
+Evidence mode requires:
+
+- a clean Git worktree;
+- an exact 40-character `V3_RECOVERY_EVIDENCE_SHA` matching checked-out `HEAD`;
+- a local/loopback `DB_URL`;
+- `V3_RECOVERY_EVIDENCE_OUTPUT` naming the JSON artifact path.
+
+Example:
+
+```bash
+V3_RECOVERY_EVIDENCE_SHA="$(git rev-parse HEAD)" \
+V3_RECOVERY_EVIDENCE_ENVIRONMENT="isolated-local-supabase" \
+V3_RECOVERY_EVIDENCE_OUTPUT="artifacts/recovery/database-restore.json" \
+DB_URL="postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+.github/scripts/v3-s11-database-restore-rehearsal.sh
+```
+
+The retained artifact records:
+
+- exact commit SHA;
+- start/completion timestamps;
+- custom-format dump SHA-256 and byte size;
+- measured **exercise** restore duration;
+- zero snapshot-to-restored-copy data loss for that isolated dump (`exerciseRpoSeconds = 0`);
+- verified canonical relation fingerprints;
+- foreign-key validation state;
+- S2 operation-receipt and S4 event/outbox presence;
+- issues found and follow-up actions.
+
+The exercise RPO/RTO fields are deliberately not hosted-provider promises. The artifact carries `providerRpoClaim: false`, `providerRtoClaim: false`, `certificationClaim: false`, and `qaReviewRequired: true`. Hosted Supabase backup availability, provider restore latency, Storage byte recovery, deployment rollback and full-service recovery still require their own evidence before S11 can be certified.
+
+`src/lib/v3-database-restore-evidence.ts` validates the retained artifact against the expected exact SHA and fails closed if canonical evidence, local scope, timing, snapshot identity or anti-overclaim fields are missing.
+
 ## Evidence to retain
 
 - exact repository SHA,
