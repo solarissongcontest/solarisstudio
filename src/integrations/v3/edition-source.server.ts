@@ -153,14 +153,15 @@ function experienceFromPhase(phase: PublicContestPhase): V3EditionExperience {
   switch (phase) {
     case "live":
       return "live";
+    case "jury_voting":
+    case "voting":
+      return "voting";
+    case "results_pending":
+      return "results-pending";
     case "results_published":
       return "results";
     case "post_edition":
       return "post-edition";
-    case "jury_voting":
-    case "voting":
-    case "results_pending":
-      return "show-day";
     case "pre_show":
     case "submissions":
     case "confirmations":
@@ -264,13 +265,6 @@ function shellEditionLabel(edition: Edition) {
     : `SSC ${edition.edition_number} · ${edition.name}`;
 }
 
-/**
- * Publication-safe server source for one V3 Edition page. The browser supplies
- * only a slug. Participant rows always come from public_safe_participants;
- * result rows are not queried until the canonical Grand Final publication gate
- * says official results are public. Identity lookups are narrow and bounded to
- * this edition, avoiding the legacy page's archive-wide history fanout.
- */
 export async function loadV3EditionBundle(input: {
   slug: string;
 }): Promise<V3EditionServerBundle | null> {
