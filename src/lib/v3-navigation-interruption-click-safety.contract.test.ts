@@ -33,6 +33,14 @@ describe("V3 navigation interruption click safety", () => {
     expect(tabs).toContain("suppressClick.current = false;");
   });
 
+  it("remounts Public mobile navigation when viewer identity generation changes", () => {
+    const shell = source("src/components/v3/V3AppShell.tsx");
+
+    expect(shell).toContain('const navigationInteractionKey = navigationIdentityReady');
+    expect(shell).toContain(': "resolving";');
+    expect(shell).toContain("key={navigationInteractionKey}");
+  });
+
   it("applies the same cancellation rule to Organizer lens presses", () => {
     const tabs = source("src/components/admin/OrganizerV6TabBar.tsx");
 
