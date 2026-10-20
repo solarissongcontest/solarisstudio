@@ -70,7 +70,13 @@ try {
   process.stderr.write(`S15 core readiness output was not valid JSON: ${String(error)}\n`);
   process.exit(1);
 }
-if (typeof core.zeroOrphans !== "boolean" || !Array.isArray(core.findings) || !core.inventory || typeof core.inventory !== "object") {
+if (
+  typeof core.schemaVersion !== "number" ||
+  typeof core.zeroOrphans !== "boolean" ||
+  !Array.isArray(core.findings) ||
+  !core.inventory ||
+  typeof core.inventory !== "object"
+) {
   process.stderr.write("S15 core readiness output did not match the expected report contract.\n");
   process.exit(1);
 }
@@ -96,6 +102,7 @@ try {
   process.exit(1);
 }
 if (
+  typeof physicalOwnership.schemaVersion !== "number" ||
   typeof physicalOwnership.zeroOwnershipConflicts !== "boolean" ||
   !Array.isArray(physicalOwnership.findings) ||
   !physicalOwnership.inventory ||
@@ -135,11 +142,36 @@ for (const job of V3_SYSTEM_SCHEDULED_JOB_REGISTRY) {
   }
 }
 
-const physicalOwnershipFindings = physicalOwnership.findings.map((finding) => `PHYSICAL_OWNERSHIP_CONFLICT ${finding}`);
-const findings = [...core.findings, ...artifactFindings, ...physicalOwnershipFindings];
+const coreConsistencyFindings: string[] = [];
+if (core.zeroOrphans !== (core.findings.length === 0)) {
+  coreConsistencyFindings.push(
+    `CORE_READINESS_CONFLICT zeroOrphans=${core.zeroOrphans} disagrees with findings=${core.findings.length}`,
+  );
+}
+
+const physicalOwnershipFindings = physicalOwnership.findings.map(
+  (finding) => `PHYSICAL_OWNERSHIP_CONFLICT ${finding}`,
+);
+const physicalConsistencyFindings: string[] = [];
+if (physicalOwnership.zeroOwnershipConflicts !== (physicalOwnership.findings.length === 0)) {
+  physicalConsistencyFindings.push(
+    `PHYSICAL_OWNERSHIP_CONFLICT zeroOwnershipConflicts=${physicalOwnership.zeroOwnershipConflicts} disagrees with findings=${physicalOwnership.findings.length}`,
+  );
+}
+
+const findings = [
+  ...core.findings,
+  ...coreConsistencyFindings,
+  ...artifactFindings,
+  ...physicalOwnershipFindings,
+  ...physicalConsistencyFindings,
+];
 const report = {
   schemaVersion: Math.max(4, core.schemaVersion + 1),
-  zeroOrphans: findings.length === 0,
+  zeroOrphans:
+    core.zeroOrphans &&
+    physicalOwnership.zeroOwnershipConflicts &&
+    findings.length === 0,
   inventory: {
     ...core.inventory,
     v3IntegrationAdapters: V3_SYSTEM_INTEGRATION_REGISTRY.length,
@@ -163,4 +195,4 @@ else {
   process.stdout.write(`Concrete System inventory: integrations=${V3_SYSTEM_INTEGRATION_REGISTRY.length} edgeFunctions=${V3_SYSTEM_EDGE_FUNCTION_REGISTRY.length} scheduledJobs=${V3_SYSTEM_SCHEDULED_JOB_REGISTRY.length} physicalTables=${physicalOwnership.inventory.uniquePhysicalTables} sharedPhysicalTables=${physicalOwnership.inventory.explicitlySharedTables}\n`);
   if (findings.length) process.stdout.write(`Findings (${findings.length}):\n- ${findings.join("\n- ")}\n`);
 }
-if (requireZero && findings.length) process.exit(1);
+if (requireZero && !report.zeroOrphans) process.exit(1);
