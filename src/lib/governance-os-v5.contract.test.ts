@@ -117,7 +117,8 @@ describe("Governance OS v5 contract", () => {
 
     expect(registry).toContain('/^\\/integrity\\/report');
     expect(registry).toContain('tabbar: "hidden"');
-    expect(archetypes).toContain('/^\\/integrity\\/report');
+    expect(archetypes).toContain("resolveSolarisAppScreen(pathname).behavior.criticalTask");
+    expect(archetypes).not.toContain('/^\\/integrity\\/report');
     expect(banner).toContain('pathname.startsWith("/rules") || pathname.startsWith("/integrity")');
     expect(banner).toContain("Never float a global outage pill over Rules or Integrity");
   });

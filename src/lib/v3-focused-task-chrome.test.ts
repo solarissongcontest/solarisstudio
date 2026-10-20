@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveV3FocusedTaskChrome } from "./v3-focused-task-chrome";
+import {
+  resolveV3FocusedTaskChrome,
+  v3FocusedParticipationRouteEnabled,
+} from "./v3-focused-task-chrome";
 
 describe("Solaris Studio V3 focused critical-task chrome", () => {
   it.each([
@@ -18,6 +21,23 @@ describe("Solaris Studio V3 focused critical-task chrome", () => {
     expect(chrome.backLabel).toBe("Participate");
     expect(chrome.backTo).toBe("/participate");
     expect(chrome.helpTo).toBe(helpTo);
+  });
+
+  it("keeps one fail-closed rollout authority for focused participation chrome", () => {
+    const globalOnly = { enabled: true, confirmationEnabled: false, juryEnabled: false };
+    const allEnabled = { enabled: true, confirmationEnabled: true, juryEnabled: true };
+
+    expect(v3FocusedParticipationRouteEnabled("/confirmations", globalOnly)).toBe(false);
+    expect(v3FocusedParticipationRouteEnabled("/jury-voting", globalOnly)).toBe(false);
+    expect(v3FocusedParticipationRouteEnabled("/televoting", globalOnly)).toBe(true);
+    expect(v3FocusedParticipationRouteEnabled("/next-in-line", globalOnly)).toBe(true);
+    expect(v3FocusedParticipationRouteEnabled("/confirmations/edit/token", allEnabled)).toBe(true);
+    expect(v3FocusedParticipationRouteEnabled("/jury-voting", allEnabled)).toBe(true);
+
+    expect(v3FocusedParticipationRouteEnabled("/televoting", undefined)).toBe(false);
+    expect(v3FocusedParticipationRouteEnabled("/televoting", { enabled: false })).toBe(false);
+    expect(v3FocusedParticipationRouteEnabled("/participate", allEnabled)).toBe(false);
+    expect(v3FocusedParticipationRouteEnabled("/my-solaris/entry", allEnabled)).toBe(false);
   });
 
   it("preserves task route ownership and does not rewrite the path", () => {
