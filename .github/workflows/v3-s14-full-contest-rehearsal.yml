@@ -22,18 +22,38 @@ concurrency:
 
 jobs:
   stateful-rehearsal:
-    name: One-state contest lifecycle through implemented S14 stages
+    name: One-state complete contest lifecycle through Archive
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     env:
       V3_RELEASE_EVIDENCE_DIR: v3-release-evidence
-      V3_S14_ALLOW_PARTIAL: "1"
+      V3_S14_ALLOW_PARTIAL: "0"
+      V3_S14_REQUIRE_COMPLETE: "1"
+      V3_VERIFICATION_TARGET: local
+      V3_SEED_TARGET: local
+      V3_CLEANUP_TARGET: local
+      V3_DESTRUCTIVE_VERIFICATION: "1"
+      V3_SERVICE_ROLE_SCOPE: local
+      LOCAL_SUPABASE_URL: http://127.0.0.1:54321
     steps:
       - name: Checkout exact feature head
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
+
+      - name: Verify exact checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          expected="$(printf '%s' "$expected" | tr '[:upper:]' '[:lower:]')"
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "::error::checked out $actual but S14 expected exact head $expected"
+            exit 1
+          fi
+          echo "V3_CANDIDATE_SHA=$actual" >> "$GITHUB_ENV"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -42,6 +62,9 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Verify complete S14 source readiness
+        run: bun run scripts/check-v3-s14-rehearsal-readiness.ts --require-ready
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
@@ -54,13 +77,33 @@ jobs:
       - name: Rebuild exact migration chain locally
         run: supabase db reset --local --no-seed
 
-      - name: Run one-state S14 contest lifecycle
-        id: rehearsal
+      - name: Verify production isolation before destructive rehearsal
         shell: bash
         run: |
           set -euo pipefail
-          export V3_CANDIDATE_SHA="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
-          bash .github/scripts/v3-full-contest-rehearsal.sh
+          eval "$(supabase status -o env)"
+          if [[ "$API_URL" != "$LOCAL_SUPABASE_URL" ]]; then
+            echo "::error::Refusing S14 against non-local Supabase URL: $API_URL"
+            exit 1
+          fi
+          export VITE_SUPABASE_URL="$API_URL"
+          export SUPABASE_URL="$API_URL"
+          export E2E_SUPABASE_URL="$API_URL"
+          export VITE_CONFIRMATIONS_SUPABASE_URL="$API_URL"
+          export CONFIRMATIONS_SUPABASE_URL="$API_URL"
+          export DATABASE_URL="$DB_URL"
+          export SUPABASE_PROJECT_ID=local
+          export SUPABASE_PROJECT_REF=local
+          export E2E_SUPABASE_PROJECT_ID=local
+          export E2E_SUPABASE_PROJECT_REF=local
+          export VITE_SUPABASE_PROJECT_ID=local
+          export VITE_SUPABASE_PROJECT_REF=local
+          bun run scripts/check-v3-production-isolation.ts
+
+      - name: Run one-state complete S14 contest lifecycle
+        id: rehearsal
+        shell: bash
+        run: bash .github/scripts/v3-full-contest-rehearsal.sh
 
       - name: Validate exact-SHA rehearsal evidence
         if: always()
@@ -75,17 +118,14 @@ jobs:
           import subprocess
           from pathlib import Path
 
-          path = Path("v3-release-evidence/s14-full-contest.partial.json")
-          if not path.is_file():
-              raise SystemExit("missing S14 partial/failure evidence")
+          final_path = Path("v3-release-evidence/s14-full-contest.json")
+          partial_path = Path("v3-release-evidence/s14-full-contest.partial.json")
+          final_exists = final_path.is_file() and final_path.stat().st_size > 0
+          partial_exists = partial_path.is_file() and partial_path.stat().st_size > 0
+          if final_exists == partial_exists:
+              raise SystemExit("S14 must emit exactly one of final or partial evidence")
 
-          data = json.loads(path.read_text())
           sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip().lower()
-          if data.get("candidateSha") != sha:
-              raise SystemExit(f"candidate SHA mismatch: {data.get('candidateSha')} != {sha}")
-          if data.get("passed") is not False or data.get("partial") is not True:
-              raise SystemExit("S14 non-final evidence must remain passed=false, partial=true")
-
           outcome = os.environ.get("REHEARSAL_OUTCOME", "")
           expected_completed = [
               "stage-1-setup",
@@ -97,8 +137,8 @@ jobs:
               "stage-7-public-voting",
               "stage-8-results",
               "stage-9-publication",
+              "stage-10-archive",
           ]
-          expected_pending = ["stage-10-archive"]
           expected_extensions = [
               "grand-final-qualifier-bridge",
               "grand-final-jury",
@@ -107,52 +147,85 @@ jobs:
               "grand-final-publication",
           ]
           required_invariants = {
+              "confirmation-no-effective-duplicates",
+              "entry-valid-revision",
+              "media-accepted-revision",
+              "jury-single-final-ballot",
               "televote-canonical-ballot",
               "result-reproducible",
               "publication-final-version",
+              "tasks-canonical",
+              "notifications-reconcilable",
               "grand-final-televote-source-parity",
               "grand-final-result-reproducible",
               "grand-final-publication-final-version",
           }
+          required_failures = {
+              "network-after-commit",
+              "db-timeout-before-commit",
+              "duplicate-request",
+              "worker-crash",
+              "realtime-disconnect",
+              "stale-client",
+              "two-organizers",
+              "supabase-outage",
+          }
 
           if outcome == "success":
+              if not final_exists or partial_exists:
+                  raise SystemExit("successful complete S14 did not emit only release-grade final evidence")
+              data = json.loads(final_path.read_text())
+              if data.get("candidateSha") != sha:
+                  raise SystemExit(f"candidate SHA mismatch: {data.get('candidateSha')} != {sha}")
+              if data.get("passed") is not True or data.get("partial") is not False:
+                  raise SystemExit("complete S14 evidence must prove passed=true, partial=false")
               if data.get("runtimeFailure") is not False:
-                  raise SystemExit("successful rehearsal emitted runtime-failure evidence")
+                  raise SystemExit("complete S14 evidence cannot carry runtimeFailure=true")
               if data.get("completedStages") != expected_completed:
                   raise SystemExit(f"unexpected completed stages: {data.get('completedStages')}")
-              if data.get("pendingStages") != expected_pending:
-                  raise SystemExit(f"unexpected pending stages: {data.get('pendingStages')}")
+              if data.get("pendingStages") != []:
+                  raise SystemExit(f"complete S14 still has pending stages: {data.get('pendingStages')}")
               if data.get("completedContestExtensions") != expected_extensions:
                   raise SystemExit(f"unexpected completed contest extensions: {data.get('completedContestExtensions')}")
-              if data.get("pendingContestExtensions") != []:
-                  raise SystemExit(f"unexpected pending contest extensions: {data.get('pendingContestExtensions')}")
+              if data.get("pendingContestExtensions") != [] or data.get("blockedContestExtensions") != []:
+                  raise SystemExit("complete S14 still has pending/blocked contest extensions")
               invariants = set(data.get("implementedInvariants", []))
-              missing_invariants = sorted(required_invariants - invariants)
-              if missing_invariants:
-                  raise SystemExit(f"successful rehearsal omitted required invariant evidence: {missing_invariants}")
-              print(f"S14 partial evidence valid for {sha}: Stages 1-9 and Grand Final extensions complete; Archive pending")
+              failures = set(data.get("implementedFailureInjections", []))
+              if required_invariants - invariants:
+                  raise SystemExit(f"complete S14 omitted invariants: {sorted(required_invariants - invariants)}")
+              if required_failures - failures:
+                  raise SystemExit(f"complete S14 omitted failure injections: {sorted(required_failures - failures)}")
+              seed = data.get("seed", {})
+              if seed != {"editionCount": 1, "delegationCount": 66, "showCount": 3}:
+                  raise SystemExit(f"unexpected complete S14 seed evidence: {seed}")
+              print(f"Release-grade complete S14 evidence valid for exact SHA {sha}")
           elif outcome == "failure":
+              if not partial_exists or final_exists:
+                  raise SystemExit("failed S14 did not emit only partial failure evidence")
+              data = json.loads(partial_path.read_text())
+              if data.get("candidateSha") != sha:
+                  raise SystemExit(f"failure evidence SHA mismatch: {data.get('candidateSha')} != {sha}")
+              if data.get("passed") is not False or data.get("partial") is not True:
+                  raise SystemExit("failed S14 evidence must remain passed=false, partial=true")
               if data.get("runtimeFailure") is not True:
-                  raise SystemExit("failed rehearsal did not emit runtimeFailure=true")
+                  raise SystemExit("failed S14 did not emit runtimeFailure=true")
               failure_stage = data.get("failureStage")
               failure_phase = data.get("failurePhase")
               if not isinstance(failure_stage, str) or not failure_stage:
-                  raise SystemExit("failed rehearsal evidence is missing failureStage")
-              if not isinstance(failure_phase, str) or not failure_phase:
-                  raise SystemExit("failed rehearsal evidence is missing failurePhase")
-              if failure_phase == "unknown":
-                  raise SystemExit(f"failed rehearsal emitted an unknown canonical failure phase for {failure_stage}")
+                  raise SystemExit("failed S14 evidence is missing failureStage")
+              if not isinstance(failure_phase, str) or not failure_phase or failure_phase == "unknown":
+                  raise SystemExit(f"failed S14 emitted invalid canonical failure phase: {failure_phase!r}")
               completed_stages = data.get("completedStages", [])
               completed_extensions = data.get("completedContestExtensions", [])
               pending_stages = data.get("pendingStages", [])
               pending_extensions = data.get("pendingContestExtensions", [])
               if not all(isinstance(items, list) for items in [completed_stages, completed_extensions, pending_stages, pending_extensions]):
-                  raise SystemExit("failed rehearsal emitted malformed completion/pending arrays")
+                  raise SystemExit("failed S14 emitted malformed completion/pending arrays")
               if failure_phase in completed_stages or failure_phase in completed_extensions:
                   raise SystemExit(f"failure phase {failure_phase} was incorrectly marked complete")
               if failure_phase != "bootstrap" and failure_phase not in pending_stages and failure_phase not in pending_extensions:
                   raise SystemExit(f"failure phase {failure_phase} is missing from canonical pending evidence")
-              print(f"S14 failure evidence valid for {sha}: failed in {failure_stage} (canonical phase {failure_phase})")
+              print(f"S14 failure evidence valid for {sha}: failed in {failure_stage} ({failure_phase})")
           else:
               raise SystemExit(f"unexpected rehearsal step outcome: {outcome!r}")
           PY
@@ -164,7 +237,7 @@ jobs:
           name: v3-s14-stateful-${{ github.event.pull_request.head.sha || github.sha }}
           path: v3-release-evidence/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
       - name: Stop isolated local Supabase
         if: always()
