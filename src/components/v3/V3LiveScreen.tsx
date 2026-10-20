@@ -22,6 +22,7 @@ export type V3LiveScreenProps = {
   experience: V3LiveExperience | null;
   onRefresh?: () => void;
   refreshing?: boolean;
+  degraded?: boolean;
 };
 
 function showStatePresentation(
@@ -69,6 +70,7 @@ export function V3LiveScreen({
   experience,
   onRefresh,
   refreshing = false,
+  degraded = false,
 }: V3LiveScreenProps) {
   if (!experience) {
     return (
@@ -79,6 +81,35 @@ export function V3LiveScreen({
           description="A live experience will appear when Solaris has a published show to follow."
           editorial
         />
+        {degraded ? (
+          <V3Surface
+            level="raised"
+            className="border-amber-300/20 bg-amber-300/[0.055] p-4"
+            data-v3-live-degraded-snapshot=""
+          >
+            <div role="status" aria-live="polite">
+              <p className="text-sm font-semibold">Live connection interrupted</p>
+              <p className="mt-1 text-xs leading-5 text-white/55">
+                The last authoritative snapshot had no public show. That state may now be stale,
+                so refresh to reconcile before relying on it.
+              </p>
+            </div>
+            {onRefresh ? (
+              <button
+                type="button"
+                onClick={onRefresh}
+                disabled={refreshing}
+                className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/10 px-3 text-xs font-semibold text-white/70 transition hover:bg-white/[0.05] disabled:cursor-wait disabled:opacity-50"
+              >
+                <RefreshCcw
+                  className={`size-4 ${refreshing ? "motion-safe:animate-spin" : ""}`}
+                  aria-hidden="true"
+                />
+                {refreshing ? "Refreshing…" : "Retry refresh"}
+              </button>
+            ) : null}
+          </V3Surface>
+        ) : null}
         <V3Surface className="p-5">
           <div role="status">
             <p className="text-sm font-semibold">Nothing is live yet</p>
@@ -103,6 +134,23 @@ export function V3LiveScreen({
         description={experience.description}
         editorial
       />
+
+      {degraded ? (
+        <V3Surface
+          level="raised"
+          className="border-amber-300/20 bg-amber-300/[0.055] p-4"
+          data-v3-live-degraded-snapshot=""
+        >
+          <div role="status" aria-live="polite">
+            <p className="text-sm font-semibold">Live connection interrupted</p>
+            <p className="mt-1 text-xs leading-5 text-white/55">
+              Showing the last authoritative Solaris snapshot from {freshnessLabel(
+                experience.freshness.updatedAt,
+              ).replace(/^Updated /, "")}. Refresh to reconcile with the current show state.
+            </p>
+          </div>
+        </V3Surface>
+      ) : null}
 
       <V3Surface level="raised" className="overflow-hidden p-5">
         <div className="flex items-start justify-between gap-4">
@@ -162,7 +210,7 @@ export function V3LiveScreen({
                 className={`size-4 ${refreshing ? "motion-safe:animate-spin" : ""}`}
                 aria-hidden="true"
               />
-              {refreshing ? "Refreshing…" : "Refresh"}
+              {refreshing ? "Refreshing…" : degraded ? "Retry refresh" : "Refresh"}
             </button>
           ) : null}
         </div>
