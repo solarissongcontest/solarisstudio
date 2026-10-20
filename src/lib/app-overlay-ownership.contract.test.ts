@@ -51,7 +51,22 @@ describe("installed app overlay ownership", () => {
     expect(manager).toContain('navigation.setAttribute("aria-hidden", "true")');
     expect(manager).toContain("OVERLAY_NAV_INERT_OWNER");
     expect(manager).toContain("OVERLAY_NAV_ARIA_OWNER");
+    expect(manager).toContain("OVERLAY_NAV_ARIA_PREVIOUS");
+    expect(manager).toContain("OVERLAY_NAV_ARIA_ABSENT");
+    expect(manager).toContain("previousAriaHidden ?? OVERLAY_NAV_ARIA_ABSENT");
+    expect(manager).toContain('navigation.setAttribute("aria-hidden", previousAriaHidden)');
     expect(manager).toContain("mountObserver.observe(document.body, { subtree: true, childList: true })");
     expect(manager).toContain("setPersistentNavigationIsolation(false)");
+  });
+
+  it("keeps ordinary unblocked DOM churn off the document-wide navigation scan path", () => {
+    const manager = source("src/components/app/AppOverlayManager.tsx");
+
+    expect(manager).toContain("let navigationBlocked = false");
+    expect(manager).toContain("} else if (navigationBlocked) {");
+    expect(manager).toMatch(
+      /const mountObserver = new MutationObserver\(\(\) => \{\s*if \(!navigationBlocked\) return;\s*setPersistentNavigationIsolation\(true\);/,
+    );
+    expect(manager).toContain("navigationBlocked = blocked");
   });
 });
