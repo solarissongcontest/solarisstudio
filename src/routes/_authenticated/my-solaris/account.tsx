@@ -1,13 +1,31 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { lazy, Suspense } from "react";
 
 import { Panel } from "@/components/AppShell";
 import { useSolarisApp } from "@/components/app/AppRuntime";
-import { MySolarisAccountPanel } from "@/components/MySolarisAccountPanel";
-import { MySolarisNotificationsPanel } from "@/components/mysolaris/MySolarisNotificationsPanel";
-import { MySolarisPasswordPanel } from "@/components/MySolarisPasswordPanel";
 import { useMySolaris } from "@/components/mysolaris/MySolarisContext";
-import { V3AccountSections } from "@/components/v3/V3AccountSections";
 import { V3AccountSettingsRouteShell } from "@/components/v3/V3AccountSettingsRouteShell";
+
+const LazyMySolarisAccountPanel = lazy(() =>
+  import("@/components/MySolarisAccountPanel").then((module) => ({
+    default: module.MySolarisAccountPanel,
+  })),
+);
+const LazyMySolarisNotificationsPanel = lazy(() =>
+  import("@/components/mysolaris/MySolarisNotificationsPanel").then((module) => ({
+    default: module.MySolarisNotificationsPanel,
+  })),
+);
+const LazyMySolarisPasswordPanel = lazy(() =>
+  import("@/components/MySolarisPasswordPanel").then((module) => ({
+    default: module.MySolarisPasswordPanel,
+  })),
+);
+const LazyV3AccountSections = lazy(() =>
+  import("@/components/v3/V3AccountSections").then((module) => ({
+    default: module.V3AccountSections,
+  })),
+);
 
 export const Route = createFileRoute("/_authenticated/my-solaris/account")({
   head: () => ({
@@ -19,13 +37,29 @@ export const Route = createFileRoute("/_authenticated/my-solaris/account")({
   component: AccountPage,
 });
 
+function AccountSectionFallback({ label }: { label: string }) {
+  return (
+    <div
+      className="min-h-20 rounded-2xl border border-border/70 bg-muted/20 px-4 py-5 text-sm text-muted-foreground"
+      role="status"
+      aria-live="polite"
+    >
+      Loading {label}…
+    </div>
+  );
+}
+
 function AccountPage() {
   return (
     <V3AccountSettingsRouteShell
       section="account"
       title="Account"
       description="Security, sessions, privacy, access and account actions for your Solaris identity."
-      v3Children={<V3AccountSections />}
+      v3Children={
+        <Suspense fallback={<AccountSectionFallback label="account security" />}>
+          <LazyV3AccountSections />
+        </Suspense>
+      }
     >
       <LegacyAccountContent />
     </V3AccountSettingsRouteShell>
@@ -38,7 +72,9 @@ function LegacyAccountContent() {
   const country = workspace.countryAccount?.country;
   return (
     <div className="space-y-5">
-      <MySolarisAccountPanel />
+      <Suspense fallback={<AccountSectionFallback label="account details" />}>
+        <LazyMySolarisAccountPanel />
+      </Suspense>
 
       {isAppMode ? (
         <section aria-labelledby="app-account-preferences">
@@ -59,10 +95,14 @@ function LegacyAccountContent() {
           </div>
         </section>
       ) : (
-        <MySolarisNotificationsPanel />
+        <Suspense fallback={<AccountSectionFallback label="notification preferences" />}>
+          <LazyMySolarisNotificationsPanel />
+        </Suspense>
       )}
 
-      <MySolarisPasswordPanel />
+      <Suspense fallback={<AccountSectionFallback label="password controls" />}>
+        <LazyMySolarisPasswordPanel />
+      </Suspense>
 
       {isAppMode ? (
         <section aria-labelledby="app-account-country">
