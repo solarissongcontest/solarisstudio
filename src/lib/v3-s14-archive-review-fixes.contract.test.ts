@@ -15,6 +15,10 @@ const eventVocabulary = readFileSync(
   '.github/scripts/v3-s14-edition-event-vocabulary-rehearsal.sh',
   'utf8',
 );
+const taskResurrection = readFileSync(
+  '.github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh',
+  'utf8',
+);
 
 describe('System V3 S14 Archive review-fix contract', () => {
   it('makes archived runtime deletion fail closed at the database trigger boundary', () => {
@@ -61,19 +65,21 @@ describe('System V3 S14 Archive review-fix contract', () => {
     expect(workflow).toContain('.github/scripts/v3-s14-archive-delete-guard-rehearsal.sh');
   });
 
-  it('normalizes the full local project identity before the production-isolation guard', () => {
-    expect(eventVocabulary).toContain('SUPABASE_PROJECT_ID=local SUPABASE_PROJECT_REF=local');
-    expect(eventVocabulary).toContain(
-      'E2E_SUPABASE_PROJECT_ID=local E2E_SUPABASE_PROJECT_REF=local',
-    );
-    expect(eventVocabulary).toContain(
-      'VITE_SUPABASE_PROJECT_ID=local VITE_SUPABASE_PROJECT_REF=local',
-    );
-    expect(eventVocabulary).toContain('CONFIRMATIONS_SUPABASE_URL="$API_URL"');
-    expect(eventVocabulary).toContain('E2E_TARGET=local');
-    const identityExport = eventVocabulary.indexOf('SUPABASE_PROJECT_ID=local');
-    const isolationGuard = eventVocabulary.indexOf('bun run scripts/check-v3-production-isolation.ts');
-    expect(identityExport).toBeGreaterThanOrEqual(0);
-    expect(isolationGuard).toBeGreaterThan(identityExport);
+  it('normalizes the full local project identity before every follow-up isolation guard', () => {
+    for (const verifier of [eventVocabulary, taskResurrection]) {
+      expect(verifier).toContain('SUPABASE_PROJECT_ID=local SUPABASE_PROJECT_REF=local');
+      expect(verifier).toContain(
+        'E2E_SUPABASE_PROJECT_ID=local E2E_SUPABASE_PROJECT_REF=local',
+      );
+      expect(verifier).toContain(
+        'VITE_SUPABASE_PROJECT_ID=local VITE_SUPABASE_PROJECT_REF=local',
+      );
+      expect(verifier).toContain('CONFIRMATIONS_SUPABASE_URL="$API_URL"');
+      expect(verifier).toContain('E2E_TARGET=local');
+      const identityExport = verifier.indexOf('SUPABASE_PROJECT_ID=local');
+      const isolationGuard = verifier.indexOf('bun run scripts/check-v3-production-isolation.ts');
+      expect(identityExport).toBeGreaterThanOrEqual(0);
+      expect(isolationGuard).toBeGreaterThan(identityExport);
+    }
   });
 });
