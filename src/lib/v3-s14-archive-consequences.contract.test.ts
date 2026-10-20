@@ -147,12 +147,19 @@ describe('System V3 S14 archive consequence contract', () => {
       'create or replace function private.v3_reconcile_resolved_task_notifications',
     );
     expect(deliveryReconciliation).toContain('update public.notification_deliveries delivery');
-    expect(deliveryReconciliation).toContain("delivery.status in ('pending', 'processing', 'failed')");
+    expect(deliveryReconciliation).toContain("delivery.status in ('pending', 'processing')");
+    expect(deliveryReconciliation).not.toContain(
+      "delivery.status in ('pending', 'processing', 'failed')",
+    );
+    expect(deliveryReconciliation).toContain(
+      'Failed attempts are immutable failure evidence and are left in',
+    );
     expect(archiveInvariantFixes).toContain('private.studio2_prune_stale_task_notifications(p_edition_id)');
     expect(guardRehearsal).toContain('canonical edition.blocker Inbox projection was not actionable before archive');
     expect(guardRehearsal).toContain('archive left edition.blocker Inbox projection actionable');
     expect(resurrectionRehearsal).toContain('task resolution did not immediately repair poisoned Inbox action state');
-    expect(resurrectionRehearsal).toContain('task resolution did not immediately suppress poisoned delivery state');
+    expect(resurrectionRehearsal).toContain('task resolution did not immediately suppress pending delivery state');
+    expect(resurrectionRehearsal).toContain('task resolution rewrote historical failed-delivery evidence');
   });
 
   it('retains task/notification/history evidence while ending false current action state', () => {
