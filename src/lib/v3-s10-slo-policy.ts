@@ -15,7 +15,10 @@ export type V3StarterAvailabilityPolicy = {
   scope: V3SloScope;
   serviceClass: V3StarterSloClass;
   targetSuccessRatio: number | null;
-  operationalWindow: "relevant_operational_window" | "defined_measurement_window" | "evidence_defined";
+  operationalWindow:
+    | "relevant_operational_window"
+    | "defined_measurement_window"
+    | "evidence_defined";
   activation: "requires_reviewed_evidence";
   rationale: string;
 };
@@ -40,7 +43,8 @@ export const V3_STARTER_AVAILABILITY_POLICIES: Readonly<
     targetSuccessRatio: null,
     operationalWindow: "evidence_defined",
     activation: "requires_reviewed_evidence",
-    rationale: "System-wide availability has no canonical numeric starter target; use measured evidence.",
+    rationale:
+      "System-wide availability has no canonical numeric starter target; use measured evidence.",
   },
   confirmation_submission: {
     schemaVersion: 1,
@@ -112,7 +116,8 @@ export const V3_STARTER_AVAILABILITY_POLICIES: Readonly<
     targetSuccessRatio: 0.999,
     operationalWindow: "relevant_operational_window",
     activation: "requires_reviewed_evidence",
-    rationale: "Official result/publication release is a canonical Class A contest-critical workflow.",
+    rationale:
+      "Official result/publication release is a canonical Class A contest-critical workflow.",
   },
   notification_consequence: {
     schemaVersion: 1,
@@ -121,7 +126,8 @@ export const V3_STARTER_AVAILABILITY_POLICIES: Readonly<
     targetSuccessRatio: null,
     operationalWindow: "evidence_defined",
     activation: "requires_reviewed_evidence",
-    rationale: "The System plan requires a defined fanout window but does not specify a numeric availability target.",
+    rationale:
+      "The System plan requires a defined fanout window but does not specify a numeric availability target.",
   },
   projection_reconciliation: {
     schemaVersion: 1,
@@ -130,7 +136,8 @@ export const V3_STARTER_AVAILABILITY_POLICIES: Readonly<
     targetSuccessRatio: null,
     operationalWindow: "evidence_defined",
     activation: "requires_reviewed_evidence",
-    rationale: "Projection/reconciliation reliability must be set from measured freshness and recovery evidence.",
+    rationale:
+      "Projection/reconciliation reliability must be set from measured freshness and recovery evidence.",
   },
 };
 
@@ -178,7 +185,10 @@ export type V3StarterAvailabilityDecision = {
 export function evaluateV3StarterAvailabilityDecision(
   evaluation: V3ErrorBudgetEvaluation,
 ): V3StarterAvailabilityDecision {
-  if (evaluation.status === "invalid_objective" || evaluation.status === "invalid_observation") {
+  if (
+    evaluation.status === "invalid_objective"
+    || evaluation.status === "invalid_observation"
+  ) {
     return {
       schemaVersion: 1,
       status: "invalid",
@@ -271,7 +281,7 @@ export function evaluateV3CorrectnessSlo(
     };
   }
 
-  const alerts: V3CorrectnessSloEvaluation["alerts"] = [];
+  const alerts: Array<V3CorrectnessSloEvaluation["alerts"][number]> = [];
   if (observation.duplicateCommittedOperations > 0) {
     alerts.push({
       code: "duplicate_canonical_operation",
