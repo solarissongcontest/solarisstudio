@@ -10,6 +10,33 @@ import {
 import { V3Screen, V3ScreenHeader, V3Section, V3Surface } from "./V3Foundation";
 import { V3ScoreboardPresentation } from "./V3ScoreboardPresentation";
 
+type ResultsRevealWindow = Window & {
+  __solarisV3RevealedResultShows?: Set<string>;
+};
+
+function browserHasRevealedResult(showId: string) {
+  if (!showId || typeof window === "undefined") return false;
+  return (window as ResultsRevealWindow).__solarisV3RevealedResultShows?.has(showId) === true;
+}
+
+function rememberBrowserResultReveal(showId: string) {
+  if (!showId || typeof window === "undefined") return;
+  const browser = window as ResultsRevealWindow;
+  browser.__solarisV3RevealedResultShows ??= new Set<string>();
+  browser.__solarisV3RevealedResultShows.add(showId);
+}
+
+function resultToolHref(input: {
+  key: string;
+  href: string;
+  showId: string;
+}) {
+  if (input.key === "scorecharts" && input.showId) {
+    return `/shows/${encodeURIComponent(input.showId)}?tab=matrix&from=results`;
+  }
+  return input.href;
+}
+
 export function V3ResultsScreen({
   input,
   countries,
@@ -17,6 +44,8 @@ export function V3ResultsScreen({
   options = [],
   changingResult = false,
   onResultChange,
+  selectedMode: controlledMode,
+  onModeChange,
 }: {
   input: V3ResultProjectionInput;
   countries: ReadonlyMap<string, Country>;
@@ -24,14 +53,30 @@ export function V3ResultsScreen({
   options?: readonly V3ResultShowOption[];
   changingResult?: boolean;
   onResultChange?: (showId: string) => void;
+  selectedMode?: V3ResultMode;
+  onModeChange?: (mode: V3ResultMode) => void;
 }) {
-  const [revealed, setRevealed] = useState(false);
-  const [selectedMode, setSelectedMode] = useState<V3ResultMode>("combined");
+  // A deliberate reveal should survive same-document query-string navigation
+  // between Combined/Jury/Televote, but never survive a browser reload. Keep the
+  // disclosure memory on this window only. It is presentation state, never
+  // publication authority, and is deliberately not persisted in storage/URL.
+  const [revealed, setRevealed] = useState(() => browserHasRevealedResult(input.showId));
+  const [localMode, setLocalMode] = useState<V3ResultMode>("combined");
   const projection = buildV3ResultsProjection({
     ...input,
     disclosure: hideSpoilers && !revealed ? "withheld" : "revealed",
   });
-  const mode = projection.tabs.includes(selectedMode) ? selectedMode : "combined";
+  const requestedMode = controlledMode ?? localMode;
+  const mode = projection.tabs.includes(requestedMode) ? requestedMode : "combined";
+  const changeMode = (nextMode: V3ResultMode) => {
+    if (!projection.tabs.includes(nextMode)) return;
+    if (onModeChange) onModeChange(nextMode);
+    else setLocalMode(nextMode);
+  };
+  const revealResult = () => {
+    rememberBrowserResultReveal(input.showId);
+    setRevealed(true);
+  };
 
   return (
     <V3Screen>
@@ -91,7 +136,7 @@ export function V3ResultsScreen({
             </p>
             <button
               type="button"
-              onClick={() => setRevealed(true)}
+              onClick={revealResult}
               className="mt-4 min-h-11 rounded-xl bg-[var(--v3-accent)] px-4 font-semibold text-[var(--v3-bg-base)]"
             >
               Reveal official result
@@ -132,7 +177,7 @@ export function V3ResultsScreen({
                         key={tab}
                         type="button"
                         aria-pressed={mode === tab}
-                        onClick={() => setSelectedMode(tab)}
+                        onClick={() => changeMode(tab)}
                         className="min-h-11 rounded-xl border border-[var(--v3-border)] px-2 text-sm aria-pressed:bg-white/10"
                       >
                         {tab === "combined" ? "Combined" : tab === "jury" ? "Jury" : "Televote"}
@@ -201,7 +246,7 @@ export function V3ResultsScreen({
                 {projection.exploreThisResult.map((link) => (
                   <Link
                     key={link.key}
-                    to={link.href as any}
+                    to={resultToolHref({ key: link.key, href: link.href, showId: input.showId }) as any}
                     className="flex min-h-11 items-center rounded-xl border border-[var(--v3-border-subtle)] px-4"
                   >
                     {link.label}
