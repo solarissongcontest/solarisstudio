@@ -8,6 +8,7 @@ export type OrganisationBackendContract = {
   ready: boolean;
   capabilities: {
     organizerTasks: boolean;
+    organizerTasksV3: boolean;
     systemOperations: boolean;
     juryWindowOperations: boolean;
   };
@@ -24,6 +25,7 @@ const unavailable = (error: string | null): OrganisationBackendContract => ({
   ready: false,
   capabilities: {
     organizerTasks: false,
+    organizerTasksV3: false,
     systemOperations: false,
     juryWindowOperations: false,
   },
@@ -39,6 +41,7 @@ const incompatible = (
   ready: false,
   capabilities: {
     organizerTasks: false,
+    organizerTasksV3: false,
     systemOperations: false,
     juryWindowOperations: false,
   },
@@ -73,6 +76,7 @@ export async function loadOrganisationBackendContract(): Promise<OrganisationBac
     ready: value?.ready === true,
     capabilities: {
       organizerTasks: capabilities.organizerTasks === true,
+      organizerTasksV3: capabilities.organizerTasksV3 === true,
       systemOperations: capabilities.systemOperations === true,
       juryWindowOperations: capabilities.juryWindowOperations === true,
     },

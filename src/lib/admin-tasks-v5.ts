@@ -7,18 +7,24 @@ export type OrganizerTaskState = "open" | "waiting" | "resolved";
 export type OrganizerTaskFilter = "all" | "mine" | "waiting" | "resolved";
 export type OrganizerTaskOperationalState =
   | "actionable"
+  | "in_progress"
   | "blocked"
   | "waiting"
   | "failed"
   | "overdue"
+  | "expired"
+  | "superseded"
   | "resolved";
 
 const ORGANIZER_TASK_OPERATIONAL_STATES = new Set<OrganizerTaskOperationalState>([
   "actionable",
+  "in_progress",
   "blocked",
   "waiting",
   "failed",
   "overdue",
+  "expired",
+  "superseded",
   "resolved",
 ]);
 
@@ -144,7 +150,12 @@ export function resolveOrganizerTaskOperationalState(
   task: OrganizerTaskV5,
   nowMs = Date.now(),
 ): OrganizerTaskOperationalState {
-  if (task.state === "resolved") return "resolved";
+  if (task.state === "resolved") {
+    if (task.operationalState === "expired" || task.operationalState === "superseded") {
+      return task.operationalState;
+    }
+    return "resolved";
+  }
   if (task.state === "waiting") return "waiting";
 
   if (task.operationalState && task.operationalState !== "resolved") {

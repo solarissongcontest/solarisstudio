@@ -27,6 +27,10 @@ import {
   type OrganizerTaskPriority,
   type OrganizerTaskV5,
 } from "@/lib/admin-tasks-v5";
+import {
+  useOrganizerTasksV3,
+  type OrganizerTaskV3Filter,
+} from "@/lib/admin-tasks-v3";
 
 const FILTERS = [
   "all",
@@ -71,38 +75,66 @@ function OrganizerTasksPage() {
   const navigate = Route.useNavigate();
   const backend = useOrganisationBackendContract();
   const tasksSupported = backend.data?.capabilities.organizerTasks === true;
-  const backendFilter = backendFilterForView(filter);
-  const tasksQuery = useOrganizerTasksV5(editionId, backendFilter, tasksSupported);
-  const rawTasks = tasksQuery.data ?? [];
-  const evaluatedAt = tasksQuery.dataUpdatedAt || Date.now();
+  const tasksV3Supported = backend.data?.capabilities.organizerTasksV3 === true;
+
+  // Deployment-order compatibility is deliberate. A frontend deployed before
+  // the migration continues to consume the exact-edition legacy projection; as
+  // soon as the runtime advertises organizerTasksV3, canonical server-side task
+  // classification becomes authoritative without requiring a flag-day deploy.
+  const v3Query = useOrganizerTasksV3(
+    editionId,
+    filter as OrganizerTaskV3Filter,
+    tasksSupported && tasksV3Supported,
+  );
+  const v5Query = useOrganizerTasksV5(
+    editionId,
+    backendFilterForView(filter),
+    tasksSupported && !tasksV3Supported,
+  );
+
+  const rawTasks: OrganizerTaskV5[] = tasksV3Supported
+    ? (v3Query.data?.items ?? [])
+    : (v5Query.data ?? []);
+  const evaluatedAt = tasksV3Supported
+    ? Date.parse(v3Query.data?.serverTime ?? "") || Date.now()
+    : v5Query.dataUpdatedAt || Date.now();
   const classifiedTasks: ClassifiedTask[] = rawTasks.map((task) => ({
     task,
-    operationalState: resolveOrganizerTaskOperationalState(task, evaluatedAt),
+    operationalState:
+      tasksV3Supported && task.operationalState
+        ? task.operationalState
+        : resolveOrganizerTaskOperationalState(task, evaluatedAt),
   }));
   const tasks = classifiedTasks.filter((item) => matchesViewFilter(item, filter));
-  const explicitOperationalEvidence = rawTasks.some((task) => task.operationalState !== null);
+  const explicitOperationalEvidence =
+    tasksV3Supported || rawTasks.some((task) => task.operationalState != null);
 
+  const tasksLoading = tasksV3Supported ? v3Query.isLoading : v5Query.isLoading;
+  const tasksError = tasksV3Supported ? v3Query.error : v5Query.error;
   const metricsAvailable =
-    backend.isSuccess &&
-    tasksSupported &&
-    !tasksQuery.isLoading &&
-    !tasksQuery.error;
+    backend.isSuccess && tasksSupported && !tasksLoading && !tasksError;
+  const v3Summary = tasksV3Supported ? v3Query.data?.summary : null;
   const actionable = metricsAvailable
-    ? countOperationalState(classifiedTasks, "actionable")
+    ? v3Summary
+      ? v3Summary.actionable + v3Summary.inProgress
+      : countOperationalStates(classifiedTasks, ["actionable", "in_progress"])
     : null;
   const blocked = metricsAvailable && explicitOperationalEvidence
-    ? countOperationalState(classifiedTasks, "blocked")
+    ? v3Summary?.blocked ?? countOperationalState(classifiedTasks, "blocked")
     : null;
   const waiting = metricsAvailable
-    ? countOperationalState(classifiedTasks, "waiting")
+    ? v3Summary?.waiting ?? countOperationalState(classifiedTasks, "waiting")
     : null;
   const failed = metricsAvailable && explicitOperationalEvidence
-    ? countOperationalState(classifiedTasks, "failed")
+    ? v3Summary?.failed ?? countOperationalState(classifiedTasks, "failed")
     : null;
   const overdue = metricsAvailable
-    ? countOperationalState(classifiedTasks, "overdue")
+    ? v3Summary
+      ? v3Summary.overdue + v3Summary.expired
+      : countOperationalStates(classifiedTasks, ["overdue", "expired"])
     : null;
   const classificationUnavailable =
+    !tasksV3Supported &&
     (filter === "blocked" || filter === "failed") &&
     metricsAvailable &&
     !explicitOperationalEvidence;
@@ -165,20 +197,20 @@ function OrganizerTasksPage() {
               description="This frontend will not evaluate Tasks until the production database exposes the matching Organizer Task contract. No zero counts are inferred while task truth is unavailable."
             />
           </AdminCard>
-        ) : tasksQuery.isLoading ? (
+        ) : tasksLoading ? (
           <AdminCard>
             <p className="py-12 text-center text-sm text-muted-foreground">
               Evaluating authoritative task state…
             </p>
           </AdminCard>
-        ) : tasksQuery.error ? (
+        ) : tasksError ? (
           <AdminCard>
             <AdminEmptyState
               icon={AlertTriangle}
               title="Tasks could not be evaluated"
               description={
-                tasksQuery.error instanceof Error
-                  ? tasksQuery.error.message
+                tasksError instanceof Error
+                  ? tasksError.message
                   : "The Organizer Task Engine could not complete this request."
               }
             />
@@ -188,7 +220,7 @@ function OrganizerTasksPage() {
             <AdminEmptyState
               icon={AlertTriangle}
               title={`${filterLabel(filter)} classification is not available yet`}
-              description="The current Organizer Task payload does not expose explicit blocked/failed evidence. Solaris will not infer workflow state from priority, title text or notification severity."
+              description="The compatibility Organizer Task payload does not expose explicit blocked/failed evidence. Solaris will not infer workflow state from priority, title text or notification severity."
             />
           </AdminCard>
         ) : tasks.length ? (
@@ -199,8 +231,8 @@ function OrganizerTasksPage() {
                 title={filterTitle(filter)}
                 description={
                   filter === "resolved"
-                    ? "Recently resolved task objects remain visible as operational history."
-                    : "Tasks are deduplicated by source condition and disappear only when domain truth resolves them."
+                    ? "Resolved task objects remain available as operational history."
+                    : "Tasks are deduplicated by source condition and disappear only when domain truth resolves, expires or supersedes them."
                 }
                 action={<AdminStatus tone="neutral">{tasks.length}</AdminStatus>}
               />
@@ -226,7 +258,7 @@ function OrganizerTasksPage() {
         )}
 
         <p className="px-1 text-[11px] leading-5 text-muted-foreground">
-          Task state is recalculated from confirmation requirements and reviews, entries, required media, voting, results, integrations, incidents, governed approvals, Integrity work and paused edition subsystems. Blocked and failed are shown only when canonical task evidence explicitly reports them; priority is severity, not workflow state. There is intentionally no generic “Mark resolved” button.
+          Task state is reconciled from canonical confirmation, entry, media, voting, results, integration, incident, approval and system state. V3 classifies workflow state server-side; priority remains severity rather than workflow truth. There is intentionally no generic “Mark resolved” button.
         </p>
       </div>
     </AdminPage>
@@ -240,19 +272,21 @@ function TaskRow({
   task: OrganizerTaskV5;
   operationalState: OrganizerTaskOperationalState;
 }) {
+  const terminal = isTerminalTaskState(operationalState);
   return (
     <Link
       to={task.href as any}
       className="group flex min-h-20 items-start gap-3 p-4 transition-colors hover:bg-white/[0.025] sm:p-5"
     >
       <span className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03]">
-        {operationalState === "waiting" ? (
+        {operationalState === "waiting" || operationalState === "in_progress" ? (
           <Clock3 className="size-4 text-sky-100" />
-        ) : operationalState === "resolved" ? (
+        ) : operationalState === "resolved" || operationalState === "superseded" ? (
           <CheckCircle2 className="size-4 text-emerald-200" />
         ) : operationalState === "blocked" ||
           operationalState === "failed" ||
-          operationalState === "overdue" ? (
+          operationalState === "overdue" ||
+          operationalState === "expired" ? (
           <AlertTriangle className="size-4 text-amber-100" />
         ) : task.assignedTo ? (
           <UserRound className="size-4 text-muted-foreground" />
@@ -267,7 +301,7 @@ function TaskRow({
           <AdminStatus tone={taskTone(operationalState, task.priority)}>
             {operationalStateLabel(operationalState)}
           </AdminStatus>
-          {operationalState !== "resolved" ? (
+          {!terminal ? (
             <AdminStatus tone={priorityTone(task.priority)}>
               {humanize(task.priority)} priority
             </AdminStatus>
@@ -318,6 +352,12 @@ function backendFilterForView(filter: OrganizerTaskViewFilter): OrganizerTaskFil
 
 function matchesViewFilter(item: ClassifiedTask, filter: OrganizerTaskViewFilter) {
   if (filter === "all" || filter === "mine" || filter === "resolved") return true;
+  if (filter === "actionable") {
+    return item.operationalState === "actionable" || item.operationalState === "in_progress";
+  }
+  if (filter === "overdue") {
+    return item.operationalState === "overdue" || item.operationalState === "expired";
+  }
   return item.operationalState === filter;
 }
 
@@ -328,16 +368,34 @@ function countOperationalState(
   return tasks.filter((item) => item.operationalState === operationalState).length;
 }
 
+function countOperationalStates(
+  tasks: ClassifiedTask[],
+  states: readonly OrganizerTaskOperationalState[],
+) {
+  const accepted = new Set(states);
+  return tasks.filter((item) => accepted.has(item.operationalState)).length;
+}
+
+function isTerminalTaskState(state: OrganizerTaskOperationalState) {
+  return state === "resolved" || state === "expired" || state === "superseded";
+}
+
 function taskTone(
   operationalState: OrganizerTaskOperationalState,
   priority: OrganizerTaskPriority,
 ) {
-  if (operationalState === "resolved") return "ready" as const;
+  if (operationalState === "resolved" || operationalState === "superseded") {
+    return "ready" as const;
+  }
   if (operationalState === "blocked" || operationalState === "failed") {
     return "blocked" as const;
   }
-  if (operationalState === "overdue") return "attention" as const;
-  if (operationalState === "waiting") return "info" as const;
+  if (operationalState === "overdue" || operationalState === "expired") {
+    return "attention" as const;
+  }
+  if (operationalState === "waiting" || operationalState === "in_progress") {
+    return "info" as const;
+  }
   if (priority === "critical" || priority === "high") return "attention" as const;
   return "neutral" as const;
 }
@@ -349,7 +407,8 @@ function priorityTone(priority: OrganizerTaskPriority) {
 }
 
 function operationalStateLabel(state: OrganizerTaskOperationalState) {
-  if (state === "overdue") return "Overdue / expired";
+  if (state === "in_progress") return "In progress";
+  if (state === "overdue") return "Overdue";
   return humanize(state);
 }
 
@@ -388,7 +447,7 @@ function emptyDescription(filter: OrganizerTaskViewFilter) {
   if (filter === "blocked") return "No canonical task is explicitly blocked.";
   if (filter === "waiting") return "No governed approval or dependency is currently waiting.";
   if (filter === "failed") return "No canonical task is explicitly in a failed operational state.";
-  if (filter === "overdue") return "No unresolved task has passed its authoritative due time.";
+  if (filter === "overdue") return "No unresolved task is overdue or canonically expired.";
   if (filter === "resolved") return "Resolved task history will appear here after domain conditions close.";
   return "The canonical task sources currently evaluate as resolved.";
 }
