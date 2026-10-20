@@ -141,7 +141,10 @@ export function V3AccountSessionsPanel() {
       } catch {
         // The original failure remains authoritative when reconciliation itself is unavailable.
       }
-      setErrorMessage("Solaris could not confirm that this session was revoked. The session remains shown until the server confirms otherwise.");
+      setAttempt(null);
+      setNeedsFreshAuth(false);
+      setPassword("");
+      setErrorMessage("Solaris could not confirm that this session was revoked. The session remains shown until the server confirms otherwise. You can retry the revocation.");
     }
   };
 
