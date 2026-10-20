@@ -26,6 +26,15 @@ describe("S14 Grand Final failure evidence", () => {
     );
   });
 
+  it("derives successful completion evidence from the same runtime-tracked phase arrays", () => {
+    expect(driver.match(/\$\{COMPLETED_STAGES\[\*\]\}/g)?.length).toBe(2);
+    expect(driver.match(/\$\{COMPLETED_CONTEST_EXTENSIONS\[\*\]\}/g)?.length).toBe(2);
+    expect(driver.match(/"completedStages": completed/g)?.length).toBe(2);
+    expect(driver.match(/"completedContestExtensions": completed_extensions/g)?.length).toBe(2);
+    expect(driver).toContain('pending = pending_text.split() if pending_text else []');
+    expect(driver).toContain('"pendingStages": pending');
+  });
+
   it("uses the same canonical Grand Final extension vocabulary for success and failure evidence", () => {
     for (const extension of [
       "grand-final-qualifier-bridge",
