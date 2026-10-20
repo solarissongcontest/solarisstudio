@@ -30,19 +30,24 @@ async function insert(table, payload) {
   });
 }
 
-async function expectRejected(label, table, payload) {
-  const response = await insert(table, payload);
-  if (response.ok) {
-    throw new Error(`${label}: handcrafted public insert unexpectedly succeeded`);
-  }
-}
-
 async function expectAccepted(label, table, payload) {
   const response = await insert(table, payload);
   if (!response.ok) {
     const body = await response.text();
-    throw new Error(`${label}: privacy-safe public insert failed (${response.status}): ${body}`);
+    throw new Error(`${label}: public insert failed (${response.status}): ${body}`);
   }
+}
+
+async function rpcBoolean(functionName, payload) {
+  const response = await fetch(`${restBase}/rpc/${functionName}`, {
+    method: "POST",
+    headers: { apikey: publishableKey, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`${functionName} failed (${response.status}): ${await response.text()}`);
+  }
+  return Boolean(await response.json());
 }
 
 function uxPayload(overrides = {}) {
@@ -71,47 +76,41 @@ function vitalPayload(pathname) {
 }
 
 const uuid = "11111111-1111-4111-8111-111111111111";
+const encodedUuid = "11111111%2D1111%2D4111%2D8111%2D111111111111";
 const secret = "abcdefghijklmnopqrstuvwxyzABCDEF0123456789";
 
-await expectRejected(
-  "UX pathname query/fragment",
+// Existing Public clients may still emit literal UUID route params and query-bearing
+// href targets. The database normalizes them before CHECK enforcement, so privacy
+// hardening must not disable all later telemetry on the page.
+await expectAccepted(
+  "Dynamic UX pathname is normalized",
   "public_ux_events",
-  uxPayload({ pathname: `/countries/${uuid}?token=${secret}#private` }),
+  uxPayload({ pathname: `/countries/${uuid}?tab=history#private` }),
 );
-await expectRejected(
-  "UX pathname UUID",
+await expectAccepted(
+  "Query-bearing UX target is normalized",
   "public_ux_events",
-  uxPayload({ pathname: `/countries/${uuid}` }),
+  uxPayload({ target: `/scorecharts?show=grand-final` }),
 );
-await expectRejected(
-  "UX pathname secret-shaped segment",
-  "public_ux_events",
-  uxPayload({ pathname: `/recovery/${secret}` }),
-);
-await expectRejected(
-  "UX pathname e-mail segment",
-  "public_ux_events",
-  uxPayload({ pathname: "/account/person@example.com" }),
-);
-await expectRejected(
-  "UX route target query/fragment",
-  "public_ux_events",
-  uxPayload({ target: `/results/${uuid}?auth=${secret}` }),
-);
-await expectRejected(
-  "UX metadata start_route identifier",
+await expectAccepted(
+  "Dynamic start route is normalized",
   "public_ux_events",
   uxPayload({ metadata: { start_route: `/jury-voting/${uuid}` } }),
 );
-await expectRejected(
-  "Web Vitals raw route identifier",
+await expectAccepted(
+  "Dynamic Web Vitals path is normalized",
   "public_web_vitals",
   vitalPayload(`/shows/${uuid}`),
 );
-await expectRejected(
-  "Web Vitals raw secret route",
-  "public_web_vitals",
-  vitalPayload(`/recover/${secret}`),
+await expectAccepted(
+  "Encoded identifier path is collapsed by the write boundary",
+  "public_ux_events",
+  uxPayload({ pathname: `/shows/${encodedUuid}` }),
+);
+await expectAccepted(
+  "Absolute target is reduced to privacy-safe path identity",
+  "public_ux_events",
+  uxPayload({ target: `https://example.com/recovery/${uuid}?token=${secret}` }),
 );
 
 await expectAccepted(
@@ -133,5 +132,29 @@ await expectAccepted(
   "public_web_vitals",
   vitalPayload("/shows/:id"),
 );
+
+if (
+  await rpcBoolean("studio2_telemetry_path_is_safe", {
+    p_value: `/shows/${encodedUuid}`,
+    p_max_length: 512,
+  })
+) {
+  throw new Error("Encoded raw UUID path is unsafe at rest but invariant accepted it");
+}
+if (
+  await rpcBoolean("studio2_telemetry_target_is_safe", {
+    p_value: `https://example.com/recovery/${uuid}`,
+  })
+) {
+  throw new Error("Absolute diagnostic target is unsafe at rest but invariant accepted it");
+}
+if (
+  !(await rpcBoolean("studio2_telemetry_path_is_safe", {
+    p_value: "/shows/:id",
+    p_max_length: 512,
+  }))
+) {
+  throw new Error("Normalized route family was unexpectedly rejected");
+}
 
 console.log("P48 telemetry privacy rehearsal passed against isolated local Supabase.");
