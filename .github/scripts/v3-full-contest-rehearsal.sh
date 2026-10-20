@@ -17,6 +17,7 @@ source "$SCRIPT_DIR/v3-s14-stage-5-running-orders.sh"
 source "$SCRIPT_DIR/v3-s14-stage-6-jury.sh"
 source "$SCRIPT_DIR/v3-s14-stage-7-public-voting.sh"
 source "$SCRIPT_DIR/v3-s14-stage-7-genuine-deadline.sh"
+source "$SCRIPT_DIR/v3-s14-stage-7-deterministic-fixture.sh"
 source "$SCRIPT_DIR/v3-s14-stage-7-diagnostics.sh"
 source "$SCRIPT_DIR/v3-s14-stage-8-results.sh"
 source "$SCRIPT_DIR/v3-s14-stage-9-publication.sh"
@@ -179,7 +180,7 @@ payload = {
         "two-organizers",
     ],
     "pendingStages": pending,
-    "seed": {"editionCount": 1, "delegationCount": 66, "showCount": 3},
+    "seed": {"editionCount": 1, "delegationCount": 66,"showCount": 3},
 }
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(payload, handle, indent=2)
