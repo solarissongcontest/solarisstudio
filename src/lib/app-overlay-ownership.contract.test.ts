@@ -45,7 +45,9 @@ describe("installed app overlay ownership", () => {
     expect(manager).toContain('".admin-mobile-nav[data-v6-organizer-tabbar]"');
     expect(manager).toContain('root.hasAttribute("data-solaris-feature-overlay-open")');
     expect(manager).toContain('root.hasAttribute("data-solaris-keyboard-open")');
-    expect(manager).toContain('navigation.setAttribute("inert", "")');
+    expect(manager).toMatch(
+      /navigation\.contains\(focused\)[\s\S]*focused\.blur\(\)[\s\S]*navigation\.setAttribute\("inert", ""\)/,
+    );
     expect(manager).toContain('navigation.setAttribute("aria-hidden", "true")');
     expect(manager).toContain("OVERLAY_NAV_INERT_OWNER");
     expect(manager).toContain("OVERLAY_NAV_ARIA_OWNER");
