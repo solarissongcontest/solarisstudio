@@ -30,6 +30,14 @@ security invoker
 set search_path = pg_catalog
 as $guard$
 begin
+  if tg_op = 'DELETE' then
+    if old.state = 'archived' then
+      raise exception 'Archived edition runtime is irreversible.'
+        using errcode = '42501';
+    end if;
+    return old;
+  end if;
+
   if old.state = 'archived'
      and new.state is distinct from old.state then
     raise exception 'Archived edition runtime is irreversible.'
@@ -49,6 +57,12 @@ $guard$;
 
 revoke all on function private.v3_guard_archive_runtime_transition()
   from public, anon, authenticated;
+
+drop trigger if exists v3_guard_archive_runtime_delete
+  on public.studio2_edition_runtime;
+create trigger v3_guard_archive_runtime_delete
+before delete on public.studio2_edition_runtime
+for each row execute function private.v3_guard_archive_runtime_transition();
 
 create or replace function private.v3_guard_archived_edition_task_resurrection()
 returns trigger

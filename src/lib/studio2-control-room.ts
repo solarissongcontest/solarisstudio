@@ -90,6 +90,13 @@ export function createStudio2ControlRoom(
     },
 
     async transitionEdition(request: Studio2ReviewedTransitionRequest) {
+      // Freeze the exact version that was reviewed before any awaited work can
+      // allow a background snapshot refresh to replace the remembered value.
+      const reviewedExpectedVersion =
+        source === studio2Persistence
+          ? request.expectedVersion ?? reviewedRuntimeVersions.get(request.editionId) ?? null
+          : null;
+
       await requireEnabled(request.editionId);
 
       // Production Control Room traffic uses the single governed V3 command.
@@ -97,8 +104,7 @@ export function createStudio2ControlRoom(
       // accepted so a future caller can keep the same operation across a UI
       // retry; today's default path already reconciles uncertain transport once.
       if (source === studio2Persistence) {
-        const expectedVersion =
-          request.expectedVersion ?? reviewedRuntimeVersions.get(request.editionId) ?? null;
+        const expectedVersion = reviewedExpectedVersion;
         if (
           typeof expectedVersion !== 'number' ||
           !Number.isInteger(expectedVersion) ||

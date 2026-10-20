@@ -8,6 +8,7 @@ on:
       - "supabase/migrations/**"
       - ".github/scripts/v3-s14-archive-system-rehearsal.sh"
       - ".github/scripts/v3-s14-archive-guard-rehearsal.sh"
+      - ".github/scripts/v3-s14-archive-delete-guard-rehearsal.sh"
       - ".github/scripts/v3-s14-edition-event-vocabulary-rehearsal.sh"
       - ".github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh"
       - ".github/workflows/v3-s14-archive-system-rehearsal.yml"
@@ -16,6 +17,7 @@ on:
       - "src/lib/v3-projection-reconciliation-registry.ts"
       - "src/lib/v3-system-s1-registry.test.ts"
       - "src/lib/v3-s14-archive-consequences.contract.test.ts"
+      - "src/lib/v3-s14-archive-review-fixes.contract.test.ts"
       - "src/lib/v3-s14-archive-registry.contract.test.ts"
       - "src/lib/v3-s14-archive-task-registry-alignment.contract.test.ts"
       - "src/lib/v3-s14-resolved-task-notification-invariant.contract.test.ts"
@@ -38,8 +40,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - name: Checkout feature head
+      - name: Checkout exact feature head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact feature head
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='${{ github.event.pull_request.head.sha || github.sha }}'
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "::error::Expected Archive feature head $expected, checked out $actual"
+            exit 1
+          fi
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -64,6 +80,9 @@ jobs:
       - name: Rehearse Archive authorization and lifecycle guards
         run: bash .github/scripts/v3-s14-archive-guard-rehearsal.sh
 
+      - name: Rehearse archived runtime deletion guard
+        run: bash .github/scripts/v3-s14-archive-delete-guard-rehearsal.sh
+
       - name: Rehearse archived task and notification non-resurrection invariants
         run: bash .github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh
 
@@ -76,10 +95,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - name: Checkout feature head
+      - name: Checkout exact feature head
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
+
+      - name: Verify exact feature head
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='${{ github.event.pull_request.head.sha || github.sha }}'
+          actual="$(git rev-parse HEAD)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "::error::Expected Archive feature head $expected, checked out $actual"
+            exit 1
+          fi
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -147,6 +178,13 @@ jobs:
           set -euo pipefail
           cd /tmp/solaris-s14-main
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-archive-guard-rehearsal.sh"
+
+      - name: Rehearse archived runtime deletion guard after current-main upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-s14-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-archive-delete-guard-rehearsal.sh"
 
       - name: Rehearse task and notification non-resurrection after current-main upgrade
         shell: bash
