@@ -45,4 +45,24 @@ describe("Public V3 Live presentation", () => {
     expect(screen).toContain("motion-safe:animate-spin");
     expect(screen).toContain('aria-live="polite"');
   });
+
+  it("surfaces stale authoritative snapshots instead of pretending they are current", () => {
+    const screen = source();
+
+    expect(screen).toContain("degraded = false");
+    expect(screen).toContain('data-v3-live-degraded-snapshot=""');
+    expect(screen).toContain("Live connection interrupted");
+    expect(screen).toContain("last authoritative Solaris snapshot");
+    expect(screen).toContain("Refresh to reconcile with the current show state");
+    expect(screen).toContain('degraded ? "Retry refresh" : "Refresh"');
+  });
+
+  it("also marks a cached empty snapshot stale when reconnect fails", () => {
+    const screen = source();
+
+    expect(screen).toContain("if (!experience)");
+    expect(screen).toContain("The last authoritative snapshot had no public show");
+    expect(screen).toContain("That state may now be stale");
+    expect(screen).toContain('refreshing ? "Refreshing…" : "Retry refresh"');
+  });
 });

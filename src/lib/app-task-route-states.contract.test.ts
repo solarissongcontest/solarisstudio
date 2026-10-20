@@ -8,7 +8,8 @@ describe("App Experience v3 task and route-state foundation", () => {
   it("renders focused participation work without duplicate task chrome", () => {
     const shell = source("src/components/ParticipationServiceShell.tsx");
     const toolbar = source("src/components/app/AppToolbar.tsx");
-    expect(shell).toContain("if (isAppMode)");
+    expect(shell).toContain("if (isAppMode && !maintenanceIsolated)");
+    expect(shell).toContain("screen.behavior.criticalTask");
     expect(shell).toContain("data-solaris-app-task-shell");
     expect(toolbar).toContain('chrome.archetype === "task"');
     expect(toolbar).toContain("chrome.helpTo");

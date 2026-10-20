@@ -51,13 +51,17 @@ function LiveBootSurface({ message }: { message: string }) {
  * an enabled V3 session never launches the old archive-wide browser fan-out.
  * The V3 branch intentionally uses only the foundation shell: /show-mode is an
  * immersive route and must not acquire the normal five-tab application chrome.
+ *
+ * Once authoritative rollout + Live snapshots exist, later refetch/reconnect
+ * failures keep those cached snapshots mounted in a visibly degraded state.
+ * Falling back at that point would discard known-good server truth precisely
+ * while connectivity is unreliable.
  */
 export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
   const rollout = useV3RolloutProbe(true);
   const { preferences, update } = useAppExperiencePreferences();
   const [wakeActive, setWakeActive] = useState(false);
   const v3Enabled =
-    rollout.isSuccess &&
     rollout.data?.enabled === true &&
     rollout.data.liveEnabled === true;
   const bundle = useV3LiveBundle(v3Enabled);
@@ -124,31 +128,39 @@ export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
     };
   }, [shouldWake]);
 
-  if (rollout.isLoading) {
+  if (rollout.isLoading && !rollout.data) {
     return <LiveBootSurface message="Checking the live experience…" />;
   }
 
-  if (rollout.isError || !rollout.data || !v3Enabled) {
+  // A failed initial rollout read cannot safely opt the viewer into V3. A later
+  // rollout refetch failure with cached data is different: keep using the last
+  // authoritative server flag snapshot and mark the mounted V3 view degraded.
+  if (!rollout.data || !v3Enabled) {
     return <>{fallback}</>;
   }
 
-  if (bundle.isLoading) {
+  if (bundle.isLoading && !bundle.data) {
     return <LiveBootSurface message="Opening authoritative show state…" />;
   }
 
-  // The existing Show Mode remains the reversible fallback if the focused V3
-  // read boundary itself fails. Never substitute locally inferred state.
-  if (bundle.isError || !bundle.data) {
+  // Legacy Show Mode is a reversible fallback only when the initial focused V3
+  // read has no authoritative snapshot. Refetch errors with cached data stay on
+  // V3 so the known-good state remains visible and explicitly stale.
+  if (!bundle.data) {
     return <>{fallback}</>;
   }
+
+  const degraded = rollout.isError || bundle.isError;
+  const refreshing = rollout.isFetching || bundle.isFetching;
 
   return (
     <V3FoundationShell>
       <V3LiveScreen
         experience={bundle.data.experience}
-        refreshing={bundle.isFetching}
+        degraded={degraded}
+        refreshing={refreshing}
         onRefresh={() => {
-          void bundle.refetch();
+          void Promise.all([rollout.refetch(), bundle.refetch()]);
         }}
       />
       <div className="v3-screen pt-0" data-v3-live-settings="">
