@@ -45,6 +45,12 @@ ALL_STAGES=(
   stage-9-publication
   stage-10-archive
 )
+ALL_CONTEST_EXTENSIONS=(
+  grand-final-qualifier-bridge
+  grand-final-voting
+  grand-final-results
+  grand-final-publication
+)
 
 write_runtime_failure_evidence() {
   local exit_code="$1"
@@ -65,18 +71,37 @@ all_stages = [
     "stage-9-publication",
     "stage-10-archive",
 ]
+all_extensions = [
+    "grand-final-qualifier-bridge",
+    "grand-final-voting",
+    "grand-final-results",
+    "grand-final-publication",
+]
+
+def canonical_failure_phase(detail):
+    if detail == "bootstrap":
+        return "bootstrap"
+    for phase in [*all_stages, *all_extensions]:
+        if detail == phase or detail.startswith(f"{phase}:"):
+            return phase
+    return "unknown"
+
+failure_phase = canonical_failure_phase(failure_stage)
 pending = [stage for stage in all_stages if stage not in completed]
+pending_extensions = [extension for extension in all_extensions if extension not in completed_extensions]
 payload = {
     "schemaVersion": 2,
     "candidateSha": sha,
     "passed": False,
     "partial": True,
     "runtimeFailure": True,
+    "failurePhase": failure_phase,
     "failureStage": failure_stage,
     "exitCode": int(exit_code),
     "completedStages": completed,
     "completedContestExtensions": completed_extensions,
     "pendingStages": pending,
+    "pendingContestExtensions": pending_extensions,
     "seed": {"editionCount": 1, "delegationCount": 66, "showCount": 3},
 }
 with open(path, "w", encoding="utf-8") as handle:
@@ -157,6 +182,7 @@ payload = {
         "grand-final-results",
         "grand-final-publication",
     ],
+    "pendingContestExtensions": [],
     "blockedContestExtensions": [],
     "implementedInvariants": [
         "confirmation-no-effective-duplicates",
