@@ -14,28 +14,28 @@ describe("V3 Organizer Shows exact-edition boundary", () => {
     );
   });
 
-  it("rechecks route and entity scope immediately before legacy show mutations", () => {
+  it("binds every consequential Show command to exact edition and canonical preflight", () => {
     expect(source).toContain("function assertEditionScope(target?: Show | null)");
     expect(source).toContain("target.edition_id !== edition.id");
     expect(source).toContain("Edition context changed before the show command");
-    expect(source).toContain("!showModeTarget || !edition || !assertEditionScope(showModeTarget) || busy");
-    expect(source).toContain("async function applyShowModeReview()");
+    expect(source).toContain("previewShowLifecycle({ editionId: edition.id, showId: draft.id })");
+    expect(source).toContain("previewShowLifecycle({ editionId: edition.id, showId: showModeTarget.id })");
+    expect(source).toContain("previewShowLifecycle({ editionId: edition.id, showId: show.id })");
     expect(source).toContain("organizerEditionId !== review.editionId");
-    expect(source).toContain('.select("id,edition_id,name,broadcast_config")');
-    expect(source).toContain("!sameShowMode(showModeSnapshot(current), review.before)");
-    expect(source).toContain('.eq("id", review.showId)');
-    expect(source).toContain('.eq("edition_id", review.editionId)');
-    expect(source).toContain("!edition || !draft.name.trim() || !assertEditionScope()");
-    expect(source).toContain("!target || !assertEditionScope(target)");
-    expect(source).toContain("!deleteTarget || !assertEditionScope(deleteTarget)");
+    expect(source).toContain("expectedVersion: review.expectedVersion");
   });
 
-  it("does not disguise the legacy CRUD path as canonical V3 authority", () => {
-    expect(source).toContain('supabase.from("shows")');
-    expect(source).toContain('.update(');
-    expect(source).toContain('.insert(');
-    expect(source).toContain('.delete()');
-    expect(source).not.toContain("studio2_execute_show_operation");
-    expect(source).not.toContain("show.lifecycle.apply");
+  it("uses canonical Show lifecycle commands instead of direct browser CRUD", () => {
+    expect(source).toContain('from "@/lib/show-lifecycle-authority"');
+    expect(source).toContain("createShow({");
+    expect(source).toContain("updateShow({");
+    expect(source).toContain("updateShowMode({");
+    expect(source).toContain("executeShowDelete({");
+    expect(source).not.toContain('supabase.from("shows")');
+    expect(source).not.toContain('.from("shows")');
+    expect(source).not.toContain("studio2_create_show_v3");
+    expect(source).not.toContain("studio2_update_show_v3");
+    expect(source).not.toContain("studio2_update_show_mode_v3");
+    expect(source).not.toContain("studio2_delete_show_v3");
   });
 });
