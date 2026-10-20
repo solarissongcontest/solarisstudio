@@ -203,10 +203,18 @@ export function OrganizerV6TabBar({
     setDragPreviewIndex(null);
   }, [endHold, resetDragDom]);
 
+  const interruptDrag = useCallback(() => {
+    // An environment interruption cancels the press as well as its visuals. Arm
+    // click suppression before releasing capture so a trailing click cannot turn
+    // a cancelled Organizer gesture into an accidental route change.
+    if (dragState.current) suppressClick.current = true;
+    clearDrag();
+  }, [clearDrag]);
+
   useEffect(() => {
-    const resetInterruptedGesture = () => clearDrag();
+    const resetInterruptedGesture = () => interruptDrag();
     const resetWhenHidden = () => {
-      if (document.visibilityState !== "visible") clearDrag();
+      if (document.visibilityState !== "visible") interruptDrag();
     };
     const root = document.documentElement;
     const rootInterruptionObserver =
@@ -216,7 +224,7 @@ export function OrganizerV6TabBar({
               root.hasAttribute("data-solaris-feature-overlay-open") ||
               root.hasAttribute("data-solaris-keyboard-open")
             ) {
-              clearDrag();
+              interruptDrag();
             }
           })
         : null;
@@ -245,7 +253,7 @@ export function OrganizerV6TabBar({
       document.removeEventListener("visibilitychange", resetWhenHidden);
       resetDragDom();
     };
-  }, [clearDrag, pathname, resetDragDom]);
+  }, [interruptDrag, pathname, resetDragDom]);
 
   const startDrag = (
     event: ReactPointerEvent<HTMLAnchorElement>,
