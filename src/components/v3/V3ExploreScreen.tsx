@@ -43,6 +43,10 @@ function experiencePresentation(experience: V3EditionExperience): {
   switch (experience) {
     case "live":
       return { label: "Live", tone: "live" };
+    case "voting":
+      return { label: "Voting", tone: "warning" };
+    case "results-pending":
+      return { label: "Results pending", tone: "progress" };
     case "results":
       return { label: "Results", tone: "success" };
     case "post-edition":
