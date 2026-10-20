@@ -50,6 +50,16 @@ describe("V3 Organizer Results reviewed-state freshness", () => {
     expect(route).not.toContain("executionId: crypto.randomUUID(),\n        expectedVersion");
   });
 
+  it("makes edition scope explicit and freezes edition plus show in the critical review", () => {
+    expect(route).toContain("editionLabel as formatEditionLabel");
+    expect(route).toContain("const organizerEditionLabel = edition ? formatEditionLabel(edition) : null");
+    expect(route).toContain("editionLabel: string");
+    expect(route).toContain("editionLabel: organizerEditionLabel");
+    expect(route).toContain('data-v3-organizer-context-lock="edition"');
+    expect(route).toContain('data-v3-organizer-confirmation-context="edition-show"');
+    expect(route).toContain("{pending.editionLabel} · {pending.row.showName}");
+  });
+
   it("keeps consequential mutation and idempotency server-authoritative", () => {
     expect(route).toContain("executeStudio2ResultOperation");
     expect(service).toContain("studio2_execute_result_operation");
