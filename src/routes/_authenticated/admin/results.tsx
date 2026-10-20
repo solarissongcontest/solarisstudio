@@ -56,7 +56,31 @@ type PendingOperation = {
   action: Studio2ResultAction;
   executionId: string;
   editionId: string;
+  reviewFingerprint: string;
 };
+
+type ResultOperationCommit = {
+  operation: PendingOperation;
+  sameIdentityRetry: boolean;
+};
+
+function resultOperationReviewFingerprint(row: Studio2ResultOperationRow) {
+  return JSON.stringify({
+    showId: row.showId,
+    showName: row.showName,
+    showKind: row.showKind,
+    lifecycle: row.lifecycle,
+    calculationVersion: row.calculationVersion,
+    reviewedVersion: row.reviewedVersion,
+    lockedVersion: row.lockedVersion,
+    revealReadyVersion: row.revealReadyVersion,
+    preconditions: row.preconditions,
+  });
+}
+
+function staleResultReview(message: string) {
+  return Object.assign(new Error(message), { status: 409 });
+}
 
 function ResultsOperationsPage() {
   const { editionId } = useAdminContext();
@@ -82,7 +106,7 @@ function ResultsOperationsPage() {
   const summary = useMemo(() => summarizeStudio2ResultsOperations(rows), [rows]);
 
   const mutation = useMutation({
-    mutationFn: (operation: PendingOperation) => {
+    mutationFn: async ({ operation, sameIdentityRetry }: ResultOperationCommit) => {
       const scope = validateEditionCommandScope({
         routeEditionId: resolvedEditionId || null,
         commandEditionId: operation.editionId,
@@ -94,12 +118,33 @@ function ResultsOperationsPage() {
         const mismatch = !scope.ok && scope.mismatches.length
           ? ` (${scope.mismatches.join(", ")})`
           : "";
-        throw Object.assign(
-          new Error(
-            `Edition context changed before the result operation${mismatch}. Refresh canonical state before retrying.`,
-          ),
-          { status: 409 },
+        throw staleResultReview(
+          `Edition context changed before the result operation${mismatch}. Refresh canonical state before retrying.`,
         );
+      }
+
+      // A first commit must still represent the exact row the organizer
+      // reviewed. Never silently upgrade the command to fresher state. An
+      // uncertain same-operation retry is different: it must preserve the
+      // original execution id/payload so the server can replay its receipt.
+      if (!sameIdentityRetry) {
+        const liveRows = await loadStudio2ResultsOperations(operation.editionId);
+        const liveRow = liveRows.find((row) => row.showId === operation.row.showId);
+        if (!liveRow) {
+          throw staleResultReview(
+            'This show is no longer present in the selected edition. Nothing was applied.',
+          );
+        }
+
+        const actionStillAvailable = availableStudio2ResultActions(liveRow).includes(operation.action);
+        if (
+          !actionStillAvailable ||
+          resultOperationReviewFingerprint(liveRow) !== operation.reviewFingerprint
+        ) {
+          throw staleResultReview(
+            'Results state changed while this review was open. Nothing was applied. Review the current canonical state before creating another operation.',
+          );
+        }
       }
 
       return executeStudio2ResultOperation({
@@ -151,6 +196,7 @@ function ResultsOperationsPage() {
       action,
       executionId: crypto.randomUUID(),
       editionId: resolvedEditionId,
+      reviewFingerprint: resultOperationReviewFingerprint(row),
     });
   }
 
@@ -160,7 +206,10 @@ function ResultsOperationsPage() {
       toast.error('Add an audit reason of at least 5 characters.');
       return;
     }
-    await mutation.mutateAsync(pending);
+    await mutation.mutateAsync({
+      operation: pending,
+      sameIdentityRetry: recovery?.allowSameIdentityRetry === true,
+    });
   }
 
   const error = editionsQuery.error ?? operationsQuery.error;
@@ -288,6 +337,11 @@ function ResultsOperationsPage() {
                     : ""}
                 </p>
               </div>
+              {!recovery?.allowSameIdentityRetry ? (
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Before the first commit, Solaris re-reads this exact edition/show Results snapshot. If the reviewed lifecycle, version, readiness or reconciliation state changed, this review is rejected instead of silently applying a different operation.
+                </p>
+              ) : null}
               <label className="block">
                 <span className="admin-section-label">Audit reason</span>
                 <textarea
