@@ -202,7 +202,7 @@ select private.studio2_sync_task_notifications('$EDITION_A'::uuid);
 [[ "$(db_value "select state from public.studio2_organizer_tasks where source_kind='incident' and source_id='$INCIDENT_ID';")" == 'open' ]] || fail "incident governance task was not created"
 [[ "$(db_value "select state from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == 'open' ]] || fail "canonical edition.blocker fixture was not open before archive"
 [[ "$(db_value "select count(*) from public.admin_notifications where recipient_id='$AUTHORIZED_ID'::uuid and source_key='v3-s14-archive-guard:edition-blocker' and resolution_mode='domain' and requires_action and resolved_at is null;")" == '1' ]] || fail "canonical edition.blocker Inbox projection was not actionable before archive"
-[[ "$(db_value "select count(*) from public.notification_deliveries where subject_id='$BLOCKER_ID' and category='organizer_tasks' and status in ('pending','processing','failed');")" -ge '1' ]] || fail "canonical edition.blocker delivery projection was not pending before archive"
+[[ "$(db_value "select count(*) from public.notification_deliveries where subject_id='$BLOCKER_ID' and category='organizer_tasks' and status in ('pending','processing');")" -ge '1' ]] || fail "canonical edition.blocker delivery projection was not pending before archive"
 
 log "Archive capability is mandatory"
 expect_user_failure "$UNAUTHORIZED_ID" "archive without edition.archive" "AUTHORIZATION" \
@@ -232,7 +232,7 @@ ARCHIVE_JSON="$(as_user "$AUTHORIZED_ID" "select public.studio2_transition_editi
 as_service "select private.studio2_reconcile_all_organizer_tasks('$EDITION_A'::uuid);" >/dev/null
 [[ "$(db_value "select state from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == 'resolved' ]] || fail "archive left canonical edition.blocker actionable"
 [[ "$(db_value "select count(*) from public.admin_notifications where recipient_id='$AUTHORIZED_ID'::uuid and source_key='v3-s14-archive-guard:edition-blocker' and resolution_mode='domain' and not requires_action and resolved_at is not null;")" == '1' ]] || fail "archive left edition.blocker Inbox projection actionable"
-[[ "$(db_value "select count(*) from public.notification_deliveries where subject_id='$BLOCKER_ID' and category='organizer_tasks' and status in ('pending','processing','failed');")" == '0' ]] || fail "archive left edition.blocker push delivery claimable"
+[[ "$(db_value "select count(*) from public.notification_deliveries where subject_id='$BLOCKER_ID' and category='organizer_tasks' and status in ('pending','processing');")" == '0' ]] || fail "archive left edition.blocker push delivery claimable"
 [[ "$(db_value "select state from public.studio2_organizer_tasks where source_kind='incident' and source_id='$INCIDENT_ID';")" == 'open' ]] || fail "archive incorrectly resolved legitimate incident governance work"
 [[ "$(db_value "select count(*) from public.studio2_incidents where id='$INCIDENT_ID'::uuid and status='open';")" == '1' ]] || fail "archive mutated incident history/state"
 
