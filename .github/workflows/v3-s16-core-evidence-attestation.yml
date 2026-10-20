@@ -27,6 +27,33 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 1
 
+      - name: Verify canonical Quality still owns production isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          quality_path = Path(".github/workflows/ci.yml")
+          isolation_path = Path("scripts/check-v3-production-isolation.ts")
+
+          if not quality_path.is_file():
+              raise SystemExit("canonical Quality workflow is missing from exact attested SHA")
+          if not isolation_path.is_file():
+              raise SystemExit("production-isolation guard script is missing from exact attested SHA")
+
+          quality = quality_path.read_text(encoding="utf-8")
+          if "name: Quality" not in quality:
+              raise SystemExit(".github/workflows/ci.yml no longer declares canonical Quality")
+
+          invocation = "bun" + " run scripts/check-v3-production-isolation.ts"
+          if invocation not in quality:
+              raise SystemExit(
+                  "canonical Quality no longer invokes scripts/check-v3-production-isolation.ts; "
+                  "S16 production-isolation evidence cannot be attested"
+              )
+          PY
+
       - name: Verify exact source identity and write category evidence
         id: evidence
         shell: bash
@@ -72,6 +99,11 @@ jobs:
               "headBranch": os.environ.get("SOURCE_HEAD_BRANCH") or None,
               "conclusion": conclusion,
           }
+          isolation_guard = {
+              "workflowPath": ".github/workflows/ci.yml",
+              "scriptPath": "scripts/check-v3-production-isolation.ts",
+              "invocationVerified": True,
+          }
           payloads = {
               "s16-canonical-ci.json": {
                   "schemaVersion": 1,
@@ -99,6 +131,7 @@ jobs:
                   "candidateSha": sha,
                   "passed": passed,
                   "checks": ["scripts/check-v3-production-isolation.ts"],
+                  "guard": isolation_guard,
                   "provenance": provenance,
               },
           }
@@ -126,6 +159,7 @@ jobs:
             echo "- Source run: \`${{ github.event.workflow_run.id }}\` attempt \`${{ github.event.workflow_run.run_attempt }}\`"
             echo "- Exact candidate: \`${{ github.event.workflow_run.head_sha }}\`"
             echo "- Conclusion: \`${{ github.event.workflow_run.conclusion }}\`"
+            echo "- Production-isolation guard: verified present in canonical Quality at the exact source SHA"
             echo
-            echo "The attester only records the canonical Quality outcome. It does not execute the attested branch and does not contact hosted Supabase."
+            echo "The attester only records the canonical Quality outcome and inspects its exact-SHA workflow contract. It does not execute the attested branch and does not contact hosted Supabase."
           } >> "$GITHUB_STEP_SUMMARY"
