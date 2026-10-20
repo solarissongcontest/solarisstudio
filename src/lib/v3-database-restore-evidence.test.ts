@@ -22,8 +22,11 @@ function evidence(): Record<string, unknown> {
     status: "passed",
     commitSha: SHA,
     environment: "isolated-local-supabase",
+    operatorIdentity: "chat-1-system",
+    rehearsalId: "11111111-1111-4111-8111-111111111111",
     startedAt: "2026-10-21T00:00:00.000Z",
     completedAt: "2026-10-21T00:00:12.500Z",
+    migrationHead: "20261019111000",
     snapshot: {
       format: "pg_dump_custom",
       sha256: "a".repeat(64),
@@ -37,6 +40,7 @@ function evidence(): Record<string, unknown> {
     },
     validation: {
       sentinelVerified: true,
+      migrationHeadVerified: true,
       criticalRelationFingerprints: Object.fromEntries(
         CRITICAL_RELATIONS.map((relation, index) => [relation, `${index + 1}:${1000 + index}`]),
       ),
@@ -62,6 +66,8 @@ describe("System V3 S11 database restore evidence", () => {
       status: "ready_for_qa_review",
       expectedCommitSha: SHA,
       evidenceCommitSha: SHA,
+      rehearsalId: "11111111-1111-4111-8111-111111111111",
+      migrationHead: "20261019111000",
       rehearsalDurationMs: 12500,
       exerciseRpoSeconds: 0,
       snapshotSha256: "a".repeat(64),
@@ -80,6 +86,22 @@ describe("System V3 S11 database restore evidence", () => {
     expect(assessment.errors).toContain(
       "database restore evidence does not belong to the expected commit SHA",
     );
+  });
+
+  it("requires traceable rehearsal, operator and migration-head identity", () => {
+    const value = evidence();
+    value.rehearsalId = "not-a-uuid";
+    value.operatorIdentity = "";
+    value.migrationHead = "latest";
+    const validation = value.validation as Record<string, unknown>;
+    validation.migrationHeadVerified = false;
+
+    const assessment = assessV3DatabaseRestoreEvidence(value, SHA);
+    expect(assessment.status).toBe("invalid");
+    expect(assessment.errors).toContain("rehearsalId must be a UUID");
+    expect(assessment.errors).toContain("operatorIdentity must be a 1..120 character label");
+    expect(assessment.errors).toContain("migrationHead must be a migration version identifier");
+    expect(assessment.errors).toContain("migrationHeadVerified must be true");
   });
 
   it("rejects hosted/provider RPO or RTO claims from the local exercise", () => {
