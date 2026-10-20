@@ -95,8 +95,25 @@ jobs:
               "stage-5-running-orders",
               "stage-6-jury",
               "stage-7-public-voting",
+              "stage-8-results",
+              "stage-9-publication",
           ]
-          expected_pending = ["stage-8-results", "stage-9-publication", "stage-10-archive"]
+          expected_pending = ["stage-10-archive"]
+          expected_extensions = [
+              "grand-final-qualifier-bridge",
+              "grand-final-jury",
+              "grand-final-televote",
+              "grand-final-results",
+              "grand-final-publication",
+          ]
+          required_invariants = {
+              "televote-canonical-ballot",
+              "result-reproducible",
+              "publication-final-version",
+              "grand-final-televote-source-parity",
+              "grand-final-result-reproducible",
+              "grand-final-publication-final-version",
+          }
 
           if outcome == "success":
               if data.get("runtimeFailure") is not False:
@@ -105,20 +122,37 @@ jobs:
                   raise SystemExit(f"unexpected completed stages: {data.get('completedStages')}")
               if data.get("pendingStages") != expected_pending:
                   raise SystemExit(f"unexpected pending stages: {data.get('pendingStages')}")
-              if "televote-canonical-ballot" not in data.get("implementedInvariants", []):
-                  raise SystemExit("Stage 7 completed without canonical Televote invariant evidence")
-              print(f"S14 partial evidence valid for {sha}: Stages 1-7 complete; 8-10 pending")
+              if data.get("completedContestExtensions") != expected_extensions:
+                  raise SystemExit(f"unexpected completed contest extensions: {data.get('completedContestExtensions')}")
+              if data.get("pendingContestExtensions") != []:
+                  raise SystemExit(f"unexpected pending contest extensions: {data.get('pendingContestExtensions')}")
+              invariants = set(data.get("implementedInvariants", []))
+              missing_invariants = sorted(required_invariants - invariants)
+              if missing_invariants:
+                  raise SystemExit(f"successful rehearsal omitted required invariant evidence: {missing_invariants}")
+              print(f"S14 partial evidence valid for {sha}: Stages 1-9 and Grand Final extensions complete; Archive pending")
           elif outcome == "failure":
               if data.get("runtimeFailure") is not True:
                   raise SystemExit("failed rehearsal did not emit runtimeFailure=true")
               failure_stage = data.get("failureStage")
+              failure_phase = data.get("failurePhase")
               if not isinstance(failure_stage, str) or not failure_stage:
                   raise SystemExit("failed rehearsal evidence is missing failureStage")
-              if failure_stage in data.get("completedStages", []):
-                  raise SystemExit(f"failure stage {failure_stage} was incorrectly marked complete")
-              if failure_stage != "bootstrap" and failure_stage not in data.get("pendingStages", []):
-                  raise SystemExit(f"failure stage {failure_stage} is missing from pendingStages")
-              print(f"S14 failure evidence valid for {sha}: failed in {failure_stage}")
+              if not isinstance(failure_phase, str) or not failure_phase:
+                  raise SystemExit("failed rehearsal evidence is missing failurePhase")
+              if failure_phase == "unknown":
+                  raise SystemExit(f"failed rehearsal emitted an unknown canonical failure phase for {failure_stage}")
+              completed_stages = data.get("completedStages", [])
+              completed_extensions = data.get("completedContestExtensions", [])
+              pending_stages = data.get("pendingStages", [])
+              pending_extensions = data.get("pendingContestExtensions", [])
+              if not all(isinstance(items, list) for items in [completed_stages, completed_extensions, pending_stages, pending_extensions]):
+                  raise SystemExit("failed rehearsal emitted malformed completion/pending arrays")
+              if failure_phase in completed_stages or failure_phase in completed_extensions:
+                  raise SystemExit(f"failure phase {failure_phase} was incorrectly marked complete")
+              if failure_phase != "bootstrap" and failure_phase not in pending_stages and failure_phase not in pending_extensions:
+                  raise SystemExit(f"failure phase {failure_phase} is missing from canonical pending evidence")
+              print(f"S14 failure evidence valid for {sha}: failed in {failure_stage} (canonical phase {failure_phase})")
           else:
               raise SystemExit(f"unexpected rehearsal step outcome: {outcome!r}")
           PY
@@ -128,7 +162,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: v3-s14-stateful-${{ github.event.pull_request.head.sha || github.sha }}
-          path: v3-release-evidence/s14-full-contest.partial.json
+          path: v3-release-evidence/
           if-no-files-found: error
           retention-days: 14
 
