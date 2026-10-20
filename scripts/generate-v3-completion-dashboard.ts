@@ -448,6 +448,7 @@ const organizerRows: EvidenceRow[] = [
 const liquidTabBar = "src/components/v3/V3LiquidTabBar.tsx";
 const liquidCss = "src/styles/v3-liquid-tabbar.css";
 const interactionPhysics = "src/lib/interaction-physics.ts";
+const topLevelSwipeSurface = "src/components/v3/V3TopLevelSwipeSurface.tsx";
 const hasLiquid = existsSync(liquidTabBar);
 const hasLiquidContract = existsSync("src/lib/v3-app-shell.contract.test.ts") && hasLiquid;
 const hasVisualProgress = sourceContains(liquidTabBar, /visualProgress|navigationProgress/);
@@ -455,7 +456,15 @@ const hasPointerDrag = sourceContains(liquidTabBar, /onPointerMove|pointermove/)
 const hasVelocity = sourceContains(interactionPhysics, /velocity/i);
 const hasInterruptionCleanup = sourceContains(liquidTabBar, /visibilitychange|orientationchange|blur/);
 const hasReducedEffects = sourceContains(liquidCss, /prefers-reduced-motion|prefers-reduced-transparency/);
-const hasPageViewport = existsSync("src/components/v3/V3PageViewport.tsx") || sourceContains("src/components/v3/V3AppShell.tsx", /previous.*current.*next|visualProgress/s);
+const hasCanonicalTopLevelSwipeViewport =
+  sourceContains(topLevelSwipeSurface, /type SwipeSlot = "previous" \| "current" \| "next"/) &&
+  sourceContains(topLevelSwipeSurface, /previousSurface/) &&
+  sourceContains(topLevelSwipeSurface, /nextSurface/) &&
+  sourceContains(topLevelSwipeSurface, /--v3-navigation-progress/);
+const hasPageViewport =
+  hasCanonicalTopLevelSwipeViewport ||
+  sourceContains("src/components/v3/V3PageViewport.tsx", /previous.*current.*next|visualProgress/s) ||
+  sourceContains("src/components/v3/V3AppShell.tsx", /previous.*current.*next|visualProgress/s);
 const hasTabMemory = existsSync("src/lib/v3-tab-memory.ts") || sourceContains("src/components/v3/V3AppShell.tsx", /tab.*memory|scroll.*restor/i);
 const hasReferenceFreeze = existsSync("docs/v3/navigation-reference/README.md");
 
