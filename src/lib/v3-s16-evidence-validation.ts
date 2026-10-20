@@ -27,6 +27,15 @@ const REQUIRED_S14_CONTEST_EXTENSIONS = [
   "grand-final-results",
   "grand-final-publication",
 ] as const;
+const REQUIRED_S15_INVENTORY_FIELDS = [
+  "v3IntegrationAdapters",
+  "edgeFunctions",
+  "scheduledJobs",
+  "physicalOwnershipDomains",
+  "uniquePhysicalTables",
+  "domainTableAssignments",
+  "explicitlySharedTables",
+] as const;
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -200,11 +209,12 @@ export function validateV3S16CategorySourceEvidence(
     }
 
     const seed = record(evidence.seed);
+    const seedShowCount = seed?.showCount;
     if (
       seed?.editionCount !== V3_S14_SEED_CONTRACT.editionCount ||
       seed?.delegationCount !== V3_S14_SEED_CONTRACT.delegationCount ||
-      typeof seed?.showCount !== "number" ||
-      seed.showCount < V3_S14_SEED_CONTRACT.minimumShowCount
+      typeof seedShowCount !== "number" ||
+      seedShowCount < V3_S14_SEED_CONTRACT.minimumShowCount
     ) {
       issues.push("full-contest-rehearsal: seed evidence does not match the canonical bounded S14 contest");
     }
@@ -212,8 +222,36 @@ export function validateV3S16CategorySourceEvidence(
 
   if (categoryId === "registry-zero-gap") {
     if (evidence.zeroOrphans !== true) issues.push("registry-zero-gap: zeroOrphans is not true");
-    if (Array.isArray(evidence.findings) && evidence.findings.length !== 0) {
+    if (typeof evidence.schemaVersion !== "number" || evidence.schemaVersion < 4) {
+      issues.push("registry-zero-gap: S15 evidence schemaVersion is missing or predates physical-ownership evidence");
+    }
+
+    const findings = stringArray(evidence.findings);
+    if (!findings) {
+      issues.push("registry-zero-gap: findings must be a string array");
+    } else if (findings.length !== 0) {
       issues.push("registry-zero-gap: orphan findings remain");
+    }
+
+    const inventory = record(evidence.inventory);
+    if (!inventory) {
+      issues.push("registry-zero-gap: concrete inventory is missing");
+    } else {
+      const missingInventory = REQUIRED_S15_INVENTORY_FIELDS.filter((field) => {
+        const value = inventory[field];
+        return typeof value !== "number" || !Number.isFinite(value) || value < 0;
+      });
+      if (missingInventory.length) {
+        issues.push(`registry-zero-gap: concrete inventory fields missing or invalid: ${missingInventory.join(", ")}`);
+      }
+    }
+
+    const physicalOwnership = record(evidence.physicalOwnership);
+    if (physicalOwnership?.zeroOwnershipConflicts !== true) {
+      issues.push("registry-zero-gap: physical ownership is not explicitly conflict-free");
+    }
+    if (typeof physicalOwnership?.schemaVersion !== "number") {
+      issues.push("registry-zero-gap: physical ownership scanner provenance is missing");
     }
   }
 
