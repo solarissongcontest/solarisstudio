@@ -76,7 +76,7 @@ function TerraOSTeaserPreviewRoute() {
     const cleanupReferenceHero = installTerraOsTeaserMobileReferenceHero(frame);
     const cleanupHostMobilePolish = installTerraOsTeaserHostMobilePolish(frame);
     const compactMedia = hostWindow?.matchMedia(TERRAOS_COMPACT_PREVIEW_MEDIA) ?? null;
-    let cleanupHeroHandoff = () => undefined;
+    let cleanupHeroHandoff: () => void = () => undefined;
 
     const syncHeroHandoff = () => {
       cleanupHeroHandoff();
