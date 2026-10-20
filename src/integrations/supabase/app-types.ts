@@ -314,6 +314,15 @@ export type AppDatabase = Omit<Database, "public"> & {
         Args: { _round_id: string };
         Returns: Json;
       };
+      v3_public_pulse_events: {
+        Args: {
+          p_limit?: number;
+          p_before_published_at?: string | null;
+          p_before_id?: string | null;
+          p_category?: string | null;
+        };
+        Returns: Json;
+      };
     };
   };
 };
