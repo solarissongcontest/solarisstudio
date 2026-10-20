@@ -61,12 +61,15 @@ function draftContent(input: SaveStudio2NoticeInput): V3NoticeDraftContent {
   };
 }
 
-function requireSucceeded(result: CommandResult, label: string) {
+function requireSucceeded<T extends CommandResult>(
+  result: T,
+  label: string,
+): NonNullable<T["result"]> {
   if (result.status !== "succeeded" || !result.result?.ok) {
     const code = result.error?.code ? ` (${result.error.code})` : "";
     throw new Error(`${label} did not complete authoritatively${code}. Reconcile the operation before retrying.`);
   }
-  return result.result;
+  return result.result as NonNullable<T["result"]>;
 }
 
 function requiredString(value: unknown, label: string) {
@@ -87,7 +90,11 @@ function stringArray(value: unknown, label: string): string[] {
   return value as string[];
 }
 
-function noticeFromCommand(result: CommandResult, expectedEditionId: string, expectedNoticeId?: string) {
+function noticeFromCommand<T extends CommandResult>(
+  result: T,
+  expectedEditionId: string,
+  expectedNoticeId?: string,
+) {
   const payload = requireSucceeded(result, "Official Communications operation");
   const raw = payload.notice as RawNotice | undefined;
   if (!raw || typeof raw !== "object") {
