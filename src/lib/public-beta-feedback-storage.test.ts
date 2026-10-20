@@ -24,6 +24,12 @@ function throwingStorage(method: StorageMethod): Pick<Storage, StorageMethod> & 
 }
 
 describe("public beta feedback browser storage", () => {
+  it("treats an unavailable storage accessor as optional state", () => {
+    expect(readPublicBetaFeedbackStorage("draft", null)).toBeNull();
+    expect(writePublicBetaFeedbackStorage("draft", "payload", null)).toBe(false);
+    expect(removePublicBetaFeedbackStorage("draft", null)).toBe(false);
+  });
+
   it("treats an unavailable draft read as no local draft", () => {
     expect(
       readPublicBetaFeedbackStorage("draft", throwingStorage("getItem") as Storage),
