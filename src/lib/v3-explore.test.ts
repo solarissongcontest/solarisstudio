@@ -161,6 +161,7 @@ describe("V3 Explore projection", () => {
   it("makes core public tools discoverable without exposing Live outside canonical live state", () => {
     const preShow = buildV3ExploreRootProjection(rootInput());
 
+    expect(preShow.currentEdition?.liveHref).toBeNull();
     expect(preShow.more).toEqual([
       { key: "results", label: "Results", href: "/results" },
       { key: "rules", label: "Rules", href: "/rules" },
@@ -174,6 +175,7 @@ describe("V3 Explore projection", () => {
       }),
     );
 
+    expect(live.currentEdition?.liveHref).toBe("/show-mode");
     expect(live.more[0]).toEqual({ key: "live", label: "Live", href: "/show-mode" });
     expect(live.more).toContainEqual({ key: "results", label: "Results", href: "/results" });
     expect(live.more).toContainEqual({ key: "rules", label: "Rules", href: "/rules" });
