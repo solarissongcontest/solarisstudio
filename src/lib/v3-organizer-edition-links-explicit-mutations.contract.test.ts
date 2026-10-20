@@ -5,39 +5,42 @@ import { describe, expect, it } from "vitest";
 import { V3_ORGANIZER_CAPABILITY_REGISTRY } from "./v3-organizer-capability-registry";
 
 const route = readFileSync("src/routes/confirmations/admin/editions.tsx", "utf8");
+const client = readFileSync("src/lib/v3-confirmation-edition-authority.ts", "utf8");
+const migration = readFileSync(
+  "supabase/migrations/20261020090000_v3_confirmation_edition_authority.sql",
+  "utf8",
+);
 
 describe("V3 Organizer Confirmation edition-link mutation boundaries", () => {
-  it("keeps opening the edition-links page observational", () => {
-    const mountStart = route.indexOf("useEffect(() => {");
-    const mountEnd = route.indexOf("const remoteById = useMemo", mountStart);
-    const mountEffect = route.slice(mountStart, mountEnd);
-
-    expect(mountStart).toBeGreaterThanOrEqual(0);
-    expect(mountEnd).toBeGreaterThan(mountStart);
-    expect(mountEffect).toContain("await refresh();");
-    expect(mountEffect).not.toContain("await synchronize(false)");
-    expect(route).toContain("Opening this page is read-only");
+  it("keeps opening the edition-links page observational and exact-context", () => {
+    expect(route).toContain("useAdminContext()");
+    expect(route).toContain("loadConfirmationEditionAuthority(editionId)");
+    expect(route).toContain("Select an Organizer edition");
+    expect(route).toContain("no active/newest-edition fallback");
+    expect(route).not.toContain("synchronize(false)");
+    expect(route).not.toContain('.from("integration_links")');
   });
 
-  it("requires an explicit review before the legacy binding synchronization runs", () => {
-    expect(route).toContain("Review edition link sync");
-    expect(route).toContain("onClick={() => setSyncReviewOpen(true)}");
-    expect(route).toContain('title="Synchronize delegation edition links?"');
-    expect(route).toContain('confirmLabel="Run legacy edition-link sync"');
-    expect(route).toContain("await synchronize(true);");
-    expect(route).toContain("remains tracked in System #702");
+  it("requires explicit governed review before binding repair", () => {
+    expect(route).toContain("Review binding repair");
+    expect(route).toContain("previewConfirmationEditionLinkRepair(editionId)");
+    expect(route).toContain("applyConfirmationEditionLinkRepair(pendingLink)");
+    expect(route).toContain("The server refuses reverse/cross-edition rebinding");
+    expect(migration).toContain("Confirmation remote identity is already bound to another Solaris edition");
+    expect(migration).toContain("private.studio2_claim_operation(");
   });
 
-  it("reviews edition-wide editing changes and rechecks live state before apply", () => {
-    expect(route).toContain("reviewEditing(edition, remote)");
-    expect(route).toContain("const latest = await refresh();");
-    expect(route).toContain("liveRemote.editing_enabled !== pendingEditing.previous");
-    expect(route).toContain("liveRemote.id !== pendingEditing.remoteId");
-    expect(route).toContain("setConfirmationEditionEditing(pendingEditing.remoteId, pendingEditing.next)");
-    expect(route).toContain("Type SSC ${pendingEditing.edition.edition_number} exactly");
+  it("reviews edition-wide editing changes and rechecks binding + CAS at apply", () => {
+    expect(route).toContain("previewConfirmationEditionEditing(editionId, targetEnabled)");
+    expect(route).toContain("applyConfirmationEditionEditing(pendingEditing)");
+    expect(route).toContain("authority revision");
+    expect(client).toContain("p_expected_remote_id: preview.expectedRemoteId");
+    expect(client).toContain("p_expected_version: preview.stateVersion");
+    expect(migration).toContain("v_link.remote_id is distinct from p_expected_remote_id");
+    expect(migration).toContain("v_version is distinct from p_expected_version");
   });
 
-  it("reports the implemented edition-link surface as building without claiming canonical parity", () => {
+  it("records the governed System #702 implementation without self-promoting registry parity", () => {
     const capability = V3_ORGANIZER_CAPABILITY_REGISTRY.find(
       (item) => item.legacyId === "delegation-edition-links",
     );
@@ -45,6 +48,9 @@ describe("V3 Organizer Confirmation edition-link mutation boundaries", () => {
     expect(capability).toBeDefined();
     expect(capability?.migrationStatus).toBe("building");
     expect(["parity", "cutover", "retired"]).not.toContain(capability?.migrationStatus);
-    expect(route).toContain("Canonical expected-version, receipt and idempotency semantics remain System-owned in #702");
+    expect(migration).toContain("v3.confirmation.edition-authority");
+    expect(client).toContain('"studio2_reconcile_operation"');
+    expect(route).not.toContain("saveConfirmationEdition");
+    expect(route).not.toContain("setConfirmationEditionEditing");
   });
 });
