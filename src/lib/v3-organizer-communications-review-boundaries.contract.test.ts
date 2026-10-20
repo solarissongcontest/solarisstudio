@@ -6,7 +6,15 @@ const route = readFileSync(
   "src/routes/_authenticated/admin/communications.tsx",
   "utf8",
 );
-const api = readFileSync("src/lib/studio2-communications.ts", "utf8");
+const adapter = readFileSync("src/lib/v3-organizer-communications.ts", "utf8");
+const lifecycleCommands = readFileSync(
+  "src/lib/v3-official-communications-commands.ts",
+  "utf8",
+);
+const draftCommands = readFileSync(
+  "src/lib/v3-official-communications-draft-commands.ts",
+  "utf8",
+);
 
 describe("V3 Organizer communications review boundaries", () => {
   it("does not use native browser dialogs for consequential lifecycle actions", () => {
@@ -59,13 +67,43 @@ describe("V3 Organizer communications review boundaries", () => {
     expect(route).toContain("Delete communication permanently");
   });
 
-  it("keeps the existing server lifecycle authority while System #599 owns canonical operation semantics", () => {
-    expect(route).toContain("System #599");
-    expect(api).toContain("studio2_publish_notice");
-    expect(api).toContain("studio2_schedule_notice");
-    expect(api).toContain("studio2_archive_communication");
-    expect(api).toContain("studio2_restore_communication");
-    expect(api).toContain("studio2_delete_communication");
-    expect(route).not.toContain("studio2_claim_operation");
+  it("freezes the reviewed revision instead of silently adopting a background refetch", () => {
+    expect(route).toContain("const [editingBase, setEditingBase] = useState<OperationalNotice | null>(null)");
+    expect(route).toContain("updateOrganizerNoticeDraft(editingBase, currentInput())");
+    expect(route).toContain("setLifecycleReview({ kind: 'archive', notice, reason: '' })");
+    expect(adapter).toContain("expectedRevision: notice.revision");
+    expect(adapter).toContain("preflight.currentRevision !== notice.revision");
+    expect(adapter).toContain("reviewedNotice.revision");
+  });
+
+  it("cuts Organizer mutations over to the governed V3 command family", () => {
+    expect(route).toContain("@/lib/v3-organizer-communications");
+    expect(route).toContain("createOrganizerNoticeDraft");
+    expect(route).toContain("updateOrganizerNoticeDraft");
+    expect(route).toContain("scheduleOrganizerNotice");
+    expect(route).toContain("publishOrganizerNotice");
+    expect(route).toContain("cancelOrganizerNotice");
+    expect(route).toContain("archiveOrganizerCommunication");
+    expect(route).toContain("restoreOrganizerCommunication");
+    expect(route).toContain("deleteOrganizerCommunication");
+    expect(route).not.toContain("publishStudio2Notice");
+    expect(route).not.toContain("scheduleStudio2Notice");
+    expect(route).not.toContain("deleteStudio2Communication");
+
+    expect(adapter).toContain("preflightV3NoticeLifecycle(intent)");
+    expect(adapter).toContain("executeV3NoticeLifecycle(intent)");
+    expect(adapter).toContain("createV3NoticeDraft");
+    expect(adapter).toContain("updateV3NoticeDraft");
+    expect(adapter).toContain("createV3SupersedingNoticeDraft");
+    expect(lifecycleCommands).toContain('"v3_execute_notice_lifecycle"');
+    expect(draftCommands).toContain('"v3_update_notice_draft"');
+  });
+
+  it("keeps exact edition scope and authoritative deletion evidence fail closed", () => {
+    expect(adapter).toContain('return { scopeKind: "edition" as const, editionId: normalized }');
+    expect(adapter).toContain("Official Communications command crossed edition scope");
+    expect(adapter).toContain("Permanent communication deletion requires an Organizer reason");
+    expect(adapter).toContain("Permanent communication deletion did not return authoritative deletion evidence");
+    expect(route).toContain("exact-edition scope, revision checks, idempotency, receipts and lost-response reconciliation");
   });
 });
