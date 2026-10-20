@@ -70,7 +70,11 @@ function safeRelativeRoute(value: unknown): string | null {
 }
 
 function payloadValue(value: unknown): ContentEventRow["payload"] {
-  return objectValue(value) ?? {};
+  // The System projection already applies an allowlist. This client boundary
+  // rejects arrays/non-objects and narrows the remaining JSON object for the
+  // established ContentEventRow helpers without treating arbitrary payload as
+  // publication authority.
+  return (objectValue(value) ?? {}) as ContentEventRow["payload"];
 }
 
 export function emptyV3PulsePublicBundle(): V3PulsePublicBundle {
