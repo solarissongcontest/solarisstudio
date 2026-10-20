@@ -217,7 +217,7 @@ function expectNoRefraction(value: string) {
 
 test.describe.configure({ retries: 0 });
 
-test("Reduced Transparency keeps Liquid navigation geometry and semantics while removing decorative refraction", async ({
+test("installed app shell survives representative navigation without duplicate chrome: Reduced Transparency preserves Liquid geometry and semantics while removing decorative refraction", async ({
   browser,
 }, testInfo) => {
   test.skip(
