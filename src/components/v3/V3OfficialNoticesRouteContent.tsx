@@ -186,9 +186,12 @@ function V3OfficialNoticesBoundInbox({
 
     if (item && !item.receipt?.openedAt && !openingIdsRef.current.has(noticeId)) {
       openingIdsRef.current.add(noticeId);
-      void markOpened.mutateAsync(noticeId).finally(() => {
-        openingIdsRef.current.delete(noticeId);
-      });
+      void markOpened
+        .mutateAsync(noticeId)
+        .catch(() => undefined)
+        .finally(() => {
+          openingIdsRef.current.delete(noticeId);
+        });
     }
   };
 
