@@ -98,7 +98,7 @@ async function expectActiveTab(
 
 test.describe.configure({ retries: 0 });
 
-test("installed app preserves remembered deep tab routes across keyboard navigation, Back, reload and resume", async ({
+test("installed app shell survives representative navigation without duplicate chrome: preserves remembered deep tab routes across keyboard navigation, Back, reload and resume", async ({
   browser,
 }, testInfo) => {
   test.skip(testInfo.project.name !== "ios-pwa-portrait", "Focused installed-iOS contract only");
@@ -112,9 +112,9 @@ test("installed app preserves remembered deep tab routes across keyboard navigat
   await installSession(context, session);
   const page = await context.newPage();
 
-  // Seed a real nested Me destination through navigation, not by writing route
-  // memory directly. This keeps the browser test on the same ownership path as
-  // production users.
+  // Seed a real nested Me destination through application routing, not by writing
+  // route memory directly. This keeps the browser test on the same ownership path
+  // as production users.
   await page.goto(`${baseURL}/my-solaris/account`, { waitUntil: "domcontentloaded" });
   await expect(page.locator('[data-v3-account-settings-screen="account"]')).toBeVisible();
   await expectActiveTab(page, "Me");
