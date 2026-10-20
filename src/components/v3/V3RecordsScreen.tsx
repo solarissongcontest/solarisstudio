@@ -8,6 +8,7 @@ import type {
   FanRecordCategory,
   FanRecordHolder,
 } from "@/lib/fan-records";
+import type { V3RecordCategoryFilter } from "@/lib/v3-records";
 import {
   V3Screen,
   V3ScreenHeader,
@@ -26,8 +27,6 @@ const RECORD_TABS = [
   { value: "all", label: "All" },
 ] as const;
 
-type RecordTab = FanRecordCategory | "all";
-
 const CATEGORY_LABELS: Record<FanRecordCategory, string> = {
   career: "Career",
   streaks: "Streak",
@@ -43,18 +42,32 @@ export function V3RecordsScreen({
   generatedAt,
   spoilerProtected = false,
   onRevealCurrentEdition,
+  editionHrefById = {},
+  selectedCategory,
+  onCategoryChange,
 }: {
   records: readonly FanRecord[];
   archivedFinalEditions: number;
   generatedAt: string;
   spoilerProtected?: boolean;
   onRevealCurrentEdition?: () => void;
+  editionHrefById?: Readonly<Record<string, string>>;
+  selectedCategory?: V3RecordCategoryFilter;
+  onCategoryChange?: (category: V3RecordCategoryFilter) => void;
 }) {
-  const [tab, setTab] = useState<RecordTab>("career");
+  const [localCategory, setLocalCategory] = useState<V3RecordCategoryFilter>("career");
+  const category = selectedCategory ?? localCategory;
   const filtered = useMemo(
-    () => (tab === "all" ? records : records.filter((record) => record.category === tab)),
-    [records, tab],
+    () =>
+      category === "all"
+        ? records
+        : records.filter((record) => record.category === category),
+    [records, category],
   );
+  const changeCategory = (nextCategory: V3RecordCategoryFilter) => {
+    if (onCategoryChange) onCategoryChange(nextCategory);
+    else setLocalCategory(nextCategory);
+  };
 
   return (
     <V3Screen>
@@ -108,14 +121,14 @@ export function V3RecordsScreen({
           aria-label="Record category"
         >
           {RECORD_TABS.map((option) => {
-            const selected = option.value === tab;
+            const selected = option.value === category;
             return (
               <button
                 key={option.value}
                 type="button"
                 role="tab"
                 aria-selected={selected}
-                onClick={() => setTab(option.value)}
+                onClick={() => changeCategory(option.value)}
                 className="min-h-11 shrink-0 rounded-xl border px-3 text-xs font-semibold transition"
                 style={{
                   borderColor: selected
@@ -138,7 +151,11 @@ export function V3RecordsScreen({
         {filtered.length ? (
           <div className="grid gap-3 lg:grid-cols-2">
             {filtered.map((record) => (
-              <RecordCard key={record.id} record={record} />
+              <RecordCard
+                key={record.id}
+                record={record}
+                editionHrefById={editionHrefById}
+              />
             ))}
           </div>
         ) : (
@@ -160,7 +177,13 @@ export function V3RecordsScreen({
   );
 }
 
-function RecordCard({ record }: { record: FanRecord }) {
+function RecordCard({
+  record,
+  editionHrefById,
+}: {
+  record: FanRecord;
+  editionHrefById: Readonly<Record<string, string>>;
+}) {
   const primaryHolders = record.holders.slice(0, 8);
   const remainingHolders = record.holders.slice(8);
 
@@ -185,7 +208,11 @@ function RecordCard({ record }: { record: FanRecord }) {
 
       <div className="mt-4 divide-y divide-white/[0.07] rounded-xl border border-white/[0.07] bg-white/[0.02] px-3">
         {primaryHolders.map((holder) => (
-          <RecordHolderRow key={holder.countryId} holder={holder} />
+          <RecordHolderRow
+            key={holder.countryId}
+            holder={holder}
+            editionHrefById={editionHrefById}
+          />
         ))}
       </div>
 
@@ -196,7 +223,11 @@ function RecordCard({ record }: { record: FanRecord }) {
           </summary>
           <div className="divide-y divide-white/[0.07] border-t border-white/[0.07] px-3">
             {remainingHolders.map((holder) => (
-              <RecordHolderRow key={holder.countryId} holder={holder} />
+              <RecordHolderRow
+                key={holder.countryId}
+                holder={holder}
+                editionHrefById={editionHrefById}
+              />
             ))}
           </div>
         </details>
@@ -205,7 +236,15 @@ function RecordCard({ record }: { record: FanRecord }) {
   );
 }
 
-function RecordHolderRow({ holder }: { holder: FanRecordHolder }) {
+function RecordHolderRow({
+  holder,
+  editionHrefById,
+}: {
+  holder: FanRecordHolder;
+  editionHrefById: Readonly<Record<string, string>>;
+}) {
+  const editionHref = holder.editionId ? editionHrefById[holder.editionId] : null;
+
   return (
     <div className="py-3 first:pt-2.5 last:pb-2.5">
       <div className="flex min-w-0 items-start gap-3">
@@ -225,7 +264,17 @@ function RecordHolderRow({ holder }: { holder: FanRecordHolder }) {
               {holder.countryName}
             </Link>
             {holder.editionLabel ? (
-              <span className="text-[0.68rem] text-white/42">{holder.editionLabel}</span>
+              editionHref ? (
+                <Link
+                  to={editionHref as any}
+                  className="text-[0.68rem] text-white/42 hover:text-primary hover:underline"
+                  aria-label={`Open source edition ${holder.editionLabel}`}
+                >
+                  {holder.editionLabel}
+                </Link>
+              ) : (
+                <span className="text-[0.68rem] text-white/42">{holder.editionLabel}</span>
+              )
             ) : null}
           </div>
           {holder.artist || holder.song ? (

@@ -60,6 +60,24 @@ describe("Public V3 P27 Broadcast Intelligence", () => {
     expect(screen).toContain("Jury to final comparison");
   });
 
+  it("keeps the selected official source Show shareable but server-revalidated", () => {
+    const gate = read("src/components/v3/V3BroadcastIntelligenceGate.tsx");
+    const runtime = read("src/lib/v3-broadcast-intelligence-runtime.ts");
+    const source = read("src/integrations/v3/broadcast-intelligence-source.server.ts");
+
+    expect(gate).toContain("useRouterState");
+    expect(gate).toContain("broadcastShowNomination(search)");
+    expect(gate).toContain("useV3BroadcastIntelligenceBundle(nominatedShowId, true)");
+    expect(gate).toContain("nominatedShowId !== authoritativeShowId");
+    expect(gate).toContain('to: "/broadcast-intelligence"');
+    expect(gate).toContain("show: authoritativeShowId ?? undefined");
+    expect(gate).toContain("show: showId");
+    expect(gate).toContain("replace: true");
+    expect(runtime).toContain("getV3BroadcastIntelligenceBundle({ data: { showId } })");
+    expect(source).toContain("eligibleShows.find((show) => show.id === requestedShowId)");
+    expect(gate).not.toContain("useState<string | null>(null)");
+  });
+
   it("uses Results rollout authority and preserves the established route as fallback", () => {
     const gate = read("src/components/v3/V3BroadcastIntelligenceGate.tsx");
     const route = read("src/routes/broadcast-intelligence/index.tsx");

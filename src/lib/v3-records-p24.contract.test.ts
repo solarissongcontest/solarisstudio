@@ -34,6 +34,7 @@ describe("Public V3 P24 Records", () => {
     expect(runtime).toContain("getV3RecordsBundle");
     expect(contract).toContain("records: FanRecord[]");
     expect(contract).toContain("spoilerSafeRecords: FanRecord[]");
+    expect(contract).toContain("editionHrefById: Record<string, string>");
     expect(contract).not.toContain("participants:");
     expect(contract).not.toContain("results:");
     expect(contract).not.toContain("jury:");
@@ -125,6 +126,32 @@ describe("Public V3 P24 Records", () => {
     expect(screen).toContain("record.holders.length} tied");
     expect(screen).toContain('to="/countries/$code"');
     expect(screen).toContain('data-v3-records-empty=""');
+  });
+
+  it("links edition-scoped holders to canonical published Edition provenance only", () => {
+    const source = read("src/integrations/v3/records-source.server.ts");
+    const screen = read("src/components/v3/V3RecordsScreen.tsx");
+
+    expect(source).toContain("function editionHrefMap(editions");
+    expect(source).toContain("`/editions/${encodeURIComponent(slug)}`");
+    expect(source).toContain("editionHrefById");
+    expect(source).toContain("We do not manufacture");
+    expect(screen).toContain("holder.editionId ? editionHrefById[holder.editionId] : null");
+    expect(screen).toContain("Open source edition ${holder.editionLabel}");
+    expect(screen).not.toContain("holder.showId");
+  });
+
+  it("keeps Records category selection shareable without making it authority", () => {
+    const gate = read("src/components/v3/V3RecordsGate.tsx");
+    const screen = read("src/components/v3/V3RecordsScreen.tsx");
+
+    expect(gate).toContain("state.location.search");
+    expect(gate).toContain("categoryFromSearch(search)");
+    expect(gate).toContain('to: "/records"');
+    expect(gate).toContain('category: category === "career" ? undefined : category');
+    expect(gate).toContain("replace: true");
+    expect(screen).toContain("selectedCategory ?? localCategory");
+    expect(screen).toContain("onCategoryChange(nextCategory)");
   });
 
   it("does not expose a browser-controlled Records rollout escape hatch", () => {

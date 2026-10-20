@@ -1,4 +1,6 @@
-import type { FanRecord } from "./fan-records";
+import type { FanRecord, FanRecordCategory } from "./fan-records";
+
+export type V3RecordCategoryFilter = FanRecordCategory | "all";
 
 export type V3RecordsBundle = {
   rolloutEditionSlug: string | null;
@@ -9,6 +11,7 @@ export type V3RecordsBundle = {
   };
   records: FanRecord[];
   spoilerSafeRecords: FanRecord[];
+  editionHrefById: Record<string, string>;
   archivedFinalEditions: number;
   spoilerSafeArchivedFinalEditions: number;
   currentEditionAffectsRecords: boolean;

@@ -17,15 +17,35 @@ const TABS = [
   { value: "one-sided", label: "One-sided" },
 ] as const;
 
-type Tab = (typeof TABS)[number]["value"];
+export type V3RelationshipsIndexTab = (typeof TABS)[number]["value"];
 
 export function V3RelationshipsIndexScreen({
   pairs,
+  selectedTab,
+  query: controlledQuery,
+  onTabChange,
+  onQueryChange,
+  onClearFilters,
 }: {
   pairs: readonly V3RelationshipPairSummary[];
+  selectedTab?: V3RelationshipsIndexTab;
+  query?: string;
+  onTabChange?: (tab: V3RelationshipsIndexTab) => void;
+  onQueryChange?: (query: string) => void;
+  onClearFilters?: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>("all");
-  const [query, setQuery] = useState("");
+  const [localTab, setLocalTab] = useState<V3RelationshipsIndexTab>("all");
+  const [localQuery, setLocalQuery] = useState("");
+  const tab = selectedTab ?? localTab;
+  const query = controlledQuery ?? localQuery;
+  const changeTab = (nextTab: V3RelationshipsIndexTab) => {
+    if (onTabChange) onTabChange(nextTab);
+    else setLocalTab(nextTab);
+  };
+  const changeQuery = (nextQuery: string) => {
+    if (onQueryChange) onQueryChange(nextQuery);
+    else setLocalQuery(nextQuery);
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -52,6 +72,7 @@ export function V3RelationshipsIndexScreen({
 
     return rows;
   }, [pairs, query, tab]);
+  const filtersActive = tab !== "all" || Boolean(query.trim());
 
   return (
     <V3Screen>
@@ -80,8 +101,8 @@ export function V3RelationshipsIndexScreen({
         </div>
       </V3Surface>
 
-      <V3Section title="Explore relationships" meta={`${pairs.length} pairs`}>
-        <V3Surface className="p-3">
+      <V3Section title="Explore relationships" meta={`${filtered.length} of ${pairs.length} pairs`}>
+        <V3Surface className="p-3" data-v3-relationships-index-filters="">
           <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
             <label className="sr-only" htmlFor="v3-relationship-search">
               Search a country
@@ -89,7 +110,7 @@ export function V3RelationshipsIndexScreen({
             <input
               id="v3-relationship-search"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => changeQuery(event.target.value)}
               placeholder="Search a country…"
               className="min-h-11 w-full rounded-xl border border-white/[0.08] bg-white/[0.025] px-3 text-sm outline-none placeholder:text-white/35 focus:border-white/20"
             />
@@ -106,7 +127,7 @@ export function V3RelationshipsIndexScreen({
                     type="button"
                     role="tab"
                     aria-selected={selected}
-                    onClick={() => setTab(option.value)}
+                    onClick={() => changeTab(option.value)}
                     className="min-h-11 shrink-0 rounded-xl border px-3 text-xs font-semibold transition"
                     style={{
                       borderColor: selected
@@ -125,6 +146,20 @@ export function V3RelationshipsIndexScreen({
                 );
               })}
             </div>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[0.7rem] leading-5 text-white/42">
+              Search and relationship view are shareable presentation state over the publication-safe pair index.
+            </p>
+            {filtersActive && onClearFilters ? (
+              <button
+                type="button"
+                onClick={onClearFilters}
+                className="min-h-10 rounded-xl border border-white/[0.08] px-3 text-xs font-semibold text-white/68"
+              >
+                Clear filters
+              </button>
+            ) : null}
           </div>
         </V3Surface>
 
