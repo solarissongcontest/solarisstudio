@@ -41,9 +41,12 @@ describe("Public V3 Delegation history and entity graph", () => {
   it("keeps personal following mutations outside this public presentation slice", () => {
     const screen = read("src/components/v3/V3DelegationScreen.tsx");
 
-    expect(screen).toContain("following mutations remain owned by");
     expect(screen).not.toContain("useMutation");
+    expect(screen).not.toContain("FollowButton");
+    expect(screen).not.toContain("useFollow");
     expect(screen).not.toContain(".insert(");
     expect(screen).not.toContain(".update(");
+    expect(screen).not.toContain(".delete(");
+    expect(screen).not.toContain(".upsert(");
   });
 });

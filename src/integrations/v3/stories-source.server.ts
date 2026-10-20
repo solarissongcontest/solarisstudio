@@ -167,7 +167,12 @@ export async function loadV3StoriesIndexBundle(): Promise<V3StoriesIndexBundle> 
   };
 }
 
-/** Published-only edition Story source. */
+/**
+ * Published-only edition Story source.
+ *
+ * Related stories are optional continuity links. Failure to load that supplemental
+ * public archive must never turn a valid published Story into an unavailable page.
+ */
 export async function loadV3StoryDetailBundle(
   editionSlug: string,
 ): Promise<V3StoryDetailBundle> {
@@ -176,6 +181,8 @@ export async function loadV3StoryDetailBundle(
     return {
       shell: { editionLabel: "Solaris Studio", phaseLabel: "Stories" },
       story: null,
+      relatedEdition: null,
+      relatedStories: [],
       generatedAt: new Date().toISOString(),
     };
   }
@@ -187,6 +194,23 @@ export async function loadV3StoryDetailBundle(
   throwIfError(result.error, "Could not load published Solaris edition story");
 
   const story = parseStoryline(result.data);
+  let relatedStories: V3StorySummary[] = [];
+
+  if (story) {
+    try {
+      const relatedResult = await client.rpc("studio2_public_storylines", { p_limit: 12 });
+      if (!relatedResult.error && Array.isArray(relatedResult.data)) {
+        relatedStories = relatedResult.data
+          .map(parseStorySummary)
+          .filter((candidate) => candidate.editionId !== story.editionId)
+          .slice(0, 3);
+      }
+    } catch {
+      // Related continuity is optional. The authoritative published Story remains usable.
+      relatedStories = [];
+    }
+  }
+
   return {
     shell: {
       editionLabel:
@@ -196,6 +220,13 @@ export async function loadV3StoryDetailBundle(
       phaseLabel: "Stories",
     },
     story,
+    relatedEdition: story
+      ? {
+          label: story.editionName,
+          href: `/editions/${encodeURIComponent(story.editionSlug)}`,
+        }
+      : null,
+    relatedStories,
     generatedAt: new Date().toISOString(),
   };
 }

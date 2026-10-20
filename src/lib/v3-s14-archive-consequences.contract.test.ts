@@ -25,6 +25,10 @@ const deliveryReconciliation = readFileSync(
   'supabase/migrations/20261019202636_v3_s14_resolved_task_delivery_reconciliation.sql',
   'utf8',
 );
+const archiveInvariantFixes = readFileSync(
+  'supabase/migrations/20261020130000_v3_s14_archive_invariant_forward_fixes.sql',
+  'utf8',
+);
 const rehearsal = readFileSync('.github/scripts/v3-s14-archive-system-rehearsal.sh', 'utf8');
 const guardRehearsal = readFileSync('.github/scripts/v3-s14-archive-guard-rehearsal.sh', 'utf8');
 const eventRehearsal = readFileSync(
@@ -46,6 +50,7 @@ const migrations = [
   taskAlignment,
   notificationInvariant,
   deliveryReconciliation,
+  archiveInvariantFixes,
 ];
 
 describe('System V3 S14 archive consequence contract', () => {
@@ -62,6 +67,9 @@ describe('System V3 S14 archive consequence contract', () => {
     expect(deliveryReconciliation).toContain(
       "'v3.s14.resolved-task-delivery-reconciliation'",
     );
+    expect(archiveInvariantFixes).toContain(
+      "'v3.s14.archive-invariant-forward-fixes'",
+    );
   });
 
   it('keeps one versioned edition runtime authority and fences direct Archive mutation', () => {
@@ -76,6 +84,8 @@ describe('System V3 S14 archive consequence contract', () => {
     expect(migration).toContain('private.studio2_complete_operation(p_operation_id, v_result)');
     expect(migration).toContain('private.v3_guard_archive_runtime_transition');
     expect(migration).toContain('solaris.v3_archive_command');
+    expect(archiveInvariantFixes).toContain("old.state = 'archived'");
+    expect(archiveInvariantFixes).toContain("Archived edition runtime is irreversible.");
     expect(migration).toContain(
       'revoke all on function public.studio2_transition_edition_v2(uuid, text, text, uuid)',
     );
@@ -118,6 +128,7 @@ describe('System V3 S14 archive consequence contract', () => {
     expect(taskAlignment).toContain('before insert or update on public.studio2_organizer_tasks');
     expect(taskAlignment).toContain("runtime.state = 'archived'");
     expect(taskAlignment).not.toMatch(/p_task_type[^\n]*(incident|integrity)/);
+    expect(archiveInvariantFixes).toContain('old.resolved_at, new.resolved_at, now()');
     expect(guardRehearsal).toContain('archive left canonical edition.blocker actionable');
     expect(resurrectionRehearsal).toContain('archived edition.blocker was resurrected');
     expect(resurrectionRehearsal).toContain('new impossible archived-edition task became actionable');
@@ -137,6 +148,7 @@ describe('System V3 S14 archive consequence contract', () => {
     );
     expect(deliveryReconciliation).toContain('update public.notification_deliveries delivery');
     expect(deliveryReconciliation).toContain("delivery.status in ('pending', 'processing', 'failed')");
+    expect(archiveInvariantFixes).toContain('private.studio2_prune_stale_task_notifications(p_edition_id)');
     expect(guardRehearsal).toContain('canonical edition.blocker Inbox projection was not actionable before archive');
     expect(guardRehearsal).toContain('archive left edition.blocker Inbox projection actionable');
     expect(resurrectionRehearsal).toContain('task resolution did not immediately repair poisoned Inbox action state');
@@ -183,6 +195,7 @@ describe('System V3 S14 archive consequence contract', () => {
       '20261019112400_v3_s14_archive_task_registry_alignment.sql',
       '20261019112500_v3_s14_resolved_task_notification_invariant.sql',
       '20261019202636_v3_s14_resolved_task_delivery_reconciliation.sql',
+      '20261020130000_v3_s14_archive_invariant_forward_fixes.sql',
     ]) {
       expect(workflow).toContain(migrationName);
     }

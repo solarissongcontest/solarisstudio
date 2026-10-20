@@ -114,7 +114,8 @@ jobs:
             20261019112300_v3_s14_transition_http409.sql \
             20261019112400_v3_s14_archive_task_registry_alignment.sql \
             20261019112500_v3_s14_resolved_task_notification_invariant.sql \
-            20261019202636_v3_s14_resolved_task_delivery_reconciliation.sql
+            20261019202636_v3_s14_resolved_task_delivery_reconciliation.sql \
+            20261020130000_v3_s14_archive_invariant_forward_fixes.sql
           do
             cp \
               "$GITHUB_WORKSPACE/supabase/migrations/$migration" \

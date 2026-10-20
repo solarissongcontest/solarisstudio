@@ -5,8 +5,7 @@ type E2ESession = {
   user: { id: string; email?: string | null };
 };
 
-async function addSession(
-  context: BrowserContext,
+async function fetchSession(
   url: string,
   publishableKey: string,
   email: string,
@@ -18,7 +17,17 @@ async function addSession(
     body: JSON.stringify({ email, password }),
   });
   expect(response.ok, "The local Rules guidance audit account must sign in").toBeTruthy();
-  const session = (await response.json()) as E2ESession;
+  return (await response.json()) as E2ESession;
+}
+
+async function addSession(
+  context: BrowserContext,
+  url: string,
+  publishableKey: string,
+  email: string,
+  password: string,
+): Promise<E2ESession> {
+  const session = await fetchSession(url, publishableKey, email, password);
   const projectRef = new URL(url).hostname.split(".")[0];
   await context.addInitScript(
     ({ key, value }) => localStorage.setItem(key, JSON.stringify(value)),
@@ -60,6 +69,7 @@ async function setFeature(
   session: E2ESession,
   key: string,
   enabled: boolean,
+  targetUserIds?: string[],
 ) {
   const response = await fetch(`${url.replace(/\/$/, "")}/rest/v1/rpc/studio2_set_feature_flag`, {
     method: "POST",
@@ -72,7 +82,7 @@ async function setFeature(
       p_key: key,
       p_enabled: enabled,
       p_admins_only: false,
-      p_user_ids: enabled ? [session.user.id] : [],
+      p_user_ids: enabled ? (targetUserIds ?? [session.user.id]) : [],
       p_edition_ids: [],
     }),
   });
@@ -92,21 +102,32 @@ test("V3 Rules guidance reuses canonical workflow context and fails closed", asy
   const publishableKey = process.env.E2E_SUPABASE_PUBLISHABLE_KEY;
   const email = process.env.E2E_ORGANIZER_B_EMAIL;
   const password = process.env.E2E_ORGANIZER_B_PASSWORD;
-  const missingConfig = !url || !publishableKey || !email || !password;
+  const countryEmail = process.env.E2E_COUNTRY_EMAIL;
+  const countryPassword = process.env.E2E_COUNTRY_PASSWORD;
+  const missingConfig =
+    !url || !publishableKey || !email || !password || !countryEmail || !countryPassword;
 
   if (missingConfig && process.env.CI) {
     throw new Error(
-      "Browser Audit must seed local Organizer B credentials for the V3 Rules guidance proof.",
+      "Browser Audit must seed local Organizer B + country credentials for the V3 Rules guidance proof.",
     );
   }
-  test.skip(missingConfig, "Local Organizer B or Supabase browser config is unavailable");
+  test.skip(missingConfig, "Local Organizer B, country or Supabase browser config is unavailable");
 
   expect(url).toMatch(/^http:\/\/(?:127\.0\.0\.1|localhost):\d+/);
   await enableInstalledAppMode(context);
   const session = await addSession(context, url!, publishableKey!, email!, password!);
+  const country = await fetchSession(url!, publishableKey!, countryEmail!, countryPassword!);
 
   try {
-    await setFeature(url!, publishableKey!, session, "solaris_app_v3", true);
+    await setFeature(
+      url!,
+      publishableKey!,
+      session,
+      "solaris_app_v3",
+      true,
+      [session.user.id, country.user.id],
+    );
     await setFeature(url!, publishableKey!, session, "solaris_app_v3_rules_guidance", true);
 
     await page.goto("/participate", { waitUntil: "domcontentloaded" });
@@ -133,6 +154,7 @@ test("V3 Rules guidance reuses canonical workflow context and fails closed", asy
     await expect(page.getByRole("heading", { name: "Official regulations", exact: true })).toBeVisible();
   } finally {
     await setFeature(url!, publishableKey!, session, "solaris_app_v3_rules_guidance", false);
-    await setFeature(url!, publishableKey!, session, "solaris_app_v3", false);
+    // The shared root stays enabled for the seeded country + Organizer B cohort.
+    // Parallel Browser Audit specs must not delete each other's prerequisite.
   }
 });

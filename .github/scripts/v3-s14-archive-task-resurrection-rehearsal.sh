@@ -52,6 +52,9 @@ where subject_id='$BLOCKER_ID'
 [[ "$(db_value "select count(*) from public.admin_notifications where recipient_id='$AUTHORIZED_ID'::uuid and source_key='v3-s14-archive-guard:edition-blocker' and requires_action and resolved_at is null;")" == '1' ]] || fail "could not poison blocker Inbox projection for invariant rehearsal"
 [[ "$(db_value "select count(*) from public.notification_deliveries where subject_id='$BLOCKER_ID' and category='organizer_tasks' and status='pending';")" -ge '1' ]] || fail "could not poison blocker delivery projection for invariant rehearsal"
 
+RESOLVED_AT_BEFORE="$(db_value "select resolved_at::text from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")"
+[[ -n "$RESOLVED_AT_BEFORE" ]] || fail "archived blocker lacks a resolution timestamp before resurrection attempt"
+
 db_exec "
 update public.studio2_organizer_tasks
 set state='open', resolved_at=null, updated_at=now()
@@ -59,6 +62,7 @@ where id='$BLOCKER_ID'::uuid;
 "
 [[ "$(db_value "select state from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == 'resolved' ]] || fail "archived edition.blocker was resurrected"
 [[ "$(db_value "select count(*) from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid and resolved_at is not null;")" == '1' ]] || fail "resurrection guard did not retain blocker resolution evidence"
+[[ "$(db_value "select resolved_at::text from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == "$RESOLVED_AT_BEFORE" ]] || fail "resurrection guard rewrote historical blocker resolution timestamp"
 [[ "$(db_value "select count(*) from public.admin_notifications where recipient_id='$AUTHORIZED_ID'::uuid and source_key='v3-s14-archive-guard:edition-blocker' and not requires_action and resolved_at is not null;")" == '1' ]] || fail "task resolution did not immediately repair poisoned Inbox action state"
 [[ "$(db_value "select count(*) from public.notification_deliveries where subject_id='$BLOCKER_ID' and category='organizer_tasks' and status in ('pending','processing','failed');")" == '0' ]] || fail "task resolution did not immediately suppress poisoned delivery state"
 

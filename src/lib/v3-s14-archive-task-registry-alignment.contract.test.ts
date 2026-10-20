@@ -9,6 +9,13 @@ const migration = readFileSync(
   ),
   "utf8",
 );
+const archiveInvariantFixes = readFileSync(
+  resolve(
+    process.cwd(),
+    "supabase/migrations/20261020130000_v3_s14_archive_invariant_forward_fixes.sql",
+  ),
+  "utf8",
+);
 const guardRehearsal = readFileSync(
   resolve(process.cwd(), ".github/scripts/v3-s14-archive-guard-rehearsal.sh"),
   "utf8",
@@ -57,7 +64,8 @@ describe("System V3 S14 archived Edition task vocabulary", () => {
     );
     expect(migration).toContain("before insert or update on public.studio2_organizer_tasks");
     expect(migration).toContain("new.state := 'resolved'");
-    expect(migration).toContain("new.resolved_at := coalesce(new.resolved_at, now())");
+    expect(archiveInvariantFixes).toContain("old.resolved_at, new.resolved_at, now()");
+    expect(archiveInvariantFixes).toContain("if tg_op = 'UPDATE' then");
   });
 
   it("rehearses canonical blocker resolution without sacrificing incident work", () => {
@@ -74,9 +82,12 @@ describe("System V3 S14 archived Edition task vocabulary", () => {
       "attempt to resurrect the canonical Edition blocker",
     );
     expect(resurrectionRehearsal).toContain("archived edition.blocker was resurrected");
+    expect(resurrectionRehearsal).toContain("resurrection guard rewrote historical blocker resolution timestamp");
     expect(resurrectionRehearsal).toContain("Attempt to create new impossible current-contest work after Archive");
     expect(resurrectionRehearsal).toContain("new impossible archived-edition task became actionable");
     expect(resurrectionRehearsal).toContain("task invariant incorrectly resolved incident governance work");
     expect(resurrectionRehearsal).not.toMatch(/supabase\.co/i);
+    expect(guardRehearsal).toContain("direct archived runtime reversal");
+    expect(guardRehearsal).toContain("direct SQL reversed an archived runtime");
   });
 });

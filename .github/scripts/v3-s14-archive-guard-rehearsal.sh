@@ -123,7 +123,7 @@ UNAUTHORIZED_ID="$(create_local_user 's14-archive-guards-unauthorized@solaris.in
 log "Seed independent lifecycle, canonical blocker and governance fixtures"
 db_exec "
 update public.studio2_platform_operational_state
-set mode='normal', updated_at=now()
+set mode='normal', changed_at=now()
 where singleton=true;
 
 -- Keep the legacy/catalogue status deliberately identical. The explicit V3
@@ -217,5 +217,10 @@ as_service "select private.studio2_reconcile_all_organizer_tasks('$EDITION_A'::u
 [[ "$(db_value "select count(*) from public.notification_deliveries where subject_id='$BLOCKER_ID' and category='organizer_tasks' and status in ('pending','processing','failed');")" == '0' ]] || fail "archive left edition.blocker push delivery claimable"
 [[ "$(db_value "select state from public.studio2_organizer_tasks where source_kind='incident' and source_id='$INCIDENT_ID';")" == 'open' ]] || fail "archive incorrectly resolved legitimate incident governance work"
 [[ "$(db_value "select count(*) from public.studio2_incidents where id='$INCIDENT_ID'::uuid and status='open';")" == '1' ]] || fail "archive mutated incident history/state"
+
+log "Archived runtime cannot be directly moved back into active lifecycle state"
+expect_service_failure "direct archived runtime reversal" "Archived edition runtime is irreversible" \
+  "update public.studio2_edition_runtime set state='post_edition' where edition_id='$EDITION_A'::uuid;"
+[[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_A'::uuid;")" == 'archived' ]] || fail "direct SQL reversed an archived runtime"
 
 log "S14 archive negative-path rehearsal passed"
