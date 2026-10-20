@@ -22,7 +22,7 @@ const inputSchema = z.object({
 
 /**
  * Public Pulse accepts only bounded presentation scope and the opaque stable
- * cursor issued by the previous canonical page. Viewer identity, role and
+ * cursor issued by the previous canonical page. Viewer identity and
  * publication authority never cross this browser-selected boundary.
  */
 export const getV3PublicPulseEvents = createServerFn({ method: "GET" })
