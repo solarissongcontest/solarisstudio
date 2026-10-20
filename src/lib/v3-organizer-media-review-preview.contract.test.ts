@@ -7,6 +7,7 @@ function source(path: string) {
 }
 
 const route = source('src/routes/_authenticated/admin/media-assets.tsx');
+const organizer = source('src/lib/v3-organizer-media-review-operations.ts');
 
 describe('V3 Organizer exact-source media review preview', () => {
   it('opens a review instead of applying bulk approval or invalidation from the list controls', () => {
@@ -17,12 +18,14 @@ describe('V3 Organizer exact-source media review preview', () => {
     expect(route).not.toContain("onClick={() => reviewMutation.mutate({ decision: 'invalid'");
   });
 
-  it('captures exact edition, reason, asset keys and source fingerprints in the reviewed command', () => {
-    expect(route).toContain('commandEditionId: selectedEdition.id');
-    expect(route).toContain('reason: reviewReason.trim()');
+  it('captures exact edition, reason, asset keys and source fingerprints in one reviewed operation', () => {
+    expect(route).toContain('prepareOrganizerMediaReviewOperation({');
+    expect(route).toContain('editionId: selectedEdition.id');
+    expect(route).toContain('reason: reviewReason');
     expect(route).toContain('assetKey: item.assetKey');
-    expect(route).toContain('sourceFingerprint: item.sourceFingerprint!');
+    expect(route).toContain('sourceFingerprint: item.sourceFingerprint');
     expect(route).toContain('Source fingerprint: {item.sourceFingerprint}');
+    expect(organizer).toContain('createMediaReviewOperationIdentity()');
   });
 
   it('fails closed when a reviewed source changes before apply', () => {
@@ -30,13 +33,21 @@ describe('V3 Organizer exact-source media review preview', () => {
     expect(route).toContain('changed after this review opened. Review the replacement source instead.');
     expect(route).toContain('current.processing');
     expect(route).toContain('current.editionId !== review.commandEditionId');
+    expect(route).toContain('commitOrganizerMediaReviewOperation({');
   });
 
   it('rechecks blockers before approving and preserves invalidation as an audited overlay', () => {
     expect(route).toContain("review.decision === 'approved' && current.validation.some");
-    expect(route).toContain('reviewStudio2MediaAssets');
+    expect(route).toContain('commitOrganizerMediaReviewOperation');
     expect(route).toContain('This decision is an audited review overlay.');
     expect(route).toContain('does not delete, replace or rewrite the canonical media source');
+  });
+
+  it('shows that the reviewed command has durable operation identity and recovery semantics', () => {
+    expect(route).toContain('pendingReview.operation.operationId');
+    expect(route).toContain('A lost response is reconciled against that same operation before Solaris reports failure.');
+    expect(organizer).toContain('operationId: input.review.operationId');
+    expect(organizer).toContain('idempotencyKey: input.review.idempotencyKey');
   });
 
   it('clears pending review when Organizer edition context changes', () => {

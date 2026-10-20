@@ -16,12 +16,16 @@ import {
   STUDIO2_MEDIA_ASSET_STATES,
   buildStudio2MediaAssetInventory,
   listStudio2MediaAssetReviews,
-  reviewStudio2MediaAssets,
   summarizeStudio2MediaAssets,
   type Studio2MediaAssetItem,
   type Studio2MediaAssetState,
   type Studio2MediaReviewDecision,
 } from '@/lib/studio2-media-assets';
+import {
+  commitOrganizerMediaReviewOperation,
+  prepareOrganizerMediaReviewOperation,
+  type OrganizerMediaReviewOperation,
+} from '@/lib/v3-organizer-media-review-operations';
 
 type MediaSearch = {
   q?: string;
@@ -49,6 +53,7 @@ type PendingMediaReview = {
   editionLabel: string;
   reason: string;
   items: PendingMediaReviewItem[];
+  operation: OrganizerMediaReviewOperation;
 };
 
 export const Route = createFileRoute('/_authenticated/admin/media-assets')({
@@ -225,9 +230,10 @@ function MediaAssetsPage() {
         return current;
       });
 
-      return reviewStudio2MediaAssets({
-        editionId: review.commandEditionId,
-        reviews: exactItems.map((item) => ({
+      return commitOrganizerMediaReviewOperation({
+        currentEditionId: review.commandEditionId,
+        review: review.operation,
+        currentReviews: exactItems.map((item) => ({
           assetKey: item.assetKey,
           assetType: item.assetType,
           countryId: item.countryId,
@@ -235,10 +241,9 @@ function MediaAssetsPage() {
           sourceFingerprint: item.sourceFingerprint!,
           decision: review.decision,
         })),
-        reason: review.reason,
       });
     },
-    onSuccess: async (_rows, variables) => {
+    onSuccess: async (_receipt, variables) => {
       await queryClient.invalidateQueries({ queryKey: ['studio2-media-asset-reviews', variables.commandEditionId] });
       if (editionId !== variables.commandEditionId) return;
       toast.success(variables.decision === 'approved' ? 'Media assets approved.' : 'Media assets marked invalid.');
@@ -287,23 +292,44 @@ function MediaAssetsPage() {
       toast.error('Resolve blocked validation checks before approving these assets.');
       return;
     }
-    setPendingReview({
-      decision,
-      commandEditionId: selectedEdition.id,
-      editionLabel: `${selectedEdition.edition_number ? `SSC ${selectedEdition.edition_number} · ` : ''}${selectedEdition.name}`,
-      reason: reviewReason.trim(),
-      items: reviewableSelected.map((item) => ({
-        assetKey: item.assetKey,
-        assetType: item.assetType,
-        countryId: item.countryId,
-        entryId: item.entryId,
-        sourceFingerprint: item.sourceFingerprint!,
-        title: item.title,
-        countryName: item.countryName,
-        entryLabel: item.entryLabel,
-        state: item.state,
-      })),
-    });
+
+    const items = reviewableSelected.map((item) => ({
+      assetKey: item.assetKey,
+      assetType: item.assetType,
+      countryId: item.countryId,
+      entryId: item.entryId,
+      sourceFingerprint: item.sourceFingerprint!,
+      title: item.title,
+      countryName: item.countryName,
+      entryLabel: item.entryLabel,
+      state: item.state,
+    }));
+
+    try {
+      const operation = prepareOrganizerMediaReviewOperation({
+        editionId: selectedEdition.id,
+        reason: reviewReason,
+        reviews: items.map((item) => ({
+          assetKey: item.assetKey,
+          assetType: item.assetType,
+          countryId: item.countryId,
+          entryId: item.entryId,
+          sourceFingerprint: item.sourceFingerprint,
+          decision,
+        })),
+      });
+
+      setPendingReview({
+        decision,
+        commandEditionId: selectedEdition.id,
+        editionLabel: `${selectedEdition.edition_number ? `SSC ${selectedEdition.edition_number} · ` : ''}${selectedEdition.name}`,
+        reason: operation.reason,
+        items,
+        operation,
+      });
+    } catch (prepareError) {
+      toast.error(errorText(prepareError));
+    }
   }
 
   return (
@@ -426,6 +452,7 @@ function MediaAssetsPage() {
                 ))}
               </div>
               <p>Before apply, Solaris rechecks every asset key against the current edition and requires the source fingerprint to still match this review. Replaced or processing sources fail closed and must be reviewed again.</p>
+              <p>The exact reviewed set is committed through operation <span className="font-mono text-foreground">{pendingReview.operation.operationId}</span>. A lost response is reconciled against that same operation before Solaris reports failure.</p>
               <p>This decision is an audited review overlay. It does not delete, replace or rewrite the canonical media source.</p>
             </div>
           ) : null}
