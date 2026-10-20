@@ -77,48 +77,48 @@ as $snapshot$
   ranked as (
     select
       flags.show_id,
-      coalesce(
-        jsonb_agg(
-          jsonb_build_object(
-            'countryId', row_value -> 'countryId',
-            'contestEntityId', row_value -> 'contestEntityId',
-            'totalPoints', row_value -> 'totalPoints',
-            'finalRank', row_value -> 'finalRank'
-          )
-          || case
-            when flags.jury_public
-              then jsonb_build_object('juryPoints', row_value -> 'juryPoints')
-            else '{}'::jsonb
-          end
-          || case
-            when flags.televote_public
-              then jsonb_build_object('televotePoints', row_value -> 'televotePoints')
-            else '{}'::jsonb
-          end
-          || case
-            when flags.detailed_voting_public
-              then jsonb_build_object('televoteComponents', row_value -> 'televoteComponents')
-            else '{}'::jsonb
-          end
-          order by
-            case
-              when row_value ->> 'finalRank' ~ '^[0-9]+$'
-                then (row_value ->> 'finalRank')::integer
-              else 2147483647
-            end,
-            case
-              when row_value ->> 'totalPoints' ~ '^-?[0-9]+$'
-                then (row_value ->> 'totalPoints')::integer
-              else 0
-            end desc,
-            coalesce(row_value ->> 'countryId', row_value ->> 'contestEntityId', '')
-        ),
-        '[]'::jsonb
+      (
+        select coalesce(
+          jsonb_agg(
+            jsonb_build_object(
+              'countryId', row_value -> 'countryId',
+              'contestEntityId', row_value -> 'contestEntityId',
+              'totalPoints', row_value -> 'totalPoints',
+              'finalRank', row_value -> 'finalRank'
+            )
+            || case
+              when flags.jury_public
+                then jsonb_build_object('juryPoints', row_value -> 'juryPoints')
+              else '{}'::jsonb
+            end
+            || case
+              when flags.televote_public
+                then jsonb_build_object('televotePoints', row_value -> 'televotePoints')
+              else '{}'::jsonb
+            end
+            || case
+              when flags.detailed_voting_public
+                then jsonb_build_object('televoteComponents', row_value -> 'televoteComponents')
+              else '{}'::jsonb
+            end
+            order by
+              case
+                when row_value ->> 'finalRank' ~ '^[0-9]+$'
+                  then (row_value ->> 'finalRank')::integer
+                else 2147483647
+              end,
+              case
+                when row_value ->> 'totalPoints' ~ '^-?[0-9]+$'
+                  then (row_value ->> 'totalPoints')::integer
+                else 0
+              end desc,
+              coalesce(row_value ->> 'countryId', row_value ->> 'contestEntityId', '')
+          ),
+          '[]'::jsonb
+        )
+        from jsonb_array_elements(flags.result_rows) row_item(row_value)
       ) as rows
     from flags
-    left join lateral jsonb_array_elements(flags.result_rows) row_item(row_value)
-      on true
-    group by flags.show_id
   )
   select jsonb_build_object(
     'schemaVersion', 1,
