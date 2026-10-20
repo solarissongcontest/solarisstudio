@@ -197,9 +197,9 @@ export const V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES = [
     classification: "restrict",
     targetArea: "contextual",
     targetRoute: "/beta-test",
-    specificationStatus: "mapped",
+    specificationStatus: "parity",
     acceptanceScenarioId: "public.beta-feedback-restricted-surface",
-    migrationEvidence: "Noindex/nofollow structured usability-test route. It is not an authenticated product workspace and must not be promoted into normal V3 navigation.",
+    migrationEvidence: "Parity evidence on current main: the structured Beta 3 route is noindex/nofollow and intentionally excluded from normal product discovery; local drafts survive failed submission; screenshot uploads use the verified upload pipeline with bounded public validation; arbitrary backend/storage errors are collapsed to stable user-safe copy; full browser user-agent strings are not persisted; and navigation telemetry is privacy-minimised and explicitly separated from form contents. Focused v3-beta-feedback privacy/parity contracts protect these boundaries. This remains a restricted research surface, not a new top-level V3 product area.",
   },
   {
     id: "terraos-teaser-preview",
