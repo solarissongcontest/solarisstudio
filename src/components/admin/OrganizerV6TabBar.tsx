@@ -251,9 +251,12 @@ export function OrganizerV6TabBar({
       window.removeEventListener("pagehide", resetInterruptedGesture);
       window.removeEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
       document.removeEventListener("visibilitychange", resetWhenHidden);
-      resetDragDom();
+      // `pathname` is a dependency, so route redirects use the same canonical
+      // interruption path as blur/keyboard/overlay changes. This clears React
+      // gesture state and suppresses a trailing click before capture is released.
+      interruptDrag();
     };
-  }, [interruptDrag, pathname, resetDragDom]);
+  }, [interruptDrag, pathname]);
 
   const startDrag = (
     event: ReactPointerEvent<HTMLAnchorElement>,
