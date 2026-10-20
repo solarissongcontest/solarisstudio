@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { useAdminContext } from '@/components/admin/AdminContext';
 import { AdminPage } from '@/components/admin/AdminShell';
+import { EditionSimulationDomainsPanel } from '@/components/admin/EditionSimulationDomainsPanel';
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from '@/components/admin/AdminUI';
 import { getControlRoomModel } from '@/lib/control-room.functions';
 import {
@@ -45,12 +46,12 @@ const SUBSYSTEMS: EditionSubsystem[] = [
 
 const SIMULATION_SCOPE = [
   { label: 'Confirmation', evidence: 'Confirmation subsystem state' },
-  { label: 'Entries', evidence: 'Submission subsystem state' },
+  { label: 'Entries', evidence: 'Explicit entry-review lifecycle plus submission state' },
   { label: 'Voting', evidence: 'Jury and televote subsystem state' },
   { label: 'Results', evidence: 'Results subsystem state' },
-  { label: 'Publication', evidence: 'Local results publication state' },
-  { label: 'Progression', evidence: 'Edition lifecycle transitions' },
-  { label: 'Live state', evidence: 'Rehearsal/live lifecycle and simulated incidents' },
+  { label: 'Publication', evidence: 'Explicit publication lifecycle and blockers' },
+  { label: 'Progression', evidence: 'Qualifier counts, blockers and progression lifecycle' },
+  { label: 'Live state', evidence: 'Planning, rehearsal, armed, live, hold and complete states' },
 ] as const;
 
 function EditionSimulatorRoute() {
@@ -63,7 +64,7 @@ function SimulatorPageHeader() {
     <AdminPageHeader
       eyebrow="Solaris Organizer · Isolated rehearsal"
       title="Simulation Lab"
-      description="Clone one Control Room read snapshot into an in-memory rehearsal, then test transitions, subsystem states, incidents and recovery without touching production."
+      description="Clone one Control Room read snapshot into an in-memory rehearsal, then test lifecycle, entry review, publication, progression, live state, incidents and recovery without touching production."
     />
   );
 }
@@ -229,7 +230,7 @@ function EditionSimulatorPage() {
       <AdminCard>
         <AdminCardHeader eyebrow="O17 scope" title="Simulation coverage" />
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          These controls cover the canonical rehearsal domains without inventing a second production state model. Publication, progression and live behavior are exercised through the same local subsystem and lifecycle primitives used by the simulator.
+          These controls cover the canonical rehearsal domains without inventing a second production state model. Entry review, publication, progression and live behavior now have explicit shared simulation state rather than being inferred from unrelated generic controls.
         </p>
         <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           {SIMULATION_SCOPE.map((scope) => (
@@ -302,6 +303,9 @@ function EditionSimulatorPage() {
 
           <AdminCard>
             <AdminCardHeader eyebrow="Subsystems" title="Operational state rehearsal" />
+            <p className="mt-2 text-sm text-muted-foreground">
+              Legacy Control Room subsystems remain available for compatibility. The domain controls below carry the additional O17 states that do not fit those generic subsystem values.
+            </p>
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {SUBSYSTEMS.map((subsystem) => (
                 <label key={subsystem} className="rounded-xl border border-white/[0.07] bg-black/10 p-3">
@@ -317,6 +321,8 @@ function EditionSimulatorPage() {
               ))}
             </div>
           </AdminCard>
+
+          <EditionSimulationDomainsPanel simulation={simulation} dispatch={dispatch} />
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
             <AdminCard strong>
@@ -373,7 +379,7 @@ function EditionSimulatorPage() {
                     </div>
                   </div>
                 )) : (
-                  <AdminEmptyState icon={Clock3} title="No simulated actions yet" description="Transitions, time changes and incident drills will appear here." />
+                  <AdminEmptyState icon={Clock3} title="No simulated actions yet" description="Transitions, time changes, domain rehearsals and incident drills will appear here." />
                 )}
               </div>
             </AdminCard>
