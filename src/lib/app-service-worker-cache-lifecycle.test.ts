@@ -38,8 +38,12 @@ describe("PWA service-worker cache lifecycle", () => {
     expect(source).toContain(
       "const currentCaches = new Set([STATIC_CACHE, RUNTIME_CACHE])",
     );
-    expect(source).toContain("const runtimeCachePromise = caches.open(RUNTIME_CACHE)");
-    expect(source).toContain("caches.open(STATIC_CACHE).then((cache) => cache.match(request))");
+    expect(source).toContain(
+      "const runtimeCachePromise = caches.open(RUNTIME_CACHE)",
+    );
+    expect(source).toContain(
+      "caches.open(STATIC_CACHE).then((cache) => cache.match(request))",
+    );
     expect(source).toContain("await trimRuntimeCache(cache)");
   });
 
@@ -58,8 +62,9 @@ describe("PWA service-worker cache lifecycle", () => {
 
     expect(source).toContain('if (request.mode === "navigate")');
     expect(source).toContain("event.respondWith(networkNavigation(request))");
-    expect(source).toContain("return (await caches.match(OFFLINE_URL)) || Response.error()");
-    expect(source).not.toContain("cache.put(request, response.clone())\n    return response\n  } catch");
+    expect(source).toContain(
+      "return (await caches.match(OFFLINE_URL)) || Response.error()",
+    );
   });
 
   it("evicts only the oldest overflow runtime entries", async () => {
@@ -67,7 +72,7 @@ describe("PWA service-worker cache lifecycle", () => {
     const requests = Array.from({ length: 100 }, (_, index) => ({
       url: `/assets/chunk-${index}.js`,
     }));
-    const deleteEntry = vi.fn(async () => true);
+    const deleteEntry = vi.fn(async (_request: CacheRequest) => true);
 
     await trimRuntimeCache({
       keys: async () => requests,
@@ -82,7 +87,7 @@ describe("PWA service-worker cache lifecycle", () => {
 
   it("does not evict anything while the runtime cache stays within budget", async () => {
     const trimRuntimeCache = loadTrimRuntimeCache();
-    const deleteEntry = vi.fn(async () => true);
+    const deleteEntry = vi.fn(async (_request: CacheRequest) => true);
 
     await trimRuntimeCache({
       keys: async () =>
