@@ -9,6 +9,8 @@ export type V3EditionExperience =
   | "pre-show"
   | "show-day"
   | "live"
+  | "voting"
+  | "results-pending"
   | "results"
   | "post-edition"
   | "archived";
@@ -187,6 +189,8 @@ const NEXT_EVENT_EXPERIENCES = new Set<V3EditionExperience>([
   "pre-show",
   "show-day",
   "live",
+  "voting",
+  "results-pending",
 ]);
 
 const SECTION_LABELS: Record<V3EditionSectionKey, string> = {
