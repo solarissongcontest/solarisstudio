@@ -9,6 +9,44 @@ import type { AppConnectivitySnapshot } from "@/lib/app-connectivity";
 
 const TERRAOS_TEASER_PREVIEW_PATH = "/terraos-teaser-preview";
 
+const PERSISTENT_NAVIGATION_SELECTOR = [
+  ".solaris-app-tabbar",
+  "[data-v3-liquid-tabbar]",
+  ".admin-mobile-nav[data-v6-organizer-tabbar]",
+].join(",");
+
+const OVERLAY_NAV_INERT_OWNER = "data-solaris-overlay-nav-inert-owner";
+const OVERLAY_NAV_ARIA_OWNER = "data-solaris-overlay-nav-aria-owner";
+
+function setPersistentNavigationIsolation(blocked: boolean) {
+  if (typeof document === "undefined") return;
+
+  document
+    .querySelectorAll<HTMLElement>(PERSISTENT_NAVIGATION_SELECTOR)
+    .forEach((navigation) => {
+      if (blocked) {
+        if (!navigation.hasAttribute("inert")) {
+          navigation.setAttribute("inert", "");
+          navigation.setAttribute(OVERLAY_NAV_INERT_OWNER, "overlay-manager");
+        }
+        if (navigation.getAttribute("aria-hidden") !== "true") {
+          navigation.setAttribute("aria-hidden", "true");
+          navigation.setAttribute(OVERLAY_NAV_ARIA_OWNER, "overlay-manager");
+        }
+        return;
+      }
+
+      if (navigation.getAttribute(OVERLAY_NAV_INERT_OWNER) === "overlay-manager") {
+        navigation.removeAttribute("inert");
+        navigation.removeAttribute(OVERLAY_NAV_INERT_OWNER);
+      }
+      if (navigation.getAttribute(OVERLAY_NAV_ARIA_OWNER) === "overlay-manager") {
+        navigation.removeAttribute("aria-hidden");
+        navigation.removeAttribute(OVERLAY_NAV_ARIA_OWNER);
+      }
+    });
+}
+
 export function AppOverlayManager({
   isAppMode,
   pathname,
@@ -67,6 +105,41 @@ export function AppOverlayManager({
       root.removeAttribute("data-solaris-feature-overlay-open");
       delete root.dataset.solarisOverlayKind;
       delete root.dataset.solarisChromeOwner;
+    };
+  }, [teaserPreview]);
+
+  useEffect(() => {
+    if (teaserPreview || typeof document === "undefined") return;
+
+    const root = document.documentElement;
+    const syncNavigationIsolation = () => {
+      const blocked =
+        root.hasAttribute("data-solaris-feature-overlay-open") ||
+        root.hasAttribute("data-solaris-keyboard-open");
+      setPersistentNavigationIsolation(blocked);
+    };
+
+    syncNavigationIsolation();
+
+    const rootObserver = new MutationObserver(syncNavigationIsolation);
+    rootObserver.observe(root, {
+      attributes: true,
+      attributeFilter: [
+        "data-solaris-feature-overlay-open",
+        "data-solaris-keyboard-open",
+      ],
+    });
+
+    // Persistent chrome may mount after a keyboard/sheet already owns the
+    // viewport. Re-apply the current state to newly inserted navigation rather
+    // than allowing one focusable frame to leak behind the active surface.
+    const mountObserver = new MutationObserver(syncNavigationIsolation);
+    mountObserver.observe(document.body, { subtree: true, childList: true });
+
+    return () => {
+      rootObserver.disconnect();
+      mountObserver.disconnect();
+      setPersistentNavigationIsolation(false);
     };
   }, [teaserPreview]);
 
