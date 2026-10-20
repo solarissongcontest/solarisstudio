@@ -62,6 +62,11 @@ import {
   updateStudio2NoticeDraft,
   type SaveStudio2NoticeInput,
 } from '@/lib/studio2-communications';
+import {
+  assertCommunicationPublicationReviewCurrent,
+  prepareCommunicationPublicationReview,
+  type CommunicationPublicationReview,
+} from '@/lib/v3-organizer-communications-review';
 
 type CommunicationsStateFilter = NoticeState | 'archived';
 const NOTICE_STATE_SET = new Set<string>([...NOTICE_STATES, 'archived']);
@@ -73,6 +78,7 @@ type CommunicationsSearch = {
 
 type PendingLifecycleReview = {
   kind: 'cancel' | 'archive' | 'restore' | 'delete';
+  editionId: string;
   notice: OperationalNotice;
   reason: string;
 };
@@ -90,8 +96,13 @@ export const Route = createFileRoute('/_authenticated/admin/communications')({
       { name: 'robots', content: 'noindex' },
     ],
   }),
-  component: CommunicationsCentre,
+  component: CommunicationsRoute,
 });
+
+function CommunicationsRoute() {
+  const { editionId } = useAdminContext();
+  return <CommunicationsCentre key={editionId || 'unscoped'} />;
+}
 
 function CommunicationsCentre() {
   const search = Route.useSearch();
@@ -111,9 +122,9 @@ function CommunicationsCentre() {
   const [acknowledgementRequired, setAcknowledgementRequired] = useState(false);
   const [scheduledAt, setScheduledAt] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [scheduleReviewOpen, setScheduleReviewOpen] = useState(false);
-  const [publishReviewOpen, setPublishReviewOpen] = useState(false);
+  const [publicationReview, setPublicationReview] = useState<CommunicationPublicationReview | null>(null);
   const [lifecycleReview, setLifecycleReview] = useState<PendingLifecycleReview | null>(null);
+  const [reviewError, setReviewError] = useState<Error | null>(null);
 
   const inboxEnabled = displaySurfaces.includes('delegation_inbox');
 
@@ -173,41 +184,80 @@ function CommunicationsCentre() {
       ? updateStudio2NoticeDraft(editingId, currentInput())
       : createStudio2NoticeDraft(currentInput()),
     onSuccess: async (notice) => {
+      setReviewError(null);
       setEditingId(notice.id);
       void navigate({ search: { ...search, notice: notice.id }, replace: true });
       await refresh();
     },
   });
 
+  async function assertReviewAgainstFreshNotice(review: CommunicationPublicationReview) {
+    if (!editionId || editionId !== review.editionId) {
+      throw new Error('Organizer edition changed after this communication was reviewed. Review it again.');
+    }
+    if (!review.noticeId) {
+      assertCommunicationPublicationReviewCurrent(review, editionId, null);
+      return;
+    }
+
+    const latest = await noticesQuery.refetch();
+    if (latest.error) throw latest.error;
+    const currentNotice = (latest.data ?? []).find((item) => item.notice.id === review.noticeId)?.notice ?? null;
+    assertCommunicationPublicationReviewCurrent(review, editionId, currentNotice);
+  }
+
   const scheduleNotice = useMutation({
-    mutationFn: async () => {
-      const draft = editingId
-        ? await updateStudio2NoticeDraft(editingId, currentInput())
-        : await createStudio2NoticeDraft(currentInput());
-      if (!scheduledAt) throw new Error('Choose a publication time before scheduling.');
-      const date = new Date(scheduledAt);
-      if (Number.isNaN(date.getTime())) throw new Error('The scheduled publication time is invalid.');
-      return scheduleStudio2Notice(draft.id, date.toISOString());
+    mutationFn: async (review: CommunicationPublicationReview) => {
+      if (review.kind !== 'schedule' || !review.scheduledAtIso) {
+        throw new Error('The reviewed communication does not contain a valid schedule operation.');
+      }
+      await assertReviewAgainstFreshNotice(review);
+      const draft = review.noticeId
+        ? await updateStudio2NoticeDraft(review.noticeId, review.input)
+        : await createStudio2NoticeDraft(review.input);
+      if (draft.editionId !== review.editionId) {
+        throw new Error('Official Communications returned a draft outside the reviewed edition scope.');
+      }
+      return scheduleStudio2Notice(draft.id, review.scheduledAtIso);
     },
     onSuccess: async (notice) => {
-      setScheduleReviewOpen(false);
+      setPublicationReview(null);
+      setReviewError(null);
       setEditingId(notice.id);
       void navigate({ search: { ...search, notice: notice.id }, replace: true });
+      await refresh();
+    },
+    onError: async (error) => {
+      setPublicationReview(null);
+      setReviewError(error instanceof Error ? error : new Error('The reviewed schedule could not be applied.'));
       await refresh();
     },
   });
 
   const publishNotice = useMutation({
-    mutationFn: async () => {
-      const draft = editingId
-        ? await updateStudio2NoticeDraft(editingId, currentInput())
-        : await createStudio2NoticeDraft(currentInput());
+    mutationFn: async (review: CommunicationPublicationReview) => {
+      if (review.kind !== 'publish') {
+        throw new Error('The reviewed communication does not contain a publish operation.');
+      }
+      await assertReviewAgainstFreshNotice(review);
+      const draft = review.noticeId
+        ? await updateStudio2NoticeDraft(review.noticeId, review.input)
+        : await createStudio2NoticeDraft(review.input);
+      if (draft.editionId !== review.editionId) {
+        throw new Error('Official Communications returned a draft outside the reviewed edition scope.');
+      }
       return publishStudio2Notice(draft.id);
     },
     onSuccess: async (notice) => {
-      setPublishReviewOpen(false);
+      setPublicationReview(null);
+      setReviewError(null);
       resetComposer();
       void navigate({ search: { ...search, notice: notice.id }, replace: true });
+      await refresh();
+    },
+    onError: async (error) => {
+      setPublicationReview(null);
+      setReviewError(error instanceof Error ? error : new Error('The reviewed publication could not be applied.'));
       await refresh();
     },
   });
@@ -216,6 +266,7 @@ function CommunicationsCentre() {
     mutationFn: ({ id, reason }: { id: string; reason: string }) => cancelStudio2Notice(id, reason),
     onSuccess: async () => {
       setLifecycleReview(null);
+      setReviewError(null);
       await refresh();
     },
   });
@@ -233,6 +284,7 @@ function CommunicationsCentre() {
     mutationFn: ({ id, reason }: { id: string; reason: string }) => archiveStudio2Communication(id, reason),
     onSuccess: async () => {
       setLifecycleReview(null);
+      setReviewError(null);
       await refresh();
     },
   });
@@ -241,6 +293,7 @@ function CommunicationsCentre() {
     mutationFn: (id: string) => restoreStudio2Communication(id),
     onSuccess: async () => {
       setLifecycleReview(null);
+      setReviewError(null);
       await refresh();
     },
   });
@@ -249,6 +302,7 @@ function CommunicationsCentre() {
     mutationFn: ({ id, reason }: { id: string; reason: string }) => deleteStudio2Communication(id, reason),
     onSuccess: async (_result, variables) => {
       setLifecycleReview(null);
+      setReviewError(null);
       if (editingId === variables.id) resetComposer();
       if (search.notice === variables.id) {
         void navigate({ search: search.state ? { state: search.state } : {}, replace: true });
@@ -267,7 +321,8 @@ function CommunicationsCentre() {
     return notices;
   }, [notices, search.state]);
 
-  const mutationError = saveDraft.error
+  const mutationError = reviewError
+    || saveDraft.error
     || scheduleNotice.error
     || publishNotice.error
     || cancelNotice.error
@@ -285,6 +340,8 @@ function CommunicationsCentre() {
     || deleteCommunication.isPending;
 
   function loadIntoComposer(notice: OperationalNotice) {
+    setReviewError(null);
+    setPublicationReview(null);
     setEditingId(notice.id);
     setNoticeType(notice.noticeType);
     setTitle(notice.title);
@@ -299,6 +356,7 @@ function CommunicationsCentre() {
   }
 
   function resetComposer() {
+    setPublicationReview(null);
     setEditingId(null);
     setNoticeType('official_notice');
     setTitle('');
@@ -312,40 +370,99 @@ function CommunicationsCentre() {
     setScheduledAt('');
   }
 
+  function requestPublicationReview(kind: CommunicationPublicationReview['kind']) {
+    try {
+      setReviewError(null);
+      if (!editionId) throw new Error('Choose an edition before reviewing Official Communications.');
+      const existingNotice = editingId
+        ? notices.find((item) => item.notice.id === editingId)?.notice ?? null
+        : null;
+      if (editingId && !existingNotice) {
+        throw new Error('The communication being edited is no longer in the selected edition. Reload it before reviewing.');
+      }
+      setPublicationReview(prepareCommunicationPublicationReview({
+        kind,
+        editionId,
+        input: currentInput(),
+        scheduledAt: kind === 'schedule' ? scheduledAt : null,
+        existingNotice,
+      }));
+    } catch (error) {
+      setPublicationReview(null);
+      setReviewError(error instanceof Error ? error : new Error('The communication could not be prepared for review.'));
+    }
+  }
+
+  function requestLifecycleReview(kind: PendingLifecycleReview['kind'], notice: OperationalNotice) {
+    try {
+      setReviewError(null);
+      if (!editionId || notice.editionId !== editionId) {
+        throw new Error('The communication action must match the exact selected Organizer edition.');
+      }
+      setLifecycleReview({ kind, editionId, notice: { ...notice, displaySurfaces: [...notice.displaySurfaces], countryIds: [...notice.countryIds] }, reason: '' });
+    } catch (error) {
+      setLifecycleReview(null);
+      setReviewError(error instanceof Error ? error : new Error('The communication could not be prepared for review.'));
+    }
+  }
+
   function requestCancel(notice: OperationalNotice) {
-    setLifecycleReview({ kind: 'cancel', notice, reason: '' });
+    requestLifecycleReview('cancel', notice);
   }
 
   function requestArchive(notice: OperationalNotice) {
-    setLifecycleReview({ kind: 'archive', notice, reason: '' });
+    requestLifecycleReview('archive', notice);
   }
 
   function requestRestore(notice: OperationalNotice) {
-    setLifecycleReview({ kind: 'restore', notice, reason: '' });
+    requestLifecycleReview('restore', notice);
   }
 
   function requestDelete(notice: OperationalNotice) {
-    setLifecycleReview({ kind: 'delete', notice, reason: '' });
+    requestLifecycleReview('delete', notice);
   }
 
   async function confirmLifecycleReview() {
     if (!lifecycleReview) return;
     const reason = lifecycleReview.reason.trim();
     if (lifecycleReview.kind === 'delete' && !reason) return;
-    const variables = { id: lifecycleReview.notice.id, reason };
-    if (lifecycleReview.kind === 'cancel') {
-      await cancelNotice.mutateAsync(variables);
-      return;
+
+    try {
+      if (!editionId || editionId !== lifecycleReview.editionId) {
+        throw new Error('Organizer edition changed after this communication action was reviewed. Review it again.');
+      }
+      const latest = await noticesQuery.refetch();
+      if (latest.error) throw latest.error;
+      const currentNotice = (latest.data ?? []).find((item) => item.notice.id === lifecycleReview.notice.id)?.notice ?? null;
+      if (
+        !currentNotice
+        || currentNotice.editionId !== lifecycleReview.editionId
+        || currentNotice.revision !== lifecycleReview.notice.revision
+        || currentNotice.state !== lifecycleReview.notice.state
+        || currentNotice.archivedAt !== lifecycleReview.notice.archivedAt
+      ) {
+        throw new Error('The communication changed after this action was reviewed. Review the latest state before continuing.');
+      }
+
+      const variables = { id: lifecycleReview.notice.id, reason };
+      if (lifecycleReview.kind === 'cancel') {
+        await cancelNotice.mutateAsync(variables);
+        return;
+      }
+      if (lifecycleReview.kind === 'archive') {
+        await archiveCommunication.mutateAsync(variables);
+        return;
+      }
+      if (lifecycleReview.kind === 'restore') {
+        await restoreCommunication.mutateAsync(lifecycleReview.notice.id);
+        return;
+      }
+      await deleteCommunication.mutateAsync(variables);
+    } catch (error) {
+      setLifecycleReview(null);
+      setReviewError(error instanceof Error ? error : new Error('The reviewed communication action could not be applied.'));
+      await refresh();
     }
-    if (lifecycleReview.kind === 'archive') {
-      await archiveCommunication.mutateAsync(variables);
-      return;
-    }
-    if (lifecycleReview.kind === 'restore') {
-      await restoreCommunication.mutateAsync(lifecycleReview.notice.id);
-      return;
-    }
-    await deleteCommunication.mutateAsync(variables);
   }
 
   const toggleCountry = (countryId: string) => {
@@ -374,6 +491,9 @@ function CommunicationsCentre() {
     inboxEnabled ? countryIds : [],
     inboxEnabled ? audienceGroup : null,
   );
+
+  const reviewedInput = publicationReview?.input ?? null;
+  const reviewedInboxEnabled = reviewedInput?.displaySurfaces.includes('delegation_inbox') ?? false;
 
   if (!editionId) {
     return (
@@ -407,6 +527,7 @@ function CommunicationsCentre() {
             <button
               type="button"
               onClick={() => {
+                setReviewError(null);
                 resetComposer();
                 void navigate({ search: search.state ? { state: search.state } : {}, replace: true });
               }}
@@ -597,7 +718,7 @@ function CommunicationsCentre() {
                 <button
                   type="button"
                   disabled={busy || !scheduledAt || !saveAllowed}
-                  onClick={() => setScheduleReviewOpen(true)}
+                  onClick={() => requestPublicationReview('schedule')}
                   className="admin-action-secondary min-h-11 disabled:opacity-50"
                 >
                   <CalendarClock className="size-4" /> Review &amp; Schedule
@@ -605,7 +726,7 @@ function CommunicationsCentre() {
                 <button
                   type="button"
                   disabled={busy || !saveAllowed}
-                  onClick={() => setPublishReviewOpen(true)}
+                  onClick={() => requestPublicationReview('publish')}
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                 >
                   <Send className="size-4" /> Review &amp; publish
@@ -862,59 +983,64 @@ function CommunicationsCentre() {
         </div>
 
         <AdminConfirmSheet
-          open={scheduleReviewOpen}
+          open={publicationReview?.kind === 'schedule'}
           onClose={() => {
-            if (!scheduleNotice.isPending) setScheduleReviewOpen(false);
+            if (!scheduleNotice.isPending) setPublicationReview(null);
           }}
           onConfirm={async () => {
-            await scheduleNotice.mutateAsync();
+            if (publicationReview?.kind !== 'schedule') return;
+            await scheduleNotice.mutateAsync(publicationReview);
           }}
           title="Schedule this communication?"
-          description={
+          description={publicationReview?.kind === 'schedule' && reviewedInput ? (
             <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
-              <p>Review the exact publication time, message, destinations and audience before scheduling.</p>
+              <p>Review the frozen publication time, message, destinations and audience before scheduling.</p>
               <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-                <p className="font-semibold text-foreground">{title.trim() || 'Untitled communication'}</p>
-                <p className="mt-2"><span className="font-semibold text-foreground">Publishes:</span> {formatScheduledInput(scheduledAt)}</p>
-                <p className="mt-2"><span className="font-semibold text-foreground">Destinations:</span> {displaySurfaces.map(noticeSurfaceLabel).join(', ')}</p>
-                {inboxEnabled ? <p className="mt-2"><span className="font-semibold text-foreground">Inbox audience:</span> {humanize(audience)}{audienceGroup ? ` · ${humanize(audienceGroup)}` : ''}{audience === 'specific_countries' ? ` · ${countryIds.length} countr${countryIds.length === 1 ? 'y' : 'ies'}` : ''}</p> : null}
-                <p className="mt-2"><span className="font-semibold text-foreground">Acknowledgement:</span> {acknowledgementRequired && inboxEnabled ? 'required' : 'not required'}</p>
-                <p className="mt-2 whitespace-pre-wrap">{body.trim()}</p>
+                <p className="font-semibold text-foreground">{reviewedInput.title.trim() || 'Untitled communication'}</p>
+                <p className="mt-1">Edition scope: {publicationReview.editionId}{publicationReview.expectedRevision ? ` · reviewed revision r${publicationReview.expectedRevision}` : ' · new draft'}</p>
+                <p className="mt-2"><span className="font-semibold text-foreground">Publishes:</span> {formatTimestamp(publicationReview.scheduledAtIso)}</p>
+                <p className="mt-2"><span className="font-semibold text-foreground">Destinations:</span> {reviewedInput.displaySurfaces.map(noticeSurfaceLabel).join(', ')}</p>
+                {reviewedInboxEnabled ? <p className="mt-2"><span className="font-semibold text-foreground">Inbox audience:</span> {humanize(reviewedInput.audience)}{reviewedInput.audienceGroup ? ` · ${humanize(reviewedInput.audienceGroup)}` : ''}{reviewedInput.audience === 'specific_countries' ? ` · ${reviewedInput.countryIds.length} countr${reviewedInput.countryIds.length === 1 ? 'y' : 'ies'}` : ''}</p> : null}
+                <p className="mt-2"><span className="font-semibold text-foreground">Acknowledgement:</span> {reviewedInput.acknowledgementRequired && reviewedInboxEnabled ? 'required' : 'not required'}</p>
+                <p className="mt-2 whitespace-pre-wrap">{reviewedInput.body.trim()}</p>
               </div>
-              <p>Once scheduled, the existing server scheduler can publish this communication at that time without another Organizer action. Verify the timing and audience before applying the schedule.</p>
-              <p>Canonical expected-revision, idempotency, receipt and uncertain-outcome reconciliation remain tracked in System #599.</p>
+              <p>Solaris re-reads the exact communication immediately before apply and rejects edition, revision or lifecycle drift. Once scheduled, the existing server scheduler can publish it at that time without another Organizer action.</p>
+              <p>System #599 still owns the final atomic expected-version/CAS, idempotency, operation receipt and deterministic uncertain-outcome contract.</p>
             </div>
-          }
+          ) : null}
           confirmLabel="Schedule communication"
           busy={scheduleNotice.isPending}
-          confirmDisabled={!scheduledAt || !saveAllowed}
+          confirmDisabled={!publicationReview || publicationReview.kind !== 'schedule'}
         />
 
         <AdminConfirmSheet
-          open={publishReviewOpen}
+          open={publicationReview?.kind === 'publish'}
           onClose={() => {
-            if (!publishNotice.isPending) setPublishReviewOpen(false);
+            if (!publishNotice.isPending) setPublicationReview(null);
           }}
           onConfirm={async () => {
-            await publishNotice.mutateAsync();
+            if (publicationReview?.kind !== 'publish') return;
+            await publishNotice.mutateAsync(publicationReview);
           }}
           title="Publish this communication now?"
-          description={
+          description={publicationReview?.kind === 'publish' && reviewedInput ? (
             <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
-              <p>Review the exact message, destinations and audience before it becomes live.</p>
+              <p>Review the frozen message, destinations and audience before it becomes live.</p>
               <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-                <p className="font-semibold text-foreground">{title.trim() || 'Untitled communication'}</p>
-                <p className="mt-2 whitespace-pre-wrap">{body.trim()}</p>
-                <p className="mt-3"><span className="font-semibold text-foreground">Destinations:</span> {displaySurfaces.map(noticeSurfaceLabel).join(', ')}</p>
-                {inboxEnabled ? <p className="mt-2"><span className="font-semibold text-foreground">Inbox audience:</span> {humanize(audience)}{audienceGroup ? ` · ${humanize(audienceGroup)}` : ''}{audience === 'specific_countries' ? ` · ${countryIds.length} countr${countryIds.length === 1 ? 'y' : 'ies'}` : ''}</p> : null}
-                <p className="mt-2"><span className="font-semibold text-foreground">Acknowledgement:</span> {acknowledgementRequired && inboxEnabled ? 'required' : 'not required'}</p>
+                <p className="font-semibold text-foreground">{reviewedInput.title.trim() || 'Untitled communication'}</p>
+                <p className="mt-1">Edition scope: {publicationReview.editionId}{publicationReview.expectedRevision ? ` · reviewed revision r${publicationReview.expectedRevision}` : ' · new draft'}</p>
+                <p className="mt-2 whitespace-pre-wrap">{reviewedInput.body.trim()}</p>
+                <p className="mt-3"><span className="font-semibold text-foreground">Destinations:</span> {reviewedInput.displaySurfaces.map(noticeSurfaceLabel).join(', ')}</p>
+                {reviewedInboxEnabled ? <p className="mt-2"><span className="font-semibold text-foreground">Inbox audience:</span> {humanize(reviewedInput.audience)}{reviewedInput.audienceGroup ? ` · ${humanize(reviewedInput.audienceGroup)}` : ''}{reviewedInput.audience === 'specific_countries' ? ` · ${reviewedInput.countryIds.length} countr${reviewedInput.countryIds.length === 1 ? 'y' : 'ies'}` : ''}</p> : null}
+                <p className="mt-2"><span className="font-semibold text-foreground">Acknowledgement:</span> {reviewedInput.acknowledgementRequired && reviewedInboxEnabled ? 'required' : 'not required'}</p>
               </div>
-              <p>The current legacy publication authority applies immediately after confirmation. Canonical expected-revision, idempotency, receipt and uncertain-outcome reconciliation remain tracked in System #599.</p>
+              <p>Solaris re-reads the exact communication immediately before apply and rejects edition, revision or lifecycle drift. The compatibility publication authority then applies the frozen reviewed content.</p>
+              <p>System #599 still owns the final atomic expected-version/CAS, idempotency, operation receipt and deterministic uncertain-outcome contract.</p>
             </div>
-          }
+          ) : null}
           confirmLabel="Publish communication now"
           busy={publishNotice.isPending}
-          confirmDisabled={!saveAllowed}
+          confirmDisabled={!publicationReview || publicationReview.kind !== 'publish'}
         />
 
         <AdminConfirmSheet
@@ -936,7 +1062,7 @@ function CommunicationsCentre() {
             <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
               <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
                 <p className="font-semibold text-foreground">{lifecycleReview.notice.title}</p>
-                <p className="mt-1">Revision {lifecycleReview.notice.revision} · {noticeStateLabel(lifecycleReview.notice.state)}</p>
+                <p className="mt-1">Edition scope: {lifecycleReview.editionId} · Revision {lifecycleReview.notice.revision} · {noticeStateLabel(lifecycleReview.notice.state)}</p>
                 <p className="mt-2"><span className="font-semibold text-foreground">Destinations:</span> {lifecycleReview.notice.displaySurfaces.map(noticeSurfaceLabel).join(', ')}</p>
               </div>
               {lifecycleReview.kind !== 'restore' ? (
@@ -965,7 +1091,7 @@ function CommunicationsCentre() {
                   <p>{lifecycleReview.notice.sentAt ? 'This communication was previously published. Its content, revisions and receipt rows will be deleted while the minimal private deletion audit record remains.' : 'This communication has never been published. Its draft record and revision history will be deleted.'}</p>
                 </>
               )}
-              <p>These actions still use the existing server-authorized lifecycle RPCs. Canonical version/CAS, idempotency, operation receipts and uncertain-outcome reconciliation remain tracked in System #599.</p>
+              <p>Solaris re-reads the exact notice immediately before applying this reviewed lifecycle action and rejects edition, revision, state or archive drift. System #599 still owns the final atomic version/CAS, idempotency, operation receipt and uncertain-outcome contract.</p>
             </div>
           ) : null}
           confirmLabel={lifecycleReview
@@ -1095,12 +1221,6 @@ function humanize(value: string) {
 }
 
 function formatTimestamp(value: string | null) {
-  if (!value) return 'Not set';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
-}
-
-function formatScheduledInput(value: string) {
   if (!value) return 'Not set';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
