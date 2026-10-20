@@ -50,9 +50,12 @@ describe("canonical V3 Liquid tab bar mainline cutover", () => {
 
   it("keeps keyboard, Reduced Motion and Reduced Transparency fallbacks", () => {
     const liquidCss = source("src/styles/v3-liquid-tabbar.css");
+    const fixedGeometryCss = source("src/styles/v3-navigation-fixed-geometry.css");
     const responsiveCss = source("src/styles/v3-responsive-shell.css");
 
     expect(liquidCss).toContain("html[data-solaris-keyboard-open]");
+    expect(liquidCss).toMatch(/data-solaris-keyboard-open[\s\S]*pointer-events: none;/);
+    expect(fixedGeometryCss).toMatch(/data-solaris-keyboard-open[\s\S]*visibility: hidden;/);
     expect(liquidCss).toContain("@media (prefers-reduced-motion: reduce)");
     expect(liquidCss).toContain("@media (prefers-reduced-transparency: reduce)");
     expect(responsiveCss).toContain("@media (min-width: 1024px)");
