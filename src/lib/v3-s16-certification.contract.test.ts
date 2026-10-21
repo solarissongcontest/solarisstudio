@@ -85,19 +85,15 @@ describe("V3 S16 exact-SHA certification contract", () => {
     );
   });
 
-  it("keeps the builder fail-closed, exact-checkout-bound and blocked by static release state", () => {
+  it("keeps the builder fail-closed, exact-checkout-bound and blocked by canonical static release state", () => {
     const builder = readFileSync("scripts/build-v3-s16-certification.ts", "utf8");
     expect(builder).toContain("V3_CANDIDATE_SHA must be one exact 40-character Git commit SHA");
     expect(builder).toContain("does not match checked-out SHA");
-    expect(builder).toContain("assessV3S16AuthorizationReadiness");
-    expect(builder).toContain("publicRemaining");
-    expect(builder).toContain("organizerRemaining");
-    expect(builder).toContain("pendingPhysicalDomains");
-    expect(builder).toContain("declarationOnlyConsequences");
-    expect(builder).toContain("publicParityMissingEvidence");
-    expect(builder).toContain("staticBlockers");
+    expect(builder).toContain("assessV3S16StaticReleaseReadiness");
+    expect(builder).toContain("const staticReadiness = assessV3S16StaticReleaseReadiness()");
+    expect(builder).toContain("staticReadiness.blockers");
     expect(builder).toContain("const allCategoriesPassed = categories.every((category) => category.passed)");
-    expect(builder).toContain("const certified = allCategoriesPassed && staticBlockers.length === 0");
+    expect(builder).toContain("const certified = allCategoriesPassed && staticReadiness.ready");
     expect(builder).toContain('process.argv.includes("--require-certified")');
     expect(builder).not.toContain("supabase.co");
   });
