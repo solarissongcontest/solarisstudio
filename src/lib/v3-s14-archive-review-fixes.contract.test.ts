@@ -52,8 +52,15 @@ describe('System V3 S14 Archive review-fix contract', () => {
     expect(archiveInvariantFixes).toContain(
       'before insert on public.studio2_edition_runtime',
     );
-    expect(deleteGuard).toContain("insert into public.studio2_edition_runtime(edition_id,state,subsystems,version,updated_by)");
-    expect(deleteGuard).toContain("'archived',private.studio2_default_subsystems('archived')");
+    expect(deleteGuard).toContain(
+      'with deleted as (delete from public.studio2_edition_runtime',
+    );
+    expect(deleteGuard).toContain(
+      "select edition_id,'archived',subsystems,6,null from deleted",
+    );
+    expect(deleteGuard).not.toContain(
+      "private.studio2_default_subsystems('archived')",
+    );
     expect(deleteGuard).toContain('"service-role direct archived runtime insertion"');
     expect(deleteGuard).toContain('fail "$label unexpectedly succeeded"');
     expect(deleteGuard).toContain('Archive transition must use the canonical V3 lifecycle command.');
