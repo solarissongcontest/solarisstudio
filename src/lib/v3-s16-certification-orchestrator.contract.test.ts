@@ -11,6 +11,7 @@ const canonicalEvidenceFiles = [
   "s16-migration-rehearsal.json",
   "s16-authorization-security.json",
   "s16-production-isolation.json",
+  "s16-system-hardening.json",
   "s16-public-acceptance.json",
   "s16-organizer-acceptance.json",
   "s16-navigation-acceptance.json",
@@ -58,7 +59,9 @@ describe("S16 exact-SHA certification orchestration", () => {
     expect(workflow).toContain("source run metadata is incomplete or does not match declared run IDs");
   });
 
-  it("fails closed through assembly, certificate construction and final release revalidation", () => {
+  it("fails closed through 12-category assembly, certificate construction and final release revalidation", () => {
+    expect(workflow).toContain("Assemble and semantically revalidate all 12 categories");
+    expect(workflow).toContain("s16-system-hardening.json");
     expect(workflow).toContain("scripts/assemble-v3-s16-evidence.ts");
     expect(workflow).toContain("--require-complete");
     expect(workflow).toContain("scripts/build-v3-s16-certification.ts --require-certified");
