@@ -23,9 +23,29 @@ s14_stage7_is_semifinal_fixture_round() {
 }
 
 s14_stage7_reset_fixture_lifecycle_before_open() {
-  local round_id="$1"
+  local round_id="$1" baseline_ready
 
   s14_stage7_is_semifinal_fixture_round "$round_id" || return 0
+
+  baseline_ready="$(db_scalar "
+select count(*)
+from televoting.rounds
+where id='$round_id'::uuid
+  and status='draft'
+  and opens_at is null
+  and closes_at is null
+  and closed_at is null;
+")"
+
+  # Stage 7 setup already creates both synthetic rounds at this exact baseline
+  # on the normal full-contest path. Do not issue a redundant direct UPDATE in
+  # that case: hardened lifecycle guards are allowed to reject direct writes,
+  # and touching updated_at would add no fixture value. Only stale carried-over
+  # fixture state needs the explicit rewind below.
+  if [[ "$baseline_ready" == "1" ]]; then
+    log "S14_STAGE7_FIXTURE_BASELINE round=$round_id status=draft timestamps=clear source=existing"
+    return 0
+  fi
 
   db_exec "
 update televoting.rounds
@@ -47,7 +67,7 @@ where id='$round_id'::uuid
   and closed_at is null;
 ")" == "1" ]] || fail "S14 Stage 7 could not establish a deterministic lifecycle baseline for $round_id"
 
-  log "S14_STAGE7_FIXTURE_BASELINE round=$round_id status=draft timestamps=clear"
+  log "S14_STAGE7_FIXTURE_BASELINE round=$round_id status=draft timestamps=clear source=rewind"
 }
 
 apply_televote_round_status() {
