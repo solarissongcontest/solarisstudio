@@ -2,8 +2,10 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
+  V3_DOMAIN_CONSEQUENCE_REGISTRY,
   V3_ORGANIZER_CAPABILITY_REGISTRY,
   V3_PUBLIC_CAPABILITIES,
+  V3_SYSTEM_DOMAIN_REGISTRY,
 } from "../src/lib/v3-capability-registry";
 import { assessV3S16AuthorizationReadiness } from "../src/lib/v3-s16-authorization-readiness";
 import { V3_S16_CERTIFICATION_CATEGORIES } from "../src/lib/v3-s16-certification-contract";
@@ -75,9 +77,25 @@ const publicRemaining = V3_PUBLIC_CAPABILITIES.filter(
 const organizerRemaining = V3_ORGANIZER_CAPABILITY_REGISTRY.filter(
   (item) => !["cutover", "retired"].includes(item.migrationStatus),
 );
+const pendingPhysicalDomains = V3_SYSTEM_DOMAIN_REGISTRY.filter(
+  (item) => item.physicalAuditStatus === "pending",
+);
+const declarationOnlyConsequences = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter(
+  (item) => item.implementationState !== "event-backed",
+);
+const publicParityMissingEvidence = V3_PUBLIC_CAPABILITIES.filter(
+  (item) =>
+    ["parity", "cutover", "retired"].includes(item.specificationStatus) &&
+    !("migrationEvidence" in item && item.migrationEvidence?.trim()),
+);
 const passedCount = categories.filter((category) => category.passed).length;
 const staticBlockersClear =
-  authorization.ready && publicRemaining.length === 0 && organizerRemaining.length === 0;
+  authorization.ready &&
+  publicRemaining.length === 0 &&
+  organizerRemaining.length === 0 &&
+  pendingPhysicalDomains.length === 0 &&
+  declarationOnlyConsequences.length === 0 &&
+  publicParityMissingEvidence.length === 0;
 const result = {
   schemaVersion: 1,
   candidateSha,
@@ -98,6 +116,9 @@ const result = {
     authorizationIncompleteVerifiedCount: authorization.incompleteVerifiedCommands.length,
     publicCutoverRemaining: publicRemaining.length,
     organizerCutoverRemaining: organizerRemaining.length,
+    pendingPhysicalDomains: pendingPhysicalDomains.length,
+    declarationOnlyConsequences: declarationOnlyConsequences.length,
+    publicParityMissingEvidence: publicParityMissingEvidence.length,
   },
   requiredSurfaceCases: {
     publicAcceptance: requiredV3S16PublicAcceptanceCases().length,
@@ -132,6 +153,21 @@ if (json) {
   if (organizerRemaining.length) {
     process.stdout.write(
       `Static Organizer blocker: ${organizerRemaining.length} capabilities not cutover/retired\n`,
+    );
+  }
+  if (pendingPhysicalDomains.length) {
+    process.stdout.write(
+      `Static System blocker: ${pendingPhysicalDomains.length} physical ownership audits pending\n`,
+    );
+  }
+  if (declarationOnlyConsequences.length) {
+    process.stdout.write(
+      `Static consequence blocker: ${declarationOnlyConsequences.length} consequences are not event-backed\n`,
+    );
+  }
+  if (publicParityMissingEvidence.length) {
+    process.stdout.write(
+      `Static Public evidence blocker: ${publicParityMissingEvidence.length} parity/cutover/retired capabilities lack migration evidence\n`,
     );
   }
 }
