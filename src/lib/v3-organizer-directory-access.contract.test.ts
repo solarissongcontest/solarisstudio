@@ -23,10 +23,10 @@ describe("Organizer V3 specialist directory access", () => {
     expect(menu).toContain('domain.availability === "ready" ? [domain.to] : []');
     expect(menu).toContain('item.availability === "ready" ? [item.to] : []');
     expect(menu).toContain(
-      'domain.availability === "ready" && access.data[domain.to] === true',
+      'domain.availability === "ready" && accessByPath[domain.to] === true',
     );
     expect(menu).toContain(
-      'item.availability === "ready" && access.data[item.to] === true',
+      'item.availability === "ready" && accessByPath[item.to] === true',
     );
     expect(menu).toContain(".filter((group) => group.items.length > 0)");
   });
