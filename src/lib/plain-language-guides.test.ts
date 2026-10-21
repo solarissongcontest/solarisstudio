@@ -5,6 +5,10 @@ function source(path: string) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
+function normalizedSourceText(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
 describe("Solaris Studio guides and country confirmation access", () => {
   const appShell = source("components/AppShell.tsx");
   const publicNavigation = source("lib/public-navigation.ts");
@@ -70,7 +74,9 @@ describe("Solaris Studio guides and country confirmation access", () => {
   });
 
   it("documents automatic confirmation access in both guides", () => {
-    expect(publicGuide).toContain("without entering a recovery code");
-    expect(adminGuide).toContain("without a recovery code");
+    expect(normalizedSourceText(publicGuide)).toContain(
+      "without entering a recovery code",
+    );
+    expect(normalizedSourceText(adminGuide)).toContain("without a recovery code");
   });
 });
