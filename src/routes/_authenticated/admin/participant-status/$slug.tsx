@@ -25,6 +25,7 @@ import {
   type ParticipationStatus,
 } from "@/lib/participation-status";
 import { validateEditionCommandScope } from "@/lib/solaris-v6-edition-context";
+import { normalizeSystemReceipt } from "@/lib/system-receipt";
 
 export const Route = createFileRoute("/_authenticated/admin/participant-status/$slug")({
   head: () => ({ meta: [{ title: "Participation status — Solaris Studio" }, { name: "robots", content: "noindex" }] }),
@@ -63,6 +64,46 @@ type PendingStatusChange = {
   operationId: string;
   idempotencyKey: string;
 };
+
+type ParticipationStatusExecution = {
+  ok: true;
+  riskClass: "R2";
+  editionId: string;
+  countryId: string | null;
+  contestEntityId: string | null;
+  status: ParticipationStatus;
+  updatedRows: number;
+  operationId: string;
+  previousVersion: number;
+  version: number;
+};
+
+function validateParticipationStatusExecution(
+  value: unknown,
+  pending: PendingStatusChange,
+  editionId: string,
+): ParticipationStatusExecution {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Participation status returned an invalid operation result.");
+  }
+  const row = value as Record<string, unknown>;
+  const expectedStatus = pending.preview.requestedStatus;
+  if (
+    row.ok !== true ||
+    row.riskClass !== "R2" ||
+    row.editionId !== editionId ||
+    row.countryId !== pending.group.countryId ||
+    row.contestEntityId !== pending.group.contestEntityId ||
+    row.status !== expectedStatus ||
+    row.operationId !== pending.operationId ||
+    typeof row.updatedRows !== "number" ||
+    typeof row.previousVersion !== "number" ||
+    typeof row.version !== "number"
+  ) {
+    throw new Error("Participation status operation result does not match the reviewed command.");
+  }
+  return row as ParticipationStatusExecution;
+}
 
 function ParticipantStatusWorkspace() {
   const { slug } = Route.useParams();
@@ -141,6 +182,36 @@ function ParticipantStatusWorkspace() {
     return edition.id;
   }
 
+  async function refreshParticipationState() {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["participants"] }),
+      qc.invalidateQueries({ queryKey: ["public-participants"] }),
+      qc.invalidateQueries({ queryKey: ["results"] }),
+      qc.invalidateQueries({ queryKey: ["organizer-tasks-v5"] }),
+    ]);
+  }
+
+  async function reconcileParticipationStatusOperation(pending: PendingStatusChange) {
+    const { data, error } = await (supabase as any).rpc(
+      "studio2_reconcile_operation",
+      { p_operation_id: pending.operationId },
+    );
+    if (error) return false;
+
+    const receipt = normalizeSystemReceipt(data);
+    if (
+      !receipt ||
+      receipt.operationId !== pending.operationId ||
+      receipt.command !== `participation.status.${pending.preview.requestedStatus}` ||
+      receipt.status !== "succeeded"
+    ) {
+      return false;
+    }
+
+    validateParticipationStatusExecution(receipt.result, pending, pending.preview.editionId);
+    return true;
+  }
+
   async function requestStatusChange(group: StatusGroup, status: ParticipationStatus) {
     if (!edition || group.status === status) return;
     setBusyKey(group.key);
@@ -191,7 +262,7 @@ function ParticipantStatusWorkspace() {
     setBusyKey(pending.group.key);
     try {
       const commandEditionId = assertParticipationEditionScope(pending.preview.editionId);
-      const { error } = await (supabase as any).rpc(
+      const { data, error } = await (supabase as any).rpc(
         "studio2_apply_participation_status",
         {
           p_edition_id: commandEditionId,
@@ -204,18 +275,23 @@ function ParticipantStatusWorkspace() {
         },
       );
       if (error) throw error;
+      validateParticipationStatusExecution(data, pending, commandEditionId);
 
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ["participants"] }),
-        qc.invalidateQueries({ queryKey: ["public-participants"] }),
-        qc.invalidateQueries({ queryKey: ["results"] }),
-        qc.invalidateQueries({ queryKey: ["organizer-tasks-v5"] }),
-      ]);
+      await refreshParticipationState();
       toast.success(
         `${pending.displayName} marked ${participationStatusLabel(pending.preview.requestedStatus).toLowerCase()}`,
       );
       setPendingChange(null);
     } catch (caught) {
+      const reconciled = await reconcileParticipationStatusOperation(pending).catch(() => false);
+      if (reconciled) {
+        await refreshParticipationState();
+        toast.success(
+          `${pending.displayName} marked ${participationStatusLabel(pending.preview.requestedStatus).toLowerCase()} · confirmed after reconnect`,
+        );
+        setPendingChange(null);
+        return;
+      }
       toast.error(caught instanceof Error ? caught.message : "Participation status could not be changed");
     } finally {
       setBusyKey(null);
