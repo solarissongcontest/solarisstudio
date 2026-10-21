@@ -16,17 +16,25 @@ describe("S16 readiness diagnostic", () => {
     expect(source).toContain("evidenceDirectory");
   });
 
-  it("surfaces current static authorization, Public and Organizer blockers", () => {
+  it("surfaces current static authorization, Public, Organizer and System blockers", () => {
     expect(source).toContain("assessV3S16AuthorizationReadiness");
     expect(source).toContain("publicCutoverRemaining");
     expect(source).toContain("organizerCutoverRemaining");
     expect(source).toContain("authorizationDeclaredCount");
     expect(source).toContain("authorizationIncompleteVerifiedCount");
+    expect(source).toContain("pendingPhysicalDomains");
+    expect(source).toContain("declarationOnlyConsequences");
+    expect(source).toContain("publicParityMissingEvidence");
   });
 
   it("fails final readiness while any static release blocker remains", () => {
     expect(source).toContain("const staticBlockersClear =");
-    expect(source).toContain("authorization.ready && publicRemaining.length === 0 && organizerRemaining.length === 0");
+    expect(source).toContain("authorization.ready &&");
+    expect(source).toContain("publicRemaining.length === 0 &&");
+    expect(source).toContain("organizerRemaining.length === 0 &&");
+    expect(source).toContain("pendingPhysicalDomains.length === 0 &&");
+    expect(source).toContain("declarationOnlyConsequences.length === 0 &&");
+    expect(source).toContain("publicParityMissingEvidence.length === 0");
     expect(source).toContain("passedCount === categories.length &&");
     expect(source).toContain("staticBlockersClear");
     expect(source).toContain("if (requireReady && !result.ready) process.exit(1)");
