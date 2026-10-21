@@ -420,7 +420,7 @@ VALUES (:'TELEVOTE_ROUND'::uuid,:'TELEVOTE_EDITION'::uuid,'Archive terminal roun
 INSERT INTO public.televoting_round_bindings(
   remote_round_id,remote_edition_id,edition_id,source_mode
 )
-VALUES (:'TELEVOTE_ROUND'::uuid,:'TELEVOTE_EDITION'::uuid,:'EDITION_C'::uuid,'edition');
+VALUES (:'TELEVOTE_ROUND',:'TELEVOTE_EDITION',:'EDITION_C'::uuid,'edition');
 
 SELECT pg_temp.assert_true(
   'terminal-boundary fixture C exists before canonical Archive',
@@ -499,7 +499,7 @@ SELECT pg_temp.assert_archive_guard(
   'Archived Televote binding mutation',
   '42501',
   'Archived edition workflow is read-only.',
-  format('update public.televoting_round_bindings set source_mode=''show'' where remote_round_id=%L::uuid', :'TELEVOTE_ROUND'),
+  format('update public.televoting_round_bindings set source_mode=''show'' where remote_round_id=%L', :'TELEVOTE_ROUND'),
   'public.televoting_round_bindings'::regclass
 );
 SELECT pg_temp.assert_archive_guard(
