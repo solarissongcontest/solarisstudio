@@ -128,9 +128,7 @@ insert into public.editions(id,name,slug,edition_number,year,status,published)
 values ('$EDITION_C','S14 Archive Guard C','s14-archive-guard-c',1893,2026,'active',false);
 
 insert into public.studio2_edition_runtime(edition_id,state,subsystems,version,updated_by)
-select '$EDITION_C'::uuid,'post_edition',runtime.subsystems,1,null
-from public.studio2_edition_runtime runtime
-where runtime.edition_id='$EDITION_B'::uuid;
+values ('$EDITION_C','post_edition',private.studio2_default_subsystems('post_edition'),1,null);
 
 insert into public.studio2_capability_grants(user_id,capability,edition_id)
 values
