@@ -22,19 +22,32 @@ function PrivacyState({ state, children }: { state: "loading" | "unavailable" | 
 
 export function V3AccountPrivacyPanel() {
   const session = useFanSession();
-  const profile = useFanProfile(session.data?.id);
-  const saveProfile = useSaveFanProfile(session.data?.id);
+  const viewerId = session.data?.id ?? null;
+  const profile = useFanProfile(viewerId ?? undefined);
+  const saveProfile = useSaveFanProfile(viewerId ?? undefined);
   const [displayName, setDisplayName] = useState("Solaris fan");
   const [visibility, setVisibility] = useState<ProfileVisibility>("private");
   const [leaderboardOptIn, setLeaderboardOptIn] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
+    // A shared browser can change authenticated users without unmounting this
+    // panel. Clear the prior viewer's controlled draft immediately so it can
+    // never be displayed or submitted under the next account while that
+    // account's profile query is resolving (or when it has no profile row).
+    setDisplayName("Solaris fan");
+    setVisibility("private");
+    setLeaderboardOptIn(false);
+    setSaved(false);
+  }, [viewerId]);
+
+  useEffect(() => {
     if (!profile.data) return;
     setDisplayName(profile.data.display_name);
     setVisibility(profile.data.visibility);
     setLeaderboardOptIn(profile.data.leaderboard_opt_in);
-  }, [profile.data]);
+    setSaved(false);
+  }, [viewerId, profile.data]);
 
   if (session.isLoading || profile.isLoading) {
     return (
