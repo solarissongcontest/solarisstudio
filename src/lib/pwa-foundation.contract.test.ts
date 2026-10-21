@@ -87,7 +87,7 @@ describe("Solaris installed-app foundation", () => {
 
   it("tracks the current installed-app static cache generation", () => {
     const worker = source("public/sw.js");
-    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v15"');
+    expect(worker).toContain('const CACHE_VERSION = "solaris-app-v16"');
   });
 
   it("lets the active tab indicator drag across destinations", () => {
@@ -144,10 +144,14 @@ describe("Solaris installed-app foundation", () => {
 
   it("never turns maintenance into stale cached application HTML", () => {
     const worker = source("public/sw.js");
-    const navigation = worker.slice(
-      worker.indexOf("async function networkNavigation"),
-      worker.indexOf("async function staleWhileRevalidate"),
+    const navigationStart = worker.indexOf("async function networkNavigation");
+    const navigationEnd = worker.indexOf(
+      "\n\nasync function trimRuntimeCache",
+      navigationStart,
     );
+    expect(navigationStart).toBeGreaterThanOrEqual(0);
+    expect(navigationEnd).toBeGreaterThan(navigationStart);
+    const navigation = worker.slice(navigationStart, navigationEnd);
     expect(worker).toContain('request.mode === "navigate"');
     expect(navigation).toContain("return await fetch(request)");
     expect(navigation).not.toContain("cache.put");
