@@ -74,14 +74,39 @@ set status='pending',processing_started_at=null,error=null;
 RESOLVED_AT_BEFORE="$(db_value "select resolved_at::text from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")"
 [[ -n "$RESOLVED_AT_BEFORE" ]] || fail "archived blocker lacks a resolution timestamp before resurrection attempt"
 
-db_exec "
+log "Archived resolved Task history rejects resurrection rewrites"
+REWRITE_OUTPUT="$(mktemp)"
+if psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c "
 update public.studio2_organizer_tasks
 set state='open', resolved_at=null, updated_at=now()
 where id='$BLOCKER_ID'::uuid;
-"
+" >"$REWRITE_OUTPUT" 2>&1; then
+  cat "$REWRITE_OUTPUT" >&2
+  rm -f "$REWRITE_OUTPUT"
+  fail "archived edition.blocker rewrite unexpectedly succeeded"
+fi
+grep -Fq 'Archived edition workflow task history is read-only.' "$REWRITE_OUTPUT" || {
+  cat "$REWRITE_OUTPUT" >&2
+  rm -f "$REWRITE_OUTPUT"
+  fail "archived task rewrite did not fail through the historical-evidence guard"
+}
+rm -f "$REWRITE_OUTPUT"
 [[ "$(db_value "select state from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == 'resolved' ]] || fail "archived edition.blocker was resurrected"
 [[ "$(db_value "select count(*) from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid and resolved_at is not null;")" == '1' ]] || fail "resurrection guard did not retain blocker resolution evidence"
 [[ "$(db_value "select resolved_at::text from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == "$RESOLVED_AT_BEFORE" ]] || fail "resurrection guard rewrote historical blocker resolution timestamp"
+
+# Reassert the already-terminal state without changing historical domain fields.
+# The Archive guard explicitly permits housekeeping timestamp updates on a
+# resolved row; including state/resolved_at in this no-op UPDATE exercises the
+# resolved-task projection trigger so poisoned present-tense notification state
+# is repaired without reopening or rewriting retained Task history.
+db_exec "
+update public.studio2_organizer_tasks
+set state='resolved', resolved_at=resolved_at, updated_at=now()
+where id='$BLOCKER_ID'::uuid;
+"
+[[ "$(db_value "select state from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == 'resolved' ]] || fail "terminal task projection touch changed blocker state"
+[[ "$(db_value "select resolved_at::text from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == "$RESOLVED_AT_BEFORE" ]] || fail "terminal task projection touch changed historical resolution timestamp"
 [[ "$(db_value "select count(*) from public.admin_notifications where recipient_id='$AUTHORIZED_ID'::uuid and source_key='v3-s14-archive-guard:edition-blocker' and not requires_action and resolved_at is not null;")" == '1' ]] || fail "task resolution did not immediately repair poisoned Inbox action state"
 [[ "$(db_value "select count(*) from public.notification_deliveries where user_id='$AUTHORIZED_ID'::uuid and dedupe_key='$PENDING_DEDUPE' and status='suppressed';")" == '1' ]] || fail "task resolution did not immediately suppress pending delivery state"
 [[ "$(db_value "select count(*) from public.notification_deliveries where subject_id='$BLOCKER_ID' and category='organizer_tasks' and status='failed' and error='$FAILED_ERROR';")" -ge '1' ]] || fail "task resolution rewrote historical failed-delivery evidence"
