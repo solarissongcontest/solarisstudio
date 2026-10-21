@@ -163,7 +163,7 @@ describe("S14 Stage 10 archive certification against current canonical V3 System
     expect(archive).toContain("client-visible Supabase outage changed authoritative archived state");
     expect(archive).toContain("client-visible Supabase outage fabricated or lost Archive operation truth");
     expect(archive).toContain("S14_FAILURE_SUPABASE_OUTAGE_COMPLETE");
-    expect(archive).not.toMatch(/https?:\/\/[^\s'\"]*supabase\.co/i);
+    expect(archive).not.toMatch(/https?:\/\/[^\s'"]*supabase\.co/i);
   });
 
   it("preserves canonical lifecycle authority while projecting a terminal compatibility status for legacy public readers", () => {

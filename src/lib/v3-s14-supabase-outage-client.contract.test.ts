@@ -16,7 +16,7 @@ describe("S14 Supabase outage client-degraded-state contract", () => {
     expect(archive).toContain("--connect-timeout 1");
     expect(archive).toContain("--max-time 2");
     expect(archive).toContain("simulated Supabase outage unexpectedly produced transport success");
-    expect(archive).not.toMatch(/https?:\/\/[^\s'\"]*supabase\.co/i);
+    expect(archive).not.toMatch(/https?:\/\/[^\s'"]*supabase\.co/i);
   });
 
   it("maps a reachable device with an unreachable app origin to canonical degraded connectivity", () => {
