@@ -130,6 +130,6 @@ select private.studio2_sync_task_notifications('$EDITION_ID'::uuid);
 
 log "Governance/history work remains outside the fail-safe"
 [[ "$(db_value "select state from public.studio2_organizer_tasks where source_kind='incident' and source_id='$INCIDENT_ID';")" == 'open' ]] || fail "task invariant incorrectly resolved incident governance work"
-[[ "$(db_value "select count(*) from public.studio2_incidents where id='$INCIDENT_ID'::uuid and status='open';")" == '1' ]] || fail "task invariant mutated incident domain state"
+[[ "$(db_value "select count(*) from public.studio2_incidents where id='$INCIDENT_ID'::uuid and status='detected';")" == '1' ]] || fail "task invariant mutated incident domain state"
 
 log "S14 archived task, failed-delivery evidence and notification non-resurrection rehearsal passed"

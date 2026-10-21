@@ -242,7 +242,7 @@ as_service "select private.studio2_reconcile_all_organizer_tasks('$EDITION_A'::u
 [[ "$(db_value "select count(*) from public.studio2_incidents where id='$INCIDENT_ID'::uuid and status='detected';")" == '1' ]] || fail "archive mutated incident history/state"
 
 log "Archived runtime cannot be directly moved back into active lifecycle state"
-expect_service_failure "direct archived runtime reversal" "Archived edition runtime is irreversible" \
+expect_service_failure "direct archived runtime reversal" "Archived edition runtime is read-only" \
   "update public.studio2_edition_runtime set state='post_edition' where edition_id='$EDITION_A'::uuid;"
 [[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_A'::uuid;")" == 'archived' ]] || fail "direct SQL reversed an archived runtime"
 
