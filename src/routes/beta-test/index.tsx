@@ -20,6 +20,11 @@ import {
 import type { BetaAnswer, BetaAnswers, BetaBugReport } from "@/features/beta-test/types";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadBetaFeedbackScreenshot } from "@/lib/beta-feedback-upload";
+import {
+  readPublicBetaFeedbackStorage,
+  removePublicBetaFeedbackStorage,
+  writePublicBetaFeedbackStorage,
+} from "@/lib/public-beta-feedback-storage";
 import { publicBetaFeedbackErrorMessage } from "@/lib/public-beta-feedback-safety";
 import { completePublicUxBetaTask } from "@/lib/public-ux-events";
 import { readV3BetaFeedbackContext } from "@/lib/v3-beta-feedback-context";
@@ -62,7 +67,7 @@ function persistBetaDraft({
     bugs: serializeBugs(bugs),
     step,
   };
-  window.localStorage.setItem(BETA_DRAFT_KEY, JSON.stringify(draft));
+  writePublicBetaFeedbackStorage(BETA_DRAFT_KEY, JSON.stringify(draft));
 }
 
 function BetaTestPage() {
@@ -78,7 +83,7 @@ function BetaTestPage() {
 
   useEffect(() => {
     try {
-      const saved = window.localStorage.getItem(BETA_DRAFT_KEY);
+      const saved = readPublicBetaFeedbackStorage(BETA_DRAFT_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as Partial<BetaDraft>;
         if (parsed.answers) setAnswers(parsed.answers);
@@ -87,7 +92,7 @@ function BetaTestPage() {
           setStep(Math.min(Math.max(parsed.step, 0), betaSections.length));
         }
       }
-      setSubmitted(window.localStorage.getItem(BETA_SUBMITTED_KEY) === "true");
+      setSubmitted(readPublicBetaFeedbackStorage(BETA_SUBMITTED_KEY) === "true");
     } catch {
       // A damaged local draft should never block the test.
     } finally {
@@ -258,8 +263,11 @@ function BetaTestPage() {
 
       if (insertError) throw insertError;
 
-      window.localStorage.removeItem(BETA_DRAFT_KEY);
-      window.localStorage.setItem(BETA_SUBMITTED_KEY, "true");
+      // The authoritative submission has succeeded at this point. Browser
+      // storage is optional bookkeeping and must not be allowed to turn that
+      // success into a false error (or encourage a duplicate retry).
+      removePublicBetaFeedbackStorage(BETA_DRAFT_KEY);
+      writePublicBetaFeedbackStorage(BETA_SUBMITTED_KEY, "true");
       setAnswers((previous) => ({ ...previous, activityPoints }));
       setSubmitted(true);
     } catch (submissionError) {
@@ -270,8 +278,8 @@ function BetaTestPage() {
   };
 
   const restart = () => {
-    window.localStorage.removeItem(BETA_DRAFT_KEY);
-    window.localStorage.removeItem(BETA_SUBMITTED_KEY);
+    removePublicBetaFeedbackStorage(BETA_DRAFT_KEY);
+    removePublicBetaFeedbackStorage(BETA_SUBMITTED_KEY);
     setAnswers({});
     setBugs([]);
     setStep(0);
