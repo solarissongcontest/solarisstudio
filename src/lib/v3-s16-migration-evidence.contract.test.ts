@@ -50,7 +50,7 @@ describe("S16 migration rehearsal exact-SHA evidence", () => {
     expect(workflow).toContain("CLEAN_REPLAY_RESULT");
     expect(workflow).toContain("UPGRADE_RESULT");
     expect(workflow).toContain('passed = clean == "success" and upgrade == "success"');
-    expect(workflow).toContain('"s16-migration-rehearsal.json"');
+    expect(workflow).toContain('v3-s16-evidence/s16-migration-rehearsal.json');
     expect(workflow).toContain('"baselineSha": baseline or None');
     expect(workflow).toContain("if-no-files-found: error");
   });
