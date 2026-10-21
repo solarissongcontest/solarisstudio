@@ -71,6 +71,18 @@ type PendingShowModeReview = {
   after: ShowModeSnapshot;
 };
 
+type PendingShowDeleteReview = {
+  editionId: string;
+  showId: string;
+  showName: string;
+  kind: string;
+  sortOrder: number;
+  published: boolean;
+  publicationFingerprint: string;
+  broadcastFingerprint: string;
+  participantIds: string[];
+};
+
 const emptyDraft: ShowDraft = { name: "", kind: "semi-final", sort_order: 1 };
 
 const emptyShowModeDraft: ShowModeDraft = {
@@ -116,6 +128,24 @@ function showModeValue(value: string | null) {
   return value || "Not set";
 }
 
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map((item) => stableJson(item)).join(",")}]`;
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`);
+    return `{${entries.join(",")}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
+
+function sameIdSet(left: string[], right: string[]) {
+  if (left.length !== right.length) return false;
+  const sortedLeft = [...left].sort();
+  const sortedRight = [...right].sort();
+  return sortedLeft.every((value, index) => value === sortedRight[index]);
+}
+
 function ShowsWorkspace() {
   const { slug } = Route.useParams();
   const { editionId: organizerEditionId } = useAdminContext();
@@ -127,7 +157,7 @@ function ShowsWorkspace() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [draft, setDraft] = useState<ShowDraft>(emptyDraft);
   const [busy, setBusy] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<Show | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PendingShowDeleteReview | null>(null);
   const [actionsTarget, setActionsTarget] = useState<Show | null>(null);
   const [showModeTarget, setShowModeTarget] = useState<Show | null>(null);
   const [showModeDraft, setShowModeDraft] = useState<ShowModeDraft>(emptyShowModeDraft);
@@ -153,7 +183,8 @@ function ShowsWorkspace() {
 
   useEffect(() => {
     setPendingShowModeReview(null);
-  }, [organizerEditionId]);
+    setDeleteTarget(null);
+  }, [organizerEditionId, edition?.id]);
 
   async function refresh() {
     await Promise.all([
@@ -190,6 +221,24 @@ function ShowsWorkspace() {
       scheduledStart: isoToLocalInput(config.scheduledStart),
       youtubeUrl: config.youtubeUrl,
       televoteRoundId: config.televoteRoundId ?? "",
+    });
+  }
+
+  function openDeleteReview(show: Show) {
+    if (!edition || !assertEditionScope(show)) return;
+    setDeleteTarget({
+      editionId: edition.id,
+      showId: show.id,
+      showName: show.name,
+      kind: show.kind,
+      sortOrder: show.sort_order,
+      published: Boolean(show.published),
+      publicationFingerprint: stableJson(show.publication_config),
+      broadcastFingerprint: stableJson(show.broadcast_config),
+      participantIds: participants
+        .filter((participant) => participant.show_id === show.id)
+        .map((participant) => participant.id)
+        .sort(),
     });
   }
 
@@ -331,16 +380,76 @@ function ShowsWorkspace() {
   }
 
   async function deleteShow() {
-    if (!deleteTarget || !assertEditionScope(deleteTarget)) return;
+    const review = deleteTarget;
+    if (!review || busy) return;
+    if (!edition || organizerEditionId !== review.editionId || edition.id !== review.editionId) {
+      setDeleteTarget(null);
+      toast.error("Edition context changed while this show deletion review was open. Nothing was deleted.");
+      return;
+    }
+
     setBusy(true);
     try {
-      const { error } = await supabase.from("shows").delete().eq("id", deleteTarget.id);
+      const [showResponse, participantResponse] = await Promise.all([
+        (supabase.from("shows") as any)
+          .select("id,edition_id,name,kind,sort_order,published,publication_config,broadcast_config")
+          .eq("id", review.showId)
+          .eq("edition_id", review.editionId)
+          .maybeSingle(),
+        (supabase.from("participants") as any)
+          .select("id")
+          .eq("edition_id", review.editionId)
+          .eq("show_id", review.showId),
+      ]);
+      if (showResponse.error) throw showResponse.error;
+      if (participantResponse.error) throw participantResponse.error;
+
+      const liveShow = showResponse.data;
+      if (
+        !liveShow ||
+        liveShow.edition_id !== review.editionId ||
+        liveShow.name !== review.showName ||
+        liveShow.kind !== review.kind ||
+        liveShow.sort_order !== review.sortOrder ||
+        Boolean(liveShow.published) !== review.published ||
+        stableJson(liveShow.publication_config) !== review.publicationFingerprint ||
+        stableJson(liveShow.broadcast_config) !== review.broadcastFingerprint
+      ) {
+        throw Object.assign(
+          new Error("The show changed while this deletion review was open. Nothing was deleted. Reopen the current show and review deletion again."),
+          { status: 409 },
+        );
+      }
+
+      const liveParticipantIds = (participantResponse.data ?? []).map((participant: { id: string }) => participant.id);
+      if (!sameIdSet(review.participantIds, liveParticipantIds)) {
+        throw Object.assign(
+          new Error("The show's participant membership changed while this deletion review was open. Nothing was deleted. Review the current dependent data before retrying."),
+          { status: 409 },
+        );
+      }
+      if (organizerEditionId !== review.editionId) {
+        throw Object.assign(new Error("Edition context changed during deletion revalidation. Nothing was deleted."), { status: 409 });
+      }
+
+      const { data: deleted, error } = await (supabase.from("shows") as any)
+        .delete()
+        .eq("id", review.showId)
+        .eq("edition_id", review.editionId)
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
-      toast.success(`${deleteTarget.name} deleted`);
+      if (!deleted) {
+        throw Object.assign(new Error("The exact reviewed show no longer matched at deletion time. Refresh before retrying."), { status: 409 });
+      }
+
+      toast.success(`${review.showName} deleted`);
       setDeleteTarget(null);
       await refresh();
     } catch (caught) {
-      toast.error(caught instanceof Error ? caught.message : "Show could not be deleted");
+      setDeleteTarget(null);
+      await refresh();
+      toast.error(caught instanceof Error ? caught.message : "Show could not be deleted. Refresh canonical state before retrying.");
     } finally {
       setBusy(false);
     }
@@ -446,7 +555,7 @@ function ShowsWorkspace() {
           <Link to="/admin/voting-system/$slug" params={{ slug }} search={{ show: actionsTarget.id }} onClick={() => setActionsTarget(null)} className="admin-action-row flex w-full items-center gap-3 text-left"><span className="admin-action-row-icon"><Calculator className="size-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Voting system</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">Configure scales, weighting, qualifiers and tie-breaks.</span></span></Link>
           <Link to="/admin/publication/$slug" params={{ slug }} onClick={() => setActionsTarget(null)} className="admin-action-row flex w-full items-center gap-3 text-left"><span className="admin-action-row-icon"><Globe2 className="size-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Publication</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">Control which layers of this show are public.</span></span></Link>
           <Link to="/admin/design/$slug" params={{ slug }} onClick={() => setActionsTarget(null)} className="admin-action-row flex w-full items-center gap-3 text-left"><span className="admin-action-row-icon"><RadioTower className="size-4" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-semibold">Design & broadcast</span><span className="mt-1 block text-xs leading-relaxed text-muted-foreground">Theme, scoreboard and broadcast presentation.</span></span></Link>
-          <AdminActionItem icon={Trash2} tone="danger" title="Delete show" description="Permanently remove this show and dependent show data." onClick={() => { setDeleteTarget(actionsTarget); setActionsTarget(null); }} />
+          <AdminActionItem icon={Trash2} tone="danger" title="Delete show" description="Permanently remove this show and dependent show data." onClick={() => { const show = actionsTarget; setActionsTarget(null); openDeleteReview(show); }} />
         </div> : null}
       </AdminSheet>
 
@@ -622,11 +731,27 @@ function ShowsWorkspace() {
         open={!!deleteTarget}
         onClose={() => !busy && setDeleteTarget(null)}
         onConfirm={deleteShow}
-        title={`Delete ${deleteTarget?.name ?? "show"}?`}
-        description={<>This permanently removes the show and dependent participant/voting data. Official archived results should only be deleted when you are certain this show is disposable.</>}
-        confirmLabel="Delete show"
-        confirmationText={deleteTarget?.name}
-        confirmationHint={deleteTarget ? `Type ${deleteTarget.name} to confirm` : undefined}
+        title={`Delete ${deleteTarget?.showName ?? "show"}?`}
+        description={deleteTarget ? (
+          <div className="space-y-3 text-left">
+            <p>This permanently removes <strong>{deleteTarget.showName}</strong> and dependent show data.</p>
+            <div className="rounded-xl border border-white/[0.08] bg-black/10 p-3 text-xs text-muted-foreground">
+              <p><strong className="text-foreground">Edition:</strong> {editionLabel(edition)}</p>
+              <p className="mt-1"><strong className="text-foreground">Type:</strong> {deleteTarget.kind.replaceAll("-", " ")}</p>
+              <p className="mt-1"><strong className="text-foreground">Show order:</strong> {deleteTarget.sortOrder}</p>
+              <p className="mt-1"><strong className="text-foreground">Dependent participants reviewed:</strong> {deleteTarget.participantIds.length}</p>
+              <p className="mt-1"><strong className="text-foreground">Publication state:</strong> {deleteTarget.published ? "Published" : "Not published"}</p>
+            </div>
+            {deleteTarget.published ? (
+              <p className="text-amber-100">This show was published when the deletion review opened. Verify archived/public-result obligations before deleting it.</p>
+            ) : null}
+            <p>Immediately before deletion, Organizer re-reads this exact show plus its participant membership. If identity, ordering, publication/broadcast configuration, or dependent participants changed, deletion is refused and must be reviewed again.</p>
+            <p className="rounded-xl border border-amber-200/15 bg-amber-200/[0.045] p-3 text-xs leading-5 text-amber-50/90"><strong>Legacy authority:</strong> the final delete is still the existing direct show delete, not the governed show-lifecycle command. System #581 owns authoritative version/CAS, idempotency, dependency handling and operation receipts. A concurrent dependency change after this final browser recheck remains outside this compatibility boundary.</p>
+          </div>
+        ) : undefined}
+        confirmLabel="Delete reviewed show"
+        confirmationText={deleteTarget?.showName}
+        confirmationHint={deleteTarget ? `Type ${deleteTarget.showName} to confirm permanent deletion` : undefined}
         busy={busy}
         danger
       />
