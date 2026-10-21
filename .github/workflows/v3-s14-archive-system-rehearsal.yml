@@ -99,7 +99,20 @@ jobs:
           retention-days: 3
 
       - name: Rehearse archived task and notification non-resurrection invariants
-        run: bash .github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh
+        shell: bash
+        run: |
+          set -o pipefail
+          bash .github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh 2>&1 \
+            | tee "$RUNNER_TEMP/s14-archive-task-resurrection-clean.log"
+
+      - name: Upload archived task non-resurrection diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s14-archive-task-resurrection-clean
+          path: ${{ runner.temp }}/s14-archive-task-resurrection-clean.log
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: Stop isolated local Supabase
         if: always()
@@ -219,9 +232,19 @@ jobs:
       - name: Rehearse task and notification non-resurrection after current-main upgrade
         shell: bash
         run: |
-          set -euo pipefail
+          set -o pipefail
           cd /tmp/solaris-s14-main
-          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh"
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh" 2>&1 \
+            | tee "$RUNNER_TEMP/s14-archive-task-resurrection-upgrade.log"
+
+      - name: Upload task and notification non-resurrection diagnostics after current-main upgrade
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s14-archive-task-resurrection-upgrade
+          path: ${{ runner.temp }}/s14-archive-task-resurrection-upgrade.log
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: Stop isolated local Supabase
         if: always()
