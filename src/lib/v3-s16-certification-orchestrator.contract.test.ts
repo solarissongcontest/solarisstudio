@@ -52,6 +52,17 @@ describe("S16 exact-SHA certification orchestration", () => {
     }
   });
 
+  it("binds System-hardening declarations to the trusted downloaded Actions-run metadata", () => {
+    expect(workflow).toContain(
+      "V3_S16_SOURCE_RUN_METADATA: s16-source-runs/run-metadata.ndjson",
+    );
+    expect(workflow).toContain("runId:.id");
+    expect(workflow).toContain("workflow:.name");
+    expect(workflow).toContain("headSha:.head_sha");
+    expect(workflow).toContain("conclusion:.conclusion");
+    expect(workflow).toContain("runAttempt:.run_attempt");
+  });
+
   it("records immutable source-run metadata in the final evidence instead of IDs alone", () => {
     expect(workflow).toContain("'schemaVersion': 2");
     expect(workflow).toContain("'sourceRunIds': run_ids");
