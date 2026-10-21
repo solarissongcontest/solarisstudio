@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 const DIGEST_PATTERN = /^[0-9a-f]{64}$/;
@@ -11,16 +11,50 @@ function record(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
+function sourceRunId(sourceDirectory: string): number | null {
+  let current = sourceDirectory;
+  while (true) {
+    const match = /^run-(\d+)$/.exec(basename(current));
+    if (match) return Number(match[1]);
+    const parent = dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
+function runMetadataById(value: unknown): Map<number, Record<string, unknown>> {
+  const result = new Map<number, Record<string, unknown>>();
+  if (!Array.isArray(value)) return result;
+  for (const item of value) {
+    const metadata = record(item);
+    if (!metadata || !Number.isInteger(metadata.runId) || Number(metadata.runId) <= 0) continue;
+    result.set(Number(metadata.runId), metadata);
+  }
+  return result;
+}
+
 export function validateV3S16SystemHardeningSourceArtifacts(
   value: unknown,
   sourceDirectory: string,
   expectedCandidateSha: string,
+  sourceRunMetadata?: unknown,
 ): string[] {
   const issues: string[] = [];
   const expectedSha = expectedCandidateSha.trim().toLowerCase();
   const evidence = record(value);
   if (!evidence || !Array.isArray(evidence.phases)) {
     return ["system-hardening: cannot verify source artifacts without phases"];
+  }
+
+  const metadataByRunId = runMetadataById(sourceRunMetadata);
+  const containingRunId = sourceRunId(sourceDirectory);
+  const containingRun = containingRunId === null ? null : metadataByRunId.get(containingRunId) ?? null;
+  if (sourceRunMetadata !== undefined) {
+    if (containingRunId === null) {
+      issues.push("system-hardening: evidence source directory is not nested under a declared run-<id> directory");
+    } else if (!containingRun) {
+      issues.push(`system-hardening: no trusted run metadata exists for containing Actions run ${containingRunId}`);
+    }
   }
 
   for (const phaseValue of evidence.phases) {
@@ -79,6 +113,39 @@ export function validateV3S16SystemHardeningSourceArtifacts(
         }
       } catch {
         issues.push(`${label} artifact ${artifact} is not valid JSON`);
+      }
+
+      if (sourceRunMetadata !== undefined) {
+        const declaredRunId = Number.isInteger(source.runId) ? Number(source.runId) : null;
+        if (declaredRunId !== containingRunId) {
+          issues.push(
+            `${label} declares runId ${String(declaredRunId)}, but artifact was downloaded from run ${String(containingRunId)}`,
+          );
+        }
+        if (containingRun) {
+          const metadataHeadSha =
+            typeof containingRun.headSha === "string" ? containingRun.headSha.trim().toLowerCase() : "";
+          if (metadataHeadSha !== expectedSha) {
+            issues.push(`${label} trusted Actions run metadata is not bound to exact candidate ${expectedSha}`);
+          }
+          if (containingRun.conclusion !== "success") {
+            issues.push(`${label} trusted Actions run conclusion is not success`);
+          }
+          if (source.workflow !== containingRun.workflow) {
+            issues.push(`${label} workflow does not match trusted Actions run metadata`);
+          }
+          if (source.runAttempt !== containingRun.runAttempt) {
+            issues.push(`${label} runAttempt does not match trusted Actions run metadata`);
+          }
+          const declaredHeadSha =
+            typeof source.headSha === "string" ? source.headSha.trim().toLowerCase() : "";
+          if (declaredHeadSha !== metadataHeadSha) {
+            issues.push(`${label} headSha does not match trusted Actions run metadata`);
+          }
+          if (source.conclusion !== containingRun.conclusion) {
+            issues.push(`${label} conclusion does not match trusted Actions run metadata`);
+          }
+        }
       }
     }
   }
