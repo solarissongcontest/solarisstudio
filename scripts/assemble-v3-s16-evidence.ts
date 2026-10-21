@@ -29,6 +29,25 @@ function currentCommitSha() {
     .toLowerCase();
 }
 
+function readRunMetadata() {
+  const path = process.env.V3_S16_SOURCE_RUN_METADATA?.trim();
+  if (!path) return undefined;
+  const resolved = resolve(path);
+  if (!existsSync(resolved)) throw new Error(`S16 source-run metadata file does not exist: ${path}`);
+  const entries = readFileSync(resolved, "utf8")
+    .split(/\r?\n/)
+    .filter((line) => line.trim())
+    .map((line, index) => {
+      try {
+        return JSON.parse(line) as unknown;
+      } catch {
+        throw new Error(`S16 source-run metadata line ${index + 1} is not valid JSON`);
+      }
+    });
+  if (!entries.length) throw new Error("S16 source-run metadata is empty");
+  return entries;
+}
+
 const candidateSha = process.env.V3_CANDIDATE_SHA?.trim().toLowerCase() ?? "";
 if (!SHA_PATTERN.test(candidateSha)) {
   throw new Error("V3_CANDIDATE_SHA must be one exact 40-character Git commit SHA");
@@ -52,6 +71,7 @@ if (sources.includes(outputReal)) {
   throw new Error("evidence output directory cannot also be a --source directory");
 }
 
+const sourceRunMetadata = readRunMetadata();
 const categories = V3_S16_CERTIFICATION_CATEGORIES.map((category) => {
   const matches = sources
     .map((source) => ({ source, path: join(source, category.evidenceFilename) }))
@@ -85,9 +105,20 @@ const categories = V3_S16_CERTIFICATION_CATEGORIES.map((category) => {
     : validateV3S16CategorySourceEvidence(category.id, value, candidateSha);
 
   if (category.id === "system-hardening" && value !== null) {
-    issues.push(
-      ...validateV3S16SystemHardeningSourceArtifacts(value, match.source, candidateSha),
-    );
+    if (sourceRunMetadata === undefined) {
+      issues.push(
+        "system-hardening: V3_S16_SOURCE_RUN_METADATA is required to bind declared provenance to downloaded Actions runs",
+      );
+    } else {
+      issues.push(
+        ...validateV3S16SystemHardeningSourceArtifacts(
+          value,
+          match.source,
+          candidateSha,
+          sourceRunMetadata,
+        ),
+      );
+    }
   }
 
   copyFileSync(match.path, join(outputDir, category.evidenceFilename));
