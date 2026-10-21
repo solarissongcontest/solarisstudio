@@ -71,5 +71,5 @@ function NextInLinePage() {
     );
   }
 
-  return <NextInLineCompetition />;
+  return <NextInLineCompetition key={session.data.id} />;
 }
