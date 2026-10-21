@@ -13,16 +13,15 @@ import {
   Vote,
 } from "lucide-react";
 
+import { useAdminContext } from "@/components/admin/AdminContext";
 import {
   AdminCard,
   AdminCardHeader,
   AdminEmptyState,
   AdminPageHeader,
-  AdminProgress,
   AdminStatus,
 } from "@/components/admin/AdminUI";
 import { editionLabel, useEdition, useParticipants, useShows } from "@/lib/data";
-import { resolveAutomaticEditionStatus } from "@/lib/publication";
 
 export const Route = createFileRoute("/_authenticated/admin/$slug")({
   component: AdminEditionWorkspace,
@@ -59,9 +58,11 @@ function OrganizerNotFound() {
 }
 
 function ContestOverview({ slug }: { slug: string }) {
+  const { editionId: organizerEditionId, editionLabel: organizerEditionLabel } = useAdminContext();
   const { data: edition, isLoading } = useEdition(slug);
-  const { data: shows = [] } = useShows(edition?.id);
-  const { data: participants = [] } = useParticipants(edition?.id);
+  const scopedEditionId = edition && organizerEditionId === edition.id ? edition.id : undefined;
+  const { data: shows = [] } = useShows(scopedEditionId);
+  const { data: participants = [] } = useParticipants(scopedEditionId);
 
   if (isLoading) return <p className="py-8 text-center text-sm text-muted-foreground">Loading contest…</p>;
 
@@ -73,6 +74,32 @@ function ContestOverview({ slug }: { slug: string }) {
           title="Edition not found"
           description="This edition may have been removed or the address is no longer valid."
           action={<Link to="/admin/editions" className="admin-action-secondary">Back to editions</Link>}
+        />
+      </AdminCard>
+    );
+  }
+
+  if (!organizerEditionId) {
+    return (
+      <AdminCard>
+        <AdminEmptyState
+          icon={Trophy}
+          title="Choose an edition"
+          description="Contest overview is edition-scoped. Select the exact edition in the Organizer toolbar before Solaris loads its shows, entries or next action."
+          action={<Link to="/admin" className="admin-action-secondary">Back to Organizer</Link>}
+        />
+      </AdminCard>
+    );
+  }
+
+  if (organizerEditionId !== edition.id) {
+    return (
+      <AdminCard>
+        <AdminEmptyState
+          icon={Ban}
+          title="Edition context mismatch"
+          description={`This Contest URL belongs to ${editionLabel(edition)}, while Organizer is scoped to ${organizerEditionLabel ?? "another edition"}. Contest data stays blocked until the route and Organizer context match.`}
+          action={<Link to="/admin" className="admin-action-secondary">Back to Organizer</Link>}
         />
       </AdminCard>
     );
@@ -91,19 +118,35 @@ function ContestOverview({ slug }: { slug: string }) {
   const showsWithEntries = shows.filter((show) => participants.some((participant) => participant.show_id === show.id));
   const hasGrandFinal = shows.some((show) => show.kind === "grand-final" || show.kind === "final");
   const completeLineups = shows.length > 0 && showsWithEntries.length === shows.length;
-  const automaticStatus = shows.length
-    ? resolveAutomaticEditionStatus(
-        shows.map((show) => ({
-          kind: show.kind,
-          published: show.published,
-          publication_config: show.publication_config,
-        })),
-      )
-    : "draft";
-
-  const readinessSignals = [shows.length > 0, completeLineups, hasGrandFinal];
-  const readiness = Math.round((readinessSignals.filter(Boolean).length / readinessSignals.length) * 100);
   const showsWithoutEntries = Math.max(0, shows.length - showsWithEntries.length);
+  const structureChecks = [
+    {
+      key: "shows",
+      label: "Shows configured",
+      detail: shows.length
+        ? `${shows.length} ${shows.length === 1 ? "show" : "shows"} configured`
+        : "No shows configured yet",
+      ready: shows.length > 0,
+    },
+    {
+      key: "lineups",
+      label: "Line-ups assigned",
+      detail: !shows.length
+        ? "Create the show structure first"
+        : completeLineups
+          ? "Every configured show has entries"
+          : `${showsWithoutEntries} ${showsWithoutEntries === 1 ? "show has" : "shows have"} no entries assigned`,
+      ready: completeLineups,
+    },
+    {
+      key: "final",
+      label: "Final stage configured",
+      detail: hasGrandFinal ? "Grand Final or final show exists" : "No Grand Final or final show is configured",
+      ready: hasGrandFinal,
+    },
+  ] as const;
+  const readyStructureChecks = structureChecks.filter((check) => check.ready).length;
+  const structureReady = readyStructureChecks === structureChecks.length;
 
   const nextAction = !shows.length
     ? {
@@ -112,19 +155,26 @@ function ContestOverview({ slug }: { slug: string }) {
         to: `/admin/shows/${slug}`,
         label: "Create show",
       }
-    : showsWithoutEntries > 0
+    : !hasGrandFinal
       ? {
-          title: "Finish the line-ups",
-          description: `${showsWithoutEntries} ${showsWithoutEntries === 1 ? "show still has" : "shows still have"} no entries assigned.`,
-          to: `/admin/entries/${slug}`,
-          label: "Open entries",
+          title: "Configure the final stage",
+          description: "This edition has no Grand Final or final show yet. Add the final stage before treating the contest structure as ready.",
+          to: `/admin/shows/${slug}`,
+          label: "Open shows",
         }
-      : {
-          title: "Review allocations and running order",
-          description: "All shows have entries. Finish the running orders before moving on to Voting.",
-          to: `/admin/entries/${slug}`,
-          label: "Review running order",
-        };
+      : showsWithoutEntries > 0
+        ? {
+            title: "Finish the line-ups",
+            description: `${showsWithoutEntries} ${showsWithoutEntries === 1 ? "show still has" : "shows still have"} no entries assigned.`,
+            to: `/admin/entries/${slug}`,
+            label: "Open entries",
+          }
+        : {
+            title: "Review allocations and running order",
+            description: "All shows have entries. Finish the running orders before moving on to Voting.",
+            to: `/admin/entries/${slug}`,
+            label: "Review running order",
+          };
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -192,17 +242,31 @@ function ContestOverview({ slug }: { slug: string }) {
         <AdminCard strong>
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="admin-section-label">Contest setup</p>
-              <p className="mt-2 text-3xl font-bold tracking-[-.04em]">{readiness}%</p>
+              <p className="admin-section-label">Contest structure</p>
+              <p className="mt-2 text-2xl font-bold tracking-[-.035em]">
+                {readyStructureChecks}/{structureChecks.length} checks complete
+              </p>
               <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">
-                Shows, complete line-ups and a Grand Final. Voting, publication and broadcast are managed in their own sections.
+                Shows, line-ups and the final stage are listed explicitly. This is only a structure checklist; Voting, publication and broadcast readiness stay in their authoritative workspaces.
               </p>
             </div>
-            <AdminStatus tone={automaticStatus === "completed" ? "ready" : readiness === 100 ? "ready" : readiness >= 50 ? "attention" : "neutral"}>
-              {readiness === 100 ? "Structure ready" : "In setup"}
+            <AdminStatus tone={structureReady ? "ready" : "attention"}>
+              {structureReady ? "Structure ready" : "Needs setup"}
             </AdminStatus>
           </div>
-          <div className="mt-4"><AdminProgress value={readiness} /></div>
+          <div className="mt-4 divide-y divide-white/[0.06] rounded-xl border border-white/[0.06] bg-white/[0.018] px-3">
+            {structureChecks.map((check) => (
+              <div key={check.key} className="flex items-center gap-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-foreground">{check.label}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{check.detail}</p>
+                </div>
+                <AdminStatus tone={check.ready ? "ready" : "attention"}>
+                  {check.ready ? "Ready" : "Needs work"}
+                </AdminStatus>
+              </div>
+            ))}
+          </div>
         </AdminCard>
 
         <AdminCard strong>
