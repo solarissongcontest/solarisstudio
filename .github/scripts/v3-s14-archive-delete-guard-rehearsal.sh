@@ -340,8 +340,10 @@ SELECT pg_temp.assert_true(
 );
 
 \echo '[v3-s14-archive-delete-guard] Assert archived show/result/legacy lifecycle guards'
-SET ROLE service_role;
-SELECT set_config('request.jwt.claims', json_build_object('role', 'service_role')::text, true);
+-- Exercise the workflow-freeze trigger boundary as the database owner. The
+-- runtime authority assertions above intentionally stay service_role tests;
+-- workflow tables do not all grant direct DML to service_role, and a table
+-- permission denial would prevent PostgreSQL from ever reaching these triggers.
 SELECT pg_temp.assert_archive_guard(
   'Archived show mutation',
   '42501',
@@ -363,7 +365,6 @@ SELECT pg_temp.assert_archive_guard(
   format('update public.editions set status=''active'' where id=%L::uuid', :'EDITION_A'),
   'public.editions'::regclass
 );
-RESET ROLE;
 
 SELECT pg_temp.assert_true(
   'Rejected legacy lifecycle revival preserves terminal compatibility status',
@@ -479,8 +480,6 @@ SELECT pg_temp.assert_true(
 );
 
 \echo '[v3-s14-archive-delete-guard] Assert Next in Line and eligibility terminal guards'
-SET ROLE service_role;
-SELECT set_config('request.jwt.claims', json_build_object('role', 'service_role')::text, true);
 SELECT pg_temp.assert_archive_guard(
   'Archived Next in Line window mutation',
   '42501',
@@ -506,11 +505,8 @@ SELECT pg_temp.assert_archive_guard(
   ),
   'public.studio2_eligibility_overrides'::regclass
 );
-RESET ROLE;
 
 \echo '[v3-s14-archive-delete-guard] Assert Televote terminal guards'
-SET ROLE service_role;
-SELECT set_config('request.jwt.claims', json_build_object('role', 'service_role')::text, true);
 SELECT pg_temp.assert_archive_guard(
   'Archived Televote binding mutation',
   '42501',
@@ -525,7 +521,6 @@ SELECT pg_temp.assert_archive_guard(
   format('update televoting.rounds set closes_at=now() + interval ''1 hour'' where id=%L::uuid', :'TELEVOTE_ROUND'),
   'televoting.rounds'::regclass
 );
-RESET ROLE;
 
 SELECT pg_temp.assert_true(
   'Rejected Televote mutation preserves canonical round state',
