@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -61,6 +61,46 @@ describe("S16 System hardening source verification", () => {
     const root = mkdtempSync(join(tmpdir(), "v3-s16-hardening-source-"));
     try {
       expect(validateV3S16SystemHardeningSourceArtifacts(fixture(root), root, SHA)).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("binds declared run provenance to the Actions run that actually supplied the artifact", () => {
+    const root = mkdtempSync(join(tmpdir(), "v3-s16-hardening-run-"));
+    const source = join(root, "run-321", "artifact");
+    mkdirSync(source, { recursive: true });
+    try {
+      const evidence = fixture(source);
+      evidence.phases[0]!.sources[0]!.runId = 321;
+      evidence.phases[0]!.sources[0]!.runAttempt = 2;
+      const metadata = [
+        {
+          runId: 321,
+          workflow: "S10 evidence",
+          headSha: SHA,
+          conclusion: "success",
+          runAttempt: 2,
+        },
+      ];
+      expect(
+        validateV3S16SystemHardeningSourceArtifacts(evidence, source, SHA, metadata),
+      ).toEqual([]);
+
+      evidence.phases[0]!.sources[0]!.workflow = "invented workflow";
+      evidence.phases[0]!.sources[0]!.runId = 999;
+      const issues = validateV3S16SystemHardeningSourceArtifacts(
+        evidence,
+        source,
+        SHA,
+        metadata,
+      );
+      expect(issues).toContain(
+        "system-hardening: S10 source 1 declares runId 999, but artifact was downloaded from run 321",
+      );
+      expect(issues).toContain(
+        "system-hardening: S10 source 1 workflow does not match trusted Actions run metadata",
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
