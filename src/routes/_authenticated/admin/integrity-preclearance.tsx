@@ -63,6 +63,17 @@ type CaseDetail = {
   messages: Array<{ id: string; author_role: string; body: string; created_at: string }>;
 };
 
+type PendingRulingReview = {
+  caseId: string;
+  caseCode: string;
+  caseSummary: string;
+  outcome: PreclearanceOutcome;
+  summary: string;
+  rationale: string;
+  ruleIds: string[];
+  baselineFingerprint: string;
+};
+
 const OUTCOMES: Array<{
   id: PreclearanceOutcome;
   label: string;
@@ -78,6 +89,31 @@ async function rpc<T>(name: string, args: Record<string, unknown> = {}) {
   const { data, error } = await (supabase as any).rpc(name, args);
   if (error) throw new Error(error.message);
   return data as T;
+}
+
+export function preclearanceRulingReviewFingerprint(detail: CaseDetail) {
+  return JSON.stringify({
+    case: {
+      id: detail.case.id,
+      publicCode: detail.case.public_code,
+      caseKind: detail.case.case_kind,
+      summary: detail.case.summary,
+      details: detail.case.details,
+      status: detail.case.status,
+      priority: detail.case.priority,
+    },
+    ruleLinks: detail.rule_links
+      .map((link) => ({
+        ruleId: link.rule_id,
+        relevance: link.relevance,
+        note: link.note,
+      }))
+      .sort((left, right) =>
+        `${left.ruleId}:${left.relevance}:${left.note ?? ""}`.localeCompare(
+          `${right.ruleId}:${right.relevance}:${right.note ?? ""}`,
+        ),
+      ),
+  });
 }
 
 function IntegrityPreclearanceWorkspace() {
@@ -227,7 +263,7 @@ function RulingComposer({ detail, onChanged }: { detail: CaseDetail; onChanged: 
   const [summary, setSummary] = useState("");
   const [rationale, setRationale] = useState("");
   const [ruleInput, setRuleInput] = useState(detail.rule_links.map((item) => item.rule_id).join(", "));
-  const [reviewOpen, setReviewOpen] = useState(false);
+  const [pendingReview, setPendingReview] = useState<PendingRulingReview | null>(null);
 
   const ruleIds = useMemo(
     () => Array.from(new Set(ruleInput.split(/[\s,]+/).map((item) => item.trim()).filter(Boolean))),
@@ -235,19 +271,76 @@ function RulingComposer({ detail, onChanged }: { detail: CaseDetail; onChanged: 
   );
   const invalidRules = ruleIds.filter((id) => !getRuleById(id));
   const mutation = useMutation({
-    mutationFn: () => recordAdminPreclearanceRuling(detail.case.id, { outcome, summary, rationale, ruleIds }),
+    mutationFn: async (review: PendingRulingReview) => {
+      const liveDetail = await rpc<CaseDetail | null>("admin_integrity_case", {
+        _case_id: review.caseId,
+      });
+      if (!liveDetail) {
+        throw new Error(
+          "This private rule question is no longer available. Nothing was recorded. Refresh and review the current case before trying again.",
+        );
+      }
+      if (
+        preclearanceRulingReviewFingerprint(liveDetail) !==
+        review.baselineFingerprint
+      ) {
+        throw new Error(
+          "This private rule question changed while the ruling review was open. Nothing was recorded. Review the latest case and rule links before issuing a ruling.",
+        );
+      }
+      if (liveDetail.case.case_kind !== "rule_question") {
+        throw new Error(
+          "This Integrity case is no longer a private rule question. Nothing was recorded.",
+        );
+      }
+
+      const missingRules = review.ruleIds.filter((ruleId) => !getRuleById(ruleId));
+      if (missingRules.length) {
+        throw new Error(
+          `The reviewed rule basis is no longer available in this Solaris rulebook: ${missingRules.join(", ")}. Nothing was recorded.`,
+        );
+      }
+
+      return recordAdminPreclearanceRuling(review.caseId, {
+        outcome: review.outcome,
+        summary: review.summary,
+        rationale: review.rationale,
+        ruleIds: review.ruleIds,
+      });
+    },
     onSuccess: async () => {
-      setReviewOpen(false);
+      setPendingReview(null);
       setSummary("");
       setRationale("");
       await onChanged();
       toast.success("Private rule ruling recorded");
     },
-    onError: errorToast,
+    onError: async (error) => {
+      setPendingReview(null);
+      await onChanged();
+      errorToast(error);
+    },
   });
 
   const selectedOutcome = OUTCOMES.find((item) => item.id === outcome)!;
+  const reviewedOutcome = pendingReview
+    ? OUTCOMES.find((item) => item.id === pendingReview.outcome) ?? null
+    : null;
   const canSubmit = summary.trim().length >= 5 && rationale.trim().length >= 20 && ruleIds.length > 0 && invalidRules.length === 0;
+
+  function openRulingReview() {
+    if (!canSubmit || mutation.isPending) return;
+    setPendingReview({
+      caseId: detail.case.id,
+      caseCode: detail.case.public_code,
+      caseSummary: detail.case.summary,
+      outcome,
+      summary: summary.trim(),
+      rationale: rationale.trim(),
+      ruleIds: [...ruleIds],
+      baselineFingerprint: preclearanceRulingReviewFingerprint(detail),
+    });
+  }
 
   return (
     <AdminCard>
@@ -286,43 +379,47 @@ function RulingComposer({ detail, onChanged }: { detail: CaseDetail; onChanged: 
         </div>
         {invalidRules.length ? <p className="mt-2 text-[10px] font-semibold text-rose-200">Unknown current rule IDs: {invalidRules.join(", ")}</p> : null}
         <div className="mt-3 flex justify-end">
-          <button type="button" disabled={!canSubmit || mutation.isPending} onClick={() => setReviewOpen(true)} className="admin-action-primary">
+          <button type="button" disabled={!canSubmit || mutation.isPending} onClick={openRulingReview} className="admin-action-primary">
             <Gavel className="size-4" />{mutation.isPending ? "Recording…" : "Review ruling"}
           </button>
         </div>
       </div>
 
       <AdminConfirmSheet
-        open={reviewOpen}
+        open={Boolean(pendingReview)}
         onClose={() => {
-          if (!mutation.isPending) setReviewOpen(false);
+          if (!mutation.isPending) setPendingReview(null);
         }}
         onConfirm={async () => {
-          await mutation.mutateAsync();
+          if (!pendingReview) return;
+          await mutation.mutateAsync(pendingReview);
         }}
-        title={`Record ${selectedOutcome.label} ruling for ${detail.case.public_code}?`}
+        title={`Record ${reviewedOutcome?.label ?? "reviewed"} ruling for ${pendingReview?.caseCode ?? detail.case.public_code}?`}
         description={
-          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
-            <p>This creates a dated participant-visible ruling. Review the exact answer and its current-rule basis before recording it.</p>
-            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-              <p className="font-semibold text-foreground">{detail.case.public_code} · {detail.case.summary}</p>
-              <p className="mt-2"><span className="font-semibold text-foreground">Outcome:</span> {selectedOutcome.label}</p>
-              <p className="mt-2 whitespace-pre-wrap"><span className="font-semibold text-foreground">Participant-visible summary:</span> {summary.trim()}</p>
-              <p className="mt-2 whitespace-pre-wrap"><span className="font-semibold text-foreground">Rationale and assumptions:</span> {rationale.trim()}</p>
-              <div className="mt-2">
-                <span className="font-semibold text-foreground">Current rules cited:</span>
-                <ul className="mt-1 space-y-1">
-                  {ruleIds.map((id) => <li key={id}>Rule {id} · {getRuleById(id)?.title ?? "Unknown current rule"}</li>)}
-                </ul>
+          pendingReview ? (
+            <div className="space-y-3 text-xs leading-relaxed text-muted-foreground" data-v3-organizer-rule-ruling-review>
+              <p>This creates a dated participant-visible ruling. Review the exact frozen answer and its current-rule basis before recording it.</p>
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                <p className="font-semibold text-foreground">{pendingReview.caseCode} · {pendingReview.caseSummary}</p>
+                <p className="mt-2"><span className="font-semibold text-foreground">Outcome:</span> {reviewedOutcome?.label ?? pendingReview.outcome}</p>
+                <p className="mt-2 whitespace-pre-wrap"><span className="font-semibold text-foreground">Participant-visible summary:</span> {pendingReview.summary}</p>
+                <p className="mt-2 whitespace-pre-wrap"><span className="font-semibold text-foreground">Rationale and assumptions:</span> {pendingReview.rationale}</p>
+                <div className="mt-2">
+                  <span className="font-semibold text-foreground">Current rules cited:</span>
+                  <ul className="mt-1 space-y-1">
+                    {pendingReview.ruleIds.map((id) => <li key={id}>Rule {id} · {getRuleById(id)?.title ?? "Unknown current rule"}</li>)}
+                  </ul>
+                </div>
               </div>
+              {pendingReview.outcome === "needs_more_information" ? <p>This ruling also moves the case to waiting_for_reporter so the participant can supply the missing facts.</p> : null}
+              <p>Solaris reloads this exact Integrity case immediately before the compatibility write. If case identity, status, facts or rule links changed while this sheet was open, the reviewed action is rejected instead of being silently updated.</p>
+              <p>The current legacy authority records the ruling after that revalidation. Canonical V3 preflight, rulebook-snapshot binding, expected-version/CAS, idempotency and receipt authority remain tracked in System #950.</p>
             </div>
-            {outcome === "needs_more_information" ? <p>This ruling also moves the case to waiting_for_reporter so the participant can supply the missing facts.</p> : null}
-            <p>The current legacy authority records the ruling immediately after confirmation. Canonical V3 preflight, rule-snapshot binding, version/CAS and receipt authority remain tracked in System #950.</p>
-          </div>
+          ) : null
         }
         confirmLabel="Record participant-visible ruling"
         busy={mutation.isPending}
-        confirmDisabled={!canSubmit}
+        confirmDisabled={!pendingReview || mutation.isPending}
       />
     </AdminCard>
   );
