@@ -3,6 +3,7 @@ export type V3S16CertificationCategoryId =
   | "migration-rehearsal"
   | "authorization-security"
   | "production-isolation"
+  | "system-hardening"
   | "public-acceptance"
   | "organizer-acceptance"
   | "navigation-acceptance"
@@ -20,10 +21,12 @@ export type V3S16CertificationCategory = {
 /**
  * Canonical Session-5 S16 release-certification categories.
  *
- * This list intentionally mirrors the V3 session plan. A category may only be
- * removed or renamed by changing the canonical release specification. Keeping
- * it as executable data prevents a hand-written `certified: true` artifact from
- * silently omitting an acceptance surface.
+ * The session plan defines a minimum evidence set, while the canonical System
+ * plan additionally requires S10-S13 to complete before final certification.
+ * `system-hardening` is the QA envelope for those exact-SHA phase proofs. A
+ * category may only be removed or renamed by changing the canonical release
+ * specification. Keeping the set executable prevents a hand-written
+ * `certified: true` artifact from silently omitting a release prerequisite.
  */
 export const V3_S16_CERTIFICATION_CATEGORIES = [
   { id: "canonical-ci", evidenceFilename: "s16-canonical-ci.json", passField: "passed" },
@@ -40,6 +43,11 @@ export const V3_S16_CERTIFICATION_CATEGORIES = [
   {
     id: "production-isolation",
     evidenceFilename: "s16-production-isolation.json",
+    passField: "passed",
+  },
+  {
+    id: "system-hardening",
+    evidenceFilename: "s16-system-hardening.json",
     passField: "passed",
   },
   { id: "public-acceptance", evidenceFilename: "s16-public-acceptance.json", passField: "passed" },
@@ -116,7 +124,6 @@ export function validateV3S16CertificationEvidence(
   }
 
   const categories = evidence.categories as Array<Record<string, unknown>>;
-  const seen = new Set<string>();
 
   for (const expected of V3_S16_CERTIFICATION_CATEGORIES) {
     const matches = categories.filter((item) => item?.id === expected.id);
@@ -130,7 +137,6 @@ export function validateV3S16CertificationEvidence(
       issues.push(`S16 certification could not resolve ${expected.id} category after uniqueness check`);
       continue;
     }
-    seen.add(expected.id);
     if (item.evidenceFilename !== expected.evidenceFilename) {
       issues.push(
         `S16 ${expected.id} evidence filename must be ${expected.evidenceFilename}, got ${String(item.evidenceFilename)}`,
