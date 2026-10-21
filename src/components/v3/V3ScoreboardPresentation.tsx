@@ -41,7 +41,17 @@ export function V3ScoreboardPresentation({
   qualifiers,
 }: V3ScoreboardPresentationProps) {
   const rows = [...standings].sort((a, b) => a.rank - b.rank);
-  const winnerStanding = rows.find((row) => row.rank === 1) ?? null;
+  const rankCounts = rows.reduce((counts, row) => {
+    counts.set(row.rank, (counts.get(row.rank) ?? 0) + 1);
+    return counts;
+  }, new Map<number, number>());
+  const tiedRanks = new Set(
+    [...rankCounts.entries()]
+      .filter(([, count]) => count > 1)
+      .map(([rank]) => rank),
+  );
+  const winnerStanding =
+    rankCounts.get(1) === 1 ? rows.find((row) => row.rank === 1) ?? null : null;
   const winnerCountry = winnerStanding
     ? countries.get(winnerStanding.countryId)
     : null;
@@ -49,6 +59,7 @@ export function V3ScoreboardPresentation({
     ? participants?.get(winnerStanding.countryId)
     : undefined;
   const winnerSubtitle = entrySubtitle(winnerParticipant);
+  const hasQualifierCutoff = typeof qualifiers === "number" && qualifiers > 0;
 
   return (
     <section
@@ -112,94 +123,107 @@ export function V3ScoreboardPresentation({
             </div>
           </V3Surface>
         ) : (
-          <ol className="grid gap-2" aria-label="Final ranking">
-            {rows.map((standing) => {
-              const country = countries.get(standing.countryId);
-              const canOpenCountry = Boolean(
-                country?.short_code && country.entityType !== "custom",
-              );
-              const participant = participants?.get(standing.countryId);
-              const subtitle = entrySubtitle(participant);
-              const countryLabel = country?.name || UNAVAILABLE_COUNTRY_LABEL;
-              const isQualified = qualifiers
-                ? standing.rank <= qualifiers
-                : participant?.qualified === true
-                  ? true
-                  : participant?.qualified === false
-                    ? false
-                    : null;
+          <>
+            {tiedRanks.size ? (
+              <p className="mb-3 rounded-xl border border-[var(--v3-border-subtle)] bg-white/[0.018] px-3 py-2 text-[0.7rem] leading-relaxed text-[var(--v3-text-tertiary)]">
+                Equal placement numbers come from the official ranking and are shown as ties. Solaris does not recalculate tie-breaks in the browser.
+              </p>
+            ) : null}
+            <ol className="grid gap-2" aria-label="Final ranking">
+              {rows.map((standing) => {
+                const country = countries.get(standing.countryId);
+                const canOpenCountry = Boolean(
+                  country?.short_code && country.entityType !== "custom",
+                );
+                const participant = participants?.get(standing.countryId);
+                const subtitle = entrySubtitle(participant);
+                const countryLabel = country?.name || UNAVAILABLE_COUNTRY_LABEL;
+                const isTied = tiedRanks.has(standing.rank);
+                const isQualified =
+                  participant?.qualified === true
+                    ? true
+                    : participant?.qualified === false
+                      ? false
+                      : hasQualifierCutoff
+                        ? standing.rank <= qualifiers!
+                        : null;
 
-              const body = (
-                <>
-                  <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-[var(--v3-border-subtle)] bg-white/[0.025] text-sm font-bold tabular-nums text-[var(--v3-text-secondary)]">
-                    {standing.rank}
-                  </span>
-                  <span className="shrink-0">
-                    <FlagChip
-                      code={country?.short_code ?? "?"}
-                      color={country?.accent_color ?? "#64748b"}
-                      image={country?.flag_image}
-                    />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <span className="truncate text-sm font-semibold">
-                        {countryLabel}
+                const body = (
+                  <>
+                    <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-[var(--v3-border-subtle)] bg-white/[0.025] text-sm font-bold tabular-nums text-[var(--v3-text-secondary)]">
+                      {standing.rank}
+                    </span>
+                    <span className="shrink-0">
+                      <FlagChip
+                        code={country?.short_code ?? "?"}
+                        color={country?.accent_color ?? "#64748b"}
+                        image={country?.flag_image}
+                      />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex min-w-0 flex-wrap items-center gap-2">
+                        <span className="truncate text-sm font-semibold">
+                          {countryLabel}
+                        </span>
+                        {!country ? (
+                          <V3StatusChip tone="neutral">
+                            Identity unavailable
+                          </V3StatusChip>
+                        ) : null}
+                        {isTied ? (
+                          <V3StatusChip tone="neutral">Tie</V3StatusChip>
+                        ) : null}
+                        {country && isQualified === true ? (
+                          <V3StatusChip tone="success">Qualified</V3StatusChip>
+                        ) : country && isQualified === false ? (
+                          <V3StatusChip tone="neutral">Eliminated</V3StatusChip>
+                        ) : null}
                       </span>
-                      {!country ? (
-                        <V3StatusChip tone="neutral">
-                          Identity unavailable
-                        </V3StatusChip>
-                      ) : isQualified === true ? (
-                        <V3StatusChip tone="success">Qualified</V3StatusChip>
-                      ) : isQualified === false && qualifiers ? (
-                        <V3StatusChip tone="neutral">Eliminated</V3StatusChip>
+                      {subtitle ? (
+                        <span className="mt-0.5 block truncate text-[0.72rem] text-[var(--v3-text-tertiary)]">
+                          {subtitle}
+                        </span>
                       ) : null}
                     </span>
-                    {subtitle ? (
-                      <span className="mt-0.5 block truncate text-[0.72rem] text-[var(--v3-text-tertiary)]">
-                        {subtitle}
+                    <span className="shrink-0 text-right">
+                      <span className="block text-base font-bold tabular-nums">
+                        {standing.total}
                       </span>
+                      <span className="block text-[0.65rem] text-[var(--v3-text-tertiary)]">
+                        points
+                      </span>
+                    </span>
+                    {canOpenCountry ? (
+                      <ChevronRight
+                        className="size-4 shrink-0 text-white/30"
+                        aria-hidden="true"
+                      />
                     ) : null}
-                  </span>
-                  <span className="shrink-0 text-right">
-                    <span className="block text-base font-bold tabular-nums">
-                      {standing.total}
-                    </span>
-                    <span className="block text-[0.65rem] text-[var(--v3-text-tertiary)]">
-                      points
-                    </span>
-                  </span>
-                  {canOpenCountry ? (
-                    <ChevronRight
-                      className="size-4 shrink-0 text-white/30"
-                      aria-hidden="true"
-                    />
-                  ) : null}
-                </>
-              );
+                  </>
+                );
 
-              const className =
-                "flex min-h-16 items-center gap-2.5 rounded-2xl border border-[var(--v3-border-subtle)] bg-white/[0.022] px-3 py-2.5 transition active:scale-[0.99]";
+                const className =
+                  "flex min-h-16 items-center gap-2.5 rounded-2xl border border-[var(--v3-border-subtle)] bg-white/[0.022] px-3 py-2.5 transition active:scale-[0.99]";
 
-              return canOpenCountry && country ? (
-                <li key={standing.countryId}>
-                  <Link
-                    to="/countries/$code"
-                    params={{ code: country.short_code.toLowerCase() }}
-                    className={className}
-                    aria-label={`Open ${country.name}, rank ${standing.rank}, ${standing.total} points`}
-                  >
+                return canOpenCountry && country ? (
+                  <li key={standing.countryId}>
+                    <Link
+                      to="/countries/$code"
+                      params={{ code: country.short_code.toLowerCase() }}
+                      className={className}
+                      aria-label={`Open ${country.name}, rank ${standing.rank}${isTied ? ", tied" : ""}, ${standing.total} points`}
+                    >
+                      {body}
+                    </Link>
+                  </li>
+                ) : (
+                  <li key={standing.countryId} className={className}>
                     {body}
-                  </Link>
-                </li>
-              ) : (
-                <li key={standing.countryId} className={className}>
-                  {body}
-                </li>
-              );
-            })}
-          </ol>
+                  </li>
+                );
+              })}
+            </ol>
+          </>
         )}
       </V3Section>
     </section>
