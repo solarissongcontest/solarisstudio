@@ -1,0 +1,191 @@
+name: TEMP S14 Stage 10 runtime proof #1339
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tmp-stage10-runtime-1339-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  stage10-runtime:
+    name: Stage 10 runtime on exact #1339 candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CANDIDATE_SHA: d076497189b0d0f814814405fca328c8d3b1ce33
+      QA_PREREQ_SHA: 1b4de6ddbb0d77db576459d0e361cb96bdc2179d
+      LOCAL_SUPABASE_URL: http://127.0.0.1:54321
+      V3_RELEASE_EVIDENCE_DIR: v3-release-evidence
+      V3_VERIFICATION_TARGET: local
+      V3_SEED_TARGET: local
+      V3_CLEANUP_TARGET: local
+      V3_DESTRUCTIVE_VERIFICATION: "1"
+      V3_SERVICE_ROLE_SCOPE: local
+
+    steps:
+      - name: Checkout exact #1339 candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 1
+
+      - name: Verify exact candidate identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          [[ "$actual" == "$CANDIDATE_SHA" ]] || {
+            echo "::error::expected exact #1339 candidate $CANDIDATE_SHA but checked out $actual"
+            exit 1
+          }
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Overlay only Stage 8/9 QA prerequisites from #1162
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$QA_PREREQ_SHA"
+          git checkout FETCH_HEAD -- \
+            .github/scripts/v3-full-contest-rehearsal.sh \
+            .github/scripts/v3-s14-grand-final-leg.sh \
+            .github/scripts/v3-s14-grand-final-publication.sh \
+            .github/scripts/v3-s14-grand-final-results.sh \
+            .github/scripts/v3-s14-grand-final-voting.sh \
+            .github/scripts/v3-s14-stage-1-setup.sh \
+            .github/scripts/v3-s14-stage-3-confirmations.sh \
+            .github/scripts/v3-s14-stage-4-entries.sh \
+            .github/scripts/v3-s14-stage-5-running-orders.sh \
+            .github/scripts/v3-s14-stage-7-deterministic-fixture.sh \
+            .github/scripts/v3-s14-stage-7-diagnostics.sh \
+            .github/scripts/v3-s14-stage-7-genuine-deadline.sh \
+            .github/scripts/v3-s14-stage-7-open-diagnostics.sh \
+            .github/scripts/v3-s14-stage-8-results.sh \
+            .github/scripts/v3-s14-stage-9-publication.sh \
+            e2e/v3-s14-grand-final-results-runtime.e2e.ts \
+            e2e/v3-s14-grand-final-runtime.e2e.ts \
+            playwright.s14-grand-final-results.config.ts \
+            playwright.s14-grand-final.config.ts \
+            scripts/v3-s14-materialize-televote-results.ts
+
+          # The certification candidate remains #1339. Only prerequisite QA harness
+          # files are overlaid in the disposable runner worktree. Product/System
+          # code, migrations, RLS and RPCs remain exactly CANDIDATE_SHA.
+          [[ "$(git rev-parse HEAD)" == "$CANDIDATE_SHA" ]]
+          git diff --quiet "$CANDIDATE_SHA" -- .github/scripts/v3-s14-stage-10-archive.sh || {
+            echo "::error::Stage 10 candidate file changed while overlaying prerequisites"
+            exit 1
+          }
+
+      - name: Wire Stage 10 only inside disposable runner worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/scripts/v3-full-contest-rehearsal.sh')
+          text = path.read_text()
+          source_anchor = 'source "$SCRIPT_DIR/v3-s14-grand-final-publication.sh"\n'
+          if source_anchor not in text:
+              raise SystemExit('missing Grand Final publication source anchor')
+          text = text.replace(
+              source_anchor,
+              source_anchor + 'source "$SCRIPT_DIR/v3-s14-stage-10-archive.sh"\n',
+              1,
+          )
+          run_anchor = 'run_contest_extension grand-final-publication run_s14_grand_final_publication\n'
+          pos = text.find(run_anchor)
+          if pos < 0:
+              raise SystemExit('missing Grand Final publication run anchor')
+          end = pos + len(run_anchor)
+          text = text[:end] + '''\n\n# Temporary certification-only continuation. This file is never committed to #1339.\nrun_stage stage-10-archive run_s14_stage_10_archive\nlog "S14_STAGE10_EXACT_CANDIDATE_COMPLETE=$CANDIDATE_SHA"\n'''
+          path.write_text(text)
+          PY
+          bash -n .github/scripts/v3-full-contest-rehearsal.sh
+          bash -n .github/scripts/v3-s14-stage-10-archive.sh
+
+      - name: Start disposable local Supabase
+        run: supabase start
+
+      - name: Reset clean local database
+        run: supabase db reset --local --no-seed
+
+      - name: Verify production isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          [[ "$API_URL" == "$LOCAL_SUPABASE_URL" ]] || {
+            echo "::error::refusing non-loopback Supabase API: $API_URL"
+            exit 1
+          }
+          case "$DB_URL" in
+            postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;;
+            *) echo "::error::refusing non-local database"; exit 1 ;;
+          esac
+          export VITE_SUPABASE_URL="$API_URL"
+          export SUPABASE_URL="$API_URL"
+          export E2E_SUPABASE_URL="$API_URL"
+          export VITE_CONFIRMATIONS_SUPABASE_URL="$API_URL"
+          export CONFIRMATIONS_SUPABASE_URL="$API_URL"
+          export DATABASE_URL="$DB_URL"
+          export SUPABASE_PROJECT_ID=local SUPABASE_PROJECT_REF=local
+          export E2E_SUPABASE_PROJECT_ID=local E2E_SUPABASE_PROJECT_REF=local
+          export VITE_SUPABASE_PROJECT_ID=local VITE_SUPABASE_PROJECT_REF=local
+          bun run scripts/check-v3-production-isolation.ts
+
+      - name: Run persistent contest through Stage 10
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$V3_RELEASE_EVIDENCE_DIR"
+          export V3_CANDIDATE_SHA="$CANDIDATE_SHA"
+          bash .github/scripts/v3-full-contest-rehearsal.sh 2>&1 | tee "$V3_RELEASE_EVIDENCE_DIR/stage10-runtime.log"
+
+      - name: Assert Stage 10 terminal evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="$V3_RELEASE_EVIDENCE_DIR/stage10-runtime.log"
+          grep -Fq 'S14_STAGE_10_ARCHIVE_COMPLETE' "$log"
+          grep -Fq "S14_STAGE10_EXACT_CANDIDATE_COMPLETE=$CANDIDATE_SHA" "$log"
+          grep -Fq 'S14_FAILURE_SUPABASE_OUTAGE_COMPLETE' "$log"
+          grep -Fq 'S14_INVARIANT_TASKS_COMPLETE' "$log"
+          grep -Fq 'S14_INVARIANT_NOTIFICATIONS_COMPLETE' "$log"
+
+          eval "$(supabase status -o env)"
+          state="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c "select state from public.studio2_edition_runtime where edition_id='14000000-0000-4000-8000-000000000001'::uuid;")"
+          [[ "$state" == 'archived' ]] || {
+            echo "::error::Stage 10 completed without canonical archived runtime: $state"
+            exit 1
+          }
+
+      - name: Upload runtime proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage10-runtime-proof-1339-${{ env.CANDIDATE_SHA }}
+          path: v3-release-evidence/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Stop disposable local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
