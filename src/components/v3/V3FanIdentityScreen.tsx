@@ -12,18 +12,25 @@ type FanVisibility = "private" | "unlisted" | "public";
 
 export function V3FanIdentityScreen() {
   const session = useFanSession();
-  const profile = useFanProfile(session.data?.id);
-  const saveProfile = useSaveFanProfile(session.data?.id);
+  const viewerId = session.data?.id ?? null;
+  const profile = useFanProfile(viewerId ?? undefined);
+  const saveProfile = useSaveFanProfile(viewerId ?? undefined);
   const [displayName, setDisplayName] = useState("Solaris fan");
   const [visibility, setVisibility] = useState<FanVisibility>("private");
   const [leaderboardOptIn, setLeaderboardOptIn] = useState(false);
+
+  useEffect(() => {
+    setDisplayName("Solaris fan");
+    setVisibility("private");
+    setLeaderboardOptIn(false);
+  }, [viewerId]);
 
   useEffect(() => {
     if (!profile.data) return;
     setDisplayName(profile.data.display_name);
     setVisibility(profile.data.visibility);
     setLeaderboardOptIn(profile.data.leaderboard_opt_in);
-  }, [profile.data]);
+  }, [viewerId, profile.data]);
 
   if (session.isLoading || (session.data && profile.isLoading)) {
     return <p role="status" className="p-6 text-sm text-white/60">Loading your fan identity…</p>;
