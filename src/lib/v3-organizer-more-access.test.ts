@@ -108,7 +108,7 @@ describe("Organizer V3 More access projection", () => {
     expect(source).toContain('["v3-organizer-more-access", editionId ?? "unscoped"]');
     expect(source).toContain("retry: false");
     expect(source).toContain("refetchOnWindowFocus: false");
-    expect(source).toContain("access.data[item.to] === true");
+    expect(source).toContain("accessByPath[item.to] === true");
     expect(source).toContain("access.isPending");
     expect(source).toContain("access.isError");
     expect(source).toContain("Specialist access unavailable");
