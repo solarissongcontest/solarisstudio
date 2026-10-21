@@ -29,6 +29,10 @@ const archiveInvariantFixes = readFileSync(
   'supabase/migrations/20261020130000_v3_s14_archive_invariant_forward_fixes.sql',
   'utf8',
 );
+const archiveGuardAuthorityFix = readFileSync(
+  'supabase/migrations/20261021110000_v3_s14_archive_guard_authority_forward_fix.sql',
+  'utf8',
+);
 const rehearsal = readFileSync('.github/scripts/v3-s14-archive-system-rehearsal.sh', 'utf8');
 const guardRehearsal = readFileSync('.github/scripts/v3-s14-archive-guard-rehearsal.sh', 'utf8');
 const eventRehearsal = readFileSync(
@@ -51,6 +55,7 @@ const migrations = [
   notificationInvariant,
   deliveryReconciliation,
   archiveInvariantFixes,
+  archiveGuardAuthorityFix,
 ];
 
 describe('System V3 S14 archive consequence contract', () => {
@@ -70,6 +75,9 @@ describe('System V3 S14 archive consequence contract', () => {
     expect(archiveInvariantFixes).toContain(
       "'v3.s14.archive-invariant-forward-fixes'",
     );
+    expect(archiveGuardAuthorityFix).toContain(
+      "'v3.s14.archive-guard-authority-forward-fix'",
+    );
   });
 
   it('keeps one versioned edition runtime authority and fences direct Archive mutation', () => {
@@ -83,7 +91,17 @@ describe('System V3 S14 archive consequence contract', () => {
     expect(migration).toContain('private.studio2_claim_operation(');
     expect(migration).toContain('private.studio2_complete_operation(p_operation_id, v_result)');
     expect(migration).toContain('private.v3_guard_archive_runtime_transition');
-    expect(migration).toContain('solaris.v3_archive_command');
+    expect(archiveGuardAuthorityFix).toContain(
+      'private.v3_archive_runtime_transition_gates',
+    );
+    expect(archiveGuardAuthorityFix).toContain(
+      'private.v3_arm_archive_runtime_transition_gate(p_edition_id)',
+    );
+    expect(archiveGuardAuthorityFix).toContain('transaction_id = txid_current()');
+    expect(archiveGuardAuthorityFix).toContain(
+      'alter function public.studio2_transition_edition_v3(',
+    );
+    expect(archiveGuardAuthorityFix).not.toContain('current_setting(');
     expect(archiveInvariantFixes).toContain("old.state = 'archived'");
     expect(archiveInvariantFixes).toContain("Archived edition runtime is irreversible.");
     expect(migration).toContain(
@@ -129,6 +147,8 @@ describe('System V3 S14 archive consequence contract', () => {
     expect(taskAlignment).toContain("runtime.state = 'archived'");
     expect(taskAlignment).not.toMatch(/p_task_type[^\n]*(incident|integrity)/);
     expect(archiveInvariantFixes).toContain('old.resolved_at, new.resolved_at, now()');
+    expect(archiveGuardAuthorityFix).toContain('to_jsonb(new) - array');
+    expect(archiveGuardAuthorityFix).toContain('for no key update');
     expect(guardRehearsal).toContain('archive left canonical edition.blocker actionable');
     expect(resurrectionRehearsal).toContain('archived edition.blocker was resurrected');
     expect(resurrectionRehearsal).toContain('new impossible archived-edition task became actionable');

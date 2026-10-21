@@ -171,11 +171,11 @@ on conflict do nothing;
 insert into public.studio2_incidents(
  id,edition_id,title,severity,status,created_by,updated_by
 ) values (
- '$INCIDENT_ID','$EDITION_A','Archive must preserve governance work','sev2','open',
+ '$INCIDENT_ID','$EDITION_A','Archive must preserve governance work','sev2','detected',
  '$AUTHORIZED_ID'::uuid,'$AUTHORIZED_ID'::uuid
 )
 on conflict (id) do update
-set status='open',resolved_at=null,updated_at=now();
+set status='detected',resolved_at=null,updated_at=now();
 
 select private.studio2_reconcile_all_organizer_tasks('$EDITION_A'::uuid);
 
@@ -226,6 +226,11 @@ expect_service_failure "direct runtime archive mutation" "Archive transition mus
   "update public.studio2_edition_runtime set state='archived' where edition_id='$EDITION_B'::uuid;"
 [[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_B'::uuid;")" == 'results' ]] || fail "direct SQL bypassed archive guard"
 
+log "Caller-controlled settings cannot forge canonical Archive authority"
+expect_service_failure "caller-controlled archive guard setting" "Archive transition must use the canonical V3 lifecycle command" \
+  "begin; select set_config('solaris.v3_archive_command','allowed',true); update public.studio2_edition_runtime set state='archived' where edition_id='$EDITION_B'::uuid; commit;"
+[[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_B'::uuid;")" == 'results' ]] || fail "caller-controlled setting bypassed archive guard"
+
 log "Canonical archive resolves Edition blocker while governance work remains actionable"
 ARCHIVE_JSON="$(as_user "$AUTHORIZED_ID" "select public.studio2_transition_edition_v3('$EDITION_A'::uuid,'archived',null,null,3,'$ARCHIVE_OPERATION'::uuid,'s14-guard-canonical-archive');")"
 [[ "$(printf '%s' "$ARCHIVE_JSON" | json_value state)" == 'archived' ]] || fail "canonical archive did not reach archived"
@@ -234,11 +239,19 @@ as_service "select private.studio2_reconcile_all_organizer_tasks('$EDITION_A'::u
 [[ "$(db_value "select count(*) from public.admin_notifications where recipient_id='$AUTHORIZED_ID'::uuid and source_key='v3-s14-archive-guard:edition-blocker' and resolution_mode='domain' and not requires_action and resolved_at is not null;")" == '1' ]] || fail "archive left edition.blocker Inbox projection actionable"
 [[ "$(db_value "select count(*) from public.notification_deliveries where subject_id='$BLOCKER_ID' and category='organizer_tasks' and status in ('pending','processing');")" == '0' ]] || fail "archive left edition.blocker push delivery claimable"
 [[ "$(db_value "select state from public.studio2_organizer_tasks where source_kind='incident' and source_id='$INCIDENT_ID';")" == 'open' ]] || fail "archive incorrectly resolved legitimate incident governance work"
-[[ "$(db_value "select count(*) from public.studio2_incidents where id='$INCIDENT_ID'::uuid and status='open';")" == '1' ]] || fail "archive mutated incident history/state"
+[[ "$(db_value "select count(*) from public.studio2_incidents where id='$INCIDENT_ID'::uuid and status='detected';")" == '1' ]] || fail "archive mutated incident history/state"
 
 log "Archived runtime cannot be directly moved back into active lifecycle state"
 expect_service_failure "direct archived runtime reversal" "Archived edition runtime is irreversible" \
   "update public.studio2_edition_runtime set state='post_edition' where edition_id='$EDITION_A'::uuid;"
 [[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_A'::uuid;")" == 'archived' ]] || fail "direct SQL reversed an archived runtime"
+
+expect_service_failure "archived runtime metadata rewrite" "Archived edition runtime is read-only" \
+  "update public.studio2_edition_runtime set updated_by='$UNAUTHORIZED_ID'::uuid where edition_id='$EDITION_A'::uuid;"
+
+ARCHIVED_TASK_RESOLVED_AT="$(db_value "select resolved_at::text from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")"
+expect_service_failure "archived task history rewrite" "Archived edition workflow task history is read-only" \
+  "update public.studio2_organizer_tasks set resolved_at=null where id='$BLOCKER_ID'::uuid;"
+[[ "$(db_value "select resolved_at::text from public.studio2_organizer_tasks where id='$BLOCKER_ID'::uuid;")" == "$ARCHIVED_TASK_RESOLVED_AT" ]] || fail "archive task guard rewrote retained resolution timestamp"
 
 log "S14 archive negative-path rehearsal passed"

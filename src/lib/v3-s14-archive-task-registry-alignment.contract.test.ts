@@ -16,6 +16,13 @@ const archiveInvariantFixes = readFileSync(
   ),
   "utf8",
 );
+const archiveGuardAuthorityFix = readFileSync(
+  resolve(
+    process.cwd(),
+    "supabase/migrations/20261021110000_v3_s14_archive_guard_authority_forward_fix.sql",
+  ),
+  "utf8",
+);
 const guardRehearsal = readFileSync(
   resolve(process.cwd(), ".github/scripts/v3-s14-archive-guard-rehearsal.sh"),
   "utf8",
@@ -71,6 +78,12 @@ describe("System V3 S14 archived Edition task vocabulary", () => {
     expect(archiveInvariantFixes).toContain(
       "before insert or update or delete on public.studio2_organizer_tasks",
     );
+    expect(archiveGuardAuthorityFix).toContain("if v_old_archived then");
+    expect(archiveGuardAuthorityFix).toContain("old.state = 'resolved'");
+    expect(archiveGuardAuthorityFix).toContain(
+      "to_jsonb(new) - array['updated_at', 'last_evaluated_at']",
+    );
+    expect(archiveGuardAuthorityFix).toContain("old.resolved_at, new.resolved_at, now()");
   });
 
   it("rehearses canonical blocker resolution without sacrificing incident work", () => {
@@ -97,5 +110,6 @@ describe("System V3 S14 archived Edition task vocabulary", () => {
     expect(resurrectionRehearsal).not.toMatch(/supabase\.co/i);
     expect(guardRehearsal).toContain("direct archived runtime reversal");
     expect(guardRehearsal).toContain("direct SQL reversed an archived runtime");
+    expect(guardRehearsal).toContain("archived task history rewrite");
   });
 });

@@ -9,6 +9,10 @@ const archiveRuntimeUpdateGuard = readFileSync(
   'supabase/migrations/20261020140000_v3_s14_archive_runtime_update_guard.sql',
   'utf8',
 );
+const archiveGuardAuthorityFix = readFileSync(
+  'supabase/migrations/20261021110000_v3_s14_archive_guard_authority_forward_fix.sql',
+  'utf8',
+);
 const controlRoom = readFileSync('src/lib/studio2-control-room.ts', 'utf8');
 const workflow = readFileSync('.github/workflows/v3-s14-archive-system-rehearsal.yml', 'utf8');
 const deleteGuard = readFileSync(
@@ -71,6 +75,28 @@ describe('System V3 S14 Archive review-fix contract', () => {
     expect(archiveRuntimeUpdateGuard).toContain(
       'private.v3_guard_archive_runtime_transition()',
     );
+    expect(archiveGuardAuthorityFix).toContain(
+      'before insert or update or delete on public.studio2_edition_runtime',
+    );
+    expect(archiveGuardAuthorityFix).toContain(
+      "if tg_op = 'UPDATE' and old.state = 'archived' then",
+    );
+    expect(archiveGuardAuthorityFix).toContain('Archived edition runtime is read-only.');
+    expect(archiveGuardAuthorityFix).toContain(
+      'private.v3_archive_runtime_transition_gates',
+    );
+    expect(archiveGuardAuthorityFix).not.toContain('current_setting(');
+  });
+
+  it('proves a caller-controlled setting cannot forge Archive authority or rewrite retained history', () => {
+    const guardRehearsal = readFileSync(
+      '.github/scripts/v3-s14-archive-guard-rehearsal.sh',
+      'utf8',
+    );
+    expect(guardRehearsal).toContain('caller-controlled archive guard setting');
+    expect(guardRehearsal).toContain("set_config('solaris.v3_archive_command','allowed',true)");
+    expect(guardRehearsal).toContain('archived runtime metadata rewrite');
+    expect(guardRehearsal).toContain('archived task history rewrite');
   });
 
   it('freezes the reviewed runtime version before any awaited feature-gate work', () => {
