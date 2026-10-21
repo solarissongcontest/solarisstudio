@@ -75,6 +75,7 @@ export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
   const rollout = editionSlug ? editionProbe : currentProbe;
   const serverPreferences = useNotificationPreferences(rollout.data?.userId ?? undefined);
   const selectedMode = publishedMode(nomination.mode, bundle.data?.input);
+  const activeShowId = bundle.data?.input.showId || null;
 
   const countries = useMemo(
     () => new Map((bundle.data?.countries ?? []).map((country) => [country.id, country])),
@@ -112,6 +113,16 @@ export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
     nomination.showId,
     selectedMode,
   ]);
+
+  // A deliberate reveal survives a refetch/canonical URL transition only while
+  // the server continues to resolve the same result show. Once canonical result
+  // context changes, discard that disclosure memory instead of carrying it into
+  // later back/forward navigation.
+  useEffect(() => {
+    if (revealedShowId && activeShowId && revealedShowId !== activeShowId) {
+      setRevealedShowId(null);
+    }
+  }, [activeShowId, revealedShowId]);
 
   if (bundle.isLoading || (bundle.isSuccess && rollout.isLoading)) {
     return (
@@ -153,7 +164,6 @@ export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
     countryAccount.data?.access.userId === rollout.data.userId
       ? countryAccount.data.access.countryId
       : null;
-  const activeShowId = bundle.data.input.showId || null;
   const resultRevealed = Boolean(activeShowId && revealedShowId === activeShowId);
 
   const changeResult = (showId: string) => {
