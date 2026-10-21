@@ -35,6 +35,10 @@ import {
 } from "@/components/admin/AdminUI";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  ensureGlobalContestEntity,
+  executeCustomContestEntityOperation,
+} from "@/lib/admin-lineup-metadata.functions";
+import {
   executeShowLineupMembershipOperation,
   executeShowLineupOperation,
   type ShowLineupMembershipAction,
@@ -57,6 +61,7 @@ import { reportSupabaseError } from "@/lib/errors";
 type LineupStage = "lineup" | "allocation" | "running_order";
 type Allocation = "first_half" | "second_half" | "producer_choice";
 type LineupCommandAction = ShowLineupOperationAction | ShowLineupMembershipAction;
+type ContestIdentityAction = "global.ensure" | "custom.create" | "custom.update" | "custom.delete";
 
 type LifecycleShow = Show & { lineup_stage?: LineupStage | null };
 type LifecycleParticipant = Participant & {
@@ -99,6 +104,8 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
   const qc = useQueryClient();
   const executeLineup = useServerFn(executeShowLineupOperation);
   const executeMembership = useServerFn(executeShowLineupMembershipOperation);
+  const ensureGlobalIdentity = useServerFn(ensureGlobalContestEntity);
+  const executeCustomIdentity = useServerFn(executeCustomContestEntityOperation);
   const operationIdsRef = useRef(new Map<string, string>());
   const { data: edition, isLoading: loadingEdition } = useEdition(slug);
   const { data: shows = [], isLoading: loadingShows } = useShows(edition?.id);
@@ -118,6 +125,8 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
   const [customDraft, setCustomDraft] = useState<CustomDraft | null>(null);
   const [removeTarget, setRemoveTarget] = useState<Participant | null>(null);
   const [deleteCustomTarget, setDeleteCustomTarget] = useState<ContestEntityRow | null>(null);
+  const [deleteCustomReason, setDeleteCustomReason] = useState("");
+  const [deleteCustomConfirmation, setDeleteCustomConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
   const [allocationDraft, setAllocationDraft] = useState<Record<string, Allocation | "">>({});
   const [allocationDirty, setAllocationDirty] = useState(false);
@@ -227,6 +236,56 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
 
   function discardOperation(action: LineupCommandAction, subjectId?: string) {
     operationIdsRef.current.delete(operationKey(action, subjectId));
+  }
+
+  function identityOperationKey(action: ContestIdentityAction, semanticKey: string) {
+    return `${edition?.id ?? "no-edition"}:contest-identity:${action}:${semanticKey}`;
+  }
+
+  async function runGlobalIdentity(countryId: string) {
+    if (!edition) throw new Error("Choose an edition first.");
+    const key = identityOperationKey("global.ensure", countryId);
+    const operationId = operationIdsRef.current.get(key) ?? crypto.randomUUID();
+    operationIdsRef.current.set(key, operationId);
+    const commandResult = await ensureGlobalIdentity({
+      data: {
+        editionId: edition.id,
+        countryId,
+        operationId,
+        idempotencyKey: `contest-entity:global:ensure:${operationId}`,
+      },
+    });
+    return { commandResult, operationKey: key };
+  }
+
+  async function runCustomIdentity(
+    action: "create" | "update" | "delete",
+    entityId: string | undefined,
+    payload: Record<string, unknown>,
+    reason?: string,
+  ) {
+    if (!edition) throw new Error("Choose an edition first.");
+    const semanticKey = JSON.stringify({
+      entityId: entityId ?? null,
+      payload,
+      reason: reason?.trim() || null,
+    });
+    const actionKey = `custom.${action}` as ContestIdentityAction;
+    const key = identityOperationKey(actionKey, semanticKey);
+    const operationId = operationIdsRef.current.get(key) ?? crypto.randomUUID();
+    operationIdsRef.current.set(key, operationId);
+    const commandResult = await executeCustomIdentity({
+      data: {
+        editionId: edition.id,
+        entityId,
+        action,
+        payload,
+        reason,
+        operationId,
+        idempotencyKey: `contest-entity:custom:${action}:${operationId}`,
+      },
+    });
+    return { commandResult, operationKey: key };
   }
 
   async function runGovernedLineup(
@@ -357,25 +416,39 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
 
   async function ensureGlobalEntity(countryId: string) {
     if (!edition) return null;
+    const operationKey = identityOperationKey("global.ensure", countryId);
     const existing = entities.find((entity) => entity.country_id === countryId);
-    if (existing) return existing;
+    if (existing) {
+      operationIdsRef.current.delete(operationKey);
+      return { entity: existing, operationKey: null };
+    }
     const country = countries.find((item) => item.id === countryId);
-    const { data, error } = await supabase
-      .from("contest_entities")
-      .insert({
-        edition_id: edition.id,
-        entity_type: "global",
-        country_id: countryId,
-        display_name: country?.name ?? "Country",
-        abbreviation: country?.short_code ?? "???",
-        flag_image: country?.flag_image ?? null,
-        region: country?.region ?? null,
-      })
-      .select()
-      .maybeSingle();
-    if (error || !data) throw error ?? new Error("Country identity could not be created.");
+    const { commandResult, operationKey: pendingOperationKey } = await runGlobalIdentity(countryId);
+    const result = commandResult.result;
+    const contestEntityId = typeof result.contestEntityId === "string" ? result.contestEntityId : "";
+    if (!contestEntityId) throw new Error("Canonical country identity receipt did not include an entity id.");
+    const entity: ContestEntityRow = {
+      id: contestEntityId,
+      edition_id: edition.id,
+      entity_type: "global",
+      country_id: countryId,
+      display_name: typeof result.displayName === "string" ? result.displayName : country?.name ?? "Country",
+      abbreviation: typeof result.abbreviation === "string" ? result.abbreviation : country?.short_code ?? "???",
+      flag_image:
+        typeof result.flagImage === "string"
+          ? result.flagImage
+          : result.flagImage === null
+            ? null
+            : country?.flag_image ?? null,
+      region:
+        typeof result.region === "string"
+          ? result.region
+          : result.region === null
+            ? null
+            : country?.region ?? null,
+    };
     await qc.invalidateQueries({ queryKey: ["contest_entities"] });
-    return data as ContestEntityRow;
+    return { entity, operationKey: pendingOperationKey };
   }
 
   async function addEntityToShow(entity: ContestEntityRow) {
@@ -398,9 +471,10 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
   async function addCountry(countryId: string) {
     setBusy(true);
     try {
-      const entity = await ensureGlobalEntity(countryId);
-      if (!entity) return;
-      await addEntityToShow(entity);
+      const resolved = await ensureGlobalEntity(countryId);
+      if (!resolved) return;
+      await addEntityToShow(resolved.entity);
+      if (resolved.operationKey) operationIdsRef.current.delete(resolved.operationKey);
       setCountryPick(null);
       setAddOpen(false);
     } catch (caught) {
@@ -424,37 +498,56 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
 
   async function saveCustom() {
     if (!edition || !customDraft?.display_name.trim() || !customDraft.abbreviation.trim()) return;
+    const payload = {
+      displayName: customDraft.display_name.trim(),
+      abbreviation: customDraft.abbreviation.trim(),
+      flagImage: customDraft.flag_image.trim() || null,
+      region: customDraft.region.trim() || null,
+    };
     setBusy(true);
     try {
       if (customDraft.id) {
-        const { error } = await (supabase.from("contest_entities") as any)
-          .update({
-            display_name: customDraft.display_name.trim(),
-            abbreviation: customDraft.abbreviation.trim(),
-            flag_image: customDraft.flag_image.trim() || null,
-            region: customDraft.region.trim() || null,
-          })
-          .eq("id", customDraft.id);
-        if (error) throw error;
-        toast.success("Custom country updated");
+        const { commandResult, operationKey } = await runCustomIdentity(
+          "update",
+          customDraft.id,
+          payload,
+        );
+        await refresh();
+        operationIdsRef.current.delete(operationKey);
+        toast.success(`Custom country updated${commandResult.replayed ? " · reconciled" : ""}`);
       } else {
-        const { data, error } = await supabase
-          .from("contest_entities")
-          .insert({
-            edition_id: edition.id,
-            entity_type: "custom",
-            country_id: null,
-            display_name: customDraft.display_name.trim(),
-            abbreviation: customDraft.abbreviation.trim(),
-            flag_image: customDraft.flag_image.trim() || null,
-            region: customDraft.region.trim() || null,
-          })
-          .select()
-          .maybeSingle();
-        if (error || !data) throw error ?? new Error("Custom country could not be created.");
+        const { commandResult, operationKey } = await runCustomIdentity(
+          "create",
+          undefined,
+          payload,
+        );
+        const result = commandResult.result;
+        const contestEntityId = typeof result.contestEntityId === "string" ? result.contestEntityId : "";
+        if (!contestEntityId) throw new Error("Canonical custom identity receipt did not include an entity id.");
+        const entity: ContestEntityRow = {
+          id: contestEntityId,
+          edition_id: edition.id,
+          entity_type: "custom",
+          country_id: null,
+          display_name: typeof result.displayName === "string" ? result.displayName : payload.displayName,
+          abbreviation: typeof result.abbreviation === "string" ? result.abbreviation : payload.abbreviation,
+          flag_image:
+            typeof result.flagImage === "string"
+              ? result.flagImage
+              : result.flagImage === null
+                ? null
+                : payload.flagImage,
+          region:
+            typeof result.region === "string"
+              ? result.region
+              : result.region === null
+                ? null
+                : payload.region,
+        };
         await qc.invalidateQueries({ queryKey: ["contest_entities"] });
-        await addEntityToShow(data as ContestEntityRow);
-        toast.success(`${customDraft.display_name.trim()} created`);
+        await addEntityToShow(entity);
+        operationIdsRef.current.delete(operationKey);
+        toast.success(`${payload.displayName} created${commandResult.replayed ? " · reconciled" : ""}`);
       }
       setCustomDraft(null);
       setAddOpen(false);
@@ -466,17 +559,33 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
     }
   }
 
+  function closeDeleteCustom() {
+    if (busy) return;
+    setDeleteCustomTarget(null);
+    setDeleteCustomReason("");
+    setDeleteCustomConfirmation("");
+  }
+
   async function deleteCustom() {
     if (!deleteCustomTarget) return;
+    const reason = deleteCustomReason.trim();
+    if (!reason || deleteCustomConfirmation !== deleteCustomTarget.display_name) return;
     setBusy(true);
     try {
-      const { error } = await supabase.from("contest_entities").delete().eq("id", deleteCustomTarget.id);
-      if (error) throw error;
-      toast.success(`${deleteCustomTarget.display_name} deleted`);
-      setDeleteCustomTarget(null);
+      const { commandResult, operationKey } = await runCustomIdentity(
+        "delete",
+        deleteCustomTarget.id,
+        {},
+        reason,
+      );
       await refresh();
+      operationIdsRef.current.delete(operationKey);
+      toast.success(`${deleteCustomTarget.display_name} deleted${commandResult.replayed ? " · reconciled" : ""}`);
+      setDeleteCustomTarget(null);
+      setDeleteCustomReason("");
+      setDeleteCustomConfirmation("");
     } catch (caught) {
-      toast.error(reportSupabaseError(caught, "That custom country is still used by a line-up, votes or results. Remove those first."));
+      toast.error(reportSupabaseError(caught, "That custom country could not be deleted. Solaris rechecks references and recent authentication at commit time."));
     } finally {
       setBusy(false);
     }
@@ -868,7 +977,7 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
           <label className="block"><span className="admin-section-label">Flag URL</span><input value={customDraft.flag_image} onChange={(event) => setCustomDraft((current) => current ? { ...current, flag_image: event.target.value } : current)} placeholder="https://…" className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label>
           <label className="block"><span className="admin-section-label">Region</span><input value={customDraft.region} onChange={(event) => setCustomDraft((current) => current ? { ...current, region: event.target.value } : current)} placeholder="Region" className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-sky-200/30" /></label>
           <button type="button" disabled={busy || !customDraft.display_name.trim() || !customDraft.abbreviation.trim()} onClick={() => void saveCustom()} className="admin-action-primary w-full">{busy ? "Saving…" : customDraft.id ? "Save custom country" : "Create & add to show"}</button>
-          {customDraft.id ? <button type="button" disabled={busy} onClick={() => { const target = entities.find((entity) => entity.id === customDraft.id); if (target) { setCustomDraft(null); setDeleteCustomTarget(target); } }} className="admin-action-danger w-full"><Trash2 className="size-4" /> Delete custom country</button> : null}
+          {customDraft.id ? <button type="button" disabled={busy} onClick={() => { const target = entities.find((entity) => entity.id === customDraft.id); if (target) { setCustomDraft(null); setDeleteCustomTarget(target); setDeleteCustomReason(""); setDeleteCustomConfirmation(""); } }} className="admin-action-danger w-full"><Trash2 className="size-4" /> Delete custom country</button> : null}
         </div> : null}
       </AdminSheet>
 
@@ -883,18 +992,51 @@ export function ShowLineupWorkspace({ slug, initialShow }: { slug: string; initi
         danger
       />
 
-      <AdminConfirmSheet
+      <AdminSheet
         open={!!deleteCustomTarget}
-        onClose={() => !busy && setDeleteCustomTarget(null)}
-        onConfirm={deleteCustom}
+        onClose={closeDeleteCustom}
         title={`Delete ${deleteCustomTarget?.display_name ?? "custom country"}?`}
-        description={<>This permanently removes the edition-only identity. Solaris will block deletion if it is still used by a line-up, votes or results.</>}
-        confirmLabel="Delete custom country"
-        confirmationText={deleteCustomTarget?.display_name}
-        confirmationHint={deleteCustomTarget ? `Type ${deleteCustomTarget.display_name} to confirm` : undefined}
-        busy={busy}
-        danger
-      />
+        description="High-risk identity deletion. Solaris rechecks current dependencies, permissions and recent authentication when you commit."
+      >
+        {deleteCustomTarget ? (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-rose-200/15 bg-rose-200/[0.045] p-3 text-xs leading-relaxed text-rose-50/90">
+              This permanently removes the edition-only identity only if no canonical line-up, voting, result or other database reference remains. The server will refuse deletion instead of cascading historical data.
+            </div>
+            <label className="block">
+              <span className="admin-section-label">Reason</span>
+              <textarea
+                value={deleteCustomReason}
+                onChange={(event) => setDeleteCustomReason(event.target.value)}
+                placeholder="Why should this edition-only identity be permanently removed?"
+                rows={3}
+                className="mt-2 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 py-2 text-sm outline-none focus:border-sky-200/30"
+              />
+            </label>
+            <label className="block">
+              <span className="admin-section-label">Type {deleteCustomTarget.display_name} to confirm</span>
+              <input
+                value={deleteCustomConfirmation}
+                onChange={(event) => setDeleteCustomConfirmation(event.target.value)}
+                className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm outline-none focus:border-rose-200/30"
+              />
+            </label>
+            <button
+              type="button"
+              className="admin-action-danger w-full"
+              disabled={
+                busy ||
+                !deleteCustomReason.trim() ||
+                deleteCustomConfirmation !== deleteCustomTarget.display_name
+              }
+              onClick={() => void deleteCustom()}
+            >
+              <Trash2 className="size-4" />
+              {busy ? "Deleting…" : "Delete custom country"}
+            </button>
+          </div>
+        ) : null}
+      </AdminSheet>
     </AdminPage>
   );
 }
