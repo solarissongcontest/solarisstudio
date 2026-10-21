@@ -29,15 +29,15 @@ type TrimRuntimeCache = (cache: RuntimeCache) => Promise<void>;
 
 function loadTrimRuntimeCache(): TrimRuntimeCache {
   const source = swSource();
-  const start = source.indexOf("const MAX_RUNTIME_CACHE_ENTRIES");
-  const end = source.indexOf("\n\nfunction staleWhileRevalidate", start);
+  const start = source.indexOf("async function trimRuntimeCache");
+  const end = source.indexOf("\n\nfunction firstUsableValue", start);
 
   expect(start).toBeGreaterThanOrEqual(0);
   expect(end).toBeGreaterThan(start);
 
   const functionSource = source.slice(start, end);
   const factory = new Function(
-    `${functionSource}; return trimRuntimeCache;`,
+    `const MAX_RUNTIME_CACHE_ENTRIES = 96; ${functionSource}; return trimRuntimeCache;`,
   ) as () => TrimRuntimeCache;
 
   return factory();
@@ -53,18 +53,20 @@ function loadStaleWhileRevalidate({
   responseError: () => CacheResponse;
 }): StaleWhileRevalidate {
   const source = swSource();
-  const start = source.indexOf("const MAX_RUNTIME_CACHE_ENTRIES");
+  const start = source.indexOf("async function trimRuntimeCache");
   const end = source.indexOf('\n\nself.addEventListener("fetch"', start);
 
   expect(start).toBeGreaterThanOrEqual(0);
   expect(end).toBeGreaterThan(start);
 
+  // Keep this VM harness tied to the real production helpers without executing
+  // unrelated service-worker top-level setup (PRECACHE/install/activate).
   const functionSource = source.slice(start, end);
   const factory = new Function(
     "caches",
     "fetch",
     "Response",
-    `const STATIC_CACHE = "static"; const RUNTIME_CACHE = "runtime"; ${functionSource}; return staleWhileRevalidate;`,
+    `const STATIC_CACHE = "static"; const RUNTIME_CACHE = "runtime"; const MAX_RUNTIME_CACHE_ENTRIES = 96; ${functionSource}; return staleWhileRevalidate;`,
   ) as (
     caches: CacheStorageLike,
     fetch: (request: CacheRequest) => Promise<CacheResponse>,
