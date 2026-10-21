@@ -85,10 +85,15 @@ export function V3AccountSettingsRouteShell({
   // Keep the legacy account route untouched outside V3, while allowing the
   // installed-app cutover to provide its dedicated account/settings content.
   // Account still needs the MySolaris context that the legacy workspace shell
-  // normally supplies; Settings does not consume that context.
+  // normally supplies; Settings does not consume that context. The provider is
+  // keyed to authenticated identity so in-process A -> B account switches
+  // cannot retain A's password challenge, reviewed session target, privacy
+  // draft, or any other account-scoped local state inside B's subtree.
   const v3Content = v3Children ?? children;
   const routeContent =
-    section === "account" ? <MySolarisProvider>{v3Content}</MySolarisProvider> : v3Content;
+    section === "account" ? (
+      <MySolarisProvider key={session.data?.id ?? "signed-out"}>{v3Content}</MySolarisProvider>
+    ) : v3Content;
 
   return (
     <V3AppShell
