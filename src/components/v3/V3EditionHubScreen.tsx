@@ -9,6 +9,7 @@ import {
   Trophy,
 } from "lucide-react";
 
+import { EventTime } from "@/components/public/EventTime";
 import type {
   V3EditionEntry,
   V3EditionPageProjection,
@@ -217,6 +218,28 @@ export function V3EditionHubScreen({ projection }: V3EditionHubScreenProps) {
             icon={Radio}
             tone="neutral"
             to={projection.hub.liveAction.href}
+          />
+        </V3Section>
+      ) : null}
+
+      {projection.hub.hero.nextEvent ? (
+        <V3Section
+          title="Coming up"
+          meta={<V3StatusChip tone="progress">Next public show</V3StatusChip>}
+        >
+          <V3ActionCard
+            title={projection.hub.hero.nextEvent.title}
+            description="Next scheduled public show"
+            icon={CalendarDays}
+            tone="neutral"
+            to={projection.hub.hero.nextEvent.href}
+            meta={
+              projection.hub.hero.nextEvent.startsAt ? (
+                <EventTime value={projection.hub.hero.nextEvent.startsAt} label="Starts" />
+              ) : (
+                "Time to be announced"
+              )
+            }
           />
         </V3Section>
       ) : null}

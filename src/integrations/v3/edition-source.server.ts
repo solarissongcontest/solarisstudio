@@ -20,6 +20,7 @@ import {
   type V3EditionResult,
   type V3EditionStory,
 } from "@/lib/v3-edition";
+import { resolveV3ExploreNextPublicEvent } from "@/lib/v3-explore-next-event";
 import type {
   V3EditionExperience,
   V3ExploreEditionInput,
@@ -366,6 +367,8 @@ export async function loadV3EditionBundle(input: {
   const story = parsePublicStory(storyResult.data);
   const experience = editionExperience(edition, shows, resultRows);
   const resultsPublished = Boolean(resultShow);
+  const generatedAt = new Date().toISOString();
+  const nextEvent = resolveV3ExploreNextPublicEvent(shows, generatedAt);
 
   const editionInput: V3ExploreEditionInput = {
     id: edition.id,
@@ -380,7 +383,7 @@ export async function loadV3EditionBundle(input: {
     resultsPublication: resultsPublished ? "published" : "hidden",
     href: `/editions/${edition.slug}`,
     liveHref: experience.experience === "live" ? "/show-mode" : null,
-    nextEvent: null,
+    nextEvent,
     archiveEligible:
       experience.experience === "post-edition" || experience.experience === "archived",
   };
@@ -417,6 +420,6 @@ export async function loadV3EditionBundle(input: {
       editionLabel: shellEditionLabel(edition),
       phaseLabel: experience.phaseLabel,
     },
-    generatedAt: new Date().toISOString(),
+    generatedAt,
   };
 }

@@ -90,6 +90,29 @@ describe("V3 Edition page projection", () => {
     );
   });
 
+  it("keeps next-event chronology only in active pre-outcome lifecycle states", () => {
+    const nextEvent = {
+      id: "final",
+      title: "Grand Final",
+      startsAt: "2026-12-12T20:00:00+02:00",
+      href: "/shows/final",
+    };
+
+    const active = buildV3EditionPageProjection(
+      input({ edition: edition({ experience: "pre-show", nextEvent }) }),
+    );
+    const completed = buildV3EditionPageProjection(
+      input({ edition: edition({ experience: "post-edition", nextEvent }) }),
+    );
+    const archived = buildV3EditionPageProjection(
+      input({ edition: edition({ experience: "archived", nextEvent }) }),
+    );
+
+    expect(active?.hub.hero.nextEvent).toEqual(nextEvent);
+    expect(completed?.hub.hero.nextEvent).toBeNull();
+    expect(archived?.hub.hero.nextEvent).toBeNull();
+  });
+
   it("keeps Results locked even if stray result rows are supplied before publication", () => {
     const projection = buildV3EditionPageProjection(
       input({
