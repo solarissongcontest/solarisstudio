@@ -1,6 +1,8 @@
-const CACHE_VERSION = "solaris-app-v15";
+const CACHE_VERSION = "solaris-app-v16";
 const STATIC_CACHE = `${CACHE_VERSION}:static`;
+const RUNTIME_CACHE = `${CACHE_VERSION}:runtime`;
 const OFFLINE_URL = "/offline.html";
+const MAX_RUNTIME_CACHE_ENTRIES = 96;
 
 const PRECACHE = [
   OFFLINE_URL,
@@ -17,13 +19,17 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
+  const currentCaches = new Set([STATIC_CACHE, RUNTIME_CACHE]);
   event.waitUntil(
     caches
       .keys()
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key.startsWith("solaris-app-") && key !== STATIC_CACHE)
+            .filter(
+              (key) =>
+                key.startsWith("solaris-app-") && !currentCaches.has(key),
+            )
             .map((key) => caches.delete(key)),
         ),
       )
@@ -58,19 +64,91 @@ async function networkNavigation(request) {
   }
 }
 
-async function staleWhileRevalidate(request) {
-  const cache = await caches.open(STATIC_CACHE);
-  const cached = await cache.match(request);
-  const network = fetch(request)
-    .then((response) => {
-      if (response.ok && response.type === "basic") {
-        cache.put(request, response.clone());
-      }
-      return response;
-    })
-    .catch(() => null);
+async function trimRuntimeCache(cache) {
+  const keys = await cache.keys();
+  const overflow = keys.length - MAX_RUNTIME_CACHE_ENTRIES;
+  if (overflow <= 0) return;
 
-  return cached || (await network) || Response.error();
+  await Promise.all(
+    keys.slice(0, overflow).map((request) => cache.delete(request)),
+  );
+}
+
+function firstUsableValue(promises, fallback) {
+  return new Promise((resolve) => {
+    let unresolvedSources = promises.length;
+    let settled = false;
+
+    const settle = (value) => {
+      if (settled) return;
+      if (value) {
+        settled = true;
+        resolve(value);
+        return;
+      }
+
+      unresolvedSources -= 1;
+      if (unresolvedSources === 0) {
+        settled = true;
+        resolve(fallback());
+      }
+    };
+
+    for (const promise of promises) {
+      promise.then(settle, () => settle(null));
+    }
+  });
+}
+
+function staleWhileRevalidate(request) {
+  // Cache Storage is an acceleration/offline layer, not part of network
+  // correctness. Browsers may reject cache access or writes under storage
+  // pressure; a successful fetch must still remain a successful response.
+  const runtimeCachePromise = caches.open(RUNTIME_CACHE).catch(() => null);
+  const runtimeCachedPromise = runtimeCachePromise
+    .then((cache) => (cache ? cache.match(request) : null))
+    .catch(() => null);
+  const staticCachedPromise = caches
+    .open(STATIC_CACHE)
+    .then((cache) => cache.match(request))
+    .catch(() => null);
+  const cachedPromise = firstUsableValue(
+    [runtimeCachedPromise, staticCachedPromise],
+    () => null,
+  );
+
+  const networkResponsePromise = (async () => {
+    try {
+      return await fetch(request);
+    } catch {
+      return null;
+    }
+  })();
+
+  // Cache maintenance is deliberately detached from the response path and kept
+  // alive by FetchEvent.waitUntil(). Slow quota/storage work cannot delay a
+  // successful network asset from reaching the page.
+  const revalidation = networkResponsePromise.then(async (response) => {
+    if (!response || !response.ok || response.type !== "basic") return;
+
+    try {
+      const cache = await runtimeCachePromise;
+      if (!cache) return;
+      await cache.put(request, response.clone());
+      await trimRuntimeCache(cache);
+    } catch {
+      // Cache quota/storage failures must never discard a valid network
+      // response. The asset simply remains network-backed for this request.
+    }
+  });
+
+  return {
+    response: firstUsableValue(
+      [cachedPromise, networkResponsePromise],
+      () => Response.error(),
+    ),
+    revalidation,
+  };
 }
 
 self.addEventListener("fetch", (event) => {
@@ -85,7 +163,9 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (isCacheableStaticAsset(url)) {
-    event.respondWith(staleWhileRevalidate(request));
+    const { response, revalidation } = staleWhileRevalidate(request);
+    event.respondWith(response);
+    event.waitUntil(revalidation);
   }
 });
 
@@ -184,7 +264,8 @@ self.addEventListener("push", (event) => {
     payload = { body: event.data?.text?.() ?? "" };
   }
 
-  const title = typeof payload.title === "string" ? payload.title : "Solaris Studio";
+  const title =
+    typeof payload.title === "string" ? payload.title : "Solaris Studio";
   const route = normalizePushRoute(payload.route);
   const options = {
     body: typeof payload.body === "string" ? payload.body : "",
@@ -205,11 +286,61 @@ self.addEventListener("push", (event) => {
 
   // Display is the critical path; receipt networking cannot delay it.
   const display = self.registration.showNotification(title, options);
-  event.waitUntil(Promise.all([
-    display.then(() => reportPushReceipt(options.data, "displayed")),
-    reportPushReceipt(options.data, "received"),
-  ]));
+  event.waitUntil(
+    Promise.all([
+      display.then(() => reportPushReceipt(options.data, "displayed")),
+      reportPushReceipt(options.data, "received"),
+    ]),
+  );
 });
+
+async function openOrFocusPushTarget(target) {
+  const clients = await self.clients.matchAll({
+    type: "window",
+    includeUncontrolled: true,
+  });
+
+  for (const client of clients) {
+    if (typeof client.navigate !== "function") continue;
+
+    try {
+      // Keep the deep-link transition inside notificationclick's waitUntil()
+      // lifetime. Fire-and-forget navigate() can otherwise be terminated after
+      // focus resolves while the route transition is still pending.
+      const navigated = await client.navigate(target);
+      if (navigated && typeof navigated.focus === "function") {
+        try {
+          return await navigated.focus();
+        } catch {
+          // Navigation already succeeded. Do not open a duplicate window just
+          // because foreground focus was denied by the platform.
+          return navigated;
+        }
+      }
+    } catch {
+      // A stale or uncontrolled client may reject navigation. Try another
+      // existing client before falling back to a fresh same-origin window.
+    }
+  }
+
+  if (typeof self.clients.openWindow !== "function") return undefined;
+
+  try {
+    const opened = await self.clients.openWindow(target);
+    if (opened && typeof opened.focus === "function") {
+      try {
+        return await opened.focus();
+      } catch {
+        return opened;
+      }
+    }
+    return opened;
+  } catch {
+    // Platform activation policy may reject openWindow(). Receipt reporting is
+    // independent, and notificationclick should still settle cleanly.
+    return undefined;
+  }
+}
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
@@ -223,19 +354,7 @@ self.addEventListener("notificationclick", (event) => {
   event.waitUntil(
     Promise.all([
       reportPushReceipt(event.notification.data, "opened"),
-      self.clients
-        .matchAll({ type: "window", includeUncontrolled: true })
-        .then((clients) => {
-          for (const client of clients) {
-            if ("focus" in client) {
-              client.navigate?.(target);
-              return client.focus();
-            }
-          }
-          return self.clients.openWindow
-            ? self.clients.openWindow(target)
-            : undefined;
-        }),
+      openOrFocusPushTarget(target),
     ]),
   );
 });
