@@ -1,4 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
+import {
+  publicUxTelemetryAllowed,
+  sanitizePublicUxPath,
+  sanitizePublicUxTarget,
+} from "./public-ux-privacy";
 
 export type PublicUxEventName =
   | "public_nav_clicked"
@@ -121,6 +126,7 @@ export function trackPublicUxEvent(
 ) {
   if (typeof window === "undefined") return;
   if (window.navigator.webdriver) return;
+  if (!privacyAllowsPublicUxTelemetry()) return;
   if (window.location.pathname.startsWith("/admin")) return;
   if (telemetryWriteDisabled) return;
 
@@ -135,7 +141,7 @@ export function trackPublicUxEvent(
   if (betaTask) {
     writeActiveBetaTask({
       ...betaTask,
-      lastRoute: safePathname(window.location.pathname),
+      lastRoute: sanitizePublicUxPath(window.location.pathname),
       searchUsed:
         betaTask.searchUsed ||
         eventName === "search_opened" ||
@@ -147,8 +153,8 @@ export function trackPublicUxEvent(
   const payload = {
     event_name: eventName,
     session_id: getPublicUxSessionId(),
-    pathname: safePathname(window.location.pathname),
-    target: safeTarget(options.target),
+    pathname: sanitizePublicUxPath(window.location.pathname),
+    target: sanitizePublicUxTarget(options.target),
     metadata,
   };
 
@@ -177,11 +183,14 @@ function sanitizeMetadata(metadata: PublicUxMetadata): PublicUxMetadata {
     "interaction",
     "beta_task",
     "task_run",
-    "start_route",
     "search_used",
   ] as const) {
     const value = metadata[key];
     if (typeof value === "string" && value.trim()) clean[key] = value.trim().slice(0, 120);
+  }
+
+  if (typeof metadata.start_route === "string" && metadata.start_route.trim()) {
+    clean.start_route = sanitizePublicUxPath(metadata.start_route).slice(0, 120);
   }
 
   if (Number.isFinite(metadata.query_length)) {
@@ -199,6 +208,8 @@ function sanitizeMetadata(metadata: PublicUxMetadata): PublicUxMetadata {
 
 export function beginPublicUxBetaTask(id: string, target?: string | null) {
   if (typeof window === "undefined") return;
+  if (!privacyAllowsPublicUxTelemetry()) return;
+
   const task: ActiveBetaTask = {
     id: id.slice(0, 120),
     runId:
@@ -206,8 +217,8 @@ export function beginPublicUxBetaTask(id: string, target?: string | null) {
         ? crypto.randomUUID()
         : `beta-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`,
     startedAt: Date.now(),
-    startRoute: safePathname(window.location.pathname),
-    lastRoute: safePathname(window.location.pathname),
+    startRoute: sanitizePublicUxPath(window.location.pathname),
+    lastRoute: sanitizePublicUxPath(window.location.pathname),
     searchUsed: false,
   };
   writeActiveBetaTask(task);
@@ -224,6 +235,8 @@ export function beginPublicUxBetaTask(id: string, target?: string | null) {
 
 export function completePublicUxBetaTask(status: "success" | "abandoned") {
   if (typeof window === "undefined") return;
+  if (!privacyAllowsPublicUxTelemetry()) return;
+
   const task = readActiveBetaTask();
   if (!task) return;
 
@@ -246,6 +259,19 @@ export function completePublicUxBetaTask(status: "success" | "abandoned") {
   }
 }
 
+function privacyAllowsPublicUxTelemetry() {
+  if (publicUxTelemetryAllowed(window.navigator)) return true;
+
+  try {
+    window.localStorage.removeItem(SESSION_KEY);
+    window.localStorage.removeItem(BETA_TASK_KEY);
+  } catch {
+    // Privacy opt-out remains authoritative even when storage is unavailable.
+  }
+
+  return false;
+}
+
 function readActiveBetaTask(): ActiveBetaTask | null {
   if (typeof window === "undefined") return null;
   try {
@@ -265,8 +291,8 @@ function readActiveBetaTask(): ActiveBetaTask | null {
       id: parsed.id.slice(0, 120),
       runId: parsed.runId.slice(0, 120),
       startedAt: parsed.startedAt,
-      startRoute: safePathname(parsed.startRoute),
-      lastRoute: safePathname(parsed.lastRoute),
+      startRoute: sanitizePublicUxPath(parsed.startRoute),
+      lastRoute: sanitizePublicUxPath(parsed.lastRoute),
       searchUsed: Boolean(parsed.searchUsed),
     };
   } catch {
@@ -280,14 +306,4 @@ function writeActiveBetaTask(task: ActiveBetaTask) {
   } catch {
     // Telemetry state is optional.
   }
-}
-
-function safePathname(value: string) {
-  const path = value.startsWith("/") ? value : "/";
-  return path.slice(0, 512);
-}
-
-function safeTarget(value?: string | null) {
-  if (!value) return null;
-  return value.slice(0, 512);
 }
