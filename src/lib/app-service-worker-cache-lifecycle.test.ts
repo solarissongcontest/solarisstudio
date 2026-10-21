@@ -89,9 +89,7 @@ describe("PWA service-worker cache lifecycle", () => {
     expect(source).toContain(
       "const runtimeCachePromise = caches.open(RUNTIME_CACHE)",
     );
-    expect(source).toContain(
-      "caches\n      .open(STATIC_CACHE)",
-    );
+    expect(source).toMatch(/caches\s*\.open\(STATIC_CACHE\)/);
     expect(source).toContain("await trimRuntimeCache(cache)");
   });
 
