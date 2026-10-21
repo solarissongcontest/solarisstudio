@@ -148,7 +148,8 @@ jobs:
             20261019202636_v3_s14_resolved_task_delivery_reconciliation.sql \
             20261020130000_v3_s14_archive_invariant_forward_fixes.sql \
             20261020140000_v3_s14_archive_runtime_update_guard.sql \
-            20261021110000_v3_s14_archive_guard_authority_forward_fix.sql
+            20261021110000_v3_s14_archive_guard_authority_forward_fix.sql \
+            20261021161000_v3_s14_task_reconciliation_service_boundary.sql
           do
             cp \
               "$GITHUB_WORKSPACE/supabase/migrations/$migration" \
