@@ -92,7 +92,7 @@ describe("V3 Results root source contract", () => {
     expect(gate).toContain("show: showId");
     expect(gate).toContain('mode: mode === "combined" ? undefined : mode');
     expect(gate).toContain("replace: true");
-    expect(gate).not.toContain("useState<string | null>(null)");
+    expect(gate).not.toContain("const [selectedShowId, setSelectedShowId]");
   });
 
   it("coerces unpublished or invalid result layers back to Combined", () => {
