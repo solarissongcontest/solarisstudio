@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 
+import { shouldOwnNavigationLinkActivation } from "@/lib/v3-navigation-link-activation";
 import type { V3LiquidTabDestination } from "./V3LiquidTabBar";
 import "@/styles/v3-responsive-shell.css";
 
@@ -31,6 +32,7 @@ export function V3DesktopPrimaryNavigation({
             data-active={destination.active ? "true" : "false"}
             data-emphasis={destination.emphasis ? "true" : undefined}
             onClick={(event) => {
+              if (!shouldOwnNavigationLinkActivation(event)) return;
               event.preventDefault();
               onSelect(destination);
             }}
