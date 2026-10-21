@@ -144,9 +144,9 @@ set state=excluded.state,subsystems=excluded.subsystems,version=excluded.version
 -- Archive blocks real updates rather than only synthetic inserts that would
 -- otherwise fail later FK/NOT NULL checks.
 insert into public.shows(id,edition_id,name,kind,sort_order,published)
-values ('$SHOW_A','$EDITION_A','Archive Freeze Fixture','grand-final',1,true)
+values ('$SHOW_A','$EDITION_A','Archive Freeze Fixture','grand-final',1,false)
 on conflict (id) do update
-set edition_id=excluded.edition_id,name=excluded.name,published=true,updated_at=now();
+set edition_id=excluded.edition_id,name=excluded.name,published=false,updated_at=now();
 
 insert into public.studio2_result_operations(
  show_id,edition_id,calculation_version,reviewed_version,locked_version,reveal_ready_version
