@@ -26,7 +26,8 @@ export const Route = createFileRoute("/_authenticated/admin/more")({
 
 const groups = [
   {
-    title: "Trust & Governance",
+    title: "Governance",
+    description: "Rules, integrity decisions and appeal safeguards.",
     items: [
       { label: "Investigations", description: "Triage reports, evidence and governed integrity cases.", to: "/admin/integrity-investigations", icon: ShieldCheck },
       { label: "Rule rulings", description: "Review pre-clearance requests before delegations act.", to: "/admin/integrity-preclearance", icon: Gavel },
@@ -36,24 +37,24 @@ const groups = [
     ],
   },
   {
-    title: "People & Access",
+    title: "Platform",
+    description: "Identity, access and account administration.",
     items: [
       { label: "Access & permissions", description: "Users, roles, capabilities, access simulation and authorization health.", to: "/admin/access-permissions", icon: KeyRound },
       { label: "Country accounts", description: "Manage who can sign in for each delegation.", to: "/admin/country-accounts", icon: Users },
-      { label: "HOD history", description: "See who managed each delegation in past editions.", to: "/admin/hod-history", icon: History },
     ],
   },
   {
-    title: "Editions & Archive",
+    title: "Integrations",
+    description: "Health, delivery and background-system boundaries.",
     items: [
-      { label: "Manage editions", description: "Create editions and manage their lifecycle and settings.", to: "/admin/editions", icon: Trophy },
-      { label: "Time Machine", description: "Inspect historical edition state without mutating production.", to: "/admin/time-machine", icon: History },
-      { label: "Simulation Lab", description: "Rehearse an edition safely without changing canonical state.", to: "/admin/edition-simulator", icon: ClipboardCheck },
-      { label: "Edition dates", description: "Maintain historical main-event dates used by anniversary and archive features.", to: "/admin/anniversary-dates", icon: CalendarDays },
+      { label: "System health", description: "Check data synchronization, stale bindings and integration failures.", to: "/admin/sync-health", icon: Settings },
+      { label: "Delivery & jobs", description: "Inspect push delivery receipts, queue state and Solaris scheduler runs.", to: "/admin/system-operations", icon: Settings },
     ],
   },
   {
     title: "Engagement",
+    description: "Low-frequency fan participation and editorial tools.",
     items: [
       { label: "Predictions", description: "Create and manage prediction rounds for visitors.", to: "/admin/predictions", icon: Sparkles },
       { label: "Fantasy SSC", description: "Manage roster costs, budget, lock windows and scoring.", to: "/admin/fantasy", icon: Trophy },
@@ -63,6 +64,7 @@ const groups = [
   },
   {
     title: "Product QA",
+    description: "Feedback studies, scenario coverage and public usability evidence.",
     items: [
       { label: "Feedback Studies", description: "Open Beta 1, Beta 2 and Beta 3 as distinct historical study datasets from one canonical QA workspace.", to: "/admin/feedback-studies", icon: BarChart3 },
       { label: "Organizer Acceptance Test", description: "Run the canonical organizer scenarios and record whether each workflow passes.", to: "/admin/beta-test", icon: ClipboardCheck },
@@ -72,15 +74,31 @@ const groups = [
   },
   {
     title: "System",
+    description: "Operational defaults, maintenance controls and rollout state.",
     items: [
-      { label: "System health", description: "Check data synchronization, stale bindings and integration failures.", to: "/admin/sync-health", icon: Settings },
-      { label: "Delivery & jobs", description: "Inspect push delivery receipts, queue state and Solaris scheduler runs.", to: "/admin/system-operations", icon: Settings },
-      { label: "System settings", description: "Manage deadlines, audit history and maintenance settings.", to: "/admin/system", icon: Settings },
+      {
+        label: "System settings",
+        description: "Operational schedule, custom reminders, platform maintenance and audit history. Remaining settings stay in their owning domain until governed.",
+        to: "/admin/system",
+        icon: Settings,
+      },
       { label: "Feature rollout", description: "See and control which Solaris Studio capabilities are enabled.", to: "/admin/feature-rollout", icon: Rocket },
     ],
   },
   {
+    title: "Historical tools",
+    description: "Edition administration, archive context and safe rehearsal tools.",
+    items: [
+      { label: "Manage editions", description: "Create editions and manage their lifecycle and settings.", to: "/admin/editions", icon: Trophy },
+      { label: "HOD history", description: "See who managed each delegation in past editions.", to: "/admin/hod-history", icon: History },
+      { label: "Time Machine", description: "Inspect historical edition state without mutating production.", to: "/admin/time-machine", icon: History },
+      { label: "Simulation Lab", description: "Rehearse an edition safely without changing canonical state.", to: "/admin/edition-simulator", icon: ClipboardCheck },
+      { label: "Edition dates", description: "Maintain historical main-event dates used by anniversary and archive features.", to: "/admin/anniversary-dates", icon: CalendarDays },
+    ],
+  },
+  {
     title: "Help & Directory",
+    description: "Guidance and deliberate access to the full specialist tool inventory.",
     items: [
       { label: "Organizer guide", description: "Plain-language instructions for the main Organizer workflows.", to: "/admin/guide", icon: BookOpen },
       { label: "All Organizer tools", description: "Open the complete categorized specialist-page directory.", to: "/admin/menu", icon: ListTree },
@@ -94,13 +112,13 @@ function MoreAdmin() {
       <AdminPageHeader
         eyebrow="Solaris Organizer"
         title="More"
-        description="Governance, people, archive, engagement, Product QA, system and low-frequency Organizer tools."
+        description="Low-frequency governance, platform, integration, engagement, QA, system and historical tools."
       />
 
       <div className="space-y-4">
         {groups.map((group) => (
           <AdminCard key={group.title}>
-            <AdminCardHeader title={group.title} />
+            <AdminCardHeader title={group.title} description={group.description} />
             <div className="divide-y divide-white/[0.07]">
               {group.items.map((item) => {
                 const Icon = item.icon;
