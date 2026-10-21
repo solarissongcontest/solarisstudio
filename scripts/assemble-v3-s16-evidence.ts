@@ -10,6 +10,7 @@ import {
 import { join, resolve } from "node:path";
 import { V3_S16_CERTIFICATION_CATEGORIES } from "../src/lib/v3-s16-certification-contract";
 import { validateV3S16CategorySourceEvidence } from "../src/lib/v3-s16-evidence-validation";
+import { validateV3S16SystemHardeningSourceArtifacts } from "../src/lib/v3-s16-system-hardening-source-verification";
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
 const requireComplete = process.argv.includes("--require-complete");
@@ -83,6 +84,12 @@ const categories = V3_S16_CERTIFICATION_CATEGORIES.map((category) => {
     ? [`${category.evidenceFilename} is not valid JSON`]
     : validateV3S16CategorySourceEvidence(category.id, value, candidateSha);
 
+  if (category.id === "system-hardening" && value !== null) {
+    issues.push(
+      ...validateV3S16SystemHardeningSourceArtifacts(value, match.source, candidateSha),
+    );
+  }
+
   copyFileSync(match.path, join(outputDir, category.evidenceFilename));
   return {
     id: category.id,
@@ -90,7 +97,7 @@ const categories = V3_S16_CERTIFICATION_CATEGORIES.map((category) => {
     present: true,
     valid: issues.length === 0,
     source: match.source,
-    issues,
+    issues: [...new Set(issues)],
   };
 });
 
