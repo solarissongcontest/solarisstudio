@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { CountryOperationalReadiness, CountryReadinessSignal } from './country-operational-readiness';
 import type { Studio2CountryCockpitRow } from './studio2-country-cockpit';
+import { normalizeSystemReceipt } from './system-receipt';
 
 export type Studio2EligibilityStatus = 'eligible' | 'incomplete' | 'warning' | 'blocked' | 'overridden';
 export type Studio2EligibilityDomain = 'participation' | 'entry' | 'jury' | 'media' | 'deadlines' | 'operations';
@@ -76,6 +77,19 @@ export type Studio2EligibilityCountry = {
 
 type SupabaseRpcClient = {
   rpc(name: string, args?: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }>;
+};
+
+type EligibilityOverrideCommandInput = {
+  action: Studio2EligibilityOverrideAction;
+  editionId: string;
+  countryId: string;
+  affectedRule: string;
+  overrideId?: string | null;
+  reason: string;
+  expiresAt?: string | null;
+  operationId: string;
+  idempotencyKey: string;
+  expectedVersion: number;
 };
 
 const ENTRY_VALIDITY_DEDICATED_CHECK_IDS = new Set([
@@ -411,39 +425,8 @@ export async function previewStudio2EligibilityOverrideChange(
   return mapEligibilityOverridePreview(data);
 }
 
-export async function applyStudio2EligibilityOverrideChange(
-  input: {
-    action: Studio2EligibilityOverrideAction;
-    editionId: string;
-    countryId: string;
-    affectedRule: string;
-    overrideId?: string | null;
-    reason: string;
-    expiresAt?: string | null;
-    operationId: string;
-    idempotencyKey: string;
-    expectedVersion: number;
-  },
-  client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
-): Promise<Studio2EligibilityOverrideReceipt> {
-  const data = await rpc(
-    'studio2_apply_eligibility_override_change',
-    {
-      p_action: input.action,
-      p_edition_id: input.editionId,
-      p_country_id: input.countryId,
-      p_affected_rule: input.affectedRule,
-      p_override_id: input.overrideId ?? null,
-      p_reason: input.reason,
-      p_expires_at: input.expiresAt ?? null,
-      p_operation_id: input.operationId,
-      p_idempotency_key: input.idempotencyKey,
-      p_expected_version: input.expectedVersion,
-    },
-    client,
-  );
-
-  const row = object(data, 'eligibility override receipt');
+function mapEligibilityOverrideReceipt(value: unknown): Studio2EligibilityOverrideReceipt {
+  const row = object(value, 'eligibility override receipt');
   const override = mapOverride(row);
   if (row.ok !== true || row.riskClass !== 'R2') {
     throw new Error('Eligibility override change did not return an R2 receipt.');
@@ -457,4 +440,81 @@ export async function applyStudio2EligibilityOverrideChange(
     previousVersion: Number(row.previousVersion ?? 0),
     version: Number(row.version ?? 0),
   };
+}
+
+function assertEligibilityOverrideReceiptScope(
+  receipt: Studio2EligibilityOverrideReceipt,
+  input: EligibilityOverrideCommandInput,
+) {
+  if (
+    receipt.operationId !== input.operationId ||
+    receipt.action !== input.action ||
+    receipt.editionId !== input.editionId ||
+    receipt.countryId !== input.countryId ||
+    receipt.affectedRule !== input.affectedRule ||
+    (input.action === 'revoke' && receipt.id !== input.overrideId)
+  ) {
+    throw new Error('Eligibility override receipt did not match the reviewed Organizer operation.');
+  }
+}
+
+async function reconcileEligibilityOverrideOperation(
+  input: EligibilityOverrideCommandInput,
+  client: SupabaseRpcClient,
+): Promise<Studio2EligibilityOverrideReceipt | null> {
+  try {
+    const data = await rpc(
+      'studio2_reconcile_operation',
+      { p_operation_id: input.operationId },
+      client,
+    );
+    const systemReceipt = normalizeSystemReceipt(data);
+    if (
+      !systemReceipt ||
+      systemReceipt.operationId !== input.operationId ||
+      systemReceipt.command !== `eligibility.override.${input.action}` ||
+      systemReceipt.status !== 'succeeded' ||
+      systemReceipt.result == null
+    ) {
+      return null;
+    }
+
+    const receipt = mapEligibilityOverrideReceipt(systemReceipt.result);
+    assertEligibilityOverrideReceiptScope(receipt, input);
+    return receipt;
+  } catch {
+    return null;
+  }
+}
+
+export async function applyStudio2EligibilityOverrideChange(
+  input: EligibilityOverrideCommandInput,
+  client: SupabaseRpcClient = supabase as unknown as SupabaseRpcClient,
+): Promise<Studio2EligibilityOverrideReceipt> {
+  try {
+    const data = await rpc(
+      'studio2_apply_eligibility_override_change',
+      {
+        p_action: input.action,
+        p_edition_id: input.editionId,
+        p_country_id: input.countryId,
+        p_affected_rule: input.affectedRule,
+        p_override_id: input.overrideId ?? null,
+        p_reason: input.reason,
+        p_expires_at: input.expiresAt ?? null,
+        p_operation_id: input.operationId,
+        p_idempotency_key: input.idempotencyKey,
+        p_expected_version: input.expectedVersion,
+      },
+      client,
+    );
+
+    const receipt = mapEligibilityOverrideReceipt(data);
+    assertEligibilityOverrideReceiptScope(receipt, input);
+    return receipt;
+  } catch (error) {
+    const reconciled = await reconcileEligibilityOverrideOperation(input, client);
+    if (reconciled) return reconciled;
+    throw error;
+  }
 }
