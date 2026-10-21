@@ -68,12 +68,16 @@ describe("S16 evidence bundle assembler", () => {
         categories: Array<{ id: string; present: boolean; valid: boolean }>;
       };
 
-      expect(stdout).toContain("S16 evidence bundle: BLOCKED (1/11 valid)");
+      expect(stdout).toContain("S16 evidence bundle: BLOCKED (1/12 valid)");
       expect(index.complete).toBe(false);
       expect(index.validCount).toBe(1);
       expect(index.categories.find((item) => item.id === "canonical-ci")).toMatchObject({
         present: true,
         valid: true,
+      });
+      expect(index.categories.find((item) => item.id === "system-hardening")).toMatchObject({
+        present: false,
+        valid: false,
       });
       expect(index.categories.find((item) => item.id === "migration-rehearsal")).toMatchObject({
         present: false,
