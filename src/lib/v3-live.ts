@@ -20,6 +20,15 @@ export type V3LiveVotingState = {
   state: "unavailable" | "upcoming" | "open" | "closed";
   label: string;
   roundId: string | null;
+  openedAt: string | null;
+  closedAt: string | null;
+};
+
+export type V3LiveTiming = {
+  scheduledStart: string | null;
+  liveStartedAt: string | null;
+  resultsStartedAt: string | null;
+  endedAt: string | null;
 };
 
 export type V3LiveEntrySummary = {
@@ -49,6 +58,7 @@ export type V3LiveExperience = {
   };
   runningOrder: V3LiveEntrySummary[];
   voting: V3LiveVotingState;
+  timing: V3LiveTiming;
   resultsPublished: boolean;
   broadcast?: {
     href: string;
@@ -116,15 +126,39 @@ function votingState(
   round: ShowModeTelevoteRound | null,
 ): V3LiveVotingState {
   if (!round) {
-    return { state: "unavailable", label: "No public vote", roundId: null };
+    return {
+      state: "unavailable",
+      label: "No public vote",
+      roundId: null,
+      openedAt: null,
+      closedAt: null,
+    };
   }
   if (round.status === "open") {
-    return { state: "open", label: "Voting open", roundId: round.id };
+    return {
+      state: "open",
+      label: "Voting open",
+      roundId: round.id,
+      openedAt: round.openedAt,
+      closedAt: round.closedAt,
+    };
   }
   if (round.status === "closed") {
-    return { state: "closed", label: "Voting closed", roundId: round.id };
+    return {
+      state: "closed",
+      label: "Voting closed",
+      roundId: round.id,
+      openedAt: round.openedAt,
+      closedAt: round.closedAt,
+    };
   }
-  return { state: "upcoming", label: "Voting upcoming", roundId: round.id };
+  return {
+    state: "upcoming",
+    label: "Voting upcoming",
+    roundId: round.id,
+    openedAt: round.openedAt,
+    closedAt: round.closedAt,
+  };
 }
 
 function projectionStateVersion(input: {
@@ -149,6 +183,10 @@ function projectionStateVersion(input: {
  * Solaris does not currently expose an authoritative current-performance cursor.
  * Consequently this projector intentionally leaves current/next/progress absent
  * instead of inferring them from wall-clock time or the running order.
+ *
+ * Scheduled and transition timestamps are presentation context only. They never
+ * advance the official show/voting/result state in the browser; that state still
+ * comes from the authoritative Show and linked voting-round snapshot.
  */
 export function projectV3LiveExperience(input: {
   show: Show;
@@ -183,6 +221,12 @@ export function projectV3LiveExperience(input: {
         (b.runningOrder ?? Number.MAX_SAFE_INTEGER),
     ),
     voting: votingState(input.televoteRound),
+    timing: {
+      scheduledStart: companion.config.scheduledStart,
+      liveStartedAt: companion.config.liveStartedAt,
+      resultsStartedAt: companion.config.resultsStartedAt,
+      endedAt: companion.config.endedAt,
+    },
     resultsPublished: companion.resultsPublished,
     ...(youtubeUrl
       ? { broadcast: { href: youtubeUrl, label: "Watch broadcast" } }
