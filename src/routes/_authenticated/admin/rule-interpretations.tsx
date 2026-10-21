@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { BadgeCheck, BookOpen, FilePenLine, History, Plus, RefreshCw, Save, Send, ShieldCheck } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
@@ -65,6 +65,10 @@ const EMPTY: DraftState = {
   effectiveFrom: "",
 };
 
+function normalizeTimestamp(value: string | null | undefined) {
+  return value ? new Date(value).toISOString() : null;
+}
+
 function interpretationFingerprint(item: RuleInterpretation) {
   return JSON.stringify([
     item.id,
@@ -75,11 +79,11 @@ function interpretationFingerprint(item: RuleInterpretation) {
     item.rationale,
     item.rule_ids,
     item.status,
-    item.effective_from,
-    item.published_at,
+    normalizeTimestamp(item.effective_from),
+    normalizeTimestamp(item.published_at),
     item.superseded_by,
-    item.created_at ?? null,
-    item.updated_at ?? null,
+    normalizeTimestamp(item.created_at),
+    normalizeTimestamp(item.updated_at),
   ]);
 }
 
@@ -90,7 +94,7 @@ function persistedDraftInput(item: RuleInterpretation): RuleInterpretationDraft 
     interpretation: item.interpretation.trim(),
     rationale: item.rationale.trim(),
     ruleIds: [...item.rule_ids],
-    effectiveFrom: item.effective_from,
+    effectiveFrom: normalizeTimestamp(item.effective_from),
   };
 }
 
@@ -101,7 +105,7 @@ function draftInputFingerprint(input: RuleInterpretationDraft) {
     input.interpretation,
     input.rationale,
     input.ruleIds,
-    input.effectiveFrom ?? null,
+    normalizeTimestamp(input.effectiveFrom),
   ]);
 }
 
