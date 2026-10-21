@@ -91,7 +91,7 @@ export function AppLaunchRestoreCoordinator() {
                 : source === "error"
                   ? "cold_launch_session_error"
                   : "cold_launch_local_session",
-            navigationMemory: memoryOwner,
+            interaction: memoryOwner,
           },
         });
       } catch {
