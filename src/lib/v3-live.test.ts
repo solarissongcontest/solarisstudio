@@ -93,6 +93,33 @@ describe("Public V3 LiveExperience", () => {
       state: "open",
       label: "Voting open",
       roundId: "round-1",
+      openedAt: "2026-10-18T19:55:00.000Z",
+      closedAt: null,
+    });
+  });
+
+  it("projects server-owned schedule and transition timestamps as presentation context", () => {
+    const experience = projectV3LiveExperience({
+      ...base,
+      show: show({
+        status: "live",
+        broadcast_config: {
+          showMode: {
+            phase: "live",
+            scheduledStart: "2026-10-18T19:30:00.000Z",
+            liveStartedAt: "2026-10-18T19:32:00.000Z",
+          },
+        },
+      }),
+      televoteRound: null,
+    });
+
+    expect(experience.state).toBe("live");
+    expect(experience.timing).toEqual({
+      scheduledStart: "2026-10-18T19:30:00.000Z",
+      liveStartedAt: "2026-10-18T19:32:00.000Z",
+      resultsStartedAt: null,
+      endedAt: null,
     });
   });
 
