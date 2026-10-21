@@ -30,6 +30,8 @@ export function V3ResultsScreen({
   onResultChange,
   selectedMode: controlledMode,
   onModeChange,
+  revealed: controlledRevealed,
+  onReveal,
 }: {
   input: V3ResultProjectionInput;
   countries: ReadonlyMap<string, Country>;
@@ -39,13 +41,16 @@ export function V3ResultsScreen({
   onResultChange?: (showId: string) => void;
   selectedMode?: V3ResultMode;
   onModeChange?: (mode: V3ResultMode) => void;
+  revealed?: boolean;
+  onReveal?: () => void;
 }) {
-  // This component stays mounted while only the Combined/Jury/Televote query
-  // changes, so local state preserves a deliberate reveal across that mode-only
-  // navigation. Route/show unmounts deliberately reset it, preventing a reveal
-  // from silently carrying into a later visit.
-  const [revealed, setRevealed] = useState(false);
+  // Standalone callers may keep disclosure locally. The routed Results root
+  // controls it by canonical show id so URL canonicalization can refetch the
+  // same result without forgetting a deliberate reveal. A different show id
+  // still starts protected.
+  const [localRevealed, setLocalRevealed] = useState(false);
   const [localMode, setLocalMode] = useState<V3ResultMode>("combined");
+  const revealed = controlledRevealed ?? localRevealed;
   const projection = buildV3ResultsProjection({
     ...input,
     disclosure: hideSpoilers && !revealed ? "withheld" : "revealed",
@@ -57,7 +62,10 @@ export function V3ResultsScreen({
     if (onModeChange) onModeChange(nextMode);
     else setLocalMode(nextMode);
   };
-  const revealResult = () => setRevealed(true);
+  const revealResult = () => {
+    if (onReveal) onReveal();
+    else setLocalRevealed(true);
+  };
 
   return (
     <V3Screen>
