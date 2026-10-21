@@ -24,6 +24,14 @@ describe("S16 readiness diagnostic", () => {
     expect(source).toContain("authorizationIncompleteVerifiedCount");
   });
 
+  it("fails final readiness while any static release blocker remains", () => {
+    expect(source).toContain("const staticBlockersClear =");
+    expect(source).toContain("authorization.ready && publicRemaining.length === 0 && organizerRemaining.length === 0");
+    expect(source).toContain("passedCount === categories.length &&");
+    expect(source).toContain("staticBlockersClear");
+    expect(source).toContain("if (requireReady && !result.ready) process.exit(1)");
+  });
+
   it("reports the canonical required surface-case counts", () => {
     expect(source).toContain("requiredV3S16PublicAcceptanceCases");
     expect(source).toContain("requiredV3S16OrganizerAcceptanceCases");
