@@ -32,7 +32,7 @@ select count(*)
 from televoting.rounds
 where id='$round_id'::uuid
   and status='draft'
-  and opens_at is null
+  and opened_at is null
   and closes_at is null
   and closed_at is null;
 ")"
@@ -50,7 +50,7 @@ where id='$round_id'::uuid
   db_exec "
 update televoting.rounds
 set status='draft',
-    opens_at=null,
+    opened_at=null,
     closes_at=null,
     closed_at=null,
     updated_at=clock_timestamp()
@@ -62,7 +62,7 @@ select count(*)
 from televoting.rounds
 where id='$round_id'::uuid
   and status='draft'
-  and opens_at is null
+  and opened_at is null
   and closes_at is null
   and closed_at is null;
 ")" == "1" ]] || fail "S14 Stage 7 could not establish a deterministic lifecycle baseline for $round_id"
