@@ -23,12 +23,13 @@ function completeEvidence(): V3S16CertificationEvidence {
 }
 
 describe("V3 S16 exact-SHA certification contract", () => {
-  it("contains every canonical Session-5 certification category exactly once", () => {
+  it("contains every canonical Session-5 category plus the required System hardening gate exactly once", () => {
     expect(V3_S16_CERTIFICATION_CATEGORIES.map((category) => category.id)).toEqual([
       "canonical-ci",
       "migration-rehearsal",
       "authorization-security",
       "production-isolation",
+      "system-hardening",
       "public-acceptance",
       "organizer-acceptance",
       "navigation-acceptance",
@@ -37,10 +38,10 @@ describe("V3 S16 exact-SHA certification contract", () => {
       "full-contest-rehearsal",
       "registry-zero-gap",
     ]);
-    expect(new Set(V3_S16_CERTIFICATION_CATEGORIES.map((category) => category.id)).size).toBe(11);
+    expect(new Set(V3_S16_CERTIFICATION_CATEGORIES.map((category) => category.id)).size).toBe(12);
   });
 
-  it("accepts a complete certificate only when all 11 categories prove the exact candidate", () => {
+  it("accepts a complete certificate only when all 12 categories prove the exact candidate", () => {
     expect(validateV3S16CertificationEvidence(completeEvidence(), SHA)).toEqual([]);
   });
 
@@ -79,9 +80,9 @@ describe("V3 S16 exact-SHA certification contract", () => {
 
   it("rejects a category that is present but not passing", () => {
     const evidence = completeEvidence();
-    evidence.categories[4]!.passed = false;
+    evidence.categories.find((category) => category.id === "system-hardening")!.passed = false;
     expect(validateV3S16CertificationEvidence(evidence, SHA)).toContain(
-      "S16 public-acceptance category does not prove passed=true",
+      "S16 system-hardening category does not prove passed=true",
     );
   });
 
