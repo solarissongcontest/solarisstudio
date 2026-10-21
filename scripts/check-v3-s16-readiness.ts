@@ -76,15 +76,21 @@ const organizerRemaining = V3_ORGANIZER_CAPABILITY_REGISTRY.filter(
   (item) => !["cutover", "retired"].includes(item.migrationStatus),
 );
 const passedCount = categories.filter((category) => category.passed).length;
+const staticBlockersClear =
+  authorization.ready && publicRemaining.length === 0 && organizerRemaining.length === 0;
 const result = {
   schemaVersion: 1,
   candidateSha,
   candidateValid,
   evidenceDirectory: evidenceDir,
-  ready: candidateValid && passedCount === categories.length,
+  ready:
+    candidateValid &&
+    passedCount === categories.length &&
+    staticBlockersClear,
   categoryCount: categories.length,
   passedCount,
   categories,
+  staticBlockersClear,
   staticBlockers: {
     authorizationReady: authorization.ready,
     authorizationDeclaredCount: authorization.declaredCount,
