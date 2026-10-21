@@ -92,6 +92,9 @@ describe("V3 S16 exact-SHA certification contract", () => {
     expect(builder).toContain("assessV3S16AuthorizationReadiness");
     expect(builder).toContain("publicRemaining");
     expect(builder).toContain("organizerRemaining");
+    expect(builder).toContain("pendingPhysicalDomains");
+    expect(builder).toContain("declarationOnlyConsequences");
+    expect(builder).toContain("publicParityMissingEvidence");
     expect(builder).toContain("staticBlockers");
     expect(builder).toContain("const allCategoriesPassed = categories.every((category) => category.passed)");
     expect(builder).toContain("const certified = allCategoriesPassed && staticBlockers.length === 0");
