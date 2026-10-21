@@ -2,8 +2,10 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
+  V3_DOMAIN_CONSEQUENCE_REGISTRY,
   V3_ORGANIZER_CAPABILITY_REGISTRY,
   V3_PUBLIC_CAPABILITIES,
+  V3_SYSTEM_DOMAIN_REGISTRY,
 } from "../src/lib/v3-capability-registry";
 import { assessV3S16AuthorizationReadiness } from "../src/lib/v3-s16-authorization-readiness";
 import {
@@ -78,6 +80,17 @@ const publicRemaining = V3_PUBLIC_CAPABILITIES.filter(
 const organizerRemaining = V3_ORGANIZER_CAPABILITY_REGISTRY.filter(
   (item) => !["cutover", "retired"].includes(item.migrationStatus),
 );
+const pendingPhysicalDomains = V3_SYSTEM_DOMAIN_REGISTRY.filter(
+  (item) => item.physicalAuditStatus === "pending",
+);
+const declarationOnlyConsequences = V3_DOMAIN_CONSEQUENCE_REGISTRY.filter(
+  (item) => item.implementationState !== "event-backed",
+);
+const publicParityMissingEvidence = V3_PUBLIC_CAPABILITIES.filter(
+  (item) =>
+    ["parity", "cutover", "retired"].includes(item.specificationStatus) &&
+    !("migrationEvidence" in item && item.migrationEvidence?.trim()),
+);
 const staticBlockers: string[] = [];
 if (!authorization.ready) {
   staticBlockers.push(
@@ -89,6 +102,17 @@ if (publicRemaining.length) {
 }
 if (organizerRemaining.length) {
   staticBlockers.push(`${organizerRemaining.length} Organizer capabilities are not cutover/retired`);
+}
+if (pendingPhysicalDomains.length) {
+  staticBlockers.push(`${pendingPhysicalDomains.length} System physical ownership audits are pending`);
+}
+if (declarationOnlyConsequences.length) {
+  staticBlockers.push(`${declarationOnlyConsequences.length} domain consequences are not event-backed`);
+}
+if (publicParityMissingEvidence.length) {
+  staticBlockers.push(
+    `${publicParityMissingEvidence.length} parity/cutover/retired Public capabilities lack migration evidence`,
+  );
 }
 
 const allCategoriesPassed = categories.every((category) => category.passed);
