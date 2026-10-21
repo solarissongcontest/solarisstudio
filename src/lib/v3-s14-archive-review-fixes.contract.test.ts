@@ -140,6 +140,20 @@ describe('System V3 S14 Archive review-fix contract', () => {
     expect(workflow).toContain('.github/scripts/v3-s14-archive-delete-guard-rehearsal.sh');
   });
 
+  it('keeps the task resurrection proof self-contained and follows persisted activation-versioned delivery identity', () => {
+    expect(taskResurrection).toContain(': "${SERVICE_ROLE_KEY:?missing local Supabase SERVICE_ROLE_KEY}"');
+    expect(taskResurrection).toContain('create_local_user()');
+    expect(taskResurrection).toContain('new_uuid()');
+    expect(taskResurrection).toContain('insert into public.editions');
+    expect(taskResurrection).toContain("set state='post_edition'");
+    expect(taskResurrection).toContain('select public.studio2_transition_edition_v3');
+    expect(taskResurrection).toContain('select private.studio2_reconcile_all_organizer_tasks');
+    expect(taskResurrection).toContain('studio2_version_organizer_delivery_dedupe');
+    expect(taskResurrection).toContain(':activation-[0-9]+$');
+    expect(taskResurrection).not.toContain('guard rehearsal operator fixture is missing');
+    expect(taskResurrection).not.toContain('guard rehearsal did not leave the fixture archived');
+  });
+
   it('normalizes the full local project identity before every follow-up isolation guard', () => {
     for (const verifier of [eventVocabulary, taskResurrection]) {
       expect(verifier).toContain('SUPABASE_PROJECT_ID=local SUPABASE_PROJECT_REF=local');
