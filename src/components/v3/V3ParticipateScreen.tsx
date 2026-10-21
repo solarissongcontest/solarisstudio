@@ -1,6 +1,7 @@
 import type { V3BootstrapProjection } from "@/lib/v3-bootstrap";
 import type { V3ActionProjection } from "@/lib/v3-experience";
 import { projectV3Participate } from "@/lib/v3-participate";
+import { formatEventDateTime } from "@/lib/public-time";
 import {
   V3ActionCard,
   V3Journey,
@@ -42,11 +43,17 @@ function statusToneForAction(action: V3ActionProjection): V3StatusTone {
   return "neutral";
 }
 
+function formatActionTime(value: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return formatEventDateTime(parsed, { locale: "en-GB" });
+}
+
 function timingMeta(action: V3ActionProjection, delegationLabel?: string | null) {
-  const values = [
-    action.deadline ? "Deadline set" : action.opensAt ? "Scheduled" : null,
-    delegationLabel ?? null,
-  ].filter(Boolean) as string[];
+  const deadline = action.deadline ? formatActionTime(action.deadline) : null;
+  const opensAt = !deadline && action.opensAt ? formatActionTime(action.opensAt) : null;
+  const timing = deadline ? `Closes ${deadline}` : opensAt ? `Opens ${opensAt}` : null;
+  const values = [timing, delegationLabel ?? null].filter(Boolean) as string[];
 
   if (!values.length) return undefined;
   return (
@@ -163,9 +170,10 @@ function VotingOverviewCard({
  * V3 Participate composition.
  *
  * The screen consumes the same bootstrap as Home. The shared Participate
- * projection groups canonical Actions into required, upcoming, optional and
- * completed buckets while Journey remains the evidence-backed responsibility
- * timeline. No network call or second workflow state is introduced here.
+ * projection groups canonical Actions into required, upcoming, waiting,
+ * optional and completed buckets while Journey remains the evidence-backed
+ * responsibility timeline. No network call or second workflow state is
+ * introduced here.
  */
 export function V3ParticipateScreen({
   bootstrap,
@@ -275,6 +283,16 @@ export function V3ParticipateScreen({
         <V3Section title="Next" meta={<V3StatusChip tone="progress">Upcoming</V3StatusChip>}>
           <ActionList
             actions={participate.next}
+            progressByActionId={progressByActionId}
+            delegationLabel={delegationLabel}
+          />
+        </V3Section>
+      ) : null}
+
+      {participate.waiting.length ? (
+        <V3Section title="Waiting" meta={<V3StatusChip tone="progress">No action yet</V3StatusChip>}>
+          <ActionList
+            actions={participate.waiting}
             progressByActionId={progressByActionId}
             delegationLabel={delegationLabel}
           />
