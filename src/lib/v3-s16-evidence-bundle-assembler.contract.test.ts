@@ -13,6 +13,7 @@ import { describe, expect, it } from "vitest";
 const candidateSha = execFileSync("git", ["rev-parse", "HEAD"], {
   encoding: "utf8",
 }).trim().toLowerCase();
+const assemblerSource = readFileSync("scripts/assemble-v3-s16-evidence.ts", "utf8");
 
 function canonicalCi(sha = candidateSha) {
   return {
@@ -121,6 +122,12 @@ describe("S16 evidence bundle assembler", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  it("binds System-hardening digest declarations to downloaded source artifacts", () => {
+    expect(assemblerSource).toContain("validateV3S16SystemHardeningSourceArtifacts");
+    expect(assemblerSource).toContain('category.id === "system-hardening"');
+    expect(assemblerSource).toContain("match.source");
   });
 
   it("writes the diagnostic index before --require-complete exits red", () => {
