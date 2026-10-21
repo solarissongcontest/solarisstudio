@@ -148,7 +148,7 @@
       font-weight: 800;
     }
     .tab span { display: block; margin-bottom: 4px; font-size: 17px; line-height: 1; }
-    .tab[aria-selected="true"] { background: rgba(142,212,239,.12); color: #dff7ff; }
+    .tab[aria-current="page"] { background: rgba(142,212,239,.12); color: #dff7ff; }
     @media (min-width: 900px) {
       main { padding-bottom: 32px; }
       .tabbar { width: 390px; }
@@ -231,11 +231,11 @@
   </main>
 
   <nav class="tabbar" aria-label="Offline Solaris Studio">
-    <a class="tab" href="/" data-tab="home" aria-selected="false"><span>⌂</span>Home</a>
-    <a class="tab" href="/explore" data-tab="explore" aria-selected="false"><span>⌕</span>Explore</a>
-    <a class="tab" href="/participate" data-tab="participate" aria-selected="false"><span>◎</span>Participate</a>
-    <a class="tab" href="/results" data-tab="results" aria-selected="false"><span>♜</span>Results</a>
-    <a class="tab" href="/my-solaris" data-tab="me" aria-selected="false"><span>◉</span>Me</a>
+    <a class="tab" href="/" data-tab="home"><span>⌂</span>Home</a>
+    <a class="tab" href="/explore" data-tab="explore"><span>⌕</span>Explore</a>
+    <a class="tab" href="/participate" data-tab="participate"><span>◎</span>Participate</a>
+    <a class="tab" href="/results" data-tab="results"><span>♜</span>Results</a>
+    <a class="tab" href="/my-solaris" data-tab="me"><span>◉</span>Me</a>
   </nav>
 
   <script>
@@ -249,7 +249,11 @@
           node.hidden = node.getAttribute("data-view") !== view;
         });
         document.querySelectorAll("[data-tab]").forEach((node) => {
-          node.setAttribute("aria-selected", node.getAttribute("data-tab") === view ? "true" : "false");
+          if (node.getAttribute("data-tab") === view) {
+            node.setAttribute("aria-current", "page");
+          } else {
+            node.removeAttribute("aria-current");
+          }
         });
       };
 
