@@ -32,17 +32,21 @@ function loadStaleWhileRevalidate({
   responseError: () => CacheResponse;
 }): StaleWhileRevalidate {
   const source = readFileSync("public/sw.js", "utf8");
-  const start = source.indexOf("const MAX_RUNTIME_CACHE_ENTRIES");
+  const start = source.indexOf("async function trimRuntimeCache");
   const end = source.indexOf('\n\nself.addEventListener("fetch"', start);
 
   expect(start).toBeGreaterThanOrEqual(0);
   expect(end).toBeGreaterThan(start);
 
+  // Execute only the production helpers under test. Starting at the service
+  // worker's top-level constants would also execute PRECACHE/install setup and
+  // make this tiny VM harness depend on unrelated globals such as OFFLINE_URL.
+  const helperSource = source.slice(start, end);
   const factory = new Function(
     "caches",
     "fetch",
     "Response",
-    `const STATIC_CACHE = "static"; const RUNTIME_CACHE = "runtime"; ${source.slice(start, end)}; return staleWhileRevalidate;`,
+    `const STATIC_CACHE = "static"; const RUNTIME_CACHE = "runtime"; const MAX_RUNTIME_CACHE_ENTRIES = 96; ${helperSource}; return staleWhileRevalidate;`,
   ) as (
     caches: CacheStorageLike,
     fetch: (request: CacheRequest) => Promise<CacheResponse>,
