@@ -38,7 +38,7 @@ EDITION_ID='18910000-0000-4000-8000-000000000001'
 INCIDENT_ID='18910000-0000-4000-8000-000000000003'
 BLOCKER_ID='18910000-0000-4000-8000-000000000004'
 NEW_TASK_ID='18910000-0000-4000-8000-000000000005'
-PENDING_DEDUPE='s14-archive-preserve-pending'
+PENDING_DEDUPE_PREFIX='s14-archive-preserve-pending'
 FAILED_ERROR='S14 preserved failed delivery evidence'
 AUTHORIZED_ID="$(db_value "select id::text from auth.users where lower(email)='s14-archive-guards-authorized@solaris.invalid' limit 1;")"
 [[ -n "$AUTHORIZED_ID" ]] || fail "guard rehearsal operator fixture is missing"
@@ -62,12 +62,18 @@ insert into public.notification_deliveries(
   user_id,category,event_type,subject_id,dedupe_key,route,title,body,scheduled_for,status
 ) values (
   '$AUTHORIZED_ID'::uuid,'organizer_tasks','organizer_task.high','$BLOCKER_ID',
-  '$PENDING_DEDUPE','/admin/results','Pending task push','S14 pending suppression fixture',now(),'pending'
+  '$PENDING_DEDUPE_PREFIX','/admin/results','Pending task push','S14 pending suppression fixture',now(),'pending'
 )
 on conflict (user_id,dedupe_key) do update
 set status='pending',processing_started_at=null,error=null;
 "
 [[ "$(db_value "select count(*) from public.admin_notifications where recipient_id='$AUTHORIZED_ID'::uuid and source_key='v3-s14-archive-guard:edition-blocker' and requires_action and resolved_at is null;")" == '1' ]] || fail "could not poison blocker Inbox projection for invariant rehearsal"
+
+# Organizer delivery identity is versioned by the canonical BEFORE INSERT trigger
+# studio2_version_organizer_delivery_dedupe. Capture the actual persisted key
+# instead of asserting against the caller-supplied pre-trigger prefix.
+PENDING_DEDUPE="$(db_value "select dedupe_key from public.notification_deliveries where user_id='$AUTHORIZED_ID'::uuid and subject_id='$BLOCKER_ID' and category='organizer_tasks' and dedupe_key ~ '^${PENDING_DEDUPE_PREFIX}:activation-[0-9]+$' order by scheduled_for desc, created_at desc limit 1;")"
+[[ -n "$PENDING_DEDUPE" ]] || fail "could not resolve activation-versioned pending blocker delivery identity"
 [[ "$(db_value "select count(*) from public.notification_deliveries where user_id='$AUTHORIZED_ID'::uuid and dedupe_key='$PENDING_DEDUPE' and status='pending';")" == '1' ]] || fail "could not create pending blocker delivery projection for invariant rehearsal"
 [[ "$(db_value "select count(*) from public.notification_deliveries where subject_id='$BLOCKER_ID' and category='organizer_tasks' and status='failed' and error='$FAILED_ERROR';")" -ge '1' ]] || fail "could not create retained failed-delivery evidence fixture"
 
