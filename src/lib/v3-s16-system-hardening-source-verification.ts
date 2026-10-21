@@ -68,8 +68,14 @@ export function validateV3S16SystemHardeningSourceArtifacts(
         } else if (componentSha !== expectedSha) {
           issues.push(`${label} artifact ${artifact} certifies ${componentSha}, not exact candidate ${expectedSha}`);
         }
-        if (component.certificationClaim === true) {
-          issues.push(`${label} artifact ${artifact} improperly claims final certification`);
+        if (component.passed !== true) {
+          issues.push(`${label} artifact ${artifact} does not prove passed=true`);
+        }
+        if (component.certificationClaim !== false) {
+          issues.push(`${label} artifact ${artifact} must explicitly set certificationClaim=false`);
+        }
+        if (Array.isArray(component.issues) && component.issues.length !== 0) {
+          issues.push(`${label} artifact ${artifact} still contains QA issues`);
         }
       } catch {
         issues.push(`${label} artifact ${artifact} is not valid JSON`);
