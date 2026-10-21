@@ -19,23 +19,34 @@ describe("V3 Organizer Tasks operational state contract", () => {
     }
   });
 
-  it("keeps backend task state authoritative and derives only overdue/actionable locally", () => {
+  it("keeps backend task state authoritative and fails closed when rich state is absent", () => {
     expect(adapter).toContain('if (task.state === "resolved") return "resolved";');
     expect(adapter).toContain('if (task.state === "waiting") return "waiting";');
-    expect(adapter).toContain('if (Number.isFinite(dueMs) && dueMs <= nowMs) return "overdue";');
-    expect(adapter).toContain('return "actionable";');
+    expect(adapter).toContain('if (task.operationalState) return task.operationalState;');
+    expect(adapter).toContain('return "unclassified";');
+    expect(adapter).toContain("due timestamp is display metadata");
+    expect(adapter).not.toContain("Date.now()");
+    expect(adapter).not.toContain("dueMs <= nowMs");
+  });
+
+  it("requires complete canonical rich-state evidence before exposing rich metrics", () => {
+    expect(adapter).toContain("hasCompleteOrganizerTaskOperationalEvidence");
+    expect(route).toContain("completeOperationalEvidence");
+    expect(route).toContain("metricsAvailable && completeOperationalEvidence");
+    expect(route).toContain("At least one unresolved task does not expose canonical rich-state evidence");
+    expect(route).toContain('value == null ? "Unknown"');
   });
 
   it("does not equate task priority with blocked workflow state", () => {
-    expect(route).toContain("priority is severity, not workflow state");
+    expect(route).toContain("Priority is severity, not workflow state");
     expect(route).not.toContain('task.priority === "critical") return "blocked"');
     expect(adapter).not.toContain('task.priority === "critical"');
   });
 
-  it("fails visibly when blocked/failed evidence is unavailable instead of showing invented zeroes", () => {
-    expect(route).toContain("classification is not available yet");
-    expect(route).toContain("does not expose explicit blocked/failed evidence");
-    expect(route).toContain('value == null ? "Unknown"');
+  it("keeps due timestamps informational instead of making the browser a workflow clock", () => {
+    expect(route).toContain("Due timestamps are display metadata only");
+    expect(route).toContain("the browser clock never upgrades them into workflow truth");
+    expect(adapter).not.toContain("new Date(task.dueAt)");
   });
 
   it("keeps notification state separate from task truth", () => {
