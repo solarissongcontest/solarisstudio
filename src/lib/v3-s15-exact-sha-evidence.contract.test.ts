@@ -28,7 +28,8 @@ describe("S15 exact-SHA zero-orphan release evidence", () => {
     expect(builder).toContain('"s15-zero-orphan.json"');
     expect(builder).toContain("V3_RELEASE_EVIDENCE_DIR");
     expect(releaseIntegrity).toContain('"s15-zero-orphan.json"');
-    expect(releaseIntegrity).toContain("evidence.zeroOrphans !== true");
+    expect(releaseIntegrity).toContain('validateV3S16CategorySourceEvidence');
+    expect(releaseIntegrity).toContain('"registry-zero-gap"');
   });
 
   it("supports fail-closed final enforcement without suppressing diagnostic evidence", () => {
