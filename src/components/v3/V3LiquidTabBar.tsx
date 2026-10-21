@@ -250,6 +250,14 @@ export function V3LiquidTabBar({
     setDragPreviewIndex(null);
   }, [endHold, resetDragDom]);
 
+  const interruptDrag = useCallback(() => {
+    // Any environment-level interruption invalidates the press that started the
+    // gesture. Suppress the browser's trailing click before releasing capture so
+    // blur/resize/keyboard/overlay transitions cannot navigate after cancellation.
+    if (dragState.current) suppressClick.current = true;
+    clearDrag();
+  }, [clearDrag]);
+
   const settleDrag = useCallback(
     (targetIndex: number) => {
       endHold();
@@ -261,9 +269,9 @@ export function V3LiquidTabBar({
   );
 
   useEffect(() => {
-    const resetInterruptedGesture = () => clearDrag();
+    const resetInterruptedGesture = () => interruptDrag();
     const resetWhenHidden = () => {
-      if (document.visibilityState !== "visible") clearDrag();
+      if (document.visibilityState !== "visible") interruptDrag();
     };
     const root = document.documentElement;
     const rootInterruptionObserver =
@@ -273,7 +281,7 @@ export function V3LiquidTabBar({
               root.hasAttribute("data-solaris-feature-overlay-open") ||
               root.hasAttribute("data-solaris-keyboard-open")
             ) {
-              clearDrag();
+              interruptDrag();
             }
           })
         : null;
@@ -300,15 +308,23 @@ export function V3LiquidTabBar({
       window.removeEventListener("pagehide", resetInterruptedGesture);
       window.removeEventListener(APP_RESUME_EVENT, resetInterruptedGesture);
       document.removeEventListener("visibilitychange", resetWhenHidden);
-      resetDragDom();
+      // `pathname` is a dependency, so cleanup is also the route-redirect
+      // interruption boundary. Clear React gesture state and arm click
+      // suppression before releasing capture, rather than resetting DOM only.
+      interruptDrag();
     };
-  }, [clearDrag, pathname, resetDragDom]);
+  }, [interruptDrag, pathname]);
 
   const startDrag = (
     event: ReactPointerEvent<HTMLAnchorElement>,
     index: number,
     active: boolean,
   ) => {
+    // A completed or interrupted gesture may deliberately suppress its trailing
+    // click. A genuinely new pointer press starts a fresh click sequence, even
+    // when it lands on an inactive tab that will not enter drag mode.
+    if (!dragState.current) suppressClick.current = false;
+
     if (
       !active ||
       collapsed ||
