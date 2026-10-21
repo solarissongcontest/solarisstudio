@@ -13,12 +13,12 @@ function completeEvidence() {
     candidateSha: SHA,
     passed: true,
     certificationClaim: false,
-    unresolvedBlockers: [],
+    unresolvedBlockers: [] as string[],
     phases: V3_S16_SYSTEM_HARDENING_PHASES.map((id, index) => ({
       id,
       candidateSha: SHA,
       passed: true,
-      blockers: [],
+      blockers: [] as string[],
       sources: [
         {
           artifact: `s${10 + index}-exact-sha.json`,
