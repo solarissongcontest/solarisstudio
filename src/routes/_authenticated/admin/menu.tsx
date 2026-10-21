@@ -59,24 +59,25 @@ function OrganizerMenu() {
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
+  const accessByPath = access.data;
 
-  const domains = access.data
+  const domains = accessByPath
     ? domainCandidates.filter(
-        (domain) => domain.availability === "ready" && access.data[domain.to] === true,
+        (domain) => domain.availability === "ready" && accessByPath[domain.to] === true,
       )
     : [];
   const groups = useMemo(() => {
-    if (!access.data) return [];
+    if (!accessByPath) return [];
     const allowed = directoryCandidates
       .map((group) => ({
         ...group,
         items: group.items.filter(
-          (item) => item.availability === "ready" && access.data[item.to] === true,
+          (item) => item.availability === "ready" && accessByPath[item.to] === true,
         ),
       }))
       .filter((group) => group.items.length > 0);
     return filterGroups(allowed, query);
-  }, [access.data, directoryCandidates, query]);
+  }, [accessByPath, directoryCandidates, query]);
 
   return (
     <div className="mx-auto max-w-5xl">
