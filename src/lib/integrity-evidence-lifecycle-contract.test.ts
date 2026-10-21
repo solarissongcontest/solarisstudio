@@ -193,11 +193,13 @@ describe("Integrity evidence lifecycle", () => {
     expect(adminRoute).not.toContain("item.object_path");
   });
 
-  it("requires explicit confirmation before destructive evidence lifecycle actions", () => {
+  it("requires explicit frozen confirmation before destructive evidence lifecycle actions", () => {
     expect(adminRoute).toContain("AdminConfirmSheet");
     expect(adminRoute).toContain("Review permanent deletion");
-    expect(adminRoute).toContain("confirmationText={item.case_code}");
+    expect(adminRoute).toContain("confirmationText={reviewedItem.case_code}");
     expect(adminRoute).toContain("Delete private evidence permanently");
+    expect(adminRoute).toContain("dueEvidenceReviewFingerprint(current) !== review.fingerprint");
     expect(adminRoute).toContain("Clean this expired unfinished upload");
+    expect(adminRoute).toContain("expiredUploadReviewFingerprint(current) !== review.fingerprint");
   });
 });
