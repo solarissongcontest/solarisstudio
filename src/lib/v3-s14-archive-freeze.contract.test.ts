@@ -46,9 +46,11 @@ describe('System V3 S14 archived-edition freeze contract', () => {
     }
     expect(migration).toContain('before insert or update or delete');
 
-    expect(archiveGuard).toContain('archived show publication mutation');
-    expect(archiveGuard).toContain('archived result operation mutation');
+    expect(archiveGuard).toContain("'Archived show mutation'");
+    expect(archiveGuard).toContain("'Archived result operation mutation'");
     expect(archiveGuard).toContain('Archived edition workflow is read-only.');
+    expect(archiveGuard).toContain("'public.shows'::regclass");
+    expect(archiveGuard).toContain("'public.studio2_result_operations'::regclass");
     expect(negativeGuard).toContain('Archive Freeze Fixture');
     expect(negativeGuard).toContain('studio2_result_operations');
   });
@@ -93,7 +95,8 @@ describe('System V3 S14 archived-edition freeze contract', () => {
     expect(migration).toContain('one-way compatibility projection');
     expect(migration).toContain('private.v3_guard_archived_legacy_edition_status()');
     expect(migration).toContain('Archived edition lifecycle is read-only.');
-    expect(archiveGuard).toContain('archived legacy lifecycle revival');
+    expect(archiveGuard).toContain("'Archived legacy lifecycle revival'");
+    expect(archiveGuard).toContain("'public.editions'::regclass");
     expect(archiveSystem).toContain("== 'completed'");
   });
 
