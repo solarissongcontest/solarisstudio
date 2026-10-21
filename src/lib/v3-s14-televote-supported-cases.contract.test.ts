@@ -6,6 +6,7 @@ import { V3_S14_INVARIANTS, V3_S14_STAGES } from "../../scripts/v3-s14-full-cont
 const source = (path: string) => readFileSync(path, "utf8");
 const stage7 = source(".github/scripts/v3-s14-stage-7-public-voting.sh");
 const deadlineStage = source(".github/scripts/v3-s14-stage-7-genuine-deadline.sh");
+const deterministicFixture = source(".github/scripts/v3-s14-stage-7-deterministic-fixture.sh");
 const diagnostics = source(".github/scripts/v3-s14-stage-7-diagnostics.sh");
 const driver = source(".github/scripts/v3-full-contest-rehearsal.sh");
 
@@ -39,6 +40,18 @@ describe("S14 canonical Televote Stage 7", () => {
     expect(deadlineStage).toContain("s14_stage7_set_deadline_before_open");
     expect(deadlineStage).toContain("apply_televote_round_status_without_deadline");
     expect(deadlineStage).not.toContain("update televoting.rounds set closes_at");
+  });
+
+  it("does not directly rewrite an already-canonical deterministic fixture baseline", () => {
+    const baselineCheck = deterministicFixture.indexOf('baseline_ready="$(db_scalar');
+    const existingReturn = deterministicFixture.indexOf('source=existing');
+    const directReset = deterministicFixture.indexOf('update televoting.rounds');
+
+    expect(baselineCheck).toBeGreaterThan(-1);
+    expect(existingReturn).toBeGreaterThan(baselineCheck);
+    expect(directReset).toBeGreaterThan(existingReturn);
+    expect(deterministicFixture).toContain('if [[ "$baseline_ready" == "1" ]]');
+    expect(deterministicFixture).toContain("return 0");
   });
 
   it("crosses the database deadline while status remains open and performs a genuine +2 minute extension", () => {
@@ -144,6 +157,7 @@ describe("S14 canonical Televote Stage 7", () => {
   it("keeps all Stage 7 shell modules syntactically valid", () => {
     expect(() => execFileSync("bash", ["-n", ".github/scripts/v3-s14-stage-7-public-voting.sh"], { stdio: "pipe" })).not.toThrow();
     expect(() => execFileSync("bash", ["-n", ".github/scripts/v3-s14-stage-7-genuine-deadline.sh"], { stdio: "pipe" })).not.toThrow();
+    expect(() => execFileSync("bash", ["-n", ".github/scripts/v3-s14-stage-7-deterministic-fixture.sh"], { stdio: "pipe" })).not.toThrow();
     expect(() => execFileSync("bash", ["-n", ".github/scripts/v3-s14-stage-7-diagnostics.sh"], { stdio: "pipe" })).not.toThrow();
   });
 });
