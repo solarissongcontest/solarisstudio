@@ -14,7 +14,8 @@ const migration = readFileSync(
 describe("V3 Organizer exceptional appeal extension review", () => {
   it("does not apply an exceptional extension directly from the edit form", () => {
     expect(route).toContain("AdminConfirmSheet");
-    expect(route).toContain("onClick={() => setConfirmOpen(true)}");
+    expect(route).toContain("onClick={openExtensionReview}");
+    expect(route).toContain("open={Boolean(pendingReview)}");
     expect(route).not.toContain("onClick={() => mutation.mutate()}");
     expect(route).toContain("Review extension");
   });
@@ -36,7 +37,8 @@ describe("V3 Organizer exceptional appeal extension review", () => {
   });
 
   it("does not claim the legacy extension RPC is already the canonical V3 command", () => {
-    expect(route).toContain("Canonical V3 preflight, version/CAS and receipt authority remain tracked in System #947");
+    expect(route).toContain("Canonical V3 preflight, version/CAS, idempotency and receipt authority remain");
+    expect(route).toContain("tracked in System #947");
     expect(migration).not.toContain("studio2_claim_operation");
     expect(migration).not.toContain("p_idempotency_key");
   });
