@@ -76,6 +76,54 @@ type CaseDetail = {
   evidence: EvidenceItem[];
 };
 
+type DisclosureCreationInput = {
+  caseItem: CaseDetail["case"];
+  caseFingerprint: string;
+  source: EvidenceItem;
+  sourceFingerprint: string;
+  fileMode: boolean;
+  reporterVisible: boolean;
+  kind: EvidenceDerivativeKind;
+  file: File | null;
+  title: string;
+  description: string;
+  externalUrl: string;
+  reason: string;
+  redactedText: boolean;
+};
+
+function disclosureCaseFingerprint(item: CaseDetail["case"]) {
+  return JSON.stringify([
+    item.id,
+    item.public_code,
+    item.summary,
+    item.status,
+    item.priority,
+  ]);
+}
+
+function disclosureSourceFingerprint(item: EvidenceItem) {
+  return JSON.stringify([
+    item.id,
+    item.source_role,
+    item.evidence_type,
+    item.title,
+    item.description,
+    item.external_url,
+    item.original_name,
+    item.mime_type,
+    item.size_bytes,
+    item.provenance,
+    item.redacted_from_id,
+    item.disclosure_copy_of_id,
+    item.visible_to_reporter,
+    item.lifecycle_status,
+    item.retention_until,
+    item.deleted_at,
+    item.created_at,
+  ]);
+}
+
 async function rpc<T>(name: string, args: Record<string, unknown> = {}) {
   const { data, error } = await (supabase as any).rpc(name, args);
   if (error) throw new Error(error.message);
@@ -191,12 +239,27 @@ function DisclosureWorkspace({ detail, onChanged }: { detail: CaseDetail; onChan
         </div>
       </AdminCard>
 
-      {source ? <DerivativeComposer source={source} onChanged={onChanged} /> : <AdminCard><EmptyState text="Choose a source evidence item first." /></AdminCard>}
+      {source ? (
+        <DerivativeComposer
+          key={`${detail.case.id}:${source.id}`}
+          caseItem={detail.case}
+          source={source}
+          onChanged={onChanged}
+        />
+      ) : <AdminCard><EmptyState text="Choose a source evidence item first." /></AdminCard>}
     </div>
   );
 }
 
-function DerivativeComposer({ source, onChanged }: { source: EvidenceItem; onChanged: () => Promise<unknown> }) {
+function DerivativeComposer({
+  caseItem,
+  source,
+  onChanged,
+}: {
+  caseItem: CaseDetail["case"];
+  source: EvidenceItem;
+  onChanged: () => Promise<unknown>;
+}) {
   const [kind, setKind] = useState<EvidenceDerivativeKind>("redacted_disclosure");
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState(`${source.title} · disclosure copy`);
@@ -204,7 +267,27 @@ function DerivativeComposer({ source, onChanged }: { source: EvidenceItem; onCha
   const [externalUrl, setExternalUrl] = useState(source.external_url ?? "");
   const [reason, setReason] = useState("");
   const [redactedText, setRedactedText] = useState(true);
-  const [releasePreviewOpen, setReleasePreviewOpen] = useState(false);
+  const [releaseReview, setReleaseReview] = useState<DisclosureCreationInput | null>(null);
+
+  const fileMode = source.evidence_type === "file";
+  const reporterVisible = fileMode ? kind !== "redacted" : true;
+  const valid = title.trim().length >= 2 && reason.trim().length >= 10 && (fileMode ? Boolean(file) : description.trim().length >= 2);
+
+  const createInput = (): DisclosureCreationInput => ({
+    caseItem: { ...caseItem },
+    caseFingerprint: disclosureCaseFingerprint(caseItem),
+    source: { ...source },
+    sourceFingerprint: disclosureSourceFingerprint(source),
+    fileMode,
+    reporterVisible,
+    kind,
+    file,
+    title: title.trim(),
+    description: description.trim(),
+    externalUrl: externalUrl.trim(),
+    reason: reason.trim(),
+    redactedText,
+  });
 
   const downloadMutation = useMutation({
     mutationFn: () => getOrganizerEvidenceDownloadUrl(source.id),
@@ -213,32 +296,57 @@ function DerivativeComposer({ source, onChanged }: { source: EvidenceItem; onCha
   });
 
   const createMutation = useMutation({
-    mutationFn: async () => {
-      if (source.evidence_type === "file") {
-        if (!file) throw new Error("Choose the prepared derivative file to upload.");
-        return uploadOrganizerEvidenceDerivative(source.id, file, kind, title, description, reason);
+    mutationFn: async (input: DisclosureCreationInput) => {
+      const currentDetail = await rpc<CaseDetail | null>("admin_integrity_case", {
+        _case_id: input.caseItem.id,
+      });
+      const currentSource = currentDetail?.evidence.find(
+        (candidate) => candidate.id === input.source.id,
+      );
+      if (
+        !currentDetail ||
+        disclosureCaseFingerprint(currentDetail.case) !== input.caseFingerprint ||
+        !currentSource ||
+        currentSource.lifecycle_status === "deleted" ||
+        disclosureSourceFingerprint(currentSource) !== input.sourceFingerprint
+      ) {
+        throw new Error(
+          "The case or source evidence changed while this derivative was being prepared. Refresh and review the disclosure again.",
+        );
       }
-      return createOrganizerEvidenceDisclosureCopy(source.id, {
-        title,
-        description,
-        externalUrl: externalUrl || undefined,
-        redacted: redactedText,
-        reason,
+
+      if (input.fileMode) {
+        if (!input.file) throw new Error("Choose the prepared derivative file to upload.");
+        return uploadOrganizerEvidenceDerivative(
+          input.source.id,
+          input.file,
+          input.kind,
+          input.title,
+          input.description,
+          input.reason,
+        );
+      }
+      return createOrganizerEvidenceDisclosureCopy(input.source.id, {
+        title: input.title,
+        description: input.description,
+        externalUrl: input.externalUrl || undefined,
+        redacted: input.redactedText,
+        reason: input.reason,
       });
     },
     onSuccess: async (result) => {
-      setReleasePreviewOpen(false);
+      setReleaseReview(null);
       setFile(null);
       setReason("");
       await onChanged();
       toast.success(result.visible_to_reporter ? "Reporter-visible disclosure copy created" : "Internal redacted derivative created");
     },
-    onError: errorToast,
+    onError: async (error) => {
+      setReleaseReview(null);
+      await onChanged();
+      errorToast(error);
+    },
   });
-
-  const fileMode = source.evidence_type === "file";
-  const reporterVisible = fileMode ? kind !== "redacted" : true;
-  const valid = title.trim().length >= 2 && reason.trim().length >= 10 && (fileMode ? Boolean(file) : description.trim().length >= 2);
 
   return (
     <AdminCard strong>
@@ -293,7 +401,11 @@ function DerivativeComposer({ source, onChanged }: { source: EvidenceItem; onCha
           <button
             type="button"
             disabled={!valid || createMutation.isPending}
-            onClick={() => reporterVisible ? setReleasePreviewOpen(true) : createMutation.mutate()}
+            onClick={() => {
+              const input = createInput();
+              if (input.reporterVisible) setReleaseReview(input);
+              else createMutation.mutate(input);
+            }}
             className="admin-action-primary"
           >
             <GitBranch className="size-4" />
@@ -303,37 +415,42 @@ function DerivativeComposer({ source, onChanged }: { source: EvidenceItem; onCha
       </div>
 
       <AdminConfirmSheet
-        open={releasePreviewOpen}
+        open={Boolean(releaseReview)}
         onClose={() => {
-          if (!createMutation.isPending) setReleasePreviewOpen(false);
+          if (!createMutation.isPending) setReleaseReview(null);
         }}
         onConfirm={async () => {
-          await createMutation.mutateAsync();
+          if (!releaseReview) return;
+          await createMutation.mutateAsync(releaseReview);
         }}
         title="Release this exact disclosure to the reporter?"
         description={
-          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
-            <p>This preview shows the exact reporter-visible derivative Solaris will create from the immutable source. Review the release content before continuing.</p>
-            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-              <p><span className="font-semibold text-foreground">Source:</span> {source.title} · {source.evidence_type.replaceAll("_", " ")} · {source.id}</p>
-              <p className="mt-2"><span className="font-semibold text-foreground">Release mode:</span> {fileMode ? kind.replaceAll("_", " ") : redactedText ? "redacted disclosure" : "disclosure"}</p>
-              <p className="mt-2"><span className="font-semibold text-foreground">Reporter-visible title:</span> {title.trim()}</p>
-              {fileMode ? (
-                <p className="mt-2"><span className="font-semibold text-foreground">Document:</span> {file?.name ?? "No file selected"}{file ? ` · ${file.size.toLocaleString()} bytes` : ""}</p>
-              ) : (
-                <p className="mt-2 whitespace-pre-wrap"><span className="font-semibold text-foreground">Reporter-visible content:</span> {description.trim()}</p>
-              )}
-              {fileMode && description.trim() ? <p className="mt-2 whitespace-pre-wrap"><span className="font-semibold text-foreground">Reporter-visible description:</span> {description.trim()}</p> : null}
-              {!fileMode && source.evidence_type === "url" && externalUrl.trim() ? <p className="mt-2 break-all"><span className="font-semibold text-foreground">Reporter-visible URL:</span> {externalUrl.trim()}</p> : null}
+          releaseReview ? (
+            <div className="space-y-3 text-xs leading-relaxed text-muted-foreground" data-v3-organizer-disclosure-release-review>
+              <p>This preview shows the exact reporter-visible derivative Solaris will create from the reviewed source. The case, source and release manifest are frozen for this review.</p>
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                <p><span className="font-semibold text-foreground">Case:</span> {releaseReview.caseItem.public_code} · {releaseReview.caseItem.summary}</p>
+                <p className="mt-2"><span className="font-semibold text-foreground">Source:</span> {releaseReview.source.title} · {releaseReview.source.evidence_type.replaceAll("_", " ")} · {releaseReview.source.id}</p>
+                <p className="mt-2"><span className="font-semibold text-foreground">Release mode:</span> {releaseReview.fileMode ? releaseReview.kind.replaceAll("_", " ") : releaseReview.redactedText ? "redacted disclosure" : "disclosure"}</p>
+                <p className="mt-2"><span className="font-semibold text-foreground">Reporter-visible title:</span> {releaseReview.title}</p>
+                {releaseReview.fileMode ? (
+                  <p className="mt-2"><span className="font-semibold text-foreground">Document:</span> {releaseReview.file?.name ?? "No file selected"}{releaseReview.file ? ` · ${releaseReview.file.size.toLocaleString()} bytes` : ""}</p>
+                ) : (
+                  <p className="mt-2 whitespace-pre-wrap"><span className="font-semibold text-foreground">Reporter-visible content:</span> {releaseReview.description}</p>
+                )}
+                {releaseReview.fileMode && releaseReview.description ? <p className="mt-2 whitespace-pre-wrap"><span className="font-semibold text-foreground">Reporter-visible description:</span> {releaseReview.description}</p> : null}
+                {!releaseReview.fileMode && releaseReview.source.evidence_type === "url" && releaseReview.externalUrl ? <p className="mt-2 break-all"><span className="font-semibold text-foreground">Reporter-visible URL:</span> {releaseReview.externalUrl}</p> : null}
+              </div>
+              <p><span className="font-semibold text-foreground">Internal disclosure reason:</span> {releaseReview.reason}</p>
+              <p>Immediately before creation, Solaris re-reads the exact case and source evidence and refuses the release if either reviewed basis changed or the source was deleted.</p>
+              <p>Creating this derivative makes it reporter-visible immediately under the current legacy authority and records the disclosure event. This is a release preview, not the missing V3 partial-approval workflow tracked in System #944.</p>
             </div>
-            <p><span className="font-semibold text-foreground">Internal disclosure reason:</span> {reason.trim()}</p>
-            <p>Creating this derivative makes it reporter-visible immediately under the current legacy authority and records the disclosure event. This is a release preview, not the missing V3 partial-approval workflow tracked in System #944.</p>
-          </div>
+          ) : null
         }
         confirmLabel="Create reporter-visible disclosure"
         busy={createMutation.isPending}
         danger
-        confirmDisabled={!reporterVisible || !valid}
+        confirmDisabled={!releaseReview || !releaseReview.reporterVisible}
       />
     </AdminCard>
   );
