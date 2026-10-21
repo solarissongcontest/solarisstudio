@@ -5,6 +5,7 @@ import {
   V3_S14_STAGES,
 } from "../../scripts/v3-s14-full-contest-spec";
 import { V3_S16_CERTIFICATION_CATEGORIES } from "./v3-s16-certification-contract";
+import { validateV3S16SystemHardeningEvidence } from "./v3-s16-system-hardening-evidence";
 import {
   validateV3S16SurfaceEvidence,
   type V3S16SurfaceCategory,
@@ -80,6 +81,11 @@ export function validateV3S16CategorySourceEvidence(
 
   if (evidence[category.passField] !== true) {
     issues.push(`${categoryId}: source evidence does not prove ${category.passField}=true`);
+  }
+
+  if (categoryId === "system-hardening") {
+    issues.push(...validateV3S16SystemHardeningEvidence(evidence, expectedSha));
+    return [...new Set(issues)];
   }
 
   if (SURFACE_CATEGORIES.has(categoryId as V3S16SurfaceCategory)) {
