@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { BookOpen, CalendarDays } from "lucide-react";
 
+import { EventTime } from "@/components/public/EventTime";
 import type { V3StoriesIndexBundle } from "@/lib/v3-stories";
 import {
   V3Screen,
@@ -143,6 +144,14 @@ export function V3StoriesIndexScreen({
                           <p className="mt-1 text-sm font-semibold">{story.heroMoment.headline}</p>
                         </div>
                       ) : null}
+                      <div className="mt-5 border-t border-white/[0.06] pt-3" data-v3-story-published-at="">
+                        <EventTime
+                          value={story.publishedAt}
+                          label="Published"
+                          className="text-white/48"
+                          showLocalTime
+                        />
+                      </div>
                     </V3Surface>
                   </Link>
                 ))}

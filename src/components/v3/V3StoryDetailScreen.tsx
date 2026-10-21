@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { BookOpen, CalendarDays, Share2 } from "lucide-react";
+import { BookOpen, Share2 } from "lucide-react";
 
+import { EventTime } from "@/components/public/EventTime";
 import type { V3StoryDetailBundle } from "@/lib/v3-stories";
 import {
   V3ActionCard,
@@ -118,11 +119,17 @@ export function V3StoryDetailScreen({
           description={story.introduction ?? undefined}
           editorial
         />
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           {story.subtitle ? <V3StatusChip tone="neutral">{story.subtitle}</V3StatusChip> : null}
-          <span className="text-xs text-white/38">
-            Published {formatDate(story.publishedAt)} · {story.items.length} reviewed moments
-          </span>
+          <span className="text-xs text-white/38">{story.items.length} reviewed moments</span>
+        </div>
+        <div className="mt-4 max-w-sm" data-v3-story-published-at="">
+          <EventTime
+            value={story.publishedAt}
+            label="Published"
+            className="text-white/72"
+            showLocalTime
+          />
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {bundle.relatedEdition ? (
@@ -169,11 +176,13 @@ export function V3StoryDetailScreen({
                     <span className="size-1 rounded-full bg-primary" />
                   </span>
                   <V3Surface level="raised" className="p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="inline-flex items-center gap-1.5 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-white/42">
-                        <CalendarDays className="size-3.5" aria-hidden="true" />
-                        {formatDate(item.occurredAt)}
-                      </span>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <EventTime
+                        value={item.occurredAt}
+                        label="Occurred"
+                        className="text-white/68"
+                        showLocalTime={false}
+                      />
                       <V3StatusChip tone="neutral">importance {item.importance}</V3StatusChip>
                     </div>
                     <h2 className="mt-3 text-xl font-black tracking-[-0.025em] sm:text-2xl">
@@ -221,15 +230,4 @@ export function V3StoryDetailScreen({
       ) : null}
     </V3Screen>
   );
-}
-
-function formatDate(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      });
 }
