@@ -8,6 +8,12 @@ const source = () =>
     "utf8",
   );
 
+const gate = () =>
+  readFileSync(
+    resolve(process.cwd(), "src/components/v3/V3LiveRouteGate.tsx"),
+    "utf8",
+  );
+
 describe("Public V3 Live presentation", () => {
   it("surfaces uncertainty instead of fabricating the current performer", () => {
     const screen = source();
@@ -35,6 +41,31 @@ describe("Public V3 Live presentation", () => {
     expect(screen).toContain("Running order not public");
     expect(screen).toContain("experience.currentPerformance");
     expect(screen).not.toContain("runningOrder[0]");
+  });
+
+  it("shows server-owned timing without promoting timestamps into browser authority", () => {
+    const screen = source();
+
+    expect(screen).toContain('title="Show timing"');
+    expect(screen).toContain("experience.timing.scheduledStart");
+    expect(screen).toContain("experience.timing.liveStartedAt");
+    expect(screen).toContain("experience.voting.openedAt");
+    expect(screen).toContain("experience.voting.closedAt");
+    expect(screen).toContain("experience.timing.resultsStartedAt");
+    expect(screen).toContain("experience.timing.endedAt");
+    expect(screen).toContain("do not independently advance");
+    expect(screen).not.toContain("setTimeout(");
+    expect(screen).not.toContain("setInterval(");
+  });
+
+  it("keeps Edition context connected to canonical Public discovery", () => {
+    const screen = source();
+    const routeGate = gate();
+
+    expect(routeGate).toContain("edition={bundle.data.edition}");
+    expect(screen).toContain("Edition context");
+    expect(screen).toContain('href={`/editions/${edition.slug}`}');
+    expect(screen).toContain("Open edition");
   });
 
   it("keeps refresh accessible and reduced-motion safe", () => {

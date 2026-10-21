@@ -19,6 +19,10 @@ import {
 } from "./V3Foundation";
 
 export type V3LiveScreenProps = {
+  edition?: {
+    slug: string;
+    label: string;
+  } | null;
   experience: V3LiveExperience | null;
   onRefresh?: () => void;
   refreshing?: boolean;
@@ -59,6 +63,30 @@ function freshnessLabel(iso: string) {
   })}`;
 }
 
+function liveMomentLabel(iso: string) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleString([], {
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function liveTimingRows(experience: V3LiveExperience) {
+  return [
+    { label: "Scheduled start", value: experience.timing.scheduledStart },
+    { label: "Live started", value: experience.timing.liveStartedAt },
+    { label: "Voting opened", value: experience.voting.openedAt },
+    { label: "Voting closed", value: experience.voting.closedAt },
+    { label: "Results segment started", value: experience.timing.resultsStartedAt },
+    { label: "Show ended", value: experience.timing.endedAt },
+  ].filter(
+    (row): row is { label: string; value: string } =>
+      typeof row.value === "string" && row.value.length > 0,
+  );
+}
+
 /**
  * Presentation-only Public V3 Live surface.
  *
@@ -67,6 +95,7 @@ function freshnessLabel(iso: string) {
  * order position or elapsed wall-clock time when Solaris lacks that authority.
  */
 export function V3LiveScreen({
+  edition = null,
   experience,
   onRefresh,
   refreshing = false,
@@ -78,9 +107,27 @@ export function V3LiveScreen({
         <V3ScreenHeader
           kicker="Live"
           title="No public show right now"
-          description="A live experience will appear when Solaris has a published show to follow."
+          description={
+            edition
+              ? `${edition.label} does not currently have a published show selected for Live.`
+              : "A live experience will appear when Solaris has a published show to follow."
+          }
           editorial
         />
+        {edition ? (
+          <V3Surface className="flex min-h-14 items-center justify-between gap-3 px-4 py-3">
+            <div className="min-w-0">
+              <p className="v3-kicker">Edition context</p>
+              <p className="mt-1 truncate text-sm font-semibold">{edition.label}</p>
+            </div>
+            <a
+              href={`/editions/${edition.slug}`}
+              className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-white/10 px-3 text-xs font-semibold text-white/70 transition hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+            >
+              Open edition
+            </a>
+          </V3Surface>
+        ) : null}
         {degraded ? (
           <V3Surface
             level="raised"
@@ -125,6 +172,7 @@ export function V3LiveScreen({
 
   const presentation = showStatePresentation(experience.state);
   const exactPerformanceKnown = Boolean(experience.currentPerformance);
+  const timingRows = liveTimingRows(experience);
 
   return (
     <V3Screen>
@@ -134,6 +182,21 @@ export function V3LiveScreen({
         description={experience.description}
         editorial
       />
+
+      {edition ? (
+        <V3Surface className="flex min-h-14 items-center justify-between gap-3 px-4 py-3">
+          <div className="min-w-0">
+            <p className="v3-kicker">Edition context</p>
+            <p className="mt-1 truncate text-sm font-semibold">{edition.label}</p>
+          </div>
+          <a
+            href={`/editions/${edition.slug}`}
+            className="inline-flex min-h-11 shrink-0 items-center rounded-xl border border-white/10 px-3 text-xs font-semibold text-white/70 transition hover:bg-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+          >
+            Open edition
+          </a>
+        </V3Surface>
+      ) : null}
 
       {degraded ? (
         <V3Surface
@@ -271,6 +334,30 @@ export function V3LiveScreen({
               />
             ) : null}
           </div>
+        </V3Section>
+      ) : null}
+
+      {timingRows.length ? (
+        <V3Section title="Show timing" meta="Authoritative snapshot">
+          <V3Surface className="overflow-hidden">
+            <dl className="divide-y divide-white/[0.06]">
+              {timingRows.map((row) => (
+                <div
+                  key={row.label}
+                  className="flex min-h-14 items-center justify-between gap-4 px-4 py-3"
+                >
+                  <dt className="text-xs font-medium text-white/48">{row.label}</dt>
+                  <dd className="text-right text-sm font-semibold text-white/80">
+                    {liveMomentLabel(row.value)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <p className="border-t border-white/[0.06] px-4 py-3 text-[0.7rem] leading-5 text-white/38">
+              Times are displayed from the server snapshot. They do not independently advance
+              show, voting or result state in this browser.
+            </p>
+          </V3Surface>
         </V3Section>
       ) : null}
 
