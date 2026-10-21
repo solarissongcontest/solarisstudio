@@ -208,10 +208,21 @@ VALUES
   (:'EDITION_A'::uuid,'S14 Archive Delete Guard A','s14-archive-delete-guard-a',1894,2026,'active',false),
   (:'EDITION_B'::uuid,'S14 Archive Delete Guard B','s14-archive-delete-guard-b',1895,2026,'active',false);
 
-INSERT INTO public.studio2_edition_runtime(edition_id,state,subsystems,version,updated_by)
-VALUES
-  (:'EDITION_A'::uuid,'post_edition',private.studio2_default_subsystems('post_edition'),1,null),
-  (:'EDITION_B'::uuid,'results',private.studio2_default_subsystems('results'),1,null);
+-- public.editions owns runtime creation through
+-- studio2_seed_edition_runtime_after_insert. Reuse those canonical rows instead
+-- of double-inserting the same edition_id and turn them into the exact
+-- pre-Archive states required by this isolated negative-path fixture.
+UPDATE public.studio2_edition_runtime runtime
+SET state = fixture.state,
+    subsystems = private.studio2_default_subsystems(fixture.state),
+    version = 1,
+    updated_by = null
+FROM (
+  VALUES
+    (:'EDITION_A'::uuid, 'post_edition'::text),
+    (:'EDITION_B'::uuid, 'results'::text)
+) AS fixture(edition_id, state)
+WHERE runtime.edition_id = fixture.edition_id;
 
 INSERT INTO public.shows(id,edition_id,name,kind,sort_order,published)
 VALUES (:'SHOW_A'::uuid,:'EDITION_A'::uuid,'Archive Delete Freeze Fixture','grand-final',1,false);
@@ -369,8 +380,13 @@ SELECT pg_temp.assert_true(
 INSERT INTO public.editions(id,name,slug,edition_number,year,status,published)
 VALUES (:'EDITION_C'::uuid,'S14 Archive Guard C','s14-archive-guard-c',1893,2026,'active',false);
 
-INSERT INTO public.studio2_edition_runtime(edition_id,state,subsystems,version,updated_by)
-VALUES (:'EDITION_C'::uuid,'post_edition',private.studio2_default_subsystems('post_edition'),1,null);
+-- The editions trigger has already created Edition C's runtime row.
+UPDATE public.studio2_edition_runtime
+SET state = 'post_edition',
+    subsystems = private.studio2_default_subsystems('post_edition'),
+    version = 1,
+    updated_by = null
+WHERE edition_id = :'EDITION_C'::uuid;
 
 INSERT INTO public.studio2_capability_grants(user_id,capability,edition_id)
 VALUES
