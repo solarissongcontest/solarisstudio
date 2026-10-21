@@ -128,6 +128,7 @@ jobs:
                  -o -name 's16-migration-rehearsal.json' \
                  -o -name 's16-authorization-security.json' \
                  -o -name 's16-production-isolation.json' \
+                 -o -name 's16-system-hardening.json' \
                  -o -name 's16-public-acceptance.json' \
                  -o -name 's16-organizer-acceptance.json' \
                  -o -name 's16-navigation-acceptance.json' \
@@ -143,7 +144,7 @@ jobs:
           fi
           printf '%s\n' "${dirs[@]}" > s16-source-runs/source-dirs.txt
 
-      - name: Assemble and semantically revalidate all 11 categories
+      - name: Assemble and semantically revalidate all 12 categories
         shell: bash
         run: |
           set -euo pipefail
@@ -217,5 +218,5 @@ jobs:
               echo "Certified: \`false\` (certificate was not produced)"
             fi
             echo
-            echo "This workflow certifies only when all 11 canonical source-evidence categories are present, exact-SHA bound and semantically passing, and final release integrity revalidates the bundle."
+            echo "This workflow certifies only when all 12 required source-evidence categories are present, exact-SHA bound and semantically passing, including the S10-S13 System hardening envelope, and final release integrity revalidates the bundle."
           } >> "$GITHUB_STEP_SUMMARY"
