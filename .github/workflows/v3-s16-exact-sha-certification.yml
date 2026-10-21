@@ -28,6 +28,7 @@ jobs:
     env:
       V3_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
       V3_RELEASE_EVIDENCE_DIR: v3-release-evidence
+      V3_S16_SOURCE_RUN_METADATA: s16-source-runs/run-metadata.ndjson
       GH_TOKEN: ${{ github.token }}
 
     steps:
