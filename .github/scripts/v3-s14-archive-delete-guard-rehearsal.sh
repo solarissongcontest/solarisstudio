@@ -5,9 +5,9 @@ log() { printf '\n[v3-s14-archive-delete-guard] %s\n' "$*"; }
 fail() { printf '\n[v3-s14-archive-delete-guard] FAIL: %s\n' "$*" >&2; printf '::error::%s\n' "$*"; exit 1; }
 
 # Negative-path Archive proof is destructive fixture work and must stay local.
-# This rehearsal owns every fixture it asserts against. It must not depend on
-# another rehearsal having run first, because that would turn a guard failure
-# into an order-dependent false negative.
+# This rehearsal owns every domain fixture it asserts against. All database
+# fixture work runs in one transaction and is rolled back when the proof ends,
+# because Archive itself is intentionally irreversible.
 eval "$(supabase status -o env)"
 : "${API_URL:?missing local Supabase API_URL}"
 : "${DB_URL:?missing local Supabase DB_URL}"
@@ -31,27 +31,26 @@ export V3_VERIFICATION_TARGET=local V3_SEED_TARGET=local V3_CLEANUP_TARGET=local
 export V3_DESTRUCTIVE_VERIFICATION=1 V3_SERVICE_ROLE_SCOPE=local
 bun run scripts/check-v3-production-isolation.ts
 
-EDITION_A='18910000-0000-4000-8000-000000000031'
-EDITION_B='18910000-0000-4000-8000-000000000032'
-SHOW_A='18910000-0000-4000-8000-000000000033'
-ARCHIVE_A_OPERATION='18910000-0000-4000-8000-000000000034'
-EDITION_C='18910000-0000-4000-8000-000000000021'
-TELEVOTE_EDITION='18910000-0000-4000-8000-000000000022'
-TELEVOTE_ROUND='18910000-0000-4000-8000-000000000023'
-SUBMISSION_ROUND='18910000-0000-4000-8000-000000000024'
-SUBMISSION_ID='18910000-0000-4000-8000-000000000025'
-NEXT_RESPONSE='18910000-0000-4000-8000-000000000026'
-FAKE_COUNTRY='18910000-0000-4000-8000-000000000027'
-ARCHIVE_C_OPERATION='18910000-0000-4000-8000-000000000028'
+new_uuid() {
+  python3 -c 'import uuid; print(uuid.uuid4())'
+}
+
+EDITION_A="$(new_uuid)"
+EDITION_B="$(new_uuid)"
+SHOW_A="$(new_uuid)"
+ARCHIVE_A_OPERATION="$(new_uuid)"
+EDITION_C="$(new_uuid)"
+TELEVOTE_EDITION="$(new_uuid)"
+TELEVOTE_ROUND="$(new_uuid)"
+SUBMISSION_ROUND="$(new_uuid)"
+SUBMISSION_ID="$(new_uuid)"
+NEXT_RESPONSE="$(new_uuid)"
+FAKE_COUNTRY="$(new_uuid)"
+ARCHIVE_C_OPERATION="$(new_uuid)"
+RUN_TOKEN="$(new_uuid)"
 
 db_value() {
   psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c "$1"
-}
-
-as_user() {
-  local user_id="$1" sql="$2"
-  psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c \
-    "set role authenticated; set request.jwt.claims = '{\"sub\":\"$user_id\",\"role\":\"authenticated\"}'; $sql"
 }
 
 json_value() {
@@ -77,194 +76,479 @@ create_local_user() {
     -H 'Content-Type: application/json' \
     --data "$body")"
   id="$(printf '%s' "$response" | json_value id 2>/dev/null || true)"
-  if [[ -z "$id" ]]; then
-    id="$(db_value "select id::text from auth.users where lower(email)=lower('$email') limit 1;")"
-  fi
   [[ -n "$id" ]] || fail "could not create local user $email"
   printf '%s' "$id"
 }
 
-service_role_fails() {
-  local label="$1" expected="$2" sql="$3" output error_line
-  output="$(mktemp)"
-  if psql "$DB_URL" -v ON_ERROR_STOP=1 -v VERBOSITY=verbose -Atq -c \
-    "set role service_role; set request.jwt.claims = '{\"role\":\"service_role\"}'; $sql" \
-    >"$output" 2>&1; then
-    cat "$output" >&2
-    rm -f "$output"
-    fail "$label unexpectedly succeeded"
-  fi
-  error_line="$(grep -m1 -E '^ERROR:' "$output" || true)"
-  grep -Fq "$expected" "$output" || {
-    cat "$output" >&2
-    rm -f "$output"
-    fail "$label did not fail through the expected canonical guard (${error_line:-no PostgreSQL error line})"
-  }
-  log "PASS: $label rejected by ${error_line:-$expected}"
-  rm -f "$output"
-}
+AUTHORIZED_ID="$(create_local_user "s14-archive-delete-guard-${RUN_TOKEN}@solaris.invalid" 'S14 Archive Delete Guard Authorized')"
 
-AUTHORIZED_ID="$(create_local_user 's14-archive-delete-guard-authorized@solaris.invalid' 'S14 Archive Delete Guard Authorized')"
+log "Run self-contained Archive guard proof in one rollback-only database transaction"
+psql "$DB_URL" \
+  -v ON_ERROR_STOP=1 \
+  -v VERBOSITY=verbose \
+  -v AUTHORIZED_ID="$AUTHORIZED_ID" \
+  -v EDITION_A="$EDITION_A" \
+  -v EDITION_B="$EDITION_B" \
+  -v SHOW_A="$SHOW_A" \
+  -v ARCHIVE_A_OPERATION="$ARCHIVE_A_OPERATION" \
+  -v EDITION_C="$EDITION_C" \
+  -v TELEVOTE_EDITION="$TELEVOTE_EDITION" \
+  -v TELEVOTE_ROUND="$TELEVOTE_ROUND" \
+  -v SUBMISSION_ROUND="$SUBMISSION_ROUND" \
+  -v SUBMISSION_ID="$SUBMISSION_ID" \
+  -v NEXT_RESPONSE="$NEXT_RESPONSE" \
+  -v FAKE_COUNTRY="$FAKE_COUNTRY" \
+  -v ARCHIVE_C_OPERATION="$ARCHIVE_C_OPERATION" \
+  <<'SQL'
+\set QUIET 1
+BEGIN;
 
-log "Seed independent archived/results fixtures for deletion and workflow-freeze coverage"
-psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "
-update public.studio2_platform_operational_state
-set mode='normal', changed_at=now()
-where singleton=true;
+CREATE OR REPLACE FUNCTION pg_temp.assert_true(
+  p_label text,
+  p_condition boolean,
+  p_detail text
+)
+RETURNS void
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+  IF NOT coalesce(p_condition, false) THEN
+    RAISE EXCEPTION USING
+      ERRCODE = 'P0001',
+      MESSAGE = format('TEST FAILED: %s', p_label),
+      DETAIL = p_detail;
+  END IF;
 
-insert into public.editions(id,name,slug,edition_number,year,status,published)
-values
- ('$EDITION_A','S14 Archive Delete Guard A','s14-archive-delete-guard-a',1894,2026,'active',false),
- ('$EDITION_B','S14 Archive Delete Guard B','s14-archive-delete-guard-b',1895,2026,'active',false);
+  RAISE NOTICE 'PASS: %', p_label;
+END
+$function$;
 
-insert into public.studio2_edition_runtime(edition_id,state,subsystems,version,updated_by)
-values
- ('$EDITION_A','post_edition',private.studio2_default_subsystems('post_edition'),1,null),
- ('$EDITION_B','results',private.studio2_default_subsystems('results'),1,null);
+CREATE OR REPLACE FUNCTION pg_temp.assert_archive_guard(
+  p_label text,
+  p_expected_sqlstate text,
+  p_expected_message text,
+  p_sql text,
+  p_trigger_relation regclass DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+AS $function$
+DECLARE
+  v_failed boolean := false;
+  v_sqlstate text;
+  v_message text;
+  v_detail text;
+  v_context text;
+  v_trigger record;
+BEGIN
+  BEGIN
+    EXECUTE p_sql;
+  EXCEPTION
+    WHEN OTHERS THEN
+      v_failed := true;
+      GET STACKED DIAGNOSTICS
+        v_sqlstate = RETURNED_SQLSTATE,
+        v_message = MESSAGE_TEXT,
+        v_detail = PG_EXCEPTION_DETAIL,
+        v_context = PG_EXCEPTION_CONTEXT;
+  END;
 
-insert into public.shows(id,edition_id,name,kind,sort_order,published)
-values ('$SHOW_A','$EDITION_A','Archive Delete Freeze Fixture','grand-final',1,false);
+  IF NOT v_failed THEN
+    RAISE EXCEPTION USING
+      ERRCODE = 'P0001',
+      MESSAGE = format('TEST FAILED: %s unexpectedly succeeded', p_label);
+  END IF;
 
-insert into public.studio2_result_operations(
- show_id,edition_id,calculation_version,reviewed_version,locked_version,reveal_ready_version
-) values ('$SHOW_A','$EDITION_A',1,1,1,1);
+  IF v_sqlstate IS DISTINCT FROM p_expected_sqlstate
+     OR v_message IS DISTINCT FROM p_expected_message THEN
+    RAISE NOTICE 'ARCHIVE GUARD DIAGNOSTIC: %', p_label;
+    RAISE NOTICE '  expected SQLSTATE=% message=%', p_expected_sqlstate, p_expected_message;
+    RAISE NOTICE '  actual   SQLSTATE=% message=%', v_sqlstate, v_message;
+    RAISE NOTICE '  detail=%', coalesce(v_detail, '<none>');
+    RAISE NOTICE '  context=%', coalesce(v_context, '<none>');
 
-insert into public.studio2_capability_grants(user_id,capability,edition_id)
-values
- ('$AUTHORIZED_ID'::uuid,'edition.manage','$EDITION_A'::uuid),
- ('$AUTHORIZED_ID'::uuid,'edition.archive','$EDITION_A'::uuid);
-"
+    IF p_trigger_relation IS NOT NULL THEN
+      RAISE NOTICE '  trigger inventory for %:', p_trigger_relation::text;
+      FOR v_trigger IN
+        SELECT tgname, pg_get_triggerdef(oid) AS definition
+        FROM pg_trigger
+        WHERE tgrelid = p_trigger_relation
+          AND NOT tgisinternal
+        ORDER BY tgname
+      LOOP
+        RAISE NOTICE '    % => %', v_trigger.tgname, v_trigger.definition;
+      END LOOP;
+    END IF;
 
-as_user "$AUTHORIZED_ID" \
-  "select public.studio2_transition_edition_v3('$EDITION_A'::uuid,'archived',null,null,1,'$ARCHIVE_A_OPERATION'::uuid,'s14-delete-guard-canonical-archive');" \
-  >/dev/null
+    RAISE EXCEPTION USING
+      ERRCODE = 'P0001',
+      MESSAGE = format('TEST FAILED: %s returned the wrong Archive exception', p_label),
+      DETAIL = format(
+        'expected SQLSTATE=%s message=%L; actual SQLSTATE=%s message=%L; detail=%L; context=%L',
+        p_expected_sqlstate,
+        p_expected_message,
+        coalesce(v_sqlstate, '<none>'),
+        coalesce(v_message, '<none>'),
+        coalesce(v_detail, '<none>'),
+        coalesce(v_context, '<none>')
+      );
+  END IF;
 
-state="$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_A'::uuid;")"
-[[ "$state" == 'archived' ]] || fail "self-owned Archive guard fixture did not archive canonically"
-state_b="$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_B'::uuid;")"
-[[ "$state_b" == 'results' ]] || fail "self-owned Archive guard fixture B is not in results before insert-bypass test"
+  RAISE NOTICE 'PASS: % rejected by SQLSTATE %: %', p_label, v_sqlstate, v_message;
+END
+$function$;
 
-log "Archived runtime row cannot be deleted by service role"
-service_role_fails \
-  "service-role archived runtime deletion" \
-  "Archived edition runtime is irreversible." \
-  "delete from public.studio2_edition_runtime where edition_id='$EDITION_A'::uuid;"
+UPDATE public.studio2_platform_operational_state
+SET mode = 'normal', changed_at = now()
+WHERE singleton = true;
 
-remaining="$(db_value "select count(*) from public.studio2_edition_runtime where edition_id='$EDITION_A'::uuid and state='archived';")"
-[[ "$remaining" == '1' ]] || fail "archived runtime fact was deleted or changed"
+\echo '[v3-s14-archive-delete-guard] Seed independent archived/results fixtures'
+INSERT INTO public.editions(id,name,slug,edition_number,year,status,published)
+VALUES
+  (:'EDITION_A'::uuid,'S14 Archive Delete Guard A','s14-archive-delete-guard-a',1894,2026,'active',false),
+  (:'EDITION_B'::uuid,'S14 Archive Delete Guard B','s14-archive-delete-guard-b',1895,2026,'active',false);
 
-log "Service role cannot manufacture an archived runtime through delete + insert"
-# Use the deleted row's own subsystems payload. Calling a private helper while
-# impersonating service_role can fail at the private-schema permission boundary
-# before the runtime INSERT reaches the Archive trigger, which would be a false
-# negative for the invariant this rehearsal exists to prove.
-service_role_fails \
-  "service-role direct archived runtime insertion" \
-  "Archive transition must use the canonical V3 lifecycle command." \
-  "begin; with deleted as (delete from public.studio2_edition_runtime where edition_id='$EDITION_B'::uuid returning edition_id,subsystems) insert into public.studio2_edition_runtime(edition_id,state,subsystems,version,updated_by) select edition_id,'archived',subsystems,6,null from deleted; commit;"
+INSERT INTO public.studio2_edition_runtime(edition_id,state,subsystems,version,updated_by)
+VALUES
+  (:'EDITION_A'::uuid,'post_edition',private.studio2_default_subsystems('post_edition'),1,null),
+  (:'EDITION_B'::uuid,'results',private.studio2_default_subsystems('results'),1,null);
 
-state_b="$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_B'::uuid;")"
-[[ "$state_b" == 'results' ]] || fail "failed archived insert did not roll back the fixture runtime atomically"
+INSERT INTO public.shows(id,edition_id,name,kind,sort_order,published)
+VALUES (:'SHOW_A'::uuid,:'EDITION_A'::uuid,'Archive Delete Freeze Fixture','grand-final',1,false);
 
-log "Archive freezes publication, result-operation and legacy lifecycle mutation boundaries"
-service_role_fails \
-  "archived show publication mutation" \
-  "Archived edition workflow is read-only." \
-  "update public.shows set published=false where id='$SHOW_A'::uuid;"
+INSERT INTO public.studio2_result_operations(
+  show_id,edition_id,calculation_version,reviewed_version,locked_version,reveal_ready_version
+)
+VALUES (:'SHOW_A'::uuid,:'EDITION_A'::uuid,1,1,1,1);
 
-service_role_fails \
-  "archived result operation mutation" \
-  "Archived edition workflow is read-only." \
-  "update public.studio2_result_operations set locked_version=null where show_id='$SHOW_A'::uuid;"
+INSERT INTO public.studio2_capability_grants(user_id,capability,edition_id)
+VALUES
+  (:'AUTHORIZED_ID'::uuid,'edition.manage',:'EDITION_A'::uuid),
+  (:'AUTHORIZED_ID'::uuid,'edition.archive',:'EDITION_A'::uuid);
 
-service_role_fails \
-  "archived legacy lifecycle revival" \
-  "Archived edition lifecycle is read-only." \
-  "update public.editions set status='active' where id='$EDITION_A'::uuid;"
+SET ROLE authenticated;
+SELECT set_config(
+  'request.jwt.claims',
+  json_build_object('sub', :'AUTHORIZED_ID', 'role', 'authenticated')::text,
+  true
+);
+SELECT public.studio2_transition_edition_v3(
+  :'EDITION_A'::uuid,
+  'archived',
+  null,
+  null,
+  1,
+  :'ARCHIVE_A_OPERATION'::uuid,
+  's14-delete-guard-canonical-archive'
+);
+RESET ROLE;
 
-legacy_status="$(db_value "select status from public.editions where id='$EDITION_A'::uuid;")"
-[[ "$legacy_status" == 'completed' || "$legacy_status" == 'finished' ]] || fail "archived edition compatibility status is not terminal"
-
-log "Seed one independent current-workflow edition for terminal-boundary coverage"
-psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "
-insert into public.editions(id,name,slug,edition_number,year,status,published)
-values ('$EDITION_C','S14 Archive Guard C','s14-archive-guard-c',1893,2026,'active',false);
-
-insert into public.studio2_edition_runtime(edition_id,state,subsystems,version,updated_by)
-values ('$EDITION_C','post_edition',private.studio2_default_subsystems('post_edition'),1,null);
-
-insert into public.studio2_capability_grants(user_id,capability,edition_id)
-values
- ('$AUTHORIZED_ID'::uuid,'edition.manage','$EDITION_C'::uuid),
- ('$AUTHORIZED_ID'::uuid,'edition.archive','$EDITION_C'::uuid)
-on conflict do nothing;
-
-insert into public.submission_rounds(id,edition_id,name,status)
-values ('$SUBMISSION_ROUND','$EDITION_C','Archive terminal fixture','closed');
-
-insert into public.submissions(
- id,edition_id,round_id,instagram_username,country,participating,selection_method
-) values (
- '$SUBMISSION_ID','$EDITION_C','$SUBMISSION_ROUND','archive_fixture','Archive Fixture',true,'internal'
+SELECT pg_temp.assert_true(
+  'canonical Archive fixture A exists before destructive assertions',
+  EXISTS (
+    SELECT 1
+    FROM public.studio2_edition_runtime
+    WHERE edition_id = :'EDITION_A'::uuid
+      AND state = 'archived'
+  ),
+  'Edition A must exist in archived state so DELETE cannot pass by matching zero rows.'
 );
 
-insert into public.next_in_line_responses(
- id,source_submission_id,edition_id,country,participating,selection_type
-) values (
- '$NEXT_RESPONSE','$SUBMISSION_ID','$EDITION_C','Archive Fixture',true,'internal'
+SELECT pg_temp.assert_true(
+  'results fixture B exists before forged Archive assertion',
+  EXISTS (
+    SELECT 1
+    FROM public.studio2_edition_runtime
+    WHERE edition_id = :'EDITION_B'::uuid
+      AND state = 'results'
+  ),
+  'Edition B must exist in results state before the delete+insert bypass attempt.'
 );
 
-insert into public.studio2_next_in_line_windows(
- edition_id,enabled,status,version,reason
-) values ('$EDITION_C',false,'closed',1,'Archive terminal fixture');
+SELECT pg_temp.assert_true(
+  'Archive compatibility projection is terminal before legacy mutation assertion',
+  EXISTS (
+    SELECT 1
+    FROM public.editions
+    WHERE id = :'EDITION_A'::uuid
+      AND status IN ('completed','finished')
+  ),
+  'Canonical Archive must first project a terminal legacy editions.status.'
+);
 
-insert into televoting.editions(id,name,is_active,is_archived)
-values ('$TELEVOTE_EDITION','S14 Archive Televote',false,false);
+\echo '[v3-s14-archive-delete-guard] Assert Archive runtime DELETE guard'
+SET ROLE service_role;
+SELECT set_config('request.jwt.claims', json_build_object('role', 'service_role')::text, true);
+SELECT pg_temp.assert_archive_guard(
+  'Archive runtime DELETE',
+  '42501',
+  'Archived edition runtime is irreversible.',
+  format(
+    'delete from public.studio2_edition_runtime where edition_id=%L::uuid',
+    :'EDITION_A'
+  ),
+  'public.studio2_edition_runtime'::regclass
+);
+RESET ROLE;
 
-insert into televoting.rounds(id,edition_id,name,status)
-values ('$TELEVOTE_ROUND','$TELEVOTE_EDITION','Archive terminal round','closed');
+SELECT pg_temp.assert_true(
+  'Archive runtime DELETE preserves the archived fact',
+  EXISTS (
+    SELECT 1
+    FROM public.studio2_edition_runtime
+    WHERE edition_id = :'EDITION_A'::uuid
+      AND state = 'archived'
+  ),
+  'Archived runtime fact disappeared or changed after rejected DELETE.'
+);
 
-insert into public.televoting_round_bindings(
- remote_round_id,remote_edition_id,edition_id,source_mode
-) values ('$TELEVOTE_ROUND','$TELEVOTE_EDITION','$EDITION_C','edition');
-"
+\echo '[v3-s14-archive-delete-guard] Assert forged Archive INSERT guard'
+SET ROLE service_role;
+SELECT set_config('request.jwt.claims', json_build_object('role', 'service_role')::text, true);
+SELECT pg_temp.assert_archive_guard(
+  'Forged Archive INSERT after runtime DELETE',
+  '42501',
+  'Archive transition must use the canonical V3 lifecycle command.',
+  format(
+    'with deleted as (delete from public.studio2_edition_runtime where edition_id=%L::uuid returning edition_id,subsystems) insert into public.studio2_edition_runtime(edition_id,state,subsystems,version,updated_by) select edition_id,''archived'',subsystems,6,null from deleted',
+    :'EDITION_B'
+  ),
+  'public.studio2_edition_runtime'::regclass
+);
+RESET ROLE;
 
-[[ "$(db_value "select count(*) from public.studio2_edition_runtime where edition_id='$EDITION_C'::uuid and state='post_edition' and version=1;")" == '1' ]] || fail "terminal-boundary fixture runtime was not created with valid subsystem state"
+SELECT pg_temp.assert_true(
+  'Rejected forged Archive INSERT rolls back its preceding DELETE atomically',
+  EXISTS (
+    SELECT 1
+    FROM public.studio2_edition_runtime
+    WHERE edition_id = :'EDITION_B'::uuid
+      AND state = 'results'
+  ),
+  'Edition B must remain in results after the rejected delete+insert statement.'
+);
 
-as_user "$AUTHORIZED_ID" \
-  "select public.studio2_transition_edition_v3('$EDITION_C'::uuid,'archived',null,null,1,'$ARCHIVE_C_OPERATION'::uuid,'s14-terminal-boundary-archive');" \
-  >/dev/null
-[[ "$(db_value "select state from public.studio2_edition_runtime where edition_id='$EDITION_C'::uuid;")" == 'archived' ]] || fail "terminal-boundary fixture did not archive canonically"
+\echo '[v3-s14-archive-delete-guard] Assert archived show/result/legacy lifecycle guards'
+SET ROLE service_role;
+SELECT set_config('request.jwt.claims', json_build_object('role', 'service_role')::text, true);
+SELECT pg_temp.assert_archive_guard(
+  'Archived show mutation',
+  '42501',
+  'Archived edition workflow is read-only.',
+  format('update public.shows set published=false where id=%L::uuid', :'SHOW_A'),
+  'public.shows'::regclass
+);
+SELECT pg_temp.assert_archive_guard(
+  'Archived result operation mutation',
+  '42501',
+  'Archived edition workflow is read-only.',
+  format('update public.studio2_result_operations set locked_version=null where show_id=%L::uuid', :'SHOW_A'),
+  'public.studio2_result_operations'::regclass
+);
+SELECT pg_temp.assert_archive_guard(
+  'Archived legacy lifecycle revival',
+  '42501',
+  'Archived edition lifecycle is read-only.',
+  format('update public.editions set status=''active'' where id=%L::uuid', :'EDITION_A'),
+  'public.editions'::regclass
+);
+RESET ROLE;
 
-log "Archive freezes remaining Next in Line and eligibility stores"
-service_role_fails \
-  "archived Next in Line window mutation" \
-  "Archived edition workflow is read-only." \
-  "update public.studio2_next_in_line_windows set enabled=true,status='open' where edition_id='$EDITION_C'::uuid;"
+SELECT pg_temp.assert_true(
+  'Rejected legacy lifecycle revival preserves terminal compatibility status',
+  EXISTS (
+    SELECT 1
+    FROM public.editions
+    WHERE id = :'EDITION_A'::uuid
+      AND status IN ('completed','finished')
+  ),
+  'Archived edition compatibility status ceased to be terminal.'
+);
 
-service_role_fails \
-  "archived Next in Line response mutation" \
-  "Archived edition workflow is read-only." \
-  "update public.next_in_line_responses set participating=false where id='$NEXT_RESPONSE'::uuid;"
+\echo '[v3-s14-archive-delete-guard] Seed independent terminal-boundary fixture C'
+INSERT INTO public.editions(id,name,slug,edition_number,year,status,published)
+VALUES (:'EDITION_C'::uuid,'S14 Archive Guard C','s14-archive-guard-c',1893,2026,'active',false);
 
-service_role_fails \
-  "archived eligibility override insertion" \
-  "Archived edition workflow is read-only." \
-  "insert into public.studio2_eligibility_overrides(edition_id,country_id,affected_rule,reason) values ('$EDITION_C'::uuid,'$FAKE_COUNTRY'::uuid,'archive.fixture','Archive fixture must fail closed');"
+INSERT INTO public.studio2_edition_runtime(edition_id,state,subsystems,version,updated_by)
+VALUES (:'EDITION_C'::uuid,'post_edition',private.studio2_default_subsystems('post_edition'),1,null);
 
-log "Archive freezes Televote binding and canonical Televote round storage"
-service_role_fails \
-  "archived Televote binding mutation" \
-  "Archived edition workflow is read-only." \
-  "update public.televoting_round_bindings set source_mode='show' where remote_round_id='$TELEVOTE_ROUND';"
+INSERT INTO public.studio2_capability_grants(user_id,capability,edition_id)
+VALUES
+  (:'AUTHORIZED_ID'::uuid,'edition.manage',:'EDITION_C'::uuid),
+  (:'AUTHORIZED_ID'::uuid,'edition.archive',:'EDITION_C'::uuid)
+ON CONFLICT DO NOTHING;
 
-service_role_fails \
-  "archived canonical Televote round mutation" \
-  "Archived edition workflow is read-only." \
-  "update televoting.rounds set closes_at=now() + interval '1 hour' where id='$TELEVOTE_ROUND'::uuid;"
+INSERT INTO public.submission_rounds(id,edition_id,name,status)
+VALUES (:'SUBMISSION_ROUND'::uuid,:'EDITION_C'::uuid,'Archive terminal fixture','closed');
 
-[[ "$(db_value "select status::text from televoting.rounds where id='$TELEVOTE_ROUND'::uuid;")" == 'closed' ]] || fail "archived Televote mutation changed canonical round state"
-[[ "$(db_value "select status from public.studio2_next_in_line_windows where edition_id='$EDITION_C'::uuid;")" == 'closed' ]] || fail "archived Next in Line mutation changed canonical window state"
-[[ "$(db_value "select participating::text from public.next_in_line_responses where id='$NEXT_RESPONSE'::uuid;")" == 'true' ]] || fail "archived Next in Line response mutation changed retained response"
+INSERT INTO public.submissions(
+  id,edition_id,round_id,instagram_username,country,participating,selection_method
+)
+VALUES (
+  :'SUBMISSION_ID'::uuid,
+  :'EDITION_C'::uuid,
+  :'SUBMISSION_ROUND'::uuid,
+  'archive_fixture',
+  'Archive Fixture',
+  true,
+  'internal'
+);
 
-log "S14 Archive irreversibility + workflow-freeze guards passed"
+INSERT INTO public.next_in_line_responses(
+  id,source_submission_id,edition_id,country,participating,selection_type
+)
+VALUES (
+  :'NEXT_RESPONSE'::uuid,
+  :'SUBMISSION_ID'::uuid,
+  :'EDITION_C'::uuid,
+  'Archive Fixture',
+  true,
+  'internal'
+);
+
+INSERT INTO public.studio2_next_in_line_windows(
+  edition_id,enabled,status,version,reason
+)
+VALUES (:'EDITION_C'::uuid,false,'closed',1,'Archive terminal fixture');
+
+INSERT INTO televoting.editions(id,name,is_active,is_archived)
+VALUES (:'TELEVOTE_EDITION'::uuid,'S14 Archive Televote',false,false);
+
+INSERT INTO televoting.rounds(id,edition_id,name,status)
+VALUES (:'TELEVOTE_ROUND'::uuid,:'TELEVOTE_EDITION'::uuid,'Archive terminal round','closed');
+
+INSERT INTO public.televoting_round_bindings(
+  remote_round_id,remote_edition_id,edition_id,source_mode
+)
+VALUES (:'TELEVOTE_ROUND'::uuid,:'TELEVOTE_EDITION'::uuid,:'EDITION_C'::uuid,'edition');
+
+SELECT pg_temp.assert_true(
+  'terminal-boundary fixture C exists before canonical Archive',
+  EXISTS (
+    SELECT 1
+    FROM public.studio2_edition_runtime
+    WHERE edition_id = :'EDITION_C'::uuid
+      AND state = 'post_edition'
+      AND version = 1
+  ),
+  'Edition C must exist in post_edition with version 1 before Archive.'
+);
+
+SET ROLE authenticated;
+SELECT set_config(
+  'request.jwt.claims',
+  json_build_object('sub', :'AUTHORIZED_ID', 'role', 'authenticated')::text,
+  true
+);
+SELECT public.studio2_transition_edition_v3(
+  :'EDITION_C'::uuid,
+  'archived',
+  null,
+  null,
+  1,
+  :'ARCHIVE_C_OPERATION'::uuid,
+  's14-terminal-boundary-archive'
+);
+RESET ROLE;
+
+SELECT pg_temp.assert_true(
+  'terminal-boundary fixture C archives through canonical lifecycle command',
+  EXISTS (
+    SELECT 1
+    FROM public.studio2_edition_runtime
+    WHERE edition_id = :'EDITION_C'::uuid
+      AND state = 'archived'
+  ),
+  'Edition C did not reach archived state through the canonical command.'
+);
+
+\echo '[v3-s14-archive-delete-guard] Assert Next in Line and eligibility terminal guards'
+SET ROLE service_role;
+SELECT set_config('request.jwt.claims', json_build_object('role', 'service_role')::text, true);
+SELECT pg_temp.assert_archive_guard(
+  'Archived Next in Line window mutation',
+  '42501',
+  'Archived edition workflow is read-only.',
+  format('update public.studio2_next_in_line_windows set enabled=true,status=''open'' where edition_id=%L::uuid', :'EDITION_C'),
+  'public.studio2_next_in_line_windows'::regclass
+);
+SELECT pg_temp.assert_archive_guard(
+  'Archived Next in Line response mutation',
+  '42501',
+  'Archived edition workflow is read-only.',
+  format('update public.next_in_line_responses set participating=false where id=%L::uuid', :'NEXT_RESPONSE'),
+  'public.next_in_line_responses'::regclass
+);
+SELECT pg_temp.assert_archive_guard(
+  'Archived eligibility override insertion',
+  '42501',
+  'Archived edition workflow is read-only.',
+  format(
+    'insert into public.studio2_eligibility_overrides(edition_id,country_id,affected_rule,reason) values (%L::uuid,%L::uuid,''archive.fixture'',''Archive fixture must fail closed'')',
+    :'EDITION_C',
+    :'FAKE_COUNTRY'
+  ),
+  'public.studio2_eligibility_overrides'::regclass
+);
+RESET ROLE;
+
+\echo '[v3-s14-archive-delete-guard] Assert Televote terminal guards'
+SET ROLE service_role;
+SELECT set_config('request.jwt.claims', json_build_object('role', 'service_role')::text, true);
+SELECT pg_temp.assert_archive_guard(
+  'Archived Televote binding mutation',
+  '42501',
+  'Archived edition workflow is read-only.',
+  format('update public.televoting_round_bindings set source_mode=''show'' where remote_round_id=%L::uuid', :'TELEVOTE_ROUND'),
+  'public.televoting_round_bindings'::regclass
+);
+SELECT pg_temp.assert_archive_guard(
+  'Archived canonical Televote round mutation',
+  '42501',
+  'Archived edition workflow is read-only.',
+  format('update televoting.rounds set closes_at=now() + interval ''1 hour'' where id=%L::uuid', :'TELEVOTE_ROUND'),
+  'televoting.rounds'::regclass
+);
+RESET ROLE;
+
+SELECT pg_temp.assert_true(
+  'Rejected Televote mutation preserves canonical round state',
+  EXISTS (
+    SELECT 1
+    FROM televoting.rounds
+    WHERE id = :'TELEVOTE_ROUND'::uuid
+      AND status::text = 'closed'
+  ),
+  'Archived Televote mutation changed canonical round state.'
+);
+
+SELECT pg_temp.assert_true(
+  'Rejected Next in Line window mutation preserves closed state',
+  EXISTS (
+    SELECT 1
+    FROM public.studio2_next_in_line_windows
+    WHERE edition_id = :'EDITION_C'::uuid
+      AND status = 'closed'
+  ),
+  'Archived Next in Line mutation changed canonical window state.'
+);
+
+SELECT pg_temp.assert_true(
+  'Rejected Next in Line response mutation preserves retained response',
+  EXISTS (
+    SELECT 1
+    FROM public.next_in_line_responses
+    WHERE id = :'NEXT_RESPONSE'::uuid
+      AND participating = true
+  ),
+  'Archived Next in Line response mutation changed retained response.'
+);
+
+\echo '[v3-s14-archive-delete-guard] Roll back all database fixtures'
+ROLLBACK;
+SQL
+
+leftovers="$(db_value "select count(*) from public.editions where id in ('$EDITION_A'::uuid,'$EDITION_B'::uuid,'$EDITION_C'::uuid);")"
+[[ "$leftovers" == '0' ]] || fail "rollback-only rehearsal leaked edition fixtures into the local database"
+
+log "S14 Archive irreversibility + workflow-freeze guards passed with exact SQLSTATE/message diagnostics"
