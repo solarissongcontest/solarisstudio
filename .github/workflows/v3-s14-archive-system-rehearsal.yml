@@ -83,7 +83,20 @@ jobs:
         run: bash .github/scripts/v3-s14-archive-guard-rehearsal.sh
 
       - name: Rehearse archived runtime deletion guard
-        run: bash .github/scripts/v3-s14-archive-delete-guard-rehearsal.sh
+        shell: bash
+        run: |
+          set -o pipefail
+          bash .github/scripts/v3-s14-archive-delete-guard-rehearsal.sh 2>&1 \
+            | tee "$RUNNER_TEMP/s14-archive-delete-guard-clean.log"
+
+      - name: Upload archived runtime deletion guard diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s14-archive-delete-guard-clean
+          path: ${{ runner.temp }}/s14-archive-delete-guard-clean.log
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: Rehearse archived task and notification non-resurrection invariants
         run: bash .github/scripts/v3-s14-archive-task-resurrection-rehearsal.sh
@@ -189,9 +202,19 @@ jobs:
       - name: Rehearse archived runtime deletion guard after current-main upgrade
         shell: bash
         run: |
-          set -euo pipefail
+          set -o pipefail
           cd /tmp/solaris-s14-main
-          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-archive-delete-guard-rehearsal.sh"
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s14-archive-delete-guard-rehearsal.sh" 2>&1 \
+            | tee "$RUNNER_TEMP/s14-archive-delete-guard-upgrade.log"
+
+      - name: Upload archived runtime deletion guard diagnostics after current-main upgrade
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s14-archive-delete-guard-upgrade
+          path: ${{ runner.temp }}/s14-archive-delete-guard-upgrade.log
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: Rehearse task and notification non-resurrection after current-main upgrade
         shell: bash
