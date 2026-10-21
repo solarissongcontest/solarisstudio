@@ -13,13 +13,16 @@ import {
 } from "@/components/admin/AdminUI";
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { editionLabel, useEditions, useIsOrganizer, useShows } from "@/lib/data";
-import {
-  type PredictionRound,
-  useDeletePredictionRound,
-  useSavePredictionRound,
-  useScorePredictionRound,
-} from "@/lib/prediction-data";
+import { type PredictionRound, useDeletePredictionRound } from "@/lib/prediction-data";
 import { useOrganizerPredictionRoundsForShows } from "@/lib/v3-organizer-prediction-data";
+import {
+  previewPredictionRoundSave,
+  previewPredictionScore,
+  useApplyReviewedPredictionRound,
+  useApplyReviewedPredictionScore,
+  type PredictionRoundSaveReview,
+  type PredictionScoreReview,
+} from "@/lib/v3-organizer-prediction-operations";
 import type { PredictionType } from "@/lib/predictions";
 
 export const Route = createFileRoute("/_authenticated/admin/predictions")({
@@ -42,6 +45,27 @@ type FormState = {
   status: PredictionRound["status"];
   predictionTypes: PredictionType[];
   consensusMinimum: number;
+};
+
+type PendingSaveReview = {
+  editionId: string;
+  editionLabel: string;
+  showId: string;
+  showName: string;
+  existingRoundId: string | null;
+  beforeStatus: PredictionRound["status"] | null;
+  operation: PredictionRoundSaveReview;
+};
+
+type PendingScoreReview = {
+  editionId: string;
+  editionLabel: string;
+  showId: string;
+  showName: string;
+  roundId: string;
+  roundStatus: PredictionRound["status"];
+  locksAt: string;
+  operation: PredictionScoreReview;
 };
 
 function localInputValue(date: Date) {
@@ -77,12 +101,15 @@ function PredictionRoundAdmin() {
   );
   const showIds = useMemo(() => sortedShows.map((show) => show.id), [sortedShows]);
   const { data: roundData, isLoading: roundsLoading } = useOrganizerPredictionRoundsForShows(showIds, true);
-  const saveRound = useSavePredictionRound();
+  const applyRound = useApplyReviewedPredictionRound();
   const deleteRound = useDeletePredictionRound();
-  const scoreRound = useScorePredictionRound();
+  const applyScore = useApplyReviewedPredictionScore();
   const [form, setForm] = useState<FormState>(() => defaultForm());
   const [message, setMessage] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const [pendingSaveReview, setPendingSaveReview] = useState<PendingSaveReview | null>(null);
+  const [pendingScoreReview, setPendingScoreReview] = useState<PendingScoreReview | null>(null);
 
   const roundByShow = useMemo(
     () => new Map((roundData?.rounds ?? []).map((round) => [round.show_id, round])),
@@ -94,6 +121,8 @@ function PredictionRoundAdmin() {
   useEffect(() => {
     setForm(defaultForm());
     setDeleteOpen(false);
+    setPendingSaveReview(null);
+    setPendingScoreReview(null);
     setMessage(null);
   }, [activeEdition?.id]);
 
@@ -147,7 +176,7 @@ function PredictionRoundAdmin() {
     return null;
   }
 
-  const save = async (event: React.FormEvent) => {
+  const reviewSave = async (event: React.FormEvent) => {
     event.preventDefault();
     setMessage(null);
     const scopeError = assertExactSelection();
@@ -155,7 +184,7 @@ function PredictionRoundAdmin() {
       setMessage(scopeError);
       return;
     }
-    if (!form.showId || !form.predictionTypes.length) {
+    if (!activeEdition || !selectedShow || !form.showId || !form.predictionTypes.length) {
       setMessage("Choose a show and at least one prediction type.");
       return;
     }
@@ -163,22 +192,63 @@ function PredictionRoundAdmin() {
       setMessage("The lock time must be after the opening time.");
       return;
     }
-    if (form.predictionTypes.includes("qualifier") && !selectedShow?.qualifier_count) {
+    if (form.predictionTypes.includes("qualifier") && !selectedShow.qualifier_count) {
       setMessage("This show has no qualifier count, so qualifier predictions cannot be enabled.");
       return;
     }
+
+    setReviewBusy(true);
     try {
-      await saveRound.mutateAsync({
-        show_id: form.showId,
-        opens_at: new Date(form.opensAt).toISOString(),
-        locks_at: new Date(form.locksAt).toISOString(),
-        status: form.status,
-        prediction_types: form.predictionTypes,
-        consensus_minimum: form.consensusMinimum,
+      const preview = await previewPredictionRoundSave(form.showId);
+      const operationId = crypto.randomUUID();
+      setPendingSaveReview({
+        editionId: activeEdition.id,
+        editionLabel: editionLabel(activeEdition),
+        showId: selectedShow.id,
+        showName: selectedShow.name,
+        existingRoundId: selectedRound?.id ?? null,
+        beforeStatus: selectedRound?.status ?? null,
+        operation: {
+          show_id: form.showId,
+          opens_at: new Date(form.opensAt).toISOString(),
+          locks_at: new Date(form.locksAt).toISOString(),
+          status: form.status,
+          prediction_types: [...form.predictionTypes],
+          consensus_minimum: form.consensusMinimum,
+          expectedRoundVersion: preview.roundVersion,
+          operationId,
+          idempotencyKey: `prediction-round-save:${operationId}`,
+        },
       });
-      setMessage("Prediction round saved.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Prediction round could not be saved.");
+      setMessage(error instanceof Error ? error.message : "Prediction round review could not be prepared.");
+    } finally {
+      setReviewBusy(false);
+    }
+  };
+
+  const applySaveReview = async () => {
+    if (!pendingSaveReview) return;
+    setMessage(null);
+    const scopeError = assertExactSelection();
+    if (
+      scopeError ||
+      editionId !== pendingSaveReview.editionId ||
+      selectedShow?.id !== pendingSaveReview.showId ||
+      (selectedRound?.id ?? null) !== pendingSaveReview.existingRoundId
+    ) {
+      setPendingSaveReview(null);
+      setMessage(scopeError ?? "Prediction round scope changed while this review was open. Nothing was applied.");
+      return;
+    }
+
+    try {
+      await applyRound.mutateAsync(pendingSaveReview.operation);
+      setPendingSaveReview(null);
+      setMessage("Reviewed prediction round change applied.");
+    } catch (error) {
+      setPendingSaveReview(null);
+      setMessage(error instanceof Error ? error.message : "Prediction round could not be saved. Refresh and review the current state before retrying.");
     }
   };
 
@@ -200,19 +270,65 @@ function PredictionRoundAdmin() {
     }
   };
 
-  const score = async () => {
-    if (!selectedRound) return;
+  const reviewScore = async () => {
+    if (!selectedRound || !activeEdition || !selectedShow) return;
     setMessage(null);
     const scopeError = assertExactSelection();
     if (scopeError) {
       setMessage(scopeError);
       return;
     }
+
+    setReviewBusy(true);
     try {
-      const count = await scoreRound.mutateAsync(selectedRound.id);
+      const preview = await previewPredictionScore(selectedRound.id);
+      const operationId = crypto.randomUUID();
+      setPendingScoreReview({
+        editionId: activeEdition.id,
+        editionLabel: editionLabel(activeEdition),
+        showId: selectedShow.id,
+        showName: selectedShow.name,
+        roundId: selectedRound.id,
+        roundStatus: selectedRound.status,
+        locksAt: selectedRound.locks_at,
+        operation: {
+          roundId: selectedRound.id,
+          expectedScoreRevision: preview.scoreRevision,
+          operationId,
+          idempotencyKey: `prediction-score:${operationId}`,
+        },
+      });
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Prediction scoring review could not be prepared.");
+    } finally {
+      setReviewBusy(false);
+    }
+  };
+
+  const applyScoreReview = async () => {
+    if (!pendingScoreReview) return;
+    setMessage(null);
+    const scopeError = assertExactSelection();
+    if (
+      scopeError ||
+      editionId !== pendingScoreReview.editionId ||
+      selectedShow?.id !== pendingScoreReview.showId ||
+      selectedRound?.id !== pendingScoreReview.roundId ||
+      selectedRound.status !== pendingScoreReview.roundStatus ||
+      selectedRound.locks_at !== pendingScoreReview.locksAt
+    ) {
+      setPendingScoreReview(null);
+      setMessage(scopeError ?? "Prediction scoring scope changed while this review was open. Nothing was applied.");
+      return;
+    }
+
+    try {
+      const count = await applyScore.mutateAsync(pendingScoreReview.operation);
+      setPendingScoreReview(null);
       setMessage(`${count} prediction${count === 1 ? "" : "s"} scored.`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "The round could not be scored.");
+      setPendingScoreReview(null);
+      setMessage(error instanceof Error ? error.message : "The round could not be scored. Refresh and review the current scoring revision before retrying.");
     }
   };
 
@@ -249,7 +365,7 @@ function PredictionRoundAdmin() {
 
           <AdminCard>
             <AdminCardHeader eyebrow="Show" title={selectedShow?.name ?? "Choose a show"} description={selectedRound ? `Prediction round · ${humanize(selectedRound.status)}` : "No prediction round exists for this show yet."} action={selectedRound ? <AdminStatus tone={selectedRound.status === "open" ? "ready" : selectedRound.status === "cancelled" ? "blocked" : selectedRound.status === "scored" ? "info" : "neutral"}>{humanize(selectedRound.status)}</AdminStatus> : <AdminStatus tone="neutral">Not configured</AdminStatus>} />
-            <select value={form.showId} onChange={(event) => { setMessage(null); setForm((current) => ({ ...current, showId: event.target.value })); }} className="min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">
+            <select value={form.showId} onChange={(event) => { setMessage(null); setPendingSaveReview(null); setPendingScoreReview(null); setForm((current) => ({ ...current, showId: event.target.value })); }} className="min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30">
               {sortedShows.map((show) => <option key={show.id} value={show.id}>{show.name}{roundByShow.get(show.id) ? ` · ${humanize(roundByShow.get(show.id)!.status)}` : " · no round"}</option>)}
             </select>
           </AdminCard>
@@ -259,7 +375,7 @@ function PredictionRoundAdmin() {
           ) : (
             <AdminCard>
               <AdminCardHeader eyebrow={selectedRound ? "Edit" : "Create"} title="Prediction setup" description="The round stays attached to the selected contest show." />
-              <form onSubmit={save} className="space-y-5">
+              <form onSubmit={reviewSave} className="space-y-5">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block"><span className="admin-section-label">Opens</span><input type="datetime-local" value={form.opensAt} onChange={(event) => setForm((current) => ({ ...current, opensAt: event.target.value }))} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30" required /></label>
                   <label className="block"><span className="admin-section-label">Locks</span><input type="datetime-local" value={form.locksAt} onChange={(event) => setForm((current) => ({ ...current, locksAt: event.target.value }))} className="mt-2 min-h-11 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] px-3 text-sm text-foreground outline-none focus:border-sky-200/30" required /></label>
@@ -272,18 +388,48 @@ function PredictionRoundAdmin() {
 
                 <div><p className="admin-section-label mb-2">Prediction types</p><div className="grid gap-2 sm:grid-cols-2">{AVAILABLE_TYPES.map((type) => { const unavailable = type.value === "qualifier" && !selectedShow?.qualifier_count; return <label key={type.value} className="flex min-h-12 items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.025] px-3 py-3"><input type="checkbox" checked={form.predictionTypes.includes(type.value)} disabled={unavailable} onChange={() => toggleType(type.value)} /><span className="text-sm font-medium text-foreground">{type.label}</span></label>; })}</div></div>
 
-                <div className="admin-sticky-actions"><button type="submit" disabled={saveRound.isPending || !selectedShow} className="admin-action-primary w-full">{saveRound.isPending ? "Saving…" : "Save prediction round"}</button></div>
+                <div className="admin-sticky-actions"><button type="submit" disabled={reviewBusy || applyRound.isPending || !selectedShow} className="admin-action-primary w-full">{reviewBusy ? "Preparing review…" : "Review prediction round"}</button></div>
               </form>
 
-              {selectedRound ? <div className="mt-4 flex flex-col gap-2 border-t border-white/[0.07] pt-4 sm:flex-row"><button type="button" onClick={() => void score()} disabled={scoreRound.isPending || Date.now() < new Date(selectedRound.locks_at).getTime()} className="admin-action-secondary flex-1">{scoreRound.isPending ? "Scoring…" : "Score from public result"}</button>{selectedRound.status === "draft" ? <button type="button" onClick={() => setDeleteOpen(true)} disabled={deleteRound.isPending} className="admin-action-danger"><Trash2 className="size-4" /> Delete draft</button> : null}</div> : null}
+              {selectedRound ? <div className="mt-4 flex flex-col gap-2 border-t border-white/[0.07] pt-4 sm:flex-row"><button type="button" onClick={() => void reviewScore()} disabled={reviewBusy || applyScore.isPending || Date.now() < new Date(selectedRound.locks_at).getTime()} className="admin-action-secondary flex-1">{reviewBusy ? "Preparing review…" : applyScore.isPending ? "Scoring…" : "Review scoring"}</button>{selectedRound.status === "draft" ? <button type="button" onClick={() => setDeleteOpen(true)} disabled={deleteRound.isPending} className="admin-action-danger"><Trash2 className="size-4" /> Delete draft</button> : null}</div> : null}
             </AdminCard>
           )}
         </>
       )}
 
+      <AdminConfirmSheet
+        open={Boolean(pendingSaveReview)}
+        onClose={() => !applyRound.isPending && setPendingSaveReview(null)}
+        onConfirm={applySaveReview}
+        title={pendingSaveReview?.existingRoundId ? "Apply prediction round change?" : "Create prediction round?"}
+        description={pendingSaveReview ? <div className="space-y-3 text-sm leading-6"><p>Review the exact Prediction Arena configuration for <strong className="text-foreground">{pendingSaveReview.showName}</strong> in {pendingSaveReview.editionLabel}.</p><div className="grid gap-2 sm:grid-cols-2"><ReviewFact label="Status" value={`${pendingSaveReview.beforeStatus ? humanize(pendingSaveReview.beforeStatus) : "No round"} → ${humanize(pendingSaveReview.operation.status)}`} /><ReviewFact label="System revision" value={`v${pendingSaveReview.operation.expectedRoundVersion}`} /><ReviewFact label="Opens" value={new Date(pendingSaveReview.operation.opens_at).toLocaleString()} /><ReviewFact label="Locks" value={new Date(pendingSaveReview.operation.locks_at).toLocaleString()} /><ReviewFact label="Prediction types" value={pendingSaveReview.operation.prediction_types.map(humanize).join(", ")} /><ReviewFact label="Consensus minimum" value={String(pendingSaveReview.operation.consensus_minimum)} /></div><p className="text-xs text-muted-foreground">The exact preview revision and one idempotency identity are frozen in this review. Apply sends that reviewed revision directly to the canonical <code>studio2_save_prediction_round</code> command, so an intervening round change conflicts instead of being silently overwritten.</p></div> : "Review the exact prediction round configuration."}
+        confirmLabel={pendingSaveReview?.existingRoundId ? "Apply reviewed change" : "Create reviewed round"}
+        confirmationText={pendingSaveReview?.showName}
+        confirmationHint={pendingSaveReview ? `Type ${pendingSaveReview.showName} to confirm this Prediction Arena change` : undefined}
+        busy={applyRound.isPending}
+        danger={pendingSaveReview?.operation.status === "open" || pendingSaveReview?.operation.status === "cancelled"}
+      />
+
+      <AdminConfirmSheet
+        open={Boolean(pendingScoreReview)}
+        onClose={() => !applyScore.isPending && setPendingScoreReview(null)}
+        onConfirm={applyScoreReview}
+        title="Score this prediction round?"
+        description={pendingScoreReview ? <div className="space-y-3 text-sm leading-6"><p>This materializes Prediction Arena scores for <strong className="text-foreground">{pendingScoreReview.showName}</strong> in {pendingScoreReview.editionLabel} from the public result authority.</p><div className="grid gap-2 sm:grid-cols-2"><ReviewFact label="Round status" value={humanize(pendingScoreReview.roundStatus)} /><ReviewFact label="Locked" value={new Date(pendingScoreReview.locksAt).toLocaleString()} /><ReviewFact label="Score revision" value={`v${pendingScoreReview.operation.expectedScoreRevision}`} /><ReviewFact label="Round ID" value={pendingScoreReview.roundId} /></div><p className="text-xs text-muted-foreground">The reviewed score revision and idempotency identity are sent unchanged to <code>studio2_score_prediction_round</code>. If scoring inputs changed after review, the canonical operation must reject the stale revision rather than scoring a different state than the one reviewed here.</p></div> : "Review the exact scoring operation."}
+        confirmLabel="Score reviewed round"
+        confirmationText={pendingScoreReview?.showName}
+        confirmationHint={pendingScoreReview ? `Type ${pendingScoreReview.showName} to confirm scoring` : undefined}
+        busy={applyScore.isPending}
+        danger
+      />
+
       <AdminConfirmSheet open={deleteOpen} onClose={() => !deleteRound.isPending && setDeleteOpen(false)} onConfirm={remove} title={`Delete ${selectedShow?.name ?? "prediction"} draft?`} description="This removes the draft prediction round. A round with saved player entries cannot be deleted and must be cancelled instead." confirmLabel="Delete draft" busy={deleteRound.isPending} danger />
     </AdminPage>
   );
+}
+
+function ReviewFact({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3"><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{label}</p><p className="mt-1 break-words text-sm font-semibold text-foreground">{value}</p></div>;
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
