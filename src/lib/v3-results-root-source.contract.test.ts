@@ -103,15 +103,19 @@ describe("V3 Results root source contract", () => {
     expect(screen).toContain("projection.tabs.includes(requestedMode) ? requestedMode : \"combined\"");
   });
 
-  it("keeps a deliberate spoiler reveal only for the mounted result screen", () => {
-    expect(screen).toContain("const [revealed, setRevealed] = useState(false)");
-    expect(screen).toContain("const revealResult = () => setRevealed(true)");
-    expect(screen).toContain("onClick={revealResult}");
+  it("keeps a deliberate spoiler reveal scoped to the canonical result while mode routing refetches", () => {
+    expect(gate).toContain("const [revealedShowId, setRevealedShowId] = useState<string | null>(null)");
+    expect(gate).toContain("const activeShowId = bundle.data.input.showId || null");
+    expect(gate).toContain("revealedShowId === activeShowId");
+    expect(gate).toContain("revealed={resultRevealed}");
+    expect(gate).toContain("onReveal={() => setRevealedShowId(activeShowId)}");
+    expect(screen).toContain("const [localRevealed, setLocalRevealed] = useState(false)");
+    expect(screen).toContain("const revealed = controlledRevealed ?? localRevealed");
+    expect(screen).toContain("if (onReveal) onReveal()");
     expect(screen).not.toContain("__solarisV3RevealedResultShows");
     expect(screen).not.toContain("localStorage");
     expect(screen).not.toContain("sessionStorage");
     expect(screen).not.toContain("revealed=true");
-    expect(gate).not.toContain("revealed:");
   });
 
   it("hands the selected result directly to its canonical detailed-voting matrix", () => {
