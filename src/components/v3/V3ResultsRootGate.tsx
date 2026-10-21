@@ -1,6 +1,6 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
 import { V3Screen, V3Surface } from "@/components/v3/V3Foundation";
@@ -63,6 +63,7 @@ export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
   const nomination = resultsSearchNomination(search);
   const bundle = useV3ResultsBundle(nomination.showId, true);
   const countryAccount = useMyCountryAccount();
+  const [revealedShowId, setRevealedShowId] = useState<string | null>(null);
   const editionSlug = bundle.data?.editionSlug ?? "";
   const editionProbe = useV3EditionRolloutProbe(
     editionSlug,
@@ -152,6 +153,8 @@ export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
     countryAccount.data?.access.userId === rollout.data.userId
       ? countryAccount.data.access.countryId
       : null;
+  const activeShowId = bundle.data.input.showId || null;
+  const resultRevealed = Boolean(activeShowId && revealedShowId === activeShowId);
 
   const changeResult = (showId: string) => {
     if (!showId || showId === bundle.data.input.showId) return;
@@ -194,6 +197,8 @@ export function V3ResultsRootGate({ fallback }: { fallback: ReactNode }) {
         onResultChange={changeResult}
         selectedMode={selectedMode}
         onModeChange={changeMode}
+        revealed={resultRevealed}
+        onReveal={() => setRevealedShowId(activeShowId)}
       />
     </V3AppShell>
   );
