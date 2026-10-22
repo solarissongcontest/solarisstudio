@@ -185,6 +185,9 @@ describe("S14 stateful full-contest harness", () => {
     expect(resultsAdapter).not.toContain("supports only the canonical");
     expect(resultsAdapter).toContain("refusing non-local Supabase URL");
     expect(resultsAdapter).toContain('from("televote_votes")');
+    expect(resultsAdapter).toContain("pre-publish Televote lineup mismatch");
+    expect(resultsAdapter).toContain("published Televote projection is incomplete");
+    expect(resultsAdapter).not.toContain('db.from("televote_votes").insert');
     expect(resultsAdapter).toContain('from("round_results")');
     expect(resultsAdapter).toContain("V3_DESTRUCTIVE_VERIFICATION");
   });

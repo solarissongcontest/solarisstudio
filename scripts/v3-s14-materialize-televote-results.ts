@@ -252,12 +252,6 @@ async function main() {
     fail(`stored converted total ${storedTotal} does not equal ${configuredTotal}`);
   }
 
-  const { error: publishUpdateError } = await tv
-    .from("rounds")
-    .update({ results_status: "published" })
-    .eq("id", roundId);
-  if (publishUpdateError) fail(publishUpdateError.message);
-
   const { data: show, error: showError } = await db
     .from("shows")
     .select("id,edition_id")
@@ -271,43 +265,95 @@ async function main() {
     .select("country_id,participation_status")
     .eq("show_id", showId);
   if (showParticipantError) fail(showParticipantError.message);
-  const active = (showParticipants ?? []).filter((row) => !row.participation_status || row.participation_status === "confirmed");
+
+  const active = (showParticipants ?? []).filter(
+    (row) => !row.participation_status || row.participation_status === "confirmed",
+  );
   const countryIds = active.map((row) => String(row.country_id));
+
   const { data: countries, error: countryError } = await db
     .from("countries")
     .select("id,short_code")
     .in("id", countryIds);
   if (countryError) fail(countryError.message);
-  const countryByCode = new Map((countries ?? []).map((row) => [String(row.short_code).toUpperCase(), String(row.id)]));
+
+  const countryByCode = new Map(
+    (countries ?? []).map((row) => [
+      String(row.short_code).trim().toUpperCase(),
+      String(row.id),
+    ]),
+  );
   const expectedCodes = [...countryByCode.keys()].sort();
-  const resultCodes = rows.map((row) => row.country_code).sort();
-  if (JSON.stringify(expectedCodes) !== JSON.stringify(resultCodes)) {
-    fail(`published Televote result does not exactly match show ${showId}`);
+
+  if (expectedCodes.length !== active.length) {
+    fail(
+      `bound show ${showId} does not resolve to one unique country code per active participant: ` +
+      `participants=${active.length} codes=${expectedCodes.length}`,
+    );
   }
 
-  const { count: existingVotes, error: existingVoteError } = await db
-    .from("televote_votes")
-    .select("id", { count: "exact", head: true })
-    .eq("show_id", showId);
-  if (existingVoteError) fail(existingVoteError.message);
-  if ((existingVotes ?? 0) !== 0) fail(`show ${showId} already has canonical Televote vote rows`);
+  const { data: persistedResults, error: persistedResultError } = await tv
+    .from("round_results")
+    .select("country_code,calculation_version")
+    .eq("round_id", roundId)
+    .eq("calculation_version", version);
+  if (persistedResultError) fail(persistedResultError.message);
 
-  const canonicalVotes = rows.map((row) => ({
-    edition_id: editionId,
-    show_id: showId,
-    country_id: countryByCode.get(row.country_code),
-    points: row.final_points,
-  }));
-  if (canonicalVotes.some((row) => !row.country_id)) fail(`could not resolve every Televote result country`);
-  const { error: canonicalInsertError } = await db.from("televote_votes").insert(canonicalVotes);
-  if (canonicalInsertError) fail(canonicalInsertError.message);
+  const persistedCodes = (persistedResults ?? [])
+    .map((row) => String(row.country_code).trim().toUpperCase())
+    .sort();
 
-  const { count: canonicalCount, error: canonicalCountError } = await db
+  if (
+    persistedCodes.length !== rows.length ||
+    JSON.stringify(expectedCodes) !== JSON.stringify(persistedCodes)
+  ) {
+    fail(
+      `pre-publish Televote lineup mismatch for show ${showId}: ` +
+      `expected=${JSON.stringify(expectedCodes)} ` +
+      `stored=${JSON.stringify(persistedCodes)} ` +
+      `calculationVersion=${version}`,
+    );
+  }
+
+  const { error: publishUpdateError } = await tv
+    .from("rounds")
+    .update({ results_status: "published" })
+    .eq("id", roundId);
+  if (publishUpdateError) fail(publishUpdateError.message);
+
+  // Publication is authoritative. The v3_sync_published_televote_round trigger
+  // owns the canonical public.televote_votes projection. The rehearsal verifies
+  // that projection instead of writing a second competing copy itself.
+  const { data: canonicalVotes, error: canonicalVoteError } = await db
     .from("televote_votes")
-    .select("id", { count: "exact", head: true })
+    .select("country_id,points")
     .eq("show_id", showId);
-  if (canonicalCountError) fail(canonicalCountError.message);
-  if (canonicalCount !== rows.length) fail(`canonical Televote projection is incomplete for show ${showId}`);
+  if (canonicalVoteError) fail(canonicalVoteError.message);
+
+  const canonicalCount = canonicalVotes?.length ?? 0;
+  if (canonicalCount !== rows.length) {
+    fail(
+      `published Televote projection is incomplete for show ${showId}: ` +
+      `expected=${rows.length} projected=${canonicalCount}`,
+    );
+  }
+
+  const projectedByCountry = new Map(
+    (canonicalVotes ?? []).map((row) => [String(row.country_id), Number(row.points ?? 0)]),
+  );
+
+  for (const row of rows) {
+    const countryId = countryByCode.get(row.country_code);
+    if (!countryId) fail(`could not resolve Televote result country ${row.country_code}`);
+
+    const projectedPoints = projectedByCountry.get(countryId);
+    if (projectedPoints !== row.final_points) {
+      fail(
+        `published Televote projection disagrees for ${row.country_code}: ` +
+        `expected=${row.final_points} projected=${String(projectedPoints)}`,
+      );
+    }
+  }
 
   process.stdout.write(`${JSON.stringify({
     roundId,
