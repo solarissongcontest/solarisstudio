@@ -8,6 +8,7 @@ const FRAMEWORK_VERSION = "20261019111000";
 
 function postFrameworkMigrations() {
   const directory = resolve(process.cwd(), "supabase/migrations");
+
   return readdirSync(directory)
     .filter((filename) => filename.endsWith(".sql"))
     .filter((filename) => {
@@ -33,7 +34,14 @@ describe("System V3 S13 repository adoption gate", () => {
     expect(report.clean).toBe(true);
   });
 
-  it("starts with no historical exemption debt at the forward-stamped boundary", () => {
-    expect(V3_S13_REVIEWED_MIGRATION_EXEMPTIONS).toEqual([]);
+  it("keeps reviewed immutable-history exemptions exact and bounded", () => {
+    expect(V3_S13_REVIEWED_MIGRATION_EXEMPTIONS).toEqual([
+      {
+        path: "supabase/migrations/20261022151607_batch_running_order_result_sync.sql",
+        reason: "already_merged_immutable",
+        rationale:
+          "This migration was already merged to main before the S13 adoption gate identified its missing declaration. Migration history must remain byte-for-byte immutable. Review confirmed that its UPDATE is operational SQL inside the installed RPC, not a migration-time data backfill.",
+      },
+    ]);
   });
 });
