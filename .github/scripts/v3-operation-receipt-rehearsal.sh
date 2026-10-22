@@ -140,6 +140,12 @@ expect_db_failure \
   "$(claim_sql "$USER_A_ID" "$RETRY_OPERATION" "$IDEMPOTENCY_KEY" "$CORRELATION_ID" "{\"fixtureId\":\"$FIXTURE_ID\",\"reason\":\"Changed semantic request\"}")" \
   'IDEMPOTENCY_CONFLICT'
 
+log "Rejecting a global operation id reused for a different semantic request"
+expect_db_failure \
+  "reused global operation id" \
+  "$(claim_sql "$USER_A_ID" "$ACTOR_OPERATION" 'v3-s2-different-key' '00000000-0000-4000-8000-00000000c703' "{\"fixtureId\":\"$FIXTURE_ID\",\"reason\":\"Different operation identity\"}")" \
+  'IDEMPOTENCY_CONFLICT'
+
 log "Recording failed and uncertain terminal receipts"
 db_value "$(claim_sql "$USER_A_ID" "$FAIL_OPERATION" 'v3-s2-failed-key' "$CORRELATION_ID" "{\"fixtureId\":\"$FIXTURE_ID\",\"reason\":\"Failure fixture\"}")" >/dev/null
 FAILED="$(db_value "begin; $(claims_sql "$USER_A_ID") select private.studio2_fail_operation('$FAIL_OPERATION','VALIDATION',jsonb_build_object('field','artist')); commit;")"
