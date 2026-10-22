@@ -107,7 +107,9 @@ COUNTRY_C='00000000-0000-4000-8000-00000000c703'
 EDITION_ID='00000000-0000-4000-8000-00000000e701'
 SHOW_ID='00000000-0000-4000-8000-00000000a701'
 PREFLIGHT_ID='00000000-0000-4000-8000-00000000f701'
-OPERATION_ID='00000000-0000-4000-8000-00000000b701'
+# Jury now participates in the global S2 operation ledger. Keep this fixture
+# globally unique across rehearsal suites, not merely unique inside Jury tables.
+OPERATION_ID='00000000-0000-4000-8000-00000000b7f1'
 
 log "Creating isolated country-account identities"
 create_user v3-jury-a@solaris.invalid; USER_A_ID="$LAST_USER_ID"
@@ -151,6 +153,9 @@ expect_json "other delegation cannot see draft" found false
 BALLOT="[{\"target_country_id\":\"$COUNTRY_B\",\"points\":12},{\"target_country_id\":\"$COUNTRY_C\",\"points\":10}]"
 SUBMIT_BODY="{\"_show_id\":\"$SHOW_ID\",\"_entries\":$BALLOT,\"_preflight_id\":\"$PREFLIGHT_ID\",\"_operation_id\":\"$OPERATION_ID\",\"_request_hash\":\"caller-hash-is-not-authority\"}"
 
+log "Proving the Jury fixture has not collided with an earlier global S2 operation"
+[[ "$(db_scalar "select count(*) from public.studio2_operation_receipts where operation_id='$OPERATION_ID'::uuid;")" == "0" ]] || fail "Jury rehearsal operation id already exists in the global S2 receipt ledger"
+
 log "Submission commits once and returns an authoritative server receipt"
 rpc_request "$USER_A_TOKEN" v3_submit_jury_ballot "$SUBMIT_BODY"
 expect_success "initial Jury submission"
@@ -161,6 +166,7 @@ expect_json "initial submission is not replay" receipt.replayed false
 RECEIPT_ID="$(printf '%s' "$HTTP_BODY" | json_value receipt.receipt_id)"
 BALLOT_ID="$(printf '%s' "$HTTP_BODY" | json_value receipt.ballot_submission_id)"
 [[ -n "$RECEIPT_ID" && -n "$BALLOT_ID" ]] || fail "submission returned incomplete receipt evidence"
+[[ "$(db_scalar "select count(*) from public.studio2_operation_receipts where operation_id='$OPERATION_ID'::uuid and command='jury.submit';")" == "1" ]] || fail "Jury submission did not claim exactly one canonical jury.submit S2 operation"
 
 rpc_request "$USER_A_TOKEN" v3_submit_jury_ballot "$SUBMIT_BODY"
 expect_success "exact Jury operation replay"
