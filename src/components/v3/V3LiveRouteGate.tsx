@@ -156,6 +156,7 @@ export function V3LiveRouteGate({ fallback }: { fallback: ReactNode }) {
   return (
     <V3FoundationShell>
       <V3LiveScreen
+        edition={bundle.data.edition}
         experience={bundle.data.experience}
         degraded={degraded}
         refreshing={refreshing}

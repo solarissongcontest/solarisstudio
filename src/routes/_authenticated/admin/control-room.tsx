@@ -130,10 +130,12 @@ function ControlRoomV2() {
       to,
       approvalRequestId,
       commandReason,
+      expectedVersion,
     }: {
       to: EditionState;
       approvalRequestId?: string | null;
       commandReason: string;
+      expectedVersion: number;
     }) => {
       if (!editionId) throw new Error('Choose an edition before changing its state.');
       return studio2ControlRoom.transitionEdition({
@@ -141,6 +143,7 @@ function ControlRoomV2() {
         to,
         reason: commandReason || null,
         approvalRequestId: approvalRequestId ?? null,
+        expectedVersion,
       });
     },
     onSuccess: async () => {
@@ -279,6 +282,7 @@ function ControlRoomV2() {
           to: pendingReview.to,
           approvalRequestId: pendingReview.approvalRequestId,
           commandReason: pendingReview.commandReason,
+          expectedVersion: pendingReview.runtimeVersion,
         });
         return;
       }

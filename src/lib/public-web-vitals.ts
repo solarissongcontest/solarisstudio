@@ -3,6 +3,10 @@ import {
   getPublicUxSessionId,
   publicUxDevice,
 } from "@/lib/public-ux-events";
+import {
+  publicUxTelemetryAllowed,
+  sanitizePublicUxPath,
+} from "@/lib/public-ux-privacy";
 
 export type PublicWebVitalName = "LCP" | "INP" | "CLS";
 export type PublicWebVitalRating = "good" | "needs-improvement" | "poor";
@@ -25,6 +29,11 @@ type EventTimingEntry = PerformanceEntry & {
 
 const client = supabase as unknown as WebVitalsInsertClient;
 const TERRAOS_TEASER_PREVIEW_PATH = "/terraos-teaser-preview";
+
+// Field telemetry is optional. If the backend deliberately rejects writes
+// (for example during maintenance/read-only mode), do not turn one pagehide
+// into three rejected requests for LCP/CLS/INP.
+let webVitalsWriteDisabled = false;
 
 export function ratePublicWebVital(
   metric: PublicWebVitalName,
@@ -52,6 +61,7 @@ export function startPublicWebVitals() {
     return () => undefined;
   }
   if (window.navigator.webdriver) return () => undefined;
+  if (!publicUxTelemetryAllowed(window.navigator)) return () => undefined;
   if (window.location.pathname.startsWith("/admin")) return () => undefined;
   // Maintenance teaser iframes render real V3 components with fixture data.
   // They are not real page visits and must never write scaled iframe metrics.
@@ -59,7 +69,7 @@ export function startPublicWebVitals() {
     return () => undefined;
   }
 
-  const pathname = safePathname(window.location.pathname);
+  const pathname = sanitizePublicUxPath(window.location.pathname);
   const supported = new Set(PerformanceObserver.supportedEntryTypes ?? []);
   const observers: PerformanceObserver[] = [];
   const interactionDurations = new Map<number, number>();
@@ -188,6 +198,8 @@ function reportPublicWebVital(
   rawValue: number,
   pathname: string,
 ) {
+  if (webVitalsWriteDisabled) return;
+  if (!publicUxTelemetryAllowed(window.navigator)) return;
   if (!Number.isFinite(rawValue) || rawValue < 0) return;
 
   const value =
@@ -202,7 +214,7 @@ function reportPublicWebVital(
 
   const payload = {
     session_id: getPublicUxSessionId(),
-    pathname,
+    pathname: sanitizePublicUxPath(pathname),
     metric_name: metric,
     value,
     rating: ratePublicWebVital(metric, value),
@@ -212,9 +224,13 @@ function reportPublicWebVital(
     navigation_type: navigationType,
   };
 
-  void Promise.resolve(client.from("public_web_vitals").insert(payload)).catch(
-    () => undefined,
-  );
+  void Promise.resolve(client.from("public_web_vitals").insert(payload))
+    .then(({ error }) => {
+      if (error) webVitalsWriteDisabled = true;
+    })
+    .catch(() => {
+      webVitalsWriteDisabled = true;
+    });
 }
 
 function normalizeNavigationType(value?: string) {
@@ -227,9 +243,4 @@ function normalizeNavigationType(value?: string) {
     return value;
   }
   return "unknown";
-}
-
-function safePathname(value: string) {
-  const path = value.startsWith("/") ? value : "/";
-  return path.slice(0, 512);
 }
