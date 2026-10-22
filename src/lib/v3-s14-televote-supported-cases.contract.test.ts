@@ -56,6 +56,8 @@ describe("S14 canonical Televote Stage 7", () => {
 
   it("crosses the database deadline while status remains open and performs a genuine +2 minute extension", () => {
     expect(deadlineStage).toContain("clock_timestamp() >= closes_at");
+    expect(deadlineStage).toMatch(/clock_timestamp\(\) >= closes_at\)::text[^\n]*== "true"/);
+    expect(deadlineStage).not.toMatch(/clock_timestamp\(\) >= closes_at\)::text[^\n]*== "t"/);
     expect(deadlineStage).toContain("Voting deadline has passed");
     expect(deadlineStage).toContain("closed_at is null");
     expect(deadlineStage).toContain("closes_at + interval '2 minutes'");

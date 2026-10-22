@@ -82,7 +82,7 @@ s14_stage7_extend_expired_semi_one() {
   local event_id process_result receipt_command
 
   for _ in $(seq 1 80); do
-    if [[ "$(db_scalar "select (clock_timestamp() >= closes_at)::text from televoting.rounds where id='$round_id'::uuid;")" == "t" ]]; then
+    if [[ "$(db_scalar "select (clock_timestamp() >= closes_at)::text from televoting.rounds where id='$round_id'::uuid;")" == "true" ]]; then
       expired=1
       break
     fi
