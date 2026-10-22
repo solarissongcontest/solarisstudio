@@ -225,7 +225,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: v3-s14-s15-stateful-${{ github.event.pull_request.head.sha || github.sha }}
+          name: v3-s14-stateful-${{ github.event.pull_request.head.sha || github.sha }}
           path: v3-release-evidence/
           if-no-files-found: error
           retention-days: 30
