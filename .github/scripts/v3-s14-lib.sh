@@ -2,7 +2,13 @@
 set -euo pipefail
 
 log() { printf '\n[v3-s14-full-contest] %s\n' "$*"; }
-fail() { printf '\n[v3-s14-full-contest] FAIL: %s\n' "$*" >&2; exit 1; }
+fail() {
+  printf '\n[v3-s14-full-contest] FAIL: %s\n' "$*" >&2
+  if declare -F s14_connection_snapshot >/dev/null 2>&1 && [[ "${DB_READY:-0}" == "1" ]]; then
+    s14_connection_snapshot "failure:${CURRENT_STAGE:-bootstrap}" detailed || true
+  fi
+  exit 1
+}
 
 # S14 is destructive by design, therefore it is permanently local-only.
 # Never add a hosted fallback. A broken local stack must fail the rehearsal.
@@ -48,7 +54,7 @@ CANDIDATE_SHA="$(printf '%s' "$CANDIDATE_SHA" | tr '[:upper:]' '[:lower:]')"
 [[ "$CANDIDATE_SHA" == "$HEAD_SHA" ]] || fail "candidate SHA $CANDIDATE_SHA does not match checked-out HEAD $HEAD_SHA"
 
 for attempt in {1..20}; do
-  if psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c 'select 1' 2>/dev/null | grep -qx '1'; then
+  if PGAPPNAME='solaris-s14-bootstrap' psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c 'select 1' 2>/dev/null | grep -qx '1'; then
     DB_READY=1
     break
   fi
@@ -72,6 +78,99 @@ HTTP_STATUS=''
 HTTP_BODY=''
 LAST_USER_ID=''
 LAST_TOKEN=''
+
+S14_CONNECTION_DIAGNOSTICS_DIR="${V3_RELEASE_EVIDENCE_DIR:-v3-release-evidence}"
+S14_CONNECTION_DIAGNOSTICS_LOG="$S14_CONNECTION_DIAGNOSTICS_DIR/s14-connection-diagnostics.log"
+S14_CONNECTION_CHECKPOINT_FILE="$S14_CONNECTION_DIAGNOSTICS_DIR/.s14-last-connection-checkpoint"
+S14_DIAGNOSTIC_RUNNING=0
+
+s14_pg_app_name() {
+  local stage="${CURRENT_STAGE:-bootstrap}"
+  stage="${stage//:/-}"
+  printf 'solaris-s14-%.48s' "$stage"
+}
+
+s14_connection_snapshot() {
+  local label="${1:-unspecified}" mode="${2:-summary}" output
+  [[ "${DB_READY:-0}" == "1" ]] || return 0
+  [[ "${S14_DIAGNOSTIC_RUNNING:-0}" != "1" ]] || return 0
+  S14_DIAGNOSTIC_RUNNING=1
+  mkdir -p "$S14_CONNECTION_DIAGNOSTICS_DIR"
+  output="$(mktemp)"
+  {
+    printf '\n=== S14 CONNECTION SNAPSHOT %s ===\n' "$label"
+    printf 'utc=%s current_stage=%s candidate_sha=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" "${CURRENT_STAGE:-bootstrap}" "$CANDIDATE_SHA"
+    PGAPPNAME='solaris-s14-diagnostics' psql "$DB_URL" -v ON_ERROR_STOP=1 -X -P pager=off -c "
+select
+  current_database() as database,
+  pg_postmaster_start_time() as postmaster_started_at,
+  current_setting('max_connections')::int as max_connections,
+  current_setting('superuser_reserved_connections')::int as superuser_reserved_connections,
+  count(*) filter (where backend_type='client backend') as client_backends,
+  count(*) filter (where backend_type='client backend' and state='active') as active_clients,
+  count(*) filter (where backend_type='client backend' and state='idle') as idle_clients,
+  count(*) filter (where backend_type='client backend' and state like 'idle in transaction%') as idle_in_transaction_clients
+from pg_stat_activity
+where datname=current_database();
+" || true
+    PGAPPNAME='solaris-s14-diagnostics' psql "$DB_URL" -v ON_ERROR_STOP=1 -X -P pager=off -c "
+select
+  coalesce(usename,'<none>') as usename,
+  coalesce(nullif(application_name,''),'<none>') as application_name,
+  coalesce(client_addr::text,'local') as client_addr,
+  backend_type,
+  coalesce(state,'<none>') as state,
+  coalesce(wait_event_type,'<none>') as wait_event_type,
+  coalesce(wait_event,'<none>') as wait_event,
+  count(*) as connections
+from pg_stat_activity
+where datname=current_database()
+  and pid <> pg_backend_pid()
+group by usename, application_name, client_addr, backend_type, state, wait_event_type, wait_event
+order by connections desc, application_name, usename;
+" || true
+    if [[ "$mode" == "detailed" ]]; then
+      PGAPPNAME='solaris-s14-diagnostics' psql "$DB_URL" -v ON_ERROR_STOP=1 -X -P pager=off -c "
+select
+  pid,
+  coalesce(usename,'<none>') as usename,
+  coalesce(nullif(application_name,''),'<none>') as application_name,
+  coalesce(client_addr::text,'local') as client_addr,
+  backend_type,
+  coalesce(state,'<none>') as state,
+  backend_start,
+  xact_start,
+  query_start,
+  state_change,
+  coalesce(wait_event_type,'<none>') as wait_event_type,
+  coalesce(wait_event,'<none>') as wait_event,
+  pg_blocking_pids(pid) as blocking_pids,
+  regexp_replace(left(coalesce(query,''),160), E'[\\n\\r\\t ]+', ' ', 'g') as query_excerpt
+from pg_stat_activity
+where datname=current_database()
+  and pid <> pg_backend_pid()
+order by backend_start, pid;
+" || true
+    fi
+  } >"$output" 2>&1
+  cat "$output" | tee -a "$S14_CONNECTION_DIAGNOSTICS_LOG" >&2
+  rm -f "$output"
+  S14_DIAGNOSTIC_RUNNING=0
+}
+
+s14_connection_checkpoint() {
+  local checkpoint="${CURRENT_STAGE:-bootstrap}" previous=''
+  [[ "${DB_READY:-0}" == "1" ]] || return 0
+  [[ "${S14_DIAGNOSTIC_RUNNING:-0}" != "1" ]] || return 0
+  mkdir -p "$S14_CONNECTION_DIAGNOSTICS_DIR"
+  if [[ -f "$S14_CONNECTION_CHECKPOINT_FILE" ]]; then
+    previous="$(cat "$S14_CONNECTION_CHECKPOINT_FILE" 2>/dev/null || true)"
+  fi
+  if [[ "$checkpoint" != "$previous" ]]; then
+    s14_connection_snapshot "checkpoint:$checkpoint" summary || true
+    printf '%s\n' "$checkpoint" > "$S14_CONNECTION_CHECKPOINT_FILE"
+  fi
+}
 
 request() {
   local method="$1" url="$2" bearer="$3" api_key="$4" data="${5-}"
@@ -98,8 +197,15 @@ else: print(value)
 ' "$path"
 }
 
-db_exec() { psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$1" >/dev/null; }
-db_scalar() { psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c "$1"; }
+db_exec() {
+  s14_connection_checkpoint
+  PGAPPNAME="$(s14_pg_app_name)" psql "$DB_URL" -v ON_ERROR_STOP=1 -q -c "$1" >/dev/null
+}
+
+db_scalar() {
+  s14_connection_checkpoint
+  PGAPPNAME="$(s14_pg_app_name)" psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -c "$1"
+}
 
 rpc_request() {
   local token="$1" function_name="$2" body="$3"
@@ -132,7 +238,8 @@ create_user() {
   if (( HTTP_STATUS >= 200 && HTTP_STATUS < 300 )); then
     LAST_USER_ID="$(printf '%s' "$HTTP_BODY" | json_value id)"
   else
-    LAST_USER_ID="$(psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -v email="$email" -c "select id from auth.users where lower(email)=lower(:'email') limit 1;")"
+    s14_connection_checkpoint
+    LAST_USER_ID="$(PGAPPNAME="$(s14_pg_app_name)" psql "$DB_URL" -v ON_ERROR_STOP=1 -Atq -v email="$email" -c "select id from auth.users where lower(email)=lower(:'email') limit 1;")"
     [[ -n "$LAST_USER_ID" ]] || fail "could not create or recover local user $email (HTTP $HTTP_STATUS)"
   fi
   [[ -n "$LAST_USER_ID" ]] || fail "local auth user $email has no id"
@@ -149,3 +256,5 @@ sign_in() {
 
 country_uuid_sql="('14000000-0000-4000-8000-' || lpad(i::text, 12, '0'))::uuid"
 participant_uuid_sql="('14000000-0000-4001-8000-' || lpad(i::text, 12, '0'))::uuid"
+
+s14_connection_snapshot 'baseline:local-supabase-ready' summary || true

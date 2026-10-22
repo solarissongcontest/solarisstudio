@@ -22,8 +22,8 @@ run_s14_stage_4_entries() {
   ORGANIZER_B_TOKEN="$LAST_TOKEN"
 
   apply_confirmation_round_change status '{"status":"open"}' '14000000-0000-4004-8000-000000000001' 's14-entry-round-open'
-  apply_confirmation_round_change editing '{"editingEnabled":false}' '14000000-0000-4004-8000-000000000002' 's14-entry-editing-reset'
-  apply_confirmation_round_change editing '{"editingEnabled":true}' '14000000-0000-4004-8000-000000000003' 's14-entry-editing-open'
+  apply_confirmation_round_change editing '{"enabled":false}' '14000000-0000-4004-8000-000000000002' 's14-entry-editing-reset'
+  apply_confirmation_round_change editing '{"enabled":true}' '14000000-0000-4004-8000-000000000003' 's14-entry-editing-open'
 
   for i in $(seq 1 64); do
     suffix="$(printf '%012d' "$i")"
@@ -111,8 +111,8 @@ PY
   [[ "$(db_scalar "select count(*) from public.internal_entries i join public.submissions s on s.id=i.submission_id where s.round_id='$CONFIRMATION_ROUND_ID'::uuid and i.review_status='accepted';")" == "63" ]] || fail "expected 63 initially accepted Entries"
   [[ "$(db_scalar "select count(*) from public.internal_entries i join public.submissions s on s.id=i.submission_id where s.round_id='$CONFIRMATION_ROUND_ID'::uuid and i.review_status='declined';")" == "1" ]] || fail "duration correction case was not the only declined Entry"
 
-  apply_confirmation_round_change editing '{"editingEnabled":false}' '14000000-0000-4004-8000-000000000004' 's14-entry-correction-reset'
-  apply_confirmation_round_change editing '{"editingEnabled":true}' '14000000-0000-4004-8000-000000000005' 's14-entry-correction-open'
+  apply_confirmation_round_change editing '{"enabled":false}' '14000000-0000-4004-8000-000000000004' 's14-entry-correction-reset'
+  apply_confirmation_round_change editing '{"enabled":true}' '14000000-0000-4004-8000-000000000005' 's14-entry-correction-open'
 
   ENTRY_TWO_SUBMISSION="$(db_scalar "select id from public.submissions where round_id='$CONFIRMATION_ROUND_ID'::uuid and country='S14 Delegation 02' limit 1;")"
   ENTRY_TWO_ID="$(db_scalar "select id from public.internal_entries where submission_id='$ENTRY_TWO_SUBMISSION'::uuid;")"
@@ -238,7 +238,7 @@ PY
   [[ "$(db_scalar "select count(*) from public.internal_entries i join public.submissions s on s.id=i.submission_id where s.round_id='$CONFIRMATION_ROUND_ID'::uuid;")" == "63" ]] || fail "withdrawal did not leave the expected 63 active Entries"
   log "S14_INVARIANT_ENTRY_COMPLETE"
 
-  apply_confirmation_round_change editing '{"editingEnabled":false}' '14000000-0000-4004-8000-000000000006' 's14-entry-correction-close'
+  apply_confirmation_round_change editing '{"enabled":false}' '14000000-0000-4004-8000-000000000006' 's14-entry-correction-close'
   apply_confirmation_round_change status '{"status":"closed"}' '14000000-0000-4004-8000-000000000007' 's14-entry-round-close'
 
   log "S14_STAGE_4_ENTRIES_COMPLETE"
