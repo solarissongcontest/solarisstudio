@@ -82,6 +82,23 @@ describe("Public V3 P26 Relationships", () => {
     expect(detail).toContain('to="/editions/$slug"');
   });
 
+  it("explains metric definitions, sample size, thresholds and limitations", () => {
+    const detail = read("src/components/v3/V3RelationshipDetailScreen.tsx");
+
+    expect(detail).toContain('data-v3-relationship-methodology=""');
+    expect(detail).toContain("Measured range");
+    expect(detail).toContain("opportunitiesAtoB");
+    expect(detail).toContain("opportunitiesBtoA");
+    expect(detail).toContain("Reciprocal sample");
+    expect(detail).toContain("low below 3, medium at 3–5, and high from 6");
+    expect(detail).toContain("Geometric mean of the two normalized support directions");
+    expect(detail).toContain("The weaker normalized direction divided by the stronger one");
+    expect(detail).toContain("Persistence is the percentage of measured opportunities with at least one point");
+    expect(detail).toContain("absolute slope below 2");
+    expect(detail).toContain("currently use only officially published jury voting detail");
+    expect(detail).toContain("does not infer country-to-country televote intent");
+  });
+
   it("does not expose browser-controlled relationship rollout or raw archive hooks in V3", () => {
     const combined = [
       read("src/components/v3/V3RelationshipsGate.tsx"),

@@ -33,6 +33,18 @@ export function V3RelationshipDetailScreen({
     aToB: point.normalizedAtoB,
     bToA: point.normalizedBtoA,
   }));
+  const reciprocalSample = Math.min(
+    relationship.opportunitiesAtoB,
+    relationship.opportunitiesBtoA,
+  );
+  const firstMeasuredEdition = relationship.timeline[0]?.label ?? null;
+  const latestMeasuredEdition = relationship.timeline.at(-1)?.label ?? null;
+  const measuredRange =
+    firstMeasuredEdition && latestMeasuredEdition
+      ? firstMeasuredEdition === latestMeasuredEdition
+        ? firstMeasuredEdition
+        : `${firstMeasuredEdition}–${latestMeasuredEdition}`
+      : "No published directional sample";
 
   return (
     <V3Screen>
@@ -73,18 +85,62 @@ export function V3RelationshipDetailScreen({
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <Guide
             title="Support score"
-            text="Two-way support normalized against the maximum points available in each published voting system."
+            text="Geometric mean of the two normalized support directions. It rewards consistently strong two-way support instead of letting one direction dominate."
           />
           <Guide
             title="Reciprocity"
-            text="How balanced support is in both directions. A high number means the historical pattern is more mutual."
+            text="The weaker normalized direction divided by the stronger one, expressed from 0–100. It describes balance, not how many raw points were exchanged."
           />
           <Guide
             title="Sample confidence"
-            text="How much shared published voting history exists behind the score. More opportunities increase confidence."
+            text="Based on the smaller directional opportunity count: low below 3, medium at 3–5, and high from 6 published opportunities."
           />
         </div>
       </V3Surface>
+
+      <V3Section title="Method and limitations">
+        <V3Surface className="p-5" data-v3-relationship-methodology="">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <MethodFact label="Measured range" value={measuredRange} />
+            <MethodFact
+              label={`${a.shortCode} → ${b.shortCode} opportunities`}
+              value={relationship.opportunitiesAtoB}
+            />
+            <MethodFact
+              label={`${b.shortCode} → ${a.shortCode} opportunities`}
+              value={relationship.opportunitiesBtoA}
+            />
+            <MethodFact label="Reciprocal sample" value={reciprocalSample} />
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <div>
+              <p className="text-xs font-semibold">What counts as an opportunity</p>
+              <p className="mt-1 text-xs leading-5 text-white/48">
+                One published jury-voting opportunity where the giver has a public ballot and the receiver appears in the corresponding published result field. Expected points divide that ballot's awarded points across eligible receivers.
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold">Normalization</p>
+              <p className="mt-1 text-xs leading-5 text-white/48">
+                Directional support is normalized against the maximum score available in each show's voting system before editions are compared. This keeps different point systems on a 0–100 scale.
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold">Persistence and trend</p>
+              <p className="mt-1 text-xs leading-5 text-white/48">
+                Persistence is the percentage of measured opportunities with at least one point. Trend uses the slope of mean two-way normalized support across measured editions; fewer than three points, or an absolute slope below 2, is labelled stable.
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold">Important limitation</p>
+              <p className="mt-1 text-xs leading-5 text-white/48">
+                Directional support analytics currently use only officially published jury voting detail. Head-to-head placement uses published result ranks. Solaris does not infer country-to-country televote intent from aggregate televote totals, and these statistics do not establish motive, alliance or causation.
+              </p>
+            </div>
+          </div>
+        </V3Surface>
+      </V3Section>
 
       <div className="grid gap-5 lg:grid-cols-2">
         <V3Section title="Support over time">
@@ -277,6 +333,15 @@ function Guide({ title, text }: { title: string; text: string }) {
     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
       <p className="text-xs font-semibold">{title}</p>
       <p className="mt-1 text-[0.7rem] leading-5 text-white/45">{text}</p>
+    </div>
+  );
+}
+
+function MethodFact({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+      <p className="text-[0.65rem] uppercase tracking-wide text-white/38">{label}</p>
+      <p className="mt-2 text-sm font-semibold tabular-nums">{value}</p>
     </div>
   );
 }
