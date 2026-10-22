@@ -11,22 +11,6 @@ begin;
 -- transition-table trigger. This preserves result correctness while bounding a
 -- bulk reorder to one result rebuild per affected show.
 
--- S13 adoption contract. This migration changes trigger/RPC implementation and
--- contains operational UPDATE SQL inside admin_set_show_running_order, but it
--- does not move existing rows during migration execution and therefore has no
--- backfill job. Once deployed, repair this behavior forward rather than trying
--- to roll trigger/function definitions backward independently of later schema.
-select set_config('request.jwt.claim.role', 'service_role', true);
-select public.v3_register_migration_contract(
-  'v3.results.batch-running-order-result-sync',
-  1,
-  'forward_fix_only',
-  false,
-  null,
-  'Forward-only running-order trigger/RPC rewrite that bounds result rebuilds; migration execution performs no data backfill.'
-);
-select set_config('request.jwt.claim.role', '', true);
-
 drop trigger if exists participants_sync_results on public.participants;
 create trigger participants_sync_results
 after insert or delete or update of show_id, country_id, contest_entity_id, participation_status
