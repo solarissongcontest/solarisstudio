@@ -47,12 +47,12 @@ describe("S14 Stage 10 archive certification against current canonical V3 System
     expect(driver).toContain("studio2_transition_edition_v3");
     expect(driver).toContain("S14_RESULTS_RUNTIME_RECONCILIATION_COMPLETE");
     expect(driver).toContain("run_stage stage-10-archive run_s14_stage_10_archive");
-    expect(driver.indexOf("run_contest_extension grand-final-publication")).toBeLessThan(
-      driver.indexOf("reconcile_edition_runtime_to_results"),
-    );
-    expect(driver.lastIndexOf("reconcile_edition_runtime_to_results")).toBeLessThan(
-      driver.indexOf("run_stage stage-10-archive run_s14_stage_10_archive"),
-    );
+    const gfPublication = driver.indexOf("run_contest_extension grand-final-publication");
+    const resultsInvocation = driver.lastIndexOf("reconcile_edition_runtime_to_results");
+    const archiveInvocation = driver.indexOf("run_stage stage-10-archive run_s14_stage_10_archive");
+    expect(gfPublication).toBeGreaterThan(-1);
+    expect(resultsInvocation).toBeGreaterThan(gfPublication);
+    expect(archiveInvocation).toBeGreaterThan(resultsInvocation);
   });
 
   it("tracks the complete current Archive migration chain instead of stale pre-convergence filenames", () => {
