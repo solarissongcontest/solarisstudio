@@ -36,13 +36,23 @@ const archiveForwardFixMigration = readFileSync(
 );
 
 describe("S14 Stage 10 archive certification against current canonical V3 System authority", () => {
-  it("keeps Stage 10 unwired until the prerequisite full-contest chain reaches it", () => {
-    expect(V3_S14_STAGES.find((stage) => stage.id === "stage-10-archive")?.implementationState).toBe("planned");
-    expect(V3_S14_INVARIANTS.find((item) => item.id === "tasks-canonical")?.implementationState).toBe("planned");
-    expect(V3_S14_INVARIANTS.find((item) => item.id === "notifications-reconcilable")?.implementationState).toBe("planned");
-    expect(V3_S14_FAILURE_INJECTIONS.find((item) => item.id === "supabase-outage")?.implementationState).toBe("planned");
-    expect(driver).not.toContain('source "$SCRIPT_DIR/v3-s14-stage-10-archive.sh"');
-    expect(driver).not.toContain("run_s14_stage_10_archive");
+  it("wires merged Stage 10 only after the persistent contest reaches canonical Results", () => {
+    expect(V3_S14_STAGES.find((stage) => stage.id === "stage-10-archive")?.implementationState).toBe("implemented");
+    expect(V3_S14_INVARIANTS.find((item) => item.id === "tasks-canonical")?.implementationState).toBe("implemented");
+    expect(V3_S14_INVARIANTS.find((item) => item.id === "notifications-reconcilable")?.implementationState).toBe("implemented");
+    expect(V3_S14_FAILURE_INJECTIONS.find((item) => item.id === "supabase-outage")?.implementationState).toBe("implemented");
+    expect(driver).toContain('source "$SCRIPT_DIR/v3-s14-stage-10-archive.sh"');
+    expect(driver).toContain("reconcile_edition_runtime_to_results");
+    expect(driver).toContain("private.v3_edition_final_results_ready");
+    expect(driver).toContain("studio2_transition_edition_v3");
+    expect(driver).toContain("S14_RESULTS_RUNTIME_RECONCILIATION_COMPLETE");
+    expect(driver).toContain("run_stage stage-10-archive run_s14_stage_10_archive");
+    expect(driver.indexOf("run_contest_extension grand-final-publication")).toBeLessThan(
+      driver.indexOf("reconcile_edition_runtime_to_results"),
+    );
+    expect(driver.lastIndexOf("reconcile_edition_runtime_to_results")).toBeLessThan(
+      driver.indexOf("run_stage stage-10-archive run_s14_stage_10_archive"),
+    );
   });
 
   it("tracks the complete current Archive migration chain instead of stale pre-convergence filenames", () => {
