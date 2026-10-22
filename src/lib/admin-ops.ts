@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
 
 import { useAdminContext } from "@/components/admin/AdminContext";
 import { useAuthenticatedUser } from "@/components/auth/AuthenticatedUserContext";
@@ -13,7 +14,9 @@ export type AdminDeadline = {
   due_at: string;
   completed_at: string | null;
   notes: string | null;
+  version: number;
   created_at: string;
+  updated_at: string;
 };
 
 export type AdminAuditRow = {
@@ -57,6 +60,14 @@ function missingSchema(error: unknown) {
 
 function normalizeEditionId(editionId?: string | null) {
   return editionId?.trim() || null;
+}
+
+function operationIdentity(prefix: string) {
+  const operationId = crypto.randomUUID();
+  return {
+    operationId,
+    idempotencyKey: `${prefix}:${operationId}`,
+  };
 }
 
 async function loadAdminDeadlines(editionId?: string | null) {
@@ -167,10 +178,15 @@ export function useCreateAdminDeadline() {
   const qc = useQueryClient();
   const { editionId } = useAdminContext();
   const organizerEditionId = normalizeEditionId(editionId);
+  const pendingOperation = useRef<{
+    fingerprint: string;
+    operationId: string;
+    idempotencyKey: string;
+  } | null>(null);
 
   return useMutation({
     mutationFn: async (
-      payload: Omit<AdminDeadline, "id" | "created_at" | "completed_at">,
+      payload: Omit<AdminDeadline, "id" | "version" | "created_at" | "updated_at" | "completed_at">,
     ) => {
       if (!organizerEditionId || payload.edition_id !== organizerEditionId) {
         throw new Error(
@@ -178,17 +194,34 @@ export function useCreateAdminDeadline() {
         );
       }
 
-      const { data, error } = await adminDb
-        .from("admin_deadlines")
-        .insert(payload)
-        .select("id, edition_id")
-        .single();
+      const fingerprint = JSON.stringify({
+        editionId: payload.edition_id,
+        showId: payload.show_id,
+        label: payload.label.trim(),
+        dueAt: payload.due_at,
+        notes: payload.notes?.trim() || null,
+      });
+      const identity =
+        pendingOperation.current?.fingerprint === fingerprint
+          ? pendingOperation.current
+          : { fingerprint, ...operationIdentity("custom-reminder-create") };
+      pendingOperation.current = identity;
+
+      const { error } = await adminDb.rpc("studio2_create_admin_deadline", {
+        p_edition_id: payload.edition_id,
+        p_show_id: payload.show_id,
+        p_label: payload.label.trim(),
+        p_due_at: payload.due_at,
+        p_notes: payload.notes?.trim() || null,
+        p_operation_id: identity.operationId,
+        p_idempotency_key: identity.idempotencyKey,
+        p_correlation_id: identity.operationId,
+      });
       if (error) throw error;
-      if (!data || data.edition_id !== organizerEditionId) {
-        throw new Error("Custom reminder creation returned an unexpected edition scope.");
-      }
+
+      pendingOperation.current = null;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-deadlines"] }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["admin-deadlines"] }),
   });
 }
 
@@ -196,6 +229,12 @@ export function useToggleAdminDeadline() {
   const qc = useQueryClient();
   const { editionId } = useAdminContext();
   const organizerEditionId = normalizeEditionId(editionId);
+  const pendingOperations = useRef(
+    new Map<
+      string,
+      { operationId: string; idempotencyKey: string; expectedVersion: number }
+    >(),
+  );
 
   return useMutation({
     mutationFn: async ({ id, complete }: { id: string; complete: boolean }) => {
@@ -203,43 +242,44 @@ export function useToggleAdminDeadline() {
         throw new Error("Custom reminder changes require an explicit Organizer edition scope.");
       }
 
-      const { data: current, error: currentError } = await adminDb
-        .from("admin_deadlines")
-        .select("id, edition_id, completed_at")
-        .eq("id", id)
-        .eq("edition_id", organizerEditionId)
-        .maybeSingle();
-      if (currentError) throw currentError;
-      if (!current || current.edition_id !== organizerEditionId) {
-        throw new Error("This reminder is not part of the selected Organizer edition.");
-      }
+      const operationKey = `${id}:${complete ? "complete" : "reopen"}`;
+      let identity = pendingOperations.current.get(operationKey);
 
-      if (Boolean(current.completed_at) === complete) return;
-
-      let update = adminDb
-        .from("admin_deadlines")
-        .update({ completed_at: complete ? new Date().toISOString() : null })
-        .eq("id", id)
-        .eq("edition_id", organizerEditionId);
-
-      update = current.completed_at
-        ? update.eq("completed_at", current.completed_at)
-        : update.is("completed_at", null);
-
-      const { data: updated, error } = await update
-        .select("id, edition_id, completed_at")
-        .maybeSingle();
-      if (error) throw error;
-      if (!updated) {
-        throw new Error(
-          "This reminder changed before your action was applied. Refresh and review the current state.",
+      if (!identity) {
+        const { data: snapshot, error: snapshotError } = await adminDb.rpc(
+          "studio2_admin_deadline_snapshot",
+          { p_deadline_id: id },
         );
+        if (snapshotError) throw snapshotError;
+        if (!snapshot || snapshot.editionId !== organizerEditionId) {
+          throw new Error("This reminder is not part of the selected Organizer edition.");
+        }
+        if (!Number.isInteger(snapshot.version) || snapshot.version < 1) {
+          throw new Error("Custom reminder version is missing. Refresh before changing this reminder.");
+        }
+
+        identity = {
+          ...operationIdentity(
+            complete ? "custom-reminder-complete" : "custom-reminder-reopen",
+          ),
+          expectedVersion: snapshot.version,
+        };
+        pendingOperations.current.set(operationKey, identity);
       }
-      if (updated.edition_id !== organizerEditionId || Boolean(updated.completed_at) !== complete) {
-        throw new Error("Custom reminder state could not be reconciled after the update.");
-      }
+
+      const { error } = await adminDb.rpc("studio2_set_admin_deadline_completed", {
+        p_deadline_id: id,
+        p_expected_version: identity.expectedVersion,
+        p_complete: complete,
+        p_operation_id: identity.operationId,
+        p_idempotency_key: identity.idempotencyKey,
+        p_correlation_id: identity.operationId,
+      });
+      if (error) throw error;
+
+      pendingOperations.current.delete(operationKey);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-deadlines"] }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["admin-deadlines"] }),
   });
 }
 
