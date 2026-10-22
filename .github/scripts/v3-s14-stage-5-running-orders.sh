@@ -8,6 +8,39 @@ run_s14_stage_5_running_orders() {
   sign_in 's14-organizer-a@solaris.invalid'
   ORGANIZER_A_TOKEN="$LAST_TOKEN"
 
+  # The reorder RPC must remain one set-based participant UPDATE, and
+  # running-order result reconciliation must remain statement-level. A row-level
+  # running_order trigger combined with a per-participant RPC loop previously
+  # amplified one 33-entry reorder into 66 full show-result rebuilds.
+  CURRENT_STAGE="stage-5-running-orders:batch-sync-contract"
+  [[ "$(db_scalar "
+select (pg_get_triggerdef(t.oid) ilike '%FOR EACH STATEMENT%')::text
+from pg_trigger t
+join pg_class c on c.oid=t.tgrelid
+join pg_namespace n on n.oid=c.relnamespace
+where n.nspname='public'
+  and c.relname='participants'
+  and t.tgname='participants_sync_running_order_results'
+  and not t.tgisinternal;
+")" == "true" ]] || fail "running-order result sync is not statement-level"
+  [[ "$(db_scalar "
+select (pg_get_triggerdef(t.oid) not ilike '%running_order%')::text
+from pg_trigger t
+join pg_class c on c.oid=t.tgrelid
+join pg_namespace n on n.oid=c.relnamespace
+where n.nspname='public'
+  and c.relname='participants'
+  and t.tgname='participants_sync_results'
+  and not t.tgisinternal;
+")" == "true" ]] || fail "row-level participant result sync still owns running_order updates"
+  [[ "$(db_scalar "
+select (
+  position('foreach' in lower(pg_get_functiondef('public.admin_set_show_running_order(uuid,uuid[])'::regprocedure))) = 0
+  and position('set running_order = null' in lower(pg_get_functiondef('public.admin_set_show_running_order(uuid,uuid[])'::regprocedure))) = 0
+  and position('with ordinality' in lower(pg_get_functiondef('public.admin_set_show_running_order(uuid,uuid[])'::regprocedure))) > 0
+)::text;
+")" == "true" ]] || fail "admin_set_show_running_order is not using the bounded set-based reorder contract"
+
   # Exercise the same lifecycle the Organizer workspace owns: allocation work
   # is local until one atomic RPC, then the running order is persisted in one
   # atomic RPC. Stage transitions are still a low-risk direct show mutation in
