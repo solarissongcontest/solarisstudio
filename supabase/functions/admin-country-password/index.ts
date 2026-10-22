@@ -9,6 +9,21 @@ const corsHeaders = {
 
 const pwnedPasswordsRangeUrl = "https://api.pwnedpasswords.com/range";
 
+type PasswordSafetyFailure = {
+  message: string;
+  stage: "password_policy" | "password_safety_dependency";
+  status: number;
+};
+
+type CredentialOperation = {
+  replayed?: boolean;
+  operationId?: string;
+  status?: "processing" | "succeeded" | "failed" | "uncertain";
+  result?: Record<string, unknown> | null;
+  error?: { code?: string; metadata?: Record<string, unknown> } | null;
+  sessionPolicy?: string;
+};
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -22,6 +37,20 @@ async function sha1Hex(value: string) {
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("")
     .toUpperCase();
+}
+
+async function hmacSha256Hex(secret: string, value: string) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(signature))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 async function breachedPasswordCount(password: string) {
@@ -47,20 +76,62 @@ async function breachedPasswordCount(password: string) {
   return 0;
 }
 
-async function passwordSafetyError(password: string) {
-  if (password.length < 6) return "Password must be at least 6 characters.";
+async function passwordSafetyFailure(password: string): Promise<PasswordSafetyFailure | null> {
+  if (password.length < 6) {
+    return {
+      message: "Password must be at least 6 characters.",
+      stage: "password_policy",
+      status: 400,
+    };
+  }
 
   try {
     const count = await breachedPasswordCount(password);
     if (count > 0) {
-      return "That password appears in known data breaches. Choose a different password.";
+      return {
+        message: "That password appears in known data breaches. Choose a different password.",
+        stage: "password_policy",
+        status: 422,
+      };
     }
   } catch (error) {
-    console.error("[admin-country-password] Password safety check failed", error);
-    return "Password safety check is temporarily unavailable. Try again in a moment.";
+    console.error("[admin-country-password] Password safety dependency failed", error);
+    return {
+      message: "Password safety check is temporarily unavailable. Try again in a moment.",
+      stage: "password_safety_dependency",
+      status: 503,
+    };
   }
-
   return null;
+}
+
+function rpcStatus(error: { code?: string; message?: string } | null) {
+  const code = error?.code ?? "";
+  const message = error?.message ?? "";
+  if (code === "42501") return message.includes("Fresh authentication") ? 401 : 403;
+  if (code === "PT409" || message.includes("VERSION_CONFLICT") || message.includes("STATE_CHANGED")) return 409;
+  if (message.includes("IDEMPOTENCY_CONFLICT")) return 409;
+  if (code === "P0002") return 404;
+  if (code === "22023") return 400;
+  return 500;
+}
+
+function rpcMessage(error: { code?: string; message?: string } | null) {
+  const message = error?.message ?? "";
+  if (message.includes("Fresh authentication")) {
+    return "Sign in again before replacing a country-account password.";
+  }
+  if (message.includes("VERSION_CONFLICT")) {
+    return "The country account changed after you reviewed it. Reload the account and review the password replacement again.";
+  }
+  if (message.includes("IDEMPOTENCY_CONFLICT")) {
+    return "This credential-change operation was already used for a different reviewed request.";
+  }
+  if (message.includes("AUTHORIZATION") || error?.code === "42501") {
+    return "Your Organizer account is not allowed to replace country-account credentials.";
+  }
+  if (error?.code === "P0002") return "That country account no longer exists.";
+  return "The credential replacement could not be authorized.";
 }
 
 Deno.serve(async (req) => {
@@ -84,24 +155,15 @@ Deno.serve(async (req) => {
   const publicAuth = createClient(supabaseUrl, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+  const actorDb = createClient(supabaseUrl, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
 
   const { data: callerData, error: callerError } = await publicAuth.auth.getUser(token);
   if (callerError || !callerData.user) {
     return json({ error: "Your organizer session has expired." }, 401);
   }
-
-  const now = new Date().toISOString();
-  const { data: organizerAssignment, error: organizerError } = await service
-    .from("studio2_role_assignments")
-    .select("id")
-    .eq("user_id", callerData.user.id)
-    .in("role_key", ["organizer", "superadmin"])
-    .is("edition_id", null)
-    .or(`expires_at.is.null,expires_at.gt.${now}`)
-    .limit(1)
-    .maybeSingle();
-  if (organizerError) return json({ error: "Organizer access could not be verified." }, 500);
-  if (!organizerAssignment) return json({ error: "Organizer access is required." }, 403);
 
   let body: Record<string, unknown>;
   try {
@@ -111,22 +173,142 @@ Deno.serve(async (req) => {
   }
 
   const targetUserId = String(body.userId ?? "").trim();
+  const countryId = String(body.countryId ?? "").trim();
+  const expectedUpdatedAt = String(body.expectedUpdatedAt ?? "").trim();
+  const operationId = String(body.operationId ?? "").trim();
+  const idempotencyKey = String(body.idempotencyKey ?? "").trim();
   const password = String(body.password ?? "");
-  if (!targetUserId) return json({ error: "Choose a country account first." }, 400);
 
-  const passwordError = await passwordSafetyError(password);
-  if (passwordError) return json({ error: passwordError }, password.length < 6 ? 400 : 422);
+  if (!targetUserId || !countryId || !expectedUpdatedAt || !operationId || !idempotencyKey) {
+    return json({ error: "The reviewed country-account credential operation is incomplete." }, 400);
+  }
+  if (password.length > 1024) {
+    return json({ error: "Password is too long." }, 400);
+  }
 
-  const { data: countryAccount, error: countryAccountError } = await service
-    .from("country_accounts")
-    .select("user_id,country_id")
-    .eq("user_id", targetUserId)
-    .maybeSingle();
-  if (countryAccountError) return json({ error: "Country account could not be verified." }, 500);
-  if (!countryAccount) return json({ error: "That user is not a country account." }, 404);
+  // The keyed value prevents the database request fingerprint from becoming a
+  // password dictionary oracle if operation receipts are ever disclosed. The
+  // raw password never crosses the database boundary and is never logged.
+  const credentialFingerprint = await hmacSha256Hex(
+    serviceRoleKey,
+    `country-account-credential-replacement:v1:${operationId}:${password}`,
+  );
+
+  const { data: beginData, error: beginError } = await actorDb.rpc(
+    "studio2_begin_country_account_credential_replace",
+    {
+      p_target_user_id: targetUserId,
+      p_country_id: countryId,
+      p_expected_updated_at: expectedUpdatedAt,
+      p_credential_fingerprint: credentialFingerprint,
+      p_operation_id: operationId,
+      p_idempotency_key: idempotencyKey,
+      p_correlation_id: operationId,
+    },
+  );
+
+  if (beginError) {
+    return json({ error: rpcMessage(beginError) }, rpcStatus(beginError));
+  }
+
+  const operation = (beginData ?? {}) as CredentialOperation;
+  if (operation.status === "succeeded" && operation.result) {
+    return json(operation.result);
+  }
+  if (operation.status === "failed") {
+    return json(
+      {
+        error: "This reviewed credential replacement has already failed. Review a new password change before retrying.",
+        operationId: operation.operationId ?? operationId,
+      },
+      409,
+    );
+  }
+
+  const safetyFailure = await passwordSafetyFailure(password);
+  if (safetyFailure) {
+    if (safetyFailure.stage === "password_policy") {
+      const { error: finalizeError } = await service.rpc(
+        "studio2_finalize_country_account_credential_replace",
+        {
+          p_actor_id: callerData.user.id,
+          p_operation_id: operation.operationId ?? operationId,
+          p_outcome: "failed",
+          p_failure_stage: safetyFailure.stage,
+        },
+      );
+      if (finalizeError) {
+        console.error("[admin-country-password] Could not finalize rejected credential operation", {
+          operationId: operation.operationId ?? operationId,
+          stage: safetyFailure.stage,
+          code: finalizeError.code,
+        });
+      }
+    }
+
+    return json(
+      {
+        error: safetyFailure.message,
+        operationId: operation.operationId ?? operationId,
+        reconciliationRequired: safetyFailure.stage === "password_safety_dependency",
+      },
+      safetyFailure.status,
+    );
+  }
 
   const { error: updateError } = await service.auth.admin.updateUserById(targetUserId, { password });
-  if (updateError) return json({ error: "Password could not be changed. Try again." }, 400);
+  if (updateError) {
+    // Do not terminally mark this operation failed. A transport/dependency error
+    // may arrive after the identity provider accepted the password. Leaving the
+    // receipt processing means the exact same reviewed operation can safely
+    // retry the idempotent password assignment and then finalize its receipt.
+    console.error("[admin-country-password] Auth credential update outcome is unresolved", {
+      operationId: operation.operationId ?? operationId,
+      code: updateError.code,
+      status: updateError.status,
+    });
+    return json(
+      {
+        error: "The password update outcome could not be confirmed. Retry the same reviewed operation.",
+        operationId: operation.operationId ?? operationId,
+        reconciliationRequired: true,
+      },
+      502,
+    );
+  }
 
-  return json({ ok: true, userId: targetUserId, countryId: countryAccount.country_id });
+  const { data: finalData, error: finalError } = await service.rpc(
+    "studio2_finalize_country_account_credential_replace",
+    {
+      p_actor_id: callerData.user.id,
+      p_operation_id: operation.operationId ?? operationId,
+      p_outcome: "succeeded",
+      p_failure_stage: null,
+    },
+  );
+
+  if (finalError) {
+    console.error("[admin-country-password] Credential changed but receipt finalization is unresolved", {
+      operationId: operation.operationId ?? operationId,
+      code: finalError.code,
+    });
+    return json(
+      {
+        error: "The password changed, but the operation receipt could not be confirmed. Retry the same reviewed operation to reconcile it.",
+        operationId: operation.operationId ?? operationId,
+        reconciliationRequired: true,
+      },
+      502,
+    );
+  }
+
+  const finalized = (finalData ?? {}) as { result?: Record<string, unknown> };
+  return json(finalized.result ?? finalData ?? {
+    ok: true,
+    operationId: operation.operationId ?? operationId,
+    userId: targetUserId,
+    countryId,
+    sessionPolicy: "preserve_existing_sessions",
+    sessionsRevoked: false,
+  });
 });
