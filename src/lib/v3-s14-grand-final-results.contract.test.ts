@@ -93,7 +93,7 @@ describe("S14 Grand Final results", () => {
     expect(finalResults).toContain("S14_GRAND_FINAL_RESULTS_COMPLETE");
   });
 
-  it("is wired into the stateful contest driver before exact-version Grand Final Publication", () => {
+  it("is wired into the stateful contest driver before exact-version Grand Final Publication and Archive", () => {
     expect(driver).toContain('source "$SCRIPT_DIR/v3-s14-grand-final-results.sh"');
     expect(driver).toContain('source "$SCRIPT_DIR/v3-s14-grand-final-publication.sh"');
     expect(driver).toContain(
@@ -108,7 +108,10 @@ describe("S14 Grand Final results", () => {
     expect(driver.indexOf("run_s14_grand_final_results")).toBeLessThan(
       driver.indexOf("run_s14_grand_final_publication"),
     );
-    expect(driver).toContain("exact-version Grand Final Publication; only Archive remains pending");
+    expect(driver).toContain(
+      "run_contest_extension grand-final-publication run_s14_grand_final_publication\n\nreconcile_edition_runtime_to_results\nrun_stage stage-10-archive run_s14_stage_10_archive",
+    );
+    expect(driver).toContain("S14 full persistent contest rehearsal passed through canonical Archive.");
   });
 
   it("keeps the Grand Final result shell and unified driver syntactically valid", () => {
