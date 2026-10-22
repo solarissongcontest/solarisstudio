@@ -71,6 +71,7 @@ describe("System V3 S1 registries", () => {
       "jury.closed",
       "jury.opened",
       "media.reviewed",
+      "media.verified",
       "membership.changed",
       "notice.published",
       "notice.superseded",
@@ -150,6 +151,13 @@ describe("System V3 S1 registries", () => {
       expect(v3DomainConsequence(eventType)?.implementationState).toBe("event-backed");
       expect(v3DomainConsequence(eventType)?.ownerDomain).toBe("entry");
     }
+  });
+
+  it("records complete Media S5 ownership without inventing verification task work", () => {
+    expect(v3DomainConsequence("media.verified")?.implementationState).toBe("event-backed");
+    expect(v3DomainConsequence("media.verified")?.ownerDomain).toBe("media");
+    expect(v3DomainConsequence("media.verified")?.taskEffects).toEqual([]);
+    expect(v3DomainConsequence("media.reviewed")?.implementationState).toBe("event-backed");
   });
 
   it("records canonical membership/access S5 ownership", () => {
