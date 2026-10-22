@@ -103,6 +103,7 @@
 }
 
 html[data-solaris-keyboard-open] [data-solaris-v3] .v3-bottom-nav.v3-liquid-tabbar {
+  visibility: hidden;
   transform: translateY(calc(100% + env(safe-area-inset-bottom) + 32px));
 }
 
