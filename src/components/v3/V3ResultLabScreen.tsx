@@ -13,6 +13,10 @@ import {
 } from "@/lib/result-lab";
 import type { V3ResultLabBundle } from "@/lib/v3-result-lab";
 import {
+  serializeV3ResultLabScenario,
+  type V3ResultLabScenario,
+} from "@/lib/v3-result-lab-scenario";
+import {
   V3Screen,
   V3ScreenHeader,
   V3Section,
@@ -34,19 +38,35 @@ function downloadText(filename: string, text: string) {
 
 export function V3ResultLabScreen({
   bundle,
+  initialScenario,
   onShowChange,
   changingShow = false,
 }: {
   bundle: V3ResultLabBundle;
+  initialScenario: V3ResultLabScenario;
   onShowChange: (showId: string) => void;
   changingShow?: boolean;
 }) {
-  const [juryWeight, setJuryWeight] = useState(50);
-  const [blendMode, setBlendMode] = useState<ResultLabBlendMode>("raw");
-  const [juryScheme, setJuryScheme] = useState<ResultLabJuryScheme>("original");
-  const [tieBreak, setTieBreak] = useState<ResultLabTieBreak>("televote");
-  const [excludedVoters, setExcludedVoters] = useState<Set<string>>(new Set());
+  const publicVoterKeys = useMemo(
+    () => new Set(bundle.voters.map((voter) => voter.key)),
+    [bundle.voters],
+  );
+  const [juryWeight, setJuryWeight] = useState(initialScenario.juryWeight);
+  const [blendMode, setBlendMode] = useState<ResultLabBlendMode>(initialScenario.blendMode);
+  const [juryScheme, setJuryScheme] = useState<ResultLabJuryScheme>(
+    bundle.detailedVotingPublic ? initialScenario.juryScheme : "original",
+  );
+  const [tieBreak, setTieBreak] = useState<ResultLabTieBreak>(initialScenario.tieBreak);
+  const [excludedVoters, setExcludedVoters] = useState<Set<string>>(
+    () =>
+      new Set(
+        bundle.detailedVotingPublic
+          ? [...initialScenario.excludedVoters].filter((key) => publicVoterKeys.has(key))
+          : [],
+      ),
+  );
   const [voterSearch, setVoterSearch] = useState("");
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
 
   const selectedOption =
     bundle.options.find((option) => option.id === bundle.selectedShowId) ?? null;
@@ -117,6 +137,7 @@ export function V3ResultLabScreen({
     setTieBreak("televote");
     setExcludedVoters(new Set());
     setVoterSearch("");
+    setShareMessage(null);
   };
 
   const toggleVoter = (key: string) => {
@@ -126,6 +147,51 @@ export function V3ResultLabScreen({
       else next.add(key);
       return next;
     });
+    setShareMessage(null);
+  };
+
+  const shareScenario = async () => {
+    if (typeof window === "undefined" || !bundle.selectedShowId) return;
+    const query = serializeV3ResultLabScenario({
+      showId: bundle.selectedShowId,
+      juryWeight,
+      blendMode,
+      juryScheme: bundle.detailedVotingPublic ? juryScheme : "original",
+      tieBreak,
+      excludedVoters: bundle.detailedVotingPublic ? excludedVoters : new Set(),
+    });
+    const url = `${window.location.origin}${window.location.pathname}${query}`;
+    setShareMessage(null);
+
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({
+          title: "Solaris Result Lab simulation",
+          text: "Hypothetical Result Lab scenario. Official result unchanged.",
+          url,
+        });
+        setShareMessage("Scenario shared.");
+        return;
+      }
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        setShareMessage("Scenario link copied.");
+        return;
+      }
+      setShareMessage("Copy the page address from your browser to share this scenario.");
+    } catch (error) {
+      if ((error as { name?: string } | null)?.name === "AbortError") return;
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(url);
+          setShareMessage("Scenario link copied.");
+          return;
+        }
+      } catch {
+        // Sharing is optional; the simulation itself must remain usable.
+      }
+      setShareMessage("Sharing is unavailable on this device.");
+    }
   };
 
   return (
@@ -160,7 +226,10 @@ export function V3ResultLabScreen({
                 const next = bundle.options.find(
                   (option) => option.editionId === event.target.value,
                 );
-                if (next) onShowChange(next.id);
+                if (next) {
+                  resetScenario();
+                  onShowChange(next.id);
+                }
               }}
               disabled={changingShow || !editionOptions.length}
               className="min-h-11 w-full rounded-xl border border-white/[0.08] bg-white/[0.035] px-3 text-sm text-white outline-none disabled:opacity-50"
@@ -230,7 +299,10 @@ export function V3ResultLabScreen({
                   max={100}
                   step={5}
                   value={juryWeight}
-                  onChange={(event) => setJuryWeight(Number(event.target.value))}
+                  onChange={(event) => {
+                    setJuryWeight(Number(event.target.value));
+                    setShareMessage(null);
+                  }}
                   aria-label="Jury weight"
                   className="mt-4 w-full"
                 />
@@ -245,7 +317,10 @@ export function V3ResultLabScreen({
                       checked={blendMode === value}
                       label={label}
                       description={description}
-                      onClick={() => setBlendMode(value)}
+                      onClick={() => {
+                        setBlendMode(value);
+                        setShareMessage(null);
+                      }}
                     />
                   ))}
                 </div>
@@ -261,7 +336,10 @@ export function V3ResultLabScreen({
                         checked={juryScheme === value}
                         label={label}
                         description={description}
-                        onClick={() => setJuryScheme(value)}
+                        onClick={() => {
+                          setJuryScheme(value);
+                          setShareMessage(null);
+                        }}
                       />
                     ))}
                   </div>
@@ -281,7 +359,10 @@ export function V3ResultLabScreen({
                     <button
                       key={value}
                       type="button"
-                      onClick={() => setTieBreak(value)}
+                      onClick={() => {
+                        setTieBreak(value);
+                        setShareMessage(null);
+                      }}
                       className="min-h-11 rounded-xl border px-3 text-xs font-semibold"
                       style={{
                         borderColor:
@@ -344,13 +425,22 @@ export function V3ResultLabScreen({
                 </V3Surface>
               ) : null}
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid gap-2 sm:grid-cols-3">
                 <button
                   type="button"
                   onClick={resetScenario}
                   className="min-h-11 rounded-xl border border-white/[0.08] px-3 text-xs font-semibold"
                 >
                   Reset scenario
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void shareScenario()}
+                  disabled={!bundle.selectedShowId || !simulation.rows.length}
+                  className="min-h-11 rounded-xl border border-white/[0.08] bg-white/[0.035] px-3 text-xs font-semibold disabled:opacity-50"
+                  data-v3-result-lab-share=""
+                >
+                  Share scenario
                 </button>
                 <button
                   type="button"
@@ -368,9 +458,14 @@ export function V3ResultLabScreen({
                   disabled={!simulation.rows.length}
                   className="min-h-11 rounded-xl border border-white/[0.08] bg-white/[0.035] px-3 text-xs font-semibold disabled:opacity-50"
                 >
-                  Export simulation CSV
+                  Export CSV
                 </button>
               </div>
+              {shareMessage ? (
+                <p role="status" className="text-xs leading-5 text-white/48">
+                  {shareMessage}
+                </p>
+              ) : null}
             </div>
 
             <div className="min-w-0 space-y-5">

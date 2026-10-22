@@ -1,5 +1,6 @@
+import { useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { V3AppShell } from "@/components/v3/V3AppShell";
 import { V3Screen, V3Surface } from "@/components/v3/V3Foundation";
@@ -8,10 +9,13 @@ import {
   useV3RolloutProbe,
 } from "@/lib/v3-primary-runtime";
 import { useV3ResultLabBundle } from "@/lib/v3-result-lab-runtime";
+import { parseV3ResultLabScenario } from "@/lib/v3-result-lab-scenario";
 import { V3ResultLabScreen } from "./V3ResultLabScreen";
 
 export function V3ResultLabGate({ fallback }: { fallback: ReactNode }) {
-  const [selectedShowId, setSelectedShowId] = useState<string | null>(null);
+  const searchStr = useRouterState({ select: (state) => state.location.searchStr });
+  const initialScenario = useMemo(() => parseV3ResultLabScenario(searchStr), [searchStr]);
+  const [selectedShowId, setSelectedShowId] = useState<string | null>(initialScenario.showId);
   const bundle = useV3ResultLabBundle(selectedShowId, true);
   const rolloutEditionSlug = bundle.data?.rolloutEditionSlug ?? "";
   const editionProbe = useV3EditionRolloutProbe(
@@ -58,6 +62,7 @@ export function V3ResultLabGate({ fallback }: { fallback: ReactNode }) {
     >
       <V3ResultLabScreen
         bundle={bundle.data}
+        initialScenario={initialScenario}
         onShowChange={setSelectedShowId}
         changingShow={bundle.isFetching}
       />

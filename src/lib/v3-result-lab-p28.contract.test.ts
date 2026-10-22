@@ -71,6 +71,20 @@ describe("Public V3 P28 Result Lab", () => {
     expect(screen).toContain("Hypothetical scoreboard");
   });
 
+  it("shares only bounded hypothetical controls while server authority revalidates the show", () => {
+    const scenario = read("src/lib/v3-result-lab-scenario.ts");
+    const gate = read("src/components/v3/V3ResultLabGate.tsx");
+    const screen = read("src/components/v3/V3ResultLabScreen.tsx");
+
+    expect(gate).toContain("parseV3ResultLabScenario(searchStr)");
+    expect(gate).toContain("useV3ResultLabBundle(selectedShowId, true)");
+    expect(screen).toContain("serializeV3ResultLabScenario({");
+    expect(screen).toContain('data-v3-result-lab-share=""');
+    expect(screen).toContain("Official result unchanged.");
+    expect(scenario).toContain("slice(0, 50)");
+    expect(scenario).not.toMatch(/officialEntries|juryPoints|televotePoints|simulatedScore/);
+  });
+
   it("uses Results rollout authority and preserves the established route as fallback", () => {
     const gate = read("src/components/v3/V3ResultLabGate.tsx");
     const route = read("src/routes/result-lab/index.tsx");
