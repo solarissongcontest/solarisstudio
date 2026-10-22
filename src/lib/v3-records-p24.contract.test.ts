@@ -32,8 +32,8 @@ describe("Public V3 P24 Records", () => {
     const contract = read("src/lib/v3-records.ts");
 
     expect(runtime).toContain("getV3RecordsBundle");
-    expect(contract).toContain("records: FanRecord[]");
-    expect(contract).toContain("spoilerSafeRecords: FanRecord[]");
+    expect(contract).toContain("records: V3Record[]");
+    expect(contract).toContain("spoilerSafeRecords: V3Record[]");
     expect(contract).not.toContain("participants:");
     expect(contract).not.toContain("results:");
     expect(contract).not.toContain("jury:");
@@ -125,6 +125,24 @@ describe("Public V3 P24 Records", () => {
     expect(screen).toContain("record.holders.length} tied");
     expect(screen).toContain('to="/countries/$code"');
     expect(screen).toContain('data-v3-records-empty=""');
+  });
+
+  it("attaches only publication-safe result, voting or edition provenance", () => {
+    const source = read("src/integrations/v3/records-source.server.ts");
+    const provenance = read("src/lib/v3-record-provenance.ts");
+    const screen = read("src/components/v3/V3RecordsScreen.tsx");
+
+    expect(source).toContain("attachV3RecordProvenance({");
+    expect(source).toContain("results: canonicalResults");
+    expect(source).toContain("jury: canonicalJury");
+    expect(provenance).toContain('kind: "voting"');
+    expect(provenance).toContain('?tab=matrix&from=results');
+    expect(provenance).toContain('kind: "result"');
+    expect(provenance).toContain('?from=results');
+    expect(provenance).toContain('kind: "edition"');
+    expect(provenance).toContain("if (!input.editionId) return null");
+    expect(screen).toContain('data-v3-record-provenance={holder.provenance.kind}');
+    expect(screen).toContain("Source: {holder.provenance.label}");
   });
 
   it("does not expose a browser-controlled Records rollout escape hatch", () => {
