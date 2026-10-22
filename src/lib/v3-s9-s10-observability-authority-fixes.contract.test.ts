@@ -24,7 +24,7 @@ describe("System V3 S9/S10 observability authority fixes", () => {
   it("is a forward-only S13 fix with no hosted Supabase endpoint", () => {
     expect(migration).toContain("'v3.s9-s10.workflow-observability-authority-fix-v2'");
     expect(migration).toContain("'forward_fix_only'");
-    expect(migration).not.toMatch(/https:\/\/[^\s'\"]+\.supabase\.co/i);
+    expect(migration).not.toMatch(/https:\/\/[^\s'"]+\.supabase\.co/i);
   });
 
   it("normalizes direct terminal INSERTs as well as UPDATE transitions to wall clock", () => {

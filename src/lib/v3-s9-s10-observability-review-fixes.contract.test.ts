@@ -25,7 +25,7 @@ describe("System V3 S9/S10 observability review hardening", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
     expect(migration).toContain("'v3.s9-s10.workflow-observability-review-fix-v1'");
     expect(migration).toContain("'forward_fix_only'");
-    expect(migration).not.toMatch(/https:\/\/[^\s'\"]+\.supabase\.co/i);
+    expect(migration).not.toMatch(/https:\/\/[^\s'"]+\.supabase\.co/i);
   });
 
   it("uses wall-clock receipt timestamps for new claims and terminal transitions", () => {

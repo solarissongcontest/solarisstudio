@@ -24,7 +24,7 @@ describe("System V3 participant Jury submit closure", () => {
   it("is a forward-only migration with no hosted Supabase endpoint", () => {
     expect(migration).toContain("'v3.s9.jury-submit-event-validation-v1'");
     expect(migration).toContain("'forward_fix_only'");
-    expect(migration).not.toMatch(/https:\/\/[^\s'\"]+\.supabase\.co/i);
+    expect(migration).not.toMatch(/https:\/\/[^\s'"]+\.supabase\.co/i);
   });
 
   it("places a safe public argument gate in front of the S2-observed Jury command", () => {
