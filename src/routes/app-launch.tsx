@@ -62,13 +62,7 @@ function AppLaunchPage() {
           <p className="mt-5 text-[10px] font-black uppercase tracking-[.16em] text-primary">
             Solaris Studio
           </p>
-          <h1 className="mt-2 text-2xl font-bold tracking-[-.03em]">Opening your app…</h1>
-          <div
-            className="mx-auto mt-5 h-1 w-28 overflow-hidden rounded-full bg-white/10"
-            aria-hidden="true"
-          >
-            <span className="block h-full w-1/2 animate-pulse rounded-full bg-primary" />
-          </div>
+          <h1 className="mt-2 text-2xl font-bold tracking-[-.03em]">Opening Solaris Studio…</h1>
         </div>
       </main>
     </>
