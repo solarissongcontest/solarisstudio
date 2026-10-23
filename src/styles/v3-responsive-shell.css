@@ -3,9 +3,23 @@
 }
 
 @media (min-width: 1024px) {
+  [data-solaris-v3] {
+    /*
+     * #1524 owns the canonical top-context obstruction. Desktop adds one more
+     * persistent sticky layer beneath it, so the shell composes that secondary
+     * obstruction instead of inventing another top-bar measurement.
+     */
+    --v3-secondary-sticky-obstruction: 4rem;
+    --v3-desktop-sticky-obstruction: calc(
+      var(--v3-top-context-obstruction) +
+      var(--v3-secondary-sticky-obstruction) +
+      0.5rem
+    );
+  }
+
   [data-solaris-v3] .v3-desktop-primary-nav {
     position: sticky;
-    top: calc(3.25rem + env(safe-area-inset-top));
+    top: var(--v3-top-context-obstruction);
     z-index: 25;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -19,6 +33,24 @@
     -webkit-backdrop-filter: blur(18px) saturate(135%);
     backdrop-filter: blur(18px) saturate(135%);
     box-shadow: 0 12px 34px rgba(0, 3, 20, 0.14);
+  }
+
+  /*
+   * The top-context rule covers the first sticky layer. On desktop, anchors and
+   * keyboard focus also need clearance for the sticky primary navigation below
+   * it. Higher shell specificity keeps this composed desktop contract stable
+   * regardless of component stylesheet evaluation order.
+   */
+  [data-solaris-v3] .v3-screen :where(
+    [id],
+    a[href],
+    button,
+    input,
+    select,
+    textarea,
+    [tabindex]:not([tabindex="-1"])
+  ) {
+    scroll-margin-block-start: var(--v3-desktop-sticky-obstruction);
   }
 
   [data-solaris-v3] .v3-desktop-primary-nav__item {
