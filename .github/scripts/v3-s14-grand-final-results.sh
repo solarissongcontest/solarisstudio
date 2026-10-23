@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+S14_BROWSER_RUNTIME_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$S14_BROWSER_RUNTIME_DIR/v3-s14-browser-runtime.sh"
+
 # Grand Final Results reuses the canonical Stage 8 result-operation authority.
 # These adapters only expose the exact evidence shape this extension needs;
 # they do not create a second result mutation path.
@@ -119,7 +122,12 @@ publish_s14_final_televote_result_through_app() {
   export S14_EDITION_ID="$EDITION_ID"
   export S14_FINAL_TELEVOTE_ROUND_ID="$S14_FINAL_TELEVOTE_ROUND_ID"
 
-  bunx playwright test --config=playwright.s14-grand-final-results.config.ts
+  run_s14_browser_test \
+    4178 \
+    playwright.s14-grand-final-results.config.ts \
+    "/televoting/admin/results" \
+    "grand-final-results:browser-bootstrap" \
+    grand-final-results
 
   [[ "$(db_scalar "select count(*) from televoting.rounds where id='$S14_FINAL_TELEVOTE_ROUND_ID'::uuid and results_status='published' and calculation_version > 0;")" == "1" ]] || fail "Grand Final Televote round was not published from a calculated version"
   [[ "$(db_scalar "select count(*) from public.televoting_round_bindings where remote_round_id='$S14_FINAL_TELEVOTE_ROUND_ID' and show_id='$FINAL_ID'::uuid and frozen_at is not null;")" == "1" ]] || fail "Grand Final Televote binding was not frozen after result publication"
