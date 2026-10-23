@@ -3,6 +3,10 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const offlineShell = () => readFileSync("public/offline.html", "utf8");
+const webManifest = () =>
+  JSON.parse(readFileSync("public/site.webmanifest", "utf8")) as {
+    shortcuts?: Array<{ name?: string; short_name?: string; url?: string }>;
+  };
 
 describe("V3 offline shell navigation contract", () => {
   it("keeps the canonical Public destinations and Me route", () => {
@@ -14,6 +18,20 @@ describe("V3 offline shell navigation contract", () => {
     expect(source).toContain('href="/results" data-tab="results"');
     expect(source).toContain('href="/me" data-tab="me"');
     expect(source).not.toContain('href="/my-solaris" data-tab="me"');
+  });
+
+  it("keeps the installed-app Me shortcut on the canonical V3 entry route", () => {
+    const shortcuts = webManifest().shortcuts ?? [];
+    const meShortcut = shortcuts.find((shortcut) => shortcut.short_name === "Me");
+
+    expect(meShortcut).toEqual(
+      expect.objectContaining({
+        name: "Me",
+        short_name: "Me",
+        url: "/me",
+      }),
+    );
+    expect(shortcuts.some((shortcut) => shortcut.url === "/my-solaris")).toBe(false);
   });
 
   it("uses navigation-current semantics instead of tab-selection semantics", () => {
