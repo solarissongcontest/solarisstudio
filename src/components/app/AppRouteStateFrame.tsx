@@ -5,6 +5,8 @@ import { useSolarisApp } from "@/components/app/AppRuntime";
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
 
+export type AppRouteSkeletonVariant = "generic" | "participant" | "entity" | "results";
+
 function organizerRoute(pathname: string) {
   return (
     pathname === "/admin" ||
@@ -75,12 +77,32 @@ export function AppRouteStateFrame({
   );
 }
 
-export function AppRouteSkeleton() {
+export function AppRouteSkeleton({
+  variant = "generic",
+}: {
+  variant?: AppRouteSkeletonVariant;
+}) {
+  const heights =
+    variant === "participant"
+      ? ["4.5rem", "8rem"]
+      : variant === "entity"
+        ? ["7rem", "5rem"]
+        : variant === "results"
+          ? ["3.5rem", "12rem"]
+          : [undefined, undefined];
+
   return (
-    <div className="solaris-app-route-skeleton" aria-hidden="true">
+    <div
+      className="solaris-app-route-skeleton"
+      aria-hidden="true"
+      data-v3-route-skeleton={variant}
+    >
       <div className="solaris-app-route-skeleton-line is-short" />
-      <div className="solaris-app-route-skeleton-card" />
-      <div className="solaris-app-route-skeleton-card is-compact" />
+      <div className="solaris-app-route-skeleton-card" style={{ height: heights[0] }} />
+      <div
+        className="solaris-app-route-skeleton-card is-compact"
+        style={{ height: heights[1] }}
+      />
     </div>
   );
 }

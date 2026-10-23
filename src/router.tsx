@@ -1,7 +1,11 @@
 import { QueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { createRouter } from "@tanstack/react-router";
-import { AppRouteSkeleton, AppRouteStateFrame } from "@/components/app/AppRouteStateFrame";
+import {
+  AppRouteSkeleton,
+  AppRouteStateFrame,
+  type AppRouteSkeletonVariant,
+} from "@/components/app/AppRouteStateFrame";
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { solarisQueryPolicy } from "@/lib/app-query-policy";
@@ -20,13 +24,19 @@ function RoutePending() {
     setPathname(window.location.pathname);
   }, []);
 
-  // Critical-task ownership belongs to the canonical screen registry. Pending
-  // transitions must not maintain a smaller hand-written route list or they can
-  // briefly re-introduce global AppShell chrome while Entry/Jury/etc. are meant
-  // to own focused task chrome.
-  const criticalTask = pathname
-    ? resolveSolarisAppScreen(pathname).behavior.criticalTask
-    : false;
+  // Critical-task and loading-shape ownership both come from the canonical
+  // screen registry. Pending transitions must not maintain smaller hand-written
+  // route lists or a second information architecture.
+  const screen = pathname ? resolveSolarisAppScreen(pathname) : null;
+  const criticalTask = screen?.behavior.criticalTask ?? false;
+  const skeletonVariant: AppRouteSkeletonVariant =
+    screen?.hierarchy.rootTab === "participate"
+      ? "participant"
+      : screen?.hierarchy.rootTab === "results"
+        ? "results"
+        : screen?.presentation === "entity"
+          ? "entity"
+          : "generic";
 
   // Nested Organizer loading belongs inside AdminFrame's existing landmark.
   // A second main during child-route transitions breaks keyboard/screen readers.
@@ -37,7 +47,7 @@ function RoutePending() {
   if (isAppMode && criticalTask) {
     return (
       <section className="solaris-app-route-pending" aria-busy="true" aria-label="Loading">
-        <AppRouteSkeleton />
+        <AppRouteSkeleton variant={skeletonVariant} />
       </section>
     );
   }
@@ -45,7 +55,7 @@ function RoutePending() {
   if (isAppMode) {
     return (
       <AppRouteStateFrame title="Loading" busy>
-        <AppRouteSkeleton />
+        <AppRouteSkeleton variant={skeletonVariant} />
       </AppRouteStateFrame>
     );
   }
