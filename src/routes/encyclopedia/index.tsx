@@ -121,11 +121,10 @@ function ReferencePage() {
       });
     }
 
+    // Wiki historically exposed the complete public country-reference library,
+    // including countries without contest participation. Preserve that capability
+    // while the duplicate root UI converges into Reference.
     for (const country of countries) {
-      const hasPublicHistory = publicArchive.participants.some(
-        (row) => row.country_id === country.id,
-      );
-      if (!hasPublicHistory) continue;
       output.push({
         id: `country:${country.id}`,
         kind: "country",
@@ -269,6 +268,8 @@ function ReferencePage() {
     );
   }
 
+  const countryCount = countriesQuery.data?.length ?? 0;
+
   return (
     <AppShell>
       <PageHeader
@@ -283,12 +284,7 @@ function ReferencePage() {
       >
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatTile label="Editions" value={publicArchive.editions.length} />
-          <StatTile
-            label="Countries"
-            value={
-              new Set(publicArchive.participants.map((row) => row.country_id)).size
-            }
-          />
+          <StatTile label="Countries" value={countryCount} />
           <StatTile
             label="Published entries"
             value={
