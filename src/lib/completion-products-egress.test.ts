@@ -9,7 +9,10 @@ function source(path: string) {
 describe("completion product public egress contract", () => {
   const encyclopedia = source("src/routes/encyclopedia/index.tsx");
   const votingDna = source("src/routes/voting-dna/$code.tsx");
-  const votingDnaProjection = source("src/lib/v3-public-voting-dna.ts");
+  const votingDnaFunction = source("src/lib/v3-voting-dna.functions.ts");
+  const votingDnaProjection = source(
+    "src/integrations/v3/voting-dna-source.server.ts",
+  );
   const archive = source("src/lib/data-live.ts");
   const queryPolicy = source("src/lib/app-query-policy.ts");
   const migration = source(
@@ -22,11 +25,13 @@ describe("completion product public egress contract", () => {
     expect(encyclopedia).not.toContain("useAllResults");
   });
 
-  it("uses one compact publication-safe Voting DNA projection instead of shipping the full jury archive", () => {
-    expect(votingDna).toContain("loadV3PublicVotingDna");
+  it("uses one compact server-owned Voting DNA projection instead of shipping the full jury archive", () => {
+    expect(votingDna).toContain("getV3PublicVotingDna");
     expect(votingDna).not.toContain("useAllJuryVotes");
     expect(votingDna).not.toContain("useAllTelevotes");
     expect(votingDna).not.toContain('rpc("public_country_voting_dna"');
+    expect(votingDna).not.toContain("supabase");
+    expect(votingDnaFunction).toContain("voting-dna-source.server");
     expect(votingDnaProjection).toContain(
       'client.rpc("v3_public_country_voting_dna"',
     );
