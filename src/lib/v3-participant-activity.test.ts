@@ -59,6 +59,36 @@ describe("V3 participant activity projection", () => {
     });
   });
 
+  it("fails closed when reconciliation state is missing or unknown", () => {
+    const parsed = parseV3ParticipantActivity({
+      items: [
+        {
+          id: "missing-state",
+          occurred_at: "2026-10-16T10:00:00Z",
+          kind: "receipt",
+          title: "Receipt with incomplete reconciliation evidence",
+          source_event_type: "entry.submitted",
+        },
+        {
+          id: "future-state",
+          occurred_at: "2026-10-15T10:00:00Z",
+          kind: "submission",
+          title: "Future reconciliation state",
+          route: "/participate",
+          source_event_type: "confirmation.submitted",
+          reconciliation_state: "future_state_not_understood_by_this_client",
+        },
+      ],
+    });
+
+    expect(parsed.items).toHaveLength(2);
+    expect(parsed.items[0]?.reconciliationState).toBe("unavailable");
+    expect(parsed.items[1]).toMatchObject({
+      reconciliationState: "unavailable",
+      route: "/participate",
+    });
+  });
+
   it("rejects incomplete or malformed continuation cursors", () => {
     const missingTieBreak = parseV3ParticipantActivity({
       items: [],
