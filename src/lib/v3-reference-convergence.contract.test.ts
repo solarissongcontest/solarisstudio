@@ -54,6 +54,23 @@ describe("V3 Reference convergence", () => {
     expect(source).not.toContain('to="/wiki"');
   });
 
+  it("keeps Reference reads bounded instead of downloading the archive graph", () => {
+    const source = reference();
+
+    expect(source).toContain("normalizedQuery.length >= 2");
+    expect(source).toContain("result_limit: 50");
+    expect(source).toContain("60 * 60 * 1000");
+    expect(source).toContain("Reference search is temporarily unavailable");
+    expect(source).toContain("No private archive data");
+    expect(source).not.toContain("useAllParticipants");
+    expect(source).not.toContain("useAllShows");
+    expect(source).not.toContain("useCountries");
+    expect(source).not.toContain("useEditions");
+    expect(source).not.toContain("buildPublicCountryArchive");
+    expect(source).not.toContain('select("*")');
+    expect(source).not.toContain("refetchInterval");
+  });
+
   it("does not create a new browser-owned publication or mutation authority", () => {
     const source = reference();
 
@@ -62,7 +79,5 @@ describe("V3 Reference convergence", () => {
     expect(source).not.toContain("insert(");
     expect(source).not.toContain("update(");
     expect(source).not.toContain("delete(");
-    expect(source).not.toContain("useAllParticipants");
-    expect(source).not.toContain("useAllShows");
   });
 });
