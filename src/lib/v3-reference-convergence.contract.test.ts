@@ -47,7 +47,8 @@ describe("V3 Reference convergence", () => {
     expect(source).toContain('{ title: "Reference — Solaris Studio" }');
     expect(source).toContain('title="Reference"');
     expect(source).toContain('aria-label="Filter Reference"');
-    expect(source).toContain('buildPublicCountryArchive({');
+    expect(source).toContain('rpc(\n        "solaris_public_search"');
+    expect(source).toContain('rpc(\n        "v3_public_explore_counts"');
     expect(source).toContain('isStudio2FeatureEnabled("public_encyclopedia")');
     expect(source).toContain('to="/countries"');
     expect(source).not.toContain('to="/wiki"');
@@ -61,5 +62,7 @@ describe("V3 Reference convergence", () => {
     expect(source).not.toContain("insert(");
     expect(source).not.toContain("update(");
     expect(source).not.toContain("delete(");
+    expect(source).not.toContain("useAllParticipants");
+    expect(source).not.toContain("useAllShows");
   });
 });
