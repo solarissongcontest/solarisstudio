@@ -80,15 +80,30 @@ describe("Organizer Command Assistant permission-aware discovery", () => {
     expect(accessSource).not.toContain("role ===");
   });
 
-  it("binds permission evidence to the exact verified Organizer edition", () => {
+  it("binds rollout and permission evidence to the same exact verified Organizer edition", () => {
+    expect(route).toContain(
+      'queryKey: ["studio2-feature", "solaris_command_assistant", resolvedEditionId || "none"]',
+    );
+    expect(route).toContain('enabled: Boolean(resolvedEditionId)');
+    expect(route).toContain(
+      'isStudio2FeatureEnabled("solaris_command_assistant", resolvedEditionId)',
+    );
     expect(route).toContain(
       'queryKey: ["command-assistant-access", resolvedEditionId]',
     );
     expect(route).toContain(
       "loadSolarisAssistantCapabilityAccess(SOLARIS_ASSISTANT_COMMANDS, resolvedEditionId)",
     );
-    expect(route).toContain("enabled: Boolean(resolvedEditionId)");
     expect(route).toContain("filterSolarisAssistantCommandsByAccess");
+    expect(route).not.toContain('isStudio2FeatureEnabled("solaris_command_assistant")');
+  });
+
+  it("fails closed before rollout or command discovery when edition scope cannot be verified", () => {
+    expect(route).toContain("if (!selectedEdition)");
+    expect(route).toContain('title="Choose an edition"');
+    expect(route).toContain("will not probe a global rollout");
+    expect(route).toContain('title="Could not verify the selected edition"');
+    expect(route).toContain("silently substitute another edition");
   });
 
   it("does not build canonical explanations from unauthorized or unknown prompt matches", () => {
@@ -114,5 +129,9 @@ describe("Organizer Command Assistant permission-aware discovery", () => {
     expect(route).not.toContain(".insert(");
     expect(route).not.toContain(".update(");
     expect(route).not.toContain(".delete(");
+  });
+
+  it("keeps the authenticated assistant out of crawler discovery", () => {
+    expect(route).toContain('{ name: "robots", content: "noindex, nofollow" }');
   });
 });
