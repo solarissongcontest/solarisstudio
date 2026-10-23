@@ -66,10 +66,16 @@ describe("Chat 5 V3 System phase readiness", () => {
     expect(rows.every((row) => row.certificationClaim === false)).toBe(true);
   });
 
-  it("generates a static exact-source report without network or hosted-production access", () => {
+  it("binds the static report to checked-out HEAD and rejects mismatched candidate claims", () => {
+    expect(generator).toContain('execFileSync("git", ["rev-parse", "HEAD"]');
     expect(generator).toContain("V3_CANDIDATE_SHA");
-    expect(generator).toContain("GITHUB_SHA");
+    expect(generator).toContain("claimedCandidate !== gitSha");
+    expect(generator).toContain("V3_CANDIDATE_SHA does not match checked-out HEAD");
+    expect(generator).not.toContain("process.env.GITHUB_SHA");
     expect(generator).toContain("^[0-9a-f]{40}$");
+  });
+
+  it("generates a static exact-source report without network or hosted-production access", () => {
     expect(generator).toContain('evidenceKind: "static-repository-wiring"');
     expect(generator).toContain("certificationClaim: false");
     expect(generator).toContain("productionTrafficGenerated: false");
