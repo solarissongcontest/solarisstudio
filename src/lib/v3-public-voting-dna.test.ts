@@ -17,6 +17,7 @@ function projection(): V3PublicVotingDna {
     formulaVersion: "v1",
     sample: {
       detailedEditions: 1,
+      detailedEditionIds: [EDITION],
       givenPoints: 12,
       receivedPoints: 10,
       resultEditions: 1,
@@ -39,10 +40,14 @@ function projection(): V3PublicVotingDna {
 }
 
 describe("V3 Public Voting DNA projection", () => {
-  it("accepts independently published split-result layers", () => {
+  it("accepts independently published split-result layers with exact historical scope", () => {
     expect(parseV3PublicVotingDna(projection())).toMatchObject({
       schemaVersion: 1,
       formulaVersion: "v1",
+      sample: {
+        detailedEditions: 1,
+        detailedEditionIds: [EDITION],
+      },
       results: [
         {
           juryPublished: true,
@@ -91,6 +96,15 @@ describe("V3 Public Voting DNA projection", () => {
 
     expect(() => parseV3PublicVotingDna(value)).toThrow(
       "juryPoints must be a non-negative finite number",
+    );
+  });
+
+  it("rejects detailed-edition scope drift", () => {
+    const value = projection();
+    value.sample.detailedEditions = 2;
+
+    expect(() => parseV3PublicVotingDna(value)).toThrow(
+      "Voting DNA detailed edition scope count mismatch",
     );
   });
 
