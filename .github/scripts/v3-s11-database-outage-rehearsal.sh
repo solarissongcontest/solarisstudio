@@ -21,9 +21,12 @@ case "$DB_URL" in
 esac
 
 PASSWORD='V3S11DatabaseOutage2026!'
-DELIVERY_ID='00000000-0000-4000-8000-00000000d811'
-OPERATION_ID='00000000-0000-4000-8000-00000000b811'
-IDEMPOTENCY_KEY='v3-s11-database-outage-retry'
+RUN_ID="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+DELIVERY_ID="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+OPERATION_ID="$(python3 -c 'import uuid; print(uuid.uuid4())')"
+IDEMPOTENCY_KEY="v3-s11-database-outage-retry:$RUN_ID"
+RECIPIENT_EMAIL="v3-s11-db-outage-recipient-$RUN_ID@solaris.invalid"
+OPERATOR_EMAIL="v3-s11-db-outage-operator-$RUN_ID@solaris.invalid"
 RETRY_RPC='admin_retry_failed_notification_delivery'
 HTTP_STATUS=''
 HTTP_BODY=''
@@ -176,9 +179,9 @@ wait_for_data_api() {
 }
 
 log "Create isolated actors and a real failed notification-delivery precondition"
-create_user 'v3-s11-db-outage-recipient@solaris.invalid'; RECIPIENT_USER="$LAST_USER_ID"
-create_user 'v3-s11-db-outage-operator@solaris.invalid'; OPERATOR_USER="$LAST_USER_ID"
-sign_in 'v3-s11-db-outage-operator@solaris.invalid'; OPERATOR_TOKEN="$LAST_TOKEN"
+create_user "$RECIPIENT_EMAIL"; RECIPIENT_USER="$LAST_USER_ID"
+create_user "$OPERATOR_EMAIL"; OPERATOR_USER="$LAST_USER_ID"
+sign_in "$OPERATOR_EMAIL"; OPERATOR_TOKEN="$LAST_TOKEN"
 [[ -n "$RECIPIENT_USER" && -n "$OPERATOR_USER" && -n "$OPERATOR_TOKEN" ]] || fail "Auth fixture setup failed"
 
 db_exec "insert into public.studio2_capability_grants(user_id,capability,edition_id) values ('$OPERATOR_USER'::uuid,'system.manage',null);"
@@ -186,8 +189,8 @@ db_exec "
 insert into public.notification_deliveries(
   id,user_id,category,event_type,subject_id,dedupe_key,route,title,body,scheduled_for,status
 ) values (
-  '$DELIVERY_ID'::uuid,'$RECIPIENT_USER'::uuid,'official','official.notice','s11-db-outage',
-  'v3-s11-db-outage','/notifications','S11 dependency outage fixture','',now(),'pending'
+  '$DELIVERY_ID'::uuid,'$RECIPIENT_USER'::uuid,'official','official.notice','$RUN_ID',
+  'v3-s11-db-outage:$RUN_ID','/notifications','S11 dependency outage fixture','',now(),'pending'
 );
 update public.notification_deliveries
 set status='processing',processing_started_at=now(),last_attempt_at=now(),attempt_count=1,error=null
