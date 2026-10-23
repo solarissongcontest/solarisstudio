@@ -168,17 +168,18 @@ assert_same_persistent_contest() {
   [[ "$current_edition_count" == "1" ]] || fail "S14 contest edition identity disappeared or changed"
 }
 
-promote_semifinal_results_to_v2() {
-  log "Stage 8 persistence adapter: recalculate both semifinal Results through canonical authority and prove immutable v1=v2"
+promote_semifinal_results_to_reproducible_version() {
+  log "Stage 8 persistence adapter: recalculate both semifinal Results through canonical authority and prove adjacent immutable versions reproduce exactly"
 
-  local show_id show_ordinal version unlock_id calculate_id review_id lock_id reveal_id reproducible lifecycle
+  local show_id show_ordinal source_version target_version unlock_id calculate_id review_id lock_id reveal_id reproducible lifecycle
   show_ordinal=0
   for show_id in "$SEMI_ONE_ID" "$SEMI_TWO_ID"; do
     show_ordinal=$((show_ordinal+1))
-    version="$(db_scalar "select calculation_version from public.studio2_result_operations where show_id='$show_id'::uuid;")"
-    [[ "$version" == "1" ]] || fail "S14 semifinal $show_id must enter the v2 persistence adapter at Results version 1, got '$version'"
-    [[ "$(db_scalar "select count(*) from private.v3_result_versions where show_id='$show_id'::uuid and version=1 and result_row_count>0;")" == "1" ]] || \
-      fail "S14 semifinal $show_id has no retained non-empty immutable Results v1"
+    source_version="$(db_scalar "select calculation_version from public.studio2_result_operations where show_id='$show_id'::uuid;")"
+    [[ "$source_version" =~ ^[1-9][0-9]*$ ]] || fail "S14 semifinal $show_id has no persisted Results version before reproducibility recalculation"
+    [[ "$(db_scalar "select count(*) from private.v3_result_versions where show_id='$show_id'::uuid and version=$source_version and result_row_count>0;")" == "1" ]] || \
+      fail "S14 semifinal $show_id has no retained non-empty immutable Results version $source_version"
+    target_version=$((source_version+1))
 
     unlock_id="14000000-0000-4008-8700-$(printf '%012d' "$show_ordinal")"
     calculate_id="14000000-0000-4008-8800-$(printf '%012d' "$show_ordinal")"
@@ -186,40 +187,40 @@ promote_semifinal_results_to_v2() {
     lock_id="14000000-0000-4008-9000-$(printf '%012d' "$show_ordinal")"
     reveal_id="14000000-0000-4008-9100-$(printf '%012d' "$show_ordinal")"
 
-    execute_result_action "$show_id" unlock "$unlock_id" "$version" "S14 unlock immutable semifinal result before reproducibility recalculation"
-    execute_result_action "$show_id" calculate "$calculate_id" "$version" "S14 reproducibility recalculation for immutable semifinal Results v2"
+    execute_result_action "$show_id" unlock "$unlock_id" "$source_version" "S14 unlock immutable semifinal result before reproducibility recalculation"
+    execute_result_action "$show_id" calculate "$calculate_id" "$source_version" "S14 reproducibility recalculation for the next immutable semifinal Results version"
     version="$(printf '%s' "$HTTP_BODY" | json_value calculationVersion)"
-    [[ "$version" == "2" ]] || fail "S14 semifinal $show_id reproducibility calculation did not create Results version 2"
-    [[ "$(db_scalar "select count(*) from private.v3_result_versions where show_id='$show_id'::uuid and version=2 and result_row_count>0;")" == "1" ]] || \
-      fail "S14 semifinal $show_id did not retain non-empty immutable Results v2"
+    [[ "$version" == "$target_version" ]] || fail "S14 semifinal $show_id reproducibility calculation must advance Results exactly once from $source_version to $target_version, got '$version'"
+    [[ "$(db_scalar "select count(*) from private.v3_result_versions where show_id='$show_id'::uuid and version=$target_version and result_row_count>0;")" == "1" ]] || \
+      fail "S14 semifinal $show_id did not retain non-empty immutable Results version $target_version"
 
     reproducible="$(db_scalar "
 select (
-  v1.result_rows = v2.result_rows
-  and v1.result_row_count = v2.result_row_count
+  source.result_rows = target.result_rows
+  and source.result_row_count = target.result_row_count
 )::text
-from private.v3_result_versions v1
-join private.v3_result_versions v2
-  on v2.show_id=v1.show_id and v2.version=2
-where v1.show_id='$show_id'::uuid and v1.version=1;
+from private.v3_result_versions source
+join private.v3_result_versions target
+  on target.show_id=source.show_id and target.version=$target_version
+where source.show_id='$show_id'::uuid and source.version=$source_version;
 ")"
-    [[ "$reproducible" == "true" ]] || fail "S14 semifinal $show_id Results v2 does not exactly reproduce retained immutable v1"
-    verify_result_snapshot_matches_current "$show_id" 2
+    [[ "$reproducible" == "true" ]] || fail "S14 semifinal $show_id Results version $target_version does not exactly reproduce retained immutable version $source_version"
+    verify_result_snapshot_matches_current "$show_id" "$target_version"
 
-    execute_result_action "$show_id" review "$review_id" 2 "S14 validate reproducible semifinal Results v2"
-    execute_result_action "$show_id" lock "$lock_id" 2 "S14 lock reproducible semifinal Results v2"
-    execute_result_action "$show_id" mark_reveal_ready "$reveal_id" 2 "S14 approve reproducible semifinal Results v2 for reveal"
+    execute_result_action "$show_id" review "$review_id" "$target_version" "S14 validate reproducible semifinal Results version $target_version"
+    execute_result_action "$show_id" lock "$lock_id" "$target_version" "S14 lock reproducible semifinal Results version $target_version"
+    execute_result_action "$show_id" mark_reveal_ready "$reveal_id" "$target_version" "S14 approve reproducible semifinal Results version $target_version for reveal"
 
     lifecycle="$(db_scalar "select calculation_version::text || ':' || reviewed_version::text || ':' || locked_version::text || ':' || reveal_ready_version::text from public.studio2_result_operations where show_id='$show_id'::uuid;")"
-    [[ "$lifecycle" == "2:2:2:2" ]] || fail "S14 semifinal $show_id lifecycle did not finalize exact Results version 2 ($lifecycle)"
+    [[ "$lifecycle" == "$target_version:$target_version:$target_version:$target_version" ]] || fail "S14 semifinal $show_id lifecycle did not finalize exact Results version $target_version ($lifecycle)"
   done
 
-  log "S14_RESULTS_VERSION_2_COMPLETE"
+  log "S14_RESULTS_REPRODUCIBLE_VERSION_COMPLETE"
 }
 
 run_s14_stage_8_results_persistent() {
   run_s14_stage_8_results
-  promote_semifinal_results_to_v2
+  promote_semifinal_results_to_reproducible_version
 }
 
 reconcile_edition_runtime_to_results() {
@@ -232,10 +233,23 @@ reconcile_edition_runtime_to_results() {
 
   [[ "$(db_scalar "select private.v3_edition_final_results_ready('$EDITION_ID'::uuid)::text;")" == "true" ]] || \
     fail "canonical final-results readiness is false after Grand Final publication"
-  [[ "$(db_scalar "select count(*) from private.v3_result_versions where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid,'$FINAL_ID'::uuid) and version=2 and result_row_count>0;")" == "3" ]] || \
-    fail "results-runtime reconciliation requires non-empty immutable Results v2 for all three shows"
-  [[ "$(db_scalar "select count(*) from public.studio2_show_publication_controls where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid,'$FINAL_ID'::uuid) and state='public' and source_result_version=2;")" == "3" ]] || \
-    fail "results-runtime reconciliation requires all three public result pointers to exact version 2"
+  [[ "$(db_scalar "
+select count(*)
+from public.studio2_result_operations operation
+join private.v3_result_versions version_row
+  on version_row.show_id=operation.show_id
+ and version_row.version=operation.calculation_version
+ and version_row.result_row_count>0
+join public.studio2_show_publication_controls control
+  on control.show_id=operation.show_id
+ and control.state='public'
+ and control.source_result_version=operation.calculation_version
+where operation.show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid,'$FINAL_ID'::uuid)
+  and operation.reviewed_version=operation.calculation_version
+  and operation.locked_version=operation.calculation_version
+  and operation.reveal_ready_version=operation.calculation_version;
+")" == "3" ]] || \
+    fail "results-runtime reconciliation requires all three shows to retain and publicly reference their exact current finalized Results versions"
 
   local expected_version prior_state result_version event_count_before replay_event_count
   prior_state="$(db_scalar "select state from public.studio2_edition_runtime where edition_id='$EDITION_ID'::uuid;")"
