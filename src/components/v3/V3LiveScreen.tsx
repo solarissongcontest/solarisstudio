@@ -7,6 +7,8 @@ import {
   Vote,
 } from "lucide-react";
 
+import { EventTime } from "@/components/public/EventTime";
+import { formatEventDateTime } from "@/lib/public-time";
 import type { V3LiveExperience, V3PublicShowState } from "@/lib/v3-live";
 import {
   V3ActionCard,
@@ -55,22 +57,8 @@ function showStatePresentation(
 }
 
 function freshnessLabel(iso: string) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "Authoritative snapshot";
-  return `Updated ${date.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
-}
-
-function liveMomentLabel(iso: string) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString([], {
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  if (Number.isNaN(Date.parse(iso))) return "Authoritative snapshot";
+  return `Updated ${formatEventDateTime(iso, { locale: "en-GB" })}`;
 }
 
 function liveTimingRows(experience: V3LiveExperience) {
@@ -347,8 +335,11 @@ export function V3LiveScreen({
                   className="flex min-h-14 items-center justify-between gap-4 px-4 py-3"
                 >
                   <dt className="text-xs font-medium text-white/48">{row.label}</dt>
-                  <dd className="text-right text-sm font-semibold text-white/80">
-                    {liveMomentLabel(row.value)}
+                  <dd className="min-w-0 text-right text-white/80">
+                    <EventTime
+                      value={row.value}
+                      className="text-right"
+                    />
                   </dd>
                 </div>
               ))}
