@@ -67,24 +67,26 @@ describe("S14 Grand Final results", () => {
     expect(finalResults).not.toContain("Grand Final results require Stage 8 helper");
   });
 
-  it("requires immutable v1/v2 reproducibility and exact current-v2 equality before finalization", () => {
+  it("proves adjacent immutable versions reproduce exactly from the actual current baseline", () => {
     expect(resultVersions).toContain("create table private.v3_result_versions");
     expect(resultVersions).toContain("Result version evidence is immutable");
-    expect(finalResults).toContain("immutable_result_snapshot_hash");
-    expect(finalResults).toContain("current_result_snapshot_hash");
-    expect(finalResults).toContain("final_v1_hash");
-    expect(finalResults).toContain("final_v2_hash");
-    expect(finalResults).toContain("immutable v1/v2 snapshots differ for identical inputs");
-    expect(finalResults).toContain("current result rows do not equal immutable result version 2");
-    expect(finalResults).toContain("version in (1,2)");
-    expect(finalResults).toContain("did not retain both immutable versions");
+    expect(resultVersions).toContain("new.calculation_version <> old.calculation_version + 1");
+    expect(finalResults).toContain("baseline_version");
+    expect(finalResults).toContain("first_version=$((baseline_version+1))");
+    expect(finalResults).toContain("second_version=$((first_version+1))");
+    expect(finalResults).toContain("final_first_hash");
+    expect(finalResults).toContain("final_second_hash");
+    expect(finalResults).toContain("adjacent immutable result snapshots");
+    expect(finalResults).toContain("current result rows do not equal immutable result version $second_version");
+    expect(finalResults).toContain("version in ($first_version,$second_version)");
+    expect(finalResults).not.toContain("calculate 0 '14000000-0000-4011-8200-000000000001'");
   });
 
-  it("uses governed Studio result finalization and binds the final current version to 2", () => {
+  it("uses governed Studio result finalization and binds every pointer to the dynamic current version", () => {
     expect(finalResults).toContain("execute_result_operation");
-    expect(finalResults).toContain("review 2");
-    expect(finalResults).toContain("lock 2");
-    expect(finalResults).toContain("mark_reveal_ready 2");
+    expect(finalResults).toContain('review "$second_version"');
+    expect(finalResults).toContain('lock "$second_version"');
+    expect(finalResults).toContain('mark_reveal_ready "$second_version"');
     expect(finalResults).toContain("calculationVersion");
     expect(finalResults).toContain("reviewedVersion");
     expect(finalResults).toContain("lockedVersion");
