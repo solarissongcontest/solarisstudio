@@ -68,14 +68,17 @@ export function OrganizerV3MobileChrome() {
   const legacyScreen = resolveOrganizerV6Screen(pathname);
   const tabbarMode = resolveV3OrganizerTabbarMode(pathname, legacyScreen.tabbar);
   const activeTab = v3OrganizerTabForPath(pathname);
-  const { editionId } = useAdminContext();
+  const { editionId, contextVersion } = useAdminContext();
   const { data: editions = [] } = useEditions();
   const backend = useOrganisationBackendContract();
   const tasksSupported = backend.data?.capabilities.organizerTasks === true;
   const activeEdition = resolveAdminEditionContext(editions, editionId);
   const navigationScope = activeEdition?.id ?? null;
   const navigationMemoryReady = navigationScope != null;
-  const navigationInteractionKey = navigationScope ?? "unscoped";
+  // Route memory remains scoped to the canonical edition, but interaction state
+  // is scoped more narrowly to the shell-owned Organizer context generation.
+  // Edition/show switches must not inherit pointer capture or a held/dragging lens.
+  const navigationInteractionKey = `${navigationScope ?? "unscoped"}:${contextVersion}`;
   const taskCount = useOrganizerTaskCountV5(activeEdition?.id ?? null, tasksSupported);
   const unresolvedTaskCount =
     tasksSupported && !taskCount.isError && typeof taskCount.data === "number"
