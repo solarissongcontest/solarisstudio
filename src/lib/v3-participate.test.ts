@@ -52,7 +52,7 @@ const journey: V3JourneyStepProjection[] = [
 ];
 
 describe("projectV3Participate", () => {
-  it("keeps required attention, future responsibilities, optional participation and history separate", () => {
+  it("keeps required attention, future responsibilities, waiting work, optional participation and history separate", () => {
     const required = action("required-jury", {
       actionRequired: true,
       deliveryClass: "required",
@@ -64,6 +64,12 @@ describe("projectV3Participate", () => {
       kind: "entry",
       deliveryClass: "required",
       sourceState: "upcoming",
+    });
+    const waiting = action("waiting-confirmation", {
+      kind: "confirmation",
+      deliveryClass: "required",
+      sourceState: "waiting",
+      actionRequired: false,
     });
     const optional = action("public-vote", {
       kind: "televote",
@@ -80,16 +86,33 @@ describe("projectV3Participate", () => {
     });
 
     const projection = projectV3Participate({
-      actions: [required, next, optional, done],
+      actions: [required, next, waiting, optional, done],
       journey,
     });
 
     expect(projection.needsAttention.map((item) => item.id)).toEqual(["required-jury"]);
     expect(projection.next.map((item) => item.id)).toEqual(["next-entry"]);
+    expect(projection.waiting.map((item) => item.id)).toEqual(["waiting-confirmation"]);
     expect(projection.optionalNow.map((item) => item.id)).toEqual(["public-vote"]);
     expect(projection.completed.map((item) => item.id)).toEqual(["confirmation-done"]);
     expect(projection.journeyCompleteCount).toBe(1);
     expect(projection.journeyTotalCount).toBe(2);
+  });
+
+  it("keeps optional waiting actions in Waiting until canonical state becomes actionable", () => {
+    const optionalWaiting = action("televote-waiting", {
+      kind: "televote",
+      deliveryClass: "optional",
+      sourceState: "waiting",
+      actionRequired: false,
+      opensAt: "2026-10-22T18:00:00.000Z",
+    });
+
+    const projection = projectV3Participate({ actions: [optionalWaiting], journey: [] });
+
+    expect(projection.waiting.map((item) => item.id)).toEqual(["televote-waiting"]);
+    expect(projection.optionalNow).toEqual([]);
+    expect(projection.next).toEqual([]);
   });
 
   it("projects jury and public televote into one voting overview without changing their responsibility classes", () => {
