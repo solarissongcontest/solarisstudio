@@ -27,6 +27,15 @@ describe("V3 route loading skeleton contract", () => {
     expect(frame).toContain("data-v3-route-skeleton={variant}");
   });
 
+  it("uses the same shaped skeleton contract for public-web transitions", () => {
+    const router = source("src/router.tsx");
+
+    expect(router).toContain('aria-label="Loading page"');
+    expect(router).toContain('role="status"');
+    expect(router).toContain("<AppRouteSkeleton variant={skeletonVariant} />");
+    expect(router).not.toContain("Preparing the published Solaris view.");
+  });
+
   it("retains the established neutral fallback", () => {
     const frame = source("src/components/app/AppRouteStateFrame.tsx");
 
