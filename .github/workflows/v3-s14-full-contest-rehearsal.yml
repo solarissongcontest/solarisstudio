@@ -9,6 +9,12 @@ on:
       - ".github/scripts/v3-s14-*.sh"
       - ".github/scripts/v3-full-contest-rehearsal.sh"
       - ".github/workflows/v3-s14-full-contest-rehearsal.yml"
+      - "package.json"
+      - "bun.lock"
+      - "playwright.s14-grand-final.config.ts"
+      - "playwright.s14-grand-final-results.config.ts"
+      - "e2e/v3-s14-grand-final-runtime.e2e.ts"
+      - "e2e/v3-s14-grand-final-results-runtime.e2e.ts"
       - "scripts/v3-s14-full-contest-spec.ts"
       - "scripts/check-v3-s14-rehearsal-readiness.ts"
       - "scripts/check-v3-s15-*.ts"
@@ -47,6 +53,22 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Preflight S14 Playwright package
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun -e 'import("@playwright/test").then(() => console.log("Playwright test runtime OK"))'
+          bunx playwright --version
+
+      - name: Install S14 Chromium runtime
+        run: bunx playwright install --with-deps chromium
+
+      - name: Verify S14 Chromium runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun -e 'import("@playwright/test").then(async ({ chromium }) => { const { existsSync } = await import("node:fs"); const executable = chromium.executablePath(); if (!existsSync(executable)) throw new Error(`Chromium executable missing: ${executable}`); console.log(`Chromium runtime OK: ${executable}`); })'
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
