@@ -26,7 +26,11 @@ export function AppDataFreshnessCoordinator() {
   }, []);
 
   const runBackgroundRefresh = useCallback(
-    async (predicate: Parameters<typeof queryClient.invalidateQueries>[0]["predicate"]) => {
+    async (
+      predicate: NonNullable<
+        Parameters<typeof queryClient.invalidateQueries>[0]
+      >["predicate"],
+    ) => {
       activeRefreshes.current += 1;
 
       if (activeRefreshes.current === 1) {
