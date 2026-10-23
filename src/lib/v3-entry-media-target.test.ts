@@ -128,29 +128,77 @@ describe("V3 Entry media target", () => {
     ).toBeNull();
   });
 
-  it("fails closed when both selection models are present", () => {
+  it("fails closed when selection method and populated model disagree", () => {
+    const nationalFinal = {
+      id: "nf-1",
+      name: "National Final",
+      winnerEntryId: "entry-b",
+      entries: [candidate("entry-b")],
+    };
+
     expect(
       resolveV3EntryMediaTarget(
         projection(
           confirmation({
+            selectionMethod: "national_final",
             internalEntry: candidate("entry-internal"),
-            nationalFinal: {
-              id: "nf-1",
-              name: "National Final",
-              winnerEntryId: "entry-b",
-              entries: [candidate("entry-b")],
-            },
+            nationalFinal: null,
+          }),
+        ),
+      ),
+    ).toBeNull();
+
+    expect(
+      resolveV3EntryMediaTarget(
+        projection(
+          confirmation({
+            selectionMethod: "internal",
+            internalEntry: null,
+            nationalFinal,
+          }),
+        ),
+      ),
+    ).toBeNull();
+
+    expect(
+      resolveV3EntryMediaTarget(
+        projection(
+          confirmation({
+            selectionMethod: "internal",
+            internalEntry: candidate("entry-internal"),
+            nationalFinal,
           }),
         ),
       ),
     ).toBeNull();
   });
 
-  it("returns no target before canonical Entry state exists", () => {
+  it("fails closed on unknown selection method", () => {
+    expect(
+      resolveV3EntryMediaTarget(
+        projection(
+          confirmation({
+            selectionMethod: "future_selection_model",
+            internalEntry: candidate("entry-internal"),
+          }),
+        ),
+      ),
+    ).toBeNull();
+  });
+
+  it("returns no target before complete canonical Entry scope exists", () => {
     expect(resolveV3EntryMediaTarget(projection(null))).toBeNull();
 
     const noDelegation = projection(confirmation({ internalEntry: candidate("entry-1") }));
     noDelegation.state = "no-delegation";
     expect(resolveV3EntryMediaTarget(noDelegation)).toBeNull();
+
+    const missingDelegation = projection(confirmation({ internalEntry: candidate("entry-1") }));
+    missingDelegation.delegation = null;
+    expect(resolveV3EntryMediaTarget(missingDelegation)).toBeNull();
+
+    const missingEdition = projection(confirmation({ internalEntry: candidate("entry-1") }));
+    missingEdition.edition = null;
+    expect(resolveV3EntryMediaTarget(missingEdition)).toBeNull();
   });
 });
