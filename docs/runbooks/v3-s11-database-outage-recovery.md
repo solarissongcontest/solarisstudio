@@ -26,10 +26,10 @@ It must never be adapted to stop or disturb hosted Solaris production infrastruc
 ## Rehearsal
 
 ```bash
-.github/scripts/v3-s11-database-outage-rehearsal.sh
+bash .github/scripts/v3-s11-database-outage-rehearsal.sh
 ```
 
-The local Supabase stack must already be running and fully migrated.
+The local Supabase stack must already be running and fully migrated. Each invocation creates fresh run-scoped actor emails, delivery identity, operation identity and idempotency key, so the rehearsal can be repeated on the same disposable local stack without colliding with its previous fixtures.
 
 The rehearsal:
 
@@ -38,7 +38,7 @@ The rehearsal:
 3. creates a real failed notification-delivery precondition;
 4. resolves the one `supabase_db_*` container whose mapped PostgreSQL port matches `DB_URL`;
 5. stops that exact container;
-6. calls `admin_retry_failed_notification_delivery` with one fixed operation/idempotency identity;
+6. calls `admin_retry_failed_notification_delivery` with one run-scoped operation/idempotency identity;
 7. requires the unavailable dependency to produce no successful command response;
 8. restarts PostgreSQL and waits for both PostgreSQL and the local Data API to recover;
 9. proves the outage committed neither the delivery transition nor an operation receipt;
