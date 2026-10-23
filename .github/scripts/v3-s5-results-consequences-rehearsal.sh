@@ -4,8 +4,6 @@ set -euo pipefail
 log() { printf '\n[v3-s5-results-consequences] %s\n' "$*"; }
 fail() { printf '\n[v3-s5-results-consequences] FAIL: %s\n' "$*" >&2; printf '::error::%s\n' "$*"; exit 1; }
 
-# This rehearsal creates destructive fixtures. It must only ever touch the
-# disposable local Supabase stack used by CI/development.
 eval "$(supabase status -o env)"
 : "${API_URL:?missing local Supabase API_URL}"
 : "${DB_URL:?missing local Supabase DB_URL}"
@@ -76,5 +74,74 @@ UNLOCK_ID='00000000-0000-4000-8000-00000000b964'
 insert_execution "$UNLOCK_ID" unlock
 [[ "$(db_value "select count(*) from public.studio2_operation_receipts where operation_id='$UNLOCK_ID'::uuid;")" == '0' ]] || fail "unlock was falsely bridged as a declared Results event"
 [[ "$(db_value "select count(*) from private.v3_domain_events where operation_id='$UNLOCK_ID'::uuid;")" == '0' ]] || fail "unlock emitted a false Results DomainEvent"
+
+QUAL_EDITION_ID='00000000-0000-4000-8000-00000000e971'
+QUAL_SEMI_ONE_ID='00000000-0000-4000-8000-00000000a971'
+QUAL_SEMI_TWO_ID='00000000-0000-4000-8000-00000000a972'
+
+log "Rehearsing synchronous Results-version to canonical qualification convergence"
+db_exec "
+insert into public.countries(id,name,short_code,region)
+select
+  ('00000000-0000-4000-8a00-' || lpad(i::text,12,'0'))::uuid,
+  'S5 Qualifier ' || lpad(i::text,2,'0'),
+  'Q' || lpad(i::text,2,'0'),
+  'S5Q'
+from generate_series(1,24) i;
+
+insert into public.editions(id,name,year,slug,edition_number,status,published)
+values ('$QUAL_EDITION_ID','S5 Qualification Convergence',2026,'s5-qualification-convergence',9971,'active',false);
+
+insert into public.shows(id,edition_id,name,kind,sort_order,published,voting_config)
+values
+  ('$QUAL_SEMI_ONE_ID','$QUAL_EDITION_ID','S5 Qualification Semi 1','semi-final',1,false,'{\"qualifiers\":10}'::jsonb),
+  ('$QUAL_SEMI_TWO_ID','$QUAL_EDITION_ID','S5 Qualification Semi 2','semi-final',2,false,'{\"qualifiers\":10}'::jsonb);
+
+insert into public.participants(
+  id,edition_id,show_id,country_id,artist,song,running_order,participation_status,qualified
+)
+select
+  ('00000000-0000-4000-8b00-' || lpad(i::text,12,'0'))::uuid,
+  '$QUAL_EDITION_ID'::uuid,
+  case when i <= 12 then '$QUAL_SEMI_ONE_ID'::uuid else '$QUAL_SEMI_TWO_ID'::uuid end,
+  ('00000000-0000-4000-8a00-' || lpad(i::text,12,'0'))::uuid,
+  'S5 Qualifier Artist ' || lpad(i::text,2,'0'),
+  'S5 Qualifier Song ' || lpad(i::text,2,'0'),
+  case when i <= 12 then i else i - 12 end,
+  'confirmed',
+  false
+from generate_series(1,24) i;
+
+insert into public.results(
+  id,edition_id,show_id,country_id,jury_points,televote_points,total_points,final_rank
+)
+select
+  ('00000000-0000-4000-8c00-' || lpad(i::text,12,'0'))::uuid,
+  '$QUAL_EDITION_ID'::uuid,
+  case when i <= 12 then '$QUAL_SEMI_ONE_ID'::uuid else '$QUAL_SEMI_TWO_ID'::uuid end,
+  ('00000000-0000-4000-8a00-' || lpad(i::text,12,'0'))::uuid,
+  0,0,0,
+  case when i <= 12 then i else i - 12 end
+from generate_series(1,24) i;
+
+update public.participants
+set qualified=false
+where edition_id='$QUAL_EDITION_ID'::uuid;
+
+insert into public.studio2_result_operations(show_id,edition_id,calculation_version)
+values
+  ('$QUAL_SEMI_ONE_ID','$QUAL_EDITION_ID',0),
+  ('$QUAL_SEMI_TWO_ID','$QUAL_EDITION_ID',0);
+"
+
+[[ "$(db_value "select count(*) from public.participants where edition_id='$QUAL_EDITION_ID'::uuid and qualified is true;")" == '0' ]] || fail "Qualification fixture was not stale before version transition"
+
+db_exec "update public.studio2_result_operations set calculation_version=1,last_calculated_at=now(),updated_at=now() where show_id='$QUAL_SEMI_ONE_ID'::uuid;"
+
+[[ "$(db_value "select count(*) from public.participants where edition_id='$QUAL_EDITION_ID'::uuid and qualified is true;")" == '20' ]] || fail "Results version transition did not converge exactly 20 canonical qualifiers"
+[[ "$(db_value "select count(*) from (select show_id,count(*) as c from public.participants where edition_id='$QUAL_EDITION_ID'::uuid and qualified is true group by show_id having count(*)=10) qualified_shows;")" == '2' ]] || fail "Results version transition did not converge ten qualifiers per semi-final"
+[[ "$(db_value "select count(*) from public.participants participant join public.results result_row on result_row.show_id=participant.show_id and result_row.country_id=participant.country_id where participant.edition_id='$QUAL_EDITION_ID'::uuid and participant.qualified is true and result_row.final_rank between 1 and 10;")" == '20' ]] || fail "Qualified projection is not backed by canonical top-ten result rank truth"
+[[ "$(db_value "select count(*) from public.results result_row join public.participants participant on participant.show_id=result_row.show_id and participant.country_id=result_row.country_id where result_row.edition_id='$QUAL_EDITION_ID'::uuid and result_row.final_rank between 1 and 10 and participant.qualified is not true;")" == '0' ]] || fail "A canonical top-ten result failed to project as qualified"
+log "S5_RESULT_QUALIFICATION_CONVERGENCE_COMPLETE"
 
 log "System V3 S5 Results consequence rehearsal passed"
