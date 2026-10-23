@@ -5,17 +5,31 @@ import { describe, expect, it } from "vitest";
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 describe("Public V3 country current-entry semantics", () => {
-  it("resolves the canonical current public edition instead of treating newest history as current", () => {
+  it("resolves canonical participation and result edition contexts instead of treating newest history as current", () => {
     const source = read("src/integrations/v3/delegation-source.server.ts");
 
     expect(source).toContain("resolveCurrentPublicEdition");
     expect(source).toContain('.from("editions")');
     expect(source).toContain('.eq("published", true)');
-    expect(source).toContain("currentEdition?.id ?? null");
+    expect(source).toContain("resolveV3DelegationCurrentParticipationEdition(publishedEditions)");
+    expect(source).toContain("resolveV3DelegationCurrentResultEdition(publishedEditions)");
+    expect(source).toContain("currentParticipationEdition?.id ?? null");
+    expect(source).toContain("currentEdition: currentResultEdition");
     expect(source).not.toContain("currentEntry: entries[0]");
   });
 
-  it("promotes a safe history row only when its stable edition id matches the current edition", () => {
+  it("keeps completed participation historical while allowing a non-archived completed result context", () => {
+    const source = read("src/integrations/v3/delegation-source.server.ts");
+
+    expect(source).toMatch(
+      /resolveV3DelegationCurrentParticipationEdition[\s\S]*?lifecycle === "post_edition" \|\| lifecycle === "archived"[\s\S]*?return null;/,
+    );
+    expect(source).toMatch(
+      /resolveV3DelegationCurrentResultEdition[\s\S]*?normalizeLegacyEditionStatus\(current\.status\) === "archived"[\s\S]*?\? null[\s\S]*?: current;/,
+    );
+  });
+
+  it("promotes a safe history row only when its stable edition id matches the current participation edition", () => {
     const source = read("src/integrations/v3/delegation-source.server.ts");
 
     expect(source).toContain("entries.find((entry) => entry.editionId === currentEditionId)");
