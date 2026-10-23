@@ -103,6 +103,23 @@ function invalidReceiptOutcome(
   };
 }
 
+function reconciliationUnavailable(
+  input: {
+    operationId: string;
+    deliveryId: string;
+    recovery: SolarisV6OperationRecovery;
+  },
+): DeliveryRetryUnresolved {
+  return {
+    state: "unresolved",
+    operationId: input.operationId,
+    deliveryId: input.deliveryId,
+    reason: "reconciliation_unavailable",
+    recovery: input.recovery,
+    allowSameIdentityRetry: false,
+  };
+}
+
 export async function reconcileDeliveryRetry(
   input: {
     operationId: string;
@@ -111,10 +128,16 @@ export async function reconcileDeliveryRetry(
   },
   client: DeliveryRetryRpcClient = defaultClient,
 ): Promise<DeliveryRetryOutcome> {
-  const { data, error } = await client.rpc("studio2_reconcile_operation", {
-    p_operation_id: input.operationId,
-  });
+  let response: { data: unknown; error: RpcError | null };
+  try {
+    response = await client.rpc("studio2_reconcile_operation", {
+      p_operation_id: input.operationId,
+    });
+  } catch {
+    return reconciliationUnavailable(input);
+  }
 
+  const { data, error } = response;
   if (error) {
     return {
       state: "unresolved",
@@ -186,15 +209,32 @@ export async function retryFailedDeliveryWithReconciliation(
   },
   client: DeliveryRetryRpcClient = defaultClient,
 ): Promise<DeliveryRetryOutcome> {
-  const { data, error } = await client.rpc(
-    "admin_retry_failed_notification_delivery",
-    {
-      p_delivery_id: input.deliveryId,
-      p_operation_id: input.identity.operationId,
-      p_idempotency_key: input.identity.idempotencyKey,
-    },
-  );
+  let response: { data: unknown; error: RpcError | null };
+  try {
+    response = await client.rpc(
+      "admin_retry_failed_notification_delivery",
+      {
+        p_delivery_id: input.deliveryId,
+        p_operation_id: input.identity.operationId,
+        p_idempotency_key: input.identity.idempotencyKey,
+      },
+    );
+  } catch (error) {
+    const recovery = resolveSolarisV6OperationRecovery(error, {
+      online: input.online ?? (typeof navigator === "undefined" ? true : navigator.onLine),
+      stableOperationIdentity: true,
+    });
+    return reconcileDeliveryRetry(
+      {
+        operationId: input.identity.operationId,
+        deliveryId: input.deliveryId,
+        recovery,
+      },
+      client,
+    );
+  }
 
+  const { data, error } = response;
   if (!error) {
     if (!isSettledRetryResult(data, {
       operationId: input.identity.operationId,
