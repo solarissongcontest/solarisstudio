@@ -1,11 +1,59 @@
+[data-solaris-v3] {
+  /*
+   * One shared obstruction contract for route anchors and keyboard focus.
+   * The top context can grow to the 44px action target plus its vertical
+   * padding, so use its real maximum resting footprint instead of the older
+   * 3.25rem minimum. Desktop adds the sticky primary navigation below it.
+   */
+  --v3-top-context-obstruction: calc(3.75rem + env(safe-area-inset-top));
+  --v3-secondary-sticky-obstruction: 0px;
+  --v3-sticky-top-gap: 0.75rem;
+  --v3-sticky-top-obstruction: calc(
+    var(--v3-top-context-obstruction) +
+    var(--v3-secondary-sticky-obstruction) +
+    var(--v3-sticky-top-gap)
+  );
+}
+
+/*
+ * Sticky chrome must not turn deep links or keyboard navigation into a game of
+ * hide-and-seek. scroll-margin is layout-neutral, so route content keeps its
+ * own spacing while browser/programmatic scrolling receives the shared shell
+ * clearance automatically.
+ */
+[data-solaris-v3] :where([id], [data-scroll-anchor]) {
+  scroll-margin-top: var(--v3-sticky-top-obstruction);
+}
+
+[data-solaris-v3] :where(
+  a[href],
+  button:not([disabled]),
+  input:not([type="hidden"]):not([disabled]),
+  select:not([disabled]),
+  textarea:not([disabled]),
+  [tabindex]:not([tabindex="-1"]),
+  [contenteditable]:not([contenteditable="false"])
+):focus {
+  scroll-margin-top: var(--v3-sticky-top-obstruction);
+}
+
 [data-solaris-v3] .v3-desktop-primary-nav {
   display: none;
 }
 
 @media (min-width: 1024px) {
+  [data-solaris-v3] {
+    /*
+     * 2.75rem minimum target + 0.76rem nav padding/borders + 0.45rem visual
+     * separation. Keeping this as a token means anchors/focus and the sticky
+     * nav itself cannot silently drift to different obstruction models.
+     */
+    --v3-secondary-sticky-obstruction: 4rem;
+  }
+
   [data-solaris-v3] .v3-desktop-primary-nav {
     position: sticky;
-    top: calc(3.25rem + env(safe-area-inset-top));
+    top: var(--v3-top-context-obstruction);
     z-index: 25;
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
