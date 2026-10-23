@@ -8,6 +8,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  optionalBrowserStorage,
+  readOptionalStorage,
+  writeOptionalStorage,
+} from "@/lib/app-optional-browser-storage";
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 
 export const APP_FIRST_RUN_COMPLETE_KEY = "solaris:app-first-run-complete:v1";
@@ -28,7 +33,13 @@ export function appFirstRunAllowedOnPath(pathname: string) {
 
 export function appFirstRunComplete() {
   if (typeof window === "undefined") return true;
-  return window.localStorage.getItem(APP_FIRST_RUN_COMPLETE_KEY) === "1";
+  const stored = readOptionalStorage(
+    optionalBrowserStorage("localStorage"),
+    APP_FIRST_RUN_COMPLETE_KEY,
+  );
+
+  // Optional onboarding must never become an app-start failure boundary.
+  return stored === undefined || stored === "1";
 }
 
 export function AppFirstRun({
@@ -41,18 +52,29 @@ export function AppFirstRun({
   onComplete?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [completedThisSession, setCompletedThisSession] = useState(false);
 
   useEffect(() => {
-    if (!isAppMode || !appFirstRunAllowedOnPath(pathname)) {
+    if (!isAppMode || !appFirstRunAllowedOnPath(pathname) || completedThisSession) {
       setOpen(false);
       return;
     }
-    if (window.localStorage.getItem(APP_FIRST_RUN_COMPLETE_KEY) === "1") return;
+
+    const stored = readOptionalStorage(
+      optionalBrowserStorage("localStorage"),
+      APP_FIRST_RUN_COMPLETE_KEY,
+    );
+    if (stored === undefined || stored === "1") return;
     setOpen(true);
-  }, [isAppMode, pathname]);
+  }, [completedThisSession, isAppMode, pathname]);
 
   const complete = () => {
-    window.localStorage.setItem(APP_FIRST_RUN_COMPLETE_KEY, "1");
+    writeOptionalStorage(
+      optionalBrowserStorage("localStorage"),
+      APP_FIRST_RUN_COMPLETE_KEY,
+      "1",
+    );
+    setCompletedThisSession(true);
     setOpen(false);
     onComplete?.();
   };
