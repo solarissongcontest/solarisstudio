@@ -4,6 +4,11 @@ import { useV3OwnerJuryShareProjection } from "@/lib/v3-jury-share-owner-runtime
 
 function unavailableCopy(code: string) {
   switch (code) {
+    case "JURY_SHARE_FEATURE_DISABLED":
+      return {
+        title: "Jury sharing is not enabled yet",
+        body: "This official sharing feature is not enabled for this Edition or account yet. Your Jury ballot remains unchanged and Solaris will not reconstruct it from browser or legacy data.",
+      };
     case "JURY_SHARE_CONTRACT_UNAVAILABLE":
       return {
         title: "Jury sharing is not available yet",
