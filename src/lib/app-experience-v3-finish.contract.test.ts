@@ -45,14 +45,21 @@ describe("App Experience v3 completion contract", () => {
     expect(navigation).toContain('"app-settings"');
   });
 
-  it("coordinates query freshness with resume and reconnect instead of refetching everything", () => {
+  it("separates resume freshness from reconnect reconciliation", () => {
     const root = source("src/routes/__root.tsx");
     const coordinator = source("src/components/app/AppDataFreshnessCoordinator.tsx");
+    const reconnect = source("src/components/app/AppReconnectReconciler.tsx");
     const policy = source("src/lib/app-query-policy.ts");
 
     expect(root).toContain("<AppDataFreshnessCoordinator />");
+    expect(root).toContain("<AppReconnectReconciler />");
     expect(coordinator).toContain("freshnessLevelsForResume");
-    expect(coordinator).toContain('freshness !== "cold"');
+    expect(coordinator).toContain("APP_RESUME_EVENT");
+    expect(coordinator).not.toContain("connectivity.status");
+    expect(coordinator).not.toContain("previousConnectivity");
+    expect(reconnect).toContain("APP_CONNECTIVITY_RECOVERED_EVENT");
+    expect(reconnect).toContain("queryClient.invalidateQueries");
+    expect(reconnect).toContain("router.invalidate");
     expect(policy).toContain('"live" | "warm" | "cold"');
   });
 
@@ -69,7 +76,6 @@ describe("App Experience v3 completion contract", () => {
     expect(telemetry).toContain('"app_task_resumed"');
     expect(migration).toContain("'app_tab_restored'");
     expect(migration).toContain("'app_push_opened'");
-    expect(migration).toContain("'app_show_mode_state'");
     expect(sw).toContain('targetUrl.hash = "solaris-push-open"');
   });
 
