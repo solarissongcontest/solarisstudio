@@ -155,7 +155,7 @@ describe("S14 stateful full-contest harness", () => {
     expect(stage7Deadline).toContain("S14_INVARIANT_TELEVOTE_COMPLETE");
   });
 
-  it("resolves incomplete inputs then proves immutable semifinal Results v1 equals canonical v2", () => {
+  it("resolves incomplete inputs then proves adjacent immutable semifinal Results versions reproduce exactly", () => {
     expect(stage8).toContain("studio2_execute_result_operation");
     expect(stage8).toContain("studio2_jury_dnv_preview");
     expect(stage8).toContain("studio2_apply_jury_dnv");
@@ -173,12 +173,14 @@ describe("S14 stateful full-contest harness", () => {
     expect(stage8).toContain("S14_INVARIANT_RESULT_COMPLETE");
     expect(stage8).toContain("S14_STAGE_8_RESULTS_COMPLETE");
     expect(stage8).not.toContain("v3-s3-results-invariants-rehearsal.sh");
-    expect(driver).toContain("promote_semifinal_results_to_v2");
+    expect(driver).toContain("promote_semifinal_results_to_reproducible_version");
     expect(driver).toContain('execute_result_action "$show_id" unlock');
     expect(driver).toContain('execute_result_action "$show_id" calculate');
-    expect(driver).toContain("v1.result_rows = v2.result_rows");
-    expect(driver).toContain('lifecycle" == "2:2:2:2"');
-    expect(driver).toContain("S14_RESULTS_VERSION_2_COMPLETE");
+    expect(driver).toContain("target_version=$((source_version+1))");
+    expect(driver).toContain("source.result_rows = target.result_rows");
+    expect(driver).toContain('lifecycle" == "$target_version:$target_version:$target_version:$target_version"');
+    expect(driver).toContain("S14_RESULTS_REPRODUCIBLE_VERSION_COMPLETE");
+    expect(driver).not.toContain("must enter the v2 persistence adapter at Results version 1");
     expect(resultsAdapter).toContain("convertRound");
     expect(resultsAdapter).toContain("convertRobustRound");
     expect(resultsAdapter).toContain("ROBUST_TELEVOTE_ENGINE_VERSION");
@@ -267,10 +269,12 @@ describe("S14 stateful full-contest harness", () => {
     expect(stage10).toContain("S14_INVARIANT_NOTIFICATIONS_COMPLETE");
   });
 
-  it("reconciles final publication to canonical Results before Archive with durable replay", () => {
+  it("reconciles final publication to each show's exact current Results version before Archive with durable replay", () => {
     expect(driver).toContain("S14_RESULTS_RECONCILE_OPERATION_ID");
     expect(driver).toContain("S14_RESULTS_RECONCILE_IDEMPOTENCY_KEY");
     expect(driver).toContain("private.v3_edition_final_results_ready");
+    expect(driver).toContain("control.source_result_version=operation.calculation_version");
+    expect(driver).toContain("operation.reviewed_version=operation.calculation_version");
     expect(driver).toContain("studio2_transition_edition_v3");
     expect(driver).toContain('p_to\\":\\"results');
     expect(driver).toContain("replay exact S14 Results reconciliation");
