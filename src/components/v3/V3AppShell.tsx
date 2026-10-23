@@ -13,6 +13,7 @@ import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 
 import { PublicCommandPalette } from "@/components/public/PublicCommandPalette";
 import { useAppAttentionSummary } from "@/lib/app-attention";
+import { hasPendingAppLaunchTransaction } from "@/lib/app-launch-lifecycle";
 import { runAppViewTransition } from "@/lib/app-view-transitions";
 import { prefersReducedMotion } from "@/lib/interaction-physics";
 import { resolveV3ShellActiveArea } from "@/lib/v3-shell-active-area";
@@ -181,33 +182,44 @@ export function V3AppShell({
   useEffect(() => {
     if (typeof window === "undefined" || !navigationIdentityReady) return;
 
-    const previousViewerKey = previousResolvedViewerKeyRef.current;
-    previousResolvedViewerKeyRef.current = resolvedViewerKey;
-    if (previousViewerKey !== undefined && previousViewerKey !== resolvedViewerKey) {
-      // Auth can resolve before its redirect commits. Do not sample the old
-      // viewer's still-mounted route into the newly resolved viewer bucket.
-      // Memory resumes after the authoritative route/query changes.
-      return;
-    }
+    // /app-launch deliberately visits a temporary safe root while local auth is
+    // resolved. Never sample that trampoline route into viewer-scoped V3 memory
+    // or it can erase the destination this same cold launch is trying to restore.
+    // Scroll listeners remain installed, however, so once the coordinator clears
+    // the transaction the restored page resumes normal scroll persistence without
+    // requiring another route transition merely to wake the effect back up.
+    const launchPending = hasPendingAppLaunchTransaction();
+    let restoreY: number | null = null;
 
-    const restoreY = consumeV3PublicNavigationRestore(
-      pathname,
-      searchStr,
-      undefined,
-      navigationScope,
-    );
-    rememberV3PublicLocation(
-      pathname,
-      searchStr,
-      restoreY ?? undefined,
-      undefined,
-      navigationScope,
-    );
+    if (!launchPending) {
+      const previousViewerKey = previousResolvedViewerKeyRef.current;
+      previousResolvedViewerKeyRef.current = resolvedViewerKey;
+      if (previousViewerKey !== undefined && previousViewerKey !== resolvedViewerKey) {
+        // Auth can resolve before its redirect commits. Do not sample the old
+        // viewer's still-mounted route into the newly resolved viewer bucket.
+        // Memory resumes after the authoritative route/query changes.
+        return;
+      }
 
-    if (restoreY != null) {
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => window.scrollTo({ top: restoreY, behavior: "auto" }));
-      });
+      restoreY = consumeV3PublicNavigationRestore(
+        pathname,
+        searchStr,
+        undefined,
+        navigationScope,
+      );
+      rememberV3PublicLocation(
+        pathname,
+        searchStr,
+        restoreY ?? undefined,
+        undefined,
+        navigationScope,
+      );
+
+      if (restoreY != null) {
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => window.scrollTo({ top: restoreY!, behavior: "auto" }));
+        });
+      }
     }
 
     let frame: number | null = null;

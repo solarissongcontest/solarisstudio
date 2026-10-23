@@ -25,8 +25,11 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     expect(launch).toContain("navigationSnapshot");
     expect(coordinator).toContain('"cold_launch_session_timeout"');
     expect(coordinator).toContain("const safeRoot = getAppLaunchSafeRootFromSnapshot");
-    expect(coordinator).toContain('source === "timeout"');
-    expect(coordinator).toContain("? safeRoot");
+    expect(coordinator).toContain("let target = safeRoot");
+    expect(coordinator).toContain('if (source !== "timeout")');
+    expect(coordinator.indexOf("let target = safeRoot")).toBeLessThan(
+      coordinator.indexOf('if (source !== "timeout")'),
+    );
     expect(coordinator).toContain("window.location.replace(targetHref)");
     expect(coordinator).toContain("markAppNavigationRestore");
   });
@@ -108,9 +111,31 @@ describe("App Experience v3 cold launch offline and reconnect foundation", () =>
     expect(connectivity).toContain("APP_CONNECTIVITY_RECOVERED_EVENT");
     expect(connectivity).toContain('previousStatus !== "online"');
     expect(reconciler).toContain('chrome.archetype === "task"');
+    expect(reconciler).toContain("let reconciliationTimer: number | null = null");
+    expect(reconciler).toContain("clearPendingReconciliation()");
+    expect(reconciler).toContain("window.clearTimeout(reconciliationTimer)");
+    expect(reconciler).toContain('window.addEventListener("offline", onOffline)');
+    expect(reconciler).toContain("if (generation !== recoveryGeneration || !navigator.onLine) return");
+    expect(reconciler).toContain("window.location.pathname");
+    expect(reconciler).toContain("window.location.search");
+    expect(reconciler).toContain("currentChrome.archetype === \"task\"");
+    expect(reconciler).toContain("currentChrome.archetype === \"immersive\"");
+    expect(reconciler).toContain("Promise.allSettled");
     expect(reconciler).toContain("invalidateQueries");
     expect(reconciler).toContain("router.invalidate");
     expect(root).toContain("<AppReconnectReconciler />");
+  });
+
+  it("treats reconnect as an explicit accessible app transition without claiming refresh success", () => {
+    const reconciler = source("src/components/app/AppReconnectReconciler.tsx");
+    expect(reconciler).toContain('type ReconnectPhase = "idle" | "reconciling" | "restored"');
+    expect(reconciler).toContain('data-solaris-app-reconnect={phase}');
+    expect(reconciler).toContain('role="status"');
+    expect(reconciler).toContain('aria-live="polite"');
+    expect(reconciler).toContain('if (!isAppMode || phase === "idle") return null');
+    expect(reconciler).toContain("Back online. Refreshing the latest Solaris state");
+    expect(reconciler).toContain('"Connection restored."');
+    expect(reconciler).not.toContain("Solaris is up to date");
   });
 
   it("does not replay official mutations during offline or reconnect handling", () => {
