@@ -11,6 +11,7 @@ import { HistoricalNationalFinalManager } from "@/components/HistoricalNationalF
 import { NationalFinalResultOrderAddon } from "@/components/NationalFinalResultOrderAddon";
 import { supabase } from "@/integrations/supabase/client";
 import { useMyCountryAccount } from "@/lib/country-account";
+import { useFanSession } from "@/lib/prediction-data";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -19,13 +20,24 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedIdentityGate({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const session = useFanSession();
+  // `fan-session` is updated by the single global auth subscriber. It is only
+  // a reconciliation trigger here: `getUser()` remains the verified authority
+  // for entering protected routes. A remote sign-out or account swap changes
+  // this key and therefore forces a fresh verified identity read.
+  const sessionIdentityKey = session.isPending
+    ? "pending"
+    : session.isError
+      ? "error"
+      : session.data?.id ?? "signed-out";
   const identity = useQuery<User | null>({
-    queryKey: ["authenticated-identity-gate"],
+    queryKey: ["authenticated-identity-gate", sessionIdentityKey],
     queryFn: async () => {
       const { data, error } = await supabase.auth.getUser();
       return error || !data.user ? null : data.user;
     },
     retry: false,
+    gcTime: 0,
   });
 
   useEffect(() => {
