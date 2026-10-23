@@ -137,15 +137,20 @@ where version_row.show_id='$show_id'::uuid and version_row.version=$version;
 recover_results_worker_after_crash() {
   local operation_id="$1"
   local event_id first_claim second_claim
+  local crash_lease_seconds=5 recovery_lease_seconds=60
   event_id="$(db_scalar "select id::text from private.v3_domain_events where operation_id='$operation_id'::uuid and event_type='results.calculated';")"
   [[ -n "$event_id" ]] || fail "Results worker-crash injection has no calculated DomainEvent"
 
-  first_claim="$(service_value "select event_id::text from public.studio2_claim_domain_event_deliveries('results.tasks','s14-crash-worker',100,1);")"
+  # S4 deliberately rejects leases shorter than five seconds. Exercise the
+  # worker-crash path with the smallest valid lease, then wait past real expiry
+  # before attempting recovery so the rehearsal proves lease reclamation rather
+  # than bypassing the canonical claim contract.
+  first_claim="$(service_value "select event_id::text from public.studio2_claim_domain_event_deliveries('results.tasks','s14-crash-worker',100,$crash_lease_seconds);")"
   printf '%s\n' "$first_claim" | grep -Fxq "$event_id" || fail "crash worker did not lease Results event $event_id"
   # Deliberately do not process the lease. This models a worker dying after
   # claim. After expiry, the same durable outbox row must become claimable.
-  sleep 2
-  second_claim="$(service_value "select event_id::text from public.studio2_claim_domain_event_deliveries('results.tasks','s14-recovery-worker',100,60);")"
+  sleep $((crash_lease_seconds + 1))
+  second_claim="$(service_value "select event_id::text from public.studio2_claim_domain_event_deliveries('results.tasks','s14-recovery-worker',100,$recovery_lease_seconds);")"
   printf '%s\n' "$second_claim" | grep -Fxq "$event_id" || fail "expired Results lease was not reclaimable after worker crash"
   while IFS= read -r claimed; do
     [[ -n "$claimed" ]] || continue
