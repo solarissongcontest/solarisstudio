@@ -606,6 +606,27 @@ begin
     raise exception 'Archived Jury Share theme versions are immutable'
       using errcode = '55000';
   end if;
+
+  if old.state = 'ready' then
+    if tg_op = 'DELETE' then
+      raise exception 'Ready Jury Share theme versions must be versioned, not deleted'
+        using errcode = '55000';
+    end if;
+
+    if new.state <> 'archived'
+       or new.edition_id is distinct from old.edition_id
+       or new.version is distinct from old.version
+       or new.composition is distinct from old.composition
+       or new.composition_hash is distinct from old.composition_hash
+       or new.validation is distinct from old.validation
+       or new.activated_at is distinct from old.activated_at
+       or new.created_by is distinct from old.created_by
+       or new.created_at is distinct from old.created_at then
+      raise exception 'Ready Jury Share theme versions are immutable; create version + 1'
+        using errcode = '55000';
+    end if;
+  end if;
+
   if tg_op = 'DELETE' then
     return old;
   end if;
