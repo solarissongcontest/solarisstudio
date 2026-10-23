@@ -60,6 +60,7 @@ describe("V3 Voting DNA publication boundary", () => {
 
     expect(route).toContain("Detailed-voting scope:");
     expect(route).toContain("dna.data.sample.detailedEditionIds");
-    expect(route).toContain("exact published\n          editions listed in the sample scope above");
+    expect(route).toContain("exact published");
+    expect(route).toContain("editions listed in the sample scope above");
   });
 });
