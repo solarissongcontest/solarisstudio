@@ -47,6 +47,13 @@ describe("V3 P33 Reference convergence", () => {
     expect(referenceRoot).toContain("Reference is temporarily unavailable");
   });
 
+  it("preserves the complete public country article library, not only contest participants", () => {
+    expect(referenceRoot).toContain("for (const country of countries)");
+    expect(referenceRoot).toContain("const countryCount = countriesQuery.data?.length ?? 0");
+    expect(referenceRoot).toContain('<StatTile label="Countries" value={countryCount} />');
+    expect(referenceRoot).not.toContain("const hasPublicHistory");
+  });
+
   it("bounds and validates legacy/search nominations before presentation", () => {
     expect(referenceRoot).toContain("const REFERENCE_KINDS");
     expect(referenceRoot).toContain("parseReferenceKind(search.kind)");
