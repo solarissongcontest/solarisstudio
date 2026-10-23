@@ -551,18 +551,20 @@ immutable
 security invoker
 set search_path = pg_catalog
 as $well_formed$
-  select
-    jsonb_typeof(p_checks) = 'object'
-    and jsonb_object_length(p_checks) = 9
-    and jsonb_typeof(p_checks -> 'assets') = 'boolean'
-    and jsonb_typeof(p_checks -> 'typography') = 'boolean'
-    and jsonb_typeof(p_checks -> 'glyphCoverage') = 'boolean'
-    and jsonb_typeof(p_checks -> 'longNameFit') = 'boolean'
-    and jsonb_typeof(p_checks -> 'tenRowsFit') = 'boolean'
-    and jsonb_typeof(p_checks -> 'safeZoneLayout') = 'boolean'
-    and jsonb_typeof(p_checks -> 'contrast') = 'boolean'
-    and jsonb_typeof(p_checks -> 'pngExport') = 'boolean'
-    and jsonb_typeof(p_checks -> 'jpegExport') = 'boolean'
+  select case
+    when jsonb_typeof(p_checks) is distinct from 'object' then false
+    else
+      (select count(*) = 9 from jsonb_object_keys(p_checks))
+      and jsonb_typeof(p_checks -> 'assets') = 'boolean'
+      and jsonb_typeof(p_checks -> 'typography') = 'boolean'
+      and jsonb_typeof(p_checks -> 'glyphCoverage') = 'boolean'
+      and jsonb_typeof(p_checks -> 'longNameFit') = 'boolean'
+      and jsonb_typeof(p_checks -> 'tenRowsFit') = 'boolean'
+      and jsonb_typeof(p_checks -> 'safeZoneLayout') = 'boolean'
+      and jsonb_typeof(p_checks -> 'contrast') = 'boolean'
+      and jsonb_typeof(p_checks -> 'pngExport') = 'boolean'
+      and jsonb_typeof(p_checks -> 'jpegExport') = 'boolean'
+  end
 $well_formed$;
 
 revoke all on function private.v3_jury_share_render_checks_well_formed(jsonb)
