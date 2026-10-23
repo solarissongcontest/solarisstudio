@@ -136,20 +136,161 @@ update public.participants
 set qualified=false
 where edition_id='$QUAL_EDITION_ID'::uuid;
 
+-- Reproduce the S14 defect class deliberately:
+--
+-- one semi-final participant is withdrawn, has no canonical Results row, but
+-- carries stale qualified=true state left over from an earlier projection.
+--
+-- Build the stale value only after normal lifecycle/result triggers have
+-- settled so this rehearsal proves the convergence function repairs corrupted
+-- derived state rather than merely relying on fixture insertion order.
+update public.participants
+set participation_status='withdrawn'
+where edition_id='$QUAL_EDITION_ID'::uuid
+  and country_id='00000000-0000-4000-8a00-000000000012'::uuid;
+
+delete from public.results
+where edition_id='$QUAL_EDITION_ID'::uuid
+  and show_id='$QUAL_SEMI_ONE_ID'::uuid
+  and country_id='00000000-0000-4000-8a00-000000000012'::uuid;
+
+update public.participants
+set qualified=true
+where edition_id='$QUAL_EDITION_ID'::uuid
+  and country_id='00000000-0000-4000-8a00-000000000012'::uuid;
+
 insert into public.studio2_result_operations(show_id,edition_id,calculation_version)
 values
   ('$QUAL_SEMI_ONE_ID','$QUAL_EDITION_ID',0),
   ('$QUAL_SEMI_TWO_ID','$QUAL_EDITION_ID',0);
 "
 
-[[ "$(db_value "select count(*) from public.participants where edition_id='$QUAL_EDITION_ID'::uuid and qualified is true;")" == '0' ]] || fail "Qualification fixture was not stale before version transition"
+[[ "$(db_value "select count(*) from public.participants where edition_id='$QUAL_EDITION_ID'::uuid and qualified is true;")" == '21' ]] || \
+  fail "Withdrawn participant did not retain the deliberate stale qualification fixture before convergence"
+
+[[ "$(db_value "
+select count(*)
+from public.participants
+where edition_id='$QUAL_EDITION_ID'::uuid
+  and country_id='00000000-0000-4000-8a00-000000000012'::uuid
+  and participation_status='withdrawn'
+  and qualified is true;
+")" == '1' ]] || \
+  fail "Withdrawn stale-qualification fixture was not established"
+
+[[ "$(db_value "
+select count(*)
+from public.results
+where edition_id='$QUAL_EDITION_ID'::uuid
+  and show_id='$QUAL_SEMI_ONE_ID'::uuid
+  and country_id='00000000-0000-4000-8a00-000000000012'::uuid;
+")" == '0' ]] || \
+  fail "Withdrawn stale-qualification fixture unexpectedly retained a Results row"
 
 db_exec "update public.studio2_result_operations set calculation_version=1,last_calculated_at=now(),updated_at=now() where show_id='$QUAL_SEMI_ONE_ID'::uuid;"
 
-[[ "$(db_value "select count(*) from public.participants where edition_id='$QUAL_EDITION_ID'::uuid and qualified is true;")" == '20' ]] || fail "Results version transition did not converge exactly 20 canonical qualifiers"
-[[ "$(db_value "select count(*) from (select show_id,count(*) as c from public.participants where edition_id='$QUAL_EDITION_ID'::uuid and qualified is true group by show_id having count(*)=10) qualified_shows;")" == '2' ]] || fail "Results version transition did not converge ten qualifiers per semi-final"
-[[ "$(db_value "select count(*) from public.participants participant join public.results result_row on result_row.show_id=participant.show_id and result_row.country_id=participant.country_id where participant.edition_id='$QUAL_EDITION_ID'::uuid and participant.qualified is true and result_row.final_rank between 1 and 10;")" == '20' ]] || fail "Qualified projection is not backed by canonical top-ten result rank truth"
-[[ "$(db_value "select count(*) from public.results result_row join public.participants participant on participant.show_id=result_row.show_id and participant.country_id=result_row.country_id where result_row.edition_id='$QUAL_EDITION_ID'::uuid and result_row.final_rank between 1 and 10 and participant.qualified is not true;")" == '0' ]] || fail "A canonical top-ten result failed to project as qualified"
+[[ "$(db_value "select count(*) from public.participants where edition_id='$QUAL_EDITION_ID'::uuid and qualified is true;")" == '20' ]] || \
+  fail "Results version transition did not converge exactly 20 canonical qualifiers"
+
+[[ "$(db_value "
+select count(*)
+from (
+  select show_id,count(*) as c
+  from public.participants
+  where edition_id='$QUAL_EDITION_ID'::uuid
+    and qualified is true
+  group by show_id
+  having count(*)=10
+) qualified_shows;
+")" == '2' ]] || \
+  fail "Results version transition did not converge ten qualifiers per semi-final"
+
+[[ "$(db_value "
+select count(*)
+from public.participants
+where edition_id='$QUAL_EDITION_ID'::uuid
+  and country_id='00000000-0000-4000-8a00-000000000012'::uuid
+  and qualified is true;
+")" == '0' ]] || \
+  fail "Withdrawn participant retained stale qualified=true without a canonical ranked result"
+
+[[ "$(db_value "
+select count(*)
+from public.participants participant
+join public.results result_row
+  on result_row.show_id=participant.show_id
+ and result_row.country_id=participant.country_id
+where participant.edition_id='$QUAL_EDITION_ID'::uuid
+  and participant.qualified is true
+  and result_row.final_rank between 1 and 10;
+")" == '20' ]] || \
+  fail "Qualified projection is not backed by canonical top-ten result rank truth"
+
+[[ "$(db_value "
+select count(*)
+from public.results result_row
+join public.participants participant
+  on participant.show_id=result_row.show_id
+ and participant.country_id=result_row.country_id
+where result_row.edition_id='$QUAL_EDITION_ID'::uuid
+  and result_row.final_rank between 1 and 10
+  and participant.qualified is not true;
+")" == '0' ]] || \
+  fail "A canonical top-ten result failed to project as qualified"
+
+log "S5_RESULT_WITHDRAWN_STALE_QUALIFICATION_CLEARED"
+
+log "Rehearsing participation-status qualification invalidation after Results"
+
+db_exec "
+update public.participants
+set participation_status='withdrawn'
+where edition_id='$QUAL_EDITION_ID'::uuid
+  and country_id='00000000-0000-4000-8a00-000000000001'::uuid;
+"
+
+[[ "$(db_value "
+select count(*)
+from public.participants
+where edition_id='$QUAL_EDITION_ID'::uuid
+  and qualified is true;
+")" == '19' ]] || \
+  fail "Post-Results withdrawal did not immediately remove canonical qualification"
+
+[[ "$(db_value "
+select count(*)
+from public.participants
+where edition_id='$QUAL_EDITION_ID'::uuid
+  and country_id='00000000-0000-4000-8a00-000000000001'::uuid
+  and qualified is true;
+")" == '0' ]] || \
+  fail "Withdrawn top-ten participant retained qualification after participation-status transition"
+
+db_exec "
+update public.participants
+set participation_status='confirmed'
+where edition_id='$QUAL_EDITION_ID'::uuid
+  and country_id='00000000-0000-4000-8a00-000000000001'::uuid;
+"
+
+[[ "$(db_value "
+select count(*)
+from public.participants
+where edition_id='$QUAL_EDITION_ID'::uuid
+  and qualified is true;
+")" == '20' ]] || \
+  fail "Re-confirmed ranked participant did not restore canonical qualification"
+
+[[ "$(db_value "
+select count(*)
+from public.participants
+where edition_id='$QUAL_EDITION_ID'::uuid
+  and country_id='00000000-0000-4000-8a00-000000000001'::uuid
+  and qualified is true;
+")" == '1' ]] || \
+  fail "Re-confirmed top-ten participant did not regain canonical qualification"
+
+log "S5_RESULT_PARTICIPATION_STATUS_QUALIFICATION_REFRESH_COMPLETE"
 log "S5_RESULT_QUALIFICATION_CONVERGENCE_COMPLETE"
 
 log "System V3 S5 Results consequence rehearsal passed"
