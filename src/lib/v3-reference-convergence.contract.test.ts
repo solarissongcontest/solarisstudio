@@ -40,6 +40,13 @@ describe("V3 P33 Reference convergence", () => {
     expect(referenceRoot).not.toContain("Search Encyclopedia");
   });
 
+  it("keeps the compatibility route useful while Reference rollout is deliberately off", () => {
+    expect(referenceRoot).toContain("!feature.isError && feature.data === false");
+    expect(referenceRoot).toContain('<Navigate to="/countries" replace />');
+    expect(referenceRoot).toContain("if (feature.isError)");
+    expect(referenceRoot).toContain("Reference is temporarily unavailable");
+  });
+
   it("bounds and validates legacy/search nominations before presentation", () => {
     expect(referenceRoot).toContain("const REFERENCE_KINDS");
     expect(referenceRoot).toContain("parseReferenceKind(search.kind)");
