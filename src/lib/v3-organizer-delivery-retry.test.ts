@@ -31,6 +31,17 @@ function succeededReceipt() {
   };
 }
 
+const recovery = {
+  kind: "request-failed" as const,
+  action: "retry-same-operation" as const,
+  title: "The server response was lost",
+  description: "Outcome unknown",
+  outcomeUnknown: true,
+  allowSameIdentityRetry: true,
+  shouldRefreshCanonical: false,
+  keepOperationOpen: true,
+};
+
 describe("Organizer failed-delivery retry reconciliation", () => {
   it("accepts a direct authoritative retry result", async () => {
     const rpc = vi.fn(async () => ({
@@ -86,18 +97,29 @@ describe("Organizer failed-delivery retry reconciliation", () => {
     });
   });
 
+  it("also reconciles when the transport throws instead of returning an RPC error", async () => {
+    const rpc = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("network response lost"))
+      .mockResolvedValueOnce({ data: succeededReceipt(), error: null });
+
+    const outcome = await retryFailedDeliveryWithReconciliation(
+      {
+        deliveryId: DELIVERY_ID,
+        identity: { operationId: OPERATION_ID, idempotencyKey: IDEMPOTENCY_KEY },
+        online: true,
+      },
+      { rpc } as DeliveryRetryRpcClient,
+    );
+
+    expect(outcome).toMatchObject({ state: "succeeded", reconciled: true });
+    expect(rpc).toHaveBeenNthCalledWith(2, "studio2_reconcile_operation", {
+      p_operation_id: OPERATION_ID,
+    });
+  });
+
   it("does not replay while the canonical operation is still processing", async () => {
     const processing = { ...succeededReceipt(), status: "processing", result: null, completedAt: null };
-    const recovery = {
-      kind: "request-failed" as const,
-      action: "retry-same-operation" as const,
-      title: "The server response was lost",
-      description: "Outcome unknown",
-      outcomeUnknown: true,
-      allowSameIdentityRetry: true,
-      shouldRefreshCanonical: false,
-      keepOperationOpen: true,
-    };
     const rpc = vi.fn(async () => ({ data: processing, error: null }));
 
     const outcome = await reconcileDeliveryRetry(
@@ -113,16 +135,6 @@ describe("Organizer failed-delivery retry reconciliation", () => {
   });
 
   it("allows same-identity replay only when actor-scoped reconciliation proves no receipt exists", async () => {
-    const recovery = {
-      kind: "request-failed" as const,
-      action: "retry-same-operation" as const,
-      title: "The server response was lost",
-      description: "Outcome unknown",
-      outcomeUnknown: true,
-      allowSameIdentityRetry: true,
-      shouldRefreshCanonical: false,
-      keepOperationOpen: true,
-    };
     const rpc = vi.fn(async () => ({
       data: null,
       error: { code: "P0002", message: "UNKNOWN" },
@@ -141,16 +153,6 @@ describe("Organizer failed-delivery retry reconciliation", () => {
   });
 
   it("fails closed when reconciliation returns another command", async () => {
-    const recovery = {
-      kind: "request-failed" as const,
-      action: "retry-same-operation" as const,
-      title: "The server response was lost",
-      description: "Outcome unknown",
-      outcomeUnknown: true,
-      allowSameIdentityRetry: true,
-      shouldRefreshCanonical: false,
-      keepOperationOpen: true,
-    };
     const rpc = vi.fn(async () => ({
       data: { ...succeededReceipt(), command: "entry.verify" },
       error: null,
@@ -168,17 +170,7 @@ describe("Organizer failed-delivery retry reconciliation", () => {
     });
   });
 
-  it("rejects a succeeded receipt for a different delivery", async () => {
-    const recovery = {
-      kind: "request-failed" as const,
-      action: "retry-same-operation" as const,
-      title: "The server response was lost",
-      description: "Outcome unknown",
-      outcomeUnknown: true,
-      allowSameIdentityRetry: true,
-      shouldRefreshCanonical: false,
-      keepOperationOpen: true,
-    };
+  it("blocks a succeeded receipt for a different delivery", async () => {
     const rpc = vi.fn(async () => ({
       data: {
         ...succeededReceipt(),
@@ -190,11 +182,32 @@ describe("Organizer failed-delivery retry reconciliation", () => {
       error: null,
     }));
 
-    await expect(
-      reconcileDeliveryRetry(
-        { operationId: OPERATION_ID, deliveryId: DELIVERY_ID, recovery },
-        { rpc } as DeliveryRetryRpcClient,
-      ),
-    ).rejects.toThrow("does not match the reviewed delivery operation");
+    const outcome = await reconcileDeliveryRetry(
+      { operationId: OPERATION_ID, deliveryId: DELIVERY_ID, recovery },
+      { rpc } as DeliveryRetryRpcClient,
+    );
+
+    expect(outcome).toMatchObject({
+      state: "unresolved",
+      reason: "invalid_receipt",
+      allowSameIdentityRetry: false,
+    });
+  });
+
+  it("keeps replay blocked when reconciliation itself is unavailable", async () => {
+    const rpc = vi.fn(async () => {
+      throw new Error("reconciliation transport failed");
+    });
+
+    const outcome = await reconcileDeliveryRetry(
+      { operationId: OPERATION_ID, deliveryId: DELIVERY_ID, recovery },
+      { rpc } as DeliveryRetryRpcClient,
+    );
+
+    expect(outcome).toMatchObject({
+      state: "unresolved",
+      reason: "reconciliation_unavailable",
+      allowSameIdentityRetry: false,
+    });
   });
 });
