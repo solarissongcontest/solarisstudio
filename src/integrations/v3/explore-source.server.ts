@@ -17,11 +17,12 @@ import {
 import { resolveV3ExploreNextPublicEvent } from "@/lib/v3-explore-next-event";
 
 const EDITION_COLUMNS =
-  "id,edition_number,name,year,slug,description,host_country_id,host_city,logo,theme_id,artwork_url,status,published";
-const SHOW_COLUMNS =
+  "id,edition_number,name,year,slug,host_city,logo,artwork_url,status,published";
+const CURRENT_SHOW_COLUMNS =
   "id,edition_id,name,kind,sort_order,status,published,publication_config,broadcast_config";
-const RESULT_COLUMNS =
-  "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank";
+const ARCHIVE_RESULT_SHOW_COLUMNS =
+  "id,edition_id,kind,published,publication_config";
+const WINNER_RESULT_COLUMNS = "edition_id,show_id,final_rank";
 
 type ExploreEdition = Edition & { artwork_url?: string | null };
 
@@ -177,14 +178,17 @@ function makeEditionInput(input: {
 }
 
 /**
- * Server-owned public Explore source. It intentionally returns one narrow V3
+ * Server-owned public Explore source. It intentionally returns one bounded V3
  * projection instead of reproducing the legacy installed-app archive query fanout.
  * Publication-sensitive entry counts are computed by a database projection that
  * delegates to public_safe_participants, never by reading raw participant rows.
- * Public Show metadata and only rank-1 result rows are loaded across published
- * editions so archive result availability is truthful without downloading full
- * historical scoreboards. Chronology still comes only from canonical Show Mode
- * scheduledStart and one server timestamp.
+ *
+ * Rich Show Mode metadata (especially broadcast_config) is fetched only for the
+ * current public edition because only that edition can power current phase and
+ * next-event presentation. Historical editions use a narrow final-show metadata
+ * projection plus rank-1 result identity solely to determine whether an official
+ * result is publicly available. Explore therefore does not repeatedly download
+ * live-control configuration for the full archive.
  */
 export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundle> {
   const client = createConfirmationPublicRuntimeClient() as unknown as ExploreClient;
@@ -212,36 +216,48 @@ export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundl
       : null;
   const publishedEditionIds = editions.map((edition) => edition.id);
 
-  let publicShows: Show[] = [];
+  let currentShows: Show[] = [];
+  let publicFinalShows: Show[] = [];
   let publicWinnerResults: ResultRow[] = [];
 
   if (publishedEditionIds.length) {
-    const [showsResult, winnersResult] = await Promise.all([
+    const currentShowsPromise = currentEdition
+      ? client
+          .from("shows")
+          .select(CURRENT_SHOW_COLUMNS)
+          .eq("edition_id", currentEdition.id)
+          .eq("published", true)
+          .order("sort_order", { ascending: true })
+      : Promise.resolve({ data: [], error: null });
+
+    const [currentShowsResult, finalShowsResult, winnersResult] = await Promise.all([
+      currentShowsPromise,
       client
         .from("shows")
-        .select(SHOW_COLUMNS)
+        .select(ARCHIVE_RESULT_SHOW_COLUMNS)
         .in("edition_id", publishedEditionIds)
-        .eq("published", true)
-        .order("sort_order", { ascending: true }),
+        .in("kind", ["grand-final", "final"])
+        .eq("published", true),
       client
         .from("results")
-        .select(RESULT_COLUMNS)
+        .select(WINNER_RESULT_COLUMNS)
         .in("edition_id", publishedEditionIds)
         .eq("final_rank", 1),
     ]);
-    throwIfError(showsResult.error, "Could not load public Solaris shows");
+    throwIfError(currentShowsResult.error, "Could not load current public Solaris shows");
+    throwIfError(finalShowsResult.error, "Could not load public final-show result gates");
     throwIfError(winnersResult.error, "Could not load public result availability");
 
-    publicShows = (showsResult.data ?? []) as Show[];
+    currentShows = (currentShowsResult.data ?? []) as Show[];
+    publicFinalShows = (finalShowsResult.data ?? []) as Show[];
     publicWinnerResults = (winnersResult.data ?? []) as ResultRow[];
   }
 
-  const showsForEdition = (editionId: string) =>
-    publicShows.filter((show) => show.edition_id === editionId);
+  const resultShowsForEdition = (editionId: string) =>
+    publicFinalShows.filter((show) => show.edition_id === editionId);
   const winnersForEdition = (editionId: string) =>
     publicWinnerResults.filter((result) => result.edition_id === editionId);
 
-  const currentShows = currentEdition ? showsForEdition(currentEdition.id) : [];
   const currentResults = currentEdition ? winnersForEdition(currentEdition.id) : [];
   let phaseLabel: string | null = null;
   let currentExperience: V3EditionExperience | null = null;
@@ -261,13 +277,13 @@ export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundl
   const projected = buildV3ExploreRootProjection({
     currentEditionId: currentEdition?.id ?? null,
     editions: editions.map((edition) => {
-      const editionShows = showsForEdition(edition.id);
+      const resultShows = resultShowsForEdition(edition.id);
       const editionWinners = winnersForEdition(edition.id);
       return makeEditionInput({
         edition,
         currentEditionId: currentEdition?.id ?? null,
         currentExperience,
-        resultsPublished: finalResultsPublished(editionShows, editionWinners),
+        resultsPublished: finalResultsPublished(resultShows, editionWinners),
         currentNextEvent,
       });
     }),
