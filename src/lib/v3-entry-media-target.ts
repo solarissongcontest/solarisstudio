@@ -16,39 +16,47 @@ function nonBlankId(value: string | null | undefined): string | null {
  * the V3 Entry surface.
  *
  * Entry Media authority itself remains server-owned. This helper only binds
- * the presentation to identity already present in the caller-scoped Entry
- * projection and deliberately refuses ambiguous/incomplete National Final
- * state rather than guessing from candidate order.
+ * presentation to identity already present in the caller-scoped Entry
+ * projection. It deliberately refuses incomplete or contradictory selection
+ * state rather than guessing from candidate order or whichever object happens
+ * to be populated.
  */
 export function resolveV3EntryMediaTarget(
   projection: V3EntryProjection,
 ): V3EntryMediaTarget | null {
-  if (projection.state !== "ready" || !projection.confirmation) return null;
+  if (
+    projection.state !== "ready" ||
+    !projection.edition ||
+    !projection.delegation ||
+    !projection.confirmation
+  ) {
+    return null;
+  }
 
-  const internalEntry = projection.confirmation.internalEntry;
-  const nationalFinal = projection.confirmation.nationalFinal;
+  const { selectionMethod, internalEntry, nationalFinal } = projection.confirmation;
 
-  // A projection containing both selection models is internally ambiguous.
-  // Do not let presentation choose one and accidentally target the wrong Entry.
-  if (internalEntry && nationalFinal) return null;
-
-  if (internalEntry) {
+  if (selectionMethod === "internal") {
+    if (!internalEntry || nationalFinal) return null;
     const entryId = nonBlankId(internalEntry.id);
     return entryId ? { entryId, source: "internal_entry" } : null;
   }
 
-  if (!nationalFinal) return null;
+  if (selectionMethod === "national_final") {
+    if (internalEntry || !nationalFinal) return null;
 
-  const winnerEntryId = nonBlankId(nationalFinal.winnerEntryId);
-  if (!winnerEntryId) return null;
+    const winnerEntryId = nonBlankId(nationalFinal.winnerEntryId);
+    if (!winnerEntryId) return null;
 
-  const winner = nationalFinal.entries.find(
-    (candidate) => nonBlankId(candidate.id) === winnerEntryId,
-  );
-  if (!winner) return null;
+    const winner = nationalFinal.entries.find(
+      (candidate) => nonBlankId(candidate.id) === winnerEntryId,
+    );
+    if (!winner) return null;
 
-  return {
-    entryId: winnerEntryId,
-    source: "national_final_winner",
-  };
+    return {
+      entryId: winnerEntryId,
+      source: "national_final_winner",
+    };
+  }
+
+  return null;
 }
