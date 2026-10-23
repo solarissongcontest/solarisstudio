@@ -45,7 +45,8 @@ limit 1;
   op_id="14000000-0000-4008-8100-$(printf '%012d' "$ordinal")"
   rpc_request "$ORGANIZER_A_TOKEN" studio2_apply_jury_dnv "{\"p_show_id\":\"$show_id\",\"p_voter_id\":\"$voter_id\",\"p_voter_country_id\":\"$voter_country_id\",\"p_voter_entity_id\":null,\"p_action\":\"set\",\"p_reason\":\"S14 missing Jury ballot resolved as authorized DNV\",\"p_operation_id\":\"$op_id\",\"p_idempotency_key\":\"s14-results-dnv-$ordinal\",\"p_expected_version\":$preview_version}"
   expect_success "authorize missing Jury ballot as DNV $show_id"
-  expect_json "DNV action $show_id" action set
+  expect_json "DNV show identity $show_id" showId "$show_id"
+  expect_json "DNV persisted state $show_id" dnv true
   [[ "$(db_scalar "select count(*) from public.jury_ballot_statuses where show_id='$show_id'::uuid and voter_id='$voter_id'::uuid and status='did_not_vote';")" == "1" ]] || fail "DNV truth was not persisted for $show_id"
 }
 

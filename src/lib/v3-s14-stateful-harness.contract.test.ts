@@ -159,6 +159,9 @@ describe("S14 stateful full-contest harness", () => {
     expect(stage8).toContain("studio2_execute_result_operation");
     expect(stage8).toContain("studio2_jury_dnv_preview");
     expect(stage8).toContain("studio2_apply_jury_dnv");
+    expect(stage8).toContain('expect_json "DNV show identity $show_id" showId "$show_id"');
+    expect(stage8).toContain('expect_json "DNV persisted state $show_id" dnv true');
+    expect(stage8).not.toContain('expect_json "DNV action $show_id" action set');
     expect(stage8).toContain("private.studio2_result_preconditions");
     expect(stage8).toContain("private.v3_result_versions");
     expect(stage8).toContain("mark_reveal_ready");
