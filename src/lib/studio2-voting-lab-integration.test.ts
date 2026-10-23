@@ -39,11 +39,26 @@ describe('Studio 2 Voting Laboratory integration', () => {
     expect(route).toContain("invalidBallotPolicy: 'reject'");
   });
 
-  it('is rollout-gated and simulation-only', () => {
-    expect(route).toContain("isStudio2FeatureEnabled('voting_lab')");
+  it('binds rollout to the exact selected edition and fails closed without it', () => {
+    expect(route).toContain("queryKey: ['studio2-feature', 'voting_lab', editionId ?? 'none']");
+    expect(route).toContain('enabled: Boolean(editionId)');
+    expect(route).toContain("isStudio2FeatureEnabled('voting_lab', editionId)");
+    expect(route).toContain('if (!editionId)');
+    expect(route).toContain('will not probe a global rollout');
+    expect(route).not.toContain("isStudio2FeatureEnabled('voting_lab')");
+  });
+
+  it('remains simulation-only and outside official vote/result mutation authority', () => {
     expect(route).toContain('compareVotingSystems');
+    expect(route).toContain('Synthetic scenarios only');
+    expect(route).toContain('No submitted jury or televote ballot');
     expect(route).not.toContain('.update(');
     expect(route).not.toContain('.insert(');
+    expect(route).not.toContain('.delete(');
+  });
+
+  it('keeps the authenticated lab out of crawler discovery', () => {
+    expect(route).toContain("{ name: 'robots', content: 'noindex, nofollow' }");
   });
 
   it('does not import or modify Friend Voting or Rules', () => {
