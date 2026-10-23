@@ -17,6 +17,10 @@ describe("S14 canonical Televote Stage 7", () => {
     expect(stage7).toContain("$SEMI_TWO_ID");
     expect(stage7).toContain("televoting_round_bindings");
     expect(stage7).toContain("source_mode='show'");
+    expect(stage7).toContain("p.participation_status is null or p.participation_status='confirmed'");
+    expect(stage7).toContain("expected_entries=");
+    expect(stage7).toContain("active bound-show lineup");
+    expect(stage7).not.toContain("does not contain exactly 33 entries");
     expect(stage7).toContain("total_points_to_distribute=20");
     expect(stage7).not.toContain("total_points_to_distribute=58");
     expect(stage7).toContain("sum(e.points)<>20");
