@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+S14_BROWSER_RUNTIME_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$S14_BROWSER_RUNTIME_DIR/v3-s14-browser-runtime.sh"
+
 S14_FINAL_TELEVOTE_ROUND_ID='14000000-0000-4000-8000-000000000034'
 
 promote_s14_qualifiers_through_organizer() {
@@ -17,15 +20,15 @@ promote_s14_qualifiers_through_organizer() {
   export S14_EDITION_SLUG='s14-full-contest'
   export S14_FINAL_SHOW_ID="$FINAL_ID"
 
-  # Keep browser/runtime failures distinct from an actual Organizer qualifier
-  # bridge failure. The bridge phase begins only after the local Playwright
-  # package, Chromium executable, config, and test collection all initialize.
-  CURRENT_STAGE="grand-final-browser-bootstrap"
-  bun -e 'import("@playwright/test").then(async ({ chromium }) => { const { existsSync } = await import("node:fs"); const executable = chromium.executablePath(); if (!existsSync(executable)) throw new Error(`Chromium executable missing: ${executable}`); console.log(`S14 Playwright runtime ready: ${executable}`); })'
-  bunx playwright test --list --config=playwright.s14-grand-final.config.ts >/dev/null
-
-  CURRENT_STAGE="grand-final-qualifier-bridge"
-  bunx playwright test --config=playwright.s14-grand-final.config.ts
+  # Browser infrastructure has its own evidence phases. Vite is started and
+  # HTTP/app readiness is proved before the actual Organizer bridge is allowed
+  # to own the failure label.
+  run_s14_browser_test \
+    4177 \
+    playwright.s14-grand-final.config.ts \
+    "/admin/entries/${S14_EDITION_SLUG}?show=${S14_FINAL_SHOW_ID}" \
+    grand-final-browser-bootstrap \
+    grand-final-qualifier-bridge
 }
 
 prepare_s14_grand_final_from_qualifiers() {
