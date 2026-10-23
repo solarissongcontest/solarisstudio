@@ -13,6 +13,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import "@/styles/v3-foundations.css";
+import "@/styles/v3-top-context.css";
 
 export type V3StatusTone =
   | "required"
@@ -45,7 +46,11 @@ export function V3TopContext({
   actions?: ReactNode;
 }) {
   return (
-    <header className="v3-top-context">
+    <header
+      className="v3-top-context"
+      data-v3-top-context=""
+      data-v3-shell-obstruction="top"
+    >
       <div
         className="v3-top-context__edition"
         aria-label={`${edition}${phase ? `, ${phase}` : ""}`}
@@ -59,7 +64,7 @@ export function V3TopContext({
           </>
         ) : null}
       </div>
-      {actions ? <div className="flex items-center gap-1.5">{actions}</div> : null}
+      {actions ? <div className="v3-top-context__actions">{actions}</div> : null}
     </header>
   );
 }
