@@ -51,6 +51,18 @@ export function V3LegacyRouteAdapter({
 
   if (!shell.useV3Shell || !shell.rootTab) return <>{children}</>;
 
+  // Preserve the independently reversible product cutovers. A global V3 flag
+  // must never make an Explore/Results/Me deep route impossible to roll back.
+  if (shell.rootTab === "explore" && rollout.data.exploreEnabled !== true) {
+    return <>{children}</>;
+  }
+  if (shell.rootTab === "results" && rollout.data.resultsEnabled !== true) {
+    return <>{children}</>;
+  }
+  if (shell.rootTab === "me" && rollout.data.meEnabled !== true) {
+    return <>{children}</>;
+  }
+
   return (
     <V3AppShell
       editionLabel="Solaris Studio"
