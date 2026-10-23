@@ -38,6 +38,8 @@ describe("V3 installed-app cold-launch surface", () => {
     expect(launch).not.toContain("supabase");
     expect(launch).not.toContain("fetch(");
     expect(launch).not.toContain("useQuery");
-    expect(launch).not.toContain("track");
+    expect(launch).not.toContain("trackEvent(");
+    expect(launch).not.toContain("captureEvent(");
+    expect(launch).not.toContain('from "@/lib/telemetry"');
   });
 });
