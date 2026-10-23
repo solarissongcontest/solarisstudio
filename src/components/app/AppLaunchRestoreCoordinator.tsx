@@ -16,6 +16,12 @@ import {
 import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
 import { beginLifecycleGeneration } from "@/lib/lifecycle-generation";
 import { trackPublicUxEvent } from "@/lib/public-ux-events";
+import {
+  getRetainedAppLaunchCandidateFromSnapshot,
+  getV3PublicLaunchDestination,
+  markV3AppLaunchNavigationRestore,
+  preferV3AppLaunchDestination,
+} from "@/lib/v3-app-launch-memory";
 
 /** The only owner of post-trampoline cold-launch restoration. */
 export function AppLaunchRestoreCoordinator() {
@@ -41,16 +47,37 @@ export function AppLaunchRestoreCoordinator() {
     }
 
     const lifecycle = beginLifecycleGeneration(generationRef);
+    let localUserId: string | null = null;
     void resolveAppLaunchSession(async () => {
       const { data } = await supabase.auth.getSession();
-      return Boolean(data.session?.user);
+      localUserId = data.session?.user?.id ?? null;
+      return Boolean(localUserId);
     }).then(({ signedIn, source }) => {
       if (!lifecycle.isCurrent()) return;
 
-      const target =
-        source === "timeout"
-          ? safeRoot
-          : getAppLaunchDestinationFromSnapshot(signedIn, transaction.navigationSnapshot);
+      let memoryOwner: "safe_root" | "legacy" | "v3" = "safe_root";
+      let target = safeRoot;
+
+      if (source !== "timeout") {
+        const legacyTarget = getAppLaunchDestinationFromSnapshot(
+          signedIn,
+          transaction.navigationSnapshot,
+        );
+        const legacyCandidate = getRetainedAppLaunchCandidateFromSnapshot(
+          signedIn,
+          transaction.navigationSnapshot,
+        );
+        const v3Target = getV3PublicLaunchDestination(
+          signedIn,
+          undefined,
+          localUserId,
+        );
+        const useV3 = preferV3AppLaunchDestination(legacyCandidate, v3Target);
+
+        target = useV3 && v3Target ? v3Target : legacyTarget;
+        memoryOwner = useV3 ? "v3" : legacyCandidate ? "legacy" : "safe_root";
+      }
+
       const targetHref = appEntryHref(target);
 
       try {
@@ -64,6 +91,7 @@ export function AppLaunchRestoreCoordinator() {
                 : source === "error"
                   ? "cold_launch_session_error"
                   : "cold_launch_local_session",
+            interaction: memoryOwner,
           },
         });
       } catch {
@@ -73,12 +101,23 @@ export function AppLaunchRestoreCoordinator() {
       const currentHref = `${window.location.pathname}${window.location.search}`;
       if (currentHref === targetHref) {
         clearAppLaunchTransaction();
+        if (target.scrollY > 0) {
+          window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() =>
+              window.scrollTo({ top: target.scrollY, behavior: "auto" }),
+            );
+          });
+        }
         return;
       }
 
+      // Arm both one-shot restore channels. The retained shell consumes the
+      // legacy marker; V3 consumes the viewer-scoped marker. The V3 helper is
+      // fail-closed for critical/immersive/auth-incompatible destinations.
       markAppNavigationRestore(target);
-      // Safe-root persistence already observed the pending marker and skipped
-      // writing the temporary tab root over the captured destination.
+      markV3AppLaunchNavigationRestore(target, signedIn, undefined, localUserId);
+      // Safe-root persistence observes the pending marker and must not overwrite
+      // the destination captured before the cold-launch trampoline.
       clearAppLaunchTransaction();
       window.location.replace(targetHref);
     });
