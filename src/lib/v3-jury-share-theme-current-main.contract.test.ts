@@ -127,7 +127,7 @@ describe("System V3 Jury Share Edition theme authority", () => {
     ]) {
       expect(wellFormed).toContain(`p_checks -> '${check}'`);
     }
-    expect(wellFormed).toContain("jsonb_object_length(p_checks) = 9");
+    expect(wellFormed).toContain("(select count(*) = 9 from jsonb_object_keys(p_checks))");
 
     const valid = functionBody("private.v3_jury_share_render_checks_valid");
     expect(valid).toContain("(p_checks ->> 'pngExport')::boolean");
