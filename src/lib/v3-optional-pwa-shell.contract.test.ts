@@ -48,6 +48,24 @@ describe("V3 optional PWA shell", () => {
     expect(prompt).toContain("setEligible(false)");
   });
 
+  it("never retains a consumed beforeinstallprompt event after either native outcome", () => {
+    const installStart = prompt.indexOf("const install = async () => {");
+    const renderStart = prompt.indexOf("\n  return (", installStart);
+    const installBody = prompt.slice(installStart, renderStart);
+    const choiceIndex = installBody.indexOf("await installEvent.userChoice");
+    const clearEventIndex = installBody.indexOf("setInstallEvent(null)");
+    const clearEligibilityIndex = installBody.indexOf("setEligible(false)");
+    const acceptedIndex = installBody.indexOf('choice.outcome === "accepted"');
+
+    expect(installStart).toBeGreaterThanOrEqual(0);
+    expect(renderStart).toBeGreaterThan(installStart);
+    expect(choiceIndex).toBeGreaterThanOrEqual(0);
+    expect(clearEventIndex).toBeGreaterThan(choiceIndex);
+    expect(clearEligibilityIndex).toBeGreaterThan(choiceIndex);
+    expect(acceptedIndex).toBeGreaterThan(clearEventIndex);
+    expect(acceptedIndex).toBeGreaterThan(clearEligibilityIndex);
+  });
+
   it("retains focused-workflow and auth suppression for optional overlays", () => {
     expect(firstRun).toContain('pathname === "/app-launch"');
     for (const consumer of [prompt, firstRun]) {
