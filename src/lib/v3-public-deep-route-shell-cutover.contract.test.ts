@@ -13,6 +13,11 @@ const legacyResultsRedirect = source("src/routes/results/$slug.tsx");
 const wiki = source("src/routes/wiki/route.tsx");
 const encyclopedia = source("src/routes/encyclopedia/route.tsx");
 const pulse = source("src/routes/pulse/route.tsx");
+const analysis = source("src/routes/analysis/route.tsx");
+const compare = source("src/routes/compare/route.tsx");
+const votingDna = source("src/routes/voting-dna/route.tsx");
+const tools = source("src/routes/tools/route.tsx");
+const guide = source("src/routes/guide/route.tsx");
 const cutoverCapabilities = source("src/lib/v3-public-shell-cutover-capabilities.ts");
 
 describe("Public V3 deep-route shell cutover", () => {
@@ -76,14 +81,32 @@ describe("Public V3 deep-route shell cutover", () => {
     expect(encyclopedia).toContain('phaseLabel="Encyclopedia"');
     expect(pulse).toContain('createFileRoute("/pulse")');
     expect(pulse).toContain('phaseLabel="Pulse"');
+    expect(tools).toContain('createFileRoute("/tools")');
+    expect(tools).toContain('phaseLabel="Tools"');
+    expect(guide).toContain('createFileRoute("/guide")');
+    expect(guide).toContain('phaseLabel="Guide"');
+  });
+
+  it("keeps result-analysis roots on canonical Results ownership", () => {
+    expect(analysis).toContain('createFileRoute("/analysis")');
+    expect(analysis).toContain('phaseLabel="Analysis"');
+    expect(compare).toContain('createFileRoute("/compare")');
+    expect(compare).toContain('phaseLabel="Compare"');
+    expect(votingDna).toContain('createFileRoute("/voting-dna")');
+    expect(votingDna).toContain('phaseLabel="Voting DNA"');
   });
 
   it("classifies every new parent route before the registry guard sees it", () => {
     expect(cutoverCapabilities).toContain('id: "explore-directory-roots"');
-    for (const route of ["/countries", "/editions", "/shows", "/wiki"]) {
+    for (const route of ["/countries", "/editions", "/shows", "/wiki", "/tools", "/guide"]) {
+      expect(cutoverCapabilities).toContain(`"${route}"`);
+    }
+    expect(cutoverCapabilities).toContain('id: "results-analysis-roots"');
+    for (const route of ["/analysis", "/compare", "/voting-dna"]) {
       expect(cutoverCapabilities).toContain(`"${route}"`);
     }
     expect(cutoverCapabilities).toContain('classification: "merge"');
     expect(cutoverCapabilities).toContain('targetRoute: "/explore"');
+    expect(cutoverCapabilities).toContain('targetRoute: "/results"');
   });
 });
