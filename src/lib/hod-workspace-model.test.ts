@@ -6,7 +6,7 @@ import { evaluateWorkflow, type WorkflowSummary } from "./workflow-engine";
 import { entrySubmissionWorkflow } from "./workflow-templates";
 
 describe("HOD workspace model", () => {
-  it("treats a missing HOD as the jury blocker", () => {
+  it("routes a missing HOD to the real HOD-history action surface", () => {
     const eligibility = evaluateEntryEligibility({
       countryConfirmed: true,
       artistName: "",
@@ -56,7 +56,7 @@ describe("HOD workspace model", () => {
     );
     expect(model.actions.find((action) => action.id === "jury-hod")).toMatchObject({
       label: "Confirm HOD assignment",
-      href: "/participate",
+      href: "/my-solaris/history",
     });
     expect(model.actions.find((action) => action.id === "official-notices")?.href).toBe(
       "/my-solaris/notices",
