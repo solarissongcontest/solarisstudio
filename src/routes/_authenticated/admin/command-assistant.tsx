@@ -7,11 +7,9 @@ import { useAdminContext } from "@/components/admin/AdminContext";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { AdminCard, AdminCardHeader, AdminEmptyState, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
 import { useEditions } from "@/lib/data";
+import { loadSolarisAssistantCapabilityAccess } from "@/lib/solaris-command-assistant-access";
 import {
   filterSolarisAssistantCommandsByAccess,
-  loadSolarisAssistantCapabilityAccess,
-} from "@/lib/solaris-command-assistant-access";
-import {
   SOLARIS_ASSISTANT_COMMANDS,
   matchSolarisAssistantCommands,
 } from "@/lib/solaris-command-assistant";
