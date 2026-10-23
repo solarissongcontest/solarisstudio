@@ -105,7 +105,9 @@ export function projectV3Participate(
     voting: {
       jury,
       televote,
-      currentCount: Number(Boolean(jury)) + Number(Boolean(televote)),
+      currentCount:
+        Number(Boolean(jury && !jury.completed)) +
+        Number(Boolean(televote && !televote.completed)),
     },
     needsAttention,
     blocked,
