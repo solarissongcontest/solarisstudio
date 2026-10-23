@@ -27,8 +27,9 @@ describe("V3 Voting DNA publication boundary", () => {
   it("fails closed instead of falling back to the legacy aggregate", () => {
     expect(adapter).toContain('throw new Error("Voting DNA projection unavailable")');
     expect(route).toContain("Voting DNA is temporarily unavailable");
+    expect(route).toContain("Hidden Jury or");
     expect(route).toContain(
-      "Hidden Jury or\n            Televote layers are never reconstructed from the older aggregate response.",
+      "Televote layers are never reconstructed from the older aggregate response.",
     );
   });
 
@@ -46,11 +47,12 @@ describe("V3 Voting DNA publication boundary", () => {
     expect(route).toContain("Not public");
   });
 
-  it("keeps the projection compact and versioned", () => {
+  it("keeps the projection compact, unique and versioned", () => {
     expect(adapter).toContain("schemaVersion: 1");
     expect(adapter).toContain('formulaVersion: "v1"');
     expect(adapter).toContain("const MAX_RELATIONSHIPS = 10");
     expect(adapter).toContain("const MAX_RESULT_ROWS = 256");
     expect(adapter).toContain("Voting DNA result sample count mismatch");
+    expect(adapter).toContain("Voting DNA result sample contains duplicate edition identity");
   });
 });
