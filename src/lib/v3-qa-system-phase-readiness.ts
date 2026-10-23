@@ -104,7 +104,7 @@ export const V3_QA_SYSTEM_PHASE_MANIFEST: readonly V3QaSystemPhaseManifestRow[] 
     ],
     verificationFiles: [
       "src/lib/v3-s13-migration-adoption-repository.contract.test.ts",
-      "src/lib/v3-current-main-migration-rehearsal.contract.test.ts",
+      "src/lib/v3-migration-upgrade-rehearsal-safety.contract.test.ts",
     ],
     dependsOn: ["S1 domain ownership", "S3 invariants", "S11 recovery"],
     exactShaEvidenceRequired: true,
@@ -138,9 +138,10 @@ export const V3_QA_SYSTEM_PHASE_MANIFEST: readonly V3QaSystemPhaseManifestRow[] 
       "scripts/check-v3-s15-zero-orphan-readiness.ts",
       "scripts/check-v3-s15-zero-orphan-readiness-core.ts",
       "scripts/build-v3-s15-zero-orphan-evidence.ts",
+      "scripts/check-v3-system-zero-orphans.ts",
     ],
     verificationFiles: [
-      "src/lib/v3-s15-zero-orphan.contract.test.ts",
+      "src/lib/v3-system-zero-orphan-registry.contract.test.ts",
       "src/lib/v3-s15-exact-sha-evidence.contract.test.ts",
     ],
     dependsOn: ["System registries", "Public registry", "Organizer registry", "S14"],
