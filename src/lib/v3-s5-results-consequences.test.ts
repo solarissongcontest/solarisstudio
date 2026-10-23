@@ -113,6 +113,10 @@ describe("System V3 S5 Results consequences", () => {
     );
 
     expect(qualificationMigration).toContain(
+      "coalesce(participant.participation_status, 'confirmed') = 'confirmed'",
+    );
+
+    expect(qualificationMigration).not.toContain(
       "participant.participation_status not in ('withdrawn', 'disqualified')",
     );
 

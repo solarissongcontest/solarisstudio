@@ -7,6 +7,9 @@ begin;
 -- be reconciled, so an inactive participant or a participant with no canonical
 -- ranked semi-final result cannot retain stale qualified=true state.
 --
+-- Canonical Results considers only confirmed participants competing. Historical
+-- NULL participation_status is treated as confirmed for backward compatibility.
+--
 -- Direct finalists that never had a semi-final participant row remain outside
 -- this projection and are therefore intentionally untouched.
 
@@ -35,10 +38,7 @@ begin
         else null
       end as custom_entity_id,
       participant.show_id,
-      (
-        participant.participation_status is null
-        or participant.participation_status not in ('withdrawn', 'disqualified')
-      ) as eligible,
+      coalesce(participant.participation_status, 'confirmed') = 'confirmed' as eligible,
       coalesce(
         case
           when (show_row.voting_config ->> 'qualifiers') ~ '^[0-9]+$'
@@ -133,10 +133,15 @@ execute function private.v3_refresh_qualifications_after_result_version();
 
 -- Participation lifecycle is part of qualification eligibility.
 --
--- A withdrawal/disqualification after Results calculation must immediately
--- remove stale qualification. Re-confirming a participant must likewise
--- re-project qualification from the still-canonical ranked result rather than
--- requiring another Results calculation merely to repair derived state.
+-- participants_sync_results runs before this V3 trigger for the same UPDATE,
+-- so canonical Results have already been reranked when qualification is
+-- projected again.
+--
+-- A withdrawal/disqualification/non-competing status after Results calculation
+-- must immediately remove stale qualification. Re-confirming a participant must
+-- likewise re-project qualification from the canonical reranked result rather
+-- than requiring another Results operation merely to repair derived state.
+
 create or replace function private.v3_refresh_qualifications_after_participation_status()
 returns trigger
 language plpgsql
@@ -172,8 +177,11 @@ when (
 execute function private.v3_refresh_qualifications_after_participation_status();
 
 -- Repair every edition that owns a semi-final, including editions where a stale
--- qualified participant has no remaining ranked Results row. Direct finalists
--- without a semi-final participant row remain untouched by the projection.
+-- qualified participant has no remaining ranked Results row.
+--
+-- Direct finalists without a semi-final participant row remain untouched by
+-- this projection.
+
 do $backfill$
 declare
   v_edition_id uuid;
