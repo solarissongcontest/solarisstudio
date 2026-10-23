@@ -12,13 +12,13 @@ import {
   type PublicDataColumn,
 } from "@/components/public/PublicDataStory";
 import { editionLabel, useCountries, useEditions } from "@/lib/data";
-import { loadV3PublicVotingDna } from "@/lib/v3-public-voting-dna";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import {
   VOTING_DNA_PRESENTATION_FORMULA_VERSION,
   averagePublishedTotals,
   getVotingDnaAvailability,
 } from "@/lib/v3-voting-dna";
+import { getV3PublicVotingDna } from "@/lib/v3-voting-dna.functions";
 
 export const Route = createFileRoute("/voting-dna/$code")({
   head: ({ params }) => ({
@@ -51,7 +51,8 @@ function VotingDnaPage() {
   const dna = useQuery({
     enabled: feature.data === true && Boolean(country?.id),
     queryKey: ["v3-public-country-voting-dna", country?.id],
-    queryFn: () => loadV3PublicVotingDna(country!.id),
+    queryFn: () =>
+      getV3PublicVotingDna({ data: { countryId: country!.id } }),
     staleTime: 10 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
