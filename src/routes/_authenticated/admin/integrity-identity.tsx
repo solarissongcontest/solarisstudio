@@ -44,6 +44,37 @@ export const Route = createFileRoute("/_authenticated/admin/integrity-identity")
   component: IntegrityIdentityDesk,
 });
 
+type IdentityDecisionReview = {
+  item: IdentityDisclosureRequest;
+  approve: boolean;
+  decisionReason: string;
+  fingerprint: string;
+};
+
+type IdentityRevealReview = {
+  item: IdentityDisclosureRequest;
+  fingerprint: string;
+};
+
+function identityDisclosureReviewFingerprint(item: IdentityDisclosureRequest) {
+  return JSON.stringify([
+    item.id,
+    item.case_id,
+    item.case_code,
+    item.case_summary,
+    item.priority,
+    item.reason,
+    item.status,
+    item.requested_by,
+    item.requested_at,
+    item.decided_by,
+    item.decision_reason,
+    item.decided_at,
+    item.approval_expires_at,
+    item.disclosed_at,
+  ]);
+}
+
 function IntegrityIdentityDesk() {
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [requestReason, setRequestReason] = useState("");
@@ -216,31 +247,123 @@ function DisclosureRequestCard({
   historical?: boolean;
 }) {
   const [decisionReason, setDecisionReason] = useState("");
+  const [decisionReview, setDecisionReview] = useState<IdentityDecisionReview | null>(null);
   const [revealed, setRevealed] = useState<RevealedSealedIdentity | null>(null);
-  const [revealConfirmOpen, setRevealConfirmOpen] = useState(false);
+  const [revealReview, setRevealReview] = useState<IdentityRevealReview | null>(null);
   const isRequester = Boolean(currentUserId && item.requested_by === currentUserId);
   const expiresAt = item.approval_expires_at ? new Date(item.approval_expires_at) : null;
   const expiredByClock = Boolean(expiresAt && expiresAt.getTime() <= Date.now());
+  const reviewedRevealItem = revealReview?.item ?? item;
+  const reviewedRevealExpiresAt = reviewedRevealItem.approval_expires_at
+    ? new Date(reviewedRevealItem.approval_expires_at)
+    : null;
+  const reviewedRevealExpiredByClock = Boolean(
+    reviewedRevealExpiresAt && reviewedRevealExpiresAt.getTime() <= Date.now(),
+  );
+
+  const openDecisionReview = (approve: boolean) => {
+    const reason = decisionReason.trim();
+    if (!currentUserId) {
+      toast.error("Your organizer identity is not available. Refresh before deciding this request.");
+      return;
+    }
+    if (item.requested_by === currentUserId) {
+      toast.error("A different organizer must decide this request.");
+      return;
+    }
+    if (reason.length < 20) {
+      toast.error("Record a decision reason of at least 20 characters first.");
+      return;
+    }
+    setDecisionReview({
+      item: { ...item },
+      approve,
+      decisionReason: reason,
+      fingerprint: identityDisclosureReviewFingerprint(item),
+    });
+  };
 
   const decisionMutation = useMutation({
-    mutationFn: (approve: boolean) => decideSealedIdentityDisclosure(item.id, approve, decisionReason),
+    mutationFn: async () => {
+      if (!decisionReview) throw new Error("Open a fresh identity-access decision review before continuing.");
+      if (!currentUserId) throw new Error("Your organizer identity is not available. Refresh and review again.");
+
+      const current = (await listIdentityDisclosureRequests()).find(
+        (candidate) => candidate.id === decisionReview.item.id,
+      );
+      if (
+        !current ||
+        current.status !== "pending" ||
+        identityDisclosureReviewFingerprint(current) !== decisionReview.fingerprint
+      ) {
+        throw new Error(
+          "This identity-access request changed while you were reviewing it. Refresh and review the decision again.",
+        );
+      }
+      if (current.requested_by === currentUserId) {
+        throw new Error("A different organizer must decide this request.");
+      }
+
+      return decideSealedIdentityDisclosure(
+        decisionReview.item.id,
+        decisionReview.approve,
+        decisionReview.decisionReason,
+      );
+    },
     onSuccess: async (result) => {
+      setDecisionReview(null);
       setDecisionReason("");
       await onChanged();
       toast.success(result.status === "approved" ? "Disclosure approved for 30 minutes" : "Disclosure request rejected");
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not decide request"),
+    onError: async (error) => {
+      setDecisionReview(null);
+      await onChanged();
+      toast.error(error instanceof Error ? error.message : "Could not decide request");
+    },
   });
 
+  const openRevealReview = () => {
+    setRevealReview({
+      item: { ...item },
+      fingerprint: identityDisclosureReviewFingerprint(item),
+    });
+  };
+
   const revealMutation = useMutation({
-    mutationFn: () => revealSealedIdentity(item.id),
+    mutationFn: async () => {
+      if (!revealReview) throw new Error("Open a fresh sealed-identity reveal review before continuing.");
+      if (!currentUserId) throw new Error("Your organizer identity is not available. Refresh and review again.");
+
+      const current = (await listIdentityDisclosureRequests()).find(
+        (candidate) => candidate.id === revealReview.item.id,
+      );
+      if (
+        !current ||
+        current.status !== "approved" ||
+        identityDisclosureReviewFingerprint(current) !== revealReview.fingerprint
+      ) {
+        throw new Error(
+          "This break-glass approval changed while you were reviewing it. Refresh and review the reveal again.",
+        );
+      }
+      if (current.requested_by !== currentUserId) {
+        throw new Error("Only the organizer who created this approved request may use it.");
+      }
+
+      return revealSealedIdentity(revealReview.item.id);
+    },
     onSuccess: async (identity) => {
-      setRevealConfirmOpen(false);
+      setRevealReview(null);
       setRevealed(identity);
       await onChanged();
       toast.success("Sealed identity revealed once and audit event recorded");
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not reveal sealed identity"),
+    onError: async (error) => {
+      setRevealReview(null);
+      await onChanged();
+      toast.error(error instanceof Error ? error.message : "Could not reveal sealed identity");
+    },
   });
 
   const statusTone = item.status === "pending" ? "attention" : item.status === "approved" ? "blocked" : item.status === "used" ? "ready" : "neutral";
@@ -276,19 +399,48 @@ function DisclosureRequestCard({
             <>
               <textarea value={decisionReason} onChange={(event) => setDecisionReason(event.target.value)} rows={3} placeholder="Record why disclosure should or should not be permitted…" className="admin-input w-full resize-y" />
               <div className="mt-2 flex flex-wrap gap-2">
-                <button type="button" disabled={decisionReason.trim().length < 20 || decisionMutation.isPending} onClick={() => decisionMutation.mutate(true)} className="admin-action-primary"><CheckCircle2 className="size-4" />Approve 30 min</button>
-                <button type="button" disabled={decisionReason.trim().length < 20 || decisionMutation.isPending} onClick={() => decisionMutation.mutate(false)} className="admin-action-secondary text-rose-100"><XCircle className="size-4" />Reject</button>
+                <button type="button" disabled={decisionReason.trim().length < 20 || decisionMutation.isPending} onClick={() => openDecisionReview(true)} className="admin-action-primary"><CheckCircle2 className="size-4" />Review approval</button>
+                <button type="button" disabled={decisionReason.trim().length < 20 || decisionMutation.isPending} onClick={() => openDecisionReview(false)} className="admin-action-secondary text-rose-100"><XCircle className="size-4" />Review rejection</button>
               </div>
             </>
           )}
         </div>
       ) : null}
 
+      <AdminConfirmSheet
+        open={Boolean(decisionReview)}
+        onClose={() => {
+          if (!decisionMutation.isPending) setDecisionReview(null);
+        }}
+        onConfirm={async () => {
+          await decisionMutation.mutateAsync();
+        }}
+        title={decisionReview?.approve ? `Approve identity access for ${decisionReview.item.case_code}?` : `Reject identity access for ${decisionReview?.item.case_code ?? item.case_code}?`}
+        description={
+          decisionReview ? (
+            <div className="space-y-3 text-xs leading-relaxed text-muted-foreground" data-v3-organizer-identity-decision-review>
+              <p>{decisionReview.approve ? "Approval creates a time-limited break-glass window for the original requester." : "Rejection closes this break-glass request without revealing the reporter identity."}</p>
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                <p className="font-semibold text-foreground">{decisionReview.item.case_code} · {decisionReview.item.case_summary}</p>
+                <p className="mt-2"><span className="font-semibold text-foreground">Requested purpose:</span> {decisionReview.item.reason}</p>
+                <p className="mt-2"><span className="font-semibold text-foreground">Your decision:</span> {decisionReview.approve ? "Approve for 30 minutes" : "Reject"}</p>
+                <p className="mt-2"><span className="font-semibold text-foreground">Decision reason:</span> {decisionReview.decisionReason}</p>
+              </div>
+              <p>The reviewed request and decision are frozen while this sheet is open. Solaris re-reads the exact pending request before applying the decision and refuses any drift or loss of second-person independence.</p>
+            </div>
+          ) : null
+        }
+        confirmLabel={decisionReview?.approve ? "Approve 30-minute access" : "Reject identity access"}
+        busy={decisionMutation.isPending}
+        danger={Boolean(decisionReview?.approve)}
+        confirmDisabled={!decisionReview || !currentUserId}
+      />
+
       {item.status === "approved" ? (
         <div className="mt-4 rounded-xl border border-amber-200/12 bg-amber-200/[0.04] p-3">
           <div className="flex gap-2"><AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-200" /><div><p className="text-xs font-black text-amber-50">One-time disclosure window</p><p className="mt-1 text-[10px] leading-5 text-amber-50/70">Expires {expiresAt ? expiresAt.toLocaleString() : "unknown"}. Only the organizer who created the request may use it.</p></div></div>
           {isRequester && !expiredByClock ? (
-            <button type="button" disabled={revealMutation.isPending} onClick={() => setRevealConfirmOpen(true)} className="admin-action-secondary mt-3 text-amber-50"><Eye className="size-4" />Review one-time reveal</button>
+            <button type="button" disabled={revealMutation.isPending} onClick={openRevealReview} className="admin-action-secondary mt-3 text-amber-50"><Eye className="size-4" />Review one-time reveal</button>
           ) : null}
           {!isRequester ? <p className="mt-2 text-[10px] text-muted-foreground">You approved or can observe this window, but only the original requester can use it.</p> : null}
           {expiredByClock ? <p className="mt-2 text-[10px] text-rose-100">This approval has expired and cannot be used. A new break-glass request is required.</p> : null}
@@ -296,31 +448,31 @@ function DisclosureRequestCard({
       ) : null}
 
       <AdminConfirmSheet
-        open={revealConfirmOpen}
+        open={Boolean(revealReview)}
         onClose={() => {
-          if (!revealMutation.isPending) setRevealConfirmOpen(false);
+          if (!revealMutation.isPending) setRevealReview(null);
         }}
         onConfirm={async () => {
           await revealMutation.mutateAsync();
         }}
-        title={`Reveal sealed identity for ${item.case_code}?`}
+        title={`Reveal sealed identity for ${reviewedRevealItem.case_code}?`}
         description={
-          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground" data-v3-organizer-identity-reveal-review>
             <p>This is a Tier 4 break-glass disclosure. It exposes protected reporter identity once and cannot be repeated with this approval.</p>
             <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-              <p className="font-semibold text-foreground">{item.case_code} · {item.case_summary}</p>
-              <p className="mt-2"><span className="font-semibold text-foreground">Approved purpose:</span> {item.reason}</p>
-              <p className="mt-2"><span className="font-semibold text-foreground">Window:</span> expires {expiresAt ? expiresAt.toLocaleString() : "at the server-defined deadline"}.</p>
+              <p className="font-semibold text-foreground">{reviewedRevealItem.case_code} · {reviewedRevealItem.case_summary}</p>
+              <p className="mt-2"><span className="font-semibold text-foreground">Approved purpose:</span> {reviewedRevealItem.reason}</p>
+              <p className="mt-2"><span className="font-semibold text-foreground">Window:</span> expires {reviewedRevealExpiresAt ? reviewedRevealExpiresAt.toLocaleString() : "at the server-defined deadline"}.</p>
             </div>
-            <p>The request will be consumed, the reveal is audited, and the reporter can see that identity access occurred. Use the identity only for the approved case purpose.</p>
+            <p>The reviewed approval is frozen while this sheet is open. Solaris re-reads the exact approved request before reveal and refuses if its status, purpose, requester, approval evidence or expiry changed. The server remains authoritative for whether the window is actually usable.</p>
           </div>
         }
         confirmLabel="Reveal sealed identity once"
-        confirmationText={item.case_code}
-        confirmationHint={`Type ${item.case_code} to confirm this exceptional disclosure.`}
+        confirmationText={reviewedRevealItem.case_code}
+        confirmationHint={`Type ${reviewedRevealItem.case_code} to confirm this exceptional disclosure.`}
         busy={revealMutation.isPending}
         danger
-        confirmDisabled={!isRequester || expiredByClock}
+        confirmDisabled={!revealReview || !currentUserId || reviewedRevealItem.requested_by !== currentUserId || reviewedRevealExpiredByClock}
       />
 
       {revealed ? (
