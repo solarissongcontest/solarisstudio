@@ -1,12 +1,10 @@
 import { V3_PUBLIC_CAPABILITY_REGISTRY } from "./v3-public-capability-registry";
 import { V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES } from "./v3-public-capability-supplements";
-import { V3_PUBLIC_SHELL_CUTOVER_CAPABILITIES } from "./v3-public-shell-cutover-capabilities";
 
 /** Public capability inventory after combining legacy V6 surfaces and route-scan discoveries. */
 export const V3_PUBLIC_CAPABILITIES = [
   ...V3_PUBLIC_CAPABILITY_REGISTRY,
   ...V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES,
-  ...V3_PUBLIC_SHELL_CUTOVER_CAPABILITIES,
 ] as const;
 
 export {
@@ -15,7 +13,6 @@ export {
   V3_PUBLIC_SOURCE_SURFACE_IDS,
 } from "./v3-public-capability-registry";
 export { V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES } from "./v3-public-capability-supplements";
-export { V3_PUBLIC_SHELL_CUTOVER_CAPABILITIES } from "./v3-public-shell-cutover-capabilities";
 export {
   V3_ORGANIZER_CAPABILITY_REGISTRY,
   V3_ORGANIZER_CLASSIFICATION_BY_ID,

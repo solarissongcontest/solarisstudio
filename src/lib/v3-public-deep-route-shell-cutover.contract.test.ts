@@ -1,122 +1,96 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
-const adapter = source("src/components/v3/V3LegacyRouteAdapter.tsx");
+const root = source("src/routes/__root.tsx");
+const bridge = source("src/components/v3/V3RootLegacyCutover.tsx");
 const lazyShell = source("src/components/v3/V3LegacyRouteShell.tsx");
-const countries = source("src/routes/countries/route.tsx");
-const editions = source("src/routes/editions/route.tsx");
-const shows = source("src/routes/shows/route.tsx");
-const results = source("src/routes/results/route.tsx");
+const capabilityRegistry = source("src/lib/v3-capability-registry.ts");
 const legacyResultsRedirect = source("src/routes/results/$slug.tsx");
-const wiki = source("src/routes/wiki/route.tsx");
-const encyclopedia = source("src/routes/encyclopedia/route.tsx");
-const pulse = source("src/routes/pulse/route.tsx");
-const analysis = source("src/routes/analysis/route.tsx");
-const compare = source("src/routes/compare/route.tsx");
-const votingDna = source("src/routes/voting-dna/route.tsx");
-const tools = source("src/routes/tools/route.tsx");
-const guide = source("src/routes/guide/route.tsx");
-const cutoverCapabilities = source("src/lib/v3-public-shell-cutover-capabilities.ts");
 
 describe("Public V3 deep-route shell cutover", () => {
+  it("mounts one centralized bridge inside the canonical query provider", () => {
+    expect(root).toContain('import { V3RootLegacyCutover } from "../components/v3/V3RootLegacyCutover"');
+    expect(root).toContain("<QueryClientProvider client={queryClient}>");
+    expect(root).toContain("<V3RootLegacyCutover>{content}</V3RootLegacyCutover>");
+  });
+
   it("reuses the canonical server rollout and route safety boundary", () => {
-    expect(adapter).toContain("useV3RolloutProbe(platformResolved && isAppMode)");
-    expect(adapter).toContain("decideV3ShellForRoute({");
-    expect(adapter).toContain('rolloutRule: { stage: "enabled" }');
-    expect(adapter).toContain("if (!platformResolved || !isAppMode)");
-    expect(adapter).not.toContain("localStorage");
-    expect(adapter).not.toContain("sessionStorage");
+    expect(bridge).toContain("useV3RolloutProbe(Boolean(target) && platformResolved && isAppMode)");
+    expect(bridge).toContain("decideV3ShellForRoute({");
+    expect(bridge).toContain('rolloutRule: { stage: "enabled" }');
+    expect(bridge).toContain("useHydrationSafeRouterLocation()");
+    expect(bridge).not.toContain("localStorage");
+    expect(bridge).not.toContain("sessionStorage");
   });
 
-  it("keeps the heavy V3 chrome behind a client lazy boundary", () => {
-    expect(adapter).toContain("lazy(() =>");
-    expect(adapter).toContain('import("./V3LegacyRouteShell")');
-    expect(adapter).toContain("<Suspense fallback={<>{children}</>}> ".trim());
-    expect(adapter).not.toContain('from "./V3AppShell"');
+  it("keeps native V3 roots/details out of the legacy bridge", () => {
+    expect(bridge).toContain('pathname === "/countries"');
+    expect(bridge).toContain('pathname === "/editions"');
+    expect(bridge).toContain('pathname.startsWith("/results/")');
+    expect(bridge).not.toContain('routeMatchesPrefix(pathname, "/countries")');
+    expect(bridge).not.toContain('routeMatchesPrefix(pathname, "/editions")');
+    expect(bridge).not.toContain('pathname === "/results"');
+  });
+
+  it("covers the remaining legacy public route families from one runtime module", () => {
+    for (const route of [
+      "/shows",
+      "/wiki",
+      "/encyclopedia",
+      "/pulse",
+      "/analysis",
+      "/compare",
+      "/voting-dna",
+      "/tools",
+      "/guide",
+    ]) {
+      expect(bridge).toContain(`routeMatchesPrefix(pathname, "${route}")`);
+    }
+    expect(bridge).toContain('params.get("from") === "results" ? "Results" : "Shows"');
+  });
+
+  it("keeps Explore, Results and Me cutovers independently reversible", () => {
+    expect(bridge).toContain('shell.rootTab === "explore" && rollout.data.exploreEnabled !== true');
+    expect(bridge).toContain('shell.rootTab === "results" && rollout.data.resultsEnabled !== true');
+    expect(bridge).toContain('shell.rootTab === "me" && rollout.data.meEnabled !== true');
+  });
+
+  it("keeps the heavy V3 chrome lazy and the child route as data authority", () => {
+    expect(bridge).toContain("lazy(() =>");
+    expect(bridge).toContain('import("./V3LegacyRouteShell")');
+    expect(bridge).not.toContain('from "./V3AppShell"');
     expect(lazyShell).toContain('from "./V3AppShell"');
-  });
-
-  it("keeps independently reversible Explore, Results and Me cutovers fail-closed", () => {
-    expect(adapter).toContain('shell.rootTab === "explore" && rollout.data.exploreEnabled !== true');
-    expect(adapter).toContain('shell.rootTab === "results" && rollout.data.resultsEnabled !== true');
-    expect(adapter).toContain('shell.rootTab === "me" && rollout.data.meEnabled !== true');
-  });
-
-  it("adapts chrome only and does not create another public data authority", () => {
-    const cutoverSources = `${adapter}\n${lazyShell}`;
-    expect(adapter).toContain("{children}");
+    expect(lazyShell).toContain("{children}");
     expect(lazyShell).toContain('data-v3-legacy-route-adapter=""');
-    expect(lazyShell).toContain(".solaris-app-toolbar");
-    expect(lazyShell).toContain(".solaris-app-tabbar");
-    expect(lazyShell).toContain(".app-main");
-    expect(cutoverSources).not.toContain("supabase");
-    expect(cutoverSources).not.toContain("useQuery(");
-    expect(cutoverSources).not.toContain("fetch(");
+    expect(`${bridge}\n${lazyShell}`).not.toContain("supabase");
+    expect(`${bridge}\n${lazyShell}`).not.toContain("useQuery(");
+    expect(`${bridge}\n${lazyShell}`).not.toContain("fetch(");
   });
 
-  it("cuts over directory roots without nesting existing V3 detail gates", () => {
-    expect(countries).toContain('createFileRoute("/countries")');
-    expect(countries).toContain('pathname === "/countries"');
-    expect(countries).toContain("if (!directoryRoot) return <Outlet />");
-    expect(countries).toContain('phaseLabel="Countries"');
-
-    expect(editions).toContain('createFileRoute("/editions")');
-    expect(editions).toContain('pathname === "/editions"');
-    expect(editions).toContain("if (!directoryRoot) return <Outlet />");
-    expect(editions).toContain('phaseLabel="Editions"');
+  it("does not create synthetic TanStack parent routes just to change chrome", () => {
+    for (const path of [
+      "src/routes/analysis/route.tsx",
+      "src/routes/compare/route.tsx",
+      "src/routes/countries/route.tsx",
+      "src/routes/editions/route.tsx",
+      "src/routes/encyclopedia/route.tsx",
+      "src/routes/guide/route.tsx",
+      "src/routes/pulse/route.tsx",
+      "src/routes/results/route.tsx",
+      "src/routes/shows/route.tsx",
+      "src/routes/tools/route.tsx",
+      "src/routes/voting-dna/route.tsx",
+      "src/routes/wiki/route.tsx",
+    ]) {
+      expect(existsSync(resolve(process.cwd(), path))).toBe(false);
+    }
+    expect(capabilityRegistry).not.toContain("V3_PUBLIC_SHELL_CUTOVER_CAPABILITIES");
   });
 
-  it("keeps Show details in V3 shell and preserves Results-origin context", () => {
-    expect(shows).toContain('createFileRoute("/shows")');
-    expect(shows).toContain('search.get("from") === "results"');
-    expect(shows).toContain('phaseLabel={fromResults ? "Results" : "Shows"}');
-    expect(shows).toContain("<Outlet />");
-  });
-
-  it("keeps legacy Results descendants inside Results without nesting the native root", () => {
-    expect(results).toContain('createFileRoute("/results")');
-    expect(results).toContain('pathname === "/results"');
-    expect(results).toContain("if (resultsRoot) return <Outlet />");
-    expect(results).toContain('phaseLabel="Results"');
+  it("preserves Results-origin context for the legacy results redirect", () => {
     expect(legacyResultsRedirect).toContain('search: { from: "results" }');
-  });
-
-  it("keeps secondary public discovery surfaces in the same V3 shell", () => {
-    expect(wiki).toContain('createFileRoute("/wiki")');
-    expect(wiki).toContain('phaseLabel="Wiki"');
-    expect(encyclopedia).toContain('createFileRoute("/encyclopedia")');
-    expect(encyclopedia).toContain('phaseLabel="Encyclopedia"');
-    expect(pulse).toContain('createFileRoute("/pulse")');
-    expect(pulse).toContain('phaseLabel="Pulse"');
-    expect(tools).toContain('createFileRoute("/tools")');
-    expect(tools).toContain('phaseLabel="Tools"');
-    expect(guide).toContain('createFileRoute("/guide")');
-    expect(guide).toContain('phaseLabel="Guide"');
-  });
-
-  it("keeps result-analysis roots on canonical Results ownership", () => {
-    expect(analysis).toContain('createFileRoute("/analysis")');
-    expect(analysis).toContain('phaseLabel="Analysis"');
-    expect(compare).toContain('createFileRoute("/compare")');
-    expect(compare).toContain('phaseLabel="Compare"');
-    expect(votingDna).toContain('createFileRoute("/voting-dna")');
-    expect(votingDna).toContain('phaseLabel="Voting DNA"');
-  });
-
-  it("classifies every new parent route before the registry guard sees it", () => {
-    expect(cutoverCapabilities).toContain('id: "explore-directory-roots"');
-    for (const route of ["/countries", "/editions", "/shows", "/wiki", "/tools", "/guide"]) {
-      expect(cutoverCapabilities).toContain(`"${route}"`);
-    }
-    expect(cutoverCapabilities).toContain('id: "results-analysis-roots"');
-    for (const route of ["/analysis", "/compare", "/voting-dna"]) {
-      expect(cutoverCapabilities).toContain(`"${route}"`);
-    }
-    expect(cutoverCapabilities).toContain('classification: "merge"');
-    expect(cutoverCapabilities).toContain('targetRoute: "/explore"');
-    expect(cutoverCapabilities).toContain('targetRoute: "/results"');
   });
 });
