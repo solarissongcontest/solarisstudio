@@ -6,18 +6,23 @@ import {
 } from "../src/lib/v3-qa-system-phase-readiness";
 
 function exactSha() {
-  const supplied = (process.env.V3_CANDIDATE_SHA || process.env.GITHUB_SHA || "").trim().toLowerCase();
-  if (supplied) {
-    if (!/^[0-9a-f]{40}$/.test(supplied)) {
-      throw new Error("V3 QA system phase readiness requires an exact 40-character candidate SHA");
-    }
-    return supplied;
-  }
-
   const gitSha = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim().toLowerCase();
   if (!/^[0-9a-f]{40}$/.test(gitSha)) {
-    throw new Error("Unable to resolve an exact candidate SHA for V3 QA system phase readiness");
+    throw new Error("Unable to resolve an exact checked-out SHA for V3 QA system phase readiness");
   }
+
+  const claimedCandidate = (process.env.V3_CANDIDATE_SHA || "").trim().toLowerCase();
+  if (claimedCandidate) {
+    if (!/^[0-9a-f]{40}$/.test(claimedCandidate)) {
+      throw new Error("V3 QA system phase readiness requires an exact 40-character V3_CANDIDATE_SHA");
+    }
+    if (claimedCandidate !== gitSha) {
+      throw new Error(
+        `V3_CANDIDATE_SHA does not match checked-out HEAD: ${claimedCandidate} != ${gitSha}`,
+      );
+    }
+  }
+
   return gitSha;
 }
 
