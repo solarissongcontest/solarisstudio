@@ -1,0 +1,157 @@
+name: V3 P48 Telemetry Privacy Rehearsal
+
+on:
+  pull_request:
+    branches:
+      - main
+      - v3/sys-telemetry-privacy-boundary-current-main-20261020
+    paths:
+      - "supabase/migrations/**"
+      - "scripts/rehearse-v3-p48-telemetry-privacy.mjs"
+      - "src/lib/v3-p48-telemetry-privacy-boundary.contract.test.ts"
+      - ".github/workflows/v3-p48-telemetry-privacy-rehearsal.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-p48-telemetry-privacy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-replay:
+    name: Clean replay + handcrafted public insert proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated local Supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start
+          supabase db reset --local --no-seed
+
+      - name: Export isolated public REST identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase status -o env > /tmp/solaris-p48-supabase.env
+          set -a
+          source /tmp/solaris-p48-supabase.env
+          set +a
+
+          local_url="${API_URL:-}"
+          local_key="${ANON_KEY:-}"
+          if [ -z "$local_url" ] || [ -z "$local_key" ]; then
+            echo "Local Supabase did not expose API_URL plus ANON_KEY."
+            exit 1
+          fi
+          case "$local_url" in
+            http://127.0.0.1:*|http://localhost:*) ;;
+            *)
+              echo "Refusing P48 rehearsal against non-local Supabase URL: $local_url"
+              exit 1
+              ;;
+          esac
+
+          {
+            echo "E2E_SUPABASE_URL=$local_url"
+            echo "E2E_SUPABASE_PUBLISHABLE_KEY=$local_key"
+          } >> "$GITHUB_ENV"
+
+      - name: Rehearse database privacy boundary
+        run: node scripts/rehearse-v3-p48-telemetry-privacy.mjs
+
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
+
+  upgrade-from-main:
+    name: Current main upgrade + handcrafted public insert proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Prepare disposable current-main worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          git worktree add /tmp/solaris-p48-main origin/main
+
+      - name: Build current main locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-p48-main
+          supabase start
+          supabase db reset --local --no-seed
+
+      - name: Apply exact branch migration delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-copy-migration-delta.sh" "$GITHUB_WORKSPACE" /tmp/solaris-p48-main
+          cd /tmp/solaris-p48-main
+          supabase migration up --local --include-all
+
+      - name: Export isolated upgraded public REST identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-p48-main
+          supabase status -o env > /tmp/solaris-p48-upgrade-supabase.env
+          set -a
+          source /tmp/solaris-p48-upgrade-supabase.env
+          set +a
+
+          local_url="${API_URL:-}"
+          local_key="${ANON_KEY:-}"
+          if [ -z "$local_url" ] || [ -z "$local_key" ]; then
+            echo "Upgraded local Supabase did not expose API_URL plus ANON_KEY."
+            exit 1
+          fi
+          case "$local_url" in
+            http://127.0.0.1:*|http://localhost:*) ;;
+            *)
+              echo "Refusing P48 upgrade rehearsal against non-local Supabase URL: $local_url"
+              exit 1
+              ;;
+          esac
+
+          {
+            echo "E2E_SUPABASE_URL=$local_url"
+            echo "E2E_SUPABASE_PUBLISHABLE_KEY=$local_key"
+          } >> "$GITHUB_ENV"
+
+      - name: Rehearse privacy boundary after current-main upgrade
+        run: node scripts/rehearse-v3-p48-telemetry-privacy.mjs
+
+      - name: Stop isolated local Supabase
+        if: always()
+        shell: bash
+        run: |
+          cd /tmp/solaris-p48-main 2>/dev/null || exit 0
+          supabase stop --no-backup || true
