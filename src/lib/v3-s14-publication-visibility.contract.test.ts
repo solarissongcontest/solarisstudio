@@ -15,7 +15,14 @@ describe("S14 pre-outcome Results visibility", () => {
     expect(stage5).toContain("tablename='results'");
   });
 
-  it("captures the exact publication and RLS state before Stage 9 rejects a leak", () => {
+  it("keeps command-substitution snapshots pure JSON instead of capturing PASS logs", () => {
+    expect(stage9).toContain('expect_success "anonymous Results refresh $show_id" >&2');
+    expect(stage9).toContain('pre_refresh="$(anonymous_result_snapshot "$show_id")"');
+    expect(stage9).toContain('post_refresh="$(anonymous_result_snapshot "$show_id")"');
+    expect(stage9).toContain('[[ "$(anonymous_result_snapshot "$show_id")" == "[]" ]]');
+  });
+
+  it("captures the exact publication and RLS state before Stage 9 rejects a real leak", () => {
     expect(stage9).toContain("publication_visibility_diagnostic");
     expect(stage9).toContain("PUBLICATION_VISIBILITY_DIAGNOSTIC");
     expect(stage9).toContain("publicationResults");

@@ -8,7 +8,10 @@ normalise_json() {
 anonymous_result_snapshot() {
   local show_id="$1"
   request GET "$API_URL/rest/v1/results?show_id=eq.$show_id&select=id,country_id,jury_points,televote_points,total_points,final_rank&order=id.asc" "$ANON_KEY" "$ANON_KEY"
-  expect_success "anonymous Results refresh $show_id"
+  # Snapshot helpers are consumed through command substitution. Keep stdout as
+  # pure canonical JSON; otherwise PASS logs become part of the snapshot value
+  # and a safe [] response is misclassified as an anonymous Results leak.
+  expect_success "anonymous Results refresh $show_id" >&2
   printf '%s' "$HTTP_BODY" | normalise_json
 }
 
