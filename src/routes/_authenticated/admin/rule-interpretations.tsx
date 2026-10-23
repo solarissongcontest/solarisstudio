@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { BadgeCheck, BookOpen, FilePenLine, History, Plus, RefreshCw, Save, Send, ShieldCheck } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
@@ -39,13 +39,21 @@ type DraftState = {
   effectiveFrom: string;
 };
 
+type PendingPublication = {
+  item: RuleInterpretation;
+  fingerprint: string;
+  snapshot: RuleInterpretationDraft;
+};
+
 type PendingSupersession = {
   currentId: string;
   currentCode: string;
   currentTitle: string;
+  currentFingerprint: string;
   replacementId: string;
   replacementCode: string;
   replacementTitle: string;
+  replacementFingerprint: string;
 };
 
 const EMPTY: DraftState = {
@@ -57,6 +65,50 @@ const EMPTY: DraftState = {
   effectiveFrom: "",
 };
 
+function normalizeTimestamp(value: string | null | undefined) {
+  return value ? new Date(value).toISOString() : null;
+}
+
+function interpretationFingerprint(item: RuleInterpretation) {
+  return JSON.stringify([
+    item.id,
+    item.code,
+    item.title,
+    item.question,
+    item.interpretation,
+    item.rationale,
+    item.rule_ids,
+    item.status,
+    normalizeTimestamp(item.effective_from),
+    normalizeTimestamp(item.published_at),
+    item.superseded_by,
+    normalizeTimestamp(item.created_at),
+    normalizeTimestamp(item.updated_at),
+  ]);
+}
+
+function persistedDraftInput(item: RuleInterpretation): RuleInterpretationDraft {
+  return {
+    title: item.title.trim(),
+    question: item.question.trim(),
+    interpretation: item.interpretation.trim(),
+    rationale: item.rationale.trim(),
+    ruleIds: [...item.rule_ids],
+    effectiveFrom: normalizeTimestamp(item.effective_from),
+  };
+}
+
+function draftInputFingerprint(input: RuleInterpretationDraft) {
+  return JSON.stringify([
+    input.title,
+    input.question,
+    input.interpretation,
+    input.rationale,
+    input.ruleIds,
+    normalizeTimestamp(input.effectiveFrom),
+  ]);
+}
+
 function RuleInterpretationsAdmin() {
   const queryClient = useQueryClient();
   const query = useQuery({
@@ -66,7 +118,7 @@ function RuleInterpretationsAdmin() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draft, setDraft] = useState<DraftState>(EMPTY);
   const [replacementId, setReplacementId] = useState("");
-  const [publishReviewOpen, setPublishReviewOpen] = useState(false);
+  const [pendingPublication, setPendingPublication] = useState<PendingPublication | null>(null);
   const [pendingSupersession, setPendingSupersession] = useState<PendingSupersession | null>(null);
   const items = query.data ?? [];
   const selected = items.find((item) => item.id === selectedId) ?? null;
@@ -98,30 +150,148 @@ function RuleInterpretationsAdmin() {
     },
     onError: errorToast,
   });
+
+  const publicationReviewMutation = useMutation({
+    mutationFn: async () => {
+      if (!selected || selected.status !== "draft") {
+        throw new Error("Select a draft interpretation before reviewing publication.");
+      }
+
+      const freshItems = await getAdminRuleInterpretations();
+      const fresh = freshItems.find((item) => item.id === selected.id);
+      if (!fresh || fresh.status !== "draft") {
+        throw new Error("This interpretation is no longer a publishable draft. Refresh and review again.");
+      }
+
+      const localSnapshot = toDraftInput(draft);
+      const persistedSnapshot = persistedDraftInput(fresh);
+      if (draftInputFingerprint(localSnapshot) !== draftInputFingerprint(persistedSnapshot)) {
+        throw new Error(
+          "This form contains unsaved changes. Save the draft before reviewing the exact publication snapshot.",
+        );
+      }
+      if (persistedSnapshot.ruleIds.some((ruleId) => !getRuleById(ruleId))) {
+        throw new Error("The persisted draft references a rule that is no longer available. Refresh before publication.");
+      }
+
+      return {
+        item: { ...fresh, rule_ids: [...fresh.rule_ids] },
+        fingerprint: interpretationFingerprint(fresh),
+        snapshot: persistedSnapshot,
+      } satisfies PendingPublication;
+    },
+    onSuccess: (review) => setPendingPublication(review),
+    onError: async (error) => {
+      setPendingPublication(null);
+      await refresh();
+      errorToast(error);
+    },
+  });
+
   const publishMutation = useMutation({
-    mutationFn: (id: string) => publishRuleInterpretation(id),
+    mutationFn: async (review: PendingPublication) => {
+      const freshItems = await getAdminRuleInterpretations();
+      const fresh = freshItems.find((item) => item.id === review.item.id);
+      if (
+        !fresh ||
+        fresh.status !== "draft" ||
+        interpretationFingerprint(fresh) !== review.fingerprint
+      ) {
+        throw new Error(
+          "This interpretation changed while publication was being reviewed. Refresh and review the exact draft again.",
+        );
+      }
+      if (fresh.rule_ids.some((ruleId) => !getRuleById(ruleId))) {
+        throw new Error("The reviewed interpretation now references an unavailable rule. Refresh and review again.");
+      }
+      return publishRuleInterpretation(review.item.id);
+    },
     onSuccess: async () => {
-      setPublishReviewOpen(false);
+      setPendingPublication(null);
       await refresh();
       toast.success("Official interpretation published");
     },
-    onError: errorToast,
+    onError: async (error) => {
+      setPendingPublication(null);
+      await refresh();
+      errorToast(error);
+    },
   });
+
+  const supersessionReviewMutation = useMutation({
+    mutationFn: async () => {
+      if (!selected || selected.status !== "published" || !replacementId) {
+        throw new Error("Choose a published interpretation and a published replacement first.");
+      }
+
+      const freshItems = await getAdminRuleInterpretations();
+      const current = freshItems.find((item) => item.id === selected.id);
+      const replacement = freshItems.find((item) => item.id === replacementId);
+      if (
+        !current ||
+        current.status !== "published" ||
+        !replacement ||
+        replacement.status !== "published" ||
+        replacement.id === current.id
+      ) {
+        throw new Error("The supersession candidates changed. Refresh and choose the published interpretations again.");
+      }
+
+      return {
+        currentId: current.id,
+        currentCode: current.code,
+        currentTitle: current.title,
+        currentFingerprint: interpretationFingerprint(current),
+        replacementId: replacement.id,
+        replacementCode: replacement.code,
+        replacementTitle: replacement.title,
+        replacementFingerprint: interpretationFingerprint(replacement),
+      } satisfies PendingSupersession;
+    },
+    onSuccess: (review) => setPendingSupersession(review),
+    onError: async (error) => {
+      setPendingSupersession(null);
+      await refresh();
+      errorToast(error);
+    },
+  });
+
   const supersedeMutation = useMutation({
-    mutationFn: (pending: PendingSupersession) => supersedeRuleInterpretation(pending.currentId, pending.replacementId),
+    mutationFn: async (pending: PendingSupersession) => {
+      const freshItems = await getAdminRuleInterpretations();
+      const current = freshItems.find((item) => item.id === pending.currentId);
+      const replacement = freshItems.find((item) => item.id === pending.replacementId);
+      if (
+        !current ||
+        current.status !== "published" ||
+        interpretationFingerprint(current) !== pending.currentFingerprint ||
+        !replacement ||
+        replacement.status !== "published" ||
+        interpretationFingerprint(replacement) !== pending.replacementFingerprint
+      ) {
+        throw new Error(
+          "The interpretation or its replacement changed while supersession was being reviewed. Refresh and review again.",
+        );
+      }
+      return supersedeRuleInterpretation(pending.currentId, pending.replacementId);
+    },
     onSuccess: async () => {
       setPendingSupersession(null);
       setReplacementId("");
       await refresh();
       toast.success("Older interpretation marked superseded");
     },
-    onError: errorToast,
+    onError: async (error) => {
+      setPendingSupersession(null);
+      await refresh();
+      errorToast(error);
+    },
   });
 
   const selectItem = (item: RuleInterpretation | null) => {
     setSelectedId(item?.id ?? null);
     setReplacementId("");
-    setPublishReviewOpen(false);
+    setPendingPublication(null);
     setPendingSupersession(null);
     if (!item) {
       setDraft(EMPTY);
@@ -144,25 +314,6 @@ function RuleInterpretationsAdmin() {
     draft.rationale.trim().length >= 20 &&
     ruleIds.length > 0 &&
     invalidRuleIds.length === 0;
-
-  const publicationSnapshot = toDraftInput(draft);
-
-  function reviewSupersession() {
-    if (!selected || selected.status !== "published" || !replacementId) return;
-    const replacement = currentPublished.find((item) => item.id === replacementId);
-    if (!replacement || replacement.id === selected.id) {
-      toast.error("Choose a different published replacement interpretation");
-      return;
-    }
-    setPendingSupersession({
-      currentId: selected.id,
-      currentCode: selected.code,
-      currentTitle: selected.title,
-      replacementId: replacement.id,
-      replacementCode: replacement.code,
-      replacementTitle: replacement.title,
-    });
-  }
 
   return (
     <AdminPage>
@@ -250,7 +401,7 @@ function RuleInterpretationsAdmin() {
                 ) : selected.status === "draft" ? (
                   <>
                     <button type="button" disabled={!valid || saveMutation.isPending} onClick={() => saveMutation.mutate()} className="admin-action-secondary"><Save className="size-4" />Save draft</button>
-                    <button type="button" disabled={!valid || publishMutation.isPending} onClick={() => setPublishReviewOpen(true)} className="admin-action-primary"><Send className="size-4" />Review publication</button>
+                    <button type="button" disabled={!valid || publicationReviewMutation.isPending || publishMutation.isPending} onClick={() => publicationReviewMutation.mutate()} className="admin-action-primary"><Send className="size-4" />{publicationReviewMutation.isPending ? "Preparing review…" : "Review publication"}</button>
                   </>
                 ) : null}
               </div>
@@ -270,7 +421,7 @@ function RuleInterpretationsAdmin() {
                     <option value="">Choose published replacement</option>
                     {currentPublished.filter((item) => item.id !== selected.id).map((item) => <option key={item.id} value={item.id}>{item.code} · {item.title}</option>)}
                   </select>
-                  <button type="button" disabled={!replacementId || supersedeMutation.isPending} onClick={reviewSupersession} className="admin-action-secondary"><History className="size-4" />Review supersession</button>
+                  <button type="button" disabled={!replacementId || supersessionReviewMutation.isPending || supersedeMutation.isPending} onClick={() => supersessionReviewMutation.mutate()} className="admin-action-secondary"><History className="size-4" />{supersessionReviewMutation.isPending ? "Preparing review…" : "Review supersession"}</button>
                 </div>
               </AdminCard>
             ) : null}
@@ -287,23 +438,23 @@ function RuleInterpretationsAdmin() {
           </div>
         </div>
 
-        {selected?.status === "draft" ? (
+        {pendingPublication ? (
           <RuleInterpretationPublicationReview
-            open={publishReviewOpen}
+            open
             onClose={() => {
-              if (!publishMutation.isPending) setPublishReviewOpen(false);
+              if (!publishMutation.isPending) setPendingPublication(null);
             }}
             onConfirm={async () => {
-              await publishMutation.mutateAsync(selected.id);
+              await publishMutation.mutateAsync(pendingPublication);
             }}
             busy={publishMutation.isPending}
-            code={selected.code}
-            title={publicationSnapshot.title}
-            question={publicationSnapshot.question}
-            interpretation={publicationSnapshot.interpretation}
-            rationale={publicationSnapshot.rationale}
-            ruleIds={publicationSnapshot.ruleIds}
-            effectiveFrom={publicationSnapshot.effectiveFrom ?? null}
+            code={pendingPublication.item.code}
+            title={pendingPublication.snapshot.title}
+            question={pendingPublication.snapshot.question}
+            interpretation={pendingPublication.snapshot.interpretation}
+            rationale={pendingPublication.snapshot.rationale}
+            ruleIds={pendingPublication.snapshot.ruleIds}
+            effectiveFrom={pendingPublication.snapshot.effectiveFrom ?? null}
           />
         ) : null}
 
