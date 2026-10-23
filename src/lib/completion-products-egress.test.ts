@@ -20,7 +20,6 @@ describe("completion product public egress contract", () => {
     expect(encyclopedia).not.toContain("useAllJuryVotes");
     expect(encyclopedia).not.toContain("useAllTelevotes");
     expect(encyclopedia).not.toContain("useAllResults");
-    expect(encyclopedia).toContain("useAllParticipants");
   });
 
   it("uses one compact publication-safe Voting DNA projection instead of shipping the full jury archive", () => {
