@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 
 import type { AppPushDeliveryStatus } from "@/lib/app-notifications";
+import { formatEventWallTime } from "@/lib/public-time";
 import {
   V3ActionCard,
   V3NowCard,
@@ -43,12 +44,7 @@ function formatNoticeTime(value: string | null) {
   if (!value) return "Recently";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Recently";
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return formatEventWallTime(date, { locale: "en-GB" });
 }
 
 function noticeTone(item: V3NotificationInboxItem) {
