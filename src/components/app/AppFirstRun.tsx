@@ -26,9 +26,33 @@ export function appFirstRunAllowedOnPath(pathname: string) {
   return !screen.behavior.criticalTask && !screen.behavior.immersive;
 }
 
-export function appFirstRunComplete() {
+function readFirstRunComplete() {
   if (typeof window === "undefined") return true;
-  return window.localStorage.getItem(APP_FIRST_RUN_COMPLETE_KEY) === "1";
+
+  try {
+    return window.localStorage.getItem(APP_FIRST_RUN_COMPLETE_KEY) === "1";
+  } catch {
+    // First-run persistence is an optional browser convenience. Storage can be
+    // unavailable under privacy/security policies, so never let it break the
+    // installed-app shell or suppress the current-session onboarding surface.
+    return false;
+  }
+}
+
+function persistFirstRunComplete() {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(APP_FIRST_RUN_COMPLETE_KEY, "1");
+  } catch {
+    // The user still completed onboarding for this mounted app session. A
+    // failed optional persistence write must not trap the sheet open or turn
+    // Continue into a broken control.
+  }
+}
+
+export function appFirstRunComplete() {
+  return readFirstRunComplete();
 }
 
 export function AppFirstRun({
@@ -47,12 +71,12 @@ export function AppFirstRun({
       setOpen(false);
       return;
     }
-    if (window.localStorage.getItem(APP_FIRST_RUN_COMPLETE_KEY) === "1") return;
+    if (readFirstRunComplete()) return;
     setOpen(true);
   }, [isAppMode, pathname]);
 
   const complete = () => {
-    window.localStorage.setItem(APP_FIRST_RUN_COMPLETE_KEY, "1");
+    persistFirstRunComplete();
     setOpen(false);
     onComplete?.();
   };
