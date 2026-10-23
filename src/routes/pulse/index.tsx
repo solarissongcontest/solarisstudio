@@ -32,7 +32,6 @@ import {
 import { isShowPublic } from "@/lib/publication";
 import {
   useFanSession,
-  useMyPrediction,
   usePredictionRounds,
 } from "@/lib/prediction-data";
 import {
@@ -311,23 +310,12 @@ function SolarisPulsePage() {
 
   const now = useHydratedNow();
   const rounds = roundData?.rounds ?? [];
-  const openRound = rounds.find(
-    (round) =>
-      now != null &&
-      round.status === "open" &&
-      new Date(round.locks_at).getTime() > now,
-  );
-  const recentClosedRound = [...rounds]
+  const openRound = rounds.find((round) => round.status === "open");
+  const recentRound = [...rounds]
     .filter((round) => ["open", "locked", "scoring", "scored"].includes(round.status))
     .sort((a, b) => new Date(b.locks_at).getTime() - new Date(a.locks_at).getTime())[0];
-  const pulseRound = openRound ?? recentClosedRound;
-  const { data: myPrediction } = useMyPrediction(pulseRound?.id, user?.id);
-  const movementAllowed = Boolean(
-    user &&
-      pulseRound &&
-      now != null &&
-      (myPrediction || new Date(pulseRound.locks_at).getTime() <= now),
-  );
+  const pulseRound = openRound ?? recentRound;
+  const movementAllowed = Boolean(user && pulseRound);
   const { data: movementData } = usePredictionMovement(pulseRound?.id, movementAllowed);
   const movements = predictionLeaderMovements(movementData?.movement).slice(0, 4);
 

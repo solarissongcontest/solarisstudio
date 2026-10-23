@@ -3,7 +3,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type {
   AppDatabase,
-  ContentEventRow,
   FanFollowRow,
   NotificationPreferenceRow,
 } from "@/integrations/supabase/app-types";
@@ -11,6 +10,7 @@ import { supabase as baseSupabase } from "@/integrations/supabase/client";
 
 import { missingEngagementSchema } from "./prediction-data";
 import type { PredictionMovementPayload } from "./pulse";
+import { useV3PublicPulseEvents } from "./v3-public-pulse-runtime";
 
 const supabase = baseSupabase as unknown as SupabaseClient<AppDatabase>;
 
@@ -78,23 +78,7 @@ export function useSetFanFollow(profileId?: string) {
 }
 
 export function useContentEvents(limit = 30) {
-  return useQuery({
-    queryKey: ["content-events", limit],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("content_events")
-        .select("*")
-        .lte("published_at", new Date().toISOString())
-        .order("published_at", { ascending: false })
-        .limit(limit);
-      if (missingEngagementSchema(error)) {
-        return { schemaReady: false, events: [] as ContentEventRow[] };
-      }
-      if (error) throw error;
-      return { schemaReady: true, events: data ?? [] };
-    },
-    staleTime: 30_000,
-  });
+  return useV3PublicPulseEvents(limit);
 }
 
 export function useEventReads(profileId?: string) {
