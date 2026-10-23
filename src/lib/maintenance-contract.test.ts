@@ -93,10 +93,10 @@ describe("emergency global maintenance mode", () => {
   });
 
   it("uses truthful launch copy while keeping HOD Confirmation availability explicit", () => {
-    expect(config).toContain('MAINTENANCE_RETURN_DATE = "23 October 2026"');
-    expect(config).toContain('MAINTENANCE_LAST_UPDATED = "19 October 2026"');
+    expect(config).toContain('MAINTENANCE_RETURN_DATE = "25 October 2026"');
+    expect(config).toContain('MAINTENANCE_LAST_UPDATED = "23 October 2026"');
     expect(config).toContain(
-      'TERRAOS3_ESTIMATED_LAUNCH_AT = "2026-10-23T20:00:00+03:00"',
+      'TERRAOS3_ESTIMATED_LAUNCH_AT = "2026-10-25T20:00:00+02:00"',
     );
     expect(config).toContain("Public estimate only. The maintenance/release gate remains authoritative.");
     expect(page).toContain("Maintenance in progress");

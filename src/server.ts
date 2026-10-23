@@ -3,6 +3,11 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import {
+  attachMaintenanceFreshness,
+  MAINTENANCE_FRESHNESS_PATH,
+  maintenanceFreshnessResponse,
+} from "./lib/maintenance-freshness";
+import {
   GLOBAL_MAINTENANCE_MODE,
   isMaintenanceHodAppRouteAllowed,
   maintenanceHodAccessEnabled,
@@ -15,6 +20,11 @@ type ServerEntry = {
 };
 
 type ServerEnv = {
+  CF_VERSION_METADATA?: {
+    id?: string;
+    tag?: string;
+    timestamp?: string;
+  };
   MAINTENANCE_ADMIN_SECRET?: string;
   MAINTENANCE_HOD_ACCESS?: string;
   SUPABASE_URL?: string;
@@ -80,6 +90,11 @@ function serverEnv(env: unknown) {
 function maintenanceSecret(env: unknown) {
   const workerEnv = serverEnv(env);
   return workerEnv?.MAINTENANCE_ADMIN_SECRET ?? process.env.MAINTENANCE_ADMIN_SECRET ?? "";
+}
+
+function maintenanceDeploymentVersion(env: unknown) {
+  const metadata = serverEnv(env)?.CF_VERSION_METADATA;
+  return metadata?.id ?? metadata?.tag ?? metadata?.timestamp ?? "unversioned";
 }
 
 function maintenanceHodRuntime(env: unknown) {
@@ -438,6 +453,21 @@ export default {
         return handleMaintenanceAdminLogout(request);
       }
 
+      if (url.pathname === MAINTENANCE_FRESHNESS_PATH) {
+        const hasBypass =
+          GLOBAL_MAINTENANCE_MODE && (await hasValidMaintenanceBypass(request, secret));
+        if (!hasBypass) {
+          return new Response(null, {
+            status: 404,
+            headers: { "cache-control": "no-store, max-age=0" },
+          });
+        }
+        return maintenanceFreshnessResponse(
+          request.method,
+          maintenanceDeploymentVersion(env),
+        );
+      }
+
       const hodAppRouteAllowed = isMaintenanceHodAppRouteAllowed(
         url.pathname,
         request.method,
@@ -445,6 +475,7 @@ export default {
       );
       const teaserPreviewAllowed = isTerraOsTeaserPreviewRequest(url, request.method);
       const maintenanceAppAssetAllowed = isMaintenanceAppAssetPath(url.pathname);
+      let maintenanceAdminBypass = false;
 
       if (
         GLOBAL_MAINTENANCE_MODE &&
@@ -454,7 +485,7 @@ export default {
         !hodAppRouteAllowed
       ) {
         const localE2EBypass = hasLocalE2EMaintenanceBypass(request);
-        const maintenanceAdminBypass =
+        maintenanceAdminBypass =
           !localE2EBypass && (await hasValidMaintenanceBypass(request, secret));
 
         if (!localE2EBypass && !maintenanceAdminBypass) {
@@ -489,7 +520,20 @@ export default {
 
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const normalized = await normalizeCatastrophicSsrResponse(response);
+
+      if (
+        GLOBAL_MAINTENANCE_MODE &&
+        maintenanceAdminBypass &&
+        request.method === "GET"
+      ) {
+        return await attachMaintenanceFreshness(
+          normalized,
+          maintenanceDeploymentVersion(env),
+        );
+      }
+
+      return normalized;
     } catch (error) {
       console.error(error);
       return errorResponse();
