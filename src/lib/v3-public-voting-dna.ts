@@ -83,6 +83,14 @@ export function parseV3PublicVotingDna(value: unknown): V3PublicVotingDna {
 
   const results = rawResults.map((row, index) => parseResult(row, index));
   const resultEditions = nonNegativeInteger(sample.resultEditions, "resultEditions");
+  const seenEditions = new Set<string>();
+
+  for (const result of results) {
+    if (seenEditions.has(result.editionId)) {
+      throw new Error("Voting DNA result sample contains duplicate edition identity");
+    }
+    seenEditions.add(result.editionId);
+  }
 
   if (resultEditions !== results.length) {
     throw new Error("Voting DNA result sample count mismatch");
