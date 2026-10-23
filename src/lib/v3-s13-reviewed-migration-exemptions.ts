@@ -13,6 +13,6 @@ export const V3_S13_REVIEWED_MIGRATION_EXEMPTIONS = [
     path: "supabase/migrations/20261022151607_batch_running_order_result_sync.sql",
     reason: "immutable_history_forward_repaired",
     rationale:
-      "This post-S13 migration was merged without a concrete migration contract and may already exist in deployed migration history, so its bytes must not be rewritten. The semantic contract is registered forward by 20261023215000_v3_s13_adopt_batch_running_order_result_sync.sql; all other post-S13 migrations remain fail-closed.",
+      "This post-S13 migration was merged without a concrete migration contract and may already exist in deployed migration history, so its bytes must not be rewritten. The semantic contract is registered forward by 20261023205400_v3_s13_adopt_batch_running_order_result_sync.sql; all other post-S13 migrations remain fail-closed.",
   },
 ] as const satisfies readonly V3S13ReviewedMigrationExemption[];
