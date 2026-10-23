@@ -23,11 +23,11 @@ export const Route = createFileRoute("/encyclopedia/")({
   }),
   head: () => ({
     meta: [
-      { title: "Encyclopedia — Solaris Studio" },
+      { title: "Reference — Solaris Studio" },
       {
         name: "description",
         content:
-          "Published Solaris Song Contest history: editions, countries, entries and shows.",
+          "Solaris Reference: publication-safe contest history across editions, countries, entries and shows.",
       },
     ],
     links: [
@@ -37,12 +37,12 @@ export const Route = createFileRoute("/encyclopedia/")({
       },
     ],
   }),
-  component: EncyclopediaPage,
+  component: ReferencePage,
 });
 
 type Kind = "all" | "edition" | "country" | "entry" | "show";
 
-type EncyclopediaItem = {
+type ReferenceItem = {
   id: string;
   kind: Exclude<Kind, "all">;
   title: string;
@@ -52,7 +52,7 @@ type EncyclopediaItem = {
   flag?: { code: string; color: string; image: string | null };
 };
 
-function EncyclopediaPage() {
+function ReferencePage() {
   const search = Route.useSearch();
   const feature = useQuery({
     queryKey: ["studio2-feature", "public_encyclopedia"],
@@ -79,13 +79,13 @@ function EncyclopediaPage() {
     [editionsQuery.data, showsQuery.data, participantsQuery.data],
   );
 
-  const items = useMemo<EncyclopediaItem[]>(() => {
+  const items = useMemo<ReferenceItem[]>(() => {
     const countries = countriesQuery.data ?? [];
     const countryMap = new Map(countries.map((country) => [country.id, country]));
     const editionMap = new Map(
       publicArchive.editions.map((edition) => [edition.id, edition]),
     );
-    const output: EncyclopediaItem[] = [];
+    const output: ReferenceItem[] = [];
 
     for (const edition of publicArchive.editions) {
       output.push({
@@ -209,10 +209,10 @@ function EncyclopediaPage() {
       <AppShell>
         <PageHeader
           eyebrow="Explore Solaris"
-          title="Encyclopedia"
+          title="Reference"
           description="Published Solaris history, connected."
         />
-        <ArchiveDataLoading label="Building the public historical index…" />
+        <ArchiveDataLoading label="Building the public reference index…" />
       </AppShell>
     );
   }
@@ -222,10 +222,10 @@ function EncyclopediaPage() {
       <AppShell>
         <PageHeader
           eyebrow="Explore Solaris"
-          title="Encyclopedia"
+          title="Reference"
           description="Published Solaris history, connected."
         />
-        <Panel title="Encyclopedia is not enabled yet">
+        <Panel title="Reference is not enabled yet">
           <p className="text-sm text-muted-foreground">
             The product is installed but its rollout flag is still off while production
             verification finishes.
@@ -247,14 +247,14 @@ function EncyclopediaPage() {
     <AppShell>
       <PageHeader
         eyebrow="Explore Solaris"
-        title="Encyclopedia"
+        title="Reference"
         description="A publication-safe reference across editions, countries, published entries and shows."
         actions={
           <Link
-            to="/wiki"
+            to="/countries"
             className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold"
           >
-            Country Wiki →
+            Browse countries →
           </Link>
         }
       />
@@ -287,7 +287,7 @@ function EncyclopediaPage() {
 
       <section className="mt-5 rounded-2xl border border-border bg-surface/60 p-3 sm:p-4">
         <label className="relative block">
-          <span className="sr-only">Search Encyclopedia</span>
+          <span className="sr-only">Search Reference</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={query}
@@ -297,7 +297,7 @@ function EncyclopediaPage() {
           />
         </label>
 
-        <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Filter Encyclopedia">
+        <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Filter Reference">
           {(["all", "edition", "country", "entry", "show"] as Kind[]).map(
             (value) => (
               <button
