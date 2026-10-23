@@ -1,6 +1,11 @@
 import { Download, Share } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import {
+  optionalBrowserStorage,
+  readOptionalStorage,
+  writeOptionalStorage,
+} from "@/lib/app-optional-browser-storage";
 import { resolveSolarisAppScreen } from "@/lib/app-screen-registry";
 import { useHydrationSafeRouterLocation } from "@/lib/hydration-safe-router-location";
 
@@ -8,8 +13,6 @@ type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
-
-type BrowserStorageName = "localStorage" | "sessionStorage";
 
 const DISMISSED_KEY = "solaris:pwa-install-dismissed";
 const VISIT_COUNT_KEY = "solaris:pwa-install-visits:v1";
@@ -20,31 +23,6 @@ const REVEAL_DELAY_MS = 8_000;
 function isIOSBrowser() {
   if (typeof navigator === "undefined") return false;
   return /iP(?:hone|ad|od)/.test(navigator.userAgent);
-}
-
-function optionalBrowserStorage(name: BrowserStorageName) {
-  if (typeof window === "undefined") return null;
-  try {
-    return window[name];
-  } catch {
-    return null;
-  }
-}
-
-function readOptionalStorage(storage: Storage | null, key: string) {
-  try {
-    return storage?.getItem(key) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function writeOptionalStorage(storage: Storage | null, key: string, value: string) {
-  try {
-    storage?.setItem(key, value);
-  } catch {
-    // Install-prompt persistence is optional. Storage restrictions must not break Solaris.
-  }
 }
 
 export function installPromptAllowedOnPath(pathname: string) {
@@ -72,14 +50,29 @@ export function AppInstallPrompt({ isAppMode }: { isAppMode: boolean }) {
 
     const localStorage = optionalBrowserStorage("localStorage");
     const sessionStorage = optionalBrowserStorage("sessionStorage");
-    let visits = Number(readOptionalStorage(localStorage, VISIT_COUNT_KEY) ?? "0");
-    if (readOptionalStorage(sessionStorage, SESSION_COUNTED_KEY) !== "1") {
+    const storedVisits = readOptionalStorage(localStorage, VISIT_COUNT_KEY);
+    const sessionCounted = readOptionalStorage(sessionStorage, SESSION_COUNTED_KEY);
+    const storedDismissed = readOptionalStorage(localStorage, DISMISSED_KEY);
+
+    // Installation promotion is optional. If persistence is blocked, ordinary browsing wins.
+    if (
+      storedVisits === undefined ||
+      sessionCounted === undefined ||
+      storedDismissed === undefined
+    ) {
+      setDismissed(true);
+      setEligible(false);
+      return;
+    }
+
+    let visits = Number(storedVisits ?? "0");
+    if (sessionCounted !== "1") {
       visits = Number.isFinite(visits) ? visits + 1 : 1;
       writeOptionalStorage(localStorage, VISIT_COUNT_KEY, String(visits));
       writeOptionalStorage(sessionStorage, SESSION_COUNTED_KEY, "1");
     }
 
-    const wasDismissed = readOptionalStorage(localStorage, DISMISSED_KEY) === "1";
+    const wasDismissed = storedDismissed === "1";
     setDismissed(wasDismissed);
 
     const timer = window.setTimeout(() => {
