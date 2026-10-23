@@ -248,11 +248,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
               window.matchMedia("(display-mode: window-controls-overlay)").matches ||
               navigator.standalone === true;
             if (!installed) return;
+
             const root = document.documentElement;
             root.dataset.solarisRuntime = "standalone";
             root.setAttribute("data-solaris-app", "");
+
+            const bootSessionKey = "solaris.v3.boot.seen";
+            let shouldShowBootFrame = true;
+            try {
+              shouldShowBootFrame = sessionStorage.getItem(bootSessionKey) !== "1";
+              if (shouldShowBootFrame) sessionStorage.setItem(bootSessionKey, "1");
+            } catch {}
+
+            if (!shouldShowBootFrame) return;
             root.setAttribute("data-solaris-app-boot", "");
-            window.setTimeout(() => root.removeAttribute("data-solaris-app-boot"), 4000);
+            window.setTimeout(() => root.removeAttribute("data-solaris-app-boot"), 1800);
           } catch {}
         })();`,
       },
