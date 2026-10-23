@@ -7,7 +7,7 @@ export const Route = createFileRoute("/integrity/report/details")({
   head: () => ({
     meta: [
       { title: "Report details — Trust & Integrity" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: () => <AppShell><IntegrityDetailsStep /></AppShell>,
