@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { systemErrorCodeFromUnknown } from "@/lib/system-error";
+
 const rehearsal = readFileSync(
   resolve(process.cwd(), ".github/scripts/v3-s11-database-outage-rehearsal.sh"),
   "utf8",
@@ -29,6 +31,13 @@ describe("System V3 S11 real database-dependency outage rehearsal", () => {
     expect(restore).toBeGreaterThan(outageAttempt);
     expect(rehearsal).toContain("Local PostgreSQL container did not stop");
     expect(rehearsal).not.toContain("INJECTED_DEPENDENCY_FAILURE");
+  });
+
+  it("maps the real outage signals to the canonical dependency-failure taxonomy", () => {
+    expect(systemErrorCodeFromUnknown({ status: 503 })).toBe("DEPENDENCY_FAILURE");
+    expect(systemErrorCodeFromUnknown(new Error("Failed to fetch"))).toBe(
+      "DEPENDENCY_FAILURE",
+    );
   });
 
   it("cannot report or persist fake success while PostgreSQL is unavailable", () => {
