@@ -103,7 +103,9 @@ describe("Organizer V3 jury share Edition theme", () => {
     theme.artwork.enabled = false;
     theme.header.useEditionLogo = false;
 
-    const { artworkResolves: _artwork, logoResolves: _logo, ...remainingEvidence } = completeEvidence;
+    const remainingEvidence: Partial<JuryShareValidationEvidence> = { ...completeEvidence };
+    delete remainingEvidence.artworkResolves;
+    delete remainingEvidence.logoResolves;
     const validation = validateJuryShareThemeForReady(theme, remainingEvidence);
     expect(validation.status).toBe("valid");
   });
