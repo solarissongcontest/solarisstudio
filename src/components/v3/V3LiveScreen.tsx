@@ -7,7 +7,6 @@ import {
   Vote,
 } from "lucide-react";
 
-import { EventTime } from "@/components/public/EventTime";
 import { formatEventDateTime } from "@/lib/public-time";
 import type { V3LiveExperience, V3PublicShowState } from "@/lib/v3-live";
 import {
@@ -30,6 +29,9 @@ export type V3LiveScreenProps = {
   refreshing?: boolean;
   degraded?: boolean;
 };
+
+const ISO_INSTANT_PATTERN =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?Z$/;
 
 function showStatePresentation(
   state: V3PublicShowState,
@@ -57,7 +59,30 @@ function showStatePresentation(
 }
 
 function validSnapshotMoment(value: string | null): value is string {
-  return typeof value === "string" && Number.isFinite(Date.parse(value));
+  if (typeof value !== "string") return false;
+  const match = ISO_INSTANT_PATTERN.exec(value);
+  if (!match) return false;
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return false;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = Number(match[6]);
+  const millisecond = Number((match[7] ?? "").padEnd(3, "0") || "0");
+
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day &&
+    parsed.getUTCHours() === hour &&
+    parsed.getUTCMinutes() === minute &&
+    parsed.getUTCSeconds() === second &&
+    parsed.getUTCMilliseconds() === millisecond
+  );
 }
 
 function canonicalSnapshotLabel(iso: string) {
@@ -345,13 +370,18 @@ export function V3LiveScreen({
                 >
                   <dt className="text-xs font-medium text-white/48">{row.label}</dt>
                   <dd className="min-w-0 text-right text-white/80">
-                    <EventTime value={row.value} className="text-right" />
+                    <time
+                      dateTime={row.value}
+                      className="block text-sm font-semibold"
+                    >
+                      {canonicalSnapshotLabel(row.value)}
+                    </time>
                   </dd>
                 </div>
               ))}
             </dl>
             <p className="border-t border-white/[0.06] px-4 py-3 text-[0.7rem] leading-5 text-white/38">
-              Times are displayed from the server snapshot in canonical Solaris time, with viewer-local time added where it differs. They do not independently advance show, voting or result state in this browser.
+              Times are displayed from the server snapshot in canonical Solaris time. They do not independently advance show, voting or result state in this browser.
             </p>
           </V3Surface>
         </V3Section>
