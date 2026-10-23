@@ -168,11 +168,60 @@ assert_same_persistent_contest() {
   [[ "$current_edition_count" == "1" ]] || fail "S14 contest edition identity disappeared or changed"
 }
 
+log_semifinal_qualification_state() {
+  local label="$1"
+  local total_qualified semi_one_qualified semi_two_qualified
+
+  total_qualified="$(db_scalar "
+select count(*)
+from public.participants
+where edition_id='$EDITION_ID'::uuid
+  and qualified is true;
+")"
+
+  semi_one_qualified="$(db_scalar "
+select count(*)
+from public.participants
+where show_id='$SEMI_ONE_ID'::uuid
+  and qualified is true;
+")"
+
+  semi_two_qualified="$(db_scalar "
+select count(*)
+from public.participants
+where show_id='$SEMI_TWO_ID'::uuid
+  and qualified is true;
+")"
+
+  log "S14_QUALIFICATION_STATE label=$label total=$total_qualified semi_one=$semi_one_qualified semi_two=$semi_two_qualified"
+
+  psql "$DB_URL" -v ON_ERROR_STOP=1 -P pager=off -c "
+select
+  participant.show_id,
+  participant.country_id,
+  participant.qualified,
+  result.final_rank
+from public.participants participant
+left join public.results result
+  on result.show_id = participant.show_id
+ and result.country_id = participant.country_id
+where participant.edition_id='$EDITION_ID'::uuid
+  and participant.show_id in ('$SEMI_ONE_ID'::uuid, '$SEMI_TWO_ID'::uuid)
+order by
+  participant.show_id,
+  result.final_rank nulls last,
+  participant.country_id;
+"
+}
+
 promote_semifinal_results_to_reproducible_version() {
   log "Stage 8 persistence adapter: recalculate both semifinal Results through canonical authority and prove adjacent immutable versions reproduce exactly"
 
-  local show_id show_ordinal source_version target_version unlock_id calculate_id review_id lock_id reveal_id reproducible lifecycle
+  local show_id show_ordinal source_version target_version unlock_id calculate_id review_id lock_id reveal_id reproducible lifecycle version
   show_ordinal=0
+
+  log_semifinal_qualification_state "before-reproducibility"
+
   for show_id in "$SEMI_ONE_ID" "$SEMI_TWO_ID"; do
     show_ordinal=$((show_ordinal+1))
     source_version="$(db_scalar "select calculation_version from public.studio2_result_operations where show_id='$show_id'::uuid;")"
@@ -187,10 +236,18 @@ promote_semifinal_results_to_reproducible_version() {
     lock_id="14000000-0000-4008-9000-$(printf '%012d' "$show_ordinal")"
     reveal_id="14000000-0000-4008-9100-$(printf '%012d' "$show_ordinal")"
 
+    log_semifinal_qualification_state "before-unlock-show-$show_ordinal"
+
     execute_result_action "$show_id" unlock "$unlock_id" "$source_version" "S14 unlock immutable semifinal result before reproducibility recalculation"
+
+    log_semifinal_qualification_state "after-unlock-show-$show_ordinal"
+
     execute_result_action "$show_id" calculate "$calculate_id" "$source_version" "S14 reproducibility recalculation for the next immutable semifinal Results version"
     version="$(printf '%s' "$HTTP_BODY" | json_value calculationVersion)"
     [[ "$version" == "$target_version" ]] || fail "S14 semifinal $show_id reproducibility calculation must advance Results exactly once from $source_version to $target_version, got '$version'"
+
+    log_semifinal_qualification_state "after-calculate-show-$show_ordinal"
+
     [[ "$(db_scalar "select count(*) from private.v3_result_versions where show_id='$show_id'::uuid and version=$target_version and result_row_count>0;")" == "1" ]] || \
       fail "S14 semifinal $show_id did not retain non-empty immutable Results version $target_version"
 
@@ -213,8 +270,11 @@ where source.show_id='$show_id'::uuid and source.version=$source_version;
 
     lifecycle="$(db_scalar "select calculation_version::text || ':' || reviewed_version::text || ':' || locked_version::text || ':' || reveal_ready_version::text from public.studio2_result_operations where show_id='$show_id'::uuid;")"
     [[ "$lifecycle" == "$target_version:$target_version:$target_version:$target_version" ]] || fail "S14 semifinal $show_id lifecycle did not finalize exact Results version $target_version ($lifecycle)"
+
+    log_semifinal_qualification_state "after-finalize-show-$show_ordinal"
   done
 
+  log_semifinal_qualification_state "after-reproducibility"
   log "S14_RESULTS_REPRODUCIBLE_VERSION_COMPLETE"
 }
 
@@ -410,7 +470,9 @@ run_stage stage-5-running-orders run_s14_stage_5_running_orders
 run_stage stage-6-jury run_s14_stage_6_jury
 run_stage stage-7-public-voting run_s14_stage_7_public_voting
 run_stage stage-8-results run_s14_stage_8_results_persistent
+log_semifinal_qualification_state "after-stage-8-before-stage-9"
 run_stage stage-9-publication run_s14_stage_9_publication
+log_semifinal_qualification_state "after-stage-9-before-grand-final-bridge"
 
 # Semifinal truth determines the Grand Final. Continue in the same local contest
 # through governed qualifier promotion, Jury/Televote, immutable final Results,
