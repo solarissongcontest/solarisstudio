@@ -1,9 +1,9 @@
 name: DIAG current-main client budget
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
+      - diag/current-main-client-budget-20261023
 
 permissions:
   contents: read
@@ -22,7 +22,7 @@ jobs:
       - name: Checkout exact source
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: Isolate diagnostic build from hosted Supabase
