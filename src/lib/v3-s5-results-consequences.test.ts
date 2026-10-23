@@ -165,14 +165,18 @@ describe("System V3 S5 Results consequences", () => {
   });
 
   it("ships a hostile local-only rehearsal for collision, replay, role and qualification boundaries", () => {
+    expect(rehearsal).toContain('case "$API_URL" in');
     expect(rehearsal).toContain(
-      'case "$API_URL" in http://127.0.0.1:*|http://localhost:*',
+      "http://127.0.0.1:*|http://localhost:*) ;;",
     );
 
+    expect(rehearsal).toContain('case "$DB_URL" in');
     expect(rehearsal).toContain(
-      'case "$DB_URL" in postgres://postgres:postgres@127.0.0.1:*',
+      "postgres://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@127.0.0.1:*|postgresql://postgres:postgres@localhost:*) ;;",
     );
 
+    expect(rehearsal).toContain("Refusing hosted Supabase rehearsal");
+    expect(rehearsal).toContain("Refusing non-local database rehearsal");
     expect(rehearsal).toContain("count(distinct event_type)");
     expect(rehearsal).toContain("results-task-reconciliation");
     expect(rehearsal).toContain("replay-worker");
@@ -212,6 +216,19 @@ describe("System V3 S5 Results consequences", () => {
 
     expect(rehearsal).toContain(
       "S5_RESULT_PARTICIPATION_STATUS_QUALIFICATION_REFRESH_COMPLETE",
+    );
+  });
+
+  it("builds qualification fixtures through canonical Results calculation", () => {
+    expect(rehearsal).toContain("insert into public.televote_votes(");
+    expect(rehearsal).toContain(
+      "select public.sync_show_results_from_votes('$QUAL_SEMI_ONE_ID'::uuid);",
+    );
+    expect(rehearsal).toContain(
+      "select public.sync_show_results_from_votes('$QUAL_SEMI_TWO_ID'::uuid);",
+    );
+    expect(rehearsal).toContain(
+      "Canonical Results fixture did not produce deterministic qualification ranks",
     );
   });
 
