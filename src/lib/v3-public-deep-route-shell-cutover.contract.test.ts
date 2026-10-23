@@ -8,6 +8,8 @@ const adapter = source("src/components/v3/V3LegacyRouteAdapter.tsx");
 const countries = source("src/routes/countries/route.tsx");
 const editions = source("src/routes/editions/route.tsx");
 const shows = source("src/routes/shows/route.tsx");
+const wiki = source("src/routes/wiki/route.tsx");
+const encyclopedia = source("src/routes/encyclopedia/route.tsx");
 
 describe("Public V3 deep-route shell cutover", () => {
   it("reuses the canonical server rollout and route safety boundary", () => {
@@ -47,5 +49,12 @@ describe("Public V3 deep-route shell cutover", () => {
     expect(shows).toContain('search.get("from") === "results"');
     expect(shows).toContain('phaseLabel={fromResults ? "Results" : "Shows"}');
     expect(shows).toContain("<Outlet />");
+  });
+
+  it("keeps secondary Explore reference surfaces in the same V3 shell", () => {
+    expect(wiki).toContain('createFileRoute("/wiki")');
+    expect(wiki).toContain('phaseLabel="Wiki"');
+    expect(encyclopedia).toContain('createFileRoute("/encyclopedia")');
+    expect(encyclopedia).toContain('phaseLabel="Encyclopedia"');
   });
 });
