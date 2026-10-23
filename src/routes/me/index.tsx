@@ -7,17 +7,19 @@ import { useSolarisApp } from "@/components/app/AppRuntime";
 import { useFanSession } from "@/lib/prediction-data";
 
 export const Route = createFileRoute("/me/")({
-  head: () => ({ meta: [{ title: "MySolaris — Solaris Studio" }] }),
-  component: MySolarisRedirect,
+  head: () => ({ meta: [{ title: "Me — Solaris Studio" }] }),
+  component: MeEntryRoute,
 });
 
-function MySolarisRedirect() {
+function MeEntryRoute() {
   const { isAppMode } = useSolarisApp();
   const navigate = useNavigate();
   const { data: user, isLoading } = useFanSession();
 
   useEffect(() => {
     if (!isLoading && user) {
+      // /my-solaris remains the compatibility route during incremental V3
+      // migration. In app mode it owns the canonical V3 Me projection.
       void navigate({ to: "/my-solaris", replace: true });
     }
   }, [isLoading, navigate, user]);
@@ -25,7 +27,7 @@ function MySolarisRedirect() {
   if (isLoading || user) {
     return (
       <AppShell>
-        <p className="text-sm text-muted-foreground">Opening MySolaris…</p>
+        <p className="text-sm text-muted-foreground">Opening Me…</p>
       </AppShell>
     );
   }
@@ -34,16 +36,16 @@ function MySolarisRedirect() {
     <AppShell>
       {!isAppMode ? (
         <PageHeader
-          eyebrow="Your account"
-          title="MySolaris"
-          description="Your country, entry, participation and personal Solaris updates live together after sign-in."
+          eyebrow="Your Solaris identity"
+          title="Me"
+          description="Your identity, history, saved content, preferences and account live here after sign-in. Current responsibilities live in Participate."
         />
       ) : null}
       {isAppMode ? (
         <section aria-labelledby="app-me-sign-in">
           <div className="solaris-app-section-heading">
             <p>Account</p>
-            <h2 id="app-me-sign-in">MySolaris</h2>
+            <h2 id="app-me-sign-in">Me</h2>
           </div>
           <div className="solaris-app-grouped-list">
             <Link
@@ -54,7 +56,7 @@ function MySolarisRedirect() {
               <span className="min-w-0">
                 <span className="block text-sm font-semibold">Sign in or create an account</span>
                 <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
-                  Open your country, tasks, participation tools, notices and account.
+                  Open your identity, history, saved content, preferences and account.
                 </span>
               </span>
               <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -62,7 +64,7 @@ function MySolarisRedirect() {
           </div>
         </section>
       ) : (
-        <Panel title="Sign in to open MySolaris">
+        <Panel title="Sign in to open Me">
           <Link
             to="/auth"
             search={{ redirect: "/my-solaris" }}
