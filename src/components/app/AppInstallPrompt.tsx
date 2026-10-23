@@ -14,15 +14,24 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
+type AppleMobileNavigatorHints = Pick<Navigator, "userAgent" | "platform" | "maxTouchPoints">;
+
 const DISMISSED_KEY = "solaris:pwa-install-dismissed";
 const VISIT_COUNT_KEY = "solaris:pwa-install-visits:v1";
 const SESSION_COUNTED_KEY = "solaris:pwa-install-session-counted:v1";
 const MIN_VISITS = 2;
 const REVEAL_DELAY_MS = 8_000;
 
-function isIOSBrowser() {
-  if (typeof navigator === "undefined") return false;
-  return /iP(?:hone|ad|od)/.test(navigator.userAgent);
+export function isIOSLikeBrowser(hints?: AppleMobileNavigatorHints) {
+  const browser =
+    hints ?? (typeof navigator === "undefined" ? null : (navigator as AppleMobileNavigatorHints));
+  if (!browser) return false;
+
+  if (/iP(?:hone|ad|od)/.test(browser.userAgent)) return true;
+
+  // iPadOS can request desktop-class sites and identify as MacIntel. A desktop
+  // Mac does not expose the iPad multi-touch profile.
+  return browser.platform === "MacIntel" && browser.maxTouchPoints > 1;
 }
 
 export function installPromptAllowedOnPath(pathname: string) {
@@ -43,7 +52,7 @@ export function AppInstallPrompt({ isAppMode }: { isAppMode: boolean }) {
   const [installEvent, setInstallEvent] = useState<InstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(true);
   const [eligible, setEligible] = useState(false);
-  const ios = isIOSBrowser();
+  const ios = isIOSLikeBrowser();
 
   useEffect(() => {
     if (typeof window === "undefined" || isAppMode) return;
@@ -79,15 +88,26 @@ export function AppInstallPrompt({ isAppMode }: { isAppMode: boolean }) {
       setEligible(!wasDismissed && visits >= MIN_VISITS);
     }, REVEAL_DELAY_MS);
 
-    const handler = (event: Event) => {
+    const beforeInstallHandler = (event: Event) => {
       event.preventDefault();
       setInstallEvent(event as InstallPromptEvent);
     };
-    window.addEventListener("beforeinstallprompt", handler);
+    const installedHandler = () => {
+      // Persist best-effort only. Successful installation must immediately
+      // clear this optional suggestion even when browser storage is restricted.
+      writeOptionalStorage(localStorage, DISMISSED_KEY, "1");
+      setInstallEvent(null);
+      setEligible(false);
+      setDismissed(true);
+    };
+
+    window.addEventListener("beforeinstallprompt", beforeInstallHandler);
+    window.addEventListener("appinstalled", installedHandler);
 
     return () => {
       window.clearTimeout(timer);
-      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("beforeinstallprompt", beforeInstallHandler);
+      window.removeEventListener("appinstalled", installedHandler);
     };
   }, [isAppMode]);
 
@@ -103,6 +123,8 @@ export function AppInstallPrompt({ isAppMode }: { isAppMode: boolean }) {
 
   const dismiss = () => {
     writeOptionalStorage(optionalBrowserStorage("localStorage"), DISMISSED_KEY, "1");
+    setInstallEvent(null);
+    setEligible(false);
     setDismissed(true);
   };
 
