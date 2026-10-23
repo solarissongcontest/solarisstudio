@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { parseV3PublicVotingDna } from "./v3-public-voting-dna";
+import {
+  parseV3PublicVotingDna,
+  type V3PublicVotingDna,
+} from "./v3-public-voting-dna";
 
 const COUNTRY_A = "11111111-1111-4111-8111-111111111111";
 const COUNTRY_B = "22222222-2222-4222-8222-222222222222";
 const EDITION = "33333333-3333-4333-8333-333333333333";
 const SHOW = "44444444-4444-4444-8444-444444444444";
+const SHOW_TWO = "55555555-5555-4555-8555-555555555555";
 
-function projection() {
+function projection(): V3PublicVotingDna {
   return {
     schemaVersion: 1,
     formulaVersion: "v1",
@@ -96,6 +100,19 @@ describe("V3 Public Voting DNA projection", () => {
 
     expect(() => parseV3PublicVotingDna(value)).toThrow(
       "Voting DNA result sample count mismatch",
+    );
+  });
+
+  it("rejects duplicate edition rows instead of accepting ambiguous historical scope", () => {
+    const value = projection();
+    value.sample.resultEditions = 2;
+    value.results.push({
+      ...value.results[0],
+      showId: SHOW_TWO,
+    });
+
+    expect(() => parseV3PublicVotingDna(value)).toThrow(
+      "Voting DNA result sample contains duplicate edition identity",
     );
   });
 
