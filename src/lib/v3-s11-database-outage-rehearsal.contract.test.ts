@@ -19,6 +19,15 @@ describe("System V3 S11 real database-dependency outage rehearsal", () => {
     expect(rehearsal).not.toContain("supabase.co");
   });
 
+  it("uses fresh run-scoped fixture and operation identities on every rehearsal", () => {
+    expect(rehearsal).toContain("RUN_ID=\"$(python3 -c 'import uuid; print(uuid.uuid4())')\"");
+    expect(rehearsal).toContain("DELIVERY_ID=\"$(python3 -c 'import uuid; print(uuid.uuid4())')\"");
+    expect(rehearsal).toContain("OPERATION_ID=\"$(python3 -c 'import uuid; print(uuid.uuid4())')\"");
+    expect(rehearsal).toContain('IDEMPOTENCY_KEY="v3-s11-database-outage-retry:$RUN_ID"');
+    expect(rehearsal).toContain('RECIPIENT_EMAIL="v3-s11-db-outage-recipient-$RUN_ID@solaris.invalid"');
+    expect(rehearsal).toContain('OPERATOR_EMAIL="v3-s11-db-outage-operator-$RUN_ID@solaris.invalid"');
+  });
+
   it("makes a real dependency unavailable instead of injecting an error label", () => {
     const stop = rehearsal.indexOf('docker stop --time 1 "$DB_CONTAINER"');
     const outageAttempt = rehearsal.indexOf(
