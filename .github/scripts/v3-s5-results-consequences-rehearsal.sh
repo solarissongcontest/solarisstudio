@@ -122,7 +122,15 @@ select
   ('00000000-0000-4000-8a00-' || lpad(i::text,12,'0'))::uuid,
   0,0,0,
   case when i <= 12 then i else i - 12 end
-from generate_series(1,24) i;
+from generate_series(1,24) i
+on conflict (show_id,country_id)
+where show_id is not null
+do update set
+  edition_id=excluded.edition_id,
+  jury_points=excluded.jury_points,
+  televote_points=excluded.televote_points,
+  total_points=excluded.total_points,
+  final_rank=excluded.final_rank;
 
 update public.participants
 set qualified=false
