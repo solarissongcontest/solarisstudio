@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 
 const driver = readFileSync(".github/scripts/v3-full-contest-rehearsal.sh", "utf8");
 const grandFinalLeg = readFileSync(".github/scripts/v3-s14-grand-final-leg.sh", "utf8");
+const grandFinalResults = readFileSync(".github/scripts/v3-s14-grand-final-results.sh", "utf8");
+const browserRuntime = readFileSync(".github/scripts/v3-s14-browser-runtime.sh", "utf8");
 const workflow = readFileSync(".github/workflows/v3-s14-full-contest-rehearsal.yml", "utf8");
 const grandFinalBrowserConfig = readFileSync("playwright.s14-grand-final.config.ts", "utf8");
 const grandFinalResultsBrowserConfig = readFileSync(
@@ -90,7 +92,7 @@ describe("S14 Grand Final failure evidence", () => {
     );
   });
 
-  it("keeps S14 browser readiness independent of maintenance authorization on both browser legs", () => {
+  it("keeps the local-only maintenance bypass scoped in both Playwright configs", () => {
     for (const browserConfig of [grandFinalBrowserConfig, grandFinalResultsBrowserConfig]) {
       expect(browserConfig).toContain(
         '!process.env.E2E_BASE_URL || process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1"',
@@ -98,43 +100,44 @@ describe("S14 Grand Final failure evidence", () => {
       expect(browserConfig).toContain('name: "solaris_e2e_maintenance_bypass"');
       expect(browserConfig).toContain('domain: "127.0.0.1"');
       expect(browserConfig).toContain("storageState: appAuditStorageState");
-      expect(browserConfig).toContain("/favicon.ico");
     }
-
-    expect(grandFinalBrowserConfig).toContain(
-      'url: "http://127.0.0.1:4177/favicon.ico"',
-    );
-    expect(grandFinalResultsBrowserConfig).toContain(
-      'url: "http://127.0.0.1:4178/favicon.ico"',
-    );
     expect(server).toContain(
       'const localHost = url.hostname === "127.0.0.1" || url.hostname === "localhost";',
     );
     expect(server).toContain("if (!localHost) return false;");
-    expect(server).toContain('"/favicon.ico"');
   });
 
-  it("classifies browser bootstrap separately and enters the qualifier bridge only after Playwright initializes", () => {
-    expect(driver).toContain('"grand-final-browser-bootstrap"');
-    expect(grandFinalLeg).toContain('CURRENT_STAGE="grand-final-browser-bootstrap"');
-    expect(grandFinalLeg).toContain(
-      "bunx playwright test --list --config=playwright.s14-grand-final.config.ts",
+  it("owns Vite outside Playwright and separates bootstrap, HTTP readiness, and app execution evidence", () => {
+    expect(grandFinalLeg).toContain('source "$S14_BROWSER_RUNTIME_DIR/v3-s14-browser-runtime.sh"');
+    expect(grandFinalResults).toContain(
+      'source "$S14_BROWSER_RUNTIME_DIR/v3-s14-browser-runtime.sh"',
     );
-    expect(grandFinalLeg).toContain('CURRENT_STAGE="grand-final-qualifier-bridge"');
+    expect(grandFinalLeg).toContain("run_s14_browser_test");
+    expect(grandFinalResults).toContain("run_s14_browser_test");
 
-    const bootstrapIndex = grandFinalLeg.indexOf('CURRENT_STAGE="grand-final-browser-bootstrap"');
-    const configPreflightIndex = grandFinalLeg.indexOf(
-      "bunx playwright test --list --config=playwright.s14-grand-final.config.ts",
+    expect(browserRuntime).toContain('CURRENT_STAGE="${bootstrap_stage}:vite-bootstrap"');
+    expect(browserRuntime).toContain('CURRENT_STAGE="${bootstrap_stage}:http-readiness"');
+    expect(browserRuntime).toContain('CURRENT_STAGE="${bootstrap_stage}:playwright-bootstrap"');
+    expect(browserRuntime).toContain('CURRENT_STAGE="$run_stage"');
+    expect(browserRuntime).toContain(
+      'bun run dev --host 127.0.0.1 --port "$port" --strictPort',
     );
-    const bridgeIndex = grandFinalLeg.indexOf('CURRENT_STAGE="grand-final-qualifier-bridge"');
-    const browserRunIndex = grandFinalLeg.indexOf(
+    expect(browserRuntime).toContain('"$base_url/favicon.ico"');
+    expect(browserRuntime).toContain("Cookie: solaris_e2e_maintenance_bypass=1");
+    expect(browserRuntime).toContain('E2E_BASE_URL="$base_url"');
+    expect(browserRuntime).toContain('tail -300 "$vite_log"');
+    expect(browserRuntime).toContain('ss -ltnp 2>/dev/null | grep ":$port"');
+
+    expect(grandFinalLeg).toContain("grand-final-browser-bootstrap");
+    expect(grandFinalLeg).toContain("grand-final-qualifier-bridge");
+    expect(grandFinalResults).toContain('"grand-final-results:browser-bootstrap"');
+    expect(grandFinalResults).toContain("grand-final-results");
+    expect(grandFinalLeg).not.toContain(
       "bunx playwright test --config=playwright.s14-grand-final.config.ts",
     );
-
-    expect(bootstrapIndex).toBeGreaterThanOrEqual(0);
-    expect(configPreflightIndex).toBeGreaterThan(bootstrapIndex);
-    expect(bridgeIndex).toBeGreaterThan(configPreflightIndex);
-    expect(browserRunIndex).toBeGreaterThan(bridgeIndex);
+    expect(grandFinalResults).not.toContain(
+      "bunx playwright test --config=playwright.s14-grand-final-results.config.ts",
+    );
   });
 
   it("does not preserve the resolved #651 synthetic blocker", () => {
@@ -142,11 +145,14 @@ describe("S14 Grand Final failure evidence", () => {
     expect(driver).toContain('source "$SCRIPT_DIR/v3-s14-grand-final-results.sh"');
   });
 
-  it("keeps the merged stateful driver syntactically valid", () => {
-    expect(() =>
-      execFileSync("bash", ["-n", ".github/scripts/v3-full-contest-rehearsal.sh"], {
-        stdio: "pipe",
-      }),
-    ).not.toThrow();
+  it("keeps the browser runtime and Grand Final shell adapters syntactically valid", () => {
+    for (const path of [
+      ".github/scripts/v3-s14-browser-runtime.sh",
+      ".github/scripts/v3-s14-grand-final-leg.sh",
+      ".github/scripts/v3-s14-grand-final-results.sh",
+      ".github/scripts/v3-full-contest-rehearsal.sh",
+    ]) {
+      expect(() => execFileSync("bash", ["-n", path], { stdio: "pipe" })).not.toThrow();
+    }
   });
 });
