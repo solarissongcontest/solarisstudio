@@ -47,12 +47,19 @@ describe("V3 Voting DNA publication boundary", () => {
     expect(route).toContain("Not public");
   });
 
-  it("keeps the projection compact, unique and versioned", () => {
+  it("keeps the projection compact, unique, versioned and historically scoped", () => {
     expect(adapter).toContain("schemaVersion: 1");
     expect(adapter).toContain('formulaVersion: "v1"');
+    expect(adapter).toContain("detailedEditionIds: string[]");
     expect(adapter).toContain("const MAX_RELATIONSHIPS = 10");
     expect(adapter).toContain("const MAX_RESULT_ROWS = 256");
+    expect(adapter).toContain("const MAX_DETAILED_EDITIONS = 256");
+    expect(adapter).toContain("Voting DNA detailed edition scope count mismatch");
     expect(adapter).toContain("Voting DNA result sample count mismatch");
     expect(adapter).toContain("Voting DNA result sample contains duplicate edition identity");
+
+    expect(route).toContain("Detailed-voting scope:");
+    expect(route).toContain("dna.data.sample.detailedEditionIds");
+    expect(route).toContain("exact published\n          editions listed in the sample scope above");
   });
 });
