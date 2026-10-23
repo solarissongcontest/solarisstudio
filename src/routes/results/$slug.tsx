@@ -41,7 +41,12 @@ function LegacyEditionResultsRedirect() {
 
   useEffect(() => {
     if (target) {
-      void navigate({ to: "/shows/$showId", params: { showId: target.id }, replace: true });
+      void navigate({
+        to: "/shows/$showId",
+        params: { showId: target.id },
+        search: { from: "results" },
+        replace: true,
+      });
     }
   }, [navigate, target]);
 
