@@ -4,6 +4,7 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_RELATIONSHIPS = 10;
 const MAX_RESULT_ROWS = 256;
+const MAX_DETAILED_EDITIONS = 256;
 
 export type V3PublicVotingDnaRelationship = {
   countryId: string;
@@ -27,6 +28,7 @@ export type V3PublicVotingDna = {
   formulaVersion: "v1";
   sample: {
     detailedEditions: number;
+    detailedEditionIds: string[];
     givenPoints: number;
     receivedPoints: number;
     resultEditions: number;
@@ -73,9 +75,22 @@ export function parseV3PublicVotingDna(value: unknown): V3PublicVotingDna {
   }
 
   const sample = asRecord(root.sample, "Voting DNA sample");
+  const detailedEditions = nonNegativeInteger(
+    sample.detailedEditions,
+    "detailedEditions",
+  );
+  const detailedEditionIds = uniqueUuidList(
+    sample.detailedEditionIds,
+    "detailedEditionIds",
+    MAX_DETAILED_EDITIONS,
+  );
   const topGiven = parseRelationships(root.topGiven, "topGiven");
   const topReceived = parseRelationships(root.topReceived, "topReceived");
   const rawResults = asArray(root.results, "Voting DNA results");
+
+  if (detailedEditionIds.length !== detailedEditions) {
+    throw new Error("Voting DNA detailed edition scope count mismatch");
+  }
 
   if (rawResults.length > MAX_RESULT_ROWS) {
     throw new Error("Voting DNA result sample exceeds the bounded contract");
@@ -100,7 +115,8 @@ export function parseV3PublicVotingDna(value: unknown): V3PublicVotingDna {
     schemaVersion: 1,
     formulaVersion: "v1",
     sample: {
-      detailedEditions: nonNegativeInteger(sample.detailedEditions, "detailedEditions"),
+      detailedEditions,
+      detailedEditionIds,
       givenPoints: nonNegativeNumber(sample.givenPoints, "givenPoints"),
       receivedPoints: nonNegativeNumber(sample.receivedPoints, "receivedPoints"),
       resultEditions,
@@ -179,6 +195,23 @@ function publishedPoints(value: unknown, published: boolean, label: string) {
   }
 
   return nonNegativeNumber(value, label);
+}
+
+function uniqueUuidList(value: unknown, label: string, maxItems: number): string[] {
+  const rows = asArray(value, label);
+  if (rows.length > maxItems) {
+    throw new Error(`${label} exceeds the bounded scope contract`);
+  }
+
+  const seen = new Set<string>();
+  return rows.map((value, index) => {
+    const parsed = uuid(value, `${label}[${index}]`);
+    if (seen.has(parsed)) {
+      throw new Error(`${label} contains duplicate identity`);
+    }
+    seen.add(parsed);
+    return parsed;
+  });
 }
 
 function asRecord(value: unknown, label: string): Record<string, unknown> {
