@@ -68,40 +68,39 @@ function objectValue(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function assertDirectSuccess(
+function isSettledRetryResult(
   data: unknown,
   input: { operationId: string; deliveryId: string },
 ) {
   const row = objectValue(data);
-  if (
-    !row ||
-    row.ok !== true ||
-    row.operationId !== input.operationId ||
-    row.deliveryId !== input.deliveryId ||
-    row.status !== "pending"
-  ) {
-    throw new Error("Delivery retry returned an invalid authoritative result.");
-  }
-}
-
-function assertSettledReceiptResult(
-  result: unknown,
-  input: { operationId: string; deliveryId: string },
-) {
-  const row = objectValue(result);
-  if (
-    !row ||
-    row.ok !== true ||
-    row.operationId !== input.operationId ||
-    row.deliveryId !== input.deliveryId ||
-    row.status !== "pending"
-  ) {
-    throw new Error("Delivery retry receipt does not match the reviewed delivery operation.");
-  }
+  return Boolean(
+    row &&
+      row.ok === true &&
+      row.operationId === input.operationId &&
+      row.deliveryId === input.deliveryId &&
+      row.status === "pending",
+  );
 }
 
 function isMissingReceipt(error: RpcError | null) {
   return error?.code === "P0002" && error.message === "UNKNOWN";
+}
+
+function invalidReceiptOutcome(
+  input: {
+    operationId: string;
+    deliveryId: string;
+    recovery: SolarisV6OperationRecovery;
+  },
+): DeliveryRetryUnresolved {
+  return {
+    state: "unresolved",
+    operationId: input.operationId,
+    deliveryId: input.deliveryId,
+    reason: "invalid_receipt",
+    recovery: input.recovery,
+    allowSameIdentityRetry: false,
+  };
 }
 
 export async function reconcileDeliveryRetry(
@@ -138,18 +137,13 @@ export async function reconcileDeliveryRetry(
     receipt.operationId !== input.operationId ||
     receipt.command !== DELIVERY_RETRY_COMMAND
   ) {
-    return {
-      state: "unresolved",
-      operationId: input.operationId,
-      deliveryId: input.deliveryId,
-      reason: "invalid_receipt",
-      recovery: input.recovery,
-      allowSameIdentityRetry: false,
-    };
+    return invalidReceiptOutcome(input);
   }
 
   if (receipt.status === "succeeded") {
-    assertSettledReceiptResult(receipt.result, input);
+    if (!isSettledRetryResult(receipt.result, input)) {
+      return invalidReceiptOutcome(input);
+    }
     return {
       state: "succeeded",
       operationId: input.operationId,
@@ -202,10 +196,19 @@ export async function retryFailedDeliveryWithReconciliation(
   );
 
   if (!error) {
-    assertDirectSuccess(data, {
+    if (!isSettledRetryResult(data, {
       operationId: input.identity.operationId,
       deliveryId: input.deliveryId,
-    });
+    })) {
+      return invalidReceiptOutcome({
+        operationId: input.identity.operationId,
+        deliveryId: input.deliveryId,
+        recovery: resolveSolarisV6OperationRecovery("invalid authoritative result", {
+          online: true,
+          stableOperationIdentity: true,
+        }),
+      });
+    }
     return {
       state: "succeeded",
       operationId: input.identity.operationId,
