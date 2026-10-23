@@ -133,6 +133,17 @@ where show_id='$show_id'::uuid;
     [[ "$(printf '%s' "$HTTP_BODY" | json_value '0.id')" == "$show_id" ]] || fail "anonymous public lookup did not expose show $show_id"
     [[ "$(printf '%s' "$HTTP_BODY" | json_value '0.published')" == "true" ]] || fail "anonymous show $show_id is not public"
     [[ "$(printf '%s' "$HTTP_BODY" | json_value '0.publication_config.running_order')" == "true" ]] || fail "anonymous show $show_id does not expose running-order publication"
+    [[ "$(printf '%s' "$HTTP_BODY" | json_value '0.publication_config.results')" == "false" ]] || fail "running-order publication unexpectedly enabled Results for $show_id"
+
+    CURRENT_STAGE="stage-5-running-orders:anonymous-results:$show_id"
+    request GET "$API_URL/rest/v1/results?show_id=eq.$show_id&select=id" "$ANON_KEY" "$ANON_KEY"
+    expect_success "anonymous pre-outcome Results lookup $show_id"
+    public_result_count="$(python3 -c 'import json,sys; print(len(json.load(sys.stdin)))' <<< "$HTTP_BODY")"
+    if [[ "$public_result_count" != "0" ]]; then
+      visibility_snapshot="$(db_scalar "select jsonb_build_object('published',published,'publicationResults',coalesce((publication_config->>'results')::boolean,false),'publicationEnabled',public.show_publication_enabled(id,'results'))::text from public.shows where id='$show_id'::uuid;")"
+      policy_snapshot="$(db_scalar "select coalesce(jsonb_agg(jsonb_build_object('policyName',policyname,'roles',roles,'command',cmd,'permissive',permissive,'qual',qual) order by policyname),'[]'::jsonb)::text from pg_policies where schemaname='public' and tablename='results' and cmd in ('SELECT','ALL');")"
+      fail "running-order publication leaked $public_result_count anonymous Results rows for $show_id visibility=$visibility_snapshot policies=$policy_snapshot body=$HTTP_BODY"
+    fi
 
     CURRENT_STAGE="stage-5-running-orders:anonymous-participants:$show_id"
     request GET "$API_URL/rest/v1/participants?show_id=eq.$show_id&select=id,running_order&order=running_order.asc" "$ANON_KEY" "$ANON_KEY"

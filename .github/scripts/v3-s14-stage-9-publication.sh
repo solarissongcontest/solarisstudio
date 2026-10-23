@@ -31,6 +31,47 @@ where version_row.show_id='$show_id'::uuid and version_row.version=$version;
 " | normalise_json
 }
 
+publication_visibility_diagnostic() {
+  local show_id="$1" anonymous_snapshot="$2" database_snapshot
+  database_snapshot="$(db_scalar "
+select jsonb_build_object(
+  'showId', s.id::text,
+  'published', s.published,
+  'publicationResults', coalesce((s.publication_config ->> 'results')::boolean, false),
+  'publicationEnabled', public.show_publication_enabled(s.id, 'results'),
+  'control', (
+    select jsonb_build_object(
+      'state', control.state,
+      'version', control.version,
+      'sourceResultVersion', control.source_result_version,
+      'frozenConfig', control.frozen_config
+    )
+    from public.studio2_show_publication_controls control
+    where control.show_id=s.id
+  ),
+  'resultPolicies', coalesce((
+    select jsonb_agg(
+      jsonb_build_object(
+        'policyName', policy.policyname,
+        'roles', policy.roles,
+        'command', policy.cmd,
+        'permissive', policy.permissive,
+        'qual', policy.qual
+      ) order by policy.policyname
+    )
+    from pg_policies policy
+    where policy.schemaname='public'
+      and policy.tablename='results'
+      and policy.cmd in ('SELECT', 'ALL')
+  ), '[]'::jsonb)
+)::text
+from public.shows s
+where s.id='$show_id'::uuid;
+")"
+  printf '\n[v3-s14-full-contest] PUBLICATION_VISIBILITY_DIAGNOSTIC show=%s anonymous=%s database=%s\n' \
+    "$show_id" "$anonymous_snapshot" "$database_snapshot" >&2
+}
+
 apply_publication_change() {
   local show_id="$1" target_state="$2" config="$3" operation_id="$4" idempotency_key="$5"
   local expected_version
@@ -66,7 +107,10 @@ run_s14_stage_9_publication() {
     [[ "$(db_scalar "select private.v3_publication_result_version_release_ready('$show_id'::uuid,$result_version)::text;")" == "true" ]] || fail "Results version $result_version is not publication-release-ready for $show_id"
 
     pre_refresh="$(anonymous_result_snapshot "$show_id")"
-    [[ "$pre_refresh" == "[]" ]] || fail "anonymous Results leaked before outcome publication for $show_id"
+    if [[ "$pre_refresh" != "[]" ]]; then
+      publication_visibility_diagnostic "$show_id" "$pre_refresh"
+      fail "anonymous Results leaked before outcome publication for $show_id"
+    fi
 
     current_config="$(db_scalar "select frozen_config::text from public.studio2_show_publication_controls where show_id='$show_id'::uuid;")"
     hide_op="14000000-0000-4009-8100-$(printf '%012d' "$show_ordinal")"

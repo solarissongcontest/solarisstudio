@@ -59,7 +59,7 @@ describe("S14 Grand Final exact-version publication", () => {
 
   it("rejects post-publication recalculation so the public pointer cannot silently drift", () => {
     expect(finalPublication).toContain("post-publication Grand Final result recalculation");
-    expect(finalPublication).toContain('p_expected_version\\\":$result_version');
+    expect(finalPublication).toContain('p_expected_version\\":$result_version');
     expect(finalPublication).toContain("failed post-publication mutation moved Grand Final away from public result version $result_version");
     expect(finalPublication).toContain("failed post-publication mutation moved Grand Final publication pointer away from version $result_version");
   });
