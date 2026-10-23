@@ -35,9 +35,12 @@ type FanProfileModerationRow = {
 
 type PendingModeration = {
   profile: FanProfileModerationRow;
+  profileFingerprint: string;
   hidden: boolean;
   operationId: string;
   idempotencyKey: string;
+  commandReason: string | null;
+  commandAttempted: boolean;
 };
 
 const MODERATION_RISK = "R2" as const;
@@ -52,10 +55,34 @@ export const Route = createFileRoute("/_authenticated/admin/community-moderation
   component: CommunityModerationPage,
 });
 
+function moderationReviewFingerprint(profile: FanProfileModerationRow) {
+  return JSON.stringify({
+    profileId: profile.profileId,
+    displayName: profile.displayName,
+    visibility: profile.visibility,
+    leaderboardOptIn: profile.leaderboardOptIn,
+    hiddenAt: profile.hiddenAt,
+    moderationReason: profile.moderationReason,
+    updatedAt: profile.updatedAt,
+  });
+}
+
+async function loadExactModerationProfile(reviewed: FanProfileModerationRow) {
+  const { data, error } = await (supabase as any).rpc("admin_fan_profile_moderation", {
+    p_limit: 250,
+    p_query: reviewed.displayName,
+  });
+  if (error) throw error;
+  const rows = (Array.isArray(data) ? data : []) as FanProfileModerationRow[];
+  return rows.find((profile) => profile.profileId === reviewed.profileId) ?? null;
+}
+
 function CommunityModerationPage() {
   const [query, setQuery] = useState("");
   const [pendingModeration, setPendingModeration] = useState<PendingModeration | null>(null);
   const [moderationReason, setModerationReason] = useState("");
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const [recovery, setRecovery] = useState<SolarisV6OperationRecovery | null>(null);
   const queryClient = useQueryClient();
 
@@ -101,6 +128,7 @@ function CommunityModerationPage() {
     onSuccess: async () => {
       setPendingModeration(null);
       setModerationReason("");
+      setReviewError(null);
       setRecovery(null);
       await queryClient.invalidateQueries({ queryKey: ["admin-fan-profile-moderation"] });
     },
@@ -147,30 +175,86 @@ function CommunityModerationPage() {
       payload: { profileId: profile.profileId, hidden },
     });
     setModerationReason("");
+    setReviewError(null);
     setRecovery(null);
     moderate.reset();
     setPendingModeration({
       profile,
+      profileFingerprint: moderationReviewFingerprint(profile),
       hidden,
       operationId: command.operationId,
       idempotencyKey: command.idempotencyKey,
+      commandReason: null,
+      commandAttempted: false,
     });
   }
 
-  function confirmModeration() {
-    if (!pendingModeration) return;
-    const reason = pendingModeration.hidden
-      ? moderationReason.trim()
-      : "Restored by Organizer";
-    if (pendingModeration.hidden && !reason) return;
+  async function confirmModeration() {
+    let reviewed = pendingModeration;
+    if (!reviewed) return;
+
+    const reason = reviewed.commandReason ?? (
+      reviewed.hidden ? moderationReason.trim() : "Restored by Organizer"
+    );
+    if (reviewed.hidden && !reason) return;
+
+    if (reviewed.commandReason === null) {
+      reviewed = { ...reviewed, commandReason: reason };
+      setModerationReason(reason);
+      setPendingModeration(reviewed);
+    }
+
+    if (!reviewed.commandAttempted) {
+      setReviewBusy(true);
+      setReviewError(null);
+      try {
+        const live = await loadExactModerationProfile(reviewed.profile);
+        if (
+          !live ||
+          moderationReviewFingerprint(live) !== reviewed.profileFingerprint
+        ) {
+          setPendingModeration(null);
+          setModerationReason("");
+          setRecovery(null);
+          moderate.reset();
+          setReviewError(
+            `${reviewed.profile.displayName} changed while this moderation decision was being reviewed. Nothing was changed. Reload the current profile state and review the decision again.`,
+          );
+          await queryClient.invalidateQueries({
+            queryKey: ["admin-fan-profile-moderation"],
+          });
+          return;
+        }
+      } catch (error) {
+        setReviewError(
+          error instanceof Error
+            ? `Could not refresh the reviewed profile before moderation: ${error.message}`
+            : "Could not refresh the reviewed profile before moderation. Nothing was changed.",
+        );
+        return;
+      } finally {
+        setReviewBusy(false);
+      }
+
+      reviewed = { ...reviewed, commandAttempted: true };
+      setPendingModeration(reviewed);
+    }
 
     moderate.mutate({
-      profileId: pendingModeration.profile.profileId,
-      hidden: pendingModeration.hidden,
-      reason,
-      operationId: pendingModeration.operationId,
-      idempotencyKey: pendingModeration.idempotencyKey,
+      profileId: reviewed.profile.profileId,
+      hidden: reviewed.hidden,
+      reason: reviewed.commandReason ?? reason,
+      operationId: reviewed.operationId,
+      idempotencyKey: reviewed.idempotencyKey,
     });
+  }
+
+  function closeReview() {
+    if (moderate.isPending || reviewBusy) return;
+    setPendingModeration(null);
+    setModerationReason("");
+    setRecovery(null);
+    moderate.reset();
   }
 
   return (
@@ -182,6 +266,13 @@ function CommunityModerationPage() {
           description="Moderate public fan display identity without altering predictions, scores or historical competitive data. Hidden profiles keep their private account and scoring history."
           actions={<AdminStatus tone="info">Scope · global community identity</AdminStatus>}
         />
+
+        {reviewError ? (
+          <AdminCard className="!border-amber-200/15 !bg-amber-200/[0.045]">
+            <p className="text-sm font-semibold text-amber-50">Moderation review needs refreshing</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">{reviewError}</p>
+          </AdminCard>
+        ) : null}
 
         <section className="grid gap-3 sm:grid-cols-3">
           <Metric label="Profiles" value={profiles.length} />
@@ -256,7 +347,7 @@ function CommunityModerationPage() {
                     <button
                       type="button"
                       className="admin-action-secondary shrink-0"
-                      disabled={moderate.isPending}
+                      disabled={moderate.isPending || reviewBusy}
                       onClick={() => requestModeration(profile, false)}
                     >
                       <RotateCcw className="size-4" />
@@ -266,7 +357,7 @@ function CommunityModerationPage() {
                     <button
                       type="button"
                       className="admin-action-secondary shrink-0"
-                      disabled={moderate.isPending}
+                      disabled={moderate.isPending || reviewBusy}
                       onClick={() => requestModeration(profile, true)}
                     >
                       <EyeOff className="size-4" />
@@ -301,13 +392,7 @@ function CommunityModerationPage() {
 
       <AdminSheet
         open={Boolean(pendingModeration)}
-        onClose={() => {
-          if (moderate.isPending) return;
-          setPendingModeration(null);
-          setModerationReason("");
-          setRecovery(null);
-          moderate.reset();
-        }}
+        onClose={closeReview}
         title={
           pendingModeration?.hidden
             ? "Hide public fan identity"
@@ -316,10 +401,11 @@ function CommunityModerationPage() {
         description="Review the affected public surfaces before applying this moderation decision."
       >
         {pendingModeration ? (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
+          <div className="space-y-4" data-v3-organizer-community-fresh-review>
+            <div className="flex flex-wrap items-center gap-2">
               <AdminStatus tone="attention">{MODERATION_RISK}</AdminStatus>
               <AdminStatus tone="info">Global public identity</AdminStatus>
+              <AdminStatus tone="neutral">Reviewed {formatDate(pendingModeration.profile.updatedAt)}</AdminStatus>
               <p className="text-xs font-semibold text-muted-foreground">
                 {requiresImpactPreview(MODERATION_RISK)
                   ? "Impact review required"
@@ -329,7 +415,15 @@ function CommunityModerationPage() {
 
             <div className="rounded-xl border border-amber-200/15 bg-amber-200/[0.05] p-3">
               <p className="text-sm font-semibold">{pendingModeration.profile.displayName}</p>
-              <ul className="mt-2 space-y-1.5 text-xs leading-5 text-muted-foreground">
+              <div className="mt-2 flex flex-wrap gap-2">
+                <AdminStatus tone={pendingModeration.profile.hiddenAt ? "blocked" : "ready"}>
+                  {pendingModeration.profile.hiddenAt ? "Hidden" : pendingModeration.profile.visibility}
+                </AdminStatus>
+                {pendingModeration.profile.leaderboardOptIn ? (
+                  <AdminStatus tone="neutral">Leaderboard opt-in</AdminStatus>
+                ) : null}
+              </div>
+              <ul className="mt-3 space-y-1.5 text-xs leading-5 text-muted-foreground">
                 <li>Scope: public community identity across eligible surfaces, not an edition, show or competitive record.</li>
                 <li>
                   {pendingModeration.hidden
@@ -350,19 +444,39 @@ function CommunityModerationPage() {
                 <textarea
                   value={moderationReason}
                   onChange={(event) => setModerationReason(event.target.value)}
-                  className="mt-2 min-h-28 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] p-3 text-sm outline-none focus:border-sky-200/30"
+                  disabled={
+                    pendingModeration.commandReason !== null ||
+                    reviewBusy ||
+                    moderate.isPending
+                  }
+                  className="mt-2 min-h-28 w-full rounded-xl border border-white/[0.1] bg-white/[0.035] p-3 text-sm outline-none focus:border-sky-200/30 disabled:cursor-not-allowed disabled:opacity-60"
                   placeholder="Record the concrete reason for hiding this public identity…"
                 />
+                {pendingModeration.commandReason !== null ? (
+                  <span className="mt-2 block text-[11px] leading-4 text-muted-foreground">
+                    Reason frozen for this operation identity. Close and reopen review to change it.
+                  </span>
+                ) : null}
               </label>
             ) : null}
 
-            {recovery ? (
+            {!pendingModeration.commandAttempted ? (
+              <div className="rounded-xl border border-sky-200/15 bg-sky-200/[0.04] p-3 text-xs leading-5 text-muted-foreground">
+                Before the first command attempt, Solaris re-reads this protected profile and compares the reviewed identity/moderation fingerprint. Drift closes the review. System #1579 is still required to move that expected-version check into the authoritative transaction.
+              </div>
+            ) : null}
+
+            {reviewBusy ? (
+              <div role="status" className="rounded-xl border border-sky-200/15 bg-sky-200/[0.04] p-3 text-xs text-muted-foreground">
+                Re-checking the exact reviewed profile before the first moderation attempt…
+              </div>
+            ) : recovery ? (
               <div role="status" className="rounded-xl border border-amber-200/15 bg-amber-200/[0.05] p-3 text-xs leading-5">
                 <p className="font-semibold text-amber-50">{recovery.title}</p>
                 <p className="mt-1 text-muted-foreground">{recovery.description}</p>
                 {recovery.outcomeUnknown ? (
                   <p className="mt-2 font-semibold text-foreground">
-                    The server outcome is unknown. Retrying here reuses the same operation identity.
+                    The server outcome is unknown. Retrying here reuses the same frozen reason and operation identity; it does not run a new stale-state preflight against a command that may already have committed.
                   </p>
                 ) : null}
               </div>
@@ -378,12 +492,8 @@ function CommunityModerationPage() {
               <button
                 type="button"
                 className="admin-action-secondary w-full"
-                disabled={moderate.isPending}
-                onClick={() => {
-                  setPendingModeration(null);
-                  setModerationReason("");
-                  moderate.reset();
-                }}
+                disabled={moderate.isPending || reviewBusy}
+                onClick={closeReview}
               >
                 Cancel
               </button>
@@ -392,17 +502,21 @@ function CommunityModerationPage() {
                 className={pendingModeration.hidden ? "admin-action-danger w-full" : "admin-action-primary w-full"}
                 disabled={
                   moderate.isPending ||
-                  (pendingModeration.hidden && !moderationReason.trim())
+                  reviewBusy ||
+                  (pendingModeration.hidden &&
+                    !(pendingModeration.commandReason ?? moderationReason.trim()))
                 }
-                onClick={confirmModeration}
+                onClick={() => void confirmModeration()}
               >
-                {moderate.isPending
-                  ? "Applying…"
-                  : recovery?.allowSameIdentityRetry
-                    ? "Retry same operation"
-                    : pendingModeration.hidden
-                      ? "Hide identity"
-                      : "Restore identity"}
+                {reviewBusy
+                  ? "Re-checking…"
+                  : moderate.isPending
+                    ? "Applying…"
+                    : recovery?.allowSameIdentityRetry
+                      ? "Retry same operation"
+                      : pendingModeration.hidden
+                        ? "Hide identity"
+                        : "Restore identity"}
               </button>
             </div>
           </div>
