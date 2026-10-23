@@ -11,10 +11,14 @@ const resultVersions = readFileSync(
 );
 
 describe("S14 Grand Final exact-version publication", () => {
-  it("requires immutable finalized result version 2 before any public outcome release", () => {
-    expect(finalPublication).toContain("calculation version 2");
-    expect(finalPublication).toContain("reviewed/locked/reveal-ready result version 2");
+  it("requires the immutable finalized current result version before any public outcome release", () => {
+    expect(finalPublication).toContain("result_version");
+    expect(finalPublication).toContain("current positive Results version");
+    expect(finalPublication).toContain("reviewed_version=$result_version");
+    expect(finalPublication).toContain("locked_version=$result_version");
+    expect(finalPublication).toContain("reveal_ready_version=$result_version");
     expect(finalPublication).toContain("private.v3_result_versions");
+    expect(finalPublication).toContain("version=$result_version");
     expect(finalPublication).toContain("result_row_count::text");
     expect(finalPublication).toContain("20");
     expect(resultVersions).toContain("create table private.v3_result_versions");
@@ -32,10 +36,10 @@ describe("S14 Grand Final exact-version publication", () => {
     expect(finalPublication).not.toContain("Grand Final publication requires Stage 9 helper");
   });
 
-  it("uses the same governed R3 publication authority as Stage 9", () => {
+  it("uses the same governed R3 publication authority as Stage 9 and exact current source version", () => {
     expect(stage9).toContain("studio2_apply_show_publication_change");
     expect(finalPublication).toContain("publication_preview");
-    expect(finalPublication).toContain("sourceResultVersion 2");
+    expect(finalPublication).toContain('sourceResultVersion "$result_version"');
     expect(finalPublication).toContain("resultReleaseReady true");
     expect(finalPublication).toContain("integrityClear true");
     expect(finalPublication).toContain("riskClass R3");
@@ -43,20 +47,21 @@ describe("S14 Grand Final exact-version publication", () => {
     expect(finalPublication).toContain("publication.changed");
   });
 
-  it("binds the anonymous public Grand Final exactly to immutable version 2", () => {
+  it("binds the anonymous public Grand Final exactly to the dynamically finalized immutable version", () => {
     expect(finalPublication).toContain("source_result_version::text");
-    expect(finalPublication).toContain("assert_anonymous_result_matches_version \"$FINAL_ID\" 2");
+    expect(finalPublication).toContain('assert_anonymous_result_matches_version "$FINAL_ID" "$result_version"');
     expect(finalPublication).toContain("publication_config.results");
     expect(finalPublication).toContain("publication_config.jury_results");
     expect(finalPublication).toContain("publication_config.televote_results");
     expect(finalPublication).toContain("publication_config.detailed_voting");
+    expect(finalPublication).not.toContain("sourceResultVersion 2");
   });
 
   it("rejects post-publication recalculation so the public pointer cannot silently drift", () => {
     expect(finalPublication).toContain("post-publication Grand Final result recalculation");
-    expect(finalPublication).toContain("p_expected_version\\\":2");
-    expect(finalPublication).toContain("failed post-publication mutation moved Grand Final away from public result version 2");
-    expect(finalPublication).toContain("failed post-publication mutation moved Grand Final publication pointer");
+    expect(finalPublication).toContain('p_expected_version\\\":$result_version');
+    expect(finalPublication).toContain("failed post-publication mutation moved Grand Final away from public result version $result_version");
+    expect(finalPublication).toContain("failed post-publication mutation moved Grand Final publication pointer away from version $result_version");
   });
 
   it("is wired into the stateful contest driver after Grand Final Results and before Archive", () => {
