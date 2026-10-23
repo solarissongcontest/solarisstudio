@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  parseV3PublicVotingDna,
-  type V3PublicVotingDna,
-} from "./v3-public-voting-dna";
+import { parseV3PublicVotingDna } from "@/integrations/v3/voting-dna-source.server";
+import type { V3PublicVotingDna } from "./v3-public-voting-dna";
 
 const COUNTRY_A = "11111111-1111-4111-8111-111111111111";
 const COUNTRY_B = "22222222-2222-4222-8222-222222222222";
