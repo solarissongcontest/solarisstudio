@@ -1,9 +1,9 @@
 name: DIAG current-main client budget
 
 on:
-  push:
+  pull_request:
     branches:
-      - diag/current-main-client-budget-20261023
+      - main
 
 permissions:
   contents: read
@@ -22,7 +22,7 @@ jobs:
       - name: Checkout exact source
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Isolate diagnostic build from hosted Supabase
@@ -55,6 +55,29 @@ jobs:
 
       - name: Verify production isolation
         run: bun run scripts/check-v3-production-isolation.ts
+
+      - name: Export exact canonical V4 snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun -e '
+            import { writeFileSync } from "node:fs";
+            import { LEGACY_RULE_ALIASES, SSC_RULE_CHAPTERS } from "./src/lib/ssc-rules/canon-v4.ts";
+            const generated = [
+              "// Generated from the authoritative V4 compiler. Do not edit by hand.",
+              "import type { SscRuleChapter } from \"@/lib/ssc-rules/types\";",
+              "",
+              `export const CANONICAL_RULE_CHAPTERS: SscRuleChapter[] = ${JSON.stringify(SSC_RULE_CHAPTERS, null, 2)};`,
+              "",
+              `export const CANONICAL_LEGACY_RULE_ALIASES: Record<string, string> = ${JSON.stringify(LEGACY_RULE_ALIASES, null, 2)};`,
+              "",
+            ].join("\n");
+            writeFileSync("canon-v4.generated.ts", generated);
+            writeFileSync(
+              "canon-v4.snapshot.json",
+              JSON.stringify({ chapters: SSC_RULE_CHAPTERS, aliases: LEGACY_RULE_ALIASES }, null, 2) + "\n",
+            );
+          '
 
       - name: Production build
         run: bun run build
@@ -106,16 +129,6 @@ jobs:
           );
           NODE
 
-          mkdir -p client-budget-manifests
-          find .output dist -type f \( -iname '*manifest*.json' -o -iname 'manifest.json' \) -print 2>/dev/null | sort > client-manifest-paths.txt || true
-          while IFS= read -r file; do
-            [ -n "$file" ] || continue
-            safe_name="$(printf '%s' "$file" | tr '/ ' '__')"
-            cp "$file" "client-budget-manifests/$safe_name"
-          done < client-manifest-paths.txt
-
-          head -80 client-asset-inventory.txt
-
       - name: Capture unchanged client budget result
         id: budget
         shell: bash
@@ -135,7 +148,7 @@ jobs:
             client-budget-report.txt
             client-asset-inventory.json
             client-asset-inventory.txt
-            client-manifest-paths.txt
-            client-budget-manifests/
+            canon-v4.generated.ts
+            canon-v4.snapshot.json
           if-no-files-found: error
           retention-days: 1
