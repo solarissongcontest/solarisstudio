@@ -44,6 +44,16 @@ describe("V3 Explore screen architecture boundary", () => {
     expect(source).not.toMatch(/Date\.now|new Date|scheduledStart|liveStartedAt|show\.status/);
   });
 
+  it("renders projected next-event time through the hydration-safe public time primitive", () => {
+    expect(source).toContain('import { EventTime } from "@/components/public/EventTime"');
+    expect(source).toContain('data-v3-explore-next-event=""');
+    expect(source).toContain("<EventTime value={edition.nextEvent.startsAt} showLocalTime />");
+    expect(source).not.toContain('description={edition.nextEvent.startsAt ?? "Time to be announced"}');
+    // Number counts may use locale formatting. Event chronology itself must stay
+    // delegated to EventTime rather than browser-owned Date/Intl logic here.
+    expect(source).not.toMatch(/new Date|toLocaleTimeString|Intl\.DateTimeFormat/);
+  });
+
   it("does not acquire Results data or analysis ownership", () => {
     expect(source).not.toMatch(/V3Results|scorechart|juryPoints|televotePoints|totalPoints|points:/);
     expect(source).not.toMatch(/resultRows|leaderboard|placement:/);
