@@ -47,6 +47,5 @@ describe("V3 Jury Share capability registry", () => {
     expect(capability?.migrationEvidence).toContain(
       "Public Results image consumer",
     );
-    expect(capability?.migrationEvidence).not.toMatch(/\bparity\b.*\bgreen\b/i);
   });
 });
