@@ -1,0 +1,141 @@
+name: DIAG current-main client budget
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diag-client-budget-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  client-budget-diagnostic:
+    name: Client budget diagnostic
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Isolate diagnostic build from hosted Supabase
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "VITE_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_budget_diag_local_only"
+            echo "SUPABASE_URL=http://127.0.0.1:54321"
+            echo "SUPABASE_PUBLISHABLE_KEY=sb_publishable_budget_diag_local_only"
+            echo "SUPABASE_PROJECT_ID=local"
+            echo "SUPABASE_PROJECT_REF=local"
+            echo "VITE_SUPABASE_PROJECT_ID=local"
+            echo "VITE_SUPABASE_PROJECT_REF=local"
+            echo "V3_VERIFICATION_TARGET=local"
+            echo "VITE_CONFIRMATIONS_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "VITE_CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=sb_publishable_budget_diag_local_only"
+            echo "CONFIRMATIONS_SUPABASE_URL=http://127.0.0.1:54321"
+            echo "CONFIRMATIONS_SUPABASE_PUBLISHABLE_KEY=sb_publishable_budget_diag_local_only"
+          } >> "$GITHUB_ENV"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.19
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify production isolation
+        run: bun run scripts/check-v3-production-isolation.ts
+
+      - name: Production build
+        run: bun run build
+
+      - name: Inventory built client assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const { existsSync, readdirSync, readFileSync, writeFileSync } = require("node:fs");
+          const { join } = require("node:path");
+          const { gzipSync } = require("node:zlib");
+
+          const roots = [".output/public/assets", "dist/client/assets", "dist/assets"];
+          const root = roots.find((candidate) => existsSync(candidate));
+          if (!root) throw new Error("No production client asset directory found");
+
+          const files = readdirSync(root)
+            .filter((name) => /\.(?:js|css)$/.test(name))
+            .map((name) => {
+              const bytes = readFileSync(join(root, name));
+              return {
+                name,
+                type: name.endsWith(".js") ? "js" : "css",
+                rawBytes: bytes.byteLength,
+                gzipBytes: gzipSync(bytes, { level: 9 }).byteLength,
+              };
+            })
+            .sort((a, b) => b.gzipBytes - a.gzipBytes);
+
+          const total = files.reduce((sum, file) => sum + file.gzipBytes, 0);
+          writeFileSync(
+            "client-asset-inventory.json",
+            JSON.stringify({ root, totalGzipBytes: total, files }, null, 2) + "\n",
+          );
+          writeFileSync(
+            "client-asset-inventory.txt",
+            [
+              `asset_root=${root}`,
+              `asset_count=${files.length}`,
+              `total_gzip_bytes=${total}`,
+              "",
+              "gzip_KiB\traw_KiB\ttype\tasset",
+              ...files.map((file) =>
+                `${(file.gzipBytes / 1024).toFixed(2)}\t${(file.rawBytes / 1024).toFixed(2)}\t${file.type}\t${file.name}`,
+              ),
+              "",
+            ].join("\n"),
+          );
+          NODE
+
+          mkdir -p client-budget-manifests
+          find .output dist -type f \( -iname '*manifest*.json' -o -iname 'manifest.json' \) -print 2>/dev/null | sort > client-manifest-paths.txt || true
+          while IFS= read -r file; do
+            [ -n "$file" ] || continue
+            safe_name="$(printf '%s' "$file" | tr '/ ' '__')"
+            cp "$file" "client-budget-manifests/$safe_name"
+          done < client-manifest-paths.txt
+
+          head -80 client-asset-inventory.txt
+
+      - name: Capture unchanged client budget result
+        id: budget
+        shell: bash
+        run: |
+          set +e
+          bun run budget:client 2>&1 | tee client-budget-report.txt
+          status=${PIPESTATUS[0]}
+          printf '\nbudget_exit_code=%s\n' "$status" | tee -a client-budget-report.txt
+          exit "$status"
+
+      - name: Upload client budget diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-performance-budget-diagnostics
+          path: |
+            client-budget-report.txt
+            client-asset-inventory.json
+            client-asset-inventory.txt
+            client-manifest-paths.txt
+            client-budget-manifests/
+          if-no-files-found: error
+          retention-days: 1
