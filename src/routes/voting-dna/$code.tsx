@@ -11,14 +11,13 @@ import {
   StatSummary,
   type PublicDataColumn,
 } from "@/components/public/PublicDataStory";
-import { supabase } from "@/integrations/supabase/client";
 import { editionLabel, useCountries, useEditions } from "@/lib/data";
+import { loadV3PublicVotingDna } from "@/lib/v3-public-voting-dna";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 import {
   VOTING_DNA_PRESENTATION_FORMULA_VERSION,
   averagePublishedTotals,
   getVotingDnaAvailability,
-  type VotingDnaAggregate,
 } from "@/lib/v3-voting-dna";
 
 export const Route = createFileRoute("/voting-dna/$code")({
@@ -51,14 +50,8 @@ function VotingDnaPage() {
 
   const dna = useQuery({
     enabled: feature.data === true && Boolean(country?.id),
-    queryKey: ["country-voting-dna", country?.id],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("public_country_voting_dna", {
-        _country_id: country!.id,
-      });
-      if (error) throw error;
-      return data as VotingDnaAggregate;
-    },
+    queryKey: ["v3-public-country-voting-dna", country?.id],
+    queryFn: () => loadV3PublicVotingDna(country!.id),
     staleTime: 10 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -140,9 +133,10 @@ function VotingDnaPage() {
           title={`${country.name} Voting DNA`}
           description="Country voting patterns."
         />
-        <Panel title="Voting DNA could not be loaded">
-          <p className="text-sm text-muted-foreground">
-            Published voting aggregates are temporarily unavailable.
+        <Panel title="Voting DNA is temporarily unavailable">
+          <p className="text-sm text-muted-foreground" role="status">
+            Solaris could not load a publication-safe Voting DNA projection. Hidden Jury or
+            Televote layers are never reconstructed from the older aggregate response.
           </p>
         </Panel>
       </AppShell>
@@ -205,8 +199,16 @@ function VotingDnaPage() {
       Boolean(row.edition),
     );
 
-  const juryValues = editionRows.map((row) => row.result.juryPoints);
-  const teleValues = editionRows.map((row) => row.result.televotePoints);
+  const juryValues = editionRows.flatMap((row) =>
+    row.result.juryPublished && row.result.juryPoints !== null
+      ? [row.result.juryPoints]
+      : [],
+  );
+  const teleValues = editionRows.flatMap((row) =>
+    row.result.televotePublished && row.result.televotePoints !== null
+      ? [row.result.televotePoints]
+      : [],
+  );
   const historyColumns = [
     {
       key: "edition",
@@ -223,13 +225,23 @@ function VotingDnaPage() {
       key: "jury",
       header: "Jury",
       align: "right" as const,
-      render: (row) => <span className="tabular-nums">{row.result.juryPoints}</span>,
+      render: (row) =>
+        row.result.juryPublished && row.result.juryPoints !== null ? (
+          <span className="tabular-nums">{row.result.juryPoints}</span>
+        ) : (
+          <span className="text-muted-foreground">Not public</span>
+        ),
     },
     {
       key: "televote",
       header: "Televote",
       align: "right" as const,
-      render: (row) => <span className="tabular-nums">{row.result.televotePoints}</span>,
+      render: (row) =>
+        row.result.televotePublished && row.result.televotePoints !== null ? (
+          <span className="tabular-nums">{row.result.televotePoints}</span>
+        ) : (
+          <span className="text-muted-foreground">Not public</span>
+        ),
     },
     {
       key: "total",
@@ -308,7 +320,7 @@ function VotingDnaPage() {
 
         <Panel
           title="Jury and televote result profile"
-          description="Published edition totals remain separate rather than being flattened into a single opaque score."
+          description="Each split result appears only when that exact result layer is public. Combined totals and ranks do not make hidden Jury or Televote values public."
           className="mt-5"
         >
           {availability.hasResultSample && editionRows.length ? (
@@ -349,14 +361,15 @@ function VotingDnaPage() {
         </Panel>
 
         <MethodologyDisclosure title="Methodology">
-          Voting DNA uses a compact database aggregate over published editions, result layers and
-          detailed jury ballots. Jury and televote totals remain separate. Directional support is
-          the sum of published detailed jury vote rows because aggregate televote totals do not
-          identify individual voter-country relationships. The displayed jury and televote
-          averages use presentation formula {VOTING_DNA_PRESENTATION_FORMULA_VERSION}: the
-          arithmetic mean of the published edition totals shown in this profile. Missing historical
-          detail is excluded rather than estimated, and the sample counts above show the historical
-          scope of the available evidence.
+          Voting DNA uses the publication-safe server aggregate formula {dna.data.formulaVersion}.
+          Directional support is built only from detailed jury vote rows that the relevant show has
+          published. Combined Result publication may expose rank and total points, but Jury and
+          Televote point totals remain independently hidden until their own publication layers are
+          public. The displayed Jury and Televote averages use presentation formula {" "}
+          {VOTING_DNA_PRESENTATION_FORMULA_VERSION}: the arithmetic mean of only the split totals
+          actually released in the rows shown above. Missing historical detail is excluded rather
+          than estimated, and the sample counts above show the historical scope of the available
+          evidence.
         </MethodologyDisclosure>
       </DataStoryPage>
     </AppShell>
