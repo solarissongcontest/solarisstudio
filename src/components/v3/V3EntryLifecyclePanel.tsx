@@ -92,12 +92,31 @@ function editingTone(state: ReturnType<typeof deriveV3EntryEditingPresentation>[
   return "text-[var(--v3-text-tertiary)]";
 }
 
+function lifecycleDescription(
+  lifecycleState: V3EntryLifecycleState,
+  editingState: ReturnType<typeof deriveV3EntryEditingPresentation>["state"],
+  fallback: string,
+) {
+  if (lifecycleState !== "changes-required") return fallback;
+
+  if (editingState === "reopened" || editingState === "open") {
+    return fallback;
+  }
+
+  if (editingState === "locked") {
+    return "The organizer requested changes, but the current response is locked. Review the reason below; you cannot correct or resubmit until editing is reopened.";
+  }
+
+  return "The organizer requested changes, but editing is not open right now. Review the reason below and return when correction editing is reopened.";
+}
+
 export function V3EntryLifecyclePanel({ projection }: { projection: V3EntryProjection }) {
   if (projection.state !== "ready") return null;
 
   const lifecycle = projection.lifecycle ?? deriveV3EntryLifecycle(projection.confirmation);
   const presentation = PRESENTATION[lifecycle.state];
   const editing = deriveV3EntryEditingPresentation(projection.confirmation, lifecycle);
+  const description = lifecycleDescription(lifecycle.state, editing.state, presentation.description);
   const correctionSection =
     lifecycle.state === "changes-required"
       ? inferV3EntryCorrectionSection(lifecycle.issue)
@@ -130,7 +149,7 @@ export function V3EntryLifecyclePanel({ projection }: { projection: V3EntryProje
             </p>
             <h2 className="mt-1 text-base font-semibold">{presentation.title}</h2>
             <p className="mt-1 text-sm leading-6 text-[var(--v3-text-secondary)]">
-              {presentation.description}
+              {description}
             </p>
             {editing.state !== "not-applicable" ? (
               <div
