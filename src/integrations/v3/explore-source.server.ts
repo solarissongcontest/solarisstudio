@@ -22,6 +22,7 @@ const SHOW_COLUMNS =
   "id,edition_id,name,kind,sort_order,status,published,publication_config,broadcast_config";
 const RESULT_COLUMNS =
   "id,edition_id,show_id,country_id,contest_entity_id,jury_points,televote_points,total_points,final_rank";
+const EXPLORE_ARCHIVE_PREVIEW_LIMIT = 4;
 
 type ExploreEdition = Edition & { artwork_url?: string | null };
 
@@ -114,6 +115,11 @@ function archiveExperience(edition: ExploreEdition): V3EditionExperience {
     : "post-edition";
 }
 
+function isArchiveEligibleEdition(edition: ExploreEdition) {
+  const lifecycle = normalizeLegacyEditionStatus(edition.status);
+  return lifecycle === "post_edition" || lifecycle === "archived";
+}
+
 function finalResultsPublished(shows: readonly Show[], results: readonly ResultRow[]) {
   const publicFinals = new Set(
     shows
@@ -154,8 +160,7 @@ function makeEditionInput(input: {
     currentNextEvent,
   } = input;
   const isCurrent = edition.id === currentEditionId;
-  const lifecycle = normalizeLegacyEditionStatus(edition.status);
-  const archiveEligible = lifecycle === "post_edition" || lifecycle === "archived";
+  const archiveEligible = isArchiveEligibleEdition(edition);
 
   return {
     id: edition.id,
@@ -181,10 +186,10 @@ function makeEditionInput(input: {
  * projection instead of reproducing the legacy installed-app archive query fanout.
  * Publication-sensitive entry counts are computed by a database projection that
  * delegates to public_safe_participants, never by reading raw participant rows.
- * Public Show metadata and only rank-1 result rows are loaded across published
- * editions so archive result availability is truthful without downloading full
- * historical scoreboards. Chronology still comes only from canonical Show Mode
- * scheduledStart and one server timestamp.
+ * The root surface renders only the current edition plus four recent archive
+ * previews, so Show metadata and rank-1 result availability are queried only for
+ * those bounded editions instead of every published edition. Chronology still
+ * comes only from canonical Show Mode scheduledStart and one server timestamp.
  */
 export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundle> {
   const client = createConfirmationPublicRuntimeClient() as unknown as ExploreClient;
@@ -210,23 +215,35 @@ export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundl
     normalizeLegacyEditionStatus(resolvedCurrentEdition.status) !== "archived"
       ? resolvedCurrentEdition
       : null;
-  const publishedEditionIds = editions.map((edition) => edition.id);
+  const archivePreviewEditions = editions
+    .filter(
+      (edition) =>
+        edition.id !== currentEdition?.id &&
+        edition.published &&
+        isArchiveEligibleEdition(edition),
+    )
+    .slice(0, EXPLORE_ARCHIVE_PREVIEW_LIMIT);
+  const projectionEditions = [
+    ...(currentEdition ? [currentEdition] : []),
+    ...archivePreviewEditions,
+  ];
+  const projectionEditionIds = projectionEditions.map((edition) => edition.id);
 
   let publicShows: Show[] = [];
   let publicWinnerResults: ResultRow[] = [];
 
-  if (publishedEditionIds.length) {
+  if (projectionEditionIds.length) {
     const [showsResult, winnersResult] = await Promise.all([
       client
         .from("shows")
         .select(SHOW_COLUMNS)
-        .in("edition_id", publishedEditionIds)
+        .in("edition_id", projectionEditionIds)
         .eq("published", true)
         .order("sort_order", { ascending: true }),
       client
         .from("results")
         .select(RESULT_COLUMNS)
-        .in("edition_id", publishedEditionIds)
+        .in("edition_id", projectionEditionIds)
         .eq("final_rank", 1),
     ]);
     throwIfError(showsResult.error, "Could not load public Solaris shows");
@@ -260,7 +277,7 @@ export async function loadCurrentV3ExploreBundle(): Promise<V3ExploreServerBundl
 
   const projected = buildV3ExploreRootProjection({
     currentEditionId: currentEdition?.id ?? null,
-    editions: editions.map((edition) => {
+    editions: projectionEditions.map((edition) => {
       const editionShows = showsForEdition(edition.id);
       const editionWinners = winnersForEdition(edition.id);
       return makeEditionInput({
