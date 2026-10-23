@@ -28,6 +28,7 @@ import {
   GOVERNANCE_QUICK_ANSWERS,
   type GovernanceActionKey,
 } from "@/lib/governance-v5";
+import { SOLARIS_TIME_ZONE } from "@/lib/public-time";
 import { getRuleContext } from "@/lib/rule-context";
 
 function actionFromStoredPath(path: string | null): GovernanceActionKey | null {
@@ -74,10 +75,11 @@ function formatEffectiveDate(value: string | null | undefined) {
   if (!value) return null;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat("en-GB", {
     year: "numeric",
     month: "short",
     day: "numeric",
+    timeZone: SOLARIS_TIME_ZONE,
   }).format(date);
 }
 
