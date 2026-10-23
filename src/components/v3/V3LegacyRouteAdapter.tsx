@@ -66,20 +66,15 @@ export function V3LegacyRouteAdapter({
             display: none !important;
           }
 
+          /* Preserve the established route's content measure, safe-area and
+             bottom-obstruction spacing. Only duplicate chrome is removed. */
           [data-v3-legacy-route-adapter] .app-main {
-            width: 100% !important;
-            max-width: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
+            min-width: 0;
           }
 
           [data-v3-legacy-route-adapter] > .relative.isolate.min-h-screen {
             min-height: 0 !important;
             overflow: visible !important;
-          }
-
-          [data-v3-legacy-route-adapter] .app-main > * {
-            min-width: 0;
           }
         `}</style>
         {children}
