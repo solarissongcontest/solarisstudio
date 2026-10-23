@@ -9,6 +9,8 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
+type BrowserStorageName = "localStorage" | "sessionStorage";
+
 const DISMISSED_KEY = "solaris:pwa-install-dismissed";
 const VISIT_COUNT_KEY = "solaris:pwa-install-visits:v1";
 const SESSION_COUNTED_KEY = "solaris:pwa-install-session-counted:v1";
@@ -18,6 +20,31 @@ const REVEAL_DELAY_MS = 8_000;
 function isIOSBrowser() {
   if (typeof navigator === "undefined") return false;
   return /iP(?:hone|ad|od)/.test(navigator.userAgent);
+}
+
+function optionalBrowserStorage(name: BrowserStorageName) {
+  if (typeof window === "undefined") return null;
+  try {
+    return window[name];
+  } catch {
+    return null;
+  }
+}
+
+function readOptionalStorage(storage: Storage | null, key: string) {
+  try {
+    return storage?.getItem(key) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function writeOptionalStorage(storage: Storage | null, key: string, value: string) {
+  try {
+    storage?.setItem(key, value);
+  } catch {
+    // Install-prompt persistence is optional. Storage restrictions must not break Solaris.
+  }
 }
 
 export function installPromptAllowedOnPath(pathname: string) {
@@ -43,14 +70,16 @@ export function AppInstallPrompt({ isAppMode }: { isAppMode: boolean }) {
   useEffect(() => {
     if (typeof window === "undefined" || isAppMode) return;
 
-    let visits = Number(window.localStorage.getItem(VISIT_COUNT_KEY) ?? "0");
-    if (window.sessionStorage.getItem(SESSION_COUNTED_KEY) !== "1") {
+    const localStorage = optionalBrowserStorage("localStorage");
+    const sessionStorage = optionalBrowserStorage("sessionStorage");
+    let visits = Number(readOptionalStorage(localStorage, VISIT_COUNT_KEY) ?? "0");
+    if (readOptionalStorage(sessionStorage, SESSION_COUNTED_KEY) !== "1") {
       visits = Number.isFinite(visits) ? visits + 1 : 1;
-      window.localStorage.setItem(VISIT_COUNT_KEY, String(visits));
-      window.sessionStorage.setItem(SESSION_COUNTED_KEY, "1");
+      writeOptionalStorage(localStorage, VISIT_COUNT_KEY, String(visits));
+      writeOptionalStorage(sessionStorage, SESSION_COUNTED_KEY, "1");
     }
 
-    const wasDismissed = window.localStorage.getItem(DISMISSED_KEY) === "1";
+    const wasDismissed = readOptionalStorage(localStorage, DISMISSED_KEY) === "1";
     setDismissed(wasDismissed);
 
     const timer = window.setTimeout(() => {
@@ -80,7 +109,7 @@ export function AppInstallPrompt({ isAppMode }: { isAppMode: boolean }) {
   }
 
   const dismiss = () => {
-    window.localStorage.setItem(DISMISSED_KEY, "1");
+    writeOptionalStorage(optionalBrowserStorage("localStorage"), DISMISSED_KEY, "1");
     setDismissed(true);
   };
 
