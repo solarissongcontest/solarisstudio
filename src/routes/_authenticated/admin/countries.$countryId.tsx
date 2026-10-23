@@ -80,14 +80,6 @@ function CountryDetailPage() {
                 <ArrowLeft className="size-4" />
                 All countries
               </Link>
-              <Link
-                to="/my-solaris/tasks"
-                search={{ country: countryId }}
-                className="admin-action-secondary"
-              >
-                HOD inspection
-                <ExternalLink className="size-4" />
-              </Link>
             </div>
           }
         />
@@ -297,16 +289,13 @@ function CountryTabContent({
     return (
       <>
         <AdminCard>
-          <SectionHeading
-            title="Participant View"
-            href={`/my-solaris/tasks?country=${encodeURIComponent(countryId)}`}
-            action="Open exact HOD projection"
-          />
+          <h2 className="text-base font-semibold">Participant View</h2>
           <div className="mt-4 rounded-xl border border-sky-200/15 bg-sky-200/[0.045] p-3">
             <p className="font-semibold">Read-only organizer inspection</p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              This mirrors the delegation task projection without impersonating the country account.
-              Organizer actions remain disabled in the participant workspace.
+              This shows the delegation's canonical participant-facing actions and readiness without
+              impersonating the country account. Operational changes remain in Organizer-owned
+              workspaces.
             </p>
           </div>
         </AdminCard>
