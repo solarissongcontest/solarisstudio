@@ -3,7 +3,11 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const driver = readFileSync(".github/scripts/v3-full-contest-rehearsal.sh", "utf8");
+const grandFinalLeg = readFileSync(".github/scripts/v3-s14-grand-final-leg.sh", "utf8");
 const workflow = readFileSync(".github/workflows/v3-s14-full-contest-rehearsal.yml", "utf8");
+const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as {
+  devDependencies?: Record<string, string>;
+};
 
 describe("S14 Grand Final failure evidence", () => {
   it("tracks contest extensions as first-class runtime failure stages", () => {
@@ -56,6 +60,51 @@ describe("S14 Grand Final failure evidence", () => {
     expect(driver).not.toContain('"grand-final-televote"');
     expect(workflow).not.toContain('"grand-final-jury"');
     expect(workflow).not.toContain('"grand-final-televote"');
+  });
+
+  it("pins and prepares the Playwright runtime before starting the expensive local-Supabase rehearsal", () => {
+    expect(packageJson.devDependencies?.["@playwright/test"]).toBe("1.55.0");
+    expect(workflow).toContain('      - "package.json"');
+    expect(workflow).toContain('      - "bun.lock"');
+    expect(workflow).toContain('      - "playwright.s14-grand-final.config.ts"');
+    expect(workflow).toContain('      - "playwright.s14-grand-final-results.config.ts"');
+    expect(workflow).toContain('      - "e2e/v3-s14-grand-final-runtime.e2e.ts"');
+    expect(workflow).toContain('      - "e2e/v3-s14-grand-final-results-runtime.e2e.ts"');
+    expect(workflow).toContain('bun -e \'import("@playwright/test")');
+    expect(workflow).toContain("bunx playwright install --with-deps chromium");
+    expect(workflow).toContain("Chromium executable missing:");
+    expect(workflow.indexOf("Preflight S14 Playwright package")).toBeLessThan(
+      workflow.indexOf("Start isolated local Supabase"),
+    );
+    expect(workflow.indexOf("Install S14 Chromium runtime")).toBeLessThan(
+      workflow.indexOf("Start isolated local Supabase"),
+    );
+    expect(workflow.indexOf("Verify S14 Chromium runtime")).toBeLessThan(
+      workflow.indexOf("Start isolated local Supabase"),
+    );
+  });
+
+  it("classifies browser bootstrap separately and enters the qualifier bridge only after Playwright initializes", () => {
+    expect(driver).toContain('"grand-final-browser-bootstrap"');
+    expect(grandFinalLeg).toContain('CURRENT_STAGE="grand-final-browser-bootstrap"');
+    expect(grandFinalLeg).toContain(
+      "bunx playwright test --list --config=playwright.s14-grand-final.config.ts",
+    );
+    expect(grandFinalLeg).toContain('CURRENT_STAGE="grand-final-qualifier-bridge"');
+
+    const bootstrapIndex = grandFinalLeg.indexOf('CURRENT_STAGE="grand-final-browser-bootstrap"');
+    const configPreflightIndex = grandFinalLeg.indexOf(
+      "bunx playwright test --list --config=playwright.s14-grand-final.config.ts",
+    );
+    const bridgeIndex = grandFinalLeg.indexOf('CURRENT_STAGE="grand-final-qualifier-bridge"');
+    const browserRunIndex = grandFinalLeg.indexOf(
+      "bunx playwright test --config=playwright.s14-grand-final.config.ts",
+    );
+
+    expect(bootstrapIndex).toBeGreaterThanOrEqual(0);
+    expect(configPreflightIndex).toBeGreaterThan(bootstrapIndex);
+    expect(bridgeIndex).toBeGreaterThan(configPreflightIndex);
+    expect(browserRunIndex).toBeGreaterThan(bridgeIndex);
   });
 
   it("does not preserve the resolved #651 synthetic blocker", () => {
