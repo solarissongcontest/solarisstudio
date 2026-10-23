@@ -8,6 +8,8 @@ const adapter = source("src/components/v3/V3LegacyRouteAdapter.tsx");
 const countries = source("src/routes/countries/route.tsx");
 const editions = source("src/routes/editions/route.tsx");
 const shows = source("src/routes/shows/route.tsx");
+const results = source("src/routes/results/route.tsx");
+const legacyResultsRedirect = source("src/routes/results/$slug.tsx");
 const wiki = source("src/routes/wiki/route.tsx");
 const encyclopedia = source("src/routes/encyclopedia/route.tsx");
 const pulse = source("src/routes/pulse/route.tsx");
@@ -57,6 +59,14 @@ describe("Public V3 deep-route shell cutover", () => {
     expect(shows).toContain('search.get("from") === "results"');
     expect(shows).toContain('phaseLabel={fromResults ? "Results" : "Shows"}');
     expect(shows).toContain("<Outlet />");
+  });
+
+  it("keeps legacy Results descendants inside Results without nesting the native root", () => {
+    expect(results).toContain('createFileRoute("/results")');
+    expect(results).toContain('pathname === "/results"');
+    expect(results).toContain("if (resultsRoot) return <Outlet />");
+    expect(results).toContain('phaseLabel="Results"');
+    expect(legacyResultsRedirect).toContain('search: { from: "results" }');
   });
 
   it("keeps secondary public discovery surfaces in the same V3 shell", () => {
