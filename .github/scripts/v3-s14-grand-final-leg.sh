@@ -17,6 +17,14 @@ promote_s14_qualifiers_through_organizer() {
   export S14_EDITION_SLUG='s14-full-contest'
   export S14_FINAL_SHOW_ID="$FINAL_ID"
 
+  # Keep browser/runtime failures distinct from an actual Organizer qualifier
+  # bridge failure. The bridge phase begins only after the local Playwright
+  # package, Chromium executable, config, and test collection all initialize.
+  CURRENT_STAGE="grand-final-browser-bootstrap"
+  bun -e 'import("@playwright/test").then(async ({ chromium }) => { const { existsSync } = await import("node:fs"); const executable = chromium.executablePath(); if (!existsSync(executable)) throw new Error(`Chromium executable missing: ${executable}`); console.log(`S14 Playwright runtime ready: ${executable}`); })'
+  bunx playwright test --list --config=playwright.s14-grand-final.config.ts >/dev/null
+
+  CURRENT_STAGE="grand-final-qualifier-bridge"
   bunx playwright test --config=playwright.s14-grand-final.config.ts
 }
 
