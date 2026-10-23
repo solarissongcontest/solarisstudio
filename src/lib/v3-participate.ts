@@ -15,6 +15,7 @@ export type V3ParticipateProjection = {
   voting: V3VotingOverviewProjection;
   needsAttention: readonly V3ActionProjection[];
   next: readonly V3ActionProjection[];
+  waiting: readonly V3ActionProjection[];
   optionalNow: readonly V3ActionProjection[];
   completed: readonly V3ActionProjection[];
 };
@@ -39,21 +40,33 @@ function currentVotingAction(
  * that feeds Home. It deliberately does not create another task source or
  * infer workflow truth from routes.
  *
- * Responsibilities and optional participation remain separate. A public vote
- * may be time-sensitive, but it must never visually compete with an unfinished
- * official delegation responsibility as though both were required work.
+ * Responsibilities, waiting state and optional participation remain separate.
+ * A public vote may be time-sensitive, but it must never visually compete with
+ * an unfinished official delegation responsibility as though both were required
+ * work. Likewise, a canonical waiting action must not be presented as the
+ * viewer's next/optional action until server-owned workflow state makes it
+ * actionable.
  */
 export function projectV3Participate(
   bootstrap: Pick<V3BootstrapProjection, "actions" | "journey">,
 ): V3ParticipateProjection {
   const needsAttention: V3ActionProjection[] = [];
   const next: V3ActionProjection[] = [];
+  const waiting: V3ActionProjection[] = [];
   const optionalNow: V3ActionProjection[] = [];
   const completed: V3ActionProjection[] = [];
 
   for (const action of bootstrap.actions) {
     if (action.completed) {
       completed.push(action);
+      continue;
+    }
+
+    // Server-owned waiting truth outranks presentation class. This includes an
+    // optional action whose window has not opened yet: it is optional, but it is
+    // not "Optional now" until the canonical action state says it is available.
+    if (action.sourceState === "waiting") {
+      waiting.push(action);
       continue;
     }
 
@@ -84,6 +97,7 @@ export function projectV3Participate(
     },
     needsAttention,
     next,
+    waiting,
     optionalNow,
     completed,
   };

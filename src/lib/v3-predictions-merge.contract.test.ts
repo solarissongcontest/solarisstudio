@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 const hub = () => read("src/components/v3/V3PredictionsScreen.tsx");
+const boundary = () => read("src/components/v3/V3PredictionsRouteContent.tsx");
 const arena = () => read("src/routes/predictions/index.tsx");
 const league = () => read("src/routes/prediction-league/index.tsx");
 const my = () => read("src/routes/_authenticated/my-solaris/predictions.tsx");
@@ -13,7 +14,8 @@ const projection = () => read("src/lib/v3-predictions.ts");
 
 describe("V3 Predictions + Prediction League merge", () => {
   it("uses /predictions as the installed-app merged product", () => {
-    expect(arena()).toContain("<V3PredictionsScreen />");
+    expect(arena()).toContain("<V3PredictionsRouteContent />");
+    expect(boundary()).toContain("<V3PredictionsScreen />");
     expect(arena()).toContain("rollout.data?.enabled === true");
     expect(league()).toContain('<Navigate to="/predictions" replace />');
     expect(my()).toContain('<Navigate to="/predictions" replace />');
@@ -24,6 +26,18 @@ describe("V3 Predictions + Prediction League merge", () => {
     expect(league()).toContain("<LegacyPredictionLeaguePage />");
     expect(arena()).toContain("!rollout.isError");
     expect(league()).toContain("!rollout.isError");
+  });
+
+  it("does not project a signed-in user's round state until private submission history is authoritative", () => {
+    const code = boundary();
+    expect(code).toContain("useMyPredictionHistory(viewerId ?? undefined)");
+    expect(code).toContain("viewerId && history.isLoading");
+    expect(code).toContain("viewerId && history.isError");
+    expect(code).toContain('data-v3-predictions-private-state="error"');
+    expect(code).toContain("will not show a round as open or unsubmitted");
+    expect(code.indexOf("privateStateLoading || privateStateFailed")).toBeLessThan(
+      code.indexOf("<V3PredictionsScreen />"),
+    );
   });
 
   it("shows canonical round states, personal history, scoring basis and league position together", () => {
