@@ -77,15 +77,19 @@ describe("S14 Stage 10 archive certification against current canonical V3 System
     expect(archive).not.toContain("studio2_transition_edition_v2");
   });
 
-  it("refuses Archive unless the completed contest is honestly at Results with exact public result provenance", () => {
+  it("refuses Archive unless every show is finalized and publicly pinned to its exact current Results version", () => {
     expect(archive).toContain("requires canonical edition runtime state=results");
-    expect(archive).toContain("result_row_count>0");
-    expect(archive).toContain("source_result_version=2");
+    expect(archive).toContain("version_row.result_row_count>0");
+    expect(archive).toContain("control.source_result_version=operation.calculation_version");
+    expect(archive).toContain("operation.reviewed_version=operation.calculation_version");
+    expect(archive).toContain("operation.locked_version=operation.calculation_version");
+    expect(archive).toContain("operation.reveal_ready_version=operation.calculation_version");
     expect(archive).toContain("private.v3_edition_final_results_ready");
-    expect(archive).toContain("studio2_normalise_publication_config(frozen_config)");
+    expect(archive).toContain("studio2_normalise_publication_config(control.frozen_config)");
     expect(readinessMigration).toContain("private.v3_edition_final_results_ready");
     expect(readinessMigration).toContain("v3_publication_result_version_release_ready");
     expect(readinessMigration).toContain("control.source_result_version");
+    expect(archive).not.toContain("source_result_version=2");
   });
 
   it("proves Archive cannot bypass, reverse, or delete the canonical runtime fact", () => {
@@ -187,7 +191,8 @@ describe("S14 Stage 10 archive certification against current canonical V3 System
     expect(archive).toContain("assert_receipts_retained");
     expect(archive).toContain("archive mutated immutable result-version history");
     expect(archive).toContain("archive mutated exact publication provenance");
-    expect(archive).toContain('assert_anonymous_result_matches_version "$FINAL_ID" 2');
+    expect(archive).toContain('assert_anonymous_result_matches_version "$show_id" "$published_result_version"');
+    expect(archive).toContain("source_result_version::text");
     expect(archiveMigration).toContain("public.editions.status");
   });
 
