@@ -14,6 +14,7 @@ type JuryShareSourceClient = {
 };
 
 export type V3OwnerJuryShareErrorCode =
+  | "JURY_SHARE_FEATURE_DISABLED"
   | "JURY_SHARE_NOT_PUBLISHED"
   | "JURY_SHARE_NOT_AUTHORIZED"
   | "JURY_SHARE_BALLOT_NOT_FOUND"
@@ -112,6 +113,7 @@ const projectionSchema = z.object({
 });
 
 const errorCodes = new Set<V3OwnerJuryShareErrorCode>([
+  "JURY_SHARE_FEATURE_DISABLED",
   "JURY_SHARE_NOT_PUBLISHED",
   "JURY_SHARE_NOT_AUTHORIZED",
   "JURY_SHARE_BALLOT_NOT_FOUND",
