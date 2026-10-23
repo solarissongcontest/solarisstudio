@@ -1,8 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { SolarisCapability } from "@/lib/permissions-v2";
-import type { SolarisAssistantCommand } from "@/lib/solaris-command-assistant";
-
-export type SolarisAssistantCapabilityAccess = Partial<Record<SolarisCapability, boolean>>;
+import {
+  uniqueSolarisAssistantCapabilities,
+  type SolarisAssistantCapabilityAccess,
+  type SolarisAssistantCommand,
+} from "@/lib/solaris-command-assistant";
 
 type CapabilityRpcClient = {
   rpc(
@@ -23,28 +25,6 @@ function errorMessage(error: unknown) {
     return error.message;
   }
   return "Could not verify Organizer capability access.";
-}
-
-export function uniqueSolarisAssistantCapabilities(
-  commands: readonly SolarisAssistantCommand[],
-): SolarisCapability[] {
-  return Array.from(
-    new Set(
-      commands
-        .map((command) => command.capability)
-        .filter((capability): capability is SolarisCapability => Boolean(capability)),
-    ),
-  );
-}
-
-export function filterSolarisAssistantCommandsByAccess(
-  commands: readonly SolarisAssistantCommand[],
-  access: SolarisAssistantCapabilityAccess | null | undefined,
-): SolarisAssistantCommand[] {
-  if (!access) return [];
-  return commands.filter(
-    (command) => !command.capability || access[command.capability] === true,
-  );
 }
 
 export async function loadSolarisAssistantCapabilityAccess(
