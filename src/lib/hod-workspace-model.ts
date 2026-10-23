@@ -104,7 +104,7 @@ export function buildHodWorkspaceModel(input: HodWorkspaceInput): HodWorkspaceMo
       description:
         "No Head of Delegation is recorded for this country and edition. The HOD is the country’s sole jury.",
       priority: "high",
-      href: "/my-solaris/tasks",
+      href: "/participate",
     });
   }
 
@@ -129,7 +129,7 @@ export function buildHodWorkspaceModel(input: HodWorkspaceInput): HodWorkspaceMo
       label: "Resolve overdue deadline requirements",
       description: `${input.operationalReadiness.overdueDeadlines.length} open deadline${input.operationalReadiness.overdueDeadlines.length === 1 ? " is" : "s are"} overdue.`,
       priority: "critical",
-      href: "/my-solaris/tasks",
+      href: "/participate",
     });
   }
 
