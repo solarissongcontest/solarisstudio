@@ -8,7 +8,14 @@ export function AppUpdatePrompt({ onUpdate }: { onUpdate: () => void }) {
       data-solaris-app-update
     >
       <div className="min-w-0">
-        <p className="text-sm font-semibold">Solaris Studio update available</p>
+        <p
+          className="text-sm font-semibold"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          Solaris Studio update available
+        </p>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Ready to install. Solaris waits until critical participation work is clear before showing this.
         </p>
