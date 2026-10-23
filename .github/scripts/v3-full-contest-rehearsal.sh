@@ -99,7 +99,7 @@ all_extensions = [
 def canonical_failure_phase(detail):
     if detail == "bootstrap":
         return "bootstrap"
-    for phase in [*all_stages, *all_extensions, "results-runtime-reconciliation"]:
+    for phase in [*all_stages, *all_extensions, "grand-final-browser-bootstrap", "results-runtime-reconciliation"]:
         if detail == phase or detail.startswith(f"{phase}:"):
             return phase
     return "unknown"
