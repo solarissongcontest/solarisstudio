@@ -11,6 +11,7 @@ const shows = source("src/routes/shows/route.tsx");
 const wiki = source("src/routes/wiki/route.tsx");
 const encyclopedia = source("src/routes/encyclopedia/route.tsx");
 const pulse = source("src/routes/pulse/route.tsx");
+const cutoverCapabilities = source("src/lib/v3-public-shell-cutover-capabilities.ts");
 
 describe("Public V3 deep-route shell cutover", () => {
   it("reuses the canonical server rollout and route safety boundary", () => {
@@ -20,6 +21,12 @@ describe("Public V3 deep-route shell cutover", () => {
     expect(adapter).toContain("if (!platformResolved || !isAppMode)");
     expect(adapter).not.toContain("localStorage");
     expect(adapter).not.toContain("sessionStorage");
+  });
+
+  it("keeps independently reversible Explore, Results and Me cutovers fail-closed", () => {
+    expect(adapter).toContain('shell.rootTab === "explore" && rollout.data.exploreEnabled !== true');
+    expect(adapter).toContain('shell.rootTab === "results" && rollout.data.resultsEnabled !== true');
+    expect(adapter).toContain('shell.rootTab === "me" && rollout.data.meEnabled !== true');
   });
 
   it("adapts chrome only and does not create another public data authority", () => {
@@ -59,5 +66,14 @@ describe("Public V3 deep-route shell cutover", () => {
     expect(encyclopedia).toContain('phaseLabel="Encyclopedia"');
     expect(pulse).toContain('createFileRoute("/pulse")');
     expect(pulse).toContain('phaseLabel="Pulse"');
+  });
+
+  it("classifies every new parent route before the registry guard sees it", () => {
+    expect(cutoverCapabilities).toContain('id: "explore-directory-roots"');
+    for (const route of ["/countries", "/editions", "/shows", "/wiki"]) {
+      expect(cutoverCapabilities).toContain(`"${route}"`);
+    }
+    expect(cutoverCapabilities).toContain('classification: "merge"');
+    expect(cutoverCapabilities).toContain('targetRoute: "/explore"');
   });
 });
