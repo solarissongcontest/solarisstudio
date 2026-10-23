@@ -31,8 +31,18 @@ export type VotingDnaAvailability = {
   limitedResultSample: boolean;
 };
 
+type VotingDnaAvailabilityInput = {
+  sample: {
+    detailedEditions: number;
+    resultEditions: number;
+  };
+  topGiven: readonly unknown[];
+  topReceived: readonly unknown[];
+  results: readonly unknown[];
+};
+
 export function getVotingDnaAvailability(
-  aggregate: VotingDnaAggregate,
+  aggregate: VotingDnaAvailabilityInput,
 ): VotingDnaAvailability {
   const hasDetailedVotingSample =
     aggregate.sample.detailedEditions > 0 &&
