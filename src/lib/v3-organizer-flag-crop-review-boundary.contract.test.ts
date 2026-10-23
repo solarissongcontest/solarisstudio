@@ -8,36 +8,51 @@ const route = readFileSync(
 );
 
 describe("V3 Organizer Flag QA crop review boundary", () => {
-  it("reviews a frozen before/after crop instead of saving directly from the editor button", () => {
+  it("prepares a frozen review from canonical server preflight", () => {
     expect(route).toContain("type PendingCropReview");
-    expect(route).toContain("function requestSave()");
-    expect(route).toContain("setPendingReview({");
-    expect(route).toContain('onClick={requestSave}');
-    expect(route).toContain('Review crop');
-    expect(route).toContain('<AdminConfirmSheet');
-    expect(route).toContain('confirmLabel="Apply crop"');
+    expect(route).toContain("async function requestSave()");
+    expect(route).toContain("preflightCountryFlagCropV3(country.id)");
+    expect(route).toContain("preflight.flagImage !== country.flag_image");
+    expect(route).toContain("!sameCrop(preflight.crop, persistedCrop)");
+    expect(route).toContain("expectedStateVersion: preflight.stateVersion");
+    expect(route).toContain("const operationId = crypto.randomUUID()");
+    expect(route).toContain(
+      "idempotencyKey: `flag-crop:${preflight.countryId}:${operationId}`",
+    );
+    expect(route).toContain("<AdminConfirmSheet");
   });
 
-  it("re-reads the exact country source and stored crop immediately before apply", () => {
-    expect(route).toContain('.select("id,name,flag_image,flag_crop_x,flag_crop_y,flag_crop_zoom")');
-    expect(route).toContain('.eq("id", pendingReview.countryId)');
-    expect(route).toContain("liveCountry.flag_image !== pendingReview.sourceImage");
-    expect(route).toContain("!sameCrop(liveCrop, pendingReview.before)");
-    expect(route).toContain("The flag source or saved crop changed while this review was open");
-    expect(route).toContain("Nothing was changed");
+  it("applies only the reviewed crop through the governed V3 command", () => {
+    expect(route).toContain("updateCountryFlagCropV3({");
+    expect(route).toContain("countryId: review.countryId");
+    expect(route).toContain("crop: review.next");
+    expect(route).toContain("expectedStateVersion: review.expectedStateVersion");
+    expect(route).toContain("operationId: review.operationId");
+    expect(route).toContain("idempotencyKey: review.idempotencyKey");
+    expect(route).toContain("setCrop(result.crop)");
+    expect(route).not.toContain('.from("countries")');
+    expect(route).not.toContain(".update({");
   });
 
-  it("applies only the reviewed crop to the reviewed country after the stale-state check", () => {
-    expect(route).toContain("flag_crop_x: pendingReview.next.x");
-    expect(route).toContain("flag_crop_y: pendingReview.next.y");
-    expect(route).toContain("flag_crop_zoom: pendingReview.next.zoom");
-    expect(route).toContain('setCrop(pendingReview.next)');
-    expect(route).not.toContain('onClick={() => void save()}');
+  it("keeps the same reviewed operation available when its outcome cannot yet be confirmed", () => {
+    expect(route).toContain("if (!saving) setPendingReview(null)");
+    expect(route).toContain(
+      'await queryClient.invalidateQueries({ queryKey: ["countries"] })',
+    );
+    expect(route).toContain(
+      "The reviewed operation remains available with the same identity.",
+    );
+    expect(route).toContain("reconciles this same operation ID");
+    expect(route).toContain("keeps the same operation and idempotency identity");
   });
 
-  it("states the remaining legacy authority boundary instead of claiming V3 parity", () => {
-    expect(route).toContain("existing legacy country metadata write");
-    expect(route).toContain("does not claim a versioned, idempotent or receipted System operation");
+  it("states the canonical authority boundary honestly", () => {
+    expect(route).toContain("canonical server preflight");
+    expect(route).toContain("receipted, idempotent country-identity command");
     expect(route).toContain("The original image is not modified");
+    expect(route).not.toContain("existing legacy country metadata write");
+    expect(route).not.toContain(
+      "does not claim a versioned, idempotent or receipted System operation",
+    );
   });
 });
