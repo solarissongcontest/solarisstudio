@@ -102,9 +102,9 @@ export function buildHodWorkspaceModel(input: HodWorkspaceInput): HodWorkspaceMo
       id: "jury-hod",
       label: "Confirm HOD assignment",
       description:
-        "No Head of Delegation is recorded for this country and edition. The HOD is the country’s sole jury.",
+        "No Head of Delegation is recorded for this country and edition. Confirm your HOD history for this edition.",
       priority: "high",
-      href: "/participate",
+      href: "/my-solaris/history",
     });
   }
 
