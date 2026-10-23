@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   emptyV3ParticipantActivityBundle,
+  getV3ParticipantActivityNextCursor,
+  mergeV3ParticipantActivityPages,
   parseV3ParticipantActivity,
 } from "./v3-participant-activity";
 
@@ -34,6 +36,7 @@ describe("V3 participant activity projection", () => {
         },
       ],
       next_before: "2026-10-15T10:00:00Z",
+      next_operation_id: "8ce1eb58-3cf4-48ee-92df-8a91582865bc",
       generated_at: "2026-10-16T10:01:00Z",
     });
 
@@ -50,6 +53,70 @@ describe("V3 participant activity projection", () => {
       route: null,
       reconciliationState: "superseded",
     });
+    expect(getV3ParticipantActivityNextCursor(parsed)).toEqual({
+      before: "2026-10-15T10:00:00Z",
+      operationId: "8ce1eb58-3cf4-48ee-92df-8a91582865bc",
+    });
+  });
+
+  it("rejects incomplete or malformed continuation cursors", () => {
+    const missingTieBreak = parseV3ParticipantActivity({
+      items: [],
+      next_before: "2026-10-15T10:00:00Z",
+    });
+    const malformedTieBreak = parseV3ParticipantActivity({
+      items: [],
+      next_before: "2026-10-15T10:00:00Z",
+      next_operation_id: "not-a-uuid",
+    });
+
+    expect(getV3ParticipantActivityNextCursor(missingTieBreak)).toBeNull();
+    expect(getV3ParticipantActivityNextCursor(malformedTieBreak)).toBeNull();
+    expect(missingTieBreak.nextBefore).toBeNull();
+    expect(malformedTieBreak.nextOperationId).toBeNull();
+  });
+
+  it("deduplicates overlapping pages without hiding the newest canonical row", () => {
+    const first = parseV3ParticipantActivity({
+      items: [
+        {
+          id: "same-operation",
+          occurred_at: "2026-10-16T10:00:00Z",
+          kind: "submission",
+          title: "Current entry version",
+          source_event_type: "entry.version_changed",
+          reconciliation_state: "current",
+        },
+      ],
+    });
+    const older = parseV3ParticipantActivity({
+      items: [
+        {
+          id: "same-operation",
+          occurred_at: "2026-10-16T10:00:00Z",
+          kind: "submission",
+          title: "Duplicate replay row",
+          source_event_type: "entry.version_changed",
+          reconciliation_state: "superseded",
+        },
+        {
+          id: "older-operation",
+          occurred_at: "2026-10-15T10:00:00Z",
+          kind: "jury_participation",
+          title: "Jury ballot submitted",
+          source_event_type: "jury.ballot_submitted",
+          reconciliation_state: "current",
+        },
+      ],
+    });
+
+    expect(mergeV3ParticipantActivityPages([first, older]).map((item) => item.id)).toEqual([
+      "same-operation",
+      "older-operation",
+    ]);
+    expect(mergeV3ParticipantActivityPages([first, older])[0]?.title).toBe(
+      "Current entry version",
+    );
   });
 
   it("drops malformed rows instead of inventing activity truth", () => {
