@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -240,7 +240,11 @@ function ReferencePage() {
     );
   }
 
-  if (feature.isError || feature.data !== true) {
+  if (!feature.isError && feature.data === false) {
+    return <Navigate to="/countries" replace />;
+  }
+
+  if (feature.isError) {
     return (
       <AppShell>
         <PageHeader
@@ -248,10 +252,9 @@ function ReferencePage() {
           title="Reference"
           description="Published Solaris history, connected."
         />
-        <Panel title="Reference is not enabled yet">
+        <Panel title="Reference is temporarily unavailable">
           <p className="text-sm text-muted-foreground">
-            The product is installed but its rollout flag is still off while production
-            verification finishes.
+            Solaris could not verify the Reference rollout state. Try again after reconnecting.
           </p>
         </Panel>
       </AppShell>
