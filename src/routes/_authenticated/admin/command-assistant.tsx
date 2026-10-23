@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_authenticated/admin/command-assistant")(
   head: () => ({
     meta: [
       { title: "Command Assistant — Solaris Organizer" },
-      { name: "robots", content: "noindex" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: CommandAssistantPage,
@@ -31,14 +31,15 @@ function CommandAssistantPage() {
   const { editionId } = useAdminContext();
   const editionsQuery = useEditions();
   const [prompt, setPrompt] = useState("");
+  const selectedEdition = editionsQuery.data?.find((edition) => edition.id === editionId) ?? null;
+  const resolvedEditionId = selectedEdition?.id ?? "";
   const feature = useQuery({
-    queryKey: ["studio2-feature", "solaris_command_assistant"],
-    queryFn: () => isStudio2FeatureEnabled("solaris_command_assistant"),
+    queryKey: ["studio2-feature", "solaris_command_assistant", resolvedEditionId || "none"],
+    enabled: Boolean(resolvedEditionId),
+    queryFn: () => isStudio2FeatureEnabled("solaris_command_assistant", resolvedEditionId),
     staleTime: 30_000,
   });
 
-  const selectedEdition = editionsQuery.data?.find((edition) => edition.id === editionId) ?? null;
-  const resolvedEditionId = selectedEdition?.id ?? "";
   const projectionQuery = useV3OrganizerProjection(resolvedEditionId || null);
   const commandAccessQuery = useQuery({
     queryKey: ["command-assistant-access", resolvedEditionId],
@@ -69,6 +70,55 @@ function CommandAssistantPage() {
     [hasAuthorizedPromptMatch, projectionQuery.data, prompt],
   );
 
+  if (editionId && editionsQuery.isLoading) {
+    return (
+      <AdminPage>
+        <AdminCard>
+          <AdminStatus tone="neutral">Confirming edition context…</AdminStatus>
+        </AdminCard>
+      </AdminPage>
+    );
+  }
+
+  if (editionId && editionsQuery.error) {
+    return (
+      <AdminPage>
+        <AdminCard>
+          <AdminCardHeader
+            eyebrow="Edition context"
+            title="Could not verify the selected edition"
+            description="Command Assistant will not treat an edition lookup failure as missing context or silently substitute another edition."
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <AdminStatus tone="blocked">
+              {editionsQuery.error instanceof Error ? editionsQuery.error.message : "Edition lookup failed"}
+            </AdminStatus>
+            <button
+              type="button"
+              onClick={() => void editionsQuery.refetch()}
+              disabled={editionsQuery.isFetching}
+              className="admin-action-secondary"
+            >
+              Retry edition lookup
+            </button>
+          </div>
+        </AdminCard>
+      </AdminPage>
+    );
+  }
+
+  if (!selectedEdition) {
+    return (
+      <AdminPage>
+        <AdminEmptyState
+          icon={Sparkles}
+          title="Choose an edition"
+          description="Select an exact Organizer edition before loading Command Assistant. Solaris will not probe a global rollout, substitute another edition or expose commands without verified scope."
+        />
+      </AdminPage>
+    );
+  }
+
   if (feature.isLoading) {
     return <AdminPage><p className="text-sm text-muted-foreground">Loading Command Assistant…</p></AdminPage>;
   }
@@ -78,7 +128,7 @@ function CommandAssistantPage() {
         <AdminEmptyState
           icon={Sparkles}
           title="Command Assistant is disabled"
-          description="The read-only command registry is installed, but its rollout flag remains off until verification is complete."
+          description="The read-only command registry is installed, but its rollout flag remains off for this edition until verification is complete."
         />
       </AdminPage>
     );
@@ -111,58 +161,23 @@ function CommandAssistantPage() {
           </p>
         </AdminCard>
 
-        {editionId && editionsQuery.isLoading ? (
-          <AdminCard>
-            <AdminStatus tone="neutral">Confirming edition context…</AdminStatus>
-          </AdminCard>
-        ) : editionId && editionsQuery.error ? (
-          <AdminCard>
-            <AdminCardHeader
-              eyebrow="Edition context"
-              title="Could not verify the selected edition"
-              description="Command Assistant will not treat an edition lookup failure as missing context or silently substitute another edition."
-            />
-            <div className="flex flex-wrap items-center gap-3">
-              <AdminStatus tone="blocked">
-                {editionsQuery.error instanceof Error ? editionsQuery.error.message : "Edition lookup failed"}
-              </AdminStatus>
-              <button
-                type="button"
-                onClick={() => void editionsQuery.refetch()}
-                disabled={editionsQuery.isFetching}
-                className="admin-action-secondary"
-              >
-                Retry edition lookup
-              </button>
+        <AdminCard>
+          <AdminCardHeader eyebrow="Current edition" title="Canonical operational summary" description="One projection shared with Control and readiness surfaces, rather than a second set of browser database queries." />
+          {projectionQuery.isLoading ? (
+            <p className="text-sm text-muted-foreground">Reading canonical Organizer projection…</p>
+          ) : projectionQuery.error ? (
+            <AdminStatus tone="blocked">{projectionQuery.error instanceof Error ? projectionQuery.error.message : "Could not load edition state"}</AdminStatus>
+          ) : projectionQuery.data ? (
+            <div className="grid gap-3 sm:grid-cols-4">
+              <Metric label="Readiness" value={projectionQuery.data.readiness.overall} suffix="%" />
+              <Metric label="Critical tasks" value={projectionQuery.data.tasks.critical} tone={projectionQuery.data.tasks.critical ? "attention" : "ready"} />
+              <Metric label="Attention items" value={projectionQuery.data.attention.length} tone={projectionQuery.data.attention.length ? "attention" : "ready"} />
+              <Metric label="System issues" value={projectionQuery.data.systemHealth.issueCount} tone={projectionQuery.data.systemHealth.issueCount ? "attention" : "ready"} />
             </div>
-          </AdminCard>
-        ) : selectedEdition ? (
-          <AdminCard>
-            <AdminCardHeader eyebrow="Current edition" title="Canonical operational summary" description="One projection shared with Control and readiness surfaces, rather than a second set of browser database queries." />
-            {projectionQuery.isLoading ? (
-              <p className="text-sm text-muted-foreground">Reading canonical Organizer projection…</p>
-            ) : projectionQuery.error ? (
-              <AdminStatus tone="blocked">{projectionQuery.error instanceof Error ? projectionQuery.error.message : "Could not load edition state"}</AdminStatus>
-            ) : projectionQuery.data ? (
-              <div className="grid gap-3 sm:grid-cols-4">
-                <Metric label="Readiness" value={projectionQuery.data.readiness.overall} suffix="%" />
-                <Metric label="Critical tasks" value={projectionQuery.data.tasks.critical} tone={projectionQuery.data.tasks.critical ? "attention" : "ready"} />
-                <Metric label="Attention items" value={projectionQuery.data.attention.length} tone={projectionQuery.data.attention.length ? "attention" : "ready"} />
-                <Metric label="System issues" value={projectionQuery.data.systemHealth.issueCount} tone={projectionQuery.data.systemHealth.issueCount ? "attention" : "ready"} />
-              </div>
-            ) : null}
-          </AdminCard>
-        ) : (
-          <AdminCard>
-            <AdminEmptyState
-              icon={Sparkles}
-              title="Choose an edition"
-              description="Select an exact Organizer edition before loading operational context. Command Assistant will not turn a missing or stale edition into an all-editions query or a misleading zero-state summary."
-            />
-          </AdminCard>
-        )}
+          ) : null}
+        </AdminCard>
 
-        {selectedEdition && commandAccessQuery.error ? (
+        {commandAccessQuery.error ? (
           <AdminCard>
             <AdminCardHeader
               eyebrow="Access verification"
@@ -180,7 +195,7 @@ function CommandAssistantPage() {
           </AdminCard>
         ) : null}
 
-        {selectedEdition && prompt.trim() && !commandAccessQuery.isLoading && !commandAccessQuery.error ? (
+        {prompt.trim() && !commandAccessQuery.isLoading && !commandAccessQuery.error ? (
           <AdminCard strong>
             {hasAuthorizedPromptMatch ? (
               <>
@@ -224,13 +239,7 @@ function CommandAssistantPage() {
 
         <AdminCard>
           <AdminCardHeader eyebrow="Registered commands" title={prompt ? "Best available matches" : "Available read-only workflows"} />
-          {!selectedEdition ? (
-            <AdminEmptyState
-              icon={Sparkles}
-              title="Choose an edition to view commands"
-              description="Command availability is resolved for one exact Organizer edition rather than guessed globally."
-            />
-          ) : commandAccessQuery.isLoading ? (
+          {commandAccessQuery.isLoading ? (
             <p className="text-sm text-muted-foreground">Checking command access for this edition…</p>
           ) : commandAccessQuery.error ? (
             <p className="text-sm text-muted-foreground">Commands stay hidden until access can be verified.</p>
