@@ -468,28 +468,20 @@ select
   false
 from generate_series(1,24) i;
 
-insert into public.results(
-  id,
+insert into public.televote_votes(
   edition_id,
   show_id,
   country_id,
-  jury_points,
-  televote_points,
-  total_points,
-  final_rank
+  points
 )
 select
-  ('00000000-0000-4000-8c00-' || lpad(i::text,12,'0'))::uuid,
   '$QUAL_EDITION_ID'::uuid,
   case
     when i <= 12 then '$QUAL_SEMI_ONE_ID'::uuid
     else '$QUAL_SEMI_TWO_ID'::uuid
   end,
   ('00000000-0000-4000-8a00-' || lpad(i::text,12,'0'))::uuid,
-  0,
-  0,
-  0,
-  case
+  13 - case
     when i <= 12 then i
     else i - 12
   end
@@ -498,15 +490,32 @@ on conflict (show_id,country_id)
 where show_id is not null
 do update set
   edition_id=excluded.edition_id,
-  jury_points=excluded.jury_points,
-  televote_points=excluded.televote_points,
-  total_points=excluded.total_points,
-  final_rank=excluded.final_rank;
+  points=excluded.points;
+
+select public.sync_show_results_from_votes('$QUAL_SEMI_ONE_ID'::uuid);
+select public.sync_show_results_from_votes('$QUAL_SEMI_TWO_ID'::uuid);
 
 update public.participants
 set qualified=false
 where edition_id='$QUAL_EDITION_ID'::uuid;
+"
 
+[[ "$(db_value "
+select count(*)
+from public.results result_row
+join public.participants participant
+  on participant.show_id=result_row.show_id
+ and participant.country_id=result_row.country_id
+where result_row.edition_id='$QUAL_EDITION_ID'::uuid
+  and participant.edition_id='$QUAL_EDITION_ID'::uuid
+  and result_row.jury_points=0
+  and result_row.televote_points=13-participant.running_order
+  and result_row.total_points=13-participant.running_order
+  and result_row.final_rank=participant.running_order;
+")" == '24' ]] || \
+  fail "Canonical Results fixture did not produce deterministic qualification ranks"
+
+db_exec "
 -- Reproduce the S14 defect class deliberately:
 --
 -- one semi-final participant is withdrawn, has no canonical Results row, but
