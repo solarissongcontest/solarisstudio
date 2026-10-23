@@ -168,8 +168,9 @@ export const V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES = [
     classification: "merge",
     targetArea: "me",
     targetRoute: "/my-solaris",
-    specificationStatus: "mapped",
+    specificationStatus: "building",
     acceptanceScenarioId: "public.country-hub-hod-workspace",
+    migrationEvidence: "Country Hub is compatibility-only on current main: legacy Country Hub bookmarks redirect with replace semantics into native MySolaris Country, Tasks, Entry, Notices, Page & media and Appearance ownership. Existing native-module and route-consolidation contracts prevent Country Hub from retaining a second participant shell or query authority; focused V3 acceptance coverage keeps that convergence explicit while final MySolaris/Me cutover evidence remains outstanding.",
   },
   {
     id: "me-route",
