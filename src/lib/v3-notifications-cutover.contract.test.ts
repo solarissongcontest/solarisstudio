@@ -120,6 +120,14 @@ describe("V3 Notifications cutover", () => {
     );
   });
 
+  it("renders official-message timestamps in deterministic Solaris time", () => {
+    const source = screen();
+
+    expect(source).toContain('import { formatEventWallTime } from "@/lib/public-time"');
+    expect(source).toContain('formatEventWallTime(date, { locale: "en-GB" })');
+    expect(source).not.toContain("new Intl.DateTimeFormat(undefined");
+  });
+
   it("adds the V3 shell bell only from server rollout identity while badge state remains display-only", () => {
     const source = shell();
 
