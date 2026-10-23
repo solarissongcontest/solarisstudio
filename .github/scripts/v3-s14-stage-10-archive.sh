@@ -131,10 +131,24 @@ run_s14_stage_10_archive() {
   runtime_state="$(db_scalar "select state from public.studio2_edition_runtime where edition_id='$EDITION_ID'::uuid;")"
   [[ "$runtime_state" == "results" ]] || fail "S14 Stage 10 requires canonical edition runtime state=results, got '$runtime_state'"
 
-  [[ "$(db_scalar "select count(*) from private.v3_result_versions where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid,'$FINAL_ID'::uuid) and version=2 and result_row_count>0;")" == "3" ]] || \
-    fail "Stage 10 requires non-empty immutable result version 2 for all three shows"
-  [[ "$(db_scalar "select count(*) from public.studio2_show_publication_controls where show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid,'$FINAL_ID'::uuid) and state='public' and source_result_version=2 and coalesce((private.studio2_normalise_publication_config(frozen_config)->>'results')::boolean,false);")" == "3" ]] || \
-    fail "Stage 10 requires all three Results layers publicly bound to result version 2"
+  [[ "$(db_scalar "
+select count(*)
+from public.studio2_result_operations operation
+join private.v3_result_versions version_row
+  on version_row.show_id=operation.show_id
+ and version_row.version=operation.calculation_version
+ and version_row.result_row_count>0
+join public.studio2_show_publication_controls control
+  on control.show_id=operation.show_id
+ and control.state='public'
+ and control.source_result_version=operation.calculation_version
+where operation.show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid,'$FINAL_ID'::uuid)
+  and operation.reviewed_version=operation.calculation_version
+  and operation.locked_version=operation.calculation_version
+  and operation.reveal_ready_version=operation.calculation_version
+  and coalesce((private.studio2_normalise_publication_config(control.frozen_config)->>'results')::boolean,false);
+")" == "3" ]] || \
+    fail "Stage 10 requires all three Results layers publicly bound to their exact current finalized immutable versions"
   [[ "$(db_scalar "select private.v3_edition_final_results_ready('$EDITION_ID'::uuid)::text;")" == "true" ]] || \
     fail "Stage 10 requires canonical final-results readiness before Archive"
 
@@ -276,9 +290,11 @@ where task.edition_id='$EDITION_ID'::uuid
   [[ "$publication_hash_after" == "$publication_hash_before" ]] || fail "archive mutated exact publication provenance"
   assert_receipts_retained "$receipt_ids_before" "$receipt_ids_after"
 
-  assert_anonymous_result_matches_version "$SEMI_ONE_ID" 2
-  assert_anonymous_result_matches_version "$SEMI_TWO_ID" 2
-  assert_anonymous_result_matches_version "$FINAL_ID" 2
+  for show_id in "$SEMI_ONE_ID" "$SEMI_TWO_ID" "$FINAL_ID"; do
+    published_result_version="$(db_scalar "select source_result_version::text from public.studio2_show_publication_controls where show_id='$show_id'::uuid and state='public';")"
+    [[ "$published_result_version" =~ ^[1-9][0-9]*$ ]] || fail "archived show $show_id lost its exact public Results version"
+    assert_anonymous_result_matches_version "$show_id" "$published_result_version"
+  done
 
   run_s14_supabase_outage_injection
 
