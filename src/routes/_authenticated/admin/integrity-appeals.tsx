@@ -1,17 +1,35 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertTriangle, ArrowRight, CalendarClock, Gavel, RefreshCw, Search, ShieldCheck } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  CalendarClock,
+  Gavel,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AdminPage } from "@/components/admin/AdminShell";
-import { AdminCard, AdminConfirmSheet, AdminPageHeader, AdminStatus } from "@/components/admin/AdminUI";
+import {
+  AdminCard,
+  AdminConfirmSheet,
+  AdminPageHeader,
+  AdminStatus,
+} from "@/components/admin/AdminUI";
 import { RuleDecisionStrip } from "@/components/rules/RuleDecisionStrip";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admin/integrity-appeals")({
-  head: () => ({ meta: [{ title: "Integrity Appeals — Solaris Organizer" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [
+      { title: "Integrity Appeals — Solaris Organizer" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   component: IntegrityAppeals,
 });
 
@@ -38,6 +56,17 @@ type AppealItem = {
   decided_at: string | null;
 };
 
+type AppealExtensionReview = {
+  appealId: string;
+  caseId: string;
+  caseCode: string;
+  caseSummary: string;
+  originalDeadline: string;
+  proposedDeadline: string;
+  reason: string;
+  baselineFingerprint: string;
+};
+
 async function rpc<T>(name: string, args: Record<string, unknown> = {}) {
   const { data, error } = await (supabase as any).rpc(name, args);
   if (error) throw new Error(error.message);
@@ -48,9 +77,24 @@ async function loadAppeals() {
   return rpc<AppealItem[]>("admin_integrity_appeals");
 }
 
+export function appealExtensionReviewFingerprint(appeal: AppealItem) {
+  return JSON.stringify({
+    id: appeal.id,
+    caseId: appeal.case_id,
+    sanctionId: appeal.sanction_id,
+    status: appeal.status,
+    deadlineAt: appeal.deadline_at,
+    extensionGrantedAt: appeal.extension_granted_at,
+    extensionReason: appeal.extension_reason,
+    decidedAt: appeal.decided_at,
+  });
+}
+
 function IntegrityAppeals() {
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"active" | "late" | "decided" | "all">("active");
+  const [filter, setFilter] = useState<"active" | "late" | "decided" | "all">(
+    "active",
+  );
   const appealsQuery = useQuery({
     queryKey: ["admin-integrity-appeals"],
     queryFn: loadAppeals,
@@ -68,7 +112,9 @@ function IntegrityAppeals() {
             ? ["submitted", "under_review"].includes(appeal.status)
             : filter === "late"
               ? appeal.status === "rejected_late"
-              : !["submitted", "under_review", "rejected_late"].includes(appeal.status);
+              : !["submitted", "under_review", "rejected_late"].includes(
+                  appeal.status,
+                );
       if (!matchesFilter) return false;
       if (!needle) return true;
       return [
@@ -77,14 +123,22 @@ function IntegrityAppeals() {
         appeal.category,
         appeal.sanction_label,
         appeal.grounds,
-      ].join(" ").toLowerCase().includes(needle);
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(needle);
     });
   }, [appeals, filter, query]);
 
   const counts = {
-    active: appeals.filter((appeal) => ["submitted", "under_review"].includes(appeal.status)).length,
+    active: appeals.filter((appeal) =>
+      ["submitted", "under_review"].includes(appeal.status),
+    ).length,
     late: appeals.filter((appeal) => appeal.status === "rejected_late").length,
-    decided: appeals.filter((appeal) => !["submitted", "under_review", "rejected_late"].includes(appeal.status)).length,
+    decided: appeals.filter(
+      (appeal) =>
+        !["submitted", "under_review", "rejected_late"].includes(appeal.status),
+    ).length,
   };
 
   return (
@@ -94,7 +148,25 @@ function IntegrityAppeals() {
           eyebrow="Trust & Integrity"
           title="Appeal queue"
           description="Review active appeals, identify late filings that may qualify for an exceptional extension, and route every serious challenge into a fresh-review decision record."
-          actions={<div className="flex flex-wrap gap-2"><Link to="/admin/integrity-investigations" className="admin-action-secondary"><ShieldCheck className="size-4" />Investigations</Link><button type="button" onClick={() => void appealsQuery.refetch()} className="admin-action-secondary"><RefreshCw className="size-4" />Refresh</button></div>}
+          actions={
+            <div className="flex flex-wrap gap-2">
+              <Link
+                to="/admin/integrity-investigations"
+                className="admin-action-secondary"
+              >
+                <ShieldCheck className="size-4" />
+                Investigations
+              </Link>
+              <button
+                type="button"
+                onClick={() => void appealsQuery.refetch()}
+                className="admin-action-secondary"
+              >
+                <RefreshCw className="size-4" />
+                Refresh
+              </button>
+            </div>
+          }
         />
 
         <RuleDecisionStrip
@@ -106,102 +178,348 @@ function IntegrityAppeals() {
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <Metric label="Active appeals" value={counts.active} tone="attention" />
-          <Metric label="Late · extension review" value={counts.late} tone={counts.late ? "blocked" : "info"} />
+          <Metric
+            label="Late · extension review"
+            value={counts.late}
+            tone={counts.late ? "blocked" : "info"}
+          />
           <Metric label="Decided" value={counts.decided} tone="ready" />
         </div>
 
         <AdminCard className="mt-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <label className="flex min-h-10 min-w-[18rem] flex-1 items-center gap-2 rounded-xl border border-white/[0.08] bg-black/10 px-3"><Search className="size-4 text-muted-foreground"/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search case, sanction or appeal grounds…" className="min-w-0 flex-1 border-0 !bg-transparent text-xs shadow-none outline-none focus-visible:!shadow-none" /></label>
-            <div className="flex flex-wrap gap-1.5">{(["active", "late", "decided", "all"] as const).map((item) => <button key={item} type="button" onClick={() => setFilter(item)} className={cn("rounded-lg border px-3 py-2 text-[10px] font-bold capitalize", filter === item ? "border-amber-200/20 bg-amber-200/[0.07] text-amber-50" : "border-white/[0.07] text-muted-foreground")}>{item}</button>)}</div>
+            <label className="flex min-h-10 min-w-[18rem] flex-1 items-center gap-2 rounded-xl border border-white/[0.08] bg-black/10 px-3">
+              <Search className="size-4 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search case, sanction or appeal grounds…"
+                className="min-w-0 flex-1 border-0 !bg-transparent text-xs shadow-none outline-none focus-visible:!shadow-none"
+              />
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {(["active", "late", "decided", "all"] as const).map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setFilter(item)}
+                  className={cn(
+                    "rounded-lg border px-3 py-2 text-[10px] font-bold capitalize",
+                    filter === item
+                      ? "border-amber-200/20 bg-amber-200/[0.07] text-amber-50"
+                      : "border-white/[0.07] text-muted-foreground",
+                  )}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="mt-4 grid gap-3 lg:grid-cols-2">
-            {filtered.map((appeal) => <AppealCard key={appeal.id} appeal={appeal} onChanged={() => appealsQuery.refetch().then(() => undefined)} />)}
+            {filtered.map((appeal) => (
+              <AppealCard
+                key={appeal.id}
+                appeal={appeal}
+                onChanged={() => appealsQuery.refetch().then(() => undefined)}
+              />
+            ))}
           </div>
-          {!appealsQuery.isLoading && !filtered.length ? <div className="py-12 text-center"><Gavel className="mx-auto size-7 text-amber-200"/><p className="mt-3 font-bold">No matching appeals</p><p className="mt-1 text-xs text-muted-foreground">A suspiciously peaceful administrative moment. Enjoy it responsibly.</p></div> : null}
+          {!appealsQuery.isLoading && !filtered.length ? (
+            <div className="py-12 text-center">
+              <Gavel className="mx-auto size-7 text-amber-200" />
+              <p className="mt-3 font-bold">No matching appeals</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                A suspiciously peaceful administrative moment. Enjoy it responsibly.
+              </p>
+            </div>
+          ) : null}
         </AdminCard>
       </div>
     </AdminPage>
   );
 }
 
-function AppealCard({ appeal, onChanged }: { appeal: AppealItem; onChanged: () => Promise<void> }) {
+function AppealCard({
+  appeal,
+  onChanged,
+}: {
+  appeal: AppealItem;
+  onChanged: () => Promise<void>;
+}) {
   const [extensionOpen, setExtensionOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingReview, setPendingReview] = useState<AppealExtensionReview | null>(
+    null,
+  );
   const [deadline, setDeadline] = useState("");
   const [reason, setReason] = useState("");
+
   const mutation = useMutation({
-    mutationFn: () => rpc("admin_grant_integrity_appeal_extension", {
-      _appeal_id: appeal.id,
-      _new_deadline: new Date(deadline).toISOString(),
-      _reason: reason,
-    }),
+    mutationFn: async (review: AppealExtensionReview) => {
+      const currentAppeals = await loadAppeals();
+      const currentAppeal = currentAppeals.find((item) => item.id === review.appealId);
+
+      if (!currentAppeal) {
+        throw new Error(
+          "This appeal is no longer available. Nothing was changed. Reload the appeal queue before reviewing an extension.",
+        );
+      }
+      if (appealExtensionReviewFingerprint(currentAppeal) !== review.baselineFingerprint) {
+        throw new Error(
+          "This appeal changed while the extension review was open. Nothing was changed. Review the latest appeal state before granting an extension.",
+        );
+      }
+      if (currentAppeal.status !== "rejected_late") {
+        throw new Error(
+          "This appeal is no longer rejected as late. Nothing was changed.",
+        );
+      }
+
+      return rpc("admin_grant_integrity_appeal_extension", {
+        _appeal_id: review.appealId,
+        _new_deadline: review.proposedDeadline,
+        _reason: review.reason,
+      });
+    },
     onSuccess: async () => {
-      setConfirmOpen(false);
+      setPendingReview(null);
       setExtensionOpen(false);
       setDeadline("");
       setReason("");
       await onChanged();
       toast.success("Exceptional appeal extension granted");
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not grant extension"),
+    onError: async (error) => {
+      setPendingReview(null);
+      await onChanged();
+      toast.error(
+        error instanceof Error ? error.message : "Could not grant extension",
+      );
+    },
   });
 
-  const statusTone = appeal.status === "rejected_late" ? "blocked" : ["submitted", "under_review"].includes(appeal.status) ? "attention" : "ready";
+  const statusTone =
+    appeal.status === "rejected_late"
+      ? "blocked"
+      : ["submitted", "under_review"].includes(appeal.status)
+        ? "attention"
+        : "ready";
   const proposedDeadline = deadline ? new Date(deadline) : null;
-  const proposedDeadlineValid = Boolean(proposedDeadline && Number.isFinite(proposedDeadline.getTime()));
+  const proposedDeadlineValid = Boolean(
+    proposedDeadline && Number.isFinite(proposedDeadline.getTime()),
+  );
+
+  function openExtensionReview() {
+    if (
+      mutation.isPending ||
+      appeal.status !== "rejected_late" ||
+      !proposedDeadlineValid ||
+      !proposedDeadline ||
+      reason.trim().length < 10
+    ) {
+      return;
+    }
+
+    setPendingReview({
+      appealId: appeal.id,
+      caseId: appeal.case_id,
+      caseCode: appeal.case_code,
+      caseSummary: appeal.case_summary,
+      originalDeadline: appeal.deadline_at,
+      proposedDeadline: proposedDeadline.toISOString(),
+      reason: reason.trim(),
+      baselineFingerprint: appealExtensionReviewFingerprint(appeal),
+    });
+  }
 
   return (
     <article className="rounded-[1.35rem] border border-white/[0.08] bg-white/[0.02] p-4">
       <div className="flex items-start justify-between gap-3">
-        <div><div className="flex flex-wrap items-center gap-2"><span className="font-mono text-[10px] font-black text-sky-200">{appeal.case_code}</span><span className="text-[9px] uppercase text-muted-foreground">{appeal.identity_mode}</span></div><h2 className="mt-2 text-sm font-black">{appeal.case_summary}</h2></div>
-        <AdminStatus tone={statusTone as any}>{appeal.status.replaceAll("_", " ")}</AdminStatus>
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-[10px] font-black text-sky-200">
+              {appeal.case_code}
+            </span>
+            <span className="text-[9px] uppercase text-muted-foreground">
+              {appeal.identity_mode}
+            </span>
+          </div>
+          <h2 className="mt-2 text-sm font-black">{appeal.case_summary}</h2>
+        </div>
+        <AdminStatus tone={statusTone as any}>
+          {appeal.status.replaceAll("_", " ")}
+        </AdminStatus>
       </div>
 
-      <div className="mt-3 rounded-xl border border-rose-200/10 bg-rose-200/[0.03] p-3"><p className="text-[9px] font-black uppercase tracking-[.1em] text-rose-200/70">Appealed sanction</p><p className="mt-1 text-xs font-black">Level {appeal.sanction_level} · {appeal.sanction_label}</p></div>
+      <div className="mt-3 rounded-xl border border-rose-200/10 bg-rose-200/[0.03] p-3">
+        <p className="text-[9px] font-black uppercase tracking-[.1em] text-rose-200/70">
+          Appealed sanction
+        </p>
+        <p className="mt-1 text-xs font-black">
+          Level {appeal.sanction_level} · {appeal.sanction_label}
+        </p>
+      </div>
       <p className="mt-3 text-xs leading-5 text-muted-foreground">{appeal.grounds}</p>
-      <div className="mt-3 grid gap-2 text-[9px] text-muted-foreground sm:grid-cols-2"><span>Submitted {new Date(appeal.submitted_at).toLocaleString()}</span><span>Deadline {new Date(appeal.deadline_at).toLocaleString()}</span></div>
-      {appeal.extension_reason ? <div className="mt-3 rounded-lg border border-amber-200/10 bg-amber-200/[0.03] p-2.5"><p className="text-[8px] font-black uppercase tracking-[.1em] text-amber-200">Extension granted</p><p className="mt-1 text-[10px] leading-4 text-amber-50/70">{appeal.extension_reason}</p></div> : null}
+      <div className="mt-3 grid gap-2 text-[9px] text-muted-foreground sm:grid-cols-2">
+        <span>Submitted {new Date(appeal.submitted_at).toLocaleString()}</span>
+        <span>Deadline {new Date(appeal.deadline_at).toLocaleString()}</span>
+      </div>
+      {appeal.extension_reason ? (
+        <div className="mt-3 rounded-lg border border-amber-200/10 bg-amber-200/[0.03] p-2.5">
+          <p className="text-[8px] font-black uppercase tracking-[.1em] text-amber-200">
+            Extension granted
+          </p>
+          <p className="mt-1 text-[10px] leading-4 text-amber-50/70">
+            {appeal.extension_reason}
+          </p>
+        </div>
+      ) : null}
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Link to="/admin/integrity-resolution/$caseId" params={{ caseId: appeal.case_id }} className="admin-action-secondary">Open fresh review <ArrowRight className="size-3.5"/></Link>
-        {appeal.status === "rejected_late" ? <button type="button" onClick={() => setExtensionOpen((value) => !value)} className="admin-action-secondary"><CalendarClock className="size-3.5"/>Exceptional extension</button> : null}
+        <Link
+          to="/admin/integrity-resolution/$caseId"
+          params={{ caseId: appeal.case_id }}
+          className="admin-action-secondary"
+        >
+          Open fresh review <ArrowRight className="size-3.5" />
+        </Link>
+        {appeal.status === "rejected_late" ? (
+          <button
+            type="button"
+            onClick={() => setExtensionOpen((value) => !value)}
+            className="admin-action-secondary"
+          >
+            <CalendarClock className="size-3.5" />
+            Exceptional extension
+          </button>
+        ) : null}
       </div>
 
-      {extensionOpen ? <div className="mt-4 rounded-xl border border-amber-200/12 bg-amber-200/[0.04] p-3"><div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-200"/><p className="text-[10px] leading-5 text-amber-50/75">Use only where exceptional circumstances justify extending the ordinary 48-hour deadline. The reason becomes part of the reporter-visible case audit trail.</p></div><label className="mt-3 block"><span className="text-[9px] font-black uppercase tracking-[.1em] text-muted-foreground">Extended deadline</span><input type="datetime-local" value={deadline} onChange={(event) => setDeadline(event.target.value)} className="mt-1 min-h-10 w-full rounded-lg border px-3 text-xs"/></label><label className="mt-3 block"><span className="text-[9px] font-black uppercase tracking-[.1em] text-muted-foreground">Exceptional reason</span><textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} placeholder="Explain why the ordinary deadline should be extended…" className="mt-1 w-full rounded-lg border p-3 text-xs"/></label><button type="button" disabled={!proposedDeadlineValid || reason.trim().length < 10 || mutation.isPending} onClick={() => setConfirmOpen(true)} className="admin-action-primary mt-3"><CalendarClock className="size-4"/>{mutation.isPending ? "Granting…" : "Review extension"}</button></div> : null}
+      {extensionOpen ? (
+        <div className="mt-4 rounded-xl border border-amber-200/12 bg-amber-200/[0.04] p-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-200" />
+            <p className="text-[10px] leading-5 text-amber-50/75">
+              Use only where exceptional circumstances justify extending the ordinary 48-hour
+              deadline. The reason becomes part of the reporter-visible case audit trail.
+            </p>
+          </div>
+          <label className="mt-3 block">
+            <span className="text-[9px] font-black uppercase tracking-[.1em] text-muted-foreground">
+              Extended deadline
+            </span>
+            <input
+              type="datetime-local"
+              value={deadline}
+              onChange={(event) => setDeadline(event.target.value)}
+              className="mt-1 min-h-10 w-full rounded-lg border px-3 text-xs"
+            />
+          </label>
+          <label className="mt-3 block">
+            <span className="text-[9px] font-black uppercase tracking-[.1em] text-muted-foreground">
+              Exceptional reason
+            </span>
+            <textarea
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              rows={3}
+              placeholder="Explain why the ordinary deadline should be extended…"
+              className="mt-1 w-full rounded-lg border p-3 text-xs"
+            />
+          </label>
+          <button
+            type="button"
+            disabled={!proposedDeadlineValid || reason.trim().length < 10 || mutation.isPending}
+            onClick={openExtensionReview}
+            className="admin-action-primary mt-3"
+          >
+            <CalendarClock className="size-4" />
+            {mutation.isPending ? "Granting…" : "Review extension"}
+          </button>
+        </div>
+      ) : null}
 
       <AdminConfirmSheet
-        open={confirmOpen}
+        open={Boolean(pendingReview)}
         onClose={() => {
-          if (!mutation.isPending) setConfirmOpen(false);
+          if (!mutation.isPending) setPendingReview(null);
         }}
         onConfirm={async () => {
-          await mutation.mutateAsync();
+          if (!pendingReview) return;
+          await mutation.mutateAsync(pendingReview);
         }}
-        title={`Grant exceptional extension for ${appeal.case_code}?`}
+        title={`Grant exceptional extension for ${pendingReview?.caseCode ?? appeal.case_code}?`}
         description={
-          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
-            <p>This action reopens a late appeal for fresh review. Confirm the exact deadline change and exceptional reason before applying it.</p>
-            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
-              <p className="font-semibold text-foreground">{appeal.case_code} · {appeal.case_summary}</p>
-              <p className="mt-2"><span className="font-semibold text-foreground">Original deadline:</span> {new Date(appeal.deadline_at).toLocaleString()}</p>
-              <p className="mt-2"><span className="font-semibold text-foreground">Proposed deadline:</span> {proposedDeadlineValid && proposedDeadline ? proposedDeadline.toLocaleString() : "Invalid deadline"}</p>
-              <p className="mt-2"><span className="font-semibold text-foreground">Exceptional reason:</span> {reason.trim()}</p>
+          pendingReview ? (
+            <div className="space-y-3 text-xs leading-relaxed text-muted-foreground">
+              <p>
+                This action reopens a late appeal for fresh review. Confirm the exact frozen
+                deadline change and exceptional reason before applying it.
+              </p>
+              <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+                <p className="font-semibold text-foreground">
+                  {pendingReview.caseCode} · {pendingReview.caseSummary}
+                </p>
+                <p className="mt-2">
+                  <span className="font-semibold text-foreground">Original deadline:</span>{" "}
+                  {new Date(pendingReview.originalDeadline).toLocaleString()}
+                </p>
+                <p className="mt-2">
+                  <span className="font-semibold text-foreground">Proposed deadline:</span>{" "}
+                  {new Date(pendingReview.proposedDeadline).toLocaleString()}
+                </p>
+                <p className="mt-2">
+                  <span className="font-semibold text-foreground">Exceptional reason:</span>{" "}
+                  {pendingReview.reason}
+                </p>
+              </div>
+              <p>
+                Solaris re-reads this exact appeal before the compatibility mutation. If status,
+                deadline, existing extension or decision evidence changed while this sheet was
+                open, the reviewed action is rejected rather than silently updated.
+              </p>
+              <p>
+                The appeal status will return from rejected-late to submitted under the current
+                legacy authority, and the extension reason becomes part of the reporter-visible
+                case audit trail.
+              </p>
+              <p>
+                Canonical V3 preflight, version/CAS, idempotency and receipt authority remain
+                tracked in System #947. This review freshness check does not replace that command
+                boundary.
+              </p>
             </div>
-            <p>The appeal status will return from rejected-late to submitted under the current legacy authority, and the extension reason becomes part of the reporter-visible case audit trail.</p>
-            <p>Canonical V3 preflight, version/CAS and receipt authority remain tracked in System #947.</p>
-          </div>
+          ) : null
         }
         confirmLabel="Grant exceptional extension"
         busy={mutation.isPending}
-        confirmDisabled={!proposedDeadlineValid || reason.trim().length < 10 || appeal.status !== "rejected_late"}
+        confirmDisabled={!pendingReview || mutation.isPending}
         danger
       />
     </article>
   );
 }
 
-function Metric({ label, value, tone }: { label: string; value: number; tone: "attention" | "blocked" | "info" | "ready" }) {
-  return <AdminCard className="!p-4"><div className="flex items-start justify-between"><div><p className="text-2xl font-black">{value}</p><p className="mt-1 text-[9px] font-black uppercase tracking-[.12em] text-muted-foreground">{label}</p></div><AdminStatus tone={tone}>{value ? "Live" : "Clear"}</AdminStatus></div></AdminCard>;
+function Metric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: "attention" | "blocked" | "info" | "ready";
+}) {
+  return (
+    <AdminCard className="!p-4">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-2xl font-black">{value}</p>
+          <p className="mt-1 text-[9px] font-black uppercase tracking-[.12em] text-muted-foreground">
+            {label}
+          </p>
+        </div>
+        <AdminStatus tone={tone}>{value ? "Live" : "Clear"}</AdminStatus>
+      </div>
+    </AdminCard>
+  );
 }
