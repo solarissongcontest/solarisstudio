@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import {
@@ -16,18 +16,46 @@ import { useAllParticipants, useAllShows } from "@/lib/data-live";
 import { buildPublicCountryArchive } from "@/lib/public-country-archive";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
 
+const REFERENCE_KINDS = ["all", "edition", "country", "entry", "show"] as const;
+type ReferenceKind = (typeof REFERENCE_KINDS)[number];
+
+type ReferenceItem = {
+  id: string;
+  kind: Exclude<ReferenceKind, "all">;
+  title: string;
+  subtitle: string;
+  href: string;
+  search: string;
+  flag?: { code: string; color: string; image: string | null };
+};
+
+function parseReferenceKind(value: unknown): ReferenceKind | undefined {
+  if (typeof value !== "string") return undefined;
+  return (REFERENCE_KINDS as readonly string[]).includes(value)
+    ? (value as ReferenceKind)
+    : undefined;
+}
+
+function parseSearchHint(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  const bounded = value.trim().slice(0, 120);
+  return bounded || undefined;
+}
+
 export const Route = createFileRoute("/encyclopedia/")({
   validateSearch: (search: Record<string, unknown>) => ({
+    q: parseSearchHint(search.q),
+    kind: parseReferenceKind(search.kind),
     // Backward-compatible search hint only. This must not become Artist identity.
-    artist: typeof search.artist === "string" ? search.artist : undefined,
+    artist: parseSearchHint(search.artist),
   }),
   head: () => ({
     meta: [
-      { title: "Encyclopedia — Solaris Studio" },
+      { title: "Reference — Solaris Studio" },
       {
         name: "description",
         content:
-          "Published Solaris Song Contest history: editions, countries, entries and shows.",
+          "Publication-safe Solaris reference across editions, countries, published entries and shows.",
       },
     ],
     links: [
@@ -37,22 +65,10 @@ export const Route = createFileRoute("/encyclopedia/")({
       },
     ],
   }),
-  component: EncyclopediaPage,
+  component: ReferencePage,
 });
 
-type Kind = "all" | "edition" | "country" | "entry" | "show";
-
-type EncyclopediaItem = {
-  id: string;
-  kind: Exclude<Kind, "all">;
-  title: string;
-  subtitle: string;
-  href: string;
-  search: string;
-  flag?: { code: string; color: string; image: string | null };
-};
-
-function EncyclopediaPage() {
+function ReferencePage() {
   const search = Route.useSearch();
   const feature = useQuery({
     queryKey: ["studio2-feature", "public_encyclopedia"],
@@ -63,8 +79,13 @@ function EncyclopediaPage() {
   const editionsQuery = useEditions();
   const showsQuery = useAllShows();
   const participantsQuery = useAllParticipants();
-  const [query, setQuery] = useState(search.artist ?? "");
-  const [kind, setKind] = useState<Kind>("all");
+  const [query, setQuery] = useState(search.q ?? search.artist ?? "");
+  const [kind, setKind] = useState<ReferenceKind>(search.kind ?? "all");
+
+  useEffect(() => {
+    setQuery(search.q ?? search.artist ?? "");
+    setKind(search.kind ?? "all");
+  }, [search.artist, search.kind, search.q]);
 
   const publicArchive = useMemo(
     () =>
@@ -79,13 +100,13 @@ function EncyclopediaPage() {
     [editionsQuery.data, showsQuery.data, participantsQuery.data],
   );
 
-  const items = useMemo<EncyclopediaItem[]>(() => {
+  const items = useMemo<ReferenceItem[]>(() => {
     const countries = countriesQuery.data ?? [];
     const countryMap = new Map(countries.map((country) => [country.id, country]));
     const editionMap = new Map(
       publicArchive.editions.map((edition) => [edition.id, edition]),
     );
-    const output: EncyclopediaItem[] = [];
+    const output: ReferenceItem[] = [];
 
     for (const edition of publicArchive.editions) {
       output.push({
@@ -110,7 +131,9 @@ function EncyclopediaPage() {
         kind: "country",
         title: country.name,
         subtitle: [country.region, country.short_code].filter(Boolean).join(" · "),
-        href: `/countries/${country.short_code}`,
+        // Preserve rich historical country articles and their external bookmarks
+        // while P33 converges the duplicate top-level directories.
+        href: `/wiki/${country.short_code}`,
         search: [country.name, country.native_name, country.short_code, country.region]
           .filter(Boolean)
           .join(" "),
@@ -209,10 +232,10 @@ function EncyclopediaPage() {
       <AppShell>
         <PageHeader
           eyebrow="Explore Solaris"
-          title="Encyclopedia"
+          title="Reference"
           description="Published Solaris history, connected."
         />
-        <ArchiveDataLoading label="Building the public historical index…" />
+        <ArchiveDataLoading label="Building the public reference index…" />
       </AppShell>
     );
   }
@@ -222,10 +245,10 @@ function EncyclopediaPage() {
       <AppShell>
         <PageHeader
           eyebrow="Explore Solaris"
-          title="Encyclopedia"
+          title="Reference"
           description="Published Solaris history, connected."
         />
-        <Panel title="Encyclopedia is not enabled yet">
+        <Panel title="Reference is not enabled yet">
           <p className="text-sm text-muted-foreground">
             The product is installed but its rollout flag is still off while production
             verification finishes.
@@ -247,16 +270,8 @@ function EncyclopediaPage() {
     <AppShell>
       <PageHeader
         eyebrow="Explore Solaris"
-        title="Encyclopedia"
+        title="Reference"
         description="A publication-safe reference across editions, countries, published entries and shows."
-        actions={
-          <Link
-            to="/wiki"
-            className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold"
-          >
-            Country Wiki →
-          </Link>
-        }
       />
 
       <Panel
@@ -287,7 +302,7 @@ function EncyclopediaPage() {
 
       <section className="mt-5 rounded-2xl border border-border bg-surface/60 p-3 sm:p-4">
         <label className="relative block">
-          <span className="sr-only">Search Encyclopedia</span>
+          <span className="sr-only">Search Reference</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={query}
@@ -297,26 +312,24 @@ function EncyclopediaPage() {
           />
         </label>
 
-        <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Filter Encyclopedia">
-          {(["all", "edition", "country", "entry", "show"] as Kind[]).map(
-            (value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setKind(value)}
-                aria-pressed={kind === value}
-                className={`min-h-9 rounded-lg px-3 text-xs font-semibold ${
-                  kind === value
-                    ? "bg-primary/12 text-primary"
-                    : "bg-background/45 text-muted-foreground"
-                }`}
-              >
-                {value === "all"
-                  ? "All"
-                  : value.charAt(0).toUpperCase() + value.slice(1) + "s"}
-              </button>
-            ),
-          )}
+        <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Filter Reference">
+          {REFERENCE_KINDS.map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setKind(value)}
+              aria-pressed={kind === value}
+              className={`min-h-9 rounded-lg px-3 text-xs font-semibold ${
+                kind === value
+                  ? "bg-primary/12 text-primary"
+                  : "bg-background/45 text-muted-foreground"
+              }`}
+            >
+              {value === "all"
+                ? "All"
+                : value.charAt(0).toUpperCase() + value.slice(1) + "s"}
+            </button>
+          ))}
         </div>
       </section>
 
@@ -373,8 +386,10 @@ function EncyclopediaPage() {
 
       <p className="mt-5 text-xs leading-relaxed text-muted-foreground">
         Historical gaps are left as gaps. Draft entries, organizer notes, private ballots and
-        unpublished results are never indexed here. Artist and song labels remain attached to
-        their published Entry until Solaris has durable first-class Artist and Song identity.
+        unpublished results are never indexed here. Country reference articles keep their
+        existing durable Wiki URLs while article-level V3 migration continues. Artist and song
+        labels remain attached to their published Entry until Solaris has durable first-class
+        Artist and Song identity.
       </p>
     </AppShell>
   );
