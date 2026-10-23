@@ -201,6 +201,30 @@ describe("projectV3Participate", () => {
     expect(projection.voting.currentCount).toBe(1);
   });
 
+  it("keeps completed voting cards as context without counting them as current", () => {
+    const completedJury = action("jury-submitted", {
+      kind: "jury",
+      completed: true,
+      sourceState: "completed",
+      deliveryClass: "required",
+    });
+    const finishedTelevote = action("televote-finished", {
+      kind: "televote",
+      completed: true,
+      sourceState: "finished",
+      deliveryClass: "optional",
+    });
+
+    const projection = projectV3Participate({
+      actions: [completedJury, finishedTelevote],
+      journey: [],
+    });
+
+    expect(projection.voting.jury?.id).toBe("jury-submitted");
+    expect(projection.voting.televote?.id).toBe("televote-finished");
+    expect(projection.voting.currentCount).toBe(0);
+  });
+
   it("does not invent closed or unavailable voting truth when no canonical action exists", () => {
     const projection = projectV3Participate({ actions: [], journey: [] });
 
