@@ -1,10 +1,14 @@
 import { useRouterState } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 
 import { useSolarisApp } from "@/components/app/AppRuntime";
 import { useV3RolloutProbe } from "@/lib/v3-primary-runtime";
 import { decideV3ShellForRoute } from "@/lib/v3-shell-route-boundary";
-import { V3AppShell, type V3Area } from "./V3AppShell";
+import type { V3LegacyRouteShellArea } from "./V3LegacyRouteShell";
+
+const LazyV3LegacyRouteShell = lazy(() =>
+  import("./V3LegacyRouteShell").then((module) => ({ default: module.V3LegacyRouteShell })),
+);
 
 /**
  * Transitional shell adapter for public routes whose canonical content/data
@@ -14,6 +18,10 @@ import { V3AppShell, type V3Area } from "./V3AppShell";
  * existing child route remains the single content authority while installed V3
  * gets the canonical V3 chrome. Critical, immersive, auth and unsupported
  * routes continue to fail closed through decideV3ShellForRoute().
+ *
+ * The actual V3 chrome stays behind a dynamic import so adding this lightweight
+ * parent adapter to legacy route families does not pull the full V3 navigation,
+ * command palette and attention stack into their initial client chunks.
  */
 export function V3LegacyRouteAdapter({
   children,
@@ -64,33 +72,13 @@ export function V3LegacyRouteAdapter({
   }
 
   return (
-    <V3AppShell
-      editionLabel="Solaris Studio"
-      phaseLabel={phaseLabel}
-      activeArea={shell.rootTab as V3Area}
-    >
-      <div data-v3-legacy-route-adapter="">
-        <style>{`
-          [data-v3-legacy-route-adapter] .solaris-app-toolbar,
-          [data-v3-legacy-route-adapter] .solaris-app-tabbar,
-          [data-v3-legacy-route-adapter] .solaris-app-bottom-spacer,
-          [data-v3-legacy-route-adapter] .app-background {
-            display: none !important;
-          }
-
-          /* Preserve the established route's content measure, safe-area and
-             bottom-obstruction spacing. Only duplicate chrome is removed. */
-          [data-v3-legacy-route-adapter] .app-main {
-            min-width: 0;
-          }
-
-          [data-v3-legacy-route-adapter] > .relative.isolate.min-h-screen {
-            min-height: 0 !important;
-            overflow: visible !important;
-          }
-        `}</style>
+    <Suspense fallback={<>{children}</>}>
+      <LazyV3LegacyRouteShell
+        phaseLabel={phaseLabel}
+        activeArea={shell.rootTab as V3LegacyRouteShellArea}
+      >
         {children}
-      </div>
-    </V3AppShell>
+      </LazyV3LegacyRouteShell>
+    </Suspense>
   );
 }

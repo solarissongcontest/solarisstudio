@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 const adapter = source("src/components/v3/V3LegacyRouteAdapter.tsx");
+const lazyShell = source("src/components/v3/V3LegacyRouteShell.tsx");
 const countries = source("src/routes/countries/route.tsx");
 const editions = source("src/routes/editions/route.tsx");
 const shows = source("src/routes/shows/route.tsx");
@@ -30,6 +31,14 @@ describe("Public V3 deep-route shell cutover", () => {
     expect(adapter).not.toContain("sessionStorage");
   });
 
+  it("keeps the heavy V3 chrome behind a client lazy boundary", () => {
+    expect(adapter).toContain("lazy(() =>");
+    expect(adapter).toContain('import("./V3LegacyRouteShell")');
+    expect(adapter).toContain("<Suspense fallback={<>{children}</>}> ".trim());
+    expect(adapter).not.toContain('from "./V3AppShell"');
+    expect(lazyShell).toContain('from "./V3AppShell"');
+  });
+
   it("keeps independently reversible Explore, Results and Me cutovers fail-closed", () => {
     expect(adapter).toContain('shell.rootTab === "explore" && rollout.data.exploreEnabled !== true');
     expect(adapter).toContain('shell.rootTab === "results" && rollout.data.resultsEnabled !== true');
@@ -37,14 +46,15 @@ describe("Public V3 deep-route shell cutover", () => {
   });
 
   it("adapts chrome only and does not create another public data authority", () => {
+    const cutoverSources = `${adapter}\n${lazyShell}`;
     expect(adapter).toContain("{children}");
-    expect(adapter).toContain('data-v3-legacy-route-adapter=""');
-    expect(adapter).toContain(".solaris-app-toolbar");
-    expect(adapter).toContain(".solaris-app-tabbar");
-    expect(adapter).toContain(".app-main");
-    expect(adapter).not.toContain("supabase");
-    expect(adapter).not.toContain("useQuery(");
-    expect(adapter).not.toContain("fetch(");
+    expect(lazyShell).toContain('data-v3-legacy-route-adapter=""');
+    expect(lazyShell).toContain(".solaris-app-toolbar");
+    expect(lazyShell).toContain(".solaris-app-tabbar");
+    expect(lazyShell).toContain(".app-main");
+    expect(cutoverSources).not.toContain("supabase");
+    expect(cutoverSources).not.toContain("useQuery(");
+    expect(cutoverSources).not.toContain("fetch(");
   });
 
   it("cuts over directory roots without nesting existing V3 detail gates", () => {
