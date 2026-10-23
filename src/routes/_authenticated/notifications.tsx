@@ -7,10 +7,11 @@ import {
   type V3NotificationInboxItem,
 } from "@/components/v3/V3NotificationsScreen";
 import { V3AppShell } from "@/components/v3/V3AppShell";
+import { V3Screen, V3ScreenHeader, V3Surface } from "@/components/v3/V3Foundation";
 import {
   describeAppPushDelivery,
   getAppPushState,
-  type AppPushState,
+  UNKNOWN_APP_PUSH_DELIVERY,
 } from "@/lib/app-notifications";
 import {
   DEFAULT_SOLARIS_NOTIFICATION_CATEGORIES,
@@ -33,13 +34,6 @@ export const Route = createFileRoute("/_authenticated/notifications")({
   }),
   component: NotificationsRoute,
 });
-
-const EMPTY_PUSH: AppPushState = {
-  supported: false,
-  configured: false,
-  permission: "unsupported",
-  subscribed: false,
-};
 
 function NotificationsRoute() {
   const { isAppMode, platformResolved } = useSolarisApp();
@@ -91,7 +85,7 @@ function V3NotificationsRouteContent({
   const preferences = useNotificationPreferences(userId);
   const push = useQuery({
     queryKey: ["solaris-app-push-state", userId],
-    queryFn: getAppPushState,
+    queryFn: () => getAppPushState(userId),
     staleTime: 30_000,
     refetchOnWindowFocus: true,
     retry: false,
@@ -104,13 +98,43 @@ function V3NotificationsRouteContent({
     retry: false,
   });
 
+  // These three reads directly drive user-facing claims such as unread count,
+  // quiet hours and current-device push delivery. Do not substitute empty/default
+  // values while an authoritative read is merely still in flight.
+  if (preferences.isLoading || push.isLoading || inbox.isLoading) {
+    return (
+      <V3AppShell editionLabel="Solaris Studio" phaseLabel="Notifications" activeArea="me">
+        <V3Screen className="pb-8">
+          <V3ScreenHeader
+            kicker="Me"
+            title="Notifications"
+            description="Official updates, attention state and delivery health in one place."
+          />
+          <V3Surface>
+            <p
+              data-v3-notifications-authority-state="loading"
+              role="status"
+              aria-live="polite"
+              className="text-sm text-[var(--v3-text-secondary)]"
+            >
+              Loading your notification state…
+            </p>
+          </V3Surface>
+        </V3Screen>
+      </V3AppShell>
+    );
+  }
+
   const preferenceRow = preferences.data;
   const categories = preferenceRow?.categories?.length
     ? preferenceRow.categories
     : [...DEFAULT_SOLARIS_NOTIFICATION_CATEGORIES];
   const quietStart = (preferenceRow?.quiet_hours_start ?? "23:00").slice(0, 5);
   const quietEnd = (preferenceRow?.quiet_hours_end ?? "08:00").slice(0, 5);
-  const deliveryStatus = describeAppPushDelivery(push.data ?? EMPTY_PUSH);
+  const deliveryStatus =
+    push.isError || !push.data
+      ? UNKNOWN_APP_PUSH_DELIVERY
+      : describeAppPushDelivery(push.data);
   const inboxItems: V3NotificationInboxItem[] = (inbox.data ?? []).map((item) => ({
     id: item.notice.id,
     title: item.notice.title,
