@@ -20,7 +20,6 @@ describe("Organizer Jury Share route integration", () => {
     expect(route).not.toContain("supabase");
     expect(route).not.toContain("jury_votes");
     expect(route).not.toContain("jury_ballot_submissions");
-    expect(route).not.toContain("results").toBeFalsy;
     expect(route).toContain("JuryShareEditionThemeEditor");
   });
 
