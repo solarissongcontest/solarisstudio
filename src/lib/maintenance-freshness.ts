@@ -30,6 +30,11 @@ export function renderMaintenanceFreshnessClient(version: string) {
         credentials: "same-origin",
         headers: { accept: "application/json" },
       });
+
+      if (response.status === 401 || response.status === 403 || response.status === 404) {
+        window.location.reload();
+        return;
+      }
       if (!response.ok) return;
 
       const payload = await response.json();

@@ -19,6 +19,9 @@ describe("maintenance access deployment freshness", () => {
     expect(client).toContain('const endpoint = "/__maintenance-admin/version"');
     expect(client).toContain('cache: "no-store"');
     expect(client).toContain('credentials: "same-origin"');
+    expect(client).toContain("response.status === 401");
+    expect(client).toContain("response.status === 403");
+    expect(client).toContain("response.status === 404");
     expect(client).toContain("payload.version !== currentVersion");
     expect(client).toContain("window.location.reload()");
     expect(client).toContain('window.addEventListener("focus"');
