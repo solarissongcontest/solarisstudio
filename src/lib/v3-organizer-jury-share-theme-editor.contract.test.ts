@@ -44,7 +44,7 @@ describe("Organizer V3 Jury Share Edition theme editor", () => {
     expect(adapter).toContain('rpc("studio2_set_jury_share_theme_state"');
     expect(adapter).toContain('rpc("studio2_reconcile_operation"');
     expect(route).not.toContain("supabase.from(");
-    expect(adapter).not.toContain("edition_jury_share_themes").toBeTruthy;
+    expect(adapter).not.toContain("edition_jury_share_themes");
   });
 
   it("freezes one reviewed operation identity and reconciles uncertain outcomes", () => {
