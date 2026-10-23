@@ -1,7 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4178";
-const maintenanceAuditBypass = process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1";
+// The S14 config owns a loopback-only app server when E2E_BASE_URL is absent.
+// That local runtime is allowed through maintenance so Playwright can exercise
+// the real Organizer UI; custom/external servers still require an explicit opt-in.
+const maintenanceAuditBypass =
+  !process.env.E2E_BASE_URL || process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1";
 const appAuditStorageState = maintenanceAuditBypass
   ? {
       cookies: [
@@ -49,6 +53,8 @@ export default defineConfig({
     ? undefined
     : {
         command: "bun run dev --host 127.0.0.1 --port 4178 --strictPort",
+        // Maintenance deliberately returns 503 for `/`. Probe a static asset
+        // instead so server readiness is not confused with app authorization.
         url: "http://127.0.0.1:4178/favicon.ico",
         reuseExistingServer: false,
         timeout: 120_000,
