@@ -7,8 +7,10 @@ on:
     paths:
       - "supabase/migrations/**"
       - ".github/scripts/v3-s5-results-consequences-rehearsal.sh"
+      - ".github/scripts/v3-s5-results-runtime-convergence-diagnostics.sh"
       - ".github/workflows/v3-s5-results-consequences-rehearsal.yml"
       - "src/lib/v3-s5-results-consequences.test.ts"
+      - "src/lib/v3-s5-results-runtime-convergence.contract.test.ts"
       - "src/lib/v3-domain-consequence-registry.ts"
   workflow_dispatch:
 
@@ -24,6 +26,8 @@ jobs:
     name: Clean replay + Results consequences
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      V3_RELEASE_EVIDENCE_DIR: ${{ github.workspace }}/v3-release-evidence
     steps:
       - name: Checkout feature head
         uses: actions/checkout@v4
@@ -42,6 +46,18 @@ jobs:
       - name: Rehearse Results lifecycle consequences
         run: bash .github/scripts/v3-s5-results-consequences-rehearsal.sh
 
+      - name: Prove runtime Results and qualification convergence
+        run: bash .github/scripts/v3-s5-results-runtime-convergence-diagnostics.sh
+
+      - name: Upload Results runtime convergence evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-s5-results-runtime-clean-${{ github.event.pull_request.head.sha || github.sha }}
+          path: v3-release-evidence/s5-results-runtime-convergence.txt
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Stop isolated local Supabase
         if: always()
         run: supabase stop --no-backup || true
@@ -50,6 +66,8 @@ jobs:
     name: Current main upgrade + Results consequences
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      V3_RELEASE_EVIDENCE_DIR: ${{ github.workspace }}/v3-release-evidence
     steps:
       - name: Checkout feature head
         uses: actions/checkout@v4
@@ -90,6 +108,22 @@ jobs:
           set -euo pipefail
           cd /tmp/solaris-results-main
           bash "$GITHUB_WORKSPACE/.github/scripts/v3-s5-results-consequences-rehearsal.sh"
+
+      - name: Prove runtime Results and qualification convergence after upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd /tmp/solaris-results-main
+          bash "$GITHUB_WORKSPACE/.github/scripts/v3-s5-results-runtime-convergence-diagnostics.sh"
+
+      - name: Upload upgraded Results runtime convergence evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-s5-results-runtime-upgrade-${{ github.event.pull_request.head.sha || github.sha }}
+          path: v3-release-evidence/s5-results-runtime-convergence.txt
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Stop isolated local Supabase
         if: always()
