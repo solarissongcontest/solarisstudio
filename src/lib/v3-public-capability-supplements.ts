@@ -197,9 +197,9 @@ export const V3_PUBLIC_ROUTE_DISCOVERED_CAPABILITIES = [
     classification: "restrict",
     targetArea: "contextual",
     targetRoute: "/beta-test",
-    specificationStatus: "mapped",
+    specificationStatus: "parity",
     acceptanceScenarioId: "public.beta-feedback-restricted-surface",
-    migrationEvidence: "Noindex/nofollow structured usability-test route. It is not an authenticated product workspace and must not be promoted into normal V3 navigation.",
+    migrationEvidence: "Parity is certified only with the #1557 reliability stack present: the structured Beta 3 route stays noindex/nofollow and outside normal product discovery; local draft/submitted markers use fail-soft browser storage; verified screenshot paths survive retry/reload and replacement clears stale upload identity; authoritative feedback insertion completes before optional local cleanup so browser-storage failure cannot manufacture a failed submission; runtime context is deliberately low-entropy; arbitrary backend/storage errors remain collapsed to stable public-safe copy; full browser user-agent strings are not persisted; and navigation telemetry remains privacy-minimised and separate from form contents. Focused privacy, continuity, storage-resilience and parity contracts protect these boundaries.",
   },
   {
     id: "terraos-teaser-preview",
