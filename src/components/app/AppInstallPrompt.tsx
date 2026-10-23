@@ -138,6 +138,12 @@ export function AppInstallPrompt({ isAppMode }: { isAppMode: boolean }) {
     if (!installEvent) return;
     await installEvent.prompt();
     const choice = await installEvent.userChoice;
+
+    // beforeinstallprompt is single-use. Clear the consumed event after either
+    // native outcome so a dismissed browser prompt cannot leave a dead action.
+    setInstallEvent(null);
+    setEligible(false);
+
     if (choice.outcome === "accepted") dismiss();
   };
 
