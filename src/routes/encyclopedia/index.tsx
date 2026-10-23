@@ -7,15 +7,6 @@ import { AppShell, PageHeader, Panel, StatTile } from "@/components/AppShell";
 import { ArchiveDataLoading } from "@/components/ArchiveDataState";
 import { supabase } from "@/integrations/supabase/client";
 import { isStudio2FeatureEnabled } from "@/lib/studio2-feature-flags";
-import {
-  ENCYCLOPEDIA_KIND_LABELS,
-  ENCYCLOPEDIA_KIND_OPTIONS,
-  ENCYCLOPEDIA_RESULT_LABELS,
-  filterEncyclopediaResults,
-  parseEncyclopediaCoverage,
-  parseEncyclopediaSearchRows,
-  type EncyclopediaKind,
-} from "@/lib/v3-encyclopedia";
 
 export const Route = createFileRoute("/encyclopedia/")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -41,38 +32,85 @@ export const Route = createFileRoute("/encyclopedia/")({
   component: EncyclopediaPage,
 });
 
+type ResultKind = "edition" | "country" | "entry" | "show" | "wiki";
+type Kind = "all" | ResultKind;
+type SearchItem = {
+  id: string;
+  kind: ResultKind;
+  title: string;
+  subtitle: string;
+  href: string;
+};
+type Coverage = { countries: number; entries: number; shows: number; stories: number };
+
+const KIND_LABELS: Record<Kind, string> = {
+  all: "All",
+  edition: "Editions",
+  country: "Countries",
+  entry: "Entries",
+  show: "Shows",
+  wiki: "Wiki",
+};
+const RESULT_LABELS: Record<ResultKind, string> = {
+  edition: "Edition",
+  country: "Country",
+  entry: "Entry",
+  show: "Show",
+  wiki: "Wiki",
+};
+const KINDS = Object.keys(KIND_LABELS) as Kind[];
+const RESULT_KINDS = new Set<ResultKind>(["edition", "country", "entry", "show", "wiki"]);
 const BROWSE_DESTINATIONS = [
-  {
-    label: "Editions",
-    description: "Browse every published Solaris edition.",
-    href: "/editions",
-  },
-  {
-    label: "Countries",
-    description: "Open canonical country profiles and participation history.",
-    href: "/countries",
-  },
-  {
-    label: "Shows",
-    description: "Find published shows and their edition context.",
-    href: "/shows",
-  },
-  {
-    label: "Country Wiki",
-    description: "Read the detailed country reference collection.",
-    href: "/wiki",
-  },
-  {
-    label: "Stories",
-    description: "Continue into published Solaris editorial history.",
-    href: "/stories",
-  },
+  ["Editions", "Browse every published Solaris edition.", "/editions"],
+  ["Countries", "Open canonical country profiles and participation history.", "/countries"],
+  ["Shows", "Find published shows and their edition context.", "/shows"],
+  ["Country Wiki", "Read the detailed country reference collection.", "/wiki"],
+  ["Stories", "Continue into published Solaris editorial history.", "/stories"],
 ] as const;
+
+function parseSearchRows(value: unknown): SearchItem[] {
+  if (!Array.isArray(value)) throw new Error("Invalid public search projection");
+  const seen = new Set<string>();
+  return value.flatMap((raw) => {
+    if (!raw || typeof raw !== "object") throw new Error("Invalid public search row");
+    const row = raw as Record<string, unknown>;
+    if (!RESULT_KINDS.has(row.result_type as ResultKind)) return [];
+    const id = typeof row.result_id === "string" ? row.result_id.trim() : "";
+    const title = typeof row.title === "string" ? row.title.trim() : "";
+    const href = typeof row.href === "string" ? row.href.trim() : "";
+    if (!id || !title || !href.startsWith("/") || href.startsWith("//")) {
+      throw new Error("Invalid public Encyclopedia result");
+    }
+    if (seen.has(id)) return [];
+    seen.add(id);
+    return [{
+      id,
+      kind: row.result_type as ResultKind,
+      title,
+      subtitle: typeof row.subtitle === "string" ? row.subtitle : "",
+      href,
+    }];
+  });
+}
+
+function parseCoverage(value: unknown): Coverage {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Invalid public archive coverage");
+  }
+  const row = value as Record<string, unknown>;
+  for (const key of ["countries", "entries", "shows", "stories"] as const) {
+    const count = row[key];
+    if (typeof count !== "number" || !Number.isSafeInteger(count) || count < 0) {
+      throw new Error("Invalid public archive coverage");
+    }
+  }
+  return row as Coverage;
+}
 
 function EncyclopediaPage() {
   const search = Route.useSearch();
   const [query, setQuery] = useState(search.artist ?? "");
-  const [kind, setKind] = useState<EncyclopediaKind>("all");
+  const [kind, setKind] = useState<Kind>("all");
   const normalizedQuery = query.trim();
 
   const feature = useQuery({
@@ -88,7 +126,7 @@ function EncyclopediaPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("v3_public_explore_counts");
       if (error) throw error;
-      return parseEncyclopediaCoverage(data);
+      return parseCoverage(data);
     },
   });
 
@@ -102,12 +140,15 @@ function EncyclopediaPage() {
         result_limit: 50,
       });
       if (error) throw error;
-      return parseEncyclopediaSearchRows(data);
+      return parseSearchRows(data);
     },
   });
 
   const filtered = useMemo(
-    () => filterEncyclopediaResults(referenceQuery.data ?? [], kind),
+    () =>
+      kind === "all"
+        ? referenceQuery.data ?? []
+        : (referenceQuery.data ?? []).filter((item) => item.kind === kind),
     [kind, referenceQuery.data],
   );
 
@@ -143,11 +184,8 @@ function EncyclopediaPage() {
   }
 
   const coverage = coverageQuery.data;
-  const coverageValue = (value: number | undefined) => {
-    if (coverageQuery.isLoading) return "…";
-    if (coverageQuery.isError || value === undefined) return "—";
-    return value;
-  };
+  const coverageValue = (value: number | undefined) =>
+    coverageQuery.isLoading ? "…" : coverageQuery.isError || value === undefined ? "—" : value;
 
   return (
     <AppShell>
@@ -194,9 +232,8 @@ function EncyclopediaPage() {
             className="min-h-11 w-full rounded-xl border border-border bg-background/50 pl-10 pr-3 text-sm outline-none focus:border-primary/60"
           />
         </label>
-
         <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Filter Encyclopedia">
-          {ENCYCLOPEDIA_KIND_OPTIONS.map((value) => (
+          {KINDS.map((value) => (
             <button
               key={value}
               type="button"
@@ -208,7 +245,7 @@ function EncyclopediaPage() {
                   : "bg-background/45 text-muted-foreground"
               }`}
             >
-              {ENCYCLOPEDIA_KIND_LABELS[value]}
+              {KIND_LABELS[value]}
             </button>
           ))}
         </div>
@@ -225,21 +262,17 @@ function EncyclopediaPage() {
             </h2>
           </div>
           <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-            {BROWSE_DESTINATIONS.map((item) => (
+            {BROWSE_DESTINATIONS.map(([label, description, href]) => (
               <Link
-                key={item.href}
-                to={item.href as any}
+                key={href}
+                to={href as any}
                 className="flex min-w-0 items-center gap-3 rounded-2xl border border-border bg-surface p-4 transition hover:border-primary/35"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold">{item.label}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    {item.description}
-                  </p>
+                  <p className="text-sm font-semibold">{label}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
                 </div>
-                <span aria-hidden className="text-primary">
-                  →
-                </span>
+                <span aria-hidden className="text-primary">→</span>
               </Link>
             ))}
           </div>
@@ -275,9 +308,7 @@ function EncyclopediaPage() {
               </p>
               <h2 className="mt-1 font-display text-xl font-bold">Published matches</h2>
             </div>
-            <span className="text-xs tabular-nums text-muted-foreground">
-              {filtered.length}
-            </span>
+            <span className="text-xs tabular-nums text-muted-foreground">{filtered.length}</span>
           </div>
 
           <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
@@ -289,16 +320,14 @@ function EncyclopediaPage() {
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-primary">
-                    {ENCYCLOPEDIA_RESULT_LABELS[item.kind]}
+                    {RESULT_LABELS[item.kind]}
                   </p>
                   <p className="mt-1 truncate text-sm font-semibold">{item.title}</p>
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {item.subtitle || "Published Solaris record"}
                   </p>
                 </div>
-                <span aria-hidden className="text-primary">
-                  →
-                </span>
+                <span aria-hidden className="text-primary">→</span>
               </Link>
             ))}
           </div>
