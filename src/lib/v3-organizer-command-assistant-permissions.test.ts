@@ -3,10 +3,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   filterSolarisAssistantCommandsByAccess,
-  uniqueSolarisAssistantCapabilities,
-} from "./solaris-command-assistant-access";
-import {
   SOLARIS_ASSISTANT_COMMANDS,
+  uniqueSolarisAssistantCapabilities,
   type SolarisAssistantCommand,
 } from "./solaris-command-assistant";
 
