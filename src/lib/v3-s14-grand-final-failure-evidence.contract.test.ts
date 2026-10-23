@@ -5,6 +5,12 @@ import { describe, expect, it } from "vitest";
 const driver = readFileSync(".github/scripts/v3-full-contest-rehearsal.sh", "utf8");
 const grandFinalLeg = readFileSync(".github/scripts/v3-s14-grand-final-leg.sh", "utf8");
 const workflow = readFileSync(".github/workflows/v3-s14-full-contest-rehearsal.yml", "utf8");
+const grandFinalBrowserConfig = readFileSync("playwright.s14-grand-final.config.ts", "utf8");
+const grandFinalResultsBrowserConfig = readFileSync(
+  "playwright.s14-grand-final-results.config.ts",
+  "utf8",
+);
+const server = readFileSync("src/server.ts", "utf8");
 const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as {
   devDependencies?: Record<string, string>;
 };
@@ -82,6 +88,30 @@ describe("S14 Grand Final failure evidence", () => {
     expect(workflow.indexOf("Verify S14 Chromium runtime")).toBeLessThan(
       workflow.indexOf("Start isolated local Supabase"),
     );
+  });
+
+  it("keeps S14 browser readiness independent of maintenance authorization on both browser legs", () => {
+    for (const browserConfig of [grandFinalBrowserConfig, grandFinalResultsBrowserConfig]) {
+      expect(browserConfig).toContain(
+        '!process.env.E2E_BASE_URL || process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1"',
+      );
+      expect(browserConfig).toContain('name: "solaris_e2e_maintenance_bypass"');
+      expect(browserConfig).toContain('domain: "127.0.0.1"');
+      expect(browserConfig).toContain("storageState: appAuditStorageState");
+      expect(browserConfig).toContain("/favicon.ico");
+    }
+
+    expect(grandFinalBrowserConfig).toContain(
+      'url: "http://127.0.0.1:4177/favicon.ico"',
+    );
+    expect(grandFinalResultsBrowserConfig).toContain(
+      'url: "http://127.0.0.1:4178/favicon.ico"',
+    );
+    expect(server).toContain(
+      'const localHost = url.hostname === "127.0.0.1" || url.hostname === "localhost";',
+    );
+    expect(server).toContain("if (!localHost) return false;");
+    expect(server).toContain('"/favicon.ico"');
   });
 
   it("classifies browser bootstrap separately and enters the qualifier bridge only after Playwright initializes", () => {
