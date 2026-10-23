@@ -11,6 +11,7 @@ export type V3DeploymentRollbackEvidenceAssessment = {
   workerName: string | null;
   baselineVersionId: string | null;
   defectiveVersionId: string | null;
+  rollbackDeploymentId: string | null;
   isolatedProviderRollbackMs: number | null;
   errors: readonly string[];
   certificationClaim: false;
@@ -18,16 +19,21 @@ export type V3DeploymentRollbackEvidenceAssessment = {
   qaReviewRequired: true;
 };
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const WORKER_RE = /^solaris-s11-rollback-[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 const WRANGLER_VERSION = "4.141.0";
 const REQUIRED_ARTIFACT_DIGESTS = [
+  "fixtureConfig",
   "baselineDeploy",
+  "baselineRuntime",
   "defectiveUpload",
   "defectiveDeploy",
+  "defectiveRuntime",
   "preRollbackDeployments",
   "rollbackCommandOutput",
   "postRollbackDeployments",
+  "rollbackRuntime",
 ] as const;
 
 function asRecord(value: unknown): UnknownRecord | null {
@@ -84,7 +90,9 @@ function isolatedWorkersDevUrl(value: unknown, workerName: string | null): strin
     if (url.protocol !== "https:") return null;
     const host = url.hostname.toLowerCase();
     if (!host.endsWith(".workers.dev")) return null;
-    if (!host.startsWith(`${workerName}.`) && !host.includes(`-${workerName}.`)) return null;
+    if (!host.startsWith(`${workerName}.`) && !host.includes(`-${workerName}.`)) {
+      return null;
+    }
     return url.toString();
   } catch {
     return null;
@@ -119,6 +127,7 @@ export function assessV3DeploymentRollbackEvidence(
       workerName: null,
       baselineVersionId: null,
       defectiveVersionId: null,
+      rollbackDeploymentId: null,
       isolatedProviderRollbackMs: null,
       errors: [...errors, "deployment rollback evidence must be an object"],
       certificationClaim: false,
@@ -140,12 +149,16 @@ export function assessV3DeploymentRollbackEvidence(
   const achieved = asRecord(record.achieved);
   const validation = asRecord(record.validation);
   const artifactDigests = asRecord(record.artifactDigests);
-  const workerName = typeof worker?.name === "string" ? worker.name.trim().toLowerCase() : null;
+  const workerName =
+    typeof worker?.name === "string" ? worker.name.trim().toLowerCase() : null;
   const baselineVersionId = uuid(baseline?.id);
   const defectiveVersionId = uuid(defective?.id);
   const rolledBackToVersionId = uuid(versions?.rolledBackToVersionId);
+  const rollbackDeploymentId = uuid(versions?.rollbackDeploymentId);
   const targetUrl = isolatedWorkersDevUrl(worker?.targetUrl, workerName);
-  const isolatedProviderRollbackMs = finiteNonNegative(achieved?.isolatedProviderRollbackMs);
+  const isolatedProviderRollbackMs = finiteNonNegative(
+    achieved?.isolatedProviderRollbackMs,
+  );
   const issuesFound = stringArray(record.issuesFound);
   const followUpActions = stringArray(record.followUpActions);
 
@@ -163,7 +176,9 @@ export function assessV3DeploymentRollbackEvidence(
     errors.push("deployment rollback evidence does not belong to the expected commit SHA");
   }
   if (!environment) errors.push("environment must be a 1..120 character label");
-  if (!operatorIdentity) errors.push("operatorIdentity must be a 1..120 character label");
+  if (!operatorIdentity) {
+    errors.push("operatorIdentity must be a 1..120 character label");
+  }
   if (!rehearsalId) errors.push("rehearsalId must be a UUID");
   if (startedAt === null || completedAt === null || completedAt < startedAt) {
     errors.push("startedAt/completedAt must be ordered ISO timestamps");
@@ -196,8 +211,15 @@ export function assessV3DeploymentRollbackEvidence(
   if (!rolledBackToVersionId || rolledBackToVersionId !== baselineVersionId) {
     errors.push("rolledBackToVersionId must equal the known-good baseline version");
   }
-  if (baseline?.marker !== "known-good") errors.push("baseline marker must be known-good");
-  if (defective?.marker !== "defective") errors.push("defective marker must be defective");
+  if (!rollbackDeploymentId) {
+    errors.push("rollbackDeploymentId must be a UUID");
+  }
+  if (baseline?.marker !== "known-good") {
+    errors.push("baseline marker must be known-good");
+  }
+  if (defective?.marker !== "defective") {
+    errors.push("defective marker must be defective");
+  }
 
   if (isolatedProviderRollbackMs === null) {
     errors.push("isolatedProviderRollbackMs must be non-negative");
@@ -238,7 +260,10 @@ export function assessV3DeploymentRollbackEvidence(
       }
     }
     const unexpected = Object.keys(artifactDigests).filter(
-      (key) => !REQUIRED_ARTIFACT_DIGESTS.includes(key as (typeof REQUIRED_ARTIFACT_DIGESTS)[number]),
+      (key) =>
+        !REQUIRED_ARTIFACT_DIGESTS.includes(
+          key as (typeof REQUIRED_ARTIFACT_DIGESTS)[number],
+        ),
     );
     if (unexpected.length > 0) {
       errors.push("artifactDigests contains an unexpected artifact");
@@ -246,7 +271,11 @@ export function assessV3DeploymentRollbackEvidence(
   }
 
   if (!issuesFound) errors.push("issuesFound must be a string array");
-  if (!followUpActions || followUpActions.length === 0 || followUpActions.some((item) => !item)) {
+  if (
+    !followUpActions ||
+    followUpActions.length === 0 ||
+    followUpActions.some((item) => !item)
+  ) {
     errors.push("followUpActions must retain full-service/provider follow-up work");
   }
   if (record.certificationClaim !== false) {
@@ -268,6 +297,7 @@ export function assessV3DeploymentRollbackEvidence(
     workerName,
     baselineVersionId,
     defectiveVersionId,
+    rollbackDeploymentId,
     isolatedProviderRollbackMs,
     errors,
     certificationClaim: false,
