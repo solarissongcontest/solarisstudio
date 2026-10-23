@@ -26,13 +26,14 @@ describe("MySolaris route consolidation", () => {
     expect(targets).toContain('mySolarisTasks: "/my-solaris/tasks"');
     expect(targets).toContain('mySolarisEntry: "/my-solaris/entry"');
     expect(targets).toContain('mySolarisNotices: "/my-solaris/notices"');
+    expect(targets).toContain('participate: "/participate"');
   });
 
-  it("keeps Country Hub bookmarks as redirects instead of alternate product shells", () => {
+  it("keeps Country Hub bookmarks as compatibility redirects without restoring legacy task ownership", () => {
     const aliases = [
       ["index.tsx", "mySolarisCountry"],
-      ["hod.tsx", "mySolarisTasks"],
-      ["readiness.tsx", "mySolarisEntry"],
+      ["hod.tsx", "participate"],
+      ["readiness.tsx", "participate"],
       ["notices.tsx", "mySolarisNotices"],
       ["page-builder.tsx", "mySolarisPageBuilder"],
       ["theme.tsx", "mySolarisTheme"],
@@ -45,6 +46,13 @@ describe("MySolaris route consolidation", () => {
       );
       expect(content).toContain("replace: true");
     }
+
+    const hod = source("src/routes/_authenticated/country-hub/hod.tsx");
+    const readiness = source("src/routes/_authenticated/country-hub/readiness.tsx");
+    expect(hod).not.toContain("NAV_TARGETS.mySolarisTasks");
+    expect(readiness).not.toContain("NAV_TARGETS.mySolarisEntry");
+    expect(hod).toContain("throw redirect({ to: NAV_TARGETS.participate, replace: true });");
+    expect(readiness).toContain("throw redirect({ to: NAV_TARGETS.participate, replace: true });");
   });
 
   it("does not append major participant content from the authenticated layout", () => {

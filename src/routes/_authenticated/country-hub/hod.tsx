@@ -12,8 +12,8 @@ export const Route = createFileRoute("/_authenticated/country-hub/hod")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  beforeLoad: ({ search }) => {
-    throw redirect({ to: NAV_TARGETS.mySolarisTasks, search, replace: true });
+  beforeLoad: () => {
+    throw redirect({ to: NAV_TARGETS.participate, replace: true });
   },
   component: () => null,
 });
