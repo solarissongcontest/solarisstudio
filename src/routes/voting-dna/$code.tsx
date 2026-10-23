@@ -199,6 +199,21 @@ function VotingDnaPage() {
       Boolean(row.edition),
     );
 
+  const detailedEditionScope = dna.data.sample.detailedEditionIds
+    .map((editionId) => editionMap.get(editionId))
+    .filter((edition): edition is NonNullable<typeof edition> => Boolean(edition));
+  const missingDetailedEditionLabels =
+    dna.data.sample.detailedEditionIds.length - detailedEditionScope.length;
+  const detailedScopeLabel = detailedEditionScope.length
+    ? `${detailedEditionScope.map((edition) => editionLabel(edition)).join(" · ")}${
+        missingDetailedEditionLabels > 0
+          ? ` · ${missingDetailedEditionLabels} additional published ${
+              missingDetailedEditionLabels === 1 ? "edition" : "editions"
+            }`
+          : ""
+      }`
+    : "No published detailed-voting editions";
+
   const juryValues = editionRows.flatMap((row) =>
     row.result.juryPublished && row.result.juryPoints !== null
       ? [row.result.juryPoints]
@@ -301,6 +316,10 @@ function VotingDnaPage() {
             <StatTile label="Jury points received" value={dna.data.sample.receivedPoints} />
             <StatTile label="Result editions" value={dna.data.sample.resultEditions} />
           </StatSummary>
+          <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+            <span className="font-semibold text-foreground">Detailed-voting scope:</span>{" "}
+            {detailedScopeLabel}
+          </p>
         </Panel>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
@@ -361,15 +380,14 @@ function VotingDnaPage() {
         </Panel>
 
         <MethodologyDisclosure title="Methodology">
-          Voting DNA uses the publication-safe server aggregate formula {dna.data.formulaVersion}.
-          Directional support is built only from detailed jury vote rows that the relevant show has
-          published. Combined Result publication may expose rank and total points, but Jury and
-          Televote point totals remain independently hidden until their own publication layers are
-          public. The displayed Jury and Televote averages use presentation formula {" "}
-          {VOTING_DNA_PRESENTATION_FORMULA_VERSION}: the arithmetic mean of only the split totals
-          actually released in the rows shown above. Missing historical detail is excluded rather
-          than estimated, and the sample counts above show the historical scope of the available
-          evidence.
+          Voting DNA uses publication-safe server aggregate formula {dna.data.formulaVersion}.
+          Directional support is built only from detailed jury vote rows in the exact published
+          editions listed in the sample scope above. Combined Result publication may expose rank
+          and total points, but Jury and Televote point totals remain independently hidden until
+          their own publication layers are public. The displayed Jury and Televote averages use
+          presentation formula {VOTING_DNA_PRESENTATION_FORMULA_VERSION}: the arithmetic mean of
+          only the split totals actually released in the rows shown above. Missing historical
+          detail is excluded rather than estimated.
         </MethodologyDisclosure>
       </DataStoryPage>
     </AppShell>
