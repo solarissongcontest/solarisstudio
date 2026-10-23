@@ -1,6 +1,24 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:4177";
+const maintenanceAuditBypass = process.env.SOLARIS_E2E_BYPASS_MAINTENANCE === "1";
+const appAuditStorageState = maintenanceAuditBypass
+  ? {
+      cookies: [
+        {
+          name: "solaris_e2e_maintenance_bypass",
+          value: "1",
+          domain: "127.0.0.1",
+          path: "/",
+          expires: -1,
+          httpOnly: true,
+          secure: false,
+          sameSite: "Lax" as const,
+        },
+      ],
+      origins: [],
+    }
+  : undefined;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -25,12 +43,13 @@ export default defineConfig({
     video: "off",
     reducedMotion: "reduce",
     colorScheme: "dark",
+    storageState: appAuditStorageState,
   },
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
         command: "bun run dev --host 127.0.0.1 --port 4177 --strictPort",
-        url: "http://127.0.0.1:4177",
+        url: "http://127.0.0.1:4177/favicon.ico",
         reuseExistingServer: false,
         timeout: 120_000,
       },
