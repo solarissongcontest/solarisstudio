@@ -50,7 +50,17 @@ export const Route = createFileRoute('/_authenticated/admin/storytelling')({
 });
 
 type StoryView = 'storyline' | 'anniversary';
-type ConfirmAction = 'publish_storyline' | 'unpublish_storyline' | null;
+type PublicationAction = 'publish_storyline' | 'unpublish_storyline';
+type PublicationReview = {
+  action: PublicationAction;
+  editionId: string;
+  editionLabel: string;
+  storylineId: string;
+  storylineTitle: string;
+  revision: number;
+  status: 'draft' | 'published';
+  reason: string;
+};
 
 function dateInParis() {
   return new Intl.DateTimeFormat('en-CA', {
@@ -80,7 +90,7 @@ function StorytellingPage() {
   const [manualSummary, setManualSummary] = useState('');
   const [manualImportance, setManualImportance] = useState('70');
   const [manualOccurredAt, setManualOccurredAt] = useState('');
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
+  const [publicationReview, setPublicationReview] = useState<PublicationReview | null>(null);
   const [anniversaryDate, setAnniversaryDate] = useState(dateInParis);
 
   const editions = editionsQuery.data ?? [];
@@ -107,7 +117,7 @@ function StorytellingPage() {
   useEffect(() => {
     setItemTarget(null);
     setManualOpen(false);
-    setConfirmAction(null);
+    setPublicationReview(null);
     setAuditReason('');
   }, [resolvedEditionId]);
 
@@ -159,6 +169,31 @@ function StorytellingPage() {
     if (auditReason.trim().length >= 5) return true;
     toast.error('Add an audit reason of at least 5 characters.');
     return false;
+  }
+
+  function openPublicationReview(action: PublicationAction) {
+    if (!edition || !story) {
+      toast.error('Storytelling state is unavailable. Reload the selected edition before reviewing publication.');
+      return;
+    }
+    if (!requireReason()) return;
+
+    const expectedStatus = action === 'publish_storyline' ? 'draft' : 'published';
+    if (story.status !== expectedStatus) {
+      toast.error('Storyline state changed before review. Reload the current Storytelling state and try again.');
+      return;
+    }
+
+    setPublicationReview({
+      action,
+      editionId: edition.id,
+      editionLabel: editionLabel(edition),
+      storylineId: story.id,
+      storylineTitle: story.title,
+      revision: story.revision,
+      status: story.status,
+      reason: auditReason.trim(),
+    });
   }
 
   async function generate() {
@@ -257,9 +292,32 @@ function StorytellingPage() {
   }
 
   async function confirmPublication() {
-    if (!confirmAction || !story || !requireReason()) return;
-    await mutation.mutateAsync({ action: confirmAction });
-    setConfirmAction(null);
+    const review = publicationReview;
+    if (!review || !edition || !story) return;
+
+    const expectedStatus = review.action === 'publish_storyline' ? 'draft' : 'published';
+    const contextChanged =
+      review.editionId !== resolvedEditionId ||
+      review.editionId !== editionId ||
+      review.editionLabel !== editionLabel(edition);
+    const storylineChanged =
+      review.storylineId !== story.id ||
+      review.revision !== story.revision ||
+      review.status !== story.status ||
+      story.status !== expectedStatus;
+
+    if (contextChanged || storylineChanged) {
+      setPublicationReview(null);
+      toast.error('Storytelling changed while this publication action was being reviewed. Reopen review from the current edition and storyline revision.');
+      return;
+    }
+
+    await mutation.mutateAsync({
+      action: review.action,
+      expectedRevision: review.revision,
+      reason: review.reason,
+    });
+    setPublicationReview(null);
   }
 
   const loading = editionsQuery.isLoading || storyQuery.isLoading;
@@ -404,9 +462,9 @@ function StorytellingPage() {
                   ) : null}
                   <div className="flex flex-wrap gap-2">
                     {story.status === 'published' ? (
-                      <button type="button" onClick={() => setConfirmAction('unpublish_storyline')} className="admin-action-danger"><EyeOff className="size-4" /> Unpublish story</button>
+                      <button type="button" onClick={() => openPublicationReview('unpublish_storyline')} className="admin-action-danger"><EyeOff className="size-4" /> Unpublish story</button>
                     ) : (
-                      <button type="button" disabled={!readiness?.publishable} onClick={() => setConfirmAction('publish_storyline')} className="admin-action-primary"><Eye className="size-4" /> Publish story</button>
+                      <button type="button" disabled={!readiness?.publishable} onClick={() => openPublicationReview('publish_storyline')} className="admin-action-primary"><Eye className="size-4" /> Publish story</button>
                     )}
                     <a href={`/stories/${edition?.slug ?? ''}`} target="_blank" rel="noreferrer" className="admin-action-secondary">Open public route</a>
                   </div>
@@ -449,25 +507,42 @@ function StorytellingPage() {
       </AdminSheet>
 
       <AdminConfirmSheet
-        open={confirmAction === 'publish_storyline'}
-        onClose={() => setConfirmAction(null)}
+        open={Boolean(publicationReview)}
+        onClose={() => setPublicationReview(null)}
         onConfirm={confirmPublication}
-        title="Publish edition storyline"
-        description="This makes the reviewed storyline public and exposes it to the Anniversary Engine. Generated copy is never published by generation alone."
-        confirmLabel="Publish storyline"
-        confirmationText="PUBLISH"
+        title={publicationReview?.action === 'unpublish_storyline' ? 'Unpublish edition storyline' : 'Publish edition storyline'}
+        description={publicationReview ? (
+          <div className="space-y-3 text-xs leading-relaxed text-muted-foreground" data-v3-organizer-story-publication-review>
+            <div className="rounded-xl border border-white/[0.08] bg-white/[0.025] p-3">
+              <p className="admin-section-label">Reviewed Organizer context</p>
+              <p className="mt-1 text-sm font-bold text-foreground">{publicationReview.editionLabel}</p>
+              <p className="mt-1 text-slate-200/80">{publicationReview.storylineTitle}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <AdminStatus tone={publicationReview.status === 'published' ? 'ready' : 'neutral'}>
+                  {publicationReview.status === 'published' ? 'Published' : 'Draft'}
+                </AdminStatus>
+                <AdminStatus tone="info">Revision {publicationReview.revision}</AdminStatus>
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/[0.08] bg-black/10 p-3">
+              <p className="font-semibold text-foreground">Consequence</p>
+              <p className="mt-1">
+                {publicationReview.action === 'publish_storyline'
+                  ? 'This exact reviewed revision becomes public and enters the Anniversary Engine.'
+                  : 'This exact reviewed public revision is withdrawn immediately. The draft, source links and audit history remain.'}
+              </p>
+            </div>
+            <div className="rounded-xl border border-white/[0.08] bg-black/10 p-3">
+              <p className="font-semibold text-foreground">Audit reason</p>
+              <p className="mt-1 whitespace-pre-wrap text-slate-200/80">{publicationReview.reason}</p>
+            </div>
+            <p>If the edition, storyline identity, revision or publication state changes before commit, Solaris rejects this reviewed action and requires a new review.</p>
+          </div>
+        ) : ''}
+        confirmLabel={publicationReview?.action === 'unpublish_storyline' ? 'Unpublish storyline' : 'Publish storyline'}
+        confirmationText={publicationReview?.action === 'unpublish_storyline' ? 'UNPUBLISH' : 'PUBLISH'}
         busy={mutation.isPending}
-      />
-      <AdminConfirmSheet
-        open={confirmAction === 'unpublish_storyline'}
-        onClose={() => setConfirmAction(null)}
-        onConfirm={confirmPublication}
-        title="Unpublish edition storyline"
-        description="The public story disappears immediately, but the draft, source links and audit history remain intact."
-        confirmLabel="Unpublish storyline"
-        confirmationText="UNPUBLISH"
-        busy={mutation.isPending}
-        danger
+        danger={publicationReview?.action === 'unpublish_storyline'}
       />
     </AdminPage>
   );
