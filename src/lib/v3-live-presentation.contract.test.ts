@@ -43,9 +43,11 @@ describe("Public V3 Live presentation", () => {
     expect(screen).not.toContain("runningOrder[0]");
   });
 
-  it("shows server-owned timing without promoting timestamps into browser authority", () => {
+  it("shows server-owned timing through the hydration-safe public time primitive", () => {
     const screen = source();
 
+    expect(screen).toContain('import { EventTime } from "@/components/public/EventTime"');
+    expect(screen).toContain('import { formatEventDateTime } from "@/lib/public-time"');
     expect(screen).toContain('title="Show timing"');
     expect(screen).toContain("experience.timing.scheduledStart");
     expect(screen).toContain("experience.timing.liveStartedAt");
@@ -53,7 +55,12 @@ describe("Public V3 Live presentation", () => {
     expect(screen).toContain("experience.voting.closedAt");
     expect(screen).toContain("experience.timing.resultsStartedAt");
     expect(screen).toContain("experience.timing.endedAt");
+    expect(screen).toContain("<EventTime");
+    expect(screen).toContain("value={row.value}");
+    expect(screen).toContain('formatEventDateTime(iso, { locale: "en-GB" })');
     expect(screen).toContain("do not independently advance");
+    expect(screen).not.toContain("toLocaleString(");
+    expect(screen).not.toContain("toLocaleTimeString(");
     expect(screen).not.toContain("setTimeout(");
     expect(screen).not.toContain("setInterval(");
   });
