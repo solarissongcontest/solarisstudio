@@ -5,8 +5,11 @@ import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { AdminConfirmSheet } from "@/components/admin/AdminUI";
 import { AdminPage } from "@/components/admin/AdminShell";
 import { FlagFrame, FlagMedia, clampFlagCrop, type FlagCrop } from "@/components/FlagMedia";
-import { supabase } from "@/integrations/supabase/client";
 import { useCountries, type Country } from "@/lib/data";
+import {
+  preflightCountryFlagCropV3,
+  updateCountryFlagCropV3,
+} from "@/lib/v3-country-flag-crop-client";
 
 export const Route = createFileRoute("/_authenticated/admin/flag-audit")({
   head: () => ({ meta: [{ title: "Flag QA — Solaris Organizer" }, { name: "robots", content: "noindex, nofollow" }] }),
@@ -16,9 +19,13 @@ export const Route = createFileRoute("/_authenticated/admin/flag-audit")({
 type PendingCropReview = {
   countryId: string;
   countryName: string;
-  sourceImage: string | null;
+  sourceImage: string;
   before: FlagCrop;
   next: FlagCrop;
+  expectedStateVersion: string;
+  operationId: string;
+  idempotencyKey: string;
+  serverTime: string;
 };
 
 function storedCrop(country: Pick<Country, "flag_crop_x" | "flag_crop_y" | "flag_crop_zoom">): FlagCrop {
@@ -68,6 +75,7 @@ function AuditCard({ country, active, onSelect }: { country: Country; active: bo
 function CropEditor({ country }: { country: Country }) {
   const queryClient = useQueryClient();
   const [crop, setCrop] = useState<FlagCrop>(() => storedCrop(country));
+  const [preparingReview, setPreparingReview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [pendingReview, setPendingReview] = useState<PendingCropReview | null>(null);
@@ -89,58 +97,73 @@ function CropEditor({ country }: { country: Country }) {
     setCrop(clampFlagCrop({ ...pointer.current.crop, x: pointer.current.crop.x - dx, y: pointer.current.crop.y - dy }));
   }
 
-  function requestSave() {
-    if (!dirty || saving || !country.flag_image) return;
+  async function requestSave() {
+    if (!dirty || saving || preparingReview || !country.flag_image) return;
+    setPreparingReview(true);
     setMessage("");
-    setPendingReview({
-      countryId: country.id,
-      countryName: country.name,
-      sourceImage: country.flag_image,
-      before: persistedCrop,
-      next: clampFlagCrop(crop),
-    });
+    try {
+      const preflight = await preflightCountryFlagCropV3(country.id);
+      if (preflight.blockers.length) {
+        throw new Error(preflight.blockers[0] ?? "The flag crop cannot be changed right now.");
+      }
+      if (
+        preflight.flagImage !== country.flag_image ||
+        !sameCrop(preflight.crop, persistedCrop)
+      ) {
+        await queryClient.invalidateQueries({ queryKey: ["countries"] });
+        throw new Error(
+          "The flag source or saved crop changed before review opened. Refresh Flag QA and review the current source before retrying.",
+        );
+      }
+
+      const operationId = crypto.randomUUID();
+      setPendingReview({
+        countryId: preflight.countryId,
+        countryName: preflight.countryName,
+        sourceImage: preflight.flagImage,
+        before: preflight.crop,
+        next: clampFlagCrop(crop),
+        expectedStateVersion: preflight.stateVersion,
+        operationId,
+        idempotencyKey: `flag-crop:${preflight.countryId}:${operationId}`,
+        serverTime: preflight.serverTime,
+      });
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "The flag crop review could not be prepared.");
+    } finally {
+      setPreparingReview(false);
+    }
   }
 
   async function applyReviewedCrop() {
     if (!pendingReview || pendingReview.countryId !== country.id) return;
+    const review = pendingReview;
     setSaving(true);
     setMessage("");
     try {
-      const { data: liveCountry, error: readError } = await supabase
-        .from("countries")
-        .select("id,name,flag_image,flag_crop_x,flag_crop_y,flag_crop_zoom")
-        .eq("id", pendingReview.countryId)
-        .single();
-      if (readError) throw readError;
+      const result = await updateCountryFlagCropV3({
+        countryId: review.countryId,
+        crop: review.next,
+        expectedStateVersion: review.expectedStateVersion,
+        operationId: review.operationId,
+        idempotencyKey: review.idempotencyKey,
+      });
 
-      const liveCrop = storedCrop(liveCountry);
-      if (
-        liveCountry.flag_image !== pendingReview.sourceImage ||
-        !sameCrop(liveCrop, pendingReview.before)
-      ) {
-        throw new Error(
-          "The flag source or saved crop changed while this review was open. Nothing was changed. Refresh Flag QA and review the current source before retrying.",
-        );
-      }
-
-      const { error: updateError } = await supabase
-        .from("countries")
-        .update({
-          flag_crop_x: pendingReview.next.x,
-          flag_crop_y: pendingReview.next.y,
-          flag_crop_zoom: pendingReview.next.zoom,
-        })
-        .eq("id", pendingReview.countryId)
-        .select("id")
-        .single();
-      if (updateError) throw updateError;
-
-      setCrop(pendingReview.next);
+      setCrop(result.crop);
       setPendingReview(null);
       await queryClient.invalidateQueries({ queryKey: ["countries"] });
-      setMessage("Crop saved for every Solaris flag view.");
+      setMessage(
+        result.replayed
+          ? "Crop saved. Solaris reconciled the original operation before confirming success."
+          : "Crop saved for every Solaris flag view.",
+      );
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "The flag crop could not be saved.");
+      await queryClient.invalidateQueries({ queryKey: ["countries"] });
+      setMessage(
+        caught instanceof Error
+          ? caught.message
+          : "The flag crop could not be confirmed. The reviewed operation remains available with the same identity.",
+      );
     } finally {
       setSaving(false);
     }
@@ -158,7 +181,7 @@ function CropEditor({ country }: { country: Country }) {
         </div>
         <div className="space-y-4">
           {(["x", "y", "zoom"] as const).map((key) => <label key={key} className="block text-sm font-medium">{key === "x" ? "Horizontal focus" : key === "y" ? "Vertical focus" : "Zoom"} · {crop[key]}{key === "zoom" ? "×" : "%"}<input type="range" min={key === "zoom" ? 1 : 0} max={key === "zoom" ? 2 : 100} step={key === "zoom" ? .05 : 1} value={crop[key]} onChange={(event) => setCrop(clampFlagCrop({ ...crop, [key]: Number(event.target.value) }))} className="mt-2 block w-full" /></label>)}
-          <div className="flex flex-wrap items-center gap-3"><button type="button" onClick={() => setCrop({ x: 50, y: 50, zoom: 1 })} className="min-h-11 rounded-lg border border-border px-4">Reset / center</button><button type="button" disabled={!dirty || saving || !country.flag_image} onClick={requestSave} className="min-h-11 rounded-lg bg-primary px-4 text-primary-foreground disabled:opacity-50">{saving ? "Saving…" : "Review crop"}</button></div>
+          <div className="flex flex-wrap items-center gap-3"><button type="button" onClick={() => setCrop({ x: 50, y: 50, zoom: 1 })} className="min-h-11 rounded-lg border border-border px-4">Reset / center</button><button type="button" disabled={!dirty || saving || preparingReview || !country.flag_image} onClick={() => void requestSave()} className="min-h-11 rounded-lg bg-primary px-4 text-primary-foreground disabled:opacity-50">{preparingReview ? "Checking…" : saving ? "Saving…" : "Review crop"}</button></div>
           {message ? <p role="status" className="text-sm">{message}</p> : null}
           <div className="flex items-end gap-4 rounded-xl border border-border p-3"><FlagFrame image={country.flag_image} crop={crop} alt={`Flag of ${country.name}`} fallback={country.short_code} className="h-16 w-24 rounded-lg" /><FlagFrame image={country.flag_image} crop={crop} alt={`Flag of ${country.name}`} fallback={country.short_code} className="h-8 w-12 rounded-md" /><FlagFrame image={country.flag_image} crop={crop} alt={`Flag of ${country.name}`} fallback={country.short_code} className="h-5 w-7.5 rounded-[3px]" /></div>
         </div>
@@ -179,10 +202,12 @@ function CropEditor({ country }: { country: Country }) {
             <p className="mt-2">Horizontal focus: <span className="text-foreground">{pendingReview.before.x}% → {pendingReview.next.x}%</span></p>
             <p>Vertical focus: <span className="text-foreground">{pendingReview.before.y}% → {pendingReview.next.y}%</span></p>
             <p>Zoom: <span className="text-foreground">{pendingReview.before.zoom}× → {pendingReview.next.zoom}×</span></p>
+            <p className="mt-2 break-all">Operation: <span className="text-foreground">{pendingReview.operationId}</span></p>
+            <p>Reviewed server state: <span className="text-foreground">{pendingReview.expectedStateVersion.slice(0, 12)}…</span></p>
           </div>
           <p>This changes the shared 3:2 crop used by Solaris flag views. The original image is not modified.</p>
-          <p>Before applying, Organizer re-reads the exact country and refuses the save if the source image or stored crop changed while this review was open.</p>
-          <p>This remains the existing legacy country metadata write. It does not claim a versioned, idempotent or receipted System operation.</p>
+          <p>Organizer prepared this review from the canonical server preflight. Apply revalidates that exact state version and uses the receipted, idempotent country-identity command.</p>
+          <p>If the response is lost, Solaris reconciles this same operation ID before confirming success. Retrying this still-open review keeps the same operation and idempotency identity.</p>
         </div>
       ) : null}
       confirmLabel="Apply crop"
