@@ -1,10 +1,12 @@
+import type { SolarisCapability } from "@/lib/permissions-v2";
+
 export type SolarisAssistantCommand = {
   id: string;
   label: string;
   description: string;
   route: string;
   keywords: string[];
-  capability?: string;
+  capability?: SolarisCapability;
 };
 
 export const SOLARIS_ASSISTANT_COMMANDS: SolarisAssistantCommand[] = [
@@ -14,7 +16,7 @@ export const SOLARIS_ASSISTANT_COMMANDS: SolarisAssistantCommand[] = [
     description: "Open the selected edition entry workspace to review missing song data.",
     route: "/admin/entries",
     keywords: ["entries missing song", "missing songs", "entry missing", "song missing"],
-    capability: "entry.read",
+    capability: "entry.read_private",
   },
   {
     id: "publication-status",
