@@ -152,7 +152,7 @@ export function parseV3ParticipantActivity(
         const reconciliationState =
           rawState && RECONCILIATION_STATES.has(rawState as V3ParticipantActivityReconciliationState)
             ? (rawState as V3ParticipantActivityReconciliationState)
-            : "current";
+            : "unavailable";
 
         return [{
           id,
