@@ -66,6 +66,40 @@ governed_jury_window_change() {
   [[ "$(db_scalar "select count(*) from private.v3_domain_events where operation_id='$operation_id'::uuid and event_type='$event_type';")" == "1" ]] || fail "Jury $status did not emit its canonical DomainEvent"
 }
 
+validate_submitted_jury_ballots() {
+  local ordinal=0 ballot_id show_id preview_version operation_id
+
+  while IFS='|' read -r ballot_id show_id; do
+    [[ -n "$ballot_id" && -n "$show_id" ]] || continue
+    ordinal=$((ordinal+1))
+
+    rpc_request "$ORGANIZER_A_TOKEN" studio2_jury_ballot_review_preview "{\"p_ballot_id\":\"$ballot_id\",\"p_target_status\":\"valid\"}"
+    expect_success "Jury ballot validation preview $ordinal"
+    expect_json "Jury ballot validation current state $ordinal" currentStatus submitted
+    expect_json "Jury ballot validation target state $ordinal" targetStatus valid
+    expect_json "Jury ballot validation risk $ordinal" riskClass R2
+    preview_version="$(printf '%s' "$HTTP_BODY" | json_value expectedVersion)"
+    [[ "$preview_version" =~ ^[1-9][0-9]*$ ]] || fail "Jury ballot validation preview returned invalid expectedVersion for $ballot_id"
+
+    operation_id="14000000-0000-4006-8500-$(printf '%012d' "$ordinal")"
+    rpc_request "$ORGANIZER_A_TOKEN" studio2_apply_jury_ballot_review "{\"p_ballot_id\":\"$ballot_id\",\"p_target_status\":\"valid\",\"p_reason\":\"S14 independent Jury ballot validation completed\",\"p_operation_id\":\"$operation_id\",\"p_idempotency_key\":\"s14-jury-valid-$ordinal\",\"p_expected_version\":$preview_version}"
+    expect_success "validate submitted Jury ballot $ordinal"
+    expect_json "validated Jury ballot identity $ordinal" ballotId "$ballot_id"
+    expect_json "validated Jury ballot state $ordinal" status valid
+  done < <(db_scalar "
+select ballot.id::text || '|' || ballot.show_id::text
+from public.jury_ballot_submissions ballot
+where ballot.edition_id='$EDITION_ID'::uuid
+  and ballot.show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid)
+  and ballot.status='submitted'
+order by ballot.show_id, ballot.id;
+")
+
+  [[ "$ordinal" == "64" ]] || fail "S14 Jury reviewed $ordinal submitted ballots instead of 64"
+  [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where edition_id='$EDITION_ID'::uuid and show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and status='valid';")" == "64" ]] || fail "S14 Jury review did not persist 64 valid ballots"
+  [[ "$(db_scalar "select count(*) from public.jury_ballot_submissions where edition_id='$EDITION_ID'::uuid and show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and status in ('submitted','needs_review');")" == "0" ]] || fail "S14 Jury review left ballots pending validation"
+}
+
 run_s14_stage_6_jury() {
   log "Stage 6/10: Jury eligibility, drafts, preflight, authoritative ballots, missing votes and conflicts"
 
@@ -184,10 +218,18 @@ print(json.dumps(rows,separators=(",",":")))
   [[ "$(db_scalar "select count(*) from (select show_id,voter_country_id,count(*) from public.jury_ballot_submissions where edition_id='$EDITION_ID'::uuid group by show_id,voter_country_id having count(*)>1) duplicates;")" == "0" ]] || fail "duplicate final Jury ballot detected"
   [[ "$(db_scalar "select count(*) from public.jury_votes where edition_id='$EDITION_ID'::uuid and voter_country_id=receiving_country_id;")" == "0" ]] || fail "own-country Jury vote survived canonical validation"
   [[ "$(db_scalar "select count(*) from private.v3_jury_drafts d join public.country_accounts ca on ca.user_id=d.user_id join public.countries c on c.id=ca.country_id where c.region='S14';")" == "0" ]] || fail "submitted S14 Jury drafts were not reconciled away"
-  log "S14_INVARIANT_JURY_COMPLETE"
 
   governed_jury_window_change "$ORGANIZER_A_TOKEN" "$SEMI_TWO_ID" closed \
     '14000000-0000-4006-8400-000000000003' 's14-jury-semi-two-close'
 
+  # Organisation OS V5 intentionally keeps fresh submissions in Submitted until
+  # an Organizer reviews them. Results only trusts Valid participant ballots, so
+  # Stage 6 must finish the governed Jury review lifecycle before handing the
+  # contest to the Results stage. The two genuinely missing ballots remain
+  # unresolved for Stage 8 to exercise the DNV integrity workflow.
+  validate_submitted_jury_ballots
+  [[ "$(db_scalar "select count(*) from public.voters v where v.edition_id='$EDITION_ID'::uuid and v.show_id in ('$SEMI_ONE_ID'::uuid,'$SEMI_TWO_ID'::uuid) and not exists (select 1 from public.jury_ballot_submissions b where b.show_id=v.show_id and b.voter_country_id=v.country_id);")" == "2" ]] || fail "Jury review changed the two intended missing-ballot gaps"
+
+  log "S14_INVARIANT_JURY_COMPLETE"
   log "S14_STAGE_6_JURY_COMPLETE"
 }
