@@ -9,6 +9,8 @@ export type SolarisAssistantCommand = {
   capability?: SolarisCapability;
 };
 
+export type SolarisAssistantCapabilityAccess = Partial<Record<SolarisCapability, boolean>>;
+
 export const SOLARIS_ASSISTANT_COMMANDS: SolarisAssistantCommand[] = [
   {
     id: "entries-missing-song",
@@ -78,6 +80,28 @@ export const SOLARIS_ASSISTANT_COMMANDS: SolarisAssistantCommand[] = [
 
 function normalize(value: string) {
   return value.toLocaleLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+export function uniqueSolarisAssistantCapabilities(
+  commands: readonly SolarisAssistantCommand[],
+): SolarisCapability[] {
+  return Array.from(
+    new Set(
+      commands
+        .map((command) => command.capability)
+        .filter((capability): capability is SolarisCapability => Boolean(capability)),
+    ),
+  );
+}
+
+export function filterSolarisAssistantCommandsByAccess(
+  commands: readonly SolarisAssistantCommand[],
+  access: SolarisAssistantCapabilityAccess | null | undefined,
+): SolarisAssistantCommand[] {
+  if (!access) return [];
+  return commands.filter(
+    (command) => !command.capability || access[command.capability] === true,
+  );
 }
 
 export function matchSolarisAssistantCommands(input: string, limit = 5) {
