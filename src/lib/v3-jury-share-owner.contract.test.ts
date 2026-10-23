@@ -32,8 +32,9 @@ describe("V3 Jury Share authenticated owner consumer", () => {
     expect(text).not.toMatch(/votes|points|resultVersionId|ballotId|userId/);
   });
 
-  it("fails closed while the System projection is unavailable or ownership is unproven", () => {
+  it("fails closed while rollout, the System projection or ownership is unavailable", () => {
     const text = source();
+    expect(text).toContain('"JURY_SHARE_FEATURE_DISABLED"');
     expect(text).toContain('code: "JURY_SHARE_CONTRACT_UNAVAILABLE"');
     expect(text).toContain('code: "JURY_SHARE_NOT_AUTHORIZED"');
     expect(text).toContain('details.code === "42501"');
@@ -41,6 +42,11 @@ describe("V3 Jury Share authenticated owner consumer", () => {
     expect(text).toContain("projectionSchema.safeParse");
     expect(text).toContain("normalizeJuryShareVotes(parsed.data.votes)");
     expect(text).not.toContain("fallback");
+
+    const copy = ownerComposer();
+    expect(copy).toContain('case "JURY_SHARE_FEATURE_DISABLED"');
+    expect(copy).toContain("Jury sharing is not enabled yet");
+    expect(copy).toContain("not enabled for this Edition or account yet");
   });
 
   it("keeps the owner query bounded and non-polling", () => {
