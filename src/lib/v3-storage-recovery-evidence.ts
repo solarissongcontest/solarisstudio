@@ -27,6 +27,7 @@ export type V3StorageRecoveryEvidenceAssessment = {
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const TIMING_TOLERANCE_MS = 5_000;
 const EXPECTED_KEYS = [
   "binary/payload.bin",
   "json/state.json",
@@ -216,7 +217,18 @@ export function assessV3StorageRecoveryEvidence(
     errors.push("manifestSha256 does not match the retained object manifest");
   }
 
-  if (rehearsalDurationMs === null) errors.push("exerciseRtoMs must be non-negative");
+  if (rehearsalDurationMs === null) {
+    errors.push("exerciseRtoMs must be non-negative");
+  } else if (
+    startedAt !== null
+    && completedAt !== null
+    && completedAt >= startedAt
+    && Math.abs((completedAt - startedAt) - rehearsalDurationMs) > TIMING_TOLERANCE_MS
+  ) {
+    errors.push(
+      `exerciseRtoMs must agree with startedAt/completedAt within ${TIMING_TOLERANCE_MS} ms`,
+    );
+  }
   if (exerciseRpoSeconds !== 0) {
     errors.push("isolated Storage snapshot recovery must report exerciseRpoSeconds = 0");
   }
