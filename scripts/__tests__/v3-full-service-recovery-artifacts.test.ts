@@ -40,6 +40,12 @@ function fixture(embeddedOverride: Record<string, unknown> = {}) {
   };
 }
 
+function onlyComponent(manifest: ReturnType<typeof fixture>["manifest"]) {
+  const component = manifest.components[0];
+  if (!component) throw new Error("component fixture missing");
+  return component;
+}
+
 afterEach(() => {
   for (const root of roots.splice(0)) {
     rmSync(root, { recursive: true, force: true });
@@ -71,7 +77,7 @@ describe("S11 full-service retained component artifacts", () => {
 
   it("rejects a repository-root escape before reading any file", () => {
     const { manifest, root } = fixture();
-    manifest.components[0].artifactPath = "../outside.json";
+    onlyComponent(manifest).artifactPath = "../outside.json";
 
     expect(verifyV3FullServiceRecoveryArtifacts(manifest, root)).toEqual([
       "database assessment artifact escapes the repository root",
@@ -80,7 +86,7 @@ describe("S11 full-service retained component artifacts", () => {
 
   it("rejects a missing retained artifact", () => {
     const { manifest, root } = fixture();
-    manifest.components[0].artifactPath = "missing-assessment.json";
+    onlyComponent(manifest).artifactPath = "missing-assessment.json";
 
     const errors = verifyV3FullServiceRecoveryArtifacts(manifest, root);
     expect(errors).toHaveLength(1);
