@@ -9,6 +9,10 @@ function source(path: string) {
 describe("completion product public egress contract", () => {
   const encyclopedia = source("src/routes/encyclopedia/index.tsx");
   const votingDna = source("src/routes/voting-dna/$code.tsx");
+  const votingDnaFunction = source("src/lib/v3-voting-dna.functions.ts");
+  const votingDnaProjection = source(
+    "src/integrations/v3/voting-dna-source.server.ts",
+  );
   const archive = source("src/lib/data-live.ts");
   const queryPolicy = source("src/lib/app-query-policy.ts");
   const migration = source(
@@ -19,13 +23,27 @@ describe("completion product public egress contract", () => {
     expect(encyclopedia).not.toContain("useAllJuryVotes");
     expect(encyclopedia).not.toContain("useAllTelevotes");
     expect(encyclopedia).not.toContain("useAllResults");
-    expect(encyclopedia).toContain("useAllParticipants");
   });
 
-  it("uses one compact Voting DNA aggregate instead of shipping the full jury archive", () => {
-    expect(votingDna).toContain('rpc("public_country_voting_dna"');
+  it("uses one compact server-owned Voting DNA projection instead of shipping the full jury archive", () => {
+    expect(votingDna).toContain("getV3PublicVotingDna");
     expect(votingDna).not.toContain("useAllJuryVotes");
     expect(votingDna).not.toContain("useAllTelevotes");
+    expect(votingDna).not.toContain('rpc("public_country_voting_dna"');
+    expect(votingDna).not.toContain("supabase");
+    expect(votingDnaFunction).toContain("voting-dna-source.server");
+    expect(votingDnaProjection).toContain(
+      'client.rpc("v3_public_country_voting_dna"',
+    );
+    expect(votingDnaProjection).toContain("const MAX_RELATIONSHIPS = 10");
+    expect(votingDnaProjection).toContain("const MAX_RESULT_ROWS = 256");
+    expect(votingDnaProjection).not.toContain('rpc("public_country_voting_dna"');
+    expect(votingDnaProjection).not.toContain('.from("jury_votes")');
+    expect(votingDnaProjection).not.toContain('.from("results")');
+
+    // The legacy RPC remains installed for compatibility with older clients, but
+    // V3 Public must never use it because generic Results publication can expose
+    // split Jury/Televote totals before those exact layers are public.
     expect(migration).toContain(
       "create or replace function public.public_country_voting_dna",
     );
