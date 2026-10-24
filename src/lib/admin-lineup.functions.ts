@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
+import { requireSolarisCapabilityServer } from "@/integrations/supabase/capabilities.server";
 import { requireSolarisOrganizerServer } from "@/integrations/supabase/organizer.server";
 
 type AddCountriesInput = {
@@ -84,7 +85,7 @@ export const addCountriesToShow = createServerFn({ method: "POST" })
       : [],
   }))
   .handler(async ({ data }): Promise<AddCountriesToShowResult> => {
-    await requireSolarisOrganizerServer();
+    await requireSolarisCapabilityServer("entry.edit", data.editionId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const db = supabaseAdmin as any;
 
