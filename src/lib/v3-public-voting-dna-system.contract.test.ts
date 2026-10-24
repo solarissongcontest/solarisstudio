@@ -11,6 +11,14 @@ const migration = readFileSync(
   "utf8",
 );
 
+const rehearsal = readFileSync(
+  resolve(
+    process.cwd(),
+    "scripts/rehearse-v3-public-voting-dna-publication.sh",
+  ),
+  "utf8",
+);
+
 describe("V3 Public Voting DNA System publication boundary", () => {
   it("registers the migration through the S13 contract instead of bypassing governance", () => {
     expect(migration).toContain("public.v3_register_migration_contract(");
@@ -56,6 +64,23 @@ describe("V3 Public Voting DNA System publication boundary", () => {
     );
     expect(migration).not.toContain(
       "create or replace function public.public_country_voting_dna(",
+    );
+  });
+
+  it("rehearses the real caller boundary on local Supabase and fails closed against hosted endpoints", () => {
+    expect(rehearsal).toContain(
+      'http://127.0.0.1:*|http://localhost:*) ;;',
+    );
+    expect(rehearsal).toContain("Refusing hosted Supabase rehearsal");
+    expect(rehearsal).toContain("Refusing non-local database rehearsal");
+    expect(rehearsal).toContain("for role in anon authenticated; do");
+    expect(rehearsal).toContain("set local role ${role};");
+    expect(rehearsal).toContain("Voting DNA projection must remain SECURITY INVOKER");
+    expect(rehearsal).toContain("search_path is not fixed to empty");
+    expect(rehearsal).toContain("Jury points leaked while hidden");
+    expect(rehearsal).toContain("hidden Televote points crossed the API boundary");
+    expect(rehearsal).toContain(
+      "Hiding generic Results must remove the Result sample even if split flags remain true",
     );
   });
 });
