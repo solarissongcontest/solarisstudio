@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 import { V3_ORGANIZER_CAPABILITY_REGISTRY } from "./v3-organizer-capability-registry";
 
 const route = readFileSync("src/routes/_authenticated/admin/design.$slug.tsx", "utf8");
+const adapter = readFileSync("src/lib/v3-organizer-production-design.ts", "utf8");
+const systemAuthority = readFileSync("src/lib/v3-production-design.ts", "utf8");
 const ownership = readFileSync("src/lib/v3-organizer-route-ownership.ts", "utf8");
 
 function capability() {
@@ -25,28 +27,49 @@ describe("V3 Organizer current-edition Broadcast building evidence", () => {
     expect(route).toContain('createFileRoute("/_authenticated/admin/design/$slug")');
     expect(route).toContain("useAdminContext()");
     expect(route).toContain("organizerEditionId !== edition.id");
-    expect(route).toContain("Edition context changed before this Production save");
+    expect(route).toContain("Edition context changed before this Production operation");
     expect(ownership).toContain('ownerLegacyId: "current-edition-broadcast"');
     expect(ownership).toContain('routePattern: "/admin/edition-theme/*"');
   });
 
-  it("has real production editing and reviewed persistence rather than a placeholder", () => {
+  it("keeps the mature editor while moving persistence behind atomic System authority", () => {
     expect(route).toContain("BroadcastEditor");
     expect(route).toContain("ScoreboardEditor");
     expect(route).toContain("ThemeEditor");
     expect(route).toContain("EditionArtworkControl");
-    expect(route).toContain('supabase.from("themes").update');
-    expect(route).toContain('.from("editions")');
-    expect(route).toContain('.update({ theme_id: themeId })');
-    expect(route).toContain('supabase.from("shows").update');
+    expect(route).toContain("prepareOrganizerProductionDesignReview");
+    expect(route).toContain("commitOrganizerProductionDesignReview");
+    expect(route).toContain("expectedStateVersion");
+    expect(route).toContain("operationId");
     expect(route).toContain("AdminConfirmSheet");
     expect(route).toContain("applyReviewedDesign");
+    expect(route).not.toContain('supabase.from("themes")');
+    expect(route).not.toContain('supabase.from("shows")');
+    expect(route).not.toContain('.from("editions")');
   });
 
-  it("does not pretend current direct table persistence is canonical parity authority", () => {
-    expect(route).not.toContain("studio2_apply_operation");
-    expect(route).not.toContain("operationId");
-    expect(route).not.toContain("idempotencyKey");
-    expect(capability()?.migrationStatus).not.toBe("parity");
+  it("freezes canonical state and operation identity before human confirmation", () => {
+    expect(adapter).toContain("loadProductionDesignProjection({ editionId, showId })");
+    expect(adapter).toContain("createProductionDesignCommandIdentity({");
+    expect(adapter).toContain("expectedStateVersion: projection.stateVersion");
+    expect(adapter).toContain("current.stateVersion !== review.expectedStateVersion");
+    expect(route).toContain("pendingReview.authority.expectedStateVersion");
+    expect(route).toContain("pendingReview.authority.operationId");
+  });
+
+  it("does not blindly retry an uncertain Production mutation", () => {
+    expect(adapter).toContain("applyProductionDesign({");
+    expect(adapter).toContain("reconcileProductionDesignOperation(review.operationId)");
+    expect(adapter).toContain("throw originalError");
+    expect(systemAuthority).toContain('"admin_apply_production_design"');
+    expect(systemAuthority).toContain('"studio2_reconcile_operation"');
+  });
+
+  it("submits the complete edition show set for one atomic default operation", () => {
+    expect(route).toContain("const showConfigs: ProductionDesignShowConfig[] = editionShows.map");
+    expect(route).toContain('mode: "edition_default"');
+    expect(route).toContain("showConfigs,");
+    expect(route).toContain("participantCountByShow.get(show.id)");
+    expect(route).toContain("committed together by one atomic server operation");
   });
 });
