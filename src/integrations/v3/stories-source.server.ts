@@ -1,4 +1,7 @@
 import { createConfirmationPublicRuntimeClient } from "@/integrations/confirmations/public-runtime.server";
+import { resolveCurrentPublicEdition } from "@/lib/current-contest-state";
+import type { Edition } from "@/lib/data";
+import { normalizeLegacyEditionStatus } from "@/lib/edition-state";
 import { SOLARIS_TIME_ZONE } from "@/lib/public-time";
 import type {
   V3StoriesAnniversary,
@@ -16,6 +19,11 @@ type StoriesSourceClient = {
     error: unknown;
   }>;
   from(table: string): any;
+};
+
+type CurrentStoryEditionContext = {
+  resolved: boolean;
+  editionId: string | null;
 };
 
 function throwIfError(error: unknown, label: string) {
@@ -134,6 +142,38 @@ function todayInSolaris() {
   }).format(new Date());
 }
 
+async function loadCurrentStoryEditionContext(
+  client: StoriesSourceClient,
+): Promise<CurrentStoryEditionContext> {
+  try {
+    const { data, error } = await client
+      .from("editions")
+      .select("id,edition_number,status,published")
+      .eq("published", true)
+      .order("edition_number", { ascending: false })
+      .limit(50);
+
+    if (error || !Array.isArray(data)) return { resolved: false, editionId: null };
+
+    const current = resolveCurrentPublicEdition(data as Edition[]);
+    if (!current) return { resolved: true, editionId: null };
+
+    const lifecycle = normalizeLegacyEditionStatus(current.status);
+    if (lifecycle === "post_edition" || lifecycle === "archived") {
+      return { resolved: true, editionId: null };
+    }
+
+    return {
+      resolved: true,
+      editionId: nullableString(current.id),
+    };
+  } catch {
+    // Directory classification is supplemental. If lifecycle cannot be resolved,
+    // keep every published Story available in an unclassified archive section.
+    return { resolved: false, editionId: null };
+  }
+}
+
 async function loadPublishedEditionArtwork(
   client: StoriesSourceClient,
   story: V3Storyline,
@@ -174,12 +214,13 @@ export async function loadV3StoriesIndexBundle(): Promise<V3StoriesIndexBundle> 
   const client = createConfirmationPublicRuntimeClient() as unknown as StoriesSourceClient;
   const referenceDate = todayInSolaris();
 
-  const [storiesResult, anniversaryResult] = await Promise.all([
+  const [storiesResult, anniversaryResult, currentEditionContext] = await Promise.all([
     client.rpc("studio2_public_storylines", { p_limit: 30 }),
     client.rpc("studio2_anniversary_engine", {
       p_reference_date: referenceDate,
       p_limit: 12,
     }),
+    loadCurrentStoryEditionContext(client),
   ]);
 
   throwIfError(storiesResult.error, "Could not load published Solaris stories");
@@ -189,10 +230,18 @@ export async function loadV3StoriesIndexBundle(): Promise<V3StoriesIndexBundle> 
     ? storiesResult.data.map(parseStorySummary)
     : [];
   const anniversary = parseAnniversary(anniversaryResult.data);
+  const currentStory = currentEditionContext.editionId
+    ? stories.find((story) => story.editionId === currentEditionContext.editionId) ?? null
+    : null;
+  const historicalStories = currentEditionContext.resolved
+    ? stories.filter((story) => story.editionId !== currentEditionContext.editionId)
+    : [];
 
   return {
     shell: { editionLabel: "Solaris Studio", phaseLabel: "Stories" },
     stories,
+    currentStory,
+    historicalStories,
     anniversary,
     generatedAt: new Date().toISOString(),
   };
