@@ -78,6 +78,7 @@ type ShowSearch = {
   tab?: Tab;
   story?: string;
   from?: "results";
+  entry?: string;
 };
 
 export const Route = createFileRoute("/shows/$showId")({
@@ -132,6 +133,10 @@ export const Route = createFileRoute("/shows/$showId")({
       validated.from = "results";
     }
 
+    if (typeof search.entry === "string" && search.entry.trim()) {
+      validated.entry = search.entry;
+    }
+
     return validated;
   },
   component: ShowPage,
@@ -140,6 +145,7 @@ export const Route = createFileRoute("/shows/$showId")({
 function ShowPage() {
   const { showId } = Route.useParams();
   const search = Route.useSearch();
+  const navigate = Route.useNavigate();
   const resultsContext = search.from === "results";
   const { isAppMode } = useSolarisApp();
   const { preferences } = useAppExperiencePreferences();
@@ -216,6 +222,8 @@ function ShowPage() {
     () => new Map((participants ?? []).map((participant) => [participant.country_id, participant])),
     [participants],
   );
+  const scorechartEntryId =
+    search.entry && participantMap.has(search.entry) ? search.entry : undefined;
   const theme = useMemo(
     () => resolveTheme((themes ?? []).find((item) => item.id === show?.theme_id)?.config),
     [themes, show?.theme_id],
@@ -359,6 +367,31 @@ function ShowPage() {
   const defaultTab: Tab = publication.results ? "scoreboard" : "lineup";
   const [tab, setTab] = useState<Tab>(search.story ? "stories" : (search.tab ?? defaultTab));
 
+  const handleTabChange = (next: Tab) => {
+    setTab(next);
+    void navigate({
+      search: (previous: ShowSearch) => ({
+        ...previous,
+        tab: next,
+        story: undefined,
+        entry: next === "matrix" ? previous.entry : undefined,
+      }),
+      replace: true,
+    });
+  };
+
+  const handleScorechartEntryChange = (entry: string | undefined) => {
+    void navigate({
+      search: (previous: ShowSearch) => ({
+        ...previous,
+        tab: "matrix",
+        story: undefined,
+        entry,
+      }),
+      replace: true,
+    });
+  };
+
   useEffect(() => {
     setResultSpoilersRevealed(false);
   }, [showId]);
@@ -391,6 +424,16 @@ function ShowPage() {
     const valid = tabOptions.some((option) => option.value === tab);
     if (!valid) setTab(tabOptions[0].value);
   }, [tab, tabOptions]);
+
+  useEffect(() => {
+    if (!search.entry || !participantsQuery.isSuccess) return;
+    if (search.tab === "matrix" && participantMap.has(search.entry)) return;
+
+    void navigate({
+      search: (previous: ShowSearch) => ({ ...previous, entry: undefined }),
+      replace: true,
+    });
+  }, [navigate, participantMap, participantsQuery.isSuccess, search.entry, search.tab]);
 
   const archiveQueries = [showQuery, participantsQuery, resultsQuery, juryQuery, televoteQuery, votersQuery, countriesQuery, allResultsQuery, allShowsQuery, themesQuery, entitiesQuery];
   if (archiveIsLoading(...archiveQueries)) return <AppShell><ArchiveDataLoading label="Loading show…" /></AppShell>;
@@ -549,7 +592,7 @@ function ShowPage() {
               </p>
             </div>
           )}
-          <ResponsiveTabs value={tab} options={tabOptions} onChange={setTab} label="Show view" />
+          <ResponsiveTabs value={tab} options={tabOptions} onChange={handleTabChange} label="Show view" />
         </div>
       )}
 
@@ -668,7 +711,7 @@ function ShowPage() {
       {tab === "matrix" && publication.detailed_voting && showJuryResults && (
         <Panel
           title="Full scorechart"
-          description="Each row is an entry receiving points. Each column is a jury giving points. Tap or hover cells to inspect the vote."
+          description="Each row is an entry receiving points. Each column is a jury giving points. Focus an entry for a shareable drill-down, or open the complete matrix."
         >
           <VotingMatrix
             votes={jury ?? []}
@@ -676,6 +719,8 @@ function ShowPage() {
             order={(participants ?? []).map((participant) => participant.country_id)}
             topPoint={voting.juryPoints[0] ?? 12}
             voters={voters}
+            selectedEntryId={scorechartEntryId}
+            onSelectedEntryChange={handleScorechartEntryChange}
           />
         </Panel>
       )}
