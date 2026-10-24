@@ -1,0 +1,268 @@
+name: V3 S11 deterministic failure-injection rehearsal
+
+on:
+  pull_request:
+    types: [ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v3-s11-failure-injection-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deterministic-failure-injection:
+    name: Isolated stale-projection and lost-response recovery
+    if: ${{ (github.event_name == 'workflow_dispatch' && github.ref_name == 'main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'v3/qa-s11-failure-injection-runtime-gate' && github.event.pull_request.base.ref == 'v3/sys-s11-failure-injection-current-main' && github.event.pull_request.base.sha == '594301d4ead167660951beffceea0a540b16e0f5') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout exact candidate source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Verify trusted stacked PR delta
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          readonly expected_parent='594301d4ead167660951beffceea0a540b16e0f5'
+          if [ "$PR_BASE_SHA" != "$expected_parent" ]; then
+            echo "::error::Failure-injection parent moved: $PR_BASE_SHA != $expected_parent"
+            exit 1
+          fi
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          if [ "$actual" != "$PR_HEAD_SHA" ]; then
+            echo "::error::Failure-injection checkout is $actual, expected PR head $PR_HEAD_SHA"
+            exit 1
+          fi
+          mapfile -t changed < <(git diff --name-only "$PR_BASE_SHA...$PR_HEAD_SHA" | sort)
+          expected=(
+            '.github/workflows/v3-s11-failure-injection-rehearsal.yml'
+            'src/lib/v3-s11-failure-injection-workflow.contract.test.ts'
+          )
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          if [ "${#changed[@]}" -ne "${#expected_sorted[@]}" ]; then
+            printf '::error::Failure-injection QA delta must contain exactly two QA-owned files; got: %s\n' "${changed[*]}"
+            exit 1
+          fi
+          for i in "${!expected_sorted[@]}"; do
+            if [ "${changed[$i]}" != "${expected_sorted[$i]}" ]; then
+              printf '::error::Unexpected failure-injection QA delta: %s\n' "${changed[*]}"
+              exit 1
+            fi
+          done
+
+      - name: Resolve exact source SHA
+        id: source
+        shell: bash
+        env:
+          EVENT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          expected="$(printf '%s' "$EVENT_SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
+          actual="$(git rev-parse HEAD | tr '[:upper:]' '[:lower:]')"
+          if [[ ! "$expected" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Cannot resolve exact source SHA for S11 failure-injection rehearsal"
+            exit 1
+          fi
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::S11 failure-injection checkout is $actual, expected exact source SHA $expected"
+            exit 1
+          fi
+          if [ -n "$(git status --porcelain --untracked-files=all)" ]; then
+            echo "::error::Refusing retained failure-injection evidence from a dirty checkout"
+            exit 1
+          fi
+          echo "sha=$expected" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.113.0
+
+      - name: Start isolated local Supabase
+        run: supabase start
+
+      - name: Rebuild isolated database from complete migration chain
+        run: supabase db reset --local --no-seed
+
+      - name: Prove local-only Supabase boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          : "${API_URL:?local Supabase API_URL missing}"
+          : "${DB_URL:?local Supabase DB_URL missing}"
+          case "$API_URL" in
+            http://127.0.0.1:*|http://localhost:*) ;;
+            *) echo "::error::Refusing non-loopback API_URL: $API_URL"; exit 1 ;;
+          esac
+          case "$DB_URL" in
+            postgres://postgres:postgres@127.0.0.1:*/*|postgresql://postgres:postgres@127.0.0.1:*/*|postgresql://postgres:postgres@localhost:*/*) ;;
+            *) echo "::error::Refusing non-loopback DB_URL: $DB_URL"; exit 1 ;;
+          esac
+
+      - name: Rehearse stale projection and reconciliation retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/v3-s11-failure-injection
+          bash .github/scripts/v3-s11-stale-projection-rehearsal.sh \
+            2>&1 | tee /tmp/v3-s11-failure-injection/stale-projection.log
+
+      - name: Rehearse lost response and transport retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/scripts/v3-s11-lost-response-rehearsal.sh \
+            2>&1 | tee /tmp/v3-s11-failure-injection/lost-response.log
+
+      - name: Build exact-head deterministic failure evidence
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          python3 - "$EXPECTED_SHA" /tmp/v3-s11-failure-injection <<'PY'
+          import hashlib
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import sys
+
+          expected_sha = sys.argv[1]
+          output_dir = Path(sys.argv[2])
+          repo = Path.cwd()
+
+          stale_script = repo / ".github/scripts/v3-s11-stale-projection-rehearsal.sh"
+          lost_script = repo / ".github/scripts/v3-s11-lost-response-rehearsal.sh"
+          stale_log = output_dir / "stale-projection.log"
+          lost_log = output_dir / "lost-response.log"
+
+          def digest(path: Path) -> str:
+              return hashlib.sha256(path.read_bytes()).hexdigest()
+
+          def text(path: Path) -> str:
+              return path.read_text(encoding="utf-8", errors="replace")
+
+          stale_text = text(stale_log)
+          lost_text = text(lost_log)
+          stale_pass = "PASS: stale projection rebuild and reconciliation retry converged" in stale_text
+          lost_pass = "PASS: real R2 response was lost after commit and exact retry replayed durable state" in lost_text
+          if not stale_pass or not lost_pass:
+              raise SystemExit("deterministic failure-injection PASS markers are missing")
+
+          evidence = {
+              "schemaVersion": 1,
+              "commitSha": expected_sha,
+              "kind": "s11_deterministic_failure_injection_rehearsal",
+              "scope": "isolated_local_supabase",
+              "status": "passed",
+              "generatedAt": datetime.now(timezone.utc).isoformat(),
+              "scenarios": [
+                  {
+                      "id": "stale_projection",
+                      "status": "passed",
+                      "script": str(stale_script.relative_to(repo)),
+                      "scriptSha256": digest(stale_script),
+                      "log": stale_log.name,
+                      "logSha256": digest(stale_log),
+                  },
+                  {
+                      "id": "reconciliation_retry",
+                      "status": "passed",
+                      "script": str(stale_script.relative_to(repo)),
+                      "scriptSha256": digest(stale_script),
+                      "log": stale_log.name,
+                      "logSha256": digest(stale_log),
+                  },
+                  {
+                      "id": "lost_response_after_commit",
+                      "status": "passed",
+                      "script": str(lost_script.relative_to(repo)),
+                      "scriptSha256": digest(lost_script),
+                      "log": lost_log.name,
+                      "logSha256": digest(lost_log),
+                  },
+                  {
+                      "id": "transient_rpc_failure",
+                      "status": "passed",
+                      "script": str(lost_script.relative_to(repo)),
+                      "scriptSha256": digest(lost_script),
+                      "log": lost_log.name,
+                      "logSha256": digest(lost_log),
+                  },
+              ],
+              "excludedScenarios": ["queue_backlog", "unavailable_dependency"],
+              "productionTouched": False,
+              "productionSupabaseTraffic": False,
+              "certificationClaim": False,
+              "qaReviewRequired": True,
+              "issuesFound": [],
+          }
+          (output_dir / "evidence.json").write_text(
+              json.dumps(evidence, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+
+      - name: Verify retained evidence boundary
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          python3 - "$EXPECTED_SHA" /tmp/v3-s11-failure-injection/evidence.json <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+
+          expected, evidence_path = sys.argv[1:]
+          evidence = json.loads(Path(evidence_path).read_text(encoding="utf-8"))
+          assert evidence["schemaVersion"] == 1
+          assert evidence["commitSha"] == expected
+          assert evidence["kind"] == "s11_deterministic_failure_injection_rehearsal"
+          assert evidence["scope"] == "isolated_local_supabase"
+          assert evidence["status"] == "passed"
+          assert [item["id"] for item in evidence["scenarios"]] == [
+              "stale_projection",
+              "reconciliation_retry",
+              "lost_response_after_commit",
+              "transient_rpc_failure",
+          ]
+          for item in evidence["scenarios"]:
+              assert item["status"] == "passed"
+              assert len(item["scriptSha256"]) == 64
+              assert len(item["logSha256"]) == 64
+          assert evidence["excludedScenarios"] == ["queue_backlog", "unavailable_dependency"]
+          assert evidence["productionTouched"] is False
+          assert evidence["productionSupabaseTraffic"] is False
+          assert evidence["certificationClaim"] is False
+          assert evidence["qaReviewRequired"] is True
+          assert evidence["issuesFound"] == []
+          PY
+
+      - name: Upload exact-head deterministic failure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v3-s11-deterministic-failure-injection-${{ steps.source.outputs.sha }}
+          path: /tmp/v3-s11-failure-injection
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Reset isolated ledger after retaining evidence
+        if: always()
+        run: supabase db reset --local --no-seed || true
+
+      - name: Stop isolated local Supabase
+        if: always()
+        run: supabase stop --no-backup || true
