@@ -42,7 +42,7 @@ jobs:
       - name: Checkout freshness policy source
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
           fetch-depth: 1
 
       - name: Setup Bun
@@ -68,7 +68,7 @@ jobs:
             echo
             echo "### Verification boundary"
             echo
-            echo "This gate performs three bounded GitHub reads: PR metadata, live main, and main-to-head ancestry."
-            echo "It does not enumerate all open PRs, start Supabase, contact hosted Supabase, run Browser Audit, generate load, or mutate production data."
+            echo "This gate performs five bounded GitHub reads: PR/main identity, ancestry, then final PR/main identity to reject mid-check movement."
+            echo "It does not enumerate all open PRs, write GitHub state, start Supabase, contact hosted Supabase, run Browser Audit, generate load, or mutate production data."
             echo "Run it again immediately before integration whenever main may have moved since earlier head-only evidence."
           } >> "$GITHUB_STEP_SUMMARY"
