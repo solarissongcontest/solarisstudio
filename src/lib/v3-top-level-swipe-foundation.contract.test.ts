@@ -9,31 +9,36 @@ function source(path: string) {
 describe("V3 top-level swipe foundation", () => {
   it("wires the viewport through an explicit route-owner live-surface contract", () => {
     const appShell = source("src/components/v3/V3AppShell.tsx");
+    const viewport = source("src/components/v3/V3TopLevelNavigationViewport.tsx");
     const surface = source("src/components/v3/V3TopLevelSwipeSurface.tsx");
 
-    expect(appShell).toContain("V3TopLevelSwipeSurface");
-    expect(appShell).toContain("swipePreviewSurfaces?: V3TopLevelSwipePreviews");
+    expect(appShell).toContain("V3TopLevelNavigationViewport");
+    expect(appShell).toContain("topLevelSwipePreviews?: V3TopLevelNavigationPreviews");
     expect(appShell).toContain("previous?: V3TopLevelSwipePreviewRenderer");
     expect(appShell).toContain("next?: V3TopLevelSwipePreviewRenderer");
-    expect(appShell).toContain("const content = swipePreviewSurfaces ? (");
+    expect(appShell).toContain("const content = topLevelSwipePreviews ? (");
     expect(appShell).toContain("previousSurface={previousSwipeSurface}");
     expect(appShell).toContain("nextSurface={nextSwipeSurface}");
     expect(appShell).toContain("previewReady={swipePreviewReady}");
+    expect(viewport).toContain("V3TopLevelSwipeSurface");
     expect(surface).toContain("previewReady = false");
     expect(surface).toContain('policy === "enabled" && previewReady && requiredAdjacentSurfacesReady');
   });
 
-  it("keeps preview data ownership outside the shell and fails closed when an owner declines a target", () => {
+  it("keeps preview data ownership outside the shell and viewport", () => {
     const appShell = source("src/components/v3/V3AppShell.tsx");
+    const viewport = source("src/components/v3/V3TopLevelNavigationViewport.tsx");
 
-    expect(appShell).toContain("swipePreviewSurfaces.previous(previousSwipeTarget)");
-    expect(appShell).toContain("swipePreviewSurfaces.next(nextSwipeTarget)");
+    expect(appShell).toContain("topLevelSwipePreviews.previous(previousSwipeTarget)");
+    expect(appShell).toContain("topLevelSwipePreviews.next(nextSwipeTarget)");
     expect(appShell).toContain("ReactNode | null");
-    expect(appShell).toContain("swipePreviewSurfaces?.ready === true");
+    expect(appShell).toContain("topLevelSwipePreviews?.ready === true");
     expect(appShell).not.toContain("fetch(");
     expect(appShell).not.toContain("supabase.from");
-    expect(appShell).not.toContain("html2canvas");
-    expect(appShell).not.toContain("toDataURL");
+    expect(viewport).not.toContain("fetch(");
+    expect(viewport).not.toContain("supabase");
+    expect(viewport).not.toContain("html2canvas");
+    expect(viewport).not.toContain("toDataURL");
   });
 
   it("commits the same remembered route snapshot that supplied the visible preview", () => {
