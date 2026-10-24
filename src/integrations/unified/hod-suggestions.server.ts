@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { requireSolarisOrganizerServer } from "@/integrations/supabase/organizer.server";
 import { televotingAdmin } from "@/integrations/televoting/client.server";
+import { requireHodHistoryCapabilityServer } from "@/integrations/unified/hod-access.server";
 import { loadHodResolverServer } from "@/integrations/unified/hod-history.server";
 
 export type HodIdentitySuggestion = {
@@ -30,7 +30,7 @@ function normalizeUsername(value: unknown) {
 }
 
 export async function getHodIdentitySuggestionsServer(): Promise<HodIdentitySuggestion[]> {
-  await requireSolarisOrganizerServer();
+  await requireHodHistoryCapabilityServer("delegation.read");
   const db = supabaseAdmin as any;
   const hod = await loadHodResolverServer();
 
