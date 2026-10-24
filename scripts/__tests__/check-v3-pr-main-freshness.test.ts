@@ -2,11 +2,15 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   assessV3PrMainFreshness,
+  FRESHNESS_STATUS_CONTEXT,
   isV3PullForFreshness,
+  selectFreshnessHeadsToInvalidate,
 } from "../check-v3-pr-main-freshness";
 
 const MAIN = "1111111111111111111111111111111111111111";
 const HEAD = "2222222222222222222222222222222222222222";
+const OLD_MAIN = "3333333333333333333333333333333333333333";
+const OTHER_HEAD = "4444444444444444444444444444444444444444";
 const workflow = readFileSync(
   ".github/workflows/v3-pr-main-freshness.yml",
   "utf8",
@@ -175,6 +179,73 @@ describe("V3 PR current-main freshness guard", () => {
     ).toBe(false);
   });
 
+  it("invalidates only successful V3 freshness statuses proven against an older main", () => {
+    const pulls = [
+      {
+        number: 1,
+        title: "Normal title",
+        headRefName: "v3/public-one",
+        headRefOid: HEAD,
+        statusContexts: [
+          {
+            context: FRESHNESS_STATUS_CONTEXT,
+            state: "SUCCESS",
+            description: `Fresh against main ${OLD_MAIN}`,
+          },
+        ],
+      },
+      {
+        number: 2,
+        title: "[V3-QA] already current",
+        headRefName: "qa/current",
+        headRefOid: OTHER_HEAD,
+        statusContexts: [
+          {
+            context: FRESHNESS_STATUS_CONTEXT,
+            state: "SUCCESS",
+            description: `Fresh against main ${MAIN}`,
+          },
+        ],
+      },
+      {
+        number: 3,
+        title: "ordinary change",
+        headRefName: "feature/not-v3",
+        headRefOid: OTHER_HEAD,
+        statusContexts: [
+          {
+            context: FRESHNESS_STATUS_CONTEXT,
+            state: "SUCCESS",
+            description: `Fresh against main ${OLD_MAIN}`,
+          },
+        ],
+      },
+      {
+        number: 4,
+        title: "[V3-SYS] already stale",
+        headRefName: "v3/sys-stale",
+        headRefOid: OTHER_HEAD,
+        statusContexts: [
+          {
+            context: FRESHNESS_STATUS_CONTEXT,
+            state: "FAILURE",
+            description: `Stale: main advanced to ${MAIN}`,
+          },
+        ],
+      },
+    ];
+
+    expect(selectFreshnessHeadsToInvalidate(pulls, MAIN)).toEqual([
+      { number: 1, headSha: HEAD },
+    ]);
+  });
+
+  it("fails closed when invalidation receives a malformed current-main identity", () => {
+    expect(() => selectFreshnessHeadsToInvalidate([], "main")).toThrow(
+      /current main SHA is not an exact 40-character SHA/,
+    );
+  });
+
   it("keeps automatic and requested integration identities separate", () => {
     expect(workflow).toContain("workflow_dispatch:");
     expect(workflow).toContain("workflow_call:");
@@ -189,15 +260,25 @@ describe("V3 PR current-main freshness guard", () => {
     );
   });
 
-  it("keeps the freshness gate bounded, read-only and production-isolated", () => {
-    expect(workflow).not.toContain("\n  push:");
-    expect(workflow).not.toContain("statuses: write");
-    expect(checker).not.toContain("/pulls?");
-    expect(checker).not.toContain("state=open");
+  it("automatically invalidates prior success when main advances without per-PR compares", () => {
+    expect(workflow).toContain("\n  push:");
+    expect(workflow).toContain("statuses: write");
+    expect(workflow).toContain('V3_INVALIDATE_OPEN_PRS: "1"');
+    expect(checker).toContain("pullRequests(");
+    expect(checker).toContain("first: 100");
+    expect(checker).toContain("status {");
+    expect(checker).toContain("contexts { context state description }");
+    expect(checker).toContain("selectFreshnessHeadsToInvalidate");
+  });
+
+  it("keeps GitHub invalidation metadata-only and production-isolated", () => {
     expect(checker).not.toContain("supabase.co");
     expect(workflow).not.toContain("supabase.co");
     expect(workflow).toContain(
-      "It does not enumerate all open PRs, write GitHub state, start Supabase",
+      "It performs no per-PR ancestry compare and writes only to heads whose V3 PR Main Freshness status is still SUCCESS for an older main SHA.",
+    );
+    expect(workflow).toContain(
+      "No Supabase, browser, load or production-application traffic is generated.",
     );
   });
 });
