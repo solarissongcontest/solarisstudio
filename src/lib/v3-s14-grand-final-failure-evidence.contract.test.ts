@@ -115,9 +115,9 @@ describe("S14 Grand Final failure evidence", () => {
     expect(grandFinalLeg).toContain("run_s14_browser_test");
     expect(grandFinalResults).toContain("run_s14_browser_test");
 
-    expect(browserRuntime).toContain('CURRENT_STAGE="${bootstrap_stage}:vite-bootstrap"');
-    expect(browserRuntime).toContain('CURRENT_STAGE="${bootstrap_stage}:http-readiness"');
-    expect(browserRuntime).toContain('CURRENT_STAGE="${bootstrap_stage}:playwright-bootstrap"');
+    expect(browserRuntime).toContain('CURRENT_STAGE="vite-bootstrap"');
+    expect(browserRuntime).toContain('CURRENT_STAGE="http-readiness"');
+    expect(browserRuntime).toContain('CURRENT_STAGE="playwright-bootstrap"');
     expect(browserRuntime).toContain('CURRENT_STAGE="$run_stage"');
     expect(browserRuntime).toContain(
       'bun run dev --host 127.0.0.1 --port "$port" --strictPort',
@@ -125,6 +125,8 @@ describe("S14 Grand Final failure evidence", () => {
     expect(browserRuntime).toContain('ss -ltn 2>/dev/null');
     expect(browserRuntime).toContain('"$base_url/"');
     expect(browserRuntime).toContain("Cookie: solaris_e2e_maintenance_bypass=1");
+    expect(browserRuntime).toContain('2*|3*|400|401|403)');
+    expect(browserRuntime).not.toContain('2*|3*|400|401|402|403)');
     expect(browserRuntime).toContain('E2E_BASE_URL="$base_url"');
     expect(browserRuntime).toContain('bunx playwright test --list --config="$config"');
     expect(browserRuntime).toContain('tail -300 "$vite_log"');
