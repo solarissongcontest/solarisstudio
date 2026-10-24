@@ -42,6 +42,14 @@ describe("maintenance desktop v2 composition", () => {
     expect(style).toContain("position: sticky !important");
   });
 
+  it("keeps reduced-motion desktop scenes static and auto-height", () => {
+    expect(style).toContain(
+      'html[data-terraos-release-choreography="v2"][data-terraos-reduced-motion="true"] .hero',
+    );
+    expect(style).toContain("min-height: auto !important");
+    expect(style).toContain("position: static !important");
+  });
+
   it("does not show the redundant floating local preview nav on desktop", () => {
     expect(style).toContain("#terraos-release-local-nav");
     expect(style).toContain("display: none !important");
