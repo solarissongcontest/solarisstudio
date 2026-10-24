@@ -95,33 +95,53 @@ jobs:
         shell: bash
         env:
           EXPECTED_SHA: ${{ steps.source.outputs.sha }}
+          EVIDENCE_PATH: /tmp/v3-s11-cloudflare-rollback.json
+          ASSESSMENT_PATH: /tmp/v3-s11-cloudflare-rollback-assessment.json
         run: |
           set -euo pipefail
-          bun - "$EXPECTED_SHA" /tmp/v3-s11-cloudflare-rollback.json /tmp/v3-s11-cloudflare-rollback-assessment.json <<'TS'
+          cat >/tmp/assess-v3-s11-cloudflare-rollback.ts <<'TS'
           import { readFileSync, writeFileSync } from "node:fs";
-          import { assessV3DeploymentRollbackEvidence } from "./src/lib/v3-deployment-rollback-evidence.ts";
+          import { join } from "node:path";
+          import { pathToFileURL } from "node:url";
 
-          const [expectedSha, evidencePath, assessmentPath] = process.argv.slice(2);
-          if (!expectedSha || !evidencePath || !assessmentPath) {
-            throw new Error("expected SHA and evidence paths are required");
+          const expectedSha = process.env.EXPECTED_SHA;
+          const evidencePath = process.env.EVIDENCE_PATH;
+          const assessmentPath = process.env.ASSESSMENT_PATH;
+          const workspace = process.env.GITHUB_WORKSPACE;
+          if (!expectedSha || !evidencePath || !assessmentPath || !workspace) {
+            throw new Error("exact SHA, evidence paths, and GITHUB_WORKSPACE are required");
           }
+
+          const moduleUrl = pathToFileURL(
+            join(workspace, "src/lib/v3-deployment-rollback-evidence.ts"),
+          ).href;
+          const { assessV3DeploymentRollbackEvidence } = await import(moduleUrl);
           const evidence = JSON.parse(readFileSync(evidencePath, "utf8"));
           const assessment = assessV3DeploymentRollbackEvidence(evidence, expectedSha);
           writeFileSync(assessmentPath, `${JSON.stringify(assessment, null, 2)}\n`, "utf8");
 
           if (assessment.status !== "ready_for_qa_review") {
-            throw new Error(`Cloudflare rollback evidence is not ready for QA review: ${assessment.errors.join("; ")}`);
+            throw new Error(
+              `Cloudflare rollback evidence is not ready for QA review: ${assessment.errors.join("; ")}`,
+            );
           }
-          if (assessment.expectedCommitSha !== expectedSha || assessment.evidenceCommitSha !== expectedSha) {
+          if (
+            assessment.expectedCommitSha !== expectedSha ||
+            assessment.evidenceCommitSha !== expectedSha
+          ) {
             throw new Error("Cloudflare rollback evidence is not bound to the exact dispatch SHA");
           }
-          if (assessment.certificationClaim !== false || assessment.fullServiceRecoveryClaim !== false) {
+          if (
+            assessment.certificationClaim !== false ||
+            assessment.fullServiceRecoveryClaim !== false
+          ) {
             throw new Error("Component evidence attempted to overclaim release/full-service recovery");
           }
           if (assessment.qaReviewRequired !== true) {
             throw new Error("Cloudflare rollback evidence must remain QA-review gated");
           }
           TS
+          bun /tmp/assess-v3-s11-cloudflare-rollback.ts
 
       - name: Upload exact-head Cloudflare rollback evidence
         if: always()
