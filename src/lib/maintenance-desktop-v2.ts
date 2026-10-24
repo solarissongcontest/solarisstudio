@@ -187,6 +187,10 @@ export function renderMaintenanceDesktopV2Style() {
       min-height: 500px !important;
     }
 
+    html[data-terraos-release-choreography="v2"] [data-terra-first-look="true"] .preview-device {
+      width: min(310px, 100%, 35svh) !important;
+    }
+
     .product-story > .story:first-child .first-look {
       min-height: 500px;
       grid-template-columns: minmax(230px, .8fr) minmax(280px, 1fr);
@@ -210,7 +214,6 @@ export function renderMaintenanceDesktopV2Style() {
     }
 
     .product-story > .story:first-child .preview-device {
-      width: min(300px, 100%);
       justify-self: end;
     }
 
