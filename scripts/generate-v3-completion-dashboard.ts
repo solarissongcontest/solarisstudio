@@ -8,6 +8,7 @@ import {
   V3_SYSTEM_CONCEPT_OWNER,
   V3_SYSTEM_DOMAIN_REGISTRY,
 } from "../src/lib/v3-capability-registry";
+import { evaluateV3NavigationRuntimeEvidence } from "../src/lib/v3-qa-navigation-runtime-evidence";
 
 type CompletionState =
   | "missing"
@@ -188,6 +189,19 @@ const s4Files = [
   ".github/scripts/v3-s4-domain-event-outbox-rehearsal.sh",
   ".github/workflows/v3-s4-domain-event-outbox-rehearsal.yml",
 ];
+const navigationRuntimeEvidence = evaluateV3NavigationRuntimeEvidence({
+  appRuntime: existsSync("src/components/app/AppRuntime.tsx")
+    ? readFileSync("src/components/app/AppRuntime.tsx", "utf8")
+    : "",
+  swipeSurface: existsSync("src/components/v3/V3TopLevelSwipeSurface.tsx")
+    ? readFileSync("src/components/v3/V3TopLevelSwipeSurface.tsx", "utf8")
+    : "",
+  serviceWorker: existsSync("public/sw.js")
+    ? readFileSync("public/sw.js", "utf8")
+    : existsSync("src/sw.ts")
+      ? readFileSync("src/sw.ts", "utf8")
+      : null,
+});
 
 const systemRows: EvidenceRow[] = [
   {
@@ -276,7 +290,7 @@ const systemRows: EvidenceRow[] = [
     name: "observability",
     state: existsSync("src/lib/public-ux-metrics.ts") || existsSync("src/lib/system-operation.functions.ts") ? "foundation" : "missing",
     evidence: "Existing operational and UX telemetry primitives; canonical S9 correlation/consumer/reconciliation visibility remains unfinished",
-    blocker: "S9 structured end-to-end operation/event/consumer observability not certified",
+    blocker: "S9 structured end-to-end operation/event/consumer/reconciliation observability not certified",
   },
   { id: "S10", name: "SLOs/alerts", state: "missing", evidence: "No exact S10 release evidence artifact", blocker: "Measured SLO/alert baseline not certified" },
   { id: "S11", name: "recovery", state: "foundation", evidence: "Upgrade/recovery rehearsals exist, but full S11 restore/recovery proof is not present", blocker: "Restore/failover recovery evidence incomplete" },
@@ -365,8 +379,8 @@ const publicRows: EvidenceRow[] = [
   {
     id: "P45",
     name: "PWA",
-    state: existsSync("src/lib/v3-client-lifecycle.ts") ? "implemented" : "foundation",
-    evidence: "PWA/install shell exists; safe-update/resume/offline acceptance is tracked separately from domain truth",
+    state: navigationRuntimeEvidence.pwaAggregate,
+    evidence: `Current AppRuntime evidence: standalone=${navigationRuntimeEvidence.standalonePwa}; safe-updates=${navigationRuntimeEvidence.safeUpdates}; resume=${navigationRuntimeEvidence.resumeReconciliation}; offline-shell=${navigationRuntimeEvidence.offlineShell}`,
     blocker: "P45 standalone/update/resume/offline release matrix not certified",
   },
   {
@@ -476,7 +490,19 @@ const navigationRows: EvidenceRow[] = [
   { id: "N4", name: "shared visual progress", state: hasVisualProgress ? "implemented" : "missing", evidence: hasVisualProgress ? "Continuous visual/navigation progress detected" : "No shared progress authority detected" },
   { id: "N5", name: "direct lens interaction parity", state: hasPointerDrag ? "implemented" : "missing", evidence: hasPointerDrag ? "Direct pointer/lens interaction detected" : "Direct lens drag not integrated" },
   { id: "N6", name: "top-level page viewport", state: hasPageViewport ? "implemented" : "missing", evidence: hasPageViewport ? "Previous/current/next viewport implementation detected" : "No canonical page viewport implementation detected" },
-  { id: "N7", name: "gesture arbitration", state: hasPageViewport && sourceContains("src/components/v3/V3AppShell.tsx", /gesture|horizontal|carousel/i) ? "implemented" : "missing", evidence: "Global swipe must fail closed around nested gestures and iOS back edge" },
+  {
+    id: "N7",
+    name: "gesture arbitration",
+    state: navigationRuntimeEvidence.gestureArbitration,
+    evidence:
+      navigationRuntimeEvidence.gestureArbitration === "implemented"
+        ? "Canonical V3TopLevelSwipeSurface owns content, browser-edge, intent, route-policy and shell-interruption arbitration"
+        : "Canonical V3TopLevelSwipeSurface arbitration markers are incomplete",
+    blocker:
+      navigationRuntimeEvidence.gestureArbitration === "implemented"
+        ? undefined
+        : "Canonical gesture-arbitration implementation evidence is incomplete",
+  },
   { id: "N8", name: "whole-page direct manipulation", state: hasPageViewport && hasVisualProgress ? "implemented" : "missing", evidence: "Requires page viewport and shared visual progress" },
   { id: "N9", name: "release physics", state: hasVelocity ? "implemented" : "foundation", evidence: hasVelocity ? "Velocity-aware interaction physics detected" : "No candidate release-physics evidence" },
   { id: "N10", name: "tab memory", state: hasTabMemory ? "implemented" : "missing", evidence: hasTabMemory ? "Per-tab route/scroll memory implementation detected" : "Canonical per-tab memory not detected" },
@@ -497,16 +523,16 @@ const navigationAcceptanceRows: EvidenceRow[] = [
   { id: "edge-resistance", name: "edge resistance", state: hasLiquid && sourceContains(liquidTabBar, /rubber|edge/i) ? "implemented" : "missing", evidence: "First/last destination resistance" },
   { id: "scroll-compact", name: "scroll compact behavior", state: hasLiquid && sourceContains(liquidTabBar, /compact/) ? "implemented" : "foundation", evidence: "Expanded/compact morphology" },
   { id: "page-swipe", name: "page swipe", state: hasPageViewport && hasVisualProgress ? "implemented" : "missing", evidence: "Live-DOM previous/current/next page composition" },
-  { id: "gesture-arbitration", name: "gesture arbitration", state: navigationRows.find((row) => row.id === "N7")?.state ?? "missing", evidence: "Nested horizontal content, vertical scroll and iOS back edge must win when appropriate" },
+  { id: "gesture-arbitration", name: "gesture arbitration", state: navigationRuntimeEvidence.gestureArbitration, evidence: "Shared canonical swipe arbitration evidence from V3TopLevelSwipeSurface" },
   { id: "route-memory", name: "route memory", state: hasTabMemory ? "implemented" : "missing", evidence: "Per-tab route/filter/scroll restoration" },
   { id: "focused-task-shell", name: "focused task shell", state: existsSync("src/components/v3/V3FocusedTaskShell.tsx") ? "implemented" : "foundation", evidence: "Critical workflows must suppress distracting global navigation" },
   { id: "keyboard", name: "keyboard", state: hasLiquid && sourceContains(liquidTabBar, /visualViewport|keyboard/i) ? "implemented" : "foundation", evidence: "Virtual-keyboard/safe-area behavior" },
   { id: "accessibility", name: "accessibility", state: hasLiquid && hasReducedEffects ? "implemented" : "foundation", evidence: "Semantic links, target size, reduced motion/transparency and focus behavior" },
   { id: "responsive", name: "responsive behavior", state: existsSync("src/components/v3/V3AppShell.tsx") ? "implemented" : "foundation", evidence: "Shared V3 shell responsive behavior" },
-  { id: "standalone-pwa", name: "standalone PWA", state: sourceContains("src/components/v3/V3AppShell.tsx", /standalone|display-mode/) ? "implemented" : "foundation", evidence: "Standalone-specific shell behavior" },
-  { id: "safe-updates", name: "safe updates", state: existsSync("src/lib/v3-client-lifecycle.ts") ? "implemented" : "foundation", evidence: "Critical workflows must defer unsafe activation" },
-  { id: "resume", name: "resume reconciliation", state: existsSync("src/lib/v3-client-lifecycle.ts") ? "implemented" : "foundation", evidence: "Resume must refresh/reconcile canonical state" },
-  { id: "offline-shell", name: "offline shell", state: existsSync("public/sw.js") || existsSync("src/sw.ts") ? "foundation" : "missing", evidence: "Offline shell is not domain authority" },
+  { id: "standalone-pwa", name: "standalone PWA", state: navigationRuntimeEvidence.standalonePwa, evidence: "Current standalone/app-mode evidence is owned by AppRuntime" },
+  { id: "safe-updates", name: "safe updates", state: navigationRuntimeEvidence.safeUpdates, evidence: "Current service-worker update deferral/activation evidence is owned by AppRuntime" },
+  { id: "resume", name: "resume reconciliation", state: navigationRuntimeEvidence.resumeReconciliation, evidence: "Current app resume lifecycle and service-worker refresh evidence is owned by AppRuntime" },
+  { id: "offline-shell", name: "offline shell", state: navigationRuntimeEvidence.offlineShell, evidence: "Service-worker presence is foundation evidence only and is not domain authority" },
   { id: "performance", name: "performance", state: existsSync("scripts/check-client-bundle-budget.mjs") ? "tested" : "foundation", evidence: "Bundle budget exists; gesture/frame release measurements remain required" },
   { id: "visual-regression", name: "visual regression", state: existsSync(".github/workflows/browser-audit.yml") ? "foundation" : "missing", evidence: "Browser audit exists; exact navigation golden-set certification remains pending" },
 ];
